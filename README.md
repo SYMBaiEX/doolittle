@@ -980,7 +980,7 @@ Copy `.env.example` to `.env` and fill in what you need.
 |---|---|---|
 | `DOOLITTLE_NAME` | Runtime agent display name | `Doolittle` |
 | `DOOLITTLE_MODE` | `api`, `cli`, or `both` | `both` |
-| `DOOLITTLE_HOST` | Host for the Node API server | `0.0.0.0` |
+| `DOOLITTLE_HOST` | Host for the Node API server | `127.0.0.1` |
 | `DOOLITTLE_PORT` | Port for the Node API server | `3000` |
 | `DOOLITTLE_DATA_DIR` | Root directory for state, memories, and cron persistence | `.doolittle` |
 | `DOOLITTLE_SKILLS_DIR` | Directory scanned recursively for `SKILL.md` files | `./packages/skills` |
@@ -1283,7 +1283,7 @@ nub run test packages/agent/src/services/              # service unit tests
 nub run smoke:linked-providers                              # validate all providers
 nub run smoke:linked-providers -- --provider codex --live   # live request test
 nub run publish:providers:check                             # verify publish readiness
-nub run publish:providers -- --provider all                 # publish all
+nub run publish:providers -- --provider all --publish       # publish all
 nub run publish:providers:alpha                             # publish to alpha tag
 ```
 

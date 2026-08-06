@@ -41,6 +41,9 @@ describe("isApiRequestAuthorized", () => {
   it("requires a matching bearer token on a non-loopback bind", () => {
     const config = { host: "0.0.0.0", apiToken: "s3cret" };
     expect(isApiRequestAuthorized(config, request("Bearer s3cret"))).toBe(true);
+    expect(isApiRequestAuthorized(config, request("Bearer s3cre7"))).toBe(
+      false,
+    );
     expect(isApiRequestAuthorized(config, request("Bearer wrong"))).toBe(false);
     expect(isApiRequestAuthorized(config, request())).toBe(false);
     expect(isApiRequestAuthorized(config, request("s3cret"))).toBe(false);

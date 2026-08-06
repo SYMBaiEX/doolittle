@@ -1153,6 +1153,13 @@ th {
   box-shadow: 0 14px 42px color-mix(in srgb, var(--shadow) 24%, transparent);
 }
 
+.chat-composer:has(textarea:focus-visible) {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 38%, transparent),
+    0 14px 42px color-mix(in srgb, var(--shadow) 24%, transparent);
+}
+
 @media (max-width: 980px) {
   .settings-layout {
     grid-template-columns: 1fr;

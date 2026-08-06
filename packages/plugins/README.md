@@ -3,7 +3,7 @@
 This workspace mixes three different kinds of package-shaped code:
 
 - public provider bridges such as [`plugin-codex`](./plugin-codex) and [`plugin-claude-code`](./plugin-claude-code)
-- vendored compatibility packages kept local for the current ElizaOS alpha line
+- vendored compatibility packages kept local for the current ElizaOS beta line
 - internal adapters that expose Doolittle runtime services through plugin contracts
 
 ## Canonical Truth

@@ -133,6 +133,16 @@ afterEach(() => {
 });
 
 describe("publish-provider-packages", () => {
+  it("documents an explicit publish flag for the publishing command", () => {
+    const readme = readFileSync(join(process.cwd(), "README.md"), "utf8");
+    expect(readme).toContain(
+      "nub run publish:providers -- --provider all --publish       # publish all",
+    );
+    expect(readme).not.toContain(
+      "nub run publish:providers -- --provider all                 # publish all",
+    );
+  });
+
   it("keeps the workspace manifest source-resolvable while packing dist artifacts", () => {
     const root = buildPackageRoot();
     roots.push(root);

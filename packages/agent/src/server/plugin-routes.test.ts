@@ -39,6 +39,7 @@ describe("dispatchRuntimePluginRoute", () => {
     });
 
     expect(response?.status).toBe(201);
+    expect(response?.headers.get("access-control-allow-origin")).toBeNull();
     await expect(response?.json()).resolves.toEqual({
       body: { value: 7 },
       itemId: "item 1",

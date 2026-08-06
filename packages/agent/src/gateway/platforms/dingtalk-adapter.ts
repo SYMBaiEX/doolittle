@@ -12,6 +12,7 @@ import {
   type PlatformLifecycleEvent,
   trackTransportStart,
 } from "./base";
+import { fetchPlatform, readPlatformResponseText } from "./platform-http";
 
 export class DingtalkPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -104,7 +105,7 @@ export class DingtalkPlatformAdapter implements PlatformAdapter {
       this.config.dingtalkAccessToken && !baseUrl.includes("access_token=")
         ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}access_token=${encodeURIComponent(this.config.dingtalkAccessToken)}`
         : baseUrl;
-    const response = await fetch(url, {
+    const response = await fetchPlatform(url, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -118,7 +119,7 @@ export class DingtalkPlatformAdapter implements PlatformAdapter {
     });
 
     if (!response.ok) {
-      this.lastError = `DingTalk send failed (${response.status}): ${await response.text()}`;
+      this.lastError = `DingTalk send failed (${response.status}): ${await readPlatformResponseText(response)}`;
       this.lifecycle.record("error", this.lastError);
       throw new Error(this.lastError);
     }

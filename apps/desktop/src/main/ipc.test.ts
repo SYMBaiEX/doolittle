@@ -208,6 +208,12 @@ describe("parseApiPath", () => {
     expect(parseApiPath("/acp/tools?query=browser", "GET")).toBe(
       "/acp/tools?query=browser",
     );
+    expect(parseApiPath("/tools?profile=full", "GET")).toBe(
+      "/tools?profile=full",
+    );
+    expect(parseApiPath("/tools/summary?profile=coding", "GET")).toBe(
+      "/tools/summary?profile=coding",
+    );
     expect(
       parseApiPath(
         "/acp/session/updates?sessionId=acp%3Asession-1&cursor=12",
@@ -223,6 +229,12 @@ describe("parseApiPath", () => {
     expect(parseApiPath("/skills/proposals?limit=25", "GET")).toBe(
       "/skills/proposals?limit=25",
     );
+    expect(() => parseApiPath("/tools?profile=unknown", "GET")).toThrow(
+      /Unsupported query/,
+    );
+    expect(() =>
+      parseApiPath("/tools?profile=full&profile=minimal", "GET"),
+    ).toThrow(/Unsupported query/);
     expect(
       parseApiPath(
         "/skills/proposals/skill-proposal-12345678-1234-1234-1234-123456789abc",

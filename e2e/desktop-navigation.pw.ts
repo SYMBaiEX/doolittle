@@ -552,6 +552,7 @@ test.describe("Doolittle desktop navigation", () => {
           boxShadow: containerStyle.boxShadow,
           textareaBoxShadow: textareaStyle.boxShadow,
           textareaOutline: textareaStyle.outlineStyle,
+          textareaFocusVisible: element.matches(":focus-visible"),
         };
       });
       await composer.focus();
@@ -567,9 +568,17 @@ test.describe("Doolittle desktop navigation", () => {
           boxShadow: containerStyle.boxShadow,
           textareaBoxShadow: textareaStyle.boxShadow,
           textareaOutline: textareaStyle.outlineStyle,
+          textareaFocusVisible: element.matches(":focus-visible"),
         };
       });
-      expect(focusedComposerStyle).toEqual(restingComposerStyle);
+      expect(restingComposerStyle.textareaFocusVisible).toBe(false);
+      expect(focusedComposerStyle.textareaFocusVisible).toBe(true);
+      expect(focusedComposerStyle.borderColor).not.toBe(
+        restingComposerStyle.borderColor,
+      );
+      expect(focusedComposerStyle.boxShadow).not.toBe(
+        restingComposerStyle.boxShadow,
+      );
       expect(focusedComposerStyle.textareaBoxShadow).toBe("none");
       expect(focusedComposerStyle.textareaOutline).toBe("none");
       await composer.fill("Draft survives project switching");

@@ -335,6 +335,7 @@ const GATEWAY_TRACE_KINDS = [
   "reject",
   "lifecycle",
 ] as const;
+const TOOL_PROFILE_IDS = ["minimal", "coding", "messaging", "full"] as const;
 
 const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   GET: [
@@ -445,8 +446,18 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
       predicate: (pathname) =>
         matchesResourcePath(pathname, "/skills/proposals"),
     },
-    { exact: "/tools" },
-    { exact: "/tools/summary" },
+    {
+      exact: "/tools",
+      allowedQueries: ["profile"],
+      validateQuery: (query) =>
+        validateEnumQuery(query, "profile", TOOL_PROFILE_IDS),
+    },
+    {
+      exact: "/tools/summary",
+      allowedQueries: ["profile"],
+      validateQuery: (query) =>
+        validateEnumQuery(query, "profile", TOOL_PROFILE_IDS),
+    },
     { exact: "/acp/status" },
     { exact: "/acp/editor" },
     { exact: "/mcp/status" },

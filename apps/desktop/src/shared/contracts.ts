@@ -626,7 +626,9 @@ export type AllowedGetPath =
   | "/skills/catalog"
   | `/skills/catalog?${string}`
   | "/tools"
+  | `/tools?${string}`
   | "/tools/summary"
+  | `/tools/summary?${string}`
   | "/acp/status"
   | "/acp/editor"
   | `/acp/sessions?${string}`

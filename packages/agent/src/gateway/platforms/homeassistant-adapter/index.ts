@@ -7,6 +7,7 @@ import type {
   PlatformLifecycleEvent,
 } from "../base";
 import { MessagingPlatformState } from "../messaging-state";
+import { readPlatformResponseText } from "../platform-http";
 import {
   requireHomeAssistantConfig,
   sendHomeAssistantNotification,
@@ -98,7 +99,7 @@ export class HomeAssistantPlatformAdapter implements PlatformAdapter {
     );
     if (!response.ok) {
       this.state.fail(
-        `Home Assistant send failed (${response.status}): ${await response.text()}`,
+        `Home Assistant send failed (${response.status}): ${await readPlatformResponseText(response)}`,
       );
     }
 

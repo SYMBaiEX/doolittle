@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { OutboundPlatformMessage, PlatformName } from "@/types/gateway";
 import type { EnvConfig } from "@/types/runtime";
+import { fetchPlatform, readPlatformResponseText } from "../platform-http";
 
 type HomeAssistantConnection = {
   apiRoot: string;
@@ -30,7 +31,7 @@ export async function watchHomeAssistantStates(
   summary: string;
 }> {
   const watchedAt = new Date().toISOString();
-  const response = await fetch(`${connection.apiRoot}/api/states`, {
+  const response = await fetchPlatform(`${connection.apiRoot}/api/states`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${connection.token}`,
@@ -40,7 +41,7 @@ export async function watchHomeAssistantStates(
 
   if (!response.ok) {
     throw new Error(
-      `Home Assistant watch failed (${response.status}): ${await response.text()}`,
+      `Home Assistant watch failed (${response.status}): ${await readPlatformResponseText(response)}`,
     );
   }
 
@@ -64,23 +65,26 @@ export function sendHomeAssistantNotification(
   platform: PlatformName,
   message: OutboundPlatformMessage,
 ): Promise<Response> {
-  return fetch(`${connection.apiRoot}/api/services/notify/eliza_agent`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${connection.token}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      message: message.text,
-      title: platform,
-      data: {
-        channel: message.roomId,
-        user_id: message.userId,
-        thread_id: message.threadId,
-        reply_to_id: message.replyToId,
-        metadata: message.metadata,
-        event_id: randomUUID(),
+  return fetchPlatform(
+    `${connection.apiRoot}/api/services/notify/eliza_agent`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${connection.token}`,
+        "content-type": "application/json",
       },
-    }),
-  });
+      body: JSON.stringify({
+        message: message.text,
+        title: platform,
+        data: {
+          channel: message.roomId,
+          user_id: message.userId,
+          thread_id: message.threadId,
+          reply_to_id: message.replyToId,
+          metadata: message.metadata,
+          event_id: randomUUID(),
+        },
+      }),
+    },
+  );
 }

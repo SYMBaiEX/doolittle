@@ -1,5 +1,6 @@
 import { openAsBlob } from "node:fs";
 import type { OutboundPlatformMessage } from "@/types/gateway";
+import { fetchPlatform, readPlatformResponseText } from "../platform-http";
 
 const DISCORD_API_ROOT = "https://discord.com/api/v10";
 
@@ -21,18 +22,23 @@ export async function sendDiscordMessage(
         payload,
         voicePath,
       )
-    : await fetch(`${DISCORD_API_ROOT}/channels/${message.roomId}/messages`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bot ${botToken}`,
-          "content-type": "application/json",
+    : await fetchPlatform(
+        `${DISCORD_API_ROOT}/channels/${message.roomId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${botToken}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(payload),
         },
-        body: JSON.stringify(payload),
-      });
+      );
 
   return {
     response,
-    bodyText: await response.text(),
+    bodyText: response.ok
+      ? await response.text()
+      : await readPlatformResponseText(response),
   };
 }
 
@@ -42,7 +48,7 @@ export async function editDiscordMessage(
   messageId: string,
   payload: Record<string, string>,
 ): Promise<DiscordRequestResult> {
-  const response = await fetch(
+  const response = await fetchPlatform(
     `${DISCORD_API_ROOT}/channels/${channelId}/messages/${messageId}`,
     {
       method: "PATCH",
@@ -56,7 +62,9 @@ export async function editDiscordMessage(
 
   return {
     response,
-    bodyText: await response.text(),
+    bodyText: response.ok
+      ? await response.text()
+      : await readPlatformResponseText(response),
   };
 }
 
@@ -74,7 +82,7 @@ async function sendDiscordVoiceMessage(
     voicePath.split("/").at(-1),
   );
 
-  return fetch(`${DISCORD_API_ROOT}/channels/${roomId}/messages`, {
+  return fetchPlatform(`${DISCORD_API_ROOT}/channels/${roomId}/messages`, {
     method: "POST",
     headers: {
       Authorization: `Bot ${botToken}`,

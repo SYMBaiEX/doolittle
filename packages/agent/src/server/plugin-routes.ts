@@ -67,9 +67,6 @@ function iterableBody(
 
 function resultToResponse(result: RouteHandlerResult): Response {
   const headers = new Headers(result.headers ?? {});
-  if (!headers.has("access-control-allow-origin")) {
-    headers.set("access-control-allow-origin", "*");
-  }
   if (result.stream) {
     return new Response(iterableBody(result.stream), {
       status: result.status,

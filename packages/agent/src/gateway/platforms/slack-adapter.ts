@@ -12,6 +12,7 @@ import {
   type PlatformLifecycleEvent,
   trackTransportStart,
 } from "./base";
+import { fetchPlatform, readPlatformResponseText } from "./platform-http";
 
 export class SlackPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -116,14 +117,14 @@ export class SlackPlatformAdapter implements PlatformAdapter {
       payload.thread_ts = message.replyToId;
     }
 
-    const response = await fetch(this.config.slackWebhookUrl, {
+    const response = await fetchPlatform(this.config.slackWebhookUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-      this.lastError = `Slack send failed (${response.status}): ${await response.text()}`;
+      this.lastError = `Slack send failed (${response.status}): ${await readPlatformResponseText(response)}`;
       this.lifecycle.record("error", this.lastError);
       throw new Error(this.lastError);
     }

@@ -12,6 +12,7 @@ describe("SlackPlatformAdapter", () => {
       expect(init?.headers).toMatchObject({
         "content-type": "application/json",
       });
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
       const body = JSON.parse(String(init?.body ?? "{}")) as {
         text?: string;
         thread_ts?: string;
@@ -49,6 +50,29 @@ describe("SlackPlatformAdapter", () => {
       expect(health.sendCount).toBe(1);
       expect(health.lastDeliveryId).toBe(record.id);
       expect(health.lastOutboundMetadataKeys).toEqual(["source"]);
+    } finally {
+      restoreFetch();
+      cleanup();
+    }
+  });
+
+  it("caps upstream Slack error diagnostics", async () => {
+    const { delivery, cleanup } = createDeliveryRoot("slack-error-body");
+    const restoreFetch = installFetchMock(
+      async () => new Response("x".repeat(20_000), { status: 500 }),
+    );
+    const adapter = new SlackPlatformAdapter(
+      "slack",
+      {
+        slackWebhookUrl: "https://hooks.slack.test/service/webhook",
+      } as EnvConfig,
+      delivery,
+    );
+
+    try {
+      await expect(
+        adapter.send({ roomId: "room-1", userId: "user-1", text: "blocked" }),
+      ).rejects.toThrow("[response body truncated]");
     } finally {
       restoreFetch();
       cleanup();

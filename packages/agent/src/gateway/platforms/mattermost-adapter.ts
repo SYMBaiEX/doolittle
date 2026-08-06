@@ -13,6 +13,7 @@ import {
   type PlatformLifecycleEvent,
   trackTransportStart,
 } from "./base";
+import { fetchPlatform, readPlatformResponseText } from "./platform-http";
 
 export class MattermostPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -101,7 +102,7 @@ export class MattermostPlatformAdapter implements PlatformAdapter {
     }
 
     const url = `${this.config.mattermostUrl.replace(/\/$/u, "")}/api/v4/posts`;
-    const response = await fetch(url, {
+    const response = await fetchPlatform(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.config.mattermostToken}`,
@@ -119,7 +120,7 @@ export class MattermostPlatformAdapter implements PlatformAdapter {
     });
 
     if (!response.ok) {
-      this.lastError = `Mattermost send failed (${response.status}): ${await response.text()}`;
+      this.lastError = `Mattermost send failed (${response.status}): ${await readPlatformResponseText(response)}`;
       this.lifecycle.record("error", this.lastError);
       throw new Error(this.lastError);
     }

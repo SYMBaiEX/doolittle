@@ -108,5 +108,6 @@ export function isApiRequestAuthorized(
     // Non-loopback bind with no token configured — fail safe (deny all).
     return false;
   }
-  return extractBearerToken(request) === token;
+  const provided = extractBearerToken(request);
+  return provided ? tokenMatches(token, provided) : false;
 }

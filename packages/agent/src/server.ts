@@ -8,6 +8,7 @@ import { Readable } from "node:stream";
 import type { AppContext } from "@/runtime/bootstrap";
 import {
   isApiRequestAuthorized,
+  isLoopbackHost,
   isSdkTerminalRequestAuthorized,
 } from "@/server/auth";
 import { dispatchRuntimePluginRoute } from "@/server/plugin-routes";
@@ -31,6 +32,67 @@ export function publishElizaApiPort(
   env: NodeJS.ProcessEnv = process.env,
 ): void {
   env.ELIZA_PORT = String(port);
+}
+
+const CORS_ALLOW_METHODS = "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS";
+const CORS_ALLOW_HEADERS =
+  "Authorization, Content-Type, X-Eliza-Terminal-Token";
+
+interface RequestOriginPolicy {
+  allowed: boolean;
+  origin?: string;
+}
+
+/**
+ * Browsers can reach a loopback listener from arbitrary websites. Keep the
+ * terminal/no-Origin path intact, but only grant CORS to the listener itself
+ * or another loopback web origin.
+ */
+export function getRequestOriginPolicy(request: Request): RequestOriginPolicy {
+  const origin = request.headers.get("origin");
+  if (origin === null) return { allowed: true };
+  if (origin === "null") return { allowed: false };
+
+  let originUrl: URL;
+  try {
+    originUrl = new URL(origin);
+  } catch {
+    return { allowed: false };
+  }
+
+  if (
+    (originUrl.protocol !== "http:" && originUrl.protocol !== "https:") ||
+    origin !== originUrl.origin
+  ) {
+    return { allowed: false };
+  }
+
+  const requestUrl = new URL(request.url);
+  if (origin === requestUrl.origin) return { allowed: true, origin };
+  if (
+    isLoopbackHost(requestUrl.hostname) &&
+    isLoopbackHost(originUrl.hostname)
+  ) {
+    return { allowed: true, origin };
+  }
+  return { allowed: false };
+}
+
+export function applyRequestCors(
+  response: Response,
+  origin?: string,
+): Response {
+  if (!origin) return response;
+  response.headers.set("access-control-allow-origin", origin);
+  response.headers.set("access-control-allow-methods", CORS_ALLOW_METHODS);
+  response.headers.set("access-control-allow-headers", CORS_ALLOW_HEADERS);
+  const vary = response.headers.get("vary");
+  if (
+    !vary?.split(",").some((value) => value.trim().toLowerCase() === "origin")
+  ) {
+    response.headers.set("vary", vary ? `${vary}, Origin` : "Origin");
+  }
+  return response;
 }
 
 function toWebRequest(
@@ -101,16 +163,21 @@ export async function startApiServer(
   await closeActiveServer();
 
   const server = createServer(async (incoming, outgoing) => {
+    let allowedOrigin: string | undefined;
     try {
       const request = toWebRequest(incoming, address);
       const url = new URL(request.url);
+      const originPolicy = getRequestOriginPolicy(request);
+      allowedOrigin = originPolicy.origin;
       if (url.pathname === "/chat" || url.pathname === "/v1/responses") {
         incoming.setTimeout(0);
         outgoing.setTimeout(0);
       }
 
       let response: Response;
-      if (request.method === "OPTIONS") {
+      if (!originPolicy.allowed) {
+        response = json({ error: "Forbidden origin" }, 403);
+      } else if (request.method === "OPTIONS") {
         response = json({ ok: true });
       } else if (
         !(
@@ -144,19 +211,25 @@ export async function startApiServer(
           )) ??
           json({ error: "Not found" }, 404);
       }
-      await writeWebResponse(response, outgoing);
+      await writeWebResponse(
+        applyRequestCors(response, allowedOrigin),
+        outgoing,
+      );
     } catch (error) {
       if (outgoing.headersSent) {
         outgoing.destroy(error instanceof Error ? error : undefined);
         return;
       }
       await writeWebResponse(
-        json(
-          {
-            error: "Internal server error",
-            detail: error instanceof Error ? error.message : String(error),
-          },
-          500,
+        applyRequestCors(
+          json(
+            {
+              error: "Internal server error",
+              detail: error instanceof Error ? error.message : String(error),
+            },
+            500,
+          ),
+          allowedOrigin,
         ),
         outgoing,
       );

@@ -12,6 +12,7 @@ import {
   type PlatformLifecycleEvent,
   trackTransportStart,
 } from "./base";
+import { fetchPlatform, readPlatformResponseText } from "./platform-http";
 
 export class WhatsAppPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -121,7 +122,7 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
       payload.context = { message_id: message.replyToId };
     }
 
-    const response = await fetch(
+    const response = await fetchPlatform(
       `https://graph.facebook.com/v22.0/${this.config.whatsappPhoneNumberId}/messages`,
       {
         method: "POST",
@@ -134,7 +135,7 @@ export class WhatsAppPlatformAdapter implements PlatformAdapter {
     );
 
     if (!response.ok) {
-      this.lastError = `WhatsApp send failed (${response.status}): ${await response.text()}`;
+      this.lastError = `WhatsApp send failed (${response.status}): ${await readPlatformResponseText(response)}`;
       this.lifecycle.record("error", this.lastError);
       throw new Error(this.lastError);
     }

@@ -3,9 +3,6 @@ export function json(body: unknown, status = 200): Response {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "access-control-allow-origin": "*",
-      "access-control-allow-methods": "GET,POST,OPTIONS",
-      "access-control-allow-headers": "content-type",
     },
   });
 }
@@ -30,7 +27,6 @@ export function sse(events: Array<{ event: string; data: unknown }>): Response {
       "content-type": "text/event-stream; charset=utf-8",
       "cache-control": "no-cache",
       connection: "keep-alive",
-      "access-control-allow-origin": "*",
     },
   });
 }
@@ -85,7 +81,6 @@ export function streamSse(
         "content-type": "text/event-stream; charset=utf-8",
         "cache-control": "no-cache",
         connection: "keep-alive",
-        "access-control-allow-origin": "*",
       },
     },
   );

@@ -13,6 +13,7 @@ import {
   type PlatformLifecycleEvent,
   trackTransportStart,
 } from "./base";
+import { fetchPlatform, readPlatformResponseText } from "./platform-http";
 
 export class MatrixPlatformAdapter implements PlatformAdapter {
   private status: "idle" | "running" | "stopped" = "idle";
@@ -104,7 +105,7 @@ export class MatrixPlatformAdapter implements PlatformAdapter {
     const roomId = encodeURIComponent(message.roomId);
     const txnId = randomUUID();
     const url = `${this.config.matrixHomeserver.replace(/\/$/u, "")}/_matrix/client/v3/rooms/${roomId}/send/m.room.message/${txnId}`;
-    const response = await fetch(url, {
+    const response = await fetchPlatform(url, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${this.config.matrixAccessToken}`,
@@ -124,7 +125,7 @@ export class MatrixPlatformAdapter implements PlatformAdapter {
     });
 
     if (!response.ok) {
-      this.lastError = `Matrix send failed (${response.status}): ${await response.text()}`;
+      this.lastError = `Matrix send failed (${response.status}): ${await readPlatformResponseText(response)}`;
       this.lifecycle.record("error", this.lastError);
       throw new Error(this.lastError);
     }

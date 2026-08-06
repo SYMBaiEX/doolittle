@@ -16,10 +16,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Nub and Node
-        uses: nubjs/setup-nub@v0
+        uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
         with:
           nub-version: 0.6.0
           node-version-file: .node-version
@@ -179,7 +179,7 @@ jobs:
           }
 
       - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Doolittle-Windows-x64
           path: |
@@ -190,7 +190,7 @@ jobs:
 
       - name: Attach installer and update metadata to tagged release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: |
             apps/desktop/release/Doolittle-*-win-x64.exe
