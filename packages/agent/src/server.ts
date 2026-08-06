@@ -5,10 +5,15 @@ import {
   type ServerResponse,
 } from "node:http";
 import { Readable } from "node:stream";
+import {
+  ensureApiTokenForBindHost,
+  isAllowedHost,
+  isAuthorized,
+} from "@elizaos/agent/api/server-helpers-auth";
+import { syncResolvedApiPort } from "@elizaos/shared";
 import type { AppContext } from "@/runtime/bootstrap";
 import {
-  isApiRequestAuthorized,
-  isLoopbackHost,
+  applyDoolittleCors,
   isSdkTerminalRequestAuthorized,
 } from "@/server/auth";
 import { dispatchRuntimePluginRoute } from "@/server/plugin-routes";
@@ -26,74 +31,6 @@ export interface ApiServerAddress {
 }
 
 let activeApiServerInfo: ApiServerAddress | null = null;
-
-export function publishElizaApiPort(
-  port: number,
-  env: NodeJS.ProcessEnv = process.env,
-): void {
-  env.ELIZA_PORT = String(port);
-}
-
-const CORS_ALLOW_METHODS = "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS";
-const CORS_ALLOW_HEADERS =
-  "Authorization, Content-Type, X-Eliza-Terminal-Token";
-
-interface RequestOriginPolicy {
-  allowed: boolean;
-  origin?: string;
-}
-
-/**
- * Browsers can reach a loopback listener from arbitrary websites. Keep the
- * terminal/no-Origin path intact, but only grant CORS to the listener itself
- * or another loopback web origin.
- */
-export function getRequestOriginPolicy(request: Request): RequestOriginPolicy {
-  const origin = request.headers.get("origin");
-  if (origin === null) return { allowed: true };
-  if (origin === "null") return { allowed: false };
-
-  let originUrl: URL;
-  try {
-    originUrl = new URL(origin);
-  } catch {
-    return { allowed: false };
-  }
-
-  if (
-    (originUrl.protocol !== "http:" && originUrl.protocol !== "https:") ||
-    origin !== originUrl.origin
-  ) {
-    return { allowed: false };
-  }
-
-  const requestUrl = new URL(request.url);
-  if (origin === requestUrl.origin) return { allowed: true, origin };
-  if (
-    isLoopbackHost(requestUrl.hostname) &&
-    isLoopbackHost(originUrl.hostname)
-  ) {
-    return { allowed: true, origin };
-  }
-  return { allowed: false };
-}
-
-export function applyRequestCors(
-  response: Response,
-  origin?: string,
-): Response {
-  if (!origin) return response;
-  response.headers.set("access-control-allow-origin", origin);
-  response.headers.set("access-control-allow-methods", CORS_ALLOW_METHODS);
-  response.headers.set("access-control-allow-headers", CORS_ALLOW_HEADERS);
-  const vary = response.headers.get("vary");
-  if (
-    !vary?.split(",").some((value) => value.trim().toLowerCase() === "origin")
-  ) {
-    response.headers.set("vary", vary ? `${vary}, Origin` : "Origin");
-  }
-  return response;
-}
 
 function toWebRequest(
   incoming: IncomingMessage,
@@ -162,31 +99,45 @@ export async function startApiServer(
 
   await closeActiveServer();
 
+  // The actual listener configuration is authoritative for Eliza's native
+  // host, auth, and CORS helpers even when a caller constructs AppContext
+  // directly instead of going through loadConfig().
+  process.env.ELIZA_API_BIND = context.config.host;
+  ensureApiTokenForBindHost(context.config.host);
+
   const server = createServer(async (incoming, outgoing) => {
-    let allowedOrigin: string | undefined;
     try {
+      const requestPath = new URL(incoming.url ?? "/", "http://localhost")
+        .pathname;
+      if (!isAllowedHost(incoming)) {
+        await writeWebResponse(
+          json({ error: "Forbidden host" }, 403),
+          outgoing,
+        );
+        return;
+      }
+      if (!applyDoolittleCors(incoming, outgoing, requestPath)) {
+        await writeWebResponse(
+          json({ error: "Forbidden origin" }, 403),
+          outgoing,
+        );
+        return;
+      }
+
       const request = toWebRequest(incoming, address);
       const url = new URL(request.url);
-      const originPolicy = getRequestOriginPolicy(request);
-      allowedOrigin = originPolicy.origin;
       if (url.pathname === "/chat" || url.pathname === "/v1/responses") {
         incoming.setTimeout(0);
         outgoing.setTimeout(0);
       }
 
       let response: Response;
-      if (!originPolicy.allowed) {
-        response = json({ error: "Forbidden origin" }, 403);
-      } else if (request.method === "OPTIONS") {
+      const authorized =
+        isAuthorized(incoming) ||
+        isSdkTerminalRequestAuthorized(incoming, url.pathname);
+      if (request.method === "OPTIONS") {
         response = json({ ok: true });
-      } else if (
-        !(
-          isApiRequestAuthorized(
-            { host: context.config.host, apiToken: context.config.apiToken },
-            request,
-          ) || isSdkTerminalRequestAuthorized(request)
-        )
-      ) {
+      } else if (!authorized) {
         response = json({ error: "Unauthorized" }, 401);
       } else {
         response =
@@ -194,14 +145,7 @@ export async function startApiServer(
             runtime: context.runtime,
             request,
             url,
-            isAuthorized: () =>
-              isApiRequestAuthorized(
-                {
-                  host: context.config.host,
-                  apiToken: context.config.apiToken,
-                },
-                request,
-              ) || isSdkTerminalRequestAuthorized(request),
+            isAuthorized: () => authorized,
           })) ??
           (await dispatchRouteHandlers(
             context,
@@ -211,25 +155,19 @@ export async function startApiServer(
           )) ??
           json({ error: "Not found" }, 404);
       }
-      await writeWebResponse(
-        applyRequestCors(response, allowedOrigin),
-        outgoing,
-      );
+      await writeWebResponse(response, outgoing);
     } catch (error) {
       if (outgoing.headersSent) {
         outgoing.destroy(error instanceof Error ? error : undefined);
         return;
       }
       await writeWebResponse(
-        applyRequestCors(
-          json(
-            {
-              error: "Internal server error",
-              detail: error instanceof Error ? error.message : String(error),
-            },
-            500,
-          ),
-          allowedOrigin,
+        json(
+          {
+            error: "Internal server error",
+            detail: error instanceof Error ? error.message : String(error),
+          },
+          500,
         ),
         outgoing,
       );
@@ -255,10 +193,9 @@ export async function startApiServer(
   activeApiServerAddress = address;
   const host = context.config.host;
   const port = bound.port;
-  // Official Eliza actions resolve their in-process API target from
-  // ELIZA_PORT. Doolittle can bind to port 0, so publish the actual bound port
-  // only after Node has selected it.
-  publishElizaApiPort(port);
+  // Publish the operating-system-selected port through Eliza's canonical
+  // runtime environment contract.
+  syncResolvedApiPort(process.env, port);
   const serverInfo: ApiServerAddress = {
     host,
     port,

@@ -140,20 +140,24 @@ describe("getEffectiveMessagingTransportInventory", () => {
     const execution = getNativeExecutionControlPlane(runtime);
 
     expect(forms.available).toBe(true);
+    expect(forms.source).toBe("product-plugin");
     expect(forms.templates).toBe(2);
     expect(forms.forms.total).toBe(2);
     expect(forms.forms.active).toBe(1);
     expect(forms.persistenceAvailable).toBe(true);
     expect(planning.available).toBe(true);
+    expect(planning.source).toBe("product-plugin");
     expect(planning.actionPlanningAvailable).toBe(true);
     expect(planning.plans.total).toBe(2);
     expect(execution.e2b.available).toBe(true);
+    expect(execution.e2b.source).toBe("product-plugin");
     expect(execution.planning.available).toBe(true);
     expect(execution.planning.plans.total).toBe(2);
     expect(execution.e2b.sandboxes).toBe(1);
     expect(execution.agentEvents.available).toBe(true);
     expect(execution.agentEvents.lastHeartbeatStatus).toBe("thinking");
     expect(execution.codeGeneration.available).toBe(true);
+    expect(execution.codeGeneration.source).toBe("product-plugin");
     expect(execution.codeGeneration.ready).toBe(true);
     expect(execution.codeGeneration.methods).toContain("generateCode");
     expect(execution.github.available).toBe(true);
@@ -824,7 +828,9 @@ describe("getEffectiveMessagingTransportInventory", () => {
       "anthropic/claude-haiku-4-5-20251001",
     );
     expect(controlPlane.media.tts.available).toBe(true);
+    expect(controlPlane.research.actionBench.source).toBe("product-plugin");
     expect(controlPlane.research.actionBench.actions).toBeGreaterThan(0);
+    expect(controlPlane.research.autocoder.source).toBe("product-plugin");
     expect(controlPlane.research.autocoder.ready).toBe(false);
     expect(controlPlane.totals.nativeServices).toBe(5);
   });

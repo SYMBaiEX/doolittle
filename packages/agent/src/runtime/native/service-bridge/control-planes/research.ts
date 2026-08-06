@@ -21,7 +21,7 @@ export function getNativeResearchControlPlane(runtime: RuntimeLike) {
 
   return {
     actionBench: {
-      source: "native-plugin" as const,
+      source: "product-plugin" as const,
       available: true,
       actions: benchmarkConfig.totalActionsLoaded,
       suites: {
@@ -29,20 +29,20 @@ export function getNativeResearchControlPlane(runtime: RuntimeLike) {
         multiverseMath: benchmarkConfig.multiverseMathEnabled,
         relationalData: benchmarkConfig.relationalDataEnabled,
       },
-      detail: `Official action-bench plugin is loaded with ${benchmarkConfig.totalActionsLoaded} benchmark actions.`,
+      detail: `Doolittle's action-bench plugin is loaded through the Eliza runtime with ${benchmarkConfig.totalActionsLoaded} benchmark actions.`,
     },
     autocoder: {
-      source: "native-plugin" as const,
+      source: "product-plugin" as const,
       available: true,
       ready: autocoderReady,
       capability:
         native.codeGeneration?.capabilityDescription ??
-        "Generates ElizaOS projects through native autocoder services when dependencies are present.",
+        "Produces experimental ElizaOS project plans through Doolittle autocoder services when dependencies are present.",
       methods: executionControl.codeGeneration.methods,
       dependencies: autocoderDependencies,
       detail: autocoderReady
-        ? "Official autocoder runtime services are available."
-        : "Official autocoder plugin is installed, but code-generation readiness still depends on e2b/forms-backed runtime services.",
+        ? "Doolittle autocoder planning services and their runtime dependencies are available."
+        : "Doolittle's experimental autocoder plugin is installed, but planning readiness still depends on E2B and forms services.",
     },
   };
 }

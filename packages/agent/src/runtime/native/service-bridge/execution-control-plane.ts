@@ -29,11 +29,11 @@ export function getNativeE2BSandboxControlPlane(runtime: RuntimeLike) {
   const activeSandboxId = sandboxes[0]?.id;
 
   return {
-    source: e2b ? ("native-plugin" as const) : ("unavailable" as const),
+    source: e2b ? ("product-plugin" as const) : ("unavailable" as const),
     available: Boolean(e2b),
     capability:
       e2b?.capabilityDescription ??
-      "Local E2B-style sandbox execution for native code generation flows.",
+      "Local E2B-style sandbox execution for Doolittle planning flows.",
     sandboxes: sandboxes.length,
     activeSandboxId,
     sandboxRoot: getSandboxRoot(sandboxes),

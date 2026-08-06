@@ -18,9 +18,11 @@ Doolittle is terminal-first and **local-first**:
 
 - The HTTP API binds to **loopback (`127.0.0.1`) by default**, so it is reachable
   only from the local machine.
-- Exposing the API on a non-loopback interface (e.g. `DOOLITTLE_HOST=0.0.0.0`)
-  **requires** a bearer token via `DOOLITTLE_API_TOKEN`. Without a token, a
-  non-loopback bind rejects every request — the API is never silently exposed.
+- Exposing the API on a non-loopback interface (e.g. `ELIZA_API_BIND=0.0.0.0`)
+  **requires** a bearer token via `ELIZA_API_TOKEN`. Eliza generates a temporary
+  process token when one is omitted, so the API is never silently exposed.
+- Eliza's native HTTP policy enforces timing-safe authorization, loopback trust,
+  DNS-rebinding host checks, origin allowlisting, and terminal-token isolation.
 - Context files (`AGENTS.md`, `SOUL.md`, …) and tool inputs pass through a
   prompt-injection scanner before reaching the model.
 - Credentials and secrets are stored under the data directory and are not
@@ -28,8 +30,8 @@ Doolittle is terminal-first and **local-first**:
 
 ## Hardening checklist for operators
 
-- Keep `DOOLITTLE_HOST=127.0.0.1` unless you intentionally need remote access.
-- If you set a non-loopback host, set a long random `DOOLITTLE_API_TOKEN` and put
+- Keep `ELIZA_API_BIND=127.0.0.1` unless you intentionally need remote access.
+- If you set a non-loopback host, set a long random `ELIZA_API_TOKEN` and put
   the API behind TLS / a reverse proxy.
 - Treat the workspace directory and `.env` as sensitive — they hold credentials.
 - Review actions that execute shell commands; approval gates apply to non-CLI

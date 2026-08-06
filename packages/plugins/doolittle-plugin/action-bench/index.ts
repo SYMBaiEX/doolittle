@@ -55,7 +55,7 @@ export const benchmarkConfig = {
 export const actionBenchPlugin: Plugin = {
   name: "@doolittle/plugin-action-bench",
   description:
-    "Workspace-native benchmark plugin exposing action-bench pack coverage on the Doolittle runtime line.",
+    "Doolittle-owned Eliza benchmark plugin exposing action-bench pack coverage.",
   services: [],
   providers: [],
   evaluators: [],

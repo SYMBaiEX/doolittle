@@ -56,8 +56,8 @@ export function buildBackendEnvironment(
     ...baseEnvironment,
     PATH: providerPath,
     DOOLITTLE_REPO_ROOT: repoRoot,
-    DOOLITTLE_HOST: "127.0.0.1",
-    DOOLITTLE_PORT: "0",
+    ELIZA_API_BIND: "127.0.0.1",
+    ELIZA_API_PORT: "0",
     DOOLITTLE_MODE: "api",
     DOOLITTLE_DESKTOP_RUNTIME: "1",
     DOOLITTLE_OFFLINE_BOOTSTRAP:

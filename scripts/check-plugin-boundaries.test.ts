@@ -24,6 +24,8 @@ function createBoundaryFixture(options: {
   includeShadowSkillCatalog?: boolean;
   includeManualRuntimeShutdown?: boolean;
   includeHostApplicationImport?: boolean;
+  includeCustomServerSecurity?: boolean;
+  includeCustomCloudNormalization?: boolean;
 }): string {
   const root = mkdtempSync(join(tmpdir(), "doolittle-boundary-"));
 
@@ -32,6 +34,7 @@ function createBoundaryFixture(options: {
     join(packagesDir, "plugins"),
     join(packagesDir, "plugins", "plugin-dummy"),
     join(packagesDir, "agent", "src", "services"),
+    join(packagesDir, "agent", "src", "server"),
     join(packagesDir, "agent", "src", "gateway"),
     join(
       packagesDir,
@@ -46,7 +49,7 @@ function createBoundaryFixture(options: {
     join(packagesDir, "agent", "src", "runtime", "native"),
     join(packagesDir, "agent", "src", "actions"),
     join(packagesDir, "contracts", "src"),
-    join(root, "scripts", "bootstrap"),
+    join(root, "scripts", "bootstrap", "provider"),
   ];
 
   for (const dir of requiredDirs) {
@@ -58,6 +61,22 @@ function createBoundaryFixture(options: {
     options.includeUnownedModelPrompt
       ? "export async function run(runtime: { useModel(type: string, params: unknown): Promise<unknown> }) { return runtime.useModel('TEXT_LARGE', { prompt: 'ad hoc' }); }\n"
       : 'export const action = "no-owned-model-call";\n',
+    "utf8",
+  );
+
+  writeFileSync(
+    join(packagesDir, "agent", "src", "server", "auth.ts"),
+    options.includeCustomServerSecurity
+      ? 'import { timingSafeEqual } from "node:crypto";\nexport const compare = timingSafeEqual;\n'
+      : 'export { isAuthorized } from "@elizaos/agent/api/server-helpers-auth";\n',
+    "utf8",
+  );
+
+  writeFileSync(
+    join(root, "scripts", "bootstrap", "provider", "cloud-compat.ts"),
+    options.includeCustomCloudNormalization
+      ? "export function normalizeCloudSiteUrl(value: string) { return value; }\n"
+      : 'export { normalizeCloudSiteUrl } from "@elizaos/shared/elizacloud/base-url";\n',
     "utf8",
   );
 
@@ -250,5 +269,29 @@ describe("check-plugin-boundaries", () => {
     expect(result.stderr).toContain(
       "runtime/bootstrap/runtime/initialization.ts",
     );
+  });
+
+  it("rejects custom API security policy in the server adapter", () => {
+    fixture = createBoundaryFixture({ includeCustomServerSecurity: true });
+    const result = runScript(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "reimplements Eliza API authentication, origin, host, or runtime-port policy",
+    );
+    expect(result.stderr).toContain("server/auth.ts");
+  });
+
+  it("rejects custom Eliza Cloud URL normalization", () => {
+    fixture = createBoundaryFixture({
+      includeCustomCloudNormalization: true,
+    });
+    const result = runScript(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "reimplements Eliza Cloud URL normalization",
+    );
+    expect(result.stderr).toContain("provider/cloud-compat.ts");
   });
 });

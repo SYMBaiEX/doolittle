@@ -14,7 +14,7 @@ export function createAutocoderPlugin(options: AutocoderPluginOptions): Plugin {
   return {
     name: "@doolittle/plugin-autocoder",
     description:
-      "Workspace-native autocoder plugin with experimental planning, research, GitHub, and secrets services.",
+      "Doolittle-owned Eliza plugin with experimental planning, research, GitHub, and secrets services.",
     services: [CodeGenerationService, GitHubService, SecretsManagerService],
     actions: [],
     providers: [],

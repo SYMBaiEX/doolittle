@@ -4,9 +4,10 @@ import { resolveCloudApiBaseUrl } from "@/runtime/linked-provider-accounts/cloud
 export const envSchema = z.object({
   DOOLITTLE_NAME: z.string().default("Doolittle"),
   DOOLITTLE_MODE: z.enum(["api", "cli", "both"]).default("both"),
+  ELIZA_API_BIND: z.string().optional(),
+  ELIZA_API_PORT: z.coerce.number().int().nonnegative().optional(),
   DOOLITTLE_HOST: z.string().default("127.0.0.1"),
   DOOLITTLE_PORT: z.coerce.number().int().nonnegative().default(3000),
-  DOOLITTLE_API_TOKEN: z.string().optional(),
   DOOLITTLE_DATA_DIR: z.string().default(".doolittle"),
   DOOLITTLE_SKILLS_DIR: z.string().default("./packages/skills"),
   DOOLITTLE_TIMEZONE: z.string().default("America/Chicago"),

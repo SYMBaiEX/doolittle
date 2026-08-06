@@ -73,12 +73,12 @@ export function getNativeExecutionControlPlaneDetails(
     planning: planningControl,
     codeGeneration: {
       source: native.codeGeneration
-        ? ("native-plugin" as const)
+        ? ("product-plugin" as const)
         : ("unavailable" as const),
       available: Boolean(native.codeGeneration),
       capability:
         native.codeGeneration?.capabilityDescription ??
-        "Native code generation and autocoder workflows.",
+        "Doolittle experimental autocoder planning workflows.",
       methods: codeGenerationMethods,
       ready:
         Boolean(native.codeGeneration) &&
@@ -100,7 +100,7 @@ export function getNativeExecutionControlPlaneDetails(
       available: Boolean(native.secretsManager),
       capability:
         native.secretsManager?.capabilityDescription ??
-        "Secrets management for native autocoder and deployment flows.",
+        "Secrets management for Doolittle autocoder and deployment flows.",
       keys: secretKeys,
       hasListKeys: typeof native.secretsManager?.listSecretKeys === "function",
       hasRead: typeof native.secretsManager?.getSecret === "function",

@@ -211,8 +211,8 @@ Packaged applications instead launch the bundled
 `ELECTRON_RUN_AS_NODE=1`, so the installed application uses Electron's embedded
 Node and has no external runtime dependency.
 
-It supplies `DOOLITTLE_MODE=api`, `DOOLITTLE_HOST=127.0.0.1`, and
-`DOOLITTLE_PORT=0`. Its PGLite, Doolittle, cron, gateway, and hooks directories
+It supplies `DOOLITTLE_MODE=api`, `ELIZA_API_BIND=127.0.0.1`, and
+`ELIZA_API_PORT=0`. Its PGLite, Doolittle, cron, gateway, and hooks directories
 live under the Electron application data directory, so desktop startup cannot
 migrate or lock mutable CLI data from the checkout. The workspace and skills
 roots point at the checked-out or packaged runtime so agent tools can do useful

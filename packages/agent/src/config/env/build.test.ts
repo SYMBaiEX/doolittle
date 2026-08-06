@@ -53,6 +53,20 @@ describe("env config builder", () => {
     expect(config.port).toBe(0);
   });
 
+  it("prefers Eliza's canonical API bind over the legacy product alias", () => {
+    const values = parseEnv({
+      ELIZA_API_BIND: "0.0.0.0",
+      ELIZA_API_PORT: "4312",
+      DOOLITTLE_HOST: "127.0.0.1",
+      DOOLITTLE_PORT: "3000",
+    });
+
+    expect(buildEnvConfig(values, directories)).toMatchObject({
+      host: "0.0.0.0",
+      port: 4312,
+    });
+  });
+
   it("uses a signed-in Claude CLI by default while preserving an explicit opt-out", () => {
     expect(
       buildEnvConfig(parseEnv({}), directories).claudeCodeCliFallback,

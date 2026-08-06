@@ -160,6 +160,9 @@ importers:
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(38848ba2a61ead8453d6f119026c50a1)
+      '@elizaos/shared':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.1)(pg@8.22.0)
       '@xterm/addon-fit':
         specifier: 0.10.0
         version: 0.10.0(@xterm/xterm@5.5.0)

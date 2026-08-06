@@ -72,18 +72,18 @@ export interface AutonomousControlPlaneSummary {
   };
   research: {
     actionBench: {
-      source: "native-plugin";
+      source: "product-plugin";
       available: boolean;
       actions: number;
     };
     autocoder: {
-      source: "native-plugin";
+      source: "product-plugin";
       available: boolean;
       ready: boolean;
     };
   };
   forms: {
-    source: "native" | "unavailable";
+    source: "product-plugin" | "unavailable";
     available: boolean;
     total: number;
     templates: number;
@@ -102,7 +102,7 @@ export interface AutonomousControlPlaneSummary {
       lastHeartbeatStatus: string | null;
     };
     e2b: {
-      source: "native" | "unavailable";
+      source: "product-plugin" | "unavailable";
       available: boolean;
       sandboxes: number;
     };
@@ -115,13 +115,13 @@ export interface AutonomousControlPlaneSummary {
       fullAllowed: number;
     };
     planning: {
-      source: "native" | "unavailable";
+      source: "native" | "product-plugin" | "unavailable";
       available: boolean;
       operatorPlanningAvailable: boolean;
       plans: number;
     };
     codeGeneration: {
-      source: "native" | "unavailable";
+      source: "product-plugin" | "unavailable";
       available: boolean;
       ready: boolean;
     };

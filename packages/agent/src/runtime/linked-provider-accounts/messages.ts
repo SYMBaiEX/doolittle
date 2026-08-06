@@ -8,63 +8,7 @@ import { resolveCloudApiBaseUrl } from "./cloud-url";
 export const ELIZA_CLOUD_BILLING_URL =
   "https://www.elizacloud.ai/dashboard/settings?tab=billing";
 
-const LEGACY_ELIZA_CLOUD_HOST_ALIASES = new Set([
-  "elizacloud.ai",
-  "www.elizacloud.ai",
-]);
-
-function isLoopbackHost(hostname: string): boolean {
-  const normalized = hostname.toLowerCase();
-  return (
-    normalized === "localhost" ||
-    normalized === "::1" ||
-    normalized === "0:0:0:0:0:0:0:1" ||
-    normalized.startsWith("127.")
-  );
-}
-
-function trimApiPath(pathname: string): string {
-  const normalized = pathname.trim().replace(/\/+$/, "");
-  if (!normalized || normalized === "/api/v1") {
-    return "";
-  }
-  if (normalized.endsWith("/api/v1")) {
-    return normalized.slice(0, -"/api/v1".length);
-  }
-  return normalized;
-}
-
-function normalizeExplicitElizaCloudSiteUrl(raw: string): string {
-  try {
-    const parsed = new URL(raw);
-    const host = parsed.hostname.toLowerCase();
-    parsed.hash = "";
-    parsed.search = "";
-    parsed.pathname = trimApiPath(parsed.pathname);
-    if (!isLoopbackHost(host)) {
-      parsed.protocol = "https:";
-      parsed.port = "";
-    }
-    if (LEGACY_ELIZA_CLOUD_HOST_ALIASES.has(host)) {
-      parsed.hostname = "www.elizacloud.ai";
-      parsed.pathname = "";
-    }
-    return parsed.toString().replace(/\/{1,1024}$/, "");
-  } catch {
-    const safeCandidate = raw.length > 8192 ? raw.slice(0, 8192) : raw;
-    return safeCandidate
-      .replace(/\/api\/v1\/?$/, "")
-      .replace(/\/{1,1024}$/, "");
-  }
-}
-
-export function normalizeElizaCloudBaseUrl(raw?: string): string {
-  const explicitBaseUrl = raw?.trim();
-  if (!explicitBaseUrl) {
-    return resolveCloudApiBaseUrl();
-  }
-  return `${normalizeExplicitElizaCloudSiteUrl(explicitBaseUrl)}/api/v1`;
-}
+export const normalizeElizaCloudBaseUrl = resolveCloudApiBaseUrl;
 
 export function buildProviderNoResponseMessage(
   provider: string,

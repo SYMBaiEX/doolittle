@@ -131,8 +131,8 @@ const applyE2eEnv = () => {
   process.env.PATH = supportDir + ":" + (process.env.PATH ?? "");
   process.env.DOOLITTLE_NAME = "Doolittle E2E";
   process.env.DOOLITTLE_MODE = "api";
-  process.env.DOOLITTLE_HOST = "127.0.0.1";
-  process.env.DOOLITTLE_PORT = String(runtimePort);
+  process.env.ELIZA_API_BIND = "127.0.0.1";
+  process.env.ELIZA_API_PORT = String(runtimePort);
   process.env.DOOLITTLE_DATA_DIR = dataDir;
   process.env.DOOLITTLE_OFFLINE_BOOTSTRAP = "true";
   process.env.DOOLITTLE_BROWSER_PROVIDER = "lightpanda";

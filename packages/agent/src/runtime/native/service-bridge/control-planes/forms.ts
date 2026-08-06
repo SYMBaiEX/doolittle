@@ -10,11 +10,11 @@ export function getNativeFormsControlPlane(runtime: RuntimeLike) {
   const persistenceAvailable = forms?.isPersistenceAvailable?.() ?? false;
 
   return {
-    source: forms ? ("native-plugin" as const) : ("unavailable" as const),
+    source: forms ? ("product-plugin" as const) : ("unavailable" as const),
     available: Boolean(forms),
     capability:
       forms?.capabilityDescription ??
-      "Structured form workflows for native autocoder and operator collection flows.",
+      "Structured form workflows for Doolittle planning and operator collection flows.",
     persistenceAvailable,
     templates,
     forms: {
@@ -26,6 +26,6 @@ export function getNativeFormsControlPlane(runtime: RuntimeLike) {
     supportsForcePersist: typeof forms?.forcePersist === "function",
     detail: forms
       ? `Forms service is live with ${templates} templates and ${formEntries.length} tracked forms.`
-      : "Forms service is not available in the native runtime.",
+      : "Doolittle forms service is not available in the Eliza runtime.",
   };
 }

@@ -1,4 +1,4 @@
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+import { isLoopbackBindHost } from "@elizaos/shared";
 
 export function trustedDevRendererUrl(
   configuredUrl: string | undefined,
@@ -7,7 +7,7 @@ export function trustedDevRendererUrl(
   if (isPackaged || !configuredUrl?.trim()) return undefined;
   try {
     const parsed = new URL(configuredUrl);
-    if (parsed.protocol !== "http:" || !LOOPBACK_HOSTS.has(parsed.hostname)) {
+    if (parsed.protocol !== "http:" || !isLoopbackBindHost(parsed.hostname)) {
       return undefined;
     }
     return parsed.origin;

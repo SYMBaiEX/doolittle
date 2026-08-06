@@ -13,12 +13,12 @@ export function getNativePlanningControlPlane(
   const linkedWorkflows = countEntriesWithKey(plans, "workflowId");
 
   return {
-    source: planning ? ("native-plugin" as const) : ("unavailable" as const),
+    source: planning ? ("product-plugin" as const) : ("unavailable" as const),
     available: Boolean(planning),
     actionPlanningAvailable: Boolean(actionPlanning),
     capability:
       planning?.capabilityDescription ??
-      "Native planning service for execution plans linked to delegation tasks and workflow graphs.",
+      "Doolittle planning service for execution plans linked to Eliza delegation tasks and workflow graphs.",
     plans: {
       total: plans.length,
       linkedTasks,

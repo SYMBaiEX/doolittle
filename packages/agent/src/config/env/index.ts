@@ -1,4 +1,6 @@
+import { syncElizaEnvAliases } from "@elizaos/shared";
 import type { EnvConfig } from "@/types/runtime";
+import { stageLegacyApiAliases } from "./aliases";
 import { buildEnvConfig } from "./build";
 import {
   prepareManagedDirectories,
@@ -11,6 +13,11 @@ import { parseEnv } from "./schema";
 const repoRoot = getDefaultRepoRoot();
 
 loadProcessEnv(repoRoot);
+
+// Preserve the original Doolittle names as input-only compatibility aliases;
+// Eliza's canonical environment becomes authoritative after this boundary.
+stageLegacyApiAliases(process.env);
+syncElizaEnvAliases({ brandedPrefix: "DOOLITTLE" });
 
 export function loadConfig(): EnvConfig {
   const values = parseEnv(process.env);

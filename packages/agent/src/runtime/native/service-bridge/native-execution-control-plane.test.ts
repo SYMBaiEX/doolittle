@@ -107,7 +107,7 @@ describe("native execution control plane", () => {
     );
 
     const control = getNativeExecutionControlPlaneDetails(runtime, {
-      source: "native-plugin",
+      source: "product-plugin",
       available: true,
       actionPlanningAvailable: true,
       capability: "Planning available",
@@ -129,6 +129,7 @@ describe("native execution control plane", () => {
       selectionHandling: true,
     });
     expect(control.e2b.available).toBe(true);
+    expect(control.e2b.source).toBe("product-plugin");
     expect(control.e2b.sandboxes).toBe(1);
     expect(control.e2b.activeSandboxId).toBe("sandbox-1");
     expect(control.e2b.sandboxRoot).toBe("/sandboxes");
@@ -138,6 +139,7 @@ describe("native execution control plane", () => {
     expect(control.toolPolicy.messagingAllowed).toBe(1);
     expect(control.toolPolicy.fullAllowed).toBe(3);
     expect(control.codeGeneration.available).toBe(true);
+    expect(control.codeGeneration.source).toBe("product-plugin");
     expect(control.codeGeneration.ready).toBe(true);
     expect(control.codeGeneration.methods).toEqual([
       "performResearch",

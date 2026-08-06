@@ -44,9 +44,8 @@ export function buildEnvConfig(
   return {
     agentName: values.DOOLITTLE_NAME,
     mode: values.DOOLITTLE_MODE,
-    host: values.DOOLITTLE_HOST,
-    port: values.DOOLITTLE_PORT,
-    apiToken: values.DOOLITTLE_API_TOKEN,
+    host: values.ELIZA_API_BIND ?? values.DOOLITTLE_HOST,
+    port: values.ELIZA_API_PORT ?? values.DOOLITTLE_PORT,
     dataDir: directories.dataDir,
     skillsDir: directories.skillsDir,
     timezone: values.DOOLITTLE_TIMEZONE,

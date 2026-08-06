@@ -41,46 +41,46 @@ export const TOOL_CATALOG: readonly ToolDefinition[] = [
   },
   {
     id: "forms.native",
-    name: "Native Forms",
+    name: "Doolittle Forms",
     category: "runtime",
     description:
-      "Inspect, create, and manage native Eliza forms through the runtime forms service.",
+      "Inspect, create, and manage Doolittle forms through their Eliza runtime service.",
     enabled: true,
     transport: "service",
   },
   {
     id: "e2b.native",
-    name: "Native E2B",
+    name: "Doolittle Local Sandbox",
     category: "runtime",
     description:
-      "Create, inspect, and execute native E2B sandboxes through the runtime execution service.",
+      "Create, inspect, and execute Doolittle's E2B-style local sandboxes through the Eliza runtime.",
     enabled: true,
     transport: "service",
   },
   {
     id: "codegen.native",
-    name: "Native Code Generation",
+    name: "Doolittle Code Planning",
     category: "runtime",
     description:
-      "Invoke native code generation, GitHub, and secrets-backed autocoder workflows.",
+      "Invoke Doolittle's experimental planning, GitHub, and secrets-backed autocoder workflows.",
     enabled: true,
     transport: "service",
   },
   {
     id: "github.native",
-    name: "Native GitHub",
+    name: "Doolittle Autocoder GitHub",
     category: "runtime",
     description:
-      "Manage native autocoder GitHub repository creation and deletion.",
+      "Manage GitHub repository creation and deletion for Doolittle autocoder workflows.",
     enabled: true,
     transport: "service",
   },
   {
     id: "secrets.native",
-    name: "Native Secrets",
+    name: "Doolittle Autocoder Secrets",
     category: "runtime",
     description:
-      "Inspect and manage native secrets-manager keys for autocoder workflows.",
+      "Inspect and manage secrets-manager keys for Doolittle autocoder workflows.",
     enabled: true,
     transport: "service",
   },

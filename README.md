@@ -980,11 +980,15 @@ Copy `.env.example` to `.env` and fill in what you need.
 |---|---|---|
 | `DOOLITTLE_NAME` | Runtime agent display name | `Doolittle` |
 | `DOOLITTLE_MODE` | `api`, `cli`, or `both` | `both` |
-| `DOOLITTLE_HOST` | Host for the Node API server | `127.0.0.1` |
-| `DOOLITTLE_PORT` | Port for the Node API server | `3000` |
+| `ELIZA_API_BIND` | Host for the Node API server | `127.0.0.1` |
+| `ELIZA_API_PORT` | Port for the Node API server | `3000` |
+| `ELIZA_API_TOKEN` | Bearer token for non-loopback API access; Eliza creates a temporary process token when needed | unset |
 | `DOOLITTLE_DATA_DIR` | Root directory for state, memories, and cron persistence | `.doolittle` |
 | `DOOLITTLE_SKILLS_DIR` | Directory scanned recursively for `SKILL.md` files | `./packages/skills` |
 | `DOOLITTLE_TIMEZONE` | Default timezone for scheduling context | `America/Chicago` |
+
+Legacy `DOOLITTLE_HOST`, `DOOLITTLE_PORT`, and `DOOLITTLE_API_TOKEN` values are
+accepted as input aliases and normalized to the Eliza API environment at boot.
 
 ### Agentic loop
 

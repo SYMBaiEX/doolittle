@@ -70,6 +70,18 @@ const INTERNAL_FACADE_GUARDS: Array<{
     ],
   },
   {
+    root: AGENT_SRC_ROOT,
+    include: /packages\/agent\/src\/(?:server\/auth|server)\.ts$/u,
+    patterns: [
+      {
+        pattern:
+          /\btimingSafeEqual\b|function\s+(?:extractBearerToken|isLoopbackHost|isApiRequestAuthorized|getRequestOriginPolicy|applyRequestCors|publishElizaApiPort)\b/u,
+        reason:
+          "reimplements Eliza API authentication, origin, host, or runtime-port policy instead of using the public SDK helpers",
+      },
+    ],
+  },
+  {
     root: SERVICES_ROOT,
     include: /packages\/agent\/src\/services\/.+\.(?:[cm]?ts|tsx)$/u,
     patterns: [
@@ -284,6 +296,17 @@ const INTERNAL_FACADE_GUARDS: Array<{
           /^\s*import(?:\s+type)?[\s\S]*?from\s+["'](?:\.\.\/)+(?:\.\.\/)+packages\/agent\/src\/runtime\/native\/account-auth["']/mu,
         reason:
           "imports bootstrap account-auth types through a non-canonical agent path",
+      },
+    ],
+  },
+  {
+    root: BOOTSTRAP_SCRIPTS_ROOT,
+    include: /scripts\/bootstrap\/provider\/cloud-compat\.ts$/u,
+    patterns: [
+      {
+        pattern: /function\s+normalizeCloudSiteUrl\b/u,
+        reason:
+          "reimplements Eliza Cloud URL normalization instead of using the public SDK helper",
       },
     ],
   },

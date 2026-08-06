@@ -10,7 +10,7 @@ export const RESEARCH_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
     maturity: "alpha",
     enablement: "always",
     notes:
-      "Workspace-native benchmark plugin for evaluation and coverage drills.",
+      "Doolittle-owned Eliza benchmark plugin for evaluation and coverage drills.",
   },
   {
     id: "research.autocoder",
@@ -22,6 +22,6 @@ export const RESEARCH_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
     persistence: "injected",
     enablement: "always",
     notes:
-      "Workspace-native autocoder plugin for research, planning, GitHub, and secrets-backed workflows. Execution remains experimental and planning-only flows are explicitly non-mutating.",
+      "Doolittle-owned Eliza plugin for research, planning, GitHub, and secrets-backed workflows. Execution remains experimental and planning-only flows are explicitly non-mutating.",
   },
 ];

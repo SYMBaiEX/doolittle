@@ -141,12 +141,12 @@ export function buildResearchSection(
 ): AutonomousControlPlaneSummary["research"] {
   return {
     actionBench: {
-      source: "native-plugin" as const,
+      source: "product-plugin" as const,
       available: input.researchControl.actionBench.available,
       actions: input.researchControl.actionBench.actions,
     },
     autocoder: {
-      source: "native-plugin" as const,
+      source: "product-plugin" as const,
       available: input.researchControl.autocoder.available,
       ready: input.researchControl.autocoder.ready,
     },
@@ -157,7 +157,7 @@ export function buildFormsSection(
   input: AutonomousSummaryInput,
 ): AutonomousControlPlaneSummary["forms"] {
   return {
-    source: input.native.forms ? "native" : "unavailable",
+    source: input.native.forms ? "product-plugin" : "unavailable",
     available: Boolean(input.native.forms),
     total: input.formsControl.forms.total,
     templates: input.formsControl.templates,
@@ -182,7 +182,7 @@ export function buildExecutionSection(
         input.executionControl.agentEvents.lastHeartbeatStatus,
     },
     e2b: {
-      source: input.native.e2b ? "native" : "unavailable",
+      source: input.native.e2b ? "product-plugin" : "unavailable",
       available: Boolean(input.native.e2b),
       sandboxes: input.executionControl.e2b.sandboxes,
     },
@@ -195,8 +195,9 @@ export function buildExecutionSection(
       fullAllowed: input.executionControl.toolPolicy.fullAllowed,
     },
     planning: {
-      source:
-        input.native.actionPlanning || input.native.operatorPlanning
+      source: input.native.operatorPlanning
+        ? "product-plugin"
+        : input.native.actionPlanning
           ? "native"
           : "unavailable",
       available: Boolean(
@@ -206,7 +207,7 @@ export function buildExecutionSection(
       plans: input.executionControl.planning.plans.total,
     },
     codeGeneration: {
-      source: input.native.codeGeneration ? "native" : "unavailable",
+      source: input.native.codeGeneration ? "product-plugin" : "unavailable",
       available: Boolean(input.native.codeGeneration),
       ready: input.executionControl.codeGeneration.ready,
     },

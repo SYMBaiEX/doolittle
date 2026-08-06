@@ -71,9 +71,13 @@ ElizaOS 2.0 beta line.
 
 ### Security
 
-- **Local-first API**: the HTTP API binds to `127.0.0.1` by default; non-loopback
-  binds now **require** `DOOLITTLE_API_TOKEN` (fail-safe — no token means every
-  request on a public bind is rejected). Previously it bound `0.0.0.0` with no
+- Replaced Doolittle's parallel HTTP auth/CORS implementation with Eliza's
+  native API security helpers, including DNS-rebinding protection and canonical
+  terminal-token policy. Existing `DOOLITTLE_*` API settings remain boot-time
+  compatibility aliases for `ELIZA_API_*`.
+- **Local-first API**: the HTTP API binds to `127.0.0.1` by default. Non-loopback
+  binds are secured by `ELIZA_API_TOKEN`; Eliza generates a temporary process
+  token when none is configured. Previously the API bound to `0.0.0.0` with no
   authentication.
 
 ### Fixed / Reliability
