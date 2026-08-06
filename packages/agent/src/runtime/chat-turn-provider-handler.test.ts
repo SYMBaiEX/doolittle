@@ -1,5 +1,5 @@
 import { ChannelType, type Memory, type UUID } from "@elizaos/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { executeProviderMessageTurn } from "./chat-turn/provider-handler";
 import { createProviderStreamState } from "./chat-turn/provider-streaming";
@@ -143,8 +143,8 @@ describe("chat turn provider handler", () => {
     expect(streamState.getResponse()).toBe("response message");
   });
 
-  it("uses returned SDK action results instead of the persisted runtime ledger", async () => {
-    const runtimeResult = {
+  it("uses returned SDK action results as the sole action-result authority", async () => {
+    const staleRuntimeResult = {
       success: true,
       data: { actionName: "RUNTIME_ACTION" },
     };
@@ -152,8 +152,9 @@ describe("chat turn provider handler", () => {
       success: true,
       data: { actionName: "SDK_ACTION" },
     };
+    const getActionResults = vi.fn(() => [staleRuntimeResult]);
     const { context } = createContext({
-      getActionResults: () => [runtimeResult],
+      getActionResults,
       onHandleMessage: async () => ({
         responseContent: { text: "Terminal response." },
         responseMessages: [],
@@ -191,15 +192,15 @@ describe("chat turn provider handler", () => {
     });
 
     expect(result.actionResults).toEqual([sdkResult]);
+    expect(getActionResults).not.toHaveBeenCalled();
   });
 
-  it("treats parsed stream tool results as telemetry, not durable action results", async () => {
-    const runtimeResult = {
+  it("treats parsed stream tool results as non-authoritative assistant output", async () => {
+    const sdkResult = {
       success: true,
-      data: { actionName: "RUNTIME_ACTION" },
+      data: { actionName: "SDK_ACTION" },
     };
     const { context } = createContext({
-      getActionResults: () => [runtimeResult],
       onHandleMessage: async ({ onStreamChunk }) => {
         await onStreamChunk?.(
           '{"type":"tool_result","toolCall":{"name":"STREAM_ACTION"},"result":{"success":true}}',
@@ -207,6 +208,7 @@ describe("chat turn provider handler", () => {
         return {
           responseContent: { text: "Terminal response." },
           responseMessages: [],
+          state: { data: { actionResults: [sdkResult] } },
         };
       },
     });
@@ -240,14 +242,8 @@ describe("chat turn provider handler", () => {
       buildProviderFailureMessage: () => "fatal",
     });
 
-    expect(result.actionResults).toEqual([runtimeResult]);
-    expect(streamState.getSdkStreamToolResultTelemetry()).toEqual([
-      {
-        source: "sdk-stream-envelope",
-        actionName: "STREAM_ACTION",
-        success: true,
-      },
-    ]);
+    expect(result.actionResults).toEqual([sdkResult]);
+    expect(streamState.getResponse()).toBe("Terminal response.");
   });
 
   it("starts a standalone SDK trajectory and leaves model-call logging to runtime.useModel", async () => {

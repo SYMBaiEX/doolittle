@@ -6,11 +6,11 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { buildSync } from "esbuild";
 
@@ -59,6 +59,29 @@ interface CommandResult {
   stdout: string;
 }
 
+interface PackedPackage {
+  result: CommandResult;
+  tarballPath?: string;
+}
+
+const PROVIDERS: readonly Provider[] = [
+  "provider-transport",
+  "codex",
+  "claude-code",
+  "devin",
+  "elizacloud",
+];
+
+const LOCAL_COMPATIBILITY_PACKAGE_PATHS = [
+  "packages/app-training",
+  "packages/cloud-shared",
+  "packages/plugin-remote-manifest",
+  "packages/plugin-worker-runtime",
+  "packages/registry",
+] as const;
+
+const ISOLATED_CONSUMER_OVERRIDE_NAMES = ["protobufjs", "tar"] as const;
+
 function parseArgs(argv: string[]): PublishArgs {
   let provider: PublishArgs["provider"] = "all";
   let dryRun = true;
@@ -68,19 +91,21 @@ function parseArgs(argv: string[]): PublishArgs {
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
+    if (arg === "--") {
+      continue;
+    }
     if (arg === "--provider") {
       const value = argv[index + 1]?.trim().toLowerCase();
-      if (
-        value === "provider-transport" ||
-        value === "codex" ||
-        value === "claude-code" ||
-        value === "devin" ||
-        value === "elizacloud" ||
-        value === "all"
-      ) {
-        provider = value;
-        index += 1;
+      if (!value || value.startsWith("--")) {
+        throw new Error("--provider requires a provider name.");
       }
+      if (
+        !([...PROVIDERS, "all"] as const).includes(value as Provider | "all")
+      ) {
+        throw new Error(`Unknown provider: ${value}.`);
+      }
+      provider = value as PublishArgs["provider"];
+      index += 1;
       continue;
     }
     if (arg === "--publish") {
@@ -93,19 +118,23 @@ function parseArgs(argv: string[]): PublishArgs {
     }
     if (arg === "--tag") {
       const value = argv[index + 1]?.trim();
-      if (value) {
-        tag = value;
-        index += 1;
+      if (!value || value.startsWith("--")) {
+        throw new Error("--tag requires a dist-tag value.");
       }
+      tag = value;
+      index += 1;
       continue;
     }
     if (arg === "--otp") {
       const value = argv[index + 1]?.trim();
-      if (value) {
-        otp = value;
-        index += 1;
+      if (!value || value.startsWith("--")) {
+        throw new Error("--otp requires a one-time password.");
       }
+      otp = value;
+      index += 1;
+      continue;
     }
+    throw new Error(`Unknown argument: ${arg}.`);
   }
 
   return { provider, dryRun, json, tag, otp };
@@ -116,9 +145,7 @@ function repoRoot(): string {
 }
 
 function getProviders(provider: PublishArgs["provider"]): Provider[] {
-  return provider === "all"
-    ? ["provider-transport", "codex", "claude-code", "devin", "elizacloud"]
-    : [provider];
+  return provider === "all" ? [...PROVIDERS] : [provider];
 }
 
 function providerPath(provider: Provider): string {
@@ -137,11 +164,12 @@ function readPackageManifest(path: string): PackageManifest {
 }
 
 function run(command: string, args: string[], cwd: string): CommandResult {
+  const { NODE_OPTIONS: _nodeOptions, ...environment } = process.env;
   const result = spawnSync(command, args, {
     cwd,
     encoding: "utf8",
     env: {
-      ...process.env,
+      ...environment,
       npm_config_cache: join(repoRoot(), ".doolittle", ".npm-cache"),
     },
   });
@@ -241,35 +269,40 @@ function createStagingPackage(
   mkdirSync(temporaryRoot, { recursive: true });
   const temporaryPath = mkdtempSync(join(temporaryRoot, "provider-publish-"));
   const packagePath = join(temporaryPath, "package");
-  mkdirSync(packagePath, { recursive: true });
+  try {
+    mkdirSync(packagePath, { recursive: true });
 
-  const readmePath = join(targetPath, "README.md");
-  if (existsSync(readmePath)) {
-    writeFileSync(join(packagePath, "README.md"), readFileSync(readmePath));
-  }
-  const licensePath = join(repoRoot(), "LICENSE");
-  if (existsSync(licensePath)) {
-    writeFileSync(join(packagePath, "LICENSE"), readFileSync(licensePath));
-  }
-  const publishManifest: PackageManifest = {
-    ...manifest,
-    main: "./dist/index.js",
-    types: "./dist/index.d.ts",
-    exports: {
-      ".": {
-        types: "./dist/index.d.ts",
-        import: "./dist/index.js",
+    const readmePath = join(targetPath, "README.md");
+    if (existsSync(readmePath)) {
+      writeFileSync(join(packagePath, "README.md"), readFileSync(readmePath));
+    }
+    const licensePath = join(repoRoot(), "LICENSE");
+    if (existsSync(licensePath)) {
+      writeFileSync(join(packagePath, "LICENSE"), readFileSync(licensePath));
+    }
+    const publishManifest: PackageManifest = {
+      ...manifest,
+      main: "./dist/index.js",
+      types: "./dist/index.d.ts",
+      exports: {
+        ".": {
+          types: "./dist/index.d.ts",
+          import: "./dist/index.js",
+        },
       },
-    },
-    files: ["dist", "README.md"],
-  };
-  writeFileSync(
-    join(packagePath, "package.json"),
-    `${JSON.stringify(publishManifest, null, 2)}\n`,
-    "utf8",
-  );
-  buildPackage(targetPath, packagePath);
-  return { temporaryPath, packagePath };
+      files: ["dist", "README.md"],
+    };
+    writeFileSync(
+      join(packagePath, "package.json"),
+      `${JSON.stringify(publishManifest, null, 2)}\n`,
+      "utf8",
+    );
+    buildPackage(targetPath, packagePath);
+    return { temporaryPath, packagePath };
+  } catch (error) {
+    rmSync(temporaryPath, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 function assertPackedContents(tarballPath: string): void {
@@ -294,11 +327,10 @@ function assertPackedContents(tarballPath: string): void {
   }
 }
 
-function packAndSmokeTest(
+function packPackage(
   stagedPackagePath: string,
   temporaryPath: string,
-  manifest: PackageManifest,
-): CommandResult {
+): PackedPackage {
   const archivePath = join(temporaryPath, "archive");
   mkdirSync(archivePath, { recursive: true });
   const packed = run(
@@ -307,52 +339,166 @@ function packAndSmokeTest(
     repoRoot(),
   );
   if (!packed.ok) {
-    return packed;
+    return { result: packed };
   }
   const archive = JSON.parse(packed.stdout) as Array<{ filename: string }>;
   const tarballPath = join(archivePath, archive[0]?.filename ?? "");
   if (!archive[0]?.filename || !existsSync(tarballPath)) {
     return {
-      ok: false,
-      command: packed.command,
-      output: "npm pack did not produce a tarball.",
-      stdout: "",
+      result: {
+        ok: false,
+        command: packed.command,
+        output: "npm pack did not produce a tarball.",
+        stdout: "",
+      },
     };
   }
   assertPackedContents(tarballPath);
 
-  const unpackedPath = join(temporaryPath, "unpacked");
-  mkdirSync(unpackedPath, { recursive: true });
-  const extracted = run(
-    "tar",
-    ["-xzf", tarballPath, "-C", unpackedPath],
-    repoRoot(),
-  );
-  if (!extracted.ok) {
-    return extracted;
+  return { result: packed, tarballPath };
+}
+
+function packSupportingTransport(): {
+  temporaryPath: string;
+  tarballPath: string;
+} {
+  const packagePath = providerPath("provider-transport");
+  const manifest = readPackageManifest(packagePath);
+  assertStandaloneDependencies(manifest);
+  const staged = createStagingPackage(packagePath, manifest);
+  try {
+    const packed = packPackage(staged.packagePath, staged.temporaryPath);
+    if (!packed.result.ok || !packed.tarballPath) {
+      throw new Error(
+        packed.result.output || "Provider transport could not be packed.",
+      );
+    }
+    return {
+      temporaryPath: staged.temporaryPath,
+      tarballPath: packed.tarballPath,
+    };
+  } catch (error) {
+    rmSync(staged.temporaryPath, { recursive: true, force: true });
+    throw error;
   }
-  const packagePath = join(
-    unpackedPath,
-    "node_modules",
-    ...manifest.name.split("/"),
+}
+
+function packLocalCompatibilityPackages(): {
+  temporaryPath?: string;
+  tarballPaths: string[];
+} {
+  const packagePaths = LOCAL_COMPATIBILITY_PACKAGE_PATHS.map((path) =>
+    join(repoRoot(), path),
+  ).filter((path) => existsSync(join(path, "package.json")));
+  if (packagePaths.length === 0) {
+    return { tarballPaths: [] };
+  }
+
+  const temporaryPath = mkdtempSync(
+    join(tmpdir(), "doolittle-provider-compat-"),
   );
-  mkdirSync(join(packagePath, ".."), { recursive: true });
-  renameSync(join(unpackedPath, "package"), packagePath);
-  const imported = run(
-    process.execPath,
-    [
-      "--input-type=module",
-      "--eval",
-      `import(${JSON.stringify(manifest.name)})`,
-    ],
-    unpackedPath,
-  );
-  return {
-    ok: imported.ok,
-    command: `${packed.command} && ${imported.command}`,
-    output: [packed.output, imported.output].filter(Boolean).join("\n"),
-    stdout: imported.stdout,
+  try {
+    const tarballPaths = packagePaths.map((packagePath, index) => {
+      const archivePath = join(temporaryPath, String(index));
+      mkdirSync(archivePath, { recursive: true });
+      const packed = run(
+        "npm",
+        ["pack", "--json", "--pack-destination", archivePath, packagePath],
+        repoRoot(),
+      );
+      if (!packed.ok) {
+        throw new Error(packed.output || `Could not pack ${packagePath}.`);
+      }
+      const archive = JSON.parse(packed.stdout) as Array<{ filename: string }>;
+      const filename = archive[0]?.filename;
+      const tarballPath = filename ? join(archivePath, filename) : "";
+      if (!tarballPath || !existsSync(tarballPath)) {
+        throw new Error(
+          `npm pack did not produce a tarball for ${packagePath}.`,
+        );
+      }
+      return tarballPath;
+    });
+    return { temporaryPath, tarballPaths };
+  } catch (error) {
+    rmSync(temporaryPath, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+function isolatedConsumerSecurityOverrides(): Record<string, string> {
+  const rootManifestPath = join(repoRoot(), "package.json");
+  if (!existsSync(rootManifestPath)) return {};
+  const rootManifest = JSON.parse(readFileSync(rootManifestPath, "utf8")) as {
+    overrides?: Record<string, unknown>;
   };
+  return Object.fromEntries(
+    ISOLATED_CONSUMER_OVERRIDE_NAMES.flatMap((name) => {
+      const version = rootManifest.overrides?.[name];
+      return typeof version === "string" ? [[name, version]] : [];
+    }),
+  );
+}
+
+function smokePackedConsumer(
+  tarballPath: string,
+  manifest: PackageManifest,
+  localDependencyTarballs: readonly string[],
+): CommandResult {
+  const consumerPath = mkdtempSync(
+    join(tmpdir(), "doolittle-provider-consumer-"),
+  );
+  try {
+    const securityOverrides = isolatedConsumerSecurityOverrides();
+    writeFileSync(
+      join(consumerPath, "package.json"),
+      `${JSON.stringify({
+        private: true,
+        type: "module",
+        ...(Object.keys(securityOverrides).length > 0
+          ? { overrides: securityOverrides }
+          : {}),
+      })}\n`,
+      "utf8",
+    );
+    const installed = run(
+      "npm",
+      ["install", "--ignore-scripts", ...localDependencyTarballs, tarballPath],
+      consumerPath,
+    );
+    if (!installed.ok) {
+      return installed;
+    }
+
+    const audited = run(
+      "npm",
+      ["audit", "--audit-level", "critical", "--omit", "dev"],
+      consumerPath,
+    );
+    if (!audited.ok) {
+      return audited;
+    }
+
+    const imported = run(
+      process.execPath,
+      [
+        "--input-type=module",
+        "--eval",
+        `import(${JSON.stringify(manifest.name)})`,
+      ],
+      consumerPath,
+    );
+    return {
+      ok: imported.ok,
+      command: `${installed.command} && ${audited.command} && ${imported.command}`,
+      output: [installed.output, audited.output, imported.output]
+        .filter(Boolean)
+        .join("\n"),
+      stdout: imported.stdout,
+    };
+  } finally {
+    rmSync(consumerPath, { recursive: true, force: true });
+  }
 }
 
 function publishPackage(
@@ -367,59 +513,189 @@ function publishPackage(
   return run("npm", args, targetPath);
 }
 
+function successfulReleaseDetail(
+  dryRun: boolean,
+  usedCompatibilityPackages: boolean,
+  usedSecurityOverrides: boolean,
+): string {
+  const supportConditions = [
+    usedCompatibilityPackages
+      ? "explicit local Eliza beta compatibility packages"
+      : undefined,
+    usedSecurityOverrides
+      ? "Doolittle's audited transitive security overrides"
+      : undefined,
+  ].filter(Boolean);
+  const supportDetail =
+    supportConditions.length > 0
+      ? ` with ${supportConditions.join(" and ")}`
+      : "";
+  return dryRun
+    ? `Built dist JavaScript and declarations, then security-audited and imported the packed artifact${supportDetail} in an isolated consumer.`
+    : `Built dist JavaScript and declarations, security-audited and imported the packed artifact${supportDetail} in an isolated consumer, then published it.`;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const results: PublishResult[] = [];
+  const stagedPackages: Array<{
+    provider: Provider;
+    manifest: PackageManifest;
+    packagePath: string;
+    temporaryPath: string;
+    stagedPackagePath: string;
+    tarballPath?: string;
+  }> = [];
 
   for (const provider of getProviders(args.provider)) {
     const packagePath = providerPath(provider);
-    const manifest = readPackageManifest(packagePath);
+    let manifest: PackageManifest | undefined;
+    let staged: { temporaryPath: string; packagePath: string } | undefined;
     try {
+      manifest = readPackageManifest(packagePath);
       assertStandaloneDependencies(manifest);
-      const staged = createStagingPackage(packagePath, manifest);
-      let release: CommandResult;
-      try {
-        const smoke = packAndSmokeTest(
-          staged.packagePath,
-          staged.temporaryPath,
-          manifest,
+      staged = createStagingPackage(packagePath, manifest);
+      const packed = packPackage(staged.packagePath, staged.temporaryPath);
+      if (!packed.result.ok || !packed.tarballPath) {
+        throw new Error(
+          packed.result.output || "Provider package could not be packed.",
         );
-        release =
-          !args.dryRun && smoke.ok
-            ? publishPackage(staged.packagePath, args.tag, args.otp)
-            : smoke;
-      } finally {
+      }
+      stagedPackages.push({
+        provider,
+        manifest,
+        packagePath,
+        temporaryPath: staged.temporaryPath,
+        stagedPackagePath: staged.packagePath,
+        tarballPath: packed.tarballPath,
+      });
+    } catch (error) {
+      if (staged) {
         rmSync(staged.temporaryPath, { recursive: true, force: true });
       }
       results.push({
         provider,
-        packageName: manifest.name,
-        version: manifest.version,
-        packagePath,
-        dryRun: args.dryRun,
-        ok: release.ok,
-        command: release.command,
-        detail: release.ok
-          ? args.dryRun
-            ? "Built dist JavaScript and declarations, then imported the packed artifact."
-            : "Built dist JavaScript and declarations, imported the packed artifact, then published it."
-          : release.output ||
-            "Provider package build, pack, or import smoke test failed.",
-        tag: args.tag,
-        output: release.output || undefined,
-      });
-    } catch (error) {
-      results.push({
-        provider,
-        packageName: manifest.name,
-        version: manifest.version,
+        packageName: manifest?.name ?? "unknown",
+        version: manifest?.version ?? "unknown",
         packagePath,
         dryRun: args.dryRun,
         ok: false,
         command: "build/pack/import",
         detail: error instanceof Error ? error.message : String(error),
         tag: args.tag,
+        output: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  const selectedTransportTarball = stagedPackages.find(
+    ({ provider }) => provider === "provider-transport",
+  )?.tarballPath;
+  let supportingTransport: ReturnType<typeof packSupportingTransport> | null =
+    null;
+  let supportingTransportError: unknown;
+  if (
+    !selectedTransportTarball &&
+    stagedPackages.some(({ provider }) => provider !== "provider-transport")
+  ) {
+    try {
+      supportingTransport = packSupportingTransport();
+    } catch (error) {
+      supportingTransportError = error;
+    }
+  }
+  const transportTarball =
+    selectedTransportTarball ?? supportingTransport?.tarballPath;
+  let compatibilityPackages: ReturnType<typeof packLocalCompatibilityPackages> =
+    { tarballPaths: [] };
+  try {
+    if (supportingTransportError) {
+      throw supportingTransportError;
+    }
+    compatibilityPackages = packLocalCompatibilityPackages();
+    for (const staged of stagedPackages) {
+      const localDependencies =
+        staged.provider === "provider-transport" || !transportTarball
+          ? compatibilityPackages.tarballPaths
+          : [...compatibilityPackages.tarballPaths, transportTarball];
+      try {
+        const smoke = smokePackedConsumer(
+          staged.tarballPath as string,
+          staged.manifest,
+          localDependencies,
+        );
+        const release =
+          !args.dryRun && smoke.ok
+            ? publishPackage(staged.stagedPackagePath, args.tag, args.otp)
+            : smoke;
+        results.push({
+          provider: staged.provider,
+          packageName: staged.manifest.name,
+          version: staged.manifest.version,
+          packagePath: staged.packagePath,
+          dryRun: args.dryRun,
+          ok: release.ok,
+          command: release.command,
+          detail: release.ok
+            ? successfulReleaseDetail(
+                args.dryRun,
+                compatibilityPackages.tarballPaths.length > 0,
+                Object.keys(isolatedConsumerSecurityOverrides()).length > 0,
+              )
+            : release.output ||
+              "Provider package build, pack, or import smoke test failed.",
+          tag: args.tag,
+          output: release.output || undefined,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        results.push({
+          provider: staged.provider,
+          packageName: staged.manifest.name,
+          version: staged.manifest.version,
+          packagePath: staged.packagePath,
+          dryRun: args.dryRun,
+          ok: false,
+          command: "install/import",
+          detail: message,
+          tag: args.tag,
+          output: message,
+        });
+      }
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    for (const staged of stagedPackages) {
+      results.push({
+        provider: staged.provider,
+        packageName: staged.manifest.name,
+        version: staged.manifest.version,
+        packagePath: staged.packagePath,
+        dryRun: args.dryRun,
+        ok: false,
+        command: supportingTransportError
+          ? "provider-transport-pack"
+          : "compatibility-pack",
+        detail: message,
+        tag: args.tag,
+        output: message,
+      });
+    }
+  } finally {
+    if (compatibilityPackages.temporaryPath) {
+      rmSync(compatibilityPackages.temporaryPath, {
+        recursive: true,
+        force: true,
+      });
+    }
+    if (supportingTransport) {
+      rmSync(supportingTransport.temporaryPath, {
+        recursive: true,
+        force: true,
+      });
+    }
+    for (const staged of stagedPackages) {
+      rmSync(staged.temporaryPath, { recursive: true, force: true });
     }
   }
 

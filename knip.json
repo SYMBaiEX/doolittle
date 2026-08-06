@@ -1,0 +1,10 @@
+{
+  "workspaces": {
+    "packages/agent": {
+      "ignoreBinaries": ["const"]
+    },
+    "apps/desktop": {
+      "ignoreDependencies": ["electron-builder"]
+    }
+  }
+}

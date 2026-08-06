@@ -6,7 +6,6 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "@/services";
 import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
-import type { RuntimeLike } from "./index";
 import {
   cancelEffectiveForm,
   createEffectiveForm,
@@ -17,20 +16,23 @@ import {
   executeEffectiveSandboxCode,
   generateEffectiveCode,
   generateEffectivePrd,
-  getAutonomousControlPlane,
-  getEffectiveDelegationChildren,
-  getEffectiveDelegationTask,
-  getEffectiveDelegationTree,
-  getEffectiveExperienceSummary,
   getEffectiveForm,
   getEffectiveFormTemplates,
-  getEffectiveMemorySnapshot,
-  getEffectiveMessagingTransportInventory,
-  getEffectivePersonalitySummary,
   getEffectivePlan,
-  getEffectivePluginManagerInventory,
-  getEffectiveRolodexSummary,
   getEffectiveSecret,
+  killEffectiveSandbox,
+  listEffectiveForms,
+  listEffectivePlans,
+  listEffectiveSandboxes,
+  listEffectiveSecretKeys,
+  performEffectiveCodeQa,
+  performEffectiveCodeResearch,
+  setEffectiveSecret,
+} from "./autocoder";
+import { getAutonomousControlPlane } from "./autonomous";
+import {
+  getEffectiveMessagingTransportInventory,
+  getEffectivePluginManagerInventory,
   getEffectiveServiceResolution,
   getEffectiveTransportInventory,
   getNativeExecutionControlPlane,
@@ -41,16 +43,20 @@ import {
   getNativePlanningControlPlane,
   getNativeResearchControlPlane,
   getNativeTransportControlPlane,
-  killEffectiveSandbox,
-  listEffectiveForms,
-  listEffectivePlans,
-  listEffectiveSandboxes,
-  listEffectiveSecretKeys,
-  performEffectiveCodeQa,
-  performEffectiveCodeResearch,
+} from "./control-planes";
+import {
+  getEffectiveDelegationChildren,
+  getEffectiveDelegationTask,
+  getEffectiveDelegationTree,
   retryEffectiveDelegationTask,
-  setEffectiveSecret,
-} from "./index";
+} from "./delegation";
+import {
+  getEffectiveExperienceSummary,
+  getEffectiveMemorySnapshot,
+  getEffectivePersonalitySummary,
+  getEffectiveRolodexSummary,
+} from "./ownership";
+import type { RuntimeLike } from "./runtime";
 
 describe("getEffectiveMessagingTransportInventory", () => {
   it("builds native forms and execution control planes from installed services", () => {

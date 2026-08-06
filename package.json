@@ -56,6 +56,8 @@
     "desktop:package:win": "nub run --cwd apps/desktop package:win",
     "lint": "nubx --node biome check --write .",
     "lint:check": "nubx --node biome check .",
+    "knip:deps": "nubx -y --node knip@6.31.0 --config knip.json --dependencies --no-progress --no-config-hints --no-tag-hints --workspace packages/agent --workspace apps/desktop --workspace packages/plugins/provider-transport --workspace packages/plugins/plugin-codex --workspace packages/plugins/plugin-claude-code --workspace packages/plugins/plugin-devin --workspace packages/plugins/plugin-elizacloud",
+    "audit:production:critical": "nub audit --production --audit-level critical",
     "typecheck": "nubx --node tsc --noEmit",
     "test": "nubx --node vitest run",
     "test:coding-harness": "nubx --node vitest run scripts/acceptance/coding-loop-harness.test.ts",
@@ -68,7 +70,7 @@
     "check:eliza-sdk": "nub scripts/check-eliza-sdk-release.ts",
     "check:docs-truth": "nub scripts/sync-doc-truth.ts --check",
     "check:local-links": "nub scripts/check-local-links.ts",
-    "check:acceptance": "nub run check:repo-hygiene && nub run check:plugin-boundaries && nub run check:eliza-sdk && nub run check:docs-truth && nub run check:local-links",
+    "check:acceptance": "nub run check:repo-hygiene && nub run check:plugin-boundaries && nub run check:eliza-sdk && nub run check:docs-truth && nub run check:local-links && nub run knip:deps && nub run audit:production:critical",
     "check": "nub run lint:check && nub run typecheck && nub run desktop:typecheck && nub run test && nub run build",
     "publish:codex:dry-run": "nub run publish:providers -- --provider codex",
     "publish:claude-code:dry-run": "nub run publish:providers -- --provider claude-code",
@@ -130,7 +132,9 @@
     "@elizaos/shared": "2.0.3-beta.7",
     "@elizaos/vault": "2.0.3-beta.7",
     "elizaos": "2.0.3-beta.7",
-    "ollama-ai-provider": "npm:ollama-ai-provider-v2@^3.5.1"
+    "ollama-ai-provider": "npm:ollama-ai-provider-v2@^3.5.1",
+    "protobufjs": "7.6.5",
+    "tar": "7.5.22"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",

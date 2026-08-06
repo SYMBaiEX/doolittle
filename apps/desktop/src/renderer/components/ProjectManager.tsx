@@ -130,14 +130,24 @@ function isFocusable(element: HTMLElement) {
   return !element.hasAttribute("disabled") && !element.hasAttribute("hidden");
 }
 
+export function shouldHandleDialogKey(
+  key: string,
+  suspended: boolean,
+): boolean {
+  return !suspended && (key === "Escape" || key === "Tab");
+}
+
 function useDialogFocus(
   open: boolean,
-  dialogRef: RefObject<HTMLDivElement | null>,
+  dialogRef: RefObject<HTMLElement | null>,
   initialFocusRef: RefObject<HTMLElement | null>,
   onClose: () => void,
+  suspended = false,
 ) {
   const previousFocus = useRef<HTMLElement | null>(null);
   const closeRef = useRef(onClose);
+  const suspendedRef = useRef(suspended);
+  suspendedRef.current = suspended;
   useEffect(() => {
     closeRef.current = onClose;
   }, [onClose]);
@@ -152,6 +162,7 @@ function useDialogFocus(
       () => initialFocusRef.current?.focus() ?? dialogRef.current?.focus(),
     );
     const keydown = (event: KeyboardEvent) => {
+      if (!shouldHandleDialogKey(event.key, suspendedRef.current)) return;
       if (event.key === "Escape") {
         event.preventDefault();
         closeRef.current();
@@ -403,7 +414,7 @@ export function ProjectManager(props: ProjectManagerProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
-  useDialogFocus(isOpen, dialogRef, closeButtonRef, onClose);
+  useDialogFocus(isOpen, dialogRef, closeButtonRef, onClose, Boolean(editing));
 
   useEffect(() => {
     if (!isOpen) {
@@ -929,7 +940,7 @@ function EmptyDetail({ onCreate }: { onCreate?: () => void }) {
   );
 }
 
-function ProjectEditor({
+export function ProjectEditor({
   project,
   onClose,
   onSubmit,
@@ -942,10 +953,9 @@ function ProjectEditor({
 }) {
   const [draft, setDraft] = useState(() => defaultDraft(project));
   const titleId = useId();
+  const dialogRef = useRef<HTMLFormElement>(null);
   const firstInput = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    requestAnimationFrame(() => firstInput.current?.focus());
-  }, []);
+  useDialogFocus(true, dialogRef, firstInput, onClose);
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!draft.name.trim()) return;
@@ -960,8 +970,12 @@ function ProjectEditor({
     <div className="project-editor-backdrop" role="presentation">
       <form
         className="project-editor"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
         aria-labelledby={titleId}
         onSubmit={submit}
+        tabIndex={-1}
       >
         <header>
           <div>

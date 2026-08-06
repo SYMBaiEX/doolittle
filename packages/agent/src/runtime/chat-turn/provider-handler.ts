@@ -205,10 +205,6 @@ export async function executeProviderMessageTurn(
         handledMessage = true;
         responseMessages = messageResult?.responseMessages ?? [];
         actionResults = actionResultsFromState(messageResult?.state);
-        if (actionResults.length === 0) {
-          actionResults =
-            input.context.runtime.getActionResults?.(messageId) ?? [];
-        }
         response = resolveSdkMessageResponse({
           responseContent: messageResult?.responseContent,
           responseMessages,
@@ -241,10 +237,6 @@ export async function executeProviderMessageTurn(
         runFailureMessage = failureMessage;
         input.streamState.setResponse(response);
       } finally {
-        actionResults =
-          actionResults.length > 0
-            ? actionResults
-            : (input.context.runtime.getActionResults?.(messageId) ?? []);
         const elapsedMs = elapsedMsSince(startedAt);
         recordEvaluationTraceEvent(input.context, {
           category: "model",

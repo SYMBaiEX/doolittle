@@ -142,7 +142,24 @@ test.describe("Doolittle desktop navigation", () => {
         .not.toBe("252");
 
       await page.getByRole("button", { name: "Manage projects" }).click();
+      const projectManager = page.getByRole("dialog", { name: "Projects" });
+      await expect(projectManager).toBeVisible();
       await page.getByRole("button", { name: "+ New" }).click();
+      const projectEditor = page.getByRole("dialog", {
+        name: "Create a project",
+      });
+      const projectName = projectEditor.getByRole("textbox", { name: "Name" });
+      await projectName.fill("Discarded project draft");
+      await page.keyboard.press("Escape");
+      await expect(projectEditor).toBeHidden();
+      await expect(projectManager).toBeVisible();
+      await expect(page.getByRole("button", { name: "+ New" })).toBeFocused();
+      await page.getByRole("button", { name: "+ New" }).click();
+      await expect(
+        page
+          .getByRole("dialog", { name: "Create a project" })
+          .getByRole("textbox", { name: "Name" }),
+      ).toHaveValue("");
       await page.getByRole("textbox", { name: "Name" }).fill("E2E repository");
       await page.getByRole("button", { name: "Create project" }).click();
       await page.getByRole("button", { name: "Close projects" }).click();

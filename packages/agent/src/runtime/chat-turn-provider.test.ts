@@ -24,7 +24,6 @@ function createProviderContext() {
   };
   let activePersonalityId = "default";
   let conversationId: unknown = "previous-conversation";
-  let actionResults: unknown[] = [];
   let messageOptions: unknown;
   const runtimeSettingValues = new Map<string, unknown>([
     ["runtimeSettings", JSON.stringify({ model: settingsState.model })],
@@ -91,7 +90,6 @@ function createProviderContext() {
           };
         },
       },
-      getActionResults: () => actionResults,
     },
     services: {
       personalities: {
@@ -140,9 +138,6 @@ function createProviderContext() {
     settingsState,
     thinkingSessions,
     getConversationId: () => conversationId,
-    setActionResults: (next: unknown[]) => {
-      actionResults = next;
-    },
     getHandledMemory: () => handledMemory,
     getMessageOptions: () => messageOptions,
     options: {
@@ -287,12 +282,6 @@ describe("chat turn provider seam", () => {
   it("withholds an early tool preamble until the SDK returns its terminal synthesis", async () => {
     const harness = createProviderContext();
     const settingsBefore = harness.context.services.settings.get();
-    harness.setActionResults([
-      {
-        success: true,
-        data: { actionName: "WEB_SEARCH" },
-      },
-    ]);
     harness.context.runtime.messageService = {
       handleMessage: async (
         _runtime: unknown,
@@ -321,6 +310,16 @@ describe("chat turn provider seam", () => {
               },
             },
           ],
+          state: {
+            data: {
+              actionResults: [
+                {
+                  success: true,
+                  data: { actionName: "WEB_SEARCH" },
+                },
+              ],
+            },
+          },
         };
       },
     } as unknown as typeof harness.context.runtime.messageService;
@@ -351,14 +350,6 @@ describe("chat turn provider seam", () => {
   it("does not promote an action receipt when an action run has no terminal reply", async () => {
     const harness = createProviderContext();
     const settingsBefore = harness.context.services.settings.get();
-    harness.setActionResults([
-      {
-        success: true,
-        userFacingText: "Raw search result",
-        verifiedUserFacing: true,
-        data: { actionName: "WEB_SEARCH" },
-      },
-    ]);
     harness.context.runtime.messageService = {
       handleMessage: async (
         _runtime: unknown,
@@ -373,6 +364,18 @@ describe("chat turn provider seam", () => {
               content: { text: "I cannot search the web." },
             },
           ],
+          state: {
+            data: {
+              actionResults: [
+                {
+                  success: true,
+                  userFacingText: "Raw search result",
+                  verifiedUserFacing: true,
+                  data: { actionName: "WEB_SEARCH" },
+                },
+              ],
+            },
+          },
         };
       },
     } as unknown as typeof harness.context.runtime.messageService;

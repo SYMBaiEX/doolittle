@@ -1,49 +1,6 @@
-import type { AgentExecutionContext, AgentTurnHooks } from "@/runtime/chat";
-import { persistAssistantTurnMemory } from "./conversation-persistence";
-import type { TurnState } from "./state";
-import { recordEvaluationTraceEvent } from "./trajectory";
+import type { AgentExecutionContext } from "@/runtime/chat";
 
 const SKILL_SYNTHESIS_NUDGE_INTERVAL = 12;
-
-export async function finalizeTurnResponse(
-  context: AgentExecutionContext,
-  turn: TurnState,
-  text: string,
-  scheduleProfileObservation: () => void,
-  options?: AgentTurnHooks,
-  phase: "command" | "readiness" | "model" = "command",
-): Promise<string> {
-  await options?.onResponseProgress?.({
-    chunk: text,
-    response: text,
-    phase,
-  });
-  await persistAssistantTurnMemory({
-    context,
-    turn,
-    text,
-  });
-  const modelSettings = turn.settings?.model ?? {};
-  recordEvaluationTraceEvent(context, {
-    category: "turn",
-    event: "turn.completed",
-    sessionId: turn.sessionId,
-    runId: turn.runId,
-    roomId: String(turn.roomId),
-    source: turn.connectionSource,
-    provider: modelSettings.provider ?? "unknown",
-    model: modelSettings.model ?? "unknown",
-    text: `[turn:completed] ${text}`,
-    metadata: {
-      phase,
-      response: text,
-      responseChars: text.length,
-    },
-  });
-  context.services.runController.finishTurn(turn.sessionId, "complete");
-  scheduleProfileObservation();
-  return text;
-}
 
 export function getContextUsageWarning(
   context: AgentExecutionContext,

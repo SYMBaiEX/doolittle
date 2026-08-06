@@ -15,6 +15,8 @@ ASSUME_YES=0
 LAUNCH_DESKTOP=0
 PACKAGE_INSTALLER=0
 NUB_VERSION="0.6.0"
+REQUIRED_NODE_VERSION="$(tr -d '\r\n' < "${ROOT}/.node-version")"
+REQUIRED_NODE_MAJOR="${REQUIRED_NODE_VERSION%%.*}"
 LOCAL_BIN_DIR="${HOME}/.local/bin"
 NUB_TOOL_ROOT="${HOME}/.local/share/doolittle/tooling"
 NUB_BIN="${NUB_TOOL_ROOT}/bin/nub"
@@ -151,9 +153,17 @@ ensure_nub() {
   export PATH="${NUB_TOOL_ROOT}/bin:${LOCAL_BIN_DIR}:$PATH"
 
   if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
-    echo "The source installer needs Node.js 18.19+ to install Nub."
+    echo "The source installer needs Node.js ${REQUIRED_NODE_MAJOR}+ to install Nub."
     echo "Install Node.js, then rerun scripts/install.sh."
     echo "The standalone Doolittle Desktop installer does not require Node.js or Nub."
+    exit 1
+  fi
+
+  local node_version
+  node_version="$(node --version 2>/dev/null | sed 's/^v//')"
+  local node_major="${node_version%%.*}"
+  if [[ ! "$node_major" =~ ^[0-9]+$ ]] || (( node_major < REQUIRED_NODE_MAJOR )); then
+    echo "Doolittle requires Node.js ${REQUIRED_NODE_MAJOR}+ (the repository pins ${REQUIRED_NODE_VERSION}); found ${node_version:-unknown}."
     exit 1
   fi
 
@@ -200,7 +210,7 @@ ensure_nub
 
 if [[ "$CHECK_ONLY" -eq 0 ]]; then
   printf "%s\n" "${amber}Feeding the body with workspace dependencies...${reset}"
-  "$NUB_COMMAND" install --ignore-scripts
+  "$NUB_COMMAND" install --frozen-lockfile --ignore-scripts
   printf "%s\n" "${amber}Installing Electron's standalone desktop runtime...${reset}"
   "$NUB_COMMAND" run desktop:runtime:install
 else

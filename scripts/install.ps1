@@ -11,6 +11,8 @@ param(
 $ErrorActionPreference = "Stop"
 $NubVersion = "0.6.0"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$RequiredNodeVersion = (Get-Content (Join-Path $Root ".node-version") -Raw).Trim()
+$RequiredNodeMajor = [int]($RequiredNodeVersion.Split(".")[0])
 $ToolRoot = Join-Path $env:LOCALAPPDATA "Doolittle\tooling"
 $LocalBinDir = Join-Path $env:LOCALAPPDATA "Doolittle\bin"
 $DoolittleLauncher = Join-Path $LocalBinDir "doolittle.cmd"
@@ -21,6 +23,22 @@ function Write-Section([string]$Message) {
 }
 
 function Resolve-Nub {
+  if (-not (Get-Command node -ErrorAction SilentlyContinue) -or
+      -not (Get-Command npm -ErrorAction SilentlyContinue)) {
+    throw @"
+The source installer needs Node.js $RequiredNodeMajor+ to install Nub.
+Install Node.js, then rerun scripts/install.ps1.
+The standalone Doolittle Desktop .exe does not require Node.js or Nub.
+"@
+  }
+
+  $nodeVersion = ((& node --version) | Select-Object -First 1).Trim().TrimStart("v")
+  $nodeMajorText = ($nodeVersion -split "\.")[0]
+  $nodeMajor = 0
+  if (-not [int]::TryParse($nodeMajorText, [ref]$nodeMajor) -or $nodeMajor -lt $RequiredNodeMajor) {
+    throw "Doolittle requires Node.js $RequiredNodeMajor+ (the repository pins $RequiredNodeVersion); found $nodeVersion."
+  }
+
   $existing = Get-Command nub -ErrorAction SilentlyContinue
   if ($existing) {
     $versionLine = (& $existing.Source --version 2>$null | Select-Object -First 1)
@@ -32,15 +50,6 @@ function Resolve-Nub {
   if ($Check) {
     throw "Doolittle requires Nub $NubVersion. Install it with: npm install -g @nubjs/nub@$NubVersion"
   }
-  if (-not (Get-Command node -ErrorAction SilentlyContinue) -or
-      -not (Get-Command npm -ErrorAction SilentlyContinue)) {
-    throw @"
-The source installer needs Node.js 18.19+ to install Nub.
-Install Node.js, then rerun scripts/install.ps1.
-The standalone Doolittle Desktop .exe does not require Node.js or Nub.
-"@
-  }
-
   Write-Section "Installing Nub $NubVersion into $ToolRoot..."
   New-Item -ItemType Directory -Force -Path $ToolRoot | Out-Null
   & npm install --global --prefix $ToolRoot "@nubjs/nub@$NubVersion"
@@ -89,7 +98,7 @@ $Nub = Resolve-Nub
 
 if (-not $Check) {
   Write-Section "Installing workspace dependencies..."
-  & $Nub install --ignore-scripts
+  & $Nub install --frozen-lockfile --ignore-scripts
   if ($LASTEXITCODE -ne 0) {
     throw "Dependency installation failed with exit code $LASTEXITCODE."
   }

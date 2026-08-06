@@ -32,39 +32,6 @@ function parseInternalCallbackEnvelope(
   }
 }
 
-export type SdkStreamToolResultTelemetry = {
-  source: "sdk-stream-envelope";
-  actionName?: string;
-  success: boolean;
-};
-
-function toolResultTelemetryFromEnvelope(
-  envelope: Record<string, unknown> | null,
-): SdkStreamToolResultTelemetry | null {
-  if (envelope?.type !== "tool_result") return null;
-  const result = envelope.result;
-  if (!result || typeof result !== "object" || Array.isArray(result)) {
-    return null;
-  }
-  const record = result as Record<string, unknown>;
-  if (typeof record.success !== "boolean") return null;
-  const toolCall =
-    envelope.toolCall &&
-    typeof envelope.toolCall === "object" &&
-    !Array.isArray(envelope.toolCall)
-      ? (envelope.toolCall as Record<string, unknown>)
-      : null;
-  const actionName =
-    typeof toolCall?.name === "string" ? toolCall.name : undefined;
-  return {
-    // Tool-result stream envelopes are untrusted progress telemetry. The
-    // durable SDK ActionResult ledger is resolved by provider-handler.ts.
-    source: "sdk-stream-envelope",
-    actionName,
-    success: record.success,
-  };
-}
-
 function isInternalCallbackContent(
   content: Content,
   actionName?: string,
@@ -108,7 +75,6 @@ export type ProviderStreamState = {
     actionName?: string,
   ) => Promise<Memory[]>;
   onStreamChunk: (chunk: string) => Promise<void>;
-  getSdkStreamToolResultTelemetry: () => SdkStreamToolResultTelemetry[];
   getResponse: () => string;
   setResponse: (nextResponse: string) => void;
 };
@@ -118,7 +84,6 @@ export function createProviderStreamState(
 ): ProviderStreamState {
   let activeStreamSource: ProviderStreamSource = "unset";
   let response = "";
-  const sdkStreamToolResultTelemetry: SdkStreamToolResultTelemetry[] = [];
 
   /**
    * The Eliza message service may emit a response-handler acknowledgement
@@ -178,12 +143,8 @@ export function createProviderStreamState(
     },
     onStreamChunk: async (chunk: string) => {
       // The SDK serializes tool calls, tool results, and evaluator updates
-      // through onStreamChunk. They are run telemetry, not assistant prose.
+      // through onStreamChunk. They are not assistant prose.
       const envelope = chunk ? parseInternalCallbackEnvelope(chunk) : null;
-      const telemetry = toolResultTelemetryFromEnvelope(envelope);
-      if (telemetry) {
-        sdkStreamToolResultTelemetry.push(telemetry);
-      }
       if (
         !chunk ||
         isInternalCallbackEventType(envelope?.type) ||
@@ -193,7 +154,6 @@ export function createProviderStreamState(
       }
       await appendIncomingText(chunk);
     },
-    getSdkStreamToolResultTelemetry: () => [...sdkStreamToolResultTelemetry],
     getResponse: () => response,
     setResponse: (nextResponse: string) => {
       response = nextResponse;

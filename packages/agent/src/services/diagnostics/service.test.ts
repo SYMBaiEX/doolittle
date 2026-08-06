@@ -8,7 +8,7 @@ import {
 import { describe, expect, it } from "vitest";
 import type { RuntimeLike } from "@/runtime/native/service-bridge/runtime";
 import type { EnvConfig, GatewayConfig } from "@/types";
-import { DiagnosticsService } from "./index";
+import { DiagnosticsService } from "./service";
 
 function buildConfig(root: string): EnvConfig {
   const dataDir = join(root, ".doolittle");

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { RunControllerService } from "../run-controller-service";
-import { TrajectoryEvaluationService } from "./index";
+import { TrajectoryEvaluationService } from "./service";
 
 describe("TrajectoryEvaluationService", () => {
   it("exports filtered bundles with manifest, analysis, and evaluation metadata", async () => {

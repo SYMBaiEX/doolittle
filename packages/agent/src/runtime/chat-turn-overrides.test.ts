@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { applyRuntimeOverrides } from "./chat-turn/core";
+import { applyRuntimeOverrides } from "./chat-turn/overrides";
 
-describe("chat turn core helpers", () => {
+describe("chat turn runtime overrides", () => {
   it("merges runtime overrides without clobbering unspecified model settings", () => {
     expect(
       applyRuntimeOverrides(

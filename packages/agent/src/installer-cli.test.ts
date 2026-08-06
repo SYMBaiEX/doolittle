@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -31,6 +31,7 @@ function runCommand(
       CODEX_HOME: join(sandboxHome, ".codex"),
       FORCE_COLOR: "0",
       NO_COLOR: "1",
+      PATH: `${dirname(process.execPath)}${delimiter}${environment.PATH ?? ""}`,
       ...extraEnv,
     },
     encoding: "utf8",

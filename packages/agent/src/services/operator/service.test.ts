@@ -6,7 +6,7 @@ import type { RuntimeLike } from "@/runtime/native/service-bridge/runtime";
 import type { EnvConfig, GatewayConfig } from "@/types";
 import { DiagnosticsService } from "../diagnostics/service";
 import { RepositoryService } from "../repository-service";
-import { OperatorService } from "./index";
+import { OperatorService } from "./service";
 
 const roots: string[] = [];
 
