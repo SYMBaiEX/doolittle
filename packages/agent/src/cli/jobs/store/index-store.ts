@@ -1,6 +1,9 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import {
+  readJsonFileSync,
+  writeJsonAtomicSync,
+} from "@elizaos/agent/utils/atomic-json";
 import type { CliJobIndex, CliJobRecord } from "../types";
 import { reconcileJobRecords } from "./events";
 
@@ -23,19 +26,14 @@ function ensureJobsStore(dataDir: string): void {
 
 export function readJobsIndex(dataDir: string): CliJobIndex {
   ensureJobsStore(dataDir);
-  try {
-    const raw = readFileSync(jobsIndexPath(dataDir), "utf8");
-    const parsed = JSON.parse(raw) as CliJobIndex;
-    const index = {
-      jobs: Array.isArray(parsed.jobs) ? parsed.jobs : [],
-    };
-    if (reconcileJobRecords(index)) {
-      writeJobsIndex(dataDir, index);
-    }
-    return index;
-  } catch {
-    return { jobs: [] };
+  const parsed = readJsonFileSync<Partial<CliJobIndex>>(jobsIndexPath(dataDir));
+  const index = {
+    jobs: Array.isArray(parsed?.jobs) ? parsed.jobs : [],
+  };
+  if (reconcileJobRecords(index)) {
+    writeJobsIndex(dataDir, index);
   }
+  return index;
 }
 
 export function writeJobsIndex(dataDir: string, index: CliJobIndex): void {

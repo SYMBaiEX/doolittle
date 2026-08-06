@@ -1,7 +1,10 @@
-import { accessSync, constants, existsSync, readFileSync } from "node:fs";
+import { accessSync, constants, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, isAbsolute, join } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import {
+  readJsonFileSync,
+  writeJsonAtomicSync,
+} from "@elizaos/agent/utils/atomic-json";
 import { runTextProcessSync } from "@/services/process-execution";
 
 export const DEFAULT_REFRESH_SKEW_SECONDS = 120;
@@ -103,11 +106,7 @@ export function readCommandJson(
 }
 
 export function readJson(path: string): unknown {
-  try {
-    return JSON.parse(readFileSync(path, "utf8"));
-  } catch {
-    return undefined;
-  }
+  return readJsonFileSync(path) ?? undefined;
 }
 
 export function readJsonIfExists(

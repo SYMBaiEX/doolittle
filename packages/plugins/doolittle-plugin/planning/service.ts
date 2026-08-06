@@ -42,6 +42,13 @@ interface OrchestratorTask {
 
 interface OrchestratorTaskService {
   getTask(id: string): Promise<OrchestratorTask | null>;
+  createPlanRevision(
+    id: string,
+    input: {
+      plan: Record<string, unknown>;
+      metadata?: Record<string, unknown>;
+    },
+  ): Promise<unknown | null>;
   addMessage(
     id: string,
     input: {
@@ -133,6 +140,8 @@ export const createPlanningService = (storageRoot: string) => {
       const store = this.readStore();
       store.plans.unshift(plan);
       this.writeStore(store);
+
+      await this.createLinkedPlanRevision(plan);
       return plan;
     }
 
@@ -235,6 +244,34 @@ export const createPlanningService = (storageRoot: string) => {
 
     private writeStore(store: PlanningStore): void {
       writeStore(this.storePath, store);
+    }
+
+    private async createLinkedPlanRevision(
+      plan: StoredPlanRecord,
+    ): Promise<void> {
+      if (!plan.taskId) {
+        return;
+      }
+      const orchestrator = this.agentRuntime?.getService(
+        ORCHESTRATOR_TASK_SERVICE,
+      ) as OrchestratorTaskService | null | undefined;
+      if (!orchestrator) {
+        return;
+      }
+
+      try {
+        const task = await orchestrator.getTask(plan.taskId);
+        if (!task) {
+          return;
+        }
+        await orchestrator.createPlanRevision(plan.taskId, {
+          plan: { ...plan },
+          metadata: { doolittlePlanId: plan.id },
+        });
+      } catch {
+        // Local plan persistence remains authoritative when the optional
+        // orchestrator projection is temporarily unavailable.
+      }
     }
   }
 

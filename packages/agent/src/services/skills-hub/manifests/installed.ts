@@ -1,22 +1,17 @@
-import { existsSync, readFileSync } from "node:fs";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import {
+  readJsonFileSync,
+  writeJsonAtomicSync,
+} from "@elizaos/agent/utils/atomic-json";
 import type { SkillHubInstalledRecord, SkillHubManifest } from "../types";
 import type { SkillsHubManifestHost } from "./types";
 
 export function readSkillHubInstalledIndex(
   installedIndexPath: string,
 ): SkillHubManifest[] {
-  if (!existsSync(installedIndexPath)) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(readFileSync(installedIndexPath, "utf8")) as {
-      manifests?: SkillHubManifest[];
-    };
-    return parsed.manifests ?? [];
-  } catch {
-    return [];
-  }
+  const parsed = readJsonFileSync<{ manifests?: SkillHubManifest[] }>(
+    installedIndexPath,
+  );
+  return parsed?.manifests ?? [];
 }
 
 export function normalizeInstalledSkillHubManifest(

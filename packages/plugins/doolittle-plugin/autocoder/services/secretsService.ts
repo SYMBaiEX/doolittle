@@ -1,6 +1,7 @@
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { join } from "node:path";
 
+import { readJsonFileSync } from "@elizaos/agent/utils/atomic-json";
 import type { IAgentRuntime, Service } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
 import { createVault, type Vault, VaultMissError } from "@elizaos/vault";
@@ -9,23 +10,16 @@ import { nowIso } from "../shared/planning";
 type VaultWithClose = Vault & { close?: () => Promise<void> };
 
 function readLegacySecrets(path: string): Record<string, string> | undefined {
-  if (!existsSync(path)) return undefined;
-  try {
-    const parsed = JSON.parse(readFileSync(path, "utf8")) as {
-      secrets?: unknown;
-    };
-    if (!parsed.secrets || typeof parsed.secrets !== "object") {
-      return undefined;
-    }
-    return Object.fromEntries(
-      Object.entries(parsed.secrets).filter(
-        (entry): entry is [string, string] =>
-          typeof entry[1] === "string" && Boolean(entry[0].trim()),
-      ),
-    );
-  } catch {
+  const parsed = readJsonFileSync<{ secrets?: unknown }>(path);
+  if (!parsed?.secrets || typeof parsed.secrets !== "object") {
     return undefined;
   }
+  return Object.fromEntries(
+    Object.entries(parsed.secrets).filter(
+      (entry): entry is [string, string] =>
+        typeof entry[1] === "string" && Boolean(entry[0].trim()),
+    ),
+  );
 }
 
 export function createSecretsManagerService(

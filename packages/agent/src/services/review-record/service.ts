@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join, normalize, resolve } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import {
+  readJsonFileSync,
+  writeJsonAtomicSync,
+} from "@elizaos/agent/utils/atomic-json";
 import type {
   ReviewRecord,
   ReviewRecordAnchor,
@@ -57,7 +60,7 @@ function sameScope(left: ReviewRecordScope, right: ReviewRecordScope): boolean {
 }
 
 function cloneRecord(record: ReviewRecord): ReviewRecord {
-  return JSON.parse(JSON.stringify(record)) as ReviewRecord;
+  return structuredClone(record);
 }
 
 function eventDetail(
@@ -380,21 +383,15 @@ export class ReviewRecordService {
   }
 
   private read(): PersistedReviewRecords {
-    try {
-      const raw = JSON.parse(readFileSync(this.filePath, "utf8")) as {
-        records?: unknown;
-      };
-      return {
-        records: Array.isArray(raw.records)
-          ? raw.records
-              .map(validRecord)
-              .filter((record): record is ReviewRecord => Boolean(record))
-              .slice(-MAX_RECORDS)
-          : [],
-      };
-    } catch {
-      return { records: [] };
-    }
+    const raw = readJsonFileSync<{ records?: unknown }>(this.filePath);
+    return {
+      records: Array.isArray(raw?.records)
+        ? raw.records
+            .map(validRecord)
+            .filter((record): record is ReviewRecord => Boolean(record))
+            .slice(-MAX_RECORDS)
+        : [],
+    };
   }
 
   private write(value: PersistedReviewRecords): void {

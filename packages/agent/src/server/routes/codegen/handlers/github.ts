@@ -32,8 +32,8 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
     }
 
     const workflow = await createAutocoderWorkflowContext(context, {
-      title: `Create repo ${body.name}`,
-      objective: `Create GitHub repository ${body.name}`,
+      title: `Plan repo creation ${body.name}`,
+      objective: `Plan GitHub repository creation for ${body.name}`,
       kind: "github.create",
       repositoryName: body.name,
     });
@@ -60,7 +60,7 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
         context,
         workflow.taskId,
         workflow.workflowId,
-        "system: repository created",
+        "system: repository creation planned; no mutation executed",
       );
       return json({
         workflowId: workflow.workflowId,
@@ -105,8 +105,8 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
       return json({ error: "name is required" }, 400);
     }
     const workflow = await createAutocoderWorkflowContext(context, {
-      title: `Delete repo ${body.name}`,
-      objective: `Delete GitHub repository ${body.name}`,
+      title: `Plan repo deletion ${body.name}`,
+      objective: `Plan GitHub repository deletion for ${body.name}`,
       kind: "github.delete",
       repositoryName: body.name,
     });
@@ -128,7 +128,7 @@ export const handleCodegenGithubRoutes: CodegenRouteHandler = async (
         context,
         workflow.taskId,
         workflow.workflowId,
-        "system: repository deleted",
+        "system: repository deletion planned; no mutation executed",
       );
       return json({
         workflowId: workflow.workflowId,

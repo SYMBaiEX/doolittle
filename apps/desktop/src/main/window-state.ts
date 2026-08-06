@@ -1,5 +1,7 @@
-import { readFileSync } from "node:fs";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import {
+  readJsonFileSync,
+  writeJsonAtomicSync,
+} from "@elizaos/agent/utils/atomic-json";
 
 export const MIN_WINDOW_WIDTH = 920;
 export const MIN_WINDOW_HEIGHT = 620;
@@ -150,43 +152,38 @@ export function loadWindowState(
     ...options,
   };
 
-  try {
-    const raw = JSON.parse(readFileSync(statePath, "utf8"));
-    if (!isRecord(raw)) return normalizedOptions.defaultState;
+  const raw = readJsonFileSync<unknown>(statePath);
+  if (!isRecord(raw)) return normalizedOptions.defaultState;
 
-    const boundsRaw = raw.bounds;
-    if (!isRecord(boundsRaw)) return normalizedOptions.defaultState;
+  const boundsRaw = raw.bounds;
+  if (!isRecord(boundsRaw)) return normalizedOptions.defaultState;
 
-    const x = boundsRaw.x;
-    const y = boundsRaw.y;
-    const width = boundsRaw.width;
-    const height = boundsRaw.height;
-    if (
-      typeof x !== "number" ||
-      typeof y !== "number" ||
-      typeof width !== "number" ||
-      typeof height !== "number"
-    ) {
-      return normalizedOptions.defaultState;
-    }
-
-    const rawState: PersistedWindowState = {
-      bounds: { x, y, width, height },
-      isMaximized:
-        typeof raw.isMaximized === "boolean" ? raw.isMaximized : false,
-    };
-
-    const bounds = sanitizeWindowBounds(rawState.bounds, normalizedOptions);
-    return sanitizeWindowState(
-      {
-        bounds,
-        isMaximized: rawState.isMaximized,
-      },
-      normalizedOptions,
-    );
-  } catch {
+  const x = boundsRaw.x;
+  const y = boundsRaw.y;
+  const width = boundsRaw.width;
+  const height = boundsRaw.height;
+  if (
+    typeof x !== "number" ||
+    typeof y !== "number" ||
+    typeof width !== "number" ||
+    typeof height !== "number"
+  ) {
     return normalizedOptions.defaultState;
   }
+
+  const rawState: PersistedWindowState = {
+    bounds: { x, y, width, height },
+    isMaximized: typeof raw.isMaximized === "boolean" ? raw.isMaximized : false,
+  };
+
+  const bounds = sanitizeWindowBounds(rawState.bounds, normalizedOptions);
+  return sanitizeWindowState(
+    {
+      bounds,
+      isMaximized: rawState.isMaximized,
+    },
+    normalizedOptions,
+  );
 }
 
 export function persistWindowState(

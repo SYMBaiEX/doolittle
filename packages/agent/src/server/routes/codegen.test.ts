@@ -42,12 +42,17 @@ function createContext(): AppContext {
         if (service === "github") {
           return {
             createRepository: async (name: string, isPrivate: boolean) => ({
+              experimental: true,
+              executed: false,
               name,
               private: isPrivate,
+              status: "planned",
             }),
             deleteRepository: async (name: string) => ({
+              experimental: true,
+              executed: false,
               name,
-              deleted: true,
+              status: "planned",
             }),
           };
         }
@@ -273,7 +278,7 @@ describe("handleCodegenRoutes", () => {
     expect(task?.summary).toContain("system: code generation completed");
   });
 
-  it("runs PRD workflows and repository mutations", async () => {
+  it("runs PRD workflows and repository-operation plans", async () => {
     const context = createContext();
 
     const prd = await handleCodegenRoutes(
@@ -312,12 +317,17 @@ describe("handleCodegenRoutes", () => {
     expect(prdBody.prdRun.kind).toBe("prd");
     expect(prdBody.prdRun.parentRunId).toBe(prdBody.researchRun.id);
     expect(createdBody.repository).toEqual({
+      experimental: true,
+      executed: false,
       name: "demo-repo",
       private: false,
+      status: "planned",
     });
     expect(deletedBody.deleted).toEqual({
+      experimental: true,
+      executed: false,
       name: "demo-repo",
-      deleted: true,
+      status: "planned",
     });
   });
 

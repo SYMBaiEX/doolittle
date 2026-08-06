@@ -1,6 +1,9 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import {
+  readJsonFileSync,
+  writeJsonAtomicSync,
+} from "@elizaos/agent/utils/atomic-json";
 import type { RunSnapshot } from "./types";
 import { cloneRun } from "./utils";
 
@@ -116,32 +119,28 @@ export class RunControllerStore {
 
   private loadReceipts(): void {
     if (!this.filePath || !existsSync(this.filePath)) return;
-    try {
-      const parsed = JSON.parse(
-        readFileSync(this.filePath, "utf8"),
-      ) as Partial<PersistedRunReceipts>;
-      if (!Array.isArray(parsed.receipts)) return;
-      const restoredAt = new Date().toISOString();
-      for (const receipt of parsed.receipts
-        .filter(isRunSnapshot)
-        .slice(-RunControllerStore.MAX_RECEIPTS)) {
-        const restored = receipt.endedAt
-          ? cloneRun(receipt)
-          : {
-              ...cloneRun(receipt),
-              status: "error" as const,
-              terminalReason: "error" as const,
-              statusDetail: "Interrupted by runtime restart",
-              errorMessage: "Runtime restarted before this run completed.",
-              updatedAt: restoredAt,
-              endedAt: restoredAt,
-            };
-        this.receipts.set(restored.runId, restored);
-      }
-      this.persistReceipts();
-    } catch {
-      // A malformed receipt cache must never prevent the local runtime booting.
+    const parsed = readJsonFileSync<Partial<PersistedRunReceipts>>(
+      this.filePath,
+    );
+    if (!Array.isArray(parsed?.receipts)) return;
+    const restoredAt = new Date().toISOString();
+    for (const receipt of parsed.receipts
+      .filter(isRunSnapshot)
+      .slice(-RunControllerStore.MAX_RECEIPTS)) {
+      const restored = receipt.endedAt
+        ? cloneRun(receipt)
+        : {
+            ...cloneRun(receipt),
+            status: "error" as const,
+            terminalReason: "error" as const,
+            statusDetail: "Interrupted by runtime restart",
+            errorMessage: "Runtime restarted before this run completed.",
+            updatedAt: restoredAt,
+            endedAt: restoredAt,
+          };
+      this.receipts.set(restored.runId, restored);
     }
+    this.persistReceipts();
   }
 
   private persistReceipts(): void {

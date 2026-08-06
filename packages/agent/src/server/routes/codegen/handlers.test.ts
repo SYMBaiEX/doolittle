@@ -57,12 +57,17 @@ function createContext(): AppContext {
         if (service === "github") {
           return {
             createRepository: async (name: string, isPrivate: boolean) => ({
+              experimental: true,
+              executed: false,
               name,
               private: isPrivate,
+              status: "planned",
             }),
             deleteRepository: async (name: string) => ({
+              experimental: true,
+              executed: false,
               name,
-              deleted: true,
+              status: "planned",
             }),
           };
         }
@@ -505,12 +510,17 @@ describe("codegen route handlers", () => {
     expect(prdBody?.prdRun.kind).toBe("prd");
     expect(qaBody?.qa.qa).toBe(true);
     expect(createdBody?.repository).toEqual({
+      experimental: true,
+      executed: false,
       name: "demo-repo",
       private: false,
+      status: "planned",
     });
     expect(deletedBody?.deleted).toEqual({
+      experimental: true,
+      executed: false,
       name: "demo-repo",
-      deleted: true,
+      status: "planned",
     });
   });
 

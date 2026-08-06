@@ -1,6 +1,9 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import {
+  readJsonFileSync,
+  writeJsonAtomicSync,
+} from "@elizaos/agent/utils/atomic-json";
 import type {
   AutocoderPipelineRunRecord,
   AutocoderPipelineWorkflowRecord,
@@ -43,20 +46,12 @@ export function createAutocoderPipelinePersistence(
   return {
     artifactRoot: artifactDir,
     loadStore(): AutocoderPipelineStore {
-      if (!existsSync(storePath)) {
-        return { runs: [], workflows: [] };
-      }
-      try {
-        const parsed = JSON.parse(
-          readFileSync(storePath, "utf8"),
-        ) as Partial<AutocoderPipelineStore>;
-        return {
-          runs: parsed.runs ?? [],
-          workflows: parsed.workflows ?? [],
-        };
-      } catch {
-        return { runs: [], workflows: [] };
-      }
+      const parsed =
+        readJsonFileSync<Partial<AutocoderPipelineStore>>(storePath);
+      return {
+        runs: parsed?.runs ?? [],
+        workflows: parsed?.workflows ?? [],
+      };
     },
     saveStore(store: AutocoderPipelineStore): void {
       writeJsonAtomicSync(storePath, store);

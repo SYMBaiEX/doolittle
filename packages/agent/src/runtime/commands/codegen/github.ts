@@ -22,12 +22,12 @@ export async function handleCodegenGithubCommand(
     return withAutocoderWorkflow(
       context,
       {
-        title: `Create repo ${name}`,
-        objective: `Create GitHub repository ${name}`,
+        title: `Plan repo creation ${name}`,
+        objective: `Plan GitHub repository creation for ${name}`,
         kind: "github.create",
         repositoryName: name,
       },
-      "system: repository created",
+      "system: repository creation planned; no mutation executed",
       async (workflow) => {
         const repository = await createEffectiveRepository(
           context.runtime,
@@ -61,12 +61,12 @@ export async function handleCodegenGithubCommand(
     return withAutocoderWorkflow(
       context,
       {
-        title: `Delete repo ${name}`,
-        objective: `Delete GitHub repository ${name}`,
+        title: `Plan repo deletion ${name}`,
+        objective: `Plan GitHub repository deletion for ${name}`,
         kind: "github.delete",
         repositoryName: name,
       },
-      "system: repository deleted",
+      "system: repository deletion planned; no mutation executed",
       async (workflow) => {
         const deleted = await deleteEffectiveRepository(context.runtime, name);
         const run = context.services.autocoderPipeline.record({

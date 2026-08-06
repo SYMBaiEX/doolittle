@@ -1,11 +1,12 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import type { StoredFormRecord } from "@doolittle/contracts";
-import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
+import {
+  readJsonFileSync,
+  writeJsonAtomicSync,
+} from "@elizaos/agent/utils/atomic-json";
 import { nowIso } from "../record-utils";
 import { normalizeMetadata } from "./normalization";
 import type { FormsStore } from "./types";
-
-const FILE_ENCODING = "utf8";
 
 export function ensureStoreInitialized(
   rootDir: string,
@@ -18,36 +19,32 @@ export function ensureStoreInitialized(
 }
 
 export function readStore(storePath: string): FormsStore {
-  try {
-    const parsed = JSON.parse(readFileSync(storePath, FILE_ENCODING)) as {
-      forms?: Array<Partial<StoredFormRecord>>;
-    };
-    return {
-      forms: Array.isArray(parsed.forms)
-        ? parsed.forms
-            .filter(
-              (
-                entry,
-              ): entry is Partial<StoredFormRecord> &
-                Pick<StoredFormRecord, "id" | "templateId"> =>
-                Boolean(entry.id && entry.templateId),
-            )
-            .map((entry) => ({
-              id: entry.id,
-              templateId: entry.templateId,
-              status:
-                entry.status === "completed" || entry.status === "cancelled"
-                  ? entry.status
-                  : "active",
-              metadata: normalizeMetadata(entry.metadata),
-              createdAt: entry.createdAt ?? nowIso(),
-              updatedAt: entry.updatedAt ?? entry.createdAt ?? nowIso(),
-            }))
-        : [],
-    };
-  } catch {
-    return { forms: [] };
-  }
+  const parsed = readJsonFileSync<{
+    forms?: Array<Partial<StoredFormRecord>>;
+  }>(storePath);
+  return {
+    forms: Array.isArray(parsed?.forms)
+      ? parsed.forms
+          .filter(
+            (
+              entry,
+            ): entry is Partial<StoredFormRecord> &
+              Pick<StoredFormRecord, "id" | "templateId"> =>
+              Boolean(entry.id && entry.templateId),
+          )
+          .map((entry) => ({
+            id: entry.id,
+            templateId: entry.templateId,
+            status:
+              entry.status === "completed" || entry.status === "cancelled"
+                ? entry.status
+                : "active",
+            metadata: normalizeMetadata(entry.metadata),
+            createdAt: entry.createdAt ?? nowIso(),
+            updatedAt: entry.updatedAt ?? entry.createdAt ?? nowIso(),
+          }))
+      : [],
+  };
 }
 
 export function writeStore(storePath: string, store: FormsStore): void {

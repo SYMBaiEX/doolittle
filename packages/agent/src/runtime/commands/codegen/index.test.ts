@@ -53,12 +53,17 @@ function createContext(): AgentExecutionContext {
         if (service === "github") {
           return {
             createRepository: async (name: string, isPrivate: boolean) => ({
+              experimental: true,
+              executed: false,
               name,
               private: isPrivate,
+              status: "planned",
             }),
             deleteRepository: async (name: string) => ({
+              experimental: true,
+              executed: false,
               name,
-              deleted: true,
+              status: "planned",
             }),
           };
         }
@@ -166,7 +171,9 @@ describe("codegen command router", () => {
     };
 
     expect(created).toContain('"private": false');
-    expect(deleted).toContain('"deleted": true');
+    expect(created).toContain('"executed": false');
+    expect(deleted).toContain('"status": "planned"');
+    expect(deleted).toContain('"executed": false');
     expect(keys).toContain("OPENAI_API_KEY");
     expect(fetched).toContain("value:OPENAI_API_KEY");
     expect(stored).toContain('"valueSet": true');
