@@ -1,3 +1,5 @@
+import { asRecordOrUndefined } from "@elizaos/shared/type-guards";
+
 export type ToolActivityStatus = "pending" | "running" | "completed" | "error";
 
 export interface ToolActivity {
@@ -42,12 +44,6 @@ interface JsonRange {
 
 const EVENT_START =
   /\{\s*"type"\s*:\s*"(?:tool_call|tool_result|evaluation)"/gu;
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
-}
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
@@ -99,10 +95,10 @@ function isInsideCodeFence(source: string, offset: number): boolean {
 }
 
 function isEmbeddedAgentEvent(value: unknown): value is EmbeddedAgentEvent {
-  const event = asRecord(value);
+  const event = asRecordOrUndefined(value);
   if (!event) return false;
   if (event.type === "tool_call") {
-    const toolCall = asRecord(event.toolCall);
+    const toolCall = asRecordOrUndefined(event.toolCall);
     return Boolean(
       toolCall &&
         stringValue(toolCall.id) &&
@@ -111,13 +107,16 @@ function isEmbeddedAgentEvent(value: unknown): value is EmbeddedAgentEvent {
     );
   }
   if (event.type === "tool_result") {
-    const toolCall = asRecord(event.toolCall);
+    const toolCall = asRecordOrUndefined(event.toolCall);
     return Boolean(
       stringValue(event.toolCallId) ||
         (toolCall && stringValue(toolCall.id) && stringValue(toolCall.name)),
     );
   }
-  return event.type === "evaluation" && Boolean(asRecord(event.evaluation));
+  return (
+    event.type === "evaluation" &&
+    Boolean(asRecordOrUndefined(event.evaluation))
+  );
 }
 
 function statusFromToolCall(value: unknown): ToolActivityStatus {
@@ -135,7 +134,7 @@ function statusFromToolCall(value: unknown): ToolActivityStatus {
 }
 
 function errorFromResult(value: unknown): string | undefined {
-  const result = asRecord(value);
+  const result = asRecordOrUndefined(value);
   if (!result) return undefined;
   if (result.success === false) {
     return (
@@ -159,7 +158,7 @@ function addToolCall(
   tools: ToolActivity[],
   toolIndex: Map<string, number>,
 ): void {
-  const toolCall = asRecord(event.toolCall);
+  const toolCall = asRecordOrUndefined(event.toolCall);
   if (!toolCall) return;
   const id = stringValue(toolCall.id);
   const name = stringValue(toolCall.name);
@@ -185,7 +184,7 @@ function addToolResult(
   tools: ToolActivity[],
   toolIndex: Map<string, number>,
 ): void {
-  const toolCall = asRecord(event.toolCall);
+  const toolCall = asRecordOrUndefined(event.toolCall);
   const id =
     stringValue(event.toolCallId) ??
     (toolCall ? stringValue(toolCall.id) : undefined);
@@ -230,7 +229,7 @@ function addEvaluation(
   event: EmbeddedAgentEvent,
   steps: AgentStepSummary,
 ): void {
-  const evaluation = asRecord(event.evaluation);
+  const evaluation = asRecordOrUndefined(event.evaluation);
   if (!evaluation) return;
   const decision = String(evaluation.decision ?? "").toUpperCase();
   const success = evaluation.success !== false;
@@ -303,14 +302,14 @@ function parsePossibleJson(value: unknown): unknown {
 
 function candidateSearchPayloads(value: unknown): unknown[] {
   const payloads = [parsePossibleJson(value)];
-  const root = asRecord(payloads[0]);
+  const root = asRecordOrUndefined(payloads[0]);
   if (!root) return payloads;
 
   for (const candidate of [
     root.text,
     root.value,
-    asRecord(root.data)?.value,
-    asRecord(root.data)?.text,
+    asRecordOrUndefined(root.data)?.value,
+    asRecordOrUndefined(root.data)?.text,
   ]) {
     if (candidate !== undefined) payloads.push(parsePossibleJson(candidate));
   }
@@ -319,11 +318,11 @@ function candidateSearchPayloads(value: unknown): unknown[] {
 
 export function webSearchResults(value: unknown): WebSearchResult[] {
   for (const payload of candidateSearchPayloads(value)) {
-    const record = asRecord(payload);
+    const record = asRecordOrUndefined(payload);
     const results = Array.isArray(record?.results) ? record.results : undefined;
     if (!results) continue;
     return results.flatMap((candidate) => {
-      const result = asRecord(candidate);
+      const result = asRecordOrUndefined(candidate);
       const url = stringValue(result?.url);
       if (!result || !url || !/^https?:\/\//iu.test(url)) return [];
       const excerpts = Array.isArray(result.excerpts)

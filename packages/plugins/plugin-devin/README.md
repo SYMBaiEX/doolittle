@@ -1,6 +1,6 @@
 # @elizaos/plugin-devin
 
-Workspace-native Devin provider for Doolittle.
+Doolittle-owned ElizaOS provider bridge for Devin CLI execution.
 
 The plugin uses the locally installed `devin` CLI in non-interactive print mode, so authentication stays in Devin's own credential store. No Devin token or API key is copied into Doolittle.
 

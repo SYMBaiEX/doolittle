@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { extname, resolve } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import {
   resolveWorkspaceDirectory,
   type WorkspaceDirectorySource,
@@ -61,18 +62,13 @@ export class MediaInspectionSupport {
       slug,
     );
     const relatedFiles = listMediaRelatedFiles(inspection.path);
-    writeFileSync(
+    writeJsonAtomicSync(
       manifestPath,
-      JSON.stringify(
-        buildMediaBundleManifest(
-          new Date().toISOString(),
-          inspection,
-          relatedFiles,
-        ),
-        null,
-        2,
+      buildMediaBundleManifest(
+        new Date().toISOString(),
+        inspection,
+        relatedFiles,
       ),
-      "utf8",
     );
 
     writeFileSync(

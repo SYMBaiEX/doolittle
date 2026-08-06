@@ -1,11 +1,6 @@
-import {
-  copyFileSync,
-  cpSync,
-  existsSync,
-  mkdirSync,
-  writeFileSync,
-} from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { EnvConfig } from "@/types";
 import { findSkillRoot, inspectMigrationSource } from "./inspection";
 import type { MigrationResult } from "./types";
@@ -69,7 +64,7 @@ export function applyMigration(input: ApplyMigrationInput): MigrationResult {
     importedSkills,
     skippedFiles,
   };
-  writeFileSync(reportPath, JSON.stringify(report, null, 2), "utf8");
+  writeJsonAtomicSync(reportPath, report);
 
   return {
     sourcePath: inspection.rootPath,

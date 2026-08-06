@@ -56,7 +56,7 @@ export function createCodexPlugin(options: CodexPluginOptions): Plugin {
   return {
     name: "@elizaos/plugin-codex",
     description:
-      "Workspace-native Codex plugin for linked-account discovery and Codex-native workflow routing.",
+      "Doolittle-owned Eliza provider bridge for linked Codex accounts and workflow routing.",
     services: [CodexService],
     models: options.enabled
       ? createElizaTextGenerationModelHandlers((runtime, params) =>

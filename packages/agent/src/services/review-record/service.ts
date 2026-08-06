@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join, normalize, resolve } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type {
   ReviewRecord,
   ReviewRecordAnchor,
@@ -397,6 +398,6 @@ export class ReviewRecordService {
   }
 
   private write(value: PersistedReviewRecords): void {
-    writeFileSync(this.filePath, JSON.stringify(value, null, 2), "utf8");
+    writeJsonAtomicSync(this.filePath, value);
   }
 }

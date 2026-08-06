@@ -56,7 +56,7 @@ export function createClaudeCodePlugin(
   return {
     name: "@elizaos/plugin-claude-code",
     description:
-      "Workspace-native Claude Code plugin for linked-account discovery and Claude-native workflow routing.",
+      "Doolittle-owned Eliza provider bridge for linked Claude Code accounts and workflow routing.",
     services: [ClaudeCodeService],
     models: options.enabled
       ? createElizaTextGenerationModelHandlers((runtime, params) =>

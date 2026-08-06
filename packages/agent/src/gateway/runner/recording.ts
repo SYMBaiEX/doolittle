@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { writeFileSync } from "node:fs";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { GatewayRuntimeStatus } from "@/gateway/read/read-model";
 import { appendGatewayJournalRecord } from "@/gateway/recording/journal";
 import {
@@ -171,10 +171,9 @@ export class GatewayRunnerRecording {
   }
 
   writeRuntimeStatus(): void {
-    writeFileSync(
+    writeJsonAtomicSync(
       this.deps.runtimeStatusPath,
-      JSON.stringify(this.deps.getRuntimeStatus(), null, 2),
-      "utf8",
+      this.deps.getRuntimeStatus(),
     );
   }
 

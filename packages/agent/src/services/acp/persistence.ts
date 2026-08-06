@@ -1,6 +1,7 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildAcpBundlePayload } from "@doolittle/acp";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type {
   AcpEditorSummary,
   AcpPackageMetadata,
@@ -19,11 +20,7 @@ export class AcpPersistence {
     entry: AcpRegistryEntry;
     publishedAt: string;
   } {
-    writeFileSync(
-      this.paths.registryPath,
-      JSON.stringify(entry, null, 2),
-      "utf8",
-    );
+    writeJsonAtomicSync(this.paths.registryPath, entry);
     return {
       path: this.paths.registryPath,
       entry,
@@ -61,7 +58,7 @@ export class AcpPersistence {
       sessions: input.sessions,
       tools: input.tools,
     });
-    writeFileSync(path, JSON.stringify(payload, null, 2), "utf8");
+    writeJsonAtomicSync(path, payload);
     return {
       path,
       label: safeLabel,
@@ -83,7 +80,7 @@ export class AcpPersistence {
     const importedAt = new Date().toISOString();
     const fileName = `acp-import-${importedAt.replaceAll(":", "-")}.json`;
     const path = join(this.paths.importDir, fileName);
-    writeFileSync(path, JSON.stringify(parsed, null, 2), "utf8");
+    writeJsonAtomicSync(path, parsed);
     return {
       path,
       importedAt,

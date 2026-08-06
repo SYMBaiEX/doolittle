@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type {
   TrajectoryBenchmarkCaseResult,
   TrajectoryBenchmarkManifest,
@@ -35,26 +36,18 @@ export function writeTrajectoryBenchmarkRunArtifacts(input: {
     `trajectory-${stamp}-${label}-benchmark-run.json`,
   );
 
-  writeFileSync(
-    runManifestPath,
-    JSON.stringify(
-      {
-        createdAt,
-        manifest,
-        environment: manifest.environment,
-        cases,
-        averageScore: summary.averageScore,
-        bestScore: summary.bestScore,
-        worstScore: summary.worstScore,
-        grade: summary.grade,
-        findings: summary.findings,
-        recommendations: summary.recommendations,
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
+  writeJsonAtomicSync(runManifestPath, {
+    createdAt,
+    manifest,
+    environment: manifest.environment,
+    cases,
+    averageScore: summary.averageScore,
+    bestScore: summary.bestScore,
+    worstScore: summary.worstScore,
+    grade: summary.grade,
+    findings: summary.findings,
+    recommendations: summary.recommendations,
+  });
 
   writeFileSync(
     reportPath,

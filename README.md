@@ -461,8 +461,8 @@ curl -X POST http://localhost:3000/chat \
 
 **Planning and forms**
 
-- Native planning control-plane endpoints and `/planning` flows
-- Native forms control-plane endpoints and `/forms` flows
+- Doolittle planning control-plane endpoints backed by Eliza task/workflow state
+- Doolittle forms control-plane endpoints and `/forms` flows
 - Native integration inventory and readiness endpoints
 
 **Ecosystem**

@@ -1,11 +1,6 @@
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 
 import { normalizeRuntimeSettings } from "@/services/settings/normalization";
 import type {
@@ -87,7 +82,7 @@ export class SettingsService {
   }
 
   private write(settings: RuntimeSettings): void {
-    writeFileSync(this.filePath, JSON.stringify(settings, null, 2), "utf8");
+    writeJsonAtomicSync(this.filePath, settings);
     this.cache = { mtimeMs: statSync(this.filePath).mtimeMs, settings };
   }
 }

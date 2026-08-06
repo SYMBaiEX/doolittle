@@ -1,6 +1,6 @@
 # @elizaos/plugin-elizacloud
 
-Workspace-native Eliza Cloud provider plugin for managed ElizaOS inference in Doolittle.
+Doolittle-owned Eliza Cloud provider bridge for managed ElizaOS inference.
 
 ## What it does
 

@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { createWebComparisonBundle } from "./analysis";
 import { slugifyUrl } from "./artifacts";
 import type {
@@ -31,7 +32,7 @@ export function createCaptureReadModel(
     status: inspection.status,
   };
 
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+  writeJsonAtomicSync(manifestPath, manifest);
   writeFileSync(
     reportPath,
     [

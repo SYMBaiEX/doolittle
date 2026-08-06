@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { slugifyMediaText } from "../paths";
 import type { MediaModelContext } from "../types";
 import { renderGenerationSvg } from "./renderers";
@@ -86,18 +87,10 @@ export async function requestImageGeneration(input: {
       input.outputDir,
       `media-${Date.now()}-${slugifyMediaText(input.prompt)}.json`,
     );
-    writeFileSync(
-      responsePath,
-      JSON.stringify(
-        {
-          prompt: input.prompt,
-          url: generated.url,
-        },
-        null,
-        2,
-      ),
-      "utf8",
-    );
+    writeJsonAtomicSync(responsePath, {
+      prompt: input.prompt,
+      url: generated.url,
+    });
     return {
       path: fallbackPath,
       kind: "svg",

@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { TrajectoryBatchManifest } from "../../../types/trajectory";
 import type {
   TrajectoryBatchManifestInput,
@@ -34,7 +35,7 @@ export function createTrajectoryBatchManifest(
     promptCount: prompts.length,
   };
 
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+  writeJsonAtomicSync(manifestPath, manifest);
   writeFileSync(
     summaryPath,
     [

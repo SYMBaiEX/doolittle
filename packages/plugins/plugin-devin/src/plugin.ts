@@ -55,7 +55,7 @@ export function createDevinPlugin(options: DevinPluginOptions): Plugin {
   return {
     name: "@elizaos/plugin-devin",
     description:
-      "Workspace-native Devin plugin for linked-account discovery and SWE model routing.",
+      "Doolittle-owned Eliza provider bridge for linked Devin CLI accounts and SWE model routing.",
     services: [DevinService],
     models: options.enabled
       ? createElizaTextGenerationModelHandlers((runtime, params) =>

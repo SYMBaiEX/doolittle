@@ -1,3 +1,5 @@
+import { asRecord } from "./value-guards";
+
 export type GatewayDirection = "inbox" | "outbox";
 
 export interface GatewayTimelineItem {
@@ -12,14 +14,6 @@ export interface GatewayTimelineItem {
   author: string;
   preview: string;
   attachmentCount: number;
-}
-
-type UnknownRecord = Record<string, unknown>;
-
-function asRecord(value: unknown): UnknownRecord {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as UnknownRecord)
-    : {};
 }
 
 function asString(value: unknown, fallback = ""): string {

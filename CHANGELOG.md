@@ -71,6 +71,14 @@ ElizaOS 2.0 beta line.
 
 ### Security
 
+- Replaced direct JSON persistence across desktop, gateway, credentials,
+  configuration, product services, Skills Hub, media/web artifacts, and
+  trajectory tooling with Eliza's public atomic JSON writer. Acceptance now
+  blocks ordinary direct JSON writes while preserving staged multi-file imports
+  and newline-delimited datasets.
+- Migrated autocoder secrets from a Doolittle plaintext JSON store to the
+  official encrypted Eliza Vault. Existing entries are imported once and the
+  legacy plaintext file is removed only after successful storage.
 - Replaced Doolittle's parallel HTTP auth/CORS implementation with Eliza's
   native API security helpers, including DNS-rebinding protection and canonical
   terminal-token policy. Existing `DOOLITTLE_*` API settings remain boot-time

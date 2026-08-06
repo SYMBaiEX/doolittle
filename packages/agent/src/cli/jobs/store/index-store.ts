@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { CliJobIndex, CliJobRecord } from "../types";
 import { reconcileJobRecords } from "./events";
 
@@ -16,7 +17,7 @@ function ensureJobsStore(dataDir: string): void {
   mkdirSync(root, { recursive: true });
   const indexPath = jobsIndexPath(dataDir);
   if (!existsSync(indexPath)) {
-    writeFileSync(indexPath, JSON.stringify({ jobs: [] }, null, 2), "utf8");
+    writeJsonAtomicSync(indexPath, { jobs: [] });
   }
 }
 
@@ -39,7 +40,7 @@ export function readJobsIndex(dataDir: string): CliJobIndex {
 
 export function writeJobsIndex(dataDir: string, index: CliJobIndex): void {
   ensureJobsStore(dataDir);
-  writeFileSync(jobsIndexPath(dataDir), JSON.stringify(index, null, 2), "utf8");
+  writeJsonAtomicSync(jobsIndexPath(dataDir), index);
 }
 
 export function mutateJob(

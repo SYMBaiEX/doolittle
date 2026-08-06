@@ -15,7 +15,3 @@ export interface AutocoderPluginOptions {
   };
   storage?: PluginStorageOptions;
 }
-
-export interface SecretStore {
-  secrets: Record<string, string>;
-}

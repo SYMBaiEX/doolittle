@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type {
   TrajectoryAnalysisBundle,
   TrajectoryBundleEntry,
@@ -86,25 +87,20 @@ export function writeTrajectoryEvaluationArtifacts(
     `trajectory-${stamp}-${label}-evaluation-response.md`,
   );
 
-  writeFileSync(
+  writeJsonAtomicSync(
     evaluationPath,
-    JSON.stringify(
-      buildTrajectoryEvaluationSnapshot({
-        createdAt,
-        bundle: input.bundle,
-        replay: input.replay,
-        score: input.score,
-        grade: input.grade,
-        findings: input.findings,
-        recommendations: input.recommendations,
-        rubric: input.rubric,
-        tags: input.jsonTags,
-        response: input.response,
-      }),
-      null,
-      2,
-    ),
-    "utf8",
+    buildTrajectoryEvaluationSnapshot({
+      createdAt,
+      bundle: input.bundle,
+      replay: input.replay,
+      score: input.score,
+      grade: input.grade,
+      findings: input.findings,
+      recommendations: input.recommendations,
+      rubric: input.rubric,
+      tags: input.jsonTags,
+      response: input.response,
+    }),
   );
 
   writeFileSync(
@@ -153,19 +149,14 @@ export function writeTrajectoryResearchPackageArtifacts(
     `trajectory-${stamp}-${label}-package-response.md`,
   );
 
-  writeFileSync(
+  writeJsonAtomicSync(
     packageManifestPath,
-    JSON.stringify(
-      buildTrajectoryResearchPackageManifest({
-        createdAt,
-        analysis: input.analysis,
-        evaluation: input.evaluation,
-        response: input.response,
-      }),
-      null,
-      2,
-    ),
-    "utf8",
+    buildTrajectoryResearchPackageManifest({
+      createdAt,
+      analysis: input.analysis,
+      evaluation: input.evaluation,
+      response: input.response,
+    }),
   );
 
   writeFileSync(

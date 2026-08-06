@@ -30,7 +30,7 @@ export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
     maturity: "alpha",
     enablement: "elizaCloud",
     notes:
-      "Workspace-native Eliza Cloud provider plugin for managed ElizaOS inference and cloud-native defaults.",
+      "Doolittle-owned Eliza Cloud provider bridge for managed ElizaOS inference and cloud defaults.",
   },
   {
     id: "providers.ollama",
@@ -52,7 +52,7 @@ export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
     maturity: "alpha",
     enablement: "codex",
     notes:
-      "Workspace-native Codex provider plugin for ChatGPT-backed Codex workflows.",
+      "Doolittle-owned Codex provider bridge for ChatGPT-backed Codex workflows.",
   },
   {
     id: "providers.claude-code",
@@ -63,7 +63,7 @@ export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
     maturity: "alpha",
     enablement: "claudeCode",
     notes:
-      "Workspace-native Claude Code provider plugin for Claude-native workflows.",
+      "Doolittle-owned Claude Code provider bridge for linked-account Claude workflows.",
   },
   {
     id: "providers.devin",
@@ -73,8 +73,7 @@ export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
     kind: "provider",
     maturity: "alpha",
     enablement: "devin",
-    notes:
-      "Workspace-native Devin CLI provider plugin for SWE model workflows.",
+    notes: "Doolittle-owned Devin CLI provider bridge for SWE model workflows.",
   },
   {
     id: "providers.openai",

@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 
 import type { RlTurnRecord } from "./types";
 
@@ -51,25 +52,19 @@ export function writeRlDatasetFiles(input: {
   dataPath: string;
   manifestPath: string;
 }): { dataPath: string; manifestPath: string } {
+  // JSONL is a record stream, not one JSON document; the atomic JSON helper
+  // intentionally owns the adjacent manifest only.
   writeFileSync(
     input.dataPath,
     input.turns.map((turn) => JSON.stringify(turn)).join("\n"),
     "utf8",
   );
-  writeFileSync(
-    input.manifestPath,
-    JSON.stringify(
-      {
-        ...input.manifest,
-        schema: RL_SCHEMA,
-        ...RL_EXPORT_TRAINING_METADATA,
-        createdAt: new Date().toISOString(),
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
+  writeJsonAtomicSync(input.manifestPath, {
+    ...input.manifest,
+    schema: RL_SCHEMA,
+    ...RL_EXPORT_TRAINING_METADATA,
+    createdAt: new Date().toISOString(),
+  });
   return {
     dataPath: input.dataPath,
     manifestPath: input.manifestPath,
@@ -82,20 +77,12 @@ export function emptyRlReadyManifest(input: {
   manifestPath: string;
 }): { dataPath: string; manifestPath: string } {
   writeFileSync(input.dataPath, "", "utf8");
-  writeFileSync(
-    input.manifestPath,
-    JSON.stringify(
-      {
-        schema: RL_SCHEMA,
-        sessionId: input.sessionId,
-        turnCount: 0,
-        dataPath: input.dataPath,
-        ...RL_EXPORT_TRAINING_METADATA,
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
+  writeJsonAtomicSync(input.manifestPath, {
+    schema: RL_SCHEMA,
+    sessionId: input.sessionId,
+    turnCount: 0,
+    dataPath: input.dataPath,
+    ...RL_EXPORT_TRAINING_METADATA,
+  });
   return { dataPath: input.dataPath, manifestPath: input.manifestPath };
 }

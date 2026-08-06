@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import type { StoredPlanRecord } from "@doolittle/contracts";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { nowIso } from "../record-utils";
 import {
   normalizeMetadata,
@@ -59,5 +60,5 @@ export function readStore(storePath: string): PlanningStore {
 }
 
 export function writeStore(storePath: string, store: PlanningStore): void {
-  writeFileSync(storePath, JSON.stringify(store, null, 2), FILE_ENCODING);
+  writeJsonAtomicSync(storePath, store);
 }

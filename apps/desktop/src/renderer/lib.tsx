@@ -8,6 +8,7 @@ import {
 
 export type ApiMethod = "GET" | "POST" | "PATCH" | "DELETE";
 export type UnknownRecord = Record<string, unknown>;
+export { asRecord } from "./value-guards";
 
 export interface ApiResource<T> {
   data: T | null;
@@ -25,12 +26,6 @@ export function errorMessage(error: unknown): string {
     )
     .replace(/^Error:\s*/iu, "")
     .trim();
-}
-
-export function asRecord(value: unknown): UnknownRecord {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as UnknownRecord)
-    : {};
 }
 
 export function asArray(value: unknown): unknown[] {

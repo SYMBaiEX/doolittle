@@ -1,3 +1,5 @@
+import { asRecord } from "./value-guards";
+
 export const THREAD_WORKBENCH_STORAGE_PREFIX =
   "doolittle.desktop.thread-workbench.v1";
 
@@ -63,12 +65,6 @@ export interface BriefPlanSelection {
 }
 
 const UNAVAILABLE_VALUE = "Unavailable";
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
 
 function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;

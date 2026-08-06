@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { TerminalCommandRecord } from "@/types/execution";
 import type { TerminalStore } from "./command";
 import { appendCommandRecord } from "./command";
@@ -17,7 +18,7 @@ export class TerminalCommandHistoryStore {
   }
 
   write(store: TerminalStore): void {
-    writeFileSync(this.filePath, JSON.stringify(store, null, 2), "utf8");
+    writeJsonAtomicSync(this.filePath, store);
   }
 
   append(

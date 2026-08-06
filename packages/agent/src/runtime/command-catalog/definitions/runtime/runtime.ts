@@ -73,10 +73,10 @@ export const RuntimeCoreCommandCatalogEntries = [
   ),
   runtimeCommand(
     "/runtime forms",
-    "Show native forms ownership, template counts, and persistence state.",
+    "Show Doolittle forms ownership, template counts, and persistence state.",
   ),
   runtimeCommand(
     "/runtime planning",
-    "Show native planning ownership, linked task/workflow counts, and execution readiness.",
+    "Show Doolittle planning ownership, linked Eliza task/workflow counts, and execution readiness.",
   ),
 ];

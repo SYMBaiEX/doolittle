@@ -1,7 +1,7 @@
 {
   "name": "@elizaos/plugin-devin",
   "version": "2.0.3-beta.7",
-  "description": "Native-first ElizaOS provider plugin for linked Devin CLI SWE model execution.",
+  "description": "Doolittle-owned ElizaOS provider bridge for linked Devin CLI SWE model execution.",
   "license": "MIT",
   "type": "module",
   "exports": {

@@ -1,6 +1,6 @@
 # @elizaos/plugin-claude-code
 
-Native-first ElizaOS provider plugin for using a locally signed-in Claude Code account.
+Doolittle-owned ElizaOS provider bridge for using a locally signed-in Claude Code account.
 
 ## What It Does
 

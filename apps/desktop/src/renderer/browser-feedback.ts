@@ -1,3 +1,5 @@
+import { asRecord } from "./value-guards";
+
 export const BROWSER_FEEDBACK_COMMENT_LIMIT = 2_000;
 export const BROWSER_FEEDBACK_CONTEXT_LIMIT = 8_000;
 
@@ -23,12 +25,6 @@ interface EvidenceMetadata {
   captureReady?: boolean;
   pageTitle: string;
   url: string;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
 }
 
 function asString(value: unknown): string {

@@ -61,7 +61,7 @@ export function createElizaCloudPlugin(
   return {
     name: "@elizaos/plugin-elizacloud",
     description:
-      "Workspace-native Eliza Cloud plugin for managed cloud inference and account-aware runtime routing.",
+      "Doolittle-owned Eliza provider bridge for managed cloud inference and account-aware routing.",
     services: [ElizaCloudService],
     models: options.enabled
       ? {

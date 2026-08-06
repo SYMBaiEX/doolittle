@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { SkillProposalRecord } from "./proposal";
 
 export interface GeneratedSkillRecord {
@@ -29,7 +30,7 @@ export function createGeneratedSkillStorage(skillsDir: string) {
 
   mkdirSync(metadataDir, { recursive: true });
   if (!existsSync(indexPath)) {
-    writeFileSync(indexPath, JSON.stringify({ skills: [] }, null, 2), "utf8");
+    writeJsonAtomicSync(indexPath, { skills: [] });
   }
 
   return {
@@ -84,7 +85,7 @@ export function createGeneratedSkillStorage(skillsDir: string) {
       }
     },
     writeIndex(index: GeneratedSkillIndex): void {
-      writeFileSync(indexPath, JSON.stringify(index, null, 2), "utf8");
+      writeJsonAtomicSync(indexPath, index);
     },
     readProposals(): SkillProposalIndex {
       if (!existsSync(proposalsPath)) return { proposals: [] };
@@ -111,7 +112,7 @@ export function createGeneratedSkillStorage(skillsDir: string) {
       }
     },
     writeProposals(index: SkillProposalIndex): void {
-      writeFileSync(proposalsPath, JSON.stringify(index, null, 2), "utf8");
+      writeJsonAtomicSync(proposalsPath, index);
     },
   };
 }

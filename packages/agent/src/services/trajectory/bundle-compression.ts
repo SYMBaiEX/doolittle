@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type {
   TrajectoryBundleEntry,
   TrajectoryCompressionBundle,
@@ -72,22 +73,14 @@ export function compressTrajectoryBundle(
     `trajectory-${stamp}-${label}-compressed.md`,
   );
 
-  writeFileSync(
-    compressedPath,
-    JSON.stringify(
-      {
-        createdAt: new Date().toISOString(),
-        bundle,
-        replay,
-        sampleCount,
-        sessionBlocks,
-        findings,
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
+  writeJsonAtomicSync(compressedPath, {
+    createdAt: new Date().toISOString(),
+    bundle,
+    replay,
+    sampleCount,
+    sessionBlocks,
+    findings,
+  });
 
   writeFileSync(
     reportPath,

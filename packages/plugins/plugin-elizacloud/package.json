@@ -1,7 +1,7 @@
 {
   "name": "@elizaos/plugin-elizacloud",
   "version": "2.0.3-beta.7",
-  "description": "Workspace-native Eliza Cloud provider plugin for managed ElizaOS inference.",
+  "description": "Doolittle-owned Eliza Cloud provider bridge for managed ElizaOS inference.",
   "license": "MIT",
   "type": "module",
   "exports": {

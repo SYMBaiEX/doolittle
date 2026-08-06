@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { normalizeSessionRoute, type SessionRouteStore } from "./routes";
 
 export function readSessionRouteStore(filePath: string): SessionRouteStore {
@@ -18,5 +19,5 @@ export function writeSessionRouteStore(
     return;
   }
 
-  writeFileSync(filePath, JSON.stringify(store, null, 2), "utf8");
+  writeJsonAtomicSync(filePath, store);
 }

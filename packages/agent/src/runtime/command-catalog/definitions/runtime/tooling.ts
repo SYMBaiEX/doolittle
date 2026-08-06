@@ -19,24 +19,30 @@ export const RuntimeToolingCommandCatalogEntries = [
     "/runtime ecosystem",
     "Show alpha-channel package alignment and native audit data.",
   ),
-  runtimeCommand("/forms list", "List native forms and their current status."),
+  runtimeCommand(
+    "/forms list",
+    "List Doolittle forms and their current status.",
+  ),
   runtimeCommand(
     "/forms templates",
-    "List native form templates available from the forms service.",
+    "List Doolittle form templates available from the forms service.",
   ),
   runtimeCommand(
     "/forms create <template-id> :: <json-metadata>",
-    "Create a native form from a template with optional metadata.",
+    "Create a Doolittle form from a template with optional metadata.",
   ),
-  runtimeCommand("/forms show <form-id>", "Inspect one native form in detail."),
-  runtimeCommand("/forms cancel <form-id>", "Cancel one native form."),
+  runtimeCommand(
+    "/forms show <form-id>",
+    "Inspect one Doolittle form in detail.",
+  ),
+  runtimeCommand("/forms cancel <form-id>", "Cancel one Doolittle form."),
   runtimeCommand(
     "/plans list",
     "List native execution plans and their linked task/workflow state.",
   ),
   runtimeCommand(
     "/todo list",
-    "List the active native planning items through the Doolittle-native todo alias.",
+    "List active Doolittle planning items through the todo alias.",
   ),
   runtimeCommand(
     "/plans create <title> :: <objective> [:: <json-metadata>]",
@@ -44,10 +50,13 @@ export const RuntimeToolingCommandCatalogEntries = [
   ),
   runtimeCommand(
     "/todo add <title> :: <objective>",
-    "Create a native planning item without leaving the chat loop.",
+    "Create a Doolittle planning item without leaving the chat loop.",
   ),
   runtimeCommand("/plans show <plan-id>", "Inspect one native execution plan."),
-  runtimeCommand("/todo show <plan-id>", "Inspect one native planning item."),
+  runtimeCommand(
+    "/todo show <plan-id>",
+    "Inspect one Doolittle planning item.",
+  ),
   runtimeCommand(
     "/runtime e2b",
     "Show native E2B sandbox ownership, active sandboxes, and execution readiness.",

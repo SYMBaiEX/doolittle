@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import type { StoredFormRecord } from "@doolittle/contracts";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { nowIso } from "../record-utils";
 import { normalizeMetadata } from "./normalization";
 import type { FormsStore } from "./types";
@@ -50,5 +51,5 @@ export function readStore(storePath: string): FormsStore {
 }
 
 export function writeStore(storePath: string, store: FormsStore): void {
-  writeFileSync(storePath, JSON.stringify(store, null, 2), FILE_ENCODING);
+  writeJsonAtomicSync(storePath, store);
 }

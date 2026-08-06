@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import {
   type IAgentRuntime,
   type PairingService,
@@ -74,16 +75,8 @@ export async function migrateLegacyPairingStore(
     });
   }
 
-  writeFileSync(
-    markerPath,
-    JSON.stringify(
-      {
-        migratedAt: new Date().toISOString(),
-        owner: "Eliza PairingService",
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
+  writeJsonAtomicSync(markerPath, {
+    migratedAt: new Date().toISOString(),
+    owner: "Eliza PairingService",
+  });
 }

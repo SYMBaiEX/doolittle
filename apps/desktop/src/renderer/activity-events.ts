@@ -1,3 +1,5 @@
+import { asRecord } from "./value-guards";
+
 export type ActivityKind =
   | "delivery"
   | "terminal"
@@ -42,12 +44,6 @@ export interface ActivitySources {
 
 const RAW_LIMIT = 2_400;
 const COPY_LIMIT = 320;
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
 
 function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;

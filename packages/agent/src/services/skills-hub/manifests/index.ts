@@ -1,5 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { SkillHubManifest } from "../types";
 
 export * from "./builders";
@@ -11,8 +10,7 @@ export function writeSkillHubManifest(
   manifestPath: string,
   manifest: SkillHubManifest,
 ): SkillHubManifest {
-  mkdirSync(dirname(manifestPath), { recursive: true });
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+  writeJsonAtomicSync(manifestPath, manifest);
   return {
     ...manifest,
     path: manifestPath,

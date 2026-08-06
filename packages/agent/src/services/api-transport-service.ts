@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 
 export interface ApiResponseRecord {
   id: string;
@@ -139,7 +140,7 @@ export class ApiTransportService {
   }
 
   private write(store: ApiTransportStore): void {
-    writeFileSync(this.storePath, JSON.stringify(store, null, 2), "utf8");
+    writeJsonAtomicSync(this.storePath, store);
   }
 
   private emit(event: ApiTransportUpdateEvent): void {

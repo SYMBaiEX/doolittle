@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { slugifyUrl } from "../artifacts";
 import type {
   BrowserAnalysisBundle,
@@ -52,34 +53,26 @@ export function createWebComparisonBundle(input: {
   const reportPath = join(outputDir, `comparison-${stamp}-${slug}.md`);
   const summary = compareSnapshotMetrics(left.page, right.page);
 
-  writeFileSync(
-    manifestPath,
-    JSON.stringify(
-      {
-        createdAt: new Date().toISOString(),
-        left: {
-          url: left.page.url,
-          manifestPath: left.manifestPath,
-          reportPath: left.reportPath,
-          snapshotPath: left.snapshotPath,
-          screenshotPath: left.screenshotPath,
-          screenshotSvgPath: left.screenshotSvgPath,
-        },
-        right: {
-          url: right.page.url,
-          manifestPath: right.manifestPath,
-          reportPath: right.reportPath,
-          snapshotPath: right.snapshotPath,
-          screenshotPath: right.screenshotPath,
-          screenshotSvgPath: right.screenshotSvgPath,
-        },
-        summary,
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
+  writeJsonAtomicSync(manifestPath, {
+    createdAt: new Date().toISOString(),
+    left: {
+      url: left.page.url,
+      manifestPath: left.manifestPath,
+      reportPath: left.reportPath,
+      snapshotPath: left.snapshotPath,
+      screenshotPath: left.screenshotPath,
+      screenshotSvgPath: left.screenshotSvgPath,
+    },
+    right: {
+      url: right.page.url,
+      manifestPath: right.manifestPath,
+      reportPath: right.reportPath,
+      snapshotPath: right.snapshotPath,
+      screenshotPath: right.screenshotPath,
+      screenshotSvgPath: right.screenshotSvgPath,
+    },
+    summary,
+  });
 
   writeFileSync(
     reportPath,

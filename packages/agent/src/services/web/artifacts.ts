@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { createPixelScreenshotPng, createScreenshotSvg } from "./capture-cards";
 import type { WebPageSnapshot } from "./service-types";
 
@@ -41,18 +42,10 @@ export function writeArtifact(
   writeFileSync(filePath, content.join("\n"), "utf8");
 
   const metadataPath = filePath.replace(/\.md$/u, ".json");
-  writeFileSync(
-    metadataPath,
-    JSON.stringify(
-      {
-        ...page,
-        notes,
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
+  writeJsonAtomicSync(metadataPath, {
+    ...page,
+    notes,
+  });
 
   const svgPath =
     prefix === "screenshot" ? filePath.replace(/\.md$/u, ".svg") : undefined;
@@ -135,21 +128,13 @@ export function writeScreenshotArtifact(
     );
   }
 
-  writeFileSync(
-    jsonPath,
-    JSON.stringify(
-      {
-        ...page,
-        notes,
-        captureMode,
-        screenshotPath,
-        markdownPath,
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
+  writeJsonAtomicSync(jsonPath, {
+    ...page,
+    notes,
+    captureMode,
+    screenshotPath,
+    markdownPath,
+  });
   writeFileSync(svgPath, createScreenshotSvg(page, notes), "utf8");
 
   return {

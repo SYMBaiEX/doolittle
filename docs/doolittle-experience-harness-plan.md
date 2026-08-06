@@ -33,7 +33,7 @@ Doolittle should use ElizaOS as the native substrate and make the harness feel a
 - Coding profile guidance names the active Eliza actions (`READ_FILE`, `WRITE_FILE`, `PATCH_FILE`, `SEARCH_FILES`, `CREATE_DIRECTORY`, and the official `SHELL` action). `RUN_IN_TERMINAL` remains an SDK-provided `SHELL` alias rather than a second Doolittle action.
 - `/retry` replays the latest real conversational turn after removing its previous answer, without storing `/retry` as the prompt.
 - `/undo` removes the latest conversational exchange from session memory.
-- `/todo list`, `/todo add`, and `/todo show` alias Doolittle's native planning service for Doolittle-native task tracking.
+- `/todo list`, `/todo add`, and `/todo show` alias Doolittle's product planning service while linked execution state remains Eliza-owned.
 - Provider-path model input now includes a Doolittle experience contract: warm Eliza-style presence, memory continuity, visible todos for multi-step work, and truthful execution receipts.
 - Command catalog and help examples advertise the recovery and todo loop.
 - `/compress [focus]` now compresses the active conversation session; trajectory dataset compression moved to `/trajectories compress`.

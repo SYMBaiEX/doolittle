@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type {
   TrajectoryRecord,
   TrajectoryReplayResult,
@@ -71,14 +72,9 @@ export function replayTrajectoryBundle(
     replayPreview,
   };
 
-  writeFileSync(
+  writeJsonAtomicSync(
     replayPath,
-    JSON.stringify(
-      buildTrajectoryReplayPayload(replay, records, replayPath),
-      null,
-      2,
-    ),
-    "utf8",
+    buildTrajectoryReplayPayload(replay, records, replayPath),
   );
   writeFileSync(
     replaySummaryPath,

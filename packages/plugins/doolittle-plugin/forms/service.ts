@@ -11,7 +11,7 @@ export const createFormsService = (storageRoot: string) => {
     static serviceType = "forms";
 
     capabilityDescription =
-      "Workspace-native forms service with persistent operator and autocoder intake templates.";
+      "Doolittle-owned forms service with persistent operator and autocoder intake templates.";
 
     private readonly rootDir = storageRoot;
     private readonly storePath = join(this.rootDir, "forms-store.json");

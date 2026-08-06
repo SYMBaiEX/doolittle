@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { GatewayConfig, PlatformName } from "@/types/gateway";
 import type { EnvConfig } from "@/types/runtime";
 
@@ -58,7 +59,7 @@ export function loadGatewayConfig(config: EnvConfig): GatewayConfig {
   const path = join(config.gatewayDataDir, "gateway.json");
   const defaults = getDefaultGatewayConfig(config);
   if (!existsSync(path)) {
-    writeFileSync(path, JSON.stringify(defaults, null, 2), "utf8");
+    writeJsonAtomicSync(path, defaults);
     return defaults;
   }
 
@@ -72,7 +73,7 @@ export function loadGatewayConfig(config: EnvConfig): GatewayConfig {
       ...(parsed.platforms ?? {}),
     },
   };
-  writeFileSync(path, JSON.stringify(merged, null, 2), "utf8");
+  writeJsonAtomicSync(path, merged);
   return merged;
 }
 
@@ -82,5 +83,5 @@ export function saveGatewayConfig(
 ): void {
   mkdirSync(config.gatewayDataDir, { recursive: true });
   const path = join(config.gatewayDataDir, "gateway.json");
-  writeFileSync(path, JSON.stringify(gatewayConfig, null, 2), "utf8");
+  writeJsonAtomicSync(path, gatewayConfig);
 }

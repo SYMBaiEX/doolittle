@@ -7,7 +7,7 @@ export function createGitHubService() {
   class GitHubService extends ElizaService {
     static serviceType = "github";
     capabilityDescription =
-      "Workspace-native GitHub lifecycle service for autocoder workflows.";
+      "Doolittle-owned GitHub CLI planning adapter for autocoder workflows.";
 
     static async start(runtime?: IAgentRuntime): Promise<GitHubService> {
       return new GitHubService(runtime);

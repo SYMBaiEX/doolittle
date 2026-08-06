@@ -5,6 +5,7 @@ import { join, relative } from "node:path";
 
 const ROOT = process.cwd();
 const PLUGINS_ROOT = join(ROOT, "packages", "plugins");
+const DESKTOP_MAIN_ROOT = join(ROOT, "apps", "desktop", "src", "main");
 const SERVICES_ROOT = join(ROOT, "packages", "agent", "src", "services");
 const GATEWAY_ROOT = join(ROOT, "packages", "agent", "src", "gateway");
 const RUNTIME_ROOT = join(ROOT, "packages", "agent", "src", "runtime");
@@ -48,11 +49,49 @@ const SERVICE_BRIDGE_ROOT_IMPORT_PATTERN =
 const SERVICE_BRIDGE_ROOT_TYPEOF_IMPORT_PATTERN =
   /typeof\s+import\(\s*["'](?:@\/runtime\/native\/service-bridge|(?:\.\.\/|\.\/)+(?:[^"']+\/)*service-bridge)["']\s*\)/mu;
 
+const DIRECT_JSON_FILE_WRITE_PATTERN =
+  /\bwriteFileSync\s*\(\s*[^,\n]+,\s*(?:`\$\{)?JSON\.stringify\s*\(/u;
+
+const DIRECT_JSON_FILE_WRITE_REASON =
+  "writes JSON directly instead of using Eliza's public atomic JSON helper";
+
 const INTERNAL_FACADE_GUARDS: Array<{
   root: string;
   include: RegExp;
   patterns: Array<{ pattern: RegExp; reason: string }>;
 }> = [
+  {
+    root: AGENT_SRC_ROOT,
+    include:
+      /packages\/agent\/src\/(?!.+\.test\.[cm]?tsx?$).+\.(?:[cm]?ts|tsx)$/u,
+    patterns: [
+      {
+        pattern: DIRECT_JSON_FILE_WRITE_PATTERN,
+        reason: DIRECT_JSON_FILE_WRITE_REASON,
+      },
+    ],
+  },
+  {
+    root: PLUGINS_ROOT,
+    include: /packages\/plugins\/(?!.+\.test\.[cm]?tsx?$).+\.(?:[cm]?ts|tsx)$/u,
+    patterns: [
+      {
+        pattern: DIRECT_JSON_FILE_WRITE_PATTERN,
+        reason: DIRECT_JSON_FILE_WRITE_REASON,
+      },
+    ],
+  },
+  {
+    root: DESKTOP_MAIN_ROOT,
+    include:
+      /apps\/desktop\/src\/main\/(?!(?:attachment-import|recorded-audio-import)\.ts$)(?!.+\.test\.[cm]?tsx?$).+\.(?:[cm]?ts|tsx)$/u,
+    patterns: [
+      {
+        pattern: DIRECT_JSON_FILE_WRITE_PATTERN,
+        reason: DIRECT_JSON_FILE_WRITE_REASON,
+      },
+    ],
+  },
   {
     root: AGENT_SRC_ROOT,
     include: /packages\/agent\/src\/.+\.(?:[cm]?ts|tsx)$/u,

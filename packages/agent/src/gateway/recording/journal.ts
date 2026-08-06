@@ -4,6 +4,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 
 export function ensureGatewayJournalFile(pathname: string): void {
   if (!existsSync(pathname)) {
@@ -52,18 +53,10 @@ export function persistGatewaySnapshotFiles<
   persistedAt?: string;
 }): string {
   const persistedAt = options.persistedAt ?? new Date().toISOString();
-  writeFileSync(
-    options.snapshotPath,
-    JSON.stringify(
-      {
-        persistedAt,
-        ...options.snapshot,
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
+  writeJsonAtomicSync(options.snapshotPath, {
+    persistedAt,
+    ...options.snapshot,
+  });
   appendFileSync(
     options.historyPath,
     `${JSON.stringify({

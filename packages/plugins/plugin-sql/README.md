@@ -1,6 +1,6 @@
 # @elizaos/plugin-sql
 
-Workspace-owned SQL plugin aligned to the Doolittle runtime line.
+Doolittle compatibility wrapper around the official Eliza SQL plugin.
 
 This package wraps the published `@elizaos/plugin-sql@2.0.3-beta.7` plugin and
 adapts it to the `@elizaos/core@2.0.3-beta.7` runtime contract used by this

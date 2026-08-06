@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { cloneAgent, cloneProfile } from "./clone";
 import { createDefaultAgentIdentity, createEmptyProfile } from "./defaults";
 import { recordInteraction } from "./interaction";
@@ -36,7 +37,7 @@ export function createUserProfileStorage(filePath: string): UserProfileStorage {
 
     write(store) {
       storeCache = store;
-      writeFileSync(filePath, JSON.stringify(store, null, 2), "utf8");
+      writeJsonAtomicSync(filePath, store);
     },
 
     update(userId, mutate, context) {

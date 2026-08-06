@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { SkillHubInstalledRecord, SkillHubManifest } from "../types";
 import type { SkillsHubManifestHost } from "./types";
 
@@ -46,20 +47,12 @@ export function writeSkillHubInstalledIndex(
   host: SkillsHubManifestHost,
   manifests: SkillHubManifest[],
 ): void {
-  writeFileSync(
-    host.installedIndexPath,
-    JSON.stringify(
-      {
-        generatedAt: host.nowIso(),
-        manifests: manifests.map((entry) =>
-          normalizeInstalledSkillHubManifest(entry),
-        ),
-      },
-      null,
-      2,
+  writeJsonAtomicSync(host.installedIndexPath, {
+    generatedAt: host.nowIso(),
+    manifests: manifests.map((entry) =>
+      normalizeInstalledSkillHubManifest(entry),
     ),
-    "utf8",
-  );
+  });
 }
 
 export function listInstalledSkillHubManifests(

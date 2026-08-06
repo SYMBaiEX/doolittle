@@ -1,7 +1,7 @@
 {
   "name": "@elizaos/plugin-sql",
   "version": "2.0.3-beta.7-patched.0",
-  "description": "Workspace-native SQL plugin aligned with the current ElizaOS 2.x beta runtime.",
+  "description": "Doolittle compatibility wrapper around the official ElizaOS SQL plugin.",
   "license": "MIT",
   "type": "module",
   "exports": {

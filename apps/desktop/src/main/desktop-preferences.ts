@@ -1,4 +1,5 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { DesktopLifecycleState } from "./desktop-lifecycle";
 import { DEFAULT_DESKTOP_LIFECYCLE_STATE } from "./desktop-lifecycle";
 
@@ -18,7 +19,7 @@ export class DesktopPreferences {
   getState = (): DesktopLifecycleState => ({ ...this.state });
   setBackgroundMode(enabled: boolean): DesktopLifecycleState {
     this.state = { keepRunningInBackground: enabled };
-    writeFileSync(this.path, JSON.stringify(this.state), "utf8");
+    writeJsonAtomicSync(this.path, this.state, { indent: 0 });
     return this.getState();
   }
 }

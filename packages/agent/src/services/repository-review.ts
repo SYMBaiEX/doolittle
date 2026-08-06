@@ -1,3 +1,4 @@
+import { asRecord } from "@elizaos/shared/type-guards";
 import { runTextProcess } from "@/services/process-execution";
 
 const REVIEW_PROCESS_TIMEOUT_MS = 8_000;
@@ -195,12 +196,6 @@ function normalizedStatus(
   }
   if (status === "completed" || status === "complete") return "completed";
   return "unknown";
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
 }
 
 function parseJsonRecord(output: string): Record<string, unknown> | null {

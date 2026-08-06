@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { TrajectoryRecord } from "../../../types/trajectory";
 import type {
   TrajectoryBundleStorageHost,
@@ -51,47 +52,41 @@ export function writeTrajectoryBundleRecords(
   const trainingNotes =
     "Doolittle trace bundles are debug/evaluation artifacts. Use ElizaOS SDK trajectory export for model training.";
 
+  // JSONL is a record stream, not one JSON document; the atomic JSON helper
+  // intentionally owns the adjacent manifest only.
   writeFileSync(
     dataPath,
     messages.map((message) => JSON.stringify(message)).join("\n"),
     "utf8",
   );
 
-  writeFileSync(
+  writeJsonAtomicSync(manifestPath, {
+    createdAt,
+    label,
+    purpose: options.purpose,
+    mode: options.mode,
+    tags: options.tags ?? [],
+    notes: options.notes,
+    limit: options.limit,
     manifestPath,
-    JSON.stringify(
-      {
-        createdAt,
-        label,
-        purpose: options.purpose,
-        mode: options.mode,
-        tags: options.tags ?? [],
-        notes: options.notes,
-        limit: options.limit,
-        manifestPath,
-        filters: {
-          sessionId: options.sessionId ?? null,
-          role: options.role ?? null,
-        },
-        dataPath,
-        summaryPath,
-        recordCount: messages.length,
-        messageCount: messages.length,
-        messageRecordCount,
-        eventCount,
-        trainingCompatible,
-        trainingFormat,
-        trainingNotes,
-        sessionCount: sessions.length,
-        sessions,
-        roleCounts,
-        recordKindCounts,
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
+    filters: {
+      sessionId: options.sessionId ?? null,
+      role: options.role ?? null,
+    },
+    dataPath,
+    summaryPath,
+    recordCount: messages.length,
+    messageCount: messages.length,
+    messageRecordCount,
+    eventCount,
+    trainingCompatible,
+    trainingFormat,
+    trainingNotes,
+    sessionCount: sessions.length,
+    sessions,
+    roleCounts,
+    recordKindCounts,
+  });
 
   writeFileSync(
     summaryPath,

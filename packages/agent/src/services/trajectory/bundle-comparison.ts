@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type {
   TrajectoryBundleEntry,
   TrajectoryComparisonBundle,
@@ -82,26 +83,18 @@ export function compareTrajectoryBundles(
     `trajectory-${stamp}-${label}-compare.md`,
   );
 
-  writeFileSync(
-    reportPath,
-    JSON.stringify(
-      {
-        createdAt: new Date().toISOString(),
-        left,
-        right,
-        leftReplay,
-        rightReplay,
-        messageDelta,
-        sessionDelta,
-        roleDelta,
-        findings,
-        recommendation,
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
+  writeJsonAtomicSync(reportPath, {
+    createdAt: new Date().toISOString(),
+    left,
+    right,
+    leftReplay,
+    rightReplay,
+    messageDelta,
+    sessionDelta,
+    roleDelta,
+    findings,
+    recommendation,
+  });
 
   writeFileSync(
     summaryPath,

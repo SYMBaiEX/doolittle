@@ -1,5 +1,6 @@
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 
 const DESKTOP_STATE_FILES = [
   "onboarding.json",
@@ -25,19 +26,15 @@ export function ensureDesktopRuntimeState(
 
   const onboardingPath = resolve(runtimeDataDir, "onboarding.json");
   if (!existsSync(onboardingPath)) {
-    writeFileSync(
+    writeJsonAtomicSync(
       onboardingPath,
-      `${JSON.stringify(
-        {
-          timestamp: new Date().toISOString(),
-          mode: "desktop",
-          provider: null,
-          profile: "desktop-first-run",
-        },
-        null,
-        2,
-      )}\n`,
-      "utf8",
+      {
+        timestamp: new Date().toISOString(),
+        mode: "desktop",
+        provider: null,
+        profile: "desktop-first-run",
+      },
+      { trailingNewline: true },
     );
   }
 }

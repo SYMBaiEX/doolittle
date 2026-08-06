@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type {
   AutocoderPipelineRunRecord,
   AutocoderPipelineWorkflowRecord,
@@ -58,7 +59,7 @@ export function createAutocoderPipelinePersistence(
       }
     },
     saveStore(store: AutocoderPipelineStore): void {
-      writeFileSync(storePath, JSON.stringify(store, null, 2), "utf8");
+      writeJsonAtomicSync(storePath, store);
     },
     writeArtifact(
       id: string,
@@ -68,7 +69,7 @@ export function createAutocoderPipelinePersistence(
     ): string {
       const artifactBase = `${id}-${safeSlug(name || suffix || "artifact")}`;
       const path = join(artifactDir, `${artifactBase}.${suffix}.json`);
-      writeFileSync(path, JSON.stringify(value, null, 2), "utf8");
+      writeJsonAtomicSync(path, value);
       return path;
     },
     nextId(kind: string, name?: string): string {

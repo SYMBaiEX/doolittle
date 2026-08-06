@@ -1,12 +1,6 @@
-import {
-  mkdirSync,
-  readFileSync,
-  realpathSync,
-  renameSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-import { dirname, resolve } from "node:path";
+import { readFileSync, realpathSync, statSync } from "node:fs";
+import { resolve } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { WorkspacePickResult, WorkspaceState } from "../shared/contracts";
 
 export const MAX_RECENT_WORKSPACES = 8;
@@ -129,13 +123,7 @@ export function saveWorkspaceState(
   statePath: string,
   state: WorkspaceState,
 ): void {
-  mkdirSync(dirname(statePath), { recursive: true });
-  const temporaryPath = `${statePath}.tmp`;
-  writeFileSync(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, {
-    encoding: "utf8",
-    mode: 0o600,
-  });
-  renameSync(temporaryPath, statePath);
+  writeJsonAtomicSync(statePath, state, { trailingNewline: true });
 }
 
 export class WorkspaceStateManager {

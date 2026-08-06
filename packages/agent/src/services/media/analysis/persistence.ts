@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import {
   buildMediaAnalysisManifest,
   buildMediaAnalysisReport,
@@ -34,20 +35,15 @@ export function persistMediaAnalysisArtifacts(
   const provider = input.modelContext?.provider ?? "offline";
   const model = input.modelContext?.model ?? "offline";
 
-  writeFileSync(
+  writeJsonAtomicSync(
     manifestPath,
-    JSON.stringify(
-      buildMediaAnalysisManifest(
-        new Date().toISOString(),
-        input.analysis,
-        input.response,
-        provider,
-        model,
-      ),
-      null,
-      2,
+    buildMediaAnalysisManifest(
+      new Date().toISOString(),
+      input.analysis,
+      input.response,
+      provider,
+      model,
     ),
-    "utf8",
   );
 
   writeFileSync(

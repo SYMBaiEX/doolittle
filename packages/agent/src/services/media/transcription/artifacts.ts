@@ -1,4 +1,5 @@
 import { writeFileSync } from "node:fs";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import {
   buildMediaTranscriptionManifest,
   buildMediaTranscriptionReport,
@@ -37,28 +38,23 @@ export function persistMediaTranscriptionArtifacts(
     ].join("\n"),
     "utf8",
   );
-  writeFileSync(
+  writeJsonAtomicSync(
     paths.manifestPath,
-    JSON.stringify(
-      buildMediaTranscriptionManifest(
-        new Date().toISOString(),
-        prompt,
-        state.transcriptText,
-        state.source,
-        provider,
-        model,
-        {
-          transcriptPath: paths.transcriptPath,
-          responsePath: paths.responsePath,
-        },
-        inspection,
-        bundle,
-        state.response,
-      ),
-      null,
-      2,
+    buildMediaTranscriptionManifest(
+      new Date().toISOString(),
+      prompt,
+      state.transcriptText,
+      state.source,
+      provider,
+      model,
+      {
+        transcriptPath: paths.transcriptPath,
+        responsePath: paths.responsePath,
+      },
+      inspection,
+      bundle,
+      state.response,
     ),
-    "utf8",
   );
   writeFileSync(
     paths.reportPath,

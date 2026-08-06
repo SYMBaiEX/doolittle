@@ -26,6 +26,7 @@ function createBoundaryFixture(options: {
   includeHostApplicationImport?: boolean;
   includeCustomServerSecurity?: boolean;
   includeCustomCloudNormalization?: boolean;
+  includeDirectJsonWrite?: boolean;
 }): string {
   const root = mkdtempSync(join(tmpdir(), "doolittle-boundary-"));
 
@@ -49,6 +50,7 @@ function createBoundaryFixture(options: {
     join(packagesDir, "agent", "src", "runtime", "native"),
     join(packagesDir, "agent", "src", "actions"),
     join(packagesDir, "contracts", "src"),
+    join(root, "apps", "desktop", "src", "main"),
     join(root, "scripts", "bootstrap", "provider"),
   ];
 
@@ -77,6 +79,14 @@ function createBoundaryFixture(options: {
     options.includeCustomCloudNormalization
       ? "export function normalizeCloudSiteUrl(value: string) { return value; }\n"
       : 'export { normalizeCloudSiteUrl } from "@elizaos/shared/elizacloud/base-url";\n',
+    "utf8",
+  );
+
+  writeFileSync(
+    join(packagesDir, "agent", "src", "services", "settings-service.ts"),
+    options.includeDirectJsonWrite
+      ? 'import { writeFileSync } from "node:fs";\nexport function persist(path: string, value: unknown) { writeFileSync(path, JSON.stringify(value, null, 2), "utf8"); }\n'
+      : 'import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";\nexport const persist = writeJsonAtomicSync;\n',
     "utf8",
   );
 
@@ -293,5 +303,16 @@ describe("check-plugin-boundaries", () => {
       "reimplements Eliza Cloud URL normalization",
     );
     expect(result.stderr).toContain("provider/cloud-compat.ts");
+  });
+
+  it("rejects direct JSON persistence outside approved transactions", () => {
+    fixture = createBoundaryFixture({ includeDirectJsonWrite: true });
+    const result = runScript(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "writes JSON directly instead of using Eliza's public atomic JSON helper",
+    );
+    expect(result.stderr).toContain("services/settings-service.ts");
   });
 });

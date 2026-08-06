@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { CloudStore } from "./types";
 
 export function ensureCloudStoreFile(filePath: string): void {
@@ -19,5 +20,5 @@ export function readCloudStore(filePath: string): CloudStore {
 }
 
 export function writeCloudStore(filePath: string, store: CloudStore): void {
-  writeFileSync(filePath, JSON.stringify(store, null, 2), "utf8");
+  writeJsonAtomicSync(filePath, store);
 }

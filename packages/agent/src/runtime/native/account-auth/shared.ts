@@ -1,13 +1,7 @@
-import {
-  accessSync,
-  constants,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { accessSync, constants, existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { delimiter, dirname, isAbsolute, join } from "node:path";
+import { delimiter, isAbsolute, join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { runTextProcessSync } from "@/services/process-execution";
 
 export const DEFAULT_REFRESH_SKEW_SECONDS = 120;
@@ -124,8 +118,7 @@ export function readJsonIfExists(
 }
 
 export function writeJson(path: string, value: unknown): void {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  writeJsonAtomicSync(path, value, { trailingNewline: true });
 }
 
 export function decodeJwtPayload(

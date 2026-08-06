@@ -1,7 +1,7 @@
 {
   "name": "@elizaos/plugin-codex",
   "version": "2.0.3-beta.7",
-  "description": "Native-first ElizaOS provider plugin for linked ChatGPT Codex account execution.",
+  "description": "Doolittle-owned ElizaOS provider bridge for linked ChatGPT Codex account execution.",
   "license": "MIT",
   "type": "module",
   "exports": {

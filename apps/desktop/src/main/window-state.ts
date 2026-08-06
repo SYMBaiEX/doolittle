@@ -1,12 +1,5 @@
-import { randomBytes } from "node:crypto";
-import {
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { basename, dirname, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 
 export const MIN_WINDOW_WIDTH = 920;
 export const MIN_WINDOW_HEIGHT = 620;
@@ -211,19 +204,7 @@ export function persistWindowState(
   };
 
   const normalizedState = sanitizeWindowState(state, normalizedOptions);
-  mkdirSync(dirname(statePath), { recursive: true });
-  const tempPath = resolve(
-    dirname(statePath),
-    `${basename(statePath)}.tmp-${randomBytes(8).toString("hex")}`,
-  );
-  const payload = `${JSON.stringify(normalizedState, null, 2)}\n`;
-
-  try {
-    writeFileSync(tempPath, payload, "utf8");
-    renameSync(tempPath, statePath);
-  } finally {
-    rmSync(tempPath, { force: true });
-  }
+  writeJsonAtomicSync(statePath, normalizedState, { trailingNewline: true });
 }
 
 export function createWindowStatePersistenceController(

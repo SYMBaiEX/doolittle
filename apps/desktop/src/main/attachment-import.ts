@@ -419,6 +419,8 @@ export function importSelectedAttachments(
         storedName,
         createdAt: new Date().toISOString(),
       };
+      // Keep this explicit staged write: the metadata participates in the
+      // attachment's two-file fsync/rename transaction.
       writeFileSync(temporaryMetadataPath, `${JSON.stringify(metadata)}\n`, {
         encoding: "utf8",
         flag: "wx",

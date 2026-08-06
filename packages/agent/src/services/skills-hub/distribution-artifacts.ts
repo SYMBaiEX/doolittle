@@ -1,5 +1,5 @@
-import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { nowIso, toSkillHubBundleSlug } from "./records";
 import type {
   SkillHubCatalogRecord,
@@ -64,24 +64,12 @@ export function writeSkillHubDistributionSnapshot(
   report: SkillHubSyncReport,
   manifests: SkillHubManifest[],
 ): void {
-  writeFileSync(
-    join(hubDir, "projection-latest.json"),
-    JSON.stringify(report, null, 2),
-    "utf8",
-  );
-  writeFileSync(
-    join(hubDir, "index.json"),
-    JSON.stringify(
-      {
-        generatedAt: report.refreshedAt,
-        report,
-        manifests,
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
+  writeJsonAtomicSync(join(hubDir, "projection-latest.json"), report);
+  writeJsonAtomicSync(join(hubDir, "index.json"), {
+    generatedAt: report.refreshedAt,
+    report,
+    manifests,
+  });
 }
 
 export function writeSkillHubBundle(input: {
@@ -106,7 +94,7 @@ export function writeSkillHubBundle(input: {
     installed,
     sync,
   };
-  writeFileSync(bundlePath, JSON.stringify(bundle, null, 2), "utf8");
+  writeJsonAtomicSync(bundlePath, bundle);
   return {
     bundlePath,
     manifestCount: manifests.length + installed.length,

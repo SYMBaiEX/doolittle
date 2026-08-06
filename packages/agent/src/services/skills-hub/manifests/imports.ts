@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { SkillHubImportResult, SkillHubManifest } from "../types";
 import {
   normalizeInstalledSkillHubManifest,
@@ -41,24 +42,16 @@ export function importSkillHubManifest(
 
   writeFileSync(skillPath, content, "utf8");
   const manifestPath = join(installDir, "manifest.json");
-  writeFileSync(
-    manifestPath,
-    JSON.stringify(
-      {
-        kind: "skill-manifest",
-        ...manifest,
-        slug,
-        title,
-        description,
-        source: "installed",
-        installedAt: host.nowIso(),
-        skillPath,
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
+  writeJsonAtomicSync(manifestPath, {
+    kind: "skill-manifest",
+    ...manifest,
+    slug,
+    title,
+    description,
+    source: "installed",
+    installedAt: host.nowIso(),
+    skillPath,
+  });
 
   const installedManifest = normalizeInstalledSkillHubManifest({
     ...manifest,

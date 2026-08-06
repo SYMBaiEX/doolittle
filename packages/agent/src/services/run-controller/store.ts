@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type { RunSnapshot } from "./types";
 import { cloneRun } from "./utils";
 
@@ -149,6 +150,6 @@ export class RunControllerStore {
       version: 1,
       receipts: Array.from(this.receipts.values(), cloneRun),
     };
-    writeFileSync(this.filePath, JSON.stringify(payload, null, 2), "utf8");
+    writeJsonAtomicSync(this.filePath, payload);
   }
 }

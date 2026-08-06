@@ -12,7 +12,7 @@ export function createCodeGenerationService(options: AutocoderPluginOptions) {
   class CodeGenerationService extends ElizaService {
     static serviceType = "code-generation";
     capabilityDescription =
-      "Workspace-native code generation service for research, PRDs, QA, and generation planning.";
+      "Doolittle-owned planning service for research briefs, PRDs, QA checklists, and generation scaffolds.";
 
     static async start(
       runtime?: IAgentRuntime,
@@ -44,7 +44,7 @@ export function createCodeGenerationService(options: AutocoderPluginOptions) {
         commits,
         findings: [
           "Use the existing native transport, ownership, and ecosystem control planes as the default integration points.",
-          "Prefer workspace-native plugin services over mixed upstream lifecycle assumptions.",
+          "Prefer official Eliza services where their contracts match, and label Doolittle-owned adapters explicitly.",
           "Capture workflow artifacts in the persisted autocoder pipeline so every generation step remains inspectable.",
         ],
         plan: [

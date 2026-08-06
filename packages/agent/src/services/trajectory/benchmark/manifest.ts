@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import type {
   TrajectoryBenchmarkCase,
   TrajectoryBenchmarkManifest,
@@ -104,7 +105,7 @@ export function createTrajectoryBenchmarkManifest(
     environment: describeTrajectoryBenchmarkEnvironment(host),
   };
 
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+  writeJsonAtomicSync(manifestPath, manifest);
   writeTrajectoryBenchmarkManifestSummary(manifest);
 
   return manifest;

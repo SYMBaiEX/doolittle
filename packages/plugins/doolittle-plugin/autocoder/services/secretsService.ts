@@ -1,76 +1,101 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
-import type { IAgentRuntime } from "@elizaos/core";
+import type { IAgentRuntime, Service } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
+import { createVault, type Vault, VaultMissError } from "@elizaos/vault";
 import { nowIso } from "../shared/planning";
-import type { SecretStore } from "../shared/types";
 
-export function createSecretsManagerService(storageRootDir: string) {
+type VaultWithClose = Vault & { close?: () => Promise<void> };
+
+function readLegacySecrets(path: string): Record<string, string> | undefined {
+  if (!existsSync(path)) return undefined;
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as {
+      secrets?: unknown;
+    };
+    if (!parsed.secrets || typeof parsed.secrets !== "object") {
+      return undefined;
+    }
+    return Object.fromEntries(
+      Object.entries(parsed.secrets).filter(
+        (entry): entry is [string, string] =>
+          typeof entry[1] === "string" && Boolean(entry[0].trim()),
+      ),
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+export function createSecretsManagerService(
+  storageRootDir: string,
+  vaultFactory: () => Vault = () => createVault({ workDir: storageRootDir }),
+) {
   class SecretsManagerService extends ElizaService {
     static serviceType = "secrets-manager";
     capabilityDescription =
-      "Workspace-native secrets manager for autocoder and deployment workflows.";
+      "Eliza Vault adapter for encrypted autocoder and deployment secrets.";
 
-    private readonly rootDir = storageRootDir;
-    private readonly storePath = join(this.rootDir, "secrets.json");
+    private readonly vault = vaultFactory() as VaultWithClose;
+    private readonly legacyStorePath = join(storageRootDir, "secrets.json");
+    private keys = new Set<string>();
 
-    constructor(runtime?: IAgentRuntime) {
-      super(runtime);
-      mkdirSync(this.rootDir, { recursive: true });
-      if (!existsSync(this.storePath)) {
-        this.writeStore({ secrets: {} });
+    static async start(runtime?: IAgentRuntime): Promise<Service> {
+      const service = new SecretsManagerService(runtime);
+      await service.initialize();
+      return service;
+    }
+
+    async stop(): Promise<void> {
+      await this.vault.close?.();
+    }
+
+    async getSecret(key: string): Promise<string | undefined> {
+      try {
+        return await this.vault.reveal(key, "doolittle-autocoder");
+      } catch (error) {
+        if (error instanceof VaultMissError) return undefined;
+        throw error;
       }
     }
 
-    static async start(
-      runtime?: IAgentRuntime,
-    ): Promise<SecretsManagerService> {
-      return new SecretsManagerService(runtime);
-    }
-
-    async stop(): Promise<void> {}
-
-    getSecret(key: string): string | undefined {
-      return this.readStore().secrets[key];
-    }
-
-    setSecret(key: string, value: string) {
-      const store = this.readStore();
-      store.secrets[key] = value;
-      this.writeStore(store);
+    async setSecret(key: string, value: string) {
+      await this.vault.set(key, value, {
+        sensitive: true,
+        caller: "doolittle-autocoder",
+      });
+      this.keys.add(key);
       return {
         key,
         storedAt: nowIso(),
       };
     }
 
-    hasSecret(key: string): boolean {
-      return key in this.readStore().secrets;
+    async hasSecret(key: string): Promise<boolean> {
+      return this.vault.has(key);
     }
 
     listSecretKeys(): string[] {
-      return Object.keys(this.readStore().secrets).sort();
+      return [...this.keys].sort();
     }
 
-    private readStore(): SecretStore {
-      try {
-        const parsed = JSON.parse(readFileSync(this.storePath, "utf8")) as {
-          secrets?: Record<string, string>;
-        };
-        return {
-          secrets:
-            parsed.secrets && typeof parsed.secrets === "object"
-              ? parsed.secrets
-              : {},
-        };
-      } catch {
-        return { secrets: {} };
+    private async initialize(): Promise<void> {
+      this.keys = new Set(await this.vault.list());
+      const legacy = readLegacySecrets(this.legacyStorePath);
+      if (!legacy) return;
+
+      for (const [key, value] of Object.entries(legacy)) {
+        if (!(await this.vault.has(key))) {
+          await this.vault.set(key, value, {
+            sensitive: true,
+            caller: "doolittle-legacy-secrets-migration",
+          });
+        }
       }
-    }
 
-    private writeStore(store: SecretStore): void {
-      writeFileSync(this.storePath, JSON.stringify(store, null, 2), "utf8");
+      this.keys = new Set(await this.vault.list());
+      rmSync(this.legacyStorePath);
     }
   }
 
