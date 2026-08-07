@@ -1,6 +1,5 @@
 import {
   getLinkedClaudeCodeCredentials,
-  getLinkedCodexCredentials,
   getLinkedElizaCloudCredentials,
 } from "@/runtime/native/account-auth";
 import type {
@@ -17,11 +16,6 @@ export function applyLinkedProviderSettings(
   dependencies: BuildPluginSettingsDependencies,
 ): void {
   const modelProvider = runtimeSettings.model.provider;
-  const linkedCodex =
-    dependencies.linkedCredentials?.codex ??
-    (config.useLinkedCodexAuth && modelProvider === "codex"
-      ? getLinkedCodexCredentials()
-      : undefined);
   const linkedElizaCloud =
     dependencies.linkedCredentials?.elizaCloud ??
     (modelProvider === "elizacloud"
@@ -46,10 +40,12 @@ export function applyLinkedProviderSettings(
     settings.ELIZAOS_CLOUD_API_KEY = config.elizaCloudApiKey;
   }
 
-  if (linkedCodex?.accessToken) {
-    settings.OPENAI_API_KEY = linkedCodex.accessToken;
-    settings.OPENAI_BASE_URL = "https://chatgpt.com/backend-api/codex";
-  } else if (config.openAiApiKey) {
+  if (modelProvider === "codex") {
+    settings.CODEX_MODEL = runtimeSettings.model.model;
+    settings.CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex";
+  }
+
+  if (config.openAiApiKey) {
     settings.OPENAI_API_KEY = config.openAiApiKey;
   }
 

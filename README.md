@@ -130,7 +130,7 @@ The API's runtime-owned routes come from Eliza first; Doolittle-specific REST ad
 | Code and workspace work | Repository inspection, file/search/patch/terminal surfaces, ACP workers, and operator UI | Coding delegation is owned by the official Eliza orchestrator; Doolittle owns its workspace-facing product tools. |
 | Research | Explicit research task path, durable receipts, and cited-report workflow | Live research needs a configured `RESEARCH` model. A missing model produces a clear unavailable result. |
 | MCP tools and resources | Multi-server status, discovered tools, marketplace lookup, and terminal/desktop inspection | Official `@elizaos/plugin-mcp` owns validation, stdio/HTTP/SSE transports, retries, provider context, resources, and invocation. Doolittle only projects the operator UX. |
-| Providers and accounts | Local Ollama, official provider plugins, and Doolittle-owned Codex/Claude Code/Eliza Cloud bridges | Codex and Claude account pools use Eliza's account-store and selector bridge. Tokens are not returned to the API or renderer. |
+| Providers and accounts | Local Ollama, official Eliza Codex and Eliza Cloud providers, plus Doolittle's Claude Code and Devin bridges | Codex and Claude account pools use Eliza's account-store and selector bridge. Tokens are not returned to the API or renderer. |
 | Desktop and API | Electron lifecycle, context-isolated IPC, React presentation, loopback API, sessions and diagnostics | Electron owns process capabilities; the API remains authoritative for runtime behavior and durable state. |
 | Skills, gateway, and operations | Curated skills, configured messaging adapters, scheduling and local diagnostics | Availability depends on installed plugins and configuration; inspect `/doctor`, `/runtime status`, or the desktop Runtime view. |
 
@@ -226,6 +226,7 @@ Useful references:
 - [Desktop architecture and packaging](docs/desktop.md)
 - [Capability truth and degraded modes](docs/capability-truth.md)
 - [Plugin inventory](docs/plugin-inventory.md)
+- [Package ownership and Eliza migration status](docs/package-ownership.md)
 - [Operator loop](docs/operator-loop.md)
 - [Changelog](CHANGELOG.md)
 

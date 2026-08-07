@@ -106,11 +106,17 @@ export function buildProviderRuntimeSettings(
     return runtimeSettings;
   }
 
+  if (provider === "codex") {
+    runtimeSettings.set("CODEX_MODEL", model);
+    runtimeSettings.set(
+      "CODEX_BASE_URL",
+      "https://chatgpt.com/backend-api/codex",
+    );
+    return runtimeSettings;
+  }
+
   runtimeSettings.set("OPENAI_SMALL_MODEL", model);
   runtimeSettings.set("OPENAI_LARGE_MODEL", model);
-  runtimeSettings.set(
-    "OPENAI_BASE_URL",
-    provider === "codex" ? "https://chatgpt.com/backend-api/codex" : baseUrl,
-  );
+  runtimeSettings.set("OPENAI_BASE_URL", baseUrl);
   return runtimeSettings;
 }

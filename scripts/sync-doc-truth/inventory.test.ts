@@ -39,10 +39,10 @@ describe("buildInventoryRows", () => {
 
     expect(rows.find((row) => row.id === "providers.codex")).toEqual(
       expect.objectContaining({
-        packageName: "@doolittle/plugin-codex",
-        workspacePath: "packages/plugins/plugin-codex",
-        owner: "doolittle-runtime",
-        tests: "covered",
+        packageName: "@elizaos/plugin-codex-cli",
+        workspacePath: "(external)",
+        owner: "upstream",
+        tests: "external",
       }),
     );
 

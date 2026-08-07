@@ -59,6 +59,9 @@ const DIRECT_JSON_FILE_WRITE_REASON =
 const CUSTOM_LOGGER_IMPORT_PATTERN =
   /(?:from\s+|import\s*\()["']@doolittle\/logger["']/u;
 
+const RETIRED_CODEX_PROVIDER_PATTERN =
+  /@doolittle\/plugin-codex|chatgpt\.com\/backend-api\/codex\/responses/u;
+
 const INTERNAL_FACADE_GUARDS: Array<{
   root: string;
   include: RegExp;
@@ -77,6 +80,11 @@ const INTERNAL_FACADE_GUARDS: Array<{
         pattern: CUSTOM_LOGGER_IMPORT_PATTERN,
         reason:
           "imports Doolittle's retired logger instead of the official @elizaos/logger package",
+      },
+      {
+        pattern: RETIRED_CODEX_PROVIDER_PATTERN,
+        reason:
+          "restores Doolittle's retired Codex transport instead of the official @elizaos/plugin-codex-cli package",
       },
     ],
   },
@@ -108,6 +116,11 @@ const INTERNAL_FACADE_GUARDS: Array<{
         pattern: CUSTOM_LOGGER_IMPORT_PATTERN,
         reason:
           "imports Doolittle's retired logger instead of the official @elizaos/logger package",
+      },
+      {
+        pattern: RETIRED_CODEX_PROVIDER_PATTERN,
+        reason:
+          "restores Doolittle's retired Codex transport instead of the official @elizaos/plugin-codex-cli package",
       },
     ],
   },

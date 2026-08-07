@@ -7,7 +7,7 @@ import type { ProviderCachePolicy } from "./types";
  * IMPORTANT: only providers whose plugin actually *consumes* `promptSegments`
  * are classified `explicit`. The installed SDK plugins `@elizaos/plugin-anthropic`
  * and `@elizaos/plugin-openai` do (Anthropic → `cache_control: ephemeral`,
- * OpenAI → prefix caching). Doolittle's Codex, Claude Code, and Devin bridges
+ * OpenAI → prefix caching). The official Codex provider and Doolittle's Claude Code and Devin bridges
  * and the official Eliza Cloud plugin currently build their requests from
  * `params.prompt` and ignore segments, so they are `none` until their public
  * handlers become segment-aware. ollama is `implicit` — its KV cache reuses

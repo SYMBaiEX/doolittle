@@ -2,10 +2,8 @@ import type { Plugin } from "@elizaos/core";
 import type { EnvConfig } from "../../../types/runtime";
 import {
   getLinkedClaudeCodeCredentials,
-  getLinkedCodexCredentials,
   getLinkedProviderAccountsSnapshot,
   refreshLinkedClaudeCodeCredentials,
-  refreshLinkedCodexCredentials,
 } from "../account-auth";
 import { createDoolittleOllamaUxPlugin } from "./local-ollama";
 import { normalizePlugin } from "./support";
@@ -22,14 +20,14 @@ export async function loadProviderPlugins(
   const [
     { default: sqlPlugin },
     { pdfPlugin },
-    { createCodexPlugin },
+    { codexCliPlugin },
     { createClaudeCodePlugin },
     { createDevinPlugin },
     { default: elizaCloudPlugin },
   ] = await Promise.all([
     import("@doolittle/plugin-sql-compat"),
     import("@elizaos/plugin-pdf"),
-    import("@doolittle/plugin-codex"),
+    import("@elizaos/plugin-codex-cli"),
     import("@doolittle/plugin-claude-code"),
     import("@doolittle/plugin-devin"),
     import("@elizaos/plugin-elizacloud"),
@@ -38,12 +36,7 @@ export async function loadProviderPlugins(
   const providers: Plugin[] = [
     normalizePlugin(sqlPlugin),
     normalizePlugin(pdfPlugin),
-    createCodexPlugin({
-      enabled: true,
-      getStatus: () => getLinkedProviderAccountsSnapshot().codex,
-      getCredentials: () => getLinkedCodexCredentials(),
-      refreshCredentials: () => refreshLinkedCodexCredentials(),
-    }),
+    normalizePlugin(codexCliPlugin),
     createClaudeCodePlugin({
       enabled: true,
       allowCliFallback: config.claudeCodeCliFallback,

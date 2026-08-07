@@ -21,7 +21,7 @@ describe("loadProviderPlugins", () => {
     const firstAssembly = await loadProviderPlugins(config());
     const secondAssembly = await loadProviderPlugins(config());
     const switchableNames = [
-      "@doolittle/plugin-codex",
+      "codex-cli",
       "@doolittle/plugin-claude-code",
       "@doolittle/plugin-devin",
       "elizaOSCloud",
@@ -55,6 +55,16 @@ describe("loadProviderPlugins", () => {
     expect(cloud?.models?.[ModelType.TEXT_EMBEDDING]).toBeUndefined();
     expect(cloud?.services?.length).toBeGreaterThan(1);
     expect(cloud?.providers?.length).toBeGreaterThan(1);
+  });
+
+  it("uses the official Codex plugin for native text, response, and planning models", async () => {
+    const providers = await loadProviderPlugins(config());
+    const codex = providers.find((plugin) => plugin.name === "codex-cli");
+
+    expect(codex?.models?.[ModelType.TEXT_SMALL]).toBeTypeOf("function");
+    expect(codex?.models?.[ModelType.RESPONSE_HANDLER]).toBeTypeOf("function");
+    expect(codex?.models?.[ModelType.ACTION_PLANNER]).toBeTypeOf("function");
+    expect(codex?.services).toBeUndefined();
   });
 
   it("enables official cloud embeddings only when cloud embedding ownership is selected", async () => {

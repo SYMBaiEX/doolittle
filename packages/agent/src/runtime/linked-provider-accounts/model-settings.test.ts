@@ -73,4 +73,39 @@ describe("syncProviderSettings", () => {
     expect(runtimeSettings.get("OPENAI_LARGE_MODEL")).toBe("gpt-openai");
     expect(runtimeSettings.get("OPENAI_BASE_URL")).toBe("https://openai.local");
   });
+
+  it("maps Codex selection to the official Eliza Codex plugin settings", () => {
+    const runtimeSettings = new Map<string, string>();
+    const context = {
+      runtime: {
+        setSetting: (key: string, value: string) =>
+          runtimeSettings.set(key, value),
+        getSetting: (key: string) => runtimeSettings.get(key),
+      },
+      config: {
+        elizaCloudSmallModel: "ec-small",
+        elizaCloudLargeModel: "ec-large",
+      },
+      services: {
+        settings: {
+          get: () => ({
+            model: {
+              provider: "codex",
+              model: "gpt-5.4",
+              baseUrl: "https://ignored.example",
+            },
+          }),
+        },
+      },
+    } as unknown as AgentExecutionContext;
+
+    syncProviderSettings(context, context.services.settings.get());
+
+    expect(runtimeSettings.get("CODEX_MODEL")).toBe("gpt-5.4");
+    expect(runtimeSettings.get("CODEX_BASE_URL")).toBe(
+      "https://chatgpt.com/backend-api/codex",
+    );
+    expect(runtimeSettings.has("OPENAI_API_KEY")).toBe(false);
+    expect(runtimeSettings.has("OPENAI_BASE_URL")).toBe(false);
+  });
 });

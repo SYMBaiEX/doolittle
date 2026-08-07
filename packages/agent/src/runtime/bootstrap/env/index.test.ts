@@ -232,6 +232,31 @@ describe("bootstrap environment", () => {
     expect(settings.OPENAI_REASONING_EFFORT).toBeUndefined();
   });
 
+  it("configures the official Codex plugin without projecting subscription tokens as OpenAI API keys", () => {
+    const settings = buildPluginSettings(
+      {
+        dataDir: tmpdir(),
+        useLinkedCodexAuth: true,
+        openAiApiKey: "",
+      } as EnvConfig,
+      { nativeRegistry: {} } as unknown as AppServices,
+      {
+        ...makeRuntimeSettings(),
+        model: {
+          model: "gpt-5.4",
+          provider: "codex",
+          baseUrl: "https://ignored.example",
+        },
+      } as ReturnType<AppServices["settings"]["get"]>,
+    );
+
+    expect(settings.CODEX_MODEL).toBe("gpt-5.4");
+    expect(settings.CODEX_BASE_URL).toBe(
+      "https://chatgpt.com/backend-api/codex",
+    );
+    expect(settings.OPENAI_API_KEY).toBeUndefined();
+  });
+
   it("supports explicit dependency injection for linked credentials and ambient env", () => {
     const root = join(tmpdir(), `doolittle-bootstrap-${Date.now()}-linked`);
     rmSync(root, { force: true, recursive: true });

@@ -533,7 +533,9 @@ describe("chat turn provider seam", () => {
           ).model.provider as string;
           observedScopes.push({
             provider,
-            model: runtime.getSetting("OPENAI_LARGE_MODEL"),
+            model: runtime.getSetting(
+              provider === "codex" ? "CODEX_MODEL" : "OPENAI_LARGE_MODEL",
+            ),
             conversationId: runtime.getSetting("ELIZAOS_CLOUD_CONVERSATION_ID"),
             personalityId: getEffectiveActivePersonality(
               runtime as Parameters<typeof getEffectiveActivePersonality>[0],

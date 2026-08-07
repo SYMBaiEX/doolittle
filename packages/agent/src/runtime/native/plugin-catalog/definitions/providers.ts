@@ -46,14 +46,14 @@ export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
   },
   {
     id: "providers.codex",
-    packageName: "@doolittle/plugin-codex",
+    packageName: "@elizaos/plugin-codex-cli",
     category: "providers",
-    source: "custom",
+    source: "official",
     kind: "provider",
     maturity: "alpha",
     enablement: "codex",
     notes:
-      "Doolittle-owned Codex provider bridge for ChatGPT-backed Codex workflows.",
+      "Official Eliza Codex model provider using the signed-in Codex CLI OAuth store, native tool calls, streaming, structured output, and atomic token refresh.",
   },
   {
     id: "providers.claude-code",

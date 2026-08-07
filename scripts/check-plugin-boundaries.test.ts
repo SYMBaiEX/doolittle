@@ -27,6 +27,7 @@ function createBoundaryFixture(options: {
   includeCustomServerSecurity?: boolean;
   includeCustomCloudNormalization?: boolean;
   includeDirectJsonWrite?: boolean;
+  includeRetiredCodexProvider?: boolean;
 }): string {
   const root = mkdtempSync(join(tmpdir(), "doolittle-boundary-"));
 
@@ -96,6 +97,14 @@ function createBoundaryFixture(options: {
     options.includeShadowSkillCatalog
       ? 'import { getCatalogSkills } from "@elizaos/plugin-agent-skills";\nexport const catalog = getCatalogSkills;\n'
       : 'export const sdkAudit = "packages-and-registry-only";\n',
+    "utf8",
+  );
+
+  writeFileSync(
+    join(packagesDir, "agent", "src", "runtime", "native", "providers.ts"),
+    options.includeRetiredCodexProvider
+      ? 'import { createCodexPlugin } from "@doolittle/plugin-codex";\nexport const provider = createCodexPlugin;\n'
+      : 'export { default as provider } from "@elizaos/plugin-codex-cli";\n',
     "utf8",
   );
 
@@ -234,6 +243,17 @@ describe("check-plugin-boundaries", () => {
       "imports the host application from a reusable plugin",
     );
     expect(result.stderr).toContain("plugin-dummy/index.ts");
+  });
+
+  it("rejects the retired Doolittle Codex provider transport", () => {
+    fixture = createBoundaryFixture({ includeRetiredCodexProvider: true });
+    const result = runScript(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "restores Doolittle's retired Codex transport instead of the official @elizaos/plugin-codex-cli package",
+    );
+    expect(result.stderr).toContain("runtime/native/providers.ts");
   });
 
   it("rejects action-owned model prompts outside the shared cache contract", () => {

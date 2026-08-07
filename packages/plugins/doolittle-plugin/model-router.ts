@@ -17,7 +17,7 @@ const DOOLITTLE_MODEL_ROUTER_PROVIDER = "doolittle-runtime";
 const PROVIDER_PLUGIN_NAMES: Readonly<Record<string, string>> = {
   anthropic: "anthropic",
   "claude-code": "@doolittle/plugin-claude-code",
-  codex: "@doolittle/plugin-codex",
+  codex: "codex-cli",
   devin: "@doolittle/plugin-devin",
   elizacloud: "elizaOSCloud",
   ollama: "ollama",

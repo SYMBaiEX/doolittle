@@ -16,7 +16,7 @@ import { buildSync } from "esbuild";
 
 const require = createRequire(import.meta.url);
 
-type Provider = "provider-transport" | "codex" | "claude-code" | "devin";
+type Provider = "provider-transport" | "claude-code" | "devin";
 
 interface PublishArgs {
   provider: Provider | "all";
@@ -61,7 +61,6 @@ interface PackedPackage {
 
 const PROVIDERS: readonly Provider[] = [
   "provider-transport",
-  "codex",
   "claude-code",
   "devin",
 ];

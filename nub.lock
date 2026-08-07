@@ -12,6 +12,7 @@ overrides:
   '@elizaos/plugin-agent-orchestrator': 2.0.3-beta.7
   '@elizaos/plugin-agent-skills': 2.0.3-beta.7
   '@elizaos/plugin-anthropic': 2.0.3-beta.7
+  '@elizaos/plugin-codex-cli': 2.0.3-beta.7
   '@elizaos/plugin-elizacloud': 2.0.3-beta.7
   '@elizaos/plugin-form': 2.0.3-beta.7
   '@elizaos/plugin-github': 2.0.3-beta.7
@@ -44,9 +45,6 @@ importers:
       '@doolittle/plugin-claude-code':
         specifier: workspace:*
         version: link:packages/plugins/plugin-claude-code
-      '@doolittle/plugin-codex':
-        specifier: workspace:*
-        version: link:packages/plugins/plugin-codex
       '@doolittle/plugin-devin':
         specifier: workspace:*
         version: link:packages/plugins/plugin-devin
@@ -84,6 +82,9 @@ importers:
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.1)(pg@8.22.0)
       '@elizaos/plugin-anthropic':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)(zod@4.4.3)
+      '@elizaos/plugin-codex-cli':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)(zod@4.4.3)
       '@elizaos/plugin-elizacloud':
@@ -259,9 +260,6 @@ importers:
       '@doolittle/plugin-claude-code':
         specifier: workspace:*
         version: link:../plugins/plugin-claude-code
-      '@doolittle/plugin-codex':
-        specifier: workspace:*
-        version: link:../plugins/plugin-codex
       '@doolittle/plugin-devin':
         specifier: workspace:*
         version: link:../plugins/plugin-devin
@@ -290,6 +288,9 @@ importers:
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.1)(pg@8.22.0)
       '@elizaos/plugin-anthropic':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)(zod@4.4.3)
+      '@elizaos/plugin-codex-cli':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)(zod@4.4.3)
       '@elizaos/plugin-elizacloud':
@@ -376,15 +377,6 @@ importers:
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(fef6672ed116f87a00e9d9eda31ef0a1)
-      '@elizaos/core':
-        specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
-
-  packages/plugins/plugin-codex:
-    dependencies:
-      '@doolittle/provider-transport':
-        specifier: 2.0.3-beta.7
-        version: link:../provider-transport
       '@elizaos/core':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
@@ -1234,6 +1226,12 @@ packages:
     resolution: {integrity: sha512-4cYEb+ec9ONSrUX7FtA85WOXsJ9QDzV/4rCACIDhPO2Sy8vuss6aPU0q0z3RNnqgF0RLhu8RneN9Z6P+JIOg/A==}
     peerDependencies:
       '@elizaos/core': 2.0.3-beta.7
+
+  '@elizaos/plugin-codex-cli@2.0.3-beta.7':
+    resolution: {integrity: sha512-WFbcYF4QTPaPuHV4RUvVsw5TAi5KKA9aPWsZxmtZa5g5V+sNitxQWz7x+fayhhFN9B9I79aF2P+U2ZtJmO9/Ew==}
+    peerDependencies:
+      '@elizaos/core': 2.0.3-beta.7
+      zod: ^4.4.3
 
   '@elizaos/plugin-coding-tools@2.0.3-beta.7':
     resolution: {integrity: sha512-CzhuqKJur8f2JgdrjCw5IQid5PVqVDmC+lyUDLM69V48nMmZlhSBgADq7sS+Y0EtEQ17Hkkm1b9e5VHuJyojSw==}
@@ -15342,6 +15340,11 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+
+  '@elizaos/plugin-codex-cli@2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)(zod@4.4.3)':
+    dependencies:
+      '@elizaos/core': 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
+      zod: 4.4.3
 
   '@elizaos/plugin-coding-tools@2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.1)(pg@8.22.0)':
     dependencies:

@@ -1,7 +1,6 @@
 import type { JsonValue } from "@elizaos/core";
 import type {
   getLinkedClaudeCodeCredentials,
-  getLinkedCodexCredentials,
   getLinkedElizaCloudCredentials,
 } from "@/runtime/native/account-auth";
 import type { AppServices } from "@/services";
@@ -41,6 +40,8 @@ export interface PluginSettings {
   OPENAI_BASE_URL: string;
   OPENAI_SMALL_MODEL: string;
   OPENAI_LARGE_MODEL: string;
+  CODEX_BASE_URL?: string;
+  CODEX_MODEL?: string;
   ANTHROPIC_SMALL_MODEL: string;
   ANTHROPIC_LARGE_MODEL: string;
   SECRET_SALT: string;
@@ -72,7 +73,6 @@ export interface BuildPluginSettingsDependencies {
   secretSalt?: string;
   pgliteDataDir?: string;
   linkedCredentials?: {
-    codex?: ReturnType<typeof getLinkedCodexCredentials>;
     elizaCloud?: ReturnType<typeof getLinkedElizaCloudCredentials>;
     claudeCode?: ReturnType<typeof getLinkedClaudeCodeCredentials>;
   };

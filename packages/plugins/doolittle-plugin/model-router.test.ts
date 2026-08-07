@@ -16,7 +16,7 @@ describe("resolveSelectedModelProviderPlugin", () => {
   it.each([
     ["ollama", "ollama"],
     ["elizacloud", "elizaOSCloud"],
-    ["codex", "@doolittle/plugin-codex"],
+    ["codex", "codex-cli"],
     ["claude-code", "@doolittle/plugin-claude-code"],
     ["devin", "@doolittle/plugin-devin"],
     ["openai", "openai"],
@@ -63,13 +63,13 @@ describe("createSelectedProviderTextModel", () => {
     );
     activeProvider = "codex";
     await expect(model(runtime, { prompt: "third" })).resolves.toBe(
-      "response from @doolittle/plugin-codex",
+      "response from codex-cli",
     );
 
     expect(routedProviders).toEqual([
       "ollama",
       "@doolittle/plugin-claude-code",
-      "@doolittle/plugin-codex",
+      "codex-cli",
     ]);
   });
 

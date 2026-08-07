@@ -73,8 +73,8 @@ function buildPackageRoot(dependencies: Record<string, string> = {}): string {
   );
   writePackageFixture(
     root,
-    "plugin-codex",
-    "@doolittle/plugin-codex",
+    "plugin-claude-code",
+    "@doolittle/plugin-claude-code",
     dependencies,
   );
   return root;
@@ -147,7 +147,7 @@ describe("publish-provider-packages", () => {
     const root = buildPackageRoot();
     roots.push(root);
 
-    const result = runPublish(root, ["--provider", "codex", "--json"]);
+    const result = runPublish(root, ["--provider", "claude-code", "--json"]);
     expect(result.status, result.stderr || result.stdout).toBe(0);
 
     const payload = JSON.parse(result.stdout) as {
@@ -176,7 +176,7 @@ describe("publish-provider-packages", () => {
 
     const manifest = JSON.parse(
       readFileSync(
-        join(root, "packages", "plugins", "plugin-codex", "package.json"),
+        join(root, "packages", "plugins", "plugin-claude-code", "package.json"),
         "utf8",
       ),
     ) as { exports: { ".": string }; files: string[] };
@@ -191,7 +191,7 @@ describe("publish-provider-packages", () => {
 
     const result = runPublish(
       root,
-      ["--provider", "codex", "--publish", "--tag", "rc", "--json"],
+      ["--provider", "claude-code", "--publish", "--tag", "rc", "--json"],
       binPath,
     );
     expect(result.status).toBe(1);
@@ -209,7 +209,7 @@ describe("publish-provider-packages", () => {
     const root = buildPackageRoot({ "@doolittle/private": "workspace:*" });
     roots.push(root);
 
-    const result = runPublish(root, ["--provider", "codex", "--json"]);
+    const result = runPublish(root, ["--provider", "claude-code", "--json"]);
 
     expect(result.status).toBe(1);
     const payload = JSON.parse(result.stdout) as {

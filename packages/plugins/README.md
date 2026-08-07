@@ -2,7 +2,7 @@
 
 This workspace mixes three different kinds of package-shaped code:
 
-- public provider bridges such as [`plugin-codex`](./plugin-codex) and [`plugin-claude-code`](./plugin-claude-code)
+- public provider bridges such as [`plugin-claude-code`](./plugin-claude-code) and [`plugin-devin`](./plugin-devin); Codex is supplied directly by `@elizaos/plugin-codex-cli`
 - vendored compatibility packages kept local for the current ElizaOS beta line
 - internal adapters that expose Doolittle runtime services through plugin contracts
 
@@ -30,9 +30,9 @@ Runtime truth is exposed directly from:
 
 The intentionally user-facing provider bridges are:
 
-- [`plugin-codex`](./plugin-codex)
 - [`plugin-claude-code`](./plugin-claude-code)
 - [`plugin-devin`](./plugin-devin)
+- `@elizaos/plugin-codex-cli` is consumed directly from the official ElizaOS release rather than vendored here.
 - `@elizaos/plugin-elizacloud` is consumed directly from the official ElizaOS release rather than vendored here.
 
 Shared Doolittle-only implementation stays in
