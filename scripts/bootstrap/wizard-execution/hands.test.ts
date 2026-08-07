@@ -142,7 +142,7 @@ describe("bootstrap execution hands flow", () => {
         if (prompt === "How should I greet new arrivals:") {
           return "allow" as const;
         }
-        if (prompt === "How should I open my MCP bridge on first boot?") {
+        if (prompt === "How should Eliza launch this MCP server?") {
           return "filesystem" as const;
         }
         if (prompt === "How should I appear to ACP-aware editors?") {
@@ -184,7 +184,7 @@ describe("bootstrap execution hands flow", () => {
         ) {
           return true;
         }
-        if (prompt === "Should I wake up with an MCP bridge already bound") {
+        if (prompt === "Should Eliza connect an MCP server on startup") {
           return true;
         }
         if (prompt === "Should I wake up with ACP and editor presence") {

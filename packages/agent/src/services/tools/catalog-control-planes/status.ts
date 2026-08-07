@@ -22,9 +22,10 @@ export const CORE_STATUS_CONTROL_PLANES = [
 export const RUNTIME_STATUS_CONTROL_PLANES = [
   {
     id: "mcp.bridge",
-    name: "MCP Bridge",
+    name: "Eliza MCP",
     category: "mcp",
-    description: "Structured MCP bridge for tool discovery and invocation.",
+    description:
+      "Official Eliza MCP service for validated connections, discovery, resources, and invocation.",
     enabled: true,
     transport: "native",
   },

@@ -69,6 +69,7 @@ export function createServiceAssemblyRuntimeBinding(
     pairing: state.pairing,
     hooks: state.hooks,
     delegationProjection: state.delegationProjection,
+    mcp: state.mcp,
     documents: state.documents,
     diagnostics: state.diagnostics,
     operator: state.operator,

@@ -138,8 +138,8 @@ function createCurrentSettings(): RuntimeSettingsSnapshot {
       sshStrictHostKeyChecking: false,
     },
     mcp: {
-      serverCommand: "",
-      timeoutMs: 0,
+      servers: {},
+      maxRetries: 2,
     },
     agent: {
       runDepth: "standard",
@@ -152,7 +152,7 @@ function createCurrentSettings(): RuntimeSettingsSnapshot {
   } as unknown as RuntimeSettingsSnapshot;
 }
 describe("applyMissingExecutionDefaults", () => {
-  it("hydrates empty execution and mcp settings from env config", () => {
+  it("hydrates empty execution settings from env config", () => {
     const updates: Array<[string, unknown]> = [];
 
     applyMissingExecutionDefaults(createConfig(), createCurrentSettings(), ((
@@ -165,7 +165,7 @@ describe("applyMissingExecutionDefaults", () => {
     expect(updates).toContainEqual(["execution.remoteSyncMode", "mirror"]);
     expect(updates).toContainEqual(["execution.modalEnvironment", "prod"]);
     expect(updates).toContainEqual(["execution.sshPort", 22]);
-    expect(updates).toContainEqual(["mcp.serverCommand", "bun run mcp"]);
+    expect(updates.some(([path]) => path.startsWith("mcp."))).toBe(false);
   });
 
   it("preserves existing configured values", () => {
@@ -173,7 +173,9 @@ describe("applyMissingExecutionDefaults", () => {
     currentSettings.execution.remoteSyncMode = "snapshot";
     currentSettings.execution.modalEnvironment = "staging";
     currentSettings.execution.sshPort = 2200;
-    currentSettings.mcp.serverCommand = "existing-mcp";
+    currentSettings.mcp.servers = {
+      existing: { type: "stdio", command: "existing-mcp" },
+    };
     const updates: Array<[string, unknown]> = [];
 
     applyMissingExecutionDefaults(createConfig(), currentSettings, ((
@@ -186,6 +188,6 @@ describe("applyMissingExecutionDefaults", () => {
     expect(updates).not.toContainEqual(["execution.remoteSyncMode", "mirror"]);
     expect(updates).not.toContainEqual(["execution.modalEnvironment", "prod"]);
     expect(updates).not.toContainEqual(["execution.sshPort", 22]);
-    expect(updates).not.toContainEqual(["mcp.serverCommand", "bun run mcp"]);
+    expect(updates.some(([path]) => path === "mcp.servers")).toBe(false);
   });
 });

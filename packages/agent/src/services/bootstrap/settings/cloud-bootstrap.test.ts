@@ -145,8 +145,8 @@ function createCurrentSettings(): RuntimeSettingsSnapshot {
       sshStrictHostKeyChecking: false,
     },
     mcp: {
-      serverCommand: "",
-      timeoutMs: 0,
+      servers: {},
+      maxRetries: 2,
     },
     agent: {
       runDepth: "standard",

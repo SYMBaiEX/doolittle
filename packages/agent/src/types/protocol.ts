@@ -1,5 +1,7 @@
 export interface McpToolDefinition {
   name: string;
+  serverName: string;
+  toolName: string;
   description: string;
   inputSchema?: Record<string, unknown>;
 }

@@ -1,4 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
+import {
+  createElizaMcpSettingsFromCommand,
+  isElizaMcpSettings,
+  type LegacyMcpSettings,
+} from "../../../packages/agent/src/services/mcp/settings";
 import { RUN_DEPTH_ITERATION_PRESETS } from "../../../packages/agent/src/types";
 import type { GatewayConfig, PairingMode, RuntimeSettings } from "../types";
 
@@ -94,8 +99,8 @@ export function createDefaultSettings(
       sshStrictHostKeyChecking: false,
     },
     mcp: {
-      serverCommand: "",
-      timeoutMs: 10_000,
+      servers: {},
+      maxRetries: 2,
     },
     agent: {
       runDepth: "standard",
@@ -120,13 +125,20 @@ export function loadBootstrapSettings(
       readFileSync(settingsPath, "utf8"),
     ) as RuntimeSettings;
     const defaults = createDefaultSettings(theme);
+    const rawMcp = current.mcp as unknown;
+    const mcp = isElizaMcpSettings(rawMcp)
+      ? { ...defaults.mcp, ...rawMcp }
+      : createElizaMcpSettingsFromCommand(
+          (rawMcp as LegacyMcpSettings | undefined)?.serverCommand,
+          (rawMcp as LegacyMcpSettings | undefined)?.timeoutMs ?? 10_000,
+        );
     return {
       ...defaults,
       ...current,
       model: { ...defaults.model, ...current.model },
       gateway: { ...defaults.gateway, ...current.gateway },
       execution: { ...defaults.execution, ...current.execution },
-      mcp: { ...defaults.mcp, ...current.mcp },
+      mcp,
       agent: { ...defaults.agent, ...current.agent },
       ui: { ...defaults.ui, ...current.ui },
     };

@@ -106,9 +106,8 @@ const settingDescriptions: Record<string, string> = {
     "Safety ceiling for model and tool cycles in one agent run.",
   "agent.toolProgressMode":
     "Choose how much live tool progress appears in the conversation.",
-  "mcp.serverCommand":
-    "Command used to launch the local Model Context Protocol server.",
-  "mcp.timeoutMs": "Maximum time to wait for an MCP operation.",
+  "mcp.maxRetries":
+    "Official Eliza retry ceiling for disconnected MCP servers.",
   "execution.backend":
     "Default environment used for shell commands and workspace tools.",
   "execution.remoteSyncMode":

@@ -20,12 +20,11 @@ export const buildExecutionBasicsChecks: DiagnosticsCheckBuilder<
     detail: `Policy=${config.remoteArtifactPolicy}; artifact paths=${config.remoteArtifactPaths.join(", ") || "none"}; snapshots persist metadata only.`,
   },
   {
-    id: "mcp.bridge",
-    status: config.mcpServerCommand ? "pass" : "warn",
-    summary: "MCP bridge configuration",
-    detail: config.mcpServerCommand
-      ? `MCP bridge command configured: ${config.mcpServerCommand}`
-      : "MCP_SERVER_COMMAND is not configured.",
+    id: "mcp.native",
+    status: "pass",
+    summary: "Official Eliza MCP ownership",
+    detail:
+      "@elizaos/plugin-mcp owns validated server connections, discovery, resources, retries, and tool invocation through settings.mcp.servers.",
   },
   {
     id: "acp.bridge",

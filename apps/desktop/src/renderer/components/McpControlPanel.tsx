@@ -24,13 +24,25 @@ export interface McpToolSummary {
 interface McpStatus {
   enabled?: boolean;
   detail?: string;
-  timeoutMs?: number;
+  serverCount?: number;
+  connectedServers?: number;
+  failedServers?: number;
+  servers?: unknown[];
   discoveredTools?: number;
   cachedToolNames?: unknown[];
   lastProbeAt?: string;
   lastDiscoveryAt?: string;
   lastInvocationAt?: string;
   lastError?: string;
+}
+
+interface McpServerSummary {
+  name: string;
+  status: string;
+  toolCount: number;
+  resourceCount: number;
+  resourceTemplateCount: number;
+  error: string;
 }
 
 interface McpStatusResponse {
@@ -65,9 +77,32 @@ export function normalizeMcpTools(value: unknown): McpToolSummary[] {
     .filter((tool): tool is McpToolSummary => tool !== null);
 }
 
+export function normalizeMcpServers(value: unknown): McpServerSummary[] {
+  return asArray(value)
+    .map((entry): McpServerSummary | null => {
+      const record = asRecord(entry);
+      const name = asString(record.name).trim();
+      if (!name) return null;
+      return {
+        name,
+        status: asString(record.status, "unknown"),
+        toolCount: asNumber(record.toolCount, 0),
+        resourceCount: asNumber(record.resourceCount, 0),
+        resourceTemplateCount: asNumber(record.resourceTemplateCount, 0),
+        error: asString(record.error),
+      };
+    })
+    .filter((server): server is McpServerSummary => server !== null);
+}
+
 export function mcpStatusLabel(status: McpStatus | undefined): string {
   if (!status) return "Checking";
-  return status.enabled ? "Connected" : "Not configured";
+  if (!status.enabled) return "Not configured";
+  if (asNumber(status.failedServers, 0) > 0) return "Needs attention";
+  return asNumber(status.connectedServers, 0) ===
+    asNumber(status.serverCount, 0)
+    ? "Connected"
+    : "Connecting";
 }
 
 export function McpControlPanel({ active }: { active: boolean }) {
@@ -99,6 +134,9 @@ export function McpControlPanel({ active }: { active: boolean }) {
 
   const bridge = status.data?.mcp;
   const configured = bridge?.enabled === true;
+  const healthy =
+    configured &&
+    asNumber(bridge?.connectedServers, 0) === asNumber(bridge?.serverCount, 0);
   const allTools = useMemo(
     () => normalizeMcpTools(cached.data?.tools),
     [cached.data?.tools],
@@ -108,6 +146,7 @@ export function McpControlPanel({ active }: { active: boolean }) {
     [search.data?.tools],
   );
   const visibleTools = toolQuery ? searchedTools : allTools;
+  const servers = normalizeMcpServers(bridge?.servers);
   const selectedTool = normalizeMcpTools(
     selected.data?.tool ? [selected.data.tool] : [],
   )[0];
@@ -137,7 +176,7 @@ export function McpControlPanel({ active }: { active: boolean }) {
       const ok = result.probe?.ok === true;
       const detail = asString(
         result.probe?.detail,
-        "The MCP bridge did not return a probe detail.",
+        "The Eliza MCP service did not return a probe detail.",
       );
       setProbeNotice(`${ok ? "Probe passed" : "Probe failed"}: ${detail}`);
       status.reload();
@@ -159,12 +198,12 @@ export function McpControlPanel({ active }: { active: boolean }) {
           <span className="eyebrow">Model Context Protocol</span>
           <h2 id="mcp-control-heading">MCP connections</h2>
           <p>
-            Inspect the configured local bridge, probe its health, and browse
-            cached tools without invoking them.
+            Inspect Eliza-managed MCP servers, connection health, and their
+            discovered tools without invoking them.
           </p>
         </div>
         <div className="mcp-control-actions">
-          <Badge tone={configured ? "good" : "warn"}>
+          <Badge tone={healthy ? "good" : "warn"}>
             {mcpStatusLabel(bridge)}
           </Badge>
           <button className="secondary-button" onClick={refresh} type="button">
@@ -176,7 +215,7 @@ export function McpControlPanel({ active }: { active: boolean }) {
       {loading ? <LoadingBlock label="Reading MCP connections…" /> : null}
       {staticError ? (
         <Notice tone="bad">
-          Could not read the local MCP bridge: {staticError}
+          Could not read the Eliza MCP service: {staticError}
         </Notice>
       ) : null}
 
@@ -184,9 +223,12 @@ export function McpControlPanel({ active }: { active: boolean }) {
         <>
           <div className="mcp-control-summary">
             <div>
-              <span>Bridge</span>
-              <strong>{configured ? "Configured locally" : "Offline"}</strong>
-              <small>{bridge?.detail || "No bridge status returned."}</small>
+              <span>Eliza servers</span>
+              <strong>
+                {asNumber(bridge?.connectedServers, 0)} /{" "}
+                {asNumber(bridge?.serverCount, 0)} connected
+              </strong>
+              <small>{bridge?.detail || "No MCP status returned."}</small>
             </div>
             <div>
               <span>Cached tools</span>
@@ -206,17 +248,17 @@ export function McpControlPanel({ active }: { active: boolean }) {
 
           {!configured ? (
             <Notice tone="warn">
-              Configure <code>MCP_SERVER_COMMAND</code> and restart the local
-              runtime to discover tools. Doolittle keeps this desktop view
-              read-only.
+              Add a server under <code>settings.mcp.servers</code> and restart
+              the runtime. Eliza validates the configuration and owns the
+              connection lifecycle.
             </Notice>
           ) : (
             <div className="mcp-control-probe">
               <div>
                 <strong>Connection diagnostics</strong>
                 <span>
-                  Probe the configured bridge and refresh its cached tool
-                  registry.
+                  Probe the official Eliza service and refresh its tool
+                  projection.
                 </span>
               </div>
               <button
@@ -235,6 +277,37 @@ export function McpControlPanel({ active }: { active: boolean }) {
             >
               {probeNotice}
             </Notice>
+          ) : null}
+
+          {servers.length ? (
+            <div className="mcp-control-servers">
+              <div className="mcp-control-browser-header">
+                <div>
+                  <span className="eyebrow">Eliza connection registry</span>
+                  <h3>Configured servers</h3>
+                </div>
+                <Badge tone="neutral">{servers.length} active</Badge>
+              </div>
+              <div className="mcp-control-server-grid">
+                {servers.map((server) => (
+                  <article key={server.name}>
+                    <div>
+                      <code>{server.name}</code>
+                      <Badge
+                        tone={server.status === "connected" ? "good" : "warn"}
+                      >
+                        {server.status}
+                      </Badge>
+                    </div>
+                    <span>
+                      {server.toolCount} tools · {server.resourceCount}{" "}
+                      resources · {server.resourceTemplateCount} templates
+                    </span>
+                    {server.error ? <small>{server.error}</small> : null}
+                  </article>
+                ))}
+              </div>
+            </div>
           ) : null}
 
           <div className="mcp-control-browser">

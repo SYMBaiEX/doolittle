@@ -145,11 +145,6 @@ export const STRING_DEFAULTS: StringDefaultDefinition[] = [
     current: (settings) => settings.execution.sshKeyPath,
     next: (config) => config.sshKeyPath,
   },
-  {
-    path: "mcp.serverCommand",
-    current: (settings) => settings.mcp.serverCommand,
-    next: (config) => config.mcpServerCommand,
-  },
 ];
 
 export const NUMBER_DEFAULTS: NumberDefaultDefinition[] = [
@@ -172,11 +167,6 @@ export const NUMBER_DEFAULTS: NumberDefaultDefinition[] = [
     path: "execution.sshPort",
     current: (settings) => settings.execution.sshPort,
     next: (config) => config.sshPort,
-  },
-  {
-    path: "mcp.timeoutMs",
-    current: (settings) => settings.mcp.timeoutMs,
-    next: (config) => config.mcpTimeoutMs,
   },
 ];
 

@@ -1,4 +1,5 @@
 import type { TuiThemeName } from "../../packages/agent/src/runtime/theme-catalog";
+import type { ElizaMcpSettings } from "../../packages/agent/src/services/mcp/settings";
 import type {
   RunDepth,
   ToolProgressMode,
@@ -97,10 +98,7 @@ export interface RuntimeSettings {
     sshKeyPath: string;
     sshStrictHostKeyChecking: boolean;
   };
-  mcp: {
-    serverCommand: string;
-    timeoutMs: number;
-  };
+  mcp: ElizaMcpSettings;
   agent: {
     runDepth: RunDepth;
     maxIterations: number;

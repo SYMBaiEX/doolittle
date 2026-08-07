@@ -1,2 +1,6 @@
 export * from "./service";
-export type { McpServiceStatus, McpSettings } from "./status";
+export type {
+  ElizaMcpSettings,
+  McpServerConfig,
+} from "./settings";
+export type { McpServiceStatus } from "./status";

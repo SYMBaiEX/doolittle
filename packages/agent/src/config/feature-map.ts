@@ -66,10 +66,11 @@ export const featureMap: FeatureMapping[] = [
       "Local execution is active now, while Docker and SSH include concrete runtime configuration, health probes, and backend-specific invocation paths.",
   },
   {
-    platformCapability: "Tool registry and MCP bridge",
-    elizaImplementation: "Tools service + MCP service",
+    platformCapability: "Tool registry and MCP",
+    elizaImplementation:
+      "@elizaos/plugin-mcp with a read-only Doolittle tool projection",
     notes:
-      "Publishes a first-class tool inventory, supports structured MCP tool discovery, and invokes MCP tools through a local bridge command.",
+      "Eliza owns validated stdio, HTTP, and SSE connections, retries, resources, discovery, and invocation; Doolittle only projects server-qualified tools into operator surfaces.",
   },
   {
     platformCapability: "Browser-backed web retrieval",

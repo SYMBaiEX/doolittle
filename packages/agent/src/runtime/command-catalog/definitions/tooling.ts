@@ -24,7 +24,7 @@ export const ToolingCommandCatalogEntries: CommandCatalogEntry[] = [
   {
     command: "/mcp tools",
     category: "tools",
-    description: "Discover MCP tools through the configured MCP bridge.",
+    description: "Discover tools through the official Eliza MCP service.",
   },
   {
     command: "/mcp marketplace search <query>",

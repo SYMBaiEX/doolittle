@@ -57,6 +57,12 @@ describe("getNativePluginCatalogSeeds", () => {
       source: "official",
       kind: "adapter",
     });
+    expect(seeds.find((seed) => seed.id === "execution.mcp")).toMatchObject({
+      packageName: "@elizaos/plugin-mcp",
+      category: "execution",
+      source: "official",
+      kind: "adapter",
+    });
     expect(
       seeds.find((seed) => seed.id === "product.doolittle-runtime"),
     ).toMatchObject({

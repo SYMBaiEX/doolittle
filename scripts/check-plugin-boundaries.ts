@@ -169,6 +169,19 @@ const INTERNAL_FACADE_GUARDS: Array<{
   },
   {
     root: SERVICES_ROOT,
+    include:
+      /packages\/agent\/src\/services\/mcp\/(?!.+\.test\.[cm]?ts$).+\.[cm]?ts$/u,
+    patterns: [
+      {
+        pattern:
+          /\brunShellCommand\b|node:child_process|["']list-tools["']|["']call-tool["']/u,
+        reason:
+          "reimplements MCP process execution or protocol commands instead of projecting the official @elizaos/plugin-mcp service",
+      },
+    ],
+  },
+  {
+    root: SERVICES_ROOT,
     include: /packages\/agent\/src\/services\/types\.ts$/u,
     patterns: [
       {

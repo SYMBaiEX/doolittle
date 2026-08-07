@@ -77,8 +77,8 @@ function createDefaults(): RuntimeSettings {
       sshStrictHostKeyChecking: false,
     },
     mcp: {
-      serverCommand: "",
-      timeoutMs: 10_000,
+      servers: {},
+      maxRetries: 2,
     },
     agent: {
       runDepth: "standard",

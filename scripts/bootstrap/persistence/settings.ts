@@ -1,9 +1,14 @@
+import { createElizaMcpSettingsFromCommand } from "../../../packages/agent/src/services/mcp/settings";
 import type { RuntimeSettings, WizardAnswers } from "../types";
 
 export function buildBootstrapSettings(
   settings: RuntimeSettings,
   answers: WizardAnswers,
 ): RuntimeSettings {
+  const configuredMcp = createElizaMcpSettingsFromCommand(
+    answers.tools.mcp ? answers.mcpServerCommand : "",
+    firstMcpTimeout(settings),
+  );
   const nextSettings = {
     ...settings,
     ui: { ...settings.ui, theme: answers.theme },
@@ -22,10 +27,15 @@ export function buildBootstrapSettings(
       daytonaTarget: answers.backend === "daytona" ? answers.daytonaTarget : "",
       modalTarget: answers.backend === "modal" ? answers.modalTarget : "",
     },
-    mcp: {
-      ...settings.mcp,
-      serverCommand: answers.tools.mcp ? answers.mcpServerCommand : "",
-    },
+    mcp: answers.tools.mcp
+      ? {
+          ...settings.mcp,
+          servers: {
+            ...settings.mcp.servers,
+            ...configuredMcp.servers,
+          },
+        }
+      : settings.mcp,
   } satisfies RuntimeSettings;
 
   if (answers.provider === "elizacloud") {
@@ -59,4 +69,16 @@ export function buildBootstrapSettings(
   }
 
   return nextSettings;
+}
+
+function firstMcpTimeout(settings: RuntimeSettings): number {
+  for (const server of Object.values(settings.mcp.servers)) {
+    if (server.type === "stdio" && server.timeoutInMillis) {
+      return server.timeoutInMillis;
+    }
+    if (server.type !== "stdio" && server.timeout) {
+      return server.timeout;
+    }
+  }
+  return 10_000;
 }

@@ -74,7 +74,7 @@ function localSettings(): RuntimeSettings {
       sshKeyPath: "",
       sshStrictHostKeyChecking: true,
     },
-    mcp: { serverCommand: "", timeoutMs: 5_000 },
+    mcp: { servers: {}, maxRetries: 2 },
     agent: { runDepth: "standard", maxIterations: 1, toolProgressMode: "new" },
     ui: { theme: "orange" },
   };

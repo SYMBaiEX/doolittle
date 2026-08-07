@@ -286,7 +286,7 @@ describe("DiagnosticsService", () => {
       ).toBe(true);
       expect(
         checks.some(
-          (check) => check.id === "mcp.bridge" && check.status === "warn",
+          (check) => check.id === "mcp.native" && check.status === "pass",
         ),
       ).toBe(true);
       expect(
@@ -366,7 +366,7 @@ describe("DiagnosticsService", () => {
       const checklist = await service.setupChecklist();
       expect(
         checklist.some((item) => item.includes("MCP_SERVER_COMMAND")),
-      ).toBe(true);
+      ).toBe(false);
       expect(
         checklist.some((item) =>
           item.includes("DOOLITTLE_REMOTE_SYNC_INCLUDE"),

@@ -1,3 +1,4 @@
+import type { JsonValue } from "@elizaos/core";
 import type {
   getLinkedClaudeCodeCredentials,
   getLinkedCodexCredentials,
@@ -9,6 +10,7 @@ import type { EnvConfig } from "@/types/runtime";
 type RuntimeSettings = ReturnType<AppServices["settings"]["get"]>;
 
 export interface PluginSettings {
+  mcp: JsonValue;
   featureMap: string;
   runtimeSettings: string;
   nativeServiceRegistry: string;

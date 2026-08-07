@@ -1,4 +1,5 @@
 import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth/types";
+import { createElizaMcpSettingsFromCommand } from "@/services/mcp/settings";
 import type { EnvConfig } from "@/types";
 import { SettingsService } from "../../settings-service";
 import type { DefaultServiceModelConfig } from "../model/index";
@@ -68,10 +69,10 @@ export function createServiceSettings(
       sshKeyPath: config.sshKeyPath ?? "",
       sshStrictHostKeyChecking: config.sshStrictHostKeyChecking,
     },
-    mcp: {
-      serverCommand: config.mcpServerCommand ?? "",
-      timeoutMs: config.mcpTimeoutMs,
-    },
+    mcp: createElizaMcpSettingsFromCommand(
+      config.mcpServerCommand,
+      config.mcpTimeoutMs,
+    ),
     agent: {
       runDepth: config.runDepth,
       maxIterations: config.maxIterations,

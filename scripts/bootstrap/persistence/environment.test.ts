@@ -69,7 +69,7 @@ describe("bootstrap persistence env updates", () => {
     expect(envUpdates.ANTHROPIC_API_KEY).toBe("");
     expect(envUpdates.CLAUDE_CODE_OAUTH_TOKEN).toBe("token");
     expect(envUpdates.DOOLITTLE_USE_LINKED_CLAUDE_CODE_AUTH).toBe("true");
-    expect(envUpdates.MCP_SERVER_COMMAND).toBe("mcp-server");
+    expect(envUpdates.MCP_SERVER_COMMAND).toBe("");
     expect(envUpdates.E2B_API_KEY).toBe("e2b-key");
     expect(envUpdates.OPENAI_API_KEY).toBe("");
     expect(envUpdates.TELEGRAM_BOT_TOKEN).toBe("telegram-token");

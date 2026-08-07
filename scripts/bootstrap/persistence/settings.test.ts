@@ -113,8 +113,8 @@ const settings: RuntimeSettings = {
     sshStrictHostKeyChecking: true,
   },
   mcp: {
-    serverCommand: "old-mcp",
-    timeoutMs: 5_000,
+    servers: {},
+    maxRetries: 2,
   },
   agent: {
     runDepth: "quick",
@@ -140,7 +140,11 @@ describe("bootstrap persistence settings", () => {
     expect(next.execution.sshPath).toBe("/workspace");
     expect(next.execution.daytonaTarget).toBe("");
     expect(next.execution.modalTarget).toBe("");
-    expect(next.mcp.serverCommand).toBe("mcp-server");
+    expect(next.mcp.servers.doolittle).toMatchObject({
+      type: "stdio",
+      command: "mcp-server",
+      timeoutInMillis: 10_000,
+    });
     expect(next.model.provider).toBe("claude-code");
     expect(next.model.model).toBe("claude-sonnet-4.6");
     expect(next.model.baseUrl).toBe("");
@@ -159,5 +163,39 @@ describe("bootstrap persistence settings", () => {
     expect(next.model.provider).toBe("ollama");
     expect(next.model.model).toBe("llama3.3:70b");
     expect(next.model.baseUrl).toBe("http://127.0.0.1:11434/api");
+  });
+
+  it("preserves existing native MCP servers while updating the wizard server", () => {
+    const existing = {
+      ...settings,
+      mcp: {
+        servers: {
+          research: {
+            type: "streamable-http" as const,
+            url: "https://mcp.example.test",
+          },
+        },
+        maxRetries: 4,
+      },
+    };
+
+    const next = buildBootstrapSettings(existing, answers);
+
+    expect(next.mcp.maxRetries).toBe(4);
+    expect(next.mcp.servers.research).toEqual({
+      type: "streamable-http",
+      url: "https://mcp.example.test",
+    });
+    expect(next.mcp.servers.doolittle).toMatchObject({
+      type: "stdio",
+      command: "mcp-server",
+    });
+
+    expect(
+      buildBootstrapSettings(existing, {
+        ...answers,
+        tools: { ...answers.tools, mcp: false },
+      }).mcp,
+    ).toEqual(existing.mcp);
   });
 });

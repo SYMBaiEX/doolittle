@@ -15,6 +15,7 @@ overrides:
   '@elizaos/plugin-elizacloud': 2.0.3-beta.7
   '@elizaos/plugin-form': 2.0.3-beta.7
   '@elizaos/plugin-github': 2.0.3-beta.7
+  '@elizaos/plugin-mcp': 2.0.3-beta.7
   '@elizaos/plugin-ollama': 2.0.3-beta.7
   '@elizaos/plugin-openai': 2.0.3-beta.7
   '@elizaos/plugin-pdf': 2.0.3-beta.7
@@ -94,6 +95,9 @@ importers:
       '@elizaos/plugin-github':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
+      '@elizaos/plugin-mcp':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)(zod@4.4.3)
       '@elizaos/plugin-ollama':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
@@ -136,6 +140,9 @@ importers:
       elizaos:
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7
+      shell-quote:
+        specifier: 1.10.0
+        version: 1.10.0
       zod:
         specifier: ^4.3.6
         version: 4.4.3
@@ -288,6 +295,9 @@ importers:
       '@elizaos/plugin-elizacloud':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)(typescript@5.9.3)(zod@4.4.3)
+      '@elizaos/plugin-mcp':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)(zod@4.4.3)
       '@elizaos/plugin-ollama':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
@@ -315,6 +325,9 @@ importers:
       dotenv:
         specifier: ^17.2.3
         version: 17.4.2
+      shell-quote:
+        specifier: 1.10.0
+        version: 1.10.0
       zod:
         specifier: ^4.3.6
         version: 4.4.3

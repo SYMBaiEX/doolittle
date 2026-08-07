@@ -1,60 +1,5 @@
 import type { McpToolDefinition } from "@/types";
 
-export function parseStructuredMcpTools(raw: string): McpToolDefinition[] {
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed
-      .flatMap((entry) => {
-        if (
-          entry &&
-          typeof entry === "object" &&
-          "tools" in entry &&
-          Array.isArray((entry as Record<string, unknown>).tools)
-        ) {
-          return (entry as Record<string, unknown>).tools as Record<
-            string,
-            unknown
-          >[];
-        }
-        return [entry];
-      })
-      .filter((entry) => entry && typeof entry === "object" && "name" in entry)
-      .map((entry) => ({
-        name: String((entry as Record<string, unknown>).name),
-        description: String(
-          (entry as Record<string, unknown>).description ??
-            "MCP-discovered tool.",
-        ),
-        inputSchema:
-          typeof (entry as Record<string, unknown>).inputSchema === "object"
-            ? ((entry as Record<string, unknown>).inputSchema as Record<
-                string,
-                unknown
-              >)
-            : undefined,
-      }));
-  } catch {
-    return [];
-  }
-}
-
-export function parseLineOrientedMcpTools(raw: string): McpToolDefinition[] {
-  return raw
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [name, ...descriptionParts] = line.split(" - ");
-      return {
-        name,
-        description: descriptionParts.join(" - ") || "MCP-discovered tool.",
-      } satisfies McpToolDefinition;
-    });
-}
-
 export function findCachedMcpTool(
   tools: McpToolDefinition[],
   name: string,
@@ -71,7 +16,13 @@ export function searchCachedMcpTools(
     return [...tools];
   }
   return tools.filter((tool) =>
-    [tool.name, tool.description, JSON.stringify(tool.inputSchema ?? {})]
+    [
+      tool.name,
+      tool.serverName,
+      tool.toolName,
+      tool.description,
+      JSON.stringify(tool.inputSchema ?? {}),
+    ]
       .join(" ")
       .toLowerCase()
       .includes(normalized),
@@ -106,6 +57,7 @@ export function describeCachedMcpTool(
   }
   return [
     `MCP TOOL: ${tool.name}`,
+    `Server: ${tool.serverName}`,
     tool.description ? `Description: ${tool.description}` : undefined,
     tool.inputSchema
       ? `Schema: ${JSON.stringify(tool.inputSchema, null, 2)}`

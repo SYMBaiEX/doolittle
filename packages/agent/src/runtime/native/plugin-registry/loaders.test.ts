@@ -24,6 +24,14 @@ vi.mock("@elizaos/plugin-agent-skills", () => ({
   },
 }));
 
+vi.mock("@elizaos/plugin-mcp", () => ({
+  default: {
+    name: "mcp",
+    actions: [{ name: "MCP" }],
+    services: [{ serviceType: "mcp" }],
+  },
+}));
+
 vi.mock("@elizaos/plugin-form", () => ({
   formPlugin: {
     name: "form",
@@ -196,6 +204,7 @@ describe("loadHotExecutionPlugins", () => {
       "@doolittle/plugin-coding-agent",
       "@elizaos/plugin-agent-orchestrator",
       "@elizaos/plugin-agent-skills",
+      "mcp",
       "@doolittle/plugin-planning",
     ]);
     const operatorPlanning = plugins.find(

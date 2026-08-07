@@ -70,6 +70,17 @@ export const EXECUTION_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
       "Official agent orchestrator registered for native delegation and worker supervision.",
   },
   {
+    id: "execution.mcp",
+    packageName: "@elizaos/plugin-mcp",
+    category: "execution",
+    source: "official",
+    kind: "adapter",
+    maturity: "alpha",
+    enablement: "always",
+    notes:
+      "Official MCP service, provider, and action for validated persistent server connections, resources, discovery, and tool calls.",
+  },
+  {
     id: "execution.planning",
     packageName: "@doolittle/plugin-planning",
     category: "execution",

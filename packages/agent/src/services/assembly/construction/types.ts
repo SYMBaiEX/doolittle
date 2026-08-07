@@ -111,6 +111,7 @@ export interface ServiceRuntimeBindingDependencies {
   pairing: GatewayPairingProjection;
   hooks: HookProjectionService;
   delegationProjection: DelegationProjectionService;
+  mcp: McpService;
   documents: LazySlot<DocumentsService>;
   diagnostics: ReturnType<typeof createDiagnosticsServiceSlot>;
   operator: ReturnType<typeof createOperatorServiceSlot>;

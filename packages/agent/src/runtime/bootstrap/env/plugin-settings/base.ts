@@ -1,5 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
+import type { JsonValue } from "@elizaos/core";
 import { getSkillsDir } from "@elizaos/skills/index";
 import { featureMap } from "@/config/feature-map";
 import { getPgliteDataDir } from "@/runtime/bootstrap/env/pglite";
@@ -32,6 +33,7 @@ export function buildBaseSettings(
       ? reasoningEffort
       : undefined;
   return {
+    mcp: runtimeSettings.mcp as unknown as JsonValue,
     featureMap: JSON.stringify(featureMap),
     runtimeSettings: JSON.stringify(runtimeSettings),
     nativeServiceRegistry: JSON.stringify(services.nativeRegistry),

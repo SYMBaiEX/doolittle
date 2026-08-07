@@ -113,8 +113,8 @@ const settings: RuntimeSettings = {
     sshStrictHostKeyChecking: false,
   },
   mcp: {
-    serverCommand: "",
-    timeoutMs: 10_000,
+    servers: {},
+    maxRetries: 2,
   },
   agent: {
     runDepth: "standard",
@@ -223,9 +223,12 @@ describe("bootstrap persistence plan", () => {
 
     expect(plan.envUpdates.DOOLITTLE_NAME).toBe("Doolittle");
     expect(plan.envUpdates.DOOLITTLE_EXECUTION_BACKEND).toBe("ssh");
-    expect(plan.envUpdates.MCP_SERVER_COMMAND).toBe(
-      "npx -y @modelcontextprotocol/server-filesystem .",
-    );
+    expect(plan.envUpdates.MCP_SERVER_COMMAND).toBe("");
+    expect(plan.settings.mcp.servers.doolittle).toMatchObject({
+      type: "stdio",
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "."],
+    });
     expect(plan.settings.execution.backend).toBe("ssh");
     expect(plan.settings.execution.sshHost).toBe("ssh.example");
     expect(plan.gateway.platforms.telegram.enabled).toBe(true);

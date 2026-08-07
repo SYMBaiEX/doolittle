@@ -61,8 +61,8 @@ function createDefaults(): RuntimeSettings {
       sshStrictHostKeyChecking: false,
     },
     mcp: {
-      serverCommand: "",
-      timeoutMs: 30_000,
+      servers: {},
+      maxRetries: 2,
     },
     agent: {
       runDepth: "standard",
@@ -98,7 +98,7 @@ describe("normalizeRuntimeSettings", () => {
     expect(result.dirty).toBe(true);
     expect(result.settings.model.provider).toBe("openai");
     expect(result.settings.execution.remoteSyncMode).toBe("mirror");
-    expect(result.settings.mcp.timeoutMs).toBe(30_000);
+    expect(result.settings.mcp.maxRetries).toBe(2);
     expect(result.settings.agent.runDepth).toBe("standard");
     expect(result.settings.ui.theme).toBe("orange");
   });
@@ -121,6 +121,29 @@ describe("normalizeRuntimeSettings", () => {
       ".doolittle/remote-artifacts",
     ]);
     expect(result.settings.execution.dockerEnvPassthrough).toEqual(["PATH"]);
+  });
+
+  it("migrates the legacy command bridge into official Eliza MCP settings", () => {
+    const parsed = createParsed();
+    parsed.mcp = {
+      serverCommand: "npx -y @modelcontextprotocol/server-filesystem .",
+      timeoutMs: 12_000,
+    };
+
+    const result = normalizeRuntimeSettings(parsed, createDefaults());
+
+    expect(result.dirty).toBe(true);
+    expect(result.settings.mcp).toEqual({
+      servers: {
+        doolittle: {
+          type: "stdio",
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-filesystem", "."],
+          timeoutInMillis: 12_000,
+        },
+      },
+      maxRetries: 2,
+    });
   });
 
   it("removes stale or malformed reasoning effort while preserving supported values", () => {

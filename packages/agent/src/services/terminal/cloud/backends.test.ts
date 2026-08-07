@@ -62,8 +62,8 @@ function makeSettings(): RuntimeSettings {
       sshStrictHostKeyChecking: false,
     },
     mcp: {
-      serverCommand: "",
-      timeoutMs: 5_000,
+      servers: {},
+      maxRetries: 2,
     },
     agent: {
       runDepth: "standard",

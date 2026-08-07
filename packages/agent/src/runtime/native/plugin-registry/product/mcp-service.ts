@@ -12,7 +12,7 @@ export function createMcpRuntimeService(services: AppServices): ServiceClass {
     static serviceType = DOOLITTLE_MCP_SERVICE;
 
     capabilityDescription =
-      "Discovers and invokes configured MCP tools with cached tool metadata.";
+      "Projects the official Eliza MCP service into Doolittle CLI and desktop surfaces.";
 
     // biome-ignore lint/complexity/noUselessConstructor: ElizaOS ServiceClass expects an optional runtime constructor.
     constructor(runtime?: IAgentRuntime) {

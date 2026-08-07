@@ -129,6 +129,7 @@ The API's runtime-owned routes come from Eliza first; Doolittle-specific REST ad
 | Conversation and progress | Multi-step message handling, approvals, events, transcripts, run depth, and terminal/desktop status | Natural-language turns go through ElizaOS `messageService.handleMessage(...)`; Doolittle does not maintain a competing intent pipeline. |
 | Code and workspace work | Repository inspection, file/search/patch/terminal surfaces, ACP workers, and operator UI | Coding delegation is owned by the official Eliza orchestrator; Doolittle owns its workspace-facing product tools. |
 | Research | Explicit research task path, durable receipts, and cited-report workflow | Live research needs a configured `RESEARCH` model. A missing model produces a clear unavailable result. |
+| MCP tools and resources | Multi-server status, discovered tools, marketplace lookup, and terminal/desktop inspection | Official `@elizaos/plugin-mcp` owns validation, stdio/HTTP/SSE transports, retries, provider context, resources, and invocation. Doolittle only projects the operator UX. |
 | Providers and accounts | Local Ollama, official provider plugins, and Doolittle-owned Codex/Claude Code/Eliza Cloud bridges | Codex and Claude account pools use Eliza's account-store and selector bridge. Tokens are not returned to the API or renderer. |
 | Desktop and API | Electron lifecycle, context-isolated IPC, React presentation, loopback API, sessions and diagnostics | Electron owns process capabilities; the API remains authoritative for runtime behavior and durable state. |
 | Skills, gateway, and operations | Curated skills, configured messaging adapters, scheduling and local diagnostics | Availability depends on installed plugins and configuration; inspect `/doctor`, `/runtime status`, or the desktop Runtime view. |
@@ -157,8 +158,8 @@ CLI / Cockpit / Desktop / Gateway / local HTTP API
  ElizaOS core   Official plugins   Doolittle bridges
  message/task   SQL, Ollama,       Codex, Claude Code,
  lifecycle      OpenAI, Anthropic, Eliza Cloud, workspace,
-                Telegram, agent    planning and operator layers
-                orchestrator
+                Telegram, MCP,     planning and operator layers
+                agent orchestrator
 ```
 
 This separation is intentional. Doolittle uses ElizaOS SDK primitives for message lifecycle, tasks, providers, and plugins. Where the SDK does not define the product experience, Doolittle owns the bridge and documents it as such. The full workspace map is in [docs/monorepo.md](docs/monorepo.md); the generated inventory identifies each runtime component's package, owner, maturity, and test coverage in [docs/plugin-inventory.md](docs/plugin-inventory.md).

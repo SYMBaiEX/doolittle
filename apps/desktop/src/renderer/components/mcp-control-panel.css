@@ -69,6 +69,61 @@
   border-radius: 4px;
 }
 
+.mcp-control-servers {
+  display: grid;
+  gap: 11px;
+  padding: 13px;
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.mcp-control-servers h3 {
+  margin: 3px 0 0;
+  font-size: 15px;
+}
+
+.mcp-control-server-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.mcp-control-server-grid article {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 10px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.mcp-control-server-grid article > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mcp-control-server-grid code {
+  overflow: hidden;
+  color: var(--accent);
+  font-size: 11px;
+  text-overflow: ellipsis;
+}
+
+.mcp-control-server-grid span,
+.mcp-control-server-grid small {
+  color: var(--text-soft);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.mcp-control-server-grid small {
+  color: var(--danger);
+}
+
 .mcp-control-summary > div {
   flex-direction: column;
   gap: 5px;

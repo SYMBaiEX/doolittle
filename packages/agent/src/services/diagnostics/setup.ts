@@ -50,11 +50,6 @@ export function buildDiagnosticsSetupChecklist(
       "Set DOOLITTLE_REMOTE_WORKSPACE_LABEL so remote lifecycle snapshots have a stable operator-facing label.",
     );
   }
-  if (!config.mcpServerCommand) {
-    steps.push(
-      "Set MCP_SERVER_COMMAND if you want MCP-backed tool discovery and invocation.",
-    );
-  }
   if (!config.acpServerCommand) {
     steps.push(
       "Set ACP_SERVER_COMMAND if you want ACP-backed editor and protocol integrations.",

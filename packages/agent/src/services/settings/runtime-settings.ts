@@ -1,5 +1,9 @@
 import type { TuiThemeName } from "@/runtime/theme-catalog";
 import type {
+  ElizaMcpSettings,
+  LegacyMcpSettings,
+} from "@/services/mcp/settings";
+import type {
   ExecutionBackendName,
   RemoteArtifactPolicy,
   RemoteWorkspaceSyncMode,
@@ -75,10 +79,7 @@ export interface RuntimeSettings {
     sshKeyPath: string;
     sshStrictHostKeyChecking: boolean;
   };
-  mcp: {
-    serverCommand: string;
-    timeoutMs: number;
-  };
+  mcp: ElizaMcpSettings;
   agent: {
     runDepth: RunDepth;
     maxIterations: number;
@@ -92,7 +93,7 @@ export interface RuntimeSettings {
 export interface ParsedRuntimeSettings
   extends Omit<RuntimeSettings, "execution" | "mcp" | "agent" | "ui"> {
   execution?: Partial<RuntimeSettings["execution"]>;
-  mcp?: Partial<RuntimeSettings["mcp"]>;
+  mcp?: Partial<RuntimeSettings["mcp"]> & LegacyMcpSettings;
   agent?: Partial<RuntimeSettings["agent"]>;
   ui?: Partial<RuntimeSettings["ui"]>;
 }

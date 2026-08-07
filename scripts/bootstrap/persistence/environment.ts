@@ -66,7 +66,9 @@ export function buildBootstrapEnvUpdates(
     SLACK_SIGNING_SECRET: answers.slackSigningSecret,
     HOMEASSISTANT_URL: answers.homeAssistantUrl,
     HOMEASSISTANT_TOKEN: answers.homeAssistantToken,
-    MCP_SERVER_COMMAND: answers.tools.mcp ? answers.mcpServerCommand : "",
+    // MCP configuration is canonical in settings.mcp.servers. Clear the
+    // legacy bootstrap import after projecting it into native Eliza settings.
+    MCP_SERVER_COMMAND: "",
     ACP_SERVER_COMMAND: answers.tools.acp ? answers.acpServerCommand : "",
     FAL_API_KEY: answers.tools.tts ? answers.falApiKey : "",
     E2B_API_KEY: answers.tools.codegen ? answers.e2bApiKey : "",

@@ -38,6 +38,11 @@ describe("createRuntimeBinder", () => {
           calls.push(`approvals:${(runtime as unknown as { id: string }).id}`);
         },
       },
+      mcp: {
+        bindRuntime(runtime: IAgentRuntime) {
+          calls.push(`mcp:${(runtime as unknown as { id: string }).id}`);
+        },
+      },
       pairing: {
         bindRuntime(runtime: IAgentRuntime) {
           calls.push(`pairing:${(runtime as unknown as { id: string }).id}`);
@@ -107,6 +112,7 @@ describe("createRuntimeBinder", () => {
       "hooks:runtime-1",
       "delegation:runtime-1",
       "approvals:runtime-1",
+      "mcp:runtime-1",
       "skills:runtime-1",
       "media:runtime-1",
       "trajectory:runtime-1",

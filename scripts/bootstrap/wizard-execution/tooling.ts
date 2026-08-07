@@ -23,7 +23,7 @@ export async function runExecutionToolSelectionFlow(
     tools.mcp = await promptDeps.askYesNo(
       context,
       rl,
-      "Should I wake up with an MCP bridge already bound",
+      "Should Eliza connect an MCP server on startup",
       tools.mcp,
     );
     tools.acp = await promptDeps.askYesNo(
@@ -72,7 +72,7 @@ export async function runExecutionToolSelectionFlow(
       const mcpPreset = await promptDeps.chooseOne(
         context,
         rl,
-        "How should I open my MCP bridge on first boot?",
+        "How should Eliza launch this MCP server?",
         [
           {
             value: "filesystem",
@@ -104,7 +104,9 @@ export async function runExecutionToolSelectionFlow(
         );
       }
     } else {
-      context.info(`Using existing MCP binding: ${mcpServerCommand}`);
+      context.info(
+        `Using existing Eliza MCP server command: ${mcpServerCommand}`,
+      );
     }
   }
 

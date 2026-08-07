@@ -25,6 +25,7 @@ describe("bootstrap runtime services", () => {
       "service:experience",
       "service:plugin_manager",
       "service:planning",
+      "service:mcp",
       "service:pairing",
       "service:memoryStorage",
       "service:eliza_knowledge_graph",

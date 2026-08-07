@@ -11,12 +11,12 @@ const PATCHERS: Record<string, DescriptionPatcher> = {
     ...tool,
     enabled: dynamic.mcpEnabled,
     description: dynamic.mcpEnabled
-      ? `Structured MCP bridge enabled with ${dynamic.discoveredMcpTools} discovered tool(s)${
+      ? `Official Eliza MCP service enabled with ${dynamic.discoveredMcpTools} discovered tool(s)${
           dynamic.discoveredMcpToolNames?.length
             ? `: ${dynamic.discoveredMcpToolNames.slice(0, 5).join(", ")}`
             : ""
         }.`
-      : "Structured MCP bridge is available but not configured.",
+      : "Official Eliza MCP service is loaded without configured servers.",
   }),
 
   "plugins.native": (tool, dynamic) => ({

@@ -57,7 +57,7 @@ Official docs register services through plugins and expose them with `runtime.ge
 
 Implication for Doolittle:
 
-- gateway lifecycles, browser/MCP bridges, platform adapters, account refreshers, and background coordination should continue moving into ElizaOS plugin services
+- gateway lifecycles, browser adapters, account refreshers, and background coordination should continue moving into ElizaOS plugin services; MCP connection lifecycle is now owned by `@elizaos/plugin-mcp`
 - standalone app services should be treated as harness adapters unless they truly belong outside the runtime
 
 ### 4. Plugins Are Broader Than Actions
@@ -138,10 +138,12 @@ Browser capture and evidence operations are likewise registered as the
 namespaced `doolittle_browser` service. CLI commands, API routes, and runtime diagnostics
 resolve that service first while the existing web implementation retains
 truthful browser-versus-placeholder behavior behind the plugin boundary.
-MCP discovery and invocation now use the same model: official Eliza marketplace
-helpers remain the source for server discovery, while the namespaced `doolittle_mcp`
-service owns runtime resolution and delegates configured local execution,
-tool caching, and receipts to the existing implementation.
+MCP now follows the official lifecycle directly. `@elizaos/plugin-mcp` owns
+validated stdio/HTTP/SSE connections, retries, resources, provider context,
+discovery, and tool calls. Official Eliza marketplace helpers remain the
+source for server discovery. The namespaced `doolittle_mcp` service is only a
+read-only operator projection with server-qualified names and timestamps; it
+does not spawn processes or parse protocol output.
 Skills use the same ownership split. The official `AgentSkillsService` owns
 loaded inventory, catalog search, details, synchronization, and installation.
 Doolittle's `SkillsService` only projects workspace metadata for the desktop

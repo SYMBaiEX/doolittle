@@ -1,3 +1,7 @@
+import {
+  createElizaMcpSettingsFromCommand,
+  isElizaMcpSettings,
+} from "@/services/mcp/settings";
 import type {
   ParsedRuntimeSettings,
   RuntimeSettings,
@@ -134,15 +138,27 @@ function normalizeMcpSettings(
   parsed: ParsedRuntimeSettings,
   defaults: RuntimeSettings,
 ): boolean {
-  let dirty = false;
   if (!parsed.mcp) {
-    parsed.mcp = { ...defaults.mcp };
+    parsed.mcp = structuredClone(defaults.mcp);
     return true;
   }
-  dirty =
-    assignWhenUndefined(parsed.mcp, defaults.mcp, "serverCommand") || dirty;
-  dirty = assignWhenUndefined(parsed.mcp, defaults.mcp, "timeoutMs") || dirty;
-  return dirty;
+
+  if (!isElizaMcpSettings(parsed.mcp)) {
+    const migrated = createElizaMcpSettingsFromCommand(
+      parsed.mcp.serverCommand,
+      parsed.mcp.timeoutMs ?? 10_000,
+    );
+    parsed.mcp = Object.keys(migrated.servers).length
+      ? migrated
+      : structuredClone(defaults.mcp);
+    return true;
+  }
+
+  if (parsed.mcp.maxRetries === undefined) {
+    parsed.mcp.maxRetries = defaults.mcp.maxRetries;
+    return true;
+  }
+  return false;
 }
 
 function normalizeAgentSettings(

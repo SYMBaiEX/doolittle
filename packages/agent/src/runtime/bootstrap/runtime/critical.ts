@@ -26,6 +26,7 @@ const CRITICAL_RUNTIME_SERVICES = [
   DOOLITTLE_EXPERIENCE_SERVICE,
   "plugin_manager",
   "planning",
+  "mcp",
   PairingService.serviceType,
   "memoryStorage",
   KNOWLEDGE_GRAPH_SERVICE,

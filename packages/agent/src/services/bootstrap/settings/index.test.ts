@@ -130,8 +130,8 @@ function createCurrentSettings() {
       sshStrictHostKeyChecking: false,
     },
     mcp: {
-      serverCommand: "",
-      timeoutMs: 0,
+      servers: {},
+      maxRetries: 2,
     },
   };
 }
@@ -235,7 +235,7 @@ describe("service settings bootstrap", () => {
     ]);
   });
 
-  it("hydrates missing execution defaults from env config", () => {
+  it("hydrates missing execution defaults without overriding native MCP settings", () => {
     const config = createConfig({
       remoteSyncInclude: ["src/**/*", "package.json"],
       modalEnvironment: "prod",
@@ -260,6 +260,6 @@ describe("service settings bootstrap", () => {
       ["src/**/*", "package.json"],
     ]);
     expect(updates).toContainEqual(["execution.modalEnvironment", "prod"]);
-    expect(updates).toContainEqual(["mcp.serverCommand", "bun run mcp"]);
+    expect(updates.some(([path]) => path.startsWith("mcp."))).toBe(false);
   });
 });

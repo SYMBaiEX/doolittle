@@ -13,6 +13,7 @@
     "@elizaos/logger": "2.0.3-beta.7",
     "@elizaos/plugin-agent-orchestrator": "2.0.3-beta.7",
     "@elizaos/plugin-agent-skills": "2.0.3-beta.7",
+    "@elizaos/plugin-mcp": "2.0.3-beta.7",
     "@elizaos/plugin-anthropic": "2.0.3-beta.7",
     "@doolittle/plugin-claude-code": "workspace:*",
     "@doolittle/plugin-codex": "workspace:*",
@@ -29,6 +30,7 @@
     "@fal-ai/client": "^1.9.4",
     "blessed": "^0.1.81",
     "dotenv": "^17.2.3",
+    "shell-quote": "1.10.0",
     "zod": "^4.3.6"
   },
   "scripts": {
