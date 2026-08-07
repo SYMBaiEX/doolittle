@@ -9,10 +9,14 @@ Thanks for helping build Doolittle — an ElizaOS-native, terminal-first agent.
   Electron's embedded Node.
 
 ```bash
-nub install
+nub install --frozen-lockfile --ignore-scripts
 cp .env.example .env   # then fill in provider keys you want
 nub run dev            # start the paired shell
 ```
+
+The scriptless install is intentional: dependency lifecycle scripts are not a
+trusted bootstrap boundary. Use `nub run desktop:runtime:install` when working
+on the Electron app; the source installer and CI follow the same split.
 
 ## Quality gates
 

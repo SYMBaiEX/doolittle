@@ -113,9 +113,13 @@ pwsh scripts/install.ps1
 Install the root workspace once, then start the desktop:
 
 ```bash
-nub install
+nub install --frozen-lockfile --ignore-scripts
+nub run desktop:runtime:install
 nub run desktop:dev
 ```
+
+The workspace install does not execute transitive lifecycle scripts. Electron's
+runtime is the one required install script and is invoked explicitly above.
 
 The development launcher starts Vite for the renderer, builds the Electron
 main and preload bundles in watch mode, and launches Electron with the local

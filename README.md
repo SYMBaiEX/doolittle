@@ -87,9 +87,14 @@ doolittle desktop
 For development:
 
 ```bash
-nub install
+nub install --frozen-lockfile --ignore-scripts
+nub run desktop:runtime:install
 nub run desktop:dev
 ```
+
+Dependency lifecycle scripts are disabled deliberately; Doolittle installs the
+trusted Electron runtime explicitly instead of executing transitive package
+scripts during workspace installation.
 
 Tagged releases build platform installers; Windows uses a per-user x64 NSIS installer. See [desktop installation and packaging](docs/desktop.md) for platform-specific details. The packaged desktop includes its runtime and does not require Nub, Node.js, or a source checkout after installation.
 
@@ -179,7 +184,9 @@ scripts/               Bootstrap, verification, and release helpers
 
 ## Development and verification
 
-This is a Nub workspace. After `nub install`, use the narrowest relevant command while working, then run the appropriate gates before opening a change:
+This is a Nub workspace. After `nub install --frozen-lockfile --ignore-scripts`,
+use the narrowest relevant command while working, then run the appropriate
+gates before opening a change:
 
 ```bash
 nub run typecheck          # TypeScript, no emit
