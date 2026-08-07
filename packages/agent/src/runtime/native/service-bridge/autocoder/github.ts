@@ -1,8 +1,8 @@
-import type { NativeGitHubService } from "../runtime-contracts";
+import type { NativeGitHubPlanningService } from "../runtime-contracts";
 import { type RuntimeLike, resolveMethod } from "./resolve";
 
-type Svc = NativeGitHubService;
-const KEY = "github";
+type Svc = NativeGitHubPlanningService;
+const KEY = "githubPlanning";
 
 export async function createEffectiveRepository(
   runtime: RuntimeLike,

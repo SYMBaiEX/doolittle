@@ -1,6 +1,6 @@
 # Eliza Maximization Matrix
 
-Last updated: July 30, 2026
+Last updated: August 6, 2026
 
 This matrix tracks where Doolittle is already strongly aligned with the
 ElizaOS beta-targeted runtime stack and where native service ownership can still
@@ -30,7 +30,9 @@ increase.
 | Subsystem | Current Eliza usage | Not native enough yet | Next package or service to push |
 |---|---|---|---|
 | Shell and execution | Eliza action contracts and `ActionResult`, `@elizaos/agent/services/sandbox-manager`, and the namespaced `doolittle_shell` product projection over [`packages/agent/src/services/terminal/service.ts`](../packages/agent/src/services/terminal/service.ts); the retired unnamespaced resolver has been removed | The installed official shell plugin owns the `shell` service identifier but its API is not shape-compatible with Doolittle's terminal history, status, and desktop PTY projection | Adapt product policy to the official service before enabling it; never register or resolve a Doolittle projection under an official service identifier |
-| Coding agent | [`packages/plugins/doolittle-plugin/coding-agent`](../packages/plugins/doolittle-plugin/coding-agent), native action/provider/service registration; workspace and repository actions plus operator commands resolve the hot `coding_agent` service exclusively | File mutation actions still retain local path, patch, and mutation-receipt policy that has no equivalent high-level beta service | Move reusable file operations behind the same runtime service without weakening approval, path-containment, or mutation evidence |
+| Coding agent | [`packages/plugins/doolittle-plugin/coding-agent`](../packages/plugins/doolittle-plugin/coding-agent), native action/provider/service registration; workspace and repository actions plus operator commands resolve the hot `coding_agent` service exclusively | `@elizaos/plugin-coding-tools` beta.7 was evaluated but its direct file writes bypass Doolittle's Git checkpoint and protected-uncommitted-file policy, while worktree cleanup can force-remove a worktree. Those are regressions, not equivalent native behavior | Retain the Doolittle coding adapter until the official plugin can enforce the same path, approval, checkpoint, and cleanup guarantees; do not mount both mutation owners |
+| Conversational forms | `@elizaos/plugin-form` owns the `FORM` service, component-backed sessions/submissions, evaluator/provider flow, and the separately exported `FORM` restore action. [`packages/plugins/doolittle-plugin/forms`](../packages/plugins/doolittle-plugin/forms) registers Doolittle's default templates and retains its existing operator/autocoder record projection | Existing structured records remain in `forms-store.json` for compatibility and product reporting; they are not a second conversational session engine | Start new conversational flows through `FORM`, keep the local store as a bounded projection, and migrate callers when native submissions expose every required product receipt |
+| GitHub | `@elizaos/plugin-github` owns the reserved `github` service and native pull-request, issue, comment, label, assignment, and notification actions with confirmation gates. Doolittle's create/delete repository planner is isolated as `doolittle_github_planning` | Repository creation/deletion remains deliberately plan-only product behavior and is not implemented by the native plugin | Keep native GitHub operations on the official service/actions and retain the namespaced planner only for capabilities with no official equivalent |
 | Orchestrator | [`@elizaos/plugin-agent-orchestrator`](https://www.npmjs.com/package/@elizaos/plugin-agent-orchestrator), [`packages/agent/src/services/delegation/projection.ts`](../packages/agent/src/services/delegation/projection.ts) | Official plugin owns the native service boundary; Doolittle retains product delegation and supervision UX | Extend through the official service contract rather than restoring the removed local shadow |
 | Scheduling | `@elizaos/agent/triggers/runtime`, `@elizaos/agent/triggers/scheduling`, shared automation contracts, and [`packages/agent/src/runtime/native/plugin-registry/product/trigger-runtime-service.ts`](../packages/agent/src/runtime/native/plugin-registry/product/trigger-runtime-service.ts) | Trigger Tasks are canonical; Doolittle owns only the operator-friendly automation projection, conditions, actions, and receipts | Keep product automation UX projected onto SDK tasks and upstream reusable receipt fields when available |
 
@@ -60,5 +62,9 @@ increase.
    desktop read projection; catalog lifecycle and mutations belong exclusively
    to the official agent-skills service.
 5. Keep every Doolittle-only projection namespaced. Official plugin service
-   identifiers such as `shell`, `mcp`, and `browser` are reserved for their
+   identifiers such as `shell`, `mcp`, `browser`, and `github` are reserved for their
    SDK owners and may only be adopted through explicit compatibility adapters.
+6. Revisit `plugin-todos`, task-coordinator, virtual filesystem, and workflow
+   only when they replace a product contract rather than duplicate it. The
+   beta.7 workflow artifact is not Node-loadable, and the virtual filesystem is
+   isolated state rather than a safe repository workspace.

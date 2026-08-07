@@ -3,6 +3,26 @@ import type { NativePackageAuditRecord } from "../types";
 export const NATIVE_EXECUTION_PACKAGE_AUDIT_RECORDS: NativePackageAuditRecord[] =
   [
     {
+      packageName: "@elizaos/plugin-form",
+      role: "execution",
+      currentStrategy: "official",
+      currentTag: "beta",
+      latestTagVersion: "0.25.6-alpha.1",
+      betaTagVersion: "2.0.3-beta.7",
+      compatibility: "beta-only",
+      note: "Official conversational FormService is paired with the Doolittle forms store and default-template bridge.",
+    },
+    {
+      packageName: "@elizaos/plugin-github",
+      role: "execution",
+      currentStrategy: "official",
+      currentTag: "beta",
+      latestTagVersion: "1.2.9",
+      betaTagVersion: "2.0.3-beta.7",
+      compatibility: "beta-only",
+      note: "Official GitHub actions cover PRs, issues, and notifications without replacing Doolittle planned-only repository creation or deletion.",
+    },
+    {
       packageName: "@doolittle/plugin-local-sandbox",
       role: "execution",
       currentStrategy: "vendored",

@@ -3,6 +3,7 @@ export const DOOLITTLE_BROWSER_SERVICE = "doolittle_browser";
 export const DOOLITTLE_CODING_AGENT_SERVICE = "coding_agent";
 export const DOOLITTLE_EXPERIENCE_SERVICE = "experience";
 export const DOOLITTLE_GATEWAY_SERVICE = "doolittle_gateway";
+export const DOOLITTLE_GITHUB_PLANNING_SERVICE = "doolittle_github_planning";
 export const DOOLITTLE_MCP_SERVICE = "doolittle_mcp";
 export const DOOLITTLE_OPERATOR_PLANNING_SERVICE =
   "doolittle_operator_planning";

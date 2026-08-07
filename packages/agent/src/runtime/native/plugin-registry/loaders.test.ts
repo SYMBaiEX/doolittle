@@ -24,6 +24,23 @@ vi.mock("@elizaos/plugin-agent-skills", () => ({
   },
 }));
 
+vi.mock("@elizaos/plugin-form", () => ({
+  formPlugin: {
+    name: "form",
+    actions: [],
+    services: [{ serviceType: "FORM" }],
+  },
+  formAction: { name: "FORM" },
+}));
+
+vi.mock("@elizaos/plugin-github", () => ({
+  githubPlugin: {
+    name: "github",
+    actions: [{ name: "GITHUB" }],
+    services: [{ serviceType: "github" }],
+  },
+}));
+
 function pluginNames(plugins: Plugin[]): string[] {
   return plugins.map((plugin) => plugin.name);
 }
@@ -205,7 +222,12 @@ describe("loadDeferredPluginGroups", () => {
     ]);
     expect(pluginNames(groups.execution)).toEqual([
       "@doolittle/plugin-local-sandbox",
+      "form",
       "@doolittle/plugin-forms",
+      "github",
+    ]);
+    expect(groups.execution[1]?.actions?.map((action) => action.name)).toEqual([
+      "FORM",
     ]);
   });
 });

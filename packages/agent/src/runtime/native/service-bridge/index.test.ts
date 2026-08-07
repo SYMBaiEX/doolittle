@@ -1,5 +1,6 @@
 import {
   DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_GITHUB_PLANNING_SERVICE,
   DOOLITTLE_MCP_SERVICE,
   DOOLITTLE_OPERATOR_PLANNING_SERVICE,
 } from "@doolittle/contracts";
@@ -111,7 +112,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
             createPlan: async (input: unknown) => input,
           };
         }
-        if (name === "github") {
+        if (name === DOOLITTLE_GITHUB_PLANNING_SERVICE) {
           return {
             createRepository: () => undefined,
             deleteRepository: () => undefined,
@@ -324,7 +325,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
             }),
           };
         }
-        if (name === "github") {
+        if (name === DOOLITTLE_GITHUB_PLANNING_SERVICE) {
           return {
             createRepository: async (name: string, isPrivate = true) => ({
               name,

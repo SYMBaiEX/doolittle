@@ -1,5 +1,6 @@
 import {
   DOOLITTLE_EXPERIENCE_SERVICE,
+  DOOLITTLE_GITHUB_PLANNING_SERVICE,
   DOOLITTLE_PERSONALITY_SERVICE,
   DOOLITTLE_ROLODEX_SERVICE,
 } from "@doolittle/contracts";
@@ -22,7 +23,7 @@ import type {
   NativeE2BService,
   NativeExperienceService,
   NativeFormsService,
-  NativeGitHubService,
+  NativeGitHubPlanningService,
   NativeMcpService,
   NativeMemoryStorageService,
   NativeOperatorPlanningService,
@@ -134,7 +135,10 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
       runtime,
       DOOLITTLE_OPERATOR_PLANNING_SERVICE,
     ),
-    github: service<NativeGitHubService>(runtime, "github"),
+    githubPlanning: service<NativeGitHubPlanningService>(
+      runtime,
+      DOOLITTLE_GITHUB_PLANNING_SERVICE,
+    ),
     secretsManager: service<NativeSecretsManagerService>(
       runtime,
       "secrets-manager",

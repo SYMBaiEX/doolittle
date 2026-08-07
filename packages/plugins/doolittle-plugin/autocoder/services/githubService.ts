@@ -1,3 +1,4 @@
+import { DOOLITTLE_GITHUB_PLANNING_SERVICE } from "@doolittle/contracts";
 import type { IAgentRuntime } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
 
@@ -5,7 +6,7 @@ import { nowIso, planningEnvelope } from "../shared/planning";
 
 export function createGitHubService() {
   class GitHubService extends ElizaService {
-    static serviceType = "github";
+    static serviceType = DOOLITTLE_GITHUB_PLANNING_SERVICE;
     capabilityDescription =
       "Doolittle-owned GitHub CLI planning adapter for autocoder workflows.";
 

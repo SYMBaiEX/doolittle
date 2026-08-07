@@ -2,6 +2,18 @@ import type { NativePluginCatalogSeed } from "./types";
 
 export const EXECUTION_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
   {
+    id: "execution.native-forms",
+    packageName: "@elizaos/plugin-form",
+    category: "execution",
+    source: "official",
+    kind: "adapter",
+    maturity: "alpha",
+    enablement: "always",
+    persistence: "injected",
+    notes:
+      "Official conversational FormService with the FORM restore action and Doolittle default template bridge.",
+  },
+  {
     id: "execution.local-sandbox",
     packageName: "@doolittle/plugin-local-sandbox",
     category: "execution",
@@ -11,6 +23,17 @@ export const EXECUTION_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
     enablement: "always",
     notes:
       "Doolittle local sandbox service with E2B-compatible methods for autocoder support.",
+  },
+  {
+    id: "execution.github",
+    packageName: "@elizaos/plugin-github",
+    category: "execution",
+    source: "official",
+    kind: "adapter",
+    maturity: "alpha",
+    enablement: "always",
+    notes:
+      "Official GitHub PR, issue, and notification actions; Doolittle repository creation and deletion remain planned-only.",
   },
   {
     id: "execution.forms",

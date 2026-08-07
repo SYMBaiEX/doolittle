@@ -11,7 +11,7 @@ export function getNativeResearchControlPlane(runtime: RuntimeLike) {
     codeGeneration: Boolean(native.codeGeneration),
     e2b: executionControl.e2b.available,
     forms: Boolean(native.forms),
-    github: Boolean(native.github),
+    github: Boolean(native.githubPlanning),
     secretsManager: Boolean(native.secretsManager),
   };
   const autocoderReady =

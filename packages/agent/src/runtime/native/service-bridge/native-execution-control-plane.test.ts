@@ -92,7 +92,7 @@ describe("native execution control plane", () => {
           generateCode: () => undefined,
           runValidationSuite: () => undefined,
         },
-        github: {
+        doolittle_github_planning: {
           capabilityDescription: "GitHub support",
           createRepository: async () => undefined,
         },

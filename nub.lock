@@ -11,7 +11,10 @@ overrides:
   '@elizaos/plugin-agent-orchestrator': 2.0.3-beta.7
   '@elizaos/plugin-agent-skills': 2.0.3-beta.7
   '@elizaos/plugin-anthropic': 2.0.3-beta.7
+  '@elizaos/plugin-coding-tools': 2.0.3-beta.7
   '@elizaos/plugin-elizacloud': workspace:*
+  '@elizaos/plugin-form': 2.0.3-beta.7
+  '@elizaos/plugin-github': 2.0.3-beta.7
   '@elizaos/plugin-ollama': 2.0.3-beta.7
   '@elizaos/plugin-openai': 2.0.3-beta.7
   '@elizaos/plugin-pdf': 2.0.3-beta.7
@@ -78,6 +81,12 @@ importers:
       '@elizaos/plugin-elizacloud':
         specifier: workspace:*
         version: link:packages/plugins/plugin-elizacloud
+      '@elizaos/plugin-form':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
+      '@elizaos/plugin-github':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
       '@elizaos/plugin-ollama':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
@@ -1250,6 +1259,14 @@ packages:
 
   '@elizaos/plugin-edge-tts@2.0.3-beta.7':
     resolution: {integrity: sha512-5SHL6klCnid2RgWpolOzjvKPkLVkudnCIItoOSMu7CMlhH5DAHMutUEk5BR6dW7MHn5CzOjT50DrqwJMmagxJw==}
+
+  '@elizaos/plugin-form@2.0.3-beta.7':
+    resolution: {integrity: sha512-uO0irKred7eoOYWEc7YSPOhGXWJ/pzcNPSXgRzkTYpPgnWnAhNdDgapH9d5omBLwmpQGi8iofUNPVTxSgQC8tA==}
+
+  '@elizaos/plugin-github@2.0.3-beta.7':
+    resolution: {integrity: sha512-2YEH5QebsRQpyvBTcTS3xRWs9AazDdC8+mnN3jCbuv9nZ2kPw69uy4nIuASkbe0XECQlHuYMD5GPkxHgamAacw==}
+    peerDependencies:
+      '@elizaos/core': 2.0.3-beta.7
 
   '@elizaos/plugin-gitpathologist@2.0.3-beta.7':
     resolution: {integrity: sha512-tYFo7dJWIC+bdy8YUpabZMZOYSJfhqipG1+cgwjRtQY5b7ZEcn+pi8ZNeWsL1ly2UUpxTY9D16CGRL7616WNGg==}
@@ -15615,6 +15632,44 @@ snapshots:
       - sqlite3
       - supports-color
       - utf-8-validate
+
+  '@elizaos/plugin-form@2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)':
+    dependencies:
+      '@elizaos/core': 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
+      uuid: 14.0.1
+    transitivePeerDependencies:
+      - '@aws-sdk/client-rds-data'
+      - '@cloudflare/workers-types'
+      - '@libsql/client'
+      - '@libsql/client-wasm'
+      - '@napi-rs/canvas'
+      - '@op-engineering/op-sqlite'
+      - '@planetscale/database'
+      - '@prisma/client'
+      - '@tidbcloud/serverless'
+      - '@types/better-sqlite3'
+      - '@types/pg'
+      - '@types/sql.js'
+      - '@vercel/postgres'
+      - '@xata.io/client'
+      - babel-plugin-macros
+      - better-sqlite3
+      - bun-types
+      - expo-sqlite
+      - gel
+      - knex
+      - kysely
+      - mysql2
+      - postgres
+      - prisma
+      - sql.js
+      - sqlite3
+      - supports-color
+
+  '@elizaos/plugin-github@2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)':
+    dependencies:
+      '@elizaos/core': 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
+      '@octokit/rest': 22.0.1
 
   '@elizaos/plugin-gitpathologist@2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)':
     dependencies:

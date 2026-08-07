@@ -128,7 +128,7 @@ export interface NativeE2BService {
   executeCode?: (code: string, language?: string) => Promise<unknown>;
 }
 
-export interface NativeGitHubService {
+export interface NativeGitHubPlanningService {
   capabilityDescription?: string;
   createRepository?: (name: string, isPrivate?: boolean) => Promise<unknown>;
   deleteRepository?: (name: string) => Promise<unknown>;

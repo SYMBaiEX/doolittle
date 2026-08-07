@@ -1,6 +1,7 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DOOLITTLE_GITHUB_PLANNING_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import {
@@ -54,7 +55,7 @@ function createContext(): AppContext {
             }),
           };
         }
-        if (service === "github") {
+        if (service === DOOLITTLE_GITHUB_PLANNING_SERVICE) {
           return {
             createRepository: async (name: string, isPrivate: boolean) => ({
               experimental: true,

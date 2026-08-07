@@ -1,3 +1,4 @@
+import { DOOLITTLE_GITHUB_PLANNING_SERVICE } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import type { AgentExecutionContext } from "../../chat";
@@ -50,7 +51,7 @@ function createContext(): AgentExecutionContext {
             }),
           };
         }
-        if (service === "github") {
+        if (service === DOOLITTLE_GITHUB_PLANNING_SERVICE) {
           return {
             createRepository: async (name: string, isPrivate: boolean) => ({
               experimental: true,

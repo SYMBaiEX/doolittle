@@ -1,4 +1,6 @@
 import type { Plugin } from "@elizaos/core";
+import { formAction, formPlugin } from "@elizaos/plugin-form";
+import { githubPlugin } from "@elizaos/plugin-github";
 import {
   createFormsPlugin,
   localSandboxPlugin,
@@ -9,15 +11,25 @@ import {
   resolveDeferredPluginDataRoot,
 } from "./shared";
 
+/** The upstream form plugin keeps its planner action separate by design. */
+export function createNativeFormPlugin(): Plugin {
+  return {
+    ...formPlugin,
+    actions: [...(formPlugin.actions ?? []), formAction],
+  };
+}
+
 export async function loadDeferredExecutionPlugins({
   config,
 }: DeferredPluginGroupContext): Promise<Plugin[]> {
   return [
     normalizePlugin(localSandboxPlugin),
+    normalizePlugin(createNativeFormPlugin(), "official form plugin"),
     createFormsPlugin({
       storage: {
         dataRoot: resolveDeferredPluginDataRoot(config),
       },
     }),
+    normalizePlugin(githubPlugin, "official GitHub plugin"),
   ];
 }

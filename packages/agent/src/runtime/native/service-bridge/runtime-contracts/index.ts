@@ -23,7 +23,7 @@ import type {
   NativeDiscordTransportService,
   NativeE2BService,
   NativeFormsService,
-  NativeGitHubService,
+  NativeGitHubPlanningService,
   NativeOperatorPlanningService,
   NativePluginManagerService,
   NativeSecretsManagerService,
@@ -70,6 +70,6 @@ export type NativeServices = {
   forms: NativeFormsService | undefined;
   actionPlanning: NativeActionPlanningService | undefined;
   operatorPlanning: NativeOperatorPlanningService | undefined;
-  github: NativeGitHubService | undefined;
+  githubPlanning: NativeGitHubPlanningService | undefined;
   secretsManager: NativeSecretsManagerService | undefined;
 };

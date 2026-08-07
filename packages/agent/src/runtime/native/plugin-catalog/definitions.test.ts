@@ -37,6 +37,19 @@ describe("getNativePluginCatalogSeeds", () => {
       persistence: "injected",
     });
     expect(
+      seeds.find((seed) => seed.id === "execution.native-forms"),
+    ).toMatchObject({
+      packageName: "@elizaos/plugin-form",
+      category: "execution",
+      source: "official",
+      persistence: "injected",
+    });
+    expect(seeds.find((seed) => seed.id === "execution.github")).toMatchObject({
+      packageName: "@elizaos/plugin-github",
+      category: "execution",
+      source: "official",
+    });
+    expect(
       seeds.find((seed) => seed.id === "execution.agent-orchestrator"),
     ).toMatchObject({
       packageName: "@elizaos/plugin-agent-orchestrator",

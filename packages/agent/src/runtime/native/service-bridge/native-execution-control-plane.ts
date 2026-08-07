@@ -89,12 +89,14 @@ export function getNativeExecutionControlPlaneDetails(
         : "Code generation service is unavailable.",
     },
     github: {
-      available: Boolean(native.github),
+      available: Boolean(native.githubPlanning),
       capability:
-        native.github?.capabilityDescription ??
+        native.githubPlanning?.capabilityDescription ??
         "GitHub repository lifecycle support for code generation flows.",
-      createRepository: typeof native.github?.createRepository === "function",
-      deleteRepository: typeof native.github?.deleteRepository === "function",
+      createRepository:
+        typeof native.githubPlanning?.createRepository === "function",
+      deleteRepository:
+        typeof native.githubPlanning?.deleteRepository === "function",
     },
     secretsManager: {
       available: Boolean(native.secretsManager),
