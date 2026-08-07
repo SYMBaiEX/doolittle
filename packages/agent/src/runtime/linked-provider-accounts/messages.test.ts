@@ -1,4 +1,4 @@
-import { ProviderTransportError } from "@elizaos/provider-transport";
+import { ProviderTransportError } from "@doolittle/provider-transport";
 import { describe, expect, it } from "vitest";
 import {
   formatAccountsOverview,

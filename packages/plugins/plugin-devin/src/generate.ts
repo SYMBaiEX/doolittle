@@ -1,11 +1,11 @@
-import type { GenerateTextParams, IAgentRuntime } from "@elizaos/core";
 import {
   getRuntimeModelSettings,
   getRuntimeProvider,
   normalizeProviderTransportError,
   ProviderTransportError,
   resolveModelPromptText,
-} from "@elizaos/provider-transport";
+} from "@doolittle/provider-transport";
+import type { GenerateTextParams, IAgentRuntime } from "@elizaos/core";
 import {
   DEFAULT_DEVIN_COMMAND,
   DEFAULT_DEVIN_MODEL,

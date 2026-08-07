@@ -9,7 +9,8 @@ export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
     kind: "provider",
     maturity: "production",
     enablement: "always",
-    notes: "Primary SQL persistence plugin on the current runtime line.",
+    notes:
+      "Official SQL persistence plugin; a private @doolittle/plugin-sql-compat layer applies only the required beta.7 relationship-write patch.",
   },
   {
     id: "providers.pdf",
@@ -25,12 +26,12 @@ export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
     id: "providers.elizacloud",
     packageName: "@elizaos/plugin-elizacloud",
     category: "providers",
-    source: "custom",
+    source: "official",
     kind: "provider",
-    maturity: "alpha",
+    maturity: "production",
     enablement: "elizaCloud",
     notes:
-      "Doolittle-owned Eliza Cloud provider bridge for managed ElizaOS inference and cloud defaults.",
+      "Official ElizaOS Cloud plugin for managed inference, research, embeddings, media models, cloud status, and billing services.",
   },
   {
     id: "providers.ollama",
@@ -45,7 +46,7 @@ export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
   },
   {
     id: "providers.codex",
-    packageName: "@elizaos/plugin-codex",
+    packageName: "@doolittle/plugin-codex",
     category: "providers",
     source: "custom",
     kind: "provider",
@@ -56,7 +57,7 @@ export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
   },
   {
     id: "providers.claude-code",
-    packageName: "@elizaos/plugin-claude-code",
+    packageName: "@doolittle/plugin-claude-code",
     category: "providers",
     source: "custom",
     kind: "provider",
@@ -67,7 +68,7 @@ export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
   },
   {
     id: "providers.devin",
-    packageName: "@elizaos/plugin-devin",
+    packageName: "@doolittle/plugin-devin",
     category: "providers",
     source: "custom",
     kind: "provider",

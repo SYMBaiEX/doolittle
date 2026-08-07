@@ -19,7 +19,7 @@ describe("createDevinPlugin", () => {
       }),
     });
 
-    expect(plugin.name).toBe("@elizaos/plugin-devin");
+    expect(plugin.name).toBe("@doolittle/plugin-devin");
     expect(plugin.models).toBeDefined();
     const serviceCtor = plugin.services?.[0];
     expect(serviceCtor).toBeDefined();

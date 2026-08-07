@@ -1,5 +1,5 @@
 {
-  "name": "@elizaos/plugin-codex",
+  "name": "@doolittle/plugin-codex",
   "version": "2.0.3-beta.7",
   "description": "Doolittle-owned ElizaOS provider bridge for linked ChatGPT Codex account execution.",
   "license": "MIT",
@@ -30,6 +30,6 @@
   },
   "dependencies": {
     "@elizaos/core": "2.0.3-beta.7",
-    "@elizaos/provider-transport": "2.0.3-beta.7"
+    "@doolittle/provider-transport": "2.0.3-beta.7"
   }
 }

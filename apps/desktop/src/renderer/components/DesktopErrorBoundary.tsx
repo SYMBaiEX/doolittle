@@ -1,4 +1,10 @@
+import { createLogger } from "@elizaos/logger";
 import { Component, type ErrorInfo, type ReactNode } from "react";
+
+const rendererLogger = createLogger({
+  namespace: "doolittle.desktop.renderer",
+  __forceType: "browser",
+});
 
 interface DesktopErrorBoundaryProps {
   children: ReactNode;
@@ -47,7 +53,15 @@ export class DesktopErrorBoundary extends Component<
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     this.setState({ componentStack: info.componentStack ?? "" });
-    console.error("Doolittle renderer recovered from an error.", error, info);
+    rendererLogger.error(
+      {
+        context: {
+          error: error.message,
+          componentStack: info.componentStack ?? "",
+        },
+      },
+      "Doolittle renderer recovered from an error.",
+    );
   }
 
   private reload = (): void => {

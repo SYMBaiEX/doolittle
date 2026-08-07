@@ -36,10 +36,6 @@ export default defineConfig({
         replacement: fromRoot("./packages/contracts/src/index.ts"),
       },
       {
-        find: "@doolittle/logger",
-        replacement: fromRoot("./packages/logger/src/index.ts"),
-      },
-      {
         find: "@doolittle/agent",
         replacement: fromRoot("./packages/agent/src"),
       },

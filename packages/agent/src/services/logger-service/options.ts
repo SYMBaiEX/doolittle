@@ -1,18 +1,17 @@
-import { createPrettyConsoleTransport, type LogLevel } from "@doolittle/logger";
+import type { AppLogLevel } from "@/logging/logger";
 
 export interface LoggerServiceOptions {
   scope?: string;
-  minLevel?: LogLevel;
+  minLevel?: AppLogLevel;
   traceEnabled?: boolean;
   eventLogPath?: string;
   crashLogPath?: string;
-  stdoutTransport?: boolean;
   name?: string;
   defaultFields?: Record<string, unknown>;
   tags?: string[];
 }
 
-export function normalizeMinLevel(value?: string): LogLevel {
+export function normalizeMinLevel(value?: string): AppLogLevel {
   switch ((value ?? "").trim().toLowerCase()) {
     case "trace":
     case "debug":
@@ -20,26 +19,10 @@ export function normalizeMinLevel(value?: string): LogLevel {
     case "warn":
     case "error":
     case "fatal":
-      return value as LogLevel;
+      return value as AppLogLevel;
     default:
       return "info";
   }
-}
-
-export function buildOptionalConsoleTransports(
-  stdoutTransport: boolean | undefined,
-  minLevel: LogLevel,
-) {
-  if (!(stdoutTransport ?? process.env.DOOLITTLE_LOG_STDOUT === "1")) {
-    return [];
-  }
-  return [
-    createPrettyConsoleTransport({
-      minLevel,
-      color:
-        process.env.DOOLITTLE_LOG_PRETTY === "0" ? false : process.stderr.isTTY,
-    }),
-  ];
 }
 
 export function mergeTags(base: string[], next?: string[]): string[] {

@@ -1,11 +1,10 @@
-import {
-  createNoopLogger as createBaseNoopLogger,
-  formatLoggerError,
-  type Logger,
-  type LogLevel,
-} from "@doolittle/logger";
-
-export type AppLogLevel = LogLevel;
+export type AppLogLevel =
+  | "trace"
+  | "debug"
+  | "info"
+  | "warn"
+  | "error"
+  | "fatal";
 
 export interface AppLogRecord {
   at: string;
@@ -16,69 +15,89 @@ export interface AppLogRecord {
   fields?: Record<string, unknown>;
 }
 
-export interface AppLogger extends Logger {
+export interface AppLogger {
+  readonly name: string;
+  readonly scope: string;
   child(scope: string, bindings?: Record<string, unknown>): AppLogger;
   withFields(bindings: Record<string, unknown>): AppLogger;
   withTags(...tags: string[]): AppLogger;
+  isLevelEnabled(level: AppLogLevel): boolean;
+  log(
+    level: AppLogLevel,
+    message: string,
+    options?: {
+      detail?: string;
+      fields?: Record<string, unknown>;
+      tags?: string[];
+    },
+  ): void;
+  trace(
+    message: string,
+    detail?: string | Record<string, unknown>,
+    fields?: Record<string, unknown>,
+  ): void;
+  debug(message: string, fields?: Record<string, unknown>): void;
+  info(message: string, fields?: Record<string, unknown>): void;
+  warn(message: string, fields?: Record<string, unknown>): void;
+  error(message: string, fields?: Record<string, unknown>): void;
+  fatal(message: string, fields?: Record<string, unknown>): void;
+  recordCrash(
+    label: string,
+    detail: string,
+    fields?: Record<string, unknown>,
+  ): void;
+  captureError(
+    label: string,
+    error: unknown,
+    fields?: Record<string, unknown>,
+  ): string;
+  flush(): Promise<void>;
+  close(): Promise<void>;
   getEventLogPath(): string;
   getCrashLogPath(): string;
 }
 
-export { formatLoggerError };
+export function formatLoggerError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.stack || error.message || String(error);
+  }
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
 
 export function createNoopLogger(): AppLogger {
-  const wrap = (target: Logger): AppLogger => ({
-    get name() {
-      return target.name;
+  const noop = (scope = "noop"): AppLogger => ({
+    name: "noop",
+    scope,
+    child(childScope) {
+      return noop(childScope.trim() ? `${scope}.${childScope.trim()}` : scope);
     },
-    get scope() {
-      return target.scope;
+    withFields() {
+      return this;
     },
-    child(scope: string, bindings?: Record<string, unknown>) {
-      return wrap(target.child(scope, bindings));
+    withTags() {
+      return this;
     },
-    withFields(bindings: Record<string, unknown>) {
-      return wrap(target.withFields(bindings));
+    isLevelEnabled() {
+      return false;
     },
-    withTags(...tags: string[]) {
-      return wrap(target.withTags(...tags));
+    log() {},
+    trace() {},
+    debug() {},
+    info() {},
+    warn() {},
+    error() {},
+    fatal() {},
+    recordCrash() {},
+    captureError(_label, error) {
+      return formatLoggerError(error);
     },
-    isLevelEnabled(level) {
-      return target.isLevelEnabled(level);
-    },
-    log(level, message, options) {
-      target.log(level, message, options);
-    },
-    trace(message, detail, fields) {
-      target.trace(message, detail, fields);
-    },
-    debug(message, fields) {
-      target.debug(message, fields);
-    },
-    info(message, fields) {
-      target.info(message, fields);
-    },
-    warn(message, fields) {
-      target.warn(message, fields);
-    },
-    error(message, fields) {
-      target.error(message, fields);
-    },
-    fatal(message, fields) {
-      target.fatal(message, fields);
-    },
-    recordCrash(label, detail, fields) {
-      target.recordCrash(label, detail, fields);
-    },
-    captureError(label, error, fields) {
-      return target.captureError(label, error, fields);
-    },
-    flush() {
-      return target.flush();
-    },
-    close() {
-      return target.close();
-    },
+    async flush() {},
+    async close() {},
     getEventLogPath() {
       return "";
     },
@@ -86,6 +105,5 @@ export function createNoopLogger(): AppLogger {
       return "";
     },
   });
-
-  return wrap(createBaseNoopLogger());
+  return noop();
 }

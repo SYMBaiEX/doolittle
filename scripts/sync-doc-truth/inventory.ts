@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
 import { loadConfig } from "../../packages/agent/src/config/env";
@@ -33,6 +33,22 @@ function walk(dir: string): string[] {
   return files;
 }
 
+function workspaceHasPackageName(
+  workspaceDir: string,
+  packageName: string,
+): boolean {
+  const manifestPath = join(workspaceDir, "package.json");
+  if (!existsSync(manifestPath)) return false;
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      name?: unknown;
+    };
+    return manifest.name === packageName;
+  } catch {
+    return false;
+  }
+}
+
 function resolveWorkspacePath(root: string, packageName: string): string {
   if (
     packageName === "doolittle-runtime" ||
@@ -41,13 +57,20 @@ function resolveWorkspacePath(root: string, packageName: string): string {
     return "packages/plugins/doolittle-plugin";
   }
 
-  if (!packageName.startsWith("@elizaos/plugin-")) {
+  const packageScope = packageName.startsWith("@elizaos/plugin-")
+    ? "@elizaos/"
+    : packageName.startsWith("@doolittle/plugin-")
+      ? "@doolittle/"
+      : undefined;
+  if (!packageScope) {
     return "(external)";
   }
 
-  const packageDir = packageName.replace("@elizaos/", "");
+  const packageDir = packageName.replace(packageScope, "");
   const workspaceDir = join(root, "packages", "plugins", packageDir);
-  return existsSync(workspaceDir) ? relative(root, workspaceDir) : "(external)";
+  return workspaceHasPackageName(workspaceDir, packageName)
+    ? relative(root, workspaceDir)
+    : "(external)";
 }
 
 function detectTestStatus(root: string, workspacePath: string): string {

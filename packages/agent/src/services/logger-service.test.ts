@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { addLogListener } from "@elizaos/logger";
 import { beforeEach, describe, expect, it } from "vitest";
 import { LoggerService } from "@/services/logger-service";
 
@@ -12,13 +13,27 @@ describe("LoggerService", () => {
   });
 
   it("writes structured scoped log records", () => {
+    const officialEntries: string[] = [];
+    const removeListener = addLogListener((entry) => {
+      officialEntries.push(entry.msg);
+    });
     const logger = new LoggerService(dataDir, {
       minLevel: "debug",
       traceEnabled: true,
     }).child("cli");
 
-    logger.info("booted", { mode: "plain" });
-    logger.trace("panels:refresh", "width=120");
+    try {
+      logger.info("booted", {
+        mode: "plain",
+        sessionId: "session-123",
+        tokenCount: 42,
+        token: "private-token",
+        nested: { password: "private-password" },
+      });
+      logger.trace("panels:refresh", "width=120");
+    } finally {
+      removeListener();
+    }
 
     const eventLogPath = logger.getEventLogPath();
     const records = readFileSync(eventLogPath, "utf8")
@@ -32,8 +47,11 @@ describe("LoggerService", () => {
       scope: "doolittle.cli",
       message: "booted",
       fields: {
-        codename: "Dr. Mochibi",
         mode: "plain",
+        sessionId: "session-123",
+        tokenCount: 42,
+        token: "[REDACTED]",
+        nested: { password: "[REDACTED]" },
       },
     });
     expect(records[1]).toMatchObject({
@@ -42,6 +60,14 @@ describe("LoggerService", () => {
       message: "panels:refresh",
       detail: "width=120",
     });
+    expect(
+      officialEntries.some(
+        (message) =>
+          message.includes("#doolittle.cli") && message.includes("booted"),
+      ),
+    ).toBe(true);
+    expect(officialEntries.join("\n")).not.toContain("private-token");
+    expect(officialEntries.join("\n")).not.toContain("private-password");
   });
 
   it("captures errors into both structured and crash logs", () => {

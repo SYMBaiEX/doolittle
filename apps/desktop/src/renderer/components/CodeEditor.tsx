@@ -1,3 +1,4 @@
+import { createLogger } from "@elizaos/logger";
 import * as monaco from "monaco-editor";
 import editorWorker from "monaco-editor/editor/editor.worker?worker";
 import cssWorker from "monaco-editor/language/css/css.worker?worker";
@@ -15,6 +16,10 @@ import { acquireMonacoProjectSupport } from "../editor-project-support";
 import "./code-editor.css";
 
 const DOOLITTLE_EDITOR_THEME = "doolittle-ember";
+const editorLogger = createLogger({
+  namespace: "doolittle.desktop.code-editor",
+  __forceType: "browser",
+});
 
 const monacoHost = self as typeof self & {
   MonacoEnvironment?: {
@@ -364,8 +369,9 @@ export function CodeEditor({
           projectSupportReleaseRef.current =
             acquireMonacoProjectSupport(context);
           if (context.truncated) {
-            console.warn(
-              `[CodeEditor] Project support for ${path} was truncated to keep Monaco memory bounded.`,
+            editorLogger.warn(
+              { context: { path } },
+              "Project support was truncated to keep Monaco memory bounded.",
             );
           }
         })
@@ -373,9 +379,14 @@ export function CodeEditor({
           if (projectSupportRequestRef.current !== requestId) return;
           projectSupportReleaseRef.current?.();
           projectSupportReleaseRef.current = null;
-          console.warn(
-            `[CodeEditor] Unable to hydrate Monaco project support for ${path}.`,
-            error,
+          editorLogger.warn(
+            {
+              context: {
+                path,
+                error: error instanceof Error ? error.message : String(error),
+              },
+            },
+            "Unable to hydrate Monaco project support.",
           );
         });
     }, 180);

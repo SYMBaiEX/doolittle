@@ -7,11 +7,11 @@ import type { ProviderCachePolicy } from "./types";
  * IMPORTANT: only providers whose plugin actually *consumes* `promptSegments`
  * are classified `explicit`. The installed SDK plugins `@elizaos/plugin-anthropic`
  * and `@elizaos/plugin-openai` do (Anthropic → `cache_control: ephemeral`,
- * OpenAI → prefix caching). Doolittle's custom provider plugins (claude-code,
- * codex, devin, elizacloud) build their own requests from `params.prompt` and
- * ignore segments today, so they are `none` until they are made segment-aware
- * (tracked follow-up). ollama is `implicit` — its KV cache reuses identical
- * leading prefixes with no explicit hints.
+ * OpenAI → prefix caching). Doolittle's Codex, Claude Code, and Devin bridges
+ * and the official Eliza Cloud plugin currently build their requests from
+ * `params.prompt` and ignore segments, so they are `none` until their public
+ * handlers become segment-aware. ollama is `implicit` — its KV cache reuses
+ * identical leading prefixes with no explicit hints.
  *
  * Substring matching keeps unknown providers degrading safely to `none`.
  */
@@ -47,7 +47,7 @@ export function resolveProviderCachePolicy(
     };
   }
 
-  // Custom CLI/cloud plugins (claude-code, codex, devin, elizacloud) that do
-  // not yet honor promptSegments, plus anything unknown.
+  // Prompt-only provider handlers (claude-code, codex, devin, elizacloud) and
+  // anything unknown.
   return { mode: "none", maxStableBreakpoints: 0, emitsPromptCacheKey: false };
 }

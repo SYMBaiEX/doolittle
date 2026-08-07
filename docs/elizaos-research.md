@@ -13,13 +13,15 @@ Current npm metadata is not lockstep across the ElizaOS package family, so Dooli
 | `@elizaos/agent` | `0.25.9` | `2.0.3-beta.7` | Use explicit beta |
 | `@elizaos/skills` | `2.0.0-alpha.77` | `2.0.3-beta.7` | Use explicit beta |
 | `@elizaos/plugin-openai` | `1.6.0` | `2.0.3-beta.7` | Use explicit beta |
-| `@elizaos/plugin-sql` | `1.7.2` | `2.0.3-beta.7` | Keep the workspace wrapper for Doolittle metadata normalization and duplicate recovery |
+| `@elizaos/plugin-sql` | `1.7.2` | `2.0.3-beta.7` | Consume the official package directly through the private `@doolittle/plugin-sql-compat` beta patch |
 
 Implications:
 
 - `npm` dist-tags are mixed across packages, and the visible `latest` values may still point to older major lines; do not rely on `latest` for compatibility.
 - The runtime migration target is the verified `2.0.3-beta.7` install line, with explicit pins.
-- Several official plugins remain at different publish streams, so the workspace wrapper remains for SQL compatibility while still consuming the beta stream where supported.
+- Several official plugins remain at different publish streams. SQL is still
+  the official beta package; the explicitly Doolittle-namespaced private layer
+  only patches relationship metadata and duplicate-write compatibility.
 - Workspace wrappers are still valuable where Doolittle needs compatibility patches or plugins that are not published as official npm packages.
 
 ## Current Architecture Findings

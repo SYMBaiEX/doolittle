@@ -1,9 +1,9 @@
+import { createElizaTextGenerationModelHandlers } from "@doolittle/provider-transport";
 import {
   Service as ElizaService,
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
-import { createElizaTextGenerationModelHandlers } from "@elizaos/provider-transport";
 import {
   DEFAULT_DEVIN_COMMAND,
   DEFAULT_DEVIN_MODEL,
@@ -53,7 +53,7 @@ export function createDevinPlugin(options: DevinPluginOptions): Plugin {
   }
 
   return {
-    name: "@elizaos/plugin-devin",
+    name: "@doolittle/plugin-devin",
     description:
       "Doolittle-owned Eliza provider bridge for linked Devin CLI accounts and SWE model routing.",
     services: [DevinService],

@@ -93,9 +93,9 @@ describe("getNativePluginCatalog", () => {
       catalog.find((entry) => entry.id === "providers.elizacloud"),
     ).toMatchObject({
       category: "providers",
-      source: "custom",
+      source: "official",
       kind: "provider",
-      maturity: "alpha",
+      maturity: "production",
       enabled: true,
     });
     expect(

@@ -19,7 +19,7 @@ describe("createCodexPlugin", () => {
       }),
     });
 
-    expect(plugin.name).toBe("@elizaos/plugin-codex");
+    expect(plugin.name).toBe("@doolittle/plugin-codex");
     expect(plugin.models).toBeDefined();
     const serviceCtor = plugin.services?.[0];
     expect(serviceCtor).toBeDefined();

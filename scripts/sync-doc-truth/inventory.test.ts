@@ -36,5 +36,32 @@ describe("buildInventoryRows", () => {
         workspacePath: "packages/plugins/doolittle-plugin",
       }),
     );
+
+    expect(rows.find((row) => row.id === "providers.codex")).toEqual(
+      expect.objectContaining({
+        packageName: "@doolittle/plugin-codex",
+        workspacePath: "packages/plugins/plugin-codex",
+        owner: "doolittle-runtime",
+        tests: "covered",
+      }),
+    );
+
+    expect(rows.find((row) => row.id === "providers.elizacloud")).toEqual(
+      expect.objectContaining({
+        packageName: "@elizaos/plugin-elizacloud",
+        workspacePath: "(external)",
+        owner: "upstream",
+        tests: "external",
+      }),
+    );
+
+    expect(rows.find((row) => row.id === "providers.sql")).toEqual(
+      expect.objectContaining({
+        packageName: "@elizaos/plugin-sql",
+        workspacePath: "(external)",
+        owner: "upstream",
+        tests: "external",
+      }),
+    );
   });
 });

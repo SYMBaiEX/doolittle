@@ -20,7 +20,7 @@ describe("createClaudeCodePlugin", () => {
       }),
     });
 
-    expect(plugin.name).toBe("@elizaos/plugin-claude-code");
+    expect(plugin.name).toBe("@doolittle/plugin-claude-code");
     expect(plugin.models).toBeDefined();
     const serviceCtor = plugin.services?.[0];
     expect(serviceCtor).toBeDefined();

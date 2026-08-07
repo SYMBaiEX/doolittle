@@ -56,7 +56,7 @@ describe("createOfflineBootstrapTextModel", () => {
     } as unknown as IAgentRuntime;
 
     await expect(model(runtime, { prompt: "hello" })).resolves.toBe(
-      "@elizaos/plugin-claude-code",
+      "@doolittle/plugin-claude-code",
     );
   });
 

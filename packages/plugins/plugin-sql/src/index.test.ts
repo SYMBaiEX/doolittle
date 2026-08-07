@@ -2,7 +2,7 @@ import type { IAgentRuntime, Relationship } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import { __testing } from "./index";
 
-describe("@elizaos/plugin-sql compatibility patch", () => {
+describe("Doolittle SQL compatibility patch", () => {
   it("leaves beta.7 memory counting and relationship reads untouched", () => {
     const countMemories = vi.fn().mockResolvedValue(3);
     const getRelationships = vi.fn().mockResolvedValue([]);

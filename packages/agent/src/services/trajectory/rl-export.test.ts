@@ -47,7 +47,7 @@ describe("trajectory-service RL export helpers", () => {
           label: "Session A RL",
           model: "gpt-test",
           provider: "openai",
-          agentName: "Dr. Mochibi",
+          agentName: "Doolittle",
           windowSize: 3,
           includeMetadata: true,
         },
@@ -122,7 +122,7 @@ describe("trajectory-service RL export helpers", () => {
           label: "Debug Set",
           model: "gpt-test",
           provider: "openai",
-          agentName: "Dr. Mochibi",
+          agentName: "Doolittle",
           windowSize: 2,
         },
       });

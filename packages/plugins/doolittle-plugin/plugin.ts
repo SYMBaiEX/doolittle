@@ -1,11 +1,11 @@
+import { createElizaTextGenerationModelHandlers } from "@doolittle/provider-transport";
 import { ModelType, type Plugin } from "@elizaos/core";
-import { createElizaTextGenerationModelHandlers } from "@elizaos/provider-transport";
 import {
   createOfflineBootstrapEmbeddingModel,
   createOfflineBootstrapTextModel,
 } from "./model-fallback";
 import {
-  createSelectedProviderTextModels,
+  createSelectedProviderModels,
   DOOLITTLE_MODEL_ROUTER_PRIORITY,
 } from "./model-router";
 import type { DoolittlePluginConfig } from "./types";
@@ -29,7 +29,7 @@ export function createDoolittlePlugin(
       ),
     };
   } else {
-    plugin.models = createSelectedProviderTextModels();
+    plugin.models = createSelectedProviderModels();
   }
   plugin.priority = DOOLITTLE_MODEL_ROUTER_PRIORITY;
 

@@ -1,10 +1,14 @@
-# @elizaos/plugin-sql
+# @doolittle/plugin-sql-compat
 
 Doolittle compatibility wrapper around the official Eliza SQL plugin.
 
 This package wraps the published `@elizaos/plugin-sql@2.0.3-beta.7` plugin and
 adapts it to the `@elizaos/core@2.0.3-beta.7` runtime contract used by this
 repo.
+
+It is deliberately Doolittle-namespaced and private: the official package owns
+the SQL plugin, while this workspace carries only the temporary beta.7
+relationship-write compatibility patch.
 
 The published runtime track for this repository is verified at `2.0.3-beta.7` and
 is kept explicit via dependency alignment rather than `npm` `latest` tags.

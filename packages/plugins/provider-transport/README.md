@@ -1,4 +1,4 @@
-# @elizaos/provider-transport
+# @doolittle/provider-transport
 
 Shared transport helpers for ElizaOS provider plugins that ultimately accept a
 plain-text prompt.
@@ -13,7 +13,7 @@ import {
   getRuntimeModelSettings,
   getRuntimeProvider,
   resolveModelPromptText,
-} from "@elizaos/provider-transport";
+} from "@doolittle/provider-transport";
 
 const prompt = resolveModelPromptText(params);
 const provider = getRuntimeProvider(runtime);

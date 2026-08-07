@@ -1,34 +1,15 @@
 {
-  "name": "@elizaos/plugin-sql",
-  "version": "2.0.3-beta.7-patched.0",
+  "name": "@doolittle/plugin-sql-compat",
+  "version": "0.1.0",
+  "private": true,
   "description": "Doolittle compatibility wrapper around the official ElizaOS SQL plugin.",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
-  "files": [
-    "src/**/*.ts",
-    "README.md"
-  ],
-  "keywords": [
-    "elizaos",
-    "plugin",
-    "sql",
-    "database",
-    "pglite"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/SYMBaiEX/doolittle.git",
-    "directory": "packages/plugins/plugin-sql"
-  },
-  "homepage": "https://github.com/SYMBaiEX/doolittle/tree/main/packages/plugins/plugin-sql",
-  "publishConfig": {
-    "access": "public"
-  },
   "dependencies": {
-    "@elizaos-official/plugin-sql": "npm:@elizaos/plugin-sql@2.0.3-beta.7",
-    "@elizaos/core": "2.0.3-beta.7"
+    "@elizaos/core": "2.0.3-beta.7",
+    "@elizaos/plugin-sql": "2.0.3-beta.7"
   }
 }

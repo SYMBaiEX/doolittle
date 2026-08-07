@@ -1,4 +1,4 @@
-# @elizaos/plugin-codex
+# @doolittle/plugin-codex
 
 Doolittle-owned ElizaOS provider bridge for using a locally signed-in Codex account.
 
@@ -37,7 +37,7 @@ Credential source:
 ## Example
 
 ```ts
-import { createCodexPlugin } from "@elizaos/plugin-codex";
+import { createCodexPlugin } from "@doolittle/plugin-codex";
 
 export const codexPlugin = createCodexPlugin({
   enabled: true,

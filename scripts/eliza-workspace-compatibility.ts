@@ -1,7 +1,7 @@
 export interface ElizaWorkspaceCompatibilityPackage {
   packageName: `@elizaos/${string}`;
   packagePath: string;
-  kind: "patched-wrapper" | "resolver-shim";
+  kind: "resolver-shim";
   allowedVersion: string;
   upstreamVersion: string;
   requiredExports: string[];
@@ -77,18 +77,5 @@ export const ELIZA_WORKSPACE_COMPATIBILITY: readonly ElizaWorkspaceCompatibility
       consumers: ["apps/desktop/scripts/prepare-runtime.ts"],
       reason:
         "Makes the curated registry JSON subpaths available to desktop packaging.",
-    },
-    {
-      packageName: "@elizaos/plugin-sql",
-      packagePath: "packages/plugins/plugin-sql/package.json",
-      kind: "patched-wrapper",
-      allowedVersion: "2.0.3-beta.7-patched.0",
-      upstreamVersion: "2.0.3-beta.7",
-      requiredExports: ["."],
-      consumers: [
-        "packages/agent/src/runtime/native/plugin-registry/providers.ts",
-      ],
-      reason:
-        "Carries the local SQL compatibility patch while delegating to the beta.7 package.",
     },
   ];

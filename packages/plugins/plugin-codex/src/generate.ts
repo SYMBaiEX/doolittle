@@ -1,4 +1,3 @@
-import type { GenerateTextParams, IAgentRuntime } from "@elizaos/core";
 import {
   createProviderHttpError,
   getRuntimeModelSettings,
@@ -6,7 +5,8 @@ import {
   normalizeProviderTransportError,
   ProviderTransportError,
   resolveModelPromptText,
-} from "@elizaos/provider-transport";
+} from "@doolittle/provider-transport";
+import type { GenerateTextParams, IAgentRuntime } from "@elizaos/core";
 import {
   DEFAULT_CODEX_BASE_URL,
   DEFAULT_CODEX_INSTRUCTIONS,

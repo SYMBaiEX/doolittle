@@ -1,10 +1,8 @@
 import type { Plugin } from "@elizaos/core";
-import type { ElizaCloudStatus } from "@elizaos/plugin-elizacloud";
 import type { EnvConfig } from "../../../types/runtime";
 import {
   getLinkedClaudeCodeCredentials,
   getLinkedCodexCredentials,
-  getLinkedElizaCloudCredentials,
   getLinkedProviderAccountsSnapshot,
   refreshLinkedClaudeCodeCredentials,
   refreshLinkedCodexCredentials,
@@ -27,13 +25,13 @@ export async function loadProviderPlugins(
     { createCodexPlugin },
     { createClaudeCodePlugin },
     { createDevinPlugin },
-    { createElizaCloudPlugin },
+    { default: elizaCloudPlugin },
   ] = await Promise.all([
-    import("@elizaos/plugin-sql"),
+    import("@doolittle/plugin-sql-compat"),
     import("@elizaos/plugin-pdf"),
-    import("@elizaos/plugin-codex"),
-    import("@elizaos/plugin-claude-code"),
-    import("@elizaos/plugin-devin"),
+    import("@doolittle/plugin-codex"),
+    import("@doolittle/plugin-claude-code"),
+    import("@doolittle/plugin-devin"),
     import("@elizaos/plugin-elizacloud"),
   ]);
 
@@ -61,22 +59,15 @@ export async function loadProviderPlugins(
       getCwd: () => config.workspaceDir,
       getStatus: () => getLinkedProviderAccountsSnapshot().devin,
     }),
-    createElizaCloudPlugin({
-      enabled: true,
-      enableEmbeddings: enableCloudEmbeddings,
-      getStatus: (): ElizaCloudStatus => {
-        const status = getLinkedProviderAccountsSnapshot().elizaCloud;
-        return {
-          provider: "elizacloud" as const,
-          available: status.available,
-          reusable: status.reusable,
-          nativeReady: status.nativeReady,
-          source: status.source,
-          authMode: status.authMode,
-          detail: status.detail,
-        };
-      },
-      getCredentials: () => getLinkedElizaCloudCredentials(),
+    normalizePlugin({
+      ...elizaCloudPlugin,
+      models: enableCloudEmbeddings
+        ? elizaCloudPlugin.models
+        : Object.fromEntries(
+            Object.entries(elizaCloudPlugin.models ?? {}).filter(
+              ([modelType]) => !modelType.includes("EMBEDDING"),
+            ),
+          ),
     }),
   ];
 

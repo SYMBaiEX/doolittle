@@ -1,4 +1,4 @@
-# @elizaos/plugin-claude-code
+# @doolittle/plugin-claude-code
 
 Doolittle-owned ElizaOS provider bridge for using a locally signed-in Claude Code account.
 
@@ -39,7 +39,7 @@ Credential sources:
 ## Example
 
 ```ts
-import { createClaudeCodePlugin } from "@elizaos/plugin-claude-code";
+import { createClaudeCodePlugin } from "@doolittle/plugin-claude-code";
 
 export const claudeCodePlugin = createClaudeCodePlugin({
   enabled: true,

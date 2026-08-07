@@ -1,5 +1,5 @@
 import type { Plugin } from "@elizaos/core";
-import officialSqlPlugin from "@elizaos-official/plugin-sql";
+import officialSqlPlugin from "@elizaos/plugin-sql";
 import { patchDatabaseAdapter } from "./database-adapter";
 
 const plugin: Plugin = {

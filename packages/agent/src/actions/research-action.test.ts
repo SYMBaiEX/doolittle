@@ -55,7 +55,7 @@ describe("research action (ModelType.RESEARCH adoption)", () => {
       },
     );
     expect(result).toMatchObject({ success: false });
-    expect(delivered).toContain("OPENAI_API_KEY");
+    expect(delivered).toContain("OpenAI or Eliza Cloud");
   });
 
   it("runs the research model and renders a cited report", async () => {

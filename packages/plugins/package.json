@@ -8,7 +8,7 @@
     "@doolittle/contracts": "workspace:*",
     "@elizaos/agent": "2.0.3-beta.7",
     "@elizaos/core": "2.0.3-beta.7",
-    "@elizaos/provider-transport": "workspace:*",
+    "@doolittle/provider-transport": "workspace:*",
     "@elizaos/vault": "2.0.3-beta.7"
   }
 }

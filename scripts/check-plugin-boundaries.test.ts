@@ -51,6 +51,7 @@ function createBoundaryFixture(options: {
     join(packagesDir, "agent", "src", "actions"),
     join(packagesDir, "contracts", "src"),
     join(root, "apps", "desktop", "src", "main"),
+    join(root, "apps", "desktop", "src", "renderer"),
     join(root, "scripts", "bootstrap", "provider"),
   ];
 

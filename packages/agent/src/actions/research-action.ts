@@ -136,7 +136,7 @@ export async function runDoolittleResearch(
 ): Promise<DoolittleResearchRun> {
   if (!runtime.getModel(ModelType.RESEARCH)) {
     throw new Error(
-      "Deep research is unavailable: no RESEARCH model is registered. Set OPENAI_API_KEY and enable the OpenAI provider to use deep research.",
+      "Deep research is unavailable: no RESEARCH model is registered. Select an authenticated OpenAI or Eliza Cloud provider to use deep research.",
     );
   }
 
@@ -153,22 +153,20 @@ export async function runDoolittleResearch(
 }
 
 /**
- * Adopts the ElizaOS `ModelType.RESEARCH` deep-research model (o3-deep-research)
- * as a first-class action. Triggered by `/research <question>`, it runs the
- * model with web search and returns the cited report.
+ * Adopts the ElizaOS `ModelType.RESEARCH` contract as a first-class action.
+ * Triggered by `/research <question>`, it routes the selected official OpenAI
+ * or Eliza Cloud handler with web search and returns the cited report.
  *
- * Availability-gated: if no RESEARCH handler is registered (i.e. the OpenAI
- * deep-research provider is not configured via `OPENAI_API_KEY`), the action
- * responds with a clear message instead of failing — so boot and the test
- * suite stay green without a live key, and the capability lights up the moment
- * a key is present.
+ * Availability-gated: if no RESEARCH handler is registered, the action
+ * responds with a clear message instead of failing. Authentication remains
+ * owned by the selected official provider.
  */
 export function createResearchAction(): Action {
   return {
     name: "DOOLITTLE_RESEARCH",
     similes: ["DEEP_RESEARCH", "RESEARCH_REPORT", "WEB_RESEARCH"],
     description:
-      "Runs the ElizaOS deep-research model (ModelType.RESEARCH, e.g. o3-deep-research) over a question with web search and returns a cited report. Use for detailed research requests that need sourced, current evidence. Requires a registered RESEARCH model; deep research can take several minutes.",
+      "Runs the selected official ElizaOS deep-research model (ModelType.RESEARCH) over a question with web search and returns a cited report. Use for detailed research requests that need sourced, current evidence. Requires authenticated OpenAI or Eliza Cloud; deep research can take several minutes.",
     descriptionCompressed: "Run sourced deep research over a question.",
     routingHint:
       "detailed sourced research request -> DOOLITTLE_RESEARCH; quick current lookup -> WEB_SEARCH",

@@ -69,7 +69,7 @@ function buildPackageRoot(dependencies: Record<string, string> = {}): string {
   writePackageFixture(
     root,
     "provider-transport",
-    "@elizaos/provider-transport",
+    "@doolittle/provider-transport",
   );
   writePackageFixture(
     root,
@@ -171,7 +171,7 @@ describe("publish-provider-packages", () => {
       "npm audit --audit-level critical --omit dev",
     );
     expect(payload.results[0].command).toContain(
-      "elizaos-provider-transport-0.0.1.tgz",
+      "doolittle-provider-transport-0.0.1.tgz",
     );
 
     const manifest = JSON.parse(

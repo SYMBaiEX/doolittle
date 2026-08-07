@@ -18,7 +18,6 @@
       "@doolittle/acp": ["packages/acp/src/index.ts"],
       "@doolittle/contracts": ["packages/contracts/src/index.ts"],
       "@doolittle/agent/*": ["packages/agent/src/*"],
-      "@doolittle/logger": ["packages/logger/src/index.ts"],
       "@plugins/*": ["packages/plugins/*"],
       "@characters/*": ["packages/characters/*"]
     }

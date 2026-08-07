@@ -6,6 +6,7 @@ import { join, relative } from "node:path";
 const ROOT = process.cwd();
 const PLUGINS_ROOT = join(ROOT, "packages", "plugins");
 const DESKTOP_MAIN_ROOT = join(ROOT, "apps", "desktop", "src", "main");
+const DESKTOP_RENDERER_ROOT = join(ROOT, "apps", "desktop", "src", "renderer");
 const SERVICES_ROOT = join(ROOT, "packages", "agent", "src", "services");
 const GATEWAY_ROOT = join(ROOT, "packages", "agent", "src", "gateway");
 const RUNTIME_ROOT = join(ROOT, "packages", "agent", "src", "runtime");
@@ -55,6 +56,9 @@ const DIRECT_JSON_FILE_WRITE_PATTERN =
 const DIRECT_JSON_FILE_WRITE_REASON =
   "writes JSON directly instead of using Eliza's public atomic JSON helper";
 
+const CUSTOM_LOGGER_IMPORT_PATTERN =
+  /(?:from\s+|import\s*\()["']@doolittle\/logger["']/u;
+
 const INTERNAL_FACADE_GUARDS: Array<{
   root: string;
   include: RegExp;
@@ -69,6 +73,27 @@ const INTERNAL_FACADE_GUARDS: Array<{
         pattern: DIRECT_JSON_FILE_WRITE_PATTERN,
         reason: DIRECT_JSON_FILE_WRITE_REASON,
       },
+      {
+        pattern: CUSTOM_LOGGER_IMPORT_PATTERN,
+        reason:
+          "imports Doolittle's retired logger instead of the official @elizaos/logger package",
+      },
+    ],
+  },
+  {
+    root: DESKTOP_RENDERER_ROOT,
+    include:
+      /apps\/desktop\/src\/renderer\/(?!.+\.test\.[cm]?tsx?$).+\.(?:[cm]?ts|tsx)$/u,
+    patterns: [
+      {
+        pattern: /console\.(?:debug|info|warn|error)\s*\(/u,
+        reason: "bypasses the official @elizaos/logger renderer integration",
+      },
+      {
+        pattern: CUSTOM_LOGGER_IMPORT_PATTERN,
+        reason:
+          "imports Doolittle's retired logger instead of the official @elizaos/logger package",
+      },
     ],
   },
   {
@@ -78,6 +103,11 @@ const INTERNAL_FACADE_GUARDS: Array<{
       {
         pattern: DIRECT_JSON_FILE_WRITE_PATTERN,
         reason: DIRECT_JSON_FILE_WRITE_REASON,
+      },
+      {
+        pattern: CUSTOM_LOGGER_IMPORT_PATTERN,
+        reason:
+          "imports Doolittle's retired logger instead of the official @elizaos/logger package",
       },
     ],
   },
@@ -89,6 +119,11 @@ const INTERNAL_FACADE_GUARDS: Array<{
       {
         pattern: DIRECT_JSON_FILE_WRITE_PATTERN,
         reason: DIRECT_JSON_FILE_WRITE_REASON,
+      },
+      {
+        pattern: CUSTOM_LOGGER_IMPORT_PATTERN,
+        reason:
+          "imports Doolittle's retired logger instead of the official @elizaos/logger package",
       },
     ],
   },

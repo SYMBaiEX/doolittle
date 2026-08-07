@@ -1,7 +1,7 @@
 import {
   ProviderTransportError,
   providerErrorCodeForStatus,
-} from "@elizaos/provider-transport";
+} from "@doolittle/provider-transport";
 import { displayCommand } from "@/runtime/commands/command-execution";
 import { resolveCloudApiBaseUrl } from "./cloud-url";
 

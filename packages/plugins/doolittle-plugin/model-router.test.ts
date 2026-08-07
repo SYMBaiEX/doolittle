@@ -5,6 +5,8 @@ import {
 } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import {
+  createSelectedProviderModels,
+  createSelectedProviderResearchModel,
   createSelectedProviderTextModel,
   createSelectedProviderTextModels,
   resolveSelectedModelProviderPlugin,
@@ -13,10 +15,10 @@ import {
 describe("resolveSelectedModelProviderPlugin", () => {
   it.each([
     ["ollama", "ollama"],
-    ["elizacloud", "@elizaos/plugin-elizacloud"],
-    ["codex", "@elizaos/plugin-codex"],
-    ["claude-code", "@elizaos/plugin-claude-code"],
-    ["devin", "@elizaos/plugin-devin"],
+    ["elizacloud", "elizaOSCloud"],
+    ["codex", "@doolittle/plugin-codex"],
+    ["claude-code", "@doolittle/plugin-claude-code"],
+    ["devin", "@doolittle/plugin-devin"],
     ["openai", "openai"],
     ["anthropic", "anthropic"],
   ])("maps %s to its registered Eliza plugin", (provider, plugin) => {
@@ -57,17 +59,17 @@ describe("createSelectedProviderTextModel", () => {
     );
     activeProvider = "claude-code";
     await expect(model(runtime, { prompt: "second" })).resolves.toBe(
-      "response from @elizaos/plugin-claude-code",
+      "response from @doolittle/plugin-claude-code",
     );
     activeProvider = "codex";
     await expect(model(runtime, { prompt: "third" })).resolves.toBe(
-      "response from @elizaos/plugin-codex",
+      "response from @doolittle/plugin-codex",
     );
 
     expect(routedProviders).toEqual([
       "ollama",
-      "@elizaos/plugin-claude-code",
-      "@elizaos/plugin-codex",
+      "@doolittle/plugin-claude-code",
+      "@doolittle/plugin-codex",
     ]);
   });
 
@@ -141,5 +143,42 @@ describe("createSelectedProviderTextModels", () => {
     ]) {
       expect(models[modelType]).toBeTypeOf("function");
     }
+  });
+});
+
+describe("createSelectedProviderResearchModel", () => {
+  it("routes official deep research through the active provider", async () => {
+    const params = {
+      input: "Research official Eliza packages",
+      tools: [{ type: "web_search_preview" as const }],
+    };
+    const runtime = {
+      getSetting: () => JSON.stringify({ model: { provider: "elizacloud" } }),
+      useModel: async (
+        modelType: string,
+        receivedParams: unknown,
+        provider: string,
+      ) => {
+        expect(modelType).toBe(ModelType.RESEARCH);
+        expect(receivedParams).toBe(params);
+        expect(provider).toBe("elizaOSCloud");
+        return {
+          id: "research-1",
+          text: "report",
+          annotations: [],
+          outputItems: [],
+        };
+      },
+    } as unknown as IAgentRuntime;
+
+    await expect(
+      createSelectedProviderResearchModel()(runtime, params),
+    ).resolves.toMatchObject({ id: "research-1", text: "report" });
+  });
+
+  it("registers research beside the complete text surface", () => {
+    expect(createSelectedProviderModels()[ModelType.RESEARCH]).toBeTypeOf(
+      "function",
+    );
   });
 });

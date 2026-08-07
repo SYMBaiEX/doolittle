@@ -49,7 +49,7 @@ this module; SDK message-service prompts must not.
 |---|---|---|
 | `explicit` | `anthropic`, `openai` (SDK plugins) | Emit `promptSegments` (+ `promptCacheKey` for OpenAI). |
 | `implicit` | `ollama` / local | No hints; an identical leading prefix is reused by the KV cache automatically. |
-| `none` | claude-code, codex, devin, elizacloud (custom plugins), unknown | No-op — those plugins build their own request from `params.prompt` and ignore segments today. |
+| `none` | claude-code, codex, devin, official Eliza Cloud, unknown | No-op — those handlers build their request from `params.prompt` and ignore segments today. |
 
 ## Cache keys & invalidation
 
@@ -102,8 +102,9 @@ hit-rate requires the SDK to forward cache usage — see "Known limitations".
   module for stable/volatile construction and plan telemetry, but is recorded
   under the non-cacheable `research` transport until the SDK supports cache
   hints for that model type.
-- Custom provider plugins (claude-code, codex, elizacloud) ignore `promptSegments`
-  — make them segment-aware to extend explicit caching to those providers.
+- The Doolittle Codex and Claude Code bridges and the official Eliza Cloud
+  plugin ignore `promptSegments`; extend explicit caching only through their
+  public handlers.
 - There is intentionally no Doolittle prelude in the SDK message path. Stable
   product context belongs in registered Providers so core can own its cache
   policy.

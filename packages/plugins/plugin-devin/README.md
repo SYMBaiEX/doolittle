@@ -1,4 +1,4 @@
-# @elizaos/plugin-devin
+# @doolittle/plugin-devin
 
 Doolittle-owned ElizaOS provider bridge for Devin CLI execution.
 

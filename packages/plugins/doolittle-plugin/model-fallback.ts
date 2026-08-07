@@ -1,3 +1,4 @@
+import { resolveModelPromptText } from "@doolittle/provider-transport";
 import {
   type GenerateTextParams,
   type IAgentRuntime,
@@ -5,7 +6,6 @@ import {
   type TextEmbeddingParams,
   type TextGenerationModelType,
 } from "@elizaos/core";
-import { resolveModelPromptText } from "@elizaos/provider-transport";
 import { resolveSelectedModelProviderPlugin } from "./model-router";
 import { readRuntimeModelSettings } from "./runtime-settings";
 import type { DoolittlePluginConfig } from "./types";

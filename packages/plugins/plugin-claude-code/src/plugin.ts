@@ -1,9 +1,9 @@
+import { createElizaTextGenerationModelHandlers } from "@doolittle/provider-transport";
 import {
   Service as ElizaService,
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
-import { createElizaTextGenerationModelHandlers } from "@elizaos/provider-transport";
 import { runClaudeCodeTextGeneration } from "./anthropic";
 import type {
   ClaudeCodeLiveGenerateParams,
@@ -54,7 +54,7 @@ export function createClaudeCodePlugin(
   }
 
   return {
-    name: "@elizaos/plugin-claude-code",
+    name: "@doolittle/plugin-claude-code",
     description:
       "Doolittle-owned Eliza provider bridge for linked Claude Code accounts and workflow routing.",
     services: [ClaudeCodeService],

@@ -16,12 +16,7 @@ import { buildSync } from "esbuild";
 
 const require = createRequire(import.meta.url);
 
-type Provider =
-  | "provider-transport"
-  | "codex"
-  | "claude-code"
-  | "devin"
-  | "elizacloud";
+type Provider = "provider-transport" | "codex" | "claude-code" | "devin";
 
 interface PublishArgs {
   provider: Provider | "all";
@@ -69,7 +64,6 @@ const PROVIDERS: readonly Provider[] = [
   "codex",
   "claude-code",
   "devin",
-  "elizacloud",
 ];
 
 const LOCAL_COMPATIBILITY_PACKAGE_PATHS = [

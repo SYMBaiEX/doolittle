@@ -91,6 +91,11 @@ for (const path of packagePaths) {
     isOfficialElizaPackage(manifest.name) &&
     path !== rootPackagePath
   ) {
+    if (!compatibility) {
+      mismatches.push(
+        `${relativePath} claims the reserved ${manifest.name} namespace without a declared Eliza workspace compatibility boundary`,
+      );
+    }
     const allowedVersion = compatibility?.allowedVersion ?? expectedVersion;
     if (manifest.version !== allowedVersion) {
       mismatches.push(

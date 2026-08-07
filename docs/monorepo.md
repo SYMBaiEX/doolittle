@@ -15,7 +15,7 @@ Doolittle is organized as a Nub workspace monorepo running on stock Node.js.
   - runtime, CLI, API, gateway, and product-specific services
 - `packages/plugins`
   - local Doolittle product plugins and provider bridge packages
-  - includes the consolidated Doolittle plugin plus first-party provider bridges such as `plugin-codex`, `plugin-claude-code`, `plugin-devin`, `plugin-elizacloud`, and `plugin-sql`
+  - includes the consolidated Doolittle plugin plus the Doolittle-owned Codex, Claude Code, and Devin provider bridges; Eliza Cloud and SQL are consumed from their official Eliza packages
 - `packages/skills`
   - local Doolittle skill content and generated skills
   - see [the skills index](../packages/skills/index.md) for the active direct-child taxonomy and generated-skill bookkeeping

@@ -32,14 +32,22 @@ The intentionally user-facing provider bridges are:
 
 - [`plugin-codex`](./plugin-codex)
 - [`plugin-claude-code`](./plugin-claude-code)
-- [`plugin-elizacloud`](./plugin-elizacloud)
+- [`plugin-devin`](./plugin-devin)
+- `@elizaos/plugin-elizacloud` is consumed directly from the official ElizaOS release rather than vendored here.
+
+Shared Doolittle-only implementation stays in
+[`provider-transport`](./provider-transport). The private
+[`plugin-sql`](./plugin-sql) compatibility layer wraps the official SQL plugin
+and carries only the pinned beta relationship-write patch.
 
 Suggested runtime flow:
 
 - `/accounts connect codex`
 - `/accounts connect claude-code`
 - `/accounts connect elizacloud`
+- `/accounts connect devin`
 - `/accounts doctor`
 - `/accounts use codex`
 - `/accounts use claude-code`
 - `/accounts use elizacloud`
+- `/accounts use devin`

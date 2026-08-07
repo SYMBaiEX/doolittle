@@ -1,9 +1,9 @@
+import { createElizaTextGenerationModelHandlers } from "@doolittle/provider-transport";
 import {
   Service as ElizaService,
   type IAgentRuntime,
   type Plugin,
 } from "@elizaos/core";
-import { createElizaTextGenerationModelHandlers } from "@elizaos/provider-transport";
 import { DEFAULT_CODEX_BASE_URL } from "./constants";
 import { runCodexTextGeneration } from "./generate";
 import type {
@@ -54,7 +54,7 @@ export function createCodexPlugin(options: CodexPluginOptions): Plugin {
   }
 
   return {
-    name: "@elizaos/plugin-codex",
+    name: "@doolittle/plugin-codex",
     description:
       "Doolittle-owned Eliza provider bridge for linked Codex accounts and workflow routing.",
     services: [CodexService],
