@@ -8,20 +8,42 @@ import {
   mergeDesktopAcpUpdates,
 } from "./desktop-acp-client";
 
-interface ApiRequest {
+interface MockAgentRequest {
   path: string;
   method?: string;
   body?: unknown;
 }
 
-async function withDesktopApi(
-  api: (request: ApiRequest) => Promise<unknown>,
+async function withAgentApi(
+  api: (request: MockAgentRequest) => Promise<unknown>,
   run: () => Promise<void>,
 ): Promise<void> {
   const originalWindow = (globalThis as { window?: unknown }).window;
   Object.defineProperty(globalThis, "window", {
     configurable: true,
-    value: { doolittle: { api } },
+    value: {
+      doolittle: {
+        requestAgent: async (request: {
+          path: string;
+          method: string;
+          body?: string | null;
+        }) => {
+          const payload = await api({
+            path: request.path,
+            method: request.method,
+            ...(typeof request.body === "string"
+              ? { body: JSON.parse(request.body) }
+              : {}),
+          });
+          return {
+            status: 200,
+            statusText: "OK",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(payload ?? null),
+          };
+        },
+      },
+    },
   });
   try {
     await run();
@@ -209,7 +231,7 @@ describe("ACP update presentation", () => {
 
 describe("DesktopAcpClient", () => {
   it("uses the negotiated session for editor, prompt, filesystem, and terminal lifecycle calls", async () => {
-    const api = vi.fn(async (request: ApiRequest) => {
+    const api = vi.fn(async (request: MockAgentRequest) => {
       if (request.path === "/acp/initialize") {
         return {
           initialized: {
@@ -265,7 +287,7 @@ describe("DesktopAcpClient", () => {
       }
       return {};
     });
-    await withDesktopApi(api, async () => {
+    await withAgentApi(api, async () => {
       const client = new DesktopAcpClient();
       await expect(client.capabilities()).resolves.toEqual({
         embeddedContext: true,
@@ -346,13 +368,13 @@ describe("DesktopAcpClient", () => {
   });
 
   it("maps a loaded ACP session to its workspace without creating a replacement", async () => {
-    const api = vi.fn(async (request: ApiRequest) => {
+    const api = vi.fn(async (request: MockAgentRequest) => {
       if (request.path === "/acp/initialize") {
         return { initialized: { agentCapabilities: {} } };
       }
       return {};
     });
-    await withDesktopApi(api, async () => {
+    await withAgentApi(api, async () => {
       const client = new DesktopAcpClient();
       await client.loadSession("acp:loaded", " /workspace ");
       await expect(client.ensureSession("/workspace")).resolves.toBe(
@@ -380,7 +402,7 @@ describe("DesktopAcpClient", () => {
   it("clears failed initialization and session promises so reconnects can recover", async () => {
     let initializeAttempts = 0;
     let sessionAttempts = 0;
-    const api = vi.fn(async (request: ApiRequest) => {
+    const api = vi.fn(async (request: MockAgentRequest) => {
       if (request.path === "/acp/initialize") {
         initializeAttempts += 1;
         if (initializeAttempts === 1) throw new Error("runtime starting");
@@ -393,7 +415,7 @@ describe("DesktopAcpClient", () => {
       }
       return {};
     });
-    await withDesktopApi(api, async () => {
+    await withAgentApi(api, async () => {
       const client = new DesktopAcpClient();
       await expect(client.capabilities()).rejects.toThrow("runtime starting");
       await expect(client.capabilities()).resolves.toEqual({
@@ -410,7 +432,7 @@ describe("DesktopAcpClient", () => {
 
   it("rejects incomplete lifecycle inputs before they cross IPC", async () => {
     const api = vi.fn(async () => ({}));
-    await withDesktopApi(api, async () => {
+    await withAgentApi(api, async () => {
       const client = new DesktopAcpClient();
       await expect(client.ensureSession(" ")).rejects.toThrow("workspace path");
       await expect(client.prompt("/workspace", [])).rejects.toThrow("prompt");

@@ -572,258 +572,26 @@ export interface CronPatchRequest extends CronCreateRequest {
   clearRuntime?: boolean;
 }
 
-export interface ApiRequestQuery {
-  [key: string]: string | readonly string[];
-}
-
-export type ApiRequestBody = unknown;
-
 export type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
-export type ApiMethod = HttpMethod;
 
-export type AllowedGetPath =
-  | "/health"
-  | "/commands/catalog"
-  | "/activity"
-  | `/activity?${string}`
-  | "/runtime/status"
-  | "/runtime/models"
-  | `/runtime/models?${string}`
-  | "/runtime/compatibility"
-  | "/runtime/plugins"
-  | "/runtime/registry"
-  | "/runtime/accounts"
-  | "/runtime/account-pool"
-  | "/runtime/ecosystem"
-  | `/runtime/ecosystem?${string}`
-  | "/sessions"
-  | `/sessions?${string}`
-  | "/sessions/search"
-  | `/sessions/search?${string}`
-  | "/sessions/messages"
-  | `/sessions/messages?${string}`
-  | "/sessions/summary"
-  | `/sessions/summary?${string}`
-  | "/sessions/continuity"
-  | `/sessions/continuity?${string}`
-  | "/sessions/usage"
-  | `/sessions/usage?${string}`
-  | "/sessions/export"
-  | `/sessions/export?${string}`
-  | "/projects"
-  | `/projects?${string}`
-  | `/projects/${string}`
-  | `/projects/${string}/resources`
-  | `/runtime/registry?${string}`
-  | "/settings"
-  | "/theme"
-  | "/execution/status"
-  | "/execution/approvals"
-  | `/execution/approvals?${string}`
-  | "/skills"
-  | "/skills/summary"
-  | "/skills/installed"
-  | "/skills/catalog"
-  | `/skills/catalog?${string}`
-  | "/tools"
-  | `/tools?${string}`
-  | "/tools/summary"
-  | `/tools/summary?${string}`
-  | "/acp/status"
-  | "/acp/editor"
-  | `/acp/sessions?${string}`
-  | `/acp/session/updates?${string}`
-  | `/acp/tools?${string}`
-  | "/mcp/status"
-  | "/mcp/cached"
-  | `/mcp/cached/search?${string}`
-  | `/mcp/cached/describe?${string}`
-  | `/mcp/tool?${string}`
-  | "/personality"
-  | "/profiles/agent"
-  | "/profiles/summary"
-  | `/profiles/users/recall?${string}`
-  | "/gateway/health"
-  | "/gateway/runtime"
-  | "/gateway/daemon"
-  | "/gateway/state"
-  | `/gateway/state?${string}`
-  | "/gateway/inbox"
-  | `/gateway/inbox?${string}`
-  | "/gateway/outbox"
-  | `/gateway/outbox?${string}`
-  | "/sessions/gateway"
-  | "/insights"
-  | "/memory"
-  | `/memory?${string}`
-  | "/memory/summary"
-  | `/memory/summary?${string}`
-  | "/media/inspect"
-  | `/media/inspect?${string}`
-  | "/runtime/media"
-  | "/secrets"
-  | "/analytics"
-  | "/logs"
-  | `/logs?${string}`
-  | "/cron/jobs"
-  | "/cron/runs"
-  | "/deliveries"
-  | "/terminal/history"
-  | "/browser/status"
-  | `/browser/inspect?${string}`
-  | "/doctor"
-  | "/setup/checklist"
-  | "/setup/summary"
-  | "/update/preview"
-  | "/workspace/tree"
-  | `/workspace/tree?${string}`
-  | `/workspace/read?${string}`
-  | `/workspace/search?${string}`
-  | "/repo/status"
-  | "/repo/diff"
-  | "/repo/log"
-  | "/repo/summary"
-  | "/repo/review"
-  | "/repo/changes"
-  | `/repo/changes?${string}`
-  | "/repo/patch"
-  | `/repo/patch?${string}`
-  | "/repo/worktrees"
-  | "/plans"
-  | `/plans/${string}`
-  | "/delegation/tasks"
-  | `/delegation/tasks?${string}`
-  | "/delegation/overview"
-  | "/delegation/groups"
-  | "/delegation/workers"
-  | `/delegation/workers?${string}`
-  | `/delegation/tasks/${string}`
-  | `/delegation/tasks/${string}/children`
-  | `/delegation/tasks/${string}/tree`
-  | "/runtime/codegen"
-  | "/codegen/runs"
-  | "/chat/runs"
-  | `/chat/runs?${string}`
-  | `/chat/runs/${string}`
-  | `/codegen/runs/${string}`
-  | "/codegen/workflows"
-  | `/codegen/workflows/${string}`;
-
-export type AllowedPostPath =
-  | "/settings"
-  | "/acp/initialize"
-  | "/acp/session/new"
-  | "/acp/session/load"
-  | "/acp/session/prompt"
-  | "/acp/session/cancel"
-  | "/acp/editor/context"
-  | "/acp/fs/read"
-  | "/acp/fs/write"
-  | "/acp/terminal/create"
-  | "/acp/terminal/output"
-  | "/acp/terminal/wait"
-  | "/acp/terminal/kill"
-  | "/acp/terminal/release"
-  | "/acp/probe"
-  | "/mcp/probe"
-  | "/gateway/replay"
-  | "/theme"
-  | "/personality"
-  | "/sessions/title"
-  | "/sessions/fork"
-  | "/sessions/import/preview"
-  | "/sessions/import"
-  | "/sessions/project"
-  | "/projects"
-  | `/projects/${string}/archive`
-  | `/projects/${string}/resources`
-  | "/accounts/refresh"
-  | "/accounts/use"
-  | "/accounts/connect"
-  | "/accounts/login"
-  | "/accounts/setup-token"
-  | `/runtime/account-pool/${AccountPoolProvider}/strategy`
-  | `/runtime/account-pool/${AccountPoolProvider}/select`
-  | `/runtime/account-pool/${AccountPoolProvider}/import`
-  | "/media/analyze"
-  | "/media/transcribe"
-  | "/media/transcribe-attachment"
-  | "/media/speak"
-  | "/media/generate"
-  | "/secrets/get"
-  | "/secrets/set"
-  | "/cron/jobs"
-  | `/execution/approvals/${string}/approve`
-  | `/execution/approvals/${string}/deny`
-  | "/plans/create"
-  | `/plans/${string}/approve`
-  | `/plans/${string}/steer`
-  | "/delegation/tasks"
-  | "/delegation/supervise"
-  | `/delegation/tasks/${string}/spawn`
-  | `/delegation/tasks/${string}/execute`
-  | `/delegation/tasks/${string}/note`
-  | `/delegation/tasks/${string}/run`
-  | `/delegation/tasks/${string}/retry`
-  | `/delegation/tasks/${string}/cancel`
-  | `/delegation/tasks/${string}/complete`
-  | `/delegation/tasks/${string}/fail`
-  | "/codegen/generate"
-  | `/chat/runs/${string}/cancel`
-  | "/codegen/research"
-  | "/codegen/prd"
-  | "/codegen/qa"
-  | `/codegen/runs/${string}/cancel`
-  | `/codegen/workflows/${string}/bundle`
-  | "/browser/capture"
-  | "/browser/screenshot"
-  | "/browser/snapshot"
-  | "/browser/analyze"
-  | "/browser/compare"
-  | "/browser/compare/analyze"
-  | `/cron/jobs/${string}/pause`
-  | `/cron/jobs/${string}/resume`
-  | `/cron/jobs/${string}/run`
-  | `/cron/jobs/${string}/trigger`;
-
-export type AllowedPatchPath =
-  | `/cron/jobs/${string}`
-  | `/projects/${string}`
-  | `/runtime/account-pool/${AccountPoolProvider}/${string}`;
-export type AllowedDeletePath =
-  | `/cron/jobs/${string}`
-  | `/projects/${string}/resources/${string}`
-  | `/runtime/account-pool/${AccountPoolProvider}/${string}`;
-
-export interface ApiGetRequest {
-  path: AllowedGetPath;
-  method?: "GET";
-  body?: never;
+/**
+ * Structured-clone-safe side of Eliza's AgentRequestTransport contract.
+ * Request and Response instances stay in the renderer; Electron IPC carries
+ * only this serializable representation across the process boundary.
+ */
+export interface AgentTransportRequest {
+  path: string;
+  method: HttpMethod;
+  headers: Record<string, string>;
+  body?: string | null;
 }
 
-export interface ApiPostRequest {
-  path: AllowedPostPath;
-  method: "POST";
-  body?: ApiRequestBody;
+export interface AgentTransportResponse {
+  status: number;
+  statusText: string;
+  headers: Record<string, string>;
+  body: string;
 }
-
-export interface ApiPatchRequest {
-  path: AllowedPatchPath;
-  method: "PATCH";
-  body?: ApiRequestBody;
-}
-
-export interface ApiDeleteRequest {
-  path: AllowedDeletePath;
-  method: "DELETE";
-  body?: ApiRequestBody;
-}
-
-export type ApiRequest =
-  | ApiGetRequest
-  | ApiPostRequest
-  | ApiPatchRequest
-  | ApiDeleteRequest;
 
 export interface ChatRequest {
   requestId: string;
@@ -1316,7 +1084,7 @@ export interface DoolittleDesktopBridge {
   acknowledgeProviderAuth(
     provider: ProviderAuthProvider,
   ): Promise<ProviderAuthState>;
-  api<T>(request: ApiRequest): Promise<T>;
+  requestAgent(request: AgentTransportRequest): Promise<AgentTransportResponse>;
   runCommand(request: DesktopCommandRequest): Promise<DesktopCommandResult>;
   startTerminalRun(request: TerminalStreamRequest): Promise<void>;
   cancelTerminalRun(requestId: string): Promise<void>;

@@ -5,8 +5,10 @@ import {
   useEffect,
   useState,
 } from "react";
+import { desktopRequest } from "./eliza-client";
 
-export type ApiMethod = "GET" | "POST" | "PATCH" | "DELETE";
+export { desktopRequest } from "./eliza-client";
+
 export type UnknownRecord = Record<string, unknown>;
 export { asRecord } from "./value-guards";
 
@@ -21,7 +23,7 @@ export function errorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   return message
     .replace(
-      /^Error invoking remote method ['"]?api:request['"]?:\s*(?:Error:\s*)?/iu,
+      /^Error invoking remote method ['"]?agent:request['"]?:\s*(?:Error:\s*)?/iu,
       "",
     )
     .replace(/^Error:\s*/iu, "")
@@ -63,18 +65,6 @@ export function displayTimestamp(value?: string): string {
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
-}
-
-export async function desktopRequest<T>(
-  path: string,
-  method: ApiMethod = "GET",
-  body?: unknown,
-): Promise<T> {
-  return window.doolittle.api<T>({
-    path: path as never,
-    method,
-    ...(body === undefined ? {} : { body }),
-  } as never);
 }
 
 export function useApiResource<T>(

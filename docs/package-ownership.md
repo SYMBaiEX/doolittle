@@ -9,7 +9,7 @@ pinned `2.0.3-beta.7` train.
 
 | Workspace | Ownership | Status | Boundary |
 |---|---|---|---|
-| `apps/desktop` | Doolittle product | Keep | Electron shell, renderer, local API supervision, and operator UX are application behavior rather than an Eliza plugin. |
+| `apps/desktop` | Doolittle client over Eliza | Keep thin | Official `@elizaos/ui` `ElizaClient` owns ordinary REST request, timeout, retry, client-ID, response, and `ApiError` semantics. Electron retains only lifecycle, a context-isolated transport, its security allowlist, native capabilities, dedicated streams, and operator UX. |
 | `packages/agent` | Doolittle product over Eliza | Keep thin | Composes `AgentRuntime`, official plugins, CLI/TUI, gateway, API, and product projections. Standard runtime lifecycles remain Eliza-owned. |
 | `packages/acp` | Protocol adapter | Keep | Implements the Agent Client Protocol through the official ACP SDK; Eliza does not publish a replacement for Doolittle's ACP server boundary. |
 | `packages/contracts` | Doolittle product contracts | Keep | Secret-free API, desktop, gateway, and operator records. These contracts must not shadow SDK lifecycle types. |
@@ -52,6 +52,10 @@ home for product-only actions and service projections.
   Eliza identifiers remain reserved for upstream owners.
 - Declared the official Form and GitHub packages in the workspaces that import
   them directly instead of relying on root dependency hoisting.
+- Replaced the desktop renderer's custom JSON request helper and duplicate
+  route-type union with the official `@elizaos/ui` `ElizaClient` plus a narrow,
+  structured-clone-safe Electron `AgentRequestTransport` adapter. Non-streaming
+  API failures now retain native Eliza `ApiError` metadata.
 
 ## Enforcement
 

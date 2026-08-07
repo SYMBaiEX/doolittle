@@ -9,6 +9,7 @@ import {
   parseApiPath,
   parseRequestError,
   registerIpc,
+  validateAgentTransportRequest,
   validateChatAttachmentIds,
   validateDesktopCommandRequest,
   validateInteractiveTerminalInputRequest,
@@ -58,6 +59,59 @@ describe("apiResponseLimit", () => {
     expect(apiResponseLimit("/codegen/runs/run-123/artifacts/01")).toBe(
       2_000_000,
     );
+  });
+});
+
+describe("validateAgentTransportRequest", () => {
+  it("keeps the official Eliza request metadata needed by the local agent", () => {
+    expect(
+      validateAgentTransportRequest({
+        path: "/settings",
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          "x-elizaos-client-id": "ui-client-1",
+          authorization: "Bearer renderer-secret",
+        },
+        body: JSON.stringify({ theme: "system" }),
+      }),
+    ).toEqual({
+      path: "/settings",
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        "x-elizaos-client-id": "ui-client-1",
+      },
+      body: JSON.stringify({ theme: "system" }),
+    });
+  });
+
+  it("rejects malformed methods, GET bodies, and oversized payloads", () => {
+    expect(() =>
+      validateAgentTransportRequest({
+        path: "/settings",
+        method: "PUT",
+        headers: {},
+      }),
+    ).toThrow(/method/i);
+    expect(() =>
+      validateAgentTransportRequest({
+        path: "/health",
+        method: "GET",
+        headers: {},
+        body: "{}",
+      }),
+    ).toThrow(/cannot include a body/i);
+    expect(() =>
+      validateAgentTransportRequest({
+        path: "/settings",
+        method: "POST",
+        headers: {},
+        body: "x".repeat(1_000_001),
+      }),
+    ).toThrow(/too large/i);
   });
 });
 
@@ -898,6 +952,74 @@ describe("sensitive desktop actions", () => {
 
     expect(harness.removedChannels.sort()).toEqual(registeredChannels);
     expect(harness.handlers.size).toBe(0);
+  });
+
+  it("bridges bounded responses without hiding Eliza HTTP metadata", async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    const harness = createHarness({
+      confirmed: true,
+      fetch: async (input, init) => {
+        requests.push({ url: String(input), init });
+        return new Response(
+          JSON.stringify({
+            error: "The agent is busy.",
+            code: "rate_limit_exceeded",
+          }),
+          {
+            status: 429,
+            statusText: "Too Many Requests",
+            headers: {
+              "content-type": "application/json",
+              "retry-after": "7",
+              "set-cookie": "private=value",
+            },
+          },
+        );
+      },
+    });
+
+    const handler = harness.handlers.get("agent:request");
+    await expect(
+      handler?.(
+        {},
+        {
+          path: "/settings",
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-elizaos-client-id": "ui-client-1",
+            authorization: "Bearer renderer-secret",
+          },
+          body: JSON.stringify({ theme: "system" }),
+        },
+      ),
+    ).resolves.toEqual({
+      status: 429,
+      statusText: "Too Many Requests",
+      headers: {
+        "content-type": "application/json",
+        "retry-after": "7",
+      },
+      body: JSON.stringify({
+        error: "The agent is busy.",
+        code: "rate_limit_exceeded",
+      }),
+    });
+    expect(requests).toEqual([
+      {
+        url: "http://127.0.0.1:4555/settings",
+        init: expect.objectContaining({
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-elizaos-client-id": "ui-client-1",
+          },
+          body: JSON.stringify({ theme: "system" }),
+        }),
+      },
+    ]);
+    expect(harness.handlers.has("api:request")).toBe(false);
+    harness.dispose();
   });
 
   it("strictly validates commands and workspace save requests", () => {

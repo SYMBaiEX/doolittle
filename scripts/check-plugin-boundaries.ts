@@ -118,6 +118,24 @@ const INTERNAL_FACADE_GUARDS: Array<{
         reason:
           "imports Doolittle's retired logger instead of the official @elizaos/logger package",
       },
+      {
+        pattern: /window\.doolittle\s*\.\s*api\b/u,
+        reason:
+          "restores the retired desktop JSON client instead of the official ElizaClient transport",
+      },
+    ],
+  },
+  {
+    root: DESKTOP_RENDERER_ROOT,
+    include:
+      /apps\/desktop\/src\/renderer\/(?!(?:eliza-client)\.ts$)(?!.+\.test\.[cm]?tsx?$).+\.(?:[cm]?ts|tsx)$/u,
+    patterns: [
+      {
+        pattern:
+          /window\.doolittle\s*\.\s*requestAgent\b|@elizaos\/ui\/api\/(?:client-base|transport)/u,
+        reason:
+          "bypasses the single desktop adapter for the official ElizaClient transport",
+      },
     ],
   },
   {

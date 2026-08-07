@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CodeEditorStateSnapshot } from "./components/CodeEditor";
+import { desktopRequest } from "./eliza-client";
 
 const MAX_EDITOR_CONTENT_CHARS = 32_000;
 const MAX_SESSION_UPDATES = 100;
@@ -262,14 +263,14 @@ export class DesktopAcpClient {
     context: DesktopAcpEditorContext,
   ): Promise<{ sessionId: string; context?: DesktopAcpEditorContext }> {
     const sessionId = await this.ensureSession(workspacePath);
-    const response = await window.doolittle.api<AcpEditorContextResponse>({
-      path: "/acp/editor/context",
-      method: "POST",
-      body: {
+    const response = await desktopRequest<AcpEditorContextResponse>(
+      "/acp/editor/context",
+      "POST",
+      {
         sessionId,
         ...context,
       },
-    });
+    );
     return { sessionId, context: response.context };
   }
 
@@ -281,21 +282,19 @@ export class DesktopAcpClient {
       throw new Error("An ACP prompt is required.");
     }
     const sessionId = await this.ensureSession(workspacePath);
-    const response = await window.doolittle.api<AcpPromptResponse>({
-      path: "/acp/session/prompt",
-      method: "POST",
-      body: { sessionId, prompt },
-    });
+    const response = await desktopRequest<AcpPromptResponse>(
+      "/acp/session/prompt",
+      "POST",
+      { sessionId, prompt },
+    );
     return { sessionId, result: response.result };
   }
 
   async cancel(sessionId: string): Promise<void> {
     const normalizedSessionId = sessionId.trim();
     if (!normalizedSessionId) return;
-    await window.doolittle.api({
-      path: "/acp/session/cancel",
-      method: "POST",
-      body: { sessionId: normalizedSessionId },
+    await desktopRequest("/acp/session/cancel", "POST", {
+      sessionId: normalizedSessionId,
     });
   }
 
@@ -309,16 +308,12 @@ export class DesktopAcpClient {
       "An ACP workspace path is required.",
     );
     await this.initialize();
-    await window.doolittle.api({
-      path: "/acp/session/load",
-      method: "POST",
-      body: {
-        sessionId: normalizedSessionId,
-        cwd: key,
-        _meta: {
-          "doolittle/editor-context": true,
-          "doolittle/resources": true,
-        },
+    await desktopRequest("/acp/session/load", "POST", {
+      sessionId: normalizedSessionId,
+      cwd: key,
+      _meta: {
+        "doolittle/editor-context": true,
+        "doolittle/resources": true,
       },
     });
     this.sessions.set(key, Promise.resolve(normalizedSessionId));
@@ -331,20 +326,19 @@ export class DesktopAcpClient {
     const normalizedSessionId = sessionId.trim();
     if (!normalizedSessionId) return undefined;
     const normalizedCursor = normalizeCursor(cursor);
-    const response = await window.doolittle.api<AcpUpdatesResponse>({
-      path: `/acp/session/updates?sessionId=${encodeURIComponent(normalizedSessionId)}&cursor=${normalizedCursor}`,
-      method: "GET",
-    });
+    const response = await desktopRequest<AcpUpdatesResponse>(
+      `/acp/session/updates?sessionId=${encodeURIComponent(normalizedSessionId)}&cursor=${normalizedCursor}`,
+    );
     return response.snapshot;
   }
 
   async readFile(sessionId: string, path: string): Promise<string> {
     const input = sessionPathInput(sessionId, path);
-    const response = await window.doolittle.api<{ content?: string }>({
-      path: "/acp/fs/read",
-      method: "POST",
-      body: input,
-    });
+    const response = await desktopRequest<{ content?: string }>(
+      "/acp/fs/read",
+      "POST",
+      input,
+    );
     return response.content ?? "";
   }
 
@@ -354,11 +348,11 @@ export class DesktopAcpClient {
     content: string,
   ): Promise<unknown> {
     const input = sessionPathInput(sessionId, path);
-    const response = await window.doolittle.api<{ result?: unknown }>({
-      path: "/acp/fs/write",
-      method: "POST",
-      body: { ...input, content },
-    });
+    const response = await desktopRequest<{ result?: unknown }>(
+      "/acp/fs/write",
+      "POST",
+      { ...input, content },
+    );
     return response.result;
   }
 
@@ -375,15 +369,15 @@ export class DesktopAcpClient {
       command,
       "An ACP terminal command is required.",
     );
-    const response = await window.doolittle.api<AcpTerminalResponse>({
-      path: "/acp/terminal/create",
-      method: "POST",
-      body: {
+    const response = await desktopRequest<AcpTerminalResponse>(
+      "/acp/terminal/create",
+      "POST",
+      {
         sessionId: normalizedSessionId,
         command: normalizedCommand,
         args,
       },
-    });
+    );
     return response.terminal;
   }
 
@@ -393,11 +387,11 @@ export class DesktopAcpClient {
     cursor = 0,
   ): Promise<DesktopAcpTerminal | undefined> {
     const input = terminalInput(sessionId, terminalId);
-    const response = await window.doolittle.api<AcpTerminalResponse>({
-      path: "/acp/terminal/output",
-      method: "POST",
-      body: { ...input, cursor: normalizeCursor(cursor) },
-    });
+    const response = await desktopRequest<AcpTerminalResponse>(
+      "/acp/terminal/output",
+      "POST",
+      { ...input, cursor: normalizeCursor(cursor) },
+    );
     return response.terminal;
   }
 
@@ -406,40 +400,31 @@ export class DesktopAcpClient {
     terminalId: string,
   ): Promise<DesktopAcpTerminal | undefined> {
     const input = terminalInput(sessionId, terminalId);
-    const response = await window.doolittle.api<AcpTerminalResponse>({
-      path: "/acp/terminal/wait",
-      method: "POST",
-      body: input,
-    });
+    const response = await desktopRequest<AcpTerminalResponse>(
+      "/acp/terminal/wait",
+      "POST",
+      input,
+    );
     return response.terminal;
   }
 
   async killTerminal(sessionId: string, terminalId: string): Promise<void> {
     const input = terminalInput(sessionId, terminalId);
-    await window.doolittle.api({
-      path: "/acp/terminal/kill",
-      method: "POST",
-      body: input,
-    });
+    await desktopRequest("/acp/terminal/kill", "POST", input);
   }
 
   async releaseTerminal(sessionId: string, terminalId: string): Promise<void> {
     const input = terminalInput(sessionId, terminalId);
-    await window.doolittle.api({
-      path: "/acp/terminal/release",
-      method: "POST",
-      body: input,
-    });
+    await desktopRequest("/acp/terminal/release", "POST", input);
   }
 
   private async initialize(): Promise<DesktopAcpCapabilities> {
     if (!this.initializePromise) {
-      this.initializePromise = window.doolittle
-        .api<AcpInitializeResponse>({
-          path: "/acp/initialize",
-          method: "POST",
-          body: {},
-        })
+      this.initializePromise = desktopRequest<AcpInitializeResponse>(
+        "/acp/initialize",
+        "POST",
+        {},
+      )
         .then((response) => ({
           embeddedContext:
             response.initialized?.agentCapabilities?.promptCapabilities
@@ -455,10 +440,10 @@ export class DesktopAcpClient {
 
   private async createSession(workspacePath: string): Promise<string> {
     await this.initialize();
-    const response = await window.doolittle.api<AcpSessionResponse>({
-      path: "/acp/session/new",
-      method: "POST",
-      body: {
+    const response = await desktopRequest<AcpSessionResponse>(
+      "/acp/session/new",
+      "POST",
+      {
         cwd: workspacePath,
         mcpServers: [],
         _meta: {
@@ -466,7 +451,7 @@ export class DesktopAcpClient {
           "doolittle/resources": true,
         },
       },
-    });
+    );
     const sessionId = response.session?.sessionId?.trim();
     if (!sessionId) {
       throw new Error("The ACP runtime did not return a session id.");

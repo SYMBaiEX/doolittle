@@ -11,12 +11,13 @@ Electron main process
   ├─ owns the Doolittle child process
   ├─ binds it to 127.0.0.1 on an operating-system-assigned port
   ├─ probes health and owns restart/shutdown
-  └─ proxies typed API and chat-stream requests
+  └─ validates and relays bounded agent requests and dedicated streams
             │
             │ narrow, context-isolated preload bridge
             ▼
 React renderer
   ├─ owns navigation and presentation state
+  ├─ uses the official ElizaClient through an AgentRequestTransport adapter
   ├─ renders chat, code, browser evidence, review, and agent orchestration
   └─ has no Node.js or filesystem access
             │
@@ -30,6 +31,16 @@ Doolittle API
 The desktop is not a wrapper around the terminal UI. Electron owns
 machine-level capabilities, React owns the operator experience, and the
 Doolittle API owns agent behavior and durable runtime state.
+
+Ordinary renderer requests use `@elizaos/ui`'s `ElizaClient`, so Eliza owns
+client identity, request deadlines, resume retries, response parsing, and
+structured `ApiError` failures. Because Electron cannot structured-clone native
+`Request`, `Response`, or streaming bodies, the preload carries only path,
+method, approved headers, serialized body, status, and response text. The main
+process still enforces the route, query, method, header, request-size, and
+response-size allowlists before contacting the loopback runtime. Chat, terminal,
+and PTY traffic retain dedicated cancellable channels instead of imitating a
+stream through this adapter.
 
 ## Operator surfaces
 

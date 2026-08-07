@@ -65,7 +65,13 @@ import {
   saveConversationQueue,
   savePromptLibrary,
 } from "./conversation-persistence";
-import { Badge, displayTimestamp, EmptyBlock, errorMessage } from "./lib";
+import {
+  Badge,
+  desktopRequest,
+  displayTimestamp,
+  EmptyBlock,
+  errorMessage,
+} from "./lib";
 import {
   canRecallSavedProfileMatches,
   freezeMemoryMatchSnapshot,
@@ -574,9 +580,7 @@ export function ChatPage({
       try {
         const path =
           `/sessions/usage?sessionId=${encodeURIComponent(sessionId)}` as const;
-        const response = await window.doolittle.api<SessionUsageResponse>({
-          path,
-        });
+        const response = await desktopRequest<SessionUsageResponse>(path);
         const context = response.usage?.context;
         if (context) {
           setSessionUsage((current) => ({
@@ -623,8 +627,7 @@ export function ChatPage({
     }
 
     let cancelled = false;
-    void window.doolittle
-      .api<CommandCatalogResponse>({ path: "/commands/catalog" })
+    void desktopRequest<CommandCatalogResponse>("/commands/catalog")
       .then((response) => {
         if (!cancelled) {
           setCommandCatalog({ commands: response.commands, error: "" });
@@ -767,8 +770,7 @@ export function ChatPage({
       }));
       const path =
         `/profiles/users/recall?userId=desktop-user&query=${encodeURIComponent(query)}` as const;
-      void window.doolittle
-        .api<SavedProfileRecallResponse>({ path })
+      void desktopRequest<SavedProfileRecallResponse>(path)
         .then((response) => {
           if (memoryRecallSequence.current !== sequence) return;
           setMemoryMatches({
@@ -881,8 +883,7 @@ export function ChatPage({
     setHistoryError("");
     const path =
       `/sessions/messages?sessionId=${encodeURIComponent(selectedId)}&limit=500` as const;
-    void window.doolittle
-      .api<SessionMessagesResponse>({ path })
+    void desktopRequest<SessionMessagesResponse>(path)
       .then((response) => {
         const history = response.messages
           .filter(
@@ -1349,20 +1350,19 @@ export function ChatPage({
     setForkingMessageId(message.id);
     try {
       const boundaryMessage = mode === "retry" ? retryPrompt : message;
-      const response = await window.doolittle.api<SessionForkResponse>({
-        path: "/sessions/fork",
-        method: "POST",
-        body:
-          mode === "fork"
-            ? {
-                sourceSessionId: selectedId,
-                throughMessageId: boundaryMessage?.id,
-              }
-            : {
-                sourceSessionId: selectedId,
-                beforeMessageId: boundaryMessage?.id,
-              },
-      });
+      const response = await desktopRequest<SessionForkResponse>(
+        "/sessions/fork",
+        "POST",
+        mode === "fork"
+          ? {
+              sourceSessionId: selectedId,
+              throughMessageId: boundaryMessage?.id,
+            }
+          : {
+              sourceSessionId: selectedId,
+              beforeMessageId: boundaryMessage?.id,
+            },
+      );
       const fork = response.fork;
 
       if (mode === "edit") {
@@ -1553,15 +1553,11 @@ export function ChatPage({
         mimeType,
         name,
       });
-      const result = await window.doolittle.api<{
+      const result = await desktopRequest<{
         transcription: { transcriptText: string };
-      }>({
-        path: "/media/transcribe-attachment",
-        method: "POST",
-        body: {
-          attachmentId: attachment.id,
-          name,
-        },
+      }>("/media/transcribe-attachment", "POST", {
+        attachmentId: attachment.id,
+        name,
       });
       return { transcriptText: result.transcription.transcriptText };
     },

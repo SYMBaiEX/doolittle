@@ -25,12 +25,13 @@
     "@elizaos/agent": "2.0.3-beta.7",
     "@elizaos/logger": "2.0.3-beta.7",
     "@elizaos/shared": "2.0.3-beta.7",
+    "@elizaos/ui": "2.0.3-beta.7",
     "@xterm/addon-fit": "0.10.0",
     "@xterm/xterm": "5.5.0",
     "electron-updater": "^6.7.3",
     "monaco-editor": "0.56.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
     "streamdown": "2.5.0"
   },
   "devDependencies": {

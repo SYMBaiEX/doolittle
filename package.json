@@ -140,6 +140,7 @@
     "@elizaos/plugin-telegram": "2.0.3-beta.7",
     "@elizaos/plugin-wechat": "2.0.3-beta.7",
     "@elizaos/shared": "2.0.3-beta.7",
+    "@elizaos/ui": "2.0.3-beta.7",
     "@elizaos/vault": "2.0.3-beta.7",
     "elizaos": "2.0.3-beta.7",
     "ollama-ai-provider": "npm:ollama-ai-provider-v2@^3.5.1",

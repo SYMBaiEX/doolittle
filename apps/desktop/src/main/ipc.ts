@@ -1,7 +1,7 @@
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
 import type {
-  ApiRequest,
-  ApiRequestBody,
+  AgentTransportRequest,
+  AgentTransportResponse,
   AttachmentSelection,
   BackendState,
   ChatRequest,
@@ -62,6 +62,12 @@ const MIN_INTERACTIVE_TERMINAL_ROWS = 5;
 const MAX_INTERACTIVE_TERMINAL_ROWS = 200;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const AGENT_REQUEST_HEADERS = new Set([
+  "accept",
+  "content-type",
+  "x-elizaos-client-id",
+  "x-elizaos-ui-language",
+]);
 
 export interface SensitiveActionConfirmationRequest {
   kind:
@@ -141,7 +147,7 @@ const IPC_HANDLER_CHANNELS = [
   "workspace:save-confirmed",
   "repository:create-worktree-confirmed",
   "repository:mutate-confirmed",
-  "api:request",
+  "agent:request",
   "chat:start",
   "chat:cancel",
 ] as const;
@@ -854,13 +860,6 @@ export function parseRequestError(response: Response): Promise<string> {
   });
 }
 
-function resolveBody(
-  method: HttpMethod,
-  request: ApiRequest,
-): ApiRequestBody | undefined {
-  return method === "GET" ? undefined : request.body;
-}
-
 function isAllowedQueryAllowed(
   candidate: AllowedApiPath,
   searchParams: URLSearchParams,
@@ -1205,13 +1204,61 @@ export function parseApiPath(path: string, method: HttpMethod): string {
     : parsed.pathname;
 }
 
-function serializeBody(body: ApiRequestBody | undefined): string | undefined {
-  if (body === undefined) return undefined;
-  const serialized = JSON.stringify(body);
-  if (serialized.length > MAX_API_BODY_BYTES) {
+export function validateAgentTransportRequest(
+  unsafeRequest: unknown,
+): AgentTransportRequest {
+  if (!isRecord(unsafeRequest)) {
+    throw new Error("Invalid Eliza desktop transport request.");
+  }
+  const method = unsafeRequest.method;
+  if (
+    method !== "GET" &&
+    method !== "POST" &&
+    method !== "PATCH" &&
+    method !== "DELETE"
+  ) {
+    throw new Error("Unsupported Eliza desktop transport method.");
+  }
+  if (typeof unsafeRequest.path !== "string") {
+    throw new Error("Eliza desktop transport path is required.");
+  }
+  const body = unsafeRequest.body;
+  if (body !== undefined && body !== null && typeof body !== "string") {
+    throw new Error("Eliza desktop transport body must be serialized text.");
+  }
+  if (method === "GET" && body !== undefined && body !== null) {
+    throw new Error("GET Eliza desktop requests cannot include a body.");
+  }
+  if (
+    typeof body === "string" &&
+    new TextEncoder().encode(body).byteLength > MAX_API_BODY_BYTES
+  ) {
     throw new Error("Desktop API request body is too large.");
   }
-  return serialized;
+  if (!isRecord(unsafeRequest.headers)) {
+    throw new Error("Eliza desktop transport headers are required.");
+  }
+  const headers: Record<string, string> = {};
+  for (const [unsafeName, unsafeValue] of Object.entries(
+    unsafeRequest.headers,
+  )) {
+    const name = unsafeName.toLowerCase();
+    if (!AGENT_REQUEST_HEADERS.has(name)) continue;
+    if (
+      typeof unsafeValue !== "string" ||
+      unsafeValue.length > 1_024 ||
+      /[\r\n]/u.test(unsafeValue)
+    ) {
+      throw new Error(`Invalid Eliza desktop transport header: ${name}`);
+    }
+    headers[name] = unsafeValue;
+  }
+  return {
+    path: unsafeRequest.path,
+    method,
+    headers,
+    ...(body === undefined ? {} : { body }),
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -2730,50 +2777,40 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     },
   );
   registerHandler(
-    "api:request",
-    async (_event: IpcMainInvokeEvent, request: ApiRequest) => {
-      const method = request.method ?? "GET";
-      if (!["GET", "POST", "PATCH", "DELETE"].includes(method)) {
-        throw new Error("Unsupported desktop API method.");
-      }
-      if (method === "GET" && "body" in request && request.body !== undefined) {
-        throw new Error("GET desktop API requests cannot include a body.");
-      }
-      const path = parseApiPath(request.path, method);
-      const body = serializeBody(resolveBody(method, request));
+    "agent:request",
+    async (
+      _event: IpcMainInvokeEvent,
+      unsafeRequest: unknown,
+    ): Promise<AgentTransportResponse> => {
+      const request = validateAgentTransportRequest(unsafeRequest);
+      const path = parseApiPath(request.path, request.method);
       const response = await fetchBackendApi(
         backend,
         sensitiveFetch,
         path,
         {
-          method,
-          headers:
-            body !== undefined
-              ? {
-                  "content-type": "application/json",
-                }
-              : undefined,
-          body,
+          method: request.method,
+          headers: request.headers,
+          body: request.body ?? undefined,
         },
-        method === "GET",
+        request.method === "GET",
       );
-
-      if (!response.ok) {
-        throw new Error(
-          `Backend API request failed: ${(await parseRequestError(response)).trim()}`,
-        );
-      }
-
-      const text = await readBoundedResponseText(
+      const body = await readBoundedResponseText(
         response,
         apiResponseLimit(path),
       );
-      if (!text.trim()) return null;
-      try {
-        return JSON.parse(text);
-      } catch {
-        return text;
-      }
+      const headers: Record<string, string> = {};
+      response.headers.forEach((value, name) => {
+        if (name !== "set-cookie" && name !== "set-cookie2") {
+          headers[name] = value;
+        }
+      });
+      return {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+        body,
+      };
     },
   );
 

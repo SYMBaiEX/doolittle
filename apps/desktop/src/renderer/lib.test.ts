@@ -5,7 +5,7 @@ describe("errorMessage", () => {
   test("removes Electron IPC request wrappers", () => {
     expect(
       errorMessage(
-        "Error invoking remote method 'api:request': Error: The local runtime is not ready.",
+        "Error invoking remote method 'agent:request': Error: The local runtime is not ready.",
       ),
     ).toBe("The local runtime is not ready.");
   });

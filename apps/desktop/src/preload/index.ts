@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type {
-  ApiRequest,
+  AgentTransportRequest,
   BackendState,
   ChatEvent,
   ChatRequest,
@@ -87,8 +87,8 @@ const bridge: DoolittleDesktopBridge = {
     ipcRenderer.invoke("provider-auth:cancel", provider),
   acknowledgeProviderAuth: (provider: ProviderAuthProvider) =>
     ipcRenderer.invoke("provider-auth:acknowledge", provider),
-  api: <T>(request: ApiRequest): Promise<T> =>
-    ipcRenderer.invoke("api:request", request),
+  requestAgent: (request: AgentTransportRequest) =>
+    ipcRenderer.invoke("agent:request", request),
   runCommand: (request: DesktopCommandRequest) =>
     ipcRenderer.invoke("terminal:run-confirmed", request),
   startTerminalRun: (request: TerminalStreamRequest) =>

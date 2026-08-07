@@ -75,23 +75,34 @@ test.describe("Doolittle desktop navigation", () => {
       );
       const liveWorkspaceHandoff = await page.evaluate(
         async ({ alternateWorkspace, repoRoot }) => {
+          const requestJson = async <T>(path: string): Promise<T> => {
+            const response = await window.doolittle.requestAgent({
+              path,
+              method: "GET",
+              headers: { accept: "application/json" },
+            });
+            if (response.status < 200 || response.status >= 300) {
+              throw new Error(`Agent request failed with ${response.status}.`);
+            }
+            return JSON.parse(response.body) as T;
+          };
           const beforeState = await window.doolittle.getBackendState();
-          const beforeHealth = await window.doolittle.api<{
+          const beforeHealth = await requestJson<{
             processId: number;
             workspaceDir: string;
-          }>({ path: "/health" });
+          }>("/health");
           await window.doolittle.switchWorkspace(alternateWorkspace);
           const alternateState = await window.doolittle.getBackendState();
-          const alternateHealth = await window.doolittle.api<{
+          const alternateHealth = await requestJson<{
             processId: number;
             workspaceDir: string;
-          }>({ path: "/health" });
+          }>("/health");
           await window.doolittle.switchWorkspace(repoRoot);
           const restoredState = await window.doolittle.getBackendState();
-          const restoredHealth = await window.doolittle.api<{
+          const restoredHealth = await requestJson<{
             processId: number;
             workspaceDir: string;
-          }>({ path: "/health" });
+          }>("/health");
           return {
             beforeState,
             beforeHealth,
@@ -387,7 +398,15 @@ test.describe("Doolittle desktop navigation", () => {
           .filter({ hasText: researchTaskTitle }),
       ).toBeVisible({ timeout: 30_000 });
       const researchReceipt = await page.evaluate(async (taskTitle) => {
-        const result = await window.doolittle.api<{
+        const response = await window.doolittle.requestAgent({
+          path: "/delegation/tasks?limit=100",
+          method: "GET",
+          headers: { accept: "application/json" },
+        });
+        if (response.status < 200 || response.status >= 300) {
+          throw new Error(`Agent request failed with ${response.status}.`);
+        }
+        const result = JSON.parse(response.body) as {
           tasks?: Array<{
             title?: string;
             capabilityProfile?: string;
@@ -395,7 +414,7 @@ test.describe("Doolittle desktop navigation", () => {
             framework?: string;
             workspaceRoot?: string;
           }>;
-        }>({ path: "/delegation/tasks?limit=100" });
+        };
         return result.tasks?.find((task) => task.title === taskTitle);
       }, researchTaskTitle);
       expect(researchReceipt).toMatchObject({
