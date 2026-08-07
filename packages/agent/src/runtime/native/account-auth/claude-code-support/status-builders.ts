@@ -57,7 +57,7 @@ function buildStoredClaudeCodeStatus(
     setupCommand: CLAUDE_CODE_SETUP_COMMAND,
     fallbackReady,
     detail:
-      "Eliza-managed Claude Code credentials are available in the local provider auth store.",
+      "Eliza-managed Claude Code credentials are available in the official account record.",
   });
 }
 

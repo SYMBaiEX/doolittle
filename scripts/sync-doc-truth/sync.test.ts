@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,6 +30,31 @@ describe("runSyncDocTruth", () => {
       expect(validateMarkdownLinks(root, ["README.md"])).toEqual([
         "README.md:4: missing link target: ./missing.md",
         "README.md:5: missing link fragment: ./docs.md#missing",
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps active architecture and onboarding docs in the checked target set", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-doc-links-active-"));
+    try {
+      for (const path of [
+        "docs/elizaos-research.md",
+        "docs/monorepo.md",
+        "docs/quickstart.md",
+      ]) {
+        const target = join(root, path);
+        mkdirSync(join(target, ".."), { recursive: true });
+        writeFileSync(target, "[missing](./absent.md)\n");
+      }
+
+      expect(validateMarkdownLinks(root)).toEqual([
+        "README.md: file does not exist",
+        "docs/eliza-maximization-matrix.md: file does not exist",
+        "docs/elizaos-research.md:1: missing link target: ./absent.md",
+        "docs/monorepo.md:1: missing link target: ./absent.md",
+        "docs/quickstart.md:1: missing link target: ./absent.md",
       ]);
     } finally {
       rmSync(root, { recursive: true, force: true });

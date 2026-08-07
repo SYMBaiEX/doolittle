@@ -42,7 +42,7 @@ On Windows, install the standalone desktop build:
 apps/desktop/release/Doolittle-<version>-win-x64.exe
 ```
 
-See [Desktop](desktop.md) for Windows packaging, installation, and first-launch
+See [the desktop guide](./desktop.md) for Windows packaging, installation, and first-launch
 details. The source bootstrap remains a macOS/Linux/WSL workflow.
 
 `--check` is the dry-run receipt. It reports the directories and files that setup
@@ -145,7 +145,7 @@ GET /doctor
 POST /chat
 ```
 
-For the full command catalog, continue with the `CLI command reference` in [`README.md`](../README.md).
+For the full command catalog, see [Everyday commands in the README](../README.md#everyday-commands).
 
 ## 5) Recovery flow (when first-run is noisy)
 

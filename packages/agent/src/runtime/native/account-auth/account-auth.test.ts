@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { loadAccount } from "@elizaos/agent/auth/account-storage";
 import { describe, expect, it, vi } from "vitest";
 
 async function loadSnapshotModule() {
@@ -23,8 +24,10 @@ async function withIsolatedAuthStore<T>(
   fn: (paths: { dataDir: string }) => Promise<T> | T,
 ): Promise<T> {
   const previous = process.env.DOOLITTLE_DATA_DIR;
+  const previousElizaHome = process.env.ELIZA_HOME;
   const dataDir = mkdtempSync(join(tmpdir(), "doolittle-auth-store-"));
   process.env.DOOLITTLE_DATA_DIR = dataDir;
+  process.env.ELIZA_HOME = dataDir;
   try {
     return await fn({ dataDir });
   } finally {
@@ -33,6 +36,8 @@ async function withIsolatedAuthStore<T>(
     } else {
       process.env.DOOLITTLE_DATA_DIR = previous;
     }
+    if (previousElizaHome === undefined) delete process.env.ELIZA_HOME;
+    else process.env.ELIZA_HOME = previousElizaHome;
   }
 }
 
@@ -69,8 +74,11 @@ describe.sequential("linked provider account auth snapshot", () => {
         expect(advice.preferredAction).toBe("use");
         expect(mod.getLinkedCodexCredentials(home)?.idToken).toBe("id-token");
         expect(
-          mod.__accountAuthTestOnly.readProviderAuthStore().providers.codex
-            ?.idToken,
+          mod.__accountAuthTestOnly.readProviderAuthStore().providers,
+        ).not.toHaveProperty("codex");
+        expect(
+          loadAccount("openai-codex", "doolittle-legacy-codex")?.credentials
+            .idToken,
         ).toBe("id-token");
       });
     } finally {
@@ -152,18 +160,16 @@ describe.sequential("linked provider account auth snapshot", () => {
         expect(filePayload.last_refresh).toBeTruthy();
         expect(filePayload.last_refresh).not.toBe("2026-03-21T12:00:00.000Z");
 
-        expect(mod.__accountAuthTestOnly.readProviderAuthStore()).toEqual(
-          expect.objectContaining({
-            providers: expect.objectContaining({
-              codex: expect.objectContaining({
-                accessToken: refreshedAccessToken,
-                refreshToken: "codex-refreshed-token",
-                authMode: "chatgpt",
-                lastRefresh: filePayload.last_refresh,
-              }),
-            }),
-          }),
-        );
+        expect(
+          mod.__accountAuthTestOnly.readProviderAuthStore().providers,
+        ).not.toHaveProperty("codex");
+        expect(
+          loadAccount("openai-codex", "doolittle-legacy-codex")?.credentials,
+        ).toMatchObject({
+          access: refreshedAccessToken,
+          refresh: "codex-refreshed-token",
+          expires: expect.any(Number),
+        });
 
         expect(mod.getLinkedCodexCredentials(home)).toEqual({
           accessToken: refreshedAccessToken,

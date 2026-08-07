@@ -2,7 +2,7 @@
 
 This document captures framework-level findings that matter for keeping Doolittle aligned with the current ElizaOS 2.x architecture.
 
-## Package Status Observed On July 27, 2026
+## Package Status Observed On August 7, 2026
 
 Current npm metadata is not lockstep across the ElizaOS package family, so Doolittle tracks package-by-package with explicit `2.0.3-beta.7` pins.
 
@@ -12,7 +12,6 @@ Current npm metadata is not lockstep across the ElizaOS package family, so Dooli
 | `@elizaos/core` | `1.7.2` | `2.0.3-beta.7` | Use explicit beta |
 | `@elizaos/agent` | `0.25.9` | `2.0.3-beta.7` | Use explicit beta |
 | `@elizaos/skills` | `2.0.0-alpha.77` | `2.0.3-beta.7` | Use explicit beta |
-| `@elizaos/autonomous` | `2.0.0-alpha.77` | `2.0.3-beta.7` | Keep aligned with beta runtime train through `@elizaos/agent` where ownership is centralized |
 | `@elizaos/plugin-openai` | `1.6.0` | `2.0.3-beta.7` | Use explicit beta |
 | `@elizaos/plugin-sql` | `1.7.2` | `2.0.3-beta.7` | Keep the workspace wrapper for Doolittle metadata normalization and duplicate recovery |
 
@@ -125,7 +124,7 @@ The self-awareness registry also starts through the plugin-owned
 `doolittle_awareness` service; the provider resolves that service at turn time
 instead of relying on run-progress initialization side effects.
 Local command execution follows the same boundary: the Doolittle plugin
-registers the canonical `shell` service, delegates policy and backend work to
+registers the namespaced `doolittle_shell` service, delegates policy and backend work to
 the existing terminal implementation, and makes actions resolve execution
 through the runtime service instead of bypassing Eliza service ownership.
 Workspace and repository inspection follow the same invariant through the
@@ -134,11 +133,11 @@ operator commands resolve that service from the runtime; they no longer
 capture the full product service graph or silently execute through a parallel
 fallback when native service registration is broken.
 Browser capture and evidence operations are likewise registered as the
-canonical `browser` service. CLI commands, API routes, and runtime diagnostics
+namespaced `doolittle_browser` service. CLI commands, API routes, and runtime diagnostics
 resolve that service first while the existing web implementation retains
 truthful browser-versus-placeholder behavior behind the plugin boundary.
 MCP discovery and invocation now use the same model: official Eliza marketplace
-helpers remain the source for server discovery, while the canonical `mcp`
+helpers remain the source for server discovery, while the namespaced `doolittle_mcp`
 service owns runtime resolution and delegates configured local execution,
 tool caching, and receipts to the existing implementation.
 Skills use the same ownership split. The official `AgentSkillsService` owns
@@ -180,4 +179,4 @@ Primary sources:
 - ElizaOS project docs: https://docs.elizaos.ai/projects/overview
 - ElizaOS plugin reference: https://docs.elizaos.ai/plugins/reference
 - OpenAI streaming Responses guide: https://developers.openai.com/api/docs/guides/streaming-responses
-- npm package metadata via `npm view` for `elizaos`, `@elizaos/core`, `@elizaos/agent`, `@elizaos/skills`, `@elizaos/autonomous`, `@elizaos/plugin-openai`, and `@elizaos/plugin-sql`
+- npm package metadata via `npm view` for `elizaos`, `@elizaos/core`, `@elizaos/agent`, `@elizaos/skills`, `@elizaos/plugin-openai`, and `@elizaos/plugin-sql`

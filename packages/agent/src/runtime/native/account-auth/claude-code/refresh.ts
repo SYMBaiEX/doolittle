@@ -28,7 +28,7 @@ async function refreshStoredClaudeCodeCredentials(
 
   const updated = await refreshClaudeOAuthCredentialsFromRecord(
     stored.refreshToken,
-    "eliza-auth-store",
+    "official-account-record",
     stored.accountLabel,
   );
   if (!updated) {

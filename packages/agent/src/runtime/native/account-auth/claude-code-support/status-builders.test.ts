@@ -100,7 +100,7 @@ describe("claude-code status builders", () => {
       loginCommand: "claude auth login",
       setupCommand: "claude setup-token",
       detail:
-        "Eliza-managed Claude Code credentials are available in the local provider auth store.",
+        "Eliza-managed Claude Code credentials are available in the official account record.",
     });
   });
 

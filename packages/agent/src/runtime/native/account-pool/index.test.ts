@@ -1,4 +1,10 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadAccount, saveAccount } from "@elizaos/agent/auth/account-storage";
@@ -41,6 +47,25 @@ async function withIsolatedAccountPool<T>(
     else process.env.ELIZA_HOME = previousEliza;
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+function seedLegacyCredentials(
+  providers: Record<string, Record<string, unknown>>,
+): void {
+  const authDir = join(process.env.DOOLITTLE_DATA_DIR as string, "auth");
+  mkdirSync(authDir, { recursive: true });
+  writeFileSync(
+    join(authDir, "providers.json"),
+    JSON.stringify({ version: 1, providers }),
+    "utf8",
+  );
+}
+
+function createUnexpiredJwt(): string {
+  const payload = Buffer.from(
+    JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3_600 }),
+  ).toString("base64url");
+  return `header.${payload}.signature`;
 }
 
 describe.sequential("Doolittle official account pool adapter", () => {
@@ -102,23 +127,39 @@ describe.sequential("Doolittle official account pool adapter", () => {
 
   it("imports legacy credentials idempotently and retains multiple native imports", async () =>
     await withIsolatedAccountPool(async () => {
-      persistProviderCredentials("codex", {
-        accessToken: "codex-access-token",
-        refreshToken: "codex-refresh-token",
-        idToken: "codex-id-token",
-        accountId: "chatgpt-account",
-      });
-      persistProviderCredentials("claude-code", {
-        accessToken: "claude-access-token",
-        refreshToken: "claude-refresh-token",
+      const codexAccessToken = createUnexpiredJwt();
+      const updatedCodexAccessToken = createUnexpiredJwt();
+      seedLegacyCredentials({
+        codex: {
+          accessToken: codexAccessToken,
+          refreshToken: "codex-refresh-token",
+          idToken: "codex-id-token",
+          accountId: "chatgpt-account",
+        },
+        "claude-code": {
+          accessToken: "claude-access-token",
+          refreshToken: "claude-refresh-token",
+        },
       });
 
       expect(importLegacyDoolittleAccounts()).toBe(2);
       expect(importLegacyDoolittleAccounts()).toBe(0);
       expect(
+        JSON.parse(
+          readFileSync(
+            join(
+              process.env.DOOLITTLE_DATA_DIR as string,
+              "auth",
+              "providers.json",
+            ),
+            "utf8",
+          ),
+        ),
+      ).toEqual({ version: 1, providers: {} });
+      expect(
         loadAccount("openai-codex", "doolittle-legacy-codex")?.credentials,
       ).toMatchObject({
-        access: "codex-access-token",
+        access: codexAccessToken,
         refresh: "codex-refresh-token",
         idToken: "codex-id-token",
       });
@@ -137,7 +178,7 @@ describe.sequential("Doolittle official account pool adapter", () => {
         ),
       ).toMatchObject({ accountId: "work-claude" });
       persistProviderCredentials("codex", {
-        accessToken: "updated-codex-access-token",
+        accessToken: updatedCodexAccessToken,
         refreshToken: "updated-codex-refresh-token",
         idToken: "updated-codex-id-token",
         accountId: "chatgpt-account",
@@ -153,7 +194,7 @@ describe.sequential("Doolittle official account pool adapter", () => {
         label: "Work Codex",
         organizationId: "chatgpt-account",
         credentials: {
-          access: "updated-codex-access-token",
+          access: updatedCodexAccessToken,
           refresh: "updated-codex-refresh-token",
           idToken: "updated-codex-id-token",
         },
@@ -191,7 +232,7 @@ describe.sequential("Doolittle official account pool adapter", () => {
           ),
         ),
       ).toMatchObject({
-        tokens: { id_token: "codex-id-token" },
+        tokens: { id_token: "updated-codex-id-token" },
       });
       expect(await bridge.select("codex")).toMatchObject({
         accountId: "work-codex",
@@ -217,10 +258,12 @@ describe.sequential("Doolittle official account pool adapter", () => {
   it("imports numeric Claude expiration strings with their original refresh deadline", async () =>
     await withIsolatedAccountPool(() => {
       const expiresAt = Date.now() - 60_000;
-      persistProviderCredentials("claude-code", {
-        accessToken: "claude-access-token",
-        refreshToken: "claude-refresh-token",
-        expiresAt: String(expiresAt),
+      seedLegacyCredentials({
+        "claude-code": {
+          accessToken: "claude-access-token",
+          refreshToken: "claude-refresh-token",
+          expiresAt: String(expiresAt),
+        },
       });
 
       expect(importLegacyDoolittleAccounts()).toBe(1);
@@ -236,10 +279,12 @@ describe.sequential("Doolittle official account pool adapter", () => {
   it("falls back to ISO Claude expiration values", async () =>
     await withIsolatedAccountPool(() => {
       const expiresAt = "2030-01-02T03:04:05.000Z";
-      persistProviderCredentials("claude-code", {
-        accessToken: "claude-access-token",
-        refreshToken: "claude-refresh-token",
-        expiresAt,
+      seedLegacyCredentials({
+        "claude-code": {
+          accessToken: "claude-access-token",
+          refreshToken: "claude-refresh-token",
+          expiresAt,
+        },
       });
 
       expect(importLegacyDoolittleAccounts()).toBe(1);
@@ -251,9 +296,11 @@ describe.sequential("Doolittle official account pool adapter", () => {
 
   it("forces refresh for missing Claude expiry when a refresh token exists", async () =>
     await withIsolatedAccountPool(() => {
-      persistProviderCredentials("claude-code", {
-        accessToken: "claude-access-token",
-        refreshToken: "claude-refresh-token",
+      seedLegacyCredentials({
+        "claude-code": {
+          accessToken: "claude-access-token",
+          refreshToken: "claude-refresh-token",
+        },
       });
 
       expect(importLegacyDoolittleAccounts()).toBe(1);
@@ -265,10 +312,12 @@ describe.sequential("Doolittle official account pool adapter", () => {
 
   it("forces refresh for malformed Claude expiry when a refresh token exists", async () =>
     await withIsolatedAccountPool(() => {
-      persistProviderCredentials("claude-code", {
-        accessToken: "claude-access-token",
-        refreshToken: "claude-refresh-token",
-        expiresAt: "not-an-expiry",
+      seedLegacyCredentials({
+        "claude-code": {
+          accessToken: "claude-access-token",
+          refreshToken: "claude-refresh-token",
+          expiresAt: "not-an-expiry",
+        },
       });
 
       expect(importLegacyDoolittleAccounts()).toBe(1);
@@ -280,9 +329,11 @@ describe.sequential("Doolittle official account pool adapter", () => {
 
   it("uses a conservative fallback for non-refreshable Claude credentials", async () =>
     await withIsolatedAccountPool(() => {
-      persistProviderCredentials("claude-code", {
-        accessToken: "claude-access-token",
-        expiresAt: "not-an-expiry",
+      seedLegacyCredentials({
+        "claude-code": {
+          accessToken: "claude-access-token",
+          expiresAt: "not-an-expiry",
+        },
       });
 
       expect(importLegacyDoolittleAccounts()).toBe(1);
@@ -292,84 +343,49 @@ describe.sequential("Doolittle official account pool adapter", () => {
       ).toBe(Number.MAX_SAFE_INTEGER);
     }));
 
-  it("repairs matching known legacy credentials after upgrade", async () =>
-    await withIsolatedAccountPool(() => {
-      const claudeExpiresAt = Date.now() + 3_600_000;
-      persistProviderCredentials("codex", {
-        accessToken: "codex-access-token",
-        refreshToken: "codex-refresh-token",
-        idToken: "codex-id-token",
-      });
-      persistProviderCredentials("claude-code", {
-        accessToken: "claude-access-token",
-        refreshToken: "claude-refresh-token",
-        expiresAt: String(claudeExpiresAt),
-      });
-      expect(importLegacyDoolittleAccounts()).toBe(2);
-
-      const codex = loadAccount("openai-codex", "doolittle-legacy-codex");
-      const claude = loadAccount(
-        "anthropic-subscription",
-        "doolittle-legacy-claude-code",
-      );
-      if (!codex || !claude)
-        throw new Error("legacy accounts were not imported");
-      saveAccount({
-        ...codex,
-        credentials: { ...codex.credentials, idToken: undefined },
-      });
-      saveAccount({
-        ...claude,
-        credentials: {
-          ...claude.credentials,
-          expires: Number.MAX_SAFE_INTEGER,
-        },
-      });
-
-      expect(importLegacyDoolittleAccounts()).toBe(2);
-      expect(
-        loadAccount("openai-codex", "doolittle-legacy-codex")?.credentials
-          .idToken,
-      ).toBe("codex-id-token");
-      expect(
-        loadAccount("anthropic-subscription", "doolittle-legacy-claude-code")
-          ?.credentials.expires,
-      ).toBe(claudeExpiresAt);
-    }));
-
-  it("does not repair known legacy records when singleton credentials do not match", async () =>
+  it("keeps existing official and named accounts when stale legacy keys remain", async () =>
     await withIsolatedAccountPool(() => {
       persistProviderCredentials("codex", {
-        accessToken: "current-access-token",
-        refreshToken: "current-refresh-token",
-        idToken: "current-id-token",
+        accessToken: "official-access-token",
+        refreshToken: "official-refresh-token",
+        idToken: "official-id-token",
+        accountId: "official-chatgpt-account",
       });
       saveAccount({
-        id: "doolittle-legacy-codex",
+        id: "named-codex",
         providerId: "openai-codex",
-        label: "Imported Codex account",
+        label: "Named Codex",
         source: "oauth",
         credentials: {
-          access: "other-access-token",
-          refresh: "other-refresh-token",
-          expires: Number.MAX_SAFE_INTEGER,
+          access: "named-access-token",
+          refresh: "named-refresh-token",
+          expires: Date.now() + 3_600_000,
         },
         createdAt: 1,
         updatedAt: 1,
+      });
+      seedLegacyCredentials({
+        codex: {
+          accessToken: "stale-access-token",
+          refreshToken: "stale-refresh-token",
+          idToken: "stale-id-token",
+          accountId: "stale-chatgpt-account",
+        },
       });
 
       expect(importLegacyDoolittleAccounts()).toBe(0);
       expect(
         loadAccount("openai-codex", "doolittle-legacy-codex"),
       ).toMatchObject({
+        organizationId: "official-chatgpt-account",
         credentials: {
-          access: "other-access-token",
-          refresh: "other-refresh-token",
+          access: "official-access-token",
+          refresh: "official-refresh-token",
+          idToken: "official-id-token",
         },
       });
       expect(
-        loadAccount("openai-codex", "doolittle-legacy-codex")?.credentials
-          .idToken,
-      ).toBeUndefined();
+        listProviderAccounts("openai-codex").map((account) => account.id),
+      ).toEqual(["named-codex", "doolittle-legacy-codex"]);
     }));
 });

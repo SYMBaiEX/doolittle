@@ -18,7 +18,7 @@ Doolittle is organized as a Nub workspace monorepo running on stock Node.js.
   - includes the consolidated Doolittle plugin plus first-party provider bridges such as `plugin-codex`, `plugin-claude-code`, `plugin-devin`, `plugin-elizacloud`, and `plugin-sql`
 - `packages/skills`
   - local Doolittle skill content and generated skills
-  - organized by category for discoverability (`identity/`, `memory/`, `productivity/`, `automation/`, `platform/`, `browser/`, `media/`, `research/`, `generated/`)
+  - see [the skills index](../packages/skills/index.md) for the active direct-child taxonomy and generated-skill bookkeeping
 - `packages/characters`
   - character definitions and persona data
 ## Boundary rules

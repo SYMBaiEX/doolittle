@@ -6,6 +6,11 @@ This matrix tracks where Doolittle is already strongly aligned with the
 ElizaOS beta-targeted runtime stack and where native service ownership can still
 increase.
 
+The verified runtime target remains `2.0.3-beta.7`. Do not treat the
+semver-higher `2.0.11-beta.7` artifacts as an upgrade: they do not map to the
+later beta.7 source tag and include an agent-orchestrator package without
+runtime code.
+
 ## Foundation
 
 | Subsystem | Current Eliza usage | Not native enough yet | Next package or service to push |

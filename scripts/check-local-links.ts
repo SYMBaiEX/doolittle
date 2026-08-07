@@ -9,8 +9,8 @@ const MARKDOWN_LINK_PATTERN =
 const URI_SCHEME_PATTERN = /^[a-z][a-z\d+.-]*:/iu;
 
 function trackedMarkdownFiles(): string[] {
-  return listGitTrackedFiles().filter((path) =>
-    path.toLowerCase().endsWith(".md"),
+  return listGitTrackedFiles().filter(
+    (path) => path.toLowerCase().endsWith(".md") && existsSync(path),
   );
 }
 

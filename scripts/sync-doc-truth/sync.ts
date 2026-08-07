@@ -21,6 +21,9 @@ import type { SyncMode } from "./types";
 const MARKDOWN_LINK_TARGETS = [
   "README.md",
   "docs/eliza-maximization-matrix.md",
+  "docs/elizaos-research.md",
+  "docs/monorepo.md",
+  "docs/quickstart.md",
 ] as const;
 
 function markdownFragment(value: string): string {

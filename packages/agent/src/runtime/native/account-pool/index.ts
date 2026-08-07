@@ -23,6 +23,7 @@ import {
 } from "@elizaos/app-core/account-pool";
 import { readJson, writeJson } from "@/runtime/native/account-auth/shared";
 import {
+  DOOLITTLE_LINKED_ACCOUNT_IDS,
   getProviderAuthStorePath,
   getStoredClaudeCodeCredentials,
   getStoredCodexCredentials,
@@ -73,9 +74,9 @@ export interface AccountPoolSnapshot {
   >;
 }
 
-const LEGACY_ACCOUNT_IDS = {
-  "openai-codex": "doolittle-legacy-codex",
-  "anthropic-subscription": "doolittle-legacy-claude-code",
+const LINKED_ACCOUNT_IDS = {
+  "openai-codex": DOOLITTLE_LINKED_ACCOUNT_IDS.codex,
+  "anthropic-subscription": DOOLITTLE_LINKED_ACCOUNT_IDS["claude-code"],
 } as const;
 
 function isStrategy(value: unknown): value is AccountPoolStrategy {
@@ -249,57 +250,19 @@ function toSnapshot(account: {
   };
 }
 
-function legacyCodexCredentials(): OAuthCredentials | undefined {
-  const credentials = getStoredCodexCredentials();
-  if (!credentials?.accessToken) return undefined;
-  return {
-    access: credentials.accessToken,
-    refresh: credentials.refreshToken ?? "",
-    ...(credentials.idToken ? { idToken: credentials.idToken } : {}),
-    // Legacy Doolittle credentials do not carry an expiry; retain them for the
-    // Codex CLI bridge, which will refresh when a refresh token is available.
-    expires: Number.MAX_SAFE_INTEGER,
-  };
-}
-
-function parseLegacyClaudeExpiry(
-  expiresAt: string | undefined,
-  hasRefreshToken: boolean,
-): number {
-  const value = expiresAt?.trim();
-  if (!value) return hasRefreshToken ? 0 : Number.MAX_SAFE_INTEGER;
-
-  const numericExpiry = Number(value);
-  if (Number.isSafeInteger(numericExpiry)) return numericExpiry;
-
-  const isoExpiry = /^\d{4}-\d{2}-\d{2}T/.test(value)
-    ? Date.parse(value)
-    : Number.NaN;
-  return Number.isFinite(isoExpiry)
-    ? isoExpiry
-    : hasRefreshToken
-      ? 0
-      : Number.MAX_SAFE_INTEGER;
-}
-
-function legacyClaudeCredentials(): OAuthCredentials | undefined {
-  const credentials = getStoredClaudeCodeCredentials();
-  if (!credentials?.accessToken) return undefined;
-  return {
-    access: credentials.accessToken,
-    refresh: credentials.refreshToken ?? "",
-    expires: parseLegacyClaudeExpiry(
-      credentials.expiresAt,
-      Boolean(credentials.refreshToken?.trim()),
-    ),
-  };
+function linkedOfficialAccount(
+  providerId: AccountPoolProvider,
+): AccountCredentialRecord | null {
+  if (providerId === "openai-codex") getStoredCodexCredentials();
+  else getStoredClaudeCodeCredentials();
+  return loadAccount(providerId, LINKED_ACCOUNT_IDS[providerId]);
 }
 
 function importLegacyAccount(
   providerId: AccountPoolProvider,
   credentials: OAuthCredentials | undefined,
   label: string,
-  accountId: string = LEGACY_ACCOUNT_IDS[providerId],
+  accountId: string = LINKED_ACCOUNT_IDS[providerId],
   organizationId?: string,
   overwriteExisting = false,
 ): boolean {
@@ -321,39 +284,6 @@ function importLegacyAccount(
     });
   }
   return true;
-}
-
-function repairMatchingLegacyAccount(
-  providerId: AccountPoolProvider,
-  credentials: OAuthCredentials | undefined,
-  label: string,
-): boolean {
-  const accountId = LEGACY_ACCOUNT_IDS[providerId];
-  const existing = loadAccount(providerId, accountId);
-  if (!existing || !credentials) return false;
-
-  const accessMatches = existing.credentials.access === credentials.access;
-  const refreshMatches =
-    Boolean(existing.credentials.refresh) &&
-    Boolean(credentials.refresh) &&
-    existing.credentials.refresh === credentials.refresh;
-  if (!accessMatches && !refreshMatches) return false;
-
-  const unchanged =
-    existing.credentials.access === credentials.access &&
-    existing.credentials.refresh === credentials.refresh &&
-    existing.credentials.expires === credentials.expires &&
-    existing.credentials.idToken === credentials.idToken;
-  if (unchanged) return false;
-
-  return importLegacyAccount(
-    providerId,
-    credentials,
-    label,
-    accountId,
-    undefined,
-    true,
-  );
 }
 
 /**
@@ -378,16 +308,13 @@ export function importCurrentDoolittleAccount(
       "label must be a non-empty string of at most 120 characters",
     );
   }
-  const codexCredentials =
-    providerId === "openai-codex" ? getStoredCodexCredentials() : undefined;
+  const linked = linkedOfficialAccount(providerId);
   const imported = importLegacyAccount(
     providerId,
-    providerId === "openai-codex"
-      ? legacyCodexCredentials()
-      : legacyClaudeCredentials(),
+    linked?.credentials,
     normalizedLabel,
     normalizedId,
-    codexCredentials?.accountId,
+    linked?.organizationId,
     true,
   );
   if (!imported && !loadAccount(providerId, normalizedId)) {
@@ -398,45 +325,21 @@ export function importCurrentDoolittleAccount(
 }
 
 /**
- * Imports legacy singleton credentials once, without modifying their source
- * file. The official credential storage remains the only pool backing store.
+ * Migrates legacy singleton credentials into stable official account records.
+ * The account-auth adapter removes each legacy key only after verified SDK
+ * persistence; existing official records always win over stale legacy input.
  */
 export function importLegacyDoolittleAccounts(): number {
-  const importCodex = listProviderAccounts("openai-codex").length === 0;
-  const importClaude =
-    listProviderAccounts("anthropic-subscription").length === 0;
-  const codexCredentials = legacyCodexCredentials();
-  const claudeCredentials = legacyClaudeCredentials();
+  const codexId = LINKED_ACCOUNT_IDS["openai-codex"];
+  const claudeId = LINKED_ACCOUNT_IDS["anthropic-subscription"];
+  const hadCodex = Boolean(loadAccount("openai-codex", codexId));
+  const hadClaude = Boolean(loadAccount("anthropic-subscription", claudeId));
+  getStoredCodexCredentials();
+  getStoredClaudeCodeCredentials();
   return (
+    Number(!hadCodex && Boolean(loadAccount("openai-codex", codexId))) +
     Number(
-      importCodex &&
-        importLegacyAccount(
-          "openai-codex",
-          codexCredentials,
-          "Imported Codex account",
-        ),
-    ) +
-    Number(
-      importClaude &&
-        importLegacyAccount(
-          "anthropic-subscription",
-          claudeCredentials,
-          "Imported Claude Code account",
-        ),
-    ) +
-    Number(
-      repairMatchingLegacyAccount(
-        "openai-codex",
-        codexCredentials,
-        "Imported Codex account",
-      ),
-    ) +
-    Number(
-      repairMatchingLegacyAccount(
-        "anthropic-subscription",
-        claudeCredentials,
-        "Imported Claude Code account",
-      ),
+      !hadClaude && Boolean(loadAccount("anthropic-subscription", claudeId)),
     )
   );
 }

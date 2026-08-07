@@ -35,7 +35,7 @@ function buildStoredCodexStatus(
     lastRefresh: stored.lastRefresh,
     loginCommand: CODEX_LOGIN_COMMAND,
     detail:
-      "Eliza-managed Codex credentials are available in the local provider auth store.",
+      "Eliza-managed Codex credentials are available in the official account record.",
   });
 }
 

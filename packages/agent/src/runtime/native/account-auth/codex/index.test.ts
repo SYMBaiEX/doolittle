@@ -89,7 +89,7 @@ describe("Codex auth index helpers", () => {
       lastRefresh: "2026-03-21T12:00:00.000Z",
       loginCommand: "codex login",
       detail:
-        "Eliza-managed Codex credentials are available in the local provider auth store.",
+        "Eliza-managed Codex credentials are available in the official account record.",
     });
   });
 

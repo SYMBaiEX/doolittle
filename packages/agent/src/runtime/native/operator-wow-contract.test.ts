@@ -31,7 +31,9 @@ describe("operator wow contract", () => {
       expect(pillar.elizaosLeverage.length).toBeGreaterThanOrEqual(2);
       expect(pillar.doolittleSurfaces.length).toBeGreaterThanOrEqual(3);
       expect(pillar.acceptanceScenarios.length).toBeGreaterThanOrEqual(2);
-      expect(pillar.currentGaps.length).toBeGreaterThanOrEqual(2);
+      expect(pillar.currentGaps.length).toBeGreaterThanOrEqual(
+        pillar.id === "terminal-operator-loop" ? 1 : 2,
+      );
       expect(pillar.nextImplementationTasks.length).toBeGreaterThanOrEqual(2);
 
       for (const scenario of pillar.acceptanceScenarios) {
@@ -62,9 +64,9 @@ describe("operator wow contract", () => {
       pillars: 8,
       scenarios: 16,
       tasks: 16,
-      coveredScenarios: 0,
+      coveredScenarios: 1,
       partialScenarios: 11,
-      missingScenarios: 5,
+      missingScenarios: 4,
     });
   });
 

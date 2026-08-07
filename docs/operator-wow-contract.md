@@ -107,15 +107,15 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 #### terminal-operator-loop.command-deck
 
 - Surface: `plain CLI`
-- Current status: `partial`
+- Current status: `covered`
 - Trigger: Start `doolittle`, run `/status`, `/tools summary`, `/runtime status`, `/doctor`, and `/gateway status`.
 - Required signals:
   - Every command returns a compact operator result without leaving the runtime lane.
   - Degraded components are named separately from ready components.
-  - The command deck includes retry, undo, compress, usage, insights, and model controls once implemented.
+  - The command deck includes retry, undo, compress, usage, insights, and model controls with compact responses.
 - Verification:
-  - Add command parser tests for each slash command and expected route.
-  - Run `nub run test packages/agent/src/runtime/chat-smoke.test.ts packages/agent/src/cli/tui-renderers.test.ts`.
+  - Command catalog and session-router tests cover retry, undo, compress, usage, insights, and model routes.
+  - Run `nub run test packages/agent/src/runtime/command-catalog.test.ts packages/agent/src/runtime/commands/session-router.test.ts`.
 
 #### terminal-operator-loop.interrupt-and-resume
 
@@ -132,20 +132,19 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 ### Current Gaps
 
-- Doolittle has useful shell and cockpit surfaces, but live session controls still need first-class retry, undo, compress, usage, and insights behavior.
-- Interrupt and steering behavior is not yet expressed as a first-class acceptance contract.
+- Doolittle has useful shell and cockpit surfaces, but interrupt and steering transitions still need a first-class, test-backed run-state contract.
 
 ### Next Implementation Tasks
 
-#### operator-command-surface
+#### run-progress-receipt
 
-- Title: Promote retry, undo, compress, usage, insights, and model controls into first-class slash commands.
-- Owner surface: `operator shell`
-- Files: `packages/agent/src/runtime/chat.ts`, `packages/agent/src/runtime/chat-turn/provider-handler.ts`, `packages/agent/src/cli/shell-chrome.ts`, `docs/operator-loop.md`
+- Title: Expose live run progress in an operator receipt.
+- Owner surface: `run controller`
+- Files: `packages/agent/src/services/run-controller/store.ts`, `packages/agent/src/services/run-controller/event-bus.ts`, `packages/agent/src/services/run-controller/event-bus.test.ts`
 - Definition of done:
-  - Each command has parser coverage and a compact operator response.
-  - Commands that need unavailable runtime support return a truthful degraded response.
-  - `nub run test packages/agent/src/runtime packages/agent/src/cli` passes.
+  - An active run exposes its id, active tool, state, and last observed progress.
+  - A missing or stale event renders a truthful degraded result.
+  - `nub run test packages/agent/src/services/run-controller/event-bus.test.ts` passes.
 
 #### run-interrupt-contract
 
@@ -263,20 +262,20 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 #### memory-learning-skills.skill-proposal
 
 - Surface: `skills`
-- Current status: `missing`
+- Current status: `partial`
 - Trigger: Ask Doolittle to remember a repeatable workflow as a skill after it has completed the workflow once.
 - Required signals:
   - Produces a `SKILL.md` proposal with name, description, and instructions.
   - Scans or labels risk before writing to workspace skills.
-  - Refreshes the skill inventory after approval.
+  - Refreshes the skill inventory after approval when the runtime inventory refresh is available.
 - Verification:
-  - Add a skill synthesis test with a generated skill proposal and approval gate.
-  - Run `nub run test packages/agent/src/runtime/native/service-bridge/autonomous-skills.test.ts`.
+  - Skill-synthesis service tests cover proposal generation, approval gating, and unsafe-content rejection.
+  - Run `nub run test packages/agent/src/services/skill-synthesis/service.test.ts`.
 
 ### Current Gaps
 
 - Memory storage exists, but active recall and post-turn learning are not yet measured by product-level acceptance scenarios.
-- Skill synthesis is documented as a Doolittle aim, but approval, scan, write, and refresh behavior need a real harness.
+- Skill proposals already have approval, scan, and write coverage; a runtime inventory refresh after approval still needs direct proof.
 
 ### Next Implementation Tasks
 
@@ -292,13 +291,13 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 #### approved-skill-workshop
 
-- Title: Build the approved skill proposal path.
+- Title: Prove post-approval skill inventory refresh.
 - Owner surface: `skills`
 - Files: `packages/agent/src/runtime/native/service-bridge/autonomous-skills.ts`, `packages/agent/src/runtime/native/service-bridge/autonomous-skills.test.ts`, `docs/skills-hub.md`
 - Definition of done:
-  - Skill proposals are written only after explicit approval or a configured trusted mode.
-  - Unsafe proposal content is rejected or quarantined.
-  - The generated skill appears in the next skill inventory snapshot.
+  - The generated skill appears in the next runtime skill inventory snapshot after approval.
+  - The refresh failure reports a truthful degraded result without hiding the written proposal.
+  - A regression test covers the approved write and subsequent inventory refresh.
 
 ## Gateway Everywhere Presence
 

@@ -13,6 +13,14 @@ import type { LinkedClaudeCodeCredentials } from "./types";
 
 const nubPath = process.env.DOOLITTLE_NUB_PATH ?? "nub";
 const textDecoder = new TextDecoder();
+const officialClaudeSource =
+  "@elizaos/agent/auth/anthropic-subscription/doolittle-legacy-claude-code";
+
+function parseLastJsonLine<T>(output: Uint8Array): T {
+  const line = textDecoder.decode(output).trim().split("\n").at(-1);
+  if (!line) throw new Error("subprocess did not emit a JSON result");
+  return JSON.parse(line) as T;
+}
 
 function createClaudeCodeDeps({
   homePath,
@@ -150,7 +158,7 @@ function runClaudeRefreshSubprocess({
   });
 
   expect(result.status).toBe(0);
-  return JSON.parse(textDecoder.decode(result.stdout).trim()) as {
+  return parseLastJsonLine(result.stdout) as {
     credentials?: LinkedClaudeCodeCredentials;
     stored?: LinkedClaudeCodeCredentials;
     requests: string[];
@@ -331,7 +339,7 @@ describe.sequential("Claude Code account auth", () => {
     expect(parsed.stored).toEqual(
       expect.objectContaining({
         ...parsed.credentials,
-        source: "eliza-auth-store",
+        source: officialClaudeSource,
       }),
     );
     expect(parsed.filePayload?.claudeAiOauth?.accessToken).toBe(
@@ -394,7 +402,7 @@ describe.sequential("Claude Code account auth", () => {
     expect(parsed.stored).toEqual(
       expect.objectContaining({
         ...parsed.credentials,
-        source: "eliza-auth-store",
+        source: officialClaudeSource,
       }),
     );
     expect(parsed.filePayload?.claudeAiOauth?.accessToken).toBe(
@@ -451,11 +459,11 @@ describe.sequential("Claude Code account auth", () => {
       authMode: "setup-token",
       source: "env:CLAUDE_CODE_SETUP_TOKEN",
     });
-    expect(parsed.stored).toEqual({
+    expect(parsed.stored).toMatchObject({
       accessToken: "sk-ant-oat01-env",
       accountLabel: "Operator <operator@example.com>",
-      authMode: "setup-token",
-      source: "eliza-auth-store",
+      authMode: "oauth",
+      source: officialClaudeSource,
     });
     expect(parsed.filePayload?.claudeAiOauth?.accessToken).toBe("file-access");
     expect(parsed.filePayload?.claudeAiOauth?.refreshToken).toBe(
@@ -490,7 +498,7 @@ describe.sequential("Claude Code account auth", () => {
     });
 
     expect(result.status).toBe(0);
-    const parsed = JSON.parse(textDecoder.decode(result.stdout).trim()) as {
+    const parsed = parseLastJsonLine(result.stdout) as {
       credentials?: LinkedClaudeCodeCredentials;
       stored?: LinkedClaudeCodeCredentials;
     };
@@ -499,7 +507,7 @@ describe.sequential("Claude Code account auth", () => {
     expect(parsed.credentials?.authMode).toBe("setup-token");
     expect(parsed.credentials?.source).toBe("env:CLAUDE_CODE_SETUP_TOKEN");
     expect(parsed.stored?.accessToken).toBe("sk-ant-oat01-test");
-    expect(parsed.stored?.authMode).toBe("setup-token");
-    expect(parsed.stored?.source).toBe("eliza-auth-store");
+    expect(parsed.stored?.authMode).toBe("oauth");
+    expect(parsed.stored?.source).toBe(officialClaudeSource);
   });
 });
