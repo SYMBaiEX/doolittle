@@ -62,6 +62,12 @@ const CUSTOM_LOGGER_IMPORT_PATTERN =
 const RETIRED_CODEX_PROVIDER_PATTERN =
   /@doolittle\/plugin-codex|chatgpt\.com\/backend-api\/codex\/responses/u;
 
+const RETIRED_SECRETS_MANAGER_PATTERN =
+  /["']secrets-manager["']|\bSecretsManagerService\b|\bNativeSecretsManagerService\b/u;
+
+const UNNAMESPACED_PRODUCT_SERVICE_PATTERN =
+  /(?:static\s+serviceType\s*=|(?:getService|getServiceLoadPromise)\s*\()\s*["'](?:code-generation|coding_agent|e2b|experience|forms|personality|rolodex)["']/u;
+
 const INTERNAL_FACADE_GUARDS: Array<{
   root: string;
   include: RegExp;
@@ -85,6 +91,16 @@ const INTERNAL_FACADE_GUARDS: Array<{
         pattern: RETIRED_CODEX_PROVIDER_PATTERN,
         reason:
           "restores Doolittle's retired Codex transport instead of the official @elizaos/plugin-codex-cli package",
+      },
+      {
+        pattern: RETIRED_SECRETS_MANAGER_PATTERN,
+        reason:
+          "restores Doolittle's retired secrets manager instead of the official Eliza SECRETS service",
+      },
+      {
+        pattern: UNNAMESPACED_PRODUCT_SERVICE_PATTERN,
+        reason:
+          "registers or resolves a Doolittle product service without a doolittle_ namespace",
       },
     ],
   },
@@ -121,6 +137,16 @@ const INTERNAL_FACADE_GUARDS: Array<{
         pattern: RETIRED_CODEX_PROVIDER_PATTERN,
         reason:
           "restores Doolittle's retired Codex transport instead of the official @elizaos/plugin-codex-cli package",
+      },
+      {
+        pattern: RETIRED_SECRETS_MANAGER_PATTERN,
+        reason:
+          "restores Doolittle's retired secrets manager instead of the official Eliza SECRETS service",
+      },
+      {
+        pattern: UNNAMESPACED_PRODUCT_SERVICE_PATTERN,
+        reason:
+          "registers or resolves a Doolittle product service without a doolittle_ namespace",
       },
     ],
   },

@@ -1,3 +1,4 @@
+import { SECRETS_SERVICE_TYPE } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
@@ -10,19 +11,20 @@ function createContext(options?: { failSet?: boolean }): AppContext {
 
   return {
     runtime: {
+      agentId: "00000000-0000-4000-8000-000000000001",
       getService: (service: string) => {
         if (service === "ORCHESTRATOR_TASK_SERVICE") {
           return official.service;
         }
-        if (service === "secrets-manager") {
+        if (service === SECRETS_SERVICE_TYPE) {
           return {
-            listSecretKeys: async () => ["OPENAI_API_KEY"],
-            getSecret: async (key: string) => `value:${key}`,
-            setSecret: async (key: string, value: string) => {
+            list: async () => ({ OPENAI_API_KEY: {} }),
+            getGlobal: async (key: string) => `value:${key}`,
+            setGlobal: async (key: string, value: string) => {
               if (options?.failSet) {
                 throw new Error(`failed:${key}`);
               }
-              return { key, value, stored: true };
+              return Boolean(value);
             },
           };
         }

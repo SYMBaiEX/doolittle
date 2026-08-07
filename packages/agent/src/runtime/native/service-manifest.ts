@@ -4,6 +4,7 @@ import {
   DOOLITTLE_ROLODEX_SERVICE,
 } from "@doolittle/contracts";
 import { KNOWLEDGE_GRAPH_SERVICE } from "@elizaos/agent/services/knowledge-graph/index";
+import { SECRETS_SERVICE_TYPE } from "@elizaos/core";
 import type { NativeServices } from "./service-bridge/runtime-contracts";
 import {
   AGENT_SKILLS_SERVICE,
@@ -107,19 +108,19 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
       capability: "personality",
       nativeKey: "personality",
       nativeService: DOOLITTLE_PERSONALITY_SERVICE,
-      requirement: "required Eliza personality service",
+      requirement: "required Doolittle personality projection",
     },
     {
       capability: "rolodex",
       nativeKey: "rolodex",
       nativeService: DOOLITTLE_ROLODEX_SERVICE,
-      requirement: "required Eliza rolodex service",
+      requirement: "required Doolittle rolodex projection",
     },
     {
       capability: "experience",
       nativeKey: "experience",
       nativeService: DOOLITTLE_EXPERIENCE_SERVICE,
-      requirement: "required Eliza experience service",
+      requirement: "required Doolittle experience projection",
     },
     {
       capability: "shell",
@@ -167,7 +168,7 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
       capability: "codingAgent",
       nativeKey: "codingAgent",
       nativeService: DOOLITTLE_CODING_AGENT_SERVICE,
-      requirement: "required Eliza coding agent service",
+      requirement: "required Doolittle coding workspace service",
     },
     {
       capability: "pluginManager",
@@ -180,6 +181,12 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
       nativeKey: "toolPolicy",
       nativeService: "tool_policy",
       requirement: "required official Eliza ToolPolicyService",
+    },
+    {
+      capability: "secrets",
+      nativeKey: "secrets",
+      nativeService: SECRETS_SERVICE_TYPE,
+      requirement: "required official Eliza SecretsService",
     },
     {
       capability: "actionPlanning",

@@ -1,3 +1,9 @@
+import {
+  DOOLITTLE_CODE_GENERATION_SERVICE,
+  DOOLITTLE_FORMS_SERVICE,
+  DOOLITTLE_LOCAL_SANDBOX_SERVICE,
+} from "@doolittle/contracts";
+import { SECRETS_SERVICE_TYPE } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import { getNativeExecutionControlPlaneDetails } from "./native-execution-control-plane";
 import type { RuntimeLike } from "./runtime";
@@ -49,7 +55,7 @@ describe("native execution control plane", () => {
     expect(control.codeGeneration.available).toBe(false);
     expect(control.codeGeneration.ready).toBe(false);
     expect(control.github.available).toBe(false);
-    expect(control.secretsManager.keys).toEqual([]);
+    expect(control.secrets.keys).toEqual([]);
   });
 
   it("summarizes native services, tool policy, sandboxes, and automation helpers", () => {
@@ -73,7 +79,7 @@ describe("native execution control plane", () => {
             return availableTools;
           },
         },
-        e2b: {
+        [DOOLITTLE_LOCAL_SANDBOX_SERVICE]: {
           capabilityDescription: "Managed sandboxes",
           listSandboxes: () => [
             {
@@ -83,10 +89,10 @@ describe("native execution control plane", () => {
           ],
           executeCode: async () => ({ ok: true }),
         },
-        forms: {
+        [DOOLITTLE_FORMS_SERVICE]: {
           capabilityDescription: "Forms available",
         },
-        "code-generation": {
+        [DOOLITTLE_CODE_GENERATION_SERVICE]: {
           capabilityDescription: "Codegen ready",
           performResearch: () => undefined,
           generateCode: () => undefined,
@@ -96,11 +102,11 @@ describe("native execution control plane", () => {
           capabilityDescription: "GitHub support",
           createRepository: async () => undefined,
         },
-        "secrets-manager": {
+        [SECRETS_SERVICE_TYPE]: {
           capabilityDescription: "Secrets available",
-          listSecretKeys: () => ["OPENAI_API_KEY", "GITHUB_TOKEN"],
-          getSecret: async () => "secret",
-          setSecret: async () => undefined,
+          list: async () => ({ OPENAI_API_KEY: {}, GITHUB_TOKEN: {} }),
+          getGlobal: async () => "secret",
+          setGlobal: async () => true,
         },
       },
       ["readFile", "writeFile", "sendMessage"],
@@ -152,10 +158,10 @@ describe("native execution control plane", () => {
       createRepository: true,
       deleteRepository: false,
     });
-    expect(control.secretsManager).toEqual({
+    expect(control.secrets).toEqual({
       available: true,
       capability: "Secrets available",
-      keys: ["OPENAI_API_KEY", "GITHUB_TOKEN"],
+      keys: [],
       hasListKeys: true,
       hasRead: true,
       hasWrite: true,

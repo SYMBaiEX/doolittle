@@ -35,5 +35,17 @@ export function getFoundationPluginCatalogSeeds(
       enablement: "always",
       notes: "First-party skills package used for native stack alignment.",
     },
+    {
+      id: "foundation.secrets",
+      packageName: "@elizaos/core",
+      category: "foundation",
+      source: "official",
+      kind: "adapter",
+      maturity: "alpha",
+      persistence: "injected",
+      enablement: "always",
+      notes:
+        "Official encrypted global, world, and user secrets lifecycle with a namespaced Doolittle Vault persistence mirror.",
+    },
   ];
 }

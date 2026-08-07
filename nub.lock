@@ -296,6 +296,12 @@ importers:
       '@elizaos/plugin-elizacloud':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)(typescript@5.9.3)(zod@4.4.3)
+      '@elizaos/plugin-form':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
+      '@elizaos/plugin-github':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
       '@elizaos/plugin-mcp':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@elizaos/core@2.0.3-beta.7)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)(zod@4.4.3)
@@ -363,6 +369,9 @@ importers:
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(fef6672ed116f87a00e9d9eda31ef0a1)
       '@elizaos/core':
+        specifier: 2.0.3-beta.7
+        version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
+      '@elizaos/plugin-form':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.1)(pg@8.22.0)
       '@elizaos/vault':

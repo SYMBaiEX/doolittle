@@ -28,9 +28,6 @@ export function getNativeExecutionControlPlaneDetails(
         method as keyof NativeCodeGenerationService
       ] === "function",
   );
-  const rawSecretKeys = native.secretsManager?.listSecretKeys?.();
-  const secretKeys = Array.isArray(rawSecretKeys) ? rawSecretKeys : [];
-
   return {
     approvals: {
       source: native.approval ? ("native" as const) : ("unavailable" as const),
@@ -98,15 +95,17 @@ export function getNativeExecutionControlPlaneDetails(
       deleteRepository:
         typeof native.githubPlanning?.deleteRepository === "function",
     },
-    secretsManager: {
-      available: Boolean(native.secretsManager),
+    secrets: {
+      available: Boolean(native.secrets),
       capability:
-        native.secretsManager?.capabilityDescription ??
-        "Secrets management for Doolittle autocoder and deployment flows.",
-      keys: secretKeys,
-      hasListKeys: typeof native.secretsManager?.listSecretKeys === "function",
-      hasRead: typeof native.secretsManager?.getSecret === "function",
-      hasWrite: typeof native.secretsManager?.setSecret === "function",
+        native.secrets?.capabilityDescription ??
+        "Eliza encrypted global, world, and user secrets management.",
+      // The official list contract is asynchronous. The synchronous control
+      // plane reports capability only; API callers use listEffectiveSecretKeys.
+      keys: [],
+      hasListKeys: typeof native.secrets?.list === "function",
+      hasRead: typeof native.secrets?.getGlobal === "function",
+      hasWrite: typeof native.secrets?.setGlobal === "function",
     },
   };
 }

@@ -36,7 +36,7 @@ function createProviderContext() {
         warn: () => undefined,
       },
       getService: (name: string) => {
-        if (name !== "personality") {
+        if (name !== "doolittle_personality") {
           return null;
         }
         return {

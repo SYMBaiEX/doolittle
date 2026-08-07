@@ -280,7 +280,7 @@ describe("session command router", () => {
     const context = {
       runtime: {
         getService: (name: string) =>
-          name === "rolodex"
+          name === "doolittle_rolodex"
             ? {
                 get: () => ({
                   displayName: "Alex",

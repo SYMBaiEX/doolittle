@@ -32,6 +32,11 @@ export function buildBaseSettings(
       reasoningEffort === "high")
       ? reasoningEffort
       : undefined;
+  const secretSalt =
+    dependencies.secretSalt ??
+    env.SECRET_SALT?.trim() ??
+    env.ENCRYPTION_SALT?.trim() ??
+    ensureSecretSalt(config);
   return {
     mcp: runtimeSettings.mcp as unknown as JsonValue,
     featureMap: JSON.stringify(featureMap),
@@ -73,10 +78,8 @@ export function buildBaseSettings(
       : {}),
     ANTHROPIC_SMALL_MODEL: config.anthropicSmallModel,
     ANTHROPIC_LARGE_MODEL: config.anthropicLargeModel,
-    SECRET_SALT:
-      dependencies.secretSalt ??
-      env.SECRET_SALT?.trim() ??
-      ensureSecretSalt(config),
+    SECRET_SALT: secretSalt,
+    ENCRYPTION_SALT: env.ENCRYPTION_SALT?.trim() ?? secretSalt,
     PGLITE_DATA_DIR:
       dependencies.pgliteDataDir ?? getPgliteDataDir(config, env),
     USE_MULTI_STEP: "true",

@@ -7,7 +7,10 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DOOLITTLE_OPERATOR_PLANNING_SERVICE } from "@doolittle/contracts";
+import {
+  DOOLITTLE_CODE_GENERATION_SERVICE,
+  DOOLITTLE_OPERATOR_PLANNING_SERVICE,
+} from "@doolittle/contracts";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleCodegenRoutes } from "@/server/routes/codegen";
@@ -50,7 +53,7 @@ function createFixtureContext(workspaceDir: string, dataDir: string) {
           getPlan: (id: string) => plans.find((plan) => plan.id === id),
         };
       }
-      if (name === "code-generation") {
+      if (name === DOOLITTLE_CODE_GENERATION_SERVICE) {
         return {
           generateCode: async (input: Record<string, unknown>) => {
             writeFileSync(

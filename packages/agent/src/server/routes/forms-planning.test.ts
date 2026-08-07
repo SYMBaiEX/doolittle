@@ -7,7 +7,7 @@ function createContext(): AppContext {
   return {
     runtime: {
       getService: (name: string) => {
-        if (name === "forms") {
+        if (name === "doolittle_forms") {
           return {
             listForms: () => [{ id: "form-1", status: "active" }],
             getTemplates: () => ({ intake: { title: "Intake" } }),

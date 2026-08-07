@@ -22,6 +22,6 @@ export const RESEARCH_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
     persistence: "injected",
     enablement: "always",
     notes:
-      "Doolittle-owned Eliza plugin for research, planning, GitHub, and secrets-backed workflows. Execution remains experimental and planning-only flows are explicitly non-mutating.",
+      "Doolittle-owned Eliza plugin for research, planning, and GitHub workflows; credentials resolve through the official Eliza secrets service. Execution remains experimental and planning-only flows are explicitly non-mutating.",
   },
 ];

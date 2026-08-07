@@ -249,7 +249,7 @@ describe("buildProviderOwnershipChecks", () => {
         github: {
           available: true,
         },
-        secretsManager: {
+        secrets: {
           available: false,
         },
       },

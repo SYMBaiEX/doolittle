@@ -23,7 +23,7 @@ describe("workspace action contract", () => {
     const action = createWorkspaceAction();
     const runtime = {
       getService(serviceType: string) {
-        return serviceType === "coding_agent"
+        return serviceType === "doolittle_coding_agent"
           ? {
               workspaceSummary: () => "workspace tree",
             }
@@ -63,7 +63,7 @@ describe("workspace action contract", () => {
     const action = createWorkspaceAction();
     const runtime = {
       getService(serviceType: string) {
-        return serviceType === "coding_agent"
+        return serviceType === "doolittle_coding_agent"
           ? {
               resolveProjectTarget: (path: string) =>
                 path === "src/index.ts"
@@ -119,7 +119,7 @@ describe("workspace action contract", () => {
     const inspectedPaths: Array<string | undefined> = [];
     const runtime = {
       getService(serviceType: string) {
-        return serviceType === "coding_agent"
+        return serviceType === "doolittle_coding_agent"
           ? {
               inspectProject: async (path?: string) => {
                 inspectedPaths.push(path);

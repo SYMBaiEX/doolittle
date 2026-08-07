@@ -26,6 +26,7 @@ const originalEnv = {
   DEFAULT_LOG_LEVEL: process.env.DEFAULT_LOG_LEVEL,
   NODE_ENV: process.env.NODE_ENV,
   SECRET_SALT: process.env.SECRET_SALT,
+  ENCRYPTION_SALT: process.env.ENCRYPTION_SALT,
   ELIZA_SECRET_SALT: process.env.ELIZA_SECRET_SALT,
   PGLITE_DATA_DIR: process.env.PGLITE_DATA_DIR,
 };
@@ -74,6 +75,7 @@ describe("bootstrap environment", () => {
     delete process.env.LOG_LEVEL;
     delete process.env.DEFAULT_LOG_LEVEL;
     delete process.env.SECRET_SALT;
+    delete process.env.ENCRYPTION_SALT;
     delete process.env.ELIZA_SECRET_SALT;
     delete process.env.PGLITE_DATA_DIR;
 
@@ -85,6 +87,7 @@ describe("bootstrap environment", () => {
     expect(readFileSync(join(root, "secret-salt"), "utf8").trim()).toBe(
       process.env.SECRET_SALT ?? "",
     );
+    expect(process.env.ENCRYPTION_SALT).toBe(process.env.SECRET_SALT);
 
     rmSync(root, { force: true, recursive: true });
   });
@@ -203,6 +206,7 @@ describe("bootstrap environment", () => {
     expect(settings.GITHUB_TOKEN).toBe("github-token");
     expect(settings.NODE_ENV).toBe("test");
     expect(settings.SECRET_SALT).toBe("runtime-secret");
+    expect(settings.ENCRYPTION_SALT).toBe("runtime-secret");
     expect(settings.PGLITE_DATA_DIR).toBe(join(root, "pglite"));
     expect(settings.DOOLITTLE_RUN_DEPTH).toBe("deep");
     expect(settings.DOOLITTLE_TOOL_PROGRESS).toBe("verbose");
@@ -306,6 +310,7 @@ describe("bootstrap environment", () => {
 
     expect(settings.ANTHROPIC_API_KEY).toBe("claude-linked-token");
     expect(settings.SECRET_SALT).toBe("injected-salt");
+    expect(settings.ENCRYPTION_SALT).toBe("injected-salt");
     expect(settings.PGLITE_DATA_DIR).toBe(join(root, "pglite-explicit"));
     expect(settings.NODE_ENV).toBe("production");
 

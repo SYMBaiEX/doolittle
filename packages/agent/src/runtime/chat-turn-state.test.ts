@@ -290,7 +290,7 @@ describe("chat turn state helpers", () => {
       },
       runtime: {
         getService: (name: string) =>
-          name === "rolodex"
+          name === "doolittle_rolodex"
             ? {
                 observe: async () => {
                   observed.push("observed");

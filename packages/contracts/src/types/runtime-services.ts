@@ -1,16 +1,20 @@
 export const DOOLITTLE_AWARENESS_SERVICE = "doolittle_awareness";
 export const DOOLITTLE_BROWSER_SERVICE = "doolittle_browser";
-export const DOOLITTLE_CODING_AGENT_SERVICE = "coding_agent";
-export const DOOLITTLE_EXPERIENCE_SERVICE = "experience";
+export const DOOLITTLE_CODE_GENERATION_SERVICE = "doolittle_code_generation";
+export const DOOLITTLE_CODING_AGENT_SERVICE = "doolittle_coding_agent";
+export const DOOLITTLE_EXPERIENCE_SERVICE = "doolittle_experience";
+export const DOOLITTLE_FORMS_SERVICE = "doolittle_forms";
 export const DOOLITTLE_GATEWAY_SERVICE = "doolittle_gateway";
 export const DOOLITTLE_GITHUB_PLANNING_SERVICE = "doolittle_github_planning";
+export const DOOLITTLE_LOCAL_SANDBOX_SERVICE = "doolittle_local_sandbox";
 export const DOOLITTLE_MCP_SERVICE = "doolittle_mcp";
 export const DOOLITTLE_OPERATOR_PLANNING_SERVICE =
   "doolittle_operator_planning";
-export const DOOLITTLE_PERSONALITY_SERVICE = "personality";
-export const DOOLITTLE_ROLODEX_SERVICE = "rolodex";
+export const DOOLITTLE_PERSONALITY_SERVICE = "doolittle_personality";
+export const DOOLITTLE_ROLODEX_SERVICE = "doolittle_rolodex";
 export const DOOLITTLE_RUN_PROGRESS_SERVICE = "doolittle_run_progress";
 export const DOOLITTLE_SCHEDULER_SERVICE = "doolittle_scheduler";
 export const DOOLITTLE_SDK_CAPABILITIES_SERVICE = "doolittle_sdk_capabilities";
+export const DOOLITTLE_SECRETS_VAULT_SERVICE = "doolittle_secrets_vault";
 export const DOOLITTLE_SHELL_SERVICE = "doolittle_shell";
 export const ORCHESTRATOR_TASK_SERVICE = "ORCHESTRATOR_TASK_SERVICE";

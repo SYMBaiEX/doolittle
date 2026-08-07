@@ -29,6 +29,14 @@ describe("getNativePluginCatalogSeeds", () => {
       category: "foundation",
     });
     expect(
+      seeds.find((seed) => seed.id === "foundation.secrets"),
+    ).toMatchObject({
+      packageName: "@elizaos/core",
+      category: "foundation",
+      source: "official",
+      persistence: "injected",
+    });
+    expect(
       seeds.find((seed) => seed.id === "research.autocoder"),
     ).toMatchObject({
       category: "research",

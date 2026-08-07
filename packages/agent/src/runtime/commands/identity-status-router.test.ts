@@ -22,7 +22,7 @@ function createContext(): AgentExecutionContext {
   return {
     runtime: {
       getService: (name: string) => {
-        if (name === "personality") {
+        if (name === "doolittle_personality") {
           return {
             activeId: () => activeId,
             get: (id: string) => profiles.find((profile) => profile.id === id),
@@ -40,7 +40,7 @@ function createContext(): AgentExecutionContext {
             }),
           };
         }
-        if (name === "experience") {
+        if (name === "doolittle_experience") {
           return {
             summary: () => ({
               sessions: { total: 3 },

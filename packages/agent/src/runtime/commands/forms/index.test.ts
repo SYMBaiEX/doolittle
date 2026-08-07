@@ -17,7 +17,7 @@ function createRuntime() {
   };
   return {
     getService(name: string) {
-      if (name === "forms") {
+      if (name === "doolittle_forms") {
         return forms;
       }
       return undefined;

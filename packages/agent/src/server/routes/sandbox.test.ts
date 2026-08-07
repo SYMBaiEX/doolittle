@@ -6,7 +6,7 @@ function createContext(): AppContext {
   return {
     runtime: {
       getService: (name: string) => {
-        if (name === "e2b") {
+        if (name === "doolittle_local_sandbox") {
           return {
             listSandboxes: () => [{ id: "sandbox-1", path: "/tmp/sandbox-1" }],
             createSandbox: (options?: Record<string, unknown>) => ({

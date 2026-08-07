@@ -55,7 +55,7 @@ export function requireNativeCodingAgent(
     | undefined;
   if (!service) {
     throw new Error(
-      `Required Eliza service ${DOOLITTLE_CODING_AGENT_SERVICE} is unavailable.`,
+      `Required Doolittle service ${DOOLITTLE_CODING_AGENT_SERVICE} is unavailable.`,
     );
   }
   return service;

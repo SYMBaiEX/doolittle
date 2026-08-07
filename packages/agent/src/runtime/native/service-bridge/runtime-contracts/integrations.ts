@@ -134,10 +134,12 @@ export interface NativeGitHubPlanningService {
   deleteRepository?: (name: string) => Promise<unknown>;
 }
 
-export interface NativeSecretsManagerService {
+export interface NativeSecretsService {
   capabilityDescription?: string;
-  getSecret?: (key: string) => Promise<unknown> | unknown;
-  setSecret?: (key: string, value: string) => Promise<unknown> | unknown;
-  hasSecret?: (key: string) => Promise<boolean> | boolean;
-  listSecretKeys?: () => Promise<string[]> | string[];
+  getGlobal?: (key: string) => Promise<string | null>;
+  setGlobal?: (key: string, value: string) => Promise<boolean>;
+  list?: (context: {
+    level: "global";
+    agentId: string;
+  }) => Promise<Record<string, unknown>>;
 }

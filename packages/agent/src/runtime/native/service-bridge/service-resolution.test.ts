@@ -1,10 +1,14 @@
 import {
   DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_EXPERIENCE_SERVICE,
   DOOLITTLE_MCP_SERVICE,
   DOOLITTLE_OPERATOR_PLANNING_SERVICE,
+  DOOLITTLE_PERSONALITY_SERVICE,
+  DOOLITTLE_ROLODEX_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
 } from "@doolittle/contracts";
 import { KNOWLEDGE_GRAPH_SERVICE } from "@elizaos/agent/services/knowledge-graph/index";
+import { SECRETS_SERVICE_TYPE } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import type { RuntimeLike } from "./runtime";
 import {
@@ -39,6 +43,8 @@ describe("service-resolution helpers", () => {
             return { list: () => [], categories: () => ({}) };
           case "tool_policy":
             return { getAllowedTools: () => [] };
+          case SECRETS_SERVICE_TYPE:
+            return { getGlobal: async () => null };
           case "planning":
             return { createSimplePlan: async () => ({}) };
           case DOOLITTLE_OPERATOR_PLANNING_SERVICE:
@@ -92,26 +98,26 @@ describe("service-resolution helpers", () => {
       },
       {
         capability: "personality",
-        nativeService: "personality",
+        nativeService: DOOLITTLE_PERSONALITY_SERVICE,
         source: "unavailable",
         ownership: "plugin",
-        requirement: "required Eliza personality service",
+        requirement: "required Doolittle personality projection",
         available: false,
       },
       {
         capability: "rolodex",
-        nativeService: "rolodex",
+        nativeService: DOOLITTLE_ROLODEX_SERVICE,
         source: "unavailable",
         ownership: "plugin",
-        requirement: "required Eliza rolodex service",
+        requirement: "required Doolittle rolodex projection",
         available: false,
       },
       {
         capability: "experience",
-        nativeService: "experience",
+        nativeService: DOOLITTLE_EXPERIENCE_SERVICE,
         source: "unavailable",
         ownership: "plugin",
-        requirement: "required Eliza experience service",
+        requirement: "required Doolittle experience projection",
         available: false,
       },
       {
@@ -172,10 +178,10 @@ describe("service-resolution helpers", () => {
       },
       {
         capability: "codingAgent",
-        nativeService: "coding_agent",
+        nativeService: "doolittle_coding_agent",
         source: "unavailable",
         ownership: "plugin",
-        requirement: "required Eliza coding agent service",
+        requirement: "required Doolittle coding workspace service",
         available: false,
       },
       {
@@ -192,6 +198,14 @@ describe("service-resolution helpers", () => {
         source: "native",
         ownership: "plugin",
         requirement: "required official Eliza ToolPolicyService",
+        available: true,
+      },
+      {
+        capability: "secrets",
+        nativeService: SECRETS_SERVICE_TYPE,
+        source: "native",
+        ownership: "plugin",
+        requirement: "required official Eliza SecretsService",
         available: true,
       },
       {

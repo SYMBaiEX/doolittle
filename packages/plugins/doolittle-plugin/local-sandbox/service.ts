@@ -1,5 +1,6 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DOOLITTLE_LOCAL_SANDBOX_SERVICE } from "@doolittle/contracts";
 import { SandboxManager } from "@elizaos/agent/services/sandbox-manager";
 import {
   runShell,
@@ -12,7 +13,7 @@ import { SandboxStore } from "./sandbox-store";
 import type { E2BExecutionResult, E2BSandboxOptions } from "./types";
 
 export class LocalSandboxService extends ElizaService {
-  static serviceType = "e2b";
+  static serviceType = DOOLITTLE_LOCAL_SANDBOX_SERVICE;
 
   capabilityDescription =
     "Doolittle local sandbox service with E2B-compatible methods for local code execution and autocoder workflows.";

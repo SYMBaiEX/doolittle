@@ -35,7 +35,7 @@ function createContext(): AppContext {
   return {
     runtime: {
       getService: (name: string) => {
-        if (name === "personality") {
+        if (name === "doolittle_personality") {
           return {
             activeId: () => "primary",
             get: (id: string) => ({ id }),

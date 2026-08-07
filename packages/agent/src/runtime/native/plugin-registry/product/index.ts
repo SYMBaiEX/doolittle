@@ -1,3 +1,6 @@
+import { join } from "node:path";
+
+import { bindPluginStorage } from "@doolittle/contracts";
 import { memoryAction } from "@elizaos/agent/actions/memories";
 import { terminalAction } from "@elizaos/agent/actions/terminal";
 import { triggerAction } from "@elizaos/agent/actions/trigger";
@@ -14,6 +17,7 @@ import {
   createShortcutCompatibleWebSearchAction,
   DOOLITTLE_SDK_SHORTCUTS,
 } from "@plugins/doolittle-plugin/sdk-native-surface";
+import { createSecretsVaultPersistenceService } from "@plugins/doolittle-plugin/secrets-vault";
 import { createCodingAction } from "@/actions/coding-action";
 import {
   createCommandAction,
@@ -82,6 +86,9 @@ export function createDoolittleProductPlugin(
   ];
   const evaluators: Evaluator[] = [createMemoryNudgeEvaluator(services)];
   const gateway = createGatewayRuntimeService({ services, config });
+  const secretsVaultStorage = bindPluginStorage("autocoder", {
+    dataRoot: join(config.dataDir, "plugins"),
+  });
   const triggerRuntimeServices = createTriggerRuntimeServices((runtime) => {
     const gatewayAccessor = createGatewayAccessor({ services, runtime });
     return createAutomationExecutor({
@@ -120,6 +127,7 @@ export function createDoolittleProductPlugin(
         createShellRuntimeService(services),
         createRunProgressRuntimeService(services),
         createSdkCapabilitiesRuntimeService(),
+        createSecretsVaultPersistenceService(secretsVaultStorage.rootDir),
         ...triggerRuntimeServices,
       ],
     },

@@ -1,15 +1,15 @@
-import type { NativeSecretsManagerService } from "../runtime-contracts";
+import type { NativeSecretsService } from "../runtime-contracts";
 import { type RuntimeLike, resolveMethod } from "./resolve";
 
-type Svc = NativeSecretsManagerService;
-const KEY = "secretsManager";
+type Svc = NativeSecretsService;
+const KEY = "secrets";
 
 export async function getEffectiveSecret(runtime: RuntimeLike, key: string) {
-  return resolveMethod<Svc, "getSecret">(
+  return resolveMethod<Svc, "getGlobal">(
     runtime,
     KEY,
-    "getSecret",
-    "secrets service",
+    "getGlobal",
+    "Eliza secrets service",
   )(key);
 }
 
@@ -18,28 +18,31 @@ export async function setEffectiveSecret(
   key: string,
   value: string,
 ) {
-  return resolveMethod<Svc, "setSecret">(
+  return resolveMethod<Svc, "setGlobal">(
     runtime,
     KEY,
-    "setSecret",
-    "secrets service",
+    "setGlobal",
+    "Eliza secrets service",
   )(key, value);
 }
 
 export async function hasEffectiveSecret(runtime: RuntimeLike, key: string) {
-  return resolveMethod<Svc, "hasSecret">(
-    runtime,
-    KEY,
-    "hasSecret",
-    "secrets service",
-  )(key);
+  return (await getEffectiveSecret(runtime, key)) !== null;
 }
 
-export async function listEffectiveSecretKeys(runtime: RuntimeLike) {
-  return resolveMethod<Svc, "listSecretKeys">(
+export async function listEffectiveSecretKeys(
+  runtime: RuntimeLike,
+): Promise<string[]> {
+  if (!runtime.agentId) {
+    throw new Error(
+      "Native Eliza secrets service requires a runtime agent ID.",
+    );
+  }
+  const metadata = await resolveMethod<Svc, "list">(
     runtime,
     KEY,
-    "listSecretKeys",
-    "secrets service",
-  )();
+    "list",
+    "Eliza secrets service",
+  )({ level: "global", agentId: runtime.agentId });
+  return Object.keys(metadata).sort();
 }

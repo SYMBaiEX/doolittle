@@ -20,7 +20,7 @@ describe("user profile command router", () => {
     const context = {
       runtime: {
         getService: (service: string) =>
-          service === "rolodex"
+          service === "doolittle_rolodex"
             ? {
                 card: (userId: string) => ({ userId, source: "native" }),
                 agentProfile: () => "native-agent-profile",
@@ -74,7 +74,7 @@ describe("user profile command router", () => {
     const context = {
       runtime: {
         getService: (name: string) =>
-          name === "rolodex"
+          name === "doolittle_rolodex"
             ? {
                 remember: rememberProfile,
                 configureModeling: (
@@ -133,7 +133,7 @@ describe("user profile command router", () => {
     const context = {
       runtime: {
         getService: (name: string) =>
-          name === "rolodex"
+          name === "doolittle_rolodex"
             ? {
                 observeAgent,
                 context: (userId: string, query: string) => ({
@@ -199,7 +199,7 @@ describe("user profile command router", () => {
     const context = {
       runtime: {
         getService: (name: string) =>
-          name === "rolodex" ? { seedAgent } : null,
+          name === "doolittle_rolodex" ? { seedAgent } : null,
       },
       services: {
         userProfiles: {

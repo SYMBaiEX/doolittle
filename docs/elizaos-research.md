@@ -130,7 +130,7 @@ registers the namespaced `doolittle_shell` service, delegates policy and backend
 the existing terminal implementation, and makes actions resolve execution
 through the runtime service instead of bypassing Eliza service ownership.
 Workspace and repository inspection follow the same invariant through the
-hot `coding_agent` service. Planner-selected workspace/repository actions and
+hot `doolittle_coding_agent` service. Planner-selected workspace/repository actions and
 operator commands resolve that service from the runtime; they no longer
 capture the full product service graph or silently execute through a parallel
 fallback when native service registration is broken.

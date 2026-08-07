@@ -37,7 +37,7 @@ function createRuntime() {
       },
     ],
     getService: (name: string) => {
-      if (name === "personality") {
+      if (name === "doolittle_personality") {
         return {
           activeId: () => "persona-1",
           get: () => ({
@@ -48,7 +48,7 @@ function createRuntime() {
           }),
         };
       }
-      if (name === "rolodex") {
+      if (name === "doolittle_rolodex") {
         return {
           get: () => ({
             displayName: "Alex",

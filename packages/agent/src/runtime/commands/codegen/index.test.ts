@@ -1,4 +1,5 @@
 import { DOOLITTLE_GITHUB_PLANNING_SERVICE } from "@doolittle/contracts";
+import { SECRETS_SERVICE_TYPE } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import type { AgentExecutionContext } from "../../chat";
@@ -11,11 +12,12 @@ function createContext(): AgentExecutionContext {
 
   return {
     runtime: {
+      agentId: "00000000-0000-4000-8000-000000000001",
       getService: (service: string) => {
         if (service === "ORCHESTRATOR_TASK_SERVICE") {
           return official.service;
         }
-        if (service === "e2b") {
+        if (service === "doolittle_local_sandbox") {
           return {
             listSandboxes: () => [{ id: "sandbox-1", path: "/tmp/sandbox-1" }],
             createSandbox: async (input: { template?: string }) =>
@@ -27,7 +29,7 @@ function createContext(): AgentExecutionContext {
             }),
           };
         }
-        if (service === "code-generation") {
+        if (service === "doolittle_code_generation") {
           return {
             generateCode: async (request: Record<string, unknown>) => ({
               generated: true,
@@ -68,11 +70,11 @@ function createContext(): AgentExecutionContext {
             }),
           };
         }
-        if (service === "secrets-manager") {
+        if (service === SECRETS_SERVICE_TYPE) {
           return {
-            listSecretKeys: async () => ["OPENAI_API_KEY"],
-            getSecret: async (key: string) => `value:${key}`,
-            setSecret: async () => undefined,
+            list: async () => ({ OPENAI_API_KEY: {} }),
+            getGlobal: async (key: string) => `value:${key}`,
+            setGlobal: async () => true,
           };
         }
         return undefined;

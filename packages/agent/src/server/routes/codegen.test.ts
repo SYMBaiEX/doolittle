@@ -16,7 +16,7 @@ function createContext(): AppContext {
         if (service === "ORCHESTRATOR_TASK_SERVICE") {
           return official.service;
         }
-        if (service === "code-generation") {
+        if (service === "doolittle_code_generation") {
           return {
             generateCode: async (request: Record<string, unknown>) => ({
               generated: true,

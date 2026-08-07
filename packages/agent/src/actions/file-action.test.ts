@@ -12,7 +12,7 @@ function action(name: string) {
 function runtimeWithCodingService(service: Record<string, unknown>) {
   return {
     getService(name: string) {
-      return name === "coding_agent" ? service : null;
+      return name === "doolittle_coding_agent" ? service : null;
     },
   } as never;
 }
@@ -136,7 +136,7 @@ describe("file actions", () => {
     let current = first;
     const runtime = {
       getService(name: string) {
-        return name === "coding_agent" ? current : null;
+        return name === "doolittle_coding_agent" ? current : null;
       },
     } as never;
     const read = action("READ_FILE");

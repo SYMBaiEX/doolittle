@@ -10,7 +10,7 @@ describe("repository action command facade", () => {
     const action = createRepositoryAction();
     const runtime = {
       getService(serviceType: string) {
-        return serviceType === "coding_agent"
+        return serviceType === "doolittle_coding_agent"
           ? {
               repoStatus: () => "working tree clean",
               repoDiff: () => "1 file changed",
@@ -47,7 +47,7 @@ describe("repository action command facade", () => {
   it("executes slash commands through the action's repository facade", async () => {
     const runtime = {
       getService(serviceType: string) {
-        return serviceType === "coding_agent"
+        return serviceType === "doolittle_coding_agent"
           ? {
               repoStatus: () => "working tree clean",
               repoDiff: () => "1 file changed",

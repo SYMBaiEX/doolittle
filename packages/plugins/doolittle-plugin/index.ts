@@ -7,3 +7,4 @@ export { createPersonalityPlugin } from "./identity/personality";
 export { createRolodexPlugin } from "./identity/rolodex";
 export { localSandboxPlugin } from "./local-sandbox";
 export { createPlanningPlugin } from "./planning";
+export { createSecretsVaultPersistenceService } from "./secrets-vault";

@@ -1,6 +1,10 @@
 import {
   DOOLITTLE_BROWSER_SERVICE,
+  DOOLITTLE_CODING_AGENT_SERVICE,
+  DOOLITTLE_EXPERIENCE_SERVICE,
   DOOLITTLE_MCP_SERVICE,
+  DOOLITTLE_PERSONALITY_SERVICE,
+  DOOLITTLE_ROLODEX_SERVICE,
 } from "@doolittle/contracts";
 import { describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
@@ -190,14 +194,14 @@ function makeServices(overrides: Partial<AppServices> = {}): AppServices {
 
 function makeRequiredIdentityRuntime(services: AppServices): RuntimeLike {
   return makeRuntime({
-    personality: {
+    [DOOLITTLE_PERSONALITY_SERVICE]: {
       activeId: () => services.personalities.getActive().id,
       get: (id: string) => services.personalities.get(id),
       activate: (id: string) => services.personalities.setActive(id),
       summary: () => services.personalities.summary(),
       list: () => services.personalities.list(),
     },
-    rolodex: {
+    [DOOLITTLE_ROLODEX_SERVICE]: {
       card: (userId: string) => services.userProfiles.renderCards(userId),
       recall: (userId: string, query: string) =>
         services.userProfiles.recall(userId, query),
@@ -218,7 +222,7 @@ function makeRequiredIdentityRuntime(services: AppServices): RuntimeLike {
         services.userProfiles.relationship(userId),
       engagement: (userId: string) => services.userProfiles.engagement(userId),
     },
-    experience: {
+    [DOOLITTLE_EXPERIENCE_SERVICE]: {
       summary: () => ({
         sessions: services.sessions.summary(),
         memory: {
@@ -233,7 +237,7 @@ function makeRequiredIdentityRuntime(services: AppServices): RuntimeLike {
       status: () => services.mcp.status(),
       getCachedTools: () => services.mcp.getCachedTools(),
     },
-    coding_agent: {
+    [DOOLITTLE_CODING_AGENT_SERVICE]: {
       read: () => "",
       write: () => undefined,
       search: () => [],
@@ -266,7 +270,7 @@ function makeRequiredIdentityRuntime(services: AppServices): RuntimeLike {
 describe("ownership helpers", () => {
   it("prefers native ownership and generated-skill helpers when available", () => {
     const runtime = makeRuntime({
-      personality: {
+      [DOOLITTLE_PERSONALITY_SERVICE]: {
         activeId: () => "native",
         get: (id: string) => ({ id, name: "Native" }),
         activate: (id: string) => ({ id, name: `Native:${id}` }),
@@ -277,7 +281,7 @@ describe("ownership helpers", () => {
         }),
         list: () => [{ id: "native", name: "Native" }],
       },
-      rolodex: {
+      [DOOLITTLE_ROLODEX_SERVICE]: {
         card: (userId: string) => `native-card:${userId}`,
         recall: (userId: string, query: string) => [
           `native-recall:${userId}:${query}`,
@@ -321,7 +325,7 @@ describe("ownership helpers", () => {
         relationship: () => ({ status: "trusted" }),
         engagement: () => ({ score: 99 }),
       },
-      experience: {
+      [DOOLITTLE_EXPERIENCE_SERVICE]: {
         summary: () => ({
           sessions: { totalSessions: 9, recentSessionIds: ["n1", "n2", "n3"] },
           memory: {
@@ -438,49 +442,49 @@ describe("ownership helpers", () => {
       preview: ["memory"],
     });
     expect(() => getEffectivePersonalitySummary(runtime)).toThrow(
-      "Required Eliza service personality is unavailable.",
+      "Required Doolittle service doolittle_personality is unavailable.",
     );
     expect(() => getEffectivePersonalityList(runtime)).toThrow(
-      "Required Eliza service personality is unavailable.",
+      "Required Doolittle service doolittle_personality is unavailable.",
     );
     expect(() => getEffectiveActivePersonality(runtime)).toThrow(
-      "Required Eliza service personality is unavailable.",
+      "Required Doolittle service doolittle_personality is unavailable.",
     );
     expect(() => activateEffectivePersonality(runtime, "teacher")).toThrow(
-      "Required Eliza service personality is unavailable.",
+      "Required Doolittle service doolittle_personality is unavailable.",
     );
     expect(() => getEffectiveRolodexSummary(runtime)).toThrow(
-      "Required Eliza service rolodex is unavailable.",
+      "Required Doolittle service doolittle_rolodex is unavailable.",
     );
     expect(() => getEffectiveUserProfileCard(runtime, "user-2")).toThrow(
-      "Required Eliza service rolodex is unavailable.",
+      "Required Doolittle service doolittle_rolodex is unavailable.",
     );
     expect(() =>
       recallEffectiveUserProfile(runtime, "user-2", "query"),
-    ).toThrow("Required Eliza service rolodex is unavailable.");
+    ).toThrow("Required Doolittle service doolittle_rolodex is unavailable.");
     expect(() =>
       rememberEffectiveUserProfile(runtime, "user-2", "fact", "value"),
-    ).toThrow("Required Eliza service rolodex is unavailable.");
+    ).toThrow("Required Doolittle service doolittle_rolodex is unavailable.");
     expect(() => observeEffectiveAgentProfile(runtime, "note")).toThrow(
-      "Required Eliza service rolodex is unavailable.",
+      "Required Doolittle service doolittle_rolodex is unavailable.",
     );
     expect(() => getEffectiveAgentProfile(runtime)).toThrow(
-      "Required Eliza service rolodex is unavailable.",
+      "Required Doolittle service doolittle_rolodex is unavailable.",
     );
     expect(() => getEffectiveAgentProfileCard(runtime)).toThrow(
-      "Required Eliza service rolodex is unavailable.",
+      "Required Doolittle service doolittle_rolodex is unavailable.",
     );
     expect(getEffectiveGeneratedSkills(runtime, services)).toEqual([
       "generated/fallback",
     ]);
     expect(() => getEffectiveUserProfileSearch(runtime, "alpha")).toThrow(
-      "Required Eliza service rolodex is unavailable.",
+      "Required Doolittle service doolittle_rolodex is unavailable.",
     );
     expect(() => getEffectiveUserBeliefs(runtime, "user-2")).toThrow(
-      "Required Eliza service rolodex is unavailable.",
+      "Required Doolittle service doolittle_rolodex is unavailable.",
     );
     expect(() => getEffectiveExperienceSummary(runtime)).toThrow(
-      "Required Eliza service experience is unavailable.",
+      "Required Doolittle service doolittle_experience is unavailable.",
     );
   });
 

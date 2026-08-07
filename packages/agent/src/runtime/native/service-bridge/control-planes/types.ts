@@ -3,7 +3,7 @@ import type {
   NativeCodeGenerationService,
   NativeFormsService,
   NativeGitHubPlanningService,
-  NativeSecretsManagerService,
+  NativeSecretsService,
 } from "../runtime-contracts";
 
 export type { RuntimeLike };
@@ -12,7 +12,7 @@ export type NativeResearchServices = {
   codeGeneration?: NativeCodeGenerationService;
   forms?: NativeFormsService;
   githubPlanning?: NativeGitHubPlanningService;
-  secretsManager?: NativeSecretsManagerService;
+  secrets?: NativeSecretsService;
 };
 
 export interface NativePlanningControlPlane {

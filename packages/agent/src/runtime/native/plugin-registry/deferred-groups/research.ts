@@ -4,10 +4,7 @@ import {
   createAutocoderPlugin,
 } from "@plugins/doolittle-plugin";
 import { normalizePlugin } from "../support";
-import {
-  type DeferredPluginGroupContext,
-  resolveDeferredPluginDataRoot,
-} from "./shared";
+import type { DeferredPluginGroupContext } from "./shared";
 
 export function loadDeferredResearchPlugins({
   services,
@@ -27,9 +24,6 @@ export function loadDeferredResearchPlugins({
       },
       workspace: {
         rootDir: () => config.workspaceDir,
-      },
-      storage: {
-        dataRoot: resolveDeferredPluginDataRoot(config),
       },
     }),
   ];

@@ -44,6 +44,14 @@ home for product-only actions and service projections.
   official plugin reads and refreshes the Codex CLI OAuth file itself.
 - Removed Codex from Doolittle's provider publishing pipeline because the
   package is now upstream-owned.
+- Replaced the custom `secrets-manager` runtime with the official core
+  `SECRETS` service and retained only a namespaced `@elizaos/vault` persistence
+  mirror for global-secret restart durability and legacy plaintext import.
+- Namespaced the remaining Doolittle-owned coding, code-generation, forms,
+  local-sandbox, personality, rolodex, and experience services so official
+  Eliza identifiers remain reserved for upstream owners.
+- Declared the official Form and GitHub packages in the workspaces that import
+  them directly instead of relying on root dependency hoisting.
 
 ## Enforcement
 

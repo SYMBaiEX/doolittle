@@ -1,0 +1,1 @@
+export { createSecretsVaultPersistenceService } from "./service";

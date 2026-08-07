@@ -45,6 +45,7 @@ export interface PluginSettings {
   ANTHROPIC_SMALL_MODEL: string;
   ANTHROPIC_LARGE_MODEL: string;
   SECRET_SALT: string;
+  ENCRYPTION_SALT: string;
   PGLITE_DATA_DIR: string;
   USE_MULTI_STEP: string;
   MAX_MULTISTEP_ITERATIONS: string;

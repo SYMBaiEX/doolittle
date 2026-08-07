@@ -19,7 +19,7 @@ export function getEffectiveExperienceSummary(
   const service = getNativeServices(runtime).experience;
   if (!service) {
     throw new Error(
-      `Required Eliza service ${DOOLITTLE_EXPERIENCE_SERVICE} is unavailable.`,
+      `Required Doolittle service ${DOOLITTLE_EXPERIENCE_SERVICE} is unavailable.`,
     );
   }
   return service.summary() as NativeExperienceSummary;

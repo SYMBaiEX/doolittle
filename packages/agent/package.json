@@ -14,6 +14,8 @@
     "@elizaos/plugin-agent-orchestrator": "2.0.3-beta.7",
     "@elizaos/plugin-agent-skills": "2.0.3-beta.7",
     "@elizaos/plugin-codex-cli": "2.0.3-beta.7",
+    "@elizaos/plugin-form": "2.0.3-beta.7",
+    "@elizaos/plugin-github": "2.0.3-beta.7",
     "@elizaos/plugin-mcp": "2.0.3-beta.7",
     "@elizaos/plugin-anthropic": "2.0.3-beta.7",
     "@doolittle/plugin-claude-code": "workspace:*",

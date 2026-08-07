@@ -26,7 +26,7 @@ import type {
   NativeGitHubPlanningService,
   NativeOperatorPlanningService,
   NativePluginManagerService,
-  NativeSecretsManagerService,
+  NativeSecretsService,
   NativeTelegramTransportService,
 } from "./integrations";
 import type {
@@ -71,5 +71,5 @@ export type NativeServices = {
   actionPlanning: NativeActionPlanningService | undefined;
   operatorPlanning: NativeOperatorPlanningService | undefined;
   githubPlanning: NativeGitHubPlanningService | undefined;
-  secretsManager: NativeSecretsManagerService | undefined;
+  secrets: NativeSecretsService | undefined;
 };

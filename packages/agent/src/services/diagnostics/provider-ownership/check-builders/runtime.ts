@@ -28,7 +28,7 @@ export function buildRuntimeOwnershipChecks(
         id: "native.execution.codegen",
         status: runtimeExecutionControl.codeGeneration.ready ? "pass" : "warn",
         summary: "Doolittle code generation ownership",
-        detail: `available=${runtimeExecutionControl.codeGeneration.available} ready=${runtimeExecutionControl.codeGeneration.ready} methods=${runtimeExecutionControl.codeGeneration.methods.join(",") || "none"} github=${runtimeExecutionControl.github.available} secrets=${runtimeExecutionControl.secretsManager.available}`,
+        detail: `available=${runtimeExecutionControl.codeGeneration.available} ready=${runtimeExecutionControl.codeGeneration.ready} methods=${runtimeExecutionControl.codeGeneration.methods.join(",") || "none"} github=${runtimeExecutionControl.github.available} secrets=${runtimeExecutionControl.secrets.available}`,
       },
     );
   }

@@ -1,3 +1,8 @@
+import {
+  DOOLITTLE_EXPERIENCE_SERVICE,
+  DOOLITTLE_PERSONALITY_SERVICE,
+  DOOLITTLE_ROLODEX_SERVICE,
+} from "@doolittle/contracts";
 import type { AppContext } from "@/runtime/bootstrap";
 
 export function createIdentityTestContext(
@@ -64,14 +69,14 @@ export function createIdentityTestContext(
   };
 
   const nativeServices: Record<string, Record<string, unknown>> = {
-    personality: {
+    [DOOLITTLE_PERSONALITY_SERVICE]: {
       activeId: () => personalities.getActive().id,
       get: personalities.get,
       activate: personalities.setActive,
       list: personalities.list,
       summary: personalities.summary,
     },
-    rolodex: {
+    [DOOLITTLE_ROLODEX_SERVICE]: {
       list: userProfiles.list,
       get: userProfiles.get,
       card: userProfiles.renderCards,
@@ -92,7 +97,7 @@ export function createIdentityTestContext(
       relationship: userProfiles.relationship,
       engagement: userProfiles.engagement,
     },
-    experience: {
+    [DOOLITTLE_EXPERIENCE_SERVICE]: {
       summary: () => ({
         sessions: sessions.summary(),
         memory: {
@@ -102,9 +107,16 @@ export function createIdentityTestContext(
     },
   };
 
+  const fixtureServiceNames: Record<string, string> = {
+    experience: DOOLITTLE_EXPERIENCE_SERVICE,
+    personality: DOOLITTLE_PERSONALITY_SERVICE,
+    rolodex: DOOLITTLE_ROLODEX_SERVICE,
+  };
+
   for (const [name, override] of Object.entries(nativeOverrides)) {
-    nativeServices[name] = {
-      ...(nativeServices[name] ?? {}),
+    const serviceName = fixtureServiceNames[name] ?? name;
+    nativeServices[serviceName] = {
+      ...(nativeServices[serviceName] ?? {}),
       ...(override as Record<string, unknown>),
     };
   }

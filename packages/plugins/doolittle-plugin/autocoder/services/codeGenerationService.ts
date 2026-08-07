@@ -1,3 +1,4 @@
+import { DOOLITTLE_CODE_GENERATION_SERVICE } from "@doolittle/contracts";
 import type { IAgentRuntime } from "@elizaos/core";
 import { Service as ElizaService } from "@elizaos/core";
 import {
@@ -10,7 +11,7 @@ import type { AutocoderPluginOptions } from "../shared/types";
 
 export function createCodeGenerationService(options: AutocoderPluginOptions) {
   class CodeGenerationService extends ElizaService {
-    static serviceType = "code-generation";
+    static serviceType = DOOLITTLE_CODE_GENERATION_SERVICE;
     capabilityDescription =
       "Doolittle-owned planning service for research briefs, PRDs, QA checklists, and generation scaffolds.";
 

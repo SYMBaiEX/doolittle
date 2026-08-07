@@ -1,5 +1,3 @@
-import type { PluginStorageOptions } from "@doolittle/contracts";
-
 export interface AutocoderPluginOptions {
   terminal: {
     run(command: string, timeoutMs?: number): Promise<unknown>;
@@ -13,5 +11,4 @@ export interface AutocoderPluginOptions {
   workspace: {
     rootDir(): string;
   };
-  storage?: PluginStorageOptions;
 }

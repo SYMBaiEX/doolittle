@@ -4,6 +4,7 @@ import {
   DOOLITTLE_MCP_SERVICE,
   DOOLITTLE_OPERATOR_PLANNING_SERVICE,
 } from "@doolittle/contracts";
+import { SECRETS_SERVICE_TYPE } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "@/services";
 import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
@@ -63,7 +64,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
   it("builds native forms and execution control planes from installed services", () => {
     const runtime = {
       getService(name: string) {
-        if (name === "forms") {
+        if (name === "doolittle_forms") {
           return {
             capabilityDescription: "forms",
             isPersistenceAvailable: () => true,
@@ -79,7 +80,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
             forcePersist: async () => undefined,
           };
         }
-        if (name === "e2b") {
+        if (name === "doolittle_local_sandbox") {
           return {
             capabilityDescription: "e2b",
             listSandboxes: () => [
@@ -88,7 +89,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
             executeCode: async () => ({ success: true }),
           };
         }
-        if (name === "code-generation") {
+        if (name === "doolittle_code_generation") {
           return {
             capabilityDescription: "codegen",
             performResearch: () => undefined,
@@ -118,11 +119,11 @@ describe("getEffectiveMessagingTransportInventory", () => {
             deleteRepository: () => undefined,
           };
         }
-        if (name === "secrets-manager") {
+        if (name === SECRETS_SERVICE_TYPE) {
           return {
-            listSecretKeys: () => ["OPENAI_API_KEY"],
-            getSecret: () => "x",
-            setSecret: () => undefined,
+            list: async () => ({ OPENAI_API_KEY: {} }),
+            getGlobal: async () => "x",
+            setGlobal: async () => true,
           };
         }
         if (name === "agent_event") {
@@ -162,7 +163,8 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(execution.codeGeneration.ready).toBe(true);
     expect(execution.codeGeneration.methods).toContain("generateCode");
     expect(execution.github.available).toBe(true);
-    expect(execution.secretsManager.keys).toContain("OPENAI_API_KEY");
+    expect(execution.secrets.keys).toEqual([]);
+    expect(execution.secrets.hasListKeys).toBe(true);
   });
 
   it("marks browser, the official knowledge graph, and orchestrator as plugin-owned when native services are present", async () => {
@@ -214,8 +216,9 @@ describe("getEffectiveMessagingTransportInventory", () => {
 
   it("invokes native forms, sandboxes, and code generation actions", async () => {
     const runtime = {
+      agentId: "00000000-0000-4000-8000-000000000001",
       getService(name: string) {
-        if (name === "forms") {
+        if (name === "doolittle_forms") {
           return {
             listForms: () => [
               {
@@ -252,7 +255,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
             cancelForm: async (id: string) => id === "form-created",
           };
         }
-        if (name === "e2b") {
+        if (name === "doolittle_local_sandbox") {
           return {
             listSandboxes: () => [{ id: "sandbox-1" }],
             createSandbox: async () => "sandbox-2",
@@ -264,7 +267,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
             }),
           };
         }
-        if (name === "code-generation") {
+        if (name === "doolittle_code_generation") {
           return {
             performResearch: async (request: Record<string, unknown>) => ({
               research: true,
@@ -334,12 +337,11 @@ describe("getEffectiveMessagingTransportInventory", () => {
             deleteRepository: async (name: string) => ({ deleted: name }),
           };
         }
-        if (name === "secrets-manager") {
+        if (name === SECRETS_SERVICE_TYPE) {
           return {
-            listSecretKeys: async () => ["OPENAI_API_KEY"],
-            getSecret: async (key: string) => `value:${key}`,
-            setSecret: async () => undefined,
-            hasSecret: async () => true,
+            list: async () => ({ OPENAI_API_KEY: {} }),
+            getGlobal: async (key: string) => `value:${key}`,
+            setGlobal: async () => true,
           };
         }
         return null;
@@ -461,7 +463,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
     );
     await expect(
       setEffectiveSecret(runtime, "OPENAI_API_KEY", "secret"),
-    ).resolves.toBeUndefined();
+    ).resolves.toBe(true);
   });
 
   it("reports live telegram service when runtime services exist", () => {
@@ -713,7 +715,7 @@ describe("getEffectiveMessagingTransportInventory", () => {
         if (name === "ORCHESTRATOR_TASK_SERVICE") {
           return {};
         }
-        if (name === "coding_agent") {
+        if (name === "doolittle_coding_agent") {
           return {
             read: () => "",
             write: () => undefined,
@@ -855,15 +857,15 @@ describe("media and research control plane helpers", () => {
   it("reports action-bench depth and gated autocoder readiness", () => {
     const runtime = {
       getService(name: string) {
-        if (name === "code-generation") {
+        if (name === "doolittle_code_generation") {
           return {
             capabilityDescription: "Native code generation",
           };
         }
-        if (name === "e2b") {
+        if (name === "doolittle_local_sandbox") {
           return {};
         }
-        if (name === "forms") {
+        if (name === "doolittle_forms") {
           return {};
         }
         return null;
@@ -1024,7 +1026,7 @@ describe("identity bridge helpers", () => {
   it("keeps durable text memory distinct while preferring native identity and experience summaries", () => {
     const runtime = {
       getService(name: string) {
-        if (name === "personality") {
+        if (name === "doolittle_personality") {
           return {
             summary: () => ({
               total: 4,
@@ -1033,7 +1035,7 @@ describe("identity bridge helpers", () => {
             }),
           };
         }
-        if (name === "rolodex") {
+        if (name === "doolittle_rolodex") {
           return {
             summary: () => ({
               totalProfiles: 2,
@@ -1059,7 +1061,7 @@ describe("identity bridge helpers", () => {
             }),
           };
         }
-        if (name === "experience") {
+        if (name === "doolittle_experience") {
           return {
             summary: () => ({
               sessions: {
@@ -1229,13 +1231,13 @@ describe("identity bridge helpers", () => {
       preview: ["memory:fallback"],
     });
     expect(() => getEffectivePersonalitySummary(runtime)).toThrow(
-      "Required Eliza service personality is unavailable.",
+      "Required Doolittle service doolittle_personality is unavailable.",
     );
     expect(() => getEffectiveRolodexSummary(runtime)).toThrow(
-      "Required Eliza service rolodex is unavailable.",
+      "Required Doolittle service doolittle_rolodex is unavailable.",
     );
     expect(() => getEffectiveExperienceSummary(runtime)).toThrow(
-      "Required Eliza service experience is unavailable.",
+      "Required Doolittle service doolittle_experience is unavailable.",
     );
   });
 });

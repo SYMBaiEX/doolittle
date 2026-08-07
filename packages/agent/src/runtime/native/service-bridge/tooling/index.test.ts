@@ -67,7 +67,7 @@ describe("tooling bridge helpers", () => {
             ) => ({ name, input, source: "native-mcp" }),
           };
         }
-        if (name === "coding_agent") {
+        if (name === "doolittle_coding_agent") {
           return {
             workspaceRoot: () => "/tmp/native",
             workspaceSummary: (limit = 40) => `native-summary:${limit}`,
@@ -363,7 +363,7 @@ describe("tooling bridge helpers", () => {
 
     const runtime = {
       getService(name: string) {
-        if (name === "coding_agent") {
+        if (name === "doolittle_coding_agent") {
           return {
             inspectProject: (targetPath: string) =>
               inspectLocalProject(targetPath),

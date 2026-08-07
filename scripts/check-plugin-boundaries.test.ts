@@ -28,6 +28,8 @@ function createBoundaryFixture(options: {
   includeCustomCloudNormalization?: boolean;
   includeDirectJsonWrite?: boolean;
   includeRetiredCodexProvider?: boolean;
+  includeRetiredSecretsManager?: boolean;
+  includeUnnamespacedProductService?: boolean;
 }): string {
   const root = mkdtempSync(join(tmpdir(), "doolittle-boundary-"));
 
@@ -130,7 +132,11 @@ function createBoundaryFixture(options: {
       ? 'import type { AppServices } from "@doolittle/agent/services";\nexport type Host = AppServices;\n'
       : options.includeDuplicatedModelRegistrations
         ? "export const plugin = { models: { [ModelType.TEXT_LARGE]: handler } };\n"
-        : 'export const plugin = "ok";\n',
+        : options.includeRetiredSecretsManager
+          ? 'export class SecretsManagerService { static serviceType = "secrets-manager"; }\n'
+          : options.includeUnnamespacedProductService
+            ? 'export class FormsService { static serviceType = "forms"; }\n'
+            : 'export const plugin = "ok";\n',
     "utf8",
   );
 
@@ -254,6 +260,30 @@ describe("check-plugin-boundaries", () => {
       "restores Doolittle's retired Codex transport instead of the official @elizaos/plugin-codex-cli package",
     );
     expect(result.stderr).toContain("runtime/native/providers.ts");
+  });
+
+  it("rejects the retired Doolittle secrets manager", () => {
+    fixture = createBoundaryFixture({ includeRetiredSecretsManager: true });
+    const result = runScript(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "restores Doolittle's retired secrets manager instead of the official Eliza SECRETS service",
+    );
+    expect(result.stderr).toContain("plugin-dummy/index.ts");
+  });
+
+  it("rejects unnamespaced Doolittle product service identifiers", () => {
+    fixture = createBoundaryFixture({
+      includeUnnamespacedProductService: true,
+    });
+    const result = runScript(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "registers or resolves a Doolittle product service without a doolittle_ namespace",
+    );
+    expect(result.stderr).toContain("plugin-dummy/index.ts");
   });
 
   it("rejects action-owned model prompts outside the shared cache contract", () => {

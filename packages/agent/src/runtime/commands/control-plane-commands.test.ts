@@ -16,7 +16,7 @@ describe("control plane commands", () => {
         config: { agentName: "Doolittle", workspaceDir: "/tmp/workspace" },
         runtime: {
           getService: (name: string) => {
-            if (name === "personality") {
+            if (name === "doolittle_personality") {
               return {
                 activeId: () => "operator",
                 get: () => ({
@@ -25,7 +25,7 @@ describe("control plane commands", () => {
                 }),
               };
             }
-            if (name === "rolodex") {
+            if (name === "doolittle_rolodex") {
               return {
                 list: () => [
                   {

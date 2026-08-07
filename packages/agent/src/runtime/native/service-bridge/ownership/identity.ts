@@ -20,7 +20,7 @@ function requirePersonalityService(
   const service = getNativeServices(runtime).personality;
   if (!service) {
     throw new Error(
-      `Required Eliza service ${DOOLITTLE_PERSONALITY_SERVICE} is unavailable.`,
+      `Required Doolittle service ${DOOLITTLE_PERSONALITY_SERVICE} is unavailable.`,
     );
   }
   return service;
@@ -30,7 +30,7 @@ function requireRolodexService(runtime: RuntimeLike): NativeRolodexService {
   const service = getNativeServices(runtime).rolodex;
   if (!service) {
     throw new Error(
-      `Required Eliza service ${DOOLITTLE_ROLODEX_SERVICE} is unavailable.`,
+      `Required Doolittle service ${DOOLITTLE_ROLODEX_SERVICE} is unavailable.`,
     );
   }
   return service;
@@ -43,7 +43,7 @@ export function getEffectiveActivePersonality(
   const activeId = getScopedTurnPersonalityId(runtime) ?? service.activeId();
   const profile = activeId ? service.get(activeId) : undefined;
   if (!profile) {
-    throw new Error("The Eliza personality service has no active profile.");
+    throw new Error("The Doolittle personality service has no active profile.");
   }
   return profile as PersonalityProfile;
 }

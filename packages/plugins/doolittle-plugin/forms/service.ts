@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { DOOLITTLE_FORMS_SERVICE } from "@doolittle/contracts";
 import {
   Service as ElizaService,
   type IAgentRuntime,
@@ -43,7 +44,7 @@ export const NATIVE_DEFAULT_TEMPLATES: FormDefinition[] = Object.values(
 
 export const createFormsService = (storageRoot: string) => {
   class FormsService extends ElizaService {
-    static serviceType = "forms";
+    static serviceType = DOOLITTLE_FORMS_SERVICE;
 
     capabilityDescription =
       "Doolittle-owned forms service with persistent operator and autocoder intake templates.";

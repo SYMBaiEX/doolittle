@@ -80,7 +80,7 @@ export const TOOL_CATALOG: readonly ToolDefinition[] = [
     name: "Doolittle Autocoder Secrets",
     category: "runtime",
     description:
-      "Inspect and manage secrets-manager keys for Doolittle autocoder workflows.",
+      "Inspect and manage encrypted global keys through Eliza's native secrets service.",
     enabled: true,
     transport: "service",
   },

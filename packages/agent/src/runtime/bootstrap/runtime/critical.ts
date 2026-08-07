@@ -10,12 +10,18 @@ import {
   DOOLITTLE_PERSONALITY_SERVICE,
   DOOLITTLE_ROLODEX_SERVICE,
   DOOLITTLE_SCHEDULER_SERVICE,
+  DOOLITTLE_SECRETS_VAULT_SERVICE,
   DOOLITTLE_SHELL_SERVICE,
   DOOLITTLE_WORKFLOW_DISPATCH_SERVICE,
   ORCHESTRATOR_TASK_SERVICE,
 } from "@doolittle/contracts";
 import { KNOWLEDGE_GRAPH_SERVICE } from "@elizaos/agent/services/knowledge-graph/index";
-import { type AgentRuntime, PairingService, stringToUuid } from "@elizaos/core";
+import {
+  type AgentRuntime,
+  PairingService,
+  SECRETS_SERVICE_TYPE,
+  stringToUuid,
+} from "@elizaos/core";
 import { AgentSkillsService } from "@elizaos/plugin-agent-skills";
 import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
 import { PDF_SERVICE } from "@/runtime/native/service-bridge/runtime-contracts";
@@ -28,6 +34,8 @@ const CRITICAL_RUNTIME_SERVICES = [
   "planning",
   "mcp",
   PairingService.serviceType,
+  SECRETS_SERVICE_TYPE,
+  DOOLITTLE_SECRETS_VAULT_SERVICE,
   "memoryStorage",
   KNOWLEDGE_GRAPH_SERVICE,
   PDF_SERVICE,

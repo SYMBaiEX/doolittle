@@ -85,6 +85,7 @@ export async function buildAppContext({
       plugins: nativePluginAssembly.initial,
       advancedCapabilities: true,
       enableExtendedCapabilities: true,
+      enableSecretsManager: true,
     });
 
   appendBootstrapTrace("phase:initializeRuntime:start");

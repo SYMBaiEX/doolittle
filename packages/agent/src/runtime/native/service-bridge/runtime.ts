@@ -1,6 +1,9 @@
 import {
+  DOOLITTLE_CODE_GENERATION_SERVICE,
   DOOLITTLE_EXPERIENCE_SERVICE,
+  DOOLITTLE_FORMS_SERVICE,
   DOOLITTLE_GITHUB_PLANNING_SERVICE,
+  DOOLITTLE_LOCAL_SANDBOX_SERVICE,
   DOOLITTLE_PERSONALITY_SERVICE,
   DOOLITTLE_ROLODEX_SERVICE,
 } from "@doolittle/contracts";
@@ -9,7 +12,11 @@ import {
   KNOWLEDGE_GRAPH_SERVICE,
   type KnowledgeGraphService,
 } from "@elizaos/agent/services/knowledge-graph/index";
-import type { HookService, PairingService } from "@elizaos/core";
+import {
+  type HookService,
+  type PairingService,
+  SECRETS_SERVICE_TYPE,
+} from "@elizaos/core";
 import type {
   NativeActionPlanningService,
   NativeAgentOrchestratorService,
@@ -31,7 +38,7 @@ import type {
   NativePersonalityService,
   NativePluginManagerService,
   NativeRolodexService,
-  NativeSecretsManagerService,
+  NativeSecretsService,
   NativeServices,
   NativeShellService,
   NativeTelegramTransportService,
@@ -126,10 +133,10 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
     ),
     codeGeneration: service<NativeCodeGenerationService>(
       runtime,
-      "code-generation",
+      DOOLITTLE_CODE_GENERATION_SERVICE,
     ),
-    e2b: service<NativeE2BService>(runtime, "e2b"),
-    forms: service<NativeFormsService>(runtime, "forms"),
+    e2b: service<NativeE2BService>(runtime, DOOLITTLE_LOCAL_SANDBOX_SERVICE),
+    forms: service<NativeFormsService>(runtime, DOOLITTLE_FORMS_SERVICE),
     actionPlanning: service<NativeActionPlanningService>(runtime, "planning"),
     operatorPlanning: service<NativeOperatorPlanningService>(
       runtime,
@@ -139,10 +146,7 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
       runtime,
       DOOLITTLE_GITHUB_PLANNING_SERVICE,
     ),
-    secretsManager: service<NativeSecretsManagerService>(
-      runtime,
-      "secrets-manager",
-    ),
+    secrets: service<NativeSecretsService>(runtime, SECRETS_SERVICE_TYPE),
   };
 }
 

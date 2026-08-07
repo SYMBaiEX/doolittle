@@ -41,7 +41,7 @@ describe("autonomous control plane", () => {
             getLoadedSkills: () => [],
           };
         }
-        if (name === "coding_agent") {
+        if (name === "doolittle_coding_agent") {
           return {
             read: () => "",
             write: () => undefined,
@@ -77,7 +77,7 @@ describe("autonomous control plane", () => {
             }),
           };
         }
-        if (name === "forms") {
+        if (name === "doolittle_forms") {
           return {
             listForms: () => [],
             getTemplates: () => new Map(),

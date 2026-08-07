@@ -5,7 +5,9 @@ import type { EnvConfig } from "@/types/runtime";
 
 export function ensureSecretSalt(config: EnvConfig): string {
   const provided =
-    process.env.SECRET_SALT?.trim() || process.env.ELIZA_SECRET_SALT?.trim();
+    process.env.SECRET_SALT?.trim() ||
+    process.env.ENCRYPTION_SALT?.trim() ||
+    process.env.ELIZA_SECRET_SALT?.trim();
   if (provided) {
     return provided;
   }
