@@ -82,6 +82,7 @@
     "workspace:plugins": "nub run --cwd packages/agent start --help"
   },
   "dependencies": {
+    "@discordjs/node-pre-gyp": "0.4.5",
     "@doolittle/acp": "workspace:*",
     "@doolittle/contracts": "workspace:*",
     "@electric-sql/pglite": "0.4.5",
