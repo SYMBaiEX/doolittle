@@ -125,4 +125,28 @@ describe("desktop Eliza client transport", () => {
 
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
   });
+
+  it("forwards cancellation through the desktop client helper", async () => {
+    installTransport(
+      async () =>
+        new Promise<AgentTransportResponse>(() => {
+          // The official resource hook aborts this request on dependency changes.
+        }),
+    );
+    const controller = new AbortController();
+    const pending = desktopRequest(
+      "/runtime/status",
+      "GET",
+      undefined,
+      controller.signal,
+    );
+
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({
+      name: "ApiError",
+      path: "/runtime/status",
+      message: "Request aborted",
+    });
+  });
 });

@@ -1,3 +1,4 @@
+import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
 import {
   type ReactNode,
   useCallback,
@@ -56,28 +57,6 @@ interface UseToastActions {
   pause: (id: string) => void;
   resume: (id: string) => void;
   clearQueue: () => void;
-}
-
-function useReducedMotion(): boolean {
-  const [isReducedMotion, setIsReducedMotion] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) {
-      return;
-    }
-
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => {
-      setIsReducedMotion(query.matches);
-    };
-
-    update();
-
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-
-  return isReducedMotion;
 }
 
 function createManagedToast(
@@ -312,7 +291,7 @@ export function ToastRegion({
   onResume,
   className = "toast-region",
 }: ToastRegionProps) {
-  const isReducedMotion = useReducedMotion();
+  const isReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   return (
     <section

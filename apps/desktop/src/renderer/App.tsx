@@ -1,4 +1,5 @@
 import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
+import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
 import {
   type CSSProperties,
   type KeyboardEvent,
@@ -493,9 +494,7 @@ export function App() {
     loadAppearancePreference,
   );
   const [density, setDensity] = useState<DesktopDensity>(loadDensityPreference);
-  const [systemPrefersDark, setSystemPrefersDark] = useState(
-    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
-  );
+  const systemPrefersDark = useMediaQuery("(prefers-color-scheme: dark)");
   const resolvedAppearance = resolveAppearance(appearance, systemPrefersDark);
   const {
     toasts,
@@ -529,9 +528,7 @@ export function App() {
   const projectTransitionRef = useRef(0);
   const pendingProjectScopeRef = useRef<ProjectScope | null>(null);
   const workspaceSwitchInFlightRef = useRef(0);
-  const [isMobileSidebarMode, setIsMobileSidebarMode] = useState(
-    () => window.matchMedia(MOBILE_SIDEBAR_QUERY).matches,
-  );
+  const isMobileSidebarMode = useMediaQuery(MOBILE_SIDEBAR_QUERY);
   const mobileSidebarOpen = sidebarOpen && isMobileSidebarMode;
   const mobileSidebarDialogProps = mobileSidebarOpen
     ? ({ "aria-modal": true, role: "dialog" } as const)
@@ -1275,15 +1272,6 @@ export function App() {
   }, [density]);
 
   useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const update = (event: MediaQueryListEvent) =>
-      setSystemPrefersDark(event.matches);
-    setSystemPrefersDark(media.matches);
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
-
-  useEffect(() => {
     const stored = loadStoredDesktopTheme();
     if (stored) applyDesktopTheme(stored);
   }, []);
@@ -1385,16 +1373,6 @@ export function App() {
   useEffect(() => {
     localStorage.setItem(NAV_SECTIONS_KEY, JSON.stringify([...openSections]));
   }, [openSections]);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(MOBILE_SIDEBAR_QUERY);
-    const updateMobileMode = () => {
-      setIsMobileSidebarMode(mediaQuery.matches);
-    };
-    updateMobileMode();
-    mediaQuery.addEventListener("change", updateMobileMode);
-    return () => mediaQuery.removeEventListener("change", updateMobileMode);
-  }, []);
 
   useEffect(() => {
     if (!utilityOpen || !isMobileSidebarMode) return;

@@ -89,11 +89,13 @@ export async function desktopRequest<T>(
   path: string,
   method: HttpMethod = "GET",
   body?: unknown,
+  signal?: AbortSignal,
 ): Promise<T> {
   return desktopElizaClient.fetch<T>(
     path,
     {
       method,
+      signal,
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     },
     { timeoutMs: DESKTOP_REQUEST_TIMEOUT_MS },

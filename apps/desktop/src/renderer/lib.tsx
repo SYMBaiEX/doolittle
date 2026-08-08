@@ -1,10 +1,5 @@
-import {
-  type DependencyList,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useFetchData } from "@elizaos/ui/hooks/useFetchData";
+import type { DependencyList, ReactNode } from "react";
 import { desktopRequest } from "./eliza-client";
 
 export { desktopRequest } from "./eliza-client";
@@ -71,42 +66,20 @@ export function useApiResource<T>(
   path: string | null,
   dependencies: DependencyList = [],
 ): ApiResource<T> {
-  const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(Boolean(path));
-  const [revision, setRevision] = useState(0);
+  const resource = useFetchData<T | null>(
+    (signal) =>
+      path
+        ? desktopRequest<T>(path, "GET", undefined, signal)
+        : Promise.resolve(null),
+    [path, ...dependencies],
+  );
 
-  const reload = useCallback(() => setRevision((value) => value + 1), []);
-
-  useEffect(() => {
-    void revision;
-    if (!path) {
-      setData(null);
-      setError("");
-      setLoading(false);
-      return;
-    }
-    let active = true;
-    setLoading(true);
-    setError("");
-    void desktopRequest<T>(path)
-      .then((response) => {
-        if (active) setData(response);
-      })
-      .catch((requestError) => {
-        if (active) setError(errorMessage(requestError));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-    // Dependencies are explicitly supplied by each caller.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, revision, ...dependencies]);
-
-  return { data, error, loading, reload };
+  return {
+    data: resource.status === "success" ? resource.data : null,
+    error: resource.status === "error" ? errorMessage(resource.error) : "",
+    loading: Boolean(path) && resource.status === "loading",
+    reload: resource.refetch,
+  };
 }
 
 export function PageHeader({

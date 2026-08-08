@@ -1,3 +1,4 @@
+import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import {
@@ -600,24 +601,17 @@ export function InteractiveTerminal({
 
   const activeSessionId = activeTab?.sessionId;
 
-  useEffect(() => {
-    if (!active || !running || !activeSessionId) return;
-    const tabId = activeTab?.id;
-    const sessionId = activeSessionId;
-    const cursor = activeTab?.cursor ?? 0;
-    const poll = () =>
-      tabId ? void pollOutput(tabId, sessionId, cursor) : null;
-    const interval = window.setInterval(poll, 160);
-    poll();
-    return () => window.clearInterval(interval);
-  }, [
-    active,
-    running,
-    activeTab?.id,
-    activeSessionId,
-    activeTab?.cursor,
-    pollOutput,
-  ]);
+  useIntervalWhenDocumentVisible(
+    () => {
+      if (!activeSessionId) return;
+      const tabId = activeTab?.id;
+      if (tabId) {
+        void pollOutput(tabId, activeSessionId, activeTab?.cursor ?? 0);
+      }
+    },
+    160,
+    active && running && Boolean(activeSessionId),
+  );
 
   const activeSessionSupportsResize = activeTab?.supportsResize;
 

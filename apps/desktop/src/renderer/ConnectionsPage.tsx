@@ -1,3 +1,4 @@
+import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   AccountPoolAccount,
@@ -196,16 +197,15 @@ export function ConnectionsPage({
     };
   }, [active, finishAccountSignIn]);
 
-  useEffect(() => {
-    if (!active) return;
-    const pending = (["codex", "claude-code"] as const).filter((provider) => {
+  const pendingAuthProviders = (["codex", "claude-code"] as const).filter(
+    (provider) => {
       const phase = authStates[provider]?.phase;
       return phase === "launching" || phase === "waiting";
-    });
-    if (pending.length === 0) return;
-
-    const interval = window.setInterval(() => {
-      for (const provider of pending) {
+    },
+  );
+  useIntervalWhenDocumentVisible(
+    () => {
+      for (const provider of pendingAuthProviders) {
         void window.doolittle
           .getProviderAuthState(provider)
           .then((state) => {
@@ -216,9 +216,10 @@ export function ConnectionsPage({
           })
           .catch((error) => setFeedback(errorMessage(error)));
       }
-    }, 1_000);
-    return () => window.clearInterval(interval);
-  }, [active, authStates, finishAccountSignIn, setAuthState]);
+    },
+    1_000,
+    active && pendingAuthProviders.length > 0,
+  );
 
   const startAccountSignIn = async (provider: ProviderAuthProvider) => {
     completedAuth.current.delete(provider);
