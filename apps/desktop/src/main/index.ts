@@ -31,6 +31,10 @@ import {
   trustedDevRendererUrl,
 } from "./renderer-url";
 import { ensureDesktopRuntimeState } from "./runtime-state";
+import {
+  selectBackendLaunchTarget,
+  sourceRootOverride,
+} from "./runtime-target-policy";
 import { configuredUpdater, DesktopUpdateController } from "./update-state";
 import { loadDesktopWindow } from "./window-loading";
 import {
@@ -525,11 +529,14 @@ app.whenReady().then(async () => {
     app.setActivationPolicy("regular");
     await app.dock.show();
   }
-  const sourceRoot = process.env.DOOLITTLE_DESKTOP_SOURCE_ROOT?.trim();
-  const sourceRepoRoot = sourceRoot
-    ? findRepoRoot([sourceRoot])
-    : app.isPackaged
-      ? null
+  const sourceRoot = sourceRootOverride(
+    app.isPackaged,
+    process.env.DOOLITTLE_DESKTOP_SOURCE_ROOT,
+  );
+  const sourceRepoRoot = app.isPackaged
+    ? null
+    : sourceRoot
+      ? findRepoRoot([sourceRoot])
       : findRepoRoot(
           [
             process.env.DOOLITTLE_REPO_ROOT || "",
@@ -541,15 +548,16 @@ app.whenReady().then(async () => {
   const packagedRuntime = app.isPackaged
     ? findPackagedRuntime(process.resourcesPath)
     : null;
-  const target = packagedRuntime
-    ? {
-        ...packagedRuntime,
-        repoRoot: sourceRepoRoot ?? packagedRuntime.repoRoot,
-      }
-    : sourceRuntimeTarget(
-        sourceRepoRoot ??
-          findRepoRoot([app.getAppPath(), process.cwd(), __dirname]),
-      );
+  const target = selectBackendLaunchTarget({
+    isPackaged: app.isPackaged,
+    packagedRuntime,
+    sourceRuntime: app.isPackaged
+      ? null
+      : sourceRuntimeTarget(
+          sourceRepoRoot ??
+            findRepoRoot([app.getAppPath(), process.cwd(), __dirname]),
+        ),
+  });
   const runtimeDataDir = resolve(app.getPath("userData"), "runtime");
   // Eliza's OAuth/account-storage helpers resolve their state root from
   // ELIZA_HOME. Bind the desktop main process to the same private data root

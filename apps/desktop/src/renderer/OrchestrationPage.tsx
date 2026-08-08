@@ -38,6 +38,7 @@ import {
   taskSpawnPayload,
 } from "./orchestration-helpers";
 import { ReviewPage } from "./ReviewPage";
+import { orchestrationRequests } from "./resource-request-policy";
 import "./orchestration.css";
 
 export type WorkTabId = "tasks" | "agents" | "plans" | "runs" | "review";
@@ -466,53 +467,60 @@ export function OrchestrationPage({
     }
   }, [reviewMode]);
 
+  const requestPolicy = orchestrationRequests({
+    active,
+    activeTab,
+    hasSelectedWorkflow: Boolean(selectedWorkflowId),
+    hasSelectedRun: Boolean(selectedRunId),
+  });
+
   const overviewResource = useApiResource<DelegationOverviewResponse>(
-    active ? "/delegation/overview" : null,
-    [active],
+    requestPolicy.overview ? "/delegation/overview" : null,
+    [requestPolicy.overview],
   );
   const tasksResource = useApiResource<DelegationTaskResponse>(
-    active ? "/delegation/tasks?limit=100" : null,
-    [active],
+    requestPolicy.tasks ? "/delegation/tasks?limit=100" : null,
+    [requestPolicy.tasks],
   );
   const workersResource = useApiResource<WorkersResponse>(
-    active ? "/delegation/workers?limit=100" : null,
-    [active],
+    requestPolicy.workers ? "/delegation/workers?limit=100" : null,
+    [requestPolicy.workers],
   );
   const worktreesResource = useApiResource<RepositoryWorktreesResponse>(
-    active ? "/repo/worktrees" : null,
-    [active],
+    requestPolicy.worktrees ? "/repo/worktrees" : null,
+    [requestPolicy.worktrees],
   );
   const plansResource = useApiResource<PlansResponse>(
-    active ? "/plans" : null,
-    [active],
+    requestPolicy.plans ? "/plans" : null,
+    [requestPolicy.plans],
   );
   const codegenRuntimeResource = useApiResource<CodegenRuntimeResponse>(
-    active ? "/runtime/codegen" : null,
-    [active],
+    requestPolicy.codegenRuntime ? "/runtime/codegen" : null,
+    [requestPolicy.codegenRuntime],
   );
   const accountPoolResource = useApiResource<AccountPoolResponse>(
-    active ? "/runtime/account-pool" : null,
-    [active],
+    requestPolicy.accountPool ? "/runtime/account-pool" : null,
+    [requestPolicy.accountPool],
   );
   const codegenWorkflowsResource = useApiResource<CodegenWorkflowsResponse>(
-    active ? "/codegen/workflows" : null,
-    [active],
+    requestPolicy.codegenWorkflows ? "/codegen/workflows" : null,
+    [requestPolicy.codegenWorkflows],
   );
   const codegenRunsResource = useApiResource<CodegenRunsResponse>(
-    active ? "/codegen/runs" : null,
-    [active],
+    requestPolicy.codegenRuns ? "/codegen/runs" : null,
+    [requestPolicy.codegenRuns],
   );
   const workflowDetailResource = useApiResource<WorkflowDetailResponse>(
-    active && selectedWorkflowId
+    requestPolicy.workflowDetail && selectedWorkflowId
       ? `/codegen/workflows/${safeResourceId(selectedWorkflowId)}`
       : null,
-    [active, selectedWorkflowId],
+    [requestPolicy.workflowDetail, selectedWorkflowId],
   );
   const runDetailResource = useApiResource<RunDetailResponse>(
-    active && selectedRunId
+    requestPolicy.runDetail && selectedRunId
       ? `/codegen/runs/${safeResourceId(selectedRunId)}`
       : null,
-    [active, selectedRunId],
+    [requestPolicy.runDetail, selectedRunId],
   );
 
   const allTasks = asArray(tasksResource.data?.tasks).map((entry) =>

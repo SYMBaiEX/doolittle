@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { discoverDynamicCommonJsPackages } from "./runtime-requirements";
+import {
+  discoverDynamicCommonJsPackages,
+  runtimePackageClosure,
+} from "./runtime-requirements";
 
 describe("packaged runtime CommonJS requirements", () => {
   it("deduplicates dynamic createRequire package names", () => {
@@ -23,5 +26,30 @@ describe("packaged runtime CommonJS requirements", () => {
         'import workspace from "git-workspace-service";',
       ),
     ).toEqual([]);
+  });
+
+  it("walks required and installed optional native package dependencies", () => {
+    expect(
+      runtimePackageClosure(
+        ["@snazzah/davey"],
+        new Map([
+          [
+            "@snazzah/davey",
+            {
+              dependencies: { "required-runtime": "1.0.0" },
+              optionalDependencies: {
+                "@snazzah/davey-darwin-arm64": "0.1.12",
+              },
+            },
+          ],
+          ["required-runtime", undefined],
+          ["@snazzah/davey-darwin-arm64", undefined],
+        ]),
+      ),
+    ).toEqual([
+      "@snazzah/davey",
+      "@snazzah/davey-darwin-arm64",
+      "required-runtime",
+    ]);
   });
 });

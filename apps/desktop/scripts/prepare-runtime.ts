@@ -1,5 +1,6 @@
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -7,10 +8,15 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { basename, resolve } from "node:path";
+import { createRequire } from "node:module";
+import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build, type Plugin } from "esbuild";
-import { discoverDynamicCommonJsPackages } from "./runtime-requirements";
+import {
+  discoverDynamicCommonJsPackages,
+  type RuntimePackageManifest,
+  runtimePackageClosure,
+} from "./runtime-requirements";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
@@ -18,6 +24,7 @@ const outputDir = resolve(desktopRoot, "build", "runtime");
 const outputPath = resolve(outputDir, "doolittle-runtime.mjs");
 const acpOutputPath = resolve(outputDir, "doolittle-acp.mjs");
 const runtimeNodeModulesDir = resolve(outputDir, "node_modules");
+const nativeExternalPackages = ["@snazzah/davey"] as const;
 const pgliteDist = resolve(
   repoRoot,
   "node_modules",
@@ -120,10 +127,83 @@ await build({
     "@napi-rs/keyring",
     "@napi-rs/keyring-*",
     "@node-llama-cpp/*",
+    ...nativeExternalPackages,
     "@elizaos/plugin-local-inference",
     "@elizaos/plugin-aosp-local-inference",
   ],
 });
+
+function installedRuntimePackageGraph(rootPackages: readonly string[]): {
+  manifests: Map<string, RuntimePackageManifest | undefined>;
+  sourceDirectories: Map<string, string>;
+} {
+  const rootResolver = createRequire(resolve(repoRoot, "package.json"));
+  const manifests = new Map<string, RuntimePackageManifest | undefined>();
+  const sourceDirectories = new Map<string, string>();
+  const pending: Array<{ name: string; resolver: NodeRequire }> =
+    rootPackages.map((name) => ({ name, resolver: rootResolver }));
+
+  while (pending.length > 0) {
+    const next = pending.pop();
+    if (!next || manifests.has(next.name)) continue;
+    const manifestPath = next.resolver.resolve(`${next.name}/package.json`);
+    const manifest = JSON.parse(
+      readFileSync(manifestPath, "utf8"),
+    ) as RuntimePackageManifest;
+    const packageResolver = createRequire(manifestPath);
+    const installedOptionalDependencies: Record<string, string> = {};
+
+    for (const dependency of Object.keys(manifest.dependencies ?? {})) {
+      packageResolver.resolve(`${dependency}/package.json`);
+      pending.push({ name: dependency, resolver: packageResolver });
+    }
+    for (const [dependency, version] of Object.entries(
+      manifest.optionalDependencies ?? {},
+    )) {
+      try {
+        packageResolver.resolve(`${dependency}/package.json`);
+        installedOptionalDependencies[dependency] = version;
+        pending.push({ name: dependency, resolver: packageResolver });
+      } catch {
+        // Platform-specific optional packages are absent by design.
+      }
+    }
+
+    manifests.set(next.name, {
+      dependencies: manifest.dependencies,
+      optionalDependencies: installedOptionalDependencies,
+    });
+    sourceDirectories.set(next.name, dirname(manifestPath));
+  }
+
+  return { manifests, sourceDirectories };
+}
+
+function copyNativeRuntimePackages(rootPackages: readonly string[]): string[] {
+  const { manifests, sourceDirectories } =
+    installedRuntimePackageGraph(rootPackages);
+  const packageNames = runtimePackageClosure(rootPackages, manifests);
+  for (const packageName of packageNames) {
+    const sourceDirectory = sourceDirectories.get(packageName);
+    if (!sourceDirectory) {
+      throw new Error(
+        `Native runtime package was not resolved: ${packageName}`,
+      );
+    }
+    const destination = resolve(
+      runtimeNodeModulesDir,
+      ...packageName.split("/"),
+    );
+    mkdirSync(dirname(destination), { recursive: true });
+    cpSync(sourceDirectory, destination, {
+      recursive: true,
+      dereference: true,
+    });
+  }
+  return packageNames;
+}
+
+const copiedNativePackages = copyNativeRuntimePackages(nativeExternalPackages);
 
 async function bundleCommonJsRuntimePackage(
   name: string,
@@ -226,6 +306,7 @@ writeFileSync(
       acpEntry: basename(acpOutputPath),
       node: "electron-embedded",
       assets: pgliteAssets.length,
+      nativePackages: copiedNativePackages,
     },
     null,
     2,

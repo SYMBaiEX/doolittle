@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   build: {
-    emptyOutDir: false,
+    emptyOutDir: true,
     lib: {
       entry: "src/preload/index.ts",
       formats: ["cjs"],
@@ -17,6 +17,6 @@ export default defineConfig({
         ...builtinModules.map((name) => `node:${name}`),
       ],
     },
-    sourcemap: true,
+    sourcemap: process.env.DOOLITTLE_DESKTOP_SOURCEMAPS === "1",
   },
 });

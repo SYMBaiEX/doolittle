@@ -20,6 +20,7 @@ import {
 } from "./dashboard-helpers";
 import "./dashboard.css";
 import {
+  type ApiResource,
   asArray,
   asRecord,
   asString,
@@ -35,10 +36,6 @@ import {
   useApiResource,
 } from "./lib";
 
-interface ApprovalListResponse {
-  approvals?: unknown[];
-}
-
 interface DelegationTasksResponse {
   tasks?: unknown[];
 }
@@ -53,6 +50,7 @@ interface SetupSummaryResponse {
 
 export function DashboardPage({
   active,
+  approvalsResource: approvals,
   onOpenChat,
   onOpenReview,
   onOpenTasks,
@@ -60,6 +58,7 @@ export function DashboardPage({
   onOpenProviders,
 }: {
   active: boolean;
+  approvalsResource: ApiResource<{ approvals?: unknown[] }>;
   onOpenChat?: (sessionId?: string) => void;
   onOpenReview?: () => void;
   onOpenTasks?: () => void;
@@ -72,10 +71,6 @@ export function DashboardPage({
   );
   const sessions = useApiResource<SessionsResponse>(
     active ? "/sessions?limit=8" : null,
-    [active],
-  );
-  const approvals = useApiResource<ApprovalListResponse>(
-    active ? "/execution/approvals?status=pending" : null,
     [active],
   );
   const tasks = useApiResource<DelegationTasksResponse>(

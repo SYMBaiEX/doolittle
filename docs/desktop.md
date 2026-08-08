@@ -175,7 +175,7 @@ nub run desktop:package:dir
 Build the macOS DMG and zip:
 
 ```bash
-nub run --cwd apps/desktop package:mac
+nub run desktop:package:mac
 ```
 
 The artifacts are written under `apps/desktop/release/`.
@@ -187,6 +187,12 @@ Menu and desktop shortcuts:
 
 ```bash
 nub run desktop:package:win
+```
+
+Build Linux packages:
+
+```bash
+nub run desktop:package:linux
 ```
 
 The installer is written to:

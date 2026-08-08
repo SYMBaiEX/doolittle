@@ -99,6 +99,12 @@ jobs:
           echo "Bundled runtime did not become healthy within 60 seconds." >&2
           exit 1
 
+      - name: Smoke-test packaged Linux application shell
+        run: |
+          executable="$PWD/apps/desktop/release/linux-unpacked/Doolittle"
+          test -x "$executable"
+          DOOLITTLE_DESKTOP_EXECUTABLE="$executable" xvfb-run -a nub run test:e2e:desktop-packaged
+
       - name: Verify release artifacts
         run: |
           test -n "$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-linux-*.AppImage' -print -quit)"

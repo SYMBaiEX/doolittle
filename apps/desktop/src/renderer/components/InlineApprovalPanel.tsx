@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
+import { useState } from "react";
 import {
   asArray,
   asRecord,
@@ -30,11 +31,7 @@ export function InlineApprovalPanel({ active }: InlineApprovalPanelProps) {
     .filter((approval) => asString(approval.id))
     .slice(0, 3);
 
-  useEffect(() => {
-    if (!active) return;
-    const interval = window.setInterval(resource.reload, 5_000);
-    return () => window.clearInterval(interval);
-  }, [active, resource.reload]);
+  useIntervalWhenDocumentVisible(resource.reload, 5_000, active);
 
   const decide = async (
     approval: Record<string, unknown>,

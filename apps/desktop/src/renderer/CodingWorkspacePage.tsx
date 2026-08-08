@@ -48,6 +48,7 @@ import {
   savePanelWidth,
 } from "./panel-layout";
 import type { RepositoryControlChange } from "./repository-control";
+import { codingWorkspaceRequests } from "./resource-request-policy";
 import type { WorkspaceTreeEntry } from "./workspace-file-tree";
 import "./coding-workspace.css";
 
@@ -400,48 +401,58 @@ export function CodingWorkspacePage({
     active,
     workspacePath,
   });
+  const requestPolicy = codingWorkspaceRequests({
+    active,
+    explorerVisible,
+    utilityVisible,
+    leftPane,
+    editorPane,
+    utilityPane,
+    hasSelectedPath: Boolean(selectedPath),
+    hasSearchQuery: Boolean(searchQuery),
+  });
 
   const summaryResource = useApiResource<RepositorySummaryResponse>(
-    active ? "/repo/summary" : null,
-    [active],
+    requestPolicy.summary ? "/repo/summary" : null,
+    [requestPolicy.summary],
   );
   const treeResource = useApiResource<WorkspaceTreeResponse>(
-    active ? "/workspace/tree?depth=12" : null,
-    [active],
+    requestPolicy.tree ? "/workspace/tree?depth=12" : null,
+    [requestPolicy.tree],
   );
   const changesResource = useApiResource<RepositoryChangesResponse>(
-    active ? "/repo/changes" : null,
-    [active],
+    requestPolicy.changes ? "/repo/changes" : null,
+    [requestPolicy.changes],
   );
   const logResource = useApiResource<RepositoryLogResponse>(
-    active ? "/repo/log" : null,
-    [active],
+    requestPolicy.log ? "/repo/log" : null,
+    [requestPolicy.log],
   );
   const worktreeResource = useApiResource<RepositoryWorktreesResponse>(
-    active ? "/repo/worktrees" : null,
-    [active],
+    requestPolicy.worktrees ? "/repo/worktrees" : null,
+    [requestPolicy.worktrees],
   );
   const branchesResource = useApiResource<RepositoryBranchesResponse>(
-    active ? "/repo/branches" : null,
-    [active],
+    requestPolicy.sourceControl ? "/repo/branches" : null,
+    [requestPolicy.sourceControl],
   );
   const remotesResource = useApiResource<RepositoryRemotesResponse>(
-    active ? "/repo/remotes" : null,
-    [active],
+    requestPolicy.sourceControl ? "/repo/remotes" : null,
+    [requestPolicy.sourceControl],
   );
   const stashesResource = useApiResource<RepositoryStashesResponse>(
-    active ? "/repo/stashes" : null,
-    [active],
+    requestPolicy.sourceControl ? "/repo/stashes" : null,
+    [requestPolicy.sourceControl],
   );
   const conflictsResource = useApiResource<RepositoryConflictsResponse>(
-    active ? "/repo/conflicts" : null,
-    [active],
+    requestPolicy.sourceControl ? "/repo/conflicts" : null,
+    [requestPolicy.sourceControl],
   );
   const searchResource = useApiResource<WorkspaceSearchResponse>(
-    active && searchQuery
+    requestPolicy.search
       ? `/workspace/search?query=${encodeURIComponent(searchQuery)}`
       : null,
-    [active, searchQuery],
+    [requestPolicy.search, searchQuery],
   );
 
   const changes = useMemo(
@@ -480,16 +491,16 @@ export function CodingWorkspacePage({
     [selectedPath],
   );
   const fileResource = useApiResource<WorkspaceReadResponse>(
-    active && selectedPath
+    requestPolicy.file
       ? `/workspace/read?path=${encodeURIComponent(selectedPath)}`
       : null,
-    [active, selectedPath],
+    [requestPolicy.file, selectedPath],
   );
   const patchResource = useApiResource<RepositoryPatchResponse>(
-    active && selectedChange
+    requestPolicy.patch && selectedChange
       ? `/repo/patch?path=${encodeURIComponent(selectedPath)}&staged=${stagedPatch}`
       : null,
-    [active, selectedPath, stagedPatch, selectedChange?.path],
+    [requestPolicy.patch, selectedPath, stagedPatch, selectedChange?.path],
   );
   const summary = summaryResource.data?.summary ?? EMPTY_SUMMARY;
   const commits = commitRows(logResource.data?.log);

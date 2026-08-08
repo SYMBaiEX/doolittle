@@ -148,6 +148,12 @@ jobs:
             Get-Content $stderr -ErrorAction SilentlyContinue
           }
 
+      - name: Smoke-test packaged Windows application shell
+        shell: pwsh
+        run: |
+          $env:DOOLITTLE_DESKTOP_EXECUTABLE = (Resolve-Path "apps/desktop/release/win-unpacked/Doolittle.exe").Path
+          nub run test:e2e:desktop-packaged
+
       - name: Verify installer artifact
         shell: pwsh
         env:

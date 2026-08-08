@@ -1,3 +1,4 @@
+import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
 import {
   type CSSProperties,
   type KeyboardEvent,
@@ -1538,20 +1539,15 @@ export function App() {
     }
   }, [backend.phase, refreshRuntime]);
 
-  useEffect(() => {
-    if (backend.phase !== "ready") return;
-    const interval = window.setInterval(() => {
+  useIntervalWhenDocumentVisible(
+    () => {
       activityResource.reload();
       approvalsResource.reload();
       tasksResource.reload();
-    }, 15_000);
-    return () => window.clearInterval(interval);
-  }, [
-    activityResource.reload,
-    approvalsResource.reload,
-    backend.phase,
-    tasksResource.reload,
-  ]);
+    },
+    15_000,
+    backend.phase === "ready",
+  );
 
   const openSession = useCallback(
     (sessionId: string) => {
@@ -2009,6 +2005,7 @@ export function App() {
         return (
           <DashboardPage
             active={backend.phase === "ready"}
+            approvalsResource={approvalsResource}
             onOpenChat={(sessionId) => {
               if (sessionId) openSession(sessionId);
               else setView("chat");

@@ -30,6 +30,10 @@ const FORBIDDEN_TRACKED_PATTERNS: Array<{
     pattern: /(^|\/)coverage\//u,
     reason: "coverage output should not be tracked",
   },
+  {
+    pattern: /^apps\/desktop\/(?:build|release)\//u,
+    reason: "desktop packaging output should not be tracked",
+  },
 ];
 
 const RETIRED_MIGRATION_ARTIFACTS = new Set([

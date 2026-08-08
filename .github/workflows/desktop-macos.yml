@@ -81,6 +81,7 @@ jobs:
             echo "Signing credentials are not configured; producing an unsigned development artifact."
             (cd apps/desktop && CSC_IDENTITY_AUTO_DISCOVERY=false nubx --node electron-builder --mac dmg zip)
           fi
+          nub apps/desktop/scripts/verify-package.ts
 
       - name: Smoke-test bundled macOS runtime
         run: |
@@ -131,6 +132,12 @@ jobs:
           done
           echo "Bundled runtime did not become healthy within 60 seconds." >&2
           exit 1
+
+      - name: Smoke-test packaged macOS application shell
+        run: |
+          executable="$(find apps/desktop/release -path '*/Doolittle.app/Contents/MacOS/Doolittle' -type f -print -quit)"
+          test -n "$executable"
+          DOOLITTLE_DESKTOP_EXECUTABLE="$PWD/$executable" nub run test:e2e:desktop-packaged
 
       - name: Verify signed and notarized application
         if: env.MAC_CSC_LINK != ''
