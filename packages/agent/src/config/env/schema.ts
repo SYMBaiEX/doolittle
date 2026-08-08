@@ -89,7 +89,6 @@ export const envSchema = z.object({
   MATRIX_HOMESERVER: z.string().optional(),
   MATRIX_ACCESS_TOKEN: z.string().optional(),
   EMAIL_SEND_COMMAND: z.string().optional(),
-  FAL_API_KEY: z.string().optional(),
   SMS_SEND_COMMAND: z.string().optional(),
   MATTERMOST_URL: z.string().optional(),
   MATTERMOST_TOKEN: z.string().optional(),

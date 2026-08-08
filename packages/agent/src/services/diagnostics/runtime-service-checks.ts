@@ -55,7 +55,7 @@ export function buildDiagnosticsRuntimeServiceChecks(input: {
     agentEventBridgeAttached,
   });
 
-  const mediaControl = getNativeMediaControlPlane(config);
+  const mediaControl = getNativeMediaControlPlane(runtime);
   checks.push({
     id: "media.tts.native",
     status: mediaControl.tts.ready ? "pass" : "warn",

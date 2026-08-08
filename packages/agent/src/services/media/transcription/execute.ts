@@ -1,8 +1,8 @@
 import type { MediaTranscriptionBundle } from "../types";
-import { applyAnthropicTranscription } from "./anthropic-transcription";
 import { persistMediaTranscriptionArtifacts } from "./artifacts";
+import { applyElizaTranscription } from "./eliza-transcription";
+import { applyModelSummaryTranscription } from "./model-summary-transcription";
 import { applyOfflineTranscription } from "./offline-transcription";
-import { applyOpenAiTranscription } from "./openai-transcription";
 import { prepareMediaTranscription } from "./preparation";
 import { applySidecarTranscription } from "./sidecar-transcription";
 import type {
@@ -20,9 +20,9 @@ export async function executeMediaTranscription(
     source: "offline",
   };
 
-  state = await applyOpenAiTranscription(state, transcription);
+  state = await applyElizaTranscription(state, transcription);
   state = applySidecarTranscription(state, transcription);
-  state = await applyAnthropicTranscription(state, transcription);
+  state = await applyModelSummaryTranscription(state, transcription);
   state = applyOfflineTranscription(state, transcription);
 
   return persistMediaTranscriptionArtifacts(transcription, state);

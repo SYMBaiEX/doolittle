@@ -65,7 +65,6 @@ export interface EnvConfig {
   matrixHomeserver?: string;
   matrixAccessToken?: string;
   emailSendCommand?: string;
-  falApiKey?: string;
   smsSendCommand?: string;
   mattermostUrl?: string;
   mattermostToken?: string;

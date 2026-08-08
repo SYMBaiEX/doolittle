@@ -22,11 +22,6 @@ export function buildDiagnosticsSetupChecklist(
       steps.push(requirement.checklist);
     }
   }
-  if (!config.falApiKey) {
-    steps.push(
-      "Set FAL_API_KEY before relying on the official TTS plugin for voice synthesis.",
-    );
-  }
   if (config.browserProvider === "lightpanda") {
     steps.push(
       "Install Lightpanda or set DOOLITTLE_BROWSER_PROVIDER=basic if you want browser tasks to fall back to plain HTTP fetch mode.",

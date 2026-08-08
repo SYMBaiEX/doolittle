@@ -5,6 +5,7 @@ export type RuntimeLike = Partial<
     IAgentRuntime,
     | "agentId"
     | "getService"
+    | "getModel"
     | "getAllActions"
     | "getMessageConnectors"
     | "character"

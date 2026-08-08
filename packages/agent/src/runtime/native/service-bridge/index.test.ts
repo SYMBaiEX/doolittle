@@ -4,7 +4,7 @@ import {
   DOOLITTLE_MCP_SERVICE,
   DOOLITTLE_OPERATOR_PLANNING_SERVICE,
 } from "@doolittle/contracts";
-import { SECRETS_SERVICE_TYPE } from "@elizaos/core";
+import { ModelType, SECRETS_SERVICE_TYPE } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "@/services";
 import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
@@ -803,7 +803,6 @@ describe("getEffectiveMessagingTransportInventory", () => {
       anthropicLargeModel: "claude-sonnet-4.6",
       telegramBotToken: undefined,
       discordBotToken: undefined,
-      falApiKey: undefined,
     } as never);
 
     expect(controlPlane.skills.source).toBe("native");
@@ -838,16 +837,19 @@ describe("getEffectiveMessagingTransportInventory", () => {
 });
 
 describe("media and research control plane helpers", () => {
-  it("reports native tts readiness based on fal configuration", () => {
+  it("reports native tts readiness from the Eliza model registry", () => {
     const enabled = getNativeMediaControlPlane({
-      falApiKey: "fal-key",
+      getModel: (modelType: string) =>
+        modelType === ModelType.TEXT_TO_SPEECH
+          ? async () => new Uint8Array()
+          : undefined,
     } as never);
     const disabled = getNativeMediaControlPlane({
-      falApiKey: undefined,
+      getModel: () => undefined,
     } as never);
 
     expect(enabled.tts.ready).toBe(true);
-    expect(enabled.tts.provider).toBe("fal");
+    expect(enabled.tts.provider).toBe("eliza");
     expect(disabled.tts.ready).toBe(false);
     expect(disabled.tts.provider).toBe("none");
   });

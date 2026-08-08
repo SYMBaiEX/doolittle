@@ -40,6 +40,7 @@ export interface PluginSettings {
   OPENAI_BASE_URL: string;
   OPENAI_SMALL_MODEL: string;
   OPENAI_LARGE_MODEL: string;
+  OPENAI_IMAGE_MODEL?: string;
   CODEX_BASE_URL?: string;
   CODEX_MODEL?: string;
   ANTHROPIC_SMALL_MODEL: string;
@@ -61,7 +62,6 @@ export interface PluginSettings {
   OPENAI_REASONING_EFFORT?: "minimal" | "low" | "medium" | "high";
   ANTHROPIC_API_KEY?: string;
   ANTHROPIC_BASE_URL?: string;
-  FAL_API_KEY?: string;
   E2B_API_KEY?: string;
   GITHUB_TOKEN?: string;
   TELEGRAM_BOT_TOKEN?: string;

@@ -95,7 +95,6 @@ function makeConfig(root: string): EnvConfig {
     matrixHomeserver: undefined,
     matrixAccessToken: undefined,
     emailSendCommand: undefined,
-    falApiKey: undefined,
     smsSendCommand: undefined,
     mattermostUrl: undefined,
     mattermostToken: undefined,

@@ -3,7 +3,7 @@ import type {
   PreparedMediaTranscription,
 } from "./types";
 
-export async function applyAnthropicTranscription(
+export async function applyModelSummaryTranscription(
   state: MediaTranscriptionState,
   transcription: PreparedMediaTranscription,
 ): Promise<MediaTranscriptionState> {
@@ -12,8 +12,8 @@ export async function applyAnthropicTranscription(
 
   if (
     state.transcriptText ||
-    modelContext?.provider !== "anthropic" ||
-    !modelContext.anthropicApiKey
+    !modelContext ||
+    modelContext.provider === "offline"
   ) {
     return state;
   }
@@ -29,8 +29,11 @@ export async function applyAnthropicTranscription(
           signals,
         },
       ),
-      response: "Generated a best-effort provider-backed transcript summary.",
-      source: "anthropic",
+      response:
+        "Generated a best-effort transcript summary through the selected Eliza text model.",
+      source: "model-summary",
+      provider: modelContext.provider,
+      model: modelContext.model,
     };
   } catch (error) {
     return {

@@ -1,3 +1,4 @@
+import type { ElizaImageGenerationResult } from "../eliza-runtime";
 import type {
   MediaGenerationOptions,
   MediaGenerationBundle as MediaGenerationResult,
@@ -12,6 +13,10 @@ export interface MediaImageGenerationDependencies {
     context: MediaModelContext | undefined,
     metadata: { focus: string },
   ) => Promise<string>;
+  generateImage?: (
+    prompt: string,
+    size: string,
+  ) => Promise<ElizaImageGenerationResult | undefined>;
 }
 
 export interface MediaSpeechGenerationDependencies {
@@ -20,6 +25,10 @@ export interface MediaSpeechGenerationDependencies {
     context: MediaModelContext | undefined,
     metadata: { focus: string },
   ) => Promise<string>;
+  synthesizeSpeech?: (
+    text: string,
+    options: { voice: string; speed?: number },
+  ) => Promise<Uint8Array | undefined>;
 }
 
 export interface MediaImageGenerationInput {

@@ -120,7 +120,6 @@
     "@elizaos/shared": "2.0.3-beta.7",
     "@elizaos/skills": "2.0.3-beta.7",
     "@elizaos/vault": "2.0.3-beta.7",
-    "@fal-ai/client": "^1.9.4",
     "dotenv": "^17.2.3",
     "shell-quote": "1.10.0",
     "elizaos": "2.0.3-beta.7",

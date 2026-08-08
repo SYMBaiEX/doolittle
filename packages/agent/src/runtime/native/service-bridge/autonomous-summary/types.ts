@@ -90,7 +90,7 @@ export type AutonomousSummaryInput = {
   mediaControl: {
     tts: {
       configured: boolean;
-      provider: "fal" | "openai" | "none";
+      provider: "eliza" | "none";
     };
   };
   researchControl: {

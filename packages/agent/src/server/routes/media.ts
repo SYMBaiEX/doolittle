@@ -135,7 +135,7 @@ export async function handleMediaRoutes(
 
   if (request.method === "GET" && url.pathname === "/runtime/media") {
     return json({
-      media: getNativeMediaControlPlane(context.config),
+      media: getNativeMediaControlPlane(context.runtime),
     });
   }
 

@@ -7,5 +7,5 @@ export const handleMediaRuntimeIntrospectionCommand: RuntimeIntrospectionCommand
       return undefined;
     }
 
-    return JSON.stringify(getNativeMediaControlPlane(context.config), null, 2);
+    return JSON.stringify(getNativeMediaControlPlane(context.runtime), null, 2);
   };

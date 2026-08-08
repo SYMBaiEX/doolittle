@@ -85,7 +85,6 @@ function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
     browserCommand: "",
     browserCdpUrl: "",
     browserObeyRobots: true,
-    falApiKey: "",
     ...overrides,
   } as EnvConfig;
 }

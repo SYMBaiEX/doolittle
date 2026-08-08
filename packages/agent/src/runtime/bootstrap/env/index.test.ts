@@ -167,11 +167,11 @@ describe("bootstrap environment", () => {
         ollamaEmbeddingModel: "nomic-embed-text:latest",
         openAiBaseUrl: "https://openai.example",
         openAiApiKey: "openai-key",
+        openAiImageModel: "gpt-image-1",
         anthropicApiKey: "anthropic-key",
         anthropicBaseUrl: "https://anthropic.example",
         anthropicSmallModel: "claude-small",
         anthropicLargeModel: "claude-large",
-        falApiKey: "fal-key",
         telegramBotToken: "telegram-token",
         telegramApiRoot: "https://telegram.example",
         telegramAllowedChats: "123,456",
@@ -197,10 +197,10 @@ describe("bootstrap environment", () => {
     expect(settings.OLLAMA_EMBEDDING_MODEL).toBe("nomic-embed-text:latest");
     expect(settings.ELIZAOS_CLOUD_EMBEDDING_MODEL).toBe("embed-cloud");
     expect(settings.OPENAI_API_KEY).toBe("openai-key");
+    expect(settings.OPENAI_IMAGE_MODEL).toBe("gpt-image-1");
     expect(settings.OPENAI_REASONING_EFFORT).toBe("medium");
     expect(settings.ANTHROPIC_API_KEY).toBe("anthropic-key");
     expect(settings.ANTHROPIC_BASE_URL).toBe("https://anthropic.example");
-    expect(settings.FAL_API_KEY).toBe("fal-key");
     expect(settings.E2B_MODE).toBe("cloud");
     expect(settings.E2B_API_KEY).toBe("e2b-key");
     expect(settings.GITHUB_TOKEN).toBe("github-token");

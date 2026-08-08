@@ -15,12 +15,11 @@ export async function generateMediaImageArtifact(
   const modelContext = input.modelContext;
   const stamp = Date.now();
   const label = slugifyMediaText(options.name ?? input.prompt);
-  const {
-    promptPath,
-    manifestPath,
-    reportPath,
-    artifactPath: fallbackArtifactPath,
-  } = buildMediaGenerationPaths(input.outputDir, stamp, label);
+  const { promptPath, manifestPath, reportPath } = buildMediaGenerationPaths(
+    input.outputDir,
+    stamp,
+    label,
+  );
   const refinedPrompt = await input.dependencies.requestModelText(
     [
       "Create a concise image-generation brief for Doolittle.",
@@ -40,14 +39,14 @@ export async function generateMediaImageArtifact(
   const generation = await requestImageGeneration({
     outputDir: input.outputDir,
     prompt: refinedPrompt || input.prompt,
-    context: modelContext,
     size: options.size,
+    generateImage: input.dependencies.generateImage,
   });
 
-  const artifactPath = generation?.path ?? fallbackArtifactPath;
-  const artifactKind = generation?.kind ?? "svg";
-  const response = generation?.response;
-  const responsePath = generation?.responsePath;
+  const artifactPath = generation.path;
+  const artifactKind = generation.kind;
+  const response = generation.response;
+  const responsePath = generation.responsePath;
 
   writeMediaManifestFile(
     manifestPath,
@@ -56,8 +55,8 @@ export async function generateMediaImageArtifact(
       input.prompt,
       refinedPrompt || input.prompt,
       options,
-      modelContext?.provider ?? "offline",
-      modelContext?.openAiImageModel ?? modelContext?.model ?? "offline",
+      generation.provider,
+      generation.model,
       artifactPath,
       artifactKind,
       responsePath,
@@ -73,8 +72,8 @@ export async function generateMediaImageArtifact(
       input.prompt,
       refinedPrompt || input.prompt,
       response,
-      modelContext?.provider ?? "offline",
-      modelContext?.openAiImageModel ?? modelContext?.model ?? "offline",
+      generation.provider,
+      generation.model,
       artifactPath,
       artifactKind,
     ),
@@ -90,7 +89,7 @@ export async function generateMediaImageArtifact(
     artifactKind,
     response,
     responsePath,
-    model: modelContext?.openAiImageModel ?? modelContext?.model,
-    provider: modelContext?.provider,
+    model: generation.model,
+    provider: generation.provider,
   };
 }

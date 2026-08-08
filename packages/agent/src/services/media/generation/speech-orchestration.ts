@@ -48,13 +48,12 @@ export async function generateMediaSpeechArtifact(
 
   const script = refinedText || input.text;
   const generation = await requestSpeechGeneration({
-    outputDir: input.outputDir,
     script,
     voice,
     speed: options.speed,
     preferredFormat: options.format ?? "mp3",
     fallbackArtifactPath,
-    context: modelContext,
+    synthesizeSpeech: input.dependencies.synthesizeSpeech,
   });
 
   writeMediaTextFile(
@@ -63,8 +62,8 @@ export async function generateMediaSpeechArtifact(
       input.text,
       voice,
       options.speed,
-      modelContext?.provider,
-      modelContext?.model,
+      generation.provider,
+      generation.model,
     ),
   );
   writeMediaManifestFile(
@@ -76,8 +75,8 @@ export async function generateMediaSpeechArtifact(
       script,
       voice,
       options.speed,
-      modelContext?.provider ?? "offline",
-      modelContext?.model ?? "offline",
+      generation.provider,
+      generation.model,
       generation.artifactPath,
       generation.artifactKind,
       responsePath,
@@ -89,8 +88,8 @@ export async function generateMediaSpeechArtifact(
       input.text,
       script,
       generation.response,
-      modelContext?.provider ?? "offline",
-      modelContext?.model ?? "offline",
+      generation.provider,
+      generation.model,
       voice,
       generation.artifactPath,
       generation.artifactKind,
@@ -108,8 +107,8 @@ export async function generateMediaSpeechArtifact(
     artifactKind: generation.artifactKind,
     response: generation.response,
     responsePath,
-    model: modelContext?.model ?? "offline",
-    provider: modelContext?.provider ?? "offline",
+    model: generation.model,
+    provider: generation.provider,
     voice,
   };
 }

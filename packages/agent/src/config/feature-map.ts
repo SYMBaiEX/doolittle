@@ -80,17 +80,18 @@ export const featureMap: FeatureMapping[] = [
   },
   {
     platformCapability: "Native text-to-speech and voice synthesis",
-    elizaImplementation: "Official TTS plugin plus media speech bundles",
+    elizaImplementation:
+      "Eliza ModelType.TEXT_TO_SPEECH plus media speech bundles",
     notes:
-      "Uses the first-party TTS plugin when FAL is configured and keeps the media service as a fallback and audit layer for provider-native or offline speech generation.",
+      "Uses the runtime's registered Eliza text-to-speech model handler and keeps only local artifacts, reports, and a truthful offline SVG fallback in the product layer.",
   },
   {
     platformCapability:
       "Model-assisted media analysis, transcription, speech, and generation",
     elizaImplementation:
-      "Media service with analysis, voice, vision, transcription, speech, and image generation bundles",
+      "Eliza media service and IMAGE, TEXT_TO_SPEECH, and TRANSCRIPTION models with product artifact bundles",
     notes:
-      "Creates model-assisted reports for audio, image, and document artifacts, can transcribe audio through provider-native speech endpoints, can synthesize Doolittle speech audio when the provider supports it, and can emit concept image bundles or SVG fallbacks.",
+      "Delegates image, speech, and transcription inference to registered Eliza providers while preserving workspace-safe prompts, manifests, reports, sidecars, and offline fallbacks.",
   },
   {
     platformCapability: "Code-generation evaluation",

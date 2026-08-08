@@ -128,7 +128,7 @@ export function buildMediaSection(
 ): AutonomousControlPlaneSummary["media"] {
   return {
     tts: {
-      source: "native-plugin" as const,
+      source: "eliza-model" as const,
       available: true,
       configured: input.mediaControl.tts.configured,
       provider: input.mediaControl.tts.provider,

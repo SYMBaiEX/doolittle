@@ -101,7 +101,6 @@ export function buildEnvConfig(
     matrixHomeserver: values.MATRIX_HOMESERVER,
     matrixAccessToken: values.MATRIX_ACCESS_TOKEN,
     emailSendCommand: values.EMAIL_SEND_COMMAND,
-    falApiKey: values.FAL_API_KEY,
     smsSendCommand: values.SMS_SEND_COMMAND,
     mattermostUrl: values.MATTERMOST_URL,
     mattermostToken: values.MATTERMOST_TOKEN,

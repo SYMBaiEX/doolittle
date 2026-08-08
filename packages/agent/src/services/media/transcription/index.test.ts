@@ -7,7 +7,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MediaBundle, MediaInspection, MediaModelContext } from "../types";
 import { executeMediaTranscription } from "./index";
 
@@ -108,60 +108,33 @@ describe("media transcription", () => {
     expect(result.response).toContain("sidecar");
   });
 
-  it("calls the OpenAI transcription endpoint when configured", async () => {
-    root = mkdtempSync(join(tmpdir(), "doolittle-transcription-openai-"));
+  it("uses the official Eliza transcription model when available", async () => {
+    root = mkdtempSync(join(tmpdir(), "doolittle-transcription-eliza-"));
     const outputDir = join(root, "media");
     const audioPath = join(root, "test.wav");
     writeFileSync(audioPath, ONE_SECOND_WAV);
+    const dependencies = makeDependencies(root);
+    const requestTranscription = vi.fn(async () => "Eliza transcribed text.");
 
-    const originalFetch = globalThis.fetch;
-    const requests: string[] = [];
+    const result = await executeMediaTranscription({
+      outputDir,
+      path: "test.wav",
+      dependencies: { ...dependencies, requestTranscription },
+    });
 
-    try {
-      globalThis.fetch = (async (input: RequestInfo | URL) => {
-        const url = typeof input === "string" ? input : input.toString();
-        requests.push(url);
-        if (url.includes("/audio/transcriptions")) {
-          return new Response(
-            JSON.stringify({ text: "OpenAI transcribed text." }),
-            { status: 200 },
-          );
-        }
-        throw new Error(`Unexpected fetch: ${url}`);
-      }) as typeof fetch;
-
-      const modelContext: MediaModelContext = {
-        provider: "openai",
-        model: "whisper-1",
-        baseUrl: "https://example.invalid/v1",
-        temperature: 0,
-        maxTokens: 128,
-        openAiApiKey: "test-key",
-      };
-
-      const result = await executeMediaTranscription({
-        outputDir,
-        path: "test.wav",
-        modelContext,
-        dependencies: makeDependencies(root),
-      });
-
-      expect(result.source).toBe("openai");
-      expect(result.transcriptText).toBe("OpenAI transcribed text.");
-      expect(requests.some((u) => u.includes("/audio/transcriptions"))).toBe(
-        true,
-      );
-      expect(existsSync(result.transcriptPath)).toBe(true);
-      expect(readFileSync(result.transcriptPath, "utf8").trim()).toBe(
-        "OpenAI transcribed text.",
-      );
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+    expect(result.source).toBe("eliza");
+    expect(result.provider).toBe("eliza");
+    expect(result.model).toBe("TRANSCRIPTION");
+    expect(result.transcriptText).toBe("Eliza transcribed text.");
+    expect(requestTranscription).toHaveBeenCalledWith(audioPath);
+    expect(existsSync(result.transcriptPath)).toBe(true);
+    expect(readFileSync(result.transcriptPath, "utf8").trim()).toBe(
+      "Eliza transcribed text.",
+    );
   });
 
-  it("falls back to anthropic model text when openai is not available", async () => {
-    root = mkdtempSync(join(tmpdir(), "doolittle-transcription-anthropic-"));
+  it("falls back to the selected Eliza text model when transcription is unavailable", async () => {
+    root = mkdtempSync(join(tmpdir(), "doolittle-transcription-summary-"));
     const outputDir = join(root, "media");
 
     const modelContext: MediaModelContext = {
@@ -183,9 +156,9 @@ describe("media transcription", () => {
       dependencies: deps,
     });
 
-    expect(result.source).toBe("anthropic");
+    expect(result.source).toBe("model-summary");
     expect(result.transcriptText).toBe("Anthropic transcript summary.");
-    expect(result.response).toContain("best-effort");
+    expect(result.response).toContain("selected Eliza text model");
   });
 
   it("writes all artifact files correctly", async () => {

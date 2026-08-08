@@ -96,14 +96,6 @@ export function buildDiagnosticsInventoryChecks(
       detail: requirement.summary,
     })),
     {
-      id: "media.tts.readiness",
-      status: config.falApiKey ? "pass" : "warn",
-      summary: "Text-to-speech plugin readiness",
-      detail: config.falApiKey
-        ? "FAL API key configured for the official TTS plugin."
-        : "FAL_API_KEY is not configured, so the official TTS plugin stays disabled.",
-    },
-    {
       id: "repository.available",
       status: input.repositoryAvailable ? "pass" : "warn",
       summary: "Repository inspection",

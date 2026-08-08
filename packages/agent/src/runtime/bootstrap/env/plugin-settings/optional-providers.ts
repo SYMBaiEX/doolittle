@@ -8,10 +8,6 @@ export function applyOptionalProviderSettings(
     settings.ANTHROPIC_BASE_URL = config.anthropicBaseUrl;
   }
 
-  if (config.falApiKey) {
-    settings.FAL_API_KEY = config.falApiKey;
-  }
-
   if (config.telegramBotToken) {
     settings.TELEGRAM_BOT_TOKEN = config.telegramBotToken;
   }

@@ -64,10 +64,10 @@ export interface AutonomousControlPlaneSummary {
   };
   media: {
     tts: {
-      source: "native-plugin";
+      source: "eliza-model";
       available: boolean;
       configured: boolean;
-      provider: "fal" | "openai" | "none";
+      provider: "eliza" | "none";
     };
   };
   research: {
@@ -166,16 +166,7 @@ export function getAutonomousControlPlane(
       .length,
   };
   const pluginInventory = getEffectivePluginManagerInventory(runtime);
-  const mediaControl = config
-    ? getNativeMediaControlPlane(config)
-    : {
-        tts: {
-          source: "native-plugin" as const,
-          available: true,
-          configured: false,
-          provider: "none" as const,
-        },
-      };
+  const mediaControl = getNativeMediaControlPlane(runtime);
   const researchControl = getNativeResearchControlPlane(runtime);
   // The SDK service owns canonical runtime recording. Doolittle's evaluation
   // service owns a separate, explicitly non-training bundle projection.

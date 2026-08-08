@@ -16,6 +16,7 @@ export interface MediaTranscriptionDependencies {
     context: MediaModelContext | undefined,
     metadata: { focus: string; inspection: MediaInspection; signals: string[] },
   ) => Promise<string>;
+  requestTranscription?: (path: string) => Promise<string | undefined>;
 }
 
 export interface ExecuteMediaTranscriptionInput {
@@ -43,4 +44,6 @@ export interface MediaTranscriptionState {
   transcriptText: string;
   response: string;
   source: MediaTranscriptionBundle["source"];
+  provider?: string;
+  model?: string;
 }

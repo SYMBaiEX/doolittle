@@ -36,7 +36,7 @@ export function LogsPage({ active }: { active: boolean }) {
   if (query.trim()) params.set("query", query.trim());
   const resource = useApiResource<LogsResponse>(
     active ? `/logs?${params.toString()}` : null,
-    [active, level],
+    [active, level, query],
   );
   const deliveries = useApiResource<DeliveriesResponse>(
     active ? "/deliveries" : null,

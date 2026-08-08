@@ -1,31 +1,24 @@
-import type { EnvConfig } from "@/types/runtime";
+import { ModelType } from "@elizaos/core";
+import type { RuntimeLike } from "./runtime";
 
-export function getNativeMediaControlPlane(config: EnvConfig) {
-  const hasFal = Boolean(config.falApiKey?.trim());
-  const hasOpenAiSpeech = Boolean(config.openAiApiKey?.trim());
-  const ready = hasFal || hasOpenAiSpeech;
-  const backend = hasFal
-    ? ("fal" as const)
-    : hasOpenAiSpeech
-      ? ("openai" as const)
-      : ("none" as const);
+export function getNativeMediaControlPlane(runtime?: RuntimeLike) {
+  const ready = Boolean(runtime?.getModel?.(ModelType.TEXT_TO_SPEECH));
+  const backend = ready ? ("eliza" as const) : ("none" as const);
 
   return {
     tts: {
-      source: "native-plugin" as const,
+      source: "eliza-model" as const,
       available: true,
       configured: ready,
       provider: backend,
       backend,
       mode: ready ? ("active" as const) : ("degraded" as const),
-      pluginAction: "GENERATE_TTS",
+      pluginAction: "GENERATE_MEDIA",
       preferredFormat: "mp3" as const,
       ready,
-      detail: hasFal
-        ? "Official TTS plugin path is enabled through FAL and can generate mp3 voice artifacts."
-        : hasOpenAiSpeech
-          ? "Provider-native OpenAI speech generation is available for mp3 voice artifacts."
-          : "Official TTS plugin is installed, but no mp3 speech backend is configured, so voice generation falls back to degraded SVG concept output.",
+      detail: ready
+        ? `Eliza ${ModelType.TEXT_TO_SPEECH} is registered and can generate mp3 voice artifacts.`
+        : `Eliza ${ModelType.TEXT_TO_SPEECH} has no registered model handler, so voice generation falls back to a degraded SVG concept artifact.`,
     },
   };
 }

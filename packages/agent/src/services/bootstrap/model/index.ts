@@ -28,8 +28,6 @@ export interface ServiceModelContext {
   openAiApiKey: string | undefined;
   anthropicApiKey: string | undefined;
   anthropicBaseUrl: string | undefined;
-  openAiImageModel: string | undefined;
-  falApiKey: string | undefined;
 }
 
 export function resolveDefaultServiceModel(
@@ -111,7 +109,5 @@ export function createServiceModelContextResolver(
     openAiApiKey: config.openAiApiKey,
     anthropicApiKey: config.anthropicApiKey,
     anthropicBaseUrl: config.anthropicBaseUrl,
-    openAiImageModel: config.openAiImageModel,
-    falApiKey: config.falApiKey,
   });
 }

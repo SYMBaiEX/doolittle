@@ -65,7 +65,13 @@ export interface MediaTranscriptionBundle {
   response?: string;
   model?: string;
   provider?: string;
-  source: "openai" | "anthropic" | "sidecar" | "offline";
+  source:
+    | "eliza"
+    | "model-summary"
+    | "openai"
+    | "anthropic"
+    | "sidecar"
+    | "offline";
 }
 
 export interface MediaSpeechBundle {
@@ -106,8 +112,6 @@ export interface MediaModelContext {
   openAiApiKey?: string;
   anthropicApiKey?: string;
   anthropicBaseUrl?: string;
-  openAiImageModel?: string;
-  falApiKey?: string;
 }
 
 export interface MediaTextRequestMetadata {

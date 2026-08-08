@@ -1,9 +1,15 @@
 import { mkdirSync } from "node:fs";
+import type { IAgentRuntime } from "@elizaos/core";
 import type { WorkspaceDirectorySource } from "../workspace-directory";
 import {
   inferMediaAnalysisFocus,
   persistMediaAnalysisArtifacts,
 } from "./analysis";
+import {
+  generateImageWithEliza,
+  synthesizeSpeechWithEliza,
+  transcribeWithEliza,
+} from "./eliza-runtime";
 import { buildMediaAnalysisPrompt } from "./formatters/analysis";
 import {
   generateMediaImageArtifact,
@@ -31,6 +37,7 @@ import type {
 
 export class MediaService {
   private readonly inspectionSupport: MediaInspectionSupport;
+  private runtime?: IAgentRuntime;
 
   constructor(
     workspaceDirectory: WorkspaceDirectorySource,
@@ -45,9 +52,8 @@ export class MediaService {
     );
   }
 
-  bindRuntime(
-    runtime: Parameters<MediaTextAnalysisPort["bindRuntime"]>[0],
-  ): void {
+  bindRuntime(runtime: IAgentRuntime): void {
+    this.runtime = runtime;
     this.textAnalysisPort?.bindRuntime(runtime);
   }
 
@@ -137,6 +143,8 @@ export class MediaService {
           this.inspectionSupport.buildSignals(inspection),
         requestModelText: (requestPrompt, _modelContext, metadata) =>
           this.requestTextAnalysis(requestPrompt, metadata),
+        requestTranscription: (mediaPath) =>
+          transcribeWithEliza(this.runtime, mediaPath),
       },
     });
   }
@@ -160,6 +168,8 @@ export class MediaService {
       dependencies: {
         requestModelText: (requestPrompt, _modelContext, metadata) =>
           this.requestTextAnalysis(requestPrompt, metadata),
+        generateImage: (refinedPrompt, size) =>
+          generateImageWithEliza(this.runtime, refinedPrompt, size),
       },
     });
   }
@@ -176,6 +186,8 @@ export class MediaService {
       dependencies: {
         requestModelText: (requestPrompt, _modelContext, metadata) =>
           this.requestTextAnalysis(requestPrompt, metadata),
+        synthesizeSpeech: (script, speechOptions) =>
+          synthesizeSpeechWithEliza(this.runtime, script, speechOptions),
       },
     });
   }

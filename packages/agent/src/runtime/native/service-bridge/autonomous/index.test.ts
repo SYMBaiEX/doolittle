@@ -167,9 +167,11 @@ describe("autonomous control plane", () => {
       },
     } as unknown as AppServices;
 
-    const controlPlane = getAutonomousControlPlane(runtime, services, {
-      falApiKey: "fal-key",
-    } as never);
+    const controlPlane = getAutonomousControlPlane(
+      runtime,
+      services,
+      {} as never,
+    );
 
     expect(controlPlane.orchestrator.tasks).toBe(5);
     expect(controlPlane.orchestrator.queuePending).toBe(2);

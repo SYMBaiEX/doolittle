@@ -64,7 +64,6 @@ describe("autonomous stack", () => {
       anthropicLargeModel: "claude-sonnet-4.6",
       telegramBotToken: undefined,
       discordBotToken: undefined,
-      falApiKey: undefined,
     } as EnvConfig;
 
     expect(summarizeAutonomousConnection(config)).toMatchObject({

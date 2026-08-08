@@ -77,7 +77,7 @@ export async function getNativeOwnershipSnapshot(
     },
     skillHub: services.skillsHub.summary(),
     ecosystem: services.ecosystem.summary(),
-    media: getNativeMediaControlPlane(config),
+    media: getNativeMediaControlPlane(runtime),
     research: getNativeResearchControlPlane(runtime),
     forms: getNativeFormsControlPlane(runtime),
     planning: getNativePlanningControlPlane(runtime),

@@ -1,8 +1,8 @@
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fal } from "@fal-ai/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { ModelType, ServiceType } from "@elizaos/core";
+import { describe, expect, it, vi } from "vitest";
 import { MediaService } from "./service";
 import type { MediaTextAnalysisPort } from "./types";
 
@@ -14,14 +14,6 @@ const ONE_SECOND_WAV = Buffer.from([
   0x00, 0x00, 0x80, 0x3e, 0x00, 0x00, 0x02, 0x00, 0x10, 0x00, 0x64, 0x61, 0x74,
   0x61, 0x40, 0x3e, 0x00, 0x00,
 ]);
-
-const originalFalSubscribe = fal.subscribe;
-const originalFalConfig = fal.config;
-
-afterEach(() => {
-  fal.subscribe = originalFalSubscribe;
-  fal.config = originalFalConfig;
-});
 
 describe("MediaService", () => {
   it("returns missing-file metadata without throwing", () => {
@@ -298,10 +290,8 @@ describe("MediaService", () => {
     }
   });
 
-  it("creates provider-backed transcription and speech artifacts when audio endpoints are available", async () => {
+  it("creates transcription and speech artifacts through Eliza model handlers", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-media-audio-native-"));
-    const originalFetch = globalThis.fetch;
-    const requests: string[] = [];
     const service = new MediaService(root, join(root, "media"), () => ({
       provider: "openai",
       model: "gpt-4.1-mini",
@@ -312,105 +302,81 @@ describe("MediaService", () => {
       openAiImageModel: "gpt-image-1",
     }));
     const audioPath = join(root, "briefing.wav");
+    const useModel = vi.fn(async (modelType: string) => {
+      if (modelType === ModelType.TRANSCRIPTION) {
+        return "Doolittle transcript from Eliza audio.";
+      }
+      if (modelType === ModelType.TEXT_TO_SPEECH) {
+        return new Uint8Array(Buffer.from("ID3doolittle-speech"));
+      }
+      throw new Error(`Unexpected model: ${modelType}`);
+    });
+    service.bindRuntime({
+      getModel: vi.fn(() => useModel),
+      getService: vi.fn(() => null),
+      useModel,
+    } as never);
 
     try {
-      globalThis.fetch = (async (
-        input: RequestInfo | URL,
-        _init?: RequestInit,
-      ) => {
-        const url = typeof input === "string" ? input : input.toString();
-        requests.push(url);
-        if (url.includes("/audio/transcriptions")) {
-          return new Response(
-            JSON.stringify({
-              text: "Doolittle transcript from provider audio.",
-            }),
-            {
-              status: 200,
-            },
-          );
-        }
-        if (url.includes("/audio/speech")) {
-          return new Response(Buffer.from("ID3doolittle-speech"), {
-            status: 200,
-          });
-        }
-        throw new Error(`Unexpected fetch: ${url}`);
-      }) as typeof fetch;
-
       writeFileSync(audioPath, ONE_SECOND_WAV);
       const transcription = await service.transcribeWithModel("briefing.wav");
       const speech = await service.speakWithModel(
         "Doolittle speaks with clarity.",
       );
 
-      expect(transcription.source).toBe("openai");
-      expect(transcription.transcriptText).toContain("provider audio");
+      expect(transcription.source).toBe("eliza");
+      expect(transcription.provider).toBe("eliza");
+      expect(transcription.model).toBe(ModelType.TRANSCRIPTION);
+      expect(transcription.transcriptText).toContain("Eliza audio");
       expect(existsSync(transcription.transcriptPath)).toBe(true);
       expect(existsSync(transcription.reportPath)).toBe(true);
       expect(existsSync(transcription.manifestPath)).toBe(true);
       expect(speech.artifactKind).toBe("mp3");
       expect(existsSync(speech.artifactPath)).toBe(true);
       expect(existsSync(speech.reportPath)).toBe(true);
-      expect(
-        requests.some((entry) => entry.includes("/audio/transcriptions")),
-      ).toBe(true);
-      expect(requests.some((entry) => entry.includes("/audio/speech"))).toBe(
-        true,
+      expect(speech.provider).toBe("eliza");
+      expect(speech.model).toBe(ModelType.TEXT_TO_SPEECH);
+      expect(useModel).toHaveBeenCalledWith(
+        ModelType.TRANSCRIPTION,
+        expect.any(Buffer),
       );
+      expect(useModel).toHaveBeenCalledWith(ModelType.TEXT_TO_SPEECH, {
+        text: expect.any(String),
+        voice: "alloy",
+        speed: undefined,
+      });
     } finally {
-      globalThis.fetch = originalFetch;
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("prefers the official tts plugin path when fal is configured", async () => {
-    const root = mkdtempSync(join(tmpdir(), "doolittle-media-fal-"));
-    const originalFetch = globalThis.fetch;
-    const requests: string[] = [];
-    let configuredKey = "";
-    const service = new MediaService(root, join(root, "media"), () => ({
-      provider: "offline",
-      model: "offline",
-      baseUrl: "https://example.invalid/v1",
-      temperature: 0,
-      maxTokens: 0,
-      falApiKey: "fal-test-key",
+  it("accepts streamed audio results from the official Eliza TTS model", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-media-tts-stream-"));
+    const service = new MediaService(root, join(root, "media"));
+    const bytes = new Uint8Array(Buffer.from("ID3doolittle-streamed-tts"));
+    const useModel = vi.fn(async () => ({
+      audioStream: (async function* () {
+        yield bytes;
+      })(),
+      bytes: Promise.resolve(bytes),
+      mimeType: "audio/mpeg",
     }));
+    service.bindRuntime({
+      getModel: vi.fn(() => useModel),
+      getService: vi.fn(() => null),
+      useModel,
+    } as never);
 
     try {
-      fal.config = ((input: { credentials?: string }) => {
-        configuredKey = input.credentials ?? "";
-      }) as typeof fal.config;
-      fal.subscribe = (async (_endpoint: string, _options: unknown) => ({
-        data: {
-          audio: {
-            url: "https://example.invalid/fal-audio.mp3",
-          },
-        },
-      })) as typeof fal.subscribe;
-      globalThis.fetch = (async (input: RequestInfo | URL) => {
-        const url = typeof input === "string" ? input : input.toString();
-        requests.push(url);
-        if (url === "https://example.invalid/fal-audio.mp3") {
-          return new Response(Buffer.from("ID3doolittle-fal-tts"), {
-            status: 200,
-          });
-        }
-        throw new Error(`Unexpected fetch: ${url}`);
-      }) as typeof fetch;
-
       const speech = await service.speakWithModel("Doolittle native TTS.", {
         format: "mp3",
       });
 
-      expect(configuredKey).toBe("fal-test-key");
       expect(speech.artifactKind).toBe("mp3");
-      expect(speech.response).toContain("official TTS plugin-compatible");
+      expect(speech.response).toContain(ModelType.TEXT_TO_SPEECH);
       expect(existsSync(speech.artifactPath)).toBe(true);
-      expect(requests).toContain("https://example.invalid/fal-audio.mp3");
+      expect(useModel).toHaveBeenCalledOnce();
     } finally {
-      globalThis.fetch = originalFetch;
       rmSync(root, { recursive: true, force: true });
     }
   });
@@ -434,10 +400,44 @@ describe("MediaService", () => {
     }
   });
 
+  it("falls back from the Eliza media service to the official image model", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-media-image-model-"));
+    const service = new MediaService(root, join(root, "media"));
+    const useModel = vi.fn(async () => [
+      { url: `data:image/png;base64,${ONE_BY_ONE_PNG}` },
+    ]);
+    service.bindRuntime({
+      getModel: vi.fn((modelType: string) =>
+        modelType === ModelType.IMAGE ? useModel : undefined,
+      ),
+      getService: vi.fn(() => ({
+        canGenerateMedia: vi.fn(async () => true),
+        generateMedia: vi.fn(async () => {
+          throw new Error("configured media service is unavailable");
+        }),
+      })),
+      useModel,
+    } as never);
+
+    try {
+      const generation = await service.generateImage("A compact Eliza icon");
+
+      expect(generation.artifactKind).toBe("png");
+      expect(generation.provider).toBe("eliza");
+      expect(generation.model).toBe(ModelType.IMAGE);
+      expect(useModel).toHaveBeenCalledWith(ModelType.IMAGE, {
+        prompt: expect.any(String),
+        count: 1,
+        size: "1024x1024",
+      });
+      expect(existsSync(generation.artifactPath)).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("routes all model-assisted media text through the injected runtime port", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-media-provider-"));
-    const originalFetch = globalThis.fetch;
-    const requests: string[] = [];
     const textAnalysisPort: MediaTextAnalysisPort = {
       bindRuntime: vi.fn(),
       analyze: vi.fn(async () => "Runtime-backed media summary."),
@@ -456,26 +456,26 @@ describe("MediaService", () => {
       }),
       textAnalysisPort,
     );
+    const generateMedia = vi.fn(async () => ({
+      mediaType: "image" as const,
+      imageBase64: ONE_BY_ONE_PNG,
+      mimeType: "image/png",
+    }));
+    service.bindRuntime({
+      getModel: vi.fn(() => undefined),
+      getService: vi.fn((serviceType: string) =>
+        serviceType === ServiceType.MEDIA_GENERATION
+          ? {
+              canGenerateMedia: vi.fn(async () => true),
+              generateMedia,
+            }
+          : null,
+      ),
+      useModel: vi.fn(),
+    } as never);
     const audioPath = join(root, "voice.wav");
 
     try {
-      globalThis.fetch = (async (
-        input: RequestInfo | URL,
-        _init?: RequestInit,
-      ) => {
-        const url = typeof input === "string" ? input : input.toString();
-        requests.push(url);
-        if (url.includes("/images/generations")) {
-          return new Response(
-            JSON.stringify({
-              data: [{ b64_json: ONE_BY_ONE_PNG }],
-            }),
-            { status: 200 },
-          );
-        }
-        throw new Error(`Unexpected fetch: ${url}`);
-      }) as typeof fetch;
-
       writeFileSync(audioPath, ONE_SECOND_WAV);
       const analysis = await service.analyzeWithModel("voice.wav");
 
@@ -483,9 +483,6 @@ describe("MediaService", () => {
       expect(textAnalysisPort.analyze).toHaveBeenCalledWith(
         expect.stringContaining("concise, actionable analysis"),
       );
-      expect(
-        requests.some((entry) => entry.includes("/chat/completions")),
-      ).toBe(false);
       const generation = await service.generateImage(
         "A compact dashboard icon",
       );
@@ -495,11 +492,14 @@ describe("MediaService", () => {
       );
       expect(generation.artifactKind).toBe("png");
       expect(existsSync(generation.artifactPath)).toBe(true);
-      expect(
-        requests.some((entry) => entry.includes("/images/generations")),
-      ).toBe(true);
+      expect(generation.provider).toBe("eliza");
+      expect(generation.model).toBe(ModelType.IMAGE);
+      expect(generateMedia).toHaveBeenCalledWith({
+        mediaType: "image",
+        prompt: "Runtime-backed media summary.",
+        size: "1024x1024",
+      });
     } finally {
-      globalThis.fetch = originalFetch;
       rmSync(root, { recursive: true, force: true });
     }
   });
@@ -535,7 +535,7 @@ describe("MediaService", () => {
 
       const transcription = await service.transcribe("voice.wav");
 
-      expect(transcription.source).toBe("anthropic");
+      expect(transcription.source).toBe("model-summary");
       expect(transcription.transcriptText).toBe(
         "Runtime-backed transcript summary.",
       );

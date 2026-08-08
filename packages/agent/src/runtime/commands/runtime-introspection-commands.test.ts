@@ -7,7 +7,6 @@ describe("runtime introspection command router", () => {
     const context = {
       runtime: {},
       config: {
-        falApiKey: "",
         openAiApiKey: "",
       },
       services: {

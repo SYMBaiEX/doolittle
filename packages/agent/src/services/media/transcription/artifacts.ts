@@ -16,8 +16,8 @@ export function persistMediaTranscriptionArtifacts(
 ): MediaTranscriptionBundle {
   const { bundle, inspection, modelContext, paths, prompt, signals } =
     transcription;
-  const provider = modelContext?.provider ?? "offline";
-  const model = modelContext?.model ?? "offline";
+  const provider = state.provider ?? modelContext?.provider ?? "offline";
+  const model = state.model ?? modelContext?.model ?? "offline";
 
   writeFileSync(
     paths.transcriptPath,

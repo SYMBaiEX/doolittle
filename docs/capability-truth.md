@@ -37,13 +37,13 @@ Do not edit it by hand; run `nub scripts/sync-doc-truth.ts --write`.
 
 ### Real Behavior
 
-- Reports backend=fal or backend=openai when a speech backend is configured.
-- Routes speech generation through the runtime media service instead of shipping a stub-only plugin.
+- Reports backend=eliza only when the runtime has a registered TEXT_TO_SPEECH model handler.
+- Routes speech generation through runtime.useModel(ModelType.TEXT_TO_SPEECH) instead of calling a provider transport directly.
 - Keeps the adapter loaded even when speech generation is unavailable so callers can inspect truthful status.
 
 ### Degraded Behavior
 
-- Reports mode=degraded and backend=null when no speech backend is configured.
+- Reports mode=degraded and backend=none when no speech model handler is registered.
 - Does not claim enablement solely because the plugin package is installed.
 
 ### Caveats

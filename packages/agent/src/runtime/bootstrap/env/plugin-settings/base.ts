@@ -73,6 +73,9 @@ export function buildBaseSettings(
     OPENAI_BASE_URL: config.openAiBaseUrl,
     OPENAI_SMALL_MODEL: runtimeSettings.model.model,
     OPENAI_LARGE_MODEL: runtimeSettings.model.model,
+    ...(config.openAiImageModel
+      ? { OPENAI_IMAGE_MODEL: config.openAiImageModel }
+      : {}),
     ...(openAiReasoningEffort
       ? { OPENAI_REASONING_EFFORT: openAiReasoningEffort }
       : {}),

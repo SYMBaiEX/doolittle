@@ -64,7 +64,6 @@ function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
     workspaceDir: "/tmp/doolittle-workspace",
     discordBotToken: "",
     telegramBotToken: "",
-    falApiKey: "",
     openAiApiKey: "",
     ...overrides,
   } as EnvConfig;

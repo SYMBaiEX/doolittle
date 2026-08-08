@@ -6,6 +6,7 @@ import {
   DOOLITTLE_PERSONALITY_SERVICE,
   DOOLITTLE_ROLODEX_SERVICE,
 } from "@doolittle/contracts";
+import { ModelType } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import type { AppServices } from "@/services";
 import type { RuntimeLike } from "../runtime";
@@ -190,7 +191,7 @@ function makeServices(overrides: Partial<AppServices> = {}): AppServices {
 }
 
 function makeRequiredIdentityRuntime(services: AppServices): RuntimeLike {
-  return makeRuntime({
+  const runtime = makeRuntime({
     [DOOLITTLE_PERSONALITY_SERVICE]: {
       activeId: () => services.personalities.getActive().id,
       get: (id: string) => services.personalities.get(id),
@@ -262,6 +263,11 @@ function makeRequiredIdentityRuntime(services: AppServices): RuntimeLike {
       getCachedTools: () => services.mcp.getCachedTools(),
     },
   });
+  runtime.getModel = (modelType) =>
+    modelType === ModelType.TEXT_TO_SPEECH
+      ? async () => new Uint8Array()
+      : undefined;
+  return runtime;
 }
 
 describe("ownership helpers", () => {
@@ -489,9 +495,11 @@ describe("ownership helpers", () => {
     const services = makeServices();
     const runtime = makeRequiredIdentityRuntime(services);
 
-    const controlPlane = getNativeOwnershipControlPlane(runtime, services, {
-      falApiKey: "fal-key",
-    } as never);
+    const controlPlane = getNativeOwnershipControlPlane(
+      runtime,
+      services,
+      {} as never,
+    );
 
     expect(controlPlane.identity).toMatchObject({
       personality: {
@@ -518,7 +526,6 @@ describe("ownership helpers", () => {
 
     const snapshot = await getNativeOwnershipSnapshot(runtime, services, {
       openAiApiKey: "openai-key",
-      falApiKey: "fal-key",
     } as never);
 
     expect(snapshot.ui.active.name).toBe("orange");
@@ -539,7 +546,7 @@ describe("ownership helpers", () => {
     const snapshot = await getNativeEcosystemSnapshot(
       runtime,
       services,
-      { openAiApiKey: "openai-key", falApiKey: "fal-key" } as never,
+      { openAiApiKey: "openai-key" } as never,
       undefined,
       false,
     );
@@ -551,7 +558,7 @@ describe("ownership helpers", () => {
     expect(snapshot.workspace.summary).toEqual(services.ecosystem.summary());
     expect(snapshot.ownership.ui.themes.length).toBeGreaterThan(0);
     expect(snapshot.ownership.integration.browser.source).toBe("native");
-    expect(snapshot.ownership.media.tts.provider).toBe("fal");
+    expect(snapshot.ownership.media.tts.provider).toBe("eliza");
     expect(snapshot.ownership).toHaveProperty("autonomous.research");
     expect(snapshot.accounts.codex).toBeDefined();
   });
