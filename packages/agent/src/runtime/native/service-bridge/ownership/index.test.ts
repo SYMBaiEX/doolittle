@@ -123,9 +123,6 @@ function makeServices(overrides: Partial<AppServices> = {}): AppServices {
     },
     ecosystem: {
       summary: () => ({ status: "fallback" }),
-      benchmarkPacks: () => [],
-      distributionChannels: () => [],
-      modelingProfiles: () => [],
       optionalSkillPacks: () => [],
     },
     agentSdk: {

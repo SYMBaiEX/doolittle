@@ -1,7 +1,6 @@
 import type { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import type { AcpService } from "../../acp";
 import type { AgentSdkService } from "../../agent-sdk-service";
-import type { EcosystemService } from "../../ecosystem-service";
 import type { McpService } from "../../mcp";
 import type { SkillsHubService } from "../../skills-hub/service";
 import type { ToolRegistryDynamicState } from "../../tools/types";
@@ -28,7 +27,6 @@ export interface ToolsDynamicStateDependencies {
   acp: Pick<AcpService, "status">;
   agentSdk: Pick<AgentSdkService, "snapshot">;
   skillsHub: Pick<SkillsHubService, "summary">;
-  ecosystem: Pick<EcosystemService, "summary">;
   nativeOwnership: Pick<NativeOwnershipCache, "controlPlane" | "snapshotSync">;
   nativePluginCatalog(): NativeCatalogSnapshot;
   nativePackageAudit(): NativePackageAuditSnapshot;
@@ -43,8 +41,6 @@ export function createToolsDynamicStateResolver(
     const nativePackageAudit = dependencies.nativePackageAudit();
     const agentSdkSnapshot = dependencies.agentSdk.snapshot();
     const skillsHubSummary = dependencies.skillsHub.summary();
-    const ecosystemSummary = dependencies.ecosystem.summary();
-
     return {
       mcpEnabled: dependencies.mcp.status().enabled,
       discoveredMcpTools: cachedMcpTools.length,
@@ -82,9 +78,6 @@ export function createToolsDynamicStateResolver(
       skillsHubManifestCount: skillsHubSummary.exportedManifests,
       skillsHubInstalledTotal: skillsHubSummary.installedTotal,
       skillsHubFamilyTotal: skillsHubSummary.familyTotal,
-      ecosystemBenchmarkPacks: ecosystemSummary.benchmarkPacks,
-      ecosystemDistributionChannels: ecosystemSummary.distributionChannels,
-      ecosystemModelingProfiles: ecosystemSummary.modelingProfiles,
       nativeOwnershipControlPlane: dependencies.nativeOwnership.controlPlane(),
       nativeOwnershipSnapshot: dependencies.nativeOwnership.snapshotSync(),
     };

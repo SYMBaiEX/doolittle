@@ -187,9 +187,7 @@ describe("collectProviderOwnershipContext", () => {
     const ecosystemService = {
       summary: () =>
         ({
-          benchmarkPacks: 1,
-          distributionChannels: 2,
-          modelingProfiles: 3,
+          optionalSkillPacks: 3,
         }) as const,
     } as unknown as EcosystemService;
     const skillsHubService = {
@@ -233,9 +231,7 @@ describe("collectProviderOwnershipContext", () => {
       failing: [{ plugin: "@elizaos/plugin-failing" }],
     });
     expect(context.workspaceEcosystem).toEqual({
-      benchmarkPacks: 1,
-      distributionChannels: 2,
-      modelingProfiles: 3,
+      optionalSkillPacks: 3,
     });
   });
 });

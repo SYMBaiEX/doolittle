@@ -35,18 +35,6 @@ export async function handleRuntimeEcosystemRoutes(
     );
   }
 
-  if (request.method === "GET" && url.pathname === "/benchmarks/packs") {
-    return json({
-      packs: context.services.ecosystem.benchmarkPacks(),
-    });
-  }
-
-  if (request.method === "GET" && url.pathname === "/skills/channels") {
-    return json({
-      channels: context.services.ecosystem.distributionChannels(),
-    });
-  }
-
   if (
     request.method === "GET" &&
     (url.pathname === "/skills/optional" ||
@@ -54,12 +42,6 @@ export async function handleRuntimeEcosystemRoutes(
   ) {
     return json({
       optionalSkillPacks: context.services.ecosystem.optionalSkillPacks(),
-    });
-  }
-
-  if (request.method === "GET" && url.pathname === "/modeling/profiles") {
-    return json({
-      profiles: context.services.ecosystem.modelingProfiles(),
     });
   }
 

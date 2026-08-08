@@ -5,7 +5,6 @@ the native Agent Skills filesystem shape used by `@elizaos/plugin-agent-skills`.
 
 Curated skills:
 
-- [`action-bench`](./action-bench/SKILL.md)
 - [`authoring`](./authoring/SKILL.md)
 - [`autocoder`](./autocoder/SKILL.md)
 - [`batch`](./batch/SKILL.md)
@@ -37,11 +36,5 @@ Curated skills:
 - [`workspace`](./workspace/SKILL.md)
 
 Generated skills use the same direct-child layout after approval. Their
-provenance is recorded in frontmatter and their bookkeeping lives under the
-hidden `.generated` metadata directory.
-
-- [`adapter-spike`](./adapter-spike/SKILL.md)
-- [`queue-one`](./queue-one/SKILL.md)
-- [`queue-two`](./queue-two/SKILL.md)
-- [`status-audit`](./status-audit/SKILL.md)
-- [generated skill index](./.generated/index.json)
+provenance is recorded in frontmatter. Local bookkeeping lives under the
+ignored `.generated` metadata directory and should not be committed.

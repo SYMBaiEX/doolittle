@@ -2,11 +2,6 @@ import type { CommandCatalogEntry } from "../types";
 
 export const ResearchCommandCatalogEntries: CommandCatalogEntry[] = [
   {
-    command: "/benchmarks packs",
-    category: "research",
-    description: "List workspace-native benchmark packs.",
-  },
-  {
     command: "/trajectories compress [manifest-path|bundle-label|latest]",
     category: "research",
     description:

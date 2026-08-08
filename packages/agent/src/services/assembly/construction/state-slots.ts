@@ -104,9 +104,6 @@ export function createServiceConstructionSlots(params: {
       skillsHub: {
         summary: () => skillsHub.get().summary(),
       },
-      ecosystem: {
-        summary: () => ecosystem.get().summary(),
-      },
       nativeOwnership,
     }),
   );

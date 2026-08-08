@@ -24,15 +24,11 @@ describe("SkillsService", () => {
 
     expect(summary.total).toBeGreaterThan(50);
     expect(summary.curated).toBeGreaterThan(50);
-    expect(summary.generated).toBeGreaterThan(0);
     expect(summary.bundled).toBeGreaterThan(0);
     expect(summary.workspace).toBeGreaterThan(10);
     expect(summary.invocable).toBeGreaterThan(0);
     expect(summary.roots.map((entry) => entry.name)).toContain("execution");
     expect(summary.roots.map((entry) => entry.name)).toContain("research");
-    expect(summary.categories.map((entry) => entry.name)).toContain(
-      "generated",
-    );
     expect(
       service
         .workspace()

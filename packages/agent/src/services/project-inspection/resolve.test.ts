@@ -11,7 +11,7 @@ function createHome(): string {
     tmpdir(),
     `doolittle-project-resolution-${process.pid}-${Date.now()}-${createdPaths.length}`,
   );
-  const home = join(parent, "symbiex");
+  const home = join(parent, "developer");
   mkdirSync(home, { recursive: true });
   createdPaths.push(parent);
   return home;
@@ -35,7 +35,7 @@ describe("resolveLocalProjectTarget", () => {
     process.env.HOME = home;
 
     try {
-      expect(resolveLocalProjectTarget("symbiex/dev", "/workspace")).toEqual({
+      expect(resolveLocalProjectTarget("developer/dev", "/workspace")).toEqual({
         path: dev,
         kind: "directory",
       });

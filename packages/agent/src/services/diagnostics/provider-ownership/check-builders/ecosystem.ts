@@ -46,26 +46,12 @@ export function buildEcosystemChecks(
     return checks;
   }
 
-  checks.push(
-    {
-      id: "ecosystem.workspace.benchmarks",
-      status: workspaceEcosystem.benchmarkPacks > 0 ? "pass" : "warn",
-      summary: "Benchmark workspace packs",
-      detail: `benchmark packs=${workspaceEcosystem.benchmarkPacks}`,
-    },
-    {
-      id: "ecosystem.workspace.distributions",
-      status: workspaceEcosystem.distributionChannels > 0 ? "pass" : "warn",
-      summary: "Distribution workspace channels",
-      detail: `distribution channels=${workspaceEcosystem.distributionChannels}`,
-    },
-    {
-      id: "ecosystem.workspace.modeling",
-      status: workspaceEcosystem.modelingProfiles > 0 ? "pass" : "warn",
-      summary: "Modeling workspace profiles",
-      detail: `modeling profiles=${workspaceEcosystem.modelingProfiles}`,
-    },
-  );
+  checks.push({
+    id: "ecosystem.workspace.optional-skills",
+    status: workspaceEcosystem.optionalSkillPacks > 0 ? "pass" : "warn",
+    summary: "Optional native skill packs",
+    detail: `optional skill packs=${workspaceEcosystem.optionalSkillPacks}`,
+  });
 
   return checks;
 }

@@ -1,5 +1,3 @@
-import { benchmarkConfig } from "@plugins/doolittle-plugin";
-
 import { getNativeServices } from "../runtime";
 import { getNativeExecutionControlPlane } from "./execution";
 import type { NativeResearchServices, RuntimeLike } from "./types";
@@ -20,17 +18,6 @@ export function getNativeResearchControlPlane(runtime: RuntimeLike) {
     autocoderDependencies.forms;
 
   return {
-    actionBench: {
-      source: "product-plugin" as const,
-      available: true,
-      actions: benchmarkConfig.totalActionsLoaded,
-      suites: {
-        typewriter: benchmarkConfig.typewriterEnabled,
-        multiverseMath: benchmarkConfig.multiverseMathEnabled,
-        relationalData: benchmarkConfig.relationalDataEnabled,
-      },
-      detail: `Doolittle's action-bench plugin is loaded through the Eliza runtime with ${benchmarkConfig.totalActionsLoaded} benchmark actions.`,
-    },
     autocoder: {
       source: "product-plugin" as const,
       available: true,

@@ -117,9 +117,7 @@ const baseContext = {
     failing: [],
   },
   workspaceEcosystem: {
-    benchmarkPacks: 2,
-    distributionChannels: 1,
-    modelingProfiles: 1,
+    optionalSkillPacks: 2,
   },
   ownership: {
     transportControl: {

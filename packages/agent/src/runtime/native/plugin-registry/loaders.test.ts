@@ -234,7 +234,6 @@ describe("loadDeferredPluginGroups", () => {
 
     expect(pluginNames(groups.messaging)).toEqual([]);
     expect(pluginNames(groups.research)).toEqual([
-      "@doolittle/plugin-action-bench",
       "@doolittle/plugin-autocoder",
     ]);
     expect(pluginNames(groups.execution)).toEqual([

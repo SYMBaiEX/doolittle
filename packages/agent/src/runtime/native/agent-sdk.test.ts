@@ -81,7 +81,7 @@ describe("agent-sdk helper facade", () => {
     expect(report.coreVersion).toBe(coreVersion);
     expect(report.channels).toEqual(["dev", "staging", "prod"]);
     expect(report).not.toHaveProperty("skillCatalog");
-    expect(report.compatibility.length).toBeGreaterThan(5);
+    expect(report.compatibility.length).toBeGreaterThanOrEqual(5);
     expect(report.compatibility[0]?.compatible).toBeDefined();
   });
 

@@ -51,9 +51,6 @@ export interface SetupSummary {
     skillCatalogAvailable: boolean;
     skillCatalogSkills: number;
     compatibilityFailures: number;
-    benchmarkPacks?: number;
-    distributionChannels?: number;
-    modelingProfiles?: number;
   };
   pluginManager?: {
     available: boolean;
@@ -103,9 +100,6 @@ export interface UpdatePreview {
     skillCatalogAvailable: boolean;
     skillCatalogSkills: number;
     compatibilityFailures: number;
-    benchmarkPacks?: number;
-    distributionChannels?: number;
-    modelingProfiles?: number;
   };
   transportControl?: ReturnType<
     typeof getNativeTransportControlPlane

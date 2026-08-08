@@ -131,8 +131,8 @@ describe("runtime run progress helpers", () => {
           localMutations: [
             {
               action: "WRITE_FILE",
-              requestedPath: "symbiex/dev/the-game/index.html",
-              resolvedPath: "/Users/symbiex/dev/the-game/index.html",
+              requestedPath: "developer/dev/example-app/index.html",
+              resolvedPath: "/Users/developer/dev/example-app/index.html",
               success: true,
               recordedAt: "2026-04-13T10:00:02.000Z",
             },

@@ -139,9 +139,6 @@ export function buildToolRegistrySummary(
         nativeOwnershipSnapshot?.skillHub.familyTotal ??
         dynamic.skillsHubFamilyTotal ??
         0,
-      benchmarkPacks: dynamic.ecosystemBenchmarkPacks ?? 0,
-      distributionChannels: dynamic.ecosystemDistributionChannels ?? 0,
-      modelingProfiles: dynamic.ecosystemModelingProfiles ?? 0,
       laggingLatestPackages: dynamic.nativeLaggingLatestPackages ?? 0,
     },
   };

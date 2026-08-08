@@ -71,11 +71,6 @@ export interface AutonomousControlPlaneSummary {
     };
   };
   research: {
-    actionBench: {
-      source: "product-plugin";
-      available: boolean;
-      actions: number;
-    };
     autocoder: {
       source: "product-plugin";
       available: boolean;

@@ -101,9 +101,7 @@ export interface ProviderOwnershipContext {
     failing: Array<{ plugin: string }>;
   };
   workspaceEcosystem?: {
-    benchmarkPacks: number;
-    distributionChannels: number;
-    modelingProfiles: number;
+    optionalSkillPacks: number;
   };
   ownership?: ProviderOwnershipNativeOwnershipControl;
   formsControl?: ProviderOwnershipNativeFormsControl;

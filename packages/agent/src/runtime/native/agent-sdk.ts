@@ -18,7 +18,6 @@ const FOUNDATION_PACKAGES = [
 ] as const;
 
 const ECOSYSTEM_PACKAGES = [
-  "@doolittle/plugin-action-bench",
   "@doolittle/plugin-autocoder",
   "@doolittle/plugin-planning",
 ] as const;

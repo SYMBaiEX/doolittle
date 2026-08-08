@@ -121,9 +121,6 @@ function createDependencies(overrides: Record<string, unknown> = {}) {
     ecosystemService: {
       summary: () =>
         ({
-          benchmarkPacks: 2,
-          distributionChannels: 1,
-          modelingProfiles: 3,
           optionalSkillPacks: 4,
         }) as never,
     },

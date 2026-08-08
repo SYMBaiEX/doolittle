@@ -68,9 +68,6 @@ export function buildOperatorVersionSummary(
       "@doolittle/plugin-local-sandbox": "consolidated",
       "@doolittle/plugin-forms": "consolidated",
       "@doolittle/plugin-planning": "consolidated",
-      "@doolittle/plugin-action-bench":
-        packageMetadata.dependencies?.["@doolittle/plugin-action-bench"] ??
-        "consolidated",
       "@doolittle/plugin-autocoder":
         packageMetadata.dependencies?.["@doolittle/plugin-autocoder"] ??
         "consolidated",

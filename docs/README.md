@@ -21,7 +21,6 @@ assembled runtime behavior. Do not edit them directly.
 | --- | --- |
 | [Plugin inventory](./plugin-inventory.md) | Runtime plugin catalog plus workspace inspection. |
 | [Capability truth](./capability-truth.md) | Code-backed real, degraded, and caveat records. |
-| [Operator wow contract](./operator-wow-contract.md) | Code-backed acceptance scenarios, gaps, and implementation tasks. |
 
 Regenerate and validate them from the repository root:
 
@@ -38,13 +37,6 @@ nub run check:docs-truth
 | [Module structure guidelines](./module-structure-guidelines.md) | Folder, filename, entrypoint, and test-placement conventions. |
 | [Package ownership](./package-ownership.md) | Current Eliza-native, product-owned, compatibility, and data-package boundaries. |
 | [Eliza maximization matrix](./eliza-maximization-matrix.md) | Dated maintainer audit of native SDK ownership and remaining adapters. |
-| [ElizaOS research notes](./elizaos-research.md) | Dated upstream package and architecture research for the pinned beta line. |
-| [Native experience ledger](./native-experience-ledger.md) | Dated residual gateway and API product-fidelity gaps. |
-| [Experience harness plan](./doolittle-experience-harness-plan.md) | Design record for the terminal-native execution and recovery baseline. |
-
-The four dated audit and design documents are maintainership records, not
-capability promises. Confirm current behavior in the generated truth documents
-and runtime status surfaces before updating user-facing claims.
 
 ## Documentation Rules
 

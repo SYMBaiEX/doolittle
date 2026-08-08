@@ -1,7 +1,0 @@
-{
-  "name": "@doolittle/benchmarks",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "description": "Doolittle benchmark packs and environment manifests."
-}

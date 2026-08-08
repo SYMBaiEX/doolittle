@@ -45,9 +45,6 @@ export interface ToolRegistryDynamicState {
   skillsHubManifestCount?: number;
   skillsHubInstalledTotal?: number;
   skillsHubFamilyTotal?: number;
-  ecosystemBenchmarkPacks?: number;
-  ecosystemDistributionChannels?: number;
-  ecosystemModelingProfiles?: number;
 }
 
 export interface ToolRegistrySummary {
@@ -103,9 +100,6 @@ export interface ToolRegistrySummary {
     skillsHubManifestCount: number;
     skillsHubInstalledTotal: number;
     skillsHubFamilyTotal: number;
-    benchmarkPacks: number;
-    distributionChannels: number;
-    modelingProfiles: number;
     laggingLatestPackages: number;
   };
 }

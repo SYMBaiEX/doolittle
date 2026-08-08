@@ -140,11 +140,6 @@ export function buildResearchSection(
   input: AutonomousSummaryInput,
 ): AutonomousControlPlaneSummary["research"] {
   return {
-    actionBench: {
-      source: "product-plugin" as const,
-      available: input.researchControl.actionBench.available,
-      actions: input.researchControl.actionBench.actions,
-    },
     autocoder: {
       source: "product-plugin" as const,
       available: input.researchControl.autocoder.available,

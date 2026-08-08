@@ -373,8 +373,8 @@ describe.sequential("linked provider account auth snapshot", () => {
         join(home, ".claude.json"),
         JSON.stringify({
           oauthAccount: {
-            displayName: "Symbiotic Operator",
-            emailAddress: "solsymbaiex@gmail.com",
+            displayName: "Example Operator",
+            emailAddress: "operator@example.com",
           },
         }),
         "utf8",
@@ -384,7 +384,7 @@ describe.sequential("linked provider account auth snapshot", () => {
       const snapshot = mod.getLinkedProviderAccountsSnapshot(home);
       expect(snapshot.claudeCode.reusable).toBe(true);
       expect(snapshot.claudeCode.nativeReady).toBe(true);
-      expect(snapshot.claudeCode.accountLabel).toContain("Symbiotic Operator");
+      expect(snapshot.claudeCode.accountLabel).toContain("Example Operator");
       expect(snapshot.claudeCode.source).toContain(".claude/.credentials.json");
       expect(snapshot.claudeCode.loginCommand).toBe("claude auth login");
       expect(snapshot.claudeCode.setupCommand).toBe("claude setup-token");

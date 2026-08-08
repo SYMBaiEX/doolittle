@@ -65,8 +65,6 @@ Optional, higher-breadth packs live in the sibling [`packages/skill-packs-option
   - repeatable scoring, bundle comparison, and regression-oriented review
 - `batch`
   - replay bundles, evaluation sweeps, and higher-volume review runs
-- `action-bench`
-  - action-calling benchmark coverage, package-enabled action sweeps, and evaluation gates
 - `autocoder`
   - code-generation evaluation, SWE-bench style review, and patch-quality checks
 - `tts`

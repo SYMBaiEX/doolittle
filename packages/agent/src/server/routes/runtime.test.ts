@@ -73,10 +73,7 @@ function createContext() {
         registry: async (refresh: boolean) => ({ refresh, mode: "registry" }),
       },
       ecosystem: {
-        benchmarkPacks: () => ["pack-a"],
-        distributionChannels: () => ["stable"],
         optionalSkillPacks: () => ["pack-optional"],
-        modelingProfiles: () => ["profile-a"],
       },
       operator: {
         setupSummary: async () => ({ ok: true }),

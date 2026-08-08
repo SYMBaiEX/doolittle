@@ -70,12 +70,6 @@ export function buildDiagnosticsRuntimeServiceChecks(input: {
     );
     checks.push(
       {
-        id: "research.action-bench.native",
-        status: researchControl.actionBench.available ? "pass" : "warn",
-        summary: "Action-bench plugin ownership",
-        detail: researchControl.actionBench.detail,
-      },
-      {
         id: "research.autocoder.native",
         status: researchControl.autocoder.ready ? "pass" : "warn",
         summary: "Autocoder runtime readiness",

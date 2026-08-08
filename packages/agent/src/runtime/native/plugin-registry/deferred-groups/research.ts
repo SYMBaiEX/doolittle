@@ -1,9 +1,5 @@
 import type { Plugin } from "@elizaos/core";
-import {
-  actionBenchPlugin,
-  createAutocoderPlugin,
-} from "@plugins/doolittle-plugin";
-import { normalizePlugin } from "../support";
+import { createAutocoderPlugin } from "@plugins/doolittle-plugin";
 import type { DeferredPluginGroupContext } from "./shared";
 
 export function loadDeferredResearchPlugins({
@@ -11,7 +7,6 @@ export function loadDeferredResearchPlugins({
   config,
 }: DeferredPluginGroupContext): Plugin[] {
   return [
-    normalizePlugin(actionBenchPlugin),
     createAutocoderPlugin({
       terminal: {
         run: (command, timeoutMs) => services.terminal.run(command, timeoutMs),

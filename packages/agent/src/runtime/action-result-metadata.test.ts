@@ -11,20 +11,20 @@ describe("action result metadata helpers", () => {
     const actionResults = [
       {
         success: true,
-        text: "Wrote: /Users/symbiex/dev/the-game/index.html",
+        text: "Wrote: /Users/developer/dev/example-app/index.html",
         data: {
           actionName: "WRITE_FILE",
           mutationKind: "local-file",
           mutation: {
             action: "WRITE_FILE",
-            requestedPath: "symbiex/dev/the-game/index.html",
-            resolvedPath: "/Users/symbiex/dev/the-game/index.html",
+            requestedPath: "developer/dev/example-app/index.html",
+            resolvedPath: "/Users/developer/dev/example-app/index.html",
             success: true,
             bytes: 42,
           },
           fileOperation: {
             type: "write",
-            target: "symbiex/dev/the-game/index.html",
+            target: "developer/dev/example-app/index.html",
             size: 42,
           },
         },
@@ -38,17 +38,17 @@ describe("action result metadata helpers", () => {
           exitCode: 1,
           stdout: "",
           stderr: "failed",
-          cwd: "/Users/symbiex/dev/project",
+          cwd: "/Users/developer/dev/project",
         },
       },
     ];
 
     expect(extractLocalMutationFromActionResult(actionResults[0])).toEqual({
       action: "WRITE_FILE",
-      requestedPath: "symbiex/dev/the-game/index.html",
-      resolvedPath: "/Users/symbiex/dev/the-game/index.html",
+      requestedPath: "developer/dev/example-app/index.html",
+      resolvedPath: "/Users/developer/dev/example-app/index.html",
       success: true,
-      message: "Wrote: /Users/symbiex/dev/the-game/index.html",
+      message: "Wrote: /Users/developer/dev/example-app/index.html",
       bytes: 42,
       replacements: undefined,
     });
@@ -59,7 +59,7 @@ describe("action result metadata helpers", () => {
     expect(summary.fileOperations).toEqual([
       {
         type: "write",
-        target: "symbiex/dev/the-game/index.html",
+        target: "developer/dev/example-app/index.html",
         size: 42,
       },
     ]);
@@ -69,7 +69,7 @@ describe("action result metadata helpers", () => {
         exitCode: 1,
         stdout: "",
         stderr: "failed",
-        executedIn: "/Users/symbiex/dev/project",
+        executedIn: "/Users/developer/dev/project",
         durationMs: undefined,
         success: false,
       },

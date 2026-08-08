@@ -45,7 +45,8 @@ const gatewayOutbox = [
     roomId: "room-orange",
     threadId: "thread-alpha",
     authorName: "Doolittle",
-    textPreview: "Build accepted on branch sym/orange-ui with the updated desktop shell.",
+    textPreview:
+      "Build accepted on branch feature/operator-ui with the updated desktop shell.",
     attachmentCount: 0,
   },
 ];
@@ -114,7 +115,7 @@ function profileRecallHits(query) {
     },
     {
       kind: "project",
-      value: "Hermes-style desktop shell",
+      value: "Doolittle desktop shell",
       score: 0.91,
     },
     {
@@ -328,7 +329,7 @@ const server = createServer(async (req, res) => {
           ]
         : [
             "User likes minimal, fast desktop workflows.",
-            "Prefer Hermes-style desktop framing with orange accenting.",
+            "Prefer conversation-first desktop framing with orange accenting.",
           ];
     sendJson(res, {
       summary: {

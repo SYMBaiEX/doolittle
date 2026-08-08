@@ -161,4 +161,3 @@ Before documenting capability, route through:
 - [`docs/README.md`](./README.md) (documentation ownership and navigation)
 - [`docs/plugin-inventory.md`](./plugin-inventory.md) (what is assembled)
 - [`docs/capability-truth.md`](./capability-truth.md) (what each runtime slice can and cannot claim)
-- [`docs/operator-wow-contract.md`](./operator-wow-contract.md) (what native operator product outcomes must prove)

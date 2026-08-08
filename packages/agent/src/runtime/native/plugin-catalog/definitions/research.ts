@@ -2,17 +2,6 @@ import type { NativePluginCatalogSeed } from "./types";
 
 export const RESEARCH_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
   {
-    id: "research.action-bench",
-    packageName: "@doolittle/plugin-action-bench",
-    category: "research",
-    source: "vendored",
-    kind: "vendored",
-    maturity: "alpha",
-    enablement: "always",
-    notes:
-      "Doolittle-owned Eliza benchmark plugin for evaluation and coverage drills.",
-  },
-  {
     id: "research.autocoder",
     packageName: "@doolittle/plugin-autocoder",
     category: "research",

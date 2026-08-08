@@ -36,9 +36,6 @@ export class CapabilityCatalogService {
       skillsHubManifestCount: 0,
       skillsHubInstalledTotal: 0,
       skillsHubFamilyTotal: 0,
-      ecosystemBenchmarkPacks: 0,
-      ecosystemDistributionChannels: 0,
-      ecosystemModelingProfiles: 0,
     }),
   ) {}
 

@@ -184,16 +184,6 @@ export const handleSkillInventoryCommand: SkillCommandHandler = async (
     return skill ? skill.content : `Skill not found: ${slug}`;
   }
 
-  if (trimmed === "/skills channels") {
-    return JSON.stringify(
-      {
-        channels: context.services.ecosystem.distributionChannels(),
-      },
-      null,
-      2,
-    );
-  }
-
   if (trimmed === "/skills optional" || trimmed === "/skills optional packs") {
     return JSON.stringify(
       {

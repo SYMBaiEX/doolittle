@@ -79,9 +79,6 @@ export interface NativeEcosystemSnapshot {
   sdk: Awaited<ReturnType<AppServices["agentSdk"]["overview"]>>;
   workspace: {
     summary: ReturnType<AppServices["ecosystem"]["summary"]>;
-    benchmarks: ReturnType<AppServices["ecosystem"]["benchmarkPacks"]>;
-    channels: ReturnType<AppServices["ecosystem"]["distributionChannels"]>;
-    modeling: ReturnType<AppServices["ecosystem"]["modelingProfiles"]>;
     optionalSkillPacks: ReturnType<
       AppServices["ecosystem"]["optionalSkillPacks"]
     >;

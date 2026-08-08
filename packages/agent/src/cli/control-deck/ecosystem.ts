@@ -48,7 +48,7 @@ export async function renderEcosystemContent(
     `Vendored: ${vendored}`,
     `Workspace-only: ${workspaceOnly}`,
     `Native services: ${resolution.filter((entry) => entry.source === "native").length}/${resolution.length}`,
-    `Workspace packs: benchmarks=${ecosystem.benchmarkPacks} channels=${ecosystem.distributionChannels} modeling=${ecosystem.modelingProfiles} optional=${ecosystem.optionalSkillPacks}`,
+    `Optional skill packs: ${ecosystem.optionalSkillPacks}`,
     "",
     "{bold}Priority Packages{/}",
     ...snapshot.packageAudit.packages

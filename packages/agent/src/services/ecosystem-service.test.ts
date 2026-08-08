@@ -2,12 +2,9 @@ import { describe, expect, it } from "vitest";
 import { EcosystemService } from "./ecosystem-service";
 
 describe("EcosystemService", () => {
-  it("reads benchmark packs, distribution channels, and modeling profiles", () => {
+  it("reads optional skill packs from the native filesystem layout", () => {
     const service = new EcosystemService();
 
-    expect(service.benchmarkPacks().length).toBeGreaterThan(0);
-    expect(service.distributionChannels().length).toBeGreaterThan(0);
-    expect(service.modelingProfiles().length).toBeGreaterThan(0);
     expect(service.optionalSkillPacks().length).toBeGreaterThan(0);
     expect(service.summary().packageRoots.every((entry) => entry.exists)).toBe(
       true,

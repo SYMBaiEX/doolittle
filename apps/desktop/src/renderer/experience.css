@@ -3032,9 +3032,9 @@ button.chat-session-meta-pill:hover {
 
 /* Conversation-first desktop shell
  *
- * Hermes keeps navigation and system state subordinate to the transcript.
- * These rules translate that hierarchy to a native desktop window while
- * retaining Doolittle's orange semantic palette and project capabilities.
+ * Navigation and system state stay subordinate to the transcript. These rules
+ * carry that hierarchy into a native desktop window while retaining
+ * Doolittle's orange semantic palette and project capabilities.
  */
 
 .desktop-shell {

@@ -39,11 +39,7 @@ describe("runSyncDocTruth", () => {
   it("keeps active architecture and onboarding docs in the checked target set", () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-doc-links-active-"));
     try {
-      for (const path of [
-        "docs/elizaos-research.md",
-        "docs/monorepo.md",
-        "docs/quickstart.md",
-      ]) {
+      for (const path of ["docs/monorepo.md", "docs/quickstart.md"]) {
         const target = join(root, path);
         mkdirSync(join(target, ".."), { recursive: true });
         writeFileSync(target, "[missing](./absent.md)\n");
@@ -52,7 +48,6 @@ describe("runSyncDocTruth", () => {
       expect(validateMarkdownLinks(root)).toEqual([
         "README.md: file does not exist",
         "docs/eliza-maximization-matrix.md: file does not exist",
-        "docs/elizaos-research.md:1: missing link target: ./absent.md",
         "docs/monorepo.md:1: missing link target: ./absent.md",
         "docs/quickstart.md:1: missing link target: ./absent.md",
       ]);

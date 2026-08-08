@@ -18,4 +18,5 @@ output/
 *.tgz
 *.tsbuildinfo
 skills/generated/index.json
+packages/skills/.generated/
 tmp/

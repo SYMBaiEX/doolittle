@@ -10,7 +10,6 @@ export const autonomousPatternAreas = [
   "coding-agent-integration",
   "trajectory-logging",
   "plugin-centric-runtime-assembly",
-  "action-bench-evaluation",
   "autocoder-swe-bench-evaluation",
   "tts-voice-generation",
 ] as const;
@@ -22,7 +21,6 @@ export const autonomousNativeControlPlanes = [
   "trajectory-logger",
   "plugin-manager",
   "trigger-scheduling",
-  "action-bench",
   "autocoder",
   "tts",
 ] as const;

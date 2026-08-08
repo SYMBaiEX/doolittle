@@ -1,7 +1,0 @@
-{
-  "name": "@doolittle/modeling",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "description": "Doolittle user and assistant modeling profiles."
-}

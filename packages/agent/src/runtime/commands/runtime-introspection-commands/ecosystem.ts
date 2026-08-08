@@ -48,25 +48,5 @@ export const handleEcosystemRuntimeIntrospectionCommand: RuntimeIntrospectionCom
       );
     }
 
-    if (trimmed === "/benchmarks packs") {
-      return JSON.stringify(
-        {
-          packs: context.services.ecosystem.benchmarkPacks(),
-        },
-        null,
-        2,
-      );
-    }
-
-    if (trimmed === "/modeling profiles") {
-      return JSON.stringify(
-        {
-          profiles: context.services.ecosystem.modelingProfiles(),
-        },
-        null,
-        2,
-      );
-    }
-
     return undefined;
   };

@@ -29,9 +29,6 @@ export interface OperatorCondensedSummary {
     skillCatalogAvailable: boolean;
     skillCatalogSkills: number;
     compatibilityFailures: number;
-    benchmarkPacks?: number;
-    distributionChannels?: number;
-    modelingProfiles?: number;
     optionalSkillPacks?: number;
   };
   pluginManager: {
@@ -93,9 +90,6 @@ export function buildOperatorCondensedSummary(input: {
       skillCatalogAvailable: skillsHub?.catalogProjected ?? false,
       skillCatalogSkills: skillsHub?.catalogTotal ?? 0,
       compatibilityFailures: ecosystem?.summary.compatibilityFailures ?? 0,
-      benchmarkPacks: workspaceEcosystem?.benchmarkPacks ?? 0,
-      distributionChannels: workspaceEcosystem?.distributionChannels ?? 0,
-      modelingProfiles: workspaceEcosystem?.modelingProfiles ?? 0,
       optionalSkillPacks: workspaceEcosystem?.optionalSkillPacks ?? 0,
     },
     pluginManager: {

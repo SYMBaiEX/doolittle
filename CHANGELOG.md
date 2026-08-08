@@ -8,6 +8,10 @@ ElizaOS 2.0 beta line.
 
 ### Platform
 
+- Removed benchmark, distribution, and modeling placeholder workspaces with
+  their metadata-only projections; checked-in generated skill residue; and an
+  internal planning contract that had no runtime consumers. Generated skill
+  bookkeeping is now local-only, and public tests use neutral fixtures.
 - **Aligned the complete ElizaOS runtime train on `2.0.3-beta.7`**:
   `@elizaos/core`, `@elizaos/agent`, `@elizaos/skills`, `elizaos`, shared, and
   published official plugins now resolve to one exact beta through root

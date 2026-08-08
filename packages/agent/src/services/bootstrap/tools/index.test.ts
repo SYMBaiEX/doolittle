@@ -11,7 +11,6 @@ describe("createToolsDynamicStateResolver", () => {
       nativePackageAudit: 0,
       agentSdkSnapshot: 0,
       skillsHubSummary: 0,
-      ecosystemSummary: 0,
       nativeOwnershipControlPlane: 0,
       nativeOwnershipSnapshot: 0,
     };
@@ -58,16 +57,6 @@ describe("createToolsDynamicStateResolver", () => {
             exportedManifests: 3,
             installedTotal: 8,
             familyTotal: 2,
-          };
-        },
-      } as never,
-      ecosystem: {
-        summary: () => {
-          calls.ecosystemSummary += 1;
-          return {
-            benchmarkPacks: 6,
-            distributionChannels: 4,
-            modelingProfiles: 3,
           };
         },
       } as never,
@@ -180,7 +169,6 @@ describe("createToolsDynamicStateResolver", () => {
     expect(state.skillsHubCatalogTotal).toBe(7);
     expect(state.agentSdkCompatibilityFailures).toBe(1);
     expect(state.skillsHubInstalledTotal).toBe(8);
-    expect(state.ecosystemBenchmarkPacks).toBe(6);
     expect(state.nativeRuntimeLatest).toBe("1.2.3");
     expect(state.nativeLaggingLatestPackages).toBe(2);
 
@@ -192,7 +180,6 @@ describe("createToolsDynamicStateResolver", () => {
       nativePackageAudit: 1,
       agentSdkSnapshot: 1,
       skillsHubSummary: 1,
-      ecosystemSummary: 1,
       nativeOwnershipControlPlane: 1,
       nativeOwnershipSnapshot: 1,
     });

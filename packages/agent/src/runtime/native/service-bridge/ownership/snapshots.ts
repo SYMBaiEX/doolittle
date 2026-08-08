@@ -114,9 +114,6 @@ export async function getNativeEcosystemSnapshot(
     sdk,
     workspace: {
       summary: services.ecosystem.summary(),
-      benchmarks: services.ecosystem.benchmarkPacks(),
-      channels: services.ecosystem.distributionChannels(),
-      modeling: services.ecosystem.modelingProfiles(),
       optionalSkillPacks: services.ecosystem.optionalSkillPacks(),
     },
     ownership,

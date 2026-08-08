@@ -2,11 +2,6 @@ import type { CommandCatalogEntry } from "../types";
 
 export const MemoryCommandCatalogEntries: CommandCatalogEntry[] = [
   {
-    command: "/modeling profiles",
-    category: "memory",
-    description: "List workspace-native user and assistant modeling profiles.",
-  },
-  {
     command: "/memory list memory",
     category: "memory",
     description: "Show long-term memory entries.",

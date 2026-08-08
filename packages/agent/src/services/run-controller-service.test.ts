@@ -129,10 +129,10 @@ describe("RunControllerService", () => {
 
     service.recordRuntimeLocalMutation("room-a", {
       action: "WRITE_FILE",
-      requestedPath: "symbiex/dev/the-game/index.html",
-      resolvedPath: "/Users/symbiex/dev/the-game/index.html",
+      requestedPath: "developer/dev/example-app/index.html",
+      resolvedPath: "/Users/developer/dev/example-app/index.html",
       success: true,
-      message: "Wrote: /Users/symbiex/dev/the-game/index.html",
+      message: "Wrote: /Users/developer/dev/example-app/index.html",
       bytes: 42,
     });
 

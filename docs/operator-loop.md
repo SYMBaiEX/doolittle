@@ -115,4 +115,3 @@ If you want the shortest "am I actually ready?" loop:
 - [`README.md`](../README.md) for the full surface map
 - [`quickstart.md`](./quickstart.md) for install-to-ready
 - [`plugin-inventory.md`](./plugin-inventory.md) for truth about assembled plugin state
-- [`operator-wow-contract.md`](./operator-wow-contract.md) for native operator acceptance scenarios and next implementation tasks

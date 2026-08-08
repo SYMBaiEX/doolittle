@@ -98,10 +98,10 @@ describe("run-controller/transitions", () => {
   it("records local mutation receipts without losing earlier run state", () => {
     const transition = localMutationTransition(baseCurrent, {
       action: "WRITE_FILE",
-      requestedPath: "symbiex/dev/the-game/index.html",
-      resolvedPath: "/Users/symbiex/dev/the-game/index.html",
+      requestedPath: "developer/dev/example-app/index.html",
+      resolvedPath: "/Users/developer/dev/example-app/index.html",
       success: true,
-      message: "Wrote: /Users/symbiex/dev/the-game/index.html",
+      message: "Wrote: /Users/developer/dev/example-app/index.html",
       bytes: 42,
     });
 
@@ -111,8 +111,8 @@ describe("run-controller/transitions", () => {
       {
         action: "WRITE_FILE",
         success: true,
-        requestedPath: "symbiex/dev/the-game/index.html",
-        resolvedPath: "/Users/symbiex/dev/the-game/index.html",
+        requestedPath: "developer/dev/example-app/index.html",
+        resolvedPath: "/Users/developer/dev/example-app/index.html",
         bytes: 42,
       },
     ]);

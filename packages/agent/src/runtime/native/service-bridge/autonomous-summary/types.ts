@@ -94,10 +94,6 @@ export type AutonomousSummaryInput = {
     };
   };
   researchControl: {
-    actionBench: {
-      available: boolean;
-      actions: number;
-    };
     autocoder: {
       available: boolean;
       ready: boolean;

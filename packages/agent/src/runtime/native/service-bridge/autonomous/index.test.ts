@@ -138,9 +138,6 @@ describe("autonomous control plane", () => {
       },
       ecosystem: {
         summary: () => ({}),
-        benchmarkPacks: () => [],
-        distributionChannels: () => [],
-        modelingProfiles: () => [],
         optionalSkillPacks: () => [],
       },
       nativeOwnership: {

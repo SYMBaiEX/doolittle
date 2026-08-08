@@ -2,11 +2,6 @@ import type { CommandCatalogEntry } from "../types";
 
 export const SkillsCommandCatalogEntries: CommandCatalogEntry[] = [
   {
-    command: "/skills channels",
-    category: "skills",
-    description: "List workspace-native skill distribution channels.",
-  },
-  {
     command: "/skills optional",
     category: "skills",
     description:

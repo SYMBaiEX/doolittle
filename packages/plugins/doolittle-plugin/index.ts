@@ -1,4 +1,3 @@
-export { actionBenchPlugin, benchmarkConfig } from "./action-bench";
 export { autocoderPlugin, createAutocoderPlugin } from "./autocoder";
 export { createCodingAgentPlugin } from "./coding-agent";
 export { createFormsPlugin } from "./forms";

@@ -24,9 +24,6 @@ pinned `2.0.3-beta.7` train.
 | `packages/plugin-remote-manifest` | Resolver shim | Temporary | Exact beta package is unpublished. The SDK release gate declares and validates the shim. |
 | `packages/plugin-worker-runtime` | Resolver shim | Temporary | Exact beta package is unpublished. The SDK release gate declares and validates its public error contract. |
 | `packages/registry` | Resolver shim | Temporary | Supplies curated registry JSON subpaths required by desktop packaging until the exact beta artifact is public. |
-| `packages/benchmarks` | Test data | Keep | Evaluation fixtures, not runtime code. |
-| `packages/distributions` | Distribution data | Keep | Product distribution metadata, not an SDK implementation. |
-| `packages/modeling` | Model data | Keep | Model capability metadata, not a provider transport. |
 | `packages/skills` | Eliza skill assets | Native data | Skill manifests are consumed by official `@elizaos/skills` and Agent Skills services. |
 | `packages/skill-packs-optional` | Distribution assets | Keep | Optional curated skill content; installation and catalog lifecycle remain Eliza-owned. |
 

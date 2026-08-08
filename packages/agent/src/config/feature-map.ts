@@ -93,11 +93,11 @@ export const featureMap: FeatureMapping[] = [
       "Creates model-assisted reports for audio, image, and document artifacts, can transcribe audio through provider-native speech endpoints, can synthesize Doolittle speech audio when the provider supports it, and can emit concept image bundles or SVG fallbacks.",
   },
   {
-    platformCapability: "Action benchmarks and code-generation evaluation",
+    platformCapability: "Code-generation evaluation",
     elizaImplementation:
-      "Official action-bench and autocoder plugins plus trajectory benchmark flows",
+      "Autocoder plugin plus native trajectory benchmark flows",
     notes:
-      "Adds Eliza-native benchmark actions and SWE-bench style code-generation evaluation so the research stack can compare action coverage and code quality directly inside the runtime.",
+      "Uses the experimental autocoder planning surface and trajectory benchmarks to compare code quality without advertising an empty benchmark plugin.",
   },
   {
     platformCapability: "Trajectory export, research packaging, and evaluation",

@@ -1,7 +1,0 @@
-{
-  "name": "@doolittle/distributions",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "description": "Doolittle skill and runtime distribution channels."
-}

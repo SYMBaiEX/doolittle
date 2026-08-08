@@ -831,8 +831,6 @@ describe("getEffectiveMessagingTransportInventory", () => {
       "anthropic/claude-haiku-4-5-20251001",
     );
     expect(controlPlane.media.tts.available).toBe(true);
-    expect(controlPlane.research.actionBench.source).toBe("product-plugin");
-    expect(controlPlane.research.actionBench.actions).toBeGreaterThan(0);
     expect(controlPlane.research.autocoder.source).toBe("product-plugin");
     expect(controlPlane.research.autocoder.ready).toBe(false);
     expect(controlPlane.totals.nativeServices).toBe(5);
@@ -854,7 +852,7 @@ describe("media and research control plane helpers", () => {
     expect(disabled.tts.provider).toBe("none");
   });
 
-  it("reports action-bench depth and gated autocoder readiness", () => {
+  it("reports gated autocoder readiness", () => {
     const runtime = {
       getService(name: string) {
         if (name === "doolittle_code_generation") {
@@ -874,7 +872,6 @@ describe("media and research control plane helpers", () => {
 
     const controlPlane = getNativeResearchControlPlane(runtime);
 
-    expect(controlPlane.actionBench.actions).toBeGreaterThan(0);
     expect(controlPlane.autocoder.ready).toBe(true);
     expect(controlPlane.autocoder.dependencies.github).toBe(false);
   });

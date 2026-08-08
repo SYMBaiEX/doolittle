@@ -46,9 +46,6 @@ describe("buildToolRegistrySummary", () => {
       skillsHubManifestCount: 4,
       skillsHubInstalledTotal: 1,
       skillsHubFamilyTotal: 2,
-      ecosystemBenchmarkPacks: 1,
-      ecosystemDistributionChannels: 2,
-      ecosystemModelingProfiles: 3,
     };
 
     const summary = buildToolRegistrySummary(tools, grouped, dynamic);
@@ -68,6 +65,5 @@ describe("buildToolRegistrySummary", () => {
     expect(summary.ecosystem.registryAvailable).toBe(true);
     expect(summary.ecosystem.skillCatalogAvailable).toBe(true);
     expect(summary.ecosystem.skillCatalogSkills).toBe(3);
-    expect(summary.ecosystem.modelingProfiles).toBe(3);
   });
 });
