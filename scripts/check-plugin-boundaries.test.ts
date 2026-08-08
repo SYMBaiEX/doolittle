@@ -26,6 +26,7 @@ function createBoundaryFixture(options: {
   includeHostApplicationImport?: boolean;
   includeCustomServerSecurity?: boolean;
   includeCustomCloudNormalization?: boolean;
+  includeBootstrapDirectJsonWrite?: boolean;
   includeDirectJsonWrite?: boolean;
   includeRetiredCodexProvider?: boolean;
   includeRetiredSecretsManager?: boolean;
@@ -56,6 +57,7 @@ function createBoundaryFixture(options: {
     join(root, "apps", "desktop", "src", "main"),
     join(root, "apps", "desktop", "src", "renderer"),
     join(root, "scripts", "bootstrap", "provider"),
+    join(root, "scripts", "bootstrap", "persistence"),
   ];
 
   for (const dir of requiredDirs) {
@@ -83,6 +85,14 @@ function createBoundaryFixture(options: {
     options.includeCustomCloudNormalization
       ? "export function normalizeCloudSiteUrl(value: string) { return value; }\n"
       : 'export { normalizeCloudSiteUrl } from "@elizaos/shared/elizacloud/base-url";\n',
+    "utf8",
+  );
+
+  writeFileSync(
+    join(root, "scripts", "bootstrap", "persistence", "apply.ts"),
+    options.includeBootstrapDirectJsonWrite
+      ? 'import { writeFileSync } from "node:fs";\nexport function persist(path: string, value: unknown) { writeFileSync(path, JSON.stringify(value, null, 2), "utf8"); }\n'
+      : 'import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";\nexport const persist = writeJsonAtomicSync;\n',
     "utf8",
   );
 
@@ -365,5 +375,18 @@ describe("check-plugin-boundaries", () => {
       "writes JSON directly instead of using Eliza's public atomic JSON helper",
     );
     expect(result.stderr).toContain("services/settings-service.ts");
+  });
+
+  it("rejects direct JSON persistence in bootstrap scripts", () => {
+    fixture = createBoundaryFixture({
+      includeBootstrapDirectJsonWrite: true,
+    });
+    const result = runScript(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "writes JSON directly instead of using Eliza's public atomic JSON helper",
+    );
+    expect(result.stderr).toContain("bootstrap/persistence/apply.ts");
   });
 });

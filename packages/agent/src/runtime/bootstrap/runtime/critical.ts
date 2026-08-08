@@ -26,7 +26,15 @@ import { AgentSkillsService } from "@elizaos/plugin-agent-skills";
 import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
 import { PDF_SERVICE } from "@/runtime/native/service-bridge/runtime-contracts";
 
+// These advanced-capability service types are not public exports in Eliza 2.0.3-beta.7.
+const EXPERIENCE_SERVICE_TYPE = "EXPERIENCE";
+const CHARACTER_MANAGEMENT_SERVICE_TYPE = "CHARACTER_MANAGEMENT";
+const PERSONALITY_STORE_SERVICE_TYPE = "PERSONALITY_STORE";
+
 const CRITICAL_RUNTIME_SERVICES = [
+  EXPERIENCE_SERVICE_TYPE,
+  CHARACTER_MANAGEMENT_SERVICE_TYPE,
+  PERSONALITY_STORE_SERVICE_TYPE,
   DOOLITTLE_PERSONALITY_SERVICE,
   DOOLITTLE_ROLODEX_SERVICE,
   DOOLITTLE_EXPERIENCE_SERVICE,

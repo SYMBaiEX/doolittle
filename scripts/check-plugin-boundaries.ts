@@ -445,6 +445,17 @@ const INTERNAL_FACADE_GUARDS: Array<{
   },
   {
     root: BOOTSTRAP_SCRIPTS_ROOT,
+    include:
+      /scripts\/bootstrap\/(?!(?:core|wizard-screen)\/)(?!.+\.test\.[cm]?tsx?$).+\/.+\.(?:[cm]?ts|tsx)$/u,
+    patterns: [
+      {
+        pattern: DIRECT_JSON_FILE_WRITE_PATTERN,
+        reason: DIRECT_JSON_FILE_WRITE_REASON,
+      },
+    ],
+  },
+  {
+    root: BOOTSTRAP_SCRIPTS_ROOT,
     include: /scripts\/bootstrap\/provider\/cloud-compat\.ts$/u,
     patterns: [
       {

@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { loadConfig } from "../../../packages/agent/src/config/env";
 import { summarizeAutonomousConnection } from "../../../packages/agent/src/runtime/native/autonomous-stack";
 import { buildNativeOnboardingMirror } from "../answers";
@@ -7,10 +7,6 @@ import type { BootstrapOptions, WizardAnswers } from "../types";
 import { loadBootstrapGatewayConfig, loadBootstrapSettings } from "./defaults";
 import { buildBootstrapPersistencePlan } from "./plan";
 import type { BootstrapPersistencePaths } from "./types";
-
-function writeJson(path: string, value: unknown): void {
-  writeFileSync(path, JSON.stringify(value, null, 2), "utf8");
-}
 
 export async function applyBootstrapAnswers(
   answers: WizardAnswers,
@@ -33,7 +29,10 @@ export async function applyBootstrapAnswers(
     options.headless || options.skipWizard ? "cli" : "wizard",
   );
   if (nativeOnboarding.serialized) {
-    writeJson(paths.nativeOnboardingPath, nativeOnboarding.serialized);
+    writeJsonAtomicSync(
+      paths.nativeOnboardingPath,
+      nativeOnboarding.serialized,
+    );
   }
   const nativeConnection = summarizeAutonomousConnection({
     ...loadConfig(),
@@ -102,9 +101,9 @@ export async function applyBootstrapAnswers(
   });
 
   if (!options.checkOnly) {
-    writeJson(paths.settingsPath, plan.settings);
-    writeJson(paths.gatewayPath, plan.gateway);
-    writeJson(paths.onboardingPath, plan.onboarding);
+    writeJsonAtomicSync(paths.settingsPath, plan.settings);
+    writeJsonAtomicSync(paths.gatewayPath, plan.gateway);
+    writeJsonAtomicSync(paths.onboardingPath, plan.onboarding);
   }
 
   return {
