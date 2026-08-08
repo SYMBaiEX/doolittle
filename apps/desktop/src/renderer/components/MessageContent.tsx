@@ -1,3 +1,6 @@
+import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
+import { Button } from "@elizaos/ui/components/ui/button";
+import { StatusBadge } from "@elizaos/ui/components/ui/status-badge";
 import { useMemo, useState } from "react";
 import { Streamdown, type UrlTransform } from "streamdown";
 import "streamdown/styles.css";
@@ -44,6 +47,19 @@ function statusLabel(status: ToolActivityStatus): string {
       return "Running";
     default:
       return "Pending";
+  }
+}
+
+function statusVariant(status: ToolActivityStatus) {
+  switch (status) {
+    case "completed":
+      return "success";
+    case "error":
+      return "danger";
+    case "running":
+      return "processing";
+    default:
+      return "muted";
   }
 }
 
@@ -155,10 +171,13 @@ function ToolActivityCard({ activity }: { activity: ToolActivity }) {
             </>
           ) : null}
         </span>
-        <span className={`message-tool-card__status is-${activity.status}`}>
-          <i aria-hidden="true" />
-          {statusLabel(activity.status)}
-        </span>
+        <StatusBadge
+          className={`message-tool-card__status is-${activity.status}`}
+          label={statusLabel(activity.status)}
+          status={statusVariant(activity.status)}
+          pulse={activity.status === "running"}
+          withDot
+        />
         <span className="message-tool-card__chevron" aria-hidden="true">
           ›
         </span>
@@ -172,9 +191,14 @@ function ToolActivityCard({ activity }: { activity: ToolActivity }) {
         <ToolPayload label="Raw output" value={activity.output} />
         {activity.output !== undefined ? (
           <footer>
-            <button onClick={() => void copyOutput()} type="button">
+            <Button
+              onClick={() => void copyOutput()}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
               {copyLabel}
-            </button>
+            </Button>
           </footer>
         ) : null}
       </div>
@@ -296,7 +320,7 @@ export function MessageContent({
     parsed.steps.continued + parsed.steps.failed + parsed.steps.finished > 0;
 
   return (
-    <div className="message-content">
+    <PagePanel className="message-content">
       {parsed.text ? (
         <Streamdown
           animated={pending ? { animation: "fadeIn", duration: 120 } : false}
@@ -334,6 +358,6 @@ export function MessageContent({
         </section>
       ) : null}
       <AgentSteps {...parsed.steps} />
-    </div>
+    </PagePanel>
   );
 }

@@ -68,6 +68,10 @@ test.describe("Doolittle desktop navigation", () => {
 
     try {
       const page = await app.firstWindow();
+      const pageErrors: string[] = [];
+      page.on("pageerror", (error) => {
+        pageErrors.push(error.stack ?? error.message);
+      });
       await expect(page).toHaveTitle(/Doolittle$/);
       await expect(page.locator(".window-runtime-status.ready")).toContainText(
         "Local runtime",
@@ -276,9 +280,23 @@ test.describe("Doolittle desktop navigation", () => {
       await page.evaluate(() => {
         window.location.hash = "#/connections";
       });
-      await expect(
-        page.getByRole("heading", { name: "Providers & accounts" }),
-      ).toBeVisible();
+      const providersHeading = page.getByRole("heading", {
+        name: "Providers & accounts",
+      });
+      const recoveryShell = page.locator(".recovery-shell");
+      await Promise.race([
+        providersHeading.waitFor({ state: "visible" }),
+        recoveryShell.waitFor({ state: "visible" }),
+      ]);
+      if (await recoveryShell.isVisible()) {
+        const detail = await recoveryShell
+          .locator(".recovery-details pre")
+          .textContent();
+        throw new Error(
+          `Connections route renderer recovery: ${detail}\n${pageErrors.join("\n")}`,
+        );
+      }
+      await expect(providersHeading).toBeVisible();
       await expect(
         page.getByRole("region", {
           name: "Codex spawned-agent account pool",
@@ -300,12 +318,13 @@ test.describe("Doolittle desktop navigation", () => {
       const codexPool = page.getByRole("region", {
         name: "Codex spawned-agent account pool",
       });
-      await expect(codexPool.getByLabel("Routing strategy")).toHaveValue(
-        "priority",
-      );
-      await expect(
-        codexPool.getByLabel("Routing strategy").locator("option"),
-      ).toHaveCount(4);
+      const routingStrategy = codexPool.getByRole("combobox", {
+        name: "Routing strategy",
+      });
+      await expect(routingStrategy).toContainText("Priority");
+      await routingStrategy.click();
+      await expect(page.getByRole("option")).toHaveCount(4);
+      await page.keyboard.press("Escape");
       const providersScreenshot = testInfo.outputPath(
         "doolittle-providers-and-accounts.png",
       );

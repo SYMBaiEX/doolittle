@@ -607,29 +607,11 @@ textarea {
 
 /* Command palette */
 
-.command-overlay {
-  position: fixed;
-  z-index: 1000;
-  display: grid;
-  inset: 0;
-  place-items: start center;
-  padding: min(16vh, 128px) 18px 18px;
-}
-
-.command-backdrop {
-  position: absolute;
-  inset: 0;
-  padding: 0;
-  background: color-mix(in srgb, #030201 66%, transparent);
-  border: 0;
-  backdrop-filter: blur(12px) saturate(80%);
-  animation: command-fade-in 140ms ease both;
-}
-
 .command-palette {
-  position: relative;
-  width: min(640px, 100%);
+  width: min(640px, calc(100vw - 36px));
   max-height: min(660px, 74vh);
+  gap: 0;
+  padding: 0;
   overflow: hidden;
   background: color-mix(in srgb, var(--surface-raised) 96%, transparent);
   border: 1px solid var(--border-strong);
@@ -693,10 +675,12 @@ textarea {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
+.command-palette__scroll {
+  height: min(calc(660px - 112px), calc(74vh - 112px));
+}
+
 .command-palette__list {
-  max-height: calc(min(660px, 74vh) - 112px);
   padding: 0 8px 10px;
-  overflow-y: auto;
 }
 
 .command-palette__group {
@@ -784,12 +768,6 @@ textarea {
   color: var(--muted);
   text-align: center;
   font-size: var(--text-meta);
-}
-
-@keyframes command-fade-in {
-  from {
-    opacity: 0;
-  }
 }
 
 @keyframes command-rise-in {

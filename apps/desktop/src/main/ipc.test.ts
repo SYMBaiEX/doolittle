@@ -152,6 +152,17 @@ describe("parseApiPath", () => {
       parseApiPath("/runtime/account-pool/openai-codex/import", "POST"),
     ).toBe("/runtime/account-pool/openai-codex/import");
     expect(
+      parseApiPath("/runtime/account-pool/openai-codex/account-1/test", "POST"),
+    ).toBe("/runtime/account-pool/openai-codex/account-1/test");
+    expect(
+      parseApiPath(
+        "/runtime/account-pool/anthropic-subscription/account-1/refresh-usage",
+        "POST",
+      ),
+    ).toBe(
+      "/runtime/account-pool/anthropic-subscription/account-1/refresh-usage",
+    );
+    expect(
       parseApiPath("/runtime/account-pool/openai-codex/account-1", "PATCH"),
     ).toBe("/runtime/account-pool/openai-codex/account-1");
     expect(
@@ -172,6 +183,18 @@ describe("parseApiPath", () => {
     expect(() =>
       parseApiPath("/runtime/account-pool/openai-codex/..%2Fsecret", "DELETE"),
     ).toThrow(/unsafe traversal/);
+    expect(() =>
+      parseApiPath(
+        "/runtime/account-pool/openai-codex/..%2Fsecret/test",
+        "POST",
+      ),
+    ).toThrow(/unsafe traversal/);
+    expect(() =>
+      parseApiPath(
+        "/runtime/account-pool/openai-codex/account-1/delete",
+        "POST",
+      ),
+    ).toThrow(/not available/);
   });
 
   it("validates session query parameters", () => {

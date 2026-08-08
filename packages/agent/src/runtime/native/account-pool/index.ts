@@ -7,6 +7,7 @@ import {
 } from "@elizaos/agent/auth/account-storage";
 import {
   deleteCredentials,
+  getAccessToken,
   listProviderAccounts,
   saveCredentials,
 } from "@elizaos/agent/auth/credentials";
@@ -72,6 +73,18 @@ export interface AccountPoolSnapshot {
     AccountPoolProvider,
     { strategy: AccountPoolStrategy; accounts: AccountPoolAccountSnapshot[] }
   >;
+}
+
+export interface AccountPoolCredentialTestResult {
+  ok: boolean;
+  latencyMs: number;
+  error?: string;
+}
+
+export interface AccountPoolUsageRefreshResult {
+  account: AccountPoolAccountSnapshot;
+  source: "pool" | "credential";
+  error?: string;
 }
 
 const LINKED_ACCOUNT_IDS = {
@@ -413,6 +426,109 @@ export async function selectDoolittleAccount(
       : {}),
   });
   return account ? toSnapshot(account as never) : null;
+}
+
+function credentialError(): string {
+  // Refresh grants can include provider response details. Keep those out of
+  // the operator surface, which is also rendered in desktop logs.
+  return "Unable to resolve credentials for this account.";
+}
+
+async function markCredentialFailure(
+  pool: AccountPool,
+  providerId: AccountPoolProvider,
+  accountId: string,
+  error?: unknown,
+): Promise<void> {
+  const status =
+    error &&
+    typeof error === "object" &&
+    typeof (error as { status?: unknown }).status === "number"
+      ? (error as { status: number }).status
+      : undefined;
+  if (status === 429) {
+    await pool.markRateLimited(
+      accountId,
+      Date.now() + 60_000,
+      "Usage request was rate limited.",
+      { providerId },
+    );
+    return;
+  }
+  await pool.markNeedsReauth(accountId, credentialError(), { providerId });
+}
+
+/** Resolve (and, when necessary, refresh) a credential without exposing it. */
+export async function testDoolittleAccountCredentials(
+  providerId: AccountPoolProvider,
+  accountId: string,
+  pool = getDoolittleAccountPool(),
+  resolveAccessToken: typeof getAccessToken = getAccessToken,
+): Promise<AccountPoolCredentialTestResult | null> {
+  if (!pool.get(accountId, providerId)) return null;
+  const startedAt = Date.now();
+  try {
+    const accessToken = await resolveAccessToken(providerId, accountId);
+    const latencyMs = Date.now() - startedAt;
+    if (!accessToken) {
+      await markCredentialFailure(pool, providerId, accountId);
+      return { ok: false, latencyMs, error: credentialError() };
+    }
+    await pool.markHealthy(accountId, { providerId });
+    return { ok: true, latencyMs };
+  } catch (error) {
+    await markCredentialFailure(pool, providerId, accountId, error);
+    return {
+      ok: false,
+      latencyMs: Date.now() - startedAt,
+      error: credentialError(),
+    };
+  }
+}
+
+/** Refresh the SDK-owned usage view after resolving the account credential. */
+export async function refreshDoolittleAccountUsage(
+  providerId: AccountPoolProvider,
+  accountId: string,
+  pool = getDoolittleAccountPool(),
+  resolveAccessToken: typeof getAccessToken = getAccessToken,
+): Promise<AccountPoolUsageRefreshResult | null> {
+  const linked = pool.get(accountId, providerId);
+  if (!linked) return null;
+  try {
+    const accessToken = await resolveAccessToken(providerId, accountId);
+    if (!accessToken) {
+      await markCredentialFailure(pool, providerId, accountId);
+      const account = pool.get(accountId, providerId);
+      return account
+        ? {
+            account: toSnapshot(account as never),
+            source: "credential",
+            error: credentialError(),
+          }
+        : null;
+    }
+    await pool.refreshUsage(accountId, accessToken, {
+      providerId,
+      ...(providerId === "openai-codex" && linked.organizationId
+        ? { codexAccountId: linked.organizationId }
+        : {}),
+    });
+    const account = pool.get(accountId, providerId);
+    return account
+      ? { account: toSnapshot(account as never), source: "pool" }
+      : null;
+  } catch (error) {
+    await markCredentialFailure(pool, providerId, accountId, error);
+    const account = pool.get(accountId, providerId);
+    return account
+      ? {
+          account: toSnapshot(account as never),
+          source: "credential",
+          error: credentialError(),
+        }
+      : null;
+  }
 }
 
 export async function updateDoolittleAccount(

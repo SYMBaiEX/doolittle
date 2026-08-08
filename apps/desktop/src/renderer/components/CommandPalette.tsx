@@ -1,3 +1,12 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@elizaos/ui/components/ui/dialog";
+import { Input } from "@elizaos/ui/components/ui/input";
+import { ScrollArea } from "@elizaos/ui/components/ui/scroll-area";
 import {
   type ChangeEvent,
   type MouseEvent,
@@ -179,11 +188,9 @@ export function CommandPalette<TData = unknown>({
 
   const [query, setQuery] = useState(initialQuery);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const listboxRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
-  const dialogRef = useRef<HTMLElement | null>(null);
 
   const tokens = useMemo(() => tokenize(query), [query]);
 
@@ -310,57 +317,11 @@ export function CommandPalette<TData = unknown>({
     ],
   );
 
-  const handleDialogKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLElement>) => {
-      if (event.key === "Escape" && !event.defaultPrevented) {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-      if (event.key !== "Tab" || !dialogRef.current) return;
-
-      const focusable = Array.from(
-        dialogRef.current.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((element) => !element.hasAttribute("hidden"));
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      if (!first || !last) {
-        event.preventDefault();
-        return;
-      }
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    },
-    [onClose],
-  );
-
   useEffect(() => {
-    if (isOpen) {
-      if (resetOnOpen) {
-        setQuery(initialQuery);
-      }
-      previousFocusRef.current =
-        document.activeElement instanceof HTMLElement
-          ? document.activeElement
-          : null;
-      searchRef.current?.focus();
-      return;
+    if (isOpen && resetOnOpen) {
+      setQuery(initialQuery);
     }
-
-    const restoreTarget = returnFocusTarget ?? previousFocusRef.current;
-    if (restoreTarget?.isConnected) {
-      restoreTarget.focus();
-    }
-
-    previousFocusRef.current = null;
-  }, [isOpen, initialQuery, returnFocusTarget, resetOnOpen]);
+  }, [isOpen, initialQuery, resetOnOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -370,51 +331,6 @@ export function CommandPalette<TData = unknown>({
     const firstFocus = focusableIndexes[0];
     setActiveIndex(firstFocus ?? -1);
   }, [focusableIndexes, isOpen]);
-
-  useEffect(() => {
-    if (!isOpen || !dialogRef.current) {
-      return;
-    }
-
-    const dialog = dialogRef.current;
-    const backgroundElements = new Set<HTMLElement>();
-    let pathElement: HTMLElement | null = dialog;
-    while (pathElement && pathElement !== document.body) {
-      const parent: HTMLElement | null = pathElement.parentElement;
-      if (!parent) break;
-      for (const sibling of parent.children) {
-        if (
-          sibling instanceof HTMLElement &&
-          sibling !== pathElement &&
-          !sibling.contains(dialog)
-        ) {
-          backgroundElements.add(sibling);
-        }
-      }
-      pathElement = parent;
-    }
-
-    const background = Array.from(backgroundElements).map((element) => ({
-      element,
-      inert: element.inert,
-      ariaHidden: element.getAttribute("aria-hidden"),
-    }));
-    for (const entry of background) {
-      entry.element.inert = true;
-      entry.element.setAttribute("aria-hidden", "true");
-    }
-
-    return () => {
-      for (const entry of background) {
-        entry.element.inert = entry.inert;
-        if (entry.ariaHidden === null) {
-          entry.element.removeAttribute("aria-hidden");
-        } else {
-          entry.element.setAttribute("aria-hidden", entry.ariaHidden);
-        }
-      }
-    };
-  }, [isOpen]);
 
   const onSearchChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -448,47 +364,50 @@ export function CommandPalette<TData = unknown>({
     event.preventDefault();
   }, []);
 
-  if (!isOpen) {
-    return null;
-  }
-
   const activeOptionId =
     activeIndex >= 0 ? flattenedMatches[activeIndex]?.optionId : undefined;
 
   return (
-    <div className="command-overlay" role="presentation">
-      <button
-        aria-label="Close command palette"
-        className="command-backdrop"
-        onClick={onClose}
-        tabIndex={-1}
-        type="button"
-      />
-      <section
-        ref={dialogRef}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent
         className="command-palette"
-        role="dialog"
-        aria-modal="true"
         aria-labelledby={titleId}
-        onKeyDown={handleDialogKeyDown}
+        showCloseButton={false}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          searchRef.current?.focus();
+        }}
+        onCloseAutoFocus={(event) => {
+          if (!returnFocusTarget?.isConnected) return;
+          event.preventDefault();
+          returnFocusTarget.focus();
+        }}
       >
         <header className="command-palette__header">
-          <h2 id={titleId} className="command-palette__title">
+          <DialogTitle id={titleId} className="command-palette__title">
             {title}
-          </h2>
-          <button
-            type="button"
-            className="command-palette__close"
-            onClick={onClose}
-            aria-label="Close command palette"
-          >
-            Close
-          </button>
+          </DialogTitle>
+          <DialogClose asChild>
+            <Button
+              type="button"
+              className="command-palette__close"
+              variant="ghost"
+              size="sm"
+              aria-label="Close command palette"
+            >
+              Close
+            </Button>
+          </DialogClose>
         </header>
 
         <label htmlFor={inputId} className="command-palette__label">
           <span className="command-palette__sr-only">Search</span>
-          <input
+          <Input
             ref={searchRef}
             id={inputId}
             className="command-palette__search"
@@ -505,80 +424,81 @@ export function CommandPalette<TData = unknown>({
           />
         </label>
 
-        <div
-          ref={listboxRef}
-          id={listId}
-          className="command-palette__list"
-          role="listbox"
-          aria-label="Command list"
-          aria-activedescendant={activeOptionId}
-          onKeyDown={handleKeyDown}
-          tabIndex={-1}
-        >
-          {groupedMatches.length === 0 ? (
-            <p className="command-palette__empty" role="status">
-              {noResultsText}
-            </p>
-          ) : (
-            groupedMatches.map((group) => (
-              <fieldset
-                aria-labelledby={`${listId}-${group.groupId}-label`}
-                className="command-palette__group"
-                key={group.groupId}
-              >
-                <legend
-                  className="command-palette__group-label"
-                  id={`${listId}-${group.groupId}-label`}
+        <ScrollArea className="command-palette__scroll">
+          <div
+            ref={listboxRef}
+            id={listId}
+            className="command-palette__list"
+            role="listbox"
+            aria-label="Command list"
+            aria-activedescendant={activeOptionId}
+            onKeyDown={handleKeyDown}
+            tabIndex={-1}
+          >
+            {groupedMatches.length === 0 ? (
+              <p className="command-palette__empty" role="status">
+                {noResultsText}
+              </p>
+            ) : (
+              groupedMatches.map((group) => (
+                <fieldset
+                  aria-labelledby={`${listId}-${group.groupId}-label`}
+                  className="command-palette__group"
+                  key={group.groupId}
                 >
-                  {group.groupLabel}
-                </legend>
-                {group.items.map((item) => {
-                  const isActive =
-                    flattenedMatches[activeIndex]?.optionId ===
-                    `${group.groupId}:${item.id}`;
-                  return (
-                    <div
-                      aria-disabled={item.disabled}
-                      aria-selected={isActive}
-                      className="command-palette__item"
-                      id={`${group.groupId}:${item.id}`}
-                      key={`${group.groupId}:${item.id}`}
-                      onClick={() => onItemClick(item)}
-                      onKeyDown={handleKeyDown}
-                      onMouseDown={onOptionMouseDown}
-                      onMouseMove={() =>
-                        onMouseMove(
-                          flattenedMatches.findIndex(
-                            (match) =>
-                              match.optionId === `${group.groupId}:${item.id}`,
-                          ),
-                        )
-                      }
-                      role="option"
-                      tabIndex={-1}
-                    >
-                      <span className="command-palette__item-label">
-                        {item.label}
-                      </span>
-                      {item.description ? (
-                        <span className="command-palette__item-description">
-                          {item.description}
+                  <legend
+                    className="command-palette__group-label"
+                    id={`${listId}-${group.groupId}-label`}
+                  >
+                    {group.groupLabel}
+                  </legend>
+                  {group.items.map((item) => {
+                    const optionId = `${group.groupId}:${item.id}`;
+                    const isActive =
+                      flattenedMatches[activeIndex]?.optionId === optionId;
+                    return (
+                      <div
+                        aria-disabled={item.disabled}
+                        aria-selected={isActive}
+                        className="command-palette__item"
+                        id={optionId}
+                        key={optionId}
+                        onClick={() => onItemClick(item)}
+                        onKeyDown={handleKeyDown}
+                        onMouseDown={onOptionMouseDown}
+                        onMouseMove={() =>
+                          onMouseMove(
+                            flattenedMatches.findIndex(
+                              (match) => match.optionId === optionId,
+                            ),
+                          )
+                        }
+                        role="option"
+                        tabIndex={-1}
+                      >
+                        <span className="command-palette__item-label">
+                          {item.label}
                         </span>
-                      ) : null}
-                      {item.shortcuts ? (
-                        <ShortcutHint
-                          keys={item.shortcuts}
-                          className="command-palette__item-shortcut"
-                        />
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </fieldset>
-            ))
-          )}
-        </div>
-      </section>
-    </div>
+                        {item.description ? (
+                          <span className="command-palette__item-description">
+                            {item.description}
+                          </span>
+                        ) : null}
+                        {item.shortcuts ? (
+                          <ShortcutHint
+                            keys={item.shortcuts}
+                            className="command-palette__item-shortcut"
+                          />
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </fieldset>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -2,10 +2,13 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { DesktopErrorBoundary } from "./components/DesktopErrorBoundary";
+import { ElizaUiBridge } from "./ElizaUiBridge";
+import "@elizaos/ui/cloud-ui/index.css";
 import "./styles.css";
 import "./experience.css";
 import "./recovery.css";
 import "./app-polish.css";
+import "./eliza-ui.css";
 
 document.documentElement.dataset.platform = window.doolittle.platform;
 
@@ -15,7 +18,9 @@ if (!root) throw new Error("Desktop renderer root is missing.");
 createRoot(root).render(
   <StrictMode>
     <DesktopErrorBoundary>
-      <App />
+      <ElizaUiBridge>
+        <App />
+      </ElizaUiBridge>
     </DesktopErrorBoundary>
   </StrictMode>,
 );

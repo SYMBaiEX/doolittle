@@ -4,9 +4,11 @@ const accountPool = vi.hoisted(() => ({
   deleteDoolittleAccount: vi.fn(),
   importCurrentDoolittleAccount: vi.fn(),
   isAccountPoolProvider: vi.fn((value: unknown) => value === "openai-codex"),
+  refreshDoolittleAccountUsage: vi.fn(),
   selectDoolittleAccount: vi.fn(),
   setDoolittleAccountPoolStrategy: vi.fn(),
   snapshotDoolittleAccountPool: vi.fn(),
+  testDoolittleAccountCredentials: vi.fn(),
   updateDoolittleAccount: vi.fn(),
 }));
 
@@ -83,6 +85,76 @@ describe("Doolittle account-pool routes", () => {
     await expect(deleted?.json()).resolves.toEqual({
       deleted: true,
       credentialsRetained: false,
+    });
+  });
+
+  it("tests credentials and refreshes usage without exposing credentials", async () => {
+    accountPool.isAccountPoolProvider.mockReturnValue(true);
+    accountPool.testDoolittleAccountCredentials.mockResolvedValue({
+      ok: true,
+      latencyMs: 12,
+    });
+    accountPool.refreshDoolittleAccountUsage.mockResolvedValue({
+      source: "pool",
+      account: { accountId: "work", providerId: "openai-codex" },
+    });
+
+    const tested = await handleRuntimeAccountRoutes(
+      context,
+      new Request(
+        "http://localhost/runtime/account-pool/openai-codex/work/test",
+        {
+          method: "POST",
+        },
+      ),
+      new URL("http://localhost/runtime/account-pool/openai-codex/work/test"),
+    );
+    expect(tested?.status).toBe(200);
+    await expect(tested?.json()).resolves.toEqual({ ok: true, latencyMs: 12 });
+    expect(accountPool.testDoolittleAccountCredentials).toHaveBeenCalledWith(
+      "openai-codex",
+      "work",
+    );
+
+    const refreshed = await handleRuntimeAccountRoutes(
+      context,
+      new Request(
+        "http://localhost/runtime/account-pool/openai-codex/work/refresh-usage",
+        { method: "POST" },
+      ),
+      new URL(
+        "http://localhost/runtime/account-pool/openai-codex/work/refresh-usage",
+      ),
+    );
+    expect(refreshed?.status).toBe(200);
+    await expect(refreshed?.json()).resolves.toEqual({
+      source: "pool",
+      account: { accountId: "work", providerId: "openai-codex" },
+    });
+  });
+
+  it("returns sanitized account action failures as inspectable results", async () => {
+    accountPool.isAccountPoolProvider.mockReturnValue(true);
+    accountPool.testDoolittleAccountCredentials.mockResolvedValue({
+      ok: false,
+      latencyMs: 4,
+      error: "Unable to resolve credentials for this account.",
+    });
+
+    const response = await handleRuntimeAccountRoutes(
+      context,
+      new Request(
+        "http://localhost/runtime/account-pool/openai-codex/work/test",
+        { method: "POST" },
+      ),
+      new URL("http://localhost/runtime/account-pool/openai-codex/work/test"),
+    );
+
+    expect(response?.status).toBe(200);
+    await expect(response?.json()).resolves.toEqual({
+      ok: false,
+      latencyMs: 4,
+      error: "Unable to resolve credentials for this account.",
     });
   });
 });

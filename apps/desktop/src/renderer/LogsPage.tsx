@@ -1,10 +1,12 @@
+import { LogViewer } from "@elizaos/ui/cloud-ui/components/log-viewer";
+import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
+import { Button } from "@elizaos/ui/components/ui/button";
 import { useState } from "react";
 import {
   asArray,
   asRecord,
   asString,
   Badge,
-  displayTimestamp,
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
@@ -12,6 +14,7 @@ import {
   PageHeader,
   useApiResource,
 } from "./lib";
+import { toLogViewerEntries } from "./log-viewer-mapping";
 
 interface LogsResponse {
   logs?: unknown[];
@@ -44,17 +47,18 @@ export function LogsPage({ active }: { active: boolean }) {
     [active],
   );
   const entries = asArray(resource.data?.logs).map(asRecord);
+  const logEntries = toLogViewerEntries(entries);
   const deliveryEntries = asArray(deliveries.data?.deliveries).map(asRecord);
   const commandEntries = asArray(terminalHistory.data?.commands).map(asRecord);
 
   return (
-    <div className="page page-logs">
+    <PagePanel className="page page-logs" variant="workspace">
       <PageHeader
         eyebrow="Operations"
         title="Logs"
         description="Inspect the redacted structured event stream emitted by the private local runtime."
         actions={
-          <button
+          <Button
             className="secondary-button"
             onClick={() => {
               resource.reload();
@@ -62,9 +66,10 @@ export function LogsPage({ active }: { active: boolean }) {
               terminalHistory.reload();
             }}
             type="button"
+            variant="secondary"
           >
             Refresh
-          </button>
+          </Button>
         }
       />
       <div className="metric-grid compact">
@@ -73,77 +78,41 @@ export function LogsPage({ active }: { active: boolean }) {
         <MetricCard label="Terminal commands" value={commandEntries.length} />
         <MetricCard label="Filter" value={level === "all" ? "All" : level} />
       </div>
-      <div className="filter-bar">
-        <form
-          className="search-field grow"
-          onSubmit={(event) => {
-            event.preventDefault();
-            resource.reload();
-          }}
-        >
-          <input
-            aria-label="Search runtime logs"
-            placeholder="Search messages, scopes, and details"
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </form>
-        <select
-          aria-label="Log level"
-          value={level}
-          onChange={(event) => setLevel(event.target.value)}
-        >
-          <option value="all">All levels</option>
-          <option value="trace">Trace</option>
-          <option value="debug">Debug</option>
-          <option value="info">Info</option>
-          <option value="warn">Warnings</option>
-          <option value="error">Errors</option>
-          <option value="fatal">Fatal</option>
-        </select>
-      </div>
-      {resource.loading ? (
-        <LoadingBlock label="Reading event log…" />
-      ) : resource.error ? (
-        <ErrorBlock error={resource.error} retry={resource.reload} />
-      ) : entries.length ? (
-        <section className="log-console" aria-label="Runtime logs">
-          {entries.map((entry) => {
-            const logLevel = asString(entry.level, "info");
-            return (
-              <article
-                className="log-row"
-                key={`${asString(entry.at)}:${asString(entry.scope)}:${asString(
-                  entry.message,
-                )}`}
-              >
-                <time>{displayTimestamp(asString(entry.at) || undefined)}</time>
-                <Badge
-                  tone={
-                    logLevel === "error" || logLevel === "fatal"
-                      ? "bad"
-                      : logLevel === "warn"
-                        ? "warn"
-                        : "neutral"
-                  }
-                >
-                  {logLevel}
-                </Badge>
-                <code>{asString(entry.scope, "runtime")}</code>
-                <div>
-                  <strong>{asString(entry.message, "Event")}</strong>
-                  {entry.detail ? <p>{asString(entry.detail)}</p> : null}
-                </div>
-              </article>
-            );
-          })}
-        </section>
-      ) : (
-        <EmptyBlock title="No matching log events">
-          The current filters did not match any recent records.
-        </EmptyBlock>
-      )}
+      <LogViewer
+        badges={[{ label: `${entries.length} records`, variant: "outline" }]}
+        className="log-console"
+        emptyState={{
+          title: "No matching log events",
+          description: "The current filters did not match any recent records.",
+        }}
+        entries={logEntries}
+        error={resource.error || undefined}
+        errorTitle="Could not load runtime logs"
+        isFilteredEmpty={Boolean(query.trim() || level !== "all")}
+        levelFilter={{
+          value: level,
+          onChange: setLevel,
+          options: [
+            { value: "all", label: "All levels" },
+            { value: "trace", label: "Trace" },
+            { value: "debug", label: "Debug" },
+            { value: "info", label: "Info" },
+            { value: "warn", label: "Warnings" },
+            { value: "error", label: "Errors" },
+            { value: "fatal", label: "Fatal" },
+          ],
+        }}
+        loading={resource.loading}
+        onRefresh={resource.reload}
+        onRetry={resource.reload}
+        search={{
+          value: query,
+          onChange: setQuery,
+          placeholder: "Search messages, scopes, and details",
+        }}
+        subtitle="Inspect the redacted structured event stream emitted by the private local runtime."
+        title="Runtime logs"
+      />
       <div className="two-column-grid" style={{ marginTop: "16px" }}>
         <section className="content-card">
           <div className="card-heading">
@@ -151,13 +120,14 @@ export function LogsPage({ active }: { active: boolean }) {
               <span className="eyebrow">Delivery state</span>
               <h2>Recent deliveries</h2>
             </div>
-            <button
+            <Button
               className="text-button"
               onClick={deliveries.reload}
               type="button"
+              variant="ghost"
             >
               Refresh
-            </button>
+            </Button>
           </div>
           {deliveries.loading ? (
             <LoadingBlock />
@@ -205,13 +175,14 @@ export function LogsPage({ active }: { active: boolean }) {
               <span className="eyebrow">Command trail</span>
               <h2>Terminal history</h2>
             </div>
-            <button
+            <Button
               className="text-button"
               onClick={terminalHistory.reload}
               type="button"
+              variant="ghost"
             >
               Refresh
-            </button>
+            </Button>
           </div>
           {terminalHistory.loading ? (
             <LoadingBlock />
@@ -258,6 +229,6 @@ export function LogsPage({ active }: { active: boolean }) {
           )}
         </section>
       </div>
-    </div>
+    </PagePanel>
   );
 }

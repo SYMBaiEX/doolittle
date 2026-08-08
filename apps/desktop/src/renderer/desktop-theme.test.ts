@@ -16,13 +16,27 @@ describe("desktop theme", () => {
   let storage: Map<string, string>;
   let root: {
     dataset: Record<string, string>;
+    classList: {
+      contains: (token: string) => boolean;
+      toggle: (token: string, force?: boolean) => boolean;
+    };
     style: { setProperty: (property: string, value: string) => void };
   };
 
   beforeEach(() => {
     storage = new Map();
+    const classes = new Set<string>();
     root = {
       dataset: {},
+      classList: {
+        contains: (token) => classes.has(token),
+        toggle: (token, force) => {
+          const enabled = force ?? !classes.has(token);
+          if (enabled) classes.add(token);
+          else classes.delete(token);
+          return enabled;
+        },
+      },
       style: {
         setProperty: (property, value) =>
           storage.set(`style:${property}`, value),
@@ -142,6 +156,9 @@ describe("desktop theme", () => {
       theme: "ember",
     });
     expect(storage.get("doolittle.desktop.appearance")).toBe("system");
+    expect(root.classList.contains("dark")).toBe(true);
+    applyDesktopAppearance("light", true);
+    expect(root.classList.contains("dark")).toBe(false);
     expect(storage.get("doolittle.desktop.density")).toBe("compact");
     expect(storage.get("doolittle.desktop.theme")).toBe(
       JSON.stringify(profile),

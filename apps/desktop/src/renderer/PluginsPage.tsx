@@ -1,3 +1,13 @@
+import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@elizaos/ui/components/ui/select";
 import { useState } from "react";
 import {
   asArray,
@@ -50,19 +60,20 @@ export function PluginsPage({ active }: { active: boolean }) {
   const enabled = entries.filter((entry) => Boolean(entry.enabled)).length;
 
   return (
-    <div className="page">
+    <PagePanel className="page" variant="workspace">
       <PageHeader
         eyebrow="Agent"
         title="Plugins"
         description="Inspect the ElizaOS-native provider, messaging, knowledge, media, and automation packages assembled into this runtime."
         actions={
-          <button
+          <Button
             className="secondary-button"
             onClick={resource.reload}
             type="button"
+            variant="secondary"
           >
             Refresh
-          </button>
+          </Button>
         }
       />
       <div className="metric-grid compact">
@@ -76,26 +87,28 @@ export function PluginsPage({ active }: { active: boolean }) {
         runtime. Provider enablement follows account and environment readiness.
       </Notice>
       <div className="filter-bar">
-        <label className="search-field grow">
+        <label className="search-field grow" htmlFor="plugin-search">
           <span className="sr-only">Search plugins</span>
-          <input
+          <Input
+            id="plugin-search"
             placeholder="Search plugins"
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
-        <select
-          aria-label="Plugin category"
-          value={category}
-          onChange={(event) => setCategory(event.target.value)}
-        >
-          {categories.map((value) => (
-            <option key={value} value={value}>
-              {titleCase(value)}
-            </option>
-          ))}
-        </select>
+        <Select value={category} onValueChange={setCategory}>
+          <SelectTrigger aria-label="Plugin category">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {categories.map((value) => (
+              <SelectItem key={value} value={value}>
+                {titleCase(value)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       {resource.loading ? (
         <LoadingBlock label="Inspecting native plugin assembly…" />
@@ -141,6 +154,6 @@ export function PluginsPage({ active }: { active: boolean }) {
           Change the search or category filter.
         </EmptyBlock>
       )}
-    </div>
+    </PagePanel>
   );
 }

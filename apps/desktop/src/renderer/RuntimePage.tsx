@@ -1,3 +1,5 @@
+import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
+import { Button } from "@elizaos/ui/components/ui/button";
 import type {
   AccountPoolResponse,
   PluginsResponse,
@@ -91,13 +93,13 @@ export function RuntimePage({
   const gatewayPlugins = asArray(gatewayRuntime.data?.messagingPlugins);
 
   return (
-    <div className="page">
+    <PagePanel className="page" variant="workspace">
       <PageHeader
         eyebrow="Runtime"
         title="Runtime"
         description="Inspect assembled runtime details, plugin inventory, ecosystem state, and operator insights."
         actions={
-          <button
+          <Button
             className="text-button"
             onClick={() => {
               runtime.reload();
@@ -109,9 +111,10 @@ export function RuntimePage({
               accountPool.reload();
             }}
             type="button"
+            variant="ghost"
           >
             Refresh
-          </button>
+          </Button>
         }
       />
       {runtime.loading ? (
@@ -152,14 +155,15 @@ export function RuntimePage({
                   <span className="eyebrow">Spawned agents</span>
                   <h2>Account routing</h2>
                 </div>
-                <button
+                <Button
                   className="text-button"
                   disabled={!onOpenProviders}
                   onClick={onOpenProviders}
                   type="button"
+                  variant="ghost"
                 >
                   Providers &amp; accounts
-                </button>
+                </Button>
               </div>
               {accountPool.loading ? (
                 <LoadingBlock />
@@ -457,6 +461,6 @@ export function RuntimePage({
           </div>
         </>
       )}
-    </div>
+    </PagePanel>
   );
 }

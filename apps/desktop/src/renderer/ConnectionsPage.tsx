@@ -1,3 +1,9 @@
+import type { AccountWithCredentialFlag } from "@elizaos/ui/api/client-agent";
+import { AccountCard } from "@elizaos/ui/components/accounts/AccountCard";
+import { RotationStrategyPicker } from "@elizaos/ui/components/accounts/RotationStrategyPicker";
+import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
 import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
@@ -9,6 +15,7 @@ import type {
   ProviderAuthProvider,
   ProviderAuthState,
 } from "../shared/contracts";
+import { toElizaAccount } from "./account-pool-ui";
 import {
   type AccountImportDraft,
   accountPoolProgress,
@@ -34,34 +41,6 @@ interface AccountsResponse {
   activeProvider?: string;
   accounts?: Record<string, unknown>;
   connect?: Record<string, unknown>;
-}
-
-const accountPoolStrategies: AccountPoolStrategy[] = [
-  "priority",
-  "round-robin",
-  "least-used",
-  "quota-aware",
-];
-
-function formatPoolTimestamp(value?: number): string {
-  if (!value) return "Not yet";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not available";
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function poolUsageSummary(usage: unknown): string | null {
-  if (!usage || typeof usage !== "object" || Array.isArray(usage)) return null;
-  const record = usage as Record<string, unknown>;
-  const pairs = Object.entries(record).flatMap(([key, value]) =>
-    typeof value === "number" ? [`${titleCase(key)}: ${value}`] : [],
-  );
-  return pairs.length > 0 ? pairs.join(" · ") : null;
 }
 
 function accountPoolProviderFor(
@@ -294,7 +273,7 @@ export function ConnectionsPage({
 
   const updateAccount = async (
     provider: AccountPoolProvider,
-    account: AccountPoolAccount,
+    account: Pick<AccountPoolAccount, "accountId" | "label">,
     changes: Partial<
       Pick<AccountPoolAccount, "label" | "enabled" | "priority">
     >,
@@ -362,16 +341,108 @@ export function ConnectionsPage({
     }
   };
 
+  const testPoolAccount = async (
+    provider: AccountPoolProvider,
+    account: AccountWithCredentialFlag,
+  ) => {
+    const key = `${provider}:${account.id}:test`;
+    setBusy(key);
+    setFeedback("");
+    try {
+      const result = await desktopRequest<{
+        ok: boolean;
+        latencyMs?: number;
+        error?: string;
+      }>(
+        `/runtime/account-pool/${provider}/${encodeURIComponent(account.id)}/test`,
+        "POST",
+      );
+      setFeedback(
+        result.ok
+          ? `${account.label} passed its credential check${typeof result.latencyMs === "number" ? ` in ${result.latencyMs}ms` : ""}.`
+          : `${account.label} failed its credential check: ${result.error ?? "unknown provider error"}`,
+      );
+      accountPool.reload();
+    } catch (error) {
+      setFeedback(errorMessage(error));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const refreshPoolAccountUsage = async (
+    provider: AccountPoolProvider,
+    account: AccountWithCredentialFlag,
+  ) => {
+    const key = `${provider}:${account.id}:usage`;
+    setBusy(key);
+    setFeedback("");
+    try {
+      const result = await desktopRequest<{ error?: string }>(
+        `/runtime/account-pool/${provider}/${encodeURIComponent(account.id)}/refresh-usage`,
+        "POST",
+      );
+      setFeedback(
+        result.error
+          ? `${account.label} usage could not be refreshed: ${result.error}`
+          : `${account.label} usage and health were refreshed.`,
+      );
+      accountPool.reload();
+    } catch (error) {
+      setFeedback(errorMessage(error));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const movePoolAccount = async (
+    provider: AccountPoolProvider,
+    accounts: AccountWithCredentialFlag[],
+    accountId: string,
+    direction: "up" | "down",
+  ) => {
+    const index = accounts.findIndex((account) => account.id === accountId);
+    const neighbourIndex = direction === "up" ? index - 1 : index + 1;
+    const account = accounts[index];
+    const neighbour = accounts[neighbourIndex];
+    if (!account || !neighbour || account.priority === neighbour.priority) {
+      return;
+    }
+    setBusy(`${provider}:${account.id}:reorder`);
+    setFeedback("");
+    try {
+      await desktopRequest(
+        `/runtime/account-pool/${provider}/${encodeURIComponent(account.id)}`,
+        "PATCH",
+        { priority: neighbour.priority },
+      );
+      try {
+        await desktopRequest(
+          `/runtime/account-pool/${provider}/${encodeURIComponent(neighbour.id)}`,
+          "PATCH",
+          { priority: account.priority },
+        );
+      } catch (error) {
+        await desktopRequest(
+          `/runtime/account-pool/${provider}/${encodeURIComponent(account.id)}`,
+          "PATCH",
+          { priority: account.priority },
+        ).catch(() => undefined);
+        throw error;
+      }
+      setFeedback(`${account.label} priority was updated.`);
+    } catch (error) {
+      setFeedback(errorMessage(error));
+    } finally {
+      accountPool.reload();
+      setBusy("");
+    }
+  };
+
   const deleteAccount = async (
     provider: AccountPoolProvider,
     account: AccountPoolAccount,
   ) => {
-    if (
-      !window.confirm(
-        `Disconnect ${account.label} from this pooled account? You will need to sign in again to restore it.`,
-      )
-    )
-      return;
     setBusy(`${provider}:${account.accountId}:delete`);
     setFeedback("");
     try {
@@ -399,7 +470,10 @@ export function ConnectionsPage({
   };
 
   return (
-    <div className={embedded ? "settings-provider-section" : "page"}>
+    <PagePanel
+      className={embedded ? "settings-provider-section" : "page"}
+      variant={embedded ? "section" : "workspace"}
+    >
       {embedded ? (
         <header className="settings-section-header">
           <div>
@@ -410,14 +484,15 @@ export function ConnectionsPage({
               official account flow and keeps credentials outside the UI.
             </p>
           </div>
-          <button
+          <Button
             className="secondary-button"
             onClick={() => void mutate("all", "refresh")}
             disabled={Boolean(busy)}
             type="button"
+            variant="secondary"
           >
             Refresh all
-          </button>
+          </Button>
         </header>
       ) : (
         <PageHeader
@@ -425,14 +500,15 @@ export function ConnectionsPage({
           title="Providers & accounts"
           description="Set a default chat provider, then manage the separate account pools that spawned agents select from per session."
           actions={
-            <button
+            <Button
               className="secondary-button"
               onClick={() => void mutate("all", "refresh")}
               disabled={Boolean(busy)}
               type="button"
+              variant="secondary"
             >
               Refresh all
-            </button>
+            </Button>
           }
         />
       )}
@@ -636,36 +712,37 @@ export function ConnectionsPage({
                           </span>
                         </li>
                       </ol>
-                      <label className="form-field">
-                        <span>Routing strategy</span>
-                        <select
-                          value={poolSnapshot.strategy}
-                          onChange={(event) =>
+                      <div>
+                        <label
+                          className="sr-only"
+                          htmlFor={`rotation-strategy-${provider.poolProvider}`}
+                        >
+                          Routing strategy
+                        </label>
+                        <RotationStrategyPicker
+                          disabled={Boolean(busy)}
+                          onChange={(strategy) =>
                             void setPoolStrategy(
                               provider.poolProvider,
-                              event.target.value as AccountPoolStrategy,
+                              strategy as AccountPoolStrategy,
                             )
                           }
-                          disabled={Boolean(busy)}
-                        >
-                          {accountPoolStrategies.map((strategy) => (
-                            <option key={strategy} value={strategy}>
-                              {titleCase(strategy)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                          providerId={provider.poolProvider}
+                          value={poolSnapshot.strategy}
+                        />
+                      </div>
                       <div className="button-row">
-                        <button
+                        <Button
                           className="secondary-button"
                           onClick={() =>
                             void selectAccount(provider.poolProvider)
                           }
                           disabled={Boolean(busy)}
                           type="button"
+                          variant="secondary"
                         >
                           Preview selection
-                        </button>
+                        </Button>
                       </div>
                       {poolSnapshot.accounts.length === 0 ? (
                         <EmptyBlock title="No pooled accounts">
@@ -674,116 +751,97 @@ export function ConnectionsPage({
                         </EmptyBlock>
                       ) : (
                         <div className="stack-list provider-pool-accounts">
-                          {poolSnapshot.accounts.map((account) => {
-                            const selected =
-                              selectedAccounts[provider.poolProvider] ===
-                              account.accountId;
-                            const usage = poolUsageSummary(account.usage);
-                            return (
-                              <article
-                                className="content-card"
-                                key={account.accountId}
-                              >
-                                <div className="card-heading">
-                                  <div>
-                                    <span className="eyebrow">
-                                      {account.source}
-                                    </span>
-                                    <h3>{account.label}</h3>
-                                  </div>
-                                  <Badge
-                                    tone={
-                                      selected
-                                        ? "good"
-                                        : account.enabled
-                                          ? "neutral"
-                                          : "warn"
-                                    }
-                                  >
-                                    {selected
-                                      ? "Previewed"
-                                      : account.enabled
-                                        ? "Enabled"
-                                        : "Disabled"}
-                                  </Badge>
-                                </div>
-                                <dl className="fact-list">
-                                  <div>
-                                    <dt>Health</dt>
-                                    <dd>{account.health}</dd>
-                                  </div>
-                                  <div>
-                                    <dt>Priority</dt>
-                                    <dd>{account.priority}</dd>
-                                  </div>
-                                  <div>
-                                    <dt>Last used</dt>
-                                    <dd>
-                                      {formatPoolTimestamp(account.lastUsedAt)}
-                                    </dd>
-                                  </div>
-                                  <div>
-                                    <dt>Usage</dt>
-                                    <dd>{usage ?? "Not reported"}</dd>
-                                  </div>
-                                </dl>
-                                <div className="button-row provider-account-actions">
-                                  <label className="form-field">
-                                    <span className="sr-only">Priority</span>
-                                    <input
-                                      aria-label={`${account.label} priority`}
-                                      defaultValue={account.priority}
-                                      min="0"
-                                      max="10000"
-                                      onBlur={(event) => {
-                                        const priority = Number(
-                                          event.target.value,
-                                        );
-                                        if (
-                                          Number.isInteger(priority) &&
-                                          priority !== account.priority
-                                        ) {
-                                          void updateAccount(
+                          {(() => {
+                            const accounts = poolSnapshot.accounts
+                              .map(toElizaAccount)
+                              .sort((left, right) =>
+                                left.priority === right.priority
+                                  ? left.createdAt - right.createdAt
+                                  : left.priority - right.priority,
+                              );
+                            return accounts.map((account, index) => {
+                              const sourceAccount = poolSnapshot.accounts.find(
+                                (candidate) =>
+                                  candidate.accountId === account.id,
+                              );
+                              return (
+                                <div
+                                  className={
+                                    selectedAccounts[provider.poolProvider] ===
+                                    account.id
+                                      ? "provider-account-previewed"
+                                      : undefined
+                                  }
+                                  key={account.id}
+                                >
+                                  {selectedAccounts[provider.poolProvider] ===
+                                  account.id ? (
+                                    <Badge tone="good">Previewed next</Badge>
+                                  ) : null}
+                                  <AccountCard
+                                    account={account}
+                                    isFirst={index === 0}
+                                    isLast={index === accounts.length - 1}
+                                    onDelete={() =>
+                                      sourceAccount
+                                        ? deleteAccount(
                                             provider.poolProvider,
-                                            account,
-                                            { priority },
-                                          );
-                                        }
-                                      }}
-                                      type="number"
-                                    />
-                                  </label>
-                                  <button
-                                    className="secondary-button"
-                                    onClick={() =>
-                                      void updateAccount(
+                                            sourceAccount,
+                                          )
+                                        : Promise.resolve()
+                                    }
+                                    onMoveDown={() =>
+                                      movePoolAccount(
                                         provider.poolProvider,
-                                        account,
-                                        { enabled: !account.enabled },
+                                        accounts,
+                                        account.id,
+                                        "down",
                                       )
                                     }
-                                    disabled={Boolean(busy)}
-                                    type="button"
-                                  >
-                                    {account.enabled ? "Disable" : "Enable"}
-                                  </button>
-                                  <button
-                                    className="text-button"
-                                    onClick={() =>
-                                      void deleteAccount(
+                                    onMoveUp={() =>
+                                      movePoolAccount(
+                                        provider.poolProvider,
+                                        accounts,
+                                        account.id,
+                                        "up",
+                                      )
+                                    }
+                                    onPatch={(changes) =>
+                                      updateAccount(
+                                        provider.poolProvider,
+                                        {
+                                          accountId: account.id,
+                                          label: account.label,
+                                        },
+                                        changes,
+                                      )
+                                    }
+                                    onRefreshUsage={() =>
+                                      refreshPoolAccountUsage(
                                         provider.poolProvider,
                                         account,
                                       )
                                     }
-                                    disabled={Boolean(busy)}
-                                    type="button"
-                                  >
-                                    Disconnect
-                                  </button>
+                                    onTest={() =>
+                                      testPoolAccount(
+                                        provider.poolProvider,
+                                        account,
+                                      )
+                                    }
+                                    refreshBusy={
+                                      busy ===
+                                      `${provider.poolProvider}:${account.id}:usage`
+                                    }
+                                    saving={Boolean(busy)}
+                                    testBusy={
+                                      busy ===
+                                      `${provider.poolProvider}:${account.id}:test`
+                                    }
+                                  />
                                 </div>
-                              </article>
-                            );
-                          })}
+                              );
+                            });
+                          })()}
                         </div>
                       )}
                     </>
@@ -793,59 +851,62 @@ export function ConnectionsPage({
               <div className="button-row provider-default-actions">
                 <small>Default provider for new chats</small>
                 {signingIn && authProvider ? (
-                  <button
+                  <Button
                     className="secondary-button"
                     onClick={() => void cancelAccountSignIn(authProvider)}
                     disabled={Boolean(busy)}
                     type="button"
+                    variant="secondary"
                   >
                     Cancel sign in
-                  </button>
+                  </Button>
                 ) : ready ? (
-                  <button
+                  <Button
                     className="primary-button"
                     onClick={() => void mutate(provider.key, "use")}
                     disabled={Boolean(busy) || activeProvider}
                     type="button"
                   >
                     {activeProvider ? "Default for chats" : "Set as default"}
-                  </button>
+                  </Button>
                 ) : authProvider ? (
-                  <button
+                  <Button
                     className="primary-button"
                     onClick={() => void startAccountSignIn(authProvider)}
                     disabled={Boolean(busy)}
                     type="button"
                   >
                     Sign in
-                  </button>
+                  </Button>
                 ) : (
-                  <button
+                  <Button
                     className="primary-button"
                     onClick={() => void mutate(provider.key, "connect")}
                     disabled={Boolean(busy)}
                     type="button"
                   >
                     Connect
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   className="secondary-button"
                   onClick={() => void mutate(provider.key, "refresh")}
                   disabled={Boolean(busy)}
                   type="button"
+                  variant="secondary"
                 >
                   Refresh
-                </button>
+                </Button>
                 {authProvider && ready && !signingIn ? (
-                  <button
+                  <Button
                     className="text-button"
                     onClick={() => void startAccountSignIn(authProvider)}
                     disabled={Boolean(busy)}
                     type="button"
+                    variant="ghost"
                   >
                     Sign in again / add account
-                  </button>
+                  </Button>
                 ) : null}
               </div>
               {authProvider &&
@@ -853,14 +914,14 @@ export function ConnectionsPage({
               authState?.needsCodeSubmission &&
               !authState.codeSubmitted ? (
                 <div className="stack-list provider-import-form">
-                  <button
+                  <Button
                     className="primary-button"
                     onClick={() => void submitAccountSignInCode(authProvider)}
                     disabled={Boolean(busy)}
                     type="button"
                   >
                     Use copied code
-                  </button>
+                  </Button>
                   <small>
                     Copy the complete code#state value from Claude first. It is
                     read once from the clipboard and never returned to this UI.
@@ -882,9 +943,13 @@ export function ConnectionsPage({
                       the private local account store and never returned here.
                     </p>
                   </div>
-                  <label className="form-field">
+                  <label
+                    className="form-field"
+                    htmlFor={`account-pool-${provider.poolProvider}-id`}
+                  >
                     <span>New account ID</span>
-                    <input
+                    <Input
+                      id={`account-pool-${provider.poolProvider}-id`}
                       onChange={(event) =>
                         setAccountImports((current) => ({
                           ...current,
@@ -900,9 +965,13 @@ export function ConnectionsPage({
                       }
                     />
                   </label>
-                  <label className="form-field">
+                  <label
+                    className="form-field"
+                    htmlFor={`account-pool-${provider.poolProvider}-label`}
+                  >
                     <span>New account label</span>
-                    <input
+                    <Input
+                      id={`account-pool-${provider.poolProvider}-label`}
                       onChange={(event) =>
                         setAccountImports((current) => ({
                           ...current,
@@ -927,6 +996,6 @@ export function ConnectionsPage({
           );
         })}
       </div>
-    </div>
+    </PagePanel>
   );
 }

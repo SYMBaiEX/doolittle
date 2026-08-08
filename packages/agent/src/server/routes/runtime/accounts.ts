@@ -4,9 +4,11 @@ import {
   deleteDoolittleAccount,
   importCurrentDoolittleAccount,
   isAccountPoolProvider,
+  refreshDoolittleAccountUsage,
   selectDoolittleAccount,
   setDoolittleAccountPoolStrategy,
   snapshotDoolittleAccountPool,
+  testDoolittleAccountCredentials,
   updateDoolittleAccount,
 } from "@/runtime/native/account-pool";
 import { json } from "@/server/responses";
@@ -26,7 +28,7 @@ export async function handleRuntimeAccountRoutes(
   url: URL,
 ): Promise<Response | null> {
   const accountPoolRoute = url.pathname.match(
-    /^\/runtime\/account-pool\/(openai-codex|anthropic-subscription)(?:\/([^/]+))?$/,
+    /^\/runtime\/account-pool\/(openai-codex|anthropic-subscription)(?:\/([^/]+)(?:\/(test|refresh-usage))?)?$/,
   );
   if (request.method === "GET" && url.pathname === "/runtime/account-pool") {
     return json(snapshotDoolittleAccountPool());
@@ -35,7 +37,21 @@ export async function handleRuntimeAccountRoutes(
   if (accountPoolRoute) {
     const providerId = accountPoolRoute[1];
     const accountId = accountPoolRoute[2];
+    const action = accountPoolRoute[3];
     if (!isAccountPoolProvider(providerId)) return null;
+
+    if (request.method === "POST" && accountId && action === "test") {
+      const result = await testDoolittleAccountCredentials(
+        providerId,
+        accountId,
+      );
+      return result ? json(result) : json({ error: "account not found" }, 404);
+    }
+
+    if (request.method === "POST" && accountId && action === "refresh-usage") {
+      const result = await refreshDoolittleAccountUsage(providerId, accountId);
+      return result ? json(result) : json({ error: "account not found" }, 404);
+    }
 
     if (request.method === "POST" && accountId === "import") {
       const body = (await request.json().catch(() => ({}))) as {

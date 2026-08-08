@@ -89,7 +89,9 @@ export function applyDesktopAppearance(
   systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches,
 ): void {
   const root = document.documentElement;
-  root.dataset.appearance = resolveAppearance(preference, systemPrefersDark);
+  const resolved = resolveAppearance(preference, systemPrefersDark);
+  root.dataset.appearance = resolved;
+  root.classList.toggle("dark", resolved === "dark");
   root.dataset.appearancePreference = preference;
   localStorage.setItem(APPEARANCE_STORAGE_KEY, preference);
 }

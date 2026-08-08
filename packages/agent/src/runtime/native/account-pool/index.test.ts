@@ -13,7 +13,7 @@ import {
   __resetDefaultAccountPoolForTests,
   AccountPool,
 } from "@elizaos/app-core/account-pool";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { persistProviderCredentials } from "@/runtime/native/account-auth/store";
 import {
   deleteDoolittleAccount,
@@ -21,8 +21,10 @@ import {
   importCurrentDoolittleAccount,
   importLegacyDoolittleAccounts,
   initializeDoolittleAccountPool,
+  refreshDoolittleAccountUsage,
   setDoolittleAccountPoolStrategy,
   snapshotDoolittleAccountPool,
+  testDoolittleAccountCredentials,
 } from "./index";
 
 async function withIsolatedAccountPool<T>(
@@ -69,6 +71,110 @@ function createUnexpiredJwt(): string {
 }
 
 describe.sequential("Doolittle official account pool adapter", () => {
+  it("resolves credentials without returning them and updates official health", async () => {
+    const account = {
+      id: "work",
+      providerId: "openai-codex",
+      label: "Work",
+      source: "oauth",
+      enabled: true,
+      priority: 0,
+      createdAt: 1,
+      health: "needs-reauth",
+      organizationId: "org-123",
+    };
+    const pool = {
+      get: vi.fn(() => account),
+      markHealthy: vi.fn().mockResolvedValue(undefined),
+      markNeedsReauth: vi.fn().mockResolvedValue(undefined),
+      markRateLimited: vi.fn().mockResolvedValue(undefined),
+      refreshUsage: vi.fn().mockResolvedValue(undefined),
+    } as unknown as AccountPool;
+
+    await expect(
+      testDoolittleAccountCredentials(
+        "openai-codex",
+        "work",
+        pool,
+        async () => "secret-token",
+      ),
+    ).resolves.toMatchObject({ ok: true });
+    expect(pool.markHealthy).toHaveBeenCalledWith("work", {
+      providerId: "openai-codex",
+    });
+
+    await expect(
+      testDoolittleAccountCredentials(
+        "openai-codex",
+        "work",
+        pool,
+        async () => null,
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      latencyMs: expect.any(Number),
+      error: "Unable to resolve credentials for this account.",
+    });
+    expect(pool.markNeedsReauth).toHaveBeenCalledWith(
+      "work",
+      "Unable to resolve credentials for this account.",
+      { providerId: "openai-codex" },
+    );
+
+    const rateLimited = Object.assign(new Error("provider failure"), {
+      status: 429,
+    });
+    await testDoolittleAccountCredentials(
+      "openai-codex",
+      "work",
+      pool,
+      async () => Promise.reject(rateLimited),
+    );
+    expect(pool.markRateLimited).toHaveBeenCalledWith(
+      "work",
+      expect.any(Number),
+      "Usage request was rate limited.",
+      { providerId: "openai-codex" },
+    );
+  });
+
+  it("refreshes usage through the official pool with the Codex account id", async () => {
+    const account = {
+      id: "work",
+      providerId: "openai-codex",
+      label: "Work",
+      source: "oauth",
+      enabled: true,
+      priority: 0,
+      createdAt: 1,
+      health: "ok",
+      organizationId: "org-123",
+    };
+    const pool = {
+      get: vi.fn(() => account),
+      markHealthy: vi.fn().mockResolvedValue(undefined),
+      markNeedsReauth: vi.fn().mockResolvedValue(undefined),
+      markRateLimited: vi.fn().mockResolvedValue(undefined),
+      refreshUsage: vi.fn().mockResolvedValue(undefined),
+    } as unknown as AccountPool;
+
+    await expect(
+      refreshDoolittleAccountUsage(
+        "openai-codex",
+        "work",
+        pool,
+        async () => "secret-token",
+      ),
+    ).resolves.toMatchObject({
+      source: "pool",
+      account: { accountId: "work" },
+    });
+    expect(pool.refreshUsage).toHaveBeenCalledWith("work", "secret-token", {
+      providerId: "openai-codex",
+      codexAccountId: "org-123",
+    });
+  });
+
   it("uses the official pool for deterministic two-account round-robin selection", async () => {
     const accounts = {
       a: {

@@ -1,3 +1,5 @@
+import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
+import { Badge as ElizaBadge } from "@elizaos/ui/components/ui/badge";
 import { useFetchData } from "@elizaos/ui/hooks/useFetchData";
 import type { DependencyList, ReactNode } from "react";
 import { desktopRequest } from "./eliza-client";
@@ -95,12 +97,14 @@ export function PageHeader({
 }) {
   return (
     <header className="page-header">
-      <div>
-        <span className="eyebrow">{eyebrow}</span>
-        <h1>{title}</h1>
-        <p>{description}</p>
-      </div>
-      {actions ? <div className="page-actions">{actions}</div> : null}
+      <PagePanel.Header
+        actions={actions ? <div className="page-actions">{actions}</div> : null}
+        bordered={false}
+        description={<p>{description}</p>}
+        descriptionClassName="!static !h-auto !w-auto !overflow-visible !whitespace-normal !p-0"
+        eyebrow={<span className="eyebrow">{eyebrow}</span>}
+        heading={<h1>{title}</h1>}
+      />
     </header>
   );
 }
@@ -121,22 +125,33 @@ export function Notice({
       ? undefined
       : (announce ?? (tone === "bad" ? "alert" : undefined));
   return (
-    <div className={`notice ${tone}`} id={id} role={role}>
+    <PagePanel.Notice
+      className={`notice ${tone}`}
+      id={id}
+      role={role}
+      tone={
+        tone === "bad"
+          ? "danger"
+          : tone === "warn"
+            ? "warning"
+            : tone === "good"
+              ? "accent"
+              : "default"
+      }
+    >
       {children}
-    </div>
+    </PagePanel.Notice>
   );
 }
 
 export function LoadingBlock({ label = "Loading…" }: { label?: string }) {
   return (
-    <div aria-live="polite" className="loading-block" role="status">
-      <div aria-hidden="true" className="loading-skeleton">
-        <i />
-        <i />
-        <i />
-      </div>
-      <span>{label}</span>
-    </div>
+    <PagePanel.Loading
+      aria-live="polite"
+      className="loading-block"
+      heading={<span>{label}</span>}
+      role="status"
+    />
   );
 }
 
@@ -177,14 +192,19 @@ export function EmptyBlock({
   actions?: ReactNode;
 }) {
   return (
-    <div className="empty-block">
+    <PagePanel.Empty
+      action={
+        actions ? <div className="empty-actions">{actions}</div> : undefined
+      }
+      className="empty-block"
+      title={title}
+      variant="inset"
+    >
       <div className="empty-glyph" aria-hidden="true">
         ∴
       </div>
-      <h3>{title}</h3>
       <p>{children}</p>
-      {actions ? <div className="empty-actions">{actions}</div> : null}
-    </div>
+    </PagePanel.Empty>
   );
 }
 
@@ -195,7 +215,14 @@ export function Badge({
   children: ReactNode;
   tone?: "neutral" | "good" | "warn" | "bad";
 }) {
-  return <span className={`badge ${tone}`}>{children}</span>;
+  return (
+    <ElizaBadge
+      className={`badge ${tone}`}
+      variant={tone === "bad" ? "destructive" : "outline"}
+    >
+      {children}
+    </ElizaBadge>
+  );
 }
 
 export function MetricCard({
@@ -208,11 +235,11 @@ export function MetricCard({
   detail?: ReactNode;
 }) {
   return (
-    <article className="metric-card">
+    <PagePanel.SummaryCard className="metric-card">
       <span>{label}</span>
       <strong>{value}</strong>
       {detail ? <small>{detail}</small> : null}
-    </article>
+    </PagePanel.SummaryCard>
   );
 }
 

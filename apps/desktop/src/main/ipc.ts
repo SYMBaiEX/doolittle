@@ -718,6 +718,13 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
           "import",
         ]),
     },
+    {
+      predicate: (pathname) =>
+        matchesAccountPoolAccountActionPath(pathname, [
+          "test",
+          "refresh-usage",
+        ]),
+    },
     { exact: "/media/analyze" },
     { exact: "/media/transcribe" },
     { exact: "/media/transcribe-attachment" },
@@ -977,6 +984,23 @@ function matchesAccountPoolAccountPath(pathname: string): boolean {
       segments[3] as (typeof ACCOUNT_POOL_PROVIDER_IDS)[number],
     ) &&
     isSafeResourceId(segments[4])
+  );
+}
+
+function matchesAccountPoolAccountActionPath(
+  pathname: string,
+  actions: readonly string[],
+): boolean {
+  const segments = pathname.split("/");
+  return (
+    segments.length === 6 &&
+    segments[1] === "runtime" &&
+    segments[2] === "account-pool" &&
+    ACCOUNT_POOL_PROVIDER_IDS.includes(
+      segments[3] as (typeof ACCOUNT_POOL_PROVIDER_IDS)[number],
+    ) &&
+    isSafeResourceId(segments[4]) &&
+    actions.includes(segments[5] ?? "")
   );
 }
 
