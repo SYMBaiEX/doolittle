@@ -42,8 +42,16 @@ const answers: WizardAnswers = {
   anthropicModel: "claude-sonnet-4.6",
   telegramBotToken: "telegram-token",
   discordBotToken: "",
+  slackBotToken: "xoxb-token",
+  slackAppToken: "xapp-token",
   slackWebhookUrl: "",
   slackSigningSecret: "",
+  whatsappAccessToken: "whatsapp-token",
+  whatsappPhoneNumberId: "phone-id",
+  whatsappVerifyToken: "verify-token",
+  whatsappAppSecret: "app-secret",
+  signalAccountNumber: "+15555550123",
+  signalHttpUrl: "http://localhost:8080",
   homeAssistantUrl: "",
   homeAssistantToken: "",
   mcpServerCommand: "mcp-server",
@@ -73,6 +81,12 @@ describe("bootstrap persistence env updates", () => {
     expect(envUpdates.E2B_API_KEY).toBe("e2b-key");
     expect(envUpdates.OPENAI_API_KEY).toBe("");
     expect(envUpdates.TELEGRAM_BOT_TOKEN).toBe("telegram-token");
+    expect(envUpdates.SLACK_BOT_TOKEN).toBe("xoxb-token");
+    expect(envUpdates.SLACK_APP_TOKEN).toBe("xapp-token");
+    expect(envUpdates.WHATSAPP_ACCESS_TOKEN).toBe("whatsapp-token");
+    expect(envUpdates.WHATSAPP_APP_SECRET).toBe("app-secret");
+    expect(envUpdates.SIGNAL_ACCOUNT_NUMBER).toBe("+15555550123");
+    expect(envUpdates.SIGNAL_HTTP_URL).toBe("http://localhost:8080");
     expect(envUpdates.OLLAMA_API_ENDPOINT).toBe("http://localhost:11434/api");
     expect(envUpdates.OLLAMA_SMALL_MODEL).toBe("granite4.1:3b");
     expect(envUpdates.OLLAMA_LARGE_MODEL).toBe("granite4.1:3b");

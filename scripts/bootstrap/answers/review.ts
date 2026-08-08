@@ -184,7 +184,18 @@ export function pruneUnavailableTransports(
     telegram: Boolean(next.telegramBotToken.trim()),
     discord: Boolean(next.discordBotToken.trim()),
     slack: Boolean(
-      next.slackWebhookUrl.trim() && next.slackSigningSecret.trim(),
+      ((next.slackBotToken ?? "").trim() &&
+        (next.slackAppToken ?? "").trim()) ||
+        (next.slackWebhookUrl.trim() && next.slackSigningSecret.trim()),
+    ),
+    whatsapp: Boolean(
+      (next.whatsappAccessToken ?? "").trim() &&
+        (next.whatsappPhoneNumberId ?? "").trim() &&
+        (next.whatsappVerifyToken ?? "").trim(),
+    ),
+    signal: Boolean(
+      (next.signalAccountNumber ?? "").trim() ||
+        (next.signalCliCommand ?? "").trim(),
     ),
     homeassistant: Boolean(
       next.homeAssistantUrl.trim() && next.homeAssistantToken.trim(),

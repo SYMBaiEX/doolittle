@@ -16,24 +16,54 @@ export function buildEffectiveTransportInventoryEntry(
   gatewayConfig: GatewayConfig | undefined,
   messagingEntry?: EffectiveMessagingTransportEntry,
 ): EffectiveTransportInventoryEntry {
-  if (platform === "telegram" || platform === "discord") {
-    if (!messagingEntry) {
-      return {
-        platform,
-        source: "custom",
-        configEnabled: false,
-        gatewayEnabled: isTransportGatewayEnabled(gatewayConfig, platform),
-        operational: false,
-        reason: "not-configured",
-        detail: `${platform} transport is not configured.`,
-      };
-    }
+  if (messagingEntry?.live) {
     return {
       platform,
       source: messagingEntry.pluginSource ?? "custom",
       configEnabled: messagingEntry.configEnabled,
       gatewayEnabled: messagingEntry.gatewayEnabled,
       operational: messagingEntry.live && messagingEntry.gatewayEnabled,
+      reason: !messagingEntry.gatewayEnabled
+        ? "gateway-disabled"
+        : messagingEntry.reason,
+      detail: !messagingEntry.gatewayEnabled
+        ? `${platform} transport is disabled in gateway config.`
+        : messagingEntry.detail,
+      pluginId: messagingEntry.pluginId,
+      serviceName: messagingEntry.serviceName,
+      serviceAvailable: messagingEntry.serviceAvailable,
+    };
+  }
+
+  const fallbackConfigured =
+    platform === "discord"
+      ? Boolean(config.discordBotToken)
+      : isCustomTransportConfigured(platform, config);
+  if (messagingEntry && fallbackConfigured) {
+    const gatewayEnabled = isTransportGatewayEnabled(gatewayConfig, platform);
+    return {
+      platform,
+      source: "custom",
+      configEnabled: true,
+      gatewayEnabled,
+      operational: gatewayEnabled,
+      reason: gatewayEnabled ? "custom-ready" : "gateway-disabled",
+      detail: gatewayEnabled
+        ? `${platform} is using the Doolittle compatibility transport because the official connector is unavailable.`
+        : `${platform} transport is disabled in gateway config.`,
+      pluginId: messagingEntry.pluginId,
+      serviceName: messagingEntry.serviceName,
+      serviceAvailable: messagingEntry.serviceAvailable,
+    };
+  }
+
+  if (messagingEntry) {
+    return {
+      platform,
+      source: messagingEntry.pluginSource ?? "custom",
+      configEnabled: messagingEntry.configEnabled,
+      gatewayEnabled: messagingEntry.gatewayEnabled,
+      operational: false,
       reason: !messagingEntry.gatewayEnabled
         ? "gateway-disabled"
         : messagingEntry.reason,

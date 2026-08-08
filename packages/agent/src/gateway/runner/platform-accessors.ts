@@ -13,8 +13,14 @@ export interface GatewayRunnerPlatformAccessors {
 
 export function isGatewayNativeMessagingPlatform(
   platform: PlatformName,
-): platform is "telegram" | "discord" {
-  return platform === "telegram" || platform === "discord";
+): platform is "telegram" | "discord" | "slack" | "whatsapp" | "signal" {
+  return (
+    platform === "telegram" ||
+    platform === "discord" ||
+    platform === "slack" ||
+    platform === "whatsapp" ||
+    platform === "signal"
+  );
 }
 
 export function createGatewayRunnerPlatformAccessors(

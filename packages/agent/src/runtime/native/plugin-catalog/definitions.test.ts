@@ -71,6 +71,12 @@ describe("getNativePluginCatalogSeeds", () => {
       source: "official",
       kind: "adapter",
     });
+    expect(seeds.find((seed) => seed.id === "browser.official")).toMatchObject({
+      packageName: "@elizaos/plugin-browser",
+      category: "browser",
+      source: "official",
+      enablement: "always",
+    });
     expect(
       seeds.find((seed) => seed.id === "product.doolittle-runtime"),
     ).toMatchObject({

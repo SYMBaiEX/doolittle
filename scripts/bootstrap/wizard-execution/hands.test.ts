@@ -105,8 +105,20 @@ describe("bootstrap execution hands flow", () => {
       allowAllUsers: false,
       telegramBotToken: "",
       discordBotToken: "",
+      discordApplicationId: "",
+      slackBotToken: "",
+      slackAppToken: "",
+      slackUserToken: "",
       slackWebhookUrl: "",
       slackSigningSecret: "",
+      whatsappAccessToken: "",
+      whatsappPhoneNumberId: "",
+      whatsappVerifyToken: "",
+      whatsappAppSecret: "",
+      signalAccountNumber: "",
+      signalHttpUrl: "",
+      signalCliPath: "",
+      signalCliCommand: "",
       homeAssistantUrl: "",
       homeAssistantToken: "",
       tools: {
@@ -165,6 +177,11 @@ describe("bootstrap execution hands flow", () => {
       askSecret: vi.fn(async (_context, _rl, prompt: string) => {
         const values: Record<string, string> = {
           "Paste TELEGRAM_BOT_TOKEN": "telegram-token",
+          "Paste SLACK_BOT_TOKEN for the official connector (optional)":
+            "xoxb-bot",
+          "Paste SLACK_APP_TOKEN for the official connector (optional)":
+            "xapp-app",
+          "Paste SLACK_USER_TOKEN (optional)": "xoxp-user",
           "Paste SLACK_WEBHOOK_URL": "https://slack.example",
           "Paste SLACK_SIGNING_SECRET": "slack-secret",
           "Paste HOMEASSISTANT_TOKEN": "ha-token",
@@ -223,6 +240,9 @@ describe("bootstrap execution hands flow", () => {
     expect(result.pairingMode).toBe("allow");
     expect(result.allowAllUsers).toBe(true);
     expect(result.telegramBotToken).toBe("telegram-token");
+    expect(result.slackBotToken).toBe("xoxb-bot");
+    expect(result.slackAppToken).toBe("xapp-app");
+    expect(result.slackUserToken).toBe("xoxp-user");
     expect(result.slackWebhookUrl).toBe("https://slack.example");
     expect(result.slackSigningSecret).toBe("slack-secret");
     expect(result.mcpServerCommand).toBe(

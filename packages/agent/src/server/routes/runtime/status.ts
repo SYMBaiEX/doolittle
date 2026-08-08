@@ -50,7 +50,18 @@ export async function handleRuntimeStatusRoutes(
         openai: Boolean(context.config.openAiApiKey),
         anthropic: Boolean(context.config.anthropicApiKey),
         pdf: true,
+        browser: true,
         telegram: Boolean(context.config.telegramBotToken),
+        discord: Boolean(context.config.discordBotToken),
+        slack: Boolean(
+          context.config.slackBotToken && context.config.slackAppToken,
+        ),
+        whatsapp: Boolean(
+          context.config.whatsappAccessToken &&
+            context.config.whatsappPhoneNumberId &&
+            context.config.whatsappVerifyToken,
+        ),
+        signal: Boolean(context.config.signalAccountNumber),
       },
       gateway: context.services.gatewayConfig,
       native: {

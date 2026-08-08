@@ -16,10 +16,22 @@ function getNativeMessagingServices(runtime: RuntimeLike) {
       messageManager?: unknown;
       knownChats?: Map<string, unknown>;
     };
-    discordTransport?: {
-      history?: () => unknown;
-    };
   };
+}
+
+type ConnectorPlatform = Exclude<
+  EffectiveMessagingTransportEntry["platform"],
+  "telegram"
+>;
+
+function getSendConnector(runtime: RuntimeLike, platform: ConnectorPlatform) {
+  return runtime
+    .getMessageConnectors?.()
+    .find(
+      (connector) =>
+        connector.source === platform &&
+        connector.capabilities.includes("send_message"),
+    );
 }
 
 function buildTelegramMessagingEntry(
@@ -63,41 +75,38 @@ function buildTelegramMessagingEntry(
   };
 }
 
-function buildDiscordMessagingEntry(
+function buildConnectorMessagingEntry(
   runtime: RuntimeLike,
-  config: EnvConfig,
   gatewayConfig: GatewayConfig | undefined,
-  discordPlugin: NativePluginEntry | undefined,
+  platform: ConnectorPlatform,
+  configEnabled: boolean,
+  plugin: NativePluginEntry | undefined,
 ): EffectiveMessagingTransportEntry {
-  const native = getNativeMessagingServices(runtime);
-  const discordLive = Boolean(
-    discordPlugin?.enabled &&
-      native.discordTransport &&
-      typeof native.discordTransport?.history === "function",
-  );
+  const connector = getSendConnector(runtime, platform);
+  const live = Boolean(plugin?.enabled && connector);
 
   return {
-    platform: "discord",
-    pluginId: discordPlugin?.id,
-    pluginSource: discordPlugin?.source,
-    configEnabled: Boolean(config.discordBotToken),
-    pluginEnabled: Boolean(discordPlugin?.enabled),
-    gatewayEnabled: isTransportGatewayEnabled(gatewayConfig, "discord"),
-    serviceName: "discord_transport",
-    serviceAvailable: Boolean(native.discordTransport),
-    live: discordLive,
-    reason: discordLive
+    platform,
+    pluginId: plugin?.id,
+    pluginSource: plugin?.source,
+    configEnabled,
+    pluginEnabled: Boolean(plugin?.enabled),
+    gatewayEnabled: isTransportGatewayEnabled(gatewayConfig, platform),
+    serviceName: `message_connector:${platform}`,
+    serviceAvailable: Boolean(connector),
+    live,
+    reason: live
       ? "live"
-      : discordPlugin?.enabled
+      : plugin?.enabled
         ? "service-unavailable"
-        : config.discordBotToken
+        : configEnabled
           ? "plugin-disabled"
           : "not-configured",
-    detail: discordLive
-      ? "discord transport service available through native bridge"
-      : discordPlugin?.enabled
-        ? "discord plugin enabled but runtime service not fully live"
-        : "discord plugin disabled",
+    detail: live
+      ? `${connector?.label ?? platform} message connector is registered.`
+      : plugin?.enabled
+        ? `${platform} plugin is enabled but its send connector is not registered.`
+        : `${platform} plugin is disabled.`,
   };
 }
 
@@ -110,12 +119,42 @@ export function getEffectiveMessagingTransportInventoryEntries(
   const telegramPlugin = catalog.find(
     (entry) => entry.id === "messaging.telegram",
   );
-  const discordPlugin = catalog.find(
-    (entry) => entry.id === "messaging.discord",
-  );
+  const pluginFor = (platform: ConnectorPlatform) =>
+    catalog.find((entry) => entry.id === `messaging.${platform}`);
 
   return [
     buildTelegramMessagingEntry(runtime, config, gatewayConfig, telegramPlugin),
-    buildDiscordMessagingEntry(runtime, config, gatewayConfig, discordPlugin),
+    buildConnectorMessagingEntry(
+      runtime,
+      gatewayConfig,
+      "discord",
+      Boolean(config.discordBotToken),
+      pluginFor("discord"),
+    ),
+    buildConnectorMessagingEntry(
+      runtime,
+      gatewayConfig,
+      "slack",
+      Boolean(config.slackBotToken && config.slackAppToken),
+      pluginFor("slack"),
+    ),
+    buildConnectorMessagingEntry(
+      runtime,
+      gatewayConfig,
+      "whatsapp",
+      Boolean(
+        config.whatsappAccessToken &&
+          config.whatsappPhoneNumberId &&
+          config.whatsappVerifyToken,
+      ),
+      pluginFor("whatsapp"),
+    ),
+    buildConnectorMessagingEntry(
+      runtime,
+      gatewayConfig,
+      "signal",
+      Boolean(config.signalAccountNumber),
+      pluginFor("signal"),
+    ),
   ];
 }

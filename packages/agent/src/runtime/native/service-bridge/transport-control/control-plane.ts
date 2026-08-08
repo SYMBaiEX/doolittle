@@ -14,7 +14,8 @@ function buildTransportTotals(
   transportInventory: EffectiveTransportInventoryEntry[],
 ) {
   return {
-    configured: messagingBridge.length,
+    configured: transportInventory.filter((entry) => entry.configEnabled)
+      .length,
     enabledPlugins: messagingBridge.filter((entry) => entry.pluginEnabled)
       .length,
     gatewayEnabled: transportInventory.filter((entry) => entry.gatewayEnabled)

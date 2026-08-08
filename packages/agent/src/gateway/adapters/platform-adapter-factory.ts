@@ -9,6 +9,10 @@ import { HomeAssistantPlatformAdapter } from "../platforms/homeassistant-adapter
 import { MatrixPlatformAdapter } from "../platforms/matrix-adapter";
 import { MattermostPlatformAdapter } from "../platforms/mattermost-adapter";
 import { MockPlatformAdapter } from "../platforms/mock-adapter";
+import {
+  hasNativeMessageConnector,
+  NativeMessageConnectorAdapter,
+} from "../platforms/native-message-connector-adapter";
 import { SignalPlatformAdapter } from "../platforms/signal-adapter";
 import { SlackPlatformAdapter } from "../platforms/slack-adapter";
 import { SmsPlatformAdapter } from "../platforms/sms-adapter";
@@ -20,6 +24,27 @@ export function createPlatformAdapter(
   platform: PlatformName,
   context: GatewayRunnerContext,
 ): PlatformAdapter {
+  const nativeMessagingConfigured =
+    (platform === "discord" && Boolean(context.config.discordBotToken)) ||
+    (platform === "whatsapp" &&
+      Boolean(
+        context.config.whatsappAccessToken &&
+          context.config.whatsappPhoneNumberId &&
+          context.config.whatsappVerifyToken,
+      )) ||
+    (platform === "signal" && Boolean(context.config.signalAccountNumber)) ||
+    (platform === "slack" &&
+      Boolean(context.config.slackBotToken && context.config.slackAppToken));
+  if (
+    nativeMessagingConfigured &&
+    hasNativeMessageConnector(context.runtime, platform)
+  ) {
+    return new NativeMessageConnectorAdapter(
+      platform,
+      context.runtime,
+      context.services.delivery,
+    );
+  }
   if (platform === "telegram") {
     return new TelegramPlatformAdapter(
       platform,

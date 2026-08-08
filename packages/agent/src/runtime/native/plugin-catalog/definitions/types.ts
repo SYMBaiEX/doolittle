@@ -13,7 +13,10 @@ export type NativePluginEnablement =
   | "openai"
   | "anthropic"
   | "telegram"
-  | "discord";
+  | "discord"
+  | "whatsapp"
+  | "signal"
+  | "slack";
 
 export interface NativePluginCatalogSeed
   extends Omit<NativePluginDescriptor, "enabled" | "persistence"> {

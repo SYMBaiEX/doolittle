@@ -70,6 +70,47 @@ describe("transport decision helpers", () => {
     expect(telegram.detail).toContain("knownChats=1");
   });
 
+  it("reports every registered official send connector as live", () => {
+    const connectorPlatforms = ["discord", "slack", "whatsapp", "signal"];
+    const runtime = {
+      getService: () => undefined,
+      getMessageConnectors: () =>
+        connectorPlatforms.map((source) => ({
+          source,
+          label: `${source} connector`,
+          capabilities: ["send_message"],
+          supportedTargetKinds: ["channel"],
+          contexts: [],
+        })),
+    } as unknown as RuntimeLike;
+
+    const entries = getEffectiveMessagingTransportInventoryEntries(
+      runtime,
+      {
+        discordBotToken: "discord-token",
+        slackBotToken: "xoxb-token",
+        slackAppToken: "xapp-token",
+        whatsappAccessToken: "whatsapp-token",
+        whatsappPhoneNumberId: "phone-id",
+        whatsappVerifyToken: "verify-token",
+        signalAccountNumber: "+15555550123",
+      } as never,
+      { platforms: defaultGatewayConfig } as never,
+    );
+
+    expect(entries.map((entry) => entry.platform)).toEqual([
+      "telegram",
+      "discord",
+      "slack",
+      "whatsapp",
+      "signal",
+    ]);
+    expect(entries.slice(1).every((entry) => entry.live)).toBe(true);
+    expect(entries.slice(1).every((entry) => entry.serviceAvailable)).toBe(
+      true,
+    );
+  });
+
   it("flags disabled platform transport inventory when gateway is not configured", () => {
     const entry = buildEffectiveTransportInventoryEntry(
       "telegram",
@@ -158,7 +199,7 @@ describe("transport decision helpers", () => {
 
     expect(telegram.reason).toBe("live");
     expect(telegram.live).toBe(true);
-    // discord plugin-discord shim removed; discord is no longer served via ElizaOS plugin path
+    // A configured plugin without its registered connector is not native-live.
     expect(discord.live).toBe(false);
   });
 

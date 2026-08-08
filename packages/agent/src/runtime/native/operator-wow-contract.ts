@@ -418,11 +418,13 @@ const OPERATOR_WOW_CONTRACT: OperatorWowContractPillar[] = [
         id: "gateway-everywhere-presence.paired-dm",
         surface: "gateway",
         trigger:
-          "Send a message from a paired Telegram or Discord identity to the Doolittle gateway.",
+          "Send a message from a paired identity on any configured Telegram, Discord, Slack, WhatsApp, or Signal transport.",
         requiredSignals: [
           "Authorization decision is logged.",
           "Session key is stable for the channel peer.",
           "Typing/progress/final delivery behavior is platform-aware.",
+          "Discord, Slack, WhatsApp, and Signal report whether outbound delivery used the official Eliza connector or the explicit compatibility fallback.",
+          "Connector-backed sends still create Doolittle delivery and journal receipts.",
         ],
         verification: [
           "Add mocked platform adapter tests for authorization, session binding, and final delivery.",

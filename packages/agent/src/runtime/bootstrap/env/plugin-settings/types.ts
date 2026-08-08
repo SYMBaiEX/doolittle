@@ -67,6 +67,20 @@ export interface PluginSettings {
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_API_ROOT?: string;
   TELEGRAM_ALLOWED_CHATS?: string;
+  DISCORD_API_TOKEN?: string;
+  DISCORD_APPLICATION_ID?: string;
+  SLACK_BOT_TOKEN?: string;
+  SLACK_APP_TOKEN?: string;
+  SLACK_SIGNING_SECRET?: string;
+  SLACK_USER_TOKEN?: string;
+  WHATSAPP_ACCESS_TOKEN?: string;
+  WHATSAPP_PHONE_NUMBER_ID?: string;
+  WHATSAPP_WEBHOOK_VERIFY_TOKEN?: string;
+  WHATSAPP_AUTH_METHOD?: "cloudapi" | "baileys";
+  WHATSAPP_APP_SECRET?: string;
+  SIGNAL_ACCOUNT_NUMBER?: string;
+  SIGNAL_HTTP_URL?: string;
+  SIGNAL_CLI_PATH?: string;
 }
 
 export interface BuildPluginSettingsDependencies {

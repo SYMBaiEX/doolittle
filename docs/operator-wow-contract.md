@@ -321,11 +321,13 @@ The contract is intentionally acceptance-led. Every pillar maps research signals
 
 - Surface: `gateway`
 - Current status: `partial`
-- Trigger: Send a message from a paired Telegram or Discord identity to the Doolittle gateway.
+- Trigger: Send a message from a paired identity on any configured Telegram, Discord, Slack, WhatsApp, or Signal transport.
 - Required signals:
   - Authorization decision is logged.
   - Session key is stable for the channel peer.
   - Typing/progress/final delivery behavior is platform-aware.
+  - Discord, Slack, WhatsApp, and Signal report whether outbound delivery used the official Eliza connector or the explicit compatibility fallback.
+  - Connector-backed sends still create Doolittle delivery and journal receipts.
 - Verification:
   - Add mocked platform adapter tests for authorization, session binding, and final delivery.
   - Run `nub run test packages/agent/src/gateway`.

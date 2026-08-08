@@ -51,6 +51,16 @@ function resolveNativePluginEnablement(
       return enabled(config.telegramBotToken);
     case "discord":
       return enabled(config.discordBotToken);
+    case "whatsapp":
+      return enabled(
+        config.whatsappAccessToken &&
+          config.whatsappPhoneNumberId &&
+          config.whatsappVerifyToken,
+      );
+    case "signal":
+      return enabled(config.signalAccountNumber);
+    case "slack":
+      return enabled(config.slackBotToken && config.slackAppToken);
   }
 }
 

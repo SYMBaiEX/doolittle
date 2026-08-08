@@ -85,14 +85,63 @@ export async function buildNativeOnboardingMirror(
       if (transport === "telegram" && answers.telegramBotToken) {
         credentials = { botToken: answers.telegramBotToken };
       } else if (transport === "discord" && answers.discordBotToken) {
-        credentials = { botToken: answers.discordBotToken };
+        credentials = {
+          botToken: answers.discordBotToken,
+          ...(answers.discordApplicationId
+            ? { applicationId: answers.discordApplicationId }
+            : {}),
+        };
       } else if (
         transport === "slack" &&
-        (answers.slackWebhookUrl || answers.slackSigningSecret)
+        (answers.slackBotToken ||
+          answers.slackAppToken ||
+          answers.slackWebhookUrl ||
+          answers.slackSigningSecret)
       ) {
         credentials = {
-          webhookUrl: answers.slackWebhookUrl,
-          signingSecret: answers.slackSigningSecret,
+          ...(answers.slackBotToken ? { botToken: answers.slackBotToken } : {}),
+          ...(answers.slackAppToken ? { appToken: answers.slackAppToken } : {}),
+          ...(answers.slackUserToken
+            ? { userToken: answers.slackUserToken }
+            : {}),
+          ...(answers.slackWebhookUrl
+            ? { webhookUrl: answers.slackWebhookUrl }
+            : {}),
+          ...(answers.slackSigningSecret
+            ? { signingSecret: answers.slackSigningSecret }
+            : {}),
+        };
+      } else if (
+        transport === "whatsapp" &&
+        (answers.whatsappAccessToken || answers.whatsappPhoneNumberId)
+      ) {
+        credentials = {
+          ...(answers.whatsappAccessToken
+            ? { accessToken: answers.whatsappAccessToken }
+            : {}),
+          ...(answers.whatsappPhoneNumberId
+            ? { phoneNumberId: answers.whatsappPhoneNumberId }
+            : {}),
+          ...(answers.whatsappVerifyToken
+            ? { verifyToken: answers.whatsappVerifyToken }
+            : {}),
+          ...(answers.whatsappAppSecret
+            ? { appSecret: answers.whatsappAppSecret }
+            : {}),
+        };
+      } else if (
+        transport === "signal" &&
+        (answers.signalAccountNumber || answers.signalCliCommand)
+      ) {
+        credentials = {
+          ...(answers.signalAccountNumber
+            ? { accountNumber: answers.signalAccountNumber }
+            : {}),
+          ...(answers.signalHttpUrl ? { httpUrl: answers.signalHttpUrl } : {}),
+          ...(answers.signalCliPath ? { cliPath: answers.signalCliPath } : {}),
+          ...(answers.signalCliCommand
+            ? { cliCommand: answers.signalCliCommand }
+            : {}),
         };
       } else if (
         transport === "homeassistant" &&

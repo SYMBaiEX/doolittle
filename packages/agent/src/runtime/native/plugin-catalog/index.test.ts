@@ -117,6 +117,9 @@ describe("getNativePluginCatalog", () => {
       catalog.find((entry) => entry.id === "messaging.telegram")?.enabled,
     ).toBe(true);
     expect(
+      catalog.find((entry) => entry.id === "browser.official")?.enabled,
+    ).toBe(true);
+    expect(
       catalog.find((entry) => entry.id === "product.doolittle-runtime"),
     ).toMatchObject({
       category: "product",

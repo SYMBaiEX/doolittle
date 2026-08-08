@@ -38,14 +38,16 @@ export const TRANSPORT_REQUIREMENTS: TransportRequirementDefinition[] = [
   {
     platform: "slack",
     label: "Slack",
-    requiredAll: [
+    requiredAny: [
       {
-        key: "SLACK_WEBHOOK_URL",
-        configured: (config) => Boolean(config.slackWebhookUrl),
+        key: "SLACK_BOT_TOKEN + SLACK_APP_TOKEN",
+        configured: (config) =>
+          Boolean(config.slackBotToken && config.slackAppToken),
       },
       {
-        key: "SLACK_SIGNING_SECRET",
-        configured: (config) => Boolean(config.slackSigningSecret),
+        key: "SLACK_WEBHOOK_URL + SLACK_SIGNING_SECRET",
+        configured: (config) =>
+          Boolean(config.slackWebhookUrl && config.slackSigningSecret),
       },
     ],
   },
@@ -70,7 +72,11 @@ export const TRANSPORT_REQUIREMENTS: TransportRequirementDefinition[] = [
   {
     platform: "signal",
     label: "Signal",
-    requiredAll: [
+    requiredAny: [
+      {
+        key: "SIGNAL_ACCOUNT_NUMBER",
+        configured: (config) => Boolean(config.signalAccountNumber),
+      },
       {
         key: "SIGNAL_CLI_COMMAND",
         configured: (config) => Boolean(config.signalCliCommand),

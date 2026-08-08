@@ -187,4 +187,23 @@ describe("bootstrap answer review helpers", () => {
     expect(result.answers.useLinkedCodexAuth).toBe(true);
     expect(source.provider).toBe("openai");
   });
+
+  it("keeps transports configured through official connector credentials", () => {
+    const notices: string[] = [];
+    const next: WizardAnswers = {
+      ...baseAnswers,
+      transports: ["slack", "whatsapp", "signal"],
+      slackBotToken: "xoxb-token",
+      slackAppToken: "xapp-token",
+      whatsappAccessToken: "whatsapp-token",
+      whatsappPhoneNumberId: "phone-id",
+      whatsappVerifyToken: "verify-token",
+      signalAccountNumber: "+15555550123",
+    };
+
+    pruneUnavailableTransports(next, notices);
+
+    expect(next.transports).toEqual(["slack", "whatsapp", "signal"]);
+    expect(notices).toEqual([]);
+  });
 });

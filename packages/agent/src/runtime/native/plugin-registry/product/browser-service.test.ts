@@ -1,8 +1,13 @@
 import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
 import type { IAgentRuntime, Service, ServiceClass } from "@elizaos/core";
+import type {
+  BrowserTarget,
+  BrowserWorkspaceCommand,
+} from "@elizaos/plugin-browser";
 import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "@/services";
 import { createBrowserRuntimeService } from "./browser-service";
+import { DOOLITTLE_BROWSER_TARGET_ID } from "./doolittle-browser-target";
 
 describe("createBrowserRuntimeService", () => {
   it("exposes browser operations through one Eliza-owned service", async () => {
@@ -27,7 +32,25 @@ describe("createBrowserRuntimeService", () => {
     const Service = createBrowserRuntimeService({
       web,
     } as unknown as AppServices) as ServiceClass;
-    const service = (await Service.start({} as IAgentRuntime)) as Service & {
+    let target: BrowserTarget | undefined;
+    const browser = {
+      registerTarget: vi.fn((next: BrowserTarget) => {
+        target = next;
+      }),
+      unregisterTarget: vi.fn(() => true),
+      execute: vi.fn(
+        async (command: BrowserWorkspaceCommand, targetId?: string) => {
+          expect(targetId).toBe(DOOLITTLE_BROWSER_TARGET_ID);
+          if (!target) throw new Error("target not registered");
+          return target.execute(command);
+        },
+      ),
+    };
+    const runtime = {
+      getService: (serviceType: string) =>
+        serviceType === "browser" ? browser : undefined,
+    } as unknown as IAgentRuntime;
+    const service = (await Service.start(runtime)) as Service & {
       status(): Promise<unknown>;
       fetch(url: string): Promise<unknown>;
       inspect(url: string): Promise<unknown>;
@@ -37,9 +60,19 @@ describe("createBrowserRuntimeService", () => {
       analyze(url: string): Promise<unknown>;
       compare(leftUrl: string, rightUrl: string): Promise<unknown>;
       analyzeComparison(leftUrl: string, rightUrl: string): Promise<unknown>;
+      stop(): Promise<void>;
     };
 
     expect(Service.serviceType).toBe(DOOLITTLE_BROWSER_SERVICE);
+    expect(browser.registerTarget).toHaveBeenCalledOnce();
+    expect(target?.id).toBe(DOOLITTLE_BROWSER_TARGET_ID);
+    expect(
+      target?.score?.({
+        command: { subaction: "state" },
+        env: {},
+        mobile: false,
+      }),
+    ).toBeNull();
     await expect(service.status()).resolves.toEqual({ ready: true });
     await expect(service.fetch("https://a")).resolves.toEqual({
       url: "https://a",
@@ -65,5 +98,9 @@ describe("createBrowserRuntimeService", () => {
     await expect(
       service.analyzeComparison("https://a", "https://b"),
     ).resolves.toMatchObject({ prompt: "comparison" });
+    await service.stop();
+    expect(browser.unregisterTarget).toHaveBeenCalledWith(
+      DOOLITTLE_BROWSER_TARGET_ID,
+    );
   });
 });

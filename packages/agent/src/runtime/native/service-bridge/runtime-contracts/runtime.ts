@@ -1,5 +1,12 @@
 import type { IAgentRuntime } from "@elizaos/core";
 
 export type RuntimeLike = Partial<
-  Pick<IAgentRuntime, "agentId" | "getService" | "getAllActions" | "character">
+  Pick<
+    IAgentRuntime,
+    | "agentId"
+    | "getService"
+    | "getAllActions"
+    | "getMessageConnectors"
+    | "character"
+  >
 >;

@@ -7,6 +7,8 @@ This ledger tracks the native experience gaps that still remain after the curren
 - Gateway supervision is now represented by live health, supervision, journal, history, and replay surfaces in [`packages/agent/src/gateway/runner/index.ts`](../packages/agent/src/gateway/runner/index.ts) and [`packages/agent/src/server.ts`](../packages/agent/src/server.ts).
 - Inbox/outbox journaling is now persisted through gateway trace, delivery, attachment, and replay history in [`packages/agent/src/gateway/runner/index.ts`](../packages/agent/src/gateway/runner/index.ts), [`packages/agent/src/services/delivery-service.ts`](../packages/agent/src/services/delivery-service.ts), and [`packages/agent/src/services/gateway-session-service/index.ts`](../packages/agent/src/services/gateway-session-service/index.ts).
 - Responses-style API transport is now present through [`packages/agent/src/services/api-transport-service.ts`](../packages/agent/src/services/api-transport-service.ts) and the `/v1/responses` routes in [`packages/agent/src/server.ts`](../packages/agent/src/server.ts).
+- Official Eliza message connectors now own preferred outbound delivery for Discord, Slack, WhatsApp, and Signal when their native credentials hydrate successfully. Doolittle deliberately retains inbound authorization, session routing, journaling, replay, and compatibility senders until the public connector surface can preserve those product contracts end to end.
+- The official Eliza browser service now owns browser target lifecycle and dispatch, with Doolittle's evidence capture registered as an explicit target and core SSRF protection guarding basic fetches.
 
 ## Remaining Native Gaps
 

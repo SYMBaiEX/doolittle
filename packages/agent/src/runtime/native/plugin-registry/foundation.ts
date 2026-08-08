@@ -19,6 +19,7 @@ import {
   type ServiceClass,
   ToolPolicyService,
 } from "@elizaos/core";
+import { browserPlugin } from "@elizaos/plugin-browser";
 
 // beta.7's PairingService constructor requires a runtime while ServiceClass
 // still declares that constructor argument optional. Runtime registration uses
@@ -74,5 +75,6 @@ export function loadFoundationPlugins(): Plugin[] {
         MediaGenerationServiceClass,
       ],
     },
+    browserPlugin,
   ];
 }

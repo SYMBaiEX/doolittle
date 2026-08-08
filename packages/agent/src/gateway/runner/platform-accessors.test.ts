@@ -42,6 +42,9 @@ describe("gateway runner platform accessors", () => {
   it("identifies native messaging platforms", () => {
     expect(isGatewayNativeMessagingPlatform("telegram")).toBe(true);
     expect(isGatewayNativeMessagingPlatform("discord")).toBe(true);
+    expect(isGatewayNativeMessagingPlatform("slack")).toBe(true);
+    expect(isGatewayNativeMessagingPlatform("whatsapp")).toBe(true);
+    expect(isGatewayNativeMessagingPlatform("signal")).toBe(true);
     expect(isGatewayNativeMessagingPlatform("api" as PlatformName)).toBe(false);
   });
 
@@ -66,6 +69,9 @@ describe("gateway runner platform accessors", () => {
     expect(accessors.getNativeMessagingState("discord")?.ready).toBe(false);
     expect(accessors.getNativeMessagingState("discord")?.summary).toContain(
       "discord:",
+    );
+    expect(accessors.getNativeMessagingState("slack")?.summary).toContain(
+      "slack:",
     );
   });
 });

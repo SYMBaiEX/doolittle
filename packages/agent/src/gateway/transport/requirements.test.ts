@@ -50,6 +50,26 @@ describe("transport requirements", () => {
     );
   });
 
+  it("accepts official Slack and Signal credential routes", () => {
+    const nativeConfig = {
+      ...config,
+      slackWebhookUrl: undefined,
+      slackSigningSecret: undefined,
+      slackBotToken: "xoxb-token",
+      slackAppToken: "xapp-token",
+      signalAccountNumber: "+15555550123",
+    } as EnvConfig;
+
+    expect(
+      getTransportRequirementRecord(nativeConfig, gatewayConfig, "slack")
+        ?.configured,
+    ).toBe(true);
+    expect(
+      getTransportRequirementRecord(nativeConfig, gatewayConfig, "signal")
+        ?.configured,
+    ).toBe(true);
+  });
+
   it("returns the full requirement inventory", () => {
     const records = getTransportRequirementRecords(config, gatewayConfig);
 

@@ -31,7 +31,7 @@ export interface EffectiveTransportInventoryEntry {
 }
 
 export interface EffectiveMessagingTransportEntry {
-  platform: "telegram" | "discord";
+  platform: "telegram" | "discord" | "slack" | "whatsapp" | "signal";
   pluginId?: string;
   pluginSource?: "official" | "vendored" | "custom";
   configEnabled: boolean;

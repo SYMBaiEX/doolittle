@@ -49,6 +49,11 @@ vi.mock("@elizaos/plugin-github", () => ({
   },
 }));
 
+vi.mock("@elizaos/plugin-discord", () => ({ default: { name: "discord" } }));
+vi.mock("@elizaos/plugin-whatsapp", () => ({ default: { name: "whatsapp" } }));
+vi.mock("@elizaos/plugin-signal", () => ({ default: { name: "signal" } }));
+vi.mock("@elizaos/plugin-slack", () => ({ default: { name: "slack" } }));
+
 function pluginNames(plugins: Plugin[]): string[] {
   return plugins.map((plugin) => plugin.name);
 }
@@ -175,7 +180,10 @@ describe("loadFoundationPlugins", () => {
       (service) => service.serviceType,
     );
 
-    expect(pluginNames(plugins)).toEqual(["doolittle-eliza-foundation"]);
+    expect(pluginNames(plugins)).toEqual([
+      "doolittle-eliza-foundation",
+      "@elizaos/plugin-browser",
+    ]);
     expect(plugin?.schema).toBeDefined();
     expect(serviceTypes).toContain("agent_event");
     expect(serviceTypes).toContain("eliza_knowledge_graph");
@@ -237,6 +245,28 @@ describe("loadDeferredPluginGroups", () => {
     ]);
     expect(groups.execution[1]?.actions?.map((action) => action.name)).toEqual([
       "FORM",
+    ]);
+  });
+
+  it("loads official native messaging plugins only for complete native settings", async () => {
+    const groups = await loadDeferredPluginGroups(
+      createServices(),
+      createConfig({
+        discordBotToken: "token",
+        whatsappAccessToken: "token",
+        whatsappPhoneNumberId: "phone",
+        whatsappVerifyToken: "verify",
+        signalAccountNumber: "+15555550100",
+        slackBotToken: "bot",
+        slackAppToken: "app",
+      }),
+    );
+
+    expect(pluginNames(groups.messaging)).toEqual([
+      "discord",
+      "whatsapp",
+      "signal",
+      "slack",
     ]);
   });
 });

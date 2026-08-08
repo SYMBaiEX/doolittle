@@ -6,7 +6,7 @@ export function isTransportGatewayEnabled(
   gatewayConfig: GatewayConfig | undefined,
   platform: TransportPlatform,
 ): boolean {
-  return Boolean(gatewayConfig?.platforms[platform].enabled);
+  return Boolean(gatewayConfig?.platforms[platform]?.enabled);
 }
 
 export function isCustomTransportConfigured(

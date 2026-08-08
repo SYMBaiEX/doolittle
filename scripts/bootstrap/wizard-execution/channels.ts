@@ -17,8 +17,20 @@ export async function runExecutionChannelSelectionFlow(
   let allowAllUsers = answers.allowAllUsers;
   let telegramBotToken = answers.telegramBotToken;
   let discordBotToken = answers.discordBotToken;
+  let discordApplicationId = answers.discordApplicationId ?? "";
+  let slackBotToken = answers.slackBotToken ?? "";
+  let slackAppToken = answers.slackAppToken ?? "";
+  let slackUserToken = answers.slackUserToken ?? "";
   let slackWebhookUrl = answers.slackWebhookUrl;
   let slackSigningSecret = answers.slackSigningSecret;
+  let whatsappAccessToken = answers.whatsappAccessToken ?? "";
+  let whatsappPhoneNumberId = answers.whatsappPhoneNumberId ?? "";
+  let whatsappVerifyToken = answers.whatsappVerifyToken ?? "";
+  let whatsappAppSecret = answers.whatsappAppSecret ?? "";
+  let signalAccountNumber = answers.signalAccountNumber ?? "";
+  let signalHttpUrl = answers.signalHttpUrl ?? "";
+  let signalCliPath = answers.signalCliPath ?? "";
+  const signalCliCommand = answers.signalCliCommand ?? "";
   let homeAssistantUrl = answers.homeAssistantUrl;
   let homeAssistantToken = answers.homeAssistantToken;
 
@@ -90,8 +102,32 @@ export async function runExecutionChannelSelectionFlow(
         "Paste DISCORD_BOT_TOKEN",
         discordBotToken,
       );
+      discordApplicationId = await promptDeps.ask(
+        context,
+        rl,
+        "Paste DISCORD_APPLICATION_ID (optional)",
+        discordApplicationId,
+      );
     }
     if (transports.includes("slack")) {
+      slackBotToken = await promptDeps.askSecret(
+        context,
+        rl,
+        "Paste SLACK_BOT_TOKEN for the official connector (optional)",
+        slackBotToken,
+      );
+      slackAppToken = await promptDeps.askSecret(
+        context,
+        rl,
+        "Paste SLACK_APP_TOKEN for the official connector (optional)",
+        slackAppToken,
+      );
+      slackUserToken = await promptDeps.askSecret(
+        context,
+        rl,
+        "Paste SLACK_USER_TOKEN (optional)",
+        slackUserToken,
+      );
       slackWebhookUrl = await promptDeps.askSecret(
         context,
         rl,
@@ -103,6 +139,52 @@ export async function runExecutionChannelSelectionFlow(
         rl,
         "Paste SLACK_SIGNING_SECRET",
         slackSigningSecret,
+      );
+    }
+    if (transports.includes("whatsapp")) {
+      whatsappAccessToken = await promptDeps.askSecret(
+        context,
+        rl,
+        "Paste WHATSAPP_ACCESS_TOKEN",
+        whatsappAccessToken,
+      );
+      whatsappPhoneNumberId = await promptDeps.ask(
+        context,
+        rl,
+        "Paste WHATSAPP_PHONE_NUMBER_ID",
+        whatsappPhoneNumberId,
+      );
+      whatsappVerifyToken = await promptDeps.askSecret(
+        context,
+        rl,
+        "Paste WHATSAPP_VERIFY_TOKEN",
+        whatsappVerifyToken,
+      );
+      whatsappAppSecret = await promptDeps.askSecret(
+        context,
+        rl,
+        "Paste WHATSAPP_APP_SECRET (recommended)",
+        whatsappAppSecret,
+      );
+    }
+    if (transports.includes("signal")) {
+      signalAccountNumber = await promptDeps.ask(
+        context,
+        rl,
+        "Paste SIGNAL_ACCOUNT_NUMBER in E.164 format",
+        signalAccountNumber,
+      );
+      signalHttpUrl = await promptDeps.ask(
+        context,
+        rl,
+        "Paste SIGNAL_HTTP_URL (optional)",
+        signalHttpUrl,
+      );
+      signalCliPath = await promptDeps.ask(
+        context,
+        rl,
+        "Paste SIGNAL_CLI_PATH (optional)",
+        signalCliPath,
       );
     }
     if (transports.includes("homeassistant")) {
@@ -127,8 +209,20 @@ export async function runExecutionChannelSelectionFlow(
     allowAllUsers,
     telegramBotToken,
     discordBotToken,
+    discordApplicationId,
+    slackBotToken,
+    slackAppToken,
+    slackUserToken,
     slackWebhookUrl,
     slackSigningSecret,
+    whatsappAccessToken,
+    whatsappPhoneNumberId,
+    whatsappVerifyToken,
+    whatsappAppSecret,
+    signalAccountNumber,
+    signalHttpUrl,
+    signalCliPath,
+    signalCliCommand,
     homeAssistantUrl,
     homeAssistantToken,
   };

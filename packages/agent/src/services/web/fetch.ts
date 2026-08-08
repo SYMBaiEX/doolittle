@@ -1,7 +1,32 @@
+import { lookup } from "node:dns/promises";
 import { accessSync, constants } from "node:fs";
 import { delimiter, join } from "node:path";
+import {
+  fetchWithSsrfGuard,
+  type LookupFn,
+  type SsrfPolicy,
+} from "@elizaos/core";
 import { runTextProcess } from "@/services/process-execution";
 import type { BrowserConfig } from "./service-types";
+
+type FetchLike = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => Promise<Response>;
+
+interface BasicFetchDependencies {
+  fetchImpl?: FetchLike;
+  lookupFn?: LookupFn;
+}
+
+const nodeLookup: LookupFn = async (hostname) =>
+  lookup(hostname, { all: true });
+
+export function resolveBasicFetchPolicy(url: URL): SsrfPolicy | undefined {
+  return url.hostname.toLowerCase() === "localhost"
+    ? { allowedHostnames: ["localhost"] }
+    : undefined;
+}
 
 async function runCommand(
   cmd: string[],
@@ -59,17 +84,44 @@ export async function browserCommandExists(binary: string): Promise<boolean> {
 
 export async function fetchWithBasic(
   url: string,
+  dependencies: BasicFetchDependencies = {},
 ): Promise<{ body: string; contentType: string }> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(
-      `Web fetch failed (${response.status}): ${await response.text()}`,
-    );
+  const parsed = new URL(url);
+  const fetchImpl = dependencies.fetchImpl ?? globalThis.fetch;
+
+  if (parsed.protocol === "data:") {
+    const response = await fetchImpl(url);
+    if (!response.ok) {
+      throw new Error(
+        `Web fetch failed (${response.status}): ${await response.text()}`,
+      );
+    }
+    return {
+      body: await response.text(),
+      contentType: response.headers.get("content-type") ?? "text/plain",
+    };
   }
-  return {
-    body: await response.text(),
-    contentType: response.headers.get("content-type") ?? "text/plain",
-  };
+
+  const guarded = await fetchWithSsrfGuard({
+    url,
+    fetchImpl,
+    lookupFn: dependencies.lookupFn ?? nodeLookup,
+    policy: resolveBasicFetchPolicy(parsed),
+    timeoutMs: 20_000,
+  });
+  try {
+    if (!guarded.response.ok) {
+      throw new Error(
+        `Web fetch failed (${guarded.response.status}): ${await guarded.response.text()}`,
+      );
+    }
+    return {
+      body: await guarded.response.text(),
+      contentType: guarded.response.headers.get("content-type") ?? "text/plain",
+    };
+  } finally {
+    await guarded.release();
+  }
 }
 
 export async function fetchWithLightpanda(

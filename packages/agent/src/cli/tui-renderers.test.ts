@@ -176,7 +176,7 @@ describe("tui render helpers", () => {
     expect(content).toContain("live running");
     expect(content).toContain("plugins enabled ");
     expect(content).toContain("prod 3");
-    expect(content).toContain("alpha 17");
+    expect(content).toContain("alpha 18");
     expect(content).toContain("exp 1");
     expect(content).toContain("runtime {gray-fg}2.0.3-beta.7{/}");
     expect(content).toContain("gateway sessions 2 · voice 1");

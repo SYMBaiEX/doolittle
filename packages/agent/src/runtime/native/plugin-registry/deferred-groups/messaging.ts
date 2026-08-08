@@ -14,5 +14,31 @@ export async function loadDeferredMessagingPlugins({
     messaging.push(normalizePlugin(telegramPlugin));
   }
 
+  if (config.discordBotToken) {
+    const { default: discordPlugin } = await import("@elizaos/plugin-discord");
+    messaging.push(normalizePlugin(discordPlugin));
+  }
+
+  if (
+    config.whatsappAccessToken &&
+    config.whatsappPhoneNumberId &&
+    config.whatsappVerifyToken
+  ) {
+    const { default: whatsappPlugin } = await import(
+      "@elizaos/plugin-whatsapp"
+    );
+    messaging.push(normalizePlugin(whatsappPlugin));
+  }
+
+  if (config.signalAccountNumber) {
+    const { default: signalPlugin } = await import("@elizaos/plugin-signal");
+    messaging.push(normalizePlugin(signalPlugin));
+  }
+
+  if (config.slackBotToken && config.slackAppToken) {
+    const { default: slackPlugin } = await import("@elizaos/plugin-slack");
+    messaging.push(normalizePlugin(slackPlugin));
+  }
+
   return messaging;
 }
