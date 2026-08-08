@@ -30,7 +30,11 @@ describe("container execution backends", () => {
 
     expect(dockerPreview.engine).toBe("docker");
     expect(dockerPreview.argv[0]).toBe("docker");
+    expect(dockerPreview.argv).toContain("--entrypoint");
+    expect(dockerPreview.argv.at(-3)).toBe("ghcr.io/nubjs/nub:latest");
     expect(podmanPreview.engine).toBe("podman");
     expect(podmanPreview.argv[0]).toBe("podman");
+    expect(podmanPreview.argv).toContain("--entrypoint");
+    expect(podmanPreview.argv.at(-3)).toBe("ghcr.io/nubjs/nub:latest");
   });
 });

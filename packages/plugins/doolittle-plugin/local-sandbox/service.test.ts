@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const sandboxManager = vi.hoisted(() => ({
+  configure: vi.fn(),
   getContainerWorkspacePath: vi.fn((hostPath: string) =>
     hostPath.replace(/^.*doolittle-e2b/, "/workspace"),
   ),
@@ -12,6 +13,10 @@ const runShell = vi.hoisted(() => vi.fn());
 
 vi.mock("@elizaos/agent/services/sandbox-manager", () => ({
   SandboxManager: class {
+    constructor(config: unknown) {
+      sandboxManager.configure(config);
+    }
+
     getContainerWorkspacePath = sandboxManager.getContainerWorkspacePath;
     run = sandboxManager.run;
     start = sandboxManager.start;
@@ -41,12 +46,21 @@ describe("local sandbox service", () => {
     const service = await LocalSandboxService.start();
     const result = await service.executeCode("console.log('ok')", "javascript");
 
+    expect(sandboxManager.configure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "standard",
+        readOnlyRoot: true,
+      }),
+    );
     expect(sandboxManager.start).toHaveBeenCalledOnce();
     expect(runShell).toHaveBeenCalledWith(
       expect.objectContaining({
-        command: process.execPath,
+        command: "node",
         args: ["-e", "console.log('ok')"],
         cwd: expect.stringMatching(/^\/workspace\//),
+        env: expect.objectContaining({
+          XDG_CACHE_HOME: expect.stringMatching(/^\/workspace\/.*\/\.cache$/),
+        }),
         toolName: "doolittle.local-sandbox.execute-code",
       }),
       expect.objectContaining({

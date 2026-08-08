@@ -42,6 +42,8 @@
     "publish:providers": "nub scripts/publish-provider-packages.ts",
     "publish:providers:alpha": "nub run publish:providers -- --provider all --publish --tag alpha",
     "install:deps": "bash scripts/install.sh",
+    "sandbox:setup": "bash scripts/sandbox-setup.sh",
+    "test:sandbox:integration": "DOOLITTLE_RUN_SANDBOX_INTEGRATION=1 nubx --node vitest run packages/plugins/doolittle-plugin/local-sandbox/integration.test.ts",
     "dev": "nub run --cwd packages/agent dev",
     "start": "nub run --cwd packages/agent start",
     "build": "nub run --cwd packages/agent build",

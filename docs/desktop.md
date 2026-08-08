@@ -132,6 +132,29 @@ nub run desktop:dev
 The workspace install does not execute transitive lifecycle scripts. Electron's
 runtime is the one required install script and is invoked explicitly above.
 
+## Local sandbox image
+
+Doolittle's local autocoder sandbox uses the official Eliza `SandboxManager`.
+Before the first local sandbox run, build its required image in the container
+engine image store that Eliza will use:
+
+```bash
+nub run sandbox:setup
+```
+
+This builds `eliza-sandbox:bookworm-slim` from the pinned
+[`scripts/docker/sandbox/Dockerfile`](../scripts/docker/sandbox/Dockerfile).
+On Apple Silicon macOS, a callable Apple Container CLI is selected; otherwise
+a healthy Docker engine is selected. The setup command never installs or starts
+either engine. The image provides `python3`, `node`, `nub`, `bash`, uid 1000,
+and the `/workspace` mount contract used by `SandboxManager`.
+
+To run the opt-in engine-backed check after building it, use:
+
+```bash
+nub run test:sandbox:integration
+```
+
 The development launcher starts Vite for the renderer, builds the Electron
 main and preload bundles in watch mode, and launches Electron with the local
 Doolittle runtime.

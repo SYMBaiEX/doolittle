@@ -24,6 +24,7 @@ export class LocalSandboxService extends ElizaService {
   private readonly sandboxManager = new SandboxManager({
     mode: "standard",
     containerPrefix: "doolittle-e2b",
+    readOnlyRoot: true,
     workspaceRoot: this.sandboxStore.rootDir,
   });
 
@@ -71,6 +72,7 @@ export class LocalSandboxService extends ElizaService {
           env: {
             ...collectProcessEnv(),
             NODE_ENV: process.env.NODE_ENV ?? "development",
+            XDG_CACHE_HOME: `${workdir}/.cache`,
           },
           toolName: "doolittle.local-sandbox.execute-code",
         },

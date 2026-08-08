@@ -166,6 +166,13 @@ describe("planning helpers", () => {
       expect(argv).toContain("--read-only");
       expect(argv).toContain("-e");
       expect(argv).toContain("TERMINAL_SERVICE_HELPER_TOKEN=ok");
+      expect(argv.slice(-5)).toEqual([
+        "--entrypoint",
+        "/bin/sh",
+        "ghcr.io/nubjs/nub:latest",
+        "-lc",
+        "printf ok",
+      ]);
       expect(argv.at(-1)).toBe("printf ok");
       expect(argv).not.toContain("NOT-A-REAL-ENV");
     } finally {

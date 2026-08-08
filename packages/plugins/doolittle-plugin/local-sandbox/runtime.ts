@@ -27,9 +27,9 @@ export function resolveExecutionCommand(
     case "python":
       return ["python3", ["-c", code]];
     case "javascript":
-      return [process.execPath, ["-e", code]];
+      return ["node", ["-e", code]];
     case "typescript":
-      return [process.execPath, ["-e", code]];
+      return ["nub", ["-e", code]];
     case "bash":
     case "sh":
       return ["bash", ["-lc", code]];

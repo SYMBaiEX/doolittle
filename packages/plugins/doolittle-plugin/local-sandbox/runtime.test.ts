@@ -9,11 +9,11 @@ describe("local sandbox runtime helpers", () => {
       ["-c", "print('ok')"],
     ]);
     expect(resolveExecutionCommand("javascript", "console.log('ok')")).toEqual([
-      process.execPath,
+      "node",
       ["-e", "console.log('ok')"],
     ]);
     expect(resolveExecutionCommand("typescript", "console.log('ok')")).toEqual([
-      process.execPath,
+      "nub",
       ["-e", "console.log('ok')"],
     ]);
     expect(resolveExecutionCommand("bash", "echo ok")).toEqual([

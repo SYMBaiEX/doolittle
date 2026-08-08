@@ -91,8 +91,9 @@ export function buildContainerCommand(
     ...readOnlyFlags,
     ...engineFlags,
     ...passthroughFlags,
-    execution.dockerImage,
+    "--entrypoint",
     "/bin/sh",
+    execution.dockerImage,
     "-lc",
     command,
   ];
