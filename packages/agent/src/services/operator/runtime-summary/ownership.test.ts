@@ -4,7 +4,7 @@ import { resolveOwnership } from "./ownership";
 function createVersionSummary() {
   return {
     name: "doolittle",
-    version: "0.1.0",
+    version: "2.0.3-beta.7",
     node: "26.5.0",
     nub: "0.6.0",
     dependencies: {},

@@ -1,6 +1,6 @@
 {
   "name": "@doolittle/skill-packs-optional",
-  "version": "0.1.0",
+  "version": "2.0.3-beta.7",
   "private": true,
   "type": "module",
   "description": "Doolittle optional skill-pack tier for experimental, domain-specific, and higher-breadth skills.",

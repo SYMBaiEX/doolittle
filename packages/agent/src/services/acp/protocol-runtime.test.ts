@@ -7,6 +7,7 @@ import type {
 } from "@doolittle/acp";
 import { describe, expect, it } from "vitest";
 import type { EnvConfig, SessionSummary, StoredMessage } from "@/types";
+import { DOOLITTLE_VERSION } from "@/version";
 import type { RunUpdateEvent } from "../run-controller-service";
 import { AcpService } from "./service";
 import type { AcpProtocolHost } from "./types";
@@ -58,6 +59,7 @@ describe("official ACP protocol runtime", () => {
     try {
       const initialized = await fixture.service.initializeProtocol();
       expect(initialized.protocolVersion).toBe(1);
+      expect(initialized.agentInfo?.version).toBe(DOOLITTLE_VERSION);
       expect(initialized.agentCapabilities?.loadSession).toBe(true);
       expect(initialized.agentCapabilities?._meta).toBeUndefined();
       expect(initialized._meta?.["doolittle/stable-acp"]).toBe("v1");

@@ -31,6 +31,7 @@ import {
   type WriteTextFileRequest,
 } from "@doolittle/acp";
 import type { StoredMessage } from "@/types";
+import { DOOLITTLE_VERSION } from "@/version";
 import type { RunUpdateEvent } from "../run-controller-service";
 import type {
   AcpEditorContext,
@@ -135,7 +136,7 @@ export class AcpProtocolRuntime {
     params: InitializeRequest = {
       protocolVersion: PROTOCOL_VERSION,
       clientCapabilities: localClientCapabilities(),
-      clientInfo: { name: "Doolittle Desktop", version: "0.1.0" },
+      clientInfo: { name: "Doolittle Desktop", version: DOOLITTLE_VERSION },
       _meta: {
         "doolittle/editor-context": true,
         "doolittle/resources": true,
@@ -411,7 +412,7 @@ export class AcpProtocolRuntime {
       },
       agentInfo: {
         name: "Doolittle",
-        version: "0.1.0",
+        version: DOOLITTLE_VERSION,
       },
       _meta: editorContext
         ? {

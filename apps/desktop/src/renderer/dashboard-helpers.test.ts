@@ -21,10 +21,12 @@ describe("dashboard helpers", () => {
     expect(summary.changedFiles).toBe(2);
 
     expect(
-      summarizeRepoStatus("## release/0.1.0...origin/release/0.1.0"),
+      summarizeRepoStatus(
+        "## release/2.0.3-beta.7...origin/release/2.0.3-beta.7",
+      ),
     ).toMatchObject({
-      branch: "release/0.1.0",
-      upstream: "origin/release/0.1.0",
+      branch: "release/2.0.3-beta.7",
+      upstream: "origin/release/2.0.3-beta.7",
       dirty: false,
     });
   });
@@ -68,11 +70,11 @@ describe("dashboard helpers", () => {
     expect(
       summarizeDashboardValue({
         name: "doolittle",
-        version: "0.1.0",
+        version: "2.0.3-beta.7",
         node: "24.18.0",
         nub: "0.6.0",
       }),
-    ).toBe("doolittle 0.1.0 · Node 24.18.0 · Nub 0.6.0");
+    ).toBe("doolittle 2.0.3-beta.7 · Node 24.18.0 · Nub 0.6.0");
     expect(
       summarizeDashboardValue([
         { id: "ollama", ready: true },
