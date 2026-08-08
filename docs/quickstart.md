@@ -72,9 +72,9 @@ Run these health checks:
 From API mode:
 
 ```bash
-curl http://localhost:3000/health
-curl http://localhost:3000/runtime/status
-curl http://localhost:3000/runtime/plugins
+curl http://127.0.0.1:3000/health
+curl http://127.0.0.1:3000/runtime/status
+curl http://127.0.0.1:3000/runtime/plugins
 ```
 
 If these all return and report readiness, the product boundary is active.
@@ -158,6 +158,7 @@ For the full command catalog, see [Everyday commands in the README](../README.md
 
 Before documenting capability, route through:
 
+- [`docs/README.md`](./README.md) (documentation ownership and navigation)
 - [`docs/plugin-inventory.md`](./plugin-inventory.md) (what is assembled)
 - [`docs/capability-truth.md`](./capability-truth.md) (what each runtime slice can and cannot claim)
 - [`docs/operator-wow-contract.md`](./operator-wow-contract.md) (what native operator product outcomes must prove)

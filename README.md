@@ -13,7 +13,7 @@
   <a href="#quick-start">Quick start</a> ·
   <a href="#what-is-in-the-runtime">Capabilities</a> ·
   <a href="#architecture-and-ownership">Architecture</a> ·
-  <a href="docs/quickstart.md">Documentation</a> ·
+  <a href="docs/README.md">Documentation</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -121,8 +121,8 @@ The API is also useful for a local script or another UI:
 
 ```bash
 doolittle api
-curl http://localhost:3000/health
-curl http://localhost:3000/runtime/status
+curl http://127.0.0.1:3000/health
+curl http://127.0.0.1:3000/runtime/status
 ```
 
 The API's runtime-owned routes come from Eliza first; Doolittle-specific REST adapters fill the product gaps. Refer to [the quickstart](docs/quickstart.md) for the current endpoint list.
@@ -161,10 +161,11 @@ CLI / Cockpit / Desktop / Gateway / local HTTP API
       ┌──────────────┼──────────────┐
       ▼              ▼              ▼
  ElizaOS core   Official plugins   Doolittle bridges
- message/task   SQL, Ollama,       Codex, Claude Code,
- lifecycle      OpenAI, Anthropic, Eliza Cloud, workspace,
-                Telegram, MCP,     planning and operator layers
-                agent orchestrator
+ message/task   Ollama, OpenAI,    Claude Code, Devin,
+ lifecycle      Anthropic, Codex,  workspace and gateway
+                Eliza Cloud, MCP,  policy, planning, and
+                Telegram, agent    operator experience
+                orchestrator
 ```
 
 This separation is intentional. Doolittle uses ElizaOS SDK primitives for message lifecycle, tasks, providers, and plugins. Where the SDK does not define the product experience, Doolittle owns the bridge and documents it as such. The full workspace map is in [docs/monorepo.md](docs/monorepo.md); the generated inventory identifies each runtime component's package, owner, maturity, and test coverage in [docs/plugin-inventory.md](docs/plugin-inventory.md).
@@ -229,6 +230,7 @@ Issues, focused pull requests, documentation corrections, and test improvements 
 
 Useful references:
 
+- [Documentation index](docs/README.md)
 - [Quickstart](docs/quickstart.md)
 - [Desktop architecture and packaging](docs/desktop.md)
 - [Capability truth and degraded modes](docs/capability-truth.md)

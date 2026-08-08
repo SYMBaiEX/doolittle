@@ -34,7 +34,7 @@ pinned `2.0.3-beta.7` train.
 `@doolittle/plugins` workspace rather than an additional package. It remains the
 home for product-only actions and service projections.
 
-## Completed in this sweep
+## Migration results
 
 - Removed the local `@doolittle/plugin-codex` workspace and its duplicate HTTP,
   SSE, OAuth refresh, and model-registration code.

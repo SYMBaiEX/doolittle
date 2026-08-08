@@ -1,8 +1,8 @@
 # Doolittle Desktop
 
-Doolittle Desktop is a native chat surface over the same ElizaOS runtime used
-by the CLI, cockpit, gateway, and API. It follows the boundary that makes the
-Hermes desktop app dependable without copying Hermes-specific product code.
+Doolittle Desktop is a native operator surface over the same ElizaOS runtime
+used by the CLI, cockpit, gateway, and API. It keeps native machine lifecycle
+in Electron, presentation in React, and agent behavior in the shared runtime.
 
 ## Architecture
 
@@ -44,9 +44,8 @@ stream through this adapter.
 
 ## Operator surfaces
 
-The desktop follows the same management information architecture that makes
-Hermes useful as an everyday operator console, while keeping Doolittle's native
-runtime and cross-platform Electron boundary:
+The desktop organizes everyday agent work around four operator areas while
+keeping Doolittle's native runtime and cross-platform Electron boundary:
 
 - **Workspace:** streaming chat, searchable sessions, a conflict-aware code
   editor, queued follow-up messages, managed chat attachments, inline

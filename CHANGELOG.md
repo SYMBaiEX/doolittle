@@ -109,3 +109,6 @@ ElizaOS 2.0 beta line.
 
 - Added LICENSE (MIT), SECURITY, CONTRIBUTING; `/commands` no longer truncates
   the browse list; version docs corrected from alpha to beta.
+- Added a documentation index, separated generated runtime truth from dated
+  maintainer records, corrected workspace and Eliza ownership maps, and removed
+  stale migration-era wording and checkout-specific verification claims.

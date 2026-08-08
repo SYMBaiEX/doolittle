@@ -1,6 +1,12 @@
 # ElizaOS Research Notes
 
-This document captures framework-level findings that matter for keeping Doolittle aligned with the current ElizaOS 2.x architecture.
+> Maintainer research snapshot from August 7, 2026. Package metadata and
+> upstream exports can change; the root `package.json` release contract is
+> authoritative for this checkout.
+
+This document captures framework-level findings used to keep Doolittle aligned
+with the ElizaOS 2.x architecture on the pinned beta line. It is not an
+operator guide or a substitute for generated runtime truth.
 
 ## Package Status Observed On August 7, 2026
 
@@ -24,9 +30,9 @@ Implications:
   only patches relationship metadata and duplicate-write compatibility.
 - Workspace wrappers are still valuable where Doolittle needs compatibility patches or plugins that are not published as official npm packages.
 
-## Current Architecture Findings
+## Architecture findings on the pinned beta
 
-### 1. The New `ElizaOS` Orchestrator Is An Upstream Harness Option
+### 1. The `ElizaOS` orchestrator is an upstream harness option
 
 The current runtime docs show `ElizaOS` handling plugin resolution, multi-agent orchestration, `addAgents`, `startAgents`, `handleMessage`, streaming callbacks, events, and health checks.
 
@@ -41,7 +47,7 @@ What that means for Doolittle:
 - Local CLI, gateway, browser, account linking, and diagnostics should wrap the runtime instead of becoming a parallel agent framework.
 - The Doolittle value layer is operator ergonomics, provider/account bridges, native local execution, and harness policy.
 
-### 2. Runtime-Centered Design Is Still Correct
+### 2. Runtime-centered design remains the supported boundary
 
 ElizaOS is still centered around `AgentRuntime` and plugin-loaded runtime capabilities.
 
@@ -51,7 +57,7 @@ What that means for Doolittle:
 - HTTP, CLI, gateway, and scheduling layers should adapt into runtime messages and services
 - app code should avoid duplicating runtime orchestration where the SDK now owns it
 
-### 3. Services Are The Native Long-Running Integration Model
+### 3. Services are the native long-running integration model
 
 Official docs register services through plugins and expose them with `runtime.getService(...)`.
 
@@ -60,7 +66,7 @@ Implication for Doolittle:
 - gateway lifecycles, browser adapters, account refreshers, and background coordination should continue moving into ElizaOS plugin services; MCP connection lifecycle is now owned by `@elizaos/plugin-mcp`
 - standalone app services should be treated as harness adapters unless they truly belong outside the runtime
 
-### 4. Plugins Are Broader Than Actions
+### 4. Plugins are broader than actions
 
 Current plugin docs cover actions, providers, evaluators, services, routes, events, and model handlers.
 
@@ -72,29 +78,32 @@ Implication for Doolittle:
   Doolittle runtime plugin instead of parallel server handlers
 - model/provider wrappers should stay plugin-native so they can benefit from SDK routing and model selection
 
-## Application Direction For Doolittle
+## Application direction for Doolittle
 
-### Good Current Alignment
+### Established alignment
 
 - runtime-centered bootstrapping
-- custom Doolittle plugin for actions/providers/evaluators/models
+- namespaced Doolittle product plugin for actions, providers, evaluators,
+  models, and product services
 - SQL-backed runtime initialization
 - canonical message processing path for chat requests
 - workspace wrappers where official package versions lag or Doolittle needs compatibility patches
 
-### Highest-Value Next Refactors
+### Remaining evaluation priorities
 
-1. Treat Doolittle as the harness around ElizaOS rather than a replacement agent runtime.
-2. Evaluate replacing remaining harness boot logic with the top-level `ElizaOS`
+1. Keep Doolittle as a harness around ElizaOS rather than a replacement agent
+   runtime.
+2. Evaluate replacing direct runtime boot with the top-level `ElizaOS`
    orchestrator only where the installed beta SDK supports it without losing
    desktop, provider, or local-first lifecycle guarantees.
-3. Promote gateway lifecycle and account/provider bridges into real ElizaOS `Service` classes where they are still app-bound.
+3. Keep Doolittle-only runtime capabilities registered as namespaced Eliza
+   services, actions, providers, evaluators, routes, or events.
 4. Continue moving runtime-owned HTTP surfaces through the established plugin
    route bridge when the ownership boundary is clear.
 5. Keep package audit/version tooling explicit about `latest` versus `beta`,
    because npm dist-tags are mixed across the ecosystem.
 
-### Boot Ownership On The Pinned Beta Line
+### Boot ownership on the pinned beta line
 
 The public runtime documentation now shows a top-level `ElizaOS` orchestrator,
 but `@elizaos/core@2.0.3-beta.7` does not export that class. The pinned SDK does
@@ -178,9 +187,9 @@ supported composition boundary.
 
 Primary sources:
 
-- ElizaOS core runtime docs: https://docs.elizaos.ai/runtime/core
-- ElizaOS services docs: https://docs.elizaos.ai/runtime/services
-- ElizaOS project docs: https://docs.elizaos.ai/projects/overview
-- ElizaOS plugin reference: https://docs.elizaos.ai/plugins/reference
-- OpenAI streaming Responses guide: https://developers.openai.com/api/docs/guides/streaming-responses
+- [ElizaOS core runtime docs](https://docs.elizaos.ai/runtime/core)
+- [ElizaOS services docs](https://docs.elizaos.ai/runtime/services)
+- [ElizaOS project docs](https://docs.elizaos.ai/projects/overview)
+- [ElizaOS plugin reference](https://docs.elizaos.ai/plugins/reference)
+- [OpenAI streaming Responses guide](https://developers.openai.com/api/docs/guides/streaming-responses)
 - npm package metadata via `npm view` for `elizaos`, `@elizaos/core`, `@elizaos/agent`, `@elizaos/skills`, `@elizaos/plugin-openai`, and `@elizaos/plugin-sql`

@@ -8,7 +8,7 @@ This workspace mixes three different kinds of package-shaped code:
 
 ## Canonical Truth
 
-Human-readable truth now lives in generated docs backed by the runtime catalog:
+Human-readable truth is generated from the runtime catalog:
 
 - [`docs/plugin-inventory.md`](../../docs/plugin-inventory.md)
 - [`docs/capability-truth.md`](../../docs/capability-truth.md)

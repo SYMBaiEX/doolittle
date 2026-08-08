@@ -13,7 +13,7 @@ export function renderPluginInventory(rows: PluginInventoryRow[]): string {
     "This file is generated from the native runtime plugin catalog plus workspace package inspection.",
     "Do not edit it by hand; run `nub scripts/sync-doc-truth.ts --write`.",
     "",
-    "Canonical runtime source: `@/runtime/native/plugin-catalog.ts`.",
+    "Canonical runtime source: `packages/agent/src/runtime/native/plugin-catalog/index.ts`.",
     "",
     "| Runtime ID | Package | Category | Kind | Maturity | Persistence | Source | Workspace Path | Owner | Publish Intent | Tests | Notes |",
     "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
@@ -33,7 +33,7 @@ export function renderCapabilityTruth(
   const lines = [
     "# Capability Truth",
     "",
-    "This file is generated from the code-backed capability truth records used during the stabilization pass.",
+    "This file is generated from capability truth records registered by the Doolittle runtime.",
     "Do not edit it by hand; run `nub scripts/sync-doc-truth.ts --write`.",
     "",
   ];

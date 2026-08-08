@@ -3,7 +3,7 @@
 This file is generated from the native runtime plugin catalog plus workspace package inspection.
 Do not edit it by hand; run `nub scripts/sync-doc-truth.ts --write`.
 
-Canonical runtime source: `@/runtime/native/plugin-catalog.ts`.
+Canonical runtime source: `packages/agent/src/runtime/native/plugin-catalog/index.ts`.
 
 | Runtime ID | Package | Category | Kind | Maturity | Persistence | Source | Workspace Path | Owner | Publish Intent | Tests | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

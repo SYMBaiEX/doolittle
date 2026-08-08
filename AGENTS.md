@@ -17,9 +17,9 @@ behavioral — never a log or memory dump.
 ## Repository shape
 
 - `packages/agent` — the application: runtime (chat-turn, services, providers),
-  gateway, CLI/TUI. `packages/plugins/*` — vendored provider plugins +
-  `doolittle-plugin`. `packages/{acp,contracts,logger,characters,skills}` —
-  supporting workspaces.
+  gateway, CLI/TUI. `packages/plugins/*` — Doolittle provider bridges, the SQL
+  compatibility wrapper, and `doolittle-plugin` source.
+  `packages/{acp,contracts,characters,skills}` — supporting workspaces.
 - Runtime: the installable ElizaOS 2.0 beta train (`@elizaos/core`,
   `@elizaos/agent`, and `@elizaos/skills` at `2.0.3-beta.7`). Keep the exact
   root overrides aligned.

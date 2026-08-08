@@ -34,11 +34,15 @@ This repo is converging on a folder-first layout with thin entrypoints.
 ## Naming anti-patterns
 
 - repeating the folder name in every file
-  - `gateway/receive/replay.ts`
-  - `services/media/formatters/index.ts`
-  - `services/terminal/terminal-service-cloud-backends.ts`
-- keep moved modules on their canonical folder paths:
-  - `gateway/runner/index.ts`
+  - prefer `gateway/receive/replay.ts` over
+    `gateway/receive/gateway-receive-replay.ts`
+  - prefer `services/media/formatters/index.ts` over
+    `services/media/media-formatters.ts`
+  - prefer `services/terminal/service.ts` over
+    `services/terminal/terminal-service.ts`
+- compatibility barrels that preserve an obsolete path after every caller has
+  moved; keep moved modules on their canonical folder paths, such as
+  `gateway/runner/index.ts`
 - hybrid ownership for the same domain
   - avoid keeping both `services/foo-service.ts` and `services/foo/*` as competing homes for new logic
 - generic helper dumping grounds
@@ -46,12 +50,13 @@ This repo is converging on a folder-first layout with thin entrypoints.
 - duplicated namespace prefixes
   - avoid names like `services/services-tools-dynamic-state.ts`
 
-## Current migration direction
+## Direction for new work
 
 - prefer domain-first folders in `packages/agent/src/`
 - keep only true process-root files at the top of `scripts/bootstrap/`
-- migrate remaining flat `gateway-*` and `terminal-service-*` clusters toward owned folders with shorter filenames
 - normalize service namespaces so each domain has one clear home
+- remove obsolete compatibility paths in the same change that migrates their
+  final caller
 
 ## Review checklist
 

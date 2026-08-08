@@ -4,23 +4,22 @@ Doolittle is organized as a Nub workspace monorepo running on stock Node.js.
 
 ## Workspace roles
 
-- root package
-  - workspace manifest, shared scripts, root docs, and top-level toolchain config
-- `apps/desktop`
-  - Electron-owned local runtime lifecycle and native capabilities
-  - context-isolated preload contract and React chat surface
-  - see [desktop.md](./desktop.md) for the process and security boundaries
-- `packages/agent`
-  - the primary Doolittle application source
-  - runtime, CLI, API, gateway, and product-specific services
-- `packages/plugins`
-  - local Doolittle product plugins and provider bridge packages
-  - includes the consolidated Doolittle plugin plus the Doolittle-owned Claude Code and Devin provider bridges; Codex, Eliza Cloud, and SQL are consumed from their official Eliza packages
-- `packages/skills`
-  - local Doolittle skill content and generated skills
-  - see [the skills index](../packages/skills/index.md) for the active direct-child taxonomy and generated-skill bookkeeping
-- `packages/characters`
-  - character definitions and persona data
+| Workspace | Role |
+| --- | --- |
+| Root package | Workspace manifest, exact ElizaOS release contract, shared scripts, documentation, and toolchain configuration. |
+| `apps/desktop` | Electron lifecycle and native capabilities, context-isolated preload contract, and React operator UI. See the [desktop guide](./desktop.md). |
+| `packages/agent` | Primary application: Eliza runtime assembly, CLI/cockpit, API, gateway, and product services. |
+| `packages/acp` | Agent Client Protocol server and in-process bridge built on the official ACP SDK. |
+| `packages/contracts` | Secret-free contracts shared across the agent, desktop, gateway, and plugins. |
+| `packages/plugins` | Doolittle product facets plus the Claude Code and Devin provider bridges. Official Codex, Eliza Cloud, SQL, browser, MCP, messaging, and model plugins remain upstream-owned. |
+| `packages/characters` | Character and persona data loaded by Eliza. |
+| `packages/skills` | Curated and generated native skill documents. See the [skills index](../packages/skills/index.md). |
+| `packages/skill-packs-optional` | Optional native skill documents kept outside the default curated tier. |
+| `packages/benchmarks` | Evaluation fixtures and benchmark data. |
+| `packages/distributions` | Product distribution metadata. |
+| `packages/modeling` | Model capability and selection metadata. |
+| `packages/app-training`, `packages/cloud-shared`, `packages/plugin-remote-manifest`, `packages/plugin-worker-runtime`, `packages/registry` | Explicit resolver shims for packages not published on the pinned beta train. They are guarded by the SDK release check and are not product-owned replacements for Eliza. |
+
 ## Boundary rules
 
 - keep product behavior in `packages/agent/src/`
@@ -33,7 +32,8 @@ Doolittle is organized as a Nub workspace monorepo running on stock Node.js.
   - prefer direct ElizaOS SDK imports over local compatibility shims
 - keep workspace-level documentation at the repo root and under `docs/`
 
-See [module-structure-guidelines.md](./module-structure-guidelines.md) for the naming and folder rules the repo is converging toward during the stabilization pass.
+See the [module structure guidelines](./module-structure-guidelines.md) for
+folder, filename, entrypoint, and test-placement conventions.
 
 ## Validation
 
@@ -41,6 +41,7 @@ Run the workspace quality pass from the repo root:
 
 ```bash
 nub run check
+nub run check:acceptance
 ```
 
 ## Bootstrap flow

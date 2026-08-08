@@ -67,7 +67,8 @@ nub run smoke:linked-providers -- --provider claude-code
 nub run smoke:linked-providers -- --provider claude-code --live
 ```
 
-The live smoke path was verified in this workspace against a locally signed-in Claude Code account and returned `LINKED_PROVIDER_OK`.
+The live smoke command succeeds only when a reusable local Claude Code login is
+available and returns `LINKED_PROVIDER_OK` when the provider round trip passes.
 
 ## Notes
 

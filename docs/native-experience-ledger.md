@@ -1,8 +1,17 @@
 # Doolittle Native Experience Ledger
 
-This ledger tracks the native experience gaps that still remain after the current gateway/API work. Items that are already present in Doolittle are called out briefly so the focus stays on the residual experience debt.
+Last reviewed: August 7, 2026
 
-## Covered In This Wave
+> Maintainer status ledger: verify current behavior against the generated
+> [capability truth](./capability-truth.md) before using an item as a product
+> claim. “Reference surfaces” are paths recorded from the comparison source
+> used during the audit; “Doolittle surfaces” are paths in this repository.
+
+This ledger tracks residual native experience gaps after the gateway and API
+integration work. Implemented behavior is summarized only to explain what
+remains.
+
+## Implemented baseline
 
 - Gateway supervision is now represented by live health, supervision, journal, history, and replay surfaces in [`packages/agent/src/gateway/runner/index.ts`](../packages/agent/src/gateway/runner/index.ts) and [`packages/agent/src/server.ts`](../packages/agent/src/server.ts).
 - Inbox/outbox journaling is now persisted through gateway trace, delivery, attachment, and replay history in [`packages/agent/src/gateway/runner/index.ts`](../packages/agent/src/gateway/runner/index.ts), [`packages/agent/src/services/delivery-service.ts`](../packages/agent/src/services/delivery-service.ts), and [`packages/agent/src/services/gateway-session-service/index.ts`](../packages/agent/src/services/gateway-session-service/index.ts).
@@ -10,7 +19,7 @@ This ledger tracks the native experience gaps that still remain after the curren
 - Official Eliza message connectors now own preferred outbound delivery for Discord, Slack, WhatsApp, and Signal when their native credentials hydrate successfully. Doolittle deliberately retains inbound authorization, session routing, journaling, replay, and compatibility senders until the public connector surface can preserve those product contracts end to end.
 - The official Eliza browser service now owns browser target lifecycle and dispatch, with Doolittle's evidence capture registered as an explicit target and core SSRF protection guarding basic fetches.
 
-## Remaining Native Gaps
+## Open native gaps
 
 | Experience claim | Reference surfaces | Doolittle surfaces | Status | Remaining native gap |
 |---|---|---|---|---|
@@ -21,7 +30,7 @@ This ledger tracks the native experience gaps that still remain after the curren
 | Operator session controls | `cli.py`, `gateway/run.py` | `packages/agent/src/runtime/chat.ts`, `packages/agent/src/cli.ts`, `packages/agent/src/server.ts` | Partial | Doolittle has comparable operator surfaces, but still needs a denser live-control loop for retry, undo, rollback, resume, compress, title, home, voice, status, and usage as first-class gateway commands. |
 | Home Assistant-style event source | `gateway/platforms/homeassistant.py` | `packages/agent/src/gateway/platforms/homeassistant-adapter/index.ts`, `packages/agent/src/gateway/runner/index.ts`, `packages/agent/src/server.ts` | Partial | Doolittle has a Home Assistant adapter and event routing, but still needs complete daemon-source semantics with watch filters, sync loops, and REST reply delivery. |
 
-## Priority Local Follow-Ups
+## Prioritized follow-ups
 
 1. Finish daemon-grade reconnect and recovery behavior for the enabled native transports.
 2. Tighten journal semantics so replay, attachment retention, and transcript rewriting are platform-aware rather than just history-backed.
@@ -29,6 +38,6 @@ This ledger tracks the native experience gaps that still remain after the curren
 4. Expand operator commands so the live gateway/session controls make `/retry`, `/undo`, `/compress`, `/usage`, and `/insights` feel first-class.
 5. Deepen Home Assistant-style event-source lifecycle handling for watch, sync, and reply loops.
 
-## Current Read
+## Summary
 
 Doolittle now has the broad gateway/API shape. The remaining work is about native product fidelity: daemon recovery, journal semantics, Responses transport behavior, and platform-native live control.

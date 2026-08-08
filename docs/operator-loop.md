@@ -111,6 +111,7 @@ If you want the shortest "am I actually ready?" loop:
 
 ## Next docs
 
+- [Documentation index](./README.md) for the complete documentation map
 - [`README.md`](../README.md) for the full surface map
 - [`quickstart.md`](./quickstart.md) for install-to-ready
 - [`plugin-inventory.md`](./plugin-inventory.md) for truth about assembled plugin state

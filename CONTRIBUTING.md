@@ -36,11 +36,19 @@ Run `nub run lint` to auto-fix formatting before committing.
 
 - `packages/agent` — the application: `runtime/` (chat-turn, services, providers),
   `gateway/`, `cli/`, `server/`.
-- `packages/plugins/*` — vendored provider plugins + the consolidated
-  `doolittle-plugin`.
-- `packages/{acp,contracts,logger,characters,skills}` — supporting workspaces.
+- `packages/plugins/*` — Doolittle provider bridges, the SQL compatibility
+  wrapper, and the consolidated `doolittle-plugin` source.
+- `packages/{acp,contracts,characters,skills}` — protocol, shared contracts,
+  character data, and native skill assets.
+- `packages/{benchmarks,distributions,modeling}` — evaluation and distribution
+  data rather than competing runtime implementations.
+- `packages/{app-training,cloud-shared,plugin-remote-manifest,plugin-worker-runtime,registry}`
+  — declared resolver shims for unpublished packages on the pinned beta train.
 - Runtime is the aligned ElizaOS 2.0 beta train declared by the root
   `elizaSdk` contract and exact dependency overrides.
+
+See the [monorepo layout](docs/monorepo.md) and [package ownership
+matrix](docs/package-ownership.md) before adding another workspace boundary.
 
 ## Extension recipes
 
@@ -78,3 +86,15 @@ prompt caching, make it consume `params.promptSegments` (see
   ad hoc.
 - Add or update tests alongside implementation.
 - Never mark user input, secrets, or per-request data as cache-stable.
+
+## Documentation
+
+- Start with the [documentation index](docs/README.md) and update the narrowest
+  canonical guide for the behavior you changed.
+- Do not hand-edit `docs/plugin-inventory.md`, `docs/capability-truth.md`, or
+  `docs/operator-wow-contract.md`; update their code-backed sources and run
+  `nub scripts/sync-doc-truth.ts --write`.
+- Keep package versions tied to the root `elizaSdk` contract and overrides.
+- Keep audit and planning notes dated. Do not present them as runtime proof.
+- Run `nub run check:docs-truth` and `nub run check:local-links` for every
+  documentation change.

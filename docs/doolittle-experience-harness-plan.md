@@ -1,10 +1,16 @@
 # Doolittle Native Experience Harness Plan
 
+Last reviewed: August 7, 2026
+
+> Maintainer design record: the generated [operator wow
+> contract](./operator-wow-contract.md) is authoritative for current acceptance
+> scenarios and implementation tasks.
+
 ## Goal
 
 Make Doolittle feel like a warm, persistent, terminal-native ElizaOS collaborator with strong local execution, visible control, memory, skills, recovery, and research-grade trajectories.
 
-## Operator Patterns Worth Keeping
+## Operator patterns
 
 - **Live operator loop**: the terminal should feel alive with status bars, spinners, tool previews, approvals, interrupts, `/retry`, `/undo`, `/usage`, `/compress`, and model controls.
 - **Closed learning loop**: memory, todos, skills, session search, and trajectory export should behave like one workflow rather than separate panels.
@@ -13,17 +19,17 @@ Make Doolittle feel like a warm, persistent, terminal-native ElizaOS collaborato
 - **Platform continuity**: Gateway conversations can resume, route home, approve commands, and preserve session context.
 - **Research readiness**: Trajectories are first-class artifacts for compression, replay, batch generation, evaluation, and future small-model training.
 
-## Doolittle Direction
+## Doolittle direction
 
 Doolittle should use ElizaOS as the native substrate and make the harness feel alive by tightening the experience spine:
 
 - **ElizaOS-native identity**: character, personality, memory, and runtime services shape every model path.
 - **Terminal-first recovery**: `/retry`, `/undo`, `/todo`, `/usage`, `/compress`, `/status`, and `/doctor` stay available inside the chat loop.
 - **Tool use with receipts**: every local action records progress and trajectory events without drowning the user in logs.
-- **Local-first providers**: Devin, Ollama, Codex, Claude Code, and ElizaCloud are selectable providers, but local/non-cloud status must be truthful.
+- **Local-first providers**: Devin, Ollama, Codex, Claude Code, and Eliza Cloud are selectable providers, but local/non-cloud status must be truthful.
 - **Training harness**: trajectory records include conversation, model request/response, tool lifecycle, shell output, failures, timings, and final receipts.
 
-## Implemented In This Slice
+## Implemented baseline
 
 - Local execution turns now have a Doolittle-side execution contract: local action requests must produce observable action proof, and file-mutation requests cannot complete with zero local actions.
 - Empty planner wrappers such as `Provider executed: []` are now classified as native execution failures for local tasks instead of being treated as successful answers.
@@ -43,7 +49,7 @@ Doolittle should use ElizaOS as the native substrate and make the harness feel a
 - User profile observations write once to the Eliza rolodex profile. Explicit `/memory ... user` requests use that same profile instead of mirroring facts into a second `USER.md` store.
 - `doolittle-experience` benchmark pack covers the small-talk, memory, CLI recovery, model switching, coding, gateway, and learning-loop native experience path.
 
-## Next Todo
+## Open follow-ups
 
 1. Add tool-loop guardrails for repeated identical failures, repeated no-progress retrieval, and planner empty-response retries.
 2. Add a compact live status footer for plain shell mode: provider/model, elapsed turn time, context pressure, active tool, and last trajectory event.

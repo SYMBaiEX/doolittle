@@ -49,7 +49,7 @@ this module; SDK message-service prompts must not.
 |---|---|---|
 | `explicit` | `anthropic`, `openai` (SDK plugins) | Emit `promptSegments` (+ `promptCacheKey` for OpenAI). |
 | `implicit` | `ollama` / local | No hints; an identical leading prefix is reused by the KV cache automatically. |
-| `none` | claude-code, codex, devin, official Eliza Cloud, unknown | No-op — those handlers build their request from `params.prompt` and ignore segments today. |
+| `none` | claude-code, codex, devin, official Eliza Cloud, unknown | No-op — on the pinned beta, those handlers build their request from `params.prompt` and ignore segments. |
 
 ## Cache keys & invalidation
 
@@ -59,7 +59,7 @@ whenever any of these change:
 
 - **Template** — bump `PROMPT_CACHE_TEMPLATE_VERSION` when segment shape/ordering changes.
 - **Stable content** — character voice, soul, or contract text (hashed directly).
-- **Persona / character** — via `versionDigest` (active personality id today;
+- **Persona / character** — via `versionDigest` (the active personality ID on the pinned beta;
   extend with `computeStablePrefixVersion` for character/tool/settings digests).
 - **Provider / model** — part of the key string.
 
@@ -73,7 +73,7 @@ snapshot reports calls, eligible calls, segments emitted, and stable/volatile
 volume per provider. Each plan is also debug-logged (`src: "doolittle:prompt-cache"`).
 
 `recordUsage` accepts provider cache-token reports (hits/misses/savings) but is
-**not wired** today: the SDK `MODEL_USED` event exposes only
+**not wired** on the pinned beta: the SDK `MODEL_USED` event exposes only
 `{prompt, completion, total}` tokens, not `cacheReadInputTokens`. Surfacing real
 hit-rate requires the SDK to forward cache usage — see "Known limitations".
 

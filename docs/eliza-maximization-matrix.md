@@ -2,9 +2,12 @@
 
 Last updated: August 7, 2026
 
-This matrix tracks where Doolittle is already strongly aligned with the
-ElizaOS beta-targeted runtime stack and where native service ownership can still
-increase.
+> Maintainer audit: this is a dated ownership review, not generated runtime
+> truth. Use the [plugin inventory](./plugin-inventory.md) and [capability
+> truth](./capability-truth.md) for current assembled behavior.
+
+This matrix tracks where Doolittle is aligned with the ElizaOS beta-targeted
+runtime stack and where native service ownership can still increase.
 
 The verified runtime target remains `2.0.3-beta.7`. Do not treat the
 semver-higher `2.0.11-beta.7` artifacts as an upgrade: they do not map to the
@@ -67,7 +70,7 @@ runtime code.
 | Signal | `@elizaos/plugin-signal` registers the official connector from an E.164 account and its HTTP or CLI runtime; outbound messages use the shared connector adapter | Doolittle retains its configured command adapter as a compatibility fallback plus the gateway policy/session/journal path | Prefer `SIGNAL_ACCOUNT_NUMBER` with official HTTP/CLI settings; retire `SIGNAL_CLI_COMMAND` after live connector parity and migration guidance |
 | Plugin inventory and tools | Eliza's registered actions own executable tool availability through [`service-resolution/tool-inventory.ts`](../packages/agent/src/runtime/native/service-bridge/service-resolution/tool-inventory.ts); `@elizaos/agent/services/registry-client` and the plugin manager own plugin inventory; [`packages/agent/src/services/tools/service.ts`](../packages/agent/src/services/tools/service.ts) supplies control-plane metadata and startup fallback | The product catalog still describes non-action control-plane capabilities that have no direct registered-action equivalent | Keep executable availability action-native and preserve the product catalog only as labeled metadata/fallback |
 
-## Current Highest-Value Next Steps
+## Maintainer priorities
 
 1. Keep execution, automation, orchestration, and mutation proof on their SDK-owned contracts; remove compatibility facades when their final callers disappear.
 2. Keep the session read projection synchronized from Eliza-owned memories while retaining Doolittle project, fork, search, import/export, and desktop metadata as product behavior.
