@@ -1,9 +1,6 @@
-import type { TuiThemeName } from "../../packages/agent/src/runtime/theme-catalog";
-import type { ElizaMcpSettings } from "../../packages/agent/src/services/mcp/settings";
-import type {
-  RunDepth,
-  ToolProgressMode,
-} from "../../packages/agent/src/types";
+import type { TuiThemeName } from "@/runtime/theme-catalog";
+import type { ElizaMcpSettings } from "@/services/mcp/settings";
+import type { RunDepth, ToolProgressMode } from "@/types";
 
 export type ExecutionBackendName =
   | "local"

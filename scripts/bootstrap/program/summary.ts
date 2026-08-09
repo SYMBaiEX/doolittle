@@ -1,4 +1,4 @@
-import { getTuiTheme } from "../../../packages/agent/src/runtime/theme-catalog";
+import { getTuiTheme } from "@/runtime/theme-catalog";
 import { bootstrapColor as color, paint } from "../core/output";
 import { buildBootstrapPulseSummary } from "../summary";
 import type { OnboardingSummary } from "../types";

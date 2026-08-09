@@ -1,21 +1,21 @@
 import type { LazySlot } from "../lazy-slot";
 
-type SlotMap = Record<string, LazySlot<unknown>>;
-
 type SlotBackedValue<TSlot> =
   TSlot extends LazySlot<infer TValue> ? TValue : never;
 
 export function defineSlotBackedProperties<
   TTarget extends object,
-  TSlots extends SlotMap,
+  TSlots extends { [K in keyof TSlots]: LazySlot<unknown> },
 >(
   target: TTarget,
   slots: TSlots,
 ): TTarget & { [K in keyof TSlots]: SlotBackedValue<TSlots[K]> } {
   const descriptors: PropertyDescriptorMap = {};
 
-  for (const [key, slot] of Object.entries(slots)) {
-    descriptors[key] = {
+  for (const key of Object.keys(slots) as Array<keyof TSlots>) {
+    const slot = slots[key];
+    const propertyKey = String(key);
+    descriptors[propertyKey] = {
       configurable: true,
       enumerable: true,
       get: () => slot.get(),

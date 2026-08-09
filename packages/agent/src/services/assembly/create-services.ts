@@ -1,7 +1,6 @@
 import type { IAgentRuntime } from "@elizaos/core";
 import type { EnvConfig } from "@/types";
 import type { DocumentsService } from "../documents-service";
-import type { LazySlot } from "../lazy-slot";
 import type { AppServices } from "../types";
 import { createRuntimeBinder } from "./runtime-binding";
 import { createServiceBootstrapState } from "./service-bootstrap";
@@ -19,14 +18,10 @@ export function createServices(
   const native = createServiceNativeWiring(config);
   const { eagerServices, lazyServices, runtimeBinding } =
     createAppServiceGroups(config, runtime, bootstrap, directories, native);
-  const lazyServiceSlots = lazyServices as unknown as Record<
-    string,
-    LazySlot<unknown>
-  >;
   const services = defineSlotBackedProperties(
-    eagerServices as AppServices,
-    lazyServiceSlots,
-  ) as unknown as AppServices & {
+    eagerServices,
+    lazyServices,
+  ) satisfies AppServices & {
     __bindRuntime?: (nextRuntime: IAgentRuntime) => void;
   };
 

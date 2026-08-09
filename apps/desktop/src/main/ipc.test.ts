@@ -1,4 +1,4 @@
-import type { IpcMain } from "electron";
+import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
 import { describe, expect, it } from "vitest";
 import type { BackendState } from "../shared/contracts";
 import type { BackendManager } from "./backend";
@@ -6,6 +6,7 @@ import {
   apiResponseLimit,
   fetchBackendApi,
   isRecoverableRuntimeFetchError,
+  isTrustedDesktopIpcSender,
   parseApiPath,
   parseRequestError,
   registerIpc,
@@ -906,11 +907,35 @@ describe("runtime transition API requests", () => {
   });
 });
 
+describe("desktop IPC sender authorization", () => {
+  it("accepts only the live main window web contents", () => {
+    const sender = {} as IpcMainInvokeEvent["sender"];
+    const otherSender = {} as IpcMainInvokeEvent["sender"];
+    const mainWindow = {
+      isDestroyed: () => false,
+      webContents: sender,
+    } satisfies Pick<BrowserWindow, "isDestroyed" | "webContents">;
+
+    expect(isTrustedDesktopIpcSender({ sender }, mainWindow)).toBe(true);
+    expect(isTrustedDesktopIpcSender({ sender: otherSender }, mainWindow)).toBe(
+      false,
+    );
+    expect(isTrustedDesktopIpcSender({ sender }, null)).toBe(false);
+    expect(
+      isTrustedDesktopIpcSender(
+        { sender },
+        { ...mainWindow, isDestroyed: () => true },
+      ),
+    ).toBe(false);
+  });
+});
+
 describe("sensitive desktop actions", () => {
   function createHarness(options: {
     confirmed: boolean | (() => Promise<boolean>);
     fetch?: typeof fetch;
     notify?: (notification: { title: string; body: string }) => void;
+    senderAuthorized?: boolean;
   }) {
     const confirmations: unknown[] = [];
     const handlers = new Map<
@@ -940,6 +965,7 @@ describe("sensitive desktop actions", () => {
       ipcMain,
       backend,
       getMainWindow: () => null,
+      authorizeSender: () => options.senderAuthorized ?? true,
       pickFiles: async () => ({ canceled: true, paths: [] }),
       workspace: {
         getState: () => ({ currentPath: "/workspace", recentPaths: [] }),
@@ -975,6 +1001,16 @@ describe("sensitive desktop actions", () => {
 
     expect(harness.removedChannels.sort()).toEqual(registeredChannels);
     expect(harness.handlers.size).toBe(0);
+  });
+
+  it("rejects every request from an untrusted renderer", () => {
+    const harness = createHarness({
+      confirmed: true,
+      senderAuthorized: false,
+    });
+    const handler = harness.handlers.get("backend:get-state");
+
+    expect(() => handler?.({}, undefined)).toThrow(/untrusted sender/iu);
   });
 
   it("bridges bounded responses without hiding Eliza HTTP metadata", async () => {
@@ -1673,6 +1709,27 @@ describe("sensitive desktop actions", () => {
     });
     expect(harness.confirmations).toHaveLength(1);
     expect(harness.confirmations[0]).toHaveProperty("kind", "terminal-session");
+    harness.dispose();
+  });
+
+  it("rejects malformed interactive terminal responses at the IPC boundary", async () => {
+    const harness = createHarness({
+      confirmed: true,
+      fetch: async () =>
+        Response.json({
+          session: {
+            id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+            state: "compromised",
+          },
+        }),
+    });
+
+    await expect(
+      harness.handlers.get("terminal:session-start-confirmed")?.(
+        {},
+        { cols: 100, rows: 30 },
+      ),
+    ).rejects.toThrow(/invalid terminal session state/iu);
     harness.dispose();
   });
 

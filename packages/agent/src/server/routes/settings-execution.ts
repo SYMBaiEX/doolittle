@@ -9,28 +9,7 @@ import {
   resolveTuiThemeName,
 } from "@/runtime/theme-catalog";
 import { json } from "@/server/responses";
-
-const SETTING_PATH_SEGMENT = /^[a-z][a-z0-9_-]*$/iu;
-const UNSAFE_SETTING_SEGMENTS = new Set([
-  "__proto__",
-  "constructor",
-  "prototype",
-]);
-
-function isSafeSettingPath(value: unknown): value is string {
-  if (typeof value !== "string" || value.length === 0 || value.length > 160) {
-    return false;
-  }
-  const segments = value.split(".");
-  return (
-    segments.length <= 12 &&
-    segments.every(
-      (segment) =>
-        SETTING_PATH_SEGMENT.test(segment) &&
-        !UNSAFE_SETTING_SEGMENTS.has(segment.toLowerCase()),
-    )
-  );
-}
+import { isSafeSettingPath } from "@/services/settings/path";
 
 const APPROVAL_STATUSES = new Set([
   "pending",

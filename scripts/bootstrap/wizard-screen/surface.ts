@@ -1,8 +1,5 @@
 import blessed from "blessed";
-import {
-  DEFAULT_TUI_THEME,
-  type TuiThemeName,
-} from "../../../packages/agent/src/runtime/theme-catalog";
+import { DEFAULT_TUI_THEME, type TuiThemeName } from "@/runtime/theme-catalog";
 import { installWizardScreenEvents } from "./events";
 import { createWizardOverlay } from "./overlay";
 import { createWizardPromptHandlers } from "./prompt-overlays";

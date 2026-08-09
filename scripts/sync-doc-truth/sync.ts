@@ -6,7 +6,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { listNativeCapabilityTruth } from "../../packages/agent/src/runtime/native/capability-truth";
+import { listNativeCapabilityTruth } from "@/runtime/native/capability-truth";
 import { buildInventoryRows } from "./inventory";
 import {
   renderCapabilityTruth,

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { loadConfig } from "../../../packages/agent/src/config/env";
-import { summarizeAutonomousConnection } from "../../../packages/agent/src/runtime/native/autonomous-stack";
+import { loadConfig } from "@/config/env";
+import { summarizeAutonomousConnection } from "@/runtime/native/autonomous-stack";
 import type { NativeOnboardingMirrorResult } from "../answers";
 import type { OnboardingSummary, WizardAnswers } from "../types";
 

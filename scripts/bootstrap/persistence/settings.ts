@@ -1,4 +1,4 @@
-import { createElizaMcpSettingsFromCommand } from "../../../packages/agent/src/services/mcp/settings";
+import { createElizaMcpSettingsFromCommand } from "@/services/mcp/settings";
 import type { RuntimeSettings, WizardAnswers } from "../types";
 
 export function buildBootstrapSettings(

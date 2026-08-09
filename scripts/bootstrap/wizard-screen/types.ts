@@ -1,4 +1,4 @@
-import type { TuiThemeName } from "../../../packages/agent/src/runtime/theme-catalog";
+import type { TuiThemeName } from "@/runtime/theme-catalog";
 
 export type WizardSnapshot = {
   title: string;

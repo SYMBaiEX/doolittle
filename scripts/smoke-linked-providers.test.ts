@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { AppContext } from "../packages/agent/src/runtime/bootstrap";
+import type { AppContext } from "@/runtime/bootstrap";
 import type {
   LinkedProviderAccountsSnapshot,
   LinkedProviderConnectAdvice,
   LinkedProviderName,
-} from "../packages/agent/src/runtime/native/account-auth/types";
+} from "@/runtime/native/account-auth/types";
 import { runSmokeChecks } from "./smoke-linked-providers";
 
 type SettingsBag = {

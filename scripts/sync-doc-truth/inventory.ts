@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { loadConfig } from "@/config/env";
 import { getNativePluginCatalog } from "@/runtime/native/plugin-catalog";
-import { loadConfig } from "../../packages/agent/src/config/env";
 import type { PluginInventoryRow } from "./types";
 
 const CONSOLIDATED_DOOLITTLE_PLUGIN_PACKAGES = new Set([

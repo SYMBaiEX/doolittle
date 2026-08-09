@@ -82,7 +82,9 @@ function takeUtf8Prefix(value: string, maximumBytes: number): string {
   return new TextDecoder().decode(bytes.slice(0, maximumBytes));
 }
 
-function boundedTerminalResult<T extends Record<string, unknown>>(result: T) {
+function boundedTerminalResult<T extends { stdout: string; stderr: string }>(
+  result: T,
+) {
   const stdout = typeof result.stdout === "string" ? result.stdout : "";
   const stderr = typeof result.stderr === "string" ? result.stderr : "";
   const stdoutBytes = new TextEncoder().encode(stdout).byteLength;
@@ -419,9 +421,7 @@ export async function handleOperationsRoutes(
         request.signal.aborted ? "terminal.cancelled" : "terminal.completed",
         {
           runId,
-          result: boundedTerminalResult(
-            result as unknown as Record<string, unknown>,
-          ),
+          result: boundedTerminalResult(result),
         },
       );
     });

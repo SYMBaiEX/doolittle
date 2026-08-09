@@ -22,117 +22,181 @@ import type {
   WorkspaceFileSaveRequest,
   WorkspaceState,
 } from "../shared/contracts";
+import {
+  type DesktopIpcEventChannel,
+  desktopIpcChannels,
+} from "../shared/ipc-channels";
+
+function subscribeToDesktopEvent<T>(
+  channel: DesktopIpcEventChannel,
+  listener: (value: T) => void,
+): () => void {
+  const wrapped = (_event: Electron.IpcRendererEvent, value: T) =>
+    listener(value);
+  ipcRenderer.on(channel, wrapped);
+  return () => ipcRenderer.removeListener(channel, wrapped);
+}
+
+const platform = process.platform;
+if (platform !== "darwin" && platform !== "linux" && platform !== "win32") {
+  throw new Error(`Unsupported Electron desktop platform: ${platform}`);
+}
 
 const bridge: DoolittleDesktopBridge = {
-  platform: process.platform as DoolittleDesktopBridge["platform"],
-  getBackendState: () => ipcRenderer.invoke("backend:get-state"),
-  retryBackend: () => ipcRenderer.invoke("backend:retry"),
-  onBackendState: (listener) => {
-    const wrapped = (_event: Electron.IpcRendererEvent, state: BackendState) =>
-      listener(state);
-    ipcRenderer.on("backend:state", wrapped);
-    return () => ipcRenderer.removeListener("backend:state", wrapped);
-  },
-  getWorkspaceState: () => ipcRenderer.invoke("workspace:get-state"),
-  pickWorkspace: () => ipcRenderer.invoke("workspace:pick"),
-  openWorkspace: (path) => ipcRenderer.invoke("workspace:open", path),
+  platform,
+  getBackendState: () =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.backendGetState),
+  retryBackend: () =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.backendRetry),
+  onBackendState: (listener) =>
+    subscribeToDesktopEvent<BackendState>(
+      desktopIpcChannels.event.backendState,
+      listener,
+    ),
+  getWorkspaceState: () =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.workspaceGetState),
+  pickWorkspace: () =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.workspacePick),
+  openWorkspace: (path) =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.workspaceOpen, path),
   switchWorkspace: (path) =>
-    ipcRenderer.invoke("workspace:switch-recent", path),
-  onWorkspaceState: (listener) => {
-    const wrapped = (
-      _event: Electron.IpcRendererEvent,
-      state: WorkspaceState,
-    ) => listener(state);
-    ipcRenderer.on("workspace:state", wrapped);
-    return () => ipcRenderer.removeListener("workspace:state", wrapped);
-  },
-  onAppCommand: (listener) => {
-    const wrapped = (
-      _event: Electron.IpcRendererEvent,
-      command: DesktopCommand,
-    ) => listener(command);
-    ipcRenderer.on("app:command", wrapped);
-    return () => ipcRenderer.removeListener("app:command", wrapped);
-  },
-  getLifecycleState: () => ipcRenderer.invoke("desktop:lifecycle-state"),
+    ipcRenderer.invoke(desktopIpcChannels.invoke.workspaceSwitchRecent, path),
+  onWorkspaceState: (listener) =>
+    subscribeToDesktopEvent<WorkspaceState>(
+      desktopIpcChannels.event.workspaceState,
+      listener,
+    ),
+  onAppCommand: (listener) =>
+    subscribeToDesktopEvent<DesktopCommand>(
+      desktopIpcChannels.event.appCommand,
+      listener,
+    ),
+  getLifecycleState: () =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.desktopLifecycleState),
   setKeepRunningInBackground: (enabled) =>
-    ipcRenderer.invoke("desktop:set-background-mode", enabled),
-  getUpdateState: () => ipcRenderer.invoke("update:get-state"),
-  checkForUpdates: () => ipcRenderer.invoke("update:check"),
-  downloadUpdate: () => ipcRenderer.invoke("update:download"),
-  installUpdate: () => ipcRenderer.invoke("update:install"),
-  onUpdateState: (listener) => {
-    const wrapped = (
-      _event: Electron.IpcRendererEvent,
-      state: DesktopUpdateState,
-    ) => listener(state);
-    ipcRenderer.on("update:state", wrapped);
-    return () => ipcRenderer.removeListener("update:state", wrapped);
-  },
-  pickFiles: () => ipcRenderer.invoke("dialog:pick-files"),
-  pickProjectFiles: () => ipcRenderer.invoke("dialog:pick-project-files"),
-  pickProjectFolders: () => ipcRenderer.invoke("dialog:pick-project-folders"),
-  pickChatAttachments: () => ipcRenderer.invoke("dialog:pick-chat-attachments"),
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.desktopSetBackgroundMode,
+      enabled,
+    ),
+  getUpdateState: () =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.updateGetState),
+  checkForUpdates: () =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.updateCheck),
+  downloadUpdate: () =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.updateDownload),
+  installUpdate: () =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.updateInstall),
+  onUpdateState: (listener) =>
+    subscribeToDesktopEvent<DesktopUpdateState>(
+      desktopIpcChannels.event.updateState,
+      listener,
+    ),
+  pickFiles: () =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.dialogPickFiles),
+  pickProjectFiles: () =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.dialogPickProjectFiles),
+  pickProjectFolders: () =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.dialogPickProjectFolders),
+  pickChatAttachments: () =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.dialogPickChatAttachments),
   importRecordedAudio: (request: RecordedAudioImportRequest) =>
-    ipcRenderer.invoke("chat:import-recorded-audio", request),
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.chatImportRecordedAudio,
+      request,
+    ),
   startProviderAuth: (
     provider: ProviderAuthProvider,
     options?: ProviderAuthStartOptions,
-  ) => ipcRenderer.invoke("provider-auth:start", provider, options),
+  ) =>
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.providerAuthStart,
+      provider,
+      options,
+    ),
   getProviderAuthState: (provider: ProviderAuthProvider) =>
-    ipcRenderer.invoke("provider-auth:state", provider),
+    ipcRenderer.invoke(desktopIpcChannels.invoke.providerAuthState, provider),
   submitProviderAuthCode: (provider: ProviderAuthProvider) =>
-    ipcRenderer.invoke("provider-auth:submit-code", provider),
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.providerAuthSubmitCode,
+      provider,
+    ),
   cancelProviderAuth: (provider: ProviderAuthProvider) =>
-    ipcRenderer.invoke("provider-auth:cancel", provider),
+    ipcRenderer.invoke(desktopIpcChannels.invoke.providerAuthCancel, provider),
   acknowledgeProviderAuth: (provider: ProviderAuthProvider) =>
-    ipcRenderer.invoke("provider-auth:acknowledge", provider),
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.providerAuthAcknowledge,
+      provider,
+    ),
   requestAgent: (request: AgentTransportRequest) =>
-    ipcRenderer.invoke("agent:request", request),
+    ipcRenderer.invoke(desktopIpcChannels.invoke.agentRequest, request),
   runCommand: (request: DesktopCommandRequest) =>
-    ipcRenderer.invoke("terminal:run-confirmed", request),
+    ipcRenderer.invoke(desktopIpcChannels.invoke.terminalRunConfirmed, request),
   startTerminalRun: (request: TerminalStreamRequest) =>
-    ipcRenderer.invoke("terminal:stream-start", request),
+    ipcRenderer.invoke(desktopIpcChannels.invoke.terminalStreamStart, request),
   cancelTerminalRun: (requestId: string) =>
-    ipcRenderer.invoke("terminal:stream-cancel", requestId),
-  onTerminalEvent: (listener) => {
-    const wrapped = (
-      _event: Electron.IpcRendererEvent,
-      terminalEvent: TerminalStreamEvent,
-    ) => listener(terminalEvent);
-    ipcRenderer.on("terminal:event", wrapped);
-    return () => ipcRenderer.removeListener("terminal:event", wrapped);
-  },
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.terminalStreamCancel,
+      requestId,
+    ),
+  onTerminalEvent: (listener) =>
+    subscribeToDesktopEvent<TerminalStreamEvent>(
+      desktopIpcChannels.event.terminalEvent,
+      listener,
+    ),
   startInteractiveTerminal: (request: InteractiveTerminalStartRequest) =>
-    ipcRenderer.invoke("terminal:session-start-confirmed", request),
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.terminalSessionStartConfirmed,
+      request,
+    ),
   writeInteractiveTerminal: (request: InteractiveTerminalInputRequest) =>
-    ipcRenderer.invoke("terminal:session-input", request),
+    ipcRenderer.invoke(desktopIpcChannels.invoke.terminalSessionInput, request),
   resizeInteractiveTerminal: (request: InteractiveTerminalResizeRequest) =>
-    ipcRenderer.invoke("terminal:session-resize", request),
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.terminalSessionResize,
+      request,
+    ),
   interruptInteractiveTerminal: (sessionId: string) =>
-    ipcRenderer.invoke("terminal:session-interrupt", sessionId),
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.terminalSessionInterrupt,
+      sessionId,
+    ),
   closeInteractiveTerminal: (sessionId: string) =>
-    ipcRenderer.invoke("terminal:session-close", sessionId),
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.terminalSessionClose,
+      sessionId,
+    ),
   getInteractiveTerminalOutput: (sessionId: string, cursor: number) =>
-    ipcRenderer.invoke("terminal:session-output", sessionId, cursor),
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.terminalSessionOutput,
+      sessionId,
+      cursor,
+    ),
   getEditorProjectContext: (request: EditorProjectContextRequest) =>
-    ipcRenderer.invoke("editor:project-context", request),
+    ipcRenderer.invoke(desktopIpcChannels.invoke.editorProjectContext, request),
   saveWorkspaceFile: (request: WorkspaceFileSaveRequest) =>
-    ipcRenderer.invoke("workspace:save-confirmed", request),
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.workspaceSaveConfirmed,
+      request,
+    ),
   createWorktree: (request: RepositoryWorktreeCreateRequest) =>
-    ipcRenderer.invoke("repository:create-worktree-confirmed", request),
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.repositoryCreateWorktreeConfirmed,
+      request,
+    ),
   mutateRepository: (request: RepositoryMutationRequest) =>
-    ipcRenderer.invoke("repository:mutate-confirmed", request),
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.repositoryMutateConfirmed,
+      request,
+    ),
   startChat: (request: ChatRequest) =>
-    ipcRenderer.invoke("chat:start", request),
+    ipcRenderer.invoke(desktopIpcChannels.invoke.chatStart, request),
   cancelChat: (requestId: string) =>
-    ipcRenderer.invoke("chat:cancel", requestId),
-  onChatEvent: (listener) => {
-    const wrapped = (_event: Electron.IpcRendererEvent, chatEvent: ChatEvent) =>
-      listener(chatEvent);
-    ipcRenderer.on("chat:event", wrapped);
-    return () => ipcRenderer.removeListener("chat:event", wrapped);
-  },
+    ipcRenderer.invoke(desktopIpcChannels.invoke.chatCancel, requestId),
+  onChatEvent: (listener) =>
+    subscribeToDesktopEvent<ChatEvent>(
+      desktopIpcChannels.event.chatEvent,
+      listener,
+    ),
 };
 
 contextBridge.exposeInMainWorld("doolittle", bridge);

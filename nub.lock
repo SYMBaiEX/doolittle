@@ -389,7 +389,11 @@ importers:
 
   packages/cloud-shared: {}
 
-  packages/contracts: {}
+  packages/contracts:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
 
   packages/plugin-remote-manifest: {}
 

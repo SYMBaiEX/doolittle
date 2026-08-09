@@ -1,6 +1,6 @@
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
-import { loadConfig } from "../../../packages/agent/src/config/env";
-import { summarizeAutonomousConnection } from "../../../packages/agent/src/runtime/native/autonomous-stack";
+import { loadConfig } from "@/config/env";
+import { summarizeAutonomousConnection } from "@/runtime/native/autonomous-stack";
 import { buildNativeOnboardingMirror } from "../answers";
 import { updateEnvFile } from "../core/env-file";
 import type { BootstrapOptions, WizardAnswers } from "../types";

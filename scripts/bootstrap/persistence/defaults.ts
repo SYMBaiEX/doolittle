@@ -3,8 +3,8 @@ import {
   createElizaMcpSettingsFromCommand,
   isElizaMcpSettings,
   type LegacyMcpSettings,
-} from "../../../packages/agent/src/services/mcp/settings";
-import { RUN_DEPTH_ITERATION_PRESETS } from "../../../packages/agent/src/types";
+} from "@/services/mcp/settings";
+import { RUN_DEPTH_ITERATION_PRESETS } from "@/types";
 import type { GatewayConfig, PairingMode, RuntimeSettings } from "../types";
 
 export const REMOTE_TRANSPORTS = [

@@ -133,4 +133,21 @@ describe("SettingsService", () => {
 
     expect(updated.model.reasoningEffort).toBeUndefined();
   });
+
+  test.each([
+    "",
+    "model..provider",
+    "model.__proto__.polluted",
+    "model.constructor.prototype.polluted",
+    "model.provider.",
+  ])("rejects unsafe setting path %j for every caller", (path) => {
+    const dir = mkdtempSync(join(tmpdir(), "eliza-settings-"));
+    tempDirs.push(dir);
+    const service = new SettingsService(dir, makeDefaults());
+
+    expect(() => service.set(path, "unsafe")).toThrow(
+      "Setting path is not valid.",
+    );
+    expect(service.get()).toEqual(makeDefaults());
+  });
 });

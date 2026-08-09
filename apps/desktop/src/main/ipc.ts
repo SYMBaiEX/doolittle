@@ -14,6 +14,7 @@ import type {
   FileSelection,
   HttpMethod,
   InteractiveTerminalInputRequest,
+  InteractiveTerminalOutput,
   InteractiveTerminalResizeRequest,
   InteractiveTerminalSession,
   InteractiveTerminalStartRequest,
@@ -34,6 +35,10 @@ import type {
   WorkspacePickResult,
   WorkspaceState,
 } from "../shared/contracts";
+import {
+  type DesktopIpcInvokeChannel,
+  desktopIpcChannels,
+} from "../shared/ipc-channels";
 import { SseParser } from "../shared/sse";
 import type { BackendManager } from "./backend";
 import { resolveEditorProjectContext } from "./editor-project-context";
@@ -99,6 +104,7 @@ export interface RegisterIpcDependencies {
   ipcMain: IpcMain;
   backend: BackendManager;
   getMainWindow: () => BrowserWindow | null;
+  authorizeSender?: (event: IpcMainInvokeEvent) => boolean;
   pickFiles: () => Promise<FileSelection>;
   workspace: WorkspaceIpcController;
   sensitiveActionDependencies?: SensitiveActionIpcDependencies;
@@ -111,48 +117,13 @@ export interface RegisterIpcDependencies {
   desktopControls?: DesktopControlIpcDependencies;
 }
 
-const IPC_HANDLER_CHANNELS = [
-  "backend:get-state",
-  "backend:retry",
-  "workspace:get-state",
-  "workspace:pick",
-  "workspace:open",
-  "workspace:switch-recent",
-  "desktop:lifecycle-state",
-  "desktop:set-background-mode",
-  "update:get-state",
-  "update:check",
-  "update:download",
-  "update:install",
-  "dialog:pick-files",
-  "dialog:pick-project-files",
-  "dialog:pick-project-folders",
-  "dialog:pick-chat-attachments",
-  "chat:import-recorded-audio",
-  "provider-auth:start",
-  "provider-auth:state",
-  "provider-auth:submit-code",
-  "provider-auth:cancel",
-  "provider-auth:acknowledge",
-  "terminal:run-confirmed",
-  "terminal:stream-start",
-  "terminal:stream-cancel",
-  "terminal:session-start-confirmed",
-  "terminal:session-input",
-  "terminal:session-resize",
-  "terminal:session-interrupt",
-  "terminal:session-close",
-  "terminal:session-output",
-  "editor:project-context",
-  "workspace:save-confirmed",
-  "repository:create-worktree-confirmed",
-  "repository:mutate-confirmed",
-  "agent:request",
-  "chat:start",
-  "chat:cancel",
-] as const;
-
-type IpcHandlerChannel = (typeof IPC_HANDLER_CHANNELS)[number];
+export function isTrustedDesktopIpcSender(
+  event: Pick<IpcMainInvokeEvent, "sender">,
+  mainWindow: Pick<BrowserWindow, "isDestroyed" | "webContents"> | null,
+): boolean {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  return event.sender === mainWindow.webContents;
+}
 
 export interface DesktopBackgroundNotification {
   title: string;
@@ -1446,6 +1417,108 @@ export function validateInteractiveTerminalResizeRequest(
   };
 }
 
+function validateInteractiveTerminalSession(
+  value: unknown,
+): InteractiveTerminalSession {
+  if (!isRecord(value)) {
+    throw new Error("The runtime returned an invalid terminal session.");
+  }
+  const state = value.state;
+  if (state !== "running" && state !== "exited" && state !== "closed") {
+    throw new Error("The runtime returned an invalid terminal session state.");
+  }
+  if (
+    typeof value.cwd !== "string" ||
+    !value.cwd ||
+    typeof value.shell !== "string" ||
+    !value.shell ||
+    typeof value.startedAt !== "string" ||
+    !value.startedAt ||
+    typeof value.pty !== "boolean" ||
+    typeof value.supportsResize !== "boolean" ||
+    typeof value.outputBytes !== "number" ||
+    !Number.isSafeInteger(value.outputBytes) ||
+    value.outputBytes < 0
+  ) {
+    throw new Error("The runtime returned invalid terminal session details.");
+  }
+  if (
+    value.completedAt !== undefined &&
+    typeof value.completedAt !== "string"
+  ) {
+    throw new Error(
+      "The runtime returned an invalid terminal completion time.",
+    );
+  }
+  if (
+    value.exitCode !== undefined &&
+    (typeof value.exitCode !== "number" ||
+      !Number.isSafeInteger(value.exitCode))
+  ) {
+    throw new Error("The runtime returned an invalid terminal exit code.");
+  }
+
+  return {
+    id: validateInteractiveTerminalSessionId(value.id),
+    state,
+    cwd: value.cwd,
+    shell: value.shell,
+    cols: validateInteractiveTerminalDimension(
+      value.cols,
+      "columns",
+      MIN_INTERACTIVE_TERMINAL_COLUMNS,
+      MAX_INTERACTIVE_TERMINAL_COLUMNS,
+    ),
+    rows: validateInteractiveTerminalDimension(
+      value.rows,
+      "rows",
+      MIN_INTERACTIVE_TERMINAL_ROWS,
+      MAX_INTERACTIVE_TERMINAL_ROWS,
+    ),
+    startedAt: value.startedAt,
+    ...(value.completedAt === undefined
+      ? {}
+      : { completedAt: value.completedAt }),
+    ...(value.exitCode === undefined ? {} : { exitCode: value.exitCode }),
+    pty: value.pty,
+    supportsResize: value.supportsResize,
+    outputBytes: value.outputBytes,
+  };
+}
+
+function validateInteractiveTerminalOutput(
+  value: unknown,
+): InteractiveTerminalOutput {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.chunks) ||
+    typeof value.nextCursor !== "number" ||
+    !Number.isSafeInteger(value.nextCursor) ||
+    value.nextCursor < 0 ||
+    typeof value.truncatedBeforeCursor !== "boolean"
+  ) {
+    throw new Error("The runtime returned invalid terminal output.");
+  }
+  const chunks = value.chunks.map((chunk) => {
+    if (
+      !isRecord(chunk) ||
+      typeof chunk.cursor !== "number" ||
+      !Number.isSafeInteger(chunk.cursor) ||
+      chunk.cursor < 0 ||
+      typeof chunk.data !== "string"
+    ) {
+      throw new Error("The runtime returned an invalid terminal output chunk.");
+    }
+    return { cursor: chunk.cursor, data: chunk.data };
+  });
+  return {
+    session: validateInteractiveTerminalSession(value.session),
+    chunks,
+    nextCursor: value.nextCursor,
+    truncatedBeforeCursor: value.truncatedBeforeCursor,
+  };
+}
+
 function validateSensitiveWorkspacePath(path: unknown): string {
   if (typeof path !== "string" || !path || path !== path.trim()) {
     throw new Error("A workspace-relative file path is required.");
@@ -2117,14 +2190,26 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     importRecordedAudio,
     desktopControls,
   } = dependencies;
+  const { event: eventChannels, invoke: invokeChannels } = desktopIpcChannels;
+  const authorizeSender =
+    dependencies.authorizeSender ??
+    ((event: IpcMainInvokeEvent) =>
+      isTrustedDesktopIpcSender(event, getMainWindow()));
   const activeChats = new Map<string, ActiveChat>();
   const activeTerminalRuns = new Map<string, ActiveTerminalRun>();
-  const registeredChannels = new Set<IpcHandlerChannel>();
+  const registeredChannels = new Set<DesktopIpcInvokeChannel>();
   const registerHandler = (
-    channel: IpcHandlerChannel,
+    channel: DesktopIpcInvokeChannel,
     handler: Parameters<IpcMain["handle"]>[1],
   ) => {
-    ipcMain.handle(channel, handler);
+    ipcMain.handle(channel, (event, ...args) => {
+      if (!authorizeSender(event)) {
+        throw new Error(
+          "Rejected desktop IPC request from an untrusted sender.",
+        );
+      }
+      return handler(event, ...args);
+    });
     registeredChannels.add(channel);
   };
   let disposeDesktopControls: (() => void) | undefined;
@@ -2206,23 +2291,28 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
   const emitBackendState = () => {
     const mainWindow = getMainWindow();
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("backend:state", backend.getState());
+      mainWindow.webContents.send(
+        eventChannels.backendState,
+        backend.getState(),
+      );
     }
   };
   const unsubscribeBackend = backend.subscribe(emitBackendState);
   const emitWorkspaceState = (state: WorkspaceState) => {
     const mainWindow = getMainWindow();
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("workspace:state", state);
+      mainWindow.webContents.send(eventChannels.workspaceState, state);
     }
   };
   const unsubscribeWorkspace = workspace.subscribe(emitWorkspaceState);
 
-  registerHandler("backend:get-state", () => backend.getState());
-  registerHandler("backend:retry", () => backend.restart());
-  registerHandler("workspace:get-state", () => workspace.getState());
-  registerHandler("workspace:pick", () => workspace.pickWorkspace());
-  registerHandler("workspace:open", (_event, path: unknown) => {
+  registerHandler(invokeChannels.backendGetState, () => backend.getState());
+  registerHandler(invokeChannels.backendRetry, () => backend.restart());
+  registerHandler(invokeChannels.workspaceGetState, () => workspace.getState());
+  registerHandler(invokeChannels.workspacePick, () =>
+    workspace.pickWorkspace(),
+  );
+  registerHandler(invokeChannels.workspaceOpen, (_event, path: unknown) => {
     if (typeof path !== "string" || path.length > MAX_WORKSPACE_PATH_LENGTH) {
       throw new Error("A valid workspace path is required.");
     }
@@ -2231,38 +2321,48 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     }
     return workspace.openWorkspace(path);
   });
-  registerHandler("workspace:switch-recent", (_event, path: unknown) => {
-    if (typeof path !== "string" || path.length > MAX_WORKSPACE_PATH_LENGTH) {
-      throw new Error("A valid recent workspace path is required.");
-    }
-    return workspace.switchWorkspace(path);
-  });
+  registerHandler(
+    invokeChannels.workspaceSwitchRecent,
+    (_event, path: unknown) => {
+      if (typeof path !== "string" || path.length > MAX_WORKSPACE_PATH_LENGTH) {
+        throw new Error("A valid recent workspace path is required.");
+      }
+      return workspace.switchWorkspace(path);
+    },
+  );
   if (desktopControls) {
     const emitUpdateState = (state: DesktopUpdateState) => {
       const mainWindow = getMainWindow();
       if (mainWindow && !mainWindow.isDestroyed())
-        mainWindow.webContents.send("update:state", state);
+        mainWindow.webContents.send(eventChannels.updateState, state);
     };
     const unsubscribeUpdates =
       desktopControls.updates.subscribe(emitUpdateState);
     registerHandler(
-      "desktop:lifecycle-state",
+      invokeChannels.desktopLifecycleState,
       desktopControls.getLifecycleState,
     );
     registerHandler(
-      "desktop:set-background-mode",
+      invokeChannels.desktopSetBackgroundMode,
       (_event, enabled: unknown) => {
         if (typeof enabled !== "boolean")
           throw new Error("Background mode must be a boolean.");
         return desktopControls.setKeepRunningInBackground(enabled);
       },
     );
-    registerHandler("update:get-state", desktopControls.updates.getState);
-    registerHandler("update:check", () => desktopControls.updates.check());
-    registerHandler("update:download", () =>
+    registerHandler(
+      invokeChannels.updateGetState,
+      desktopControls.updates.getState,
+    );
+    registerHandler(invokeChannels.updateCheck, () =>
+      desktopControls.updates.check(),
+    );
+    registerHandler(invokeChannels.updateDownload, () =>
       desktopControls.updates.download(),
     );
-    registerHandler("update:install", () => desktopControls.updates.install());
+    registerHandler(invokeChannels.updateInstall, () =>
+      desktopControls.updates.install(),
+    );
     const originalDispose = unsubscribeUpdates;
     // Keep the unsubscribe reachable from the shared disposer below.
     const existingDispose = disposeDesktopControls;
@@ -2271,12 +2371,15 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       originalDispose();
     };
   }
-  registerHandler("dialog:pick-files", pickFiles);
-  registerHandler("dialog:pick-project-files", pickProjectFiles);
-  registerHandler("dialog:pick-project-folders", pickProjectFolders);
-  registerHandler("dialog:pick-chat-attachments", pickChatAttachments);
+  registerHandler(invokeChannels.dialogPickFiles, pickFiles);
+  registerHandler(invokeChannels.dialogPickProjectFiles, pickProjectFiles);
+  registerHandler(invokeChannels.dialogPickProjectFolders, pickProjectFolders);
   registerHandler(
-    "chat:import-recorded-audio",
+    invokeChannels.dialogPickChatAttachments,
+    pickChatAttachments,
+  );
+  registerHandler(
+    invokeChannels.chatImportRecordedAudio,
     (_event, request: RecordedAudioImportRequest) => {
       if (!importRecordedAudio) {
         throw new Error("Recorded audio import is unavailable.");
@@ -2285,7 +2388,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     },
   );
   registerHandler(
-    "terminal:run-confirmed",
+    invokeChannels.terminalRunConfirmed,
     async (
       _event: IpcMainInvokeEvent,
       unsafeRequest: DesktopCommandRequest,
@@ -2325,7 +2428,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     },
   );
   registerHandler(
-    "terminal:stream-start",
+    invokeChannels.terminalStreamStart,
     async (event: IpcMainInvokeEvent, unsafeRequest: TerminalStreamRequest) => {
       const request = validateTerminalStreamRequest(unsafeRequest);
       const key = terminalKey(event, request.requestId);
@@ -2335,7 +2438,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
 
       const emitEvent = (payload: { event: string; data: unknown }) => {
         if (!event.sender.isDestroyed()) {
-          event.sender.send("terminal:event", {
+          event.sender.send(eventChannels.terminalEvent, {
             requestId: request.requestId,
             ...payload,
           });
@@ -2453,7 +2556,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     },
   );
   registerHandler(
-    "terminal:stream-cancel",
+    invokeChannels.terminalStreamCancel,
     (event: IpcMainInvokeEvent, requestId: string) => {
       const validated = validateTerminalRequestId(requestId);
       const active = activeTerminalRuns.get(terminalKey(event, validated));
@@ -2461,7 +2564,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     },
   );
   registerHandler(
-    "terminal:session-start-confirmed",
+    invokeChannels.terminalSessionStartConfirmed,
     async (
       _event: IpcMainInvokeEvent,
       unsafeRequest: InteractiveTerminalStartRequest,
@@ -2486,12 +2589,12 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       }
       return {
         status: "started",
-        session: payload.session as unknown as InteractiveTerminalSession,
+        session: validateInteractiveTerminalSession(payload.session),
       };
     },
   );
   registerHandler(
-    "terminal:session-input",
+    invokeChannels.terminalSessionInput,
     async (
       _event: IpcMainInvokeEvent,
       unsafeRequest: InteractiveTerminalInputRequest,
@@ -2502,11 +2605,13 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         "POST",
         request,
       );
-      return isRecord(payload) ? payload.session : undefined;
+      return validateInteractiveTerminalSession(
+        isRecord(payload) ? payload.session : undefined,
+      );
     },
   );
   registerHandler(
-    "terminal:session-resize",
+    invokeChannels.terminalSessionResize,
     async (
       _event: IpcMainInvokeEvent,
       unsafeRequest: InteractiveTerminalResizeRequest,
@@ -2517,11 +2622,13 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         "POST",
         request,
       );
-      return isRecord(payload) ? payload.session : undefined;
+      return validateInteractiveTerminalSession(
+        isRecord(payload) ? payload.session : undefined,
+      );
     },
   );
   registerHandler(
-    "terminal:session-interrupt",
+    invokeChannels.terminalSessionInterrupt,
     async (_event: IpcMainInvokeEvent, unsafeSessionId: string) => {
       const sessionId = validateInteractiveTerminalSessionId(unsafeSessionId);
       const payload = await requestInteractiveTerminal(
@@ -2529,11 +2636,13 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         "POST",
         { sessionId },
       );
-      return isRecord(payload) ? payload.session : undefined;
+      return validateInteractiveTerminalSession(
+        isRecord(payload) ? payload.session : undefined,
+      );
     },
   );
   registerHandler(
-    "terminal:session-close",
+    invokeChannels.terminalSessionClose,
     async (_event: IpcMainInvokeEvent, unsafeSessionId: string) => {
       const sessionId = validateInteractiveTerminalSessionId(unsafeSessionId);
       const payload = await requestInteractiveTerminal(
@@ -2541,11 +2650,13 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         "POST",
         { sessionId },
       );
-      return isRecord(payload) ? payload.session : undefined;
+      return validateInteractiveTerminalSession(
+        isRecord(payload) ? payload.session : undefined,
+      );
     },
   );
   registerHandler(
-    "terminal:session-output",
+    invokeChannels.terminalSessionOutput,
     async (
       _event: IpcMainInvokeEvent,
       unsafeSessionId: string,
@@ -2563,11 +2674,11 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           sessionId,
         )}&cursor=${cursor}`,
         "GET",
-      );
+      ).then(validateInteractiveTerminalOutput);
     },
   );
   registerHandler(
-    "provider-auth:start",
+    invokeChannels.providerAuthStart,
     (
       _event: IpcMainInvokeEvent,
       unsafeProvider: unknown,
@@ -2583,7 +2694,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     },
   );
   registerHandler(
-    "provider-auth:state",
+    invokeChannels.providerAuthState,
     (_event: IpcMainInvokeEvent, unsafeProvider: unknown) => {
       if (!desktopControls?.providerAuth) {
         throw new Error("Provider sign in is unavailable in this build.");
@@ -2594,7 +2705,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     },
   );
   registerHandler(
-    "provider-auth:submit-code",
+    invokeChannels.providerAuthSubmitCode,
     (_event: IpcMainInvokeEvent, unsafeProvider: unknown) => {
       if (!desktopControls?.providerAuth) {
         throw new Error("Provider sign in is unavailable in this build.");
@@ -2605,7 +2716,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     },
   );
   registerHandler(
-    "provider-auth:cancel",
+    invokeChannels.providerAuthCancel,
     (_event: IpcMainInvokeEvent, unsafeProvider: unknown) => {
       if (!desktopControls?.providerAuth) {
         throw new Error("Provider sign in is unavailable in this build.");
@@ -2616,7 +2727,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     },
   );
   registerHandler(
-    "provider-auth:acknowledge",
+    invokeChannels.providerAuthAcknowledge,
     (_event: IpcMainInvokeEvent, unsafeProvider: unknown) => {
       if (!desktopControls?.providerAuth) {
         throw new Error("Provider sign in is unavailable in this build.");
@@ -2627,14 +2738,14 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     },
   );
   registerHandler(
-    "editor:project-context",
+    invokeChannels.editorProjectContext,
     (
       _event: IpcMainInvokeEvent,
       request: EditorProjectContextRequest,
     ): EditorProjectContextResult => resolveEditorProjectContext(request),
   );
   registerHandler(
-    "workspace:save-confirmed",
+    invokeChannels.workspaceSaveConfirmed,
     async (
       _event: IpcMainInvokeEvent,
       unsafeRequest: WorkspaceFileSaveRequest,
@@ -2681,7 +2792,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     },
   );
   registerHandler(
-    "repository:create-worktree-confirmed",
+    invokeChannels.repositoryCreateWorktreeConfirmed,
     async (
       _event: IpcMainInvokeEvent,
       unsafeRequest: RepositoryWorktreeCreateRequest,
@@ -2745,7 +2856,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     },
   );
   registerHandler(
-    "repository:mutate-confirmed",
+    invokeChannels.repositoryMutateConfirmed,
     async (
       _event: IpcMainInvokeEvent,
       unsafeRequest: RepositoryMutationRequest,
@@ -2800,7 +2911,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     },
   );
   registerHandler(
-    "agent:request",
+    invokeChannels.agentRequest,
     async (
       _event: IpcMainInvokeEvent,
       unsafeRequest: unknown,
@@ -2837,71 +2948,83 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     },
   );
 
-  registerHandler("chat:start", async (event, request: ChatRequest) => {
-    assertChatRequest(request);
-    const state = backend.getState();
-    if (state.phase !== "ready" || !state.url) {
-      throw new Error("The local runtime is not ready.");
-    }
+  registerHandler(
+    invokeChannels.chatStart,
+    async (event, request: ChatRequest) => {
+      assertChatRequest(request);
+      const state = backend.getState();
+      if (state.phase !== "ready" || !state.url) {
+        throw new Error("The local runtime is not ready.");
+      }
 
-    const key = chatKey(event, request.requestId);
-    if (activeChats.has(key)) {
-      throw new Error("This chat request is already running.");
-    }
+      const key = chatKey(event, request.requestId);
+      if (activeChats.has(key)) {
+        throw new Error("This chat request is already running.");
+      }
 
-    const controller = new AbortController();
-    const emitEvent = (payload: { event: string; data: unknown }) => {
-      if (!event.sender.isDestroyed()) {
-        event.sender.send("chat:event", {
-          requestId: request.requestId,
-          ...payload,
+      const controller = new AbortController();
+      const emitEvent = (payload: { event: string; data: unknown }) => {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send(eventChannels.chatEvent, {
+            requestId: request.requestId,
+            ...payload,
+          });
+        }
+      };
+      const cleanup = () => {
+        activeChats.delete(key);
+        event.sender.removeListener("destroyed", cleanup);
+        if (!controller.signal.aborted) {
+          controller.abort();
+        }
+      };
+      activeChats.set(key, { controller });
+      event.sender.once("destroyed", cleanup);
+
+      try {
+        const response = await sensitiveFetch(`${state.url}/chat`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            message: request.message.trim(),
+            roomId: request.roomId,
+            runId: request.requestId,
+            userId: "desktop-user",
+            source: "desktop",
+            stream: true,
+            projectId: request.projectId,
+            attachmentIds: validateChatAttachmentIds(request.attachmentIds),
+          }),
+          signal: controller.signal,
         });
-      }
-    };
-    const cleanup = () => {
-      activeChats.delete(key);
-      event.sender.removeListener("destroyed", cleanup);
-      if (!controller.signal.aborted) {
-        controller.abort();
-      }
-    };
-    activeChats.set(key, { controller });
-    event.sender.once("destroyed", cleanup);
 
-    try {
-      const response = await sensitiveFetch(`${state.url}/chat`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          message: request.message.trim(),
-          roomId: request.roomId,
-          runId: request.requestId,
-          userId: "desktop-user",
-          source: "desktop",
-          stream: true,
-          projectId: request.projectId,
-          attachmentIds: validateChatAttachmentIds(request.attachmentIds),
-        }),
-        signal: controller.signal,
-      });
+        if (!response.ok) {
+          throw new Error(await parseRequestError(response));
+        }
+        if (!response.body) {
+          throw new Error("The runtime returned an empty stream.");
+        }
 
-      if (!response.ok) {
-        throw new Error(await parseRequestError(response));
-      }
-      if (!response.body) {
-        throw new Error("The runtime returned an empty stream.");
-      }
-
-      const parser = new SseParser();
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      while (true) {
-        const result = await reader.read();
-        if (result.done) break;
-        const chunk = decoder.decode(result.value, { stream: true });
-        for (const eventMessage of parser.push(chunk)) {
+        const parser = new SseParser();
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        while (true) {
+          const result = await reader.read();
+          if (result.done) break;
+          const chunk = decoder.decode(result.value, { stream: true });
+          for (const eventMessage of parser.push(chunk)) {
+            emitEvent(eventMessage);
+            if (eventMessage.event === "response.completed") {
+              notifyBackground({
+                title: "Doolittle is ready",
+                body: "Your response is ready.",
+              });
+            }
+          }
+        }
+        for (const eventMessage of parser.finish()) {
           emitEvent(eventMessage);
           if (eventMessage.event === "response.completed") {
             notifyBackground({
@@ -2910,69 +3033,63 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             });
           }
         }
-      }
-      for (const eventMessage of parser.finish()) {
-        emitEvent(eventMessage);
-        if (eventMessage.event === "response.completed") {
-          notifyBackground({
-            title: "Doolittle is ready",
-            body: "Your response is ready.",
+      } catch (error) {
+        if (controller.signal.aborted) {
+          emitEvent({ event: "cancelled", data: null });
+        } else {
+          emitEvent({
+            event: "error",
+            data: {
+              message: error instanceof Error ? error.message : String(error),
+            },
           });
+          notifyBackground({
+            title: "Doolittle needs attention",
+            body: "A response stopped with an error.",
+          });
+          throw error;
         }
+      } finally {
+        cleanup();
       }
-    } catch (error) {
-      if (controller.signal.aborted) {
-        emitEvent({ event: "cancelled", data: null });
-      } else {
-        emitEvent({
-          event: "error",
-          data: {
-            message: error instanceof Error ? error.message : String(error),
-          },
-        });
-        notifyBackground({
-          title: "Doolittle needs attention",
-          body: "A response stopped with an error.",
-        });
-        throw error;
-      }
-    } finally {
-      cleanup();
-    }
-  });
+    },
+  );
 
-  registerHandler("chat:cancel", async (event, requestId: string) => {
-    const active = activeChats.get(chatKey(event, requestId));
-    if (!active) return;
-    const state = backend.getState();
-    if (state.phase !== "ready" || !state.url) {
-      throw new Error("The local runtime is not ready.");
-    }
-    // Request server-side cancellation before closing the renderer stream. This
-    // is what reaches the provider/tool abort signal; aborting fetch alone is
-    // only a local transport teardown.
-    const response = await sensitiveFetch(
-      `${state.url}/chat/runs/${encodeURIComponent(requestId)}/cancel`,
-      {
-        method: "POST",
-        signal: AbortSignal.timeout(API_TIMEOUT_MS),
-      },
-    );
-    if (!response.ok) {
-      throw new Error(await parseRequestError(response));
-    }
-    const payload = await parseSuccessfulJson(response);
-    const run =
-      isRecord(payload) && isRecord(payload.run) ? payload.run : undefined;
-    if (run && !event.sender.isDestroyed()) {
-      event.sender.send("chat:event", {
-        requestId,
-        event: "agent.run",
-        data: { type: "cancelled", sessionId: run.sessionId, run },
-      });
-    }
-    active.controller.abort();
-  });
+  registerHandler(
+    invokeChannels.chatCancel,
+    async (event, requestId: string) => {
+      const active = activeChats.get(chatKey(event, requestId));
+      if (!active) return;
+      const state = backend.getState();
+      if (state.phase !== "ready" || !state.url) {
+        throw new Error("The local runtime is not ready.");
+      }
+      // Request server-side cancellation before closing the renderer stream. This
+      // is what reaches the provider/tool abort signal; aborting fetch alone is
+      // only a local transport teardown.
+      const response = await sensitiveFetch(
+        `${state.url}/chat/runs/${encodeURIComponent(requestId)}/cancel`,
+        {
+          method: "POST",
+          signal: AbortSignal.timeout(API_TIMEOUT_MS),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(await parseRequestError(response));
+      }
+      const payload = await parseSuccessfulJson(response);
+      const run =
+        isRecord(payload) && isRecord(payload.run) ? payload.run : undefined;
+      if (run && !event.sender.isDestroyed()) {
+        event.sender.send(eventChannels.chatEvent, {
+          requestId,
+          event: "agent.run",
+          data: { type: "cancelled", sessionId: run.sessionId, run },
+        });
+      }
+      active.controller.abort();
+    },
+  );
 
   return () => {
     unsubscribeBackend();

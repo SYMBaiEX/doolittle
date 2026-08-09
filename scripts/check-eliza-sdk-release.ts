@@ -3,6 +3,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { ELIZA_WORKSPACE_COMPATIBILITY } from "./eliza-workspace-compatibility";
+import { findDoolittleWorkspaceVersionMismatch } from "./workspace-version-policy";
 
 type PackageJson = {
   name?: string;
@@ -60,6 +61,11 @@ if (!expectedVersion || channel !== "beta") {
     "package.json must declare elizaSdk.channel=beta and an exact elizaSdk.version.",
   );
 }
+if (rootPackage.version !== expectedVersion) {
+  throw new Error(
+    `package.json version=${rootPackage.version ?? "unknown"}; expected ${expectedVersion} from elizaSdk.version.`,
+  );
+}
 
 const packagePaths = [
   rootPackagePath,
@@ -85,6 +91,15 @@ for (const path of packagePaths) {
   const manifest = readPackageJson(path);
   const relativePath = relative(ROOT, path);
   const compatibility = compatibilityByPath.get(relativePath);
+  const workspaceVersionMismatch = findDoolittleWorkspaceVersionMismatch(
+    manifest,
+    expectedVersion,
+  );
+  if (workspaceVersionMismatch) {
+    mismatches.push(
+      `${relativePath} version=${workspaceVersionMismatch.actual}; expected ${workspaceVersionMismatch.expected}`,
+    );
+  }
 
   if (
     manifest.name &&

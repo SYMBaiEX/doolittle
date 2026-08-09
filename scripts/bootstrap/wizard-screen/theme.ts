@@ -3,7 +3,7 @@ import {
   getReadableTextColor,
   getTuiTheme,
   type TuiThemeName,
-} from "../../../packages/agent/src/runtime/theme-catalog";
+} from "@/runtime/theme-catalog";
 import { buildWizardThemeFooter, getThemeByName } from "./render";
 import type { WizardScreenWidgets } from "./widgets";
 

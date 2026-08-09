@@ -10,9 +10,8 @@ export function requireRuntimeService<TService extends object>(
     throw new Error(`Required Eliza service ${serviceType} is unavailable.`);
   }
 
-  const record = service as unknown as Record<PropertyKey, unknown>;
   for (const method of requiredMethods) {
-    if (typeof record[method] !== "function") {
+    if (typeof Reflect.get(service, method) !== "function") {
       throw new Error(
         `Required Eliza service ${serviceType} does not implement ${String(method)}().`,
       );

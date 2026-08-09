@@ -1,4 +1,4 @@
-import { DEFAULT_TUI_THEME } from "../../../packages/agent/src/runtime/theme-catalog";
+import { DEFAULT_TUI_THEME } from "@/runtime/theme-catalog";
 import {
   resolveMaxIterations,
   resolveRunDepth,

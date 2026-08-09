@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 
 import { normalizeRuntimeSettings } from "@/services/settings/normalization";
+import { setSettingPath } from "@/services/settings/path";
 import type {
   ParsedRuntimeSettings,
   RuntimeSettings,
@@ -55,23 +56,7 @@ export class SettingsService {
   ): RuntimeSettings {
     const settings = this.get();
     for (const change of changes) {
-      const segments = change.path.split(".");
-      let current = settings as unknown as Record<string, unknown>;
-
-      while (segments.length > 1) {
-        const segment = segments.shift();
-        if (!segment) {
-          break;
-        }
-        const next = current[segment];
-        if (!next || typeof next !== "object") {
-          current[segment] = {};
-        }
-        current = current[segment] as Record<string, unknown>;
-      }
-
-      const leaf = segments[0];
-      current[leaf] = change.value;
+      setSettingPath(settings, change.path, change.value);
     }
     const normalized = normalizeRuntimeSettings(
       settings,

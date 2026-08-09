@@ -77,6 +77,18 @@ it("builds ACP metadata, registry, editor, and bundle payloads", () => {
   expect(bundle.tools.length).toBe(1);
 });
 
+it("classifies tool families through the shared registry mapping", () => {
+  expect([
+    guessAcpToolKind({ id: "workspace.read" }),
+    guessAcpToolKind({ id: "gateway.edit" }),
+    guessAcpToolKind({ id: "workspace.search" }),
+    guessAcpToolKind({ id: "repository.status" }),
+    guessAcpToolKind({ id: "web.fetch" }),
+    guessAcpToolKind({ id: "automation.run" }),
+    guessAcpToolKind({ id: "unknown.tool" }),
+  ]).toEqual(["read", "edit", "search", "execute", "fetch", "think", "other"]);
+});
+
 it("serves the stable lifecycle through official SDK apps", async () => {
   const sessions = new Set<string>();
   const agentApp = createDoolittleAcpAgent({

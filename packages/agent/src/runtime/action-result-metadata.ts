@@ -276,8 +276,6 @@ export function buildCodingIterationFromActionResults(
       options.summary ??
       `Observed ${summary.actionResults.length} action result(s), ${summary.fileOperations.length} file operation(s), and ${summary.commandResults.length} command result(s).`,
   };
-  const validation = validateCodingIteration(
-    iteration as unknown as Record<string, unknown>,
-  );
+  const validation = validateCodingIteration({ ...iteration });
   return validation.ok ? validation.data : iteration;
 }

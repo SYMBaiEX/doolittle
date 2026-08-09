@@ -8,15 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import {
-  basename,
-  dirname,
-  isAbsolute,
-  join,
-  normalize,
-  relative,
-  sep,
-} from "node:path";
+import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import type {
   RepositoryBranch,
   RepositoryConflict,
@@ -30,6 +22,30 @@ import {
   type TextProcessOptions,
   type TextProcessResult,
 } from "@/services/process-execution";
+import type {
+  CreateRepositoryWorktreeInput,
+  RepositoryChange,
+  RepositoryPatch,
+  RepositorySummary,
+  RepositoryWorktree,
+} from "./repository/models";
+import { parseStatusOutput, parseWorktrees } from "./repository/parsing";
+import {
+  hasControlCharacters,
+  MAX_WORKTREE_PATH_LENGTH,
+  validateBranchName,
+  validateCommitMessage,
+  validateGitName,
+  validateMergeMethod,
+  validateOptionalBoolean,
+  validatePullRequestBody,
+  validatePullRequestTitle,
+  validateRef,
+  validateRemoteUrl,
+  validateReviewEvent,
+  validateStashReference,
+  validateWorktreePath,
+} from "./repository/validation";
 import {
   type RepositoryReviewResult,
   RepositoryReviewService,
@@ -44,56 +60,15 @@ import {
 } from "./workspace-service/path";
 import { workspaceRelativePath } from "./workspace-service/path-format";
 
-export interface RepositoryChange {
-  path: string;
-  previousPath?: string;
-  indexStatus: string;
-  worktreeStatus: string;
-  staged: boolean;
-  unstaged: boolean;
-  untracked: boolean;
-}
-
-export interface RepositorySummary {
-  isRepository: boolean;
-  root?: string;
-  branch?: string;
-  head?: string;
-  upstream?: string;
-  ahead: number;
-  behind: number;
-  dirty: boolean;
-  changedFiles: number;
-}
-
-export interface RepositoryPatch {
-  path?: string;
-  staged: boolean;
-  patch: string;
-  truncated: boolean;
-}
-
-export interface RepositoryWorktree {
-  path: string;
-  head?: string;
-  branch?: string;
-  detached: boolean;
-  bare: boolean;
-  prunable: boolean;
-}
-
-export interface CreateRepositoryWorktreeInput {
-  branch: string;
-  path: string;
-}
+export type {
+  CreateRepositoryWorktreeInput,
+  RepositoryChange,
+  RepositoryPatch,
+  RepositorySummary,
+  RepositoryWorktree,
+} from "./repository/models";
 
 const MAX_PATCH_CHARACTERS = 240_000;
-const MAX_BRANCH_LENGTH = 255;
-const MAX_WORKTREE_PATH_LENGTH = 4_096;
-const MAX_MESSAGE_LENGTH = 10_000;
-const MAX_REMOTE_URL_LENGTH = 4_096;
-const MAX_PULL_REQUEST_TITLE_LENGTH = 256;
-const MAX_PULL_REQUEST_BODY_LENGTH = 20_000;
 
 type RepositoryProcessRunner = (
   command: string,
@@ -120,165 +95,6 @@ function cleanOutput(value: string): string {
   return value.replace(/\r?\n$/u, "");
 }
 
-function hasControlCharacters(value: string): boolean {
-  return Array.from(value).some((character) => {
-    const codePoint = character.codePointAt(0);
-    return codePoint !== undefined && (codePoint <= 31 || codePoint === 127);
-  });
-}
-
-function validateBranchName(value: unknown): string {
-  if (typeof value !== "string" || value !== value.trim() || !value) {
-    throw new Error("A branch name is required.");
-  }
-  if (
-    value.length > MAX_BRANCH_LENGTH ||
-    value.startsWith("-") ||
-    value.includes("\\") ||
-    value.includes("..") ||
-    value.includes("@{") ||
-    value.endsWith(".") ||
-    value.endsWith("/") ||
-    /[\s~^:?*[\]]/u.test(value) ||
-    value.split("/").some((segment) => !segment || segment.endsWith(".lock")) ||
-    hasControlCharacters(value)
-  ) {
-    throw new Error("Branch name is not a valid Git branch.");
-  }
-  return value;
-}
-
-function validateGitName(value: unknown, label: string): string {
-  if (typeof value !== "string" || value !== value.trim() || !value) {
-    throw new Error(`A ${label} is required.`);
-  }
-  if (
-    value.length > MAX_BRANCH_LENGTH ||
-    value.startsWith("-") ||
-    !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/u.test(value) ||
-    value.includes("..") ||
-    hasControlCharacters(value)
-  ) {
-    throw new Error(`${label} is not valid.`);
-  }
-  return value;
-}
-
-function validateRef(value: unknown, label: string): string {
-  if (typeof value !== "string" || value !== value.trim() || !value) {
-    throw new Error(`A ${label} is required.`);
-  }
-  if (
-    value.length > MAX_BRANCH_LENGTH ||
-    value.startsWith("-") ||
-    value.includes("\\") ||
-    value.includes("..") ||
-    value.includes("@{") ||
-    /[\s~^:?*[\]]/u.test(value) ||
-    hasControlCharacters(value)
-  ) {
-    throw new Error(`${label} is not valid.`);
-  }
-  return value;
-}
-
-function validateStashReference(value: unknown): string {
-  if (typeof value !== "string" || value !== value.trim() || !value) {
-    throw new Error("A stash reference is required.");
-  }
-  if (!/^stash@\{\d+\}$/u.test(value)) {
-    throw new Error("Stash reference is not valid.");
-  }
-  return value;
-}
-
-function validateRemoteUrl(value: unknown): string {
-  if (typeof value !== "string" || value !== value.trim() || !value) {
-    throw new Error("A remote URL is required.");
-  }
-  if (
-    value.length > MAX_REMOTE_URL_LENGTH ||
-    /\s/u.test(value) ||
-    hasControlCharacters(value)
-  ) {
-    throw new Error("Remote URL is not valid.");
-  }
-  return value;
-}
-
-function validateCommitMessage(value: unknown): string {
-  if (typeof value !== "string" || !value.trim()) {
-    throw new Error("A commit message is required.");
-  }
-  if (value.length > MAX_MESSAGE_LENGTH || value.includes("\0")) {
-    throw new Error(
-      "Commit message is too long or contains invalid characters.",
-    );
-  }
-  return value;
-}
-
-function validatePullRequestTitle(value: unknown): string {
-  if (typeof value !== "string" || !value.trim()) {
-    throw new Error("A pull request title is required.");
-  }
-  if (
-    value.length > MAX_PULL_REQUEST_TITLE_LENGTH ||
-    value.includes("\0") ||
-    hasControlCharacters(value.replaceAll("\n", ""))
-  ) {
-    throw new Error(
-      "Pull request title is too long or contains invalid characters.",
-    );
-  }
-  return value;
-}
-
-function validatePullRequestBody(
-  value: unknown,
-  required = false,
-): string | undefined {
-  if (value === undefined && !required) return undefined;
-  if (typeof value !== "string" || (required && !value.trim())) {
-    throw new Error("A pull request review body is required.");
-  }
-  if (value.length > MAX_PULL_REQUEST_BODY_LENGTH || value.includes("\0")) {
-    throw new Error(
-      "Pull request body is too long or contains invalid characters.",
-    );
-  }
-  return value;
-}
-
-function validateReviewEvent(
-  value: unknown,
-): "approve" | "request-changes" | "comment" {
-  if (
-    value === "approve" ||
-    value === "request-changes" ||
-    value === "comment"
-  ) {
-    return value;
-  }
-  throw new Error("Pull request review event is not valid.");
-}
-
-function validateMergeMethod(value: unknown): "merge" | "squash" | "rebase" {
-  if (value === "merge" || value === "squash" || value === "rebase")
-    return value;
-  throw new Error("Pull request merge method is not valid.");
-}
-
-function validateOptionalBoolean(
-  value: unknown,
-  label: string,
-): boolean | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value !== "boolean")
-    throw new Error(`${label} must be a boolean.`);
-  return value;
-}
-
 function assertNever(value: never): never {
   throw new Error(`Unsupported repository mutation: ${JSON.stringify(value)}.`);
 }
@@ -300,135 +116,6 @@ function isPullRequestMutation(
   input: RepositoryMutationRequest,
 ): input is PullRequestMutation {
   return input.type.startsWith("pr-");
-}
-
-function validateWorktreePath(workspaceDir: string, value: unknown): string {
-  if (typeof value !== "string" || value !== value.trim() || !value) {
-    throw new Error("A workspace-relative worktree path is required.");
-  }
-  if (
-    value.length > MAX_WORKTREE_PATH_LENGTH ||
-    isAbsolute(value) ||
-    /^[A-Za-z]:/u.test(value) ||
-    value.includes("\\") ||
-    hasControlCharacters(value)
-  ) {
-    throw new Error("Worktree path must be a safe workspace-relative path.");
-  }
-  let decoded = value;
-  try {
-    for (let index = 0; index < 6; index += 1) {
-      const next = decodeURIComponent(decoded);
-      if (next === decoded) break;
-      decoded = next;
-    }
-  } catch {
-    throw new Error("Worktree path contains invalid encoding.");
-  }
-  if (decoded !== value) {
-    throw new Error("Encoded worktree paths are not accepted.");
-  }
-  if (
-    value
-      .split("/")
-      .some(
-        (segment) =>
-          !segment || segment === "." || segment === ".." || segment === ".git",
-      )
-  ) {
-    throw new Error("Worktree path contains unsafe traversal tokens.");
-  }
-
-  const target = resolveWorkspacePath(workspaceDir, value);
-  if (existsSync(target)) {
-    throw new Error("Worktree path already exists.");
-  }
-
-  let existingAncestor = dirname(target);
-  while (!existsSync(existingAncestor)) {
-    const parent = dirname(existingAncestor);
-    if (parent === existingAncestor) break;
-    existingAncestor = parent;
-  }
-  const realWorkspace = realpathSync(workspaceDir);
-  const realAncestor = realpathSync(existingAncestor);
-  const workspacePrefix = normalize(
-    realWorkspace.endsWith(sep) ? realWorkspace : `${realWorkspace}${sep}`,
-  );
-  if (
-    realAncestor !== realWorkspace &&
-    !realAncestor.startsWith(workspacePrefix)
-  ) {
-    throw new Error("Worktree path must stay inside the configured workspace.");
-  }
-  return target;
-}
-
-function parseStatusRecord(record: string): RepositoryChange | null {
-  if (record.length < 4) return null;
-  const indexStatus = record[0] ?? " ";
-  const worktreeStatus = record[1] ?? " ";
-  const rawPath = record.slice(3);
-  if (!rawPath) return null;
-  const untracked = indexStatus === "?" && worktreeStatus === "?";
-  return {
-    path: rawPath,
-    indexStatus,
-    worktreeStatus,
-    staged: !untracked && indexStatus !== " ",
-    unstaged: untracked || worktreeStatus !== " ",
-    untracked,
-  };
-}
-
-function parseStatusOutput(output: string): RepositoryChange[] {
-  const records = output.split("\0").filter(Boolean);
-  const changes: RepositoryChange[] = [];
-  for (let index = 0; index < records.length; index += 1) {
-    const change = parseStatusRecord(records[index] ?? "");
-    if (!change) continue;
-    const renamed =
-      ["R", "C"].includes(change.indexStatus) ||
-      ["R", "C"].includes(change.worktreeStatus);
-    if (renamed && records[index + 1]) {
-      change.previousPath = records[index + 1];
-      index += 1;
-    }
-    changes.push(change);
-  }
-  return changes;
-}
-
-function parseWorktrees(output: string): RepositoryWorktree[] {
-  if (!output.trim()) return [];
-  return output
-    .split(/\n\s*\n/u)
-    .map((block): RepositoryWorktree | null => {
-      const fields = new Map<string, string>();
-      const flags = new Set<string>();
-      for (const line of block.split("\n")) {
-        const [key, ...rest] = line.trim().split(" ");
-        if (!key) continue;
-        if (rest.length) fields.set(key, rest.join(" "));
-        else flags.add(key);
-      }
-      const path = fields.get("worktree");
-      if (!path) return null;
-      const branchRef = fields.get("branch");
-      const worktree: RepositoryWorktree = {
-        path,
-        detached: flags.has("detached"),
-        bare: flags.has("bare"),
-        prunable: flags.has("prunable"),
-      };
-      const head = fields.get("HEAD");
-      if (head) worktree.head = head;
-      if (branchRef) {
-        worktree.branch = branchRef.replace(/^refs\/heads\//u, "");
-      }
-      return worktree;
-    })
-    .filter((worktree): worktree is RepositoryWorktree => worktree !== null);
 }
 
 export class RepositoryService {

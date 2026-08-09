@@ -1,11 +1,11 @@
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
-import type { AppContext } from "../packages/agent/src/runtime/bootstrap";
-import { getAppContext } from "../packages/agent/src/runtime/bootstrap";
+import type { AppContext } from "@/runtime/bootstrap";
+import { getAppContext } from "@/runtime/bootstrap";
 import {
   connectLinkedProvider,
   type LinkedProviderName,
   syncProviderSettings,
-} from "../packages/agent/src/runtime/chat";
+} from "@/runtime/chat";
+import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
 
 type SmokeContext = AppContext;
 

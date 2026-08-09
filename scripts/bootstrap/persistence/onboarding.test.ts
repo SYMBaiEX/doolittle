@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_TUI_THEME } from "../../../packages/agent/src/runtime/theme-catalog";
+import { DEFAULT_TUI_THEME } from "@/runtime/theme-catalog";
 import type { NativeOnboardingMirrorResult } from "../answers";
 import type { WizardAnswers } from "../types";
 import { buildBootstrapOnboardingSummary, fingerprint } from "./onboarding";

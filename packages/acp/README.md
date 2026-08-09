@@ -3,6 +3,11 @@
 Doolittle's stable ACP v1 foundation is built on
 `@agentclientprotocol/sdk@1.3.0`.
 
+The package keeps the official wire lifecycle in `src/protocol.ts`, Doolittle's
+registry/editor metadata in `src/registry.ts`, and a public-only barrel in
+`src/index.ts`. This prevents product metadata from becoming coupled to ACP
+request registration while retaining one stable package import.
+
 `createDoolittleAcpAgent()` registers only the stable lifecycle used by
 Doolittle: `initialize`, `session/new`, `session/load`, `session/prompt`,
 `session/update`, and `session/cancel`. Client-side permission, filesystem, and

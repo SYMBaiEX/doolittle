@@ -2,7 +2,7 @@ import {
   getReadableTextColor,
   getTuiTheme,
   type TuiThemeName,
-} from "../../../packages/agent/src/runtime/theme-catalog";
+} from "@/runtime/theme-catalog";
 import {
   WIZARD_MIN_COLS,
   WIZARD_MIN_ROWS,

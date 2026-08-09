@@ -4,6 +4,8 @@ import {
   createSessionEntry,
   extractSessionContext,
   type Media,
+  type MessageMetadata,
+  type SessionContext,
   type SessionEntry,
   type UUID,
 } from "@elizaos/core";
@@ -67,6 +69,21 @@ function attachSdkSessionContext(input: {
   effectiveMessage: string;
 }): void {
   const sessionEntry = createSdkSessionEntry(input);
+  const sessionContext: SessionContext &
+    Pick<SessionEntry, "displayName" | "model" | "modelProvider" | "origin"> = {
+    sessionId: sessionEntry.sessionId,
+    sessionKey: input.sessionKey,
+    isNewSession: false,
+    updatedAt: sessionEntry.updatedAt,
+    label: sessionEntry.label,
+    sendPolicy: sessionEntry.sendPolicy,
+    chatType: sessionEntry.chatType,
+    channel: sessionEntry.channel,
+    displayName: sessionEntry.displayName,
+    model: sessionEntry.model,
+    modelProvider: sessionEntry.modelProvider,
+    origin: sessionEntry.origin,
+  };
   const memoryRecord = input.memory as typeof input.memory & {
     sessionId?: string;
     sessionKey?: string;
@@ -74,17 +91,19 @@ function attachSdkSessionContext(input: {
 
   memoryRecord.sessionId = input.turn.sessionId;
   memoryRecord.sessionKey = input.sessionKey;
-  input.memory.metadata = {
+  const metadata: MessageMetadata = {
     ...(input.memory.metadata ?? {}),
+    type: "message",
     sessionId: input.turn.sessionId,
     sessionKey: input.sessionKey,
-    session: sessionEntry,
+    session: sessionContext,
     doolittle: {
       userId: input.userId,
       rawMessage: input.effectiveMessage,
       source: input.turn.connectionSource,
     },
-  } as unknown as typeof input.memory.metadata;
+  };
+  input.memory.metadata = metadata;
 
   extractSessionContext(input.memory);
 }
@@ -146,7 +165,7 @@ export async function runProviderModelTurn(
 }> {
   const memory = createProviderMessageMemory(input, executionContext);
   const sessionKey =
-    (memory as typeof memory & { sessionKey?: string }).sessionKey ??
+    memory.sessionKey ??
     resolveSdkSessionKey(input.context, input.turn.sessionId);
   const runtimeSettings = buildProviderRuntimeSettings(
     input.context,

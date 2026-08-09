@@ -1,4 +1,4 @@
-import { RUN_DEPTH_ITERATION_PRESETS } from "../../packages/agent/src/types";
+import { RUN_DEPTH_ITERATION_PRESETS } from "@/types";
 import type { BootstrapWizardContext } from "./bootstrap-context";
 import { chooseOne } from "./core/prompt-ops";
 import { applyExecutionFlowResult } from "./execution-flow/helpers";

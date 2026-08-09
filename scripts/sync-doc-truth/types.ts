@@ -1,4 +1,4 @@
-import type { NativeCapabilityTruthRecord } from "../../packages/agent/src/runtime/native/capability-truth";
+import type { NativeCapabilityTruthRecord } from "@/runtime/native/capability-truth";
 
 export interface PluginInventoryRow {
   id: string;

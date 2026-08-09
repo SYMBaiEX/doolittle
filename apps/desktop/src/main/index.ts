@@ -14,6 +14,7 @@ import {
   Tray,
 } from "electron";
 import type { DesktopCommand, WorkspacePickResult } from "../shared/contracts";
+import { desktopIpcChannels } from "../shared/ipc-channels";
 import { importSelectedAttachments } from "./attachment-import";
 import {
   BackendManager,
@@ -63,7 +64,7 @@ function sendAppCommand(command: DesktopCommand): void {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   if (!mainWindow.isVisible()) mainWindow.show();
   mainWindow.focus();
-  mainWindow.webContents.send("app:command", command);
+  mainWindow.webContents.send(desktopIpcChannels.event.appCommand, command);
 }
 
 function showBackgroundNotification({

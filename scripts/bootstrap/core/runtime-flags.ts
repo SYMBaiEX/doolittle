@@ -2,7 +2,7 @@ import {
   RUN_DEPTH_ITERATION_PRESETS,
   type RunDepth,
   type ToolProgressMode,
-} from "../../../packages/agent/src/types";
+} from "@/types";
 
 export function resolveRunDepth(value?: string | null): RunDepth {
   if (
