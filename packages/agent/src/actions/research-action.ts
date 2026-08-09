@@ -40,6 +40,12 @@ export interface DoolittleResearchActionData {
   sources: DoolittleResearchSource[];
 }
 
+type CancellableResearchParams = {
+  input: string;
+  tools: Array<{ type: "web_search_preview" }>;
+  signal?: AbortSignal;
+};
+
 export type DoolittleResearchRuntime = Pick<
   IAgentRuntime,
   "getModel" | "useModel"
@@ -133,17 +139,25 @@ export async function runDoolittleResearch(
   runtime: DoolittleResearchRuntime,
   question: string,
   conversationId?: string,
+  signal?: AbortSignal,
 ): Promise<DoolittleResearchRun> {
+  signal?.throwIfAborted();
   if (!runtime.getModel(ModelType.RESEARCH)) {
     throw new Error(
       "Deep research is unavailable: no RESEARCH model is registered. Select an authenticated OpenAI or Eliza Cloud provider to use deep research.",
     );
   }
 
-  const result = await runtime.useModel(ModelType.RESEARCH, {
+  const params: CancellableResearchParams = {
     input: buildResearchInput(question, conversationId),
     tools: [{ type: "web_search_preview" }],
-  });
+    ...(signal ? { signal } : {}),
+  };
+  // beta.7 accepts and forwards structurally extended model parameters even
+  // though ResearchParams does not yet declare signal. Providers from the
+  // upstream cancellation PR consume it; older providers safely ignore it.
+  const result = await runtime.useModel(ModelType.RESEARCH, params);
+  signal?.throwIfAborted();
   const sources = sourcesFromAnnotations(result.annotations ?? []);
   return {
     report: `${result.text}${renderSources(sources)}`,
@@ -191,6 +205,7 @@ export function createResearchAction(): Action {
           runtime,
           question,
           message.roomId,
+          (options as { abortSignal?: AbortSignal } | undefined)?.abortSignal,
         );
         const report = research.report;
         await callback?.({ text: report, source: "research-action" });

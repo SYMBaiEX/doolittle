@@ -21,6 +21,33 @@ export interface McpToolSummary {
   inputCount: number;
 }
 
+export interface McpMarketplaceSummary {
+  name: string;
+  title: string;
+  description: string;
+  version: string;
+  connectionType: string;
+  repositoryUrl: string;
+  isLatest: boolean;
+}
+
+export interface McpMarketplaceRequirement {
+  name: string;
+  description: string;
+  required: boolean;
+  secret: boolean;
+}
+
+export interface McpMarketplaceDetail {
+  name: string;
+  version: string;
+  repositoryUrl: string;
+  transports: string[];
+  environment: McpMarketplaceRequirement[];
+  headers: McpMarketplaceRequirement[];
+  config: unknown;
+}
+
 interface McpStatus {
   enabled?: boolean;
   detail?: string;
@@ -56,6 +83,23 @@ interface McpToolsResponse {
 interface McpToolResponse {
   tool?: unknown;
   detail?: string;
+}
+
+interface McpMarketplaceSearchResponse {
+  marketplace?: {
+    available?: boolean;
+    results?: unknown[];
+    error?: string;
+  };
+}
+
+interface McpMarketplaceDetailResponse {
+  marketplace?: {
+    available?: boolean;
+    server?: unknown;
+    config?: unknown;
+    error?: string;
+  };
 }
 
 export function normalizeMcpTools(value: unknown): McpToolSummary[] {
@@ -95,6 +139,88 @@ export function normalizeMcpServers(value: unknown): McpServerSummary[] {
     .filter((server): server is McpServerSummary => server !== null);
 }
 
+export function normalizeMcpMarketplace(
+  value: unknown,
+): McpMarketplaceSummary[] {
+  return asArray(value)
+    .map((entry): McpMarketplaceSummary | null => {
+      const record = asRecord(entry);
+      const name = asString(record.name).trim();
+      if (!name) return null;
+      return {
+        name,
+        title: asString(record.title, name),
+        description: asString(record.description, "No description provided."),
+        version: asString(record.version, "Unknown"),
+        connectionType: asString(record.connectionType, "unknown"),
+        repositoryUrl: safeHttpUrl(record.repositoryUrl),
+        isLatest: record.isLatest === true,
+      };
+    })
+    .filter((server): server is McpMarketplaceSummary => server !== null);
+}
+
+function normalizeMarketplaceRequirements(
+  value: unknown,
+): McpMarketplaceRequirement[] {
+  return asArray(value)
+    .map((entry): McpMarketplaceRequirement | null => {
+      const record = asRecord(entry);
+      const name = asString(record.name).trim();
+      if (!name) return null;
+      return {
+        name,
+        description: asString(record.description),
+        required: record.isRequired === true,
+        secret: record.isSecret === true,
+      };
+    })
+    .filter(
+      (requirement): requirement is McpMarketplaceRequirement =>
+        requirement !== null,
+    );
+}
+
+export function normalizeMcpMarketplaceDetail(
+  server: unknown,
+  config: unknown,
+): McpMarketplaceDetail | undefined {
+  const record = asRecord(server);
+  const name = asString(record.name).trim();
+  if (!name) return undefined;
+  const remotes = asArray(record.remotes).map(asRecord);
+  const packages = asArray(record.packages).map(asRecord);
+  return {
+    name,
+    version: asString(record.version, "Unknown"),
+    repositoryUrl: safeHttpUrl(asRecord(record.repository).url),
+    transports: [
+      ...remotes.map((remote) => asString(remote.type, "streamable-http")),
+      ...packages.map((entry) =>
+        asString(asRecord(entry.transport).type, "stdio"),
+      ),
+    ].filter(Boolean),
+    environment: packages.flatMap((entry) =>
+      normalizeMarketplaceRequirements(entry.environmentVariables),
+    ),
+    headers: remotes.flatMap((remote) =>
+      normalizeMarketplaceRequirements(remote.headers),
+    ),
+    config,
+  };
+}
+
+function safeHttpUrl(value: unknown): string {
+  const url = asString(value).trim();
+  if (!url) return "";
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" ? parsed.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
 export function mcpStatusLabel(status: McpStatus | undefined): string {
   if (!status) return "Checking";
   if (!status.enabled) return "Not configured";
@@ -131,6 +257,21 @@ export function McpControlPanel({ active }: { active: boolean }) {
   );
   const [probing, setProbing] = useState(false);
   const [probeNotice, setProbeNotice] = useState("");
+  const [marketplaceDraft, setMarketplaceDraft] = useState("");
+  const [marketplaceQuery, setMarketplaceQuery] = useState("");
+  const [marketplaceName, setMarketplaceName] = useState("");
+  const marketplace = useApiResource<McpMarketplaceSearchResponse>(
+    active && marketplaceQuery
+      ? `/mcp/marketplace?query=${encodeURIComponent(marketplaceQuery)}&limit=12`
+      : null,
+    [active, marketplaceQuery],
+  );
+  const marketplaceDetail = useApiResource<McpMarketplaceDetailResponse>(
+    active && marketplaceName
+      ? `/mcp/marketplace/server?name=${encodeURIComponent(marketplaceName)}`
+      : null,
+    [active, marketplaceName],
+  );
 
   const bridge = status.data?.mcp;
   const configured = bridge?.enabled === true;
@@ -150,6 +291,14 @@ export function McpControlPanel({ active }: { active: boolean }) {
   const selectedTool = normalizeMcpTools(
     selected.data?.tool ? [selected.data.tool] : [],
   )[0];
+  const marketplaceServers = useMemo(
+    () => normalizeMcpMarketplace(marketplace.data?.marketplace?.results),
+    [marketplace.data?.marketplace?.results],
+  );
+  const selectedMarketplaceServer = normalizeMcpMarketplaceDetail(
+    marketplaceDetail.data?.marketplace?.server,
+    marketplaceDetail.data?.marketplace?.config,
+  );
   const loading = status.loading || cached.loading;
   const staticError = status.error || cached.error;
 
@@ -158,11 +307,19 @@ export function McpControlPanel({ active }: { active: boolean }) {
     cached.reload();
     search.reload();
     selected.reload();
+    marketplace.reload();
+    marketplaceDetail.reload();
   };
 
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
     setToolQuery(draftQuery.trim().slice(0, 256));
+  };
+
+  const submitMarketplaceSearch = (event: FormEvent) => {
+    event.preventDefault();
+    setMarketplaceName("");
+    setMarketplaceQuery(marketplaceDraft.trim().slice(0, 128));
   };
 
   const probe = async () => {
@@ -310,6 +467,158 @@ export function McpControlPanel({ active }: { active: boolean }) {
             </div>
           ) : null}
 
+          <div className="mcp-control-marketplace">
+            <div className="mcp-control-browser-header">
+              <div>
+                <span className="eyebrow">Official MCP Registry via Eliza</span>
+                <h3>Discover MCP servers</h3>
+              </div>
+              <Badge tone="neutral">Preview only</Badge>
+            </div>
+            <p className="mcp-control-marketplace-copy">
+              Results and configuration previews come only from Eliza&apos;s MCP
+              marketplace service. Doolittle does not install packages, execute
+              commands, save credentials, or persist registry configurations
+              from this screen.
+            </p>
+            <form
+              className="mcp-control-search"
+              onSubmit={submitMarketplaceSearch}
+            >
+              <input
+                aria-label="Search official MCP marketplace"
+                maxLength={128}
+                onChange={(event) => setMarketplaceDraft(event.target.value)}
+                placeholder="Search official MCP marketplace"
+                type="search"
+                value={marketplaceDraft}
+              />
+              <button className="secondary-button" type="submit">
+                Search registry
+              </button>
+            </form>
+            {marketplace.loading ? (
+              <LoadingBlock label="Searching the official MCP registry…" />
+            ) : null}
+            {marketplace.error || marketplace.data?.marketplace?.error ? (
+              <Notice tone="bad">
+                Could not search the official MCP registry:{" "}
+                {marketplace.error || marketplace.data?.marketplace?.error}
+              </Notice>
+            ) : null}
+            {marketplaceQuery &&
+            !marketplace.loading &&
+            !marketplace.error &&
+            !marketplace.data?.marketplace?.error &&
+            !marketplaceServers.length ? (
+              <EmptyBlock title="No registry matches">
+                Try a broader server name or capability.
+              </EmptyBlock>
+            ) : null}
+            {marketplaceServers.length ? (
+              <div className="mcp-control-marketplace-grid">
+                <ul
+                  aria-label="Official MCP marketplace servers"
+                  className="mcp-control-tool-list"
+                >
+                  {marketplaceServers.map((server) => (
+                    <li key={server.name}>
+                      <button
+                        aria-pressed={marketplaceName === server.name}
+                        className={
+                          marketplaceName === server.name
+                            ? "selected"
+                            : undefined
+                        }
+                        onClick={() => setMarketplaceName(server.name)}
+                        type="button"
+                      >
+                        <code>{server.title}</code>
+                        <span>{server.description}</span>
+                        <small>
+                          {server.connectionType} · v{server.version}
+                          {server.isLatest ? " · latest" : ""}
+                        </small>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <aside className="mcp-control-detail">
+                  {marketplaceDetail.loading ? (
+                    <LoadingBlock label="Reading registry definition…" />
+                  ) : marketplaceDetail.error ||
+                    marketplaceDetail.data?.marketplace?.error ? (
+                    <Notice tone="bad">
+                      Could not read this registry definition:{" "}
+                      {marketplaceDetail.error ||
+                        marketplaceDetail.data?.marketplace?.error}
+                    </Notice>
+                  ) : selectedMarketplaceServer ? (
+                    <>
+                      <span className="eyebrow">Registry definition</span>
+                      <code>{selectedMarketplaceServer.name}</code>
+                      <p>Version {selectedMarketplaceServer.version}</p>
+                      {selectedMarketplaceServer.repositoryUrl ? (
+                        <a
+                          href={selectedMarketplaceServer.repositoryUrl}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          Repository
+                        </a>
+                      ) : null}
+                      <dl className="mcp-control-requirements">
+                        <div>
+                          <dt>Transport</dt>
+                          <dd>
+                            {selectedMarketplaceServer.transports.join(", ") ||
+                              "Not declared"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Environment</dt>
+                          <dd>
+                            {formatMarketplaceRequirements(
+                              selectedMarketplaceServer.environment,
+                            )}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Headers</dt>
+                          <dd>
+                            {formatMarketplaceRequirements(
+                              selectedMarketplaceServer.headers,
+                            )}
+                          </dd>
+                        </div>
+                      </dl>
+                      <strong>Generated config preview</strong>
+                      <pre>
+                        {selectedMarketplaceServer.config
+                          ? JSON.stringify(
+                              selectedMarketplaceServer.config,
+                              null,
+                              2,
+                            )
+                          : "No supported Eliza MCP configuration was generated."}
+                      </pre>
+                      <small>
+                        Review requirements, add any secret values outside this
+                        UI, then make an explicit settings change and restart
+                        the runtime. This preview never writes configuration.
+                      </small>
+                    </>
+                  ) : (
+                    <p>
+                      Select a registry definition to review its transport,
+                      permissions, and generated Eliza configuration preview.
+                    </p>
+                  )}
+                </aside>
+              </div>
+            ) : null}
+          </div>
+
           <div className="mcp-control-browser">
             <div className="mcp-control-browser-header">
               <div>
@@ -419,4 +728,16 @@ export function McpControlPanel({ active }: { active: boolean }) {
       ) : null}
     </section>
   );
+}
+
+function formatMarketplaceRequirements(
+  requirements: readonly McpMarketplaceRequirement[],
+): string {
+  if (!requirements.length) return "None declared";
+  return requirements
+    .map(
+      (requirement) =>
+        `${requirement.name}${requirement.required ? " (required)" : ""}${requirement.secret ? " (secret)" : ""}`,
+    )
+    .join(", ");
 }

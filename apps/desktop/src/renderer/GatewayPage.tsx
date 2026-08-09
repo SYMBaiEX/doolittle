@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import {
+  approvedPairingSenders,
   buildGatewayTimeline,
   filterGatewayTimeline,
   gatewayStatusTone,
+  pairingRequests,
 } from "./gateway-page-model";
 import {
   asArray,
@@ -34,6 +36,16 @@ interface GatewayHistoryResponse {
 
 interface GatewaySessionsResponse {
   sessions?: unknown[];
+}
+
+interface PairingPendingResponse {
+  requests?: unknown[];
+  truncated?: boolean;
+}
+
+interface PairingApprovedResponse {
+  approved?: unknown[];
+  truncated?: boolean;
 }
 
 type TimelineDirection = "all" | "inbox" | "outbox";
@@ -81,12 +93,22 @@ export function GatewayPage({ active }: { active: boolean }) {
     active ? "/sessions/gateway" : null,
     [active],
   );
+  const pairingPending = useApiResource<PairingPendingResponse>(
+    active ? "/pairing/pending?limit=200" : null,
+    [active],
+  );
+  const pairingApproved = useApiResource<PairingApprovedResponse>(
+    active ? "/pairing/approved?limit=200" : null,
+    [active],
+  );
   const [direction, setDirection] = useState<TimelineDirection>("all");
   const [platform, setPlatform] = useState("all");
   const [query, setQuery] = useState("");
   const [replayingId, setReplayingId] = useState("");
   const [confirmReplayId, setConfirmReplayId] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [pairingAction, setPairingAction] = useState("");
+  const [confirmPairingAction, setConfirmPairingAction] = useState("");
 
   const entries = useMemo(
     () =>
@@ -108,20 +130,64 @@ export function GatewayPage({ active }: { active: boolean }) {
   const localSessions = asArray(sessions.data?.sessions)
     .map(sessionMetadata)
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  const pendingPairings = useMemo(
+    () => pairingRequests(pairingPending.data?.requests),
+    [pairingPending.data?.requests],
+  );
+  const approvedPairings = useMemo(
+    () => approvedPairingSenders(pairingApproved.data?.approved),
+    [pairingApproved.data?.approved],
+  );
   const errors = [
     state.error,
     inbox.error,
     outbox.error,
     sessions.error,
+    pairingPending.error,
+    pairingApproved.error,
   ].filter(Boolean);
   const loading =
-    state.loading || inbox.loading || outbox.loading || sessions.loading;
+    state.loading ||
+    inbox.loading ||
+    outbox.loading ||
+    sessions.loading ||
+    pairingPending.loading ||
+    pairingApproved.loading;
 
   const refresh = () => {
     state.reload();
     inbox.reload();
     outbox.reload();
     sessions.reload();
+    pairingPending.reload();
+    pairingApproved.reload();
+  };
+
+  const updatePairing = async (
+    action: "approve" | "deny" | "revoke",
+    input: { platform: string; code?: string; userId?: string },
+  ) => {
+    const actionId = `${action}:${input.platform}:${input.code ?? input.userId}`;
+    setPairingAction(actionId);
+    setConfirmPairingAction("");
+    setFeedback("");
+    try {
+      await desktopRequest(`/pairing/${action}`, "POST", input);
+      setFeedback(
+        action === "approve"
+          ? "Pairing approved. The sender is now allowed by Eliza PairingService."
+          : action === "deny"
+            ? "Pairing request denied and removed from Eliza PairingService."
+            : "Approved sender revoked from Eliza PairingService.",
+      );
+      refresh();
+    } catch (error) {
+      setFeedback(
+        `Pairing update could not be completed: ${errorMessage(error)}`,
+      );
+    } finally {
+      setPairingAction("");
+    }
   };
 
   const replay = async (recordId: string) => {
@@ -200,6 +266,11 @@ export function GatewayPage({ active }: { active: boolean }) {
           label="Thread routes"
           value={localSessions.length}
           detail="Local session route records"
+        />
+        <MetricCard
+          label="Pairing requests"
+          value={pendingPairings.length}
+          detail="Awaiting local operator approval"
         />
       </div>
 
@@ -390,6 +461,189 @@ export function GatewayPage({ active }: { active: boolean }) {
           )}
         </aside>
       </div>
+
+      <section className="panel pairing-panel" aria-labelledby="pairing-title">
+        <div className="panel-heading gateway-heading">
+          <div>
+            <span className="eyebrow">Secure device access</span>
+            <h2 id="pairing-title">Paired sender approvals</h2>
+          </div>
+          <span className="muted-copy">
+            Eliza PairingService · local control
+          </span>
+        </div>
+        <Notice announce="off" tone="neutral">
+          <span>
+            This approves messaging-platform senders, not remote desktop access.
+            Pending requests expire under the Eliza runtime policy; the public
+            service does not expose a per-request expiry timestamp.
+          </span>
+        </Notice>
+        {pairingPending.data?.truncated || pairingApproved.data?.truncated ? (
+          <Notice announce="off" tone="warn">
+            Showing the newest 200 pairing records. Filter by platform through
+            the API to inspect a narrower allowlist safely.
+          </Notice>
+        ) : null}
+        <div className="pairing-columns">
+          <section aria-labelledby="pairing-pending-title">
+            <div className="pairing-section-heading">
+              <div>
+                <span className="eyebrow">Pending</span>
+                <h3 id="pairing-pending-title">Awaiting approval</h3>
+              </div>
+              <Badge tone={pendingPairings.length ? "warn" : "neutral"}>
+                {pendingPairings.length}
+              </Badge>
+            </div>
+            {!pendingPairings.length ? (
+              <EmptyBlock title="No pending pairing requests">
+                New sender requests will appear here after Eliza receives them.
+              </EmptyBlock>
+            ) : (
+              <ul className="pairing-list">
+                {pendingPairings.map((request) => {
+                  const approveId = `approve:${request.platform}:${request.code}`;
+                  const denyId = `deny:${request.platform}:${request.code}`;
+                  const confirmationId = confirmPairingAction;
+                  const actionId = pairingAction;
+                  return (
+                    <li key={request.id}>
+                      <Badge tone="warn">{titleCase(request.platform)}</Badge>
+                      <strong>{request.userId}</strong>
+                      <span>Code: {request.code}</span>
+                      <time dateTime={request.createdAt}>
+                        Requested {displayTimestamp(request.createdAt)}
+                      </time>
+                      <div className="pairing-actions">
+                        {confirmationId === approveId ||
+                        confirmationId === denyId ? (
+                          <button
+                            className="text-button"
+                            disabled={Boolean(actionId)}
+                            onClick={() => setConfirmPairingAction("")}
+                            type="button"
+                          >
+                            Cancel
+                          </button>
+                        ) : null}
+                        <button
+                          className={
+                            confirmationId === approveId
+                              ? "primary-button"
+                              : "secondary-button"
+                          }
+                          disabled={Boolean(actionId)}
+                          onClick={() => {
+                            if (confirmationId === approveId) {
+                              void updatePairing("approve", request);
+                            } else {
+                              setConfirmPairingAction(approveId);
+                            }
+                          }}
+                          type="button"
+                        >
+                          {actionId === approveId
+                            ? "Approving…"
+                            : confirmationId === approveId
+                              ? "Confirm approve"
+                              : "Approve"}
+                        </button>
+                        <button
+                          className={
+                            confirmationId === denyId
+                              ? "danger-button"
+                              : "secondary-button"
+                          }
+                          disabled={Boolean(actionId)}
+                          onClick={() => {
+                            if (confirmationId === denyId) {
+                              void updatePairing("deny", request);
+                            } else {
+                              setConfirmPairingAction(denyId);
+                            }
+                          }}
+                          type="button"
+                        >
+                          {actionId === denyId
+                            ? "Denying…"
+                            : confirmationId === denyId
+                              ? "Confirm deny"
+                              : "Deny"}
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+          <section aria-labelledby="pairing-approved-title">
+            <div className="pairing-section-heading">
+              <div>
+                <span className="eyebrow">Approved</span>
+                <h3 id="pairing-approved-title">Current allowlist</h3>
+              </div>
+              <Badge tone="good">{approvedPairings.length}</Badge>
+            </div>
+            {!approvedPairings.length ? (
+              <EmptyBlock title="No approved senders">
+                Approvals remain in Eliza’s own allowlist and appear here when
+                the service exposes them.
+              </EmptyBlock>
+            ) : (
+              <ul className="pairing-list">
+                {approvedPairings.map((sender) => {
+                  const revokeId = `revoke:${sender.platform}:${sender.userId}`;
+                  return (
+                    <li key={sender.id}>
+                      <Badge tone="good">{titleCase(sender.platform)}</Badge>
+                      <strong>{sender.userId}</strong>
+                      <time dateTime={sender.approvedAt}>
+                        Approved {displayTimestamp(sender.approvedAt)}
+                      </time>
+                      <div className="pairing-actions">
+                        {confirmPairingAction === revokeId ? (
+                          <button
+                            className="text-button"
+                            disabled={Boolean(pairingAction)}
+                            onClick={() => setConfirmPairingAction("")}
+                            type="button"
+                          >
+                            Cancel
+                          </button>
+                        ) : null}
+                        <button
+                          className={
+                            confirmPairingAction === revokeId
+                              ? "danger-button"
+                              : "secondary-button"
+                          }
+                          disabled={Boolean(pairingAction)}
+                          onClick={() => {
+                            if (confirmPairingAction === revokeId) {
+                              void updatePairing("revoke", sender);
+                            } else {
+                              setConfirmPairingAction(revokeId);
+                            }
+                          }}
+                          type="button"
+                        >
+                          {pairingAction === revokeId
+                            ? "Revoking…"
+                            : confirmPairingAction === revokeId
+                              ? "Confirm revoke"
+                              : "Revoke"}
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        </div>
+      </section>
     </section>
   );
 }

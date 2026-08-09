@@ -64,7 +64,11 @@ export type ActivityEventKind =
   | "automation"
   | "delegation"
   | "approval"
-  | "delivery";
+  | "delivery"
+  | "terminal"
+  | "repository-change"
+  | "codegen"
+  | "log";
 
 export type ActivityEventStatus =
   | "pending"
@@ -77,13 +81,18 @@ export type ActivityEventStatus =
   | "denied"
   | "expired"
   | "used"
-  | "delivered";
+  | "delivered"
+  | "recorded";
 
 export type ActivityEventTarget =
   | "chat"
   | "review"
   | "automations"
-  | "orchestration";
+  | "orchestration"
+  | "terminal"
+  | "workspace"
+  | "codegen"
+  | "operations";
 
 export interface ActivityEvent {
   id: string;
@@ -101,6 +110,16 @@ export interface ActivityFeedResponse {
   events: ActivityEvent[];
   cursor: string | null;
   updatedAt: string | null;
+}
+
+export interface ActivityExportResponse {
+  schemaVersion: 1;
+  generatedAt: string;
+  redaction: "summary-only";
+  byteLimit: number;
+  byteLength: number;
+  truncated: boolean;
+  events: Array<Omit<ActivityEvent, "id" | "sourceId" | "sessionId">>;
 }
 
 export interface SessionSearchHit {

@@ -44,12 +44,27 @@ export interface RuntimeModelProvider {
   detail: string;
   models: RuntimeModelOption[];
 }
+export type RuntimeModelCapabilityId =
+  | "chat"
+  | "research"
+  | "image"
+  | "speech"
+  | "transcription";
+export interface RuntimeModelCapability {
+  id: RuntimeModelCapabilityId;
+  label: string;
+  modelType: string;
+  handlerRegistered: boolean;
+  state: "available" | "unavailable";
+  detail: string;
+}
 export interface RuntimeModelsResponse {
   activeProvider: string;
   activeModel: string;
   activeReasoningEffort?: RuntimeReasoningEffort;
   refreshedAt: string;
   providers: RuntimeModelProvider[];
+  capabilities: RuntimeModelCapability[];
 }
 export interface PluginsResponse {
   catalog?: unknown[];

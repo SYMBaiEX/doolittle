@@ -16,6 +16,7 @@ export const envSchema = z.object({
   DOOLITTLE_PORT: z.coerce.number().int().nonnegative().default(3000),
   DOOLITTLE_DATA_DIR: z.string().default(".doolittle"),
   DOOLITTLE_SKILLS_DIR: z.string().default("./packages/skills"),
+  DOOLITTLE_EXTENSION_ALLOWLIST: z.string().default(""),
   DOOLITTLE_TIMEZONE: z.string().default("America/Chicago"),
   ELIZAOS_CLOUD_API_KEY: z.string().optional(),
   ELIZAOS_CLOUD_ENABLED: strictEnvBoolean(false),

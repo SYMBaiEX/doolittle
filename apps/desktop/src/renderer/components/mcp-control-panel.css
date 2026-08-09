@@ -61,7 +61,8 @@
 }
 
 .mcp-control-summary > div,
-.mcp-control-browser {
+.mcp-control-browser,
+.mcp-control-marketplace {
   min-width: 0;
   padding: 13px;
   background: color-mix(in srgb, var(--surface) 76%, transparent);
@@ -76,6 +77,63 @@
   background: color-mix(in srgb, var(--surface) 76%, transparent);
   border: 1px solid var(--border);
   border-radius: 4px;
+}
+
+.mcp-control-marketplace {
+  display: grid;
+  gap: 11px;
+}
+
+.mcp-control-marketplace h3 {
+  margin: 3px 0 0;
+  font-size: 15px;
+}
+
+.mcp-control-marketplace-copy {
+  max-width: 760px;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.mcp-control-marketplace-grid {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.9fr) minmax(300px, 1.1fr);
+  gap: 10px;
+}
+
+.mcp-control-detail a {
+  width: fit-content;
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.mcp-control-requirements {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0;
+}
+
+.mcp-control-requirements div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.mcp-control-requirements dt {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+
+.mcp-control-requirements dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
 }
 
 .mcp-control-servers h3 {
@@ -281,7 +339,8 @@
   }
 
   .mcp-control-summary,
-  .mcp-control-tool-grid {
+  .mcp-control-tool-grid,
+  .mcp-control-marketplace-grid {
     grid-template-columns: 1fr;
   }
 }

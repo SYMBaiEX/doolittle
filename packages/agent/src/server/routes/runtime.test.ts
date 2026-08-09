@@ -1,7 +1,7 @@
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleRuntimeRoutes } from "@/server/routes/runtime/index";
 
@@ -71,6 +71,11 @@ function createContext() {
         compatibility: async () => ({ ok: true }),
         searchRegistry: async (query: string) => ({ query, mode: "search" }),
         registry: async (refresh: boolean) => ({ refresh, mode: "registry" }),
+        installRegistryExtension: async (input: unknown) => ({
+          ok: true,
+          status: 200,
+          input,
+        }),
       },
       ecosystem: {
         optionalSkillPacks: () => ["pack-optional"],
@@ -207,6 +212,70 @@ describe("handleRuntimeRoutes", () => {
     await expect(response?.json()).resolves.toEqual({
       query: "browser",
       mode: "search",
+    });
+  });
+
+  it("bounds registry search and refreshes before a combined hard-refresh query", async () => {
+    const context = createContext();
+    const registry = vi.spyOn(context.services.agentSdk, "registry");
+    const searchRegistry = vi.spyOn(
+      context.services.agentSdk,
+      "searchRegistry",
+    );
+
+    const refreshed = await handleRuntimeRoutes(
+      context,
+      new Request(
+        "http://localhost/runtime/registry?query=browser&refresh=true",
+      ),
+      new URL("http://localhost/runtime/registry?query=browser&refresh=true"),
+    );
+    expect(refreshed?.status).toBe(200);
+    expect(registry).toHaveBeenCalledWith(true);
+    expect(searchRegistry).toHaveBeenCalledWith("browser");
+
+    const oversized = await handleRuntimeRoutes(
+      context,
+      new Request(`http://localhost/runtime/registry?query=${"x".repeat(129)}`),
+      new URL(`http://localhost/runtime/registry?query=${"x".repeat(129)}`),
+    );
+    expect(oversized?.status).toBe(400);
+  });
+
+  it("requires explicit approval and delegates registry installation", async () => {
+    const context = createContext();
+    const rejected = await handleRuntimeRoutes(
+      context,
+      new Request("http://localhost/runtime/registry/install", {
+        method: "POST",
+        body: JSON.stringify({ name: "@elizaos/plugin-browser" }),
+      }),
+      new URL("http://localhost/runtime/registry/install"),
+    );
+    expect(rejected?.status).toBe(400);
+
+    const approved = await handleRuntimeRoutes(
+      context,
+      new Request("http://localhost/runtime/registry/install", {
+        method: "POST",
+        body: JSON.stringify({
+          name: "@elizaos/plugin-browser",
+          packageName: "@elizaos/plugin-browser",
+          version: "2.0.3-beta.7",
+          approved: true,
+        }),
+      }),
+      new URL("http://localhost/runtime/registry/install"),
+    );
+    expect(approved?.status).toBe(200);
+    await expect(approved?.json()).resolves.toMatchObject({
+      ok: true,
+      input: {
+        name: "@elizaos/plugin-browser",
+        packageName: "@elizaos/plugin-browser",
+        version: "2.0.3-beta.7",
+        approved: true,
+      },
     });
   });
 

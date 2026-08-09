@@ -169,12 +169,89 @@
   overflow-wrap: anywhere;
 }
 
+.pairing-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.pairing-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.pairing-columns > section {
+  min-width: 0;
+}
+
+.pairing-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pairing-section-heading h3 {
+  margin: 3px 0 0;
+  font-size: 14px;
+}
+
+.pairing-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pairing-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 5px 9px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pairing-list strong,
+.pairing-list span,
+.pairing-list time {
+  overflow-wrap: anywhere;
+}
+
+.pairing-list span,
+.pairing-list time {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.pairing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: 7px;
+  padding-top: 3px;
+}
+
+.pairing-actions .primary-button,
+.pairing-actions .secondary-button,
+.pairing-actions .danger-button {
+  min-height: 29px;
+  font-size: 11px;
+}
+
 @media (max-width: 1060px) {
   .gateway-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .gateway-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .pairing-columns {
     grid-template-columns: 1fr;
   }
 }

@@ -81,7 +81,7 @@ function createPairingRuntime() {
     requestTtlMs: 60_000,
   });
 
-  return { runtime, requests, allowlist };
+  return { runtime, requests, allowlist, pairingService };
 }
 
 describe("GatewayPairingProjection", () => {
@@ -144,6 +144,136 @@ describe("GatewayPairingProjection", () => {
     const discord = await projection.listPending("discord");
     await projection.deny("discord", discord[0]?.code ?? "");
     expect(requests).toHaveLength(0);
+  });
+
+  it("lists and revokes only the official Eliza allowlist", async () => {
+    const { runtime, allowlist } = createPairingRuntime();
+    const projection = new GatewayPairingProjection(["telegram", "discord"]);
+    projection.bindRuntime(runtime);
+
+    const request = await projection.checkOrRequest("telegram", "alice");
+    await projection.approve("telegram", request.pairingCode ?? "");
+
+    await expect(projection.listApproved()).resolves.toMatchObject([
+      { platform: "telegram", userId: "alice", status: "approved" },
+    ]);
+    await expect(projection.revoke("telegram", "alice")).resolves.toMatchObject(
+      {
+        platform: "telegram",
+        userId: "alice",
+        status: "approved",
+      },
+    );
+    expect(allowlist).toHaveLength(0);
+    await expect(projection.revoke("telegram", "alice")).rejects.toThrow(
+      "No approved pairing sender found",
+    );
+  });
+
+  it("uses the official bounded paging APIs when the installed Eliza release exposes them", async () => {
+    const { runtime, requests, allowlist, pairingService } =
+      createPairingRuntime();
+    const projection = new GatewayPairingProjection(["telegram"]);
+    projection.bindRuntime(runtime);
+
+    const approvalRequest = await projection.checkOrRequest(
+      "telegram",
+      "approved-0",
+    );
+    await projection.approve("telegram", approvalRequest.pairingCode ?? "");
+    const firstApproved = allowlist[0];
+    if (!firstApproved) throw new Error("Expected an approved pairing sender.");
+    for (let index = 1; index < 125; index += 1) {
+      allowlist.push({
+        ...firstApproved,
+        id: `00000000-0000-0000-0001-${String(index).padStart(12, "0")}` as UUID,
+        senderId: `approved-${index}`,
+        createdAt: new Date(Date.now() + index),
+      });
+    }
+    await projection.checkOrRequest("telegram", "pending-0");
+    const firstPending = requests[0];
+    if (!firstPending) throw new Error("Expected a pending pairing request.");
+    for (let index = 1; index < 125; index += 1) {
+      requests.push({
+        ...firstPending,
+        id: `00000000-0000-0000-0002-${String(index).padStart(12, "0")}` as UUID,
+        senderId: `pending-${index}`,
+        createdAt: new Date(Date.now() + index),
+      });
+    }
+
+    const pendingCalls: Array<{ limit: number; offset: number }> = [];
+    const approvedCalls: Array<{ limit: number; offset: number }> = [];
+    const service = pairingService as PairingService & {
+      listPendingRequestsPage: (
+        channel: string,
+        options: { limit: number; offset: number },
+      ) => Promise<{
+        items: PairingRequest[];
+        limit: number;
+        offset: number;
+        hasMore: boolean;
+        nextOffset: number | null;
+      }>;
+      getAllowlistPage: (
+        channel: string,
+        options: { limit: number; offset: number },
+      ) => Promise<{
+        items: PairingAllowlistEntry[];
+        limit: number;
+        offset: number;
+        hasMore: boolean;
+        nextOffset: number | null;
+      }>;
+    };
+    service.listPendingRequestsPage = async (_channel, options) => {
+      pendingCalls.push(options);
+      const items = [...requests]
+        .reverse()
+        .slice(options.offset, options.offset + options.limit);
+      const nextOffset = options.offset + items.length;
+      return {
+        items,
+        ...options,
+        hasMore: nextOffset < requests.length,
+        nextOffset: nextOffset < requests.length ? nextOffset : null,
+      };
+    };
+    service.getAllowlistPage = async (_channel, options) => {
+      approvedCalls.push(options);
+      const items = [...allowlist]
+        .reverse()
+        .slice(options.offset, options.offset + options.limit);
+      const nextOffset = options.offset + items.length;
+      return {
+        items,
+        ...options,
+        hasMore: nextOffset < allowlist.length,
+        nextOffset: nextOffset < allowlist.length ? nextOffset : null,
+      };
+    };
+    service.listPendingRequests = async () => {
+      throw new Error("legacy pending array API should not be called");
+    };
+    service.getAllowlist = async () => {
+      throw new Error("legacy allowlist array API should not be called");
+    };
+
+    await expect(projection.listPending("telegram", 121)).resolves.toHaveLength(
+      121,
+    );
+    await expect(
+      projection.listApproved("telegram", 121),
+    ).resolves.toHaveLength(121);
+    expect(pendingCalls).toEqual([
+      { limit: 100, offset: 0 },
+      { limit: 21, offset: 100 },
+    ]);
+    expect(approvedCalls).toEqual([
+      { limit: 100, offset: 0 },
+      { limit: 21, offset: 100 },
+    ]);
   });
 
   it("fails closed before the official runtime is bound", async () => {

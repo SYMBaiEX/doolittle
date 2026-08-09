@@ -15,6 +15,7 @@ import { readBoundedResponseText } from "./runtime-http";
 
 const API_ORIGIN = "http://desktop.local";
 const API_TIMEOUT_MS = 15_000;
+const EXTENSION_INSTALL_TIMEOUT_MS = 120_000;
 const RUNTIME_TRANSITION_TIMEOUT_MS = 45_000;
 const MAX_API_BODY_BYTES = 1_000_000;
 const MAX_API_RESPONSE_BYTES = 2_000_000;
@@ -124,7 +125,11 @@ export async function fetchBackendApi(
     try {
       const response = await fetchImplementation(`${state.url}${path}`, {
         ...init,
-        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+        signal: AbortSignal.timeout(
+          path === "/runtime/registry/install"
+            ? EXTENSION_INSTALL_TIMEOUT_MS
+            : API_TIMEOUT_MS,
+        ),
       });
       const latest = backend.getState();
       if (
@@ -209,7 +214,56 @@ const GATEWAY_TRACE_KINDS = [
   "reject",
   "lifecycle",
 ] as const;
+const PAIRING_PLATFORMS = [
+  "telegram",
+  "discord",
+  "slack",
+  "whatsapp",
+  "signal",
+  "matrix",
+  "email",
+  "sms",
+  "mattermost",
+  "homeassistant",
+  "dingtalk",
+] as const;
 const TOOL_PROFILE_IDS = ["minimal", "coding", "messaging", "full"] as const;
+const MCP_MARKETPLACE_SERVER_NAME = /^[\w./@-]+$/u;
+const ACTIVITY_KINDS = [
+  "chat-run",
+  "automation",
+  "delegation",
+  "approval",
+  "delivery",
+  "terminal",
+  "repository-change",
+  "codegen",
+  "log",
+] as const;
+const ACTIVITY_STATUSES = [
+  "pending",
+  "running",
+  "succeeded",
+  "failed",
+  "cancelled",
+  "skipped",
+  "approved",
+  "denied",
+  "expired",
+  "used",
+  "delivered",
+  "recorded",
+] as const;
+const ACTIVITY_TARGETS = [
+  "chat",
+  "review",
+  "automations",
+  "orchestration",
+  "terminal",
+  "workspace",
+  "codegen",
+  "operations",
+] as const;
 
 const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   GET: [
@@ -217,10 +271,27 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     { exact: "/commands/catalog" },
     {
       exact: "/activity",
-      allowedQueries: ["limit", "after"],
-      validateQuery: (query) =>
-        validateIntegerQuery(query, "limit", { min: 1, max: 200 }) &&
-        validateTextQuery(query, "after", { maxLength: 1_024 }),
+      allowedQueries: [
+        "limit",
+        "after",
+        "kind",
+        "status",
+        "target",
+        "sessionId",
+      ],
+      validateQuery: validateActivityFilters,
+    },
+    {
+      exact: "/activity/export",
+      allowedQueries: [
+        "limit",
+        "after",
+        "kind",
+        "status",
+        "target",
+        "sessionId",
+      ],
+      validateQuery: validateActivityFilters,
     },
     { exact: "/runtime/status" },
     { exact: "/runtime/e2b" },
@@ -234,7 +305,13 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     { exact: "/runtime/plugins" },
     { exact: "/runtime/accounts" },
     { exact: "/runtime/account-pool" },
-    { exact: "/runtime/registry", allowedQueries: ["query", "refresh"] },
+    {
+      exact: "/runtime/registry",
+      allowedQueries: ["query", "refresh"],
+      validateQuery: (query) =>
+        validateTextQuery(query, "query", { maxLength: 128 }) &&
+        validateEnumQuery(query, "refresh", ["true", "false", "1", "0"]),
+    },
     { exact: "/runtime/compatibility" },
     { exact: "/runtime/ecosystem", allowedQueries: ["refresh"] },
     { exact: "/insights" },
@@ -357,6 +434,18 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
         validateIntegerQuery(query, "limit", { min: 1, max: 100 }),
     },
     {
+      exact: "/mcp/marketplace",
+      allowedQueries: ["query", "limit"],
+      validateQuery: (query) =>
+        validateTextQuery(query, "query", { required: true, maxLength: 128 }) &&
+        validateIntegerQuery(query, "limit", { min: 1, max: 20 }),
+    },
+    {
+      exact: "/mcp/marketplace/server",
+      allowedQueries: ["name"],
+      validateQuery: (query) => validateMcpMarketplaceServerName(query),
+    },
+    {
       exact: "/acp/sessions",
       allowedQueries: ["limit"],
       validateQuery: (query) =>
@@ -404,6 +493,16 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
       validateQuery: validateGatewayFilters,
     },
     { exact: "/sessions/gateway" },
+    {
+      exact: "/pairing/pending",
+      allowedQueries: ["platform", "limit"],
+      validateQuery: validatePairingFilters,
+    },
+    {
+      exact: "/pairing/approved",
+      allowedQueries: ["platform", "limit"],
+      validateQuery: validatePairingFilters,
+    },
     {
       exact: "/profiles/users/recall",
       allowedQueries: ["userId", "query"],
@@ -526,6 +625,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   ],
   POST: [
     { exact: "/settings" },
+    { exact: "/runtime/registry/install" },
     { exact: "/e2b/sandboxes" },
     { exact: "/e2b/execute" },
     { exact: "/e2b/kill" },
@@ -545,6 +645,9 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     { exact: "/acp/probe" },
     { exact: "/mcp/probe" },
     { exact: "/gateway/replay" },
+    { exact: "/pairing/approve" },
+    { exact: "/pairing/deny" },
+    { exact: "/pairing/revoke" },
     { exact: "/theme" },
     { exact: "/personality" },
     { exact: "/skills/proposals" },
@@ -626,6 +729,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
         matchesResourceActionPath(pathname, "/plans", ["approve", "steer"]),
     },
     { exact: "/delegation/tasks" },
+    { exact: "/delegation/tasks/start-coding" },
     { exact: "/delegation/supervise" },
     {
       predicate: (pathname) =>
@@ -887,6 +991,29 @@ function validateTextQuery(
   );
 }
 
+function validateMcpMarketplaceServerName(query: URLSearchParams): boolean {
+  if (!hasOnlyOneValue(query, "name")) return false;
+  const rawName = query.get("name");
+  const name = rawName ? fullyDecodeComponent(rawName) : null;
+  return Boolean(
+    name &&
+      name.length <= 256 &&
+      !hasControlCharacters(name) &&
+      MCP_MARKETPLACE_SERVER_NAME.test(name),
+  );
+}
+
+function validateActivityFilters(query: URLSearchParams): boolean {
+  return (
+    validateIntegerQuery(query, "limit", { min: 1, max: 200 }) &&
+    validateTextQuery(query, "after", { maxLength: 1_024 }) &&
+    validateEnumQuery(query, "kind", ACTIVITY_KINDS) &&
+    validateEnumQuery(query, "status", ACTIVITY_STATUSES) &&
+    validateEnumQuery(query, "target", ACTIVITY_TARGETS) &&
+    validateTextQuery(query, "sessionId", { maxLength: 256 })
+  );
+}
+
 function validateHttpUrlQuery(query: URLSearchParams, key: string): boolean {
   if (query.getAll(key).length !== 1) return false;
   const value = query.get(key);
@@ -999,6 +1126,13 @@ function validateGatewayFilters(query: URLSearchParams): boolean {
     validateEnumQuery(query, "platform", GATEWAY_PLATFORMS) &&
     validateTextQuery(query, "sessionId", { maxLength: 256 }) &&
     validateEnumQuery(query, "kind", GATEWAY_TRACE_KINDS)
+  );
+}
+
+function validatePairingFilters(query: URLSearchParams): boolean {
+  return (
+    validateEnumQuery(query, "platform", PAIRING_PLATFORMS) &&
+    validateIntegerQuery(query, "limit", { min: 1, max: 500 })
   );
 }
 

@@ -10,7 +10,7 @@
     "dev": "nub scripts/dev.ts",
     "build": "nub run build:main && nub run build:renderer",
     "build:main": "vite build --config vite.main.config.ts && vite build --config vite.preload.config.ts",
-    "build:renderer": "vite build --config vite.renderer.config.ts",
+    "build:renderer": "vite build --config vite.renderer.config.ts && nub scripts/renderer-bundle-budget.ts",
     "runtime:prepare": "nub scripts/prepare-runtime.ts",
     "package": "nub run build && nub run runtime:prepare && nubx electron-builder && nub scripts/verify-package.ts",
     "package:dir": "nub run build && nub run runtime:prepare && nub scripts/package.ts --dir && nub scripts/verify-package.ts",

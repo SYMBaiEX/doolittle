@@ -8,6 +8,20 @@ import { requireNativeMcp } from "./native-services";
 
 const MCP_MARKETPLACE_SOURCE = "@elizaos/agent/services/mcp-marketplace";
 
+// beta.7 ignores extra JavaScript arguments. PR elizaOS/eliza#18200 adds these
+// options to the public signatures, so this structural boundary starts
+// forwarding request cancellation now and becomes fully typed on upgrade.
+type McpMarketplaceRequestOptions = { signal?: AbortSignal };
+const searchMarketplace = searchMcpMarketplace as unknown as (
+  query: string,
+  limit: number,
+  options?: McpMarketplaceRequestOptions,
+) => ReturnType<typeof searchMcpMarketplace>;
+const getMarketplaceServer = getMcpServerDetails as unknown as (
+  name: string,
+  options?: McpMarketplaceRequestOptions,
+) => ReturnType<typeof getMcpServerDetails>;
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -58,9 +72,13 @@ export async function invokeEffectiveMcpTool(
   return requireNativeMcp(runtime).invokeTool(name, input);
 }
 
-export async function searchEffectiveMcpMarketplace(query: string, limit = 10) {
+export async function searchEffectiveMcpMarketplace(
+  query: string,
+  limit = 10,
+  signal?: AbortSignal,
+) {
   try {
-    const result = await searchMcpMarketplace(query, limit);
+    const result = await searchMarketplace(query, limit, { signal });
     return {
       available: true,
       source: MCP_MARKETPLACE_SOURCE,
@@ -80,9 +98,12 @@ export async function searchEffectiveMcpMarketplace(query: string, limit = 10) {
   }
 }
 
-export async function getEffectiveMcpMarketplaceServer(name: string) {
+export async function getEffectiveMcpMarketplaceServer(
+  name: string,
+  signal?: AbortSignal,
+) {
   try {
-    const server = await getMcpServerDetails(name);
+    const server = await getMarketplaceServer(name, { signal });
     return {
       available: true,
       source: MCP_MARKETPLACE_SOURCE,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isolatedCodingWorktrees,
   normalizeOrchestrationResources,
   orchestrationResourceId,
   orchestrationResourcePaths,
@@ -49,6 +50,23 @@ describe("normalizeOrchestrationResources", () => {
     expect(resources.workflows[0]?.id).toBe("workflow-1");
     expect(resources.runs[0]?.id).toBe("run-1");
     expect(resources.workflowDetailRuns[0]?.id).toBe("detail-run-1");
+  });
+});
+
+describe("isolatedCodingWorktrees", () => {
+  it("excludes the primary, detached, and branchless worktrees", () => {
+    expect(
+      isolatedCodingWorktrees(
+        [
+          { path: "/repo", branch: "main" },
+          { path: "/repo/feature", branch: "feature/guided" },
+          { path: "/repo/detached", branch: "feature/old", detached: true },
+          { path: "/repo/no-branch" },
+        ],
+        "/repo",
+        "darwin",
+      ),
+    ).toEqual([{ path: "/repo/feature", branch: "feature/guided" }]);
   });
 });
 

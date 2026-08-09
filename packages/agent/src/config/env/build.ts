@@ -48,6 +48,7 @@ export function buildEnvConfig(
     port: values.ELIZA_API_PORT ?? values.DOOLITTLE_PORT,
     dataDir: directories.dataDir,
     skillsDir: directories.skillsDir,
+    extensionAllowlist: splitList(values.DOOLITTLE_EXTENSION_ALLOWLIST),
     timezone: values.DOOLITTLE_TIMEZONE,
     elizaCloudApiKey: values.ELIZAOS_CLOUD_API_KEY,
     elizaCloudEnabled: values.ELIZAOS_CLOUD_ENABLED,

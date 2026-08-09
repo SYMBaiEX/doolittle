@@ -12,6 +12,7 @@ export interface EnvConfig {
   port: number;
   dataDir: string;
   skillsDir: string;
+  extensionAllowlist?: string[];
   timezone: string;
   elizaCloudApiKey?: string;
   elizaCloudEnabled: boolean;

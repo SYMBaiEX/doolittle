@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  approvedPairingSenders,
   buildGatewayTimeline,
   filterGatewayTimeline,
   gatewayStatusTone,
+  pairingRequests,
 } from "./gateway-page-model";
 
 describe("gateway page timeline model", () => {
@@ -64,5 +66,38 @@ describe("gateway page timeline model", () => {
       }),
     ).toHaveLength(1);
     expect(gatewayStatusTone("rejected")).toBe("bad");
+  });
+
+  it("only renders complete official pairing records", () => {
+    expect(
+      pairingRequests([
+        {
+          id: "request-1",
+          platform: "telegram",
+          userId: "alice",
+          code: "ABCDEFGH",
+          createdAt: "2026-08-09T10:00:00.000Z",
+        },
+        { id: "incomplete", platform: "telegram" },
+      ]),
+    ).toEqual([
+      {
+        id: "request-1",
+        platform: "telegram",
+        userId: "alice",
+        code: "ABCDEFGH",
+        createdAt: "2026-08-09T10:00:00.000Z",
+      },
+    ]);
+    expect(
+      approvedPairingSenders([
+        {
+          id: "allow-1",
+          platform: "telegram",
+          userId: "alice",
+          approvedAt: "2026-08-09T10:10:00.000Z",
+        },
+      ]),
+    ).toMatchObject([{ id: "allow-1", userId: "alice" }]);
   });
 });

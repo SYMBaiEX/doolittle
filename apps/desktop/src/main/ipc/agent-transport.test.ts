@@ -94,6 +94,12 @@ describe("parseApiPath", () => {
       "/chat/runs/chat:run-1",
     );
     expect(parseApiPath("/runtime/media", "GET")).toBe("/runtime/media");
+    expect(parseApiPath("/pairing/pending?platform=telegram", "GET")).toBe(
+      "/pairing/pending?platform=telegram",
+    );
+    expect(parseApiPath("/pairing/approved?limit=200", "GET")).toBe(
+      "/pairing/approved?limit=200",
+    );
     expect(parseApiPath("/execution/approvals?status=pending", "GET")).toBe(
       "/execution/approvals?status=pending",
     );
@@ -260,6 +266,12 @@ describe("parseApiPath", () => {
   it("allows only the declared query parameters", () => {
     expect(parseApiPath("/acp/status", "GET")).toBe("/acp/status");
     expect(parseApiPath("/acp/editor", "GET")).toBe("/acp/editor");
+    expect(
+      parseApiPath("/mcp/marketplace?query=research&limit=12", "GET"),
+    ).toBe("/mcp/marketplace?query=research&limit=12");
+    expect(
+      parseApiPath("/mcp/marketplace/server?name=io.example%2Fresearch", "GET"),
+    ).toBe("/mcp/marketplace/server?name=io.example%2Fresearch");
     expect(parseApiPath("/acp/sessions?limit=8", "GET")).toBe(
       "/acp/sessions?limit=8",
     );
@@ -291,6 +303,15 @@ describe("parseApiPath", () => {
       /Unsupported query/,
     );
     expect(() =>
+      parseApiPath("/mcp/marketplace?query=research&limit=21", "GET"),
+    ).toThrow(/Unsupported query/);
+    expect(() =>
+      parseApiPath(
+        "/mcp/marketplace/server?name=https%3A%2F%2Fevil.test",
+        "GET",
+      ),
+    ).toThrow(/Unsupported query/);
+    expect(() =>
       parseApiPath("/tools?profile=full&profile=minimal", "GET"),
     ).toThrow(/Unsupported query/);
     expect(
@@ -308,6 +329,33 @@ describe("parseApiPath", () => {
     expect(
       parseApiPath("/runtime/registry?query=browser&refresh=true", "GET"),
     ).toBe("/runtime/registry?query=browser&refresh=true");
+    expect(() =>
+      parseApiPath(`/runtime/registry?query=${"x".repeat(129)}`, "GET"),
+    ).toThrow(/Unsupported query/);
+    expect(() =>
+      parseApiPath("/runtime/registry?refresh=maybe", "GET"),
+    ).toThrow(/Unsupported query/);
+    expect(parseApiPath("/runtime/registry/install", "POST")).toBe(
+      "/runtime/registry/install",
+    );
+    expect(() => parseApiPath("/runtime/registry/install", "GET")).toThrow(
+      /not available from desktop/,
+    );
+    expect(
+      parseApiPath(
+        "/activity/export?kind=approval&status=pending&target=review&sessionId=session-1&limit=20",
+        "GET",
+      ),
+    ).toContain("/activity/export?");
+    expect(
+      parseApiPath(
+        "/activity/export?kind=terminal&status=recorded&target=operations",
+        "GET",
+      ),
+    ).toBe("/activity/export?kind=terminal&status=recorded&target=operations");
+    expect(() => parseApiPath("/activity/export?kind=unknown", "GET")).toThrow(
+      /Unsupported query/,
+    );
     expect(parseApiPath("/runtime/ecosystem?refresh=true", "GET")).toBe(
       "/runtime/ecosystem?refresh=true",
     );
@@ -366,6 +414,21 @@ describe("parseApiPath", () => {
       ),
     ).toThrow(/Unsupported query/);
     expect(() => parseApiPath("/acp/invoke", "GET")).toThrow(/not available/);
+  });
+
+  it("limits desktop pairing control to the official local pairing API", () => {
+    expect(parseApiPath("/pairing/approve", "POST")).toBe("/pairing/approve");
+    expect(parseApiPath("/pairing/deny", "POST")).toBe("/pairing/deny");
+    expect(parseApiPath("/pairing/revoke", "POST")).toBe("/pairing/revoke");
+    expect(() => parseApiPath("/pairing/pending?platform=api", "GET")).toThrow(
+      /Unsupported query/,
+    );
+    expect(() => parseApiPath("/pairing/approved?limit=501", "GET")).toThrow(
+      /Unsupported query/,
+    );
+    expect(() => parseApiPath("/pairing/export", "GET")).toThrow(
+      /not available/,
+    );
   });
 
   it("allows only the read and replay gateway surface", () => {
@@ -617,6 +680,7 @@ describe("parseApiPath", () => {
       "/plans/plan-123/approve",
       "/plans/plan-123/steer",
       "/delegation/tasks",
+      "/delegation/tasks/start-coding",
       "/delegation/supervise",
       "/delegation/tasks/task-123/spawn",
       "/delegation/tasks/task-123/execute",

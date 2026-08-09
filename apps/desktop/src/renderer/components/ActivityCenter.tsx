@@ -6,7 +6,11 @@ export type ActivityCenterKind =
   | "automation"
   | "delegation"
   | "approval"
-  | "delivery";
+  | "delivery"
+  | "terminal"
+  | "repository-change"
+  | "codegen"
+  | "log";
 
 export type ActivityCenterStatus =
   | "pending"
@@ -19,13 +23,18 @@ export type ActivityCenterStatus =
   | "denied"
   | "expired"
   | "used"
-  | "delivered";
+  | "delivered"
+  | "recorded";
 
 export type ActivityCenterTarget =
   | "chat"
   | "review"
   | "automations"
-  | "orchestration";
+  | "orchestration"
+  | "terminal"
+  | "workspace"
+  | "codegen"
+  | "operations";
 
 export interface ActivityCenterEvent {
   id: string;
@@ -56,6 +65,10 @@ const TARGET_LABELS: Record<ActivityCenterTarget, string> = {
   review: "Open review",
   automations: "Open automations",
   orchestration: "Open tasks",
+  terminal: "Open workspace",
+  workspace: "Open workspace",
+  codegen: "Open code generation",
+  operations: "Open logs",
 };
 
 const KIND_LABELS: Record<ActivityCenterKind, string> = {
@@ -64,6 +77,10 @@ const KIND_LABELS: Record<ActivityCenterKind, string> = {
   delegation: "Task",
   approval: "Approval",
   delivery: "Delivery",
+  terminal: "Terminal",
+  "repository-change": "Workspace",
+  codegen: "Codegen",
+  log: "Runtime",
 };
 
 export function activityStatusLabel(
@@ -93,6 +110,8 @@ export function activityStatusLabel(
       return "Used";
     case "delivered":
       return "Delivered";
+    case "recorded":
+      return "Recorded";
   }
 }
 

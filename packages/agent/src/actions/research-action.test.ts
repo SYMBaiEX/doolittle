@@ -153,6 +153,28 @@ describe("research action (ModelType.RESEARCH adoption)", () => {
     });
   });
 
+  it("forwards turn cancellation to the research model", async () => {
+    const controller = new AbortController();
+    let observedSignal: AbortSignal | undefined;
+    const action = createResearchAction();
+    const runtime = makeRuntime({
+      hasModel: true,
+      research: async (params) => {
+        observedSignal = (params as { signal?: AbortSignal }).signal;
+        return { id: "resp_abort", text: "Report." } as ResearchResult;
+      },
+    });
+
+    await action.handler(
+      runtime,
+      message("/research cancellation"),
+      undefined,
+      { abortSignal: controller.signal },
+    );
+
+    expect(observedSignal).toBe(controller.signal);
+  });
+
   it("reports a clear failure when the model throws", async () => {
     const action = createResearchAction();
     const runtime = makeRuntime({

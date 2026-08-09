@@ -147,7 +147,7 @@ For pooled Codex and Claude Code coding sessions, Doolittle keeps separate accou
 
 ### Research and coding
 
-Research and coding are deliberately different paths. Research runs through `ModelType.RESEARCH` with a durable receipt; coding remains an ACP worker path with Doolittle workspace tools. The `autocoder` surface is **experimental**: planning-only operations return `executed=false` and must not be treated as autonomous file mutation.
+Research and coding are deliberately different paths. Research runs through `ModelType.RESEARCH` with a per-run abort signal and a durable cancellation receipt; provider-side interruption activates with Eliza releases that support `ResearchParams.signal`, while the durable guard remains authoritative on beta.7. Coding remains an ACP worker path with Doolittle workspace tools. The `autocoder` surface is **experimental**: planning-only operations return `executed=false` and must not be treated as autonomous file mutation.
 
 ## Architecture and ownership
 

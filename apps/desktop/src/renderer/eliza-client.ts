@@ -90,6 +90,7 @@ export async function desktopRequest<T>(
   method: HttpMethod = "GET",
   body?: unknown,
   signal?: AbortSignal,
+  timeoutMs = DESKTOP_REQUEST_TIMEOUT_MS,
 ): Promise<T> {
   return desktopElizaClient.fetch<T>(
     path,
@@ -98,6 +99,6 @@ export async function desktopRequest<T>(
       signal,
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     },
-    { timeoutMs: DESKTOP_REQUEST_TIMEOUT_MS },
+    { timeoutMs },
   );
 }

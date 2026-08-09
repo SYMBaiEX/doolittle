@@ -4,18 +4,72 @@ import {
   asRecord,
   asString,
   Badge,
+  desktopRequest,
   EmptyBlock,
   ErrorBlock,
+  errorMessage,
   LoadingBlock,
+  Notice,
   PageHeader,
   RawDataDisclosure,
   type UnknownRecord,
   useApiResource,
 } from "./lib";
 
+interface RegistryEntry {
+  name: string;
+  packageName: string;
+  description: string;
+  version: string;
+  repository: string;
+  support: string;
+  trust: string;
+  installed: boolean;
+  installable: boolean;
+  reasons: string[];
+  integrityVerified: boolean;
+}
+
+export function normalizeRegistryEntries(value: unknown): RegistryEntry[] {
+  const response = asRecord(value);
+  const rows = asArray(
+    response.results ?? response.entries ?? response.registries,
+  );
+  return rows
+    .map((value): RegistryEntry | null => {
+      const entry = asRecord(value);
+      const policy = asRecord(entry.policy);
+      const provenance = asRecord(policy.provenance);
+      const name = asString(entry.name).trim();
+      if (!name) return null;
+      return {
+        name,
+        packageName: asString(provenance.packageName, name).trim(),
+        description: asString(entry.description, "No description provided."),
+        version: asString(
+          provenance.version,
+          asString(entry.latestVersion, "No v2 release"),
+        ),
+        repository: asString(provenance.repository, asString(entry.repository)),
+        support: asString(provenance.support, "community"),
+        trust: asString(policy.trust, "community"),
+        installed: policy.installed === true,
+        installable: policy.installable === true,
+        reasons: asArray(policy.reasons)
+          .map((reason) => asString(reason).trim())
+          .filter(Boolean),
+        integrityVerified: provenance.integrityVerified === true,
+      };
+    })
+    .filter((entry): entry is RegistryEntry => entry !== null);
+}
+
 export function RegistryPage({ active }: { active: boolean }) {
   const [query, setQuery] = useState("");
   const [refreshRequested, setRefreshRequested] = useState(false);
+  const [pendingInstall, setPendingInstall] = useState("");
+  const [installing, setInstalling] = useState(false);
+  const [installNotice, setInstallNotice] = useState("");
   const params = useMemo(() => {
     const next = new URLSearchParams();
     const normalized = query.trim();
@@ -32,14 +86,56 @@ export function RegistryPage({ active }: { active: boolean }) {
     active,
     params,
   ]);
-  const entries = asArray(asRecord(registry.data).registries).map(asRecord);
+  const entries = normalizeRegistryEntries(registry.data);
+
+  const install = async (entry: RegistryEntry) => {
+    if (installing || pendingInstall !== entry.name) return;
+    setInstalling(true);
+    setInstallNotice("");
+    try {
+      const result = await desktopRequest<{
+        installed?: {
+          name?: string;
+          version?: string;
+          requiresRestart?: boolean;
+        };
+      }>(
+        "/runtime/registry/install",
+        "POST",
+        {
+          name: entry.name,
+          packageName: entry.packageName,
+          version: entry.version,
+          approved: true,
+        },
+        undefined,
+        120_000,
+      );
+      setInstallNotice(
+        `${asString(result.installed?.name, entry.name)} ${asString(
+          result.installed?.version,
+          entry.version,
+        )} installed through Eliza.${
+          result.installed?.requiresRestart
+            ? " Restart the local runtime to activate it."
+            : ""
+        }`,
+      );
+      setPendingInstall("");
+      registry.reload();
+    } catch (cause) {
+      setInstallNotice(`Install failed: ${errorMessage(cause)}`);
+    } finally {
+      setInstalling(false);
+    }
+  };
 
   return (
     <div className="page">
       <PageHeader
         eyebrow="Runtime"
         title="Plugin registry"
-        description="Search or refresh the runtime registry and review matching entries."
+        description="Search Eliza's registry, inspect provenance, and explicitly approve policy-eligible installs."
         actions={
           <button
             className="text-button"
@@ -88,18 +184,74 @@ export function RegistryPage({ active }: { active: boolean }) {
             <Badge>{entries.length}</Badge>
           </div>
           <div className="stack-list">
-            {entries.map((entry, index) => (
-              <div className="status-row" key={String(index)}>
+            {entries.map((entry) => (
+              <div className="status-row" key={entry.name}>
                 <div>
-                  <strong>
-                    {asString(entry.name, asString(entry.id, "Entry"))}
-                  </strong>
+                  <strong>{entry.name}</strong>
+                  <small>{entry.description}</small>
                   <small>
-                    {asString(
-                      entry.version,
-                      asString(entry.source, "No version"),
-                    )}
+                    {entry.version} · {entry.support} · {entry.trust}
+                    {entry.repository ? ` · ${entry.repository}` : ""}
                   </small>
+                  <small>
+                    {entry.integrityVerified
+                      ? "Package integrity verified"
+                      : "Registry metadata only; no verified integrity digest is available"}
+                  </small>
+                  {entry.reasons.length ? (
+                    <small>{entry.reasons.join(" ")}</small>
+                  ) : null}
+                </div>
+                <div className="row-actions">
+                  <Badge
+                    tone={
+                      entry.installed
+                        ? "good"
+                        : entry.installable
+                          ? "neutral"
+                          : "warn"
+                    }
+                  >
+                    {entry.installed
+                      ? "Installed"
+                      : entry.installable
+                        ? "Eligible"
+                        : "Blocked"}
+                  </Badge>
+                  {entry.installable && pendingInstall !== entry.name ? (
+                    <button
+                      className="secondary-button"
+                      onClick={() => {
+                        setPendingInstall(entry.name);
+                        setInstallNotice("");
+                      }}
+                      type="button"
+                    >
+                      Review install
+                    </button>
+                  ) : null}
+                  {entry.installable && pendingInstall === entry.name ? (
+                    <>
+                      <button
+                        className="primary-button"
+                        disabled={installing}
+                        onClick={() => void install(entry)}
+                        type="button"
+                      >
+                        {installing
+                          ? "Installing…"
+                          : `Approve ${entry.version}`}
+                      </button>
+                      <button
+                        className="text-button"
+                        disabled={installing}
+                        onClick={() => setPendingInstall("")}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -121,6 +273,20 @@ export function RegistryPage({ active }: { active: boolean }) {
           No registry rows returned for this query.
         </EmptyBlock>
       )}
+      {pendingInstall ? (
+        <Notice tone="warn">
+          Approval requests the reviewed registry version through Eliza's
+          official installer. The installed beta SDK does not report an npm
+          integrity digest or whether it fell back to a repository source.
+        </Notice>
+      ) : null}
+      {installNotice ? (
+        <Notice
+          tone={installNotice.startsWith("Install failed") ? "bad" : "good"}
+        >
+          {installNotice}
+        </Notice>
+      ) : null}
       {registry.data ? (
         <section className="content-card" style={{ marginTop: "16px" }}>
           <div className="card-heading">

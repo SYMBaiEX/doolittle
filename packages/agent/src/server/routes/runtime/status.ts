@@ -10,6 +10,13 @@ import {
 import { json } from "@/server/responses";
 import { resolveOwnership } from "./shared";
 
+function containsControlCharacter(value: string): boolean {
+  return [...value].some((character) => {
+    const code = character.codePointAt(0) ?? 0;
+    return code <= 0x1f || code === 0x7f;
+  });
+}
+
 export async function handleRuntimeStatusRoutes(
   context: AppContext,
   request: Request,
@@ -100,15 +107,99 @@ export async function handleRuntimeStatusRoutes(
   }
 
   if (request.method === "GET" && url.pathname === "/runtime/registry") {
-    const query = url.searchParams.get("query")?.trim();
+    if (
+      [...url.searchParams.keys()].some(
+        (key) => key !== "query" && key !== "refresh",
+      ) ||
+      url.searchParams.getAll("query").length > 1 ||
+      url.searchParams.getAll("refresh").length > 1
+    ) {
+      return json({ error: "Unsupported registry query." }, 400);
+    }
+    const rawQuery = url.searchParams.get("query");
+    const query = rawQuery?.trim();
+    if (
+      (rawQuery !== null &&
+        (!query || query.length > 128 || containsControlCharacter(query))) ||
+      (url.searchParams.has("refresh") &&
+        !["true", "false", "1", "0"].includes(
+          url.searchParams.get("refresh") ?? "",
+        ))
+    ) {
+      return json({ error: "Invalid registry query." }, 400);
+    }
     const refresh =
       url.searchParams.get("refresh") === "true" ||
       url.searchParams.get("refresh") === "1";
+    if (query && refresh) await context.services.agentSdk.registry(true);
     return json(
       query
         ? await context.services.agentSdk.searchRegistry(query)
         : await context.services.agentSdk.registry(refresh),
     );
+  }
+
+  if (
+    request.method === "POST" &&
+    url.pathname === "/runtime/registry/install"
+  ) {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: "a valid JSON body is required" }, 400);
+    }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return json({ error: "a JSON object is required" }, 400);
+    }
+    const record = body as Record<string, unknown>;
+    const unknownField = Object.keys(record).find(
+      (field) =>
+        !["name", "packageName", "version", "approved"].includes(field),
+    );
+    const name = typeof record.name === "string" ? record.name.trim() : "";
+    const packageName =
+      typeof record.packageName === "string" ? record.packageName.trim() : "";
+    const version =
+      typeof record.version === "string" ? record.version.trim() : "";
+    if (
+      unknownField ||
+      !name ||
+      name.length > 214 ||
+      !packageName ||
+      packageName.length > 214 ||
+      !version ||
+      version.length > 128 ||
+      /[\r\n\0]/u.test(`${name}${packageName}${version}`) ||
+      record.approved !== true
+    ) {
+      return json(
+        {
+          error:
+            "name, packageName, version, and explicit approved=true are required",
+        },
+        400,
+      );
+    }
+    try {
+      const result = await context.services.agentSdk.installRegistryExtension({
+        name,
+        packageName,
+        version,
+        approved: true,
+      });
+      return json(result, result.status);
+    } catch (error) {
+      return json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Eliza could not install the registry plugin",
+        },
+        422,
+      );
+    }
   }
 
   return null;

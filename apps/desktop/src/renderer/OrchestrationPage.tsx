@@ -38,6 +38,7 @@ import {
   type CodegenCancellationResponse,
   type CodegenRunRecord,
   type DelegationTaskRecord,
+  isolatedCodingWorktrees,
   orchestrationResourceId,
   type PlanRecord,
   useOrchestrationResources,
@@ -302,6 +303,17 @@ export function OrchestrationPage({
     "low" | "normal" | "high" | ""
   >("");
   const [taskCreateWorkspaceRoot, setTaskCreateWorkspaceRoot] = useState("");
+  const availableTaskCreateWorktrees =
+    taskCreateCapability === "coding"
+      ? isolatedCodingWorktrees(
+          worktrees,
+          workspacePath,
+          window.doolittle.platform,
+        )
+      : worktrees;
+  const selectedTaskCreateWorktree = availableTaskCreateWorktrees.find(
+    (worktree) => worktree.path === taskCreateWorkspaceRoot,
+  );
   const [childTitle, setChildTitle] = useState("");
   const [childObjective, setChildObjective] = useState("");
   const [childWorkspaceRoot, setChildWorkspaceRoot] = useState("");
@@ -328,10 +340,10 @@ export function OrchestrationPage({
 
   const [busyKeys, setBusyKeys] = useState<Record<string, boolean>>({});
   const [notices, setNotices] = useState<SurfaceNotice[]>([]);
+  const guidedCodingLaunchId = useRef("");
 
   useEffect(() => {
     if (!workspacePath?.trim()) return;
-    setTaskCreateWorkspaceRoot((current) => current || workspacePath);
     setCodegenProjectPath((current) => current || workspacePath);
     setCodegenProjectName(
       (current) => current || workspaceLabel || "workspace",
@@ -540,22 +552,46 @@ export function OrchestrationPage({
       });
       return;
     }
+    const startsCoding = taskCreateCapability === "coding";
+    if (startsCoding && !selectedTaskCreateWorktree?.branch) {
+      publishNotice({
+        tone: "bad",
+        message: "Choose an active branch worktree before starting coding.",
+      });
+      return;
+    }
     const key = "task:create";
     runBusy(key, true);
     try {
-      const result = await postJson<{ task?: DelegationTaskRecord }>(
-        "/delegation/tasks",
-        taskCreatePayload({
-          title: taskCreateTitle,
-          objective: taskCreateObjective,
-          capability: taskCreateCapability,
-          framework: taskCreateFramework,
-          group: taskCreateGroup,
-          priority: taskCreatePriority,
-          workspaceRoot: taskCreateWorkspaceRoot,
-        }),
-      );
-      const nextId = asString(result.task?.id);
+      const payload = taskCreatePayload({
+        title: taskCreateTitle,
+        objective: taskCreateObjective,
+        capability: taskCreateCapability,
+        framework: taskCreateFramework,
+        group: taskCreateGroup,
+        priority: taskCreatePriority,
+        workspaceRoot: taskCreateWorkspaceRoot,
+      });
+      if (startsCoding && !guidedCodingLaunchId.current) {
+        guidedCodingLaunchId.current = crypto.randomUUID();
+      }
+      let nextId = "";
+      if (startsCoding) {
+        const result = await postJson<{
+          launch?: { task?: DelegationTaskRecord; review?: { tab?: string } };
+        }>("/delegation/tasks/start-coding", {
+          ...payload,
+          branch: selectedTaskCreateWorktree?.branch,
+          launchId: guidedCodingLaunchId.current,
+        });
+        nextId = asString(result.launch?.task?.id);
+      } else {
+        const result = await postJson<{ task?: DelegationTaskRecord }>(
+          "/delegation/tasks",
+          payload,
+        );
+        nextId = asString(result.task?.id);
+      }
       if (nextId) setSelectedTaskId(nextId);
       setTaskCreateTitle("");
       setTaskCreateObjective("");
@@ -563,8 +599,14 @@ export function OrchestrationPage({
       setTaskCreateGroup("");
       setTaskCreatePriority("");
       setTaskCreateWorkspaceRoot("");
+      guidedCodingLaunchId.current = "";
       setShowTaskCreate(false);
-      publishNotice({ tone: "good", message: "Task created." });
+      publishNotice({
+        tone: "good",
+        message: startsCoding
+          ? "Coding session started. Follow its output in Queue; review is ready in the Review tab."
+          : "Task created.",
+      });
       refreshDelegation();
     } catch (error) {
       publishNotice({
@@ -945,7 +987,9 @@ export function OrchestrationPage({
   const openTaskCreate = (capability: TaskCapability) => {
     setTaskCreateCapability(capability);
     setTaskCreateFramework((current) => current || recommendedPooledFramework);
-    setTaskCreateWorkspaceRoot((current) => current || workspacePath || "");
+    setTaskCreateWorkspaceRoot((current) =>
+      capability === "coding" ? "" : current || workspacePath || "",
+    );
     setShowTaskCreate(true);
   };
 
@@ -1294,8 +1338,8 @@ export function OrchestrationPage({
               }
               disabled={!active || busyKeys["task:create"]}
             >
-              <option value="">Current workspace</option>
-              {worktrees.map((worktree) => (
+              <option value="">Select an isolated worktree</option>
+              {availableTaskCreateWorktrees.map((worktree) => (
                 <option key={worktree.path} value={worktree.path}>
                   {worktree.branch ??
                     (worktree.detached ? "detached" : "worktree")}{" "}
@@ -1315,7 +1359,11 @@ export function OrchestrationPage({
                 !taskCreateObjective.trim()
               }
             >
-              {busyKeys["task:create"] ? "Creating…" : "Create task"}
+              {busyKeys["task:create"]
+                ? "Starting…"
+                : taskCreateCapability === "coding"
+                  ? "Create & start coding"
+                  : "Create research task"}
             </button>
             <button
               className="text-button"
@@ -1326,10 +1374,10 @@ export function OrchestrationPage({
             </button>
           </div>
           <p className="orchestration-task-routing-note">
-            Codex and Claude choose an eligible account from their provider pool
-            when this delegated session starts. Automatic may choose a different
-            installed framework. The session receipt is the authoritative
-            account attribution.
+            Coding starts only in the selected active Git worktree, then hands
+            its session receipt to Queue and its branch context to Review. Codex
+            and Claude choose an eligible account from their provider pool when
+            the delegated session starts.
           </p>
           {accountPoolResource.error ? (
             <p className="orchestration-task-routing-note" role="status">

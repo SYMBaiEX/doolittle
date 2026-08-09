@@ -4,13 +4,50 @@ import {
   describeEffectiveMcpTool,
   discoverEffectiveMcpTools,
   getEffectiveCachedMcpTools,
+  getEffectiveMcpMarketplaceServer,
   getEffectiveMcpStatus,
   invokeEffectiveMcp,
   invokeEffectiveMcpTool,
   probeEffectiveMcp,
   searchEffectiveCachedMcpTools,
+  searchEffectiveMcpMarketplace,
 } from "@/runtime/native/service-bridge/tooling";
 import { json } from "@/server/responses";
+
+const MAX_MARKETPLACE_QUERY_LENGTH = 128;
+const MAX_MARKETPLACE_SERVER_NAME_LENGTH = 256;
+const MAX_MARKETPLACE_RESULTS = 20;
+const MCP_MARKETPLACE_SERVER_NAME = /^[\w./@-]+$/u;
+
+function marketplaceQuery(value: string | null): string | null {
+  const query = value?.trim() ?? "";
+  if (
+    !query ||
+    query.length > MAX_MARKETPLACE_QUERY_LENGTH ||
+    hasControlCharacter(query)
+  ) {
+    return null;
+  }
+  return query;
+}
+
+function hasControlCharacter(value: string): boolean {
+  return [...value].some(
+    (character) => character <= "\u001F" || character === "\u007F",
+  );
+}
+
+function marketplaceServerName(value: string | null): string | null {
+  const name = value?.trim() ?? "";
+  if (
+    !name ||
+    name.length > MAX_MARKETPLACE_SERVER_NAME_LENGTH ||
+    !MCP_MARKETPLACE_SERVER_NAME.test(name)
+  ) {
+    return null;
+  }
+  return name;
+}
 
 export async function handleMcpRoutes(
   context: AppContext,
@@ -71,6 +108,56 @@ export async function handleMcpRoutes(
         context.runtime,
         !Number.isNaN(limit) && limit > 0 ? limit : 20,
       ),
+    });
+  }
+
+  if (request.method === "GET" && url.pathname === "/mcp/marketplace") {
+    if (url.searchParams.getAll("query").length !== 1) {
+      return json({ error: "a bounded marketplace query is required" }, 400);
+    }
+    const query = marketplaceQuery(url.searchParams.get("query"));
+    if (!query) {
+      return json({ error: "a bounded marketplace query is required" }, 400);
+    }
+    const requestedLimits = url.searchParams.getAll("limit");
+    if (requestedLimits.length > 1) {
+      return json({ error: "marketplace limit must be between 1 and 20" }, 400);
+    }
+    const requestedLimit = Number(requestedLimits[0] ?? "10");
+    const limit =
+      Number.isSafeInteger(requestedLimit) &&
+      requestedLimit > 0 &&
+      requestedLimit <= MAX_MARKETPLACE_RESULTS
+        ? requestedLimit
+        : null;
+    if (limit === null) {
+      return json({ error: "marketplace limit must be between 1 and 20" }, 400);
+    }
+    return json({
+      marketplace: await searchEffectiveMcpMarketplace(
+        query,
+        limit,
+        request.signal,
+      ),
+    });
+  }
+
+  if (request.method === "GET" && url.pathname === "/mcp/marketplace/server") {
+    if (url.searchParams.getAll("name").length !== 1) {
+      return json(
+        { error: "a valid marketplace server name is required" },
+        400,
+      );
+    }
+    const name = marketplaceServerName(url.searchParams.get("name"));
+    if (!name) {
+      return json(
+        { error: "a valid marketplace server name is required" },
+        400,
+      );
+    }
+    return json({
+      marketplace: await getEffectiveMcpMarketplaceServer(name, request.signal),
     });
   }
 

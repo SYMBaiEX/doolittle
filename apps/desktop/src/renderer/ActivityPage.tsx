@@ -1,99 +1,69 @@
 import { useMemo, useState } from "react";
+import type {
+  ActivityEvent,
+  ActivityEventKind,
+  ActivityExportResponse,
+  ActivityFeedResponse,
+} from "../shared/contracts";
 import {
-  type ActivitySource,
-  activityTone,
-  buildActivityEvents,
-} from "./activity-events";
-import {
-  asArray,
   Badge,
+  desktopRequest,
   displayTimestamp,
   EmptyBlock,
   ErrorBlock,
+  errorMessage,
   LoadingBlock,
+  Notice,
   PageHeader,
   useApiResource,
 } from "./lib";
 
-interface DeliveriesResponse {
-  deliveries?: unknown[];
+type ActivitySource = "all" | ActivityEventKind;
+
+const SOURCE_LABELS: Record<ActivityEventKind, string> = {
+  "chat-run": "Chat",
+  automation: "Automation",
+  delegation: "Task",
+  approval: "Approval",
+  delivery: "Delivery",
+  terminal: "Terminal",
+  "repository-change": "Workspace",
+  codegen: "Codegen",
+  log: "Runtime",
+};
+
+function activityTone(
+  event: ActivityEvent,
+): "good" | "warn" | "bad" | "neutral" {
+  if (event.status === "failed" || event.status === "denied") return "bad";
+  if (event.status === "pending" || event.status === "running") return "warn";
+  return "neutral";
 }
 
-interface TerminalHistoryResponse {
-  commands?: unknown[];
-}
-
-interface LogsResponse {
-  logs?: unknown[];
-}
-
-interface ApprovalsResponse {
-  approvals?: unknown[];
-}
-
-interface RepositoryChangesResponse {
-  changes?: unknown[];
-}
-
-interface DelegationTasksResponse {
-  tasks?: unknown[];
-}
-
-interface CodegenRunsResponse {
-  runs?: unknown[];
+function activityState(event: ActivityEvent): {
+  severity: "info" | "warning" | "critical";
+  liveness: "live" | "settled";
+} {
+  if (event.status === "failed" || event.status === "denied") {
+    return { severity: "critical", liveness: "settled" };
+  }
+  if (event.status === "pending" || event.status === "running") {
+    return { severity: "warning", liveness: "live" };
+  }
+  return { severity: "info", liveness: "settled" };
 }
 
 export function ActivityPage({ active }: { active: boolean }) {
   const [query, setQuery] = useState("");
   const [source, setSource] = useState<ActivitySource>("all");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
 
-  const deliveries = useApiResource<DeliveriesResponse>(
-    active ? "/deliveries" : null,
+  const timeline = useApiResource<ActivityFeedResponse>(
+    active ? "/activity?limit=200" : null,
     [active],
   );
-  const terminal = useApiResource<TerminalHistoryResponse>(
-    active ? "/terminal/history" : null,
-    [active],
-  );
-  const logs = useApiResource<LogsResponse>(active ? "/logs?limit=100" : null, [
-    active,
-  ]);
-  const approvals = useApiResource<ApprovalsResponse>(
-    active ? "/execution/approvals" : null,
-    [active],
-  );
-  const changes = useApiResource<RepositoryChangesResponse>(
-    active ? "/repo/changes" : null,
-    [active],
-  );
-  const tasks = useApiResource<DelegationTasksResponse>(
-    active ? "/delegation/tasks?limit=100" : null,
-    [active],
-  );
-  const runs = useApiResource<CodegenRunsResponse>(
-    active ? "/codegen/runs" : null,
-    [active],
-  );
-
-  const rows = useMemo(() => {
-    return buildActivityEvents({
-      deliveries: asArray(deliveries.data?.deliveries),
-      terminal: asArray(terminal.data?.commands),
-      logs: asArray(logs.data?.logs),
-      approvals: asArray(approvals.data?.approvals),
-      changes: asArray(changes.data?.changes),
-      tasks: asArray(tasks.data?.tasks),
-      runs: asArray(runs.data?.runs),
-    });
-  }, [
-    approvals.data,
-    changes.data,
-    deliveries.data,
-    logs.data,
-    runs.data,
-    tasks.data,
-    terminal.data,
-  ]);
+  const rows = timeline.data?.events ?? [];
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -101,15 +71,12 @@ export function ActivityPage({ active }: { active: boolean }) {
       if (source !== "all" && row.kind !== source) return false;
       if (!normalizedQuery) return true;
       const haystack = [
-        row.verb,
-        row.object,
-        row.outcome,
-        row.context,
-        row.source,
+        row.title,
+        row.safeSummary,
+        row.kind,
         row.status,
-        row.severity,
-        row.liveness,
-        row.at,
+        row.target,
+        row.occurredAt,
       ]
         .filter(Boolean)
         .join(" ")
@@ -120,11 +87,10 @@ export function ActivityPage({ active }: { active: boolean }) {
 
   const overview = useMemo(() => {
     const needsAttention = (row: (typeof rows)[number]) =>
-      row.severity === "critical" ||
-      (row.severity === "warning" && row.liveness === "live");
+      activityState(row).severity === "critical";
     const attention = rows.filter(needsAttention).length;
     const live = rows.filter(
-      (row) => row.liveness === "live" && !needsAttention(row),
+      (row) => activityState(row).liveness === "live" && !needsAttention(row),
     ).length;
     return {
       live,
@@ -133,41 +99,65 @@ export function ActivityPage({ active }: { active: boolean }) {
     };
   }, [rows]);
 
-  const resources = [
-    deliveries,
-    terminal,
-    logs,
-    approvals,
-    changes,
-    tasks,
-    runs,
-  ];
-  const loading = resources.some((resource) => resource.loading);
-  const errors = resources.map((resource) => resource.error).filter(Boolean);
+  const loading = timeline.loading;
+  const errors = timeline.error ? [timeline.error] : [];
+
+  const exportTimeline = async () => {
+    if (exporting) return;
+    setExporting(true);
+    setExportError("");
+    try {
+      const params = new URLSearchParams({ limit: "200" });
+      if (source !== "all") params.set("kind", source);
+      const exported = await desktopRequest<ActivityExportResponse>(
+        `/activity/export?${params.toString()}`,
+      );
+      const blob = new Blob([JSON.stringify(exported, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `doolittle-activity-${exported.generatedAt.replaceAll(":", "-")}.json`;
+      link.style.display = "none";
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (cause) {
+      setExportError(`Activity export failed: ${errorMessage(cause)}`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="page studio-page activity-page">
       <PageHeader
         eyebrow="Operator"
         title="Activity"
-        description="A human-readable account of what Doolittle did, what it touched, and how each operation ended."
+        description="A concise, server-owned record of agent work and how each operation ended."
         actions={
-          <button
-            className="secondary-button"
-            onClick={() => {
-              deliveries.reload();
-              terminal.reload();
-              logs.reload();
-              approvals.reload();
-              changes.reload();
-              tasks.reload();
-              runs.reload();
-            }}
-            type="button"
-            disabled={!active}
-          >
-            Refresh
-          </button>
+          <div className="row-actions">
+            <button
+              className="secondary-button"
+              onClick={() => void exportTimeline()}
+              type="button"
+              disabled={!active || exporting}
+            >
+              {exporting ? "Exporting…" : "Export safe JSON"}
+            </button>
+            <button
+              className="secondary-button"
+              onClick={() => {
+                timeline.reload();
+              }}
+              type="button"
+              disabled={!active}
+            >
+              Refresh
+            </button>
+          </div>
         }
       />
 
@@ -179,7 +169,7 @@ export function ActivityPage({ active }: { active: boolean }) {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search actions, files, commands, outcomes, or status"
+            placeholder="Search actions, outcomes, routes, or status"
             disabled={!active}
           />
         </label>
@@ -194,13 +184,15 @@ export function ActivityPage({ active }: { active: boolean }) {
             disabled={!active}
           >
             <option value="all">All sources</option>
+            <option value="chat-run">Chat runs</option>
+            <option value="automation">Automations</option>
+            <option value="delegation">Agent tasks</option>
+            <option value="approval">Approvals</option>
             <option value="delivery">Deliveries</option>
             <option value="terminal">Terminal</option>
-            <option value="log">Logs</option>
-            <option value="approval">Approvals</option>
-            <option value="change">Workspace changes</option>
-            <option value="task">Agent tasks</option>
-            <option value="run">Generation runs</option>
+            <option value="repository-change">Workspace changes</option>
+            <option value="codegen">Generation runs</option>
+            <option value="log">Runtime logs</option>
           </select>
         </label>
       </div>
@@ -208,6 +200,7 @@ export function ActivityPage({ active }: { active: boolean }) {
       {errors.map((error) => (
         <ErrorBlock key={String(error)} error={error as string} />
       ))}
+      {exportError ? <Notice tone="bad">{exportError}</Notice> : null}
       <div aria-live="polite" className="sr-only" role="status">
         {loading
           ? "Loading activity sources."
@@ -262,10 +255,11 @@ export function ActivityPage({ active }: { active: boolean }) {
             <ol className="activity-event-list">
               {filtered.map((row) => {
                 const tone = activityTone(row);
+                const state = activityState(row);
                 return (
                   <li key={row.id}>
                     <article
-                      className={`activity-entry severity-${row.severity} liveness-${row.liveness}`}
+                      className={`activity-entry severity-${state.severity} liveness-${state.liveness}`}
                     >
                       <div className="activity-entry-rail" aria-hidden="true">
                         <i className="activity-entry-dot" />
@@ -273,77 +267,50 @@ export function ActivityPage({ active }: { active: boolean }) {
                       <div className="activity-entry-body">
                         <header className="activity-entry-head">
                           <div className="activity-entry-meta">
-                            <Badge tone={tone}>{row.source}</Badge>
+                            <Badge tone={tone}>{SOURCE_LABELS[row.kind]}</Badge>
                             <Badge tone="neutral">{row.status}</Badge>
                             <span className="activity-liveness">
                               <i
                                 className="activity-liveness-signal"
                                 aria-hidden="true"
                               />
-                              {row.liveness === "live"
-                                ? "Live"
-                                : row.liveness === "snapshot"
-                                  ? "Current state"
-                                  : "Settled"}
+                              {state.liveness === "live" ? "Live" : "Settled"}
                             </span>
                           </div>
-                          <time dateTime={row.at || undefined}>
-                            {row.at
-                              ? displayTimestamp(row.at)
-                              : "Current workspace state"}
+                          <time dateTime={row.occurredAt}>
+                            {displayTimestamp(row.occurredAt)}
                           </time>
                         </header>
 
                         <p className="activity-sentence">
-                          <strong>{row.verb}</strong> <span>{row.object}</span>
+                          <strong>{row.title}</strong>
                         </p>
-                        <p className="activity-outcome">{row.outcome}</p>
-                        {row.context ? (
-                          <p className="activity-context">{row.context}</p>
-                        ) : null}
+                        <p className="activity-outcome">{row.safeSummary}</p>
 
                         <details className="activity-disclosure">
-                          <summary>
-                            Inspect details
-                            {row.relatedCount > 1
-                              ? ` · ${row.relatedCount} related records`
-                              : ""}
-                          </summary>
+                          <summary>Inspect safe details</summary>
                           <div className="activity-detail-panel">
                             <dl className="activity-structured-details">
                               <div className="activity-detail-row">
                                 <dt>Action</dt>
-                                <dd>
-                                  {row.verb} {row.object}
-                                </dd>
+                                <dd>{row.title}</dd>
                               </div>
                               <div className="activity-detail-row">
                                 <dt>Outcome</dt>
-                                <dd>{row.outcome}</dd>
+                                <dd>{row.safeSummary}</dd>
                               </div>
                               <div className="activity-detail-row">
                                 <dt>State</dt>
                                 <dd>
-                                  {row.status} · {row.severity} · {row.liveness}
+                                  {row.status} · {state.severity} ·{" "}
+                                  {state.liveness}
                                 </dd>
                               </div>
-                              {row.lifecycle ? (
-                                <div className="activity-detail-row">
-                                  <dt>Lifecycle</dt>
-                                  <dd>{row.lifecycle}</dd>
-                                </div>
-                              ) : null}
-                              {row.context ? (
-                                <div className="activity-detail-row">
-                                  <dt>Context</dt>
-                                  <dd>{row.context}</dd>
-                                </div>
-                              ) : null}
+                              <div className="activity-detail-row">
+                                <dt>Route</dt>
+                                <dd>{row.target}</dd>
+                              </div>
                             </dl>
-                            <div className="activity-raw-details">
-                              <span className="eyebrow">Raw event</span>
-                              <pre className="json-preview">{row.raw}</pre>
-                            </div>
                           </div>
                         </details>
                       </div>

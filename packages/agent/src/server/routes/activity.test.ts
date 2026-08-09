@@ -48,6 +48,10 @@ function context(): AppContext {
       },
       executionApprovals: { list: () => [] },
       delivery: { recent: () => [] },
+      terminal: { recent: () => [] },
+      logger: { list: () => [] },
+      autocoderPipeline: { list: () => [] },
+      repository: { changes: async () => [] },
     },
   } as unknown as AppContext;
 }
@@ -75,6 +79,21 @@ describe("handleActivityRoutes", () => {
     });
   });
 
+  it("accepts the bounded parity kinds and targets", async () => {
+    const response = await handleActivityRoutes(
+      context(),
+      new Request(
+        "http://localhost/activity?kind=repository-change&target=workspace",
+      ),
+      new URL(
+        "http://localhost/activity?kind=repository-change&target=workspace",
+      ),
+    );
+
+    expect(response?.status).toBe(200);
+    await expect(response?.json()).resolves.toMatchObject({ events: [] });
+  });
+
   it("rejects invalid limits and cursors", async () => {
     const invalidLimit = await handleActivityRoutes(
       context(),
@@ -95,6 +114,50 @@ describe("handleActivityRoutes", () => {
     await expect(invalidCursor?.json()).resolves.toEqual({
       error: "after cursor is invalid",
     });
+
+    const invalidFilter = await handleActivityRoutes(
+      context(),
+      new Request("http://localhost/activity?kind=unrecognized"),
+      new URL("http://localhost/activity?kind=unrecognized"),
+    );
+    expect(invalidFilter?.status).toBe(400);
+    await expect(invalidFilter?.json()).resolves.toEqual({
+      error: "kind is invalid",
+    });
+
+    for (const path of [
+      "/activity?raw=true",
+      "/activity?kind=approval&kind=delivery",
+      `/activity?after=${"a".repeat(1_025)}`,
+    ]) {
+      const rejected = await handleActivityRoutes(
+        context(),
+        new Request(`http://localhost${path}`),
+        new URL(`http://localhost${path}`),
+      );
+      expect(rejected?.status).toBe(400);
+    }
+  });
+
+  it("exports the redacted bounded operator timeline", async () => {
+    const response = await handleActivityRoutes(
+      context(),
+      new Request("http://localhost/activity/export?target=chat"),
+      new URL("http://localhost/activity/export?target=chat"),
+    );
+
+    expect(response?.status).toBe(200);
+    const payload = await response?.json();
+    expect(payload).toMatchObject({
+      schemaVersion: 1,
+      redaction: "summary-only",
+      events: [expect.objectContaining({ kind: "chat-run", target: "chat" })],
+    });
+    const serialized = JSON.stringify(payload);
+    for (const identifier of ["run-1", "session-1", "room-1"]) {
+      expect(serialized).not.toContain(identifier);
+    }
+    expect(serialized).not.toContain("never expose me");
   });
 
   it("ignores unrelated paths and rejects non-GET activity requests", async () => {

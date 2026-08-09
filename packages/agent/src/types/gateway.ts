@@ -45,6 +45,15 @@ export interface PairingAllowlistEntry {
   approvedAt: string;
 }
 
+/**
+ * Read-only projection of an approved sender from Eliza PairingService.
+ * Doolittle never persists this independently of Eliza's allowlist.
+ */
+export interface PairingApprovedRecord extends PairingAllowlistEntry {
+  id: string;
+  status: "approved";
+}
+
 export interface IncomingPlatformMessage {
   platform: PlatformName;
   userId: string;

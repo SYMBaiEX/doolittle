@@ -1,7 +1,43 @@
 import { DOOLITTLE_MCP_SERVICE } from "@doolittle/contracts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleMcpRoutes } from "./mcp";
+
+vi.mock("@/runtime/native/service-bridge/tooling", () => ({
+  describeEffectiveCachedMcpTools: (_runtime: unknown, limit: number) =>
+    `cached:${limit}`,
+  describeEffectiveMcpTool: (_runtime: unknown, name: string) => `tool:${name}`,
+  discoverEffectiveMcpTools: async () => [{ name: "discover:tool" }],
+  getEffectiveCachedMcpTools: () => [{ name: "tool-1" }],
+  getEffectiveMcpMarketplaceServer: async (name: string) => ({
+    available: true,
+    name,
+    source: "@elizaos/agent/services/mcp-marketplace",
+    server: { name, version: "1.0.0" },
+    config: { type: "streamable-http", url: "https://mcp.example.test" },
+  }),
+  getEffectiveMcpStatus: () => ({ connected: true }),
+  invokeEffectiveMcp: async (_runtime: unknown, input: string) => ({
+    input,
+    type: "invoke",
+  }),
+  invokeEffectiveMcpTool: async (
+    _runtime: unknown,
+    tool: string,
+    input: Record<string, unknown>,
+  ) => ({ tool, input, type: "tool" }),
+  probeEffectiveMcp: async () => ({ ok: true }),
+  searchEffectiveCachedMcpTools: (_runtime: unknown, query: string) => [
+    { name: `search:${query}` },
+  ],
+  searchEffectiveMcpMarketplace: async (query: string, limit: number) => ({
+    available: true,
+    source: "@elizaos/agent/services/mcp-marketplace",
+    query,
+    limit,
+    results: [{ name: "io.example/research" }],
+  }),
+}));
 
 function createContext(): AppContext {
   const mcp = {
@@ -80,6 +116,25 @@ describe("handleMcpRoutes", () => {
       }),
       new URL("http://localhost/mcp/invoke"),
     );
+    const unsafeMarketplaceQuery = await handleMcpRoutes(
+      createContext(),
+      new Request("http://localhost/mcp/marketplace?query=%20"),
+      new URL("http://localhost/mcp/marketplace?query=%20"),
+    );
+    const unsafeMarketplaceName = await handleMcpRoutes(
+      createContext(),
+      new Request(
+        "http://localhost/mcp/marketplace/server?name=https%3A%2F%2Fevil.test",
+      ),
+      new URL(
+        "http://localhost/mcp/marketplace/server?name=https%3A%2F%2Fevil.test",
+      ),
+    );
+    const unsafeMarketplaceLimit = await handleMcpRoutes(
+      createContext(),
+      new Request("http://localhost/mcp/marketplace?query=research&limit=99"),
+      new URL("http://localhost/mcp/marketplace?query=research&limit=99"),
+    );
 
     expect(missingSearch?.status).toBe(400);
     await expect(missingSearch?.json()).resolves.toEqual({
@@ -92,6 +147,18 @@ describe("handleMcpRoutes", () => {
     expect(missingInvoke?.status).toBe(400);
     await expect(missingInvoke?.json()).resolves.toEqual({
       error: "input is required",
+    });
+    expect(unsafeMarketplaceQuery?.status).toBe(400);
+    await expect(unsafeMarketplaceQuery?.json()).resolves.toEqual({
+      error: "a bounded marketplace query is required",
+    });
+    expect(unsafeMarketplaceName?.status).toBe(400);
+    await expect(unsafeMarketplaceName?.json()).resolves.toEqual({
+      error: "a valid marketplace server name is required",
+    });
+    expect(unsafeMarketplaceLimit?.status).toBe(400);
+    await expect(unsafeMarketplaceLimit?.json()).resolves.toEqual({
+      error: "marketplace limit must be between 1 and 20",
     });
   });
 
@@ -118,6 +185,45 @@ describe("handleMcpRoutes", () => {
     });
     await expect(invokeTool?.json()).resolves.toEqual({
       result: { tool: "tool-1", input: { value: 1 }, type: "tool" },
+    });
+  });
+
+  it("uses only bounded official marketplace search and definition projections", async () => {
+    const search = await handleMcpRoutes(
+      createContext(),
+      new Request("http://localhost/mcp/marketplace?query=research&limit=12"),
+      new URL("http://localhost/mcp/marketplace?query=research&limit=12"),
+    );
+    const detail = await handleMcpRoutes(
+      createContext(),
+      new Request(
+        "http://localhost/mcp/marketplace/server?name=io.example%2Fresearch",
+      ),
+      new URL(
+        "http://localhost/mcp/marketplace/server?name=io.example%2Fresearch",
+      ),
+    );
+
+    await expect(search?.json()).resolves.toEqual({
+      marketplace: {
+        available: true,
+        source: "@elizaos/agent/services/mcp-marketplace",
+        query: "research",
+        limit: 12,
+        results: [{ name: "io.example/research" }],
+      },
+    });
+    await expect(detail?.json()).resolves.toEqual({
+      marketplace: {
+        available: true,
+        name: "io.example/research",
+        source: "@elizaos/agent/services/mcp-marketplace",
+        server: { name: "io.example/research", version: "1.0.0" },
+        config: {
+          type: "streamable-http",
+          url: "https://mcp.example.test",
+        },
+      },
     });
   });
 

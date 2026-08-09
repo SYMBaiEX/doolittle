@@ -458,6 +458,37 @@ export function ModelsPage({
               </div>
             )}
           </section>
+          <section className="content-card">
+            <div className="card-heading">
+              <div>
+                <span className="eyebrow">Runtime truth</span>
+                <h2>Registered capabilities</h2>
+              </div>
+            </div>
+            {models.loading ? (
+              <LoadingBlock />
+            ) : models.error ? (
+              <ErrorBlock error={models.error} retry={models.reload} />
+            ) : (
+              <div className="stack-list">
+                {(models.data?.capabilities ?? []).map((capability) => (
+                  <div className="status-row" key={capability.id}>
+                    <div>
+                      <strong>{capability.label}</strong>
+                      <small>{capability.detail}</small>
+                    </div>
+                    <Badge
+                      tone={capability.handlerRegistered ? "good" : "warn"}
+                    >
+                      {capability.handlerRegistered
+                        ? "Handler registered"
+                        : "Unavailable"}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       )}
     </div>

@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import type { AppContext } from "@/runtime/bootstrap";
 import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
 import { json } from "@/server/responses";
+import { listRuntimeModelCapabilities } from "@/services/operator/runtime-model-capabilities";
 import type { RuntimeReasoningEffort } from "@/services/settings/runtime-settings";
 import type { EnvConfig } from "@/types";
 
@@ -161,6 +162,7 @@ export async function handleRuntimeModelRoutes(
       : {}),
     refreshedAt: new Date().toISOString(),
     providers,
+    capabilities: listRuntimeModelCapabilities(context.runtime),
   });
 }
 

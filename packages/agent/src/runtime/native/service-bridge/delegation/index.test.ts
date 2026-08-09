@@ -393,6 +393,56 @@ describe("official delegation service bridge", () => {
     });
   });
 
+  it("deduplicates simultaneous execution of the same research task", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "One research run",
+      goal: "Spend provider work once",
+      kind: "research",
+    });
+    const pending = deferred<{ id: string; text: string }>();
+    const useModel = vi.fn(() => pending.promise);
+    const runtime = {
+      ...official.runtime,
+      getModel: () => () => Promise.resolve({}),
+      useModel,
+    };
+
+    const executions = Array.from({ length: 5 }, () =>
+      executeEffectiveDelegationTask(runtime as never, undefined, created.id),
+    );
+    await vi.waitFor(() => expect(useModel).toHaveBeenCalledOnce());
+    pending.resolve({ id: "single-response", text: "One report." });
+
+    await expect(Promise.all(executions)).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: created.id, status: "completed" }),
+      ]),
+    );
+    expect(useModel).toHaveBeenCalledOnce();
+  });
+
+  it("does not restart a completed research task", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Completed research",
+      goal: "Do not run twice",
+      kind: "research",
+    });
+    await official.service.updateTask(created.id, { status: "done" });
+    const useModel = vi.fn();
+    const runtime = {
+      ...official.runtime,
+      getModel: () => () => Promise.resolve({}),
+      useModel,
+    };
+
+    await expect(
+      executeEffectiveDelegationTask(runtime as never, undefined, created.id),
+    ).resolves.toMatchObject({ id: created.id, status: "completed" });
+    expect(useModel).not.toHaveBeenCalled();
+  });
+
   it("records an ordinary RESEARCH provider failure without validating the task", async () => {
     const official = createOfficialOrchestratorTestFixture();
     const created = await official.service.createTask({
@@ -519,7 +569,9 @@ describe("official delegation service bridge", () => {
       text: string;
       annotations?: Array<{ url: string; title: string }>;
     }>();
-    const useModel = vi.fn(() => pending.promise);
+    const useModel = vi.fn(
+      (_modelType: unknown, _params: unknown) => pending.promise,
+    );
     const runtime = {
       ...official.runtime,
       getModel: () => () => Promise.resolve({}),
@@ -532,6 +584,11 @@ describe("official delegation service bridge", () => {
       created.id,
     );
     await vi.waitFor(() => expect(useModel).toHaveBeenCalledOnce());
+    const params = useModel.mock.calls[0]?.[1] as
+      | { signal?: AbortSignal }
+      | undefined;
+    const signal = params?.signal;
+    expect(signal?.aborted).toBe(false);
     await expect(
       cancelEffectiveDelegationTask(
         runtime as never,
@@ -540,6 +597,7 @@ describe("official delegation service bridge", () => {
         "Operator stopped this run.",
       ),
     ).resolves.toMatchObject({ id: created.id, status: "cancelled" });
+    expect(signal?.aborted).toBe(true);
 
     pending.resolve({
       id: "late-response",
@@ -556,6 +614,7 @@ describe("official delegation service bridge", () => {
       researchRun: expect.objectContaining({
         status: "cancelled",
         interruption: "cooperative",
+        providerAbortRequested: true,
       }),
     });
     expect(durable?.messages.map((message) => message.content)).not.toContain(

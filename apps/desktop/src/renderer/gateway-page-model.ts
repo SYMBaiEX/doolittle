@@ -16,6 +16,21 @@ export interface GatewayTimelineItem {
   attachmentCount: number;
 }
 
+export interface GatewayPairingRequest {
+  id: string;
+  platform: string;
+  userId: string;
+  code: string;
+  createdAt: string;
+}
+
+export interface GatewayApprovedSender {
+  id: string;
+  platform: string;
+  userId: string;
+  approvedAt: string;
+}
+
 function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
@@ -94,4 +109,31 @@ export function gatewayStatusTone(
   if (["rejected", "failed", "error"].includes(normalized)) return "bad";
   if (["fallback", "pending", "replaying"].includes(normalized)) return "warn";
   return "neutral";
+}
+
+export function pairingRequests(value: unknown): GatewayPairingRequest[] {
+  return (Array.isArray(value) ? value : []).flatMap((item) => {
+    const record = asRecord(item);
+    const id = asString(record.id);
+    const platform = asString(record.platform);
+    const userId = asString(record.userId);
+    const code = asString(record.code);
+    if (!id || !platform || !userId || !code) return [];
+    return [
+      { id, platform, userId, code, createdAt: asString(record.createdAt) },
+    ];
+  });
+}
+
+export function approvedPairingSenders(
+  value: unknown,
+): GatewayApprovedSender[] {
+  return (Array.isArray(value) ? value : []).flatMap((item) => {
+    const record = asRecord(item);
+    const id = asString(record.id);
+    const platform = asString(record.platform);
+    const userId = asString(record.userId);
+    if (!id || !platform || !userId) return [];
+    return [{ id, platform, userId, approvedAt: asString(record.approvedAt) }];
+  });
 }

@@ -12,7 +12,7 @@ import {
   type OrchestrationTab,
   orchestrationRequests,
 } from "./resource-request-policy";
-import type { DesktopPlatform } from "./workspace-path";
+import { type DesktopPlatform, workspacePathsEqual } from "./workspace-path";
 
 export type DelegationOverview = {
   total?: number;
@@ -118,6 +118,20 @@ export type RepositoryWorktreeRecord = {
   detached?: boolean;
   prunable?: boolean;
 };
+
+export function isolatedCodingWorktrees(
+  worktrees: readonly RepositoryWorktreeRecord[],
+  repositoryRoot: string | undefined,
+  platform: DesktopPlatform,
+): RepositoryWorktreeRecord[] {
+  return worktrees.filter(
+    (worktree) =>
+      Boolean(worktree.branch?.trim()) &&
+      !worktree.detached &&
+      (!repositoryRoot?.trim() ||
+        !workspacePathsEqual(worktree.path, repositoryRoot, platform)),
+  );
+}
 
 type RepositoryWorktreesResponse = { worktrees?: unknown[] };
 

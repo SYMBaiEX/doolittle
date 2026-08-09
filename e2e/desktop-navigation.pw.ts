@@ -416,7 +416,9 @@ test.describe("Doolittle desktop navigation", () => {
       await taskForm
         .getByLabel("Objective")
         .fill("Research the Eliza account-pool orchestration path.");
-      await taskForm.getByRole("button", { name: "Create task" }).click();
+      await taskForm
+        .getByRole("button", { name: "Create research task" })
+        .click();
       await expect(page.getByText("Task created.")).toBeVisible({
         timeout: 30_000,
       });

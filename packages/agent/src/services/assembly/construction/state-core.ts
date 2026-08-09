@@ -40,7 +40,7 @@ export function createServiceConstructionCore(params: {
 
   return {
     sessions,
-    agentSdk: new AgentSdkService(),
+    agentSdk: new AgentSdkService(config.extensionAllowlist ?? []),
     apiTransport: new ApiTransportService(directories.apiDir),
     mcp: new McpService(() => settings.get().mcp),
     acp: new AcpService(

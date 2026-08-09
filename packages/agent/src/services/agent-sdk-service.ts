@@ -1,6 +1,7 @@
 import {
   getAgentRegistrySnapshot,
   getAgentSdkAudit,
+  installAgentRegistryExtension,
   searchAgentRegistry,
 } from "@/runtime/native/agent-sdk";
 
@@ -49,6 +50,8 @@ export class AgentSdkService {
   private auditCache?: AgentSdkAudit;
   private registryCache?: AgentRegistrySnapshot;
 
+  constructor(private readonly extensionAllowlist: readonly string[] = []) {}
+
   snapshot() {
     return {
       audit: this.auditCache,
@@ -68,12 +71,30 @@ export class AgentSdkService {
     if (!force && this.registryCache) {
       return this.registryCache;
     }
-    this.registryCache = await getAgentRegistrySnapshot(limit);
+    this.registryCache = await getAgentRegistrySnapshot(
+      limit,
+      this.extensionAllowlist,
+      force,
+    );
     return this.registryCache;
   }
 
   async searchRegistry(query: string, limit = 15) {
-    return searchAgentRegistry(query, limit);
+    return searchAgentRegistry(query, limit, this.extensionAllowlist);
+  }
+
+  async installRegistryExtension(input: {
+    name: string;
+    packageName: string;
+    version: string;
+    approved: boolean;
+  }) {
+    const result = await installAgentRegistryExtension({
+      ...input,
+      allowlist: this.extensionAllowlist,
+    });
+    if (result.ok) this.registryCache = undefined;
+    return result;
   }
 
   async overview(force = false): Promise<AgentSdkOverview> {

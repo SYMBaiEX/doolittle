@@ -7,6 +7,7 @@ import type { DelegationOrchestrationMode } from "@/types/runtime";
 import type { RuntimeLike } from "../runtime";
 import { projectOfficialTask, requireOfficialOrchestrator } from "./official";
 import {
+  abortResearchRun,
   isCurrentActiveResearchRun,
   isSessionlessResearchTask,
   markResearchRunLive,
@@ -74,6 +75,12 @@ function isResearchTask(detail: {
 function researchRunId() {
   return `research-${randomUUID()}`;
 }
+
+type ResearchExecutionResult = ReturnType<typeof projectOfficialTask> | null;
+const activeResearchExecutions = new WeakMap<
+  object,
+  Map<string, Promise<ResearchExecutionResult>>
+>();
 
 export async function retryEffectiveDelegationTask(
   runtime: RuntimeLike,
@@ -163,15 +170,16 @@ export async function cancelEffectiveDelegationTask(
   const task = await service.pauseTask(id);
   if (!task) return null;
 
-  // RESEARCH providers do not expose a public abort signal through beta.7.
-  // Record a cooperative interruption so a late provider result cannot turn an
-  // operator cancellation into a completed task.
+  // beta.7 providers ignore the structurally forwarded research signal; newer
+  // providers can abort their request. Retain the durable interruption guard
+  // in both cases so a late provider result cannot complete a cancelled task.
   const receipt = researchRunReceipt(task.metadata);
   if (
     isSessionlessResearchTask(task) &&
     receipt?.status === "active" &&
     typeof receipt.runId === "string"
   ) {
+    const providerAbortRequested = abortResearchRun(id, receipt.runId);
     const interruptedAt = new Date().toISOString();
     const cancelled = await service.updateTask(id, {
       status: "interrupted",
@@ -183,6 +191,7 @@ export async function cancelEffectiveDelegationTask(
           status: "cancelled",
           cancelledAt: interruptedAt,
           interruption: "cooperative",
+          providerAbortRequested,
         },
       },
     });
@@ -238,147 +247,168 @@ export async function executeEffectiveDelegationTask(
   if (!detail) return null;
 
   if (isResearchTask(detail)) {
-    const startedAt = new Date().toISOString();
-    const runId = researchRunId();
-    const currentRun = async () => {
-      const current = await service.getTask(id);
-      return current && isCurrentActiveResearchRun(current, runId)
-        ? current
-        : null;
-    };
-    const currentProjection = async () => {
-      const current = await service.getTask(id);
-      return current
-        ? updateProjection(projection, projectOfficialTask(current))
-        : null;
-    };
-
-    // Register synchronously before the first durable write. A concurrent
-    // projection refresh must never mistake setup for a post-restart orphan.
-    markResearchRunLive(id, runId);
-    // beta.7 has no typed external-execution primitive. Record the
-    // sessionless research run through the durable task lifecycle instead of
-    // pretending that an ACP coding session executed it.
-    let durableResearchRunStarted = false;
-    try {
-      const started = await service.updateTask(id, {
-        status: "active",
-        metadata: {
-          ...detail.metadata,
-          researchRun: { runId, status: "active", startedAt },
-        },
-      });
-      if (!started || !isCurrentActiveResearchRun(started, runId)) {
-        throw new Error(
-          "Unable to start Doolittle research: the durable task record was not activated.",
-        );
+    let executions = activeResearchExecutions.get(runtime);
+    if (!executions) {
+      executions = new Map();
+      activeResearchExecutions.set(runtime, executions);
+    }
+    const activeExecution = executions.get(id);
+    if (activeExecution) return activeExecution;
+    const execution = (async (): Promise<ResearchExecutionResult> => {
+      const detail = await service.getTask(id);
+      if (!detail) return null;
+      if (detail.paused || detail.status !== "open") {
+        return updateProjection(projection, projectOfficialTask(detail));
       }
-      durableResearchRunStarted = true;
-      await service.addMessage(id, {
-        content: `Starting Doolittle research run ${runId}.`,
-        senderKind: "system",
-        direction: "system",
-      });
-      const researchRuntime = runtime as RuntimeLike &
-        Partial<DoolittleResearchRuntime>;
-      if (
-        typeof researchRuntime.getModel !== "function" ||
-        typeof researchRuntime.useModel !== "function"
-      ) {
-        throw new Error(
-          "Deep research is unavailable: the runtime has no RESEARCH model provider.",
-        );
-      }
-      const research = await runDoolittleResearch(
-        researchRuntime as DoolittleResearchRuntime,
-        detail.goal,
-        id,
-      );
-      const completedAt = new Date().toISOString();
-      const receipt = {
-        runId,
-        status: "completed",
-        startedAt,
-        completedAt,
-        responseId: research.responseId,
-        sources: research.sources,
+      const startedAt = new Date().toISOString();
+      const runId = researchRunId();
+      const currentRun = async () => {
+        const current = await service.getTask(id);
+        return current && isCurrentActiveResearchRun(current, runId)
+          ? current
+          : null;
       };
-      // Every mutation after the provider await is guarded by a fresh durable
-      // read. beta.7 does not offer a conditional update/abort primitive.
-      if (!(await currentRun())) return currentProjection();
-      await service.addMessage(id, {
-        content: research.report,
-        senderKind: "sub_agent",
-        direction: "stdout",
-      });
-      const latest = await currentRun();
-      if (!latest) return currentProjection();
-      await service.updateTask(id, {
-        status: "validating",
-        metadata: {
-          ...latest.metadata,
-          researchRun: receipt,
-        },
-      });
-      // The validation transition persists the completed receipt. Re-read to
-      // avoid validating if an operator cancelled during that await.
-      const beforeValidate = await service.getTask(id);
-      if (
-        !beforeValidate ||
-        beforeValidate.paused ||
-        beforeValidate.status !== "validating" ||
-        researchRunReceipt(beforeValidate.metadata)?.runId !== runId ||
-        researchRunReceipt(beforeValidate.metadata)?.status !== "completed"
-      ) {
-        return currentProjection();
-      }
-      const validated = await service.validateTask(id, {
-        passed: true,
-        summary:
-          research.sources.length > 0
-            ? "Doolittle research completed with cited sources."
-            : "Doolittle research completed.",
-        evidence: research.report,
-        verifier: "doolittle-research-executor",
-        humanOverride: false,
-      });
-      return validated
-        ? updateProjection(projection, projectOfficialTask(validated))
-        : null;
-    } catch (error) {
-      // If the initial write never produced the active receipt, there is no
-      // authoritative run to fail. Surface setup failure instead of silently
-      // returning an unrelated pre-run projection.
-      if (!durableResearchRunStarted) throw error;
-      const failedAt = new Date().toISOString();
-      const failure = error instanceof Error ? error.message : String(error);
-      if (!(await currentRun())) return currentProjection();
-      await service.addMessage(id, {
-        content: `Doolittle research failed: ${failure}`,
-        senderKind: "system",
-        direction: "stderr",
-      });
-      const latest = await currentRun();
-      if (!latest) return currentProjection();
-      const failed = await service.updateTask(id, {
-        status: "failed",
-        closedAt: failedAt,
-        metadata: {
-          ...latest.metadata,
-          researchRun: {
-            runId,
-            status: "failed",
-            startedAt,
-            failedAt,
-            error: failure,
+      const currentProjection = async () => {
+        const current = await service.getTask(id);
+        return current
+          ? updateProjection(projection, projectOfficialTask(current))
+          : null;
+      };
+
+      // Register synchronously before the first durable write. A concurrent
+      // projection refresh must never mistake setup for a post-restart orphan.
+      const researchSignal = markResearchRunLive(id, runId);
+      // beta.7 has no typed external-execution primitive. Record the
+      // sessionless research run through the durable task lifecycle instead of
+      // pretending that an ACP coding session executed it.
+      let durableResearchRunStarted = false;
+      try {
+        const started = await service.updateTask(id, {
+          status: "active",
+          metadata: {
+            ...detail.metadata,
+            researchRun: { runId, status: "active", startedAt },
           },
-        },
-      });
-      return failed
-        ? updateProjection(projection, projectOfficialTask(failed))
-        : null;
+        });
+        if (!started || !isCurrentActiveResearchRun(started, runId)) {
+          throw new Error(
+            "Unable to start Doolittle research: the durable task record was not activated.",
+          );
+        }
+        durableResearchRunStarted = true;
+        await service.addMessage(id, {
+          content: `Starting Doolittle research run ${runId}.`,
+          senderKind: "system",
+          direction: "system",
+        });
+        const researchRuntime = runtime as RuntimeLike &
+          Partial<DoolittleResearchRuntime>;
+        if (
+          typeof researchRuntime.getModel !== "function" ||
+          typeof researchRuntime.useModel !== "function"
+        ) {
+          throw new Error(
+            "Deep research is unavailable: the runtime has no RESEARCH model provider.",
+          );
+        }
+        const research = await runDoolittleResearch(
+          researchRuntime as DoolittleResearchRuntime,
+          detail.goal,
+          id,
+          researchSignal,
+        );
+        const completedAt = new Date().toISOString();
+        const receipt = {
+          runId,
+          status: "completed",
+          startedAt,
+          completedAt,
+          responseId: research.responseId,
+          sources: research.sources,
+        };
+        // Every mutation after the provider await is guarded by a fresh durable
+        // read. Eliza does not yet offer a conditional task-update primitive.
+        if (!(await currentRun())) return currentProjection();
+        await service.addMessage(id, {
+          content: research.report,
+          senderKind: "sub_agent",
+          direction: "stdout",
+        });
+        const latest = await currentRun();
+        if (!latest) return currentProjection();
+        await service.updateTask(id, {
+          status: "validating",
+          metadata: {
+            ...latest.metadata,
+            researchRun: receipt,
+          },
+        });
+        // The validation transition persists the completed receipt. Re-read to
+        // avoid validating if an operator cancelled during that await.
+        const beforeValidate = await service.getTask(id);
+        if (
+          !beforeValidate ||
+          beforeValidate.paused ||
+          beforeValidate.status !== "validating" ||
+          researchRunReceipt(beforeValidate.metadata)?.runId !== runId ||
+          researchRunReceipt(beforeValidate.metadata)?.status !== "completed"
+        ) {
+          return currentProjection();
+        }
+        const validated = await service.validateTask(id, {
+          passed: true,
+          summary:
+            research.sources.length > 0
+              ? "Doolittle research completed with cited sources."
+              : "Doolittle research completed.",
+          evidence: research.report,
+          verifier: "doolittle-research-executor",
+          humanOverride: false,
+        });
+        return validated
+          ? updateProjection(projection, projectOfficialTask(validated))
+          : null;
+      } catch (error) {
+        // If the initial write never produced the active receipt, there is no
+        // authoritative run to fail. Surface setup failure instead of silently
+        // returning an unrelated pre-run projection.
+        if (!durableResearchRunStarted) throw error;
+        const failedAt = new Date().toISOString();
+        const failure = error instanceof Error ? error.message : String(error);
+        if (!(await currentRun())) return currentProjection();
+        await service.addMessage(id, {
+          content: `Doolittle research failed: ${failure}`,
+          senderKind: "system",
+          direction: "stderr",
+        });
+        const latest = await currentRun();
+        if (!latest) return currentProjection();
+        const failed = await service.updateTask(id, {
+          status: "failed",
+          closedAt: failedAt,
+          metadata: {
+            ...latest.metadata,
+            researchRun: {
+              runId,
+              status: "failed",
+              startedAt,
+              failedAt,
+              error: failure,
+            },
+          },
+        });
+        return failed
+          ? updateProjection(projection, projectOfficialTask(failed))
+          : null;
+      } finally {
+        markResearchRunSettled(id, runId);
+      }
+    })();
+    executions.set(id, execution);
+    try {
+      return await execution;
     } finally {
-      markResearchRunSettled(id, runId);
+      if (executions.get(id) === execution) executions.delete(id);
     }
   }
 

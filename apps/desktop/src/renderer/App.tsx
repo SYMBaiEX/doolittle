@@ -1547,6 +1547,18 @@ export function App() {
         else setView("chat");
         return;
       }
+      if (event.target === "terminal" || event.target === "workspace") {
+        setView("code");
+        return;
+      }
+      if (event.target === "codegen") {
+        setView("orchestration");
+        return;
+      }
+      if (event.target === "operations") {
+        setView("logs");
+        return;
+      }
       setView(event.target);
     },
     [closeUtilities, openSession, setView],

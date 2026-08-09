@@ -1,4 +1,8 @@
+import type { AppLogRecord } from "@/logging/logger";
+import type { AutocoderPipelineRunRecord } from "@/services/autocoder-pipeline";
+import type { RepositoryChange } from "@/services/repository-service";
 import type { AutomationRunRecord, DelegationTaskRecord } from "@/types";
+import type { TerminalCommandRecord } from "@/types/execution";
 import type { DeliveredMessageRecord } from "@/types/gateway";
 import type { ExecutionApprovalRecord } from "../execution-approval/types";
 import type { RunSnapshot } from "../run-controller/types";
@@ -8,7 +12,11 @@ export type ActivityEventKind =
   | "automation"
   | "delegation"
   | "approval"
-  | "delivery";
+  | "delivery"
+  | "terminal"
+  | "repository-change"
+  | "codegen"
+  | "log";
 
 export type ActivityEventStatus =
   | "pending"
@@ -21,13 +29,18 @@ export type ActivityEventStatus =
   | "denied"
   | "expired"
   | "used"
-  | "delivered";
+  | "delivered"
+  | "recorded";
 
 export type ActivityEventTarget =
   | "chat"
   | "review"
   | "automations"
-  | "orchestration";
+  | "orchestration"
+  | "terminal"
+  | "workspace"
+  | "codegen"
+  | "operations";
 
 export interface ActivityEvent {
   id: string;
@@ -51,22 +64,64 @@ export interface ActivityFeedServices {
   delivery: {
     recent(limit?: number): DeliveredMessageRecord[];
   };
+  terminal: {
+    recent(limit?: number): TerminalCommandRecord[];
+  };
+  logger: {
+    list(limit?: number): AppLogRecord[];
+  };
+  autocoderPipeline: {
+    list(limit?: number): AutocoderPipelineRunRecord[];
+  };
 }
 
 export interface ActivityFeedOptions {
   limit?: number;
   after?: string;
+  filters?: ActivityFeedFilters;
+}
+
+/**
+ * Narrow, server-validated association filters for the operator timeline.
+ * Raw source records deliberately stay behind this DTO boundary.
+ */
+export interface ActivityFeedFilters {
+  kind?: ActivityEventKind;
+  status?: ActivityEventStatus;
+  target?: ActivityEventTarget;
+  sessionId?: string;
 }
 
 export interface ActivityFeedSourceData {
   automationRuns?: AutomationRunRecord[];
   delegationTasks?: DelegationTaskRecord[];
+  repositoryChanges?: RepositoryChange[];
+  repositoryObservedAt?: string;
 }
 
 export interface ActivityFeedResult {
   events: ActivityEvent[];
   cursor: string | null;
   updatedAt: string | null;
+}
+
+export interface ActivityExportEvent {
+  kind: ActivityEventKind;
+  status: ActivityEventStatus;
+  occurredAt: string;
+  title: string;
+  safeSummary: string;
+  target: ActivityEventTarget;
+}
+
+export interface ActivityExportResult {
+  schemaVersion: 1;
+  generatedAt: string;
+  redaction: "summary-only";
+  byteLimit: number;
+  byteLength: number;
+  truncated: boolean;
+  events: ActivityExportEvent[];
 }
 
 interface ActivityCursor {
@@ -76,6 +131,7 @@ interface ActivityCursor {
 
 const MAX_ACTIVITY_EVENTS = 200;
 const MAX_SOURCE_ID_LENGTH = 256;
+const MAX_ACTIVITY_EXPORT_BYTES = 32 * 1024;
 
 function validSourceId(value: string): boolean {
   return (
@@ -257,6 +313,140 @@ function normalizeDelivery(
   };
 }
 
+function normalizeTerminal(
+  record: TerminalCommandRecord,
+): ActivityEvent | null {
+  const occurredAt = record.completedAt || record.startedAt;
+  if (!validSourceId(record.id) || !validTimestamp(occurredAt)) return null;
+  const status: ActivityEventStatus = record.timedOut
+    ? "failed"
+    : record.exitCode === 0
+      ? "succeeded"
+      : "failed";
+  const title = record.timedOut
+    ? "Terminal command timed out"
+    : status === "succeeded"
+      ? "Terminal command completed"
+      : "Terminal command failed";
+  const duration = Number.isFinite(record.durationMs)
+    ? ` after ${Math.max(0, Math.round(record.durationMs ?? 0))} ms`
+    : "";
+  return {
+    id: eventId("terminal", record.id),
+    kind: "terminal",
+    sourceId: record.id,
+    status,
+    occurredAt,
+    title,
+    safeSummary: record.timedOut
+      ? "A terminal command exceeded its configured time limit."
+      : status === "succeeded"
+        ? `A terminal command completed successfully${duration}.`
+        : `A terminal command exited with a non-zero status${duration}.`,
+    target: "terminal",
+  };
+}
+
+function normalizeRepositoryChange(
+  record: RepositoryChange,
+  index: number,
+  observedAt: string | undefined,
+): ActivityEvent | null {
+  if (!validTimestamp(observedAt)) return null;
+  const status = record.untracked
+    ? "untracked"
+    : record.staged
+      ? "staged"
+      : "modified";
+  const title =
+    status === "untracked"
+      ? "Untracked repository change observed"
+      : status === "staged"
+        ? "Staged repository change observed"
+        : "Repository change observed";
+  return {
+    id: eventId("repository-change", `change-${index}`),
+    kind: "repository-change",
+    sourceId: `change-${index}`,
+    status: "recorded",
+    occurredAt: observedAt,
+    title,
+    safeSummary:
+      "A repository change is present in the active workspace. File paths are intentionally omitted.",
+    target: "workspace",
+  };
+}
+
+function normalizeCodegen(
+  record: AutocoderPipelineRunRecord,
+): ActivityEvent | null {
+  const occurredAt = record.completedAt ?? record.updatedAt ?? record.startedAt;
+  if (!validSourceId(record.id) || !validTimestamp(occurredAt)) return null;
+  const status: ActivityEventStatus =
+    record.status === "completed"
+      ? "succeeded"
+      : record.status === "failed"
+        ? "failed"
+        : record.status === "cancelled"
+          ? "cancelled"
+          : record.status === "running"
+            ? "running"
+            : "pending";
+  const title =
+    status === "succeeded"
+      ? "Code generation run completed"
+      : status === "failed"
+        ? "Code generation run failed"
+        : status === "cancelled"
+          ? "Code generation run cancelled"
+          : status === "running"
+            ? "Code generation run in progress"
+            : "Code generation run queued";
+  const artifacts = Math.max(0, record.artifactPaths.length);
+  return {
+    id: eventId("codegen", record.id),
+    kind: "codegen",
+    sourceId: record.id,
+    ...(record.sessionId && validSourceId(record.sessionId)
+      ? { sessionId: record.sessionId }
+      : {}),
+    status,
+    occurredAt,
+    title,
+    safeSummary:
+      status === "succeeded"
+        ? `${title} with ${artifacts} recorded ${artifacts === 1 ? "artifact" : "artifacts"}.`
+        : `${title}.`,
+    target: "codegen",
+  };
+}
+
+function normalizeLog(
+  record: AppLogRecord,
+  index: number,
+): ActivityEvent | null {
+  if (!validTimestamp(record.at)) return null;
+  const status: ActivityEventStatus =
+    record.level === "error" || record.level === "fatal"
+      ? "failed"
+      : "recorded";
+  const title =
+    status === "failed" ? "Runtime failure recorded" : "Runtime event recorded";
+  return {
+    id: eventId("log", `log-${index}`),
+    kind: "log",
+    sourceId: `log-${index}`,
+    status,
+    occurredAt: record.at,
+    title,
+    safeSummary:
+      status === "failed"
+        ? "The runtime recorded an error event. Log content is intentionally omitted."
+        : "The runtime recorded an operational event. Log content is intentionally omitted.",
+    target: "operations",
+  };
+}
+
 function compareEvents(left: ActivityEvent, right: ActivityEvent): number {
   const timestamp = right.occurredAt.localeCompare(left.occurredAt);
   return timestamp || right.id.localeCompare(left.id);
@@ -296,6 +486,19 @@ function isAfterCursor(event: ActivityEvent, cursor: ActivityCursor): boolean {
   );
 }
 
+function matchesFilters(
+  event: ActivityEvent,
+  filters: ActivityFeedFilters | undefined,
+): boolean {
+  if (!filters) return true;
+  return (
+    (!filters.kind || event.kind === filters.kind) &&
+    (!filters.status || event.status === filters.status) &&
+    (!filters.target || event.target === filters.target) &&
+    (!filters.sessionId || event.sessionId === filters.sessionId)
+  );
+}
+
 export function buildActivityFeed(
   services: ActivityFeedServices,
   options: ActivityFeedOptions = {},
@@ -304,13 +507,43 @@ export function buildActivityFeed(
   const normalized = [
     ...services.runController
       .listReceipts(MAX_ACTIVITY_EVENTS)
+      .slice(0, MAX_ACTIVITY_EVENTS)
       .map(normalizeRun),
     ...(sourceData.automationRuns ?? [])
       .slice(0, MAX_ACTIVITY_EVENTS)
       .map(normalizeAutomation),
-    ...(sourceData.delegationTasks ?? []).map(normalizeDelegation),
-    ...services.executionApprovals.list().map(normalizeApproval),
-    ...services.delivery.recent(MAX_ACTIVITY_EVENTS).map(normalizeDelivery),
+    ...(sourceData.delegationTasks ?? [])
+      .slice(0, MAX_ACTIVITY_EVENTS)
+      .map(normalizeDelegation),
+    ...services.executionApprovals
+      .list()
+      .slice(0, MAX_ACTIVITY_EVENTS)
+      .map(normalizeApproval),
+    ...services.delivery
+      .recent(MAX_ACTIVITY_EVENTS)
+      .slice(0, MAX_ACTIVITY_EVENTS)
+      .map(normalizeDelivery),
+    ...services.terminal
+      .recent(MAX_ACTIVITY_EVENTS)
+      .slice(0, MAX_ACTIVITY_EVENTS)
+      .map(normalizeTerminal),
+    ...services.autocoderPipeline
+      .list(MAX_ACTIVITY_EVENTS)
+      .slice(0, MAX_ACTIVITY_EVENTS)
+      .map(normalizeCodegen),
+    ...services.logger
+      .list(MAX_ACTIVITY_EVENTS)
+      .slice(-MAX_ACTIVITY_EVENTS)
+      .map(normalizeLog),
+    ...(sourceData.repositoryChanges ?? [])
+      .slice(0, MAX_ACTIVITY_EVENTS)
+      .map((record, index) =>
+        normalizeRepositoryChange(
+          record,
+          index,
+          sourceData.repositoryObservedAt,
+        ),
+      ),
   ].filter((event): event is ActivityEvent => event !== null);
   const deduped = Array.from(
     new Map(normalized.map((event) => [event.id, event])).values(),
@@ -323,7 +556,9 @@ export function buildActivityFeed(
   );
   const events = (
     after ? deduped.filter((event) => isAfterCursor(event, after)) : deduped
-  ).slice(0, limit);
+  )
+    .filter((event) => matchesFilters(event, options.filters))
+    .slice(0, limit);
   const lastEvent = events.at(-1);
   return {
     events,
@@ -333,3 +568,78 @@ export function buildActivityFeed(
 }
 
 export const ACTIVITY_FEED_MAX_LIMIT = MAX_ACTIVITY_EVENTS;
+export const ACTIVITY_EXPORT_MAX_BYTES = MAX_ACTIVITY_EXPORT_BYTES;
+
+function exportEvent(event: ActivityEvent): ActivityExportEvent {
+  return {
+    kind: event.kind,
+    status: event.status,
+    occurredAt: event.occurredAt,
+    title: event.title,
+    safeSummary: event.safeSummary,
+    target: event.target,
+  };
+}
+
+function exportByteLength(
+  value: Omit<ActivityExportResult, "byteLength">,
+): number {
+  return Buffer.byteLength(JSON.stringify({ ...value, byteLength: 0 }), "utf8");
+}
+
+function finalizeActivityExport(
+  value: Omit<ActivityExportResult, "byteLength">,
+): ActivityExportResult {
+  let byteLength = exportByteLength(value);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const next = Buffer.byteLength(
+      JSON.stringify({ ...value, byteLength }),
+      "utf8",
+    );
+    if (next === byteLength) break;
+    byteLength = next;
+  }
+  return { ...value, byteLength };
+}
+
+/**
+ * Produces a bounded support-safe export. Association identifiers are useful
+ * inside the authenticated operator UI, but are intentionally excluded from
+ * exported artifacts so a timeline cannot become a side channel for session
+ * or source identifiers.
+ */
+export function buildActivityExport(
+  feed: ActivityFeedResult,
+  generatedAt = new Date().toISOString(),
+): ActivityExportResult {
+  const events: ActivityExportEvent[] = [];
+  let truncated = false;
+  for (const event of feed.events) {
+    const candidate = exportEvent(event);
+    const payload = {
+      schemaVersion: 1 as const,
+      generatedAt,
+      redaction: "summary-only" as const,
+      byteLimit: MAX_ACTIVITY_EXPORT_BYTES,
+      truncated: false,
+      events: [...events, candidate],
+    };
+    // Leave a small envelope for the final byteLength digits so the serialized
+    // response remains within the public cap as well as the candidate payload.
+    if (exportByteLength(payload) > MAX_ACTIVITY_EXPORT_BYTES - 32) {
+      truncated = true;
+      break;
+    }
+    events.push(candidate);
+  }
+  if (events.length < feed.events.length) truncated = true;
+  const base = {
+    schemaVersion: 1 as const,
+    generatedAt,
+    redaction: "summary-only" as const,
+    byteLimit: MAX_ACTIVITY_EXPORT_BYTES,
+    truncated,
+    events,
+  };
+  return finalizeActivityExport(base);
+}

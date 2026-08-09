@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   mcpStatusLabel,
+  normalizeMcpMarketplace,
+  normalizeMcpMarketplaceDetail,
   normalizeMcpServers,
   normalizeMcpTools,
 } from "./McpControlPanel";
@@ -69,5 +71,93 @@ describe("normalizeMcpServers", () => {
         error: "",
       },
     ]);
+  });
+});
+
+describe("MCP marketplace projections", () => {
+  it("normalizes official search rows without accepting configuration", () => {
+    expect(
+      normalizeMcpMarketplace([
+        {
+          name: "io.example/research",
+          title: "Research",
+          description: "Searches primary sources",
+          version: "1.2.3",
+          connectionType: "remote",
+          repositoryUrl: "https://github.com/example/research",
+          isLatest: true,
+        },
+        {
+          name: "io.example/unsafe-link",
+          repositoryUrl: "javascript:alert('unsafe')",
+        },
+        { title: "missing name" },
+      ]),
+    ).toEqual([
+      {
+        name: "io.example/research",
+        title: "Research",
+        description: "Searches primary sources",
+        version: "1.2.3",
+        connectionType: "remote",
+        repositoryUrl: "https://github.com/example/research",
+        isLatest: true,
+      },
+      {
+        name: "io.example/unsafe-link",
+        title: "io.example/unsafe-link",
+        description: "No description provided.",
+        version: "Unknown",
+        connectionType: "unknown",
+        repositoryUrl: "",
+        isLatest: false,
+      },
+    ]);
+  });
+
+  it("surfaces requirements while retaining an official generated preview", () => {
+    expect(
+      normalizeMcpMarketplaceDetail(
+        {
+          name: "io.example/research",
+          version: "1.2.3",
+          repository: { url: "https://github.com/example/research" },
+          remotes: [
+            {
+              type: "streamable-http",
+              headers: [
+                { name: "Authorization", isRequired: true, isSecret: true },
+              ],
+            },
+          ],
+          packages: [
+            {
+              transport: { type: "stdio" },
+              environmentVariables: [
+                { name: "API_KEY", isRequired: true, isSecret: true },
+              ],
+            },
+          ],
+        },
+        { type: "streamable-http", url: "https://mcp.example.com" },
+      ),
+    ).toEqual({
+      name: "io.example/research",
+      version: "1.2.3",
+      repositoryUrl: "https://github.com/example/research",
+      transports: ["streamable-http", "stdio"],
+      environment: [
+        { name: "API_KEY", description: "", required: true, secret: true },
+      ],
+      headers: [
+        {
+          name: "Authorization",
+          description: "",
+          required: true,
+          secret: true,
+        },
+      ],
+      config: { type: "streamable-http", url: "https://mcp.example.com" },
+    });
   });
 });

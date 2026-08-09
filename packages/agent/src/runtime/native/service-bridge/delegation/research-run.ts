@@ -23,7 +23,7 @@ const TERMINAL_TASK_STATUSES = new Set<NativeOrchestratorTaskStatus>([
   "archived",
   "interrupted",
 ]);
-const liveResearchRuns = new Set<string>();
+const liveResearchRuns = new Map<string, AbortController>();
 
 function runKey(taskId: string, runId: string) {
   return `${taskId}:${runId}`;
@@ -69,7 +69,18 @@ export function isLiveResearchRun(taskId: string, runId: string) {
 }
 
 export function markResearchRunLive(taskId: string, runId: string) {
-  liveResearchRuns.add(runKey(taskId, runId));
+  const controller = new AbortController();
+  liveResearchRuns.set(runKey(taskId, runId), controller);
+  return controller.signal;
+}
+
+export function abortResearchRun(taskId: string, runId: string) {
+  const controller = liveResearchRuns.get(runKey(taskId, runId));
+  if (!controller) return false;
+  controller.abort(
+    new DOMException("The Doolittle research run was cancelled.", "AbortError"),
+  );
+  return true;
 }
 
 export function markResearchRunSettled(taskId: string, runId: string) {
