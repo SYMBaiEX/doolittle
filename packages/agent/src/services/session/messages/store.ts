@@ -28,6 +28,64 @@ export class SessionMessageStore {
   ) {}
 
   storeMessage(message: StoredMessage): void {
+    if (!this.insertMessage(message)) return;
+
+    this.emitActivity(message);
+  }
+
+  replaceSessionMessages(sessionId: string, messages: StoredMessage[]): void {
+    const inserted: StoredMessage[] = [];
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const rows = this.db
+        .query(
+          `
+            SELECT rowid
+            FROM messages
+            WHERE session_id = ?1
+          `,
+        )
+        .all(sessionId) as Array<{ rowid: number }>;
+
+      if (rows.length) {
+        const placeholders = rows.map(() => "?").join(", ");
+        const rowIds = rows.map((row) => row.rowid);
+        this.db
+          .query(
+            `DELETE FROM message_origins WHERE message_id IN (
+              SELECT id FROM messages WHERE rowid IN (${placeholders})
+            )`,
+          )
+          .run(...rowIds);
+        this.db
+          .query(`DELETE FROM messages_fts WHERE rowid IN (${placeholders})`)
+          .run(...rowIds);
+        this.db
+          .query(`DELETE FROM messages WHERE rowid IN (${placeholders})`)
+          .run(...rowIds);
+      }
+
+      for (const message of messages) {
+        const replacement = {
+          ...message,
+          sessionId,
+        };
+        if (this.insertMessage(replacement)) {
+          inserted.push(replacement);
+        }
+      }
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+
+    for (const message of inserted) {
+      this.emitActivity(message);
+    }
+  }
+
+  private insertMessage(message: StoredMessage): boolean {
     const insert = this.db
       .query(
         `
@@ -48,7 +106,7 @@ export class SessionMessageStore {
         serializeAttachments(message.attachments),
         message.createdAt,
       );
-    if (insert.changes === 0) return;
+    if (insert.changes === 0) return false;
 
     this.db
       .query(
@@ -66,49 +124,16 @@ export class SessionMessageStore {
         message.createdAt,
       );
 
+    return true;
+  }
+
+  private emitActivity(message: StoredMessage): void {
     this.events.emit("activity", {
       kind: "message",
       sessionId: message.sessionId,
       role: message.role,
       detail: `[${message.role}] ${message.text.slice(0, 160)}`,
     } satisfies SessionMessageActivityEvent);
-  }
-
-  replaceSessionMessages(sessionId: string, messages: StoredMessage[]): void {
-    const rows = this.db
-      .query(
-        `
-          SELECT rowid
-          FROM messages
-          WHERE session_id = ?1
-        `,
-      )
-      .all(sessionId) as Array<{ rowid: number }>;
-
-    if (rows.length) {
-      const placeholders = rows.map(() => "?").join(", ");
-      const rowIds = rows.map((row) => row.rowid);
-      this.db
-        .query(
-          `DELETE FROM message_origins WHERE message_id IN (
-            SELECT id FROM messages WHERE rowid IN (${placeholders})
-          )`,
-        )
-        .run(...rowIds);
-      this.db
-        .query(`DELETE FROM messages_fts WHERE rowid IN (${placeholders})`)
-        .run(...rowIds);
-      this.db
-        .query(`DELETE FROM messages WHERE rowid IN (${placeholders})`)
-        .run(...rowIds);
-    }
-
-    for (const message of messages) {
-      this.storeMessage({
-        ...message,
-        sessionId,
-      });
-    }
   }
 
   onActivity(

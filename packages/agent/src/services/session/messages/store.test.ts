@@ -1,6 +1,10 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it } from "vitest";
-import { NodeSessionDatabase as Database } from "@/services/session/database";
+import {
+  NodeSessionDatabase as Database,
+  type SessionDatabase,
+  type SessionStatement,
+} from "@/services/session/database";
 import { migrateSessionDatabase } from "@/services/session/schema";
 import { SessionMessageStore } from "./store";
 
@@ -8,6 +12,40 @@ function createDb(): Database {
   const db = new Database(":memory:");
   migrateSessionDatabase(db);
   return db;
+}
+
+class FaultInjectingSessionDatabase implements SessionDatabase {
+  private deletedMessages = false;
+
+  constructor(private readonly delegate: SessionDatabase) {}
+
+  exec(sql: string): void {
+    this.delegate.exec(sql);
+  }
+
+  query(sql: string): SessionStatement {
+    const statement = this.delegate.query(sql);
+    const isMessageDelete = sql.includes("DELETE FROM messages WHERE rowid IN");
+    const isFtsInsert = sql.includes("INSERT INTO messages_fts");
+    return {
+      all: (...params) => statement.all(...params),
+      get: (...params) => statement.get(...params),
+      run: (...params) => {
+        if (isFtsInsert && this.deletedMessages) {
+          throw new Error("Injected messages_fts insertion failure");
+        }
+        const result = statement.run(...params);
+        if (isMessageDelete) {
+          this.deletedMessages = true;
+        }
+        return result;
+      },
+    };
+  }
+
+  close(): void {
+    this.delegate.close();
+  }
 }
 
 describe("session/messages/store", () => {
@@ -187,6 +225,63 @@ describe("session/messages/store", () => {
     ).toEqual(["compressed summary"]);
     expect(store.search("obsolete", 10)).toHaveLength(0);
     expect(store.search("compressed", 10)).toHaveLength(1);
+  });
+
+  it("rolls back a replacement and withholds activity when insertion fails", () => {
+    const db = createDb();
+    const events = new EventEmitter();
+    const seedStore = new SessionMessageStore(db, events);
+    seedStore.storeMessage({
+      id: "old-1",
+      sessionId: "room:1",
+      roomId: "room:1",
+      entityId: "user:1",
+      role: "user",
+      text: "preserved transcript",
+      createdAt: "2026-03-20T00:00:00.000Z",
+    });
+    db.query(
+      `
+        INSERT INTO message_origins (
+          message_id, origin_message_id, source_session_id, created_at
+        )
+        VALUES (?1, ?2, ?3, ?4)
+      `,
+    ).run("old-1", "source-1", "source", "2026-03-20T00:00:00.000Z");
+
+    const store = new SessionMessageStore(
+      new FaultInjectingSessionDatabase(db),
+      events,
+    );
+    const activity: unknown[] = [];
+    store.onActivity((event) => {
+      activity.push(event);
+    });
+
+    expect(() =>
+      store.replaceSessionMessages("room:1", [
+        {
+          id: "new-1",
+          sessionId: "room:1",
+          roomId: "room:1",
+          entityId: "assistant:1",
+          role: "assistant",
+          text: "replacement transcript",
+          createdAt: "2026-03-20T00:00:01.000Z",
+        },
+      ]),
+    ).toThrow("Injected messages_fts insertion failure");
+
+    expect(store.messagesBySession("room:1", 10)).toMatchObject([
+      {
+        id: "old-1",
+        text: "preserved transcript",
+        originMessageId: "source-1",
+      },
+    ]);
+    expect(store.search("preserved", 10)).toHaveLength(1);
+    expect(store.search("replacement", 10)).toHaveLength(0);
+    expect(activity).toEqual([]);
   });
 
   it("reads inclusive and exclusive transcript prefixes and records message origins", () => {

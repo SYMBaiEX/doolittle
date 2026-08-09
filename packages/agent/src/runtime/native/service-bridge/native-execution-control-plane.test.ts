@@ -5,6 +5,7 @@ import {
 } from "@doolittle/contracts";
 import { SECRETS_SERVICE_TYPE } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
+import { getNativeE2BSandboxControlPlane } from "./execution-control-plane";
 import { getNativeExecutionControlPlaneDetails } from "./native-execution-control-plane";
 import type { RuntimeLike } from "./runtime";
 
@@ -23,6 +24,31 @@ function createRuntime(
 }
 
 describe("native execution control plane", () => {
+  it("distinguishes no active sandbox from a missing active-ID method", () => {
+    const sandboxes = [
+      { id: "sandbox-1", path: "/sandboxes/sandbox-1" },
+      { id: "sandbox-2", path: "/sandboxes/sandbox-2" },
+    ];
+    const explicitlyInactive = getNativeE2BSandboxControlPlane(
+      createRuntime({
+        [DOOLITTLE_LOCAL_SANDBOX_SERVICE]: {
+          listSandboxes: () => sandboxes,
+          getActiveSandboxId: () => undefined,
+        },
+      }),
+    );
+    const legacyService = getNativeE2BSandboxControlPlane(
+      createRuntime({
+        [DOOLITTLE_LOCAL_SANDBOX_SERVICE]: {
+          listSandboxes: () => sandboxes,
+        },
+      }),
+    );
+
+    expect(explicitlyInactive.activeSandboxId).toBeUndefined();
+    expect(legacyService.activeSandboxId).toBe("sandbox-2");
+  });
+
   it("reports unavailable capabilities when native services are missing", () => {
     const runtime = createRuntime({});
 
@@ -86,7 +112,12 @@ describe("native execution control plane", () => {
               id: "sandbox-1",
               path: "/sandboxes/sandbox-1",
             },
+            {
+              id: "sandbox-2",
+              path: "/sandboxes/sandbox-2",
+            },
           ],
+          getActiveSandboxId: () => "sandbox-2",
           executeCode: async () => ({ ok: true }),
         },
         [DOOLITTLE_FORMS_SERVICE]: {
@@ -136,8 +167,8 @@ describe("native execution control plane", () => {
     });
     expect(control.e2b.available).toBe(true);
     expect(control.e2b.source).toBe("product-plugin");
-    expect(control.e2b.sandboxes).toBe(1);
-    expect(control.e2b.activeSandboxId).toBe("sandbox-1");
+    expect(control.e2b.sandboxes).toBe(2);
+    expect(control.e2b.activeSandboxId).toBe("sandbox-2");
     expect(control.e2b.sandboxRoot).toBe("/sandboxes");
     expect(control.e2b.supportsExecution).toBe(true);
     expect(control.toolPolicy.actions).toBe(3);

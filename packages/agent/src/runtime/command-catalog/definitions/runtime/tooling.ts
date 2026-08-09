@@ -62,4 +62,16 @@ export const RuntimeToolingCommandCatalogEntries = [
     "Show native E2B sandbox ownership, active sandboxes, and execution readiness.",
   ),
   runtimeCommand("/e2b list", "List native E2B sandboxes."),
+  runtimeCommand(
+    "/e2b create [node-js|python]",
+    "Create a native E2B sandbox, optionally selecting its template.",
+  ),
+  runtimeCommand(
+    "/e2b exec [--sandbox <id>] <python|javascript|typescript|bash> :: <code>",
+    "Execute code in the active or selected native E2B sandbox.",
+  ),
+  runtimeCommand(
+    "/e2b kill [sandbox-id]",
+    "Kill the active or selected E2B sandbox.",
+  ),
 ];

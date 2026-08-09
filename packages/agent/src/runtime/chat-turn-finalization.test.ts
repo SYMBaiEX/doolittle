@@ -27,6 +27,8 @@ describe("chat turn finalization helpers", () => {
     const warning = getContextUsageWarning(context, "session-1");
     expect(warning).toContain("⚠️");
     expect(warning).toContain("capacity");
+    expect(warning).toContain("`/compress`");
+    expect(warning).not.toContain("may be summarized soon");
   });
 
   it("returns skill synthesis nudges at stable intervals", () => {

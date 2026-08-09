@@ -49,6 +49,15 @@ const GROUP_ORDER: GlobalSearchResult["group"][] = [
 ];
 const MAX_RESULTS_PER_GROUP = 8;
 
+function isAbortError(reason: unknown): boolean {
+  return (
+    typeof reason === "object" &&
+    reason !== null &&
+    "name" in reason &&
+    reason.name === "AbortError"
+  );
+}
+
 function concise(value: string, max = 110): string {
   const normalized = value.replace(/\s+/gu, " ").trim();
   return normalized.length > max
@@ -283,24 +292,45 @@ export function useGlobalSearch(query: string, active: boolean) {
     setLoading(true);
     setError("");
     setResults([]);
+    const controller = new AbortController();
     const timer = window.setTimeout(() => {
       void Promise.allSettled([
-        desktopRequest<unknown>("/projects?includeArchived=true"),
+        desktopRequest<unknown>(
+          "/projects?includeArchived=true",
+          "GET",
+          undefined,
+          controller.signal,
+        ),
         desktopRequest<unknown>(
           `/sessions/search?query=${encodeURIComponent(trimmedQuery)}&limit=8`,
+          "GET",
+          undefined,
+          controller.signal,
         ),
         desktopRequest<unknown>(
           `/workspace/search?query=${encodeURIComponent(trimmedQuery)}`,
+          "GET",
+          undefined,
+          controller.signal,
         ),
-        desktopRequest<unknown>("/delegation/tasks?limit=50"),
+        desktopRequest<unknown>(
+          "/delegation/tasks?limit=50",
+          "GET",
+          undefined,
+          controller.signal,
+        ),
         desktopRequest<unknown>(
           `/logs?limit=100&query=${encodeURIComponent(trimmedQuery)}`,
+          "GET",
+          undefined,
+          controller.signal,
         ),
       ]).then((responses) => {
         if (sequence.current !== requestSequence) return;
         const [projects, sessions, workspace, tasks, logs] = responses;
         const failures = responses.filter(
-          (response) => response.status === "rejected",
+          (response) =>
+            response.status === "rejected" && !isAbortError(response.reason),
         );
         setResults(
           normalizeGlobalSearchResults(
@@ -324,7 +354,11 @@ export function useGlobalSearch(query: string, active: boolean) {
       });
     }, 180);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+      if (sequence.current === requestSequence) sequence.current += 1;
+    };
   }, [active, trimmedQuery]);
 
   return useMemo(

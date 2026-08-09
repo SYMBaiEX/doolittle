@@ -30,5 +30,16 @@ describe("runtime command catalog definitions", () => {
     expect(RuntimeToolingCommandCatalogEntries).toContainEqual(
       expect.objectContaining({ command: "/runtime e2b" }),
     );
+    expect(RuntimeToolingCommandCatalogEntries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ command: "/e2b list" }),
+        expect.objectContaining({ command: "/e2b create [node-js|python]" }),
+        expect.objectContaining({
+          command:
+            "/e2b exec [--sandbox <id>] <python|javascript|typescript|bash> :: <code>",
+        }),
+        expect.objectContaining({ command: "/e2b kill [sandbox-id]" }),
+      ]),
+    );
   });
 });

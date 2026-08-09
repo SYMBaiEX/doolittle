@@ -40,7 +40,7 @@ import {
   isSafeResourceId,
 } from "./ipc/input-validation";
 import { registerRepositoryIpcHandlers } from "./ipc/repository";
-import { parseRequestError, readBoundedResponseText } from "./ipc/runtime-http";
+import { parseRequestError, parseSuccessfulJson } from "./ipc/runtime-http";
 import type { ProviderAuthController } from "./provider-auth";
 import type { DesktopUpdateController } from "./update-state";
 
@@ -444,19 +444,6 @@ export function validateWorkspaceFileSaveRequest(
   return request;
 }
 
-async function parseSuccessfulJson(response: Response): Promise<unknown> {
-  const text = await readBoundedResponseText(
-    response,
-    MAX_SENSITIVE_RESPONSE_BYTES,
-  );
-  if (!text.trim()) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error("The local runtime returned an invalid response.");
-  }
-}
-
 interface ActiveChat {
   controller: AbortController;
 }
@@ -678,7 +665,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         ).trim()}`,
       );
     }
-    return parseSuccessfulJson(response);
+    return parseSuccessfulJson(response, MAX_SENSITIVE_RESPONSE_BYTES);
   };
 
   const emitBackendState = () => {
@@ -813,7 +800,10 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           `Command failed: ${(await parseRequestError(response)).trim()}`,
         );
       }
-      const payload = await parseSuccessfulJson(response);
+      const payload = await parseSuccessfulJson(
+        response,
+        MAX_SENSITIVE_RESPONSE_BYTES,
+      );
       return {
         status: "completed",
         result: isRecord(payload) ? payload.result : payload,
@@ -1176,7 +1166,10 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           `Save failed: ${(await parseRequestError(response)).trim()}`,
         );
       }
-      const payload = await parseSuccessfulJson(response);
+      const payload = await parseSuccessfulJson(
+        response,
+        MAX_SENSITIVE_RESPONSE_BYTES,
+      );
       const savedPath = isRecord(payload) ? payload.path : undefined;
       if (typeof savedPath !== "string" || !savedPath) {
         throw new Error("The local runtime did not confirm the saved path.");
@@ -1325,7 +1318,10 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       if (!response.ok) {
         throw new Error(await parseRequestError(response));
       }
-      const payload = await parseSuccessfulJson(response);
+      const payload = await parseSuccessfulJson(
+        response,
+        MAX_SENSITIVE_RESPONSE_BYTES,
+      );
       const run =
         isRecord(payload) && isRecord(payload.run) ? payload.run : undefined;
       if (run && !event.sender.isDestroyed()) {

@@ -154,6 +154,18 @@ To run the opt-in engine-backed check after building it, use:
 nub run test:sandbox:integration
 ```
 
+### Sandbox lifecycle
+
+Use `/e2b list` to inspect sandboxes, `/e2b create [node-js|python]` to create
+one, `/e2b exec [--sandbox <id>] <python|javascript|typescript|bash> :: <code>`
+to execute code, and `/e2b kill [sandbox-id]` to stop it. The runtime exposes
+the same lifecycle over HTTP: `POST /e2b/sandboxes` with
+`{"template":"python"}`, `POST /e2b/execute` with
+`{"sandboxId":"<id>","language":"python","code":"print('hello')"}`,
+and `POST /e2b/kill` with `{"id":"<id>"}`. `GET /e2b/sandboxes` lists the
+current sandbox state. Unsupported templates return `400` with the supported
+templates; a sandbox that is already closing returns `409`.
+
 The development launcher starts Vite for the renderer, builds the Electron
 main and preload bundles in watch mode, and launches Electron with the local
 Doolittle runtime.

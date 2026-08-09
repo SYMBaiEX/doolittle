@@ -260,10 +260,15 @@ describe("getEffectiveMessagingTransportInventory", () => {
             listSandboxes: () => [{ id: "sandbox-1" }],
             createSandbox: async () => "sandbox-2",
             killSandbox: async () => undefined,
-            executeCode: async (code: string, language?: string) => ({
+            executeCode: async (
+              code: string,
+              language?: string,
+              sandboxId?: string,
+            ) => ({
               success: true,
               code,
               language,
+              sandboxId,
             }),
           };
         }
@@ -392,11 +397,17 @@ describe("getEffectiveMessagingTransportInventory", () => {
     expect(listEffectiveSandboxes(runtime)).toHaveLength(1);
     expect(await createEffectiveSandbox(runtime)).toBe("sandbox-2");
     expect(
-      await executeEffectiveSandboxCode(runtime, "print('hi')", "python"),
+      await executeEffectiveSandboxCode(
+        runtime,
+        "print('hi')",
+        "python",
+        "sandbox-1",
+      ),
     ).toEqual({
       success: true,
       code: "print('hi')",
       language: "python",
+      sandboxId: "sandbox-1",
     });
     await expect(
       killEffectiveSandbox(runtime, "sandbox-2"),

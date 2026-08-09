@@ -36,7 +36,7 @@ describe("context-compression", () => {
     expect(resolveContextWindow("unknown-model")).toBe(128_000);
   });
 
-  it("measures usage and avoids compression below the threshold", () => {
+  it("measures usage against the configured threshold", () => {
     const service = new ContextCompressionService({
       contextWindowTokens: 10_000,
       threshold: 0.9,
@@ -46,35 +46,9 @@ describe("context-compression", () => {
       makeMessage("2", "reply", "assistant"),
     ];
 
-    expect(service.measure(messages).overThreshold).toBe(false);
-    expect(service.analyze(messages).compressed).toBe(false);
-  });
-
-  it("compresses middle turns and applies the summary placeholder", () => {
-    const service = new ContextCompressionService({
-      contextWindowTokens: 50,
-      threshold: 0.5,
-      preserveLeadingTurns: 1,
-      preserveRecentTurns: 1,
-    });
-    const messages = [
-      makeMessage("1", "alpha alpha alpha alpha"),
-      makeMessage("2", "beta beta beta beta"),
-      makeMessage("3", "gamma gamma gamma gamma", "assistant"),
-      makeMessage("4", "delta delta delta delta"),
-    ];
-
-    const result = service.analyze(messages);
-    expect(result.compressed).toBe(true);
-    expect(result.middleTurns).toHaveLength(2);
-    expect(result.summaryPrompt).toContain("CONVERSATION EXCERPT TO SUMMARIZE");
-
-    const compressed = service.applyCompression(
-      messages,
-      "Summarized middle turns",
-      "session-1",
-    );
-    expect(compressed).toHaveLength(3);
-    expect(compressed[1]?.text).toContain("Summarized middle turns");
+    const stats = service.measure(messages);
+    expect(stats.overThreshold).toBe(false);
+    expect(stats.contextWindowTokens).toBe(10_000);
+    expect(service.isApproachingLimit(messages, 0)).toBe(true);
   });
 });

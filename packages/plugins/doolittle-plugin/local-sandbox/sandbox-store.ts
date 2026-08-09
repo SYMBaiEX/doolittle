@@ -1,7 +1,12 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
-import type { E2BSandboxOptions, E2BSandboxRecord } from "./types";
+import type {
+  E2BSandboxOptions,
+  E2BSandboxRecord,
+  SupportedSandboxTemplate,
+} from "./types";
+import { SandboxNotFoundError, UnsupportedSandboxTemplateError } from "./types";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -22,11 +27,12 @@ export class SandboxStore {
   }
 
   createSandbox(options: E2BSandboxOptions = {}): E2BSandboxRecord {
+    const template = this.resolveTemplate(options.template);
     const id = createSandboxId();
     const record = {
       id,
       path: join(this.rootDir, id),
-      template: options.template ?? "node-js",
+      template,
       metadata: options.metadata ?? {},
       createdAt: nowIso(),
     };
@@ -36,41 +42,62 @@ export class SandboxStore {
     return record;
   }
 
-  killSandbox(id?: string): void {
+  removeSandbox(id?: string): E2BSandboxRecord | undefined {
     const sandboxId = id ?? this.activeSandboxId;
     if (!sandboxId) {
-      return;
+      return undefined;
     }
     const sandbox = this.sandboxes.get(sandboxId);
     if (!sandbox) {
-      return;
+      if (id) {
+        throw new SandboxNotFoundError(id);
+      }
+      return undefined;
     }
     rmSync(sandbox.path, { recursive: true, force: true });
     this.sandboxes.delete(sandboxId);
     if (this.activeSandboxId === sandboxId) {
       this.activeSandboxId = undefined;
     }
-  }
-
-  clear(): void {
-    for (const sandbox of this.sandboxes.values()) {
-      rmSync(sandbox.path, { recursive: true, force: true });
-    }
-    this.sandboxes.clear();
-    this.activeSandboxId = undefined;
+    return sandbox;
   }
 
   listSandboxes(): E2BSandboxRecord[] {
     return [...this.sandboxes.values()];
   }
 
-  getOrCreateActiveSandbox(): E2BSandboxRecord {
-    if (this.activeSandboxId) {
-      const active = this.sandboxes.get(this.activeSandboxId);
-      if (active) {
-        return active;
-      }
+  getActiveSandboxId(): string | undefined {
+    return this.activeSandboxId;
+  }
+
+  deactivateSandbox(id: string): void {
+    if (this.activeSandboxId === id) {
+      this.activeSandboxId = undefined;
     }
-    return this.createSandbox();
+  }
+
+  getSandbox(id: string): E2BSandboxRecord {
+    const sandbox = this.sandboxes.get(id);
+    if (!sandbox) {
+      throw new SandboxNotFoundError(id);
+    }
+    return sandbox;
+  }
+
+  cleanupRoot(): void {
+    rmSync(this.rootDir, { recursive: true, force: true });
+    mkdirSync(this.rootDir, { recursive: true });
+    this.sandboxes.clear();
+    this.activeSandboxId = undefined;
+  }
+
+  private resolveTemplate(template?: string): SupportedSandboxTemplate {
+    if (template === undefined || template === "node-js") {
+      return "node-js";
+    }
+    if (template === "python") {
+      return "python";
+    }
+    throw new UnsupportedSandboxTemplateError(template);
   }
 }

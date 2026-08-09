@@ -25,19 +25,40 @@ describe("local sandbox store", () => {
     expect(sandbox.template).toBe("node-js");
     expect(sandbox.metadata.source).toBe("test");
 
-    store.killSandbox(sandbox.id);
+    store.removeSandbox(sandbox.id);
 
     expect(store.listSandboxes()).toHaveLength(0);
   });
 
-  it("reuses the active sandbox when one already exists", () => {
-    mkdirSync(rootDir, { recursive: true });
+  it("tracks the most recently created sandbox as active", () => {
+    const store = new SandboxStore(rootDir);
+    const first = store.createSandbox();
+    const second = store.createSandbox({ template: "python" });
+
+    expect(store.getActiveSandboxId()).toBe(second.id);
+    expect(store.getSandbox(first.id)).toBe(first);
+    expect(store.getActiveSandboxId()).toBe(second.id);
+  });
+
+  it("leaves active undefined when the active sandbox is removed", () => {
+    const store = new SandboxStore(rootDir);
+    const first = store.createSandbox();
+    const second = store.createSandbox({ template: "python" });
+
+    store.removeSandbox(second.id);
+
+    expect(store.getActiveSandboxId()).toBeUndefined();
+    expect(store.listSandboxes().map((sandbox) => sandbox.id)).toEqual([
+      first.id,
+    ]);
+  });
+
+  it("rejects unsupported templates without creating a workspace", () => {
     const store = new SandboxStore(rootDir);
 
-    const created = store.createSandbox();
-    const active = store.getOrCreateActiveSandbox();
-
-    expect(active.id).toBe(created.id);
-    expect(active.path).toBe(created.path);
+    expect(() => store.createSandbox({ template: "ruby" })).toThrow(
+      "Unsupported sandbox template: ruby",
+    );
+    expect(store.listSandboxes()).toEqual([]);
   });
 });

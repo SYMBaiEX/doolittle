@@ -14,7 +14,7 @@ import {
   hasControlCharacters,
   isRecord,
 } from "./input-validation";
-import { parseRequestError, readBoundedResponseText } from "./runtime-http";
+import { parseRequestError, parseSuccessfulJson } from "./runtime-http";
 
 const API_TIMEOUT_MS = 15_000;
 const MAX_COMMAND_TIMEOUT_MS = 120_000;
@@ -498,19 +498,6 @@ export function repositoryMutationConfirmation(
   };
 }
 
-async function parseSuccessfulJson(response: Response): Promise<unknown> {
-  const text = await readBoundedResponseText(
-    response,
-    MAX_SENSITIVE_RESPONSE_BYTES,
-  );
-  if (!text.trim()) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error("The local runtime returned an invalid response.");
-  }
-}
-
 export function registerRepositoryIpcHandlers({
   backend,
   confirmSensitiveAction,
@@ -547,7 +534,10 @@ export function registerRepositoryIpcHandlers({
         throw new Error(
           `Worktree creation failed: ${(await parseRequestError(response)).trim()}`,
         );
-      const payload = await parseSuccessfulJson(response);
+      const payload = await parseSuccessfulJson(
+        response,
+        MAX_SENSITIVE_RESPONSE_BYTES,
+      );
       const worktree = isRecord(payload) ? payload.worktree : undefined;
       if (
         !isRecord(worktree) ||
@@ -593,7 +583,10 @@ export function registerRepositoryIpcHandlers({
         throw new Error(
           `Git operation failed: ${(await parseRequestError(response)).trim()}`,
         );
-      const payload = await parseSuccessfulJson(response);
+      const payload = await parseSuccessfulJson(
+        response,
+        MAX_SENSITIVE_RESPONSE_BYTES,
+      );
       const result = isRecord(payload) ? payload.result : undefined;
       if (
         !isRecord(result) ||

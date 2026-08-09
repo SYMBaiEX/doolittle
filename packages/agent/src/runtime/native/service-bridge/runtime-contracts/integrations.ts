@@ -124,8 +124,13 @@ export interface NativeE2BService {
     template?: string;
     metadata?: Record<string, string>;
   }) => Promise<string>;
+  getActiveSandboxId?: () => string | undefined;
   killSandbox?: (id?: string) => Promise<void>;
-  executeCode?: (code: string, language?: string) => Promise<unknown>;
+  executeCode?: (
+    code: string,
+    language?: string,
+    sandboxId?: string,
+  ) => Promise<unknown>;
 }
 
 export interface NativeGitHubPlanningService {

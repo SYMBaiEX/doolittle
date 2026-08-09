@@ -39,18 +39,29 @@ export async function handleCodegenE2bCommand(
   }
 
   if (trimmed.startsWith("/e2b exec ")) {
-    const payload = trimmed.replace("/e2b exec ", "").trim();
+    let payload = trimmed.replace("/e2b exec ", "").trim();
+    let sandboxId: string | undefined;
+    if (payload.startsWith("--sandbox ")) {
+      const selection = payload.slice("--sandbox ".length);
+      const separator = selection.indexOf(" ");
+      if (separator <= 0) {
+        return "Usage: /e2b exec [--sandbox <id>] <python|javascript|typescript|bash> :: <code>";
+      }
+      sandboxId = selection.slice(0, separator);
+      payload = selection.slice(separator + 1).trim();
+    }
     const [languagePart, codePart] = payload
       .split("::")
       .map((part) => part.trim());
     if (!languagePart || !codePart) {
-      return "Usage: /e2b exec <python|javascript|typescript|bash> :: <code>";
+      return "Usage: /e2b exec [--sandbox <id>] <python|javascript|typescript|bash> :: <code>";
     }
     return stringifyCodegenResponse({
       result: await executeEffectiveSandboxCode(
         context.runtime,
         codePart,
         languagePart,
+        sandboxId,
       ),
     });
   }

@@ -13,8 +13,13 @@ export interface NativeE2BService {
     template?: string;
     metadata?: Record<string, string>;
   }) => Promise<string>;
+  getActiveSandboxId?: () => string | undefined;
   killSandbox?: (id?: string) => Promise<void>;
-  executeCode?: (code: string, language?: string) => Promise<unknown>;
+  executeCode?: (
+    code: string,
+    language?: string,
+    sandboxId?: string,
+  ) => Promise<unknown>;
 }
 
 function getSandboxRoot(
@@ -26,7 +31,10 @@ function getSandboxRoot(
 export function getNativeE2BSandboxControlPlane(runtime: RuntimeLike) {
   const e2b = getNativeServices(runtime).e2b as NativeE2BService | undefined;
   const sandboxes = e2b?.listSandboxes?.() ?? [];
-  const activeSandboxId = sandboxes[0]?.id;
+  const activeSandboxId =
+    typeof e2b?.getActiveSandboxId === "function"
+      ? e2b.getActiveSandboxId()
+      : sandboxes.at(-1)?.id;
 
   return {
     source: e2b ? ("product-plugin" as const) : ("unavailable" as const),

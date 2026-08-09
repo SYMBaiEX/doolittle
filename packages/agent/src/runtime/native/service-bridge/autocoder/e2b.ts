@@ -37,11 +37,12 @@ export async function executeEffectiveSandboxCode(
   runtime: RuntimeLike,
   code: string,
   language = "python",
+  sandboxId?: string,
 ) {
   return resolveMethod<Svc, "executeCode">(
     runtime,
     KEY,
     "executeCode",
     "E2B service",
-  )(code, language);
+  )(code, language, sandboxId);
 }

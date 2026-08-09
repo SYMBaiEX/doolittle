@@ -23,9 +23,14 @@ function createContext(): AgentExecutionContext {
             createSandbox: async (input: { template?: string }) =>
               input.template ? `sandbox:${input.template}` : "sandbox:new",
             killSandbox: async () => undefined,
-            executeCode: async (code: string, language: string) => ({
+            executeCode: async (
+              code: string,
+              language: string,
+              sandboxId?: string,
+            ) => ({
               code,
               language,
+              sandboxId,
             }),
           };
         }
@@ -117,12 +122,17 @@ describe("codegen command router", () => {
       "/e2b exec python :: print('hi')",
       context,
     );
+    const selected = await handleCodegenCommand(
+      "/e2b exec --sandbox sandbox-1 python :: print('selected')",
+      context,
+    );
     const runtime = await handleCodegenCommand("/runtime codegen", context);
 
     expect(listed).toContain('"sandbox-1"');
     expect(created).toContain('"sandbox:python"');
     expect(killed).toContain('"killed": "sandbox-1"');
     expect(executed).toContain('"language": "python"');
+    expect(selected).toContain('"sandboxId": "sandbox-1"');
     expect(runtime).toContain('"codeGeneration"');
   });
 

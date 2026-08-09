@@ -338,7 +338,40 @@ describe("official ACP protocol runtime", () => {
     }
 
     const incapable = createFixture();
-    incapable.service.bindProtocolHost(createHost(incapable.root));
+    const hostCalls = {
+      permission: 0,
+      create: 0,
+      output: 0,
+      wait: 0,
+      kill: 0,
+      release: 0,
+    };
+    incapable.service.bindProtocolHost(
+      createHost(incapable.root, {
+        requestPermission: async () => {
+          hostCalls.permission += 1;
+          return { outcome: { outcome: "selected", optionId: "allow_once" } };
+        },
+        createTerminal: async () => {
+          hostCalls.create += 1;
+          return { terminalId: "must-not-run" };
+        },
+        terminalOutput: () => {
+          hostCalls.output += 1;
+          return { output: "", truncated: false };
+        },
+        waitForTerminalExit: async () => {
+          hostCalls.wait += 1;
+          return { exitCode: 0 };
+        },
+        killTerminal: async () => {
+          hostCalls.kill += 1;
+        },
+        releaseTerminal: async () => {
+          hostCalls.release += 1;
+        },
+      }),
+    );
     try {
       await incapable.service.initializeProtocol({
         protocolVersion: 1,
@@ -354,8 +387,108 @@ describe("official ACP protocol runtime", () => {
           path: join(incapable.root, "README.md"),
         }),
       ).rejects.toThrow();
+      const terminal = {
+        sessionId: session.sessionId,
+        terminalId: "terminal-1",
+      };
+      await expect(
+        incapable.service.createTerminal({
+          sessionId: session.sessionId,
+          command: "pwd",
+        }),
+      ).rejects.toThrow();
+      await expect(
+        incapable.service.terminalOutput(terminal),
+      ).rejects.toThrow();
+      await expect(
+        incapable.service.waitForTerminalExit(terminal),
+      ).rejects.toThrow();
+      await expect(incapable.service.killTerminal(terminal)).rejects.toThrow();
+      await expect(
+        incapable.service.releaseTerminal(terminal),
+      ).rejects.toThrow();
+      expect(hostCalls).toEqual({
+        permission: 0,
+        create: 0,
+        output: 0,
+        wait: 0,
+        kill: 0,
+        release: 0,
+      });
     } finally {
       incapable.dispose();
+    }
+  });
+
+  it("forwards an approved terminal lifecycle through the ACP host proxy", async () => {
+    const fixture = createFixture();
+    const calls: string[] = [];
+    const signals: AbortSignal[] = [];
+    fixture.service.bindProtocolHost(
+      createHost(fixture.root, {
+        requestPermission: async (_params, signal) => {
+          calls.push("permission");
+          signals.push(signal);
+          return { outcome: { outcome: "selected", optionId: "allow_once" } };
+        },
+        createTerminal: async (_params, signal) => {
+          calls.push("create");
+          signals.push(signal);
+          return { terminalId: "terminal-proxy" };
+        },
+        terminalOutput: () => {
+          calls.push("output");
+          return { output: "ready", truncated: false };
+        },
+        waitForTerminalExit: async () => {
+          calls.push("wait");
+          return { exitCode: 0 };
+        },
+        killTerminal: async () => {
+          calls.push("kill");
+        },
+        releaseTerminal: async () => {
+          calls.push("release");
+        },
+      }),
+    );
+    try {
+      const session = await fixture.service.newProtocolSession();
+      await expect(
+        fixture.service.createTerminal({
+          sessionId: session.sessionId,
+          command: "pwd",
+        }),
+      ).resolves.toMatchObject({ terminalId: "terminal-proxy" });
+      const terminal = {
+        sessionId: session.sessionId,
+        terminalId: "terminal-proxy",
+      };
+      await expect(fixture.service.terminalOutput(terminal)).resolves.toEqual({
+        output: "ready",
+        truncated: false,
+      });
+      await expect(
+        fixture.service.waitForTerminalExit(terminal),
+      ).resolves.toEqual({
+        exitCode: 0,
+      });
+      await fixture.service.killTerminal(terminal);
+      await fixture.service.releaseTerminal(terminal);
+      expect(calls).toEqual([
+        "permission",
+        "create",
+        "output",
+        "wait",
+        "kill",
+        "release",
+      ]);
+      expect(signals).toHaveLength(2);
+      expect(signals.every((signal) => signal instanceof AbortSignal)).toBe(
+        true,
+      );
+    } finally {
+      fixture.dispose();
     }
   });
 });
@@ -395,7 +528,12 @@ function createHost(
     writes?: Array<{ path: string; content: string }>;
     executeTurn?: AcpProtocolHost["executeTurn"];
     permission?: RequestPermissionResponse;
+    requestPermission?: AcpProtocolHost["requestPermission"];
     createTerminal?: AcpProtocolHost["createTerminal"];
+    terminalOutput?: AcpProtocolHost["terminalOutput"];
+    waitForTerminalExit?: AcpProtocolHost["waitForTerminalExit"];
+    killTerminal?: AcpProtocolHost["killTerminal"];
+    releaseTerminal?: AcpProtocolHost["releaseTerminal"];
   } = {},
 ): AcpProtocolHost {
   const terminal: CreateTerminalResponse = { terminalId: "terminal-1" };
@@ -416,22 +554,20 @@ function createHost(
       overrides.files?.set(path, content);
       return path;
     },
-    async requestPermission() {
-      return overrides.permission ?? permission;
-    },
+    requestPermission:
+      overrides.requestPermission ??
+      (async () => overrides.permission ?? permission),
     createTerminal:
       overrides.createTerminal ??
       (async () => {
         return terminal;
       }),
-    terminalOutput() {
-      return { output: "", truncated: false };
-    },
-    async waitForTerminalExit() {
-      return { exitCode: 0 };
-    },
-    async killTerminal() {},
-    async releaseTerminal() {},
+    terminalOutput:
+      overrides.terminalOutput ?? (() => ({ output: "", truncated: false })),
+    waitForTerminalExit:
+      overrides.waitForTerminalExit ?? (async () => ({ exitCode: 0 })),
+    killTerminal: overrides.killTerminal ?? (async () => {}),
+    releaseTerminal: overrides.releaseTerminal ?? (async () => {}),
     executeTurn:
       overrides.executeTurn ??
       (async (input) => {

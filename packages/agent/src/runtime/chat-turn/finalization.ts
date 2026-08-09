@@ -25,7 +25,7 @@ export function getContextUsageWarning(
       );
       const pct = Math.round(stats.usageFraction * 100);
       if (pct >= 85) {
-        return `\n\n⚠️ Context window at ${pct}% capacity (~${stats.estimatedTokens.toLocaleString()} tokens). Earlier turns may be summarized soon to preserve context.`;
+        return `\n\n⚠️ Context window at ${pct}% capacity (~${stats.estimatedTokens.toLocaleString()} tokens). Run \`/compress\` to summarize earlier turns and preserve context.`;
       }
       if (pct >= 75) {
         return `\n\n💡 Context window at ${pct}% — consider starting a new session for unrelated tasks.`;

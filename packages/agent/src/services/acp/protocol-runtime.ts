@@ -4,10 +4,8 @@ import {
   type AgentApp,
   type AgentContext,
   type ClientCapabilities,
-  type ClientConnection,
   type ContentBlock,
   type CreateTerminalRequest,
-  client,
   createDoolittleAcpAgent,
   guessAcpToolKind,
   type InitializeRequest,
@@ -20,19 +18,17 @@ import {
   type PromptRequest,
   type ReadTextFileRequest,
   type ReleaseTerminalRequest,
-  type RequestPermissionResponse,
   type SessionUpdate,
   type TerminalOutputRequest,
-  type TerminalOutputResponse,
   type ToolCallContent,
   type ToolCallLocation,
   type WaitForTerminalExitRequest,
-  type WaitForTerminalExitResponse,
   type WriteTextFileRequest,
 } from "@doolittle/acp";
 import type { StoredMessage } from "@/types";
 import { DOOLITTLE_VERSION } from "@/version";
 import type { RunUpdateEvent } from "../run-controller-service";
+import { AcpHostProxy } from "./host-proxy";
 import type {
   AcpEditorContext,
   AcpLatestEditorContext,
@@ -53,7 +49,7 @@ export class AcpProtocolRuntime {
   >();
   private readonly updates: AcpSessionUpdateRecord[] = [];
   private readonly app: AgentApp;
-  private readonly localConnection: ClientConnection;
+  private readonly hostProxy: AcpHostProxy;
   private agentClient?: AgentContext;
   private host?: AcpProtocolHost;
   private initialized?: InitializeResponse;
@@ -79,49 +75,19 @@ export class AcpProtocolRuntime {
       cancel: (params) => this.cancel(params.sessionId),
     });
 
-    let localConnection: ClientConnection | undefined;
-    const localClient = client({ name: "doolittle-local-client" })
-      .onConnect((connection) => {
-        localConnection = connection;
-      })
-      .onRequest(
-        methods.client.session.requestPermission,
-        ({ params, signal }) =>
-          this.requireHost().requestPermission(params, signal),
-      )
-      .onRequest(methods.client.fs.readTextFile, ({ params }) =>
-        this.handleReadTextFile(params),
-      )
-      .onRequest(methods.client.fs.writeTextFile, ({ params }) =>
-        this.handleWriteTextFile(params),
-      )
-      .onRequest(methods.client.terminal.create, ({ params, signal }) =>
-        this.requireHost().createTerminal(params, signal),
-      )
-      .onRequest(methods.client.terminal.output, ({ params }) =>
-        this.requireHost().terminalOutput(params),
-      )
-      .onRequest(methods.client.terminal.waitForExit, ({ params }) =>
-        this.requireHost().waitForTerminalExit(params),
-      )
-      .onRequest(methods.client.terminal.kill, async ({ params }) => {
-        await this.requireHost().killTerminal(params);
-        return {};
-      })
-      .onRequest(methods.client.terminal.release, async ({ params }) => {
-        await this.requireHost().releaseTerminal(params);
-        return {};
-      })
-      .onNotification(methods.client.session.update, ({ params }) => {
-        this.recordUpdate(params.sessionId, params.update);
-      });
-
-    const localAgentConnection = this.app.connect(localClient);
+    this.hostProxy = new AcpHostProxy({
+      host: () => this.requireHost(),
+      ensureInitialized: () => this.ensureInitialized(),
+      agentClient: () => this.requireAgentClient(),
+      clientCapabilities: (sessionId) =>
+        this.requireSession(sessionId).clientCapabilities,
+      recordTelemetry: (event, detail) => this.recordTelemetry(event, detail),
+      onSessionUpdate: (sessionId, update) =>
+        this.recordUpdate(sessionId, update),
+    });
+    const localAgentConnection = this.app.connect(this.hostProxy.clientApp());
     this.agentClient = localAgentConnection.client;
-    if (!localConnection) {
-      throw new Error("ACP local client connection was not established.");
-    }
-    this.localConnection = localConnection;
+    this.hostProxy.connection();
   }
 
   bindHost(host: AcpProtocolHost): void {
@@ -143,10 +109,9 @@ export class AcpProtocolRuntime {
       },
     },
   ): Promise<InitializeResponse> {
-    const response = await this.localConnection.agent.request(
-      methods.agent.initialize,
-      params,
-    );
+    const response = await this.hostProxy
+      .connection()
+      .agent.request(methods.agent.initialize, params);
     this.initialized = response;
     return response;
   }
@@ -155,20 +120,21 @@ export class AcpProtocolRuntime {
     params?: Partial<NewSessionRequest>,
   ): Promise<{ sessionId: string }> {
     await this.ensureInitialized();
-    return this.localConnection.agent.request(methods.agent.session.new, {
-      cwd: params?.cwd ?? this.workspaceRoot(),
-      mcpServers: params?.mcpServers ?? [],
-      additionalDirectories: params?.additionalDirectories,
-      _meta: params?._meta,
-    });
+    return this.hostProxy
+      .connection()
+      .agent.request(methods.agent.session.new, {
+        cwd: params?.cwd ?? this.workspaceRoot(),
+        mcpServers: params?.mcpServers ?? [],
+        additionalDirectories: params?.additionalDirectories,
+        _meta: params?._meta,
+      });
   }
 
   async loadSession(params: LoadSessionRequest): Promise<void> {
     await this.ensureInitialized();
-    await this.localConnection.agent.request(
-      methods.agent.session.load,
-      params,
-    );
+    await this.hostProxy
+      .connection()
+      .agent.request(methods.agent.session.load, params);
   }
 
   async prompt(params: PromptRequest): Promise<{
@@ -177,10 +143,9 @@ export class AcpProtocolRuntime {
   }> {
     await this.ensureInitialized();
     const beforeCursor = this.updates.at(-1)?.cursor ?? 0;
-    const response = await this.localConnection.agent.request(
-      methods.agent.session.prompt,
-      params,
-    );
+    const response = await this.hostProxy
+      .connection()
+      .agent.request(methods.agent.session.prompt, params);
     return {
       stopReason: response.stopReason,
       updates: this.sessionUpdates(params.sessionId, beforeCursor).updates,
@@ -193,9 +158,11 @@ export class AcpProtocolRuntime {
   }
 
   async notifyCancel(sessionId: string): Promise<void> {
-    await this.localConnection.agent.notify(methods.agent.session.cancel, {
-      sessionId,
-    });
+    await this.hostProxy
+      .connection()
+      .agent.notify(methods.agent.session.cancel, {
+        sessionId,
+      });
   }
 
   updateEditorContext(
@@ -251,137 +218,32 @@ export class AcpProtocolRuntime {
     };
   }
 
-  async readTextFile(params: ReadTextFileRequest): Promise<string> {
-    await this.ensureInitialized();
-    const response = await this.requireAgentClient().request(
-      methods.client.fs.readTextFile,
-      params,
-    );
-    this.recordTelemetry("fs.read", {
-      sessionId: params.sessionId,
-      path: params.path,
-    });
-    return response.content;
+  readTextFile(params: ReadTextFileRequest): Promise<string> {
+    return this.hostProxy.readTextFile(params);
   }
 
-  async writeTextFile(
-    params: WriteTextFileRequest,
-  ): Promise<{ written: boolean; permission: RequestPermissionResponse }> {
-    await this.ensureInitialized();
-    const toolCallId = `acp-write:${randomUUID()}`;
-    const permission = (await this.requireAgentClient().request(
-      methods.client.session.requestPermission,
-      {
-        sessionId: params.sessionId,
-        toolCall: {
-          toolCallId,
-          title: `Write ${params.path}`,
-          kind: "edit",
-          status: "pending",
-          locations: [{ path: params.path }],
-          rawInput: { path: params.path },
-        },
-        options: permissionOptions(),
-      },
-    )) as RequestPermissionResponse;
-    if (
-      permission.outcome.outcome !== "selected" ||
-      !permission.outcome.optionId.startsWith("allow")
-    ) {
-      return { written: false, permission };
-    }
-    await this.requireAgentClient().request(methods.client.fs.writeTextFile, {
-      ...params,
-      _meta: {
-        ...(params._meta ?? {}),
-        "doolittle/permission-granted": true,
-        "doolittle/tool-call-id": toolCallId,
-      },
-    });
-    this.recordTelemetry("fs.write", {
-      sessionId: params.sessionId,
-      path: params.path,
-    });
-    return { written: true, permission };
+  writeTextFile(params: WriteTextFileRequest) {
+    return this.hostProxy.writeTextFile(params);
   }
 
-  async createTerminal(
-    params: CreateTerminalRequest,
-  ): Promise<{ terminalId?: string; permission: RequestPermissionResponse }> {
-    await this.ensureInitialized();
-    const toolCallId = `acp-terminal:${randomUUID()}`;
-    const permission = (await this.requireAgentClient().request(
-      methods.client.session.requestPermission,
-      {
-        sessionId: params.sessionId,
-        toolCall: {
-          toolCallId,
-          title: `Run ${params.command}`,
-          kind: "execute",
-          status: "pending",
-          rawInput: { command: params.command, args: params.args ?? [] },
-        },
-        options: permissionOptions(),
-      },
-    )) as RequestPermissionResponse;
-    if (
-      permission.outcome.outcome !== "selected" ||
-      !permission.outcome.optionId.startsWith("allow")
-    ) {
-      return { permission };
-    }
-    const response = await this.requireAgentClient().request(
-      methods.client.terminal.create,
-      {
-        ...params,
-        _meta: {
-          ...(params._meta ?? {}),
-          "doolittle/permission-granted": true,
-          "doolittle/tool-call-id": toolCallId,
-        },
-      },
-    );
-    this.recordTelemetry("terminal.create", {
-      sessionId: params.sessionId,
-      terminalId: response.terminalId,
-    });
-    return { terminalId: response.terminalId, permission };
+  createTerminal(params: CreateTerminalRequest) {
+    return this.hostProxy.createTerminal(params);
   }
 
-  async terminalOutput(
-    params: TerminalOutputRequest,
-  ): Promise<TerminalOutputResponse> {
-    await this.ensureInitialized();
-    return this.requireAgentClient().request(
-      methods.client.terminal.output,
-      params,
-    );
+  terminalOutput(params: TerminalOutputRequest) {
+    return this.hostProxy.terminalOutput(params);
   }
 
-  async waitForTerminalExit(
-    params: WaitForTerminalExitRequest,
-  ): Promise<WaitForTerminalExitResponse> {
-    await this.ensureInitialized();
-    return this.requireAgentClient().request(
-      methods.client.terminal.waitForExit,
-      params,
-    );
+  waitForTerminalExit(params: WaitForTerminalExitRequest) {
+    return this.hostProxy.waitForTerminalExit(params);
   }
 
-  async killTerminal(params: KillTerminalRequest): Promise<void> {
-    await this.ensureInitialized();
-    await this.requireAgentClient().request(
-      methods.client.terminal.kill,
-      params,
-    );
+  killTerminal(params: KillTerminalRequest) {
+    return this.hostProxy.killTerminal(params);
   }
 
-  async releaseTerminal(params: ReleaseTerminalRequest): Promise<void> {
-    await this.ensureInitialized();
-    await this.requireAgentClient().request(
-      methods.client.terminal.release,
-      params,
-    );
+  releaseTerminal(params: ReleaseTerminalRequest) {
+    return this.hostProxy.releaseTerminal(params);
   }
 
   private handleInitialize(
@@ -667,40 +529,6 @@ export class AcpProtocolRuntime {
     });
   }
 
-  private handleReadTextFile(params: ReadTextFileRequest): { content: string } {
-    const session = this.requireSession(params.sessionId);
-    this.assertClientCapability(session, "read");
-    return { content: this.requireHost().readWorkspace(params.path, params) };
-  }
-
-  private async handleWriteTextFile(
-    params: WriteTextFileRequest,
-  ): Promise<Record<string, never>> {
-    const session = this.requireSession(params.sessionId);
-    this.assertClientCapability(session, "write");
-    if (params._meta?.["doolittle/permission-granted"] !== true) {
-      throw new Error(
-        "ACP file writes require an approved permission request.",
-      );
-    }
-    await this.requireHost().writeWorkspace(params.path, params.content);
-    return {};
-  }
-
-  private assertClientCapability(
-    session: AcpProtocolSession,
-    operation: "read" | "write",
-  ): void {
-    const fs = session.clientCapabilities.fs;
-    const supported =
-      operation === "read" ? fs?.readTextFile : fs?.writeTextFile;
-    if (!supported) {
-      throw new Error(
-        `The ACP client did not advertise fs/${operation}_text_file support.`,
-      );
-    }
-  }
-
   private assertWorkspaceRoots(
     cwd: string,
     additionalDirectories: string[] | undefined,
@@ -769,21 +597,6 @@ function isPathInside(workspaceRoot: string, candidate: string): boolean {
         `..${process.platform === "win32" ? "\\" : "/"}`,
       ))
   );
-}
-
-function permissionOptions() {
-  return [
-    {
-      optionId: "allow_once",
-      name: "Allow once",
-      kind: "allow_once" as const,
-    },
-    {
-      optionId: "reject_once",
-      name: "Reject",
-      kind: "reject_once" as const,
-    },
-  ];
 }
 
 function sanitizeEditorContext(context: AcpEditorContext): AcpEditorContext {

@@ -65,8 +65,6 @@ export function createServiceConstructionLeaves(params: {
             defaultModelConfig.defaultModel,
           ),
           threshold: 0.85,
-          preserveRecentTurns: 6,
-          preserveLeadingTurns: 2,
         }),
     ),
     fuzzyPatch: createLazySlot(

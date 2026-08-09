@@ -1,8 +1,42 @@
-import { expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
+
+const hook = vi.hoisted(() => ({
+  cleanup: undefined as (() => void) | undefined,
+  setters: [] as Array<ReturnType<typeof vi.fn>>,
+  desktopRequest: vi.fn(),
+}));
+
+vi.mock("react", () => ({
+  useEffect: (effect: () => undefined | (() => void)) => {
+    hook.cleanup = effect() ?? undefined;
+  },
+  useMemo: <T>(factory: () => T) => factory(),
+  useRef: <T>(value: T) => ({ current: value }),
+  useState: <T>(value: T) => {
+    const setter = vi.fn();
+    hook.setters.push(setter);
+    return [value, setter];
+  },
+}));
+
+vi.mock("./lib", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./lib")>()),
+  desktopRequest: hook.desktopRequest,
+}));
+
 import {
   globalSearchGroups,
   normalizeGlobalSearchResults,
+  useGlobalSearch,
 } from "./global-search";
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.clearAllMocks();
+  hook.cleanup = undefined;
+  hook.setters = [];
+  Reflect.deleteProperty(globalThis, "window");
+});
 
 test("normalizes, deduplicates, and bounds results from local search sources", () => {
   const results = normalizeGlobalSearchResults(
@@ -122,4 +156,41 @@ test("rejects short queries and maps result groups to selectable commands", () =
   );
   expect(groups).toHaveLength(1);
   expect(groups[0]).toMatchObject({ label: "Logs", items: [{ id: "log:1" }] });
+});
+
+test("aborts all in-flight requests after the debounce when global search unmounts", async () => {
+  vi.useFakeTimers();
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { setTimeout, clearTimeout },
+  });
+  const signals: AbortSignal[] = [];
+  hook.desktopRequest.mockImplementation(
+    (_path: string, _method: string, _body: unknown, signal?: AbortSignal) =>
+      new Promise((_, reject) => {
+        if (signal) {
+          signals.push(signal);
+          signal.addEventListener(
+            "abort",
+            () => reject(new DOMException("Aborted", "AbortError")),
+            { once: true },
+          );
+        }
+      }),
+  );
+
+  useGlobalSearch("runtime", true);
+  await vi.advanceTimersByTimeAsync(180);
+
+  expect(hook.desktopRequest).toHaveBeenCalledTimes(5);
+  expect(signals).toHaveLength(5);
+  expect(signals.every((signal) => !signal.aborted)).toBe(true);
+
+  hook.cleanup?.();
+  await Promise.resolve();
+
+  expect(signals.every((signal) => signal.aborted)).toBe(true);
+  expect(
+    hook.setters.flatMap((setter) => setter.mock.calls).flat(),
+  ).not.toContain("Some local search sources are unavailable (5/5).");
 });

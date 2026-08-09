@@ -41,3 +41,16 @@ export async function readBoundedResponseText(
   text += decoder.decode();
   return text;
 }
+
+export async function parseSuccessfulJson(
+  response: Response,
+  maximumBytes: number,
+): Promise<unknown> {
+  const text = await readBoundedResponseText(response, maximumBytes);
+  if (!text.trim()) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error("The local runtime returned an invalid response.");
+  }
+}
