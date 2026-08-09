@@ -40,6 +40,8 @@ import type {
 
 const MAX_CONTEXT_RESOURCE_CHARS = 32_000;
 const MAX_UPDATE_HISTORY = 500;
+const SESSION_HISTORY_PAGE_SIZE = 200;
+const MAX_SESSION_HISTORY_REPLAY = 10_000;
 
 export class AcpProtocolRuntime {
   private readonly sessions = new Map<string, AcpProtocolSession>();
@@ -47,7 +49,11 @@ export class AcpProtocolRuntime {
     object,
     ClientCapabilities
   >();
-  private readonly updates: AcpSessionUpdateRecord[] = [];
+  private readonly updates = new Map<string, AcpSessionUpdateRecord[]>();
+  private readonly loadResponses = new Map<
+    string,
+    { _meta: Record<string, unknown> }
+  >();
   private readonly app: AgentApp;
   private readonly hostProxy: AcpHostProxy;
   private agentClient?: AgentContext;
@@ -60,6 +66,7 @@ export class AcpProtocolRuntime {
     private readonly getSessionMessages: (
       sessionId: string,
       limit: number,
+      offset?: number,
     ) => StoredMessage[],
     private readonly recordTelemetry: (
       event: string,
@@ -130,11 +137,14 @@ export class AcpProtocolRuntime {
       });
   }
 
-  async loadSession(params: LoadSessionRequest): Promise<void> {
+  async loadSession(
+    params: LoadSessionRequest,
+  ): Promise<{ _meta: Record<string, unknown> }> {
     await this.ensureInitialized();
     await this.hostProxy
       .connection()
       .agent.request(methods.agent.session.load, params);
+    return this.loadResponses.get(params.sessionId) ?? { _meta: {} };
   }
 
   async prompt(params: PromptRequest): Promise<{
@@ -142,7 +152,7 @@ export class AcpProtocolRuntime {
     updates: AcpSessionUpdateRecord[];
   }> {
     await this.ensureInitialized();
-    const beforeCursor = this.updates.at(-1)?.cursor ?? 0;
+    const beforeCursor = this.latestCursor(params.sessionId);
     const response = await this.hostProxy
       .connection()
       .agent.request(methods.agent.session.prompt, params);
@@ -208,8 +218,8 @@ export class AcpProtocolRuntime {
   }
 
   sessionUpdates(sessionId: string, cursor = 0): AcpProtocolSnapshot {
-    const matching = this.updates.filter(
-      (entry) => entry.sessionId === sessionId && entry.cursor > cursor,
+    const matching = (this.updates.get(sessionId) ?? []).filter(
+      (entry) => entry.cursor > cursor,
     );
     return {
       sessionId,
@@ -340,7 +350,8 @@ export class AcpProtocolRuntime {
         capabilities._meta?.["doolittle/editor-context"] === true ||
         capabilities._meta?.["doolittle/resources"] === true,
     });
-    for (const message of this.getSessionMessages(params.sessionId, 200)) {
+    const history = this.loadPersistedHistory(params.sessionId);
+    for (const message of history.messages) {
       await this.sendUpdate(context, params.sessionId, {
         sessionUpdate:
           message.role === "assistant"
@@ -350,8 +361,28 @@ export class AcpProtocolRuntime {
         content: { type: "text", text: message.text },
       });
     }
-    this.recordTelemetry("session.load", { sessionId: params.sessionId });
-    return { _meta: { resources: [] } };
+    this.recordTelemetry("session.load", {
+      sessionId: params.sessionId,
+      replayedMessages: history.messages.length,
+      historyTruncated: history.truncated,
+    });
+    const response = {
+      _meta: {
+        resources: [],
+        "doolittle/history-replayed": history.messages.length,
+        "doolittle/history-truncated": history.truncated,
+        ...(history.truncated
+          ? {
+              "doolittle/history-continuation": {
+                offset: history.nextOffset,
+                reason: history.reason,
+              },
+            }
+          : {}),
+      },
+    };
+    this.loadResponses.set(params.sessionId, response);
+    return response;
   }
 
   private async handlePrompt(
@@ -514,19 +545,74 @@ export class AcpProtocolRuntime {
   }
 
   private recordUpdate(sessionId: string, update: SessionUpdate): void {
-    this.updates.push({
-      cursor: (this.updates.at(-1)?.cursor ?? 0) + 1,
+    const updates = this.updates.get(sessionId) ?? [];
+    updates.push({
+      cursor: (updates.at(-1)?.cursor ?? 0) + 1,
       sessionId,
       receivedAt: new Date().toISOString(),
       update,
     });
-    if (this.updates.length > MAX_UPDATE_HISTORY) {
-      this.updates.splice(0, this.updates.length - MAX_UPDATE_HISTORY);
+    if (updates.length > MAX_UPDATE_HISTORY) {
+      updates.splice(0, updates.length - MAX_UPDATE_HISTORY);
     }
+    this.updates.set(sessionId, updates);
     this.recordTelemetry("session.update", {
       sessionId,
       kind: update.sessionUpdate,
     });
+  }
+
+  private latestCursor(sessionId: string): number {
+    return this.updates.get(sessionId)?.at(-1)?.cursor ?? 0;
+  }
+
+  private loadPersistedHistory(sessionId: string): {
+    messages: StoredMessage[];
+    truncated: boolean;
+    nextOffset?: number;
+    reason?: "replay-cap" | "repeated-page";
+  } {
+    const messages: StoredMessage[] = [];
+    const pageSignatures = new Set<string>();
+    let offset = 0;
+    while (messages.length < MAX_SESSION_HISTORY_REPLAY) {
+      const page = this.getSessionMessages(
+        sessionId,
+        Math.min(
+          SESSION_HISTORY_PAGE_SIZE,
+          MAX_SESSION_HISTORY_REPLAY - messages.length,
+        ),
+        offset,
+      );
+      if (!page.length) {
+        return { messages, truncated: false };
+      }
+      const signature = page.map((message) => message.id).join("\u0000");
+      if (pageSignatures.has(signature)) {
+        return {
+          messages,
+          truncated: true,
+          nextOffset: offset,
+          reason: "repeated-page",
+        };
+      }
+      pageSignatures.add(signature);
+      messages.push(...page);
+      offset += page.length;
+      if (page.length < SESSION_HISTORY_PAGE_SIZE) {
+        return { messages, truncated: false };
+      }
+    }
+    // A full final page does not prove more history exists. Probe exactly one
+    // row so an exactly-at-cap transcript is not falsely labeled truncated.
+    return this.getSessionMessages(sessionId, 1, offset).length
+      ? {
+          messages,
+          truncated: true,
+          nextOffset: offset,
+          reason: "replay-cap",
+        }
+      : { messages, truncated: false };
   }
 
   private assertWorkspaceRoots(

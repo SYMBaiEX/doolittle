@@ -197,7 +197,11 @@ export class SessionMessageStore {
       .all(sessionId, limit) as SessionSearchResult[];
   }
 
-  messagesBySession(sessionId: string, limit: number): StoredMessage[] {
+  messagesBySession(
+    sessionId: string,
+    limit: number,
+    offset = 0,
+  ): StoredMessage[] {
     const rows = this.db
       .query(
         `
@@ -212,9 +216,10 @@ export class SessionMessageStore {
           WHERE messages.session_id = ?1
           ORDER BY messages.created_at ASC, messages.rowid ASC
           LIMIT ?2
+          OFFSET ?3
         `,
       )
-      .all(sessionId, limit) as StoredMessageRow[];
+      .all(sessionId, limit, offset) as StoredMessageRow[];
     return rows.map(toStoredMessage);
   }
 

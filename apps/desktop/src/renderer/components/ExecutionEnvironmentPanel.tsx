@@ -9,6 +9,7 @@ import {
   errorMessage,
 } from "../lib";
 import "./execution-environments.css";
+import { SandboxControlPanel } from "./SandboxControlPanel";
 
 type ActionNotice = {
   tone: "neutral" | "good" | "bad";
@@ -321,6 +322,7 @@ export function ExecutionEnvironmentPanel({
           directory.
         </EmptyBlock>
       )}
+      <SandboxControlPanel active={active} />
     </section>
   );
 }

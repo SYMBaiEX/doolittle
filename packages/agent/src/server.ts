@@ -17,6 +17,7 @@ import {
   isSdkTerminalRequestAuthorized,
 } from "@/server/auth";
 import { dispatchRuntimePluginRoute } from "@/server/plugin-routes";
+import { createRequestAbortController } from "@/server/request-lifecycle";
 import { json } from "@/server/responses";
 import { dispatchRouteHandlers } from "@/server/router";
 import { apiRouteHandlers } from "@/server/routes";
@@ -35,6 +36,7 @@ let activeApiServerInfo: ApiServerAddress | null = null;
 function toWebRequest(
   incoming: IncomingMessage,
   fallbackHost: string,
+  signal: AbortSignal,
 ): Request {
   const host = incoming.headers.host ?? fallbackHost;
   const url = new URL(incoming.url ?? "/", `http://${host}`);
@@ -46,11 +48,12 @@ function toWebRequest(
     body: hasBody
       ? (Readable.toWeb(incoming) as ReadableStream<Uint8Array>)
       : undefined,
+    signal,
     ...(hasBody ? { duplex: "half" } : {}),
   } as RequestInit);
 }
 
-async function writeWebResponse(
+export async function writeWebResponse(
   response: Response,
   outgoing: ServerResponse,
 ): Promise<void> {
@@ -68,9 +71,35 @@ async function writeWebResponse(
     const body = Readable.fromWeb(
       response.body as import("node:stream/web").ReadableStream<Uint8Array>,
     );
-    body.once("error", reject);
-    outgoing.once("error", reject);
-    outgoing.once("finish", resolve);
+    let settled = false;
+    const settle = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      body.off("error", onBodyError);
+      outgoing.off("error", onOutputError);
+      outgoing.off("finish", onFinish);
+      outgoing.off("close", onClose);
+      callback();
+    };
+    const onBodyError = (error: Error) => settle(() => reject(error));
+    const onOutputError = (error: Error) => settle(() => reject(error));
+    const onFinish = () => settle(resolve);
+    const onClose = () => {
+      if (outgoing.writableEnded) {
+        settle(resolve);
+        return;
+      }
+      const error = new Error("Client disconnected before response completed.");
+      // `destroy()` propagates cancellation to the underlying Web stream.
+      // Do not pass `error`: listeners are removed while settling and Node
+      // would otherwise surface it as an unhandled source-stream error.
+      body.destroy();
+      settle(() => reject(error));
+    };
+    body.once("error", onBodyError);
+    outgoing.once("error", onOutputError);
+    outgoing.once("finish", onFinish);
+    outgoing.once("close", onClose);
     body.pipe(outgoing);
   });
 }
@@ -106,6 +135,7 @@ export async function startApiServer(
   ensureApiTokenForBindHost(context.config.host);
 
   const server = createServer(async (incoming, outgoing) => {
+    const requestLifecycle = createRequestAbortController(incoming, outgoing);
     try {
       const requestPath = new URL(incoming.url ?? "/", "http://localhost")
         .pathname;
@@ -124,7 +154,11 @@ export async function startApiServer(
         return;
       }
 
-      const request = toWebRequest(incoming, address);
+      const request = toWebRequest(
+        incoming,
+        address,
+        requestLifecycle.controller.signal,
+      );
       const url = new URL(request.url);
       if (url.pathname === "/chat" || url.pathname === "/v1/responses") {
         incoming.setTimeout(0);
@@ -171,6 +205,8 @@ export async function startApiServer(
         ),
         outgoing,
       );
+    } finally {
+      requestLifecycle.dispose();
     }
   });
 

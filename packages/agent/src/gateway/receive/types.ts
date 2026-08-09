@@ -29,6 +29,8 @@ export interface GatewayRuntimeContext {
 }
 
 export interface GatewayReceiveOptions {
+  /** Cancels provider and tool execution when the initiating transport closes. */
+  abortSignal?: AbortSignal;
   onResponseProgress?: (update: {
     chunk: string;
     response: string;

@@ -9,6 +9,7 @@ import {
   guessAcpToolKind,
   methods,
   PROTOCOL_VERSION,
+  parseDoolittleLoadSessionRequest,
 } from "./index";
 
 it("builds ACP metadata, registry, editor, and bundle payloads", () => {
@@ -87,6 +88,55 @@ it("classifies tool families through the shared registry mapping", () => {
     guessAcpToolKind({ id: "automation.run" }),
     guessAcpToolKind({ id: "unknown.tool" }),
   ]).toEqual(["read", "edit", "search", "execute", "fetch", "think", "other"]);
+});
+
+it("validates the public ACP session/load MCP transport variants", () => {
+  const base = { sessionId: "session-1", cwd: "/repo", mcpServers: [] };
+  expect(() =>
+    parseDoolittleLoadSessionRequest({ ...base, mcpServers: undefined }),
+  ).toThrow(/mcpServers/);
+  expect(() =>
+    parseDoolittleLoadSessionRequest({
+      ...base,
+      mcpServers: [{ name: "bad", type: "http", url: "https://mcp.example" }],
+    }),
+  ).toThrow(/mcpServers/);
+  expect(() =>
+    parseDoolittleLoadSessionRequest({
+      ...base,
+      mcpServers: [
+        { name: "bad", command: "node", args: [], env: [{ name: "A" }] },
+      ],
+    }),
+  ).toThrow(/mcpServers/);
+  expect(
+    parseDoolittleLoadSessionRequest({
+      ...base,
+      additionalDirectories: ["/repo/packages"],
+      mcpServers: [
+        {
+          name: "stdio",
+          command: "/usr/bin/node",
+          args: ["server.js"],
+          env: [],
+        },
+        {
+          name: "http",
+          type: "http",
+          url: "https://mcp.example",
+          headers: [{ name: "authorization", value: "Bearer token" }],
+        },
+        {
+          name: "sse",
+          type: "sse",
+          url: "https://mcp.example/sse",
+          headers: [],
+        },
+        { name: "acp", type: "acp", serverId: "provider-1" },
+      ],
+      _meta: { "doolittle/test": true },
+    }),
+  ).toMatchObject({ sessionId: "session-1", cwd: "/repo" });
 });
 
 it("serves the stable lifecycle through official SDK apps", async () => {

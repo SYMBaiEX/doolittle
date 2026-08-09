@@ -4,11 +4,13 @@ import { join } from "node:path";
 import { _electron as electron, expect, test } from "@playwright/test";
 
 const executablePath = process.env.DOOLITTLE_DESKTOP_EXECUTABLE;
+const fallbackResponse =
+  "Doolittle's local runtime is ready, but its model provider is unavailable.";
 
 test.describe("packaged Doolittle desktop", () => {
   test.skip(!executablePath, "DOOLITTLE_DESKTOP_EXECUTABLE is required");
 
-  test("boots the packaged preload bridge and shell", async () => {
+  test("boots the packaged preload bridge and completes an offline chat", async () => {
     test.setTimeout(120_000);
     const profileDir = mkdtempSync(
       join(tmpdir(), "doolittle-packaged-profile-"),
@@ -38,6 +40,8 @@ test.describe("packaged Doolittle desktop", () => {
 
     try {
       const page = await app.firstWindow();
+      const pageErrors: string[] = [];
+      page.on("pageerror", (error) => pageErrors.push(error.message));
       await expect(page).toHaveTitle(/Doolittle$/);
       await expect(page.locator(".window-runtime-status.ready")).toContainText(
         "Local runtime",
@@ -46,12 +50,24 @@ test.describe("packaged Doolittle desktop", () => {
       await expect
         .poll(() => page.evaluate(() => typeof window.doolittle))
         .toBe("object");
-      await page.evaluate(() => {
-        window.location.hash = "#/settings";
+      await expect(page.locator(".recovery-shell")).toHaveCount(0);
+      const prompt = `packaged offline chat ${Date.now()}`;
+      const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      await expect(composer).toBeEnabled();
+      await composer.fill(prompt);
+      await composer.press("Enter");
+      await expect(
+        page.getByLabel("Conversation detail").getByText(prompt, {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByText(fallbackResponse, { exact: false }),
+      ).toBeVisible({
+        timeout: 45_000,
       });
-      await expect(page.locator(".window-context strong")).toHaveText(
-        "Settings",
-      );
+      await expect(page.locator(".recovery-shell")).toHaveCount(0);
+      expect(pageErrors).toEqual([]);
     } finally {
       await app.close();
       rmSync(profileDir, { recursive: true, force: true });

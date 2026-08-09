@@ -6,6 +6,13 @@ import {
 import type { DelegationOrchestrationMode } from "@/types/runtime";
 import type { RuntimeLike } from "../runtime";
 import { projectOfficialTask, requireOfficialOrchestrator } from "./official";
+import {
+  isCurrentActiveResearchRun,
+  isSessionlessResearchTask,
+  markResearchRunLive,
+  markResearchRunSettled,
+  researchRunReceipt,
+} from "./research-run";
 import type {
   DelegationProjection,
   EffectiveDelegationCreateInput,
@@ -154,7 +161,36 @@ export async function cancelEffectiveDelegationTask(
     });
   }
   const task = await service.pauseTask(id);
-  return task ? updateProjection(projection, projectOfficialTask(task)) : null;
+  if (!task) return null;
+
+  // RESEARCH providers do not expose a public abort signal through beta.7.
+  // Record a cooperative interruption so a late provider result cannot turn an
+  // operator cancellation into a completed task.
+  const receipt = researchRunReceipt(task.metadata);
+  if (
+    isSessionlessResearchTask(task) &&
+    receipt?.status === "active" &&
+    typeof receipt.runId === "string"
+  ) {
+    const interruptedAt = new Date().toISOString();
+    const cancelled = await service.updateTask(id, {
+      status: "interrupted",
+      closedAt: interruptedAt,
+      metadata: {
+        ...task.metadata,
+        researchRun: {
+          ...receipt,
+          status: "cancelled",
+          cancelledAt: interruptedAt,
+          interruption: "cooperative",
+        },
+      },
+    });
+    return cancelled
+      ? updateProjection(projection, projectOfficialTask(cancelled))
+      : updateProjection(projection, projectOfficialTask(task));
+  }
+  return updateProjection(projection, projectOfficialTask(task));
 }
 
 export async function addEffectiveDelegationNote(
@@ -204,23 +240,45 @@ export async function executeEffectiveDelegationTask(
   if (isResearchTask(detail)) {
     const startedAt = new Date().toISOString();
     const runId = researchRunId();
+    const currentRun = async () => {
+      const current = await service.getTask(id);
+      return current && isCurrentActiveResearchRun(current, runId)
+        ? current
+        : null;
+    };
+    const currentProjection = async () => {
+      const current = await service.getTask(id);
+      return current
+        ? updateProjection(projection, projectOfficialTask(current))
+        : null;
+    };
+
+    // Register synchronously before the first durable write. A concurrent
+    // projection refresh must never mistake setup for a post-restart orphan.
+    markResearchRunLive(id, runId);
     // beta.7 has no typed external-execution primitive. Record the
     // sessionless research run through the durable task lifecycle instead of
     // pretending that an ACP coding session executed it.
-    await service.updateTask(id, {
-      status: "active",
-      metadata: {
-        ...detail.metadata,
-        researchRun: { runId, status: "active", startedAt },
-      },
-    });
-    await service.addMessage(id, {
-      content: `Starting Doolittle research run ${runId}.`,
-      senderKind: "system",
-      direction: "system",
-    });
-
+    let durableResearchRunStarted = false;
     try {
+      const started = await service.updateTask(id, {
+        status: "active",
+        metadata: {
+          ...detail.metadata,
+          researchRun: { runId, status: "active", startedAt },
+        },
+      });
+      if (!started || !isCurrentActiveResearchRun(started, runId)) {
+        throw new Error(
+          "Unable to start Doolittle research: the durable task record was not activated.",
+        );
+      }
+      durableResearchRunStarted = true;
+      await service.addMessage(id, {
+        content: `Starting Doolittle research run ${runId}.`,
+        senderKind: "system",
+        direction: "system",
+      });
       const researchRuntime = runtime as RuntimeLike &
         Partial<DoolittleResearchRuntime>;
       if (
@@ -245,20 +303,35 @@ export async function executeEffectiveDelegationTask(
         responseId: research.responseId,
         sources: research.sources,
       };
+      // Every mutation after the provider await is guarded by a fresh durable
+      // read. beta.7 does not offer a conditional update/abort primitive.
+      if (!(await currentRun())) return currentProjection();
       await service.addMessage(id, {
         content: research.report,
         senderKind: "sub_agent",
         direction: "stdout",
       });
-      const latest = await service.getTask(id);
+      const latest = await currentRun();
+      if (!latest) return currentProjection();
       await service.updateTask(id, {
         status: "validating",
         metadata: {
-          ...detail.metadata,
-          ...latest?.metadata,
+          ...latest.metadata,
           researchRun: receipt,
         },
       });
+      // The validation transition persists the completed receipt. Re-read to
+      // avoid validating if an operator cancelled during that await.
+      const beforeValidate = await service.getTask(id);
+      if (
+        !beforeValidate ||
+        beforeValidate.paused ||
+        beforeValidate.status !== "validating" ||
+        researchRunReceipt(beforeValidate.metadata)?.runId !== runId ||
+        researchRunReceipt(beforeValidate.metadata)?.status !== "completed"
+      ) {
+        return currentProjection();
+      }
       const validated = await service.validateTask(id, {
         passed: true,
         summary:
@@ -273,20 +346,25 @@ export async function executeEffectiveDelegationTask(
         ? updateProjection(projection, projectOfficialTask(validated))
         : null;
     } catch (error) {
+      // If the initial write never produced the active receipt, there is no
+      // authoritative run to fail. Surface setup failure instead of silently
+      // returning an unrelated pre-run projection.
+      if (!durableResearchRunStarted) throw error;
       const failedAt = new Date().toISOString();
       const failure = error instanceof Error ? error.message : String(error);
+      if (!(await currentRun())) return currentProjection();
       await service.addMessage(id, {
         content: `Doolittle research failed: ${failure}`,
         senderKind: "system",
         direction: "stderr",
       });
-      const latest = await service.getTask(id);
+      const latest = await currentRun();
+      if (!latest) return currentProjection();
       const failed = await service.updateTask(id, {
         status: "failed",
         closedAt: failedAt,
         metadata: {
-          ...detail.metadata,
-          ...latest?.metadata,
+          ...latest.metadata,
           researchRun: {
             runId,
             status: "failed",
@@ -299,6 +377,8 @@ export async function executeEffectiveDelegationTask(
       return failed
         ? updateProjection(projection, projectOfficialTask(failed))
         : null;
+    } finally {
+      markResearchRunSettled(id, runId);
     }
   }
 

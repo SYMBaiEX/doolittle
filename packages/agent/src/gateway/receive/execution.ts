@@ -47,6 +47,7 @@ export async function executeGatewayReceiveTurn(
     },
     deps.context,
     {
+      abortSignal: options?.abortSignal,
       onProgress: async ({ delta, response, phase }) => {
         if (!delta) {
           return;

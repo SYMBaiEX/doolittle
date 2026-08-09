@@ -207,6 +207,137 @@ describe("official ACP protocol runtime", () => {
     }
   });
 
+  it("replays persisted ACP history through the paged host contract", async () => {
+    const existingSession = "room:paged-history";
+    const messages = Array.from({ length: 201 }, (_, index) => ({
+      id: `message-${index}`,
+      sessionId: existingSession,
+      roomId: existingSession,
+      entityId: index % 2 ? "agent" : "user",
+      role: index % 2 ? ("assistant" as const) : ("user" as const),
+      text: `history-${index}`,
+      createdAt: new Date(1_700_000_000_000 + index).toISOString(),
+    }));
+    const fixture = createFixture(
+      [
+        {
+          sessionId: existingSession,
+          title: "Paged history",
+          messageCount: messages.length,
+          participants: ["assistant", "user"],
+          preview: ["history"],
+        },
+      ],
+      messages,
+    );
+    fixture.service.bindProtocolHost(createHost(fixture.root));
+
+    try {
+      await fixture.service.initializeProtocol();
+      const loaded = await fixture.service.loadProtocolSession({
+        sessionId: existingSession,
+        cwd: fixture.root,
+        mcpServers: [],
+      });
+      expect(loaded._meta).toMatchObject({
+        "doolittle/history-replayed": 201,
+        "doolittle/history-truncated": false,
+      });
+      expect(
+        fixture.service.protocolUpdates(existingSession).updates,
+      ).toHaveLength(201);
+    } finally {
+      fixture.dispose();
+    }
+  });
+
+  it("discloses a bounded ACP replay continuation instead of claiming completeness", async () => {
+    const existingSession = "room:replay-cap";
+    const messages = Array.from({ length: 10_001 }, (_, index) => ({
+      id: `cap-${index}`,
+      sessionId: existingSession,
+      roomId: existingSession,
+      entityId: "user",
+      role: "user" as const,
+      text: `message-${index}`,
+      createdAt: new Date(1_700_000_000_000 + index).toISOString(),
+    }));
+    const fixture = createFixture(
+      [
+        {
+          sessionId: existingSession,
+          title: "Replay cap",
+          messageCount: messages.length,
+          participants: ["user"],
+          preview: ["message"],
+        },
+      ],
+      messages,
+    );
+    fixture.service.bindProtocolHost(createHost(fixture.root));
+
+    try {
+      await fixture.service.initializeProtocol();
+      const loaded = await fixture.service.loadProtocolSession({
+        sessionId: existingSession,
+        cwd: fixture.root,
+        mcpServers: [],
+      });
+      expect(loaded._meta).toMatchObject({
+        "doolittle/history-replayed": 10_000,
+        "doolittle/history-truncated": true,
+        "doolittle/history-continuation": {
+          offset: 10_000,
+          reason: "replay-cap",
+        },
+      });
+    } finally {
+      fixture.dispose();
+    }
+  });
+
+  it("does not mark an ACP history exactly at the replay cap as truncated", async () => {
+    const existingSession = "room:exact-replay-cap";
+    const messages = Array.from({ length: 10_000 }, (_, index) => ({
+      id: `exact-${index}`,
+      sessionId: existingSession,
+      roomId: existingSession,
+      entityId: "user",
+      role: "user" as const,
+      text: `message-${index}`,
+      createdAt: new Date(1_700_000_000_000 + index).toISOString(),
+    }));
+    const fixture = createFixture(
+      [
+        {
+          sessionId: existingSession,
+          title: "Exact replay cap",
+          messageCount: messages.length,
+          participants: ["user"],
+          preview: ["message"],
+        },
+      ],
+      messages,
+    );
+    fixture.service.bindProtocolHost(createHost(fixture.root));
+
+    try {
+      await fixture.service.initializeProtocol();
+      const loaded = await fixture.service.loadProtocolSession({
+        sessionId: existingSession,
+        cwd: fixture.root,
+        mcpServers: [],
+      });
+      expect(loaded._meta).toMatchObject({
+        "doolittle/history-replayed": 10_000,
+        "doolittle/history-truncated": false,
+      });
+      expect(loaded._meta?.["doolittle/history-continuation"]).toBeUndefined();
+    } finally {
+      fixture.dispose();
+    }
+  });
+
   it("isolates returned updates when prompts from two sessions interleave", async () => {
     const fixture = createFixture();
     let signalAlphaStarted = () => {};
@@ -274,6 +405,43 @@ describe("official ACP protocol runtime", () => {
           (entry) => entry.sessionId === betaSession.sessionId,
         ),
       ).toBe(true);
+    } finally {
+      fixture.dispose();
+    }
+  });
+
+  it("keeps reconnect updates bounded per ACP session", async () => {
+    const fixture = createFixture();
+    fixture.service.bindProtocolHost(
+      createHost(fixture.root, {
+        executeTurn: async (input) => {
+          const count = input.message.includes("noisy") ? 501 : 1;
+          for (let index = 0; index < count; index += 1) {
+            await input.onText(`${input.sessionId}-${index}`);
+          }
+          return "done";
+        },
+      }),
+    );
+
+    try {
+      const noisy = await fixture.service.newProtocolSession();
+      const quiet = await fixture.service.newProtocolSession();
+      await fixture.service.promptProtocolSession({
+        sessionId: noisy.sessionId,
+        prompt: [{ type: "text", text: "noisy" }],
+      });
+      await fixture.service.promptProtocolSession({
+        sessionId: quiet.sessionId,
+        prompt: [{ type: "text", text: "quiet" }],
+      });
+
+      const noisyUpdates = fixture.service.protocolUpdates(noisy.sessionId);
+      const quietUpdates = fixture.service.protocolUpdates(quiet.sessionId);
+      expect(noisyUpdates.updates).toHaveLength(500);
+      expect(noisyUpdates.updates[0]?.cursor).toBe(2);
+      expect(quietUpdates.updates).toHaveLength(1);
+      expect(quietUpdates.updates[0]?.cursor).toBe(1);
     } finally {
       fixture.dispose();
     }
@@ -511,8 +679,10 @@ function createFixture(
       recentSessionIds: sessions.map((entry) => entry.sessionId),
     }),
     () => sessions,
-    (sessionId) =>
-      messages.filter((message) => message.sessionId === sessionId),
+    (sessionId, limit, offset = 0) =>
+      messages
+        .filter((message) => message.sessionId === sessionId)
+        .slice(offset, offset + limit),
   );
   return {
     root,

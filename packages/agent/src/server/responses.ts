@@ -35,9 +35,21 @@ export function streamSse(
   stream: (
     emit: (event: string, data: unknown) => Promise<void>,
   ) => Promise<void>,
+  options?: {
+    /** Abort server-side work when the client abandons the stream. */
+    onCancel?: () => void;
+  },
 ): Response {
   const encoder = new TextEncoder();
   let closed = false;
+  let cancelled = false;
+  const cancel = () => {
+    closed = true;
+    if (!cancelled) {
+      cancelled = true;
+      options?.onCancel?.();
+    }
+  };
   return new Response(
     new ReadableStream<Uint8Array>({
       async start(controller) {
@@ -73,7 +85,7 @@ export function streamSse(
         }
       },
       cancel() {
-        closed = true;
+        cancel();
       },
     }),
     {

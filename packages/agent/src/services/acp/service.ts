@@ -50,6 +50,7 @@ export class AcpService {
     getSessionMessages: (
       sessionId: string,
       limit: number,
+      offset?: number,
     ) => StoredMessage[] = () => [],
   ) {
     this.paths = createAcpServicePaths(this.config.dataDir);

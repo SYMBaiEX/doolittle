@@ -28,8 +28,12 @@ export class SessionReadOperations {
     return this.messageStore.recentBySession(sessionId, limit);
   }
 
-  messagesBySession(sessionId: string, limit: number): StoredMessage[] {
-    return this.messageStore.messagesBySession(sessionId, limit);
+  messagesBySession(
+    sessionId: string,
+    limit: number,
+    offset?: number,
+  ): StoredMessage[] {
+    return this.messageStore.messagesBySession(sessionId, limit, offset);
   }
 
   countBySessionRole(sessionId: string, role?: StoredMessage["role"]): number {

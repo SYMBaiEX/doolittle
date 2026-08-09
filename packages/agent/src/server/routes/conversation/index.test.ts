@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { RoomHandlerQueue } from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleConversationRoutes } from "@/server/routes/conversation";
@@ -12,6 +13,9 @@ function createContext() {
   return {
     config: {
       agentName: "Doolittle Test",
+    },
+    runtime: {
+      roomHandlerQueue: new RoomHandlerQueue(),
     },
     gateway: {
       receive: async () => ({

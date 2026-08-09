@@ -197,6 +197,7 @@ export async function handleResponsesRoute(
             },
           },
           {
+            abortSignal: request.signal,
             onRunUpdate: emitRunUpdates,
             onResponseProgress: async ({ response }) => {
               const frame = nextResponseTextFrame(
@@ -303,18 +304,21 @@ export async function handleResponsesRoute(
     });
   }
 
-  const result = await context.gateway.receive({
-    platform: "api",
-    userId,
-    roomId,
-    text: inputText,
-    messageId: `api-msg-${Date.now()}`,
-    replyToMessageId: body.previous_response_id,
-    metadata: {
-      ...(body.metadata ?? {}),
-      apiTransport: "responses",
+  const result = await context.gateway.receive(
+    {
+      platform: "api",
+      userId,
+      roomId,
+      text: inputText,
+      messageId: `api-msg-${Date.now()}`,
+      replyToMessageId: body.previous_response_id,
+      metadata: {
+        ...(body.metadata ?? {}),
+        apiTransport: "responses",
+      },
     },
-  });
+    { abortSignal: request.signal },
+  );
   const record = context.services.apiTransport.create({
     input: inputText,
     outputText: result.response,

@@ -10,8 +10,13 @@ import {
   projectOfficialTaskList,
   requireOfficialOrchestrator,
 } from "./official";
+import {
+  isLiveResearchRun,
+  isSessionlessResearchTask,
+  researchRunReceipt,
+} from "./research-run";
 
-async function listOfficialTaskDetails(runtime: RuntimeLike) {
+async function listAndReconcileOfficialTaskDetails(runtime: RuntimeLike) {
   const service = requireOfficialOrchestrator(runtime);
   const summaries = await service.listTasks({
     includeArchived: true,
@@ -20,7 +25,49 @@ async function listOfficialTaskDetails(runtime: RuntimeLike) {
   const details = await Promise.all(
     summaries.map((task) => service.getTask(task.id)),
   );
-  return details.filter((task) => task !== null);
+  const reconciled = await Promise.all(
+    details.map(async (task) => {
+      const receipt = task && researchRunReceipt(task.metadata);
+      if (
+        !task ||
+        !(
+          isSessionlessResearchTask(task) &&
+          receipt?.status === "active" &&
+          typeof receipt.runId === "string" &&
+          !isLiveResearchRun(task.id, receipt.runId)
+        )
+      ) {
+        return task;
+      }
+      const interruptedAt = new Date().toISOString();
+      const updated = await service.updateTask(task.id, {
+        status: "interrupted",
+        closedAt: interruptedAt,
+        metadata: {
+          ...task.metadata,
+          researchRun: {
+            ...receipt,
+            status: "interrupted",
+            interruptedAt,
+            interruption: "reconciled-after-restart",
+          },
+        },
+      });
+      // A failed reconciliation write must not invent a state that the official
+      // service did not persist. Keep the original detail for this refresh.
+      return updated ?? task;
+    }),
+  );
+  return reconciled.filter(
+    (task): task is NonNullable<typeof task> => task !== null,
+  );
+}
+
+async function listOfficialTaskDetails(runtime: RuntimeLike) {
+  // Projection refresh is the first durable delegation seam during startup.
+  // Only non-live sessionless runs are reconciled, so in-process RESEARCH work
+  // is never mistaken for a post-restart orphan.
+  return listAndReconcileOfficialTaskDetails(runtime);
 }
 
 export async function getEffectiveDelegationTasks(runtime: RuntimeLike) {

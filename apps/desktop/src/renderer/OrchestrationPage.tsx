@@ -7,7 +7,6 @@ import {
   useRef,
   useState,
 } from "react";
-import type { AccountPoolResponse } from "../shared/contracts";
 import type { ChatContextRequest } from "./chat-context-handoff";
 import { ArtifactViewer } from "./components/ArtifactViewer";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
@@ -25,21 +24,26 @@ import {
   LoadingBlock,
   Notice,
   type UnknownRecord,
-  useApiResource,
 } from "./lib";
-import { projectCodegenSelection } from "./orchestration-codegen-selection";
 import {
   orchestrationStatusTier,
   orchestrationTimingLabel,
-  scopeTasksByWorkspace,
   type TaskCapability,
   taskCapabilityLabel,
   taskCreatePayload,
   taskExecutionLabel,
   taskSpawnPayload,
 } from "./orchestration-helpers";
+import {
+  type CodegenCancellationResponse,
+  type CodegenRunRecord,
+  type DelegationTaskRecord,
+  orchestrationResourceId,
+  type PlanRecord,
+  useOrchestrationResources,
+  type WorkflowBundleResponse,
+} from "./orchestration-resources";
 import { ReviewPage } from "./ReviewPage";
-import { orchestrationRequests } from "./resource-request-policy";
 import "./orchestration.css";
 
 export type WorkTabId = "tasks" | "agents" | "plans" | "runs" | "review";
@@ -53,223 +57,6 @@ type TaskAction =
   | "fail"
   | "note";
 type CodegenMode = "generate" | "research" | "prd" | "qa";
-
-type DelegationOverview = {
-  total?: number;
-  pending?: number;
-  running?: number;
-  completed?: number;
-  failed?: number;
-  cancelled?: number;
-};
-
-type DelegationOverviewResponse = {
-  overview?: {
-    local?: DelegationOverview;
-    native?: DelegationOverview;
-  };
-};
-
-type DelegationTaskRecord = {
-  id: string;
-  title: string;
-  objective: string;
-  status?: string;
-  attempts?: number;
-  maxAttempts?: number;
-  createdAt?: string;
-  updatedAt?: string;
-  startedAt?: string;
-  completedAt?: string;
-  group?: string;
-  profile?: string;
-  priority?: string;
-  executionMode?: string;
-  orchestrationMode?: string;
-  lastOutputPath?: string;
-  workerPid?: number;
-  notes?: string[];
-  parentTaskId?: string;
-  workspaceRoot?: string;
-  capabilityProfile?: string;
-  kind?: string;
-  framework?: string;
-  accountProviderId?: string;
-  accountId?: string;
-  accountLabel?: string;
-  sessionId?: string;
-};
-
-type DelegationTaskResponse = {
-  tasks?: unknown[];
-};
-
-type WorkerRecord = {
-  id: string;
-  title?: string;
-  objective?: string;
-  status?: string;
-  attempts?: number;
-  attemptsRemaining?: number;
-  startedAt?: string;
-  completedAt?: string;
-  workerPid?: number;
-  stalled?: boolean;
-  alive?: boolean;
-  executionMode?: string;
-  workerMode?: string;
-  profile?: string;
-  group?: string;
-  notesCount?: number;
-  lastOutputPath?: string;
-  parentTaskId?: string;
-  capabilityProfile?: string;
-  kind?: string;
-  framework?: string;
-  accountProviderId?: string;
-  accountId?: string;
-  accountLabel?: string;
-  sessionId?: string;
-};
-
-type WorkersResponse = {
-  overview?: {
-    activeWorkers?: number;
-    aliveWorkers?: number;
-    stalledWorkers?: number;
-    byProfile?: Array<{ profile: string; count: number }>;
-  };
-  workers?: unknown[];
-};
-
-type PlanRecord = {
-  id: string;
-  title?: string;
-  objective?: string;
-  status?: "draft" | "active" | "completed" | string;
-  taskId?: string;
-  workflowId?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  steps?: string[];
-  metadata?: UnknownRecord;
-};
-
-type PlansResponse = {
-  control?: UnknownRecord;
-  plans?: unknown[];
-};
-
-type RepositoryWorktreeRecord = {
-  path: string;
-  branch?: string;
-  detached?: boolean;
-  prunable?: boolean;
-};
-
-type RepositoryWorktreesResponse = {
-  worktrees?: unknown[];
-};
-
-type CodegenRuntimeResponse = {
-  execution?: {
-    codeGeneration?: {
-      available?: boolean;
-      ready?: boolean;
-      capability?: string;
-      detail?: string;
-      methods?: string[];
-      source?: string;
-    };
-  };
-};
-
-type CodegenWorkflowRecord = {
-  id: string;
-  status?: string;
-  title?: string;
-  objective?: string;
-  kind?: string;
-  projectName?: string;
-  repositoryName?: string;
-  taskId?: string;
-  sessionId?: string;
-  capabilityProfile?: string;
-  framework?: string;
-  accountProviderId?: string;
-  accountId?: string;
-  accountLabel?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  completedAt?: string;
-  runIds?: string[];
-  artifactPaths?: string[];
-  artifacts?: unknown[];
-  latestRunId?: string;
-};
-
-type CodegenWorkflowsResponse = {
-  summary?: UnknownRecord;
-  workflows?: unknown[];
-};
-
-type CodegenRunRecord = {
-  id: string;
-  phase?: string;
-  kind?: string;
-  status?: string;
-  projectName?: string;
-  workflowId?: string;
-  taskId?: string;
-  sessionId?: string;
-  capabilityProfile?: string;
-  framework?: string;
-  accountProviderId?: string;
-  accountId?: string;
-  accountLabel?: string;
-  parentRunId?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  completedAt?: string;
-  artifactPaths?: string[];
-  artifacts?: unknown[];
-  linkedRunIds?: string[];
-  outputPreview?: string;
-  input?: UnknownRecord;
-  error?: string;
-};
-
-type CodegenRunsResponse = {
-  summary?: UnknownRecord;
-  runs?: unknown[];
-};
-
-type WorkflowDetailResponse = {
-  workflow?: CodegenWorkflowRecord;
-  runs?: unknown[];
-  tree?: unknown[];
-};
-
-type WorkflowBundleResponse = {
-  workflow?: CodegenWorkflowRecord;
-  runs?: unknown[];
-  manifestPath?: string;
-  manifest?: UnknownRecord;
-};
-
-type RunDetailResponse = {
-  run?: CodegenRunRecord;
-};
-
-type CodegenCancellationResponse = {
-  run?: CodegenRunRecord;
-  cancellation?: {
-    applied?: boolean;
-    alreadyCancelled?: boolean;
-    executionTerminationSupported?: boolean;
-    note?: string;
-  };
-};
 
 type SurfaceNotice = {
   id: number;
@@ -354,10 +141,6 @@ function compactDetailValue(value: unknown): string {
     return normalizeText(JSON.stringify(value), 180);
   }
   return "—";
-}
-
-function safeResourceId(id: string): string {
-  return encodeURIComponent(id);
 }
 
 async function postJson<T>(path: string, body: UnknownRecord): Promise<T> {
@@ -468,89 +251,34 @@ export function OrchestrationPage({
     }
   }, [reviewMode]);
 
-  const requestPolicy = orchestrationRequests({
+  const {
+    overviewResource,
+    tasksResource,
+    workersResource,
+    worktreesResource,
+    plansResource,
+    codegenRuntimeResource,
+    accountPoolResource,
+    codegenWorkflowsResource,
+    codegenRunsResource,
+    workflowDetailResource,
+    runDetailResource,
+    tasks,
+    workers,
+    worktrees,
+    plans,
+    workflows,
+    runs,
+    codegenSelection,
+  } = useOrchestrationResources({
     active,
     activeTab,
-    hasSelectedWorkflow: Boolean(selectedWorkflowId),
-    hasSelectedRun: Boolean(selectedRunId),
-  });
-
-  const overviewResource = useApiResource<DelegationOverviewResponse>(
-    requestPolicy.overview ? "/delegation/overview" : null,
-    [requestPolicy.overview],
-  );
-  const tasksResource = useApiResource<DelegationTaskResponse>(
-    requestPolicy.tasks ? "/delegation/tasks?limit=100" : null,
-    [requestPolicy.tasks],
-  );
-  const workersResource = useApiResource<WorkersResponse>(
-    requestPolicy.workers ? "/delegation/workers?limit=100" : null,
-    [requestPolicy.workers],
-  );
-  const worktreesResource = useApiResource<RepositoryWorktreesResponse>(
-    requestPolicy.worktrees ? "/repo/worktrees" : null,
-    [requestPolicy.worktrees],
-  );
-  const plansResource = useApiResource<PlansResponse>(
-    requestPolicy.plans ? "/plans" : null,
-    [requestPolicy.plans],
-  );
-  const codegenRuntimeResource = useApiResource<CodegenRuntimeResponse>(
-    requestPolicy.codegenRuntime ? "/runtime/codegen" : null,
-    [requestPolicy.codegenRuntime],
-  );
-  const accountPoolResource = useApiResource<AccountPoolResponse>(
-    requestPolicy.accountPool ? "/runtime/account-pool" : null,
-    [requestPolicy.accountPool],
-  );
-  const codegenWorkflowsResource = useApiResource<CodegenWorkflowsResponse>(
-    requestPolicy.codegenWorkflows ? "/codegen/workflows" : null,
-    [requestPolicy.codegenWorkflows],
-  );
-  const codegenRunsResource = useApiResource<CodegenRunsResponse>(
-    requestPolicy.codegenRuns ? "/codegen/runs" : null,
-    [requestPolicy.codegenRuns],
-  );
-  const workflowDetailResource = useApiResource<WorkflowDetailResponse>(
-    requestPolicy.workflowDetail && selectedWorkflowId
-      ? `/codegen/workflows/${safeResourceId(selectedWorkflowId)}`
-      : null,
-    [requestPolicy.workflowDetail, selectedWorkflowId],
-  );
-  const runDetailResource = useApiResource<RunDetailResponse>(
-    requestPolicy.runDetail && selectedRunId
-      ? `/codegen/runs/${safeResourceId(selectedRunId)}`
-      : null,
-    [requestPolicy.runDetail, selectedRunId],
-  );
-
-  const allTasks = asArray(tasksResource.data?.tasks).map((entry) =>
-    asRecord(entry),
-  ) as DelegationTaskRecord[];
-  const tasks = scopeTasksByWorkspace(allTasks, {
-    scope: projectScope,
+    selectedWorkflowId,
+    selectedRunId,
+    projectScope,
     workspacePath,
     platform: window.doolittle.platform,
   });
-  const workers = asArray(workersResource.data?.workers).map((entry) =>
-    asRecord(entry),
-  ) as WorkerRecord[];
-  const worktrees = asArray(worktreesResource.data?.worktrees)
-    .map((entry) => asRecord(entry) as RepositoryWorktreeRecord)
-    .filter((entry) => Boolean(asString(entry.path)) && !entry.prunable);
-  const plans = asArray(plansResource.data?.plans).map((entry) =>
-    asRecord(entry),
-  ) as PlanRecord[];
-  const workflows = asArray(codegenWorkflowsResource.data?.workflows).map(
-    (entry) => asRecord(entry),
-  ) as CodegenWorkflowRecord[];
-  const runs = asArray(codegenRunsResource.data?.runs).map((entry) =>
-    asRecord(entry),
-  ) as CodegenRunRecord[];
-  const detailWorkflowId = asString(workflowDetailResource.data?.workflow?.id);
-  const workflowDetailRuns = asArray(workflowDetailResource.data?.runs).map(
-    (entry) => asRecord(entry),
-  ) as CodegenRunRecord[];
 
   const selectedTask =
     tasks.find((entry) => asString(entry.id) === selectedTaskId) ?? tasks[0];
@@ -559,17 +287,6 @@ export function OrchestrationPage({
     workers[0];
   const selectedPlan =
     plans.find((entry) => asString(entry.id) === selectedPlanId) ?? plans[0];
-  const detailedRun = runDetailResource.data?.run;
-  const codegenSelection = projectCodegenSelection({
-    workflows,
-    globalRuns: runs,
-    workflowDetailRuns,
-    selectedWorkflowId,
-    selectedRunId,
-    detailWorkflowId,
-    workflowDetailLoading: workflowDetailResource.loading,
-    detailedRun,
-  });
   const { selectedWorkflow, selectedRun, visibleRuns } = codegenSelection;
 
   const [showTaskCreate, setShowTaskCreate] = useState(false);
@@ -867,7 +584,7 @@ export function OrchestrationPage({
     runBusy(key, true);
     try {
       const result = await postJson<{ task?: DelegationTaskRecord }>(
-        `/delegation/tasks/${safeResourceId(selectedTask.id)}/spawn`,
+        `/delegation/tasks/${orchestrationResourceId(selectedTask.id)}/spawn`,
         taskSpawnPayload({
           title: childTitle || "Child task",
           objective: childObjective,
@@ -913,7 +630,7 @@ export function OrchestrationPage({
     runBusy(key, true);
     try {
       await postJson<UnknownRecord>(
-        `/delegation/tasks/${safeResourceId(task.id)}/${action}`,
+        `/delegation/tasks/${orchestrationResourceId(task.id)}/${action}`,
         {
           note: note || undefined,
           cascadeChildren:
@@ -1043,7 +760,7 @@ export function OrchestrationPage({
     runBusy(key, true);
     try {
       await postJson<{ plan?: PlanRecord }>(
-        `/plans/${safeResourceId(plan.id)}/approve`,
+        `/plans/${orchestrationResourceId(plan.id)}/approve`,
         {},
       );
       publishNotice({
@@ -1071,7 +788,7 @@ export function OrchestrationPage({
     runBusy(key, true);
     try {
       await postJson<UnknownRecord>(
-        `/plans/${safeResourceId(selectedPlan.id)}/steer`,
+        `/plans/${orchestrationResourceId(selectedPlan.id)}/steer`,
         {
           instruction: planSteerInstruction.trim(),
         },
@@ -1172,7 +889,7 @@ export function OrchestrationPage({
     setBundleLoading(true);
     try {
       const result = await postJson<WorkflowBundleResponse>(
-        `/codegen/workflows/${safeResourceId(workflowId)}/bundle`,
+        `/codegen/workflows/${orchestrationResourceId(workflowId)}/bundle`,
         {},
       );
       setBundleResult(result);
@@ -1188,7 +905,7 @@ export function OrchestrationPage({
     runBusy(key, true);
     try {
       const result = await postJson<CodegenCancellationResponse>(
-        `/codegen/runs/${safeResourceId(run.id)}/cancel`,
+        `/codegen/runs/${orchestrationResourceId(run.id)}/cancel`,
         {},
       );
       setConfirmedRunCancellation("");

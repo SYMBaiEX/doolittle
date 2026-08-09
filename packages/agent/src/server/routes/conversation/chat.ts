@@ -6,6 +6,7 @@ import {
   ManagedAttachmentError,
   resolveManagedChatAttachments,
 } from "@/services/chat-attachments";
+import { followAbortSignal } from "./lifecycle";
 import type { ChatRequestBody } from "./types";
 
 const RUN_ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
@@ -78,83 +79,91 @@ export async function handleChatRoute(
       return json({ error: "project not found or archived" }, 404);
     }
 
-    return streamSse(async (emit) => {
-      const controller = new AbortController();
-      const unregister = context.services.runController.registerAbortController(
-        runId,
-        controller,
-      );
-      await emit("response.created", {
-        id: responseId,
-        run_id: runId,
-        room_id: roomId,
-      });
-      try {
-        const { response } = await executeAgentTurnWithProgress(
-          {
-            message: requestMessage,
-            userId: body.userId ?? "api-user",
-            roomId,
+    const controller = new AbortController();
+    const stopFollowingRequest = followAbortSignal(request.signal, controller);
+    return streamSse(
+      async (emit) => {
+        const unregister =
+          context.services.runController.registerAbortController(
             runId,
-            source: body.source ?? "api",
-            attachments,
-            attachmentDescriptors,
-          },
-          context,
-          {
-            abortSignal: controller.signal,
-            onProgress: async ({ delta }) => {
-              if (!delta) {
-                return;
-              }
-              await emit("response.output_text.delta", {
-                id: responseId,
-                delta,
-              });
-            },
-            onRunUpdate: async (event) => {
-              await emit("agent.run", event);
-            },
-            onRunEvent: async (event, detail) => {
-              await emit("agent.progress", {
-                event: event.type,
-                detail: `[run] ${detail}`,
-                sessionId: event.sessionId,
-              });
-            },
-            onNotice: async (notice) => {
-              await emit("response.notice", notice);
-            },
-          },
-        );
-        if (controller.signal.aborted) {
-          await emit("response.cancelled", {
-            id: responseId,
-            run_id: runId,
-            room_id: roomId,
-          });
-          return;
-        }
-        await emit("response.completed", {
+            controller,
+          );
+        await emit("response.created", {
           id: responseId,
-          response,
-          character: context.config.agentName,
+          run_id: runId,
           room_id: roomId,
         });
-      } catch (error) {
-        if (controller.signal.aborted) {
-          await emit("response.cancelled", {
+        try {
+          const { response } = await executeAgentTurnWithProgress(
+            {
+              message: requestMessage,
+              userId: body.userId ?? "api-user",
+              roomId,
+              runId,
+              source: body.source ?? "api",
+              attachments,
+              attachmentDescriptors,
+            },
+            context,
+            {
+              abortSignal: controller.signal,
+              onProgress: async ({ delta }) => {
+                if (!delta) {
+                  return;
+                }
+                await emit("response.output_text.delta", {
+                  id: responseId,
+                  delta,
+                });
+              },
+              onRunUpdate: async (event) => {
+                await emit("agent.run", event);
+              },
+              onRunEvent: async (event, detail) => {
+                await emit("agent.progress", {
+                  event: event.type,
+                  detail: `[run] ${detail}`,
+                  sessionId: event.sessionId,
+                });
+              },
+              onNotice: async (notice) => {
+                await emit("response.notice", notice);
+              },
+            },
+          );
+          if (controller.signal.aborted) {
+            await emit("response.cancelled", {
+              id: responseId,
+              run_id: runId,
+              room_id: roomId,
+            });
+            return;
+          }
+          await emit("response.completed", {
             id: responseId,
-            run_id: runId,
+            response,
+            character: context.config.agentName,
             room_id: roomId,
           });
-          return;
+        } catch (error) {
+          if (controller.signal.aborted) {
+            await emit("response.cancelled", {
+              id: responseId,
+              run_id: runId,
+              room_id: roomId,
+            });
+            return;
+          }
+          throw error;
+        } finally {
+          unregister();
+          stopFollowingRequest();
         }
-        throw error;
-      } finally {
-        unregister();
-      }
-    });
+      },
+      {
+        onCancel: () => controller.abort(),
+      },
+    );
   }
 
   const sessionId = body.roomId ?? `room:${body.userId ?? "api-user"}`;
@@ -164,19 +173,32 @@ export async function handleChatRoute(
   ) {
     return json({ error: "project not found or archived" }, 404);
   }
-  const { response } = await executeAgentTurnWithProgress(
-    {
-      message,
-      userId: body.userId ?? "api-user",
-      roomId: body.roomId,
-      runId:
-        typeof body.runId === "string" ? resolveRunId(body.runId) : undefined,
-      source: body.source ?? "api",
-      attachments,
-      attachmentDescriptors,
-    },
-    context,
+  const runId = resolveRunId(body.runId);
+  const controller = new AbortController();
+  const stopFollowingRequest = followAbortSignal(request.signal, controller);
+  const unregister = context.services.runController.registerAbortController(
+    runId,
+    controller,
   );
+  let response: string;
+  try {
+    ({ response } = await executeAgentTurnWithProgress(
+      {
+        message,
+        userId: body.userId ?? "api-user",
+        roomId: body.roomId,
+        runId,
+        source: body.source ?? "api",
+        attachments,
+        attachmentDescriptors,
+      },
+      context,
+      { abortSignal: controller.signal },
+    ));
+  } finally {
+    unregister();
+    stopFollowingRequest();
+  }
 
   return json({
     response,

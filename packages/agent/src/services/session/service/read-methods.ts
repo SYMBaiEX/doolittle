@@ -27,10 +27,11 @@ export const sessionServiceReadMethods: Pick<
     return getSessionServiceState(this).reads.recentBySession(sessionId, limit);
   },
 
-  messagesBySession(sessionId, limit) {
+  messagesBySession(sessionId, limit, offset) {
     return getSessionServiceState(this).reads.messagesBySession(
       sessionId,
       limit,
+      offset,
     );
   },
 

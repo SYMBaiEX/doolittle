@@ -227,6 +227,26 @@ describe("session/messages/store", () => {
     expect(store.search("compressed", 10)).toHaveLength(1);
   });
 
+  it("pages a chronological session transcript without dropping earlier rows", () => {
+    const db = createDb();
+    const store = new SessionMessageStore(db, new EventEmitter());
+    for (let index = 0; index < 3; index += 1) {
+      store.storeMessage({
+        id: `page-${index}`,
+        sessionId: "room:page",
+        roomId: "room:page",
+        entityId: "user:1",
+        role: "user",
+        text: `message-${index}`,
+        createdAt: `2026-03-20T00:00:0${index}.000Z`,
+      });
+    }
+
+    expect(
+      store.messagesBySession("room:page", 2, 1).map((row) => row.text),
+    ).toEqual(["message-1", "message-2"]);
+  });
+
   it("rolls back a replacement and withholds activity when insertion fails", () => {
     const db = createDb();
     const events = new EventEmitter();

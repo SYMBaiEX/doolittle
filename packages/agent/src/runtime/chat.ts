@@ -42,6 +42,28 @@ export interface AgentTurnHooks extends TurnCommandHooks {
   abortSignal?: AbortSignal;
 }
 
+function throwIfTurnAborted(signal: AbortSignal | undefined): void {
+  if (!signal?.aborted) return;
+  if (signal.reason instanceof Error) throw signal.reason;
+  const error = new Error("Agent run cancelled.");
+  error.name = "AbortError";
+  throw error;
+}
+
+function runInRoomQueue<T>(
+  context: AgentExecutionContext,
+  roomId: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const queue = context.runtime.roomHandlerQueue;
+  // beta.7 production runtimes expose the official room queue. Keep narrow
+  // CLI/test/compatible runtime hosts operational when they intentionally
+  // provide only the message-service surface.
+  return queue && typeof queue.runWith === "function"
+    ? queue.runWith(roomId, operation)
+    : operation();
+}
+
 class TurnPerfTrace {
   private readonly enabled =
     process.env.DOOLITTLE_PERF_TRACE === "1" ||
@@ -123,71 +145,78 @@ export async function handleAgentTurn(
       })
     : undefined;
   if (!workflowCommand && trimmedMessage === "/retry") {
-    const replay = context.services.sessions.deleteLatestExchange(
-      preparedTurn.turn.sessionId,
-      {
-        skipSlashCommands: true,
-      },
-    );
-    if (!replay.userMessage) {
-      return "No prior conversational turn is available to retry.";
-    }
-    try {
-      const nativeDelete = await deleteNativeConversationMemories(context, [
-        replay.userMessage,
-        ...replay.assistantMessages,
-      ]);
-      if (nativeDelete.unsupported.length) {
-        throw new Error(
-          "The selected exchange contains legacy native memory ids.",
-        );
-      }
-    } catch {
-      // The projection is a cache; restore it rather than retrying against a
-      // native context that still contains the discarded exchange.
-      context.services.sessions.storeMessage(replay.userMessage);
-      for (const assistantMessage of replay.assistantMessages) {
-        context.services.sessions.storeMessage(assistantMessage);
-      }
-      return "The previous exchange could not be removed from native conversation history, so it was not retried.";
-    }
-    let replayAttachments: Awaited<
-      ReturnType<typeof resolveManagedChatAttachments>
-    > = [];
-    if (replay.userMessage.attachments?.length) {
-      try {
-        replayAttachments = await resolveManagedChatAttachments({
-          dataDir: context.config.dataDir,
-          attachmentIds: replay.userMessage.attachments.map(
-            (attachment) => attachment.id,
-          ),
-        });
-      } catch {
-        context.services.sessions.storeMessage(replay.userMessage);
-        for (const assistantMessage of replay.assistantMessages) {
-          context.services.sessions.storeMessage(assistantMessage);
-        }
-        return "The previous turn used attachments that are no longer available, so it was not retried.";
-      }
-    }
-    const retryInput = {
-      ...input,
-      message: replay.userMessage.text,
-      attachments: replayAttachments.map((attachment) => attachment.media),
-      attachmentDescriptors: replayAttachments.map(
-        (attachment) => attachment.descriptor,
-      ),
-    };
-    const retryTurn = prepareTurnState(retryInput, context);
-    perf.mark("retry-replay");
-    return runPostCommandTurn(
-      retryInput,
-      retryInput,
+    return runInRoomQueue(
       context,
-      options ?? {},
-      perf,
-      undefined,
-      retryTurn,
+      String(preparedTurn.turn.roomId),
+      async () => {
+        throwIfTurnAborted(options?.abortSignal);
+        const replay = context.services.sessions.deleteLatestExchange(
+          preparedTurn.turn.sessionId,
+          {
+            skipSlashCommands: true,
+          },
+        );
+        if (!replay.userMessage) {
+          return "No prior conversational turn is available to retry.";
+        }
+        try {
+          const nativeDelete = await deleteNativeConversationMemories(context, [
+            replay.userMessage,
+            ...replay.assistantMessages,
+          ]);
+          if (nativeDelete.unsupported.length) {
+            throw new Error(
+              "The selected exchange contains legacy native memory ids.",
+            );
+          }
+        } catch {
+          // The projection is a cache; restore it rather than retrying against a
+          // native context that still contains the discarded exchange.
+          context.services.sessions.storeMessage(replay.userMessage);
+          for (const assistantMessage of replay.assistantMessages) {
+            context.services.sessions.storeMessage(assistantMessage);
+          }
+          return "The previous exchange could not be removed from native conversation history, so it was not retried.";
+        }
+        let replayAttachments: Awaited<
+          ReturnType<typeof resolveManagedChatAttachments>
+        > = [];
+        if (replay.userMessage.attachments?.length) {
+          try {
+            replayAttachments = await resolveManagedChatAttachments({
+              dataDir: context.config.dataDir,
+              attachmentIds: replay.userMessage.attachments.map(
+                (attachment) => attachment.id,
+              ),
+            });
+          } catch {
+            context.services.sessions.storeMessage(replay.userMessage);
+            for (const assistantMessage of replay.assistantMessages) {
+              context.services.sessions.storeMessage(assistantMessage);
+            }
+            return "The previous turn used attachments that are no longer available, so it was not retried.";
+          }
+        }
+        const retryInput = {
+          ...input,
+          message: replay.userMessage.text,
+          attachments: replayAttachments.map((attachment) => attachment.media),
+          attachmentDescriptors: replayAttachments.map(
+            (attachment) => attachment.descriptor,
+          ),
+        };
+        const retryTurn = prepareTurnState(retryInput, context);
+        perf.mark("retry-replay");
+        return runPostCommandTurn(
+          retryInput,
+          retryInput,
+          context,
+          options ?? {},
+          perf,
+          undefined,
+          retryTurn,
+        );
+      },
     );
   }
   const effectiveInput = workflowCommand
@@ -196,14 +225,17 @@ export async function handleAgentTurn(
         message: workflowCommand.prompt,
       }
     : input;
-  perf.mark("sdk-shortcut-layer");
-  return runPostCommandTurn(
-    input,
-    effectiveInput,
-    context,
-    options ?? {},
-    perf,
-    undefined,
-    preparedTurn,
-  );
+  return runInRoomQueue(context, String(preparedTurn.turn.roomId), async () => {
+    throwIfTurnAborted(options?.abortSignal);
+    perf.mark("sdk-shortcut-layer");
+    return runPostCommandTurn(
+      input,
+      effectiveInput,
+      context,
+      options ?? {},
+      perf,
+      undefined,
+      preparedTurn,
+    );
+  });
 }

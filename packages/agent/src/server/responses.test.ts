@@ -25,4 +25,23 @@ describe("streamSse", () => {
     expect(body).toContain("event: error");
     expect(body).toContain('"message":"local model unavailable"');
   });
+
+  it("notifies server work when the SSE consumer cancels", async () => {
+    let cancelled = false;
+    const response = streamSse(
+      async () => {
+        await new Promise<void>(() => undefined);
+      },
+      {
+        onCancel: () => {
+          cancelled = true;
+        },
+      },
+    );
+
+    const reader = response.body?.getReader();
+    await reader?.cancel();
+
+    expect(cancelled).toBe(true);
+  });
 });

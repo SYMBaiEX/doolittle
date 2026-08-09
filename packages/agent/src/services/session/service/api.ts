@@ -47,7 +47,11 @@ export interface SessionServiceApi {
   ): SessionSearchResult[];
   recent(limit: number): SessionSearchResult[];
   recentBySession(sessionId: string, limit: number): SessionSearchResult[];
-  messagesBySession(sessionId: string, limit: number): StoredMessage[];
+  messagesBySession(
+    sessionId: string,
+    limit: number,
+    offset?: number,
+  ): StoredMessage[];
   countBySessionRole(sessionId: string, role?: StoredMessage["role"]): number;
   latest(limit: number): SessionSearchResult[];
   summary(limit?: number): {

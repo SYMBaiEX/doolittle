@@ -156,6 +156,11 @@ nub run test:sandbox:integration
 
 ### Sandbox lifecycle
 
+The desktop Execution environments view exposes the same local lifecycle in a
+Sandbox isolation card: create Node.js or Python containers, select an explicit
+target, run Python/JavaScript/TypeScript/Bash, inspect bounded output, and stop
+the selected sandbox.
+
 Use `/e2b list` to inspect sandboxes, `/e2b create [node-js|python]` to create
 one, `/e2b exec [--sandbox <id>] <python|javascript|typescript|bash> :: <code>`
 to execute code, and `/e2b kill [sandbox-id]` to stop it. The runtime exposes
@@ -164,7 +169,8 @@ the same lifecycle over HTTP: `POST /e2b/sandboxes` with
 `{"sandboxId":"<id>","language":"python","code":"print('hello')"}`,
 and `POST /e2b/kill` with `{"id":"<id>"}`. `GET /e2b/sandboxes` lists the
 current sandbox state. Unsupported templates return `400` with the supported
-templates; a sandbox that is already closing returns `409`.
+templates. Closing, ownership-conflict, and unverified-cleanup states return
+`409` so operators can refresh and retry without losing the retained sandbox.
 
 The development launcher starts Vite for the renderer, builds the Electron
 main and preload bundles in watch mode, and launches Electron with the local

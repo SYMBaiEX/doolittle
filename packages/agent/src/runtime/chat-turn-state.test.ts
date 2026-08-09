@@ -480,6 +480,91 @@ describe("chat turn state helpers with session persistence", () => {
     expect(projectedTexts).toEqual(["Continue through Eliza"]);
   });
 
+  it("projects every paged native conversation memory without deleting an older suffix", async () => {
+    const native = Array.from({ length: 10_005 }, (_, index) => ({
+      id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+      roomId: "room-page",
+      entityId: "user-1",
+      content: { text: `native-${index}` },
+      metadata: { doolittle: { role: "user" as const } },
+      createdAt: index,
+    }));
+    const offsets: number[] = [];
+    const projected: unknown[][] = [];
+    const context = {
+      services: {
+        sessions: {
+          continuityKey: (sessionId: string) => sessionId,
+          messagesBySession: () => [],
+          replaceSessionMessages: (_sessionId: string, messages: unknown[]) => {
+            projected.push(messages);
+          },
+          storeMessage: () => undefined,
+        },
+      },
+      runtime: {
+        agentId: "agent-1",
+        getMemories: async ({
+          offset = 0,
+          limit = 0,
+        }: {
+          offset?: number;
+          limit?: number;
+        }) => {
+          offsets.push(offset);
+          return native
+            .slice()
+            .reverse()
+            .slice(offset, offset + limit);
+        },
+        createMemory: async () => "unused",
+        queueEmbeddingGeneration: async () => undefined,
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+
+    await persistUserTurnMemory({
+      context,
+      turn: {
+        sessionId: "page-1",
+        roomId: "room-page",
+        entityId: "user-1",
+        messageId: "00000000-0000-4000-8000-999999999999",
+        connectionSource: "desktop",
+      } as Parameters<typeof persistUserTurnMemory>[0]["turn"],
+      userId: "desktop-user",
+      text: "Eliza owns this user memory",
+      nativeOwner: "eliza-message-service",
+    });
+
+    // The migration bridge is scoped to the live runtime/session. Later turns
+    // already persist through Eliza and must not rescan the complete history.
+    await persistUserTurnMemory({
+      context,
+      turn: {
+        sessionId: "page-1",
+        roomId: "room-page",
+        entityId: "user-1",
+        messageId: "00000000-0000-4000-8000-999999999998",
+        connectionSource: "desktop",
+      } as Parameters<typeof persistUserTurnMemory>[0]["turn"],
+      userId: "desktop-user",
+      text: "Eliza owns the next user memory too",
+      nativeOwner: "eliza-message-service",
+    });
+
+    expect(offsets).toEqual(
+      Array.from({ length: 21 }, (_, index) => index * 500),
+    );
+    expect(projected).toHaveLength(1);
+    const completeProjection = projected[0] ?? [];
+    expect(completeProjection).toHaveLength(10_005);
+    expect((completeProjection[0] as { text: string }).text).toBe("native-0");
+    expect((completeProjection.at(-1) as { text: string }).text).toBe(
+      "native-10004",
+    );
+  });
+
   it("replaces native middle context before its projection is changed", async () => {
     const created: string[] = [];
     const deleted: string[] = [];

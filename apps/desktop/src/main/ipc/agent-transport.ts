@@ -223,6 +223,8 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
         validateTextQuery(query, "after", { maxLength: 1_024 }),
     },
     { exact: "/runtime/status" },
+    { exact: "/runtime/e2b" },
+    { exact: "/e2b/sandboxes" },
     {
       exact: "/runtime/models",
       allowedQueries: ["refresh"],
@@ -524,6 +526,9 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   ],
   POST: [
     { exact: "/settings" },
+    { exact: "/e2b/sandboxes" },
+    { exact: "/e2b/execute" },
+    { exact: "/e2b/kill" },
     { exact: "/acp/initialize" },
     { exact: "/acp/session/new" },
     { exact: "/acp/session/load" },

@@ -161,6 +161,23 @@ describe("parseApiPath", () => {
     ).toThrow(/not available/);
   });
 
+  it("allows only the declared local SandboxManager operator surface", () => {
+    expect(parseApiPath("/runtime/e2b", "GET")).toBe("/runtime/e2b");
+    expect(parseApiPath("/e2b/sandboxes", "GET")).toBe("/e2b/sandboxes");
+    expect(parseApiPath("/e2b/sandboxes", "POST")).toBe("/e2b/sandboxes");
+    expect(parseApiPath("/e2b/execute", "POST")).toBe("/e2b/execute");
+    expect(parseApiPath("/e2b/kill", "POST")).toBe("/e2b/kill");
+    expect(() => parseApiPath("/e2b/sandboxes?template=python", "GET")).toThrow(
+      /Unsupported query/,
+    );
+    expect(() => parseApiPath("/e2b/sandboxes/secret", "POST")).toThrow(
+      /not available/,
+    );
+    expect(() => parseApiPath("/e2b/..%2Fsecrets", "GET")).toThrow(
+      /unsafe traversal/,
+    );
+  });
+
   it("validates session query parameters", () => {
     expect(parseApiPath("/sessions?limit=40", "GET")).toBe(
       "/sessions?limit=40",

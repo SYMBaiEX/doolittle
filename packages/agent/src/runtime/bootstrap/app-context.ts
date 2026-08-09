@@ -57,9 +57,18 @@ export async function buildAppContext({
     if (nativePluginAssembly.deferred.length > 0) {
       return nativePluginAssembly.deferred;
     }
-    deferredPluginsPromise ??= buildNativePluginAssembly(services, config).then(
-      (assembly) => assembly.deferred,
-    );
+    if (!deferredPluginsPromise) {
+      const attempt = buildNativePluginAssembly(services, config).then(
+        (assembly) => assembly.deferred,
+      );
+      const retryableAttempt = attempt.catch((error) => {
+        if (deferredPluginsPromise === retryableAttempt) {
+          deferredPluginsPromise = undefined;
+        }
+        throw error;
+      });
+      deferredPluginsPromise = retryableAttempt;
+    }
     return deferredPluginsPromise;
   };
 

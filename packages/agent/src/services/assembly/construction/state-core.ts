@@ -47,7 +47,8 @@ export function createServiceConstructionCore(params: {
       config,
       () => sessions.summary(),
       (limit) => sessions.listSessions(limit),
-      (sessionId, limit) => sessions.messagesBySession(sessionId, limit),
+      (sessionId, limit, offset) =>
+        sessions.messagesBySession(sessionId, limit, offset),
     ),
     repository: new RepositoryService(() => config.workspaceDir),
     reviewRecords: new ReviewRecordService(config.dataDir),

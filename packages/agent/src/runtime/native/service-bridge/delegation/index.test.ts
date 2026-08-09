@@ -2,6 +2,7 @@ import { ModelType } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import { createOfficialOrchestratorTestFixture } from "@/testing/official-orchestrator";
 import {
+  cancelEffectiveDelegationTask,
   createEffectiveDelegationTask,
   executeEffectiveDelegationTask,
   getEffectiveDelegationTask,
@@ -10,6 +11,16 @@ import {
   projectOfficialTask,
   superviseEffectiveDelegationQueue,
 } from ".";
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
+}
 
 function detail(overrides: Record<string, unknown> = {}) {
   return {
@@ -263,8 +274,12 @@ describe("official delegation service bridge", () => {
     const validate = vi.spyOn(official.service, "validateTask");
     const useModel = vi.fn(async (modelType: unknown) => {
       expect(modelType).toBe(ModelType.RESEARCH);
+      const current = await official.service.getTask(created.id);
       await official.service.updateTask(created.id, {
-        metadata: { operatorNote: "added while researching" },
+        metadata: {
+          ...current?.metadata,
+          operatorNote: "added while researching",
+        },
       });
       return {
         id: "research-response-1",
@@ -378,6 +393,91 @@ describe("official delegation service bridge", () => {
     });
   });
 
+  it("records an ordinary RESEARCH provider failure without validating the task", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Research provider failure",
+      goal: "Find sources",
+      kind: "research",
+    });
+    const validate = vi.spyOn(official.service, "validateTask");
+    const runtime = {
+      ...official.runtime,
+      getModel: () => () => Promise.resolve({}),
+      useModel: vi.fn(async () => {
+        throw new Error("research provider timed out");
+      }),
+    };
+
+    await expect(
+      executeEffectiveDelegationTask(runtime as never, undefined, created.id),
+    ).resolves.toMatchObject({ id: created.id, status: "failed" });
+
+    expect(validate).not.toHaveBeenCalled();
+    const durable = await official.service.getTask(created.id);
+    expect(durable?.metadata).toMatchObject({
+      researchRun: expect.objectContaining({
+        status: "failed",
+        error: "research provider timed out",
+      }),
+    });
+    expect(durable?.messages.at(-1)).toMatchObject({
+      content: "Doolittle research failed: research provider timed out",
+    });
+  });
+
+  it("surfaces a null durable research-start update instead of hiding setup failure", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Unavailable research start",
+      goal: "Find sources",
+      kind: "research",
+    });
+    vi.spyOn(official.service, "updateTask").mockResolvedValueOnce(null);
+    const runtime = {
+      ...official.runtime,
+      getModel: () => () => Promise.resolve({}),
+      useModel: vi.fn(),
+    };
+
+    await expect(
+      executeEffectiveDelegationTask(runtime as never, undefined, created.id),
+    ).rejects.toThrow(
+      "Unable to start Doolittle research: the durable task record was not activated.",
+    );
+    expect(runtime.useModel).not.toHaveBeenCalled();
+    expect(await official.service.getTask(created.id)).toMatchObject({
+      status: "open",
+      metadata: {},
+    });
+  });
+
+  it("surfaces a rejected durable research-start update", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Rejected research start",
+      goal: "Find sources",
+      kind: "research",
+    });
+    vi.spyOn(official.service, "updateTask").mockRejectedValueOnce(
+      new Error("task store unavailable"),
+    );
+    const runtime = {
+      ...official.runtime,
+      getModel: () => () => Promise.resolve({}),
+      useModel: vi.fn(),
+    };
+
+    await expect(
+      executeEffectiveDelegationTask(runtime as never, undefined, created.id),
+    ).rejects.toThrow("task store unavailable");
+    expect(runtime.useModel).not.toHaveBeenCalled();
+    expect(await official.service.getTask(created.id)).toMatchObject({
+      status: "open",
+      metadata: {},
+    });
+  });
+
   it("does not claim citations when research returns no sources", async () => {
     const official = createOfficialOrchestratorTestFixture();
     const created = await official.service.createTask({
@@ -405,6 +505,251 @@ describe("official delegation service bridge", () => {
       created.id,
       expect.objectContaining({ summary: "Doolittle research completed." }),
     );
+  });
+
+  it("keeps a cancelled sessionless research run cancelled when the provider resolves late", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Cancelable research",
+      goal: "Find sources slowly",
+      kind: "research",
+    });
+    const pending = deferred<{
+      id: string;
+      text: string;
+      annotations?: Array<{ url: string; title: string }>;
+    }>();
+    const useModel = vi.fn(() => pending.promise);
+    const runtime = {
+      ...official.runtime,
+      getModel: () => () => Promise.resolve({}),
+      useModel,
+    };
+
+    const execution = executeEffectiveDelegationTask(
+      runtime as never,
+      undefined,
+      created.id,
+    );
+    await vi.waitFor(() => expect(useModel).toHaveBeenCalledOnce());
+    await expect(
+      cancelEffectiveDelegationTask(
+        runtime as never,
+        undefined,
+        created.id,
+        "Operator stopped this run.",
+      ),
+    ).resolves.toMatchObject({ id: created.id, status: "cancelled" });
+
+    pending.resolve({
+      id: "late-response",
+      text: "This must not be recorded.",
+    });
+    await expect(execution).resolves.toMatchObject({
+      id: created.id,
+      status: "cancelled",
+    });
+
+    const durable = await official.service.getTask(created.id);
+    expect(durable).toMatchObject({ status: "interrupted", paused: true });
+    expect(durable?.metadata).toMatchObject({
+      researchRun: expect.objectContaining({
+        status: "cancelled",
+        interruption: "cooperative",
+      }),
+    });
+    expect(durable?.messages.map((message) => message.content)).not.toContain(
+      "This must not be recorded.",
+    );
+    expect(
+      durable?.messages.map((message) => message.content).join("\n"),
+    ).not.toContain("Doolittle research failed:");
+    expect(durable?.summary).toBeUndefined();
+  });
+
+  it("does not overwrite a research task when an operator replaces its run id", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Superseded research",
+      goal: "Find sources",
+      kind: "research",
+    });
+    const pending = deferred<{ id: string; text: string }>();
+    const useModel = vi.fn(() => pending.promise);
+    const runtime = {
+      ...official.runtime,
+      getModel: () => () => Promise.resolve({}),
+      useModel,
+    };
+    const execution = executeEffectiveDelegationTask(
+      runtime as never,
+      undefined,
+      created.id,
+    );
+    await vi.waitFor(() => expect(useModel).toHaveBeenCalledOnce());
+    const active = await official.service.getTask(created.id);
+    await official.service.updateTask(created.id, {
+      metadata: {
+        ...active?.metadata,
+        researchRun: {
+          runId: "operator-replacement",
+          status: "active",
+          startedAt: "2026-08-09T00:00:00.000Z",
+        },
+      },
+    });
+
+    pending.resolve({ id: "superseded-response", text: "Do not emit this." });
+    await expect(execution).resolves.toMatchObject({
+      id: created.id,
+      status: "running",
+    });
+    const durable = await official.service.getTask(created.id);
+    expect(durable?.metadata).toMatchObject({
+      researchRun: { runId: "operator-replacement", status: "active" },
+    });
+    expect(
+      durable?.messages.map((message) => message.content).join("\n"),
+    ).not.toContain("Do not emit this.");
+  });
+
+  it("reconciles stale sessionless research receipts on the first delegation list refresh", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Stale research",
+      goal: "Find sources",
+      kind: "research",
+      metadata: {
+        researchRun: {
+          runId: "stale-research-run",
+          status: "active",
+          startedAt: "2026-08-09T00:00:00.000Z",
+        },
+      },
+    });
+    await official.service.updateTask(created.id, { status: "active" });
+    const listTasks = vi.spyOn(official.service, "listTasks");
+    const getTask = vi.spyOn(official.service, "getTask");
+
+    await expect(
+      getEffectiveDelegationTasks(official.runtime as never),
+    ).resolves.toEqual([
+      expect.objectContaining({ id: created.id, status: "cancelled" }),
+    ]);
+    expect(listTasks).toHaveBeenCalledOnce();
+    expect(getTask).toHaveBeenCalledTimes(1);
+    const durable = await official.service.getTask(created.id);
+    expect(durable).toMatchObject({ status: "interrupted" });
+    expect(durable?.metadata).toMatchObject({
+      researchRun: expect.objectContaining({
+        status: "interrupted",
+        interruption: "reconciled-after-restart",
+      }),
+    });
+  });
+
+  it("does not reconcile a live in-process research run during a list refresh", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Live research",
+      goal: "Find sources slowly",
+      kind: "research",
+    });
+    const pending = deferred<{ id: string; text: string }>();
+    const useModel = vi.fn(() => pending.promise);
+    const runtime = {
+      ...official.runtime,
+      getModel: () => () => Promise.resolve({}),
+      useModel,
+    };
+    const execution = executeEffectiveDelegationTask(
+      runtime as never,
+      undefined,
+      created.id,
+    );
+    await vi.waitFor(() => expect(useModel).toHaveBeenCalledOnce());
+
+    await expect(
+      getEffectiveDelegationTasks(runtime as never),
+    ).resolves.toEqual([
+      expect.objectContaining({ id: created.id, status: "running" }),
+    ]);
+    expect(await official.service.getTask(created.id)).toMatchObject({
+      status: "active",
+    });
+
+    pending.resolve({ id: "live-response", text: "Live report." });
+    await expect(execution).resolves.toMatchObject({ status: "completed" });
+  });
+
+  it("does not reconcile research while its start message is still being persisted", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Starting research",
+      goal: "Find sources slowly",
+      kind: "research",
+    });
+    const releaseStartMessage = deferred<void>();
+    const addMessage = official.service.addMessage.bind(official.service);
+    vi.spyOn(official.service, "addMessage").mockImplementation(
+      async (taskId, input) => {
+        if (input.content.startsWith("Starting Doolittle research run")) {
+          await releaseStartMessage.promise;
+        }
+        return addMessage(taskId, input);
+      },
+    );
+    const useModel = vi.fn(async () => ({
+      id: "started-response",
+      text: "Started report.",
+    }));
+    const runtime = {
+      ...official.runtime,
+      getModel: () => () => Promise.resolve({}),
+      useModel,
+    };
+    const execution = executeEffectiveDelegationTask(
+      runtime as never,
+      undefined,
+      created.id,
+    );
+    await vi.waitFor(() =>
+      expect(official.service.addMessage).toHaveBeenCalledWith(
+        created.id,
+        expect.objectContaining({
+          content: expect.stringContaining("Starting Doolittle research run"),
+        }),
+      ),
+    );
+
+    await expect(
+      getEffectiveDelegationTasks(runtime as never),
+    ).resolves.toEqual([
+      expect.objectContaining({ id: created.id, status: "running" }),
+    ]);
+    expect(await official.service.getTask(created.id)).toMatchObject({
+      status: "active",
+    });
+    expect(useModel).not.toHaveBeenCalled();
+
+    releaseStartMessage.resolve();
+    await expect(execution).resolves.toMatchObject({ status: "completed" });
+  });
+
+  it("does not alter active coding tasks during sessionless research reconciliation", async () => {
+    const official = createOfficialOrchestratorTestFixture();
+    const created = await official.service.createTask({
+      title: "Active coding",
+      goal: "Edit source",
+      kind: "coding",
+    });
+    await official.service.updateTask(created.id, { status: "active" });
+
+    await getEffectiveDelegationTasks(official.runtime as never);
+    expect(await official.service.getTask(created.id)).toMatchObject({
+      status: "active",
+      paused: false,
+    });
   });
 
   it("continues to spawn ACP coding sessions for coding tasks", async () => {

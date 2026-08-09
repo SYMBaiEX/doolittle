@@ -14,6 +14,31 @@ export type NativeUserMemoryOwner = "doolittle" | "eliza-message-service";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const NATIVE_MEMORY_PAGE_SIZE = 500;
+const hydratedNativeRooms = new WeakMap<object, Set<string>>();
+
+function nativeHydrationKey(turn: TurnState): string {
+  return `${turn.sessionId}\u0000${String(turn.roomId)}`;
+}
+
+function isNativeRoomHydrated(
+  context: AgentExecutionContext,
+  turn: TurnState,
+): boolean {
+  return (
+    hydratedNativeRooms.get(context.runtime)?.has(nativeHydrationKey(turn)) ??
+    false
+  );
+}
+
+function markNativeRoomHydrated(
+  context: AgentExecutionContext,
+  turn: TurnState,
+): void {
+  const hydrated = hydratedNativeRooms.get(context.runtime) ?? new Set();
+  hydrated.add(nativeHydrationKey(turn));
+  hydratedNativeRooms.set(context.runtime, hydrated);
+}
 
 function nowIso(createdAt?: number): string {
   return new Date(createdAt ?? Date.now()).toISOString();
@@ -121,6 +146,42 @@ function canDeleteMemory(
   return typeof runtime.deleteMemory === "function";
 }
 
+async function nativeConversationMemories(
+  context: AgentExecutionContext,
+  turn: TurnState,
+): Promise<Memory[]> {
+  if (typeof context.runtime.getMemories !== "function") return [];
+  const memories: Memory[] = [];
+  const seenPages = new Set<string>();
+  let offset = 0;
+
+  for (;;) {
+    const page = await context.runtime.getMemories({
+      roomId: turn.roomId as UUID,
+      tableName: "messages",
+      limit: NATIVE_MEMORY_PAGE_SIZE,
+      offset,
+      orderBy: "createdAt",
+      orderDirection: "desc",
+      includeEmbedding: false,
+    });
+    if (!page.length) break;
+
+    // A non-conforming adapter that ignores offset must not turn recovery into
+    // an infinite loop. Memory IDs are authoritative page identities here.
+    const pageKey = page
+      .map((memory) => String(memory.id ?? ""))
+      .join("\u0000");
+    if (seenPages.has(pageKey)) break;
+    seenPages.add(pageKey);
+    memories.push(...page);
+    if (page.length < NATIVE_MEMORY_PAGE_SIZE) break;
+    offset += page.length;
+  }
+
+  return memories.reverse();
+}
+
 /**
  * The installed Eliza runtime exposes deleteMemory. Keep this capability
  * check at the boundary so old test doubles and older compatible runtimes
@@ -197,28 +258,20 @@ async function hydrateNativeRoomFromProjection(
   ) {
     return;
   }
-  const nativeMessages = await context.runtime.getMemories({
-    roomId: turn.roomId as UUID,
-    tableName: "messages",
-    // The projection must converge to the complete native transcript, not a
-    // recent 100-message suffix that leaves old cache-only rows searchable.
-    limit: 10_000,
-    orderBy: "createdAt",
-    orderDirection: "desc",
-    includeEmbedding: false,
-  });
-  const conversationMemories = nativeMessages
-    .reverse()
-    .filter(
-      (memory) =>
-        memory.id &&
-        contentText(memory.content) &&
-        isConversationMemory(context, memory),
-    );
+  if (isNativeRoomHydrated(context, turn)) return;
+  // Fetch the whole authoritative transcript before replacing the projection.
+  // Replacing from a suffix would silently delete older cache rows.
+  const nativeMessages = await nativeConversationMemories(context, turn);
+  const conversationMemories = nativeMessages.filter(
+    (memory) =>
+      memory.id &&
+      contentText(memory.content) &&
+      isConversationMemory(context, memory),
+  );
   if (conversationMemories.length > 0) {
     const existing = context.services.sessions.messagesBySession(
       turn.sessionId,
-      10_000,
+      Number.MAX_SAFE_INTEGER,
     );
     const attachmentsById = new Map(
       existing.map((message) => [message.id, message.attachments]),
@@ -249,12 +302,13 @@ async function hydrateNativeRoomFromProjection(
         context.services.sessions.storeMessage(message);
       }
     }
+    markNativeRoomHydrated(context, turn);
     return;
   }
 
   const projectedMessages = context.services.sessions.messagesBySession(
     turn.sessionId,
-    10_000,
+    Number.MAX_SAFE_INTEGER,
   );
   const reprojected: StoredMessage[] = [];
   for (const message of projectedMessages) {
@@ -278,6 +332,7 @@ async function hydrateNativeRoomFromProjection(
       reprojected,
     );
   }
+  markNativeRoomHydrated(context, turn);
 }
 
 export async function persistUserTurnMemory(input: {
