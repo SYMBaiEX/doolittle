@@ -1,11 +1,4 @@
-function escapeXml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
-}
+import { escapeXml } from "@/utils/eliza-compat";
 
 export function renderGenerationSvg(
   prompt: string,

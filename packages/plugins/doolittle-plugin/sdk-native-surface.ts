@@ -8,11 +8,12 @@ import type {
   Memory,
   ShortcutDefinition,
 } from "@elizaos/core";
+import { getMemoryText } from "@elizaos/core";
 
 function messageText(message: Memory): string {
-  return typeof message.content === "string"
-    ? message.content
-    : (message.content?.text ?? "");
+  const content = message.content;
+  if (typeof content === "string") return content;
+  return content && typeof content === "object" ? getMemoryText(message) : "";
 }
 
 function explicitWebSearchQuery(text: string): string {

@@ -8,8 +8,15 @@ import {
 import type { IAgentRuntime, Service, ServiceClass } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import { createPlanningPlugin } from "./index";
+import { normalizeText } from "./normalization";
 
 describe("plugin-planning", () => {
+  it("normalizes optional text through the shared Eliza guard", () => {
+    expect(normalizeText("  Native plan  ", "fallback")).toBe("Native plan");
+    expect(normalizeText("   ", "fallback")).toBe("fallback");
+    expect(normalizeText(null, "fallback")).toBe("fallback");
+  });
+
   it("creates and summarizes persisted plans", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-planning-"));
     const plugin = createPlanningPlugin({

@@ -9,12 +9,7 @@ import type {
 } from "@elizaos/core";
 import { searchNativeSessions } from "@/runtime/native/service-bridge/tooling";
 import type { SessionSearchResult } from "@/types";
-
-function messageText(message: Memory): string {
-  return typeof message.content === "string"
-    ? message.content
-    : (message.content?.text ?? "");
-}
+import { messageText } from "@/utils/eliza-compat";
 
 function optionQuery(options: HandlerOptions | undefined): string | undefined {
   const parameters =

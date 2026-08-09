@@ -8,6 +8,7 @@ import {
   type TextGenerationModelType,
 } from "@elizaos/core";
 import type { EnvConfig } from "@/types/runtime";
+import { isRecord } from "@/utils/records";
 
 type MutableRecord = Record<string, unknown>;
 
@@ -27,10 +28,6 @@ const TEXT_MODEL_TOKEN_CAPS: Record<string, number> = {
   [ModelType.TEXT_REASONING_LARGE]: 768,
   [ModelType.TEXT_MEGA]: 1024,
 };
-
-function isRecord(value: unknown): value is MutableRecord {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
 
 function numberFromRecord(
   record: MutableRecord,

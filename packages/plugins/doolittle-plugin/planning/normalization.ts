@@ -1,4 +1,5 @@
 import type { StoredPlanRecord } from "@doolittle/contracts";
+import { asNonEmptyString } from "@elizaos/shared/type-guards";
 
 const FALLBACK_STEPS = [
   "Clarify scope and runtime dependencies.",
@@ -28,5 +29,5 @@ export function normalizeMetadata(input: unknown): Record<string, unknown> {
 }
 
 export function normalizeText(input: unknown, fallback: string): string {
-  return typeof input === "string" && input.trim() ? input.trim() : fallback;
+  return asNonEmptyString(input) ?? fallback;
 }

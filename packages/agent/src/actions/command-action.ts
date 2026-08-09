@@ -11,14 +11,9 @@ import { getCommandCatalogEntries } from "@/runtime/command-catalog";
 import { getScopedTurnCommandHooks } from "@/runtime/turn-runtime-scope";
 import type { AppServices } from "@/services";
 import type { EnvConfig } from "@/types/runtime";
+import { messageText } from "@/utils/eliza-compat";
 
 export const DOOLITTLE_COMMAND_ACTION = "DOOLITTLE_COMMAND";
-
-function messageText(message: Memory): string {
-  return typeof message.content === "string"
-    ? message.content
-    : (message.content?.text ?? "");
-}
 
 function commandInput(message: Memory) {
   const metadata = message.metadata as

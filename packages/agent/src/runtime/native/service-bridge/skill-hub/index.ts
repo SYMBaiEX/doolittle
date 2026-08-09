@@ -12,6 +12,7 @@ import type {
   SkillHubInstalledRecord,
   SkillHubManifest,
 } from "@/services/skills-hub/types";
+import { errorMessage } from "@/utils/error-message";
 import { getNativeServices, type RuntimeLike } from "../runtime";
 import type { NativeAgentSkillsService } from "../runtime-contracts";
 
@@ -38,10 +39,6 @@ export function requireOfficialAgentSkills(
     throw new AgentSkillsServiceUnavailableError();
   }
   return service;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function officialCatalogRead(

@@ -16,6 +16,7 @@ import {
   Badge,
   EmptyBlock,
   ErrorBlock,
+  formatBoundedPreview,
   LoadingBlock,
   MetricCard,
   Notice,
@@ -61,22 +62,6 @@ interface AgentProfileResponse {
   summary?: UnknownRecord;
 }
 
-function boundedText(value: string, max: number): string {
-  return value.length <= max
-    ? value
-    : `${value.slice(0, max)}
-… (${value.length - max} more chars)`;
-}
-
-function renderText(value: unknown, max = BOUNDS.mediaResultChars): string {
-  if (typeof value === "string") return boundedText(value, max);
-  try {
-    return boundedText(JSON.stringify(value, null, 2), max);
-  } catch {
-    return boundedText(String(value), max);
-  }
-}
-
 export function MemoryPage({ active }: { active: boolean }) {
   const tabs = ["memory", "user"] as const;
   const [target, setTarget] = useState<(typeof tabs)[number]>("memory");
@@ -114,7 +99,7 @@ export function MemoryPage({ active }: { active: boolean }) {
     [active, submittedRecallQuery],
   );
   const profileSummary = asRecord(profileSummaryResource.data?.summary);
-  const agentCard = renderText(
+  const agentCard = formatBoundedPreview(
     agentProfileResource.data?.card,
     BOUNDS.agentCardChars,
   );
@@ -231,7 +216,7 @@ export function MemoryPage({ active }: { active: boolean }) {
                 </div>
                 {snapshot ? (
                   <pre className="json-preview">
-                    {boundedText(snapshot, BOUNDS.memorySnapshotChars)}
+                    {formatBoundedPreview(snapshot, BOUNDS.memorySnapshotChars)}
                   </pre>
                 ) : (
                   <EmptyBlock title="No snapshot">

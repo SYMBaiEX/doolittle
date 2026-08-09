@@ -3,7 +3,6 @@ import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
 import {
   type CSSProperties,
   type KeyboardEvent,
-  lazy,
   Suspense,
   useCallback,
   useEffect,
@@ -25,6 +24,15 @@ import type {
   WorkspacePickResult,
   WorkspaceState,
 } from "../shared/contracts";
+import { DesktopMobileMenuButton } from "./app-shell/DesktopMobileMenuButton";
+import { DesktopRouteContent } from "./app-shell/DesktopRouteContent";
+import { DesktopRouteLoadingFallback } from "./app-shell/DesktopRouteLoadingFallback";
+import { DesktopRuntimeNotices } from "./app-shell/DesktopRuntimeNotices";
+import { DesktopSidebar } from "./app-shell/DesktopSidebar";
+import { DesktopUtilityLayer } from "./app-shell/DesktopUtilityLayer";
+import { DesktopWindowContext } from "./app-shell/DesktopWindowContext";
+import { DesktopWindowTools } from "./app-shell/DesktopWindowTools";
+import { buildDesktopCommandGroups } from "./app-shell/desktop-command-groups";
 import {
   type ChatContextHandoff,
   type ChatContextRequest,
@@ -32,7 +40,6 @@ import {
 } from "./chat-context-handoff";
 import { ActivityCenter } from "./components/ActivityCenter";
 import { type CommandGroup, CommandPalette } from "./components/CommandPalette";
-import { PanelResizeHandle } from "./components/PanelResizeHandle";
 import {
   type ProjectDraft,
   type ProjectLike,
@@ -40,12 +47,23 @@ import {
   type ProjectResourceLike,
   type ProjectScope,
 } from "./components/ProjectManager";
-import {
-  NewConversationControl,
-  ProjectHistorySidebar,
-} from "./components/ProjectSidebar";
 import { ToastRegion, useToasts } from "./components/ToastRegion";
-import { UtilityDrawer } from "./components/UtilityDrawer";
+import { newConversationId } from "./conversation-id";
+import {
+  collectSidebarFocusables,
+  loadOpenSections,
+  loadProjectScope,
+  MOBILE_SIDEBAR_QUERY,
+  NAV_COLLAPSED_KEY,
+  NAV_SECTIONS_KEY,
+  type NavigationSectionId,
+  navigation,
+  PROJECT_SCOPE_KEY,
+  PROJECT_SWITCH_DEBOUNCE_MS,
+  type View,
+  viewFromHash,
+  workspaceName,
+} from "./desktop-navigation";
 import {
   acknowledgeNavigationIntent,
   createOrchestrationTaskNavigationIntent,
@@ -70,13 +88,7 @@ import {
   globalSearchGroups,
   useGlobalSearch,
 } from "./global-search";
-import {
-  asArray,
-  desktopRequest,
-  displayTimestamp,
-  Icon,
-  useApiResource,
-} from "./lib";
+import { asArray, desktopRequest, useApiResource } from "./lib";
 import {
   APP_SIDEBAR_WIDTH,
   APP_SIDEBAR_WIDTH_KEY,
@@ -90,362 +102,12 @@ import { shouldIgnoreShellShortcut } from "./shell-shortcuts";
 import { workspacePathsEqual } from "./workspace-path";
 import { resolveWorkspaceSelection } from "./workspace-selection";
 
-const DashboardPage = lazy(() =>
-  import("./DashboardPage").then((module) => ({
-    default: module.DashboardPage,
-  })),
-);
-const ChatPage = lazy(() =>
-  import("./ChatPage").then((module) => ({ default: module.ChatPage })),
-);
-const CodingWorkspacePage = lazy(() =>
-  import("./CodingWorkspacePage").then((module) => ({
-    default: module.CodingWorkspacePage,
-  })),
-);
-const BrowserPage = lazy(() =>
-  import("./BrowserPage").then((module) => ({ default: module.BrowserPage })),
-);
-const GatewayPage = lazy(() =>
-  import("./GatewayPage").then((module) => ({ default: module.GatewayPage })),
-);
-const OrchestrationPage = lazy(() =>
-  import("./OrchestrationPage").then((module) => ({
-    default: module.OrchestrationPage,
-  })),
-);
-const SessionsPage = lazy(() =>
-  import("./WorkspacePages").then((module) => ({
-    default: module.SessionsPage,
-  })),
-);
-const AnalyticsPage = lazy(() =>
-  import("./WorkspacePages").then((module) => ({
-    default: module.AnalyticsPage,
-  })),
-);
-const ActivityPage = lazy(() =>
-  import("./ActivityPage").then((module) => ({
-    default: module.ActivityPage,
-  })),
-);
-const MediaPage = lazy(() =>
-  import("./MediaPage").then((module) => ({ default: module.MediaPage })),
-);
-const MemoryPage = lazy(() =>
-  import("./MemoryPage").then((module) => ({ default: module.MemoryPage })),
-);
-const ModelsPage = lazy(() =>
-  import("./ModelsPage").then((module) => ({ default: module.ModelsPage })),
-);
-const ConnectionsPage = lazy(() =>
-  import("./ConnectionsPage").then((module) => ({
-    default: module.ConnectionsPage,
-  })),
-);
-const ToolsPage = lazy(() =>
-  import("./ToolsPage").then((module) => ({ default: module.ToolsPage })),
-);
-const SkillsPage = lazy(() =>
-  import("./SkillsPage").then((module) => ({ default: module.SkillsPage })),
-);
-const PluginsPage = lazy(() =>
-  import("./PluginsPage").then((module) => ({ default: module.PluginsPage })),
-);
-const ProfilesPage = lazy(() =>
-  import("./ProfilesPage").then((module) => ({ default: module.ProfilesPage })),
-);
-const AutomationsPage = lazy(() =>
-  import("./AutomationsPage").then((module) => ({
-    default: module.AutomationsPage,
-  })),
-);
-const LogsPage = lazy(() =>
-  import("./LogsPage").then((module) => ({
-    default: module.LogsPage,
-  })),
-);
-const SettingsPage = lazy(() =>
-  import("./SettingsPage").then((module) => ({
-    default: module.SettingsPage,
-  })),
-);
-const KeysPage = lazy(() =>
-  import("./KeysPage").then((module) => ({
-    default: module.KeysPage,
-  })),
-);
-const DocsPage = lazy(() =>
-  import("./DocsPage").then((module) => ({
-    default: module.DocsPage,
-  })),
-);
-const RuntimePage = lazy(() =>
-  import("./RuntimePage").then((module) => ({
-    default: module.RuntimePage,
-  })),
-);
-const CompatibilityPage = lazy(() =>
-  import("./CompatibilityPage").then((module) => ({
-    default: module.CompatibilityPage,
-  })),
-);
-const RegistryPage = lazy(() =>
-  import("./RegistryPage").then((module) => ({
-    default: module.RegistryPage,
-  })),
-);
-const SetupPage = lazy(() =>
-  import("./SetupPage").then((module) => ({
-    default: module.SetupPage,
-  })),
-);
-
-export type View =
-  | "dashboard"
-  | "chat"
-  | "code"
-  | "browser"
-  | "gateway"
-  | "review"
-  | "orchestration"
-  | "sessions"
-  | "activity"
-  | "analytics"
-  | "media"
-  | "models"
-  | "connections"
-  | "tools"
-  | "skills"
-  | "plugins"
-  | "memory"
-  | "automations"
-  | "profiles"
-  | "logs"
-  | "keys"
-  | "settings"
-  | "docs"
-  | "runtime"
-  | "compatibility"
-  | "registry"
-  | "operatorSetup";
-
-const views = new Set<View>([
-  "dashboard",
-  "chat",
-  "code",
-  "browser",
-  "gateway",
-  "review",
-  "orchestration",
-  "sessions",
-  "activity",
-  "analytics",
-  "media",
-  "models",
-  "connections",
-  "tools",
-  "skills",
-  "plugins",
-  "memory",
-  "automations",
-  "profiles",
-  "logs",
-  "keys",
-  "settings",
-  "docs",
-  "runtime",
-  "compatibility",
-  "registry",
-  "operatorSetup",
-]);
-
-const navigation: Array<{
-  id: "workspace" | "create" | "observe" | "agent" | "manage";
-  label: string;
-  items: Array<{ id: View; label: string }>;
-}> = [
-  {
-    id: "workspace",
-    label: "Workspace",
-    items: [
-      { id: "dashboard", label: "Home" },
-      { id: "chat", label: "Chat" },
-      { id: "code", label: "Code" },
-      { id: "browser", label: "Browser & preview" },
-      { id: "orchestration", label: "Work" },
-    ],
-  },
-  {
-    id: "create",
-    label: "Create",
-    items: [
-      { id: "media", label: "Media studio" },
-      { id: "automations", label: "Automations" },
-    ],
-  },
-  {
-    id: "observe",
-    label: "Observe",
-    items: [
-      { id: "sessions", label: "Sessions" },
-      { id: "gateway", label: "Gateway inbox" },
-      { id: "activity", label: "Activity" },
-      { id: "analytics", label: "Analytics" },
-    ],
-  },
-  {
-    id: "agent",
-    label: "Agent",
-    items: [
-      { id: "models", label: "Models" },
-      { id: "connections", label: "Providers & accounts" },
-      { id: "tools", label: "Tools" },
-      { id: "skills", label: "Skills" },
-      { id: "plugins", label: "Plugins" },
-      { id: "memory", label: "Memory" },
-      { id: "profiles", label: "Profiles" },
-    ],
-  },
-  {
-    id: "manage",
-    label: "Manage",
-    items: [
-      { id: "logs", label: "Logs" },
-      { id: "settings", label: "Settings" },
-      { id: "keys", label: "Keys" },
-      { id: "runtime", label: "Runtime" },
-      { id: "compatibility", label: "Compatibility" },
-      { id: "registry", label: "Registry" },
-      { id: "operatorSetup", label: "Setup" },
-      { id: "docs", label: "About" },
-    ],
-  },
-];
-
-type NavigationSectionId = (typeof navigation)[number]["id"];
-
-const VIEW_DESCRIPTIONS: Record<View, string> = {
-  dashboard: "See runtime health, active work, and next operator actions",
-  chat: "Start or continue a conversation",
-  code: "Inspect files, changes, commits, worktrees, and terminal history",
-  browser: "Preview localhost apps and capture browser evidence",
-  gateway: "Inspect recorded gateway messages and replay an inbound record",
-  review: "Approve decisions and inspect workspace changes and agent outputs",
-  orchestration:
-    "Start, supervise, inspect, and approve tasks, agents, plans, and runs",
-  sessions: "Search and inspect conversation history",
-  activity: "Review deliveries, commands, and runtime events",
-  analytics: "Understand local usage and activity",
-  media: "Analyze, transcribe, speak, and generate",
-  models: "Choose models and inference providers",
-  connections: "Sign in and connect provider accounts",
-  tools: "Inspect callable tools",
-  skills: "Browse installed agent skills",
-  plugins: "Inspect the ElizaOS plugin runtime",
-  memory: "Review local agent and user memory",
-  automations: "Schedule recurring agent work",
-  profiles: "Shape identity and personality",
-  logs: "Trace runtime behavior",
-  keys: "Manage local provider credentials",
-  settings: "Configure Doolittle",
-  docs: "Learn how the desktop works",
-  runtime: "Inspect local runtime health",
-  compatibility: "Verify SDK compatibility",
-  registry: "Explore the capability registry",
-  operatorSetup: "Complete local setup",
-};
-
-const DEFAULT_OPEN_SECTIONS: NavigationSectionId[] = ["workspace", "create"];
-const NAV_SECTIONS_KEY = "doolittle.desktop.nav-sections.v1";
-const NAV_COLLAPSED_KEY = "doolittle.desktop.nav-collapsed.v1";
-const MOBILE_SIDEBAR_QUERY = "(max-width: 940px)";
-const PROJECT_SCOPE_KEY = "doolittle.desktop.project-scope.v1";
-const PROJECT_SWITCH_DEBOUNCE_MS = 120;
-const PRIMARY_NAV_ITEMS = [
-  { id: "chat" as const, label: "Chat", description: "Conversations" },
-  { id: "code" as const, label: "Code", description: "Workspace" },
-  {
-    id: "orchestration" as const,
-    label: "Work",
-    description: "Agent work and review",
-  },
-];
-
-function loadOpenSections(): Set<NavigationSectionId> {
-  try {
-    const parsed = JSON.parse(
-      localStorage.getItem(NAV_SECTIONS_KEY) ?? "null",
-    ) as unknown;
-    if (!Array.isArray(parsed)) return new Set(DEFAULT_OPEN_SECTIONS);
-    const valid = parsed.filter((id): id is NavigationSectionId =>
-      navigation.some((section) => section.id === id),
-    );
-    return new Set(valid.length ? valid : DEFAULT_OPEN_SECTIONS);
-  } catch {
-    return new Set(DEFAULT_OPEN_SECTIONS);
-  }
-}
-
-function loadProjectScope(): ProjectScope {
-  const stored = localStorage.getItem(PROJECT_SCOPE_KEY)?.trim();
-  return stored || "all";
-}
-
-function viewFromHash(): View {
-  const value = window.location.hash.replace(/^#\/?/u, "") as View;
-  return views.has(value) ? value : "chat";
-}
-
-function newConversationId(): string {
-  return `desktop:${crypto.randomUUID()}`;
-}
-
-function workspaceName(path: string): string {
-  return path.split(/[\\/]/u).filter(Boolean).at(-1) ?? "Local workspace";
-}
-
 function pathsEqual(left: string | undefined, right: string): boolean {
   return workspacePathsEqual(left, right, window.doolittle.platform);
 }
 
-function collectSidebarFocusables(scope: HTMLElement | null): HTMLElement[] {
-  if (!scope) return [];
-  return Array.from(
-    scope.querySelectorAll<HTMLElement>(
-      'a[href], button, input, select, textarea, [contenteditable="true"], [tabindex]',
-    ),
-  ).filter((element) => {
-    if (
-      element.hasAttribute("hidden") ||
-      element.getAttribute("disabled") !== null
-    ) {
-      return false;
-    }
-    return element.tabIndex !== -1;
-  });
-}
-
-function sessionLabel(session: SessionSummary): string {
-  return session.title?.trim() || session.preview[0]?.trim() || "Conversation";
-}
-
-function RouteLoadingFallback() {
-  return (
-    <div aria-live="polite" className="loading-block" role="status">
-      <i aria-hidden="true" />
-      <span>Opening workspace…</span>
-    </div>
-  );
-}
-
-interface ApprovalListResponse {
-  approvals?: unknown[];
-}
-
-interface DelegationTasksResponse {
-  tasks?: unknown[];
-}
+type ApprovalListResponse = { approvals?: unknown[] };
+type DelegationTasksResponse = { tasks?: unknown[] };
 
 export function App() {
   const initialConversation = useMemo(newConversationId, []);
@@ -530,9 +192,6 @@ export function App() {
   const workspaceSwitchInFlightRef = useRef(0);
   const isMobileSidebarMode = useMediaQuery(MOBILE_SIDEBAR_QUERY);
   const mobileSidebarOpen = sidebarOpen && isMobileSidebarMode;
-  const mobileSidebarDialogProps = mobileSidebarOpen
-    ? ({ "aria-modal": true, role: "dialog" } as const)
-    : {};
 
   const setMobileSidebarOpen = useCallback((open: boolean) => {
     setSidebarOpen(open);
@@ -1810,360 +1469,92 @@ export function App() {
     return items.slice(0, 5);
   }, [scopedSessions, selectedSession]);
 
-  const commandGroups = useMemo<CommandGroup[]>(
-    () => [
-      ...(paletteQuery.trim()
-        ? []
-        : [
-            {
-              id: "recents",
-              label: "Recents",
-              items: [
-                ...sidebarSessions.map((session) => ({
-                  id: `recent-${session.sessionId}`,
-                  label: sessionLabel(session),
-                  description:
-                    session.messageCount > 0
-                      ? `${session.messageCount} messages · ${
-                          session.endedAt
-                            ? displayTimestamp(session.endedAt)
-                            : "active locally"
-                        }`
-                      : "Draft conversation",
-                  keywords: ["recent", "conversation", session.sessionId],
-                  onSelect: () => openSession(session.sessionId),
-                })),
-                {
-                  id: "recent-open-workspace",
-                  label: "Choose repository for new chat",
-                  description: workspace.currentPath || "Choose a local folder",
-                  keywords: ["workspace", "open", "project", "repository"],
-                  onSelect: () => void chooseRepositoryForConversation(),
-                },
-                ...workspace.recentPaths
-                  .filter((path) => path !== workspace.currentPath)
-                  .map((path) => ({
-                    id: `workspace-${path}`,
-                    label: workspaceName(path),
-                    description: path,
-                    keywords: ["workspace", "recent", "project", path],
-                    onSelect: () => void switchToRecentWorkspace(path),
-                  })),
-                {
-                  id: "recent-live-tasks",
-                  label: "Open live tasks",
-                  description:
-                    runningTasks > 0
-                      ? `${runningTasks} running task${
-                          runningTasks === 1 ? "" : "s"
-                        }`
-                      : "No active tasks right now",
-                  keywords: ["tasks", "agents", "running"],
-                  onSelect: () => setView("orchestration"),
-                },
-              ],
-            },
-            {
-              id: "projects",
-              label: "Projects",
-              items: [
-                {
-                  id: "project-all",
-                  label: "All chats",
-                  description: `${sessions.length} conversations across every project`,
-                  keywords: ["projects", "global", "all chats"],
-                  onSelect: () => selectProjectScope("all"),
-                },
-                ...projectCards
-                  .filter((project) => !project.archived)
-                  .map((project) => ({
-                    id: `project-${project.id}`,
-                    label: project.name,
-                    description: `${project.chatCount ?? 0} conversations${
-                      project.description ? ` · ${project.description}` : ""
-                    }`,
-                    keywords: [
-                      "project",
-                      project.name,
-                      project.description ?? "",
-                    ],
-                    onSelect: () => selectProjectScope(project.id),
-                  })),
-                {
-                  id: "project-manage",
-                  label: "Manage projects",
-                  description:
-                    "Create, edit, archive, and attach local sources",
-                  keywords: ["project", "files", "folders", "manage"],
-                  onSelect: openProjectManager,
-                },
-              ],
-            },
-          ]),
-      ...searchCommandGroups,
-      {
-        id: "actions",
-        label: "Actions",
-        items: [
-          {
-            id: "new-chat",
-            label: "New conversation",
-            description: "Start with a clean context",
-            keywords: ["compose", "new", "chat"],
-            shortcuts: [
-              window.doolittle.platform === "darwin" ? "⌘ N" : "Ctrl N",
-            ],
-            onSelect: createConversation,
-          },
-          {
-            id: "refresh",
-            label: "Refresh local runtime",
-            description: "Reload runtime and session state",
-            keywords: ["reload", "health"],
-            disabled: backend.phase !== "ready",
-            onSelect: () => void refreshWithFeedback(),
-          },
-          {
-            id: "open-workspace",
-            label: "Choose repository for new chat",
-            description:
-              "Open a repo, link it to a project, and start chatting",
-            keywords: ["project", "folder", "repository", "switch"],
-            shortcuts: [
-              window.doolittle.platform === "darwin" ? "⌘ O" : "Ctrl O",
-            ],
-            onSelect: () => void chooseRepositoryForConversation(),
-          },
-          {
-            id: "appearance",
-            label: `Use ${resolvedAppearance === "dark" ? "light" : "dark"} appearance`,
-            description: "Switch the desktop color mode",
-            keywords: ["theme", "dark", "light"],
-            onSelect: toggleAppearance,
-          },
-          {
-            id: "navigation",
-            label: `${navCollapsed ? "Expand" : "Collapse"} navigation`,
-            description: "Change the sidebar density",
-            shortcuts: [
-              window.doolittle.platform === "darwin" ? "⌘ ⇧ B" : "Ctrl ⇧ B",
-            ],
-            onSelect: toggleNavigation,
-          },
-        ],
-      },
-      ...navigation.map((section) => ({
-        id: section.id,
-        label: section.label,
-        items: section.items.map((item) => ({
-          id: `view-${item.id}`,
-          label: item.label,
-          description: VIEW_DESCRIPTIONS[item.id],
-          keywords: [section.label, item.id],
-          onSelect: () => setView(item.id),
-        })),
-      })),
-    ],
+  const commandGroups = useMemo(
+    () =>
+      buildDesktopCommandGroups({
+        backendPhase: backend.phase,
+        navCollapsed,
+        onChooseRepository: () => chooseRepositoryForConversation(),
+        onCreateConversation: createConversation,
+        onOpenProjectManager: openProjectManager,
+        onOpenSession: openSession,
+        onRefresh: refreshWithFeedback,
+        onSelectProjectScope: selectProjectScope,
+        onSetView: setView,
+        onSwitchRecentWorkspace: switchToRecentWorkspace,
+        onToggleAppearance: toggleAppearance,
+        onToggleNavigation: toggleNavigation,
+        paletteQuery,
+        platform: window.doolittle.platform,
+        projectCards,
+        recentWorkspacePaths: workspace.recentPaths,
+        resolvedAppearance,
+        runningTasks,
+        searchCommandGroups,
+        sessionsCount: sessions.length,
+        sidebarSessions,
+        workspacePath: workspace.currentPath,
+      }),
     [
-      resolvedAppearance,
       backend.phase,
-      createConversation,
       chooseRepositoryForConversation,
+      createConversation,
       navCollapsed,
-      openSession,
       openProjectManager,
+      openSession,
       paletteQuery,
+      projectCards,
       refreshWithFeedback,
+      resolvedAppearance,
       runningTasks,
       searchCommandGroups,
       selectProjectScope,
       sessions.length,
       setView,
       sidebarSessions,
-      projectCards,
+      switchToRecentWorkspace,
       toggleAppearance,
       toggleNavigation,
-      switchToRecentWorkspace,
       workspace.currentPath,
       workspace.recentPaths,
     ],
   );
 
-  const content = (() => {
-    switch (view) {
-      case "dashboard":
-        return (
-          <DashboardPage
-            active={backend.phase === "ready"}
-            approvalsResource={approvalsResource}
-            onOpenChat={(sessionId) => {
-              if (sessionId) openSession(sessionId);
-              else setView("chat");
-            }}
-            onOpenReview={() => setView("review")}
-            onOpenSetup={() => setView("operatorSetup")}
-            onOpenTasks={() => setView("orchestration")}
-            onOpenProviders={() => setView("connections")}
-          />
-        );
-      case "chat":
-        return (
-          <ChatPage
-            activeProject={activeProject}
-            backend={backend}
-            onChooseRepository={() =>
-              chooseRepositoryForConversation(selectedSession)
-            }
-            onOpenProjectManager={openProjectManager}
-            onRequestNewConversation={createConversation}
-            onSelectProjectForNewChat={(scope) =>
-              transitionToProjectScope(scope, selectedSession, "chat")
-            }
-            onSelect={setSelectedSession}
-            onOpenModelsPage={() => setView("models")}
-            onOpenProvidersPage={() => setView("connections")}
-            onOpenWorkspaceView={setView}
-            onConsumeContextHandoff={consumeChatContext}
-            pendingApprovals={pendingApprovals}
-            pendingContextHandoff={pendingChatContext}
-            projects={projectCards}
-            projectLabels={projectLabels}
-            refreshRuntime={refreshRuntime}
-            remoteSessions={scopedSessions}
-            runningTasks={runningTasks}
-            runtime={runtime}
-            selectedId={selectedSession}
-            chromeHost={chatChromeHost}
-            workspacePath={workspace.currentPath}
-          />
-        );
-      case "code":
-        return (
-          <CodingWorkspacePage
-            active={backend.phase === "ready"}
-            key={workspace.currentPath || "local-workspace"}
-            navigationIntent={pendingNavigationIntent}
-            onAcknowledgeNavigationIntent={consumeNavigationIntent}
-            onChooseWorkspace={chooseWorkspace}
-            onOpenWorkspacePath={openWorkspacePath}
-            onSendToChat={openChatWithContext}
-            projectScope={projectScope}
-            workspacePath={workspace.currentPath}
-          />
-        );
-      case "browser":
-        return (
-          <BrowserPage
-            active={backend.phase === "ready"}
-            onSendToChat={(text) =>
-              openChatWithContext({
-                text,
-                workspacePath: workspace.currentPath,
-                projectScope,
-              })
-            }
-          />
-        );
-      case "gateway":
-        return <GatewayPage active={backend.phase === "ready"} />;
-      case "review":
-      case "orchestration":
-        return (
-          <OrchestrationPage
-            active={backend.phase === "ready"}
-            key={`${workspace.currentPath}\u0000${projectScope}`}
-            navigationIntent={pendingNavigationIntent}
-            onAcknowledgeNavigationIntent={consumeNavigationIntent}
-            onSectionChange={(section) => {
-              if (section === "review" && view !== "review") {
-                setView("review");
-              } else if (section !== "review" && view === "review") {
-                setView("orchestration");
-              }
-            }}
-            onSendToChat={openChatWithContext}
-            projectScope={projectScope}
-            reviewMode={view === "review"}
-            workspaceLabel={
-              activeProject?.name ??
-              (projectScope === "unscoped" ? "General" : "All projects")
-            }
-            workspacePath={workspace.currentPath}
-          />
-        );
-      case "sessions":
-        return (
-          <SessionsPage
-            active={backend.phase === "ready"}
-            openChat={openSession}
-            projectId={
-              activeProject?.id ??
-              (projectScope === "unscoped" ? null : undefined)
-            }
-            refresh={refreshRuntime}
-            sessions={scopedSessions}
-          />
-        );
-      case "activity":
-        return <ActivityPage active={backend.phase === "ready"} />;
-      case "analytics":
-        return <AnalyticsPage active={backend.phase === "ready"} />;
-      case "media":
-        return <MediaPage active={backend.phase === "ready"} />;
-      case "models":
-        return (
-          <ModelsPage
-            active={backend.phase === "ready"}
-            refreshRuntime={refreshRuntime}
-            runtime={runtime}
-          />
-        );
-      case "connections":
-        return <ConnectionsPage active={backend.phase === "ready"} />;
-      case "tools":
-        return <ToolsPage active={backend.phase === "ready"} />;
-      case "skills":
-        return <SkillsPage active={backend.phase === "ready"} />;
-      case "plugins":
-        return <PluginsPage active={backend.phase === "ready"} />;
-      case "memory":
-        return <MemoryPage active={backend.phase === "ready"} />;
-      case "automations":
-        return <AutomationsPage active={backend.phase === "ready"} />;
-      case "profiles":
-        return <ProfilesPage active={backend.phase === "ready"} />;
-      case "logs":
-        return <LogsPage active={backend.phase === "ready"} />;
-      case "settings":
-        return <SettingsPage active={backend.phase === "ready"} />;
-      case "keys":
-        return <KeysPage active={backend.phase === "ready"} />;
-      case "docs":
-        return <DocsPage active={backend.phase === "ready"} />;
-      case "runtime":
-        return (
-          <RuntimePage
-            active={backend.phase === "ready" || backend.phase === "degraded"}
-            onOpenProviders={() => setView("connections")}
-          />
-        );
-      case "compatibility":
-        return (
-          <CompatibilityPage
-            active={backend.phase === "ready" || backend.phase === "degraded"}
-          />
-        );
-      case "registry":
-        return <RegistryPage active={backend.phase === "ready"} />;
-      case "operatorSetup":
-        return (
-          <SetupPage
-            active={backend.phase === "ready"}
-            onOpenProviders={() => setView("connections")}
-          />
-        );
-    }
-  })();
+  const content = (
+    <DesktopRouteContent
+      activeProject={activeProject}
+      approvalsResource={approvalsResource}
+      backend={backend}
+      chatChromeHost={chatChromeHost}
+      navigation={{
+        chooseRepositoryForConversation,
+        consumeNavigationIntent,
+        createConversation,
+        openChatWithContext,
+        openProjectManager,
+        openSession,
+        selectSession: setSelectedSession,
+        setView,
+        transitionToProjectScope,
+      }}
+      onChooseWorkspace={chooseWorkspace}
+      onConsumeContextHandoff={consumeChatContext}
+      onOpenWorkspacePath={openWorkspacePath}
+      pendingApprovals={pendingApprovals}
+      pendingContextHandoff={pendingChatContext}
+      pendingNavigationIntent={pendingNavigationIntent}
+      projectCards={projectCards}
+      projectLabels={projectLabels}
+      projectScope={projectScope}
+      refreshRuntime={refreshRuntime}
+      runtime={runtime}
+      runningTasks={runningTasks}
+      scopedSessions={scopedSessions}
+      selectedSession={selectedSession}
+      view={view}
+      workspacePath={workspace.currentPath}
+    />
+  );
 
   return (
     <main
@@ -2215,179 +1606,40 @@ export function App() {
         onResume={resumeToast}
         toasts={toasts}
       />
-      <button
-        aria-label="Close navigation"
-        className={`sidebar-scrim ${sidebarOpen ? "visible" : ""}`}
-        onClick={() => setMobileSidebarOpen(false)}
-        tabIndex={sidebarOpen ? 0 : -1}
-        type="button"
+      <DesktopSidebar
+        isMobileSidebarMode={isMobileSidebarMode}
+        mobileSidebarOpen={mobileSidebarOpen}
+        navCollapsed={navCollapsed}
+        sidebarOpen={sidebarOpen}
+        projectScope={projectScope}
+        newConversationMenuOpen={newConversationMenuOpen}
+        sidebarWidth={sidebarWidth}
+        projectCards={projectCards}
+        sessions={sessions}
+        selectedSession={selectedSession}
+        view={view}
+        navigationView={navigationView}
+        workspacePath={workspace.currentPath}
+        resolvedAppearance={resolvedAppearance}
+        platform={window.doolittle.platform}
+        sidebarRef={sidebarRef}
+        onSidebarKeyDown={handleSidebarKeyDown}
+        onClose={() => setMobileSidebarOpen(false)}
+        onResize={setSidebarWidth}
+        onToggleNavigation={toggleNavigation}
+        onSetNewConversationMenuOpen={setNewConversationMenuOpen}
+        onOpenPalette={() => setPaletteOpen(true)}
+        onChooseRepository={chooseRepositoryForConversation}
+        onManageProjects={openProjectManager}
+        onStartConversation={startConversation}
+        onOpenSession={openSession}
+        onSelectScope={selectProjectScope}
+        onViewAll={() => setView("sessions")}
+        onSetView={setView}
+        onToggleUtilities={toggleUtilities}
+        utilityOpen={utilityOpen}
+        onToggleAppearance={toggleAppearance}
       />
-      <aside
-        {...mobileSidebarDialogProps}
-        aria-hidden={
-          isMobileSidebarMode && !mobileSidebarOpen ? true : undefined
-        }
-        aria-label={mobileSidebarOpen ? "Application navigation" : undefined}
-        className={`app-sidebar ${sidebarOpen ? "open" : ""}`}
-        onKeyDown={handleSidebarKeyDown}
-        ref={sidebarRef}
-      >
-        {!navCollapsed && !isMobileSidebarMode ? (
-          <PanelResizeHandle
-            bounds={APP_SIDEBAR_WIDTH}
-            className="app-sidebar-resizer"
-            direction="grow-right"
-            label="Resize project navigation"
-            onResize={setSidebarWidth}
-            value={sidebarWidth}
-          />
-        ) : null}
-        <div className="app-brand">
-          <div className="app-brand-mark" aria-hidden="true">
-            <span>D</span>
-            <i />
-          </div>
-          <div className="app-brand-copy">
-            <strong>Doolittle</strong>
-            <span>{"ElizaOS // desktop"}</span>
-          </div>
-          <button
-            aria-label={
-              navCollapsed ? "Expand navigation" : "Collapse navigation"
-            }
-            className="sidebar-collapse"
-            onClick={toggleNavigation}
-            title={navCollapsed ? "Expand navigation" : "Collapse navigation"}
-            type="button"
-          >
-            {navCollapsed ? "›" : "‹"}
-          </button>
-        </div>
-        <div className="sidebar-quick-actions">
-          <NewConversationControl
-            activeScope={projectScope}
-            isOpen={newConversationMenuOpen}
-            onChooseRepository={chooseRepositoryForConversation}
-            onManageProjects={openProjectManager}
-            onOpenChange={setNewConversationMenuOpen}
-            onStart={startConversation}
-            projects={projectCards}
-            shortcut={window.doolittle.platform === "darwin" ? "⌘N" : "Ctrl N"}
-          />
-          <button
-            aria-label="Search pages and commands"
-            onClick={() => setPaletteOpen(true)}
-            title="Search"
-            type="button"
-          >
-            <span aria-hidden="true">⌕</span>
-            <strong>Search</strong>
-            <kbd>
-              {window.doolittle.platform === "darwin" ? "⌘K" : "Ctrl K"}
-            </kbd>
-          </button>
-          <button
-            aria-label="Choose repository for a new conversation"
-            onClick={() => void chooseRepositoryForConversation()}
-            title={workspace.currentPath || "Choose a project folder"}
-            type="button"
-          >
-            <span aria-hidden="true">◇</span>
-            <strong>Projects</strong>
-            <kbd>
-              {window.doolittle.platform === "darwin" ? "⌘O" : "Ctrl O"}
-            </kbd>
-          </button>
-        </div>
-        <ProjectHistorySidebar
-          activeScope={projectScope}
-          isChatView={view === "chat"}
-          onChooseRepository={chooseRepositoryForConversation}
-          onManageProjects={openProjectManager}
-          onOpenSession={openSession}
-          onSelectScope={selectProjectScope}
-          onStartConversation={startConversation}
-          onViewAll={() => setView("sessions")}
-          projects={projectCards}
-          selectedSessionId={selectedSession}
-          sessions={sessions}
-        />
-        <nav className="sidebar-focus-nav" aria-label="Primary workspace">
-          <div aria-hidden="true" className="sidebar-dock-heading">
-            <span>Operator deck</span>
-            <i>{"//"}</i>
-          </div>
-          <fieldset className="sidebar-mode-switch">
-            <legend className="sr-only">Workspace modes</legend>
-            {PRIMARY_NAV_ITEMS.map((item) => (
-              <button
-                aria-current={navigationView === item.id ? "page" : undefined}
-                className={navigationView === item.id ? "selected" : ""}
-                key={item.id}
-                onClick={() => setView(item.id)}
-                title={item.description}
-                type="button"
-              >
-                <Icon name={item.id} />
-                <span>{item.label}</span>
-                <i aria-hidden="true" className="sidebar-mode-signal" />
-              </button>
-            ))}
-          </fieldset>
-          <button
-            aria-expanded={utilityOpen}
-            className={`sidebar-utility-button${utilityOpen ? " is-open" : ""}`}
-            onClick={toggleUtilities}
-            title="Open every Doolittle tool and setting"
-            type="button"
-          >
-            <span aria-hidden="true" className="sidebar-utility-mark">
-              <Icon name="tools" />
-            </span>
-            <span className="sidebar-utility-copy">
-              <strong>Tools & settings</strong>
-              <small>Models · runtime · skills</small>
-            </span>
-            <kbd className="sidebar-utility-shortcut">⌘</kbd>
-          </button>
-        </nav>
-        <div className="sidebar-footer">
-          <div className="sidebar-footer-actions">
-            <button
-              aria-current={view === "settings" ? "page" : undefined}
-              aria-label="Open settings"
-              className={`sidebar-account${
-                view === "settings" ? " selected" : ""
-              }`}
-              onClick={() => setView("settings")}
-              title="Settings"
-              type="button"
-            >
-              <span>DL</span>
-              <div>
-                <strong>Settings</strong>
-                <small title={workspace.currentPath}>
-                  {workspaceName(workspace.currentPath)}
-                </small>
-              </div>
-              <i aria-hidden="true" className="sidebar-account-arrow">
-                ›
-              </i>
-            </button>
-            <button
-              aria-label={`Use ${
-                resolvedAppearance === "dark" ? "light" : "dark"
-              } appearance`}
-              className="icon-button sidebar-appearance-toggle"
-              onClick={toggleAppearance}
-              title="Toggle appearance"
-              type="button"
-            >
-              {resolvedAppearance === "dark" ? "☼" : "◐"}
-            </button>
-          </div>
-        </div>
-      </aside>
       <section
         className={`app-main${view === "chat" ? " app-main--chat" : ""}`}
         ref={appMainRef}
@@ -2398,32 +1650,14 @@ export function App() {
           }`}
         >
           <div className="window-dragbar-primary">
-            <button
-              aria-label="Open navigation"
-              className="menu-button"
-              onClick={openSidebarForMobile}
-              type="button"
-            >
-              <svg
-                aria-hidden="true"
-                fill="none"
-                viewBox="0 0 20 20"
-                stroke="currentColor"
-              >
-                <path d="M3 5h14M3 10h14M3 15h14" />
-              </svg>
-            </button>
+            <DesktopMobileMenuButton onOpen={openSidebarForMobile} />
             <div className="window-context">
-              <span>{activeSection?.label ?? "Doolittle"}</span>
-              <strong>{activeItem?.label ?? "Desktop"}</strong>
-              <button
-                className="window-project-scope"
-                onClick={openProjectManager}
-                title={`Current project scope: ${projectScopeLabel}. Change project.`}
-                type="button"
-              >
-                {projectScopeLabel}
-              </button>
+              <DesktopWindowContext
+                itemLabel={activeItem?.label ?? "Desktop"}
+                onOpenProjectManager={openProjectManager}
+                projectScopeLabel={projectScopeLabel}
+                sectionLabel={activeSection?.label ?? "Doolittle"}
+              />
             </div>
             <span aria-live="polite" className="sr-only">
               {`${activeItem?.label ?? "Desktop"} opened for ${projectScopeLabel}`}
@@ -2437,135 +1671,51 @@ export function App() {
               />
             ) : null}
             <div className="window-tools">
-              <button
-                aria-label="Open command palette"
-                className="window-command-button"
-                onClick={() => setPaletteOpen(true)}
-                title="Search pages and commands"
-                type="button"
-              >
-                <span>Search or jump to…</span>
-                <kbd>
-                  {window.doolittle.platform === "darwin" ? "⌘K" : "Ctrl K"}
-                </kbd>
-              </button>
-              <button
-                aria-label="Open tools and settings"
-                aria-expanded={utilityOpen}
-                className="window-utility-button"
-                onClick={toggleUtilities}
-                type="button"
-              >
-                Tools
-              </button>
-              <div
-                className={`window-runtime-status ${backend.phase}`}
-                title={backend.message}
-              >
-                <i />
-                <span>
-                  {backend.phase === "ready"
-                    ? "Local runtime"
-                    : backend.phase === "booting"
-                      ? "Starting"
-                      : "Offline"}
-                </span>
-              </div>
-              <button
-                aria-label="Refresh runtime data"
-                className="icon-button"
-                onClick={() => void refreshWithFeedback()}
-                title="Refresh runtime"
-                type="button"
-              >
-                <svg
-                  aria-hidden="true"
-                  fill="none"
-                  viewBox="0 0 20 20"
-                  stroke="currentColor"
-                >
-                  <path d="M15.5 6.5V3m0 3.5H12M4.7 7.1A6 6 0 0 1 15.5 6.5M4.5 13.5V17m0-3.5H8m7.3-.6A6 6 0 0 1 4.5 13.5" />
-                </svg>
-              </button>
+              <DesktopWindowTools
+                backend={backend}
+                onOpenPalette={() => setPaletteOpen(true)}
+                onRefresh={() => void refreshWithFeedback()}
+                onToggleUtilities={toggleUtilities}
+                platform={window.doolittle.platform}
+                utilityOpen={utilityOpen}
+              />
             </div>
           </div>
         </div>
-        {backend.phase === "degraded" ? (
-          <div className="runtime-banner">
-            <div>
-              <strong>The local runtime is unavailable.</strong>
-              <span>{backend.detail || backend.message}</span>
-            </div>
-            <button
-              className="primary-button"
-              onClick={() => void restartRuntime()}
-              type="button"
-            >
-              Restart runtime
-            </button>
-          </div>
-        ) : null}
-        {globalError ? (
-          <div className="global-error">
-            <span>{globalError}</span>
-            <button onClick={() => void refreshWithFeedback()} type="button">
-              Retry
-            </button>
-          </div>
-        ) : null}
+        <DesktopRuntimeNotices
+          backend={backend}
+          globalError={globalError}
+          onRefresh={() => void refreshWithFeedback()}
+          onRestart={() => void restartRuntime()}
+        />
         <div className={`view-container view-${view}`} data-view={view}>
-          <Suspense fallback={<RouteLoadingFallback />}>{content}</Suspense>
+          <Suspense fallback={<DesktopRouteLoadingFallback />}>
+            {content}
+          </Suspense>
         </div>
       </section>
       {utilityOpen ? (
-        <div className="utility-layer">
-          <aside
-            aria-label="Tools and settings"
-            className="utility-drawer"
-            onKeyDown={handleUtilityKeyDown}
-            ref={utilityRef}
-            tabIndex={-1}
-          >
-            <UtilityDrawer
-              activeView={view}
-              activity={
-                <ActivityCenter
-                  active={backend.phase === "ready"}
-                  error={activityResource.error}
-                  events={activityResource.data?.events ?? []}
-                  loading={activityResource.loading}
-                  onOpenTarget={openActivityTarget}
-                  reload={activityResource.reload}
-                />
-              }
-              onClose={closeUtilities}
-              onSelect={setView}
-              onToggleSection={(sectionId) =>
-                toggleSection(sectionId as NavigationSectionId)
-              }
-              openSections={openSections}
-              sections={navigation.map((section) => ({
-                ...section,
-                items: section.items.map((item) => ({
-                  ...item,
-                  description: VIEW_DESCRIPTIONS[item.id],
-                  icon: (
-                    <Icon name={item.id === "gateway" ? "activity" : item.id} />
-                  ),
-                })),
-              }))}
-            >
-              <PanelResizeHandle
-                bounds={UTILITY_DRAWER_WIDTH}
-                className="utility-drawer-resizer"
-                direction="grow-left"
-                label="Resize tools and settings panel"
-                onResize={setUtilityDrawerWidth}
-                value={utilityDrawerWidth}
-              />
-            </UtilityDrawer>
-          </aside>
-        </div>
+        <DesktopUtilityLayer
+          activeView={view}
+          activity={
+            <ActivityCenter
+              active={backend.phase === "ready"}
+              error={activityResource.error}
+              events={activityResource.data?.events ?? []}
+              loading={activityResource.loading}
+              onOpenTarget={openActivityTarget}
+              reload={activityResource.reload}
+            />
+          }
+          onClose={closeUtilities}
+          onKeyDown={handleUtilityKeyDown}
+          onResize={setUtilityDrawerWidth}
+          onSelect={setView}
+          onToggleSection={toggleSection}
+          openSections={openSections}
+          utilityDrawerWidth={utilityDrawerWidth}
+          utilityRef={utilityRef}
+        />
       ) : null}
     </main>
   );

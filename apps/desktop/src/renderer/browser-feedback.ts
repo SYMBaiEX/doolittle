@@ -1,4 +1,5 @@
 import { asRecord } from "./value-guards";
+import { escapeXml } from "./xml-escape";
 
 export const BROWSER_FEEDBACK_COMMENT_LIMIT = 2_000;
 export const BROWSER_FEEDBACK_CONTEXT_LIMIT = 8_000;
@@ -31,19 +32,10 @@ function asString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function escaped(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
-}
-
 function escapedBounded(value: string, limit: number): string {
   let output = "";
   for (const character of value.trim()) {
-    const next = escaped(character);
+    const next = escapeXml(character);
     if (output.length + next.length > limit) break;
     output += next;
   }

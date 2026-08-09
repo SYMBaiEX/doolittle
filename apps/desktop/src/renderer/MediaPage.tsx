@@ -2,6 +2,7 @@ import { type FormEvent, type KeyboardEvent, useRef, useState } from "react";
 import {
   desktopRequest,
   errorMessage,
+  formatBoundedPreview,
   Notice,
   PageHeader,
   type UnknownRecord,
@@ -32,22 +33,6 @@ interface SpeakResponse {
 
 interface GenerateResponse {
   generation?: UnknownRecord;
-}
-
-function boundedText(value: string, max: number): string {
-  return value.length <= max
-    ? value
-    : `${value.slice(0, max)}
-… (${value.length - max} more chars)`;
-}
-
-function renderText(value: unknown, max = BOUNDS.mediaResultChars): string {
-  if (typeof value === "string") return boundedText(value, max);
-  try {
-    return boundedText(JSON.stringify(value, null, 2), max);
-  } catch {
-    return boundedText(String(value), max);
-  }
 }
 
 async function chooseLocalMediaFile(
@@ -194,7 +179,7 @@ function InspectAnalyzeTab({
             </div>
           </div>
           <pre className="json-preview" aria-live="polite">
-            {renderText(inspectResult)}
+            {formatBoundedPreview(inspectResult, BOUNDS.mediaResultChars)}
           </pre>
         </div>
       ) : null}
@@ -239,7 +224,7 @@ function InspectAnalyzeTab({
             </div>
           </div>
           <pre className="json-preview" aria-live="polite">
-            {renderText(analyzeResult)}
+            {formatBoundedPreview(analyzeResult, BOUNDS.mediaResultChars)}
           </pre>
         </div>
       ) : null}
@@ -372,7 +357,7 @@ function TranscribeTab({
             </div>
           </div>
           <pre className="json-preview" aria-live="polite">
-            {renderText(result)}
+            {formatBoundedPreview(result, BOUNDS.mediaResultChars)}
           </pre>
         </div>
       ) : null}
@@ -517,7 +502,7 @@ function SpeechTab({
             </div>
           </div>
           <pre className="json-preview" aria-live="polite">
-            {renderText(result)}
+            {formatBoundedPreview(result, BOUNDS.mediaResultChars)}
           </pre>
         </div>
       ) : null}
@@ -657,7 +642,7 @@ function ImageTab({
             </div>
           </div>
           <pre className="json-preview" aria-live="polite">
-            {renderText(result)}
+            {formatBoundedPreview(result, BOUNDS.mediaResultChars)}
           </pre>
         </div>
       ) : null}

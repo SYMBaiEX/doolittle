@@ -1,3 +1,4 @@
+import { isPlainObject } from "@elizaos/shared/type-guards";
 import type { AppContext } from "@/runtime/bootstrap";
 import {
   createEffectiveSandbox,
@@ -12,14 +13,6 @@ type JsonObject = Record<string, unknown>;
 
 function badRequest(error: string): Response {
   return json({ error }, 400);
-}
-
-function isPlainObject(value: unknown): value is JsonObject {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return false;
-  }
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {

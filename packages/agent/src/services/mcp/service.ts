@@ -1,5 +1,6 @@
 import type { IAgentRuntime } from "@elizaos/core";
 import type { McpToolDefinition } from "@/types";
+import { errorMessage } from "@/utils/error-message";
 import type { ElizaMcpSettings } from "./settings";
 import { createMcpServiceStatus } from "./status";
 import {
@@ -263,10 +264,6 @@ export class McpService {
     }
     throw new Error(`MCP tool not found: ${name}`);
   }
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function formatToolResult(result: OfficialMcpToolResult): string {

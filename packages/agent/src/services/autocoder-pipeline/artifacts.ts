@@ -7,7 +7,8 @@ import {
   readFileSync,
   realpathSync,
 } from "node:fs";
-import { basename, extname, isAbsolute, relative, sep } from "node:path";
+import { basename, extname } from "node:path";
+import { isStrictlyContainedPath } from "@/utils/path-containment";
 import type { AutocoderPipelineRunRecord } from "./service";
 
 export const MAX_AUTOCODER_ARTIFACT_BYTES = 5 * 1024 * 1024;
@@ -79,16 +80,6 @@ const ARTIFACT_TYPES: Record<
   ".webm": { kind: "audio", mimeType: "audio/webm", encoding: "base64" },
 };
 
-function isContainedPath(rootPath: string, candidatePath: string): boolean {
-  const childPath = relative(rootPath, candidatePath);
-  return (
-    childPath.length > 0 &&
-    childPath !== ".." &&
-    !childPath.startsWith(`..${sep}`) &&
-    !isAbsolute(childPath)
-  );
-}
-
 export function readAutocoderArtifact(input: {
   artifactRoot: string;
   run: AutocoderPipelineRunRecord | undefined;
@@ -120,7 +111,7 @@ export function readAutocoderArtifact(input: {
     throw new AutocoderArtifactError("Autocoder artifact not found.", 404);
   }
 
-  if (!isContainedPath(canonicalRoot, canonicalArtifact)) {
+  if (!isStrictlyContainedPath(canonicalRoot, canonicalArtifact)) {
     throw new AutocoderArtifactError(
       "Autocoder artifact is outside the artifact store.",
       403,

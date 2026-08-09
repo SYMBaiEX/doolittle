@@ -1,12 +1,7 @@
+import { asNonEmptyString } from "@elizaos/shared/type-guards";
 import { hasTokenCredentials } from "./credentials";
 
-export function trimTextOrUndefined(value: unknown): string | undefined {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
+export const trimTextOrUndefined = asNonEmptyString;
 
 export function timestampTextOrUndefined(value: unknown): string | undefined {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {

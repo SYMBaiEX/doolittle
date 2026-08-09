@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { basename, isAbsolute, join, relative, sep } from "node:path";
+import { basename, join } from "node:path";
 import type { ContentType, Media } from "@elizaos/core";
+import { isStrictlyContainedPath } from "@/utils/path-containment";
 import { hasAsciiControlCharacters } from "@/utils/text-validation";
 
 export const MAX_CHAT_ATTACHMENTS = 8;
@@ -90,16 +91,6 @@ function fail(
 ): never {
   const attachmentLabel = id ? `Attachment ${id}` : "Attachment request";
   throw new ManagedAttachmentError(code, `${attachmentLabel} ${reason}.`);
-}
-
-function isContainedPath(root: string, candidate: string): boolean {
-  const nestedPath = relative(root, candidate);
-  return (
-    nestedPath !== "" &&
-    nestedPath !== ".." &&
-    !nestedPath.startsWith(`..${sep}`) &&
-    !isAbsolute(nestedPath)
-  );
 }
 
 function parseSidecar(
@@ -193,7 +184,7 @@ function canonicalAttachmentsRoot(dataDir: string): string {
   try {
     const dataRoot = realpathSync(dataDir);
     const attachmentsRoot = realpathSync(join(dataRoot, "attachments"));
-    if (!isContainedPath(dataRoot, attachmentsRoot)) {
+    if (!isStrictlyContainedPath(dataRoot, attachmentsRoot)) {
       fail("invalid_request", undefined, "storage is unavailable");
     }
     return attachmentsRoot;
@@ -211,7 +202,7 @@ function canonicalContainedFile(
 ): string {
   try {
     const canonicalPath = realpathSync(candidatePath);
-    if (!isContainedPath(attachmentsRoot, canonicalPath)) {
+    if (!isStrictlyContainedPath(attachmentsRoot, canonicalPath)) {
       fail("invalid_metadata", id, `has unsafe ${kind}`);
     }
     const fileStat = statSync(canonicalPath);

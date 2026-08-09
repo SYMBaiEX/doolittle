@@ -1,7 +1,5 @@
 import {
   type FormEvent,
-  type KeyboardEvent,
-  type ReactNode,
   type SetStateAction,
   useCallback,
   useEffect,
@@ -16,7 +14,6 @@ import type {
   ChatEvent,
   CommandCatalogItem,
   CommandCatalogResponse,
-  DesktopRunUpdate,
   ManagedAttachmentDescriptor,
   RuntimeStatus,
   SavedProfileRecallResponse,
@@ -25,34 +22,37 @@ import type {
   SessionSummary,
   SessionUsageSummary,
 } from "../shared/contracts";
+import { ChatComposer } from "./chat/ChatComposer";
+import { ChatTranscript } from "./chat/ChatTranscript";
+import {
+  type BranchMode,
+  type ChatMemoryMatchState,
+  type ConversationStore,
+  type CopyState,
+  type DisplayMessage,
+  isDesktopRunUpdate,
+  MAX_MESSAGE_ATTACHMENT_BYTES,
+  MAX_MESSAGE_ATTACHMENTS,
+  type Role,
+  type RunReceiptStore,
+  runEventKey,
+} from "./chat/models";
 import type { ChatContextHandoff } from "./chat-context-handoff";
 import { commandCompletions } from "./command-completion";
-import {
-  ComposerModelSelector,
-  ComposerProjectSelector,
-} from "./components/ComposerSelectors";
-import { InlineApprovalPanel } from "./components/InlineApprovalPanel";
-import { MessageContent } from "./components/MessageContent";
-import {
-  parseAgentMessage,
-  visibleAssistantText,
-} from "./components/message-output";
+import { visibleAssistantText } from "./components/message-output";
 import type { ProjectLike, ProjectScope } from "./components/ProjectManager";
 import { RouteControlDialog } from "./components/RouteControlDialog";
 import {
   type ThreadWorkbenchFullView,
   ThreadWorkbenchRail,
 } from "./components/ThreadWorkbenchRail";
-import {
-  VoiceComposerButton,
-  type VoiceRecorderMime,
-} from "./components/VoiceComposerButton";
+import type { VoiceRecorderMime } from "./components/VoiceComposerButton";
 import {
   type ContextPressureSnapshot,
   clampContextPercent,
-  contextPressureLabel,
   contextPressureTone,
 } from "./context-pressure";
+import { newConversationId } from "./conversation-id";
 import {
   CONVERSATION_PINS_EVENT,
   loadConversationDrafts,
@@ -66,53 +66,17 @@ import {
   saveConversationQueue,
   savePromptLibrary,
 } from "./conversation-persistence";
-import {
-  Badge,
-  desktopRequest,
-  displayTimestamp,
-  EmptyBlock,
-  errorMessage,
-} from "./lib";
+import { desktopRequest, displayTimestamp, errorMessage } from "./lib";
 import {
   canRecallSavedProfileMatches,
   freezeMemoryMatchSnapshot,
   type MemoryMatchSnapshot,
   normalizeSavedProfileMatches,
-  type SavedProfileMatch,
 } from "./memory-matches";
-
-type Role = "user" | "assistant";
-type CopyState = "copied" | "failed";
-
-interface DisplayMessage {
-  id: string;
-  role: Role;
-  content: string;
-  attachments?: ManagedAttachmentDescriptor[];
-  createdAt: string;
-  pending?: boolean;
-  error?: boolean;
-  memoryMatch?: MemoryMatchSnapshot;
-}
-
-type ConversationStore = Record<string, DisplayMessage[]>;
 
 interface SessionForRender extends SessionSummary {
   pinned: boolean;
 }
-
-interface MemoryMatchState {
-  query: string;
-  matches: SavedProfileMatch[];
-  status: "idle" | "loading" | "ready" | "error";
-}
-
-interface RunReceipt {
-  latest: DesktopRunUpdate;
-  events: DesktopRunUpdate[];
-}
-
-type RunReceiptStore = Record<string, RunReceipt>;
 
 interface SessionUsageResponse {
   usage?: SessionUsageSummary;
@@ -120,12 +84,7 @@ interface SessionUsageResponse {
 
 const STORAGE_KEY = "doolittle.desktop.conversations.v2";
 const INSPECTOR_STORAGE_KEY = "doolittle.desktop.chat-inspector-visible.v1";
-const MAX_MESSAGE_ATTACHMENTS = 8;
-const MAX_MESSAGE_ATTACHMENT_BYTES = 50 * 1024 * 1024;
 const MEMORY_MATCH_DEBOUNCE_MS = 380;
-function newConversationId(): string {
-  return `desktop:${crypto.randomUUID()}`;
-}
 
 function loadMessages(): ConversationStore {
   try {
@@ -162,251 +121,9 @@ function eventText(data: unknown): string {
   );
 }
 
-function fileName(value: string): string {
-  return value.split(/[/\\]+/u).pop() || "local workspace";
-}
-
 function isCommandMessage(message: string): boolean {
   return message.startsWith("/") || message.startsWith("!");
 }
-
-function attachmentSize(sizeBytes: number): string {
-  if (sizeBytes < 1024) return `${sizeBytes} B`;
-  if (sizeBytes < 1024 * 1024) return `${Math.ceil(sizeBytes / 1024)} KB`;
-  return `${(sizeBytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function isDesktopRunUpdate(value: unknown): value is DesktopRunUpdate {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const update = value as Partial<DesktopRunUpdate>;
-  return (
-    typeof update.type === "string" &&
-    typeof update.sessionId === "string" &&
-    Boolean(
-      update.run &&
-        typeof update.run === "object" &&
-        typeof update.run.runId === "string" &&
-        typeof update.run.status === "string",
-    )
-  );
-}
-
-function runEventKey(update: DesktopRunUpdate): string {
-  const mutation = update.run.localMutations.at(-1);
-  return [
-    update.type,
-    update.run.observedActionCount,
-    update.run.activeAction,
-    update.run.lastAction,
-    update.run.statusDetail,
-    update.run.pendingApprovals,
-    mutation?.recordedAt,
-  ].join(":");
-}
-
-function runEventCopy(update: DesktopRunUpdate): {
-  label: string;
-  detail: string;
-  tone: "neutral" | "good" | "warn" | "bad";
-} {
-  const { run, type } = update;
-  const mutation = run.localMutations.at(-1);
-  switch (type) {
-    case "started":
-      return {
-        label: "Run started",
-        detail: `${run.runDepth} depth · ${run.configuredMaxIterations} iteration cap`,
-        tone: "neutral",
-      };
-    case "thinking":
-      return {
-        label: "Thinking",
-        detail: run.statusDetail || "Planning the next step",
-        tone: "neutral",
-      };
-    case "acting":
-    case "action-started":
-      return {
-        label: run.activeAction || "Tool started",
-        detail: `Action ${Math.max(1, run.observedActionCount)} in progress`,
-        tone: "warn",
-      };
-    case "action-completed":
-      return {
-        label: run.lastAction || "Tool completed",
-        detail: `${run.observedActionCount} ${
-          run.observedActionCount === 1 ? "action" : "actions"
-        } observed`,
-        tone: "good",
-      };
-    case "local-mutation":
-      return {
-        label: mutation?.success ? "Workspace changed" : "Change failed",
-        detail: mutation
-          ? `${mutation.action} · ${fileName(
-              mutation.resolvedPath || mutation.requestedPath || "workspace",
-            )}${
-              mutation.bytes === undefined ? "" : ` · ${mutation.bytes} bytes`
-            }`
-          : "A local mutation was recorded",
-        tone: mutation?.success ? "good" : "bad",
-      };
-    case "approvals":
-      return {
-        label: "Approval required",
-        detail: `${run.pendingApprovals} pending ${
-          run.pendingApprovals === 1 ? "decision" : "decisions"
-        }`,
-        tone: "warn",
-      };
-    case "waiting":
-      return {
-        label: "Waiting",
-        detail: run.statusDetail || "Waiting for the next runtime signal",
-        tone: run.pendingApprovals > 0 ? "warn" : "neutral",
-      };
-    case "completed":
-      return {
-        label: "Run completed",
-        detail: `${run.observedActionCount} ${
-          run.observedActionCount === 1 ? "action" : "actions"
-        } · ${run.localMutations.length} ${
-          run.localMutations.length === 1 ? "change" : "changes"
-        }`,
-        tone: "good",
-      };
-    case "error":
-      return {
-        label: "Run failed",
-        detail: run.errorMessage || run.statusDetail || "Unknown runtime error",
-        tone: "bad",
-      };
-    default:
-      return {
-        label: "Run update",
-        detail: run.statusDetail || run.status,
-        tone: "neutral",
-      };
-  }
-}
-
-function RunReceiptView({
-  pending,
-  receipt,
-}: {
-  pending: boolean;
-  receipt: RunReceipt;
-}) {
-  const { latest } = receipt;
-  const visibleEvents = receipt.events.filter(
-    (event) => !["heartbeat", "message", "stream"].includes(event.type),
-  );
-  const summary =
-    latest.run.terminalReason === "cancelled"
-      ? "Stopped by operator"
-      : latest.run.errorMessage ||
-        latest.run.activeAction ||
-        latest.run.statusDetail ||
-        latest.run.lastAction ||
-        latest.run.status;
-  const tone =
-    latest.run.status === "complete"
-      ? "good"
-      : latest.run.status === "error"
-        ? "bad"
-        : latest.run.status === "cancelled"
-          ? "warn"
-          : latest.run.pendingApprovals > 0
-            ? "warn"
-            : "neutral";
-
-  return (
-    <details className="chat-run-receipt">
-      <summary>
-        <span className={`chat-run-state ${tone}`} aria-hidden="true" />
-        <span>
-          <strong>{pending ? "Working" : "Run complete"}</strong>
-          <small>{summary}</small>
-        </span>
-        <span className="chat-run-metrics">
-          {latest.run.observedActionCount} actions ·{" "}
-          {latest.run.localMutations.length} changes
-        </span>
-        <span className="chat-run-chevron" aria-hidden="true">
-          ›
-        </span>
-      </summary>
-      <ol>
-        {visibleEvents.slice(-14).map((event) => {
-          const copy = runEventCopy(event);
-          return (
-            <li key={`${runEventKey(event)}:${event.run.updatedAt}`}>
-              <span className={`chat-run-mark ${copy.tone}`} />
-              <span>
-                <strong>{copy.label}</strong>
-                <small>{copy.detail}</small>
-              </span>
-              <time>{displayTimestamp(event.run.updatedAt)}</time>
-            </li>
-          );
-        })}
-      </ol>
-      <footer>
-        <Badge tone={tone}>{latest.run.status}</Badge>
-        <code>{latest.run.runId}</code>
-      </footer>
-    </details>
-  );
-}
-
-function Welcome({
-  onSelect,
-  projectName,
-}: {
-  onSelect: (prompt: string) => void;
-  projectName?: string;
-}) {
-  const prompts = [
-    {
-      prompt: "Review a difficult decision",
-      detail: "Pressure-test the tradeoffs",
-    },
-    {
-      prompt: "Plan the next piece of work",
-      detail: "Turn the ambiguity into action",
-    },
-    {
-      prompt: "Investigate a technical question",
-      detail: "Trace the answer from evidence",
-    },
-  ];
-  return (
-    <div className="chat-welcome">
-      <span className="eyebrow">{"ElizaOS // private local runtime"}</span>
-      <h1>
-        Give Doolittle
-        <br />
-        <em>something difficult.</em>
-      </h1>
-      <p>
-        {projectName
-          ? `Start a focused conversation for ${projectName}. Its project context stays attached as you work.`
-          : "Think through a decision, investigate a system, or turn an unfinished idea into working software."}
-      </p>
-      <div className="starter-grid">
-        {prompts.map(({ prompt, detail }, index) => (
-          <button key={prompt} onClick={() => onSelect(prompt)} type="button">
-            <span>{String(index + 1).padStart(2, "0")}</span>
-            <strong>{prompt}</strong>
-            <small>{detail}</small>
-            <i aria-hidden="true">↗</i>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function ChatPage({
   backend,
   runtime,
@@ -491,7 +208,7 @@ export function ChatPage({
     },
     [draftSessionId],
   );
-  const [memoryMatches, setMemoryMatches] = useState<MemoryMatchState>({
+  const [memoryMatches, setMemoryMatches] = useState<ChatMemoryMatchState>({
     query: "",
     matches: [],
     status: "idle",
@@ -1148,91 +865,6 @@ export function ChatPage({
     [speechSupported],
   );
 
-  const renderMessageActions = (message: DisplayMessage): ReactNode => {
-    const copyState = copyStates[message.id];
-    const label = copyState === "copied" ? "Copied" : "Copy";
-    const failed = copyState === "failed";
-    const branchDisabled =
-      backend.phase !== "ready" ||
-      Boolean(activeRequest) ||
-      Boolean(message.pending) ||
-      Boolean(message.error) ||
-      Boolean(forkingMessageId);
-    return (
-      <div className="chat-message-actions">
-        <button
-          aria-label="Fork conversation from this message"
-          disabled={branchDisabled}
-          onClick={() => void branchMessage(message, "fork")}
-          title="Keep this transcript unchanged and continue in a new branch"
-          type="button"
-        >
-          {forkingMessageId === message.id ? "Branching…" : "Fork"}
-        </button>
-        {message.role === "user" ? (
-          <button
-            aria-label="Edit this message in a new branch"
-            disabled={branchDisabled}
-            onClick={() => void branchMessage(message, "edit")}
-            title="Create a branch before this turn and restore the prompt for editing"
-            type="button"
-          >
-            Edit
-          </button>
-        ) : !message.pending && !message.error ? (
-          <button
-            aria-label="Retry this response in a new branch"
-            disabled={branchDisabled}
-            onClick={() => void branchMessage(message, "retry")}
-            title="Regenerate the preceding prompt without deleting this response"
-            type="button"
-          >
-            Retry
-          </button>
-        ) : null}
-        {message.role === "assistant" && !message.pending && !message.error ? (
-          <button
-            aria-label={
-              speechSupported
-                ? speakingMessageId === message.id
-                  ? "Stop reading response"
-                  : "Read response aloud"
-                : "Read aloud is unavailable on this device"
-            }
-            disabled={!speechSupported || !message.content.trim()}
-            onClick={() =>
-              speakingMessageId === message.id
-                ? stopSpeaking()
-                : readMessage(message)
-            }
-            title={
-              speechSupported
-                ? undefined
-                : "Read aloud is not supported by this system."
-            }
-            type="button"
-          >
-            {speakingMessageId === message.id ? "Stop" : "Read"}
-          </button>
-        ) : null}
-        <button
-          aria-label={failed ? "Copy failed" : "Copy message"}
-          onClick={() =>
-            void copyMessage(
-              message.id,
-              message.role === "assistant"
-                ? visibleAssistantText(message.content)
-                : message.content,
-            )
-          }
-          type="button"
-        >
-          {failed ? "Copy failed" : label}
-        </button>
-      </div>
-    );
-  };
-
   const sendMessage = async (
     input: string,
     attachments = attachedFiles,
@@ -1314,7 +946,7 @@ export function ChatPage({
 
   async function branchMessage(
     message: DisplayMessage,
-    mode: "edit" | "fork" | "retry",
+    mode: BranchMode,
   ): Promise<void> {
     if (
       backend.phase !== "ready" ||
@@ -1858,604 +1490,103 @@ export function ChatPage({
           )
         : null}
       <section className="chat-conversation" aria-label="Conversation detail">
-        <div className="chat-messages">
-          {loadingHistory === selectedId ? (
-            <div className="chat-loading">
-              <i />
-              Loading conversation…
-            </div>
-          ) : historyError ? (
-            <EmptyBlock title="Conversation unavailable">
-              {historyError}
-            </EmptyBlock>
-          ) : selectedMessages.length ? (
-            selectedMessages.map((message) => {
-              const requestId = message.id.startsWith("assistant:")
-                ? message.id.slice("assistant:".length)
-                : "";
-              const receipt = requestId ? runReceipts[requestId] : undefined;
-              const parsedAgentMessage =
-                message.role === "assistant" && message.content
-                  ? parseAgentMessage(message.content)
-                  : undefined;
-              const hasToolActivity = Boolean(parsedAgentMessage?.tools.length);
-              const receiptNeedsAttention = Boolean(
-                receipt &&
-                  (receipt.latest.run.pendingApprovals > 0 ||
-                    receipt.latest.run.errorMessage ||
-                    receipt.latest.run.status === "error" ||
-                    receipt.latest.run.status === "cancelled"),
-              );
-              const showRunReceipt = Boolean(
-                receipt &&
-                  (receiptNeedsAttention ||
-                    (!hasToolActivity &&
-                      (message.pending ||
-                        receipt.latest.run.localMutations.length > 0))),
-              );
-              return (
-                <article
-                  className={`chat-message ${message.role} ${
-                    message.error ? "error" : ""
-                  }`}
-                  key={message.id}
-                >
-                  <div className="chat-message-label">
-                    <strong>
-                      <span aria-hidden="true" className="chat-message-avatar">
-                        {message.role === "assistant" ? "D" : "Y"}
-                      </span>
-                      <span>
-                        {message.role === "assistant" ? "Doolittle" : "You"}
-                      </span>
-                    </strong>
-                    <time>{displayTimestamp(message.createdAt)}</time>
-                  </div>
-                  <div className="chat-message-body">
-                    {receipt && showRunReceipt ? (
-                      <RunReceiptView
-                        pending={Boolean(message.pending)}
-                        receipt={receipt}
-                      />
-                    ) : null}
-                    {message.content ? (
-                      <MessageContent
-                        content={message.content}
-                        parsedAgentMessage={parsedAgentMessage}
-                        pending={message.pending}
-                        separateAgentEvents={message.role === "assistant"}
-                      />
-                    ) : message.pending && !receipt ? (
-                      <span className="thinking">Thinking</span>
-                    ) : null}
-                    {message.attachments?.length ? (
-                      <ul
-                        aria-label="Message attachments"
-                        className="chat-message-attachments"
-                      >
-                        {message.attachments.map((attachment) => (
-                          <li key={attachment.id}>
-                            <span
-                              aria-hidden="true"
-                              className="chat-message-attachment-icon"
-                            >
-                              {attachment.kind === "image" ? "◫" : "◇"}
-                            </span>
-                            <span className="chat-message-attachment-copy">
-                              <strong>{attachment.name}</strong>
-                              <small>
-                                {attachment.kind} ·{" "}
-                                {attachmentSize(attachment.sizeBytes)}
-                              </small>
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                    {message.role === "user" && message.memoryMatch ? (
-                      <p className="chat-message-memory-source">
-                        {message.memoryMatch.count > 0
-                          ? `${message.memoryMatch.count} saved profile ${
-                              message.memoryMatch.count === 1
-                                ? "match"
-                                : "matches"
-                            } available to this turn`
-                          : "No saved profile matches for this turn"}
-                      </p>
-                    ) : null}
-                    {renderMessageActions(message)}
-                  </div>
-                </article>
-              );
-            })
-          ) : (
-            <Welcome onSelect={setDraft} projectName={activeProject?.name} />
-          )}
-          {progress ? (
-            <div className="chat-progress">
-              <i />
-              {progress}
-            </div>
-          ) : null}
-          <div ref={endRef} />
-        </div>
+        <ChatTranscript
+          activeRequest={activeRequest}
+          backendReady={backend.phase === "ready"}
+          copyStates={copyStates}
+          endRef={endRef}
+          forkingMessageId={forkingMessageId}
+          historyError={historyError}
+          loading={loadingHistory === selectedId}
+          messages={selectedMessages}
+          onBranch={(message, mode) => void branchMessage(message, mode)}
+          onCopy={(message) =>
+            void copyMessage(
+              message.id,
+              message.role === "assistant"
+                ? visibleAssistantText(message.content)
+                : message.content,
+            )
+          }
+          onRead={readMessage}
+          onSelectPrompt={setDraft}
+          onStopReading={stopSpeaking}
+          progress={progress}
+          projectName={activeProject?.name}
+          runReceipts={runReceipts}
+          speakingMessageId={speakingMessageId}
+          speechSupported={speechSupported}
+        />
         <div aria-live="polite" className="sr-only" role="status">
           {accessibilityStatus}
         </div>
-        <form className="chat-composer" onSubmit={submit}>
-          {isNewConversation &&
-          projects &&
-          onChooseRepository &&
-          onOpenProjectManager &&
-          onSelectProjectForNewChat ? (
-            <div className="chat-composer-context-tab">
-              <ComposerProjectSelector
-                activeProjectId={activeProject?.id}
-                onChooseRepository={onChooseRepository}
-                onManageProjects={onOpenProjectManager}
-                onSelectProject={onSelectProjectForNewChat}
-                projects={projects}
-              />
-            </div>
-          ) : null}
-          <InlineApprovalPanel active={backend.phase === "ready"} />
-          {queuedMessages.length > 0 ? (
-            <div className="chat-message-queue" ref={queueRef}>
-              <div className="chat-message-queue-heading">
-                <strong>
-                  {queuedMessages.length} queued{" "}
-                  {queuedMessages.length === 1 ? "message" : "messages"}
-                </strong>
-                <span>
-                  {queuePaused ? (
-                    <button
-                      onClick={() => {
-                        setQueuePaused(false);
-                        setQueueAnnouncement(
-                          "Recovered queue resumed. The next message will send when Doolittle is ready.",
-                        );
-                      }}
-                      type="button"
-                    >
-                      Resume queue
-                    </button>
-                  ) : null}
-                  <button onClick={clearQueuedMessages} type="button">
-                    Clear queue
-                  </button>
-                </span>
-              </div>
-              <ol aria-label="Queued messages">
-                {queuedMessages.map((message, index) => (
-                  <li key={message.id}>
-                    <span>{index + 1}</span>
-                    <p title={message.content}>{message.content}</p>
-                    {message.attachments.length > 0 ? (
-                      <small>{message.attachments.length} files</small>
-                    ) : null}
-                    <button
-                      aria-label={`Remove queued message ${index + 1}`}
-                      data-queue-remove
-                      onClick={() => removeQueuedMessage(message.id)}
-                      type="button"
-                    >
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          ) : null}
-          {attachedFiles.length > 0 ? (
-            <ul
-              aria-label="Selected local context files"
-              className="chat-file-context-list"
-            >
-              {attachedFiles.map((attachment) => (
-                <li className="chat-file-context-chip" key={attachment.id}>
-                  <span
-                    className="chat-file-context-chip__name"
-                    title={`${attachment.kind} · ${attachmentSize(attachment.sizeBytes)}`}
-                  >
-                    {attachment.name}
-                  </span>
-                  <button
-                    aria-label={`Remove ${attachment.name} from message context`}
-                    className="chat-file-context-chip__remove"
-                    onClick={() => removeContextFile(attachment.id)}
-                    type="button"
-                  >
-                    ×
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {attachedFiles.length > 0 ? (
-            <div className="chat-attachment-summary">
-              {attachedFiles.length} / {MAX_MESSAGE_ATTACHMENTS} files ·{" "}
-              {attachmentSize(attachmentTotalBytes)} / 50 MB
-            </div>
-          ) : null}
-          {composerValidationError ? (
-            <div
-              aria-live="polite"
-              className="chat-composer-validation"
-              role="alert"
-            >
-              {composerValidationError}
-            </div>
-          ) : null}
-          {memoryMatches.status === "loading" ? (
-            <div
-              aria-live="polite"
-              className="chat-memory-matches"
-              data-status="loading"
-            >
-              <span>Checking saved profile matches…</span>
-            </div>
-          ) : null}
-          {memoryMatches.status === "ready" ? (
-            <section
-              aria-label={`${memoryMatches.matches.length} saved profile matches`}
-              className="chat-memory-matches"
-              data-status="ready"
-            >
-              <strong>
-                Memory matches <span>· saved profile</span>
-              </strong>
-              {memoryMatches.matches.length ? (
-                <ul>
-                  {memoryMatches.matches.map((match) => (
-                    <li key={`${match.kind}:${match.value}`}>
-                      <small className="chat-memory-matches__kind">
-                        {match.kind}
-                      </small>
-                      <span title={match.value}>{match.value}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <span>No saved profile matches for this draft.</span>
-              )}
-            </section>
-          ) : null}
-          {memoryMatches.status === "error" ? (
-            <div className="chat-memory-matches" data-status="error">
-              <span>Saved profile matches are unavailable for this draft.</span>
-            </div>
-          ) : null}
-          {commandSuggestions.length > 0 ? (
-            <div
-              aria-label="Chat commands"
-              className="chat-command-completions"
-              role="listbox"
-            >
-              {commandSuggestions.map((command, index) => (
-                <button
-                  aria-selected={index === commandSelection}
-                  className={index === commandSelection ? "selected" : ""}
-                  disabled={Boolean(command.disabledReason)}
-                  key={command.command}
-                  onClick={() => selectCommandSuggestion(command)}
-                  role="option"
-                  type="button"
-                >
-                  <code>{command.command}</code>
-                  <span>
-                    <strong>{command.category}</strong>
-                    <small>
-                      {command.disabledReason ?? command.description}
-                    </small>
-                    {command.aliases?.length ? (
-                      <small className="chat-command-completions__aliases">
-                        Aliases: {command.aliases.join(", ")}
-                      </small>
-                    ) : null}
-                  </span>
-                  <kbd>{index === commandSelection ? "Tab" : "↑↓"}</kbd>
-                </button>
-              ))}
-            </div>
-          ) : null}
-          {draft.trimStart().startsWith("/") && commandCatalog.error ? (
-            <div className="chat-command-catalog-error" role="alert">
-              {commandCatalog.error}
-            </div>
-          ) : null}
-          <div className="chat-composer-tools">
-            <button
-              aria-label="Attach file context"
-              className="secondary-button"
-              onClick={pickContextFiles}
-              type="button"
-            >
-              <span aria-hidden="true">＋</span>
-              Attach
-            </button>
-            <VoiceComposerButton
-              disabled={backend.phase !== "ready"}
-              importAndTranscribe={importAndTranscribeRecording}
-              onTranscript={insertDictationTranscript}
-            />
-            <button
-              aria-controls="chat-prompt-library"
-              aria-expanded={promptLibraryOpen}
-              className="secondary-button"
-              onClick={() => setPromptLibraryOpen((current) => !current)}
-              type="button"
-            >
-              Prompts
-              {visiblePromptLibrary.length > 0
-                ? ` · ${visiblePromptLibrary.length}`
-                : ""}
-            </button>
-            {promptLibraryOpen ? (
-              <section
-                aria-label="Prompt library"
-                className="chat-prompt-library"
-                id="chat-prompt-library"
-              >
-                <header>
-                  <div className="chat-prompt-library__heading">
-                    <strong>Prompt library</strong>
-                    <small>
-                      {activeProject && promptScope === "project"
-                        ? activeProject.name
-                        : "General"}
-                    </small>
-                  </div>
-                  <button
-                    aria-label="Close prompt library"
-                    onClick={() => setPromptLibraryOpen(false)}
-                    type="button"
-                  >
-                    ×
-                  </button>
-                </header>
-                {activeProject ? (
-                  <fieldset
-                    aria-label="Prompt library scope"
-                    className="chat-prompt-library__scope"
-                  >
-                    <legend className="sr-only">Prompt library scope</legend>
-                    <button
-                      aria-pressed={promptScope === "project"}
-                      onClick={() => setPromptScope("project")}
-                      type="button"
-                    >
-                      {activeProject.name}
-                    </button>
-                    <button
-                      aria-pressed={promptScope === "general"}
-                      onClick={() => setPromptScope("general")}
-                      type="button"
-                    >
-                      General
-                    </button>
-                  </fieldset>
-                ) : null}
-                <div className="chat-prompt-library__save">
-                  <input
-                    aria-label="Saved prompt title"
-                    maxLength={80}
-                    onChange={(event) => setPromptTitle(event.target.value)}
-                    placeholder="Title (optional)"
-                    value={promptTitle}
-                  />
-                  <button
-                    disabled={!draft.trim()}
-                    onClick={saveCurrentPrompt}
-                    type="button"
-                  >
-                    Save draft
-                  </button>
-                </div>
-                {visiblePromptLibrary.length > 0 ? (
-                  <ul>
-                    {visiblePromptLibrary.map((entry) => (
-                      <li key={entry.id}>
-                        {editingPromptId === entry.id ? (
-                          <input
-                            aria-label={`Rename ${entry.title}`}
-                            maxLength={80}
-                            onBlur={finishPromptRename}
-                            onChange={(event) =>
-                              setEditingPromptTitle(event.target.value)
-                            }
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                finishPromptRename();
-                              } else if (event.key === "Escape") {
-                                setEditingPromptId("");
-                                setEditingPromptTitle("");
-                              }
-                            }}
-                            ref={promptRenameRef}
-                            value={editingPromptTitle}
-                          />
-                        ) : (
-                          <button
-                            className="chat-prompt-library__restore"
-                            onClick={() => restorePrompt(entry)}
-                            title={entry.content}
-                            type="button"
-                          >
-                            <strong>{entry.title}</strong>
-                            <small>{entry.content}</small>
-                          </button>
-                        )}
-                        <span>
-                          <button
-                            aria-label={`Rename ${entry.title}`}
-                            onClick={() => beginPromptRename(entry)}
-                            type="button"
-                          >
-                            Rename
-                          </button>
-                          <button
-                            aria-label={`Delete ${entry.title}`}
-                            onClick={() => deletePrompt(entry)}
-                            type="button"
-                          >
-                            Delete
-                          </button>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>
-                    No saved prompts in this scope. Write a draft and save it
-                    here for reuse.
-                  </p>
-                )}
-              </section>
-            ) : null}
-            <ComposerModelSelector
-              active={backend.phase === "ready"}
-              onOpenModelsPage={onOpenModelsPage}
-              onOpenProvidersPage={onOpenProvidersPage}
-              refreshRuntime={refreshRuntime}
-              runtime={runtime}
-            />
-          </div>
-          <textarea
-            aria-label="Message Doolittle"
-            disabled={backend.phase !== "ready"}
-            onChange={(event) => {
-              setDraft(event.target.value);
-              setCommandMenuDismissed(false);
-              setCommandSelection(0);
-            }}
-            onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
-              if (event.nativeEvent.isComposing) return;
-              if (commandSuggestions.length > 0) {
-                if (event.key === "ArrowDown") {
-                  event.preventDefault();
-                  setCommandSelection((current) =>
-                    Math.min(current + 1, commandSuggestions.length - 1),
-                  );
-                  return;
-                }
-                if (event.key === "ArrowUp") {
-                  event.preventDefault();
-                  setCommandSelection((current) => Math.max(current - 1, 0));
-                  return;
-                }
-                if (event.key === "Tab") {
-                  event.preventDefault();
-                  const selected =
-                    commandSuggestions[
-                      Math.min(commandSelection, commandSuggestions.length - 1)
-                    ];
-                  if (selected) selectCommandSuggestion(selected);
-                  return;
-                }
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  setCommandMenuDismissed(true);
-                  return;
-                }
-              }
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                void submit();
-              }
-            }}
-            placeholder={
-              backend.phase === "ready"
-                ? activeProject
-                  ? `Message ${activeProject.name}…`
-                  : "Message Doolittle…"
-                : "Waiting for the local runtime…"
-            }
-            ref={composerRef}
-            rows={1}
-            value={draft}
-          />
-          <button
-            aria-label={activeRequest ? "Queue message" : "Send message"}
-            disabled={!canSubmit}
-            type="submit"
-          >
-            <svg
-              aria-hidden="true"
-              fill="none"
-              viewBox="0 0 20 20"
-              stroke="currentColor"
-            >
-              <path d="m5 10 5-5 5 5M10 5v11" />
-            </svg>
-          </button>
-          <small className="chat-composer-hint">
-            {activeRequest ? "Enter to queue" : "Enter to send"} · Shift Enter
-            for a new line
-          </small>
-          <div
-            aria-label={
-              selectedContext
-                ? `Estimated context usage ${Math.round(
-                    selectedContextPercent,
-                  )} percent`
-                : "Estimated context usage unavailable"
-            }
-            aria-valuemax={100}
-            aria-valuemin={0}
-            aria-valuenow={
-              selectedContext ? Math.round(selectedContextPercent) : undefined
-            }
-            className={`chat-context-meter ${selectedContextTone}`}
-            role="progressbar"
-            title={
-              selectedContext
-                ? `Estimated for ${selectedContext.provider ?? runtime?.provider ?? "current provider"} · ${
-                    selectedContext.model ?? runtime?.model ?? "current model"
-                  }`
-                : selectedUsageError
-            }
-          >
-            <span className="chat-status-runtime">
-              <i className={backend.phase} aria-hidden="true" />
-              <strong>
-                {activeRequest
-                  ? "Working"
-                  : backend.phase === "ready"
-                    ? "Ready"
-                    : backend.phase}
-              </strong>
-              <small>{modelRouteLabel}</small>
-              {runningTasks > 0 ? <small>{runningTasks} active</small> : null}
-              {pendingApprovals > 0 ? (
-                <small className="warning">
-                  {pendingApprovals} approval
-                  {pendingApprovals === 1 ? "" : "s"}
-                </small>
-              ) : null}
-            </span>
-            <span className="chat-context-track" aria-hidden="true">
-              <i
-                className="chat-context-fill"
-                style={{ width: `${selectedContextPercent}%` }}
-              />
-            </span>
-            <span>
-              <strong>Context</strong>
-              <small>
-                {selectedContext
-                  ? `${contextPressureLabel(selectedContext)} · ${fileName(
-                      workspacePath,
-                    )}`
-                  : usageLoading === selectedId
-                    ? "Measuring…"
-                    : selectedUsageError
-                      ? "Unavailable"
-                      : `0% · ${fileName(workspacePath)}`}
-              </small>
-            </span>
-          </div>
-        </form>
+        <ChatComposer
+          activeProject={activeProject}
+          projects={projects}
+          onChooseRepository={onChooseRepository}
+          onOpenProjectManager={onOpenProjectManager}
+          onSelectProjectForNewChat={onSelectProjectForNewChat}
+          isNewConversation={isNewConversation}
+          backend={backend}
+          runtime={runtime}
+          refreshRuntime={refreshRuntime}
+          onOpenModelsPage={onOpenModelsPage}
+          onOpenProvidersPage={onOpenProvidersPage}
+          activeRequest={activeRequest}
+          canSubmit={canSubmit}
+          draft={draft}
+          setDraft={setDraft}
+          onSubmit={submit}
+          composerRef={composerRef}
+          queueRef={queueRef}
+          promptRenameRef={promptRenameRef}
+          queuedMessages={queuedMessages}
+          queuePaused={queuePaused}
+          setQueuePaused={setQueuePaused}
+          setQueueAnnouncement={setQueueAnnouncement}
+          clearQueuedMessages={clearQueuedMessages}
+          removeQueuedMessage={removeQueuedMessage}
+          attachedFiles={attachedFiles}
+          attachmentTotalBytes={attachmentTotalBytes}
+          removeContextFile={removeContextFile}
+          composerValidationError={composerValidationError}
+          memoryMatches={memoryMatches}
+          commandSuggestions={commandSuggestions}
+          commandSelection={commandSelection}
+          setCommandSelection={setCommandSelection}
+          setCommandMenuDismissed={setCommandMenuDismissed}
+          selectCommandSuggestion={selectCommandSuggestion}
+          commandCatalog={commandCatalog}
+          pickContextFiles={pickContextFiles}
+          importAndTranscribeRecording={importAndTranscribeRecording}
+          insertDictationTranscript={insertDictationTranscript}
+          promptLibraryOpen={promptLibraryOpen}
+          setPromptLibraryOpen={setPromptLibraryOpen}
+          visiblePromptLibrary={visiblePromptLibrary}
+          promptScope={promptScope}
+          setPromptScope={setPromptScope}
+          promptTitle={promptTitle}
+          setPromptTitle={setPromptTitle}
+          saveCurrentPrompt={saveCurrentPrompt}
+          editingPromptId={editingPromptId}
+          editingPromptTitle={editingPromptTitle}
+          setEditingPromptId={setEditingPromptId}
+          setEditingPromptTitle={setEditingPromptTitle}
+          finishPromptRename={finishPromptRename}
+          restorePrompt={restorePrompt}
+          deletePrompt={deletePrompt}
+          beginPromptRename={beginPromptRename}
+          selectedContext={selectedContext}
+          selectedContextPercent={selectedContextPercent}
+          selectedContextTone={selectedContextTone}
+          selectedUsageError={selectedUsageError}
+          usageLoading={usageLoading}
+          selectedId={selectedId}
+          modelRouteLabel={modelRouteLabel}
+          workspacePath={workspacePath}
+          pendingApprovals={pendingApprovals}
+          runningTasks={runningTasks}
+        />
       </section>
       {mobileConversationsOpen ? (
         <div className="chat-mobile-conversations-backdrop">

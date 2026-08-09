@@ -13,14 +13,9 @@ import {
 } from "@/runtime/commands/shell-command-facade";
 import type { AppServices } from "@/services";
 import type { ChatTurnRequest, EnvConfig } from "@/types/runtime";
+import { messageText } from "@/utils/eliza-compat";
 
 export const DOOLITTLE_SHELL_SHORTCUT_ACTION = "DOOLITTLE_SHELL_SHORTCUT";
-
-function messageText(message: Memory): string {
-  return typeof message.content === "string"
-    ? message.content
-    : (message.content?.text ?? "");
-}
 
 function messageSource(message: Memory): string {
   if (typeof message.content !== "string" && message.content?.source) {

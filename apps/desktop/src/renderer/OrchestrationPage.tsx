@@ -1,37 +1,45 @@
 import {
   type FormEvent,
   type KeyboardEvent,
-  type ReactNode,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import type { ChatContextRequest } from "./chat-context-handoff";
-import { ArtifactViewer } from "./components/ArtifactViewer";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import {
-  asArray,
   asNumber,
   asRecord,
   asString,
-  Badge,
   desktopRequest,
-  displayTimestamp,
-  EmptyBlock,
-  ErrorBlock,
   errorMessage,
-  LoadingBlock,
   Notice,
   type UnknownRecord,
 } from "./lib";
+import { AgentRosterPanel } from "./orchestration/AgentRosterPanel";
+import type {
+  ConfirmedAction,
+  NoticeKind,
+  PlanStatus,
+  SurfaceNotice,
+  TaskAction,
+  TaskCreatePriority,
+} from "./orchestration/models";
+import { compactControlValue, compactStatus } from "./orchestration/models";
+import {
+  CODEGEN_MODES,
+  type CodegenMode,
+  OrchestrationRunsPanel,
+} from "./orchestration/OrchestrationRunsPanel";
+import { PlanCreateForm } from "./orchestration/PlanCreateForm";
+import { PlanPanel } from "./orchestration/PlanPanel";
+import { TaskCreateForm } from "./orchestration/TaskCreateForm";
+import { TaskQueuePanel } from "./orchestration/TaskQueuePanel";
 import {
   orchestrationStatusTier,
-  orchestrationTimingLabel,
   type TaskCapability,
-  taskCapabilityLabel,
   taskCreatePayload,
-  taskExecutionLabel,
   taskSpawnPayload,
 } from "./orchestration-helpers";
 import {
@@ -45,33 +53,9 @@ import {
   type WorkflowBundleResponse,
 } from "./orchestration-resources";
 import { ReviewPage } from "./ReviewPage";
-import { compactWorkspacePath } from "./workspace-path";
 import "./orchestration.css";
 
 export type WorkTabId = "tasks" | "agents" | "plans" | "runs" | "review";
-type NoticeKind = "neutral" | "good" | "warn" | "bad";
-type TaskAction =
-  | "execute"
-  | "run"
-  | "retry"
-  | "cancel"
-  | "complete"
-  | "fail"
-  | "note";
-type CodegenMode = "generate" | "research" | "prd" | "qa";
-
-type SurfaceNotice = {
-  id: number;
-  tone: NoticeKind;
-  message: string;
-  details?: string;
-};
-
-type ConfirmedAction = {
-  taskId: string;
-  action: "cancel" | "fail";
-};
-
 export const WORK_TABS: ReadonlyArray<{ id: WorkTabId; label: string }> = [
   { id: "tasks", label: "Queue" },
   { id: "agents", label: "Agents" },
@@ -80,90 +64,12 @@ export const WORK_TABS: ReadonlyArray<{ id: WorkTabId; label: string }> = [
   { id: "review", label: "Review" },
 ];
 
-function runArtifacts(record: CodegenRunRecord): unknown[] {
-  const opaque = asArray(record.artifacts);
-  return opaque.length > 0 ? opaque : asArray(record.artifactPaths);
-}
-
-const CODEGEN_MODES: Array<{
-  id: CodegenMode;
-  label: string;
-  detail: string;
-}> = [
-  { id: "generate", label: "Generate", detail: "Build from a prompt" },
-  { id: "research", label: "Research", detail: "Investigate an approach" },
-  { id: "prd", label: "PRD", detail: "Research and specify" },
-  { id: "qa", label: "QA", detail: "Run project quality checks" },
-];
-
-function normalizeText(value: string, max = 120): string {
-  if (value.length <= max) return value;
-  return `${value.slice(0, max)}…`;
-}
-
-function statusTone(status: string): "good" | "warn" | "bad" | "neutral" {
-  const normalized = status.toLowerCase();
-  if (["completed", "done", "success"].includes(normalized)) return "good";
-  if (["failed", "cancelled", "error", "stalled"].includes(normalized))
-    return "bad";
-  if (["running", "queued", "pending", "active"].includes(normalized))
-    return "warn";
-  return "neutral";
-}
-
-function compactStatus(status?: string): string {
-  return status ? status.replaceAll("-", " ") : "pending";
-}
-
-function compactControlValue(value: unknown): string {
-  if (
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
-  ) {
-    return String(value);
-  }
-  if (Array.isArray(value)) return `${value.length}`;
-  if (value && typeof value === "object") return "available";
-  return "none";
-}
-
-function compactDetailValue(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  if (value && typeof value === "object") {
-    return normalizeText(JSON.stringify(value), 180);
-  }
-  return "—";
-}
-
 async function postJson<T>(path: string, body: UnknownRecord): Promise<T> {
   return desktopRequest<T>(
     path as Parameters<typeof desktopRequest<T>>[0],
     "POST",
     body,
   );
-}
-
-function DetailRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number | undefined;
-}) {
-  return (
-    <div className="orchestration-detail-row">
-      <dt>{label}</dt>
-      <dd>{value ?? "—"}</dd>
-    </div>
-  );
-}
-
-function SmallEmpty({ children }: { children: string }) {
-  return <p className="orchestration-empty-line">{children}</p>;
 }
 
 function SummaryChip({
@@ -181,16 +87,6 @@ function SummaryChip({
       <small>{label}</small>
     </span>
   );
-}
-
-function DetailTag({
-  children,
-  tone = "neutral",
-}: {
-  children: ReactNode;
-  tone?: "neutral" | "good" | "warn" | "bad";
-}) {
-  return <span className={`orchestration-detail-tag ${tone}`}>{children}</span>;
 }
 
 export function OrchestrationPage({
@@ -294,9 +190,8 @@ export function OrchestrationPage({
     useState<TaskCapability>("coding");
   const [taskCreateFramework, setTaskCreateFramework] = useState("");
   const [taskCreateGroup, setTaskCreateGroup] = useState("");
-  const [taskCreatePriority, setTaskCreatePriority] = useState<
-    "low" | "normal" | "high" | ""
-  >("");
+  const [taskCreatePriority, setTaskCreatePriority] =
+    useState<TaskCreatePriority>("");
   const [taskCreateWorkspaceRoot, setTaskCreateWorkspaceRoot] = useState("");
   const availableTaskCreateWorktrees =
     taskCreateCapability === "coding"
@@ -320,9 +215,7 @@ export function OrchestrationPage({
 
   const [planTitle, setPlanTitle] = useState("");
   const [planObjective, setPlanObjective] = useState("");
-  const [planStatus, setPlanStatus] = useState<
-    "draft" | "active" | "completed"
-  >("draft");
+  const [planStatus, setPlanStatus] = useState<PlanStatus>("draft");
   const [planTaskId, setPlanTaskId] = useState("");
   const [planWorkflowId, setPlanWorkflowId] = useState("");
   const [planSteerInstruction, setPlanSteerInstruction] = useState("");
@@ -988,90 +881,6 @@ export function OrchestrationPage({
     setShowTaskCreate(true);
   };
 
-  const renderTaskRail = () => {
-    if (tasksResource.error) {
-      return (
-        <ErrorBlock error={tasksResource.error} retry={tasksResource.reload} />
-      );
-    }
-    if (tasksResource.loading) return <LoadingBlock />;
-    if (tasks.length === 0) {
-      return (
-        <EmptyBlock
-          actions={
-            <button
-              className="primary-button"
-              disabled={!active}
-              onClick={() => openTaskCreate("coding")}
-              type="button"
-            >
-              New coding task
-            </button>
-          }
-          title={
-            projectScope === "all"
-              ? "No tasks yet"
-              : `No tasks for ${workspaceLabel || "this project"}`
-          }
-        >
-          Create a focused task to start an operator workflow in this workspace.
-        </EmptyBlock>
-      );
-    }
-    return (
-      <ul className="orchestration-master-list">
-        {tasks.map((task) => {
-          const status = asString(task.status, "pending");
-          const tier = orchestrationStatusTier(status);
-          return (
-            <li key={task.id}>
-              <button
-                type="button"
-                className={
-                  task.id === selectedTask?.id
-                    ? `orchestration-master-item selected tier-${tier}`
-                    : `orchestration-master-item tier-${tier}`
-                }
-                aria-pressed={task.id === selectedTask?.id}
-                onClick={() => {
-                  setSelectedTaskId(task.id);
-                  setConfirmedAction(null);
-                  setShowChildCreate(false);
-                }}
-              >
-                <span className="master-row master-row-top">
-                  <span className="master-title-line">
-                    <i className="master-status-dot" aria-hidden="true" />
-                    <strong>{asString(task.title, "Untitled task")}</strong>
-                  </span>
-                  <Badge tone={statusTone(status)}>{status}</Badge>
-                </span>
-                <span className="master-summary">
-                  {normalizeText(asString(task.objective), 92)}
-                </span>
-                <span className="master-row master-row-bottom">
-                  <small>
-                    {orchestrationTimingLabel({
-                      status,
-                      startedAt: asString(task.startedAt),
-                      completedAt: asString(task.completedAt),
-                      updatedAt: asString(task.updatedAt),
-                      createdAt: asString(task.createdAt),
-                    })}
-                  </small>
-                  <small>{asString(task.priority, "normal")} priority</small>
-                  <small>
-                    {taskCapabilityLabel(task.capabilityProfile, task.kind)}
-                  </small>
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    );
-  };
-
   return (
     <div className="page orchestration-page">
       <header className="orchestration-header">
@@ -1248,226 +1057,48 @@ export function OrchestrationPage({
       ) : null}
 
       {activeTab === "tasks" && showTaskCreate ? (
-        <form
-          className="orchestration-quick-create"
+        <TaskCreateForm
+          active={active}
+          busy={Boolean(busyKeys["task:create"])}
+          title={taskCreateTitle}
+          objective={taskCreateObjective}
+          capability={taskCreateCapability}
+          framework={taskCreateFramework}
+          group={taskCreateGroup}
+          priority={taskCreatePriority}
+          workspaceRoot={taskCreateWorkspaceRoot}
+          availableWorktrees={availableTaskCreateWorktrees}
+          accountPoolResource={accountPoolResource}
+          onTitleChange={setTaskCreateTitle}
+          onObjectiveChange={setTaskCreateObjective}
+          onCapabilityChange={setTaskCreateCapability}
+          onFrameworkChange={setTaskCreateFramework}
+          onGroupChange={setTaskCreateGroup}
+          onPriorityChange={setTaskCreatePriority}
+          onWorkspaceRootChange={setTaskCreateWorkspaceRoot}
           onSubmit={onSubmitCreateTask}
-        >
-          <label className="quick-title">
-            <span>Title</span>
-            <input
-              value={taskCreateTitle}
-              onChange={(event) => setTaskCreateTitle(event.target.value)}
-              placeholder="Ship the settings accessibility pass"
-              disabled={!active || busyKeys["task:create"]}
-            />
-          </label>
-          <label className="quick-objective">
-            <span>Objective</span>
-            <input
-              value={taskCreateObjective}
-              onChange={(event) => setTaskCreateObjective(event.target.value)}
-              placeholder="Define the exact result and evidence expected"
-              disabled={!active || busyKeys["task:create"]}
-            />
-          </label>
-          <label>
-            <span>Work type</span>
-            <select
-              aria-label="Task work type"
-              value={taskCreateCapability}
-              onChange={(event) =>
-                setTaskCreateCapability(event.target.value as TaskCapability)
-              }
-              disabled={!active || busyKeys["task:create"]}
-            >
-              <option value="coding">Coding</option>
-              <option value="research">Research</option>
-            </select>
-          </label>
-          <label>
-            <span>Framework</span>
-            <select
-              aria-label="Task framework"
-              value={taskCreateFramework}
-              onChange={(event) => setTaskCreateFramework(event.target.value)}
-              disabled={!active || busyKeys["task:create"]}
-            >
-              <option value="">Automatic (Eliza chooses)</option>
-              <option value="codex">Codex · uses Codex pool</option>
-              <option value="claude">Claude · uses Claude pool</option>
-            </select>
-          </label>
-          <label>
-            <span>Group</span>
-            <input
-              value={taskCreateGroup}
-              onChange={(event) => setTaskCreateGroup(event.target.value)}
-              placeholder="product"
-              disabled={!active || busyKeys["task:create"]}
-            />
-          </label>
-          <label>
-            <span>Priority</span>
-            <select
-              value={taskCreatePriority}
-              onChange={(event) =>
-                setTaskCreatePriority(
-                  event.target.value as "" | "low" | "normal" | "high",
-                )
-              }
-              disabled={!active || busyKeys["task:create"]}
-            >
-              <option value="">default</option>
-              <option value="low">low</option>
-              <option value="normal">normal</option>
-              <option value="high">high</option>
-            </select>
-          </label>
-          <label>
-            <span>Worktree</span>
-            <select
-              aria-label="Task execution worktree"
-              value={taskCreateWorkspaceRoot}
-              onChange={(event) =>
-                setTaskCreateWorkspaceRoot(event.target.value)
-              }
-              disabled={!active || busyKeys["task:create"]}
-            >
-              <option value="">Select an isolated worktree</option>
-              {availableTaskCreateWorktrees.map((worktree) => (
-                <option key={worktree.path} value={worktree.path}>
-                  {worktree.branch ??
-                    (worktree.detached ? "detached" : "worktree")}{" "}
-                  · {compactWorkspacePath(worktree.path)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="quick-create-actions">
-            <button
-              className="primary-button"
-              type="submit"
-              disabled={
-                !active ||
-                busyKeys["task:create"] ||
-                !taskCreateTitle.trim() ||
-                !taskCreateObjective.trim()
-              }
-            >
-              {busyKeys["task:create"]
-                ? "Starting…"
-                : taskCreateCapability === "coding"
-                  ? "Create & start coding"
-                  : "Create research task"}
-            </button>
-            <button
-              className="text-button"
-              type="button"
-              onClick={() => setShowTaskCreate(false)}
-            >
-              Close
-            </button>
-          </div>
-          <p className="orchestration-task-routing-note">
-            Coding starts only in the selected active Git worktree, then hands
-            its session receipt to Queue and its branch context to Review. Codex
-            and Claude choose an eligible account from their provider pool when
-            the delegated session starts.
-          </p>
-          {accountPoolResource.error ? (
-            <p className="orchestration-task-routing-note" role="status">
-              Account options could not be refreshed. You can still use
-              automatic routing.
-              <button
-                className="text-button"
-                type="button"
-                onClick={accountPoolResource.reload}
-              >
-                Retry account options
-              </button>
-            </p>
-          ) : null}
-        </form>
+          onClose={() => setShowTaskCreate(false)}
+        />
       ) : null}
 
       {activeTab === "plans" && showPlanCreate ? (
-        <form
-          className="orchestration-quick-create"
+        <PlanCreateForm
+          active={active}
+          busy={Boolean(busyKeys["plan:create"])}
+          supportsCreate={supportsPlanCreate}
+          title={planTitle}
+          objective={planObjective}
+          status={planStatus}
+          taskId={planTaskId}
+          workflowId={planWorkflowId}
+          onTitleChange={setPlanTitle}
+          onObjectiveChange={setPlanObjective}
+          onStatusChange={setPlanStatus}
+          onTaskIdChange={setPlanTaskId}
+          onWorkflowIdChange={setPlanWorkflowId}
           onSubmit={onSubmitCreatePlan}
-        >
-          <label className="quick-title">
-            <span>Title</span>
-            <input
-              value={planTitle}
-              onChange={(event) => setPlanTitle(event.target.value)}
-              disabled={!active || busyKeys["plan:create"]}
-            />
-          </label>
-          <label className="quick-objective">
-            <span>Objective</span>
-            <input
-              value={planObjective}
-              onChange={(event) => setPlanObjective(event.target.value)}
-              disabled={!active || busyKeys["plan:create"]}
-            />
-          </label>
-          <label>
-            <span>Status</span>
-            <select
-              value={planStatus}
-              onChange={(event) =>
-                setPlanStatus(
-                  event.target.value as "draft" | "active" | "completed",
-                )
-              }
-              disabled={!active || busyKeys["plan:create"]}
-            >
-              <option value="draft">draft</option>
-              <option value="active">active</option>
-              <option value="completed">completed</option>
-            </select>
-          </label>
-          <label>
-            <span>Task ID</span>
-            <input
-              value={planTaskId}
-              onChange={(event) => setPlanTaskId(event.target.value)}
-              placeholder="optional"
-              disabled={!active || busyKeys["plan:create"]}
-            />
-          </label>
-          <label>
-            <span>Workflow ID</span>
-            <input
-              value={planWorkflowId}
-              onChange={(event) => setPlanWorkflowId(event.target.value)}
-              placeholder="optional"
-              disabled={!active || busyKeys["plan:create"]}
-            />
-          </label>
-          <div className="quick-create-actions">
-            <button
-              className="primary-button"
-              type="submit"
-              disabled={
-                !active ||
-                !supportsPlanCreate ||
-                busyKeys["plan:create"] ||
-                !planTitle.trim() ||
-                !planObjective.trim()
-              }
-            >
-              {busyKeys["plan:create"] ? "Creating…" : "Create plan"}
-            </button>
-            <button
-              className="text-button"
-              type="button"
-              onClick={() => setShowPlanCreate(false)}
-            >
-              Close
-            </button>
-          </div>
-        </form>
+          onClose={() => setShowPlanCreate(false)}
+        />
       ) : null}
 
       <section
@@ -1484,1487 +1115,129 @@ export function OrchestrationPage({
             projectScope={projectScope}
             workspacePath={workspacePath ?? ""}
           />
-        ) : activeTab === "tasks" ? (
-          <div className="orchestration-master-detail">
-            <aside className="orchestration-master">
-              <div className="orchestration-pane-heading">
-                <span>Queue</span>
-                <small>
-                  {asNumber(effectiveOverview.total)} total
-                  {projectScope === "all"
-                    ? ""
-                    : ` · ${workspaceLabel || "selected project"}`}
-                </small>
-              </div>
-              <div className="orchestration-scroll">{renderTaskRail()}</div>
-            </aside>
-
-            <article className="orchestration-detail">
-              {!selectedTask ? (
-                <EmptyBlock title="Choose a task">
-                  Task controls and evidence appear here.
-                </EmptyBlock>
-              ) : (
-                <>
-                  <div className="orchestration-detail-header">
-                    <div>
-                      <span className="detail-kicker">
-                        {asString(selectedTask.group, "ungrouped")} /{" "}
-                        {taskCapabilityLabel(
-                          selectedTask.capabilityProfile,
-                          selectedTask.kind,
-                        )}{" "}
-                        ·{" "}
-                        {asString(
-                          selectedTask.framework,
-                          selectedTask.profile || "automatic",
-                        )}
-                      </span>
-                      <h2>{selectedTask.title}</h2>
-                      <p>{selectedTask.objective}</p>
-                    </div>
-                    <Badge
-                      tone={statusTone(
-                        asString(selectedTask.status, "pending"),
-                      )}
-                    >
-                      {asString(selectedTask.status, "pending")}
-                    </Badge>
-                  </div>
-
-                  <div className="orchestration-detail-tags">
-                    <DetailTag
-                      tone={statusTone(
-                        asString(selectedTask.status, "pending"),
-                      )}
-                    >
-                      {orchestrationTimingLabel({
-                        status: asString(selectedTask.status, "pending"),
-                        startedAt: asString(selectedTask.startedAt),
-                        completedAt: asString(selectedTask.completedAt),
-                        updatedAt: asString(selectedTask.updatedAt),
-                        createdAt: asString(selectedTask.createdAt),
-                      })}
-                    </DetailTag>
-                    <DetailTag>
-                      {taskExecutionLabel(selectedTask.executionMode)}
-                    </DetailTag>
-                    <DetailTag>
-                      {asString(selectedTask.priority, "normal")} priority
-                    </DetailTag>
-                    <DetailTag>
-                      {selectedTask.workerPid
-                        ? `PID ${selectedTask.workerPid}`
-                        : "No live worker"}
-                    </DetailTag>
-                    <DetailTag>
-                      {selectedTask.accountLabel || selectedTask.accountId
-                        ? `account ${selectedTask.accountLabel || selectedTask.accountId}`
-                        : "automatic account routing"}
-                    </DetailTag>
-                  </div>
-
-                  <div className="orchestration-action-deck">
-                    <div className="orchestration-action-main">
-                      <button
-                        className="primary-button"
-                        type="button"
-                        onClick={() => runTaskAction(selectedTask, "execute")}
-                        disabled={
-                          !active || busyKeys[`task:${selectedTask.id}:execute`]
-                        }
-                      >
-                        Execute
-                      </button>
-                      <button
-                        className="secondary-button"
-                        type="button"
-                        onClick={() => runTaskAction(selectedTask, "run")}
-                        disabled={
-                          !active || busyKeys[`task:${selectedTask.id}:run`]
-                        }
-                      >
-                        Mark running
-                      </button>
-                      <button
-                        className="secondary-button"
-                        type="button"
-                        onClick={() => runTaskAction(selectedTask, "complete")}
-                        disabled={
-                          !active ||
-                          busyKeys[`task:${selectedTask.id}:complete`]
-                        }
-                      >
-                        Complete
-                      </button>
-                    </div>
-                    <div className="orchestration-action-secondary">
-                      <button
-                        className="text-button"
-                        type="button"
-                        onClick={() => runTaskAction(selectedTask, "retry")}
-                        disabled={
-                          !active || busyKeys[`task:${selectedTask.id}:retry`]
-                        }
-                      >
-                        Retry
-                      </button>
-                      <button
-                        className="text-button"
-                        type="button"
-                        onClick={() =>
-                          setShowChildCreate((current) => {
-                            const next = !current;
-                            if (next) {
-                              setChildWorkspaceRoot(
-                                asString(selectedTask.workspaceRoot),
-                              );
-                            }
-                            return next;
-                          })
-                        }
-                        aria-expanded={showChildCreate}
-                        disabled={!active}
-                      >
-                        Add child
-                      </button>
-                      <button
-                        className="text-button danger-text-button"
-                        type="button"
-                        onClick={(event) =>
-                          requestDestructiveTaskAction(
-                            selectedTask,
-                            "fail",
-                            event.currentTarget,
-                          )
-                        }
-                        disabled={
-                          !active || busyKeys[`task:${selectedTask.id}:fail`]
-                        }
-                      >
-                        Mark failed
-                      </button>
-                      <button
-                        className="text-button danger-text-button"
-                        type="button"
-                        onClick={(event) =>
-                          requestDestructiveTaskAction(
-                            selectedTask,
-                            "cancel",
-                            event.currentTarget,
-                          )
-                        }
-                        disabled={
-                          !active || busyKeys[`task:${selectedTask.id}:cancel`]
-                        }
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-
-                  {confirmedAction?.taskId === selectedTask.id ? (
-                    <div
-                      className="orchestration-confirm"
-                      aria-live="polite"
-                      ref={confirmDialogRef}
-                      tabIndex={-1}
-                    >
-                      <div>
-                        <strong id="task-confirm-title">
-                          {confirmedAction.action === "fail"
-                            ? "Mark this task failed?"
-                            : "Cancel this task?"}
-                        </strong>
-                        <span id="task-confirm-description">
-                          This changes task state
-                          {cascadeChildren ? " and includes child tasks" : ""}.
-                        </span>
-                      </div>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={cascadeChildren}
-                          onChange={(event) =>
-                            setCascadeChildren(event.target.checked)
-                          }
-                        />
-                        Cascade to children
-                      </label>
-                      <button
-                        className="danger-button"
-                        type="button"
-                        onClick={() =>
-                          runTaskAction(selectedTask, confirmedAction.action)
-                        }
-                        disabled={!active}
-                      >
-                        Confirm {confirmedAction.action}
-                      </button>
-                      <button
-                        className="text-button"
-                        type="button"
-                        onClick={closeTaskConfirmation}
-                      >
-                        Keep task
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {showChildCreate ? (
-                    <form
-                      className="orchestration-inline-form"
-                      onSubmit={onSubmitSpawn}
-                    >
-                      <label>
-                        <span>Child title</span>
-                        <input
-                          value={childTitle}
-                          onChange={(event) =>
-                            setChildTitle(event.target.value)
-                          }
-                          placeholder="Child task"
-                          disabled={
-                            !active || busyKeys[`task:${selectedTask.id}:spawn`]
-                          }
-                        />
-                      </label>
-                      <label className="inline-form-wide">
-                        <span>Child objective</span>
-                        <input
-                          value={childObjective}
-                          onChange={(event) =>
-                            setChildObjective(event.target.value)
-                          }
-                          placeholder="A bounded piece of the parent objective"
-                          required
-                          disabled={
-                            !active || busyKeys[`task:${selectedTask.id}:spawn`]
-                          }
-                        />
-                      </label>
-                      <label>
-                        <span>Execution worktree</span>
-                        <select
-                          aria-label="Child execution worktree"
-                          value={childWorkspaceRoot}
-                          onChange={(event) =>
-                            setChildWorkspaceRoot(event.target.value)
-                          }
-                          disabled={
-                            !active || busyKeys[`task:${selectedTask.id}:spawn`]
-                          }
-                        >
-                          <option value="">Inherit parent worktree</option>
-                          {worktrees.map((worktree) => (
-                            <option key={worktree.path} value={worktree.path}>
-                              {worktree.branch ??
-                                (worktree.detached
-                                  ? "detached"
-                                  : "worktree")}{" "}
-                              · {compactWorkspacePath(worktree.path)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <button
-                        className="secondary-button"
-                        type="submit"
-                        disabled={
-                          !active ||
-                          !childObjective.trim() ||
-                          busyKeys[`task:${selectedTask.id}:spawn`]
-                        }
-                      >
-                        {busyKeys[`task:${selectedTask.id}:spawn`]
-                          ? "Spawning…"
-                          : "Spawn"}
-                      </button>
-                    </form>
-                  ) : null}
-
-                  <div className="orchestration-detail-grid">
-                    <dl>
-                      <DetailRow label="Task ID" value={selectedTask.id} />
-                      <DetailRow
-                        label="Attempts"
-                        value={`${asNumber(selectedTask.attempts)} / ${asNumber(
-                          selectedTask.maxAttempts,
-                          1,
-                        )}`}
-                      />
-                      <DetailRow
-                        label="Priority"
-                        value={asString(selectedTask.priority, "normal")}
-                      />
-                      <DetailRow
-                        label="Execution"
-                        value={taskExecutionLabel(selectedTask.executionMode)}
-                      />
-                      <DetailRow
-                        label="Capability"
-                        value={taskCapabilityLabel(
-                          selectedTask.capabilityProfile,
-                          selectedTask.kind,
-                        )}
-                      />
-                      <DetailRow
-                        label="Framework"
-                        value={asString(selectedTask.framework, "automatic")}
-                      />
-                      <DetailRow
-                        label="Account provider"
-                        value={asString(
-                          selectedTask.accountProviderId,
-                          "automatic",
-                        )}
-                      />
-                      <DetailRow
-                        label="Account"
-                        value={asString(
-                          selectedTask.accountLabel,
-                          asString(selectedTask.accountId, "automatic"),
-                        )}
-                      />
-                      <DetailRow
-                        label="Session"
-                        value={asString(selectedTask.sessionId, "not assigned")}
-                      />
-                      <DetailRow
-                        label="Execution root"
-                        value={
-                          selectedTask.workspaceRoot
-                            ? compactWorkspacePath(selectedTask.workspaceRoot)
-                            : "current workspace"
-                        }
-                      />
-                      <DetailRow
-                        label="Updated"
-                        value={displayTimestamp(
-                          asString(selectedTask.updatedAt),
-                        )}
-                      />
-                      <DetailRow
-                        label="Worker PID"
-                        value={selectedTask.workerPid}
-                      />
-                    </dl>
-                    <div className="orchestration-evidence">
-                      <span className="detail-kicker">Evidence</span>
-                      {selectedTask.lastOutputPath ? (
-                        <code>{selectedTask.lastOutputPath}</code>
-                      ) : (
-                        <SmallEmpty>No artifact path reported.</SmallEmpty>
-                      )}
-                      <span className="detail-kicker">Task notes</span>
-                      {asArray(selectedTask.notes).length > 0 ? (
-                        <ul>
-                          {asArray(selectedTask.notes)
-                            .slice(-5)
-                            .map((note) => (
-                              <li
-                                key={`${selectedTask.id}:note:${asString(note)}`}
-                              >
-                                {asString(note)}
-                              </li>
-                            ))}
-                        </ul>
-                      ) : (
-                        <SmallEmpty>No notes recorded.</SmallEmpty>
-                      )}
-                    </div>
-                  </div>
-
-                  <form
-                    className="orchestration-note-composer"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      runTaskAction(selectedTask, "note");
-                    }}
-                  >
-                    <label>
-                      <span>Operator note</span>
-                      <textarea
-                        rows={2}
-                        value={selectedTaskNote}
-                        onChange={(event) =>
-                          setTaskNotes((current) => ({
-                            ...current,
-                            [selectedTask.id]: event.target.value,
-                          }))
-                        }
-                        placeholder="Record context for this task. Notes stay isolated per task."
-                        disabled={
-                          !active || busyKeys[`task:${selectedTask.id}:note`]
-                        }
-                      />
-                    </label>
-                    <button
-                      className="secondary-button"
-                      type="submit"
-                      disabled={
-                        !active ||
-                        !selectedTaskNote.trim() ||
-                        busyKeys[`task:${selectedTask.id}:note`]
-                      }
-                    >
-                      {busyKeys[`task:${selectedTask.id}:note`]
-                        ? "Adding…"
-                        : "Add note"}
-                    </button>
-                  </form>
-                </>
-              )}
-            </article>
-          </div>
         ) : null}
-
+        {activeTab === "tasks" ? (
+          <TaskQueuePanel
+            active={active}
+            projectScope={projectScope}
+            workspaceLabel={workspaceLabel}
+            effectiveOverview={effectiveOverview}
+            tasksResource={tasksResource}
+            tasks={tasks}
+            selectedTask={selectedTask}
+            busyKeys={busyKeys}
+            selectedTaskNote={selectedTaskNote}
+            showChildCreate={showChildCreate}
+            childTitle={childTitle}
+            childObjective={childObjective}
+            childWorkspaceRoot={childWorkspaceRoot}
+            worktrees={worktrees}
+            confirmedAction={confirmedAction}
+            cascadeChildren={cascadeChildren}
+            confirmDialogRef={confirmDialogRef}
+            onSelectTask={(task) => {
+              setSelectedTaskId(task.id);
+              setConfirmedAction(null);
+              setShowChildCreate(false);
+            }}
+            onNewCodingTask={() => openTaskCreate("coding")}
+            onRunTaskAction={runTaskAction}
+            onRequestDestructiveAction={requestDestructiveTaskAction}
+            onCloseConfirmation={closeTaskConfirmation}
+            onCascadeChildrenChange={setCascadeChildren}
+            onToggleChildCreate={(task) =>
+              setShowChildCreate((current) => {
+                const next = !current;
+                if (next) setChildWorkspaceRoot(asString(task.workspaceRoot));
+                return next;
+              })
+            }
+            onChildTitleChange={setChildTitle}
+            onChildObjectiveChange={setChildObjective}
+            onChildWorkspaceRootChange={setChildWorkspaceRoot}
+            onSubmitSpawn={onSubmitSpawn}
+            onTaskNoteChange={(value, taskId) =>
+              setTaskNotes((current) => ({ ...current, [taskId]: value }))
+            }
+            onSubmitNote={(event) => {
+              event.preventDefault();
+              if (selectedTask) void runTaskAction(selectedTask, "note");
+            }}
+          />
+        ) : null}
         {activeTab === "agents" ? (
-          <div className="orchestration-master-detail">
-            <aside className="orchestration-master">
-              <div className="orchestration-pane-heading">
-                <span>Agent roster</span>
-                <small>{workers.length} workers</small>
-              </div>
-              <div className="orchestration-health-strip">
-                <span>
-                  <strong>{asNumber(workerOverview.activeWorkers)}</strong>{" "}
-                  active
-                </span>
-                <span>
-                  <strong>{asNumber(workerOverview.aliveWorkers)}</strong> alive
-                </span>
-                <span>
-                  <strong>{asNumber(workerOverview.stalledWorkers)}</strong>{" "}
-                  stalled
-                </span>
-              </div>
-              <div className="orchestration-scroll">
-                {workersResource.error ? (
-                  <ErrorBlock
-                    error={workersResource.error}
-                    retry={workersResource.reload}
-                  />
-                ) : workersResource.loading ? (
-                  <LoadingBlock />
-                ) : workers.length === 0 ? (
-                  <EmptyBlock title="No active workers">
-                    Workers appear as delegated tasks execute.
-                  </EmptyBlock>
-                ) : (
-                  <ul className="orchestration-master-list">
-                    {workers.map((worker) => {
-                      const status = asString(worker.status, "idle");
-                      const tier = orchestrationStatusTier(status);
-                      return (
-                        <li key={worker.id}>
-                          <button
-                            type="button"
-                            className={
-                              worker.id === selectedWorker?.id
-                                ? `orchestration-master-item selected tier-${tier}`
-                                : `orchestration-master-item tier-${tier}`
-                            }
-                            aria-pressed={worker.id === selectedWorker?.id}
-                            onClick={() => setSelectedWorkerId(worker.id)}
-                          >
-                            <span className="master-row master-row-top">
-                              <span className="master-title-line">
-                                <i
-                                  className="master-status-dot"
-                                  aria-hidden="true"
-                                />
-                                <strong>
-                                  {asString(worker.title, worker.id)}
-                                </strong>
-                              </span>
-                              <Badge tone={statusTone(status)}>{status}</Badge>
-                            </span>
-                            <span className="master-summary">
-                              {normalizeText(
-                                asString(worker.objective, "No objective"),
-                                92,
-                              )}
-                            </span>
-                            <span className="master-row master-row-bottom">
-                              <small>
-                                {orchestrationTimingLabel({
-                                  status,
-                                  startedAt: asString(worker.startedAt),
-                                  completedAt: asString(worker.completedAt),
-                                })}
-                              </small>
-                              <small>
-                                {worker.stalled
-                                  ? "Stalled"
-                                  : worker.alive
-                                    ? "Heartbeat ok"
-                                    : "Offline"}
-                              </small>
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            </aside>
-            <article className="orchestration-detail">
-              {!selectedWorker ? (
-                <EmptyBlock title="Choose an agent">
-                  Worker health and evidence appear here.
-                </EmptyBlock>
-              ) : (
-                <>
-                  <div className="orchestration-detail-header">
-                    <div>
-                      <span className="detail-kicker">
-                        {asString(selectedWorker.group, "ungrouped")} /{" "}
-                        {taskCapabilityLabel(
-                          selectedWorker.capabilityProfile,
-                          selectedWorker.kind,
-                        )}{" "}
-                        ·{" "}
-                        {asString(
-                          selectedWorker.framework,
-                          selectedWorker.profile || "automatic",
-                        )}
-                      </span>
-                      <h2>
-                        {asString(selectedWorker.title, selectedWorker.id)}
-                      </h2>
-                      <p>
-                        {asString(
-                          selectedWorker.objective,
-                          "No objective reported.",
-                        )}
-                      </p>
-                    </div>
-                    <Badge
-                      tone={statusTone(asString(selectedWorker.status, "idle"))}
-                    >
-                      {asString(selectedWorker.status, "idle")}
-                    </Badge>
-                  </div>
-                  <div className="orchestration-detail-tags">
-                    <DetailTag
-                      tone={statusTone(asString(selectedWorker.status, "idle"))}
-                    >
-                      {orchestrationTimingLabel({
-                        status: asString(selectedWorker.status, "idle"),
-                        startedAt: asString(selectedWorker.startedAt),
-                        completedAt: asString(selectedWorker.completedAt),
-                      })}
-                    </DetailTag>
-                    <DetailTag>
-                      {asString(
-                        selectedWorker.workerMode,
-                        asString(selectedWorker.executionMode, "local"),
-                      )}
-                    </DetailTag>
-                    <DetailTag tone={selectedWorker.alive ? "good" : "bad"}>
-                      {selectedWorker.alive ? "worker alive" : "worker offline"}
-                    </DetailTag>
-                    <DetailTag tone={selectedWorker.stalled ? "bad" : "good"}>
-                      {selectedWorker.stalled ? "stalled" : "progressing"}
-                    </DetailTag>
-                  </div>
-                  <div className="orchestration-detail-grid">
-                    <dl>
-                      <DetailRow label="Worker ID" value={selectedWorker.id} />
-                      <DetailRow
-                        label="Capability"
-                        value={taskCapabilityLabel(
-                          selectedWorker.capabilityProfile,
-                          selectedWorker.kind,
-                        )}
-                      />
-                      <DetailRow
-                        label="Framework"
-                        value={asString(selectedWorker.framework, "automatic")}
-                      />
-                      <DetailRow
-                        label="Account provider"
-                        value={asString(
-                          selectedWorker.accountProviderId,
-                          "automatic",
-                        )}
-                      />
-                      <DetailRow
-                        label="Account"
-                        value={asString(
-                          selectedWorker.accountLabel,
-                          asString(selectedWorker.accountId, "automatic"),
-                        )}
-                      />
-                      <DetailRow
-                        label="Session"
-                        value={asString(
-                          selectedWorker.sessionId,
-                          "not assigned",
-                        )}
-                      />
-                      <DetailRow label="PID" value={selectedWorker.workerPid} />
-                      <DetailRow
-                        label="Mode"
-                        value={asString(
-                          selectedWorker.workerMode,
-                          asString(selectedWorker.executionMode, "local"),
-                        )}
-                      />
-                      <DetailRow
-                        label="Attempts"
-                        value={asNumber(selectedWorker.attempts)}
-                      />
-                      <DetailRow
-                        label="Remaining"
-                        value={asNumber(selectedWorker.attemptsRemaining)}
-                      />
-                      <DetailRow
-                        label="Parent task"
-                        value={selectedWorker.parentTaskId}
-                      />
-                    </dl>
-                    <div className="orchestration-evidence">
-                      <span className="detail-kicker">Runtime health</span>
-                      <div className="orchestration-signal-grid">
-                        <span className={selectedWorker.alive ? "good" : "bad"}>
-                          {selectedWorker.alive ? "Alive" : "Not alive"}
-                        </span>
-                        <span
-                          className={selectedWorker.stalled ? "bad" : "good"}
-                        >
-                          {selectedWorker.stalled ? "Stalled" : "Progressing"}
-                        </span>
-                      </div>
-                      <span className="detail-kicker">Latest artifact</span>
-                      {selectedWorker.lastOutputPath ? (
-                        <code>{selectedWorker.lastOutputPath}</code>
-                      ) : (
-                        <SmallEmpty>No artifact path reported.</SmallEmpty>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </article>
-          </div>
+          <AgentRosterPanel
+            workersResource={workersResource}
+            workers={workers}
+            workerOverview={workerOverview}
+            selectedWorker={selectedWorker}
+            onSelectWorker={(worker) => setSelectedWorkerId(worker.id)}
+          />
         ) : null}
-
         {activeTab === "plans" ? (
-          <div className="orchestration-master-detail">
-            <aside className="orchestration-master">
-              <div className="orchestration-pane-heading">
-                <span>Plans</span>
-                <small>{plans.length} records</small>
-              </div>
-              <div className="orchestration-scroll">
-                {plansResource.error ? (
-                  <ErrorBlock
-                    error={plansResource.error}
-                    retry={plansResource.reload}
-                  />
-                ) : plansResource.loading ? (
-                  <LoadingBlock />
-                ) : plans.length === 0 ? (
-                  <EmptyBlock title="No plans yet">
-                    Create a plan to connect tasks and workflows.
-                  </EmptyBlock>
-                ) : (
-                  <ul className="orchestration-master-list">
-                    {plans.map((plan) => {
-                      const status = asString(plan.status, "draft");
-                      const tier = orchestrationStatusTier(status);
-                      return (
-                        <li key={plan.id}>
-                          <button
-                            type="button"
-                            className={
-                              plan.id === selectedPlan?.id
-                                ? `orchestration-master-item selected tier-${tier}`
-                                : `orchestration-master-item tier-${tier}`
-                            }
-                            aria-pressed={plan.id === selectedPlan?.id}
-                            onClick={() => setSelectedPlanId(plan.id)}
-                          >
-                            <span className="master-row master-row-top">
-                              <span className="master-title-line">
-                                <i
-                                  className="master-status-dot"
-                                  aria-hidden="true"
-                                />
-                                <strong>
-                                  {asString(plan.title, "Untitled plan")}
-                                </strong>
-                              </span>
-                              <Badge tone={statusTone(status)}>{status}</Badge>
-                            </span>
-                            <span className="master-summary">
-                              {normalizeText(asString(plan.objective), 92)}
-                            </span>
-                            <span className="master-row master-row-bottom">
-                              <small>
-                                {orchestrationTimingLabel({
-                                  status,
-                                  updatedAt: asString(plan.updatedAt),
-                                  createdAt: asString(plan.createdAt),
-                                })}
-                              </small>
-                              <small>
-                                {asArray(plan.steps).length} step
-                                {asArray(plan.steps).length === 1 ? "" : "s"}
-                              </small>
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            </aside>
-            <article className="orchestration-detail">
-              {!selectedPlan ? (
-                <EmptyBlock title="Choose a plan">
-                  Plan links and steps appear here.
-                </EmptyBlock>
-              ) : (
-                <>
-                  <div className="orchestration-detail-header">
-                    <div>
-                      <span className="detail-kicker">Execution plan</span>
-                      <h2>{asString(selectedPlan.title, "Untitled plan")}</h2>
-                      <p>{asString(selectedPlan.objective)}</p>
-                    </div>
-                    <Badge
-                      tone={statusTone(asString(selectedPlan.status, "draft"))}
-                    >
-                      {asString(selectedPlan.status, "draft")}
-                    </Badge>
-                  </div>
-                  <div className="orchestration-detail-tags">
-                    <DetailTag
-                      tone={statusTone(asString(selectedPlan.status, "draft"))}
-                    >
-                      {orchestrationTimingLabel({
-                        status: asString(selectedPlan.status, "draft"),
-                        updatedAt: asString(selectedPlan.updatedAt),
-                        createdAt: asString(selectedPlan.createdAt),
-                      })}
-                    </DetailTag>
-                    <DetailTag>
-                      {selectedPlan.taskId ? "task linked" : "task unlinked"}
-                    </DetailTag>
-                    <DetailTag>
-                      {selectedPlan.workflowId
-                        ? "workflow linked"
-                        : "workflow unlinked"}
-                    </DetailTag>
-                    <DetailTag>
-                      {asArray(selectedPlan.steps).length} steps
-                    </DetailTag>
-                  </div>
-                  {asString(selectedPlan.status) === "draft" ? (
-                    <div className="orchestration-plan-control">
-                      <div>
-                        <strong>Ready for operator review</strong>
-                        <span>
-                          Approval activates this plan but never starts its
-                          linked task automatically.
-                        </span>
-                      </div>
-                      <button
-                        className="primary-button"
-                        type="button"
-                        onClick={() => void approvePlan(selectedPlan)}
-                        disabled={
-                          !active || busyKeys[`plan:${selectedPlan.id}:approve`]
-                        }
-                      >
-                        {busyKeys[`plan:${selectedPlan.id}:approve`]
-                          ? "Approving…"
-                          : "Approve plan"}
-                      </button>
-                    </div>
-                  ) : null}
-                  {asString(selectedPlan.status) === "active" ? (
-                    <form
-                      className="orchestration-plan-steer"
-                      onSubmit={steerPlan}
-                    >
-                      <div>
-                        <strong>Steer the next run</strong>
-                        <span>
-                          {planCanSteer
-                            ? "This instruction is added to the linked pending task and applies on its next execution or retry."
-                            : selectedPlan.taskId
-                              ? `Steering is available only while the linked local task is pending. Current state: ${asString(
-                                  linkedPlanTask?.status,
-                                  linkedPlanTask ? "unknown" : "not local",
-                                )}.`
-                              : "Link this plan to a local pending task before adding operator steering."}
-                        </span>
-                      </div>
-                      <label>
-                        <span className="sr-only">
-                          Instruction for the linked task
-                        </span>
-                        <textarea
-                          maxLength={4000}
-                          rows={2}
-                          value={planSteerInstruction}
-                          onChange={(event) =>
-                            setPlanSteerInstruction(event.target.value)
-                          }
-                          placeholder="Change scope, constraints, or acceptance checks…"
-                          disabled={
-                            !active ||
-                            !planCanSteer ||
-                            busyKeys[`plan:${selectedPlan.id}:steer`]
-                          }
-                        />
-                      </label>
-                      <button
-                        className="secondary-button"
-                        type="submit"
-                        disabled={
-                          !active ||
-                          !planCanSteer ||
-                          !planSteerInstruction.trim() ||
-                          busyKeys[`plan:${selectedPlan.id}:steer`]
-                        }
-                      >
-                        {busyKeys[`plan:${selectedPlan.id}:steer`]
-                          ? "Recording…"
-                          : "Add steering"}
-                      </button>
-                    </form>
-                  ) : null}
-                  <div className="orchestration-detail-grid">
-                    <dl>
-                      <DetailRow label="Plan ID" value={selectedPlan.id} />
-                      <DetailRow
-                        label="Task"
-                        value={asString(selectedPlan.taskId, "not linked")}
-                      />
-                      <DetailRow
-                        label="Workflow"
-                        value={asString(selectedPlan.workflowId, "not linked")}
-                      />
-                      <DetailRow
-                        label="Created"
-                        value={displayTimestamp(
-                          asString(selectedPlan.createdAt),
-                        )}
-                      />
-                      <DetailRow
-                        label="Updated"
-                        value={displayTimestamp(
-                          asString(selectedPlan.updatedAt),
-                        )}
-                      />
-                    </dl>
-                    <div className="orchestration-evidence">
-                      <span className="detail-kicker">Steps</span>
-                      {asArray(selectedPlan.steps).length > 0 ? (
-                        <ol className="orchestration-steps">
-                          {asArray(selectedPlan.steps).map((step) => (
-                            <li
-                              key={`${selectedPlan.id}:step:${asString(step)}`}
-                            >
-                              {asString(step)}
-                            </li>
-                          ))}
-                        </ol>
-                      ) : (
-                        <SmallEmpty>No steps recorded.</SmallEmpty>
-                      )}
-                      <span className="detail-kicker">Metadata</span>
-                      {Object.keys(asRecord(selectedPlan.metadata)).length >
-                      0 ? (
-                        <dl className="orchestration-mini-dl">
-                          {Object.entries(asRecord(selectedPlan.metadata)).map(
-                            ([key, value]) => (
-                              <DetailRow
-                                key={`${selectedPlan.id}:${key}`}
-                                label={key}
-                                value={compactDetailValue(value)}
-                              />
-                            ),
-                          )}
-                        </dl>
-                      ) : (
-                        <SmallEmpty>No plan metadata.</SmallEmpty>
-                      )}
-                    </div>
-                  </div>
-                  {planMetaLines.length > 0 ? (
-                    <div className="orchestration-control-footnote">
-                      <strong>Control plane</strong>
-                      <span>{planMetaLines.join(" · ")}</span>
-                    </div>
-                  ) : null}
-                </>
-              )}
-            </article>
-          </div>
+          <PlanPanel
+            active={active}
+            plansResource={plansResource}
+            plans={plans}
+            selectedPlan={selectedPlan}
+            linkedPlanTask={linkedPlanTask}
+            planCanSteer={planCanSteer}
+            planMetaLines={planMetaLines}
+            busyKeys={busyKeys}
+            planSteerInstruction={planSteerInstruction}
+            onSelectPlan={(plan) => setSelectedPlanId(plan.id)}
+            onApprovePlan={approvePlan}
+            onSteerPlan={steerPlan}
+            onPlanSteerInstructionChange={setPlanSteerInstruction}
+          />
         ) : null}
-
         {activeTab === "runs" ? (
-          <div className="orchestration-runs-layout">
-            <aside className="orchestration-launcher">
-              {codegenRuntimeResource.error ? (
-                <ErrorBlock
-                  error={codegenRuntimeResource.error}
-                  retry={codegenRuntimeResource.reload}
-                />
-              ) : null}
-              <div className="orchestration-pane-heading">
-                <span>New workflow</span>
-                <Badge
-                  tone={
-                    codegenReady ? "good" : codegenAvailable ? "warn" : "bad"
-                  }
-                >
-                  {codegenReady
-                    ? "ready"
-                    : codegenAvailable
-                      ? "setup needed"
-                      : "offline"}
-                </Badge>
-              </div>
-              <fieldset className="orchestration-mode-grid">
-                <legend>Code generation mode</legend>
-                {CODEGEN_MODES.map((mode) => (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    aria-pressed={codegenMode === mode.id}
-                    className={codegenMode === mode.id ? "selected" : ""}
-                    onClick={() => setCodegenMode(mode.id)}
-                  >
-                    <strong>{mode.label}</strong>
-                    <span>{mode.detail}</span>
-                  </button>
-                ))}
-              </fieldset>
-              <form
-                className="orchestration-codegen-form"
-                onSubmit={onSubmitCodegen}
-              >
-                {codegenMode === "qa" ? (
-                  <label>
-                    <span>Project path</span>
-                    <input
-                      value={codegenProjectPath}
-                      onChange={(event) =>
-                        setCodegenProjectPath(event.target.value)
-                      }
-                      placeholder="/workspace/project"
-                    />
-                  </label>
-                ) : (
-                  <>
-                    <label>
-                      <span>Project name</span>
-                      <input
-                        value={codegenProjectName}
-                        onChange={(event) =>
-                          setCodegenProjectName(event.target.value)
-                        }
-                        placeholder={workspaceLabel || "doolittle"}
-                      />
-                    </label>
-                    {codegenMode !== "generate" ? (
-                      <label>
-                        <span>Target</span>
-                        <input
-                          value={codegenTargetType}
-                          onChange={(event) =>
-                            setCodegenTargetType(event.target.value)
-                          }
-                          placeholder="plugin"
-                        />
-                      </label>
-                    ) : null}
-                    <label>
-                      <span>
-                        {codegenMode === "generate"
-                          ? "Build request"
-                          : "Description"}
-                      </span>
-                      <textarea
-                        rows={6}
-                        value={codegenPrompt}
-                        onChange={(event) =>
-                          setCodegenPrompt(event.target.value)
-                        }
-                        placeholder="Describe the intended result, constraints, and evidence."
-                      />
-                    </label>
-                  </>
-                )}
-                <button
-                  className="primary-button"
-                  type="submit"
-                  disabled={
-                    !active ||
-                    !codegenReady ||
-                    busyKeys[`codegen:${codegenMode}`]
-                  }
-                >
-                  {busyKeys[`codegen:${codegenMode}`]
-                    ? "Running…"
-                    : `Run ${
-                        CODEGEN_MODES.find((mode) => mode.id === codegenMode)
-                          ?.label
-                      }`}
-                </button>
-              </form>
-              <p className="orchestration-runtime-version">
-                {asString(codegenExecution.source, "product")} engine ·{" "}
-                {asArray(codegenExecution.methods).length} methods ·{" "}
-                {asNumber(workflowSummary.total)} workflows
-              </p>
-              {!codegenReady && asString(codegenExecution.detail) ? (
-                <p className="orchestration-runtime-detail">
-                  {asString(codegenExecution.detail)}
-                </p>
-              ) : null}
-              <p className="orchestration-task-routing-note">
-                {workspacePath
-                  ? `Project defaults come from ${compactWorkspacePath(workspacePath)}. QA uses this path directly; other workflows retain the selected project name in their receipt.`
-                  : "Choose a workspace to prefill project context for build and research receipts."}
-              </p>
-            </aside>
-
-            <aside className="orchestration-run-browser">
-              <div className="orchestration-pane-heading">
-                <span>Workflows</span>
-                <small>{workflows.length}</small>
-              </div>
-              <div className="orchestration-workflow-list">
-                {codegenWorkflowsResource.error ? (
-                  <ErrorBlock
-                    error={codegenWorkflowsResource.error}
-                    retry={codegenWorkflowsResource.reload}
-                  />
-                ) : codegenWorkflowsResource.loading ? (
-                  <LoadingBlock />
-                ) : workflows.length === 0 ? (
-                  <SmallEmpty>No workflows recorded.</SmallEmpty>
-                ) : (
-                  workflows.map((workflow) => {
-                    const status = asString(workflow.status, "pending");
-                    const tier = orchestrationStatusTier(status);
-                    return (
-                      <button
-                        key={workflow.id}
-                        type="button"
-                        className={
-                          selectedWorkflow?.id === workflow.id
-                            ? `selected tier-${tier}`
-                            : `tier-${tier}`
-                        }
-                        aria-pressed={selectedWorkflow?.id === workflow.id}
-                        onClick={() => {
-                          setSelectedWorkflowId(workflow.id);
-                          setSelectedRunId("");
-                          setBundleWorkflowId("");
-                          setBundleResult(null);
-                          setBundleError("");
-                        }}
-                      >
-                        <span className="master-row master-row-top">
-                          <span className="master-title-line">
-                            <i
-                              className="master-status-dot"
-                              aria-hidden="true"
-                            />
-                            <strong>
-                              {asString(workflow.title, workflow.id)}
-                            </strong>
-                          </span>
-                          <Badge tone={statusTone(status)}>{status}</Badge>
-                        </span>
-                        <small>
-                          {orchestrationTimingLabel({
-                            status,
-                            completedAt: asString(workflow.completedAt),
-                            updatedAt: asString(workflow.updatedAt),
-                            createdAt: asString(workflow.createdAt),
-                          })}
-                        </small>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-              <div className="orchestration-pane-heading runs-heading">
-                <span>Runs</span>
-                <small>{visibleRuns.length}</small>
-              </div>
-              <div className="orchestration-workflow-list orchestration-run-list">
-                {workflowDetailResource.error ? (
-                  <ErrorBlock
-                    error={workflowDetailResource.error}
-                    retry={workflowDetailResource.reload}
-                  />
-                ) : workflowDetailResource.loading ? (
-                  <LoadingBlock />
-                ) : visibleRuns.length === 0 ? (
-                  <SmallEmpty>No runs in this workflow.</SmallEmpty>
-                ) : (
-                  visibleRuns.map((run) => {
-                    const status = asString(run.status, "pending");
-                    const tier = orchestrationStatusTier(status);
-                    return (
-                      <button
-                        key={run.id}
-                        type="button"
-                        className={
-                          selectedRun?.id === run.id
-                            ? `selected tier-${tier}`
-                            : `tier-${tier}`
-                        }
-                        aria-pressed={selectedRun?.id === run.id}
-                        onClick={() => setSelectedRunId(run.id)}
-                      >
-                        <span className="master-row master-row-top">
-                          <span className="master-title-line">
-                            <i
-                              className="master-status-dot"
-                              aria-hidden="true"
-                            />
-                            <strong>{asString(run.phase, run.kind)}</strong>
-                          </span>
-                          <Badge tone={statusTone(status)}>{status}</Badge>
-                        </span>
-                        <small>
-                          {orchestrationTimingLabel({
-                            status,
-                            completedAt: asString(run.completedAt),
-                            updatedAt: asString(run.updatedAt),
-                            createdAt: asString(run.createdAt),
-                          })}
-                        </small>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </aside>
-
-            <article className="orchestration-detail orchestration-run-detail">
-              {!selectedWorkflow ? (
-                <EmptyBlock title="Choose a workflow">
-                  Workflow and run evidence appear here.
-                </EmptyBlock>
-              ) : (
-                <>
-                  <div className="orchestration-detail-header">
-                    <div>
-                      <span className="detail-kicker">
-                        {asString(selectedWorkflow.kind, "generate")} workflow
-                      </span>
-                      <h2>
-                        {asString(
-                          workflowDetailResource.data?.workflow?.title,
-                          asString(selectedWorkflow.title, selectedWorkflow.id),
-                        )}
-                      </h2>
-                      <p>
-                        {asString(
-                          workflowDetailResource.data?.workflow?.objective,
-                          asString(
-                            selectedWorkflow.objective,
-                            "No objective recorded.",
-                          ),
-                        )}
-                      </p>
-                    </div>
-                    <Badge
-                      tone={statusTone(
-                        asString(selectedWorkflow.status, "pending"),
-                      )}
-                    >
-                      {asString(selectedWorkflow.status, "pending")}
-                    </Badge>
-                  </div>
-                  <div className="orchestration-detail-tags">
-                    <DetailTag
-                      tone={statusTone(
-                        asString(selectedWorkflow.status, "pending"),
-                      )}
-                    >
-                      {orchestrationTimingLabel({
-                        status: asString(selectedWorkflow.status, "pending"),
-                        completedAt: asString(selectedWorkflow.completedAt),
-                        updatedAt: asString(selectedWorkflow.updatedAt),
-                        createdAt: asString(selectedWorkflow.createdAt),
-                      })}
-                    </DetailTag>
-                    <DetailTag>
-                      {asString(selectedWorkflow.kind, "generate")}
-                    </DetailTag>
-                    <DetailTag>{visibleRuns.length} runs visible</DetailTag>
-                    <DetailTag>
-                      {asArray(workflowDetailResource.data?.tree).length} root
-                      phases
-                    </DetailTag>
-                  </div>
-                  <div className="orchestration-run-toolbar">
-                    <span>
-                      {asArray(workflowDetailResource.data?.tree).length} root
-                      phases · {visibleRuns.length} runs
-                    </span>
-                    <div className="orchestration-run-actions">
-                      {selectedRun &&
-                      ["pending", "running"].includes(
-                        asString(selectedRun.status),
-                      ) ? (
-                        <button
-                          className="danger-button"
-                          type="button"
-                          onClick={() =>
-                            setConfirmedRunCancellation(selectedRun.id)
-                          }
-                          disabled={
-                            !active ||
-                            busyKeys[`codegen:${selectedRun.id}:cancel`]
-                          }
-                        >
-                          Cancel run
-                        </button>
-                      ) : null}
-                      <button
-                        className="secondary-button"
-                        type="button"
-                        onClick={() => void loadBundle()}
-                        disabled={
-                          !active ||
-                          (bundleLoading &&
-                            bundleWorkflowId === selectedWorkflow.id)
-                        }
-                      >
-                        {bundleLoading &&
-                        bundleWorkflowId === selectedWorkflow.id
-                          ? "Bundling…"
-                          : "Bundle workflow"}
-                      </button>
-                    </div>
-                  </div>
-
-                  {selectedRun &&
-                  confirmedRunCancellation === selectedRun.id ? (
-                    <div
-                      className="orchestration-confirm orchestration-run-confirm"
-                      aria-live="polite"
-                    >
-                      <div>
-                        <strong id="run-cancel-title">Cancel this run?</strong>
-                        <span id="run-cancel-description">
-                          This records a cancelled lifecycle state. The current
-                          pipeline cannot guarantee that in-flight model work
-                          stops immediately.
-                        </span>
-                      </div>
-                      <button
-                        className="danger-button"
-                        type="button"
-                        onClick={() => void cancelCodegenRun(selectedRun)}
-                        disabled={
-                          !active ||
-                          busyKeys[`codegen:${selectedRun.id}:cancel`]
-                        }
-                      >
-                        {busyKeys[`codegen:${selectedRun.id}:cancel`]
-                          ? "Cancelling…"
-                          : "Confirm cancellation"}
-                      </button>
-                      <button
-                        className="text-button"
-                        type="button"
-                        onClick={() => setConfirmedRunCancellation("")}
-                      >
-                        Keep running
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {bundleError && bundleWorkflowId === selectedWorkflow.id ? (
-                    <ErrorBlock
-                      error={bundleError}
-                      retry={() => void loadBundle()}
-                    />
-                  ) : null}
-                  {bundleResult && bundleWorkflowId === selectedWorkflow.id ? (
-                    <div className="orchestration-bundle-receipt">
-                      <strong>Bundle ready</strong>
-                      <code>
-                        {asString(bundleResult.manifestPath) ||
-                          asString(
-                            asRecord(bundleResult.manifest).name,
-                            "Manifest receipt ready",
-                          )}
-                      </code>
-                      <span>
-                        {asArray(bundleResult.runs).length} run records included
-                      </span>
-                    </div>
-                  ) : null}
-
-                  {!selectedRun ? (
-                    <SmallEmpty>
-                      Select a run to inspect its evidence.
-                    </SmallEmpty>
-                  ) : runDetailResource.error ? (
-                    <ErrorBlock
-                      error={runDetailResource.error}
-                      retry={runDetailResource.reload}
-                    />
-                  ) : runDetailResource.loading ? (
-                    <LoadingBlock />
-                  ) : (
-                    <div className="orchestration-run-inspector">
-                      <div className="orchestration-subheading">
-                        <div>
-                          <span className="detail-kicker">Selected run</span>
-                          <h3>
-                            {asString(
-                              selectedRun.phase,
-                              asString(selectedRun.kind, selectedRun.id),
-                            )}
-                          </h3>
-                        </div>
-                        <Badge
-                          tone={statusTone(
-                            asString(selectedRun.status, "pending"),
-                          )}
-                        >
-                          {asString(selectedRun.status, "pending")}
-                        </Badge>
-                      </div>
-                      <div className="orchestration-detail-tags">
-                        <DetailTag
-                          tone={statusTone(
-                            asString(selectedRun.status, "pending"),
-                          )}
-                        >
-                          {orchestrationTimingLabel({
-                            status: asString(selectedRun.status, "pending"),
-                            completedAt: asString(selectedRun.completedAt),
-                            updatedAt: asString(selectedRun.updatedAt),
-                            createdAt: asString(selectedRun.createdAt),
-                          })}
-                        </DetailTag>
-                        <DetailTag>
-                          {asString(selectedRun.kind, "run")}
-                        </DetailTag>
-                        <DetailTag>
-                          {selectedRun.taskId ? "task linked" : "task unlinked"}
-                        </DetailTag>
-                        <DetailTag>
-                          {selectedRun.sessionId
-                            ? "session linked"
-                            : "session unlinked"}
-                        </DetailTag>
-                        <DetailTag>
-                          {selectedRun.accountLabel || selectedRun.accountId
-                            ? `account ${selectedRun.accountLabel || selectedRun.accountId}`
-                            : "account not recorded"}
-                        </DetailTag>
-                      </div>
-                      <dl className="orchestration-run-facts">
-                        <DetailRow label="Run ID" value={selectedRun.id} />
-                        <DetailRow
-                          label="Task"
-                          value={asString(selectedRun.taskId, "not linked")}
-                        />
-                        <DetailRow
-                          label="Session"
-                          value={asString(selectedRun.sessionId, "not linked")}
-                        />
-                        <DetailRow
-                          label="Capability"
-                          value={taskCapabilityLabel(
-                            selectedRun.capabilityProfile,
-                            selectedRun.kind,
-                          )}
-                        />
-                        <DetailRow
-                          label="Framework"
-                          value={asString(
-                            selectedRun.framework,
-                            "not recorded",
-                          )}
-                        />
-                        <DetailRow
-                          label="Account provider"
-                          value={asString(
-                            selectedRun.accountProviderId,
-                            "not recorded",
-                          )}
-                        />
-                        <DetailRow
-                          label="Account"
-                          value={asString(
-                            selectedRun.accountLabel,
-                            asString(selectedRun.accountId, "not recorded"),
-                          )}
-                        />
-                        <DetailRow
-                          label="Updated"
-                          value={displayTimestamp(
-                            asString(selectedRun.updatedAt),
-                          )}
-                        />
-                      </dl>
-                      {selectedRun.error ? (
-                        <Notice tone="bad">
-                          <strong>Run error</strong>
-                          <span>{selectedRun.error}</span>
-                        </Notice>
-                      ) : null}
-                      <div className="orchestration-output-grid">
-                        <section>
-                          <span className="detail-kicker">Output preview</span>
-                          <pre>
-                            {asString(
-                              selectedRun.outputPreview,
-                              "No output preview recorded.",
-                            )}
-                          </pre>
-                        </section>
-                        <section>
-                          <span className="detail-kicker">Request</span>
-                          <pre>
-                            {JSON.stringify(
-                              asRecord(selectedRun.input),
-                              null,
-                              2,
-                            )}
-                          </pre>
-                        </section>
-                      </div>
-                      <div className="orchestration-artifacts">
-                        <span className="detail-kicker">Artifacts</span>
-                        {runArtifacts(selectedRun).length > 0 ? (
-                          <ArtifactViewer
-                            artifacts={runArtifacts(selectedRun)}
-                            runId={selectedRun.id}
-                          />
-                        ) : (
-                          <SmallEmpty>No artifacts recorded.</SmallEmpty>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </article>
-          </div>
+          <OrchestrationRunsPanel
+            active={active}
+            workspaceLabel={workspaceLabel}
+            workspacePath={workspacePath}
+            codegenRuntimeResource={codegenRuntimeResource}
+            codegenWorkflowsResource={codegenWorkflowsResource}
+            workflowDetailResource={workflowDetailResource}
+            runDetailResource={runDetailResource}
+            codegenExecution={codegenExecution}
+            codegenAvailable={codegenAvailable}
+            codegenReady={codegenReady}
+            workflowSummary={workflowSummary}
+            codegenMode={codegenMode}
+            codegenProjectName={codegenProjectName}
+            codegenPrompt={codegenPrompt}
+            codegenProjectPath={codegenProjectPath}
+            codegenTargetType={codegenTargetType}
+            busyKeys={busyKeys}
+            workflows={workflows}
+            visibleRuns={visibleRuns}
+            selectedWorkflow={selectedWorkflow}
+            selectedRun={selectedRun}
+            bundleWorkflowId={bundleWorkflowId}
+            bundleResult={bundleResult}
+            bundleError={bundleError}
+            bundleLoading={bundleLoading}
+            confirmedRunCancellation={confirmedRunCancellation}
+            onCodegenModeChange={setCodegenMode}
+            onCodegenProjectNameChange={setCodegenProjectName}
+            onCodegenPromptChange={setCodegenPrompt}
+            onCodegenProjectPathChange={setCodegenProjectPath}
+            onCodegenTargetTypeChange={setCodegenTargetType}
+            onSubmitCodegen={onSubmitCodegen}
+            onSelectWorkflow={(workflowId) => {
+              setSelectedWorkflowId(workflowId);
+              setSelectedRunId("");
+              setBundleWorkflowId("");
+              setBundleResult(null);
+              setBundleError("");
+            }}
+            onSelectRun={setSelectedRunId}
+            onRequestRunCancellation={setConfirmedRunCancellation}
+            onDismissRunCancellation={() => setConfirmedRunCancellation("")}
+            onLoadBundle={loadBundle}
+            onCancelRun={cancelCodegenRun}
+          />
         ) : null}
       </section>
     </div>

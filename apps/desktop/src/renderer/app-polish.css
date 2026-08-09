@@ -26,11 +26,6 @@
   --control-height: 30px;
 }
 
-:root[data-density="compact"] .chat-session-row > .chat-session-item {
-  padding-top: 6px;
-  padding-bottom: 6px;
-}
-
 :root[data-density="compact"] .page.coding-workspace-page {
   gap: 5px;
   padding: 7px 8px 8px;
@@ -207,7 +202,6 @@
 }
 
 .status-row,
-.automation-row,
 .fact-list > div,
 th,
 td {
@@ -295,29 +289,6 @@ td {
 
 .loading-block {
   min-height: 142px;
-}
-
-.loading-skeleton i {
-  background:
-    linear-gradient(
-      90deg,
-      transparent,
-      color-mix(in srgb, var(--accent) 8%, var(--surface-hover)),
-      transparent
-    ),
-    var(--surface-soft);
-  background-size: 200% 100%;
-  animation: skeleton-travel 1.4s ease-in-out infinite;
-}
-
-@keyframes skeleton-travel {
-  from {
-    background-position: 100% 0;
-  }
-
-  to {
-    background-position: -100% 0;
-  }
 }
 
 .table-wrap {
@@ -1293,8 +1264,7 @@ th {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .view-container > .page,
-  .loading-skeleton i {
+  .view-container > .page {
     animation: none;
   }
 }

@@ -258,6 +258,25 @@ export function formatDataPreview(
     : `${formatted.slice(0, maxCharacters)}\n… (${formatted.length - maxCharacters} more characters)`;
 }
 
+export function formatBoundedPreview(
+  value: unknown,
+  maxCharacters: number,
+): string {
+  const formatted =
+    typeof value === "string"
+      ? value
+      : (() => {
+          try {
+            return JSON.stringify(value, null, 2) ?? String(value);
+          } catch {
+            return String(value);
+          }
+        })();
+  return formatted.length <= maxCharacters
+    ? formatted
+    : `${formatted.slice(0, maxCharacters)}\n… (${formatted.length - maxCharacters} more chars)`;
+}
+
 export function RawDataDisclosure({
   label,
   value,

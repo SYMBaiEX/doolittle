@@ -1,4 +1,5 @@
 import { deflateSync } from "node:zlib";
+import { escapeXml } from "@/utils/eliza-compat";
 
 interface CaptureCardPageSnapshot {
   url: string;
@@ -12,15 +13,6 @@ interface CaptureCardPageSnapshot {
   linkCount: number;
   imageCount: number;
   contentHash: string;
-}
-
-function escapeXml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
 }
 
 export function createScreenshotSvg(

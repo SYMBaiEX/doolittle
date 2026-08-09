@@ -15,6 +15,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, isAbsolute, relative, resolve, sep } from "node:path";
+import { hasFilenameControlCharacters } from "./ipc/input-validation";
 
 export const RECORDED_AUDIO_IMPORT_MAX_BYTES = 20 * 1024 * 1024;
 
@@ -68,13 +69,6 @@ export class RecordedAudioImportError extends Error {
   }
 }
 
-function hasControlCharacters(value: string): boolean {
-  return Array.from(value).some((character) => {
-    const codePoint = character.codePointAt(0) ?? 0;
-    return codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f);
-  });
-}
-
 function validateName(value: string): string {
   const name = typeof value === "string" ? value.normalize("NFC") : "";
   if (
@@ -84,7 +78,7 @@ function validateName(value: string): string {
     basename(name) !== name ||
     name.includes("/") ||
     name.includes("\\") ||
-    hasControlCharacters(name) ||
+    hasFilenameControlCharacters(name) ||
     Buffer.byteLength(name, "utf8") > MAX_RECORDED_AUDIO_NAME_BYTES
   ) {
     throw new RecordedAudioImportError(

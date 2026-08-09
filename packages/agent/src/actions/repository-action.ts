@@ -7,6 +7,7 @@ import type {
   Memory,
   State,
 } from "@elizaos/core";
+import { asNonEmptyString } from "@elizaos/shared/type-guards";
 import {
   getNativeRepositoryDiff,
   getNativeRepositoryLog,
@@ -15,14 +16,6 @@ import {
 
 type RepositoryIntent = "status" | "diff" | "log";
 
-function nonEmptyString(value: unknown): string | undefined {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
 export function resolveRepositoryIntentFromParams(
   params: unknown,
 ): RepositoryIntent | undefined {
@@ -30,7 +23,7 @@ export function resolveRepositoryIntentFromParams(
     return undefined;
   }
   const record = params as Record<string, unknown>;
-  const raw = nonEmptyString(record.intent);
+  const raw = asNonEmptyString(record.intent);
   if (raw === "status" || raw === "diff" || raw === "log") {
     return raw;
   }

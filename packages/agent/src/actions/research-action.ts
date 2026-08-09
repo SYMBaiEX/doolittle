@@ -14,6 +14,7 @@ import {
   hashParts,
   promptCacheMetrics,
 } from "@/runtime/prompt-cache";
+import { messageText } from "@/utils/eliza-compat";
 
 const RESEARCH_PREFIX = "/research";
 const RESEARCH_PROMPT_VERSION = "doolittle-research-action-v1";
@@ -50,12 +51,6 @@ export type DoolittleResearchRuntime = Pick<
   IAgentRuntime,
   "getModel" | "useModel"
 >;
-
-function messageText(message: Memory): string {
-  return typeof message.content === "string"
-    ? message.content
-    : (message.content?.text ?? "");
-}
 
 function parseResearchQuestion(text: string): string | undefined {
   const trimmed = text.trim();

@@ -8,6 +8,7 @@ import {
   type IHookService,
   ServiceType,
 } from "@elizaos/core";
+import { asNonEmptyString } from "@elizaos/shared/type-guards";
 import type { HookDefinition, HookInvocation } from "@/types";
 
 interface HooksStore {
@@ -59,10 +60,6 @@ export function resolveHookEventBinding(event: string): HookEventBinding {
   throw new Error(
     `Unsupported hook event "${event}". Use an official HOOK_* event or a supported Doolittle legacy event.`,
   );
-}
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function numberValue(value: unknown): number | undefined {
@@ -185,7 +182,7 @@ export class HookProjectionService {
               context?: Record<string, unknown>;
             }
           ).context ?? {};
-        const sourceEvent = stringValue(context.doolittleHookEvent);
+        const sourceEvent = asNonEmptyString(context.doolittleHookEvent);
         if (binding.legacyEvent && sourceEvent !== binding.legacyEvent) {
           return;
         }
@@ -203,7 +200,7 @@ export class HookProjectionService {
           createdAt: new Date().toISOString(),
         };
         this.recordInvocation(invocation);
-        const emissionId = stringValue(context.doolittleHookEmissionId);
+        const emissionId = asNonEmptyString(context.doolittleHookEmissionId);
         if (emissionId) {
           this.activeEmissions.get(emissionId)?.push(invocation);
         }
@@ -235,8 +232,8 @@ export class HookProjectionService {
     emissionId: string,
   ) {
     const sessionKey =
-      stringValue(payload.sessionId) ??
-      stringValue(payload.sessionKey) ??
+      asNonEmptyString(payload.sessionId) ??
+      asNonEmptyString(payload.sessionKey) ??
       "doolittle";
     const context = {
       doolittleHookEmissionId: emissionId,
@@ -256,30 +253,30 @@ export class HookProjectionService {
       case EventType.HOOK_GATEWAY_STOP:
         return {
           ...base,
-          host: stringValue(payload.host),
+          host: asNonEmptyString(payload.host),
           port: numberValue(payload.port),
           channels: Array.isArray(payload.channels)
             ? payload.channels.filter(
                 (value): value is string => typeof value === "string",
               )
-            : stringValue(payload.platforms)?.split(",").filter(Boolean),
+            : asNonEmptyString(payload.platforms)?.split(",").filter(Boolean),
         };
       case EventType.HOOK_SESSION_START:
       case EventType.HOOK_SESSION_END:
         return {
           ...base,
-          channelId: stringValue(payload.roomId),
-          accountId: stringValue(payload.userId),
-          conversationId: stringValue(payload.sessionId),
+          channelId: asNonEmptyString(payload.roomId),
+          accountId: asNonEmptyString(payload.userId),
+          conversationId: asNonEmptyString(payload.sessionId),
         };
       case EventType.HOOK_AGENT_START:
       case EventType.HOOK_AGENT_END:
         return {
           ...base,
-          prompt: stringValue(payload.prompt),
+          prompt: asNonEmptyString(payload.prompt),
           success:
             typeof payload.success === "boolean" ? payload.success : undefined,
-          error: stringValue(payload.error),
+          error: asNonEmptyString(payload.error),
           durationMs: numberValue(payload.durationMs),
         };
       default:

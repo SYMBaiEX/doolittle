@@ -3,6 +3,7 @@ import {
   getMcpServerDetails,
   searchMcpMarketplace,
 } from "@elizaos/agent/services/mcp-marketplace";
+import { errorMessage } from "@/utils/error-message";
 import type { RuntimeLike } from "../runtime-contracts";
 import { requireNativeMcp } from "./native-services";
 
@@ -21,10 +22,6 @@ const getMarketplaceServer = getMcpServerDetails as unknown as (
   name: string,
   options?: McpMarketplaceRequestOptions,
 ) => ReturnType<typeof getMcpServerDetails>;
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 export function getEffectiveMcpStatus(runtime: RuntimeLike) {
   return requireNativeMcp(runtime).status();

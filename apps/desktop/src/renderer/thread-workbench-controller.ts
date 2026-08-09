@@ -9,6 +9,14 @@ import {
   desktopRequest,
   useApiResource,
 } from "./lib";
+import type {
+  RepositoryBranchesResponse,
+  RepositoryConflictsResponse,
+  RepositoryRemotesResponse,
+  RepositoryStashesResponse,
+  RepositoryWorktreesResponse,
+  WorkspaceReadResponse,
+} from "./repository-resource-models";
 import {
   browserThreadWorkbenchStorage,
   buildBriefPlanSummary,
@@ -32,27 +40,8 @@ interface RepositorySummaryResponse {
 interface WorkspaceTreeResponse {
   entries?: unknown[];
 }
-interface WorkspaceReadResponse {
-  path?: string;
-  content?: string;
-}
 interface RepositoryChangesResponse {
   changes?: unknown[];
-}
-interface RepositoryBranchesResponse {
-  branches?: unknown[];
-}
-interface RepositoryRemotesResponse {
-  remotes?: unknown[];
-}
-interface RepositoryStashesResponse {
-  stashes?: unknown[];
-}
-interface RepositoryConflictsResponse {
-  conflicts?: unknown[];
-}
-interface RepositoryWorktreesResponse {
-  worktrees?: unknown[];
 }
 interface WorkspaceCheckpointResponse {
   support?: { supported?: boolean; reason?: string };

@@ -1,4 +1,5 @@
 import type { RepositoryReview } from "../shared/contracts";
+import { escapeXml } from "./xml-escape";
 
 export const REVIEW_COMMENT_BODY_LIMIT = 2_000;
 export const REVIEW_FEEDBACK_LIMIT = 12_000;
@@ -266,15 +267,6 @@ export function createReviewComment(input: {
     createdAt: input.now,
     updatedAt: input.now,
   };
-}
-
-function escapeXml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
 }
 
 export function compileReviewFeedback(input: {

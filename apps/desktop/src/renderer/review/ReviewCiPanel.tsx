@@ -1,0 +1,185 @@
+import type { RepositoryReview } from "../../shared/contracts";
+import {
+  asNumber,
+  asString,
+  Badge,
+  displayTimestamp,
+  EmptyBlock,
+} from "../lib";
+import { checkDisplayStatus, type ReviewItem, statusTone } from "./models";
+
+export interface ReviewCiPanelProps {
+  selected: ReviewItem;
+  review?: RepositoryReview;
+}
+
+export function ReviewCiPanel({ selected, review }: ReviewCiPanelProps) {
+  return (
+    <div className="review-ci-detail">
+      {asString(selected.raw.category) === "pull-request" ? (
+        <PullRequestReview selected={selected} review={review} />
+      ) : (
+        <CheckOrWorkflowReview selected={selected} review={review} />
+      )}
+    </div>
+  );
+}
+
+function PullRequestReview({ selected, review }: ReviewCiPanelProps) {
+  return (
+    <>
+      <div className="review-ci-hero">
+        <div>
+          <span>Pull request</span>
+          <strong>
+            {asString(selected.raw.headRefName, "branch")} →{" "}
+            {asString(selected.raw.baseRefName, "base")}
+          </strong>
+        </div>
+        <a href={asString(selected.raw.url)} rel="noreferrer" target="_blank">
+          Open on GitHub ↗
+        </a>
+      </div>
+      <dl className="review-facts">
+        <div>
+          <dt>Review</dt>
+          <dd>
+            {asString(selected.raw.reviewDecision, "No decision")
+              .toLowerCase()
+              .replaceAll("_", " ")}
+          </dd>
+        </div>
+        <div>
+          <dt>Merge state</dt>
+          <dd>
+            {asString(selected.raw.mergeStateStatus, "unknown").toLowerCase()}
+          </dd>
+        </div>
+        <div>
+          <dt>Changes</dt>
+          <dd>
+            <span className="review-additions">
+              +{asNumber(selected.raw.additions)}
+            </span>{" "}
+            <span className="review-deletions">
+              −{asNumber(selected.raw.deletions)}
+            </span>{" "}
+            across {asNumber(selected.raw.changedFiles)} files
+          </dd>
+        </div>
+        <div>
+          <dt>Conversation</dt>
+          <dd>
+            {asNumber(selected.raw.comments)} comments ·{" "}
+            {asNumber(selected.raw.reviews)} reviews
+          </dd>
+        </div>
+      </dl>
+      <div className="review-ci-checks">
+        <div>
+          <span>Checks</span>
+          <small>{review?.checks.length ?? 0}</small>
+        </div>
+        {(review?.checks ?? []).length > 0 ? (
+          <ul>
+            {(review?.checks ?? []).map((check) => {
+              const checkStatus = checkDisplayStatus(check);
+              return (
+                <li
+                  key={[
+                    check.name,
+                    check.workflow,
+                    check.url,
+                    check.startedAt,
+                    check.completedAt,
+                  ].join(":")}
+                >
+                  <i className={statusTone(checkStatus)} aria-hidden="true" />
+                  <span>
+                    <strong>{check.name}</strong>
+                    <small>{check.workflow ?? "Pull request check"}</small>
+                  </span>
+                  <Badge tone={statusTone(checkStatus)}>{checkStatus}</Badge>
+                  {check.url ? (
+                    <a
+                      aria-label={`Open ${check.name} on GitHub`}
+                      href={check.url}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      ↗
+                    </a>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <EmptyBlock title="No checks reported">
+            GitHub has not reported checks for this pull request.
+          </EmptyBlock>
+        )}
+      </div>
+    </>
+  );
+}
+
+function CheckOrWorkflowReview({ selected, review }: ReviewCiPanelProps) {
+  return (
+    <>
+      <div className="review-ci-hero">
+        <div>
+          <span>
+            {asString(selected.raw.category) === "check"
+              ? "Check"
+              : "Workflow run"}
+          </span>
+          <strong>{selected.title}</strong>
+        </div>
+        {asString(selected.raw.url) ? (
+          <a href={asString(selected.raw.url)} rel="noreferrer" target="_blank">
+            Open on GitHub ↗
+          </a>
+        ) : null}
+      </div>
+      <dl className="review-facts">
+        <div>
+          <dt>Status</dt>
+          <dd>{selected.status}</dd>
+        </div>
+        <div>
+          <dt>Workflow</dt>
+          <dd>
+            {asString(
+              selected.raw.workflow,
+              asString(selected.raw.event, "GitHub Actions"),
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Branch</dt>
+          <dd>
+            {asString(
+              selected.raw.headBranch,
+              review?.branch ?? "current branch",
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Updated</dt>
+          <dd>
+            {displayTimestamp(
+              asString(
+                selected.raw.completedAt,
+                asString(
+                  selected.raw.updatedAt,
+                  asString(selected.raw.startedAt),
+                ),
+              ),
+            )}
+          </dd>
+        </div>
+      </dl>
+    </>
+  );
+}

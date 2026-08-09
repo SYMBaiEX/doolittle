@@ -5,7 +5,9 @@ import type {
 } from "@doolittle/contracts";
 import { validateCodingIteration } from "@doolittle/contracts";
 import type { ActionResult, ProviderDataRecord } from "@elizaos/core";
+import { asNonEmptyString } from "@elizaos/shared/type-guards";
 import type { LocalMutationInput } from "@/services/run-controller-service";
+import { isRecord } from "@/utils/records";
 
 type RecordLike = Record<string, unknown>;
 type CommandResultSource = RecordLike & { command: unknown; exitCode: unknown };
@@ -29,14 +31,6 @@ export interface BuildCodingIterationOptions {
   startedAt?: number;
   completedAt?: number;
   summary?: string;
-}
-
-function isRecord(value: unknown): value is RecordLike {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function numberValue(value: unknown): number | undefined {
@@ -79,7 +73,9 @@ export function actionResultActionName(
   if (!isRecord(data)) {
     return undefined;
   }
-  return stringValue(data.actionName) ?? stringValue(data.mutationAction);
+  return (
+    asNonEmptyString(data.actionName) ?? asNonEmptyString(data.mutationAction)
+  );
 }
 
 /**
@@ -96,7 +92,7 @@ export function actionResultMutationActionName(
   actionResult: ActionResult | undefined,
 ): string | undefined {
   const data = actionResult?.data;
-  return isRecord(data) ? stringValue(data.mutationAction) : undefined;
+  return isRecord(data) ? asNonEmptyString(data.mutationAction) : undefined;
 }
 
 export function extractLocalMutationFromActionResult(
@@ -112,7 +108,7 @@ export function extractLocalMutationFromActionResult(
   }
 
   const action =
-    stringValue(mutation.action) ?? actionResultActionName(actionResult);
+    asNonEmptyString(mutation.action) ?? actionResultActionName(actionResult);
   const success = booleanValue(mutation.success) ?? actionResult?.success;
   if (!action || typeof success !== "boolean") {
     return undefined;
@@ -120,10 +116,10 @@ export function extractLocalMutationFromActionResult(
 
   return {
     action,
-    requestedPath: stringValue(mutation.requestedPath),
-    resolvedPath: stringValue(mutation.resolvedPath),
+    requestedPath: asNonEmptyString(mutation.requestedPath),
+    resolvedPath: asNonEmptyString(mutation.resolvedPath),
     success,
-    message: stringValue(mutation.message) ?? actionResult?.text,
+    message: asNonEmptyString(mutation.message) ?? actionResult?.text,
     bytes: numberValue(mutation.bytes),
     replacements: numberValue(mutation.replacements),
   };
@@ -146,8 +142,8 @@ export function extractFileOperationFromActionResult(
   if (!isRecord(operation)) {
     return undefined;
   }
-  const type = stringValue(operation.type);
-  const target = stringValue(operation.target);
+  const type = asNonEmptyString(operation.type);
+  const target = asNonEmptyString(operation.target);
   if (
     !target ||
     (type !== "read" &&
@@ -173,13 +169,13 @@ export function extractCommandResultFromActionResult(
   if (!commandResult) {
     return undefined;
   }
-  const command = stringValue(commandResult.command);
+  const command = asNonEmptyString(commandResult.command);
   const exitCode = numberValue(commandResult.exitCode);
   const executedIn =
-    stringValue(commandResult.executedIn) ??
-    stringValue(commandResult.cwd) ??
-    stringValue(commandResult.workingDirectory) ??
-    stringValue(commandResult.workdir);
+    asNonEmptyString(commandResult.executedIn) ??
+    asNonEmptyString(commandResult.cwd) ??
+    asNonEmptyString(commandResult.workingDirectory) ??
+    asNonEmptyString(commandResult.workdir);
   const success = booleanValue(commandResult.success);
   if (!command || typeof exitCode !== "number") {
     return undefined;
@@ -187,8 +183,8 @@ export function extractCommandResultFromActionResult(
   return {
     command,
     exitCode,
-    stdout: stringValue(commandResult.stdout) ?? "",
-    stderr: stringValue(commandResult.stderr) ?? "",
+    stdout: asNonEmptyString(commandResult.stdout) ?? "",
+    stderr: asNonEmptyString(commandResult.stderr) ?? "",
     ...(executedIn ? { executedIn } : {}),
     durationMs: numberValue(commandResult.durationMs),
     success: success ?? actionResult?.success !== false,
@@ -206,12 +202,12 @@ function resolveCommandResultSource(
     return data.commandResult as CommandResultSource;
   }
 
-  const actionName = stringValue(data.actionName)?.toUpperCase();
+  const actionName = asNonEmptyString(data.actionName)?.toUpperCase();
   const looksLikeSdkTerminalResult =
     (actionName === "SHELL" ||
       actionName === "SHELL_COMMAND" ||
       actionName === "RUN_IN_TERMINAL") &&
-    stringValue(data.command) &&
+    asNonEmptyString(data.command) &&
     typeof numberValue(data.exitCode) === "number";
   return looksLikeSdkTerminalResult ? (data as CommandResultSource) : undefined;
 }

@@ -16,6 +16,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, extname, resolve } from "node:path";
+import { hasFilenameControlCharacters } from "./ipc/input-validation";
 
 export const ATTACHMENT_IMPORT_LIMITS = {
   maxCount: 8,
@@ -205,16 +206,12 @@ function kindForMime(mimeType: string): ManagedAttachmentKind {
 function validateDisplayName(inputPath: string): string {
   const name = basename(inputPath).normalize("NFC");
   const nameBytes = Buffer.byteLength(name, "utf8");
-  const hasControlCharacter = Array.from(name).some((character) => {
-    const codePoint = character.codePointAt(0) ?? 0;
-    return codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f);
-  });
   if (
     name.length === 0 ||
     name === "." ||
     name === ".." ||
     nameBytes > ATTACHMENT_IMPORT_LIMITS.maxNameBytes ||
-    hasControlCharacter
+    hasFilenameControlCharacters(name)
   ) {
     throw new AttachmentImportError(
       "invalid_name",

@@ -19,7 +19,17 @@ export function fullyDecodeComponent(value: string): string | null {
 export function hasControlCharacters(value: string): boolean {
   return Array.from(value).some((character) => {
     const codePoint = character.codePointAt(0);
-    return codePoint !== undefined && (codePoint <= 31 || codePoint === 127);
+    return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
+  });
+}
+
+export function hasFilenameControlCharacters(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0);
+    return (
+      codePoint !== undefined &&
+      (codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f))
+    );
   });
 }
 
