@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, isAbsolute, join, relative, sep } from "node:path";
 import type { ContentType, Media } from "@elizaos/core";
+import { hasAsciiControlCharacters } from "@/utils/text-validation";
 
 export const MAX_CHAT_ATTACHMENTS = 8;
 export const MAX_CHAT_ATTACHMENT_BYTES = 20 * 1024 * 1024;
@@ -91,13 +92,6 @@ function fail(
   throw new ManagedAttachmentError(code, `${attachmentLabel} ${reason}.`);
 }
 
-function hasControlCharacters(value: string): boolean {
-  return Array.from(value).some((character) => {
-    const codePoint = character.codePointAt(0);
-    return codePoint !== undefined && (codePoint <= 31 || codePoint === 127);
-  });
-}
-
 function isContainedPath(root: string, candidate: string): boolean {
   const nestedPath = relative(root, candidate);
   return (
@@ -141,7 +135,7 @@ function parseSidecar(
     basename(name) !== name ||
     name.includes("/") ||
     name.includes("\\") ||
-    hasControlCharacters(name) ||
+    hasAsciiControlCharacters(name) ||
     typeof kind !== "string" ||
     !ATTACHMENT_KINDS.has(kind as ManagedAttachmentKind) ||
     typeof mimeType !== "string" ||

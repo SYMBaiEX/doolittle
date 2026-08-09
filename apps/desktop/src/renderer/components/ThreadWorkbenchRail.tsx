@@ -34,6 +34,7 @@ import type {
   RepositoryStash,
 } from "@doolittle/contracts/repository";
 import type { RepositoryControlChange } from "../repository-control";
+import { compactWorkspacePath } from "../workspace-path";
 
 export type ThreadWorkbenchFullView =
   | "code"
@@ -138,9 +139,8 @@ function branchHeadLabel(branch: string, head: string): string {
   return [branch || "No branch", compactHead].filter(Boolean).join(" · ");
 }
 
-function compactPath(path: string): string {
-  const parts = path.replaceAll("\\", "/").split("/").filter(Boolean);
-  return parts.length > 3 ? `…/${parts.slice(-3).join("/")}` : path;
+function compactRailLabel(value: string): string {
+  return compactWorkspacePath(value, 3);
 }
 
 function statusTone(status: string): "neutral" | "good" | "warn" | "bad" {
@@ -336,8 +336,8 @@ export function ThreadWorkbenchRail({
             <strong>{branchHeadLabel(model.branch, model.head)}</strong>
             <small title={model.worktreePath || model.workspacePath}>
               {model.worktreePath
-                ? `Worktree · ${compactPath(model.worktreePath)}`
-                : `Local · ${compactPath(model.workspacePath)}`}
+                ? `Worktree · ${compactRailLabel(model.worktreePath)}`
+                : `Local · ${compactRailLabel(model.workspacePath)}`}
             </small>
           </div>
           <Badge
@@ -600,7 +600,7 @@ export function ThreadWorkbenchRail({
                   <div className="thread-workbench-preview diff">
                     <div>
                       <code title={currentChange}>
-                        {compactPath(currentChange)}
+                        {compactRailLabel(currentChange)}
                       </code>
                       <button
                         disabled={!patch.data?.patch?.patch}
@@ -942,7 +942,7 @@ export function ThreadWorkbenchRail({
                             }
                             type="button"
                           >
-                            <span>{compactPath(command)}</span>
+                            <span>{compactRailLabel(command)}</span>
                             <small>
                               {displayTimestamp(asString(approval.createdAt))}
                             </small>

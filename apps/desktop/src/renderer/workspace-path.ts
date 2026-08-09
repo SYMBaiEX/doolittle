@@ -1,5 +1,15 @@
 export type DesktopPlatform = "darwin" | "win32" | "linux";
 
+export function compactWorkspacePath(value: string, maxSegments = 4): string {
+  if (!Number.isSafeInteger(maxSegments) || maxSegments < 1) {
+    throw new RangeError("maxSegments must be a positive integer.");
+  }
+  const parts = value.replaceAll("\\", "/").split("/").filter(Boolean);
+  return parts.length > maxSegments
+    ? `…/${parts.slice(-maxSegments).join("/")}`
+    : value;
+}
+
 export function normalizeWorkspacePathForComparison(
   value: string,
   platform: DesktopPlatform,

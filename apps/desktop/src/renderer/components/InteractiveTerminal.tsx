@@ -15,6 +15,7 @@ import type {
   InteractiveTerminalSession,
 } from "../../shared/contracts";
 import { errorMessage } from "../lib";
+import { compactWorkspacePath } from "../workspace-path";
 import {
   browserInteractiveTerminalStorage,
   createInteractiveTerminalTab,
@@ -26,11 +27,6 @@ import {
   saveInteractiveTerminalState,
 } from "./interactive-terminal-store";
 import "./interactive-terminal.css";
-
-function compactPath(value: string): string {
-  const parts = value.split(/[\\/]/u).filter(Boolean);
-  return parts.length > 3 ? `…/${parts.slice(-3).join("/")}` : value;
-}
 
 function boundedOutput(output: string): string {
   return output.slice(-MAX_RENDERED_TERMINAL_OUTPUT);
@@ -677,7 +673,9 @@ export function InteractiveTerminal({
             <i className={running ? "running" : ""} />
             <span>{activeTab?.shell || "shell"}</span>
             <strong title={activeTab?.cwd}>
-              {activeTab ? compactPath(activeTab.cwd) : "Local workspace"}
+              {activeTab
+                ? compactWorkspacePath(activeTab.cwd, 3)
+                : "Local workspace"}
             </strong>
           </div>
           <div className="interactive-terminal-controls">

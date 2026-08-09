@@ -8,14 +8,8 @@ import {
   groupNativePluginCatalog,
 } from "@/runtime/native/plugin-catalog";
 import { json } from "@/server/responses";
+import { hasAsciiControlCharacters } from "@/utils/text-validation";
 import { resolveOwnership } from "./shared";
-
-function containsControlCharacter(value: string): boolean {
-  return [...value].some((character) => {
-    const code = character.codePointAt(0) ?? 0;
-    return code <= 0x1f || code === 0x7f;
-  });
-}
 
 export async function handleRuntimeStatusRoutes(
   context: AppContext,
@@ -120,7 +114,7 @@ export async function handleRuntimeStatusRoutes(
     const query = rawQuery?.trim();
     if (
       (rawQuery !== null &&
-        (!query || query.length > 128 || containsControlCharacter(query))) ||
+        (!query || query.length > 128 || hasAsciiControlCharacters(query))) ||
       (url.searchParams.has("refresh") &&
         !["true", "false", "1", "0"].includes(
           url.searchParams.get("refresh") ?? "",

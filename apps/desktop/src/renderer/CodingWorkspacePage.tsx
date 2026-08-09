@@ -50,6 +50,7 @@ import {
 import type { RepositoryControlChange } from "./repository-control";
 import { codingWorkspaceRequests } from "./resource-request-policy";
 import type { WorkspaceTreeEntry } from "./workspace-file-tree";
+import { compactWorkspacePath } from "./workspace-path";
 import "./coding-workspace.css";
 
 interface RepositorySummary {
@@ -213,11 +214,6 @@ function PaneTabs<T extends string>({
 
 function fileName(path: string): string {
   return path.split("/").filter(Boolean).at(-1) ?? path;
-}
-
-function compactPath(path: string): string {
-  const parts = path.split("/").filter(Boolean);
-  return parts.length > 4 ? `…/${parts.slice(-4).join("/")}` : path;
 }
 
 function boundedContext(value: string, limit = 12_000): string {
@@ -794,7 +790,7 @@ export function CodingWorkspacePage({
               )}
             </div>
             <p title={summary.root}>
-              {compactPath(summary.root ?? "Local workspace")}
+              {compactWorkspacePath(summary.root ?? "Local workspace")}
             </p>
           </div>
         </div>

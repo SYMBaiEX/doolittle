@@ -1,5 +1,6 @@
 import { existsSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, normalize, sep } from "node:path";
+import { hasAsciiControlCharacters } from "@/utils/text-validation";
 import { resolveWorkspacePath } from "../workspace-service/path";
 
 const MAX_BRANCH_LENGTH = 255;
@@ -9,12 +10,7 @@ const MAX_REMOTE_URL_LENGTH = 4_096;
 const MAX_PULL_REQUEST_TITLE_LENGTH = 256;
 const MAX_PULL_REQUEST_BODY_LENGTH = 20_000;
 
-export function hasControlCharacters(value: string): boolean {
-  return Array.from(value).some((character) => {
-    const codePoint = character.codePointAt(0);
-    return codePoint !== undefined && (codePoint <= 31 || codePoint === 127);
-  });
-}
+export const hasControlCharacters = hasAsciiControlCharacters;
 
 export function validateBranchName(value: unknown): string {
   if (typeof value !== "string" || value !== value.trim() || !value) {

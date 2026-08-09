@@ -8,6 +8,7 @@ import {
   EmptyBlock,
   errorMessage,
 } from "../lib";
+import { compactWorkspacePath } from "../workspace-path";
 import "./execution-environments.css";
 import { SandboxControlPanel } from "./SandboxControlPanel";
 
@@ -23,11 +24,6 @@ export interface ExecutionEnvironmentWorktree {
   detached: boolean;
   bare: boolean;
   prunable: boolean;
-}
-
-function compactPath(path: string): string {
-  const parts = path.split("/").filter(Boolean);
-  return parts.length > 4 ? `…/${parts.slice(-4).join("/")}` : path;
 }
 
 export function normalizeExecutionWorktrees(
@@ -111,7 +107,7 @@ export function ExecutionEnvironmentPanel({
       } else {
         setNotice({
           tone: "good",
-          message: `Opened ${compactPath(result.state.currentPath)} locally.`,
+          message: `Opened ${compactWorkspacePath(result.state.currentPath)} locally.`,
         });
         onRefresh();
       }
@@ -136,7 +132,7 @@ export function ExecutionEnvironmentPanel({
           ? { tone: "neutral", message: "Workspace selection cancelled." }
           : {
               tone: "good",
-              message: `Opened ${compactPath(result.state.currentPath)} locally.`,
+              message: `Opened ${compactWorkspacePath(result.state.currentPath)} locally.`,
             },
       );
       if (!result.canceled) onRefresh();
@@ -174,7 +170,7 @@ export function ExecutionEnvironmentPanel({
       setPath("");
       setNotice({
         tone: "good",
-        message: `Created ${result.worktree.branch ?? nextBranch} at ${compactPath(result.worktree.path)}. Choose that directory to open it.`,
+        message: `Created ${result.worktree.branch ?? nextBranch} at ${compactWorkspacePath(result.worktree.path)}. Choose that directory to open it.`,
       });
       onRefresh();
     } catch (cause) {
@@ -193,7 +189,7 @@ export function ExecutionEnvironmentPanel({
         <div>
           <span className="eyebrow">Execution environment</span>
           <strong title={workspaceRoot || undefined}>
-            {compactPath(workspaceRoot || "Local workspace")}
+            {compactWorkspacePath(workspaceRoot || "Local workspace")}
           </strong>
         </div>
         <Badge tone="good">Local</Badge>
@@ -301,7 +297,9 @@ export function ExecutionEnvironmentPanel({
                 ) : null}
                 {worktree.prunable ? <Badge tone="warn">Prunable</Badge> : null}
               </div>
-              <code title={worktree.path}>{compactPath(worktree.path)}</code>
+              <code title={worktree.path}>
+                {compactWorkspacePath(worktree.path)}
+              </code>
               {worktree.head ? <small>{worktree.head}</small> : null}
               {!isCurrentWorkspace(worktree.path, workspaceRoot) ? (
                 <button

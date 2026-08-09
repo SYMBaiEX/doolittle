@@ -1,6 +1,7 @@
 import type { CodeLanguage } from "../code-language";
 import { type ApiResource, asString, ErrorBlock, LoadingBlock } from "../lib";
 import type { WorkspaceTreeEntry } from "../workspace-file-tree";
+import { compactWorkspacePath } from "../workspace-path";
 import { CodeEditor, type CodeEditorStateSnapshot } from "./CodeEditor";
 import { WorkspaceFileTree } from "./WorkspaceFileTree";
 
@@ -22,11 +23,6 @@ export interface ThreadWorkbenchFilesPanelProps {
   onSelectPath: (path: string) => void;
   onInsertFileContext: () => void;
   onEditorStateChange: (snapshot: CodeEditorStateSnapshot) => void;
-}
-
-function compactPath(path: string): string {
-  const parts = path.replaceAll("\\", "/").split("/").filter(Boolean);
-  return parts.length > 3 ? `…/${parts.slice(-3).join("/")}` : path;
 }
 
 export function ThreadWorkbenchFilesPanel({
@@ -66,7 +62,9 @@ export function ThreadWorkbenchFilesPanel({
             {selectedPath ? (
               <>
                 <div>
-                  <code title={selectedPath}>{compactPath(selectedPath)}</code>
+                  <code title={selectedPath}>
+                    {compactWorkspacePath(selectedPath, 3)}
+                  </code>
                   <span>{selectedLanguage.label}</span>
                   <div>
                     <button

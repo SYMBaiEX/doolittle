@@ -45,6 +45,7 @@ import {
   type WorkflowBundleResponse,
 } from "./orchestration-resources";
 import { ReviewPage } from "./ReviewPage";
+import { compactWorkspacePath } from "./workspace-path";
 import "./orchestration.css";
 
 export type WorkTabId = "tasks" | "agents" | "plans" | "runs" | "review";
@@ -98,12 +99,6 @@ const CODEGEN_MODES: Array<{
 function normalizeText(value: string, max = 120): string {
   if (value.length <= max) return value;
   return `${value.slice(0, max)}…`;
-}
-
-function compactPath(value: string): string {
-  const normalized = value.replaceAll("\\", "/");
-  const parts = normalized.split("/").filter(Boolean);
-  return parts.length > 4 ? `…/${parts.slice(-4).join("/")}` : value;
 }
 
 function statusTone(status: string): "good" | "warn" | "bad" | "neutral" {
@@ -1343,7 +1338,7 @@ export function OrchestrationPage({
                 <option key={worktree.path} value={worktree.path}>
                   {worktree.branch ??
                     (worktree.detached ? "detached" : "worktree")}{" "}
-                  · {compactPath(worktree.path)}
+                  · {compactWorkspacePath(worktree.path)}
                 </option>
               ))}
             </select>
@@ -1767,7 +1762,7 @@ export function OrchestrationPage({
                                 (worktree.detached
                                   ? "detached"
                                   : "worktree")}{" "}
-                              · {compactPath(worktree.path)}
+                              · {compactWorkspacePath(worktree.path)}
                             </option>
                           ))}
                         </select>
@@ -1839,7 +1834,7 @@ export function OrchestrationPage({
                         label="Execution root"
                         value={
                           selectedTask.workspaceRoot
-                            ? compactPath(selectedTask.workspaceRoot)
+                            ? compactWorkspacePath(selectedTask.workspaceRoot)
                             : "current workspace"
                         }
                       />
@@ -2539,7 +2534,7 @@ export function OrchestrationPage({
               ) : null}
               <p className="orchestration-task-routing-note">
                 {workspacePath
-                  ? `Project defaults come from ${compactPath(workspacePath)}. QA uses this path directly; other workflows retain the selected project name in their receipt.`
+                  ? `Project defaults come from ${compactWorkspacePath(workspacePath)}. QA uses this path directly; other workflows retain the selected project name in their receipt.`
                   : "Choose a workspace to prefill project context for build and research receipts."}
               </p>
             </aside>

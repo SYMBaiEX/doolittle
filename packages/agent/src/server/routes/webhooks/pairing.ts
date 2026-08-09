@@ -1,6 +1,7 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import { json } from "@/server/responses";
 import type { PlatformName } from "@/types";
+import { hasAsciiControlCharacters } from "@/utils/text-validation";
 
 const PAIRING_PLATFORMS = new Set<PlatformName>([
   "telegram",
@@ -23,13 +24,6 @@ function pairingPlatform(value: string | null): PlatformName | null {
   return value && PAIRING_PLATFORMS.has(value as PlatformName)
     ? (value as PlatformName)
     : null;
-}
-
-function containsControlCharacter(value: string): boolean {
-  return [...value].some((character) => {
-    const code = character.codePointAt(0) ?? 0;
-    return code <= 0x1f || code === 0x7f;
-  });
 }
 
 function pairingListQuery(
@@ -93,7 +87,7 @@ async function pairingBody(
     if (
       !normalized ||
       normalized.length > 256 ||
-      containsControlCharacter(normalized)
+      hasAsciiControlCharacters(normalized)
     ) {
       return null;
     }

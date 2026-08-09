@@ -13,32 +13,11 @@ import {
 } from "@/runtime/native/service-bridge/browser";
 import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
 import { json } from "@/server/responses";
+import { hasEncodedAsciiControlCharacters } from "@/utils/text-validation";
 
 type BrowserAnalysisTurn = typeof runModelAnalysis;
 
 const MAX_BROWSER_URL_LENGTH = 4_096;
-
-function hasControlCharacters(value: string): boolean {
-  return Array.from(value).some((character) => {
-    const codePoint = character.codePointAt(0);
-    return codePoint !== undefined && (codePoint <= 31 || codePoint === 127);
-  });
-}
-
-function hasEncodedControlCharacters(value: string): boolean {
-  let decoded = value;
-  for (let index = 0; index < 6; index += 1) {
-    if (hasControlCharacters(decoded)) return true;
-    try {
-      const next = decodeURIComponent(decoded);
-      if (next === decoded) return false;
-      decoded = next;
-    } catch {
-      return false;
-    }
-  }
-  return hasControlCharacters(decoded);
-}
 
 function validateBrowserUrl(value: unknown, field: string): string | null {
   if (typeof value !== "string" || value.length === 0) {
@@ -47,7 +26,7 @@ function validateBrowserUrl(value: unknown, field: string): string | null {
   if (value.length > MAX_BROWSER_URL_LENGTH) {
     return `${field} must be at most ${MAX_BROWSER_URL_LENGTH} characters`;
   }
-  if (hasEncodedControlCharacters(value)) {
+  if (hasEncodedAsciiControlCharacters(value)) {
     return `${field} must not contain control characters`;
   }
 

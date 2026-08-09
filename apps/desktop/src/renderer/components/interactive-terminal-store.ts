@@ -81,13 +81,13 @@ function randomId(): string {
   return `${Date.now()}-${Math.floor(Math.random() * 1_000_000_000)}`;
 }
 
-function compactWorkspacePath(workspacePath: string): string {
+function normalizeWorkspaceStoragePath(workspacePath: string): string {
   return (workspacePath || "workspace").trim() || "workspace";
 }
 
 export function interactiveTerminalStorageKey(workspacePath: string): string {
   return `${INTERACTIVE_TERMINAL_STORAGE_PREFIX}${encodeURIComponent(
-    compactWorkspacePath(workspacePath),
+    normalizeWorkspaceStoragePath(workspacePath),
   )}`;
 }
 

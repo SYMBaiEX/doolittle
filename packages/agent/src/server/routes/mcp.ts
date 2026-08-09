@@ -13,6 +13,7 @@ import {
   searchEffectiveMcpMarketplace,
 } from "@/runtime/native/service-bridge/tooling";
 import { json } from "@/server/responses";
+import { hasAsciiControlCharacters } from "@/utils/text-validation";
 
 const MAX_MARKETPLACE_QUERY_LENGTH = 128;
 const MAX_MARKETPLACE_SERVER_NAME_LENGTH = 256;
@@ -24,17 +25,11 @@ function marketplaceQuery(value: string | null): string | null {
   if (
     !query ||
     query.length > MAX_MARKETPLACE_QUERY_LENGTH ||
-    hasControlCharacter(query)
+    hasAsciiControlCharacters(query)
   ) {
     return null;
   }
   return query;
-}
-
-function hasControlCharacter(value: string): boolean {
-  return [...value].some(
-    (character) => character <= "\u001F" || character === "\u007F",
-  );
 }
 
 function marketplaceServerName(value: string | null): string | null {

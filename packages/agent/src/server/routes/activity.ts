@@ -12,6 +12,7 @@ import {
   buildActivityFeed,
   decodeActivityCursor,
 } from "@/services/activity-feed";
+import { hasAsciiControlCharacters } from "@/utils/text-validation";
 
 const ACTIVITY_QUERY_KEYS = new Set([
   "limit",
@@ -109,13 +110,10 @@ function parseFilters(url: URL): ActivityFeedFilters | Response {
   );
   if (target instanceof Response) return target;
   const sessionId = url.searchParams.get("sessionId")?.trim();
-  const sessionIdHasControlCharacter = sessionId
-    ? Array.from(sessionId).some((character) => {
-        const code = character.codePointAt(0) ?? 0;
-        return code < 32 || code === 127;
-      })
-    : false;
-  if (sessionId && (sessionId.length > 256 || sessionIdHasControlCharacter)) {
+  if (
+    sessionId &&
+    (sessionId.length > 256 || hasAsciiControlCharacters(sessionId))
+  ) {
     return json({ error: "sessionId is invalid" }, 400);
   }
   return { kind, status, target, ...(sessionId ? { sessionId } : {}) };
