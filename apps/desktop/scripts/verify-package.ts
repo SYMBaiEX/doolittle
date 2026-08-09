@@ -15,6 +15,7 @@ const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const args = process.argv.slice(2);
 
 type RuntimeManifest = {
+  assets?: string[];
   entry?: string;
   nativePackages?: string[];
 };
@@ -116,6 +117,14 @@ function verifyPackagedNativeRuntime(appAsarPath: string): string[] {
   const runtimeEntry = runtimeManifest.entry?.trim();
   if (!runtimeEntry || !existsSync(resolve(runtimeBin, runtimeEntry))) {
     throw new Error("Packaged runtime entry is missing.");
+  }
+  const missingAssets = (runtimeManifest.assets ?? []).filter(
+    (asset) => !existsSync(resolve(runtimeBin, asset)),
+  );
+  if (missingAssets.length > 0) {
+    throw new Error(
+      `Packaged runtime assets are missing: ${missingAssets.join(", ")}`,
+    );
   }
   const nativePackages = runtimeManifest.nativePackages ?? [];
   const runtimeRequire = createRequire(resolve(runtimeBin, runtimeEntry));

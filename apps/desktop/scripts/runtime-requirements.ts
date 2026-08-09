@@ -1,4 +1,6 @@
 const DYNAMIC_COMMONJS_REQUIRE = /import\.meta\.url\)\("([^"]+)"\)/gu;
+const RUNTIME_ASSET_REFERENCE =
+  /new URL\(\s*["']\.\/([^"']+?\.(?:tar\.gz|wasm|data))["']\s*,\s*import\.meta\.url\s*\)/gu;
 
 export type RuntimePackageManifest = {
   dependencies?: Record<string, string>;
@@ -9,6 +11,16 @@ export function discoverDynamicCommonJsPackages(source: string): string[] {
   return [
     ...new Set(
       [...source.matchAll(DYNAMIC_COMMONJS_REQUIRE)]
+        .map((match) => match[1]?.trim())
+        .filter((name): name is string => Boolean(name)),
+    ),
+  ].sort();
+}
+
+export function discoverRuntimeAssetReferences(source: string): string[] {
+  return [
+    ...new Set(
+      [...source.matchAll(RUNTIME_ASSET_REFERENCE)]
         .map((match) => match[1]?.trim())
         .filter((name): name is string => Boolean(name)),
     ),

@@ -1,27 +1,16 @@
-import { autoUpdater } from "electron-updater";
+import electronUpdater, { type AppUpdater } from "electron-updater";
 import type { DesktopUpdateState } from "../shared/contracts";
 
-export interface UpdateProvider {
-  checkForUpdates(): Promise<unknown>;
-  downloadUpdate(): Promise<unknown>;
-  quitAndInstall(): void;
-  on(event: "checking-for-update", listener: () => void): unknown;
-  on(
-    event: "update-available" | "update-not-available" | "update-downloaded",
-    listener: (info: { version?: string }) => void,
-  ): unknown;
-  on(
-    event: "download-progress",
-    listener: (progress: { percent?: number }) => void,
-  ): unknown;
-  on(event: "error", listener: (error: Error) => void): unknown;
-}
+// electron-updater remains CommonJS. Its documented named import does not load
+// from Electron's native ESM main process, so unwrap the package default here.
 
-export interface ConfigurableUpdateProvider extends UpdateProvider {
-  autoDownload: boolean;
-  autoInstallOnAppQuit: boolean;
-  setFeedURL(options: { provider: "generic"; url: string }): void;
-}
+export type UpdateProvider = Pick<
+  AppUpdater,
+  "checkForUpdates" | "downloadUpdate" | "on" | "quitAndInstall"
+>;
+
+export type ConfigurableUpdateProvider = UpdateProvider &
+  Pick<AppUpdater, "autoDownload" | "autoInstallOnAppQuit" | "setFeedURL">;
 
 export class DesktopUpdateController {
   private state: DesktopUpdateState;
@@ -114,7 +103,7 @@ export function configureUpdateProvider(
 // from app-update.yml. A generic feed remains available for private distributions.
 export function configuredUpdater(): UpdateProvider {
   return configureUpdateProvider(
-    autoUpdater as unknown as ConfigurableUpdateProvider,
+    electronUpdater.autoUpdater,
     process.env.DOOLITTLE_UPDATE_FEED_URL?.trim() || undefined,
   );
 }

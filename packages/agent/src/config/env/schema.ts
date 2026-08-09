@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { resolveCloudApiBaseUrl } from "@/runtime/linked-provider-accounts/cloud-url";
 
+function strictEnvBoolean(defaultValue: boolean) {
+  return z
+    .stringbool({ truthy: ["true"], falsy: ["false"] })
+    .default(defaultValue);
+}
+
 export const envSchema = z.object({
   DOOLITTLE_NAME: z.string().default("Doolittle"),
   DOOLITTLE_MODE: z.enum(["api", "cli", "both"]).default("both"),
@@ -12,10 +18,7 @@ export const envSchema = z.object({
   DOOLITTLE_SKILLS_DIR: z.string().default("./packages/skills"),
   DOOLITTLE_TIMEZONE: z.string().default("America/Chicago"),
   ELIZAOS_CLOUD_API_KEY: z.string().optional(),
-  ELIZAOS_CLOUD_ENABLED: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
+  ELIZAOS_CLOUD_ENABLED: strictEnvBoolean(false),
   ELIZAOS_CLOUD_BASE_URL: z.string().default(resolveCloudApiBaseUrl()),
   ELIZAOS_CLOUD_SMALL_MODEL: z
     .string()
@@ -36,18 +39,9 @@ export const envSchema = z.object({
   OLLAMA_LARGE_MODEL: z.string().default("granite4.1:3b"),
   OLLAMA_EMBEDDING_MODEL: z.string().default("nomic-embed-text:latest"),
   OPENAI_API_KEY: z.string().optional(),
-  DOOLITTLE_OFFLINE_BOOTSTRAP: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
-  DOOLITTLE_USE_LINKED_CODEX_AUTH: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
-  DOOLITTLE_USE_LINKED_DEVIN_AUTH: z
-    .enum(["true", "false"])
-    .default("true")
-    .transform((value) => value === "true"),
+  DOOLITTLE_OFFLINE_BOOTSTRAP: strictEnvBoolean(false),
+  DOOLITTLE_USE_LINKED_CODEX_AUTH: strictEnvBoolean(false),
+  DOOLITTLE_USE_LINKED_DEVIN_AUTH: strictEnvBoolean(true),
   DEVIN_CLI_COMMAND: z.string().default("devin"),
   DEVIN_MODEL: z.string().default("swe-1-6-fast"),
   DEVIN_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
@@ -57,14 +51,8 @@ export const envSchema = z.object({
   OPENAI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.4),
   OPENAI_MAX_TOKENS: z.coerce.number().int().positive().default(1200),
   ANTHROPIC_API_KEY: z.string().optional(),
-  DOOLITTLE_USE_LINKED_CLAUDE_CODE_AUTH: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
-  DOOLITTLE_CLAUDE_CODE_CLI_FALLBACK: z
-    .enum(["true", "false"])
-    .default("true")
-    .transform((value) => value === "true"),
+  DOOLITTLE_USE_LINKED_CLAUDE_CODE_AUTH: strictEnvBoolean(false),
+  DOOLITTLE_CLAUDE_CODE_CLI_FALLBACK: strictEnvBoolean(true),
   ANTHROPIC_BASE_URL: z.string().optional(),
   ANTHROPIC_SMALL_MODEL: z.string().default("claude-haiku-4-5-20251001"),
   ANTHROPIC_LARGE_MODEL: z.string().default("claude-sonnet-4.6"),
@@ -101,10 +89,7 @@ export const envSchema = z.object({
     .default("lightpanda"),
   DOOLITTLE_BROWSER_COMMAND: z.string().default("lightpanda"),
   DOOLITTLE_BROWSER_CDP_URL: z.string().optional(),
-  DOOLITTLE_BROWSER_OBEY_ROBOTS: z
-    .enum(["true", "false"])
-    .default("true")
-    .transform((value) => value === "true"),
+  DOOLITTLE_BROWSER_OBEY_ROBOTS: strictEnvBoolean(true),
   DOOLITTLE_REMOTE_SYNC_MODE: z.enum(["mirror", "snapshot"]).default("mirror"),
   DOOLITTLE_REMOTE_SYNC_INCLUDE: z.string().default("**/*"),
   DOOLITTLE_REMOTE_SYNC_EXCLUDE: z
@@ -172,29 +157,20 @@ export const envSchema = z.object({
     .int()
     .positive()
     .default(256),
-  DOOLITTLE_CONTAINER_READ_ONLY_ROOT: z
-    .enum(["true", "false"])
-    .default("true")
-    .transform((value) => value === "true"),
+  DOOLITTLE_CONTAINER_READ_ONLY_ROOT: strictEnvBoolean(true),
   DOOLITTLE_SSH_HOST: z.string().optional(),
   DOOLITTLE_SSH_USER: z.string().optional(),
   DOOLITTLE_SSH_PATH: z.string().optional(),
   DOOLITTLE_SSH_PORT: z.coerce.number().int().positive().default(22),
   DOOLITTLE_SSH_KEY_PATH: z.string().optional(),
-  DOOLITTLE_SSH_STRICT_HOST_KEY_CHECKING: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
+  DOOLITTLE_SSH_STRICT_HOST_KEY_CHECKING: strictEnvBoolean(false),
   DOOLITTLE_MEMORY_CHAR_LIMIT: z.coerce.number().int().positive().default(2200),
   DOOLITTLE_USER_CHAR_LIMIT: z.coerce.number().int().positive().default(1375),
   DOOLITTLE_SESSION_SEARCH_LIMIT: z.coerce.number().int().positive().default(6),
   DOOLITTLE_GATEWAY_DATA_DIR: z.string().default(".doolittle/gateway"),
   DOOLITTLE_HOOKS_DIR: z.string().default(".doolittle/hooks"),
   DOOLITTLE_WORKSPACE_DIR: z.string().default("."),
-  DOOLITTLE_ALLOW_ALL_USERS: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
+  DOOLITTLE_ALLOW_ALL_USERS: strictEnvBoolean(false),
   DOOLITTLE_PAIRING_MODE: z.enum(["pair", "deny", "allow"]).default("pair"),
   MCP_SERVER_COMMAND: z.string().optional(),
   MCP_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),

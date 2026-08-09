@@ -79,6 +79,19 @@ describe("env config builder", () => {
     ).toBe(false);
   });
 
+  it("uses Zod string booleans without accepting ambiguous environment values", () => {
+    expect(
+      parseEnv({
+        DOOLITTLE_ALLOW_ALL_USERS: "true",
+        DOOLITTLE_BROWSER_OBEY_ROBOTS: "false",
+      }),
+    ).toMatchObject({
+      DOOLITTLE_ALLOW_ALL_USERS: true,
+      DOOLITTLE_BROWSER_OBEY_ROBOTS: false,
+    });
+    expect(() => parseEnv({ DOOLITTLE_ALLOW_ALL_USERS: "yes" })).toThrow();
+  });
+
   it("migrates the retired HTTP ACP launcher without touching custom commands", () => {
     expect(resolveAcpServerCommand("doolittle api")).toBe("doolittle acp");
     expect(resolveAcpServerCommand("custom-acp --stdio")).toBe(

@@ -1,5 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, relative, resolve } from "node:path";
+// TypeScript 7's stable package does not expose the compiler API yet. Keep the
+// isolated TypeScript 6 alias for editor project discovery until it does.
 import ts from "typescript-legacy";
 import type {
   EditorProjectCompilerOptions,

@@ -21,6 +21,10 @@ export default defineConfig({
         ...builtinModules,
         ...builtinModules.map((name) => `node:${name}`),
       ],
+      output: {
+        banner:
+          'import { createRequire as __doolittleCreateRequire } from "node:module";import { fileURLToPath as __doolittleFileURLToPath } from "node:url";import { dirname as __doolittleDirname } from "node:path";const require = __doolittleCreateRequire(import.meta.url);const __filename = __doolittleFileURLToPath(import.meta.url);const __dirname = __doolittleDirname(__filename);',
+      },
     },
     sourcemap: process.env.DOOLITTLE_DESKTOP_SOURCEMAPS === "1",
     target: "node24",

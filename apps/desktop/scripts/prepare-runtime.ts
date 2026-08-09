@@ -14,24 +14,23 @@ import { fileURLToPath } from "node:url";
 import { build, type Plugin } from "esbuild";
 import {
   discoverDynamicCommonJsPackages,
+  discoverRuntimeAssetReferences,
   type RuntimePackageManifest,
   runtimePackageClosure,
 } from "./runtime-requirements";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
+const repoRequire = createRequire(resolve(repoRoot, "package.json"));
 const outputDir = resolve(desktopRoot, "build", "runtime");
 const outputPath = resolve(outputDir, "doolittle-runtime.mjs");
 const acpOutputPath = resolve(outputDir, "doolittle-acp.mjs");
 const runtimeNodeModulesDir = resolve(outputDir, "node_modules");
 const nativeExternalPackages = ["@snazzah/davey"] as const;
-const pgliteDist = resolve(
-  repoRoot,
-  "node_modules",
-  "@electric-sql",
-  "pglite",
-  "dist",
+const pluginSqlRequire = createRequire(
+  repoRequire.resolve("@elizaos/plugin-sql/package.json"),
 );
+const pgliteDist = dirname(pluginSqlRequire.resolve("@electric-sql/pglite"));
 
 rmSync(outputDir, { recursive: true, force: true });
 mkdirSync(outputDir, { recursive: true });
@@ -110,7 +109,7 @@ await build({
       "first-party",
       "curated-app-definitions.json",
     ),
-    dotenv: resolve(repoRoot, "node_modules", "dotenv", "lib", "main.js"),
+    dotenv: repoRequire.resolve("dotenv"),
   },
   banner: {
     js: [
@@ -137,11 +136,10 @@ function installedRuntimePackageGraph(rootPackages: readonly string[]): {
   manifests: Map<string, RuntimePackageManifest | undefined>;
   sourceDirectories: Map<string, string>;
 } {
-  const rootResolver = createRequire(resolve(repoRoot, "package.json"));
   const manifests = new Map<string, RuntimePackageManifest | undefined>();
   const sourceDirectories = new Map<string, string>();
   const pending: Array<{ name: string; resolver: NodeRequire }> =
-    rootPackages.map((name) => ({ name, resolver: rootResolver }));
+    rootPackages.map((name) => ({ name, resolver: repoRequire }));
 
   while (pending.length > 0) {
     const next = pending.pop();
@@ -297,6 +295,18 @@ for (const packageName of discoverDynamicCommonJsPackages(
   }
 }
 
+const referencedRuntimeAssets = discoverRuntimeAssetReferences(
+  bundledEntries.join("\n"),
+);
+const missingRuntimeAssets = referencedRuntimeAssets.filter(
+  (asset) => !existsSync(resolve(outputDir, asset)),
+);
+if (missingRuntimeAssets.length > 0) {
+  throw new Error(
+    `Packaged runtime is missing referenced assets: ${missingRuntimeAssets.join(", ")}`,
+  );
+}
+
 writeFileSync(
   resolve(outputDir, "runtime-manifest.json"),
   `${JSON.stringify(
@@ -305,7 +315,7 @@ writeFileSync(
       entry: basename(outputPath),
       acpEntry: basename(acpOutputPath),
       node: "electron-embedded",
-      assets: pgliteAssets.length,
+      assets: pgliteAssets,
       nativePackages: copiedNativePackages,
     },
     null,

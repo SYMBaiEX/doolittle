@@ -3,6 +3,7 @@ import {
   type FormEvent,
   type RefObject,
   useEffect,
+  useEffectEvent,
   useId,
   useMemo,
   useRef,
@@ -145,12 +146,32 @@ function useDialogFocus(
   suspended = false,
 ) {
   const previousFocus = useRef<HTMLElement | null>(null);
-  const closeRef = useRef(onClose);
-  const suspendedRef = useRef(suspended);
-  suspendedRef.current = suspended;
-  useEffect(() => {
-    closeRef.current = onClose;
-  }, [onClose]);
+  const handleDialogKey = useEffectEvent((event: KeyboardEvent) => {
+    if (!shouldHandleDialogKey(event.key, suspended)) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = Array.from(
+      dialogRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? [],
+    ).filter(isFocusable);
+    const first = focusable.at(0);
+    const last = focusable.at(-1);
+    if (!first || !last) {
+      event.preventDefault();
+      dialogRef.current?.focus();
+    } else if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -161,35 +182,9 @@ function useDialogFocus(
     requestAnimationFrame(
       () => initialFocusRef.current?.focus() ?? dialogRef.current?.focus(),
     );
-    const keydown = (event: KeyboardEvent) => {
-      if (!shouldHandleDialogKey(event.key, suspendedRef.current)) return;
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeRef.current();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const focusable = Array.from(
-        dialogRef.current?.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      ).filter(isFocusable);
-      const first = focusable.at(0);
-      const last = focusable.at(-1);
-      if (!first || !last) {
-        event.preventDefault();
-        dialogRef.current?.focus();
-      } else if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", keydown);
+    window.addEventListener("keydown", handleDialogKey);
     return () => {
-      window.removeEventListener("keydown", keydown);
+      window.removeEventListener("keydown", handleDialogKey);
       const previous = previousFocus.current;
       previousFocus.current = null;
       if (previous?.isConnected) requestAnimationFrame(() => previous.focus());

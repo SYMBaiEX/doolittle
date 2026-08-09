@@ -93,9 +93,6 @@ export function InteractiveTerminal({
   const renameInputRef = useRef<HTMLInputElement | null>(null);
   const pollingRef = useRef(false);
   const inputSequenceRef = useRef(Promise.resolve());
-  const syncSessionRef = useRef<
-    (tabId: string, snapshot: InteractiveTerminalSession) => void
-  >(() => {});
   const dimensionsRef = useRef({ cols: 100, rows: 30 });
   const [terminalSize, setTerminalSize] = useState(dimensionsRef.current);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -121,6 +118,42 @@ export function InteractiveTerminal({
     );
     return next;
   }, []);
+
+  const updateTab = useCallback(
+    (
+      tabId: string,
+      updater: (
+        tab: InteractiveTerminalTabState,
+      ) => InteractiveTerminalTabState,
+    ) => {
+      setTabs((current) =>
+        current.map((tab) => (tab.id === tabId ? updater(tab) : tab)),
+      );
+    },
+    [],
+  );
+
+  const syncSession = useCallback(
+    (tabId: string, snapshot: InteractiveTerminalSession) => {
+      updateTab(tabId, (tab) => ({
+        ...tab,
+        sessionId: snapshot.id,
+        state: snapshot.state,
+        shell: snapshot.shell,
+        cwd: snapshot.cwd,
+        cols: snapshot.cols,
+        rows: snapshot.rows,
+        startedAt: snapshot.startedAt,
+        completedAt: snapshot.completedAt ?? null,
+        exitCode: snapshot.exitCode ?? null,
+        pty: snapshot.pty,
+        supportsResize: snapshot.supportsResize,
+        outputBytes: snapshot.outputBytes,
+        stale: false,
+      }));
+    },
+    [updateTab],
+  );
 
   useEffect(() => {
     if (loadedWorkspaceRef.current === workspacePath) return;
@@ -239,7 +272,7 @@ export function InteractiveTerminal({
             data,
           }),
         )
-        .then((session) => syncSessionRef.current(activeTab.id, session))
+        .then((session) => syncSession(activeTab.id, session))
         .catch((error) => setNotice(errorMessage(error)));
     });
 
@@ -250,23 +283,10 @@ export function InteractiveTerminal({
       fitAddonRef.current = null;
       xtermTabIdRef.current = null;
     };
-  }, [activeTabId, fitTerminalToViewport]);
+  }, [activeTabId, fitTerminalToViewport, syncSession]);
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
   const running = activeTab?.state === "running";
-  const updateTab = useCallback(
-    (
-      tabId: string,
-      updater: (
-        tab: InteractiveTerminalTabState,
-      ) => InteractiveTerminalTabState,
-    ) => {
-      setTabs((current) =>
-        current.map((tab) => (tab.id === tabId ? updater(tab) : tab)),
-      );
-    },
-    [],
-  );
 
   const setTabToClosed = useCallback(
     (tabId: string, message = "Terminal session is no longer available.") => {
@@ -355,32 +375,6 @@ export function InteractiveTerminal({
     },
     [appendOutputToTab, setTabToClosed],
   );
-
-  const syncSession = useCallback(
-    (tabId: string, snapshot: InteractiveTerminalSession) => {
-      updateTab(tabId, (tab) => ({
-        ...tab,
-        sessionId: snapshot.id,
-        state: snapshot.state,
-        shell: snapshot.shell,
-        cwd: snapshot.cwd,
-        cols: snapshot.cols,
-        rows: snapshot.rows,
-        startedAt: snapshot.startedAt,
-        completedAt: snapshot.completedAt ?? null,
-        exitCode: snapshot.exitCode ?? null,
-        pty: snapshot.pty,
-        supportsResize: snapshot.supportsResize,
-        outputBytes: snapshot.outputBytes,
-        stale: false,
-      }));
-    },
-    [updateTab],
-  );
-
-  useEffect(() => {
-    syncSessionRef.current = syncSession;
-  }, [syncSession]);
 
   const onStart = async () => {
     if (!activeTab || starting || !active) return;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   discoverDynamicCommonJsPackages,
+  discoverRuntimeAssetReferences,
   runtimePackageClosure,
 } from "./runtime-requirements";
 
@@ -24,6 +25,31 @@ describe("packaged runtime CommonJS requirements", () => {
     expect(
       discoverDynamicCommonJsPackages(
         'import workspace from "git-workspace-service";',
+      ),
+    ).toEqual([]);
+  });
+
+  it("discovers and deduplicates local runtime assets", () => {
+    expect(
+      discoverRuntimeAssetReferences(
+        [
+          'new URL("./vector.tar.gz",import.meta.url)',
+          "new URL('./pglite.wasm', import.meta.url)",
+          'new URL("./pglite.data", import.meta.url)',
+          'new URL("./vector.tar.gz", import.meta.url)',
+        ].join("\n"),
+      ),
+    ).toEqual(["pglite.data", "pglite.wasm", "vector.tar.gz"]);
+  });
+
+  it("ignores remote and unrelated URL references", () => {
+    expect(
+      discoverRuntimeAssetReferences(
+        [
+          'new URL("https://example.com/pglite.wasm")',
+          'new URL("./runtime.mjs", import.meta.url)',
+          'new URL("../pglite.wasm", import.meta.url)',
+        ].join("\n"),
       ),
     ).toEqual([]);
   });

@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  findMismatchedWorkflowNubVersions,
   findMutableWorkflowActions,
   isImmutableWorkflowAction,
 } from "./check-workflow-security";
@@ -57,5 +58,42 @@ describe("workflow action security", () => {
       );
 
     expect(failures).toEqual([]);
+  });
+
+  it("requires setup-nub actions to use the repository toolchain version", () => {
+    const source = [
+      "steps:",
+      "  - name: Current",
+      "    uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d",
+      "    with:",
+      "      nub-version: 0.7.4",
+      "  - name: Stale",
+      "    uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d",
+      "    with:",
+      "      nub-version: 0.6.0",
+      "  - name: Missing",
+      "    uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d",
+    ].join("\n");
+
+    expect(
+      findMismatchedWorkflowNubVersions(
+        source,
+        ".github/workflows/example.yml",
+        "0.7.4",
+      ),
+    ).toEqual([
+      {
+        file: ".github/workflows/example.yml",
+        line: 9,
+        expected: "0.7.4",
+        actual: "0.6.0",
+      },
+      {
+        file: ".github/workflows/example.yml",
+        line: 11,
+        expected: "0.7.4",
+        actual: "<missing>",
+      },
+    ]);
   });
 });
