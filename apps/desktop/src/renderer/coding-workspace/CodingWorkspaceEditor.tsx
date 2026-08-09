@@ -5,7 +5,11 @@ import {
   CodeEditor,
   type CodeEditorStateSnapshot,
 } from "../components/CodeEditor";
-import type { useDesktopAcpEditorBridge } from "../desktop-acp-client";
+import type {
+  DesktopAcpPhase,
+  DesktopAcpPromptPhase,
+  DesktopAcpSessionUpdate,
+} from "../desktop-acp-client";
 import { type ApiResource, EmptyBlock, ErrorBlock, LoadingBlock } from "../lib";
 import type {
   ActionNotice,
@@ -17,11 +21,24 @@ import type {
 import { fileName, patchLines, statusLabel } from "./models";
 import { PaneTabs } from "./PaneTabs";
 
-type AcpEditorBridge = ReturnType<typeof useDesktopAcpEditorBridge>;
 type VisiblePatchMutation = Extract<
   RepositoryMutationRequest["type"],
   "stage-hunk" | "unstage-hunk" | "discard-hunk"
 >;
+
+export interface CodingWorkspaceAcpViewModel {
+  cancel: () => Promise<void>;
+  error: string;
+  lastUpdateLabel: string;
+  phase: DesktopAcpPhase;
+  promptBusy: boolean;
+  promptError: string;
+  promptPhase: DesktopAcpPromptPhase;
+  responseText: string;
+  sessionId: string;
+  stopReason: string;
+  updates: readonly DesktopAcpSessionUpdate[];
+}
 
 export function CodingWorkspaceEditor({
   editorPane,
@@ -65,7 +82,7 @@ export function CodingWorkspaceEditor({
   savingFile: boolean;
   draftContent: string;
   workspacePath: string;
-  acpEditor: AcpEditorBridge;
+  acpEditor: CodingWorkspaceAcpViewModel;
   acpTaskOpen: boolean;
   acpTaskDraft: string;
   onDraftChange: (value: string) => void;

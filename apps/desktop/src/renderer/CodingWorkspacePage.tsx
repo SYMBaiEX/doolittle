@@ -11,6 +11,7 @@ import {
 import type { WorkspacePickResult } from "../shared/contracts";
 import type { ChatContextRequest } from "./chat-context-handoff";
 import { detectCodeLanguage } from "./code-language";
+import { submitAcpEditorTask } from "./coding-workspace/acp-task";
 import { CodingWorkspaceEditor } from "./coding-workspace/CodingWorkspaceEditor";
 import { CodingWorkspaceExplorer } from "./coding-workspace/CodingWorkspaceExplorer";
 import { CodingWorkspaceHeader } from "./coding-workspace/CodingWorkspaceHeader";
@@ -478,8 +479,7 @@ export function CodingWorkspacePage({
   };
 
   const submitAcpTask = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    await acpEditor.prompt(acpTaskDraft);
+    await submitAcpEditorTask(event, acpEditor.prompt, acpTaskDraft);
   };
 
   return (
