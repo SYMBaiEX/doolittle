@@ -2073,8 +2073,7 @@ async function showSensitiveActionConfirmation(
 ): Promise<boolean> {
   // Keep this load lazy so the validation helpers remain runnable outside the
   // Electron process in unit tests.
-  const nativeDialog = (require("electron") as typeof import("electron"))
-    .dialog;
+  const { dialog: nativeDialog } = await import("electron");
   if (!nativeDialog) {
     throw new Error("The native confirmation dialog is unavailable.");
   }

@@ -9,7 +9,7 @@ describe("desktop package composition policy", () => {
   it("finds direct and scoped modules in an app.asar listing", () => {
     expect(
       packageNamesFromAsarEntries([
-        "/main.cjs",
+        "/main.mjs",
         "/node_modules/electron-updater/out/main.js",
         "/node_modules/@scope/runtime/index.js",
         "/node_modules/electron-updater/node_modules/nested/index.js",

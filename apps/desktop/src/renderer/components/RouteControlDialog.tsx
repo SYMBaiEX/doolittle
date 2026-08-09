@@ -1,4 +1,11 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type FormEvent,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { RuntimeStatus } from "../../shared/contracts";
 import {
   asRecord,
@@ -108,11 +115,7 @@ export function RouteControlDialog({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
-  const onCloseRef = useRef(onClose);
-
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
+  const closeFromEffect = useEffectEvent(onClose);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -167,7 +170,7 @@ export function RouteControlDialog({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onCloseRef.current();
+        closeFromEffect();
         return;
       }
       if (event.key !== "Tab") return;

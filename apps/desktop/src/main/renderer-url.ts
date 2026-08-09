@@ -1,4 +1,4 @@
-import { isLoopbackBindHost } from "@elizaos/shared";
+import { isLoopbackBindHost } from "@elizaos/shared/runtime-env";
 
 export function trustedDevRendererUrl(
   configuredUrl: string | undefined,

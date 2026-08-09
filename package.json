@@ -155,7 +155,6 @@
     "@elizaos/ui": "2.0.3-beta.7",
     "@elizaos/vault": "2.0.3-beta.7",
     "elizaos": "2.0.3-beta.7",
-    "ollama-ai-provider": "npm:ollama-ai-provider-v2@^4.0.1",
     "protobufjs": "8.7.2",
     "tar": "7.5.22"
   },

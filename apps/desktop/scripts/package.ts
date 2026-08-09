@@ -45,7 +45,7 @@ const localNubx = resolve(
 );
 const result = spawnSync(
   existsSync(localNubx) ? localNubx : "nubx",
-  ["--node", "electron-builder", ...args],
+  ["electron-builder", ...args],
   {
     cwd: desktopRoot,
     env,

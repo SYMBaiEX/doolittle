@@ -23,14 +23,17 @@ describe("env loading", () => {
         path: "/repo/.env",
         override: false,
         quiet: true,
+        processEnv: env,
       },
     ]);
   });
 
   it("falls back to default dotenv resolution when the repo file is absent", () => {
     const calls: DotenvConfigOptions[] = [];
+    const env: NodeJS.ProcessEnv = {};
 
     loadProcessEnv("/repo", {
+      env,
       exists: () => false,
       load: (options) => {
         calls.push(options ?? {});
@@ -42,6 +45,7 @@ describe("env loading", () => {
       {
         override: false,
         quiet: true,
+        processEnv: env,
       },
     ]);
   });

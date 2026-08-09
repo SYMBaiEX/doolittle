@@ -57,6 +57,7 @@ let quitting = false;
 let tray: Tray | null = null;
 let desktopPreferences: DesktopPreferences | null = null;
 let updates: DesktopUpdateController | null = null;
+const mainBundleDirectory = import.meta.dirname;
 
 function sendAppCommand(command: DesktopCommand): void {
   if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -83,10 +84,15 @@ function showBackgroundNotification({
   notification.show();
 }
 
+function currentWorkspaceDialogPath(): string | undefined {
+  return workspaceState?.getState().currentPath;
+}
+
 async function pickFiles() {
   const options = {
     title: "Add context to Doolittle",
     buttonLabel: "Add context",
+    defaultPath: currentWorkspaceDialogPath(),
     properties: [
       "openFile",
       "multiSelections",
@@ -106,6 +112,7 @@ async function pickProjectFiles() {
   const options: Electron.OpenDialogOptions = {
     title: "Add files to this project",
     buttonLabel: "Add to project",
+    defaultPath: currentWorkspaceDialogPath(),
     properties: ["openFile", "multiSelections", "dontAddToRecent"],
   };
   const result = mainWindow
@@ -122,6 +129,7 @@ async function pickProjectFolders() {
   const options: Electron.OpenDialogOptions = {
     title: "Add folders to this project",
     buttonLabel: "Add to project",
+    defaultPath: currentWorkspaceDialogPath(),
     properties: ["openDirectory", "multiSelections", "dontAddToRecent"],
   };
   const result = mainWindow
@@ -138,6 +146,7 @@ async function pickChatAttachments(runtimeDataDir: string) {
   const options = {
     title: "Attach files to this message",
     buttonLabel: "Attach",
+    defaultPath: currentWorkspaceDialogPath(),
     properties: [
       "openFile",
       "multiSelections",
@@ -163,6 +172,7 @@ async function pickWorkspaceImpl(): Promise<WorkspacePickResult> {
   const options: Electron.OpenDialogOptions = {
     title: "Open a Doolittle workspace",
     buttonLabel: "Open workspace",
+    defaultPath: currentWorkspaceDialogPath(),
     properties: ["openDirectory", "dontAddToRecent"],
   };
   const result = mainWindow
@@ -454,7 +464,7 @@ function createWindow(): BrowserWindow {
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     trafficLightPosition: { x: 18, y: 18 },
     webPreferences: {
-      preload: resolve(__dirname, "../preload/preload.cjs"),
+      preload: resolve(mainBundleDirectory, "../preload/preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -494,7 +504,7 @@ function createWindow(): BrowserWindow {
   });
 
   void loadDesktopWindow(window, {
-    rendererFile: resolve(__dirname, "../renderer/index.html"),
+    rendererFile: resolve(mainBundleDirectory, "../renderer/index.html"),
     rendererUrl,
     startMaximized: savedState.isMaximized,
   });
@@ -542,7 +552,7 @@ app.whenReady().then(async () => {
             process.env.DOOLITTLE_REPO_ROOT || "",
             app.getAppPath(),
             process.cwd(),
-            __dirname,
+            mainBundleDirectory,
           ].filter(Boolean),
         );
   const packagedRuntime = app.isPackaged
@@ -555,7 +565,11 @@ app.whenReady().then(async () => {
       ? null
       : sourceRuntimeTarget(
           sourceRepoRoot ??
-            findRepoRoot([app.getAppPath(), process.cwd(), __dirname]),
+            findRepoRoot([
+              app.getAppPath(),
+              process.cwd(),
+              mainBundleDirectory,
+            ]),
         ),
   });
   const runtimeDataDir = resolve(app.getPath("userData"), "runtime");

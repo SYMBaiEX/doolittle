@@ -34,7 +34,6 @@ overrides:
   '@elizaos/ui': 2.0.3-beta.7
   '@elizaos/vault': 2.0.3-beta.7
   elizaos: 2.0.3-beta.7
-  ollama-ai-provider: npm:ollama-ai-provider-v2@^4.0.1
   protobufjs: 8.7.2
   tar: 7.5.22
 
@@ -375,13 +374,13 @@ importers:
         specifier: ^0.1.81
         version: 0.1.81
       dotenv:
-        specifier: ^17.2.3
+        specifier: ^17.4.2
         version: 17.4.2
       shell-quote:
         specifier: 1.10.0
         version: 1.10.0
       zod:
-        specifier: ^4.3.6
+        specifier: ^4.4.3
         version: 4.4.3
 
   packages/app-training: {}

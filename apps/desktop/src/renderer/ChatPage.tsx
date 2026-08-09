@@ -5,6 +5,7 @@ import {
   type SetStateAction,
   useCallback,
   useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -559,7 +560,6 @@ export function ChatPage({
   const queueDispatchRef = useRef<string | null>(null);
   const requestSession = useRef<Record<string, string>>({});
   const requestedHistory = useRef(new Set<string>());
-  const chatHandler = useRef<(event: ChatEvent) => void>(() => {});
   const memoryRecallSequence = useRef(0);
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const pendingBranchAttachments = useRef<{
@@ -850,13 +850,6 @@ export function ChatPage({
   }, [selectedId]);
 
   useEffect(() => {
-    const unsubscribe = window.doolittle.onChatEvent((event) =>
-      chatHandler.current(event),
-    );
-    return unsubscribe;
-  }, []);
-
-  useEffect(() => {
     const remoteSession = remoteSessions.find(
       (session) => session.sessionId === selectedId,
     );
@@ -1019,7 +1012,7 @@ export function ChatPage({
     }
   };
 
-  chatHandler.current = (event) => {
+  const handleChatEvent = useEffectEvent((event: ChatEvent) => {
     const sessionId = requestSession.current[event.requestId];
     if (!sessionId) return;
     if (event.event === "agent.run" && isDesktopRunUpdate(event.data)) {
@@ -1089,7 +1082,9 @@ export function ChatPage({
       }));
       finishRequest(event.requestId);
     }
-  };
+  });
+
+  useEffect(() => window.doolittle.onChatEvent(handleChatEvent), []);
 
   const copyMessage = async (id: string, value: string) => {
     if (!value || !navigator.clipboard?.writeText) {

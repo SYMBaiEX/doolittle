@@ -5,7 +5,7 @@ import cssWorker from "monaco-editor/language/css/css.worker?worker";
 import htmlWorker from "monaco-editor/language/html/html.worker?worker";
 import jsonWorker from "monaco-editor/language/json/json.worker?worker";
 import tsWorker from "monaco-editor/language/typescript/ts.worker?worker";
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import type { CodeLanguage } from "../code-language";
 import {
   loadStoredDesktopTheme,
@@ -186,17 +186,16 @@ export function CodeEditor({
   const modelRef = useRef<monaco.editor.ITextModel | null>(null);
   const valueRef = useRef(value);
   const disabledRef = useRef(disabled);
-  const onChangeRef = useRef(onChange);
-  const onEditorStateChangeRef = useRef(onEditorStateChange);
-  const onSaveRef = useRef(onSave);
   const projectSupportReleaseRef = useRef<(() => void) | null>(null);
   const projectSupportRequestRef = useRef(0);
+  const emitChange = useEffectEvent(onChange);
+  const emitEditorState = useEffectEvent((snapshot: CodeEditorStateSnapshot) =>
+    onEditorStateChange?.(snapshot),
+  );
+  const emitSave = useEffectEvent(onSave);
 
   valueRef.current = value;
   disabledRef.current = disabled;
-  onChangeRef.current = onChange;
-  onEditorStateChangeRef.current = onEditorStateChange;
-  onSaveRef.current = onSave;
   const supportSignature = projectSupportSignature(value);
 
   useEffect(() => {
@@ -250,11 +249,9 @@ export function CodeEditor({
     let stateFrame = 0;
     const emitState = () => {
       stateFrame = 0;
-      const callback = onEditorStateChangeRef.current;
-      if (!callback) return;
       const cursor = editor.getPosition();
       const selection = editor.getSelection();
-      callback({
+      emitEditorState({
         path,
         uri: uri.toString(),
         language: language.id,
@@ -283,11 +280,11 @@ export function CodeEditor({
       });
     };
     const scheduleState = () => {
-      if (!onEditorStateChangeRef.current || stateFrame) return;
+      if (stateFrame) return;
       stateFrame = requestAnimationFrame(emitState);
     };
     const changeDisposable = model.onDidChangeContent(() => {
-      onChangeRef.current(model.getValue());
+      emitChange(model.getValue());
       scheduleState();
     });
     const stateDisposables = [
@@ -298,7 +295,7 @@ export function CodeEditor({
       editor.onDidScrollChange(scheduleState),
     ];
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      onSaveRef.current();
+      emitSave();
     });
     editorRef.current = editor;
     modelRef.current = model;
