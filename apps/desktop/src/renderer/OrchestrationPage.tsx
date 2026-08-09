@@ -27,6 +27,7 @@ import {
   type UnknownRecord,
   useApiResource,
 } from "./lib";
+import { projectCodegenSelection } from "./orchestration-codegen-selection";
 import {
   orchestrationStatusTier,
   orchestrationTimingLabel,
@@ -547,13 +548,9 @@ export function OrchestrationPage({
     asRecord(entry),
   ) as CodegenRunRecord[];
   const detailWorkflowId = asString(workflowDetailResource.data?.workflow?.id);
-  const workflowDetailRuns =
-    detailWorkflowId === selectedWorkflowId
-      ? (asArray(workflowDetailResource.data?.runs).map((entry) =>
-          asRecord(entry),
-        ) as CodegenRunRecord[])
-      : [];
-  const visibleRuns = selectedWorkflowId ? workflowDetailRuns : runs;
+  const workflowDetailRuns = asArray(workflowDetailResource.data?.runs).map(
+    (entry) => asRecord(entry),
+  ) as CodegenRunRecord[];
 
   const selectedTask =
     tasks.find((entry) => asString(entry.id) === selectedTaskId) ?? tasks[0];
@@ -562,14 +559,18 @@ export function OrchestrationPage({
     workers[0];
   const selectedPlan =
     plans.find((entry) => asString(entry.id) === selectedPlanId) ?? plans[0];
-  const selectedWorkflow =
-    workflows.find((entry) => asString(entry.id) === selectedWorkflowId) ??
-    workflows[0];
   const detailedRun = runDetailResource.data?.run;
-  const selectedRun =
-    (detailedRun?.id === selectedRunId ? detailedRun : undefined) ??
-    visibleRuns.find((entry) => asString(entry.id) === selectedRunId) ??
-    visibleRuns[0];
+  const codegenSelection = projectCodegenSelection({
+    workflows,
+    globalRuns: runs,
+    workflowDetailRuns,
+    selectedWorkflowId,
+    selectedRunId,
+    detailWorkflowId,
+    workflowDetailLoading: workflowDetailResource.loading,
+    detailedRun,
+  });
+  const { selectedWorkflow, selectedRun, visibleRuns } = codegenSelection;
 
   const [showTaskCreate, setShowTaskCreate] = useState(false);
   const [showPlanCreate, setShowPlanCreate] = useState(false);
@@ -676,38 +677,16 @@ export function OrchestrationPage({
   }, [plans, selectedPlanId]);
 
   useEffect(() => {
-    if (
-      workflows.length > 0 &&
-      !workflows.some((workflow) => workflow.id === selectedWorkflowId)
-    ) {
-      setSelectedWorkflowId(workflows[0]?.id ?? "");
+    if (codegenSelection.selectedWorkflowIdUpdate !== undefined) {
+      setSelectedWorkflowId(codegenSelection.selectedWorkflowIdUpdate);
     }
-  }, [selectedWorkflowId, workflows]);
+  }, [codegenSelection.selectedWorkflowIdUpdate]);
 
   useEffect(() => {
-    if (
-      selectedWorkflowId &&
-      (workflowDetailResource.loading ||
-        detailWorkflowId !== selectedWorkflowId)
-    ) {
-      return;
+    if (codegenSelection.selectedRunIdUpdate !== undefined) {
+      setSelectedRunId(codegenSelection.selectedRunIdUpdate);
     }
-    const candidates = selectedWorkflowId ? workflowDetailRuns : runs;
-    if (candidates.length === 0) {
-      setSelectedRunId("");
-      return;
-    }
-    if (!candidates.some((run) => run.id === selectedRunId)) {
-      setSelectedRunId(candidates[0]?.id ?? "");
-    }
-  }, [
-    detailWorkflowId,
-    runs,
-    selectedRunId,
-    selectedWorkflowId,
-    workflowDetailResource.loading,
-    workflowDetailRuns,
-  ]);
+  }, [codegenSelection.selectedRunIdUpdate]);
 
   useEffect(() => {
     if (

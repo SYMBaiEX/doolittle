@@ -23,10 +23,9 @@ import {
   contextBlock,
   useThreadWorkbenchRailController,
 } from "../thread-workbench-controller";
-import { CodeEditor } from "./CodeEditor";
 import { GitControlPanel } from "./GitControlPanel";
 import { PanelResizeHandle } from "./PanelResizeHandle";
-import { WorkspaceFileTree } from "./WorkspaceFileTree";
+import { ThreadWorkbenchFilesPanel } from "./ThreadWorkbenchFilesPanel";
 import "../thread-workbench.css";
 import type {
   RepositoryBranch,
@@ -445,97 +444,24 @@ export function ThreadWorkbenchRail({
         </div>
 
         {model.selectedTab === "files" ? (
-          <div className="thread-workbench-panel-body thread-workbench-panel-body--files">
-            <ResourceState
-              error={tree.error}
-              loading={tree.loading}
-              retry={tree.reload}
-            />
-            {!tree.loading && !tree.error ? (
-              <div className="thread-workbench-split thread-workbench-file-workspace">
-                <div className="thread-workbench-tree">
-                  {fileEntries.length ? (
-                    <WorkspaceFileTree
-                      entries={fileEntries}
-                      key={workspacePath}
-                      onOpenFile={setSelectedFile}
-                      selectedPath={currentFile}
-                    />
-                  ) : (
-                    <p className="thread-workbench-empty">
-                      No files returned for this workspace.
-                    </p>
-                  )}
-                </div>
-                <div className="thread-workbench-preview thread-workbench-code-preview">
-                  {currentFile ? (
-                    <>
-                      <div>
-                        <code title={currentFile}>
-                          {compactPath(currentFile)}
-                        </code>
-                        <span>{currentFileLanguage.label}</span>
-                        <div>
-                          <button
-                            disabled={!file.data?.content}
-                            onClick={() =>
-                              insert(
-                                "File context added",
-                                contextBlock(
-                                  "file",
-                                  currentFile,
-                                  asString(file.data?.content),
-                                ),
-                              )
-                            }
-                            type="button"
-                          >
-                            Add to chat
-                          </button>
-                        </div>
-                      </div>
-                      {file.loading ? (
-                        <LoadingBlock label="Reading file…" />
-                      ) : file.error ? (
-                        <ErrorBlock error={file.error} retry={file.reload} />
-                      ) : (
-                        <div className="thread-workbench-monaco">
-                          <CodeEditor
-                            ariaLabel={`Preview ${currentFile}`}
-                            compact
-                            disabled
-                            language={currentFileLanguage}
-                            onChange={() => undefined}
-                            onEditorStateChange={(snapshot) =>
-                              acpEditor.publishEditorState(snapshot, false)
-                            }
-                            onSave={() => undefined}
-                            path={currentFile}
-                            value={asString(file.data?.content)}
-                            workspacePath={workspacePath}
-                          />
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="thread-workbench-file-empty">
-                      <span
-                        aria-hidden="true"
-                        className="thread-workbench-file-empty-icon"
-                      >
-                        &lt;/&gt;
-                      </span>
-                      <strong>Select a file</strong>
-                      <p>
-                        Expand the repository tree to inspect a syntax-aware
-                        preview.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : null}
-          </div>
+          <ThreadWorkbenchFilesPanel
+            entries={fileEntries}
+            file={file}
+            onEditorStateChange={(snapshot) =>
+              acpEditor.publishEditorState(snapshot, false)
+            }
+            onInsertFileContext={() =>
+              insert(
+                "File context added",
+                contextBlock("file", currentFile, asString(file.data?.content)),
+              )
+            }
+            onSelectPath={setSelectedFile}
+            selectedLanguage={currentFileLanguage}
+            selectedPath={currentFile}
+            tree={tree}
+            workspacePath={workspacePath}
+          />
         ) : null}
 
         {model.selectedTab === "changes" ? (

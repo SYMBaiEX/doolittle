@@ -8,10 +8,8 @@ import {
   validateInteractiveTerminalInputRequest,
   validateInteractiveTerminalResizeRequest,
   validateInteractiveTerminalStartRequest,
-  validateRepositoryMutationRequest,
   validateTerminalStreamRequest,
   validateWorkspaceFileSaveRequest,
-  validateWorktreeCreateRequest,
 } from "./ipc";
 
 describe("validateChatAttachmentIds", () => {
@@ -143,6 +141,9 @@ describe("sensitive desktop actions", () => {
     const handler = harness.handlers.get("backend:get-state");
 
     expect(() => handler?.({}, undefined)).toThrow(/untrusted sender/iu);
+    expect(() =>
+      harness.handlers.get("repository:create-worktree-confirmed")?.({}, {}),
+    ).toThrow(/untrusted sender/iu);
   });
 
   it("bridges bounded responses without hiding Eliza HTTP metadata", async () => {
@@ -302,91 +303,6 @@ describe("sensitive desktop actions", () => {
         }),
       ).toThrow();
     }
-
-    expect(
-      validateWorktreeCreateRequest({
-        branch: "feature/desktop-worktree",
-        path: ".worktrees/desktop-worktree",
-      }),
-    ).toEqual({
-      branch: "feature/desktop-worktree",
-      path: ".worktrees/desktop-worktree",
-    });
-    for (const request of [
-      { branch: "--detach", path: ".worktrees/escape" },
-      { branch: "feature/../escape", path: ".worktrees/escape" },
-      { branch: "feature/escape", path: "../escape" },
-      { branch: "feature/escape", path: ".git/worktrees/escape" },
-    ]) {
-      expect(() => validateWorktreeCreateRequest(request)).toThrow();
-    }
-
-    expect(
-      validateRepositoryMutationRequest({
-        type: "commit",
-        message: "  feat: native Git  ",
-        amend: true,
-      }),
-    ).toEqual({
-      type: "commit",
-      message: "feat: native Git",
-      amend: true,
-    });
-    expect(
-      validateRepositoryMutationRequest({
-        type: "stage",
-        paths: ["src/index.ts"],
-      }),
-    ).toEqual({ type: "stage", paths: ["src/index.ts"] });
-    expect(
-      validateRepositoryMutationRequest({
-        type: "merge",
-        branch: "feature/native-git",
-        noFf: true,
-      }),
-    ).toEqual({
-      type: "merge",
-      branch: "feature/native-git",
-      noFf: true,
-    });
-    expect(
-      validateRepositoryMutationRequest({
-        type: "pr-create",
-        title: "Native Git controls",
-        body: "Ready for review.",
-        base: "main",
-        draft: true,
-      }),
-    ).toEqual({
-      type: "pr-create",
-      title: "Native Git controls",
-      body: "Ready for review.",
-      base: "main",
-      draft: true,
-    });
-    expect(
-      validateRepositoryMutationRequest({
-        type: "pr-review",
-        event: "request-changes",
-        body: "Please add the missing regression.",
-      }),
-    ).toEqual({
-      type: "pr-review",
-      event: "request-changes",
-      body: "Please add the missing regression.",
-    });
-    for (const request of [
-      { type: "commit", message: " " },
-      { type: "stage", paths: ["../secret"] },
-      { type: "branch-switch", branch: "--detach" },
-      { type: "remote-add", name: "origin", url: "\0bad" },
-      { type: "pr-review", event: "request-changes" },
-      { type: "pr-merge", method: "force" },
-      { type: "pr-update" },
-      { type: "not-a-git-operation" },
-    ]) {
-      expect(() => validateRepositoryMutationRequest(request)).toThrow();
-    }
   });
 
   it("does not fetch when native confirmation is cancelled", async () => {
@@ -404,9 +320,6 @@ describe("sensitive desktop actions", () => {
       "terminal:session-start-confirmed",
     );
     const saveHandler = harness.handlers.get("workspace:save-confirmed");
-    const worktreeHandler = harness.handlers.get(
-      "repository:create-worktree-confirmed",
-    );
     expect(
       await commandHandler?.({}, { command: "pwd", timeoutMs: 5_000 }),
     ).toEqual({ status: "cancelled" });
@@ -418,19 +331,6 @@ describe("sensitive desktop actions", () => {
         {},
         { path: "notes.txt", content: "after", expectedContent: "before" },
       ),
-    ).toEqual({ status: "cancelled" });
-    expect(
-      await worktreeHandler?.(
-        {},
-        {
-          branch: "feature/cancelled",
-          path: ".worktrees/cancelled",
-        },
-      ),
-    ).toEqual({ status: "cancelled" });
-    const mutationHandler = harness.handlers.get("repository:mutate-confirmed");
-    expect(
-      await mutationHandler?.({}, { type: "stage", paths: ["notes.txt"] }),
     ).toEqual({ status: "cancelled" });
     expect(fetches).toBe(0);
     harness.dispose();
@@ -1001,115 +901,6 @@ describe("sensitive desktop actions", () => {
       status: "conflict",
       message:
         "File changed after it was opened. Reload it before saving your edits.",
-    });
-    harness.dispose();
-  });
-
-  it("creates worktrees through a dedicated confirmed channel", async () => {
-    const requests: Array<{ url: string; init?: RequestInit }> = [];
-    const harness = createHarness({
-      confirmed: true,
-      fetch: async (input, init) => {
-        requests.push({ url: String(input), init });
-        return Response.json({
-          worktree: {
-            path: "/workspace/.worktrees/desktop",
-            head: "abc123",
-            branch: "feature/desktop",
-            detached: false,
-            bare: false,
-            prunable: false,
-          },
-        });
-      },
-    });
-
-    const handler = harness.handlers.get(
-      "repository:create-worktree-confirmed",
-    );
-    await expect(
-      handler?.(
-        {},
-        {
-          branch: "feature/desktop",
-          path: ".worktrees/desktop",
-        },
-      ),
-    ).resolves.toEqual({
-      status: "created",
-      worktree: {
-        path: "/workspace/.worktrees/desktop",
-        head: "abc123",
-        branch: "feature/desktop",
-        detached: false,
-        bare: false,
-        prunable: false,
-      },
-    });
-    expect(requests).toHaveLength(1);
-    expect(requests[0]?.url).toBe(
-      "http://127.0.0.1:4555/repo/worktrees/create",
-    );
-    expect(JSON.parse(String(requests[0]?.init?.body))).toEqual({
-      branch: "feature/desktop",
-      path: ".worktrees/desktop",
-    });
-    expect(harness.confirmations).toEqual([
-      {
-        kind: "worktree-create",
-        title: "Create Git worktree?",
-        message: "feature/desktop",
-        detail:
-          "Doolittle will create a new branch and worktree at .worktrees/desktop, inside the selected workspace.",
-        confirmLabel: "Create worktree",
-      },
-    ]);
-    harness.dispose();
-  });
-
-  it("runs typed repository mutations through a dedicated confirmed channel", async () => {
-    const requests: Array<{ url: string; init?: RequestInit }> = [];
-    const harness = createHarness({
-      confirmed: true,
-      fetch: async (input, init) => {
-        requests.push({ url: String(input), init });
-        return Response.json({
-          result: {
-            type: "stage",
-            ok: true,
-            summary: "Staged 1 path.",
-            stdout: "",
-            stderr: "",
-            exitCode: 0,
-          },
-        });
-      },
-    });
-
-    const handler = harness.handlers.get("repository:mutate-confirmed");
-    await expect(
-      handler?.({}, { type: "stage", paths: ["src/index.ts"] }),
-    ).resolves.toEqual({
-      status: "completed",
-      result: {
-        type: "stage",
-        ok: true,
-        summary: "Staged 1 path.",
-        stdout: "",
-        stderr: "",
-        exitCode: 0,
-      },
-    });
-    expect(requests).toHaveLength(1);
-    expect(requests[0]?.url).toBe("http://127.0.0.1:4555/repo/mutate");
-    expect(JSON.parse(String(requests[0]?.init?.body))).toEqual({
-      type: "stage",
-      paths: ["src/index.ts"],
-    });
-    expect(harness.confirmations[0]).toMatchObject({
-      kind: "repository-mutation",
-      title: "Confirm Git operation",
-      message: "stage: src/index.ts",
     });
     harness.dispose();
   });

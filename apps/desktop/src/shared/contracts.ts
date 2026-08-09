@@ -1,1126 +1,157 @@
-import type {
-  RepositoryMutationRequest,
-  RepositoryMutationResult,
-} from "@doolittle/contracts/repository";
-
+export type {
+  AcpBridgeEditorSummary,
+  AcpBridgeSessionSummary,
+  AcpBridgeStatus,
+  AcpBridgeTool,
+  AcpEditorResponse,
+  AcpProbeResponse,
+  AcpSessionsResponse,
+  AcpStatusResponse,
+  AcpToolsResponse,
+} from "./contracts/acp";
+export type {
+  CronCreateRequest,
+  CronJob,
+  CronJobRun,
+  CronJobsResponse,
+  CronMutationResponse,
+  CronPatchRequest,
+  CronRunsResponse,
+} from "./contracts/automation";
+export type {
+  BackendPhase,
+  BackendState,
+  CommandCatalogItem,
+  CommandCatalogResponse,
+  HealthResponse,
+  WorkspaceCheckpoint,
+  WorkspaceCheckpointSupport,
+  WorkspaceCheckpointsResponse,
+} from "./contracts/backend";
+export type { DoolittleDesktopBridge } from "./contracts/bridge";
+export type {
+  ActivityEvent,
+  ActivityEventKind,
+  ActivityEventStatus,
+  ActivityEventTarget,
+  ActivityFeedResponse,
+  SessionForkRequest,
+  SessionForkResponse,
+  SessionForkResult,
+  SessionMessagesResponse,
+  SessionSearchHit,
+  SessionSearchResponse,
+  SessionSummary,
+  SessionsResponse,
+  SessionTitleRequest,
+  SessionUsageSummary,
+  StoredMessage,
+} from "./contracts/conversations";
+export type {
+  AttachmentSelection,
+  DesktopCommand,
+  DesktopCommandRequest,
+  DesktopCommandResult,
+  DesktopLifecycleState,
+  DesktopUpdatePhase,
+  DesktopUpdateState,
+  FileSelection,
+  ManagedAttachmentDescriptor,
+  ManagedAttachmentKind,
+  ProjectResourceSelection,
+  RecordedAudioImportRequest,
+  SupportedRecordedAudioMime,
+  WorkspacePickResult,
+  WorkspaceState,
+} from "./contracts/desktop";
+export type {
+  EditorProjectCompilerOptions,
+  EditorProjectContextRequest,
+  EditorProjectContextResult,
+  EditorProjectSupportFile,
+  WorkspaceFileSaveRequest,
+  WorkspaceFileSaveResult,
+} from "./contracts/editor";
+export type {
+  Project,
+  ProjectResource,
+  ProjectResourceKind,
+  ProjectResponse,
+  ProjectsResponse,
+} from "./contracts/projects";
 export type {
   RepositoryBranch,
   RepositoryConflict,
+  RepositoryMutationDesktopResult,
   RepositoryMutationRequest,
   RepositoryMutationResult,
+  RepositoryPullRequest,
   RepositoryRemote,
+  RepositoryReview,
+  RepositoryReviewCheck,
+  RepositoryReviewDegradedReason,
+  RepositoryReviewLocalSummary,
+  RepositoryReviewRemote,
+  RepositoryReviewResponse,
   RepositoryStash,
-} from "@doolittle/contracts/repository";
-
-export type BackendPhase = "booting" | "ready" | "degraded" | "stopped";
-
-export interface BackendState {
-  phase: BackendPhase;
-  url?: string;
-  message: string;
-  detail?: string;
-}
-
-export interface HealthResponse {
-  status: string;
-  name: string;
-  mode: string;
-  processId: number;
-  workspaceDir: string;
-}
-
-export interface WorkspaceCheckpoint {
-  id: string;
-  createdAt: string;
-  label: string;
-  revision: string;
-}
-
-export interface WorkspaceCheckpointSupport {
-  supported: boolean;
-  reason?: string;
-}
-
-export interface WorkspaceCheckpointsResponse {
-  support: WorkspaceCheckpointSupport;
-  checkpoints: WorkspaceCheckpoint[];
-}
-
-export interface CommandCatalogItem {
-  command: string;
-  category: string;
-  description: string;
-  aliases?: string[];
-  disabledReason?: string;
-}
-
-export interface CommandCatalogResponse {
-  commands: CommandCatalogItem[];
-}
-
-export interface SessionSummary {
-  sessionId: string;
-  projectId?: string;
-  title?: string;
-  continuityKey?: string;
-  parentSessionId?: string;
-  forkedFromMessageId?: string;
-  rootSessionId?: string;
-  messageCount: number;
-  startedAt?: string;
-  endedAt?: string;
-  participants: Array<"user" | "assistant" | "system">;
-  preview: string[];
-}
-
-export interface SessionsResponse {
-  sessions: SessionSummary[];
-}
-
-export type ProjectResourceKind =
-  | "file"
-  | "folder"
-  | "link"
-  | "note"
-  | "source";
-
-export interface ProjectResource {
-  id: string;
-  projectId: string;
-  kind: ProjectResourceKind;
-  label: string;
-  value: string;
-  createdAt: string;
-}
-
-export interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  instructions?: string;
-  color?: string;
-  icon?: string;
-  primaryPath?: string;
-  pinned: boolean;
-  archivedAt?: string;
-  createdAt: string;
-  updatedAt: string;
-  resources: ProjectResource[];
-}
-
-export interface ProjectsResponse {
-  projects: Project[];
-}
-
-export interface ProjectResponse {
-  project: Project;
-}
-
-export interface StoredMessage {
-  id: string;
-  originMessageId?: string;
-  sessionId: string;
-  roomId: string;
-  entityId: string;
-  role: "user" | "assistant" | "system";
-  text: string;
-  attachments?: ManagedAttachmentDescriptor[];
-  createdAt: string;
-}
-
-export interface SessionMessagesResponse {
-  messages: StoredMessage[];
-}
-
-export interface SessionForkRequest {
-  sourceSessionId: string;
-  throughMessageId?: string;
-  beforeMessageId?: string;
-}
-
-export interface SessionForkResult {
-  sessionId: string;
-  sourceSessionId: string;
-  parentSessionId: string;
-  forkedFromMessageId: string;
-  rootSessionId: string;
-  boundaryMode: "before" | "full" | "through";
-  copiedThroughMessageId?: string;
-  continuityKey: string;
-  copiedMessageCount: number;
-  projectId?: string;
-  summary: SessionSummary;
-}
-
-export interface SessionForkResponse {
-  fork: SessionForkResult;
-}
-
-export type ActivityEventKind =
-  | "chat-run"
-  | "automation"
-  | "delegation"
-  | "approval"
-  | "delivery";
-
-export type ActivityEventStatus =
-  | "pending"
-  | "running"
-  | "succeeded"
-  | "failed"
-  | "cancelled"
-  | "skipped"
-  | "approved"
-  | "denied"
-  | "expired"
-  | "used"
-  | "delivered";
-
-export type ActivityEventTarget =
-  | "chat"
-  | "review"
-  | "automations"
-  | "orchestration";
-
-export interface ActivityEvent {
-  id: string;
-  kind: ActivityEventKind;
-  sourceId: string;
-  sessionId?: string;
-  status: ActivityEventStatus;
-  occurredAt: string;
-  title: string;
-  safeSummary: string;
-  target: ActivityEventTarget;
-}
-
-export interface ActivityFeedResponse {
-  events: ActivityEvent[];
-  cursor: string | null;
-  updatedAt: string | null;
-}
-
-export interface SessionSearchHit {
-  sessionId: string;
-  createdAt: string;
-  role: "user" | "assistant" | "system";
-  text: string;
-}
-
-export interface SessionSearchResponse {
-  hits: SessionSearchHit[];
-}
-
-export interface SessionUsageSummary {
-  sessionId: string;
-  title?: string;
-  continuityKey?: string;
-  messageCount: number;
-  userMessages: number;
-  assistantMessages: number;
-  systemMessages: number;
-  startedAt?: string;
-  endedAt?: string;
-  characterCount: number;
-  estimatedTokens: number;
-  context?: {
-    estimatedTokens: number;
-    contextWindowTokens: number;
-    usageFraction: number;
-    percent: number;
-    overThreshold: boolean;
-    estimated: true;
-    sampledMessages: number;
-    totalMessages: number;
-    truncated: boolean;
-    provider: string;
-    model: string;
-  };
-  lastPreview?: string;
-}
-
-export interface RuntimeStatus {
-  provider: string;
-  model: string;
-  reasoningEffort?: RuntimeReasoningEffort;
-  startup?: unknown;
-  plugins: Record<string, boolean>;
-  native?: {
-    catalog?: unknown[];
-    grouped?: Record<string, unknown[]>;
-  };
-  fallback?: {
-    offlineBootstrapMode?: boolean;
-  };
-  gateway?: unknown;
-  ownership?: Record<string, unknown>;
-}
-
-export type RuntimeReasoningEffort =
-  | "none"
-  | "minimal"
-  | "low"
-  | "medium"
-  | "high"
-  | "xhigh"
-  | "max"
-  | "ultra";
-
-export interface RuntimeModelReasoningOption {
-  id: RuntimeReasoningEffort;
-  label: string;
-  description?: string;
-}
-
-export interface RuntimeModelReasoningCapability {
-  default?: RuntimeReasoningEffort;
-  options: RuntimeModelReasoningOption[];
-}
-
-export interface RuntimeModelOption {
-  id: string;
-  label: string;
-  source: "configured" | "discovered";
-  reasoning?: RuntimeModelReasoningCapability;
-}
-
-export interface RuntimeModelProvider {
-  id: string;
-  label: string;
-  mode: "cloud" | "linked" | "local";
-  ready: boolean;
-  baseUrl?: string;
-  discovery: "configured" | "live" | "unavailable";
-  detail: string;
-  models: RuntimeModelOption[];
-}
-
-export interface RuntimeModelsResponse {
-  activeProvider: string;
-  activeModel: string;
-  activeReasoningEffort?: RuntimeReasoningEffort;
-  refreshedAt: string;
-  providers: RuntimeModelProvider[];
-}
-
-export interface PluginsResponse {
-  catalog?: unknown[];
-  grouped?: Record<string, unknown[]>;
-  serviceRegistry?: unknown;
-  pluginManager?: unknown;
-  ownership?: Record<string, unknown>;
-}
-
-export interface SettingsResponse {
-  settings: Record<string, unknown>;
-}
-
-export interface ThemeResponse {
-  active: string;
-  profile: unknown;
-  themes: unknown[];
-}
-
-export interface AccountsResponse {
-  activeProvider?: string;
-  accounts?: Record<string, unknown>;
-  connect?: Record<string, unknown>;
-}
-
-export type AccountPoolProvider = "openai-codex" | "anthropic-subscription";
-
-export type AccountPoolStrategy =
-  | "priority"
-  | "round-robin"
-  | "least-used"
-  | "quota-aware";
-
-export interface AccountPoolAccount {
-  providerId: AccountPoolProvider;
-  accountId: string;
-  label: string;
-  source: "oauth" | "api-key";
-  enabled: boolean;
-  priority: number;
-  createdAt: number;
-  lastUsedAt?: number;
-  health: string;
-  healthDetail?: unknown;
-  usage?: unknown;
-}
-
-export interface AccountPoolProviderSnapshot {
-  strategy: AccountPoolStrategy;
-  accounts: AccountPoolAccount[];
-}
-
-export interface AccountPoolResponse {
-  bridgeInstalled: boolean;
-  providers: Record<AccountPoolProvider, AccountPoolProviderSnapshot>;
-}
-
-export interface AccountPoolDeleteResponse {
-  deleted: boolean;
-  credentialsRetained: false;
-}
-
-export type ProviderAuthProvider = "codex" | "claude-code";
-
-export interface ProviderAuthStartOptions {
-  accountId?: string;
-  label?: string;
-}
-
-export type ProviderAuthPhase =
-  | "idle"
-  | "launching"
-  | "waiting"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
-
-export interface ProviderAuthState {
-  provider: ProviderAuthProvider;
-  phase: ProviderAuthPhase;
-  message: string;
-  browserOpened: boolean;
-  needsCodeSubmission: boolean;
-  codeSubmitted: boolean;
-  startedAt?: string;
-  updatedAt: string;
-}
-
-export interface PersonalityResponse {
-  profile?: Record<string, unknown>;
-  summary?: Record<string, unknown>;
-  card?: Record<string, unknown>;
-  beliefs?: Record<string, unknown>;
-  engagement?: unknown;
-  relationship?: unknown;
-  context?: unknown;
-  hits?: unknown[];
-  users?: unknown[];
-  userId?: string;
-  result?: Record<string, unknown>;
-}
-
-/** The exact read-only response returned by GET /profiles/users/recall. */
-export interface SavedProfileRecallHit {
-  kind: string;
-  value: string;
-  score: number;
-}
-
-export interface SavedProfileRecallResponse {
-  hits: SavedProfileRecallHit[];
-}
-
-export interface SkillsResponse {
-  skills?: unknown[];
-  hub?: unknown;
-  workspace?: unknown;
-}
-
-export interface SkillsSummaryResponse {
-  summary?: unknown;
-  hub?: unknown;
-  installed?: unknown;
-}
-
-export interface ToolResponse {
-  tools?: unknown[];
-  summary?: unknown;
-  nativePluginManager?: unknown;
-}
-
-export interface ToolSummaryResponse {
-  summary?: unknown;
-  nativePluginManager?: unknown;
-}
-
-/**
- * Read-only desktop view of Doolittle's configured ACP command bridge.
- * This is intentionally not an editor-protocol compatibility contract.
- */
-export interface AcpBridgeStatus {
-  enabled: boolean;
-  detail: string;
-  command?: string;
-  timeoutMs: number;
-  toolCount?: number;
-  lastProbeAt?: string;
-  lastError?: string;
-}
-
-export interface AcpBridgeEditorSummary {
-  commandConfigured: boolean;
-  registryPath?: string;
-  installCommand?: string;
-}
-
-export interface AcpBridgeSessionSummary {
-  totalSessions: number;
-  recentSessionIds: string[];
-  titledSessions: number;
-  recentTitles: string[];
-}
-
-export interface AcpBridgeTool {
-  name: string;
-  description: string;
-  kind: string;
-  source: string;
-}
-
-export interface AcpStatusResponse {
-  acp: AcpBridgeStatus;
-}
-
-export interface AcpEditorResponse {
-  editor: AcpBridgeEditorSummary;
-}
-
-export interface AcpSessionsResponse {
-  sessions: AcpBridgeSessionSummary;
-}
-
-export interface AcpToolsResponse {
-  tools: AcpBridgeTool[];
-}
-
-export interface AcpProbeResponse {
-  probe: { ok: boolean; detail: string };
-}
-
-export interface CronJob {
-  id?: string;
-  name?: string;
-  schedule?: string;
-  prompt?: string;
-  status?: string;
-  delivery?: string;
-  nextRunAt?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  skills?: unknown[];
-  runtime?: unknown;
-}
-
-export interface CronJobRun {
-  id?: string;
-  jobId?: string;
-  state?: string;
-  startedAt?: string;
-  endedAt?: string;
-  error?: string;
-  output?: string;
-}
-
-export interface CronJobsResponse {
-  jobs: CronJob[];
-}
-
-export interface CronRunsResponse {
-  runs: CronJobRun[];
-}
-
-export interface CronMutationResponse {
-  job?: CronJob;
-}
-
-export interface SettingsMutationRequest {
-  path: string;
-  value: unknown;
-}
-
-export interface ThemeMutationRequest {
-  theme?: string;
-}
-
-export interface AccountActionRequest {
-  provider?: string;
-}
-
-export interface PersonalityActionRequest {
-  userId?: string;
-  query?: string;
-  mode?: string;
-}
-
-export interface SessionTitleRequest {
-  sessionId: string;
-  title: string;
-}
-
-export interface CronCreateRequest {
-  name?: string;
-  prompt: string;
-  schedule: string;
-  skills?: string[];
-  delivery?: "origin" | "local" | "home";
-  runtime?: {
-    provider?: string;
-    model?: string;
-    baseUrl?: string;
-    temperature?: number;
-    maxTokens?: number;
-    personalityId?: string;
-  };
-}
-
-export interface CronPatchRequest extends CronCreateRequest {
-  clearRuntime?: boolean;
-}
-
-export type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
-
-/**
- * Structured-clone-safe side of Eliza's AgentRequestTransport contract.
- * Request and Response instances stay in the renderer; Electron IPC carries
- * only this serializable representation across the process boundary.
- */
-export interface AgentTransportRequest {
-  path: string;
-  method: HttpMethod;
-  headers: Record<string, string>;
-  body?: string | null;
-}
-
-export interface AgentTransportResponse {
-  status: number;
-  statusText: string;
-  headers: Record<string, string>;
-  body: string;
-}
-
-export interface ChatRequest {
-  requestId: string;
-  message: string;
-  roomId: string;
-  projectId?: string;
-  attachmentIds?: string[];
-}
-
-export interface LocalMutation {
-  action: string;
-  requestedPath?: string;
-  resolvedPath?: string;
-  success: boolean;
-  message?: string;
-  bytes?: number;
-  replacements?: number;
-  recordedAt: string;
-}
-
-export interface RunSnapshot {
-  runId: string;
-  sessionId: string;
-  roomId: string;
-  source: string;
-  message: string;
-  runDepth: "quick" | "standard" | "deep" | "explore";
-  configuredMaxIterations: number;
-  observedActionCount: number;
-  progressMode: "off" | "new" | "all" | "verbose";
-  status:
-    | "thinking"
-    | "acting"
-    | "waiting"
-    | "complete"
-    | "cancelled"
-    | "error";
-  activeAction?: string;
-  activeStream?: string;
-  statusDetail?: string;
-  lastAction?: string;
-  localMutations: LocalMutation[];
-  pendingApprovals: number;
-  startedAt: string;
-  updatedAt: string;
-  lastHeartbeatAt?: string;
-  endedAt?: string;
-  terminalReason?: "completed" | "cancelled" | "error";
-  errorMessage?: string;
-}
-
-export interface DesktopRunUpdate {
-  type:
-    | "started"
-    | "thinking"
-    | "acting"
-    | "waiting"
-    | "message"
-    | "action-started"
-    | "action-completed"
-    | "local-mutation"
-    | "stream"
-    | "heartbeat"
-    | "completed"
-    | "cancelled"
-    | "error"
-    | "approvals";
-  sessionId: string;
-  run: RunSnapshot;
-}
-
-export interface ChatEvent {
-  requestId: string;
-  event:
-    | "response.created"
-    | "response.output_text.delta"
-    | "agent.run"
-    | "agent.progress"
-    | "response.notice"
-    | "response.completed"
-    | "response.cancelled"
-    | "error"
-    | "cancelled";
-  data: unknown;
-}
-
-export type DesktopCommand =
-  | "new-chat"
-  | "command-palette"
-  | "settings"
-  | "toggle-sidebar"
-  | "toggle-inspector";
-
-export interface FileSelection {
-  canceled: boolean;
-  paths: string[];
-}
-
-export interface ProjectResourceSelection extends FileSelection {
-  kind: "file" | "folder";
-}
-
-export type ManagedAttachmentKind = "audio" | "document" | "image" | "video";
-
-export interface ManagedAttachmentDescriptor {
-  id: string;
-  name: string;
-  kind: ManagedAttachmentKind;
-  mimeType: string;
-  sizeBytes: number;
-  sha256: string;
-}
-
-export interface AttachmentSelection {
-  canceled: boolean;
-  attachments: ManagedAttachmentDescriptor[];
-}
-
-export type SupportedRecordedAudioMime =
-  | "audio/mp4"
-  | "audio/mpeg"
-  | "audio/ogg"
-  | "audio/wav"
-  | "audio/webm";
-
-export interface RecordedAudioImportRequest {
-  bytes: Uint8Array;
-  mimeType: SupportedRecordedAudioMime;
-  name: string;
-}
-
-export interface WorkspaceState {
-  currentPath: string;
-  recentPaths: string[];
-}
-
-export interface DesktopLifecycleState {
-  keepRunningInBackground: boolean;
-}
-
-export type DesktopUpdatePhase =
-  | "unavailable"
-  | "idle"
-  | "checking"
-  | "available"
-  | "downloading"
-  | "downloaded"
-  | "current"
-  | "error";
-export interface DesktopUpdateState {
-  phase: DesktopUpdatePhase;
-  message: string;
-  version?: string;
-  progress?: number;
-}
-
-export interface WorkspacePickResult {
-  canceled: boolean;
-  state: WorkspaceState;
-}
-
-export interface DesktopCommandRequest {
-  command: string;
-  timeoutMs?: number;
-}
-
-export interface TerminalStreamRequest extends DesktopCommandRequest {
-  requestId: string;
-}
-
-export interface TerminalStreamEvent {
-  requestId: string;
-  event:
-    | "terminal.started"
-    | "terminal.stdout"
-    | "terminal.stderr"
-    | "terminal.completed"
-    | "terminal.cancelled"
-    | "error";
-  data: unknown;
-}
-
-export type InteractiveTerminalSessionState = "running" | "exited" | "closed";
-
-export interface InteractiveTerminalSession {
-  id: string;
-  state: InteractiveTerminalSessionState;
-  cwd: string;
-  shell: string;
-  cols: number;
-  rows: number;
-  startedAt: string;
-  completedAt?: string;
-  exitCode?: number;
-  pty: boolean;
-  supportsResize: boolean;
-  outputBytes: number;
-}
-
-export interface InteractiveTerminalOutputChunk {
-  cursor: number;
-  data: string;
-}
-
-export interface InteractiveTerminalOutput {
-  session: InteractiveTerminalSession;
-  chunks: InteractiveTerminalOutputChunk[];
-  nextCursor: number;
-  truncatedBeforeCursor: boolean;
-}
-
-export interface InteractiveTerminalStartRequest {
-  cols: number;
-  rows: number;
-}
-
-export type InteractiveTerminalStartResult =
-  | {
-      status: "cancelled";
-    }
-  | {
-      status: "started";
-      session: InteractiveTerminalSession;
-    };
-
-export interface InteractiveTerminalInputRequest {
-  sessionId: string;
-  data: string;
-}
-
-export interface InteractiveTerminalResizeRequest {
-  sessionId: string;
-  cols: number;
-  rows: number;
-}
-
-export type DesktopCommandResult =
-  | {
-      status: "cancelled";
-    }
-  | {
-      status: "completed";
-      result: unknown;
-    };
-
-export interface WorkspaceFileSaveRequest {
-  path: string;
-  content: string;
-  expectedContent: string;
-}
-
-export interface EditorProjectContextRequest {
-  workspacePath: string;
-  entryPath: string;
-  content?: string;
-}
-
-export interface EditorProjectCompilerOptions {
-  allowJs?: boolean;
-  allowSyntheticDefaultImports?: boolean;
-  baseUrl?: string;
-  esModuleInterop?: boolean;
-  jsx?:
-    | "none"
-    | "preserve"
-    | "react"
-    | "react-native"
-    | "react-jsx"
-    | "react-jsxdev";
-  lib?: string[];
-  module?:
-    | "commonjs"
-    | "amd"
-    | "umd"
-    | "system"
-    | "es2015"
-    | "esnext"
-    | "node16"
-    | "nodenext"
-    | "preserve";
-  moduleResolution?: "classic" | "node" | "node16" | "nodenext" | "bundler";
-  paths?: Record<string, string[]>;
-  resolveJsonModule?: boolean;
-  skipLibCheck?: boolean;
-  target?:
-    | "es3"
-    | "es5"
-    | "es2015"
-    | "es2016"
-    | "es2017"
-    | "es2018"
-    | "es2019"
-    | "es2020"
-    | "es2022"
-    | "esnext";
-  types?: string[];
-}
-
-export interface EditorProjectSupportFile {
-  path: string;
-  content: string;
-}
-
-export interface EditorProjectContextResult {
-  workspacePath: string;
-  projectRoot: string;
-  entryPath: string;
-  tsconfigPath?: string;
-  compilerOptions: EditorProjectCompilerOptions;
-  supportFiles: EditorProjectSupportFile[];
-  truncated: boolean;
-}
-
-export type WorkspaceFileSaveResult =
-  | {
-      status: "cancelled";
-    }
-  | {
-      status: "saved";
-      path: string;
-    }
-  | {
-      status: "conflict";
-      message: string;
-    };
-
-export interface RepositoryWorktreeCreateRequest {
-  branch: string;
-  path: string;
-}
-
-export type RepositoryReviewDegradedReason =
-  | "not_repository"
-  | "git_unavailable"
-  | "gh_unavailable"
-  | "not_authenticated"
-  | "unsupported_remote"
-  | "no_pull_request"
-  | "network_error"
-  | "malformed_response"
-  | "timeout";
-
-export interface RepositoryReviewLocalSummary {
-  isRepository: boolean;
-  root?: string;
-  branch?: string;
-  head?: string;
-  upstream?: string;
-  ahead: number;
-  behind: number;
-  dirty: boolean;
-  changedFiles: number;
-}
-
-export interface RepositoryReviewRemote {
-  host: "github.com";
-  owner: string;
-  name: string;
-  slug: string;
-  url: string;
-}
-
-export interface RepositoryPullRequest {
-  number: number;
-  title: string;
-  state: "open" | "closed" | "merged" | "unknown";
-  url: string;
-  author?: string;
-  isDraft: boolean;
-  reviewDecision?: string;
-  mergeStateStatus?: string;
-  headRefName?: string;
-  baseRefName?: string;
-  additions: number;
-  deletions: number;
-  changedFiles: number;
-  comments: number;
-  reviews: number;
-  reviewRequests: string[];
-  labels: string[];
-  updatedAt?: string;
-}
-
-export interface RepositoryReviewCheck {
-  name: string;
-  status: "queued" | "in_progress" | "completed" | "unknown";
-  conclusion?: string;
-  url?: string;
-  workflow?: string;
-  startedAt?: string;
-  completedAt?: string;
-}
-
-export interface RepositoryWorkflowRun {
-  id: number;
-  name: string;
-  status: "queued" | "in_progress" | "completed" | "unknown";
-  conclusion?: string;
-  url?: string;
-  event?: string;
-  headBranch?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface RepositoryReview {
-  state: "ready" | "degraded";
-  local: RepositoryReviewLocalSummary;
-  repository?: RepositoryReviewRemote;
-  branch?: string;
-  pullRequest?: RepositoryPullRequest;
-  checks: RepositoryReviewCheck[];
-  workflowRuns: RepositoryWorkflowRun[];
-  degraded?: {
-    reason: RepositoryReviewDegradedReason;
-    detail: string;
-  };
-  fetchedAt: string;
-}
-
-export interface RepositoryReviewResponse {
-  review: RepositoryReview;
-}
-
-export interface RepositoryWorktree {
-  path: string;
-  head?: string;
-  branch?: string;
-  detached: boolean;
-  bare: boolean;
-  prunable: boolean;
-}
-
-export type RepositoryWorktreeCreateResult =
-  | {
-      status: "cancelled";
-    }
-  | {
-      status: "created";
-      worktree: RepositoryWorktree;
-    };
-
-export type RepositoryMutationDesktopResult =
-  | {
-      status: "cancelled";
-    }
-  | {
-      status: "completed";
-      result: RepositoryMutationResult;
-    };
-
-export interface DoolittleDesktopBridge {
-  platform: "darwin" | "win32" | "linux";
-  getBackendState(): Promise<BackendState>;
-  retryBackend(): Promise<BackendState>;
-  onBackendState(listener: (state: BackendState) => void): () => void;
-  getWorkspaceState(): Promise<WorkspaceState>;
-  pickWorkspace(): Promise<WorkspacePickResult>;
-  openWorkspace(path: string): Promise<WorkspacePickResult>;
-  switchWorkspace(path: string): Promise<WorkspacePickResult>;
-  onWorkspaceState(listener: (state: WorkspaceState) => void): () => void;
-  onAppCommand(listener: (command: DesktopCommand) => void): () => void;
-  getLifecycleState(): Promise<DesktopLifecycleState>;
-  setKeepRunningInBackground(enabled: boolean): Promise<DesktopLifecycleState>;
-  getUpdateState(): Promise<DesktopUpdateState>;
-  checkForUpdates(): Promise<DesktopUpdateState>;
-  downloadUpdate(): Promise<DesktopUpdateState>;
-  installUpdate(): Promise<void>;
-  onUpdateState(listener: (state: DesktopUpdateState) => void): () => void;
-  pickFiles(): Promise<FileSelection>;
-  pickProjectFiles(): Promise<ProjectResourceSelection>;
-  pickProjectFolders(): Promise<ProjectResourceSelection>;
-  pickChatAttachments(): Promise<AttachmentSelection>;
-  importRecordedAudio(
-    request: RecordedAudioImportRequest,
-  ): Promise<ManagedAttachmentDescriptor>;
-  startProviderAuth(
-    provider: ProviderAuthProvider,
-    options?: ProviderAuthStartOptions,
-  ): Promise<ProviderAuthState>;
-  getProviderAuthState(
-    provider: ProviderAuthProvider,
-  ): Promise<ProviderAuthState>;
-  submitProviderAuthCode(
-    provider: ProviderAuthProvider,
-  ): Promise<ProviderAuthState>;
-  cancelProviderAuth(
-    provider: ProviderAuthProvider,
-  ): Promise<ProviderAuthState>;
-  acknowledgeProviderAuth(
-    provider: ProviderAuthProvider,
-  ): Promise<ProviderAuthState>;
-  requestAgent(request: AgentTransportRequest): Promise<AgentTransportResponse>;
-  runCommand(request: DesktopCommandRequest): Promise<DesktopCommandResult>;
-  startTerminalRun(request: TerminalStreamRequest): Promise<void>;
-  cancelTerminalRun(requestId: string): Promise<void>;
-  onTerminalEvent(listener: (event: TerminalStreamEvent) => void): () => void;
-  startInteractiveTerminal(
-    request: InteractiveTerminalStartRequest,
-  ): Promise<InteractiveTerminalStartResult>;
-  writeInteractiveTerminal(
-    request: InteractiveTerminalInputRequest,
-  ): Promise<InteractiveTerminalSession>;
-  resizeInteractiveTerminal(
-    request: InteractiveTerminalResizeRequest,
-  ): Promise<InteractiveTerminalSession>;
-  interruptInteractiveTerminal(
-    sessionId: string,
-  ): Promise<InteractiveTerminalSession>;
-  closeInteractiveTerminal(
-    sessionId: string,
-  ): Promise<InteractiveTerminalSession>;
-  getInteractiveTerminalOutput(
-    sessionId: string,
-    cursor: number,
-  ): Promise<InteractiveTerminalOutput>;
-  getEditorProjectContext(
-    request: EditorProjectContextRequest,
-  ): Promise<EditorProjectContextResult>;
-  saveWorkspaceFile(
-    request: WorkspaceFileSaveRequest,
-  ): Promise<WorkspaceFileSaveResult>;
-  createWorktree(
-    request: RepositoryWorktreeCreateRequest,
-  ): Promise<RepositoryWorktreeCreateResult>;
-  mutateRepository(
-    request: RepositoryMutationRequest,
-  ): Promise<RepositoryMutationDesktopResult>;
-  startChat(request: ChatRequest): Promise<void>;
-  cancelChat(requestId: string): Promise<void>;
-  onChatEvent(listener: (event: ChatEvent) => void): () => void;
-}
+  RepositoryWorkflowRun,
+  RepositoryWorktree,
+  RepositoryWorktreeCreateRequest,
+  RepositoryWorktreeCreateResult,
+} from "./contracts/repository";
+export type {
+  AccountActionRequest,
+  AccountPoolAccount,
+  AccountPoolDeleteResponse,
+  AccountPoolProvider,
+  AccountPoolProviderSnapshot,
+  AccountPoolResponse,
+  AccountPoolStrategy,
+  AccountsResponse,
+  PersonalityActionRequest,
+  PersonalityResponse,
+  PluginsResponse,
+  ProviderAuthPhase,
+  ProviderAuthProvider,
+  ProviderAuthStartOptions,
+  ProviderAuthState,
+  RuntimeModelOption,
+  RuntimeModelProvider,
+  RuntimeModelReasoningCapability,
+  RuntimeModelReasoningOption,
+  RuntimeModelsResponse,
+  RuntimeReasoningEffort,
+  RuntimeStatus,
+  SavedProfileRecallHit,
+  SavedProfileRecallResponse,
+  SettingsMutationRequest,
+  SettingsResponse,
+  SkillsResponse,
+  SkillsSummaryResponse,
+  ThemeMutationRequest,
+  ThemeResponse,
+  ToolResponse,
+  ToolSummaryResponse,
+} from "./contracts/runtime";
+export type {
+  InteractiveTerminalInputRequest,
+  InteractiveTerminalOutput,
+  InteractiveTerminalOutputChunk,
+  InteractiveTerminalResizeRequest,
+  InteractiveTerminalSession,
+  InteractiveTerminalSessionState,
+  InteractiveTerminalStartRequest,
+  InteractiveTerminalStartResult,
+  TerminalStreamEvent,
+  TerminalStreamRequest,
+} from "./contracts/terminal";
+export type {
+  AgentTransportRequest,
+  AgentTransportResponse,
+  ChatEvent,
+  ChatRequest,
+  DesktopRunUpdate,
+  HttpMethod,
+  LocalMutation,
+  RunSnapshot,
+} from "./contracts/transport";

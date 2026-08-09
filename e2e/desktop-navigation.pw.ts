@@ -397,6 +397,15 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         page.getByRole("tab", { name: /Build & research/ }),
       ).toBeVisible();
+      await page.getByRole("tab", { name: /Build & research/ }).click();
+      await expect(
+        page.getByText("New workflow", { exact: true }),
+      ).toBeVisible();
+      await expect(page.getByText("Workflows", { exact: true })).toBeVisible();
+      await expect(page.getByText("Runs", { exact: true })).toBeVisible();
+      const queueTab = page.getByRole("tab", { name: /^Queue/ });
+      await queueTab.click();
+      await expect(queueTab).toHaveAttribute("aria-selected", "true");
       await page.getByRole("button", { name: "New research task" }).click();
       const taskForm = page.locator("form.orchestration-quick-create");
       await expect(taskForm.getByLabel("Task work type")).toHaveValue(
