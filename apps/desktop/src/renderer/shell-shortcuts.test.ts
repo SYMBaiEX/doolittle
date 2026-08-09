@@ -5,13 +5,12 @@ import {
 } from "./shell-shortcuts";
 
 describe("shell shortcut guards", () => {
-  it.each([
-    "input",
-    "textarea",
-    "select",
-  ])("treats %s as an editable shortcut target", (tagName) => {
-    expect(isEditableShortcutTarget({ tagName })).toBe(true);
-  });
+  it.each(["input", "textarea", "select"])(
+    "treats %s as an editable shortcut target",
+    (tagName) => {
+      expect(isEditableShortcutTarget({ tagName })).toBe(true);
+    },
+  );
 
   it("detects contenteditable ancestors", () => {
     expect(

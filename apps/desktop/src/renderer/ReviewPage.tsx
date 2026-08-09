@@ -721,7 +721,7 @@ export function ReviewPage({
   };
 
   const decideApproval = async (decision: "approve" | "deny") => {
-    if (!selected || selected.kind !== "approvals") return;
+    if (selected?.kind !== "approvals") return;
     const approvalId = asString(selected.raw.id);
     if (!approvalId) return;
     setBusy(decision);

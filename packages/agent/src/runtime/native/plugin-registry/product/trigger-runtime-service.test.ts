@@ -95,10 +95,10 @@ describe("Eliza product trigger runtime adapter", () => {
     await service.pause(job.id);
     expect(
       (
-        harness.tasks.get(job.id)?.metadata as {
-          trigger?: { enabled?: boolean };
-        }
-      ).trigger?.enabled,
+        harness.tasks.get(job.id)?.metadata as
+          | { trigger?: { enabled?: boolean } }
+          | undefined
+      )?.trigger?.enabled,
     ).toBe(false);
     await service.remove(job.id);
     expect(harness.tasks).toHaveLength(0);

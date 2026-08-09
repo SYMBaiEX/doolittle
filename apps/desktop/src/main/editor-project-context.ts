@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, relative, resolve } from "node:path";
-import ts from "typescript";
+import ts from "typescript-legacy";
 import type {
   EditorProjectCompilerOptions,
   EditorProjectContextRequest,

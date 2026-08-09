@@ -63,7 +63,7 @@ function buildPackageRoot(dependencies: Record<string, string> = {}): string {
   const root = mkdtempSync(join(tmpdir(), "doolittle-publish-"));
   writeFileSync(
     join(root, "package.json"),
-    JSON.stringify({ overrides: { protobufjs: "7.6.5", tar: "7.5.22" } }),
+    JSON.stringify({ overrides: { protobufjs: "8.7.2", tar: "7.5.22" } }),
     "utf8",
   );
   writePackageFixture(

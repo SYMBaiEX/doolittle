@@ -4,7 +4,7 @@ Thanks for helping build Doolittle — an ElizaOS-native, terminal-first agent.
 
 ## Prerequisites
 
-- [Nub](https://nubjs.com/docs) `0.6.0` with Node.js `26.5.0`.
+- [Nub](https://nubjs.com/docs) `0.7.4` with Node.js `26.5.0`.
 - Node `26.5.0` is pinned in `.node-version`; the packaged desktop uses
   Electron's embedded Node.
 

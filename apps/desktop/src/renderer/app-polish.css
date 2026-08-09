@@ -1312,12 +1312,12 @@ th {
  */
 
 .view-container:not(
-    .view-chat,
-    .view-code,
-    .view-review,
-    .view-orchestration,
-    .view-browser
-  ) {
+  .view-chat,
+  .view-code,
+  .view-review,
+  .view-orchestration,
+  .view-browser
+) {
   overflow: hidden;
 }
 

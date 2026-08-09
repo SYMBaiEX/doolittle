@@ -40,7 +40,7 @@
     "publish:providers:alpha": "nub run publish:providers -- --provider all --publish --tag alpha",
     "install:deps": "bash scripts/install.sh",
     "sandbox:setup": "bash scripts/sandbox-setup.sh",
-    "test:sandbox:integration": "DOOLITTLE_RUN_SANDBOX_INTEGRATION=1 nubx --node vitest run packages/plugins/doolittle-plugin/local-sandbox/integration.test.ts",
+    "test:sandbox:integration": "DOOLITTLE_RUN_SANDBOX_INTEGRATION=1 nubx vitest run packages/plugins/doolittle-plugin/local-sandbox/integration.test.ts",
     "dev": "nub run --cwd packages/agent dev",
     "start": "nub run --cwd packages/agent start",
     "build": "nub run --cwd packages/agent build",
@@ -54,18 +54,18 @@
     "desktop:package:mac": "nub run --cwd apps/desktop package:mac",
     "desktop:package:win": "nub run --cwd apps/desktop package:win",
     "desktop:package:linux": "nub run --cwd apps/desktop package:linux",
-    "test:e2e:desktop-packaged": "nubx --node playwright test --config playwright.packaged.config.ts",
-    "lint": "nubx --node biome check --write .",
-    "lint:check": "nubx --node biome check .",
-    "knip:deps": "nubx -y --node knip@6.31.0 --config knip.json --dependencies --no-progress --no-config-hints --no-tag-hints --workspace packages/agent --workspace apps/desktop --workspace packages/plugins/provider-transport --workspace packages/plugins/plugin-claude-code --workspace packages/plugins/plugin-devin",
+    "test:e2e:desktop-packaged": "nubx playwright test --config playwright.packaged.config.ts",
+    "lint": "nubx biome check --write .",
+    "lint:check": "nubx biome check .",
+    "knip:deps": "nubx -y knip@6.32.0 --config knip.json --dependencies --no-progress --no-config-hints --no-tag-hints --workspace packages/agent --workspace apps/desktop --workspace packages/plugins/provider-transport --workspace packages/plugins/plugin-claude-code --workspace packages/plugins/plugin-devin",
     "audit:production:critical": "nub audit --production --audit-level critical",
-    "typecheck": "nubx --node tsc --noEmit",
-    "test": "nubx --node vitest run",
-    "test:coding-harness": "nubx --node vitest run scripts/acceptance/coding-loop-harness.test.ts",
-    "test:research-harness": "nubx --node vitest run scripts/acceptance/research-orchestration-harness.test.ts",
-    "test:account-pool": "nubx --node vitest run packages/agent/src/runtime/native/account-pool/index.test.ts packages/agent/src/server/routes/runtime/accounts.test.ts",
+    "typecheck": "nubx tsc --noEmit",
+    "test": "nubx vitest run",
+    "test:coding-harness": "nubx vitest run scripts/acceptance/coding-loop-harness.test.ts",
+    "test:research-harness": "nubx vitest run scripts/acceptance/research-orchestration-harness.test.ts",
+    "test:account-pool": "nubx vitest run packages/agent/src/runtime/native/account-pool/index.test.ts packages/agent/src/server/routes/runtime/accounts.test.ts",
     "check:alpha": "nub run test:coding-harness && nub run test:research-harness && nub run test:account-pool",
-    "test:e2e": "nub run desktop:build && nubx --node playwright test",
+    "test:e2e": "nub run desktop:build && nubx playwright test",
     "check:repo-hygiene": "nub scripts/check-repo-hygiene.ts",
     "check:workflow-security": "nub scripts/check-workflow-security.ts",
     "check:plugin-boundaries": "nub scripts/check-plugin-boundaries.ts",
@@ -85,7 +85,7 @@
     "@discordjs/node-pre-gyp": "0.4.5",
     "@doolittle/acp": "workspace:*",
     "@doolittle/contracts": "workspace:*",
-    "@electric-sql/pglite": "0.4.5",
+    "@electric-sql/pglite": "0.5.4",
     "@elizaos/agent": "2.0.3-beta.7",
     "@elizaos/app-core": "2.0.3-beta.7",
     "@elizaos/app-training": "workspace:*",
@@ -120,10 +120,10 @@
     "@elizaos/shared": "2.0.3-beta.7",
     "@elizaos/skills": "2.0.3-beta.7",
     "@elizaos/vault": "2.0.3-beta.7",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.4.2",
     "shell-quote": "1.10.0",
     "elizaos": "2.0.3-beta.7",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "overrides": {
     "@elizaos/agent": "2.0.3-beta.7",
@@ -155,19 +155,19 @@
     "@elizaos/ui": "2.0.3-beta.7",
     "@elizaos/vault": "2.0.3-beta.7",
     "elizaos": "2.0.3-beta.7",
-    "ollama-ai-provider": "npm:ollama-ai-provider-v2@^3.5.1",
-    "protobufjs": "7.6.5",
+    "ollama-ai-provider": "npm:ollama-ai-provider-v2@^4.0.1",
+    "protobufjs": "8.7.2",
     "tar": "7.5.22"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.8",
-    "@nubjs/nub": "0.6.0",
-    "@playwright/test": "^1.58.2",
+    "@biomejs/biome": "2.5.7",
+    "@nubjs/nub": "0.7.4",
+    "@playwright/test": "^1.62.1",
     "@types/blessed": "^0.1.27",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.2.0",
     "blessed": "^0.1.81",
-    "esbuild": "0.28.1",
-    "typescript": "^5.9.3",
+    "esbuild": "0.28.2",
+    "typescript": "^7.0.2",
     "vitest": "4.1.10"
   },
   "allowBuilds": {
@@ -178,9 +178,9 @@
   "devEngines": {
     "packageManager": {
       "name": "nub",
-      "version": "^0.6.0",
+      "version": "^0.7.4",
       "onFail": "warn"
     }
   },
-  "packageManager": "nub@0.6.0"
+  "packageManager": "nub@0.7.4"
 }

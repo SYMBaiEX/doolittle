@@ -11,7 +11,7 @@ export function buildRlTurns(
   for (let i = 1; i < messages.length; i++) {
     const window = messages.slice(Math.max(0, i - options.windowSize), i);
     const response = messages[i];
-    if (!response || response.role !== "assistant") {
+    if (response?.role !== "assistant") {
       continue;
     }
 

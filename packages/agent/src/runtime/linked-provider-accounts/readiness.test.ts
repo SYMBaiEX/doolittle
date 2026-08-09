@@ -63,6 +63,7 @@ async function loadReadinessModule() {
 
 describe("linked-provider-accounts readiness helpers", () => {
   beforeEach(() => {
+    vi.stubEnv("ELIZAOS_CLOUD_BASE_URL", "");
     vi.restoreAllMocks();
     vi.resetModules();
     vi.clearAllMocks();
@@ -81,6 +82,7 @@ describe("linked-provider-accounts readiness helpers", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
     vi.resetModules();
     vi.clearAllMocks();

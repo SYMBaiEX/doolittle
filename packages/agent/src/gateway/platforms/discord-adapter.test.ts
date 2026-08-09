@@ -63,7 +63,7 @@ describe("DiscordPlatformAdapter", () => {
       expect(init?.method).toBe("POST");
       expect(
         (init?.headers as Record<string, string>)?.Authorization ??
-          (init?.headers as Headers).get("Authorization"),
+          (init?.headers as Headers | undefined)?.get("Authorization"),
       ).toBe("Bot token");
       const form = init?.body as FormData;
       expect(form.get("files[0]")).toBeTruthy();

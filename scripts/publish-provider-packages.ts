@@ -202,7 +202,7 @@ function buildPackage(
   const declaration = run(
     process.execPath,
     [
-      require.resolve("typescript/bin/tsc"),
+      join(dirname(require.resolve("typescript/package.json")), "bin", "tsc"),
       "--declaration",
       "--emitDeclarationOnly",
       "--outDir",

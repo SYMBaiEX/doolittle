@@ -12,14 +12,13 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "types": ["node"],
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["packages/agent/src/*"],
-      "@doolittle/acp": ["packages/acp/src/index.ts"],
-      "@doolittle/contracts": ["packages/contracts/src/index.ts"],
-      "@doolittle/agent/*": ["packages/agent/src/*"],
-      "@plugins/*": ["packages/plugins/*"],
-      "@characters/*": ["packages/characters/*"]
+      "@/*": ["./packages/agent/src/*"],
+      "@doolittle/acp": ["./packages/acp/src/index.ts"],
+      "@doolittle/contracts": ["./packages/contracts/src/index.ts"],
+      "@doolittle/agent/*": ["./packages/agent/src/*"],
+      "@plugins/*": ["./packages/plugins/*"],
+      "@characters/*": ["./packages/characters/*"]
     }
   },
   "include": [

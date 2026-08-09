@@ -93,7 +93,7 @@ export function normalizeGlobalSearchResults(
           !id ||
           !name ||
           !includesQuery(searchable, normalizedQuery) ||
-          Boolean(project.archivedAt)
+          project.archivedAt
         ) {
           return null;
         }
@@ -115,7 +115,7 @@ export function normalizeGlobalSearchResults(
     projectRecords.flatMap((project) => {
       const projectId = asString(project.id);
       const projectName = concise(asString(project.name), 88);
-      if (!projectId || Boolean(project.archivedAt)) return [];
+      if (!projectId || project.archivedAt) return [];
       return asArray(project.resources)
         .map((value): GlobalSearchResult | null => {
           const resource = asRecord(value);

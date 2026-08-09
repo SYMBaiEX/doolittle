@@ -101,28 +101,26 @@ describe("createSelectedProviderTextModel", () => {
     ).resolves.toBe("planned");
   });
 
-  it.each([
-    undefined,
-    "",
-    "doolittle-runtime",
-    "malformed-runtime-settings",
-  ])("fails without recursively selecting itself for %s", async (provider) => {
-    const runtime = {
-      getSetting: () =>
-        provider === "malformed-runtime-settings"
-          ? "{invalid"
-          : JSON.stringify({ model: { provider } }),
-      useModel: async () => {
-        throw new Error("must not delegate");
-      },
-    } as unknown as IAgentRuntime;
+  it.each([undefined, "", "doolittle-runtime", "malformed-runtime-settings"])(
+    "fails without recursively selecting itself for %s",
+    async (provider) => {
+      const runtime = {
+        getSetting: () =>
+          provider === "malformed-runtime-settings"
+            ? "{invalid"
+            : JSON.stringify({ model: { provider } }),
+        useModel: async () => {
+          throw new Error("must not delegate");
+        },
+      } as unknown as IAgentRuntime;
 
-    await expect(
-      createSelectedProviderTextModel(ModelType.TEXT_LARGE)(runtime, {
-        prompt: "hello",
-      }),
-    ).rejects.toBeInstanceOf(NoModelProviderConfiguredError);
-  });
+      await expect(
+        createSelectedProviderTextModel(ModelType.TEXT_LARGE)(runtime, {
+          prompt: "hello",
+        }),
+      ).rejects.toBeInstanceOf(NoModelProviderConfiguredError);
+    },
+  );
 });
 
 describe("createSelectedProviderTextModels", () => {

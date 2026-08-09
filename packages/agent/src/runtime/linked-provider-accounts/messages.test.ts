@@ -1,5 +1,5 @@
 import { ProviderTransportError } from "@doolittle/provider-transport";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   formatAccountsOverview,
   formatLinkedAccountSummary,
@@ -10,6 +10,14 @@ import {
 } from "./messages";
 
 describe("linked-provider-accounts messages", () => {
+  beforeEach(() => {
+    vi.stubEnv("ELIZAOS_CLOUD_BASE_URL", "");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("formats provider failure guidance for cloud connectivity issues", () => {
     const message = buildProviderFailureMessage(
       "elizacloud",

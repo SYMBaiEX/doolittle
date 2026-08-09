@@ -1,8 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "../chat";
 import { syncProviderSettings } from "./model-settings";
 
 describe("syncProviderSettings", () => {
+  beforeEach(() => {
+    vi.stubEnv("ELIZAOS_CLOUD_BASE_URL", "");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("normalizes eliza cloud settings and preserves configured small model", () => {
     const runtimeSettings = new Map<string, string>();
     const context = {
