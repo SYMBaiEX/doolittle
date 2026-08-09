@@ -842,7 +842,6 @@ select:focus-visible {
 .settings-group-heading h2,
 .detail-toolbar h2,
 .chat-sessions-heading h2,
-.chat-header h2,
 .chat-inspector h2 {
   margin: 4px 0 0;
   font-family: var(--font-display);
@@ -2367,26 +2366,6 @@ td {
       transparent 1px
     );
   background-size: 42px 42px;
-}
-
-.chat-header {
-  display: flex;
-  min-height: 65px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px clamp(20px, 4vw, 42px);
-  background: color-mix(in srgb, var(--bg) 90%, transparent);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--border);
-}
-
-.chat-header h2 {
-  max-width: 520px;
-  overflow: hidden;
-  font-size: 15px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .chat-messages {

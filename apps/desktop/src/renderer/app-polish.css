@@ -26,10 +26,6 @@
   --control-height: 30px;
 }
 
-:root[data-density="compact"] .chat-header {
-  min-height: 58px;
-}
-
 :root[data-density="compact"] .chat-session-row > .chat-session-item {
   padding-top: 6px;
   padding-bottom: 6px;

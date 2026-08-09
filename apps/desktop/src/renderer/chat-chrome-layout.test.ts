@@ -2,6 +2,11 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const css = readFileSync(new URL("./app-polish.css", import.meta.url), "utf8");
+const legacyChromeCss = [
+  readFileSync(new URL("./styles.css", import.meta.url), "utf8"),
+  readFileSync(new URL("./experience.css", import.meta.url), "utf8"),
+  css,
+].join("\n");
 const app = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 const chatPage = readFileSync(
   new URL("./ChatPage.tsx", import.meta.url),
@@ -9,6 +14,13 @@ const chatPage = readFileSync(
 );
 
 describe("chat chrome density contract", () => {
+  it("does not retain unreachable legacy chat shell selectors", () => {
+    expect(legacyChromeCss).not.toMatch(/\.chat-header(?![-\w])(?=[^{}]*\{)/);
+    expect(legacyChromeCss).not.toMatch(
+      /\.chat-header-toolbar(?![-\w])(?=[^{}]*\{)/,
+    );
+  });
+
   it("combines desktop workspace and conversation controls into one 44px row", () => {
     expect(app).toMatch(
       /className="window-dragbar-primary"[\s\S]*?className="window-context"[\s\S]*?className="chat-chrome-host"[\s\S]*?className="window-tools"/,
