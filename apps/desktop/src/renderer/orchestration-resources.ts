@@ -8,6 +8,7 @@ import {
 } from "./lib";
 import { projectCodegenSelection } from "./orchestration-codegen-selection";
 import { scopeTasksByWorkspace } from "./orchestration-helpers";
+import type { RepositoryWorktreesResponse } from "./repository-resource-models";
 import {
   type OrchestrationTab,
   orchestrationRequests,
@@ -132,8 +133,6 @@ export function isolatedCodingWorktrees(
         !workspacePathsEqual(worktree.path, repositoryRoot, platform)),
   );
 }
-
-type RepositoryWorktreesResponse = { worktrees?: unknown[] };
 
 type CodegenRuntimeResponse = {
   execution?: {

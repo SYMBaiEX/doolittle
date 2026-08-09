@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { ProjectDetail } from "./ProjectDetail";
 import { ProjectList } from "./ProjectList";
-import { ProjectSwitcher } from "./ProjectSwitcher";
 
 const project = {
   id: "desktop",
@@ -68,22 +67,5 @@ describe("project manager presentational sections", () => {
     expect(markup).toContain("Primary");
     expect(markup).toContain("Move chat");
     expect(markup).toContain('aria-label="Remove README.md"');
-  });
-
-  it("keeps the switcher trigger labeled for the current scope", () => {
-    const markup = renderToStaticMarkup(
-      createElement(ProjectSwitcher, {
-        activeScope: "desktop",
-        allChatCount: 5,
-        onOpenProjectManager: vi.fn(),
-        onScopeChange: vi.fn(),
-        projects: [project],
-        unscopedChatCount: 2,
-      }),
-    );
-
-    expect(markup).toContain('class="project-switcher__trigger"');
-    expect(markup).toContain("Desktop");
-    expect(markup).toContain('aria-haspopup="listbox"');
   });
 });

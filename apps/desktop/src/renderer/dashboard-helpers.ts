@@ -403,7 +403,3 @@ export function sessionCountSummary(sessions: SessionSummary[] | undefined): {
     { total: 0, messages: 0 },
   );
 }
-
-export function normalizeSummaryArray(value: unknown): unknown[] {
-  return asArray(value);
-}

@@ -1,5 +1,7 @@
+import { isPlainObject } from "@elizaos/shared/type-guards";
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return isPlainObject(value);
 }
 
 export function fullyDecodeComponent(value: string): string | null {

@@ -39,7 +39,6 @@ import {
   type WorkspaceTreeResponse,
 } from "./coding-workspace/models";
 import type { CodeEditorStateSnapshot } from "./components/CodeEditor";
-import type { ProjectScope } from "./components/ProjectManager";
 import { useDesktopAcpEditorBridge } from "./desktop-acp-client";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import {
@@ -58,6 +57,7 @@ import {
   loadPanelWidth,
   savePanelWidth,
 } from "./panel-layout";
+import type { ProjectScope } from "./project-manager/models";
 import { codingWorkspaceRequests } from "./resource-request-policy";
 import "./coding-workspace.css";
 

@@ -1,5 +1,5 @@
 import type { Project, SessionSummary } from "../shared/contracts";
-import type { ProjectScope } from "./components/ProjectManager";
+import type { ProjectScope } from "./project-manager/models";
 
 export interface WorkspaceSelection {
   projectScope: ProjectScope;

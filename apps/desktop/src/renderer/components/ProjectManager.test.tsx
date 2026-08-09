@@ -1,7 +1,8 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { ProjectEditor, shouldHandleDialogKey } from "./ProjectManager";
+import { shouldHandleDialogKey } from "../project-manager/dialog-focus";
+import { ProjectEditor } from "../project-manager/ProjectEditor";
 
 describe("ProjectManager dialog layers", () => {
   it("suspends the parent Escape and Tab trap while a nested editor owns focus", () => {

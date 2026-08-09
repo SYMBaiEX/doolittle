@@ -19,7 +19,7 @@ import {
   defaultBaseUrlForProvider,
   routeProviderOption,
 } from "../model-routing";
-import type { ProjectLike, ProjectScope } from "./ProjectManager";
+import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import "./composer-selectors.css";
 
 function useDismissPopover(

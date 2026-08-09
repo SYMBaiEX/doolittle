@@ -11,7 +11,7 @@ import {
   loadConversationPins,
   saveConversationPins,
 } from "../conversation-persistence";
-import type { ProjectLike, ProjectScope } from "./ProjectManager";
+import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import {
   buildProjectSidebarModel,
   conversationLabel,

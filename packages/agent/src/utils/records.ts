@@ -1,10 +1,15 @@
-export type UnknownRecord = Record<string, unknown>;
+import {
+  asRecord as asElizaRecord,
+  type UnknownRecord,
+} from "@elizaos/shared/type-guards";
+
+export type { UnknownRecord };
 
 /**
- * Broad object guard for runtime payloads. This intentionally accepts objects
- * with custom prototypes; callers that require plain JSON objects should use
- * the official `isPlainObject` guard instead.
+ * Compatibility predicate over Eliza's official broad record parser. Callers
+ * that require plain JSON objects should use the official `isPlainObject`
+ * guard instead.
  */
 export function isRecord(value: unknown): value is UnknownRecord {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  return asElizaRecord(value) !== null;
 }

@@ -1,6 +1,5 @@
 import type { BackendPhase, SessionSummary } from "../../shared/contracts";
 import type { CommandGroup } from "../components/CommandPalette";
-import type { ProjectLike, ProjectScope } from "../components/ProjectManager";
 import {
   navigation,
   sessionLabel,
@@ -9,6 +8,7 @@ import {
   workspaceName,
 } from "../desktop-navigation";
 import { displayTimestamp } from "../lib";
+import type { ProjectLike, ProjectScope } from "../project-manager/models";
 
 export interface DesktopCommandGroupsContext {
   paletteQuery: string;

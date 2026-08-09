@@ -1,5 +1,5 @@
 import type { SessionSummary } from "../../shared/contracts";
-import type { ProjectLike } from "./ProjectManager";
+import type { ProjectLike } from "../project-manager/models";
 
 export interface ProjectConversationGroup {
   project: ProjectLike;

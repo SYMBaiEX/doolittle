@@ -27,11 +27,11 @@ import type {
   TaskCreatePriority,
 } from "./orchestration/models";
 import { compactControlValue, compactStatus } from "./orchestration/models";
+import { OrchestrationRunsPanel } from "./orchestration/OrchestrationRunsPanel";
 import {
   CODEGEN_MODES,
   type CodegenMode,
-  OrchestrationRunsPanel,
-} from "./orchestration/OrchestrationRunsPanel";
+} from "./orchestration/orchestration-runs-model";
 import { PlanCreateForm } from "./orchestration/PlanCreateForm";
 import { PlanPanel } from "./orchestration/PlanPanel";
 import { TaskCreateForm } from "./orchestration/TaskCreateForm";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SessionSummary } from "../../shared/contracts";
-import type { ProjectLike } from "./ProjectManager";
+import type { ProjectLike } from "../project-manager/models";
 import {
   buildProjectSidebarModel,
   conversationLabel,

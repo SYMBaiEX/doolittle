@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  CODEGEN_MODES,
-  runArtifacts,
-  statusTone,
-} from "./orchestration-runs-model";
+import { statusTone } from "./detail-primitives";
+import { CODEGEN_MODES, runArtifacts } from "./orchestration-runs-model";
 
 describe("orchestration runs presentation model", () => {
   it("keeps the launcher modes in their public order", () => {

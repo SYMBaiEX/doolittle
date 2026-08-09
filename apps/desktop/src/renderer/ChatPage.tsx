@@ -40,7 +40,6 @@ import {
 import type { ChatContextHandoff } from "./chat-context-handoff";
 import { commandCompletions } from "./command-completion";
 import { visibleAssistantText } from "./components/message-output";
-import type { ProjectLike, ProjectScope } from "./components/ProjectManager";
 import { RouteControlDialog } from "./components/RouteControlDialog";
 import {
   type ThreadWorkbenchFullView,
@@ -73,6 +72,7 @@ import {
   type MemoryMatchSnapshot,
   normalizeSavedProfileMatches,
 } from "./memory-matches";
+import type { ProjectLike, ProjectScope } from "./project-manager/models";
 
 interface SessionForRender extends SessionSummary {
   pinned: boolean;

@@ -40,13 +40,7 @@ import {
 } from "./chat-context-handoff";
 import { ActivityCenter } from "./components/ActivityCenter";
 import { type CommandGroup, CommandPalette } from "./components/CommandPalette";
-import {
-  type ProjectDraft,
-  type ProjectLike,
-  ProjectManager,
-  type ProjectResourceLike,
-  type ProjectScope,
-} from "./components/ProjectManager";
+import { ProjectManager } from "./components/ProjectManager";
 import { ToastRegion, useToasts } from "./components/ToastRegion";
 import { newConversationId } from "./conversation-id";
 import {
@@ -97,6 +91,12 @@ import {
   UTILITY_DRAWER_WIDTH,
   UTILITY_DRAWER_WIDTH_KEY,
 } from "./panel-layout";
+import type {
+  ProjectDraft,
+  ProjectLike,
+  ProjectResourceLike,
+  ProjectScope,
+} from "./project-manager/models";
 import { projectNavigationTarget } from "./project-navigation";
 import { shouldIgnoreShellShortcut } from "./shell-shortcuts";
 import { workspacePathsEqual } from "./workspace-path";

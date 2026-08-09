@@ -16,7 +16,6 @@ import {
   ComposerProjectSelector,
 } from "../components/ComposerSelectors";
 import { InlineApprovalPanel } from "../components/InlineApprovalPanel";
-import type { ProjectLike, ProjectScope } from "../components/ProjectManager";
 import {
   VoiceComposerButton,
   type VoiceRecorderMime,
@@ -30,6 +29,7 @@ import type {
   PersistedQueuedMessage,
   PromptLibraryEntry,
 } from "../conversation-persistence";
+import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import type { ChatMemoryMatchState } from "./models";
 import { attachmentSize, fileName, MAX_MESSAGE_ATTACHMENTS } from "./models";
 

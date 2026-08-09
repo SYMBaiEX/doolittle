@@ -1,8 +1,6 @@
 import { asArray } from "../lib";
 import type { CodegenRunRecord } from "../orchestration-resources";
 
-export { statusTone } from "./detail-primitives";
-
 export type CodegenMode = "generate" | "research" | "prd" | "qa";
 
 export const CODEGEN_MODES: ReadonlyArray<{

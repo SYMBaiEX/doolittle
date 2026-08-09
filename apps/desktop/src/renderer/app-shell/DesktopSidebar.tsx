@@ -4,7 +4,6 @@ import type {
   SessionSummary,
 } from "../../shared/contracts";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
-import type { ProjectLike, ProjectScope } from "../components/ProjectManager";
 import {
   NewConversationControl,
   ProjectHistorySidebar,
@@ -16,6 +15,7 @@ import {
 } from "../desktop-navigation";
 import { Icon } from "../lib";
 import { APP_SIDEBAR_WIDTH } from "../panel-layout";
+import type { ProjectLike, ProjectScope } from "../project-manager/models";
 
 type DesktopPlatform = DoolittleDesktopBridge["platform"];
 

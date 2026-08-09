@@ -6,6 +6,14 @@ import type {
 import { asArray, asRecord, asString } from "../lib";
 import type { RepositoryControlChange } from "../repository-control";
 
+export type {
+  RepositoryBranchesResponse,
+  RepositoryConflictsResponse,
+  RepositoryRemotesResponse,
+  RepositoryStashesResponse,
+  RepositoryWorktreesResponse,
+} from "../repository-resource-models";
+
 export type ReviewFilter = "all" | "approvals" | "ci" | "changes";
 export type ReviewKind = Exclude<ReviewFilter, "all">;
 
@@ -36,26 +44,6 @@ export interface ApprovalResponse {
 
 export interface ChangesResponse {
   changes?: unknown[];
-}
-
-export interface RepositoryBranchesResponse {
-  branches?: unknown[];
-}
-
-export interface RepositoryRemotesResponse {
-  remotes?: unknown[];
-}
-
-export interface RepositoryStashesResponse {
-  stashes?: unknown[];
-}
-
-export interface RepositoryConflictsResponse {
-  conflicts?: unknown[];
-}
-
-export interface RepositoryWorktreesResponse {
-  worktrees?: unknown[];
 }
 
 export interface RunsResponse {
@@ -148,11 +136,11 @@ export function checkDisplayStatus(check: RepositoryReviewCheck): string {
   return check.status;
 }
 
-export function workflowDisplayStatus(run: RepositoryWorkflowRun): string {
+function workflowDisplayStatus(run: RepositoryWorkflowRun): string {
   return run.conclusion?.toLowerCase() || run.status;
 }
 
-export function compactCommand(command: string): string {
+function compactCommand(command: string): string {
   const normalized = command.replace(/\s+/gu, " ").trim();
   return normalized.length > 110 ? `${normalized.slice(0, 109)}…` : normalized;
 }

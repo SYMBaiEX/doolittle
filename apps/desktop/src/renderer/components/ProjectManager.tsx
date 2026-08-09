@@ -1,9 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import "./project-manager.css";
-import {
-  shouldHandleDialogKey,
-  useDialogFocus,
-} from "../project-manager/dialog-focus";
+import { useDialogFocus } from "../project-manager/dialog-focus";
 import type {
   ProjectDraft,
   ProjectLike,
@@ -13,16 +10,6 @@ import type {
 import { EmptyDetail, ProjectDetail } from "../project-manager/ProjectDetail";
 import { ProjectEditor } from "../project-manager/ProjectEditor";
 import { ProjectList } from "../project-manager/ProjectList";
-import { ProjectSwitcher } from "../project-manager/ProjectSwitcher";
-
-export type {
-  ProjectDraft,
-  ProjectLike,
-  ProjectManagerProps,
-  ProjectResourceLike,
-  ProjectScope,
-} from "../project-manager/models";
-export { ProjectEditor, ProjectSwitcher, shouldHandleDialogKey };
 
 export function ProjectManager(props: ProjectManagerProps) {
   const {

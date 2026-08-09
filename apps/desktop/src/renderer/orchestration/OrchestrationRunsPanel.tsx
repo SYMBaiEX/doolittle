@@ -34,13 +34,6 @@ import {
 import type { CodegenMode } from "./orchestration-runs-model";
 import { CODEGEN_MODES, runArtifacts } from "./orchestration-runs-model";
 
-export { statusTone } from "./detail-primitives";
-export type { CodegenMode } from "./orchestration-runs-model";
-export {
-  CODEGEN_MODES,
-  runArtifacts,
-} from "./orchestration-runs-model";
-
 type CodegenRuntimeResponse = {
   execution?: {
     codeGeneration?: {

@@ -1,4 +1,5 @@
 import type { InteractiveTerminalSessionState } from "../../shared/contracts";
+import { isPlainObject } from "../value-guards";
 
 export const INTERACTIVE_TERMINAL_STORAGE_PREFIX =
   "doolittle.desktop.interactive-terminal.v2:";
@@ -38,10 +39,6 @@ export interface ResolveInteractiveTerminalWorkspaceStateInput {
   nextWorkspacePath: string;
   currentState: InteractiveTerminalWorkspaceState;
   storage?: Storage;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function isString(value: unknown): value is string {
@@ -134,12 +131,12 @@ export function parseInteractiveTerminalState(
     tabs: [createInteractiveTerminalTab("Terminal 1")],
   } satisfies InteractiveTerminalWorkspaceState;
 
-  if (!isRecord(value)) return fallback;
+  if (!isPlainObject(value)) return fallback;
   const rawTabs = Array.isArray(value.tabs) ? value.tabs : [];
 
   const normalizedTabs = rawTabs
     .map((entry): InteractiveTerminalTabState | null => {
-      if (!isRecord(entry)) return null;
+      if (!isPlainObject(entry)) return null;
       const id = trimString(entry.id, "").trim();
       if (!id) return null;
       const name = trimString(entry.name, "Terminal").slice(

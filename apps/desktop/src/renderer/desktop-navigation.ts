@@ -1,5 +1,5 @@
 import type { SessionSummary } from "../shared/contracts";
-import type { ProjectScope } from "./components/ProjectManager";
+import type { ProjectScope } from "./project-manager/models";
 
 export type View =
   | "dashboard"

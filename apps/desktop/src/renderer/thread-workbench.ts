@@ -1,4 +1,4 @@
-import { asRecord } from "./value-guards";
+import { asArray, asRecord, asString, isPlainObject } from "./value-guards";
 
 export const THREAD_WORKBENCH_STORAGE_PREFIX =
   "doolittle.desktop.thread-workbench.v1";
@@ -66,14 +66,6 @@ export interface BriefPlanSelection {
 
 const UNAVAILABLE_VALUE = "Unavailable";
 
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function asArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
 function normalizePlanStep(plan: Record<string, unknown>): string {
   const steps = asArray(plan.steps)
     .map((step) => asString(step).trim())
@@ -133,10 +125,6 @@ const LIFECYCLES = new Set<ThreadWorkbenchLifecycle>([
   "completed",
   "failed",
 ]);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
 
 function isWorkbenchTab(value: unknown): value is ThreadWorkbenchTab {
   return (
@@ -205,7 +193,7 @@ export function parseThreadWorkbenchState(
   value: unknown,
   fallback: ThreadWorkbenchState,
 ): ThreadWorkbenchState {
-  if (!isRecord(value)) return fallback;
+  if (!isPlainObject(value)) return fallback;
 
   const lifecycle = isLifecycle(value.lifecycle)
     ? value.lifecycle

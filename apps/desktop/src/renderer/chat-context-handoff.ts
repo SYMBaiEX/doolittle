@@ -1,4 +1,4 @@
-import type { ProjectScope } from "./components/ProjectManager";
+import type { ProjectScope } from "./project-manager/models";
 
 export interface ChatContextRequest {
   text: string;

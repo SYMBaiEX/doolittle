@@ -41,11 +41,82 @@ export interface WorkbenchPanelsProps {
   onOpenFullView: (view: ThreadWorkbenchFullView) => void;
 }
 
+type FilesPanelController = Pick<
+  WorkbenchController,
+  | "acpEditor"
+  | "fileEntries"
+  | "file"
+  | "currentFile"
+  | "currentFileLanguage"
+  | "setSelectedFile"
+  | "tree"
+  | "insert"
+>;
+
+type ChangesPanelController = Pick<
+  WorkbenchController,
+  | "repositorySummary"
+  | "branches"
+  | "changeEntries"
+  | "conflicts"
+  | "remotes"
+  | "stashes"
+  | "worktrees"
+  | "refreshGit"
+  | "checkpoints"
+  | "checkpointBusy"
+  | "createCheckpoint"
+  | "checkpointMessage"
+  | "restoreCheckpoint"
+  | "changes"
+  | "currentChange"
+  | "patch"
+  | "setSelectedChange"
+  | "insert"
+>;
+
+type TerminalPanelController = Pick<
+  WorkbenchController,
+  | "terminal"
+  | "commandEntries"
+  | "currentCommand"
+  | "setSelectedCommand"
+  | "insert"
+>;
+
+type PlansPanelController = Pick<WorkbenchController, "plans" | "planEntries">;
+
+type BriefPanelController = Pick<
+  WorkbenchController,
+  | "plans"
+  | "delegationTasks"
+  | "codegen"
+  | "approvals"
+  | "terminal"
+  | "briefPlanSummary"
+  | "model"
+  | "repositorySummary"
+  | "delegatedTaskEntries"
+  | "approvalEntries"
+  | "activeRunCount"
+  | "failedRunCount"
+  | "runEntries"
+  | "commandEntries"
+  | "insert"
+>;
+
+type SettingsPanelController = Pick<
+  WorkbenchController,
+  "settings" | "model" | "repositorySummary" | "settingEntries"
+>;
+
+type PreviewPanelController = Pick<WorkbenchController, "preview">;
+
 function FilesPanel({
   controller,
   workspacePath,
 }: {
-  controller: WorkbenchController;
+  controller: FilesPanelController;
   workspacePath: string;
 }) {
   const {
@@ -80,7 +151,7 @@ function FilesPanel({
   );
 }
 
-function ChangesPanel({ controller }: { controller: WorkbenchController }) {
+function ChangesPanel({ controller }: { controller: ChangesPanelController }) {
   const {
     repositorySummary,
     branches,
@@ -261,7 +332,11 @@ function ChangesPanel({ controller }: { controller: WorkbenchController }) {
   );
 }
 
-function TerminalPanel({ controller }: { controller: WorkbenchController }) {
+function TerminalPanel({
+  controller,
+}: {
+  controller: TerminalPanelController;
+}) {
   const {
     terminal,
     commandEntries,
@@ -338,7 +413,7 @@ function TerminalPanel({ controller }: { controller: WorkbenchController }) {
   );
 }
 
-function PlansPanel({ controller }: { controller: WorkbenchController }) {
+function PlansPanel({ controller }: { controller: PlansPanelController }) {
   const { plans, planEntries } = controller;
   return (
     <div className="thread-workbench-panel-body thread-workbench-panel-body--plans">
@@ -386,7 +461,7 @@ function BriefPanel({
   controller,
   onOpenFullView,
 }: {
-  controller: WorkbenchController;
+  controller: BriefPanelController;
   onOpenFullView: (view: ThreadWorkbenchFullView) => void;
 }) {
   const {
@@ -670,7 +745,7 @@ function SettingsPanel({
   controller,
   onOpenFullView,
 }: {
-  controller: WorkbenchController;
+  controller: SettingsPanelController;
   onOpenFullView: (view: ThreadWorkbenchFullView) => void;
 }) {
   const { settings, model, repositorySummary, settingEntries } = controller;
@@ -742,7 +817,7 @@ function SettingsPanel({
   );
 }
 
-function PreviewPanel({ controller }: { controller: WorkbenchController }) {
+function PreviewPanel({ controller }: { controller: PreviewPanelController }) {
   const { preview } = controller;
   const previewRecord = asRecord(preview.data?.browser);
   const previewMode =

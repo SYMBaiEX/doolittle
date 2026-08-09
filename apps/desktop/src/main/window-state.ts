@@ -2,6 +2,7 @@ import {
   readJsonFileSync,
   writeJsonAtomicSync,
 } from "@elizaos/agent/utils/atomic-json";
+import { asRecord } from "@elizaos/shared/type-guards";
 
 export const MIN_WINDOW_WIDTH = 920;
 export const MIN_WINDOW_HEIGHT = 620;
@@ -62,10 +63,6 @@ function isFiniteInteger(value: unknown): value is number {
     Number.isFinite(value) &&
     Number.isInteger(value)
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 function sanitizeWindowState(
@@ -152,11 +149,11 @@ export function loadWindowState(
     ...options,
   };
 
-  const raw = readJsonFileSync<unknown>(statePath);
-  if (!isRecord(raw)) return normalizedOptions.defaultState;
+  const raw = asRecord(readJsonFileSync<unknown>(statePath));
+  if (!raw) return normalizedOptions.defaultState;
 
-  const boundsRaw = raw.bounds;
-  if (!isRecord(boundsRaw)) return normalizedOptions.defaultState;
+  const boundsRaw = asRecord(raw.bounds);
+  if (!boundsRaw) return normalizedOptions.defaultState;
 
   const x = boundsRaw.x;
   const y = boundsRaw.y;

@@ -1,4 +1,4 @@
-import { asRecord } from "./value-guards";
+import { asNumber, asRecord, asString } from "./value-guards";
 
 export type GatewayDirection = "inbox" | "outbox";
 
@@ -29,14 +29,6 @@ export interface GatewayApprovedSender {
   platform: string;
   userId: string;
   approvedAt: string;
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function asNumber(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 export function buildGatewayTimeline(

@@ -9,10 +9,10 @@ import type {
   ChatContextHandoff,
   ChatContextRequest,
 } from "../chat-context-handoff";
-import type { ProjectLike, ProjectScope } from "../components/ProjectManager";
 import type { View } from "../desktop-navigation";
 import type { DesktopNavigationIntent } from "../desktop-navigation-intent";
 import type { ApiResource } from "../lib";
+import type { ProjectLike, ProjectScope } from "../project-manager/models";
 
 const DashboardPage = lazy(() =>
   import("../DashboardPage").then((module) => ({
