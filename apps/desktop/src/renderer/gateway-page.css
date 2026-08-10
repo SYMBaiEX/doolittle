@@ -235,6 +235,10 @@
   padding-top: 3px;
 }
 
+.pairing-list .inline-action-confirmation {
+  grid-column: 1 / -1;
+}
+
 .pairing-actions .primary-button,
 .pairing-actions .secondary-button,
 .pairing-actions .danger-button {

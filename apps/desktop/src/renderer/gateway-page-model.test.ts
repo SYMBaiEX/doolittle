@@ -3,6 +3,7 @@ import {
   approvedPairingSenders,
   buildGatewayTimeline,
   filterGatewayTimeline,
+  gatewayActionFeedback,
   gatewayStatusTone,
   pairingRequests,
 } from "./gateway-page-model";
@@ -99,5 +100,17 @@ describe("gateway page timeline model", () => {
         },
       ]),
     ).toMatchObject([{ id: "allow-1", userId: "alice" }]);
+  });
+
+  it("keeps action success and failure feedback truthful", () => {
+    expect(gatewayActionFeedback("approve")).toMatchObject({ tone: "good" });
+    expect(gatewayActionFeedback("revoke", "runtime offline")).toEqual({
+      message: "Pairing update could not be completed: runtime offline",
+      tone: "bad",
+    });
+    expect(gatewayActionFeedback("replay", "record expired")).toEqual({
+      message: "Replay could not be completed: record expired",
+      tone: "bad",
+    });
   });
 });

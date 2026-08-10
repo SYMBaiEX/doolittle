@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
   type AutomationActionChoice,
   type AutomationConditionChoice,
@@ -7,6 +7,7 @@ import {
   buildAutomationRequest,
   summarizeAutomation,
 } from "./automation-model";
+import { InlineActionConfirmation } from "./components/InlineActionConfirmation";
 import {
   asArray,
   asRecord,
@@ -538,39 +539,16 @@ export function AutomationDeleteConfirmation({
   onCancel(): void;
   onConfirm(): void;
 }) {
-  const cancelRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    cancelRef.current?.focus();
-  }, []);
   return (
-    <fieldset className="automation-delete-confirmation">
-      <legend className="automation-delete-confirmation__title">
-        Delete {automationName}?
-      </legend>
-      <small className="automation-delete-confirmation__detail">
-        This removes its configuration and stops future triggers.
-      </small>
-      <div className="automation-delete-confirmation__actions">
-        <button
-          aria-busy={busy}
-          className="danger-button"
-          disabled={busy}
-          onClick={onConfirm}
-          type="button"
-        >
-          {busy ? "Deleting…" : "Confirm delete"}
-        </button>
-        <button
-          className="text-button"
-          disabled={busy}
-          onClick={onCancel}
-          ref={cancelRef}
-          type="button"
-        >
-          Keep automation
-        </button>
-      </div>
-    </fieldset>
+    <InlineActionConfirmation
+      busy={busy}
+      busyLabel="Deleting…"
+      confirmLabel="Confirm delete"
+      detail="This removes its configuration and stops future triggers."
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      title={`Delete ${automationName}?`}
+    />
   );
 }
 

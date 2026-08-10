@@ -31,6 +31,50 @@ export interface GatewayApprovedSender {
   approvedAt: string;
 }
 
+export type GatewayAction = "approve" | "deny" | "revoke" | "replay";
+
+export interface GatewayActionFeedback {
+  message: string;
+  tone: "good" | "bad";
+}
+
+export function gatewayActionFeedback(
+  action: GatewayAction,
+  error?: string,
+): GatewayActionFeedback {
+  if (error) {
+    return {
+      message: `${action === "replay" ? "Replay" : "Pairing update"} could not be completed: ${error}`,
+      tone: "bad",
+    };
+  }
+  switch (action) {
+    case "approve":
+      return {
+        message:
+          "Pairing approved. The sender is now allowed by Eliza PairingService.",
+        tone: "good",
+      };
+    case "deny":
+      return {
+        message:
+          "Pairing request denied and removed from Eliza PairingService.",
+        tone: "good",
+      };
+    case "revoke":
+      return {
+        message: "Approved sender revoked from Eliza PairingService.",
+        tone: "good",
+      };
+    case "replay":
+      return {
+        message:
+          "Replay submitted. Doolittle is reprocessing the recorded inbound preview on its original thread route.",
+        tone: "good",
+      };
+  }
+}
+
 export function buildGatewayTimeline(
   inbox: unknown[],
   outbox: unknown[],

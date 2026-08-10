@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react";
+import { InlineActionConfirmation } from "./components/InlineActionConfirmation";
 import {
   approvedPairingSenders,
   buildGatewayTimeline,
   filterGatewayTimeline,
+  type GatewayActionFeedback,
+  gatewayActionFeedback,
   gatewayStatusTone,
   pairingRequests,
 } from "./gateway-page-model";
@@ -106,7 +109,7 @@ export function GatewayPage({ active }: { active: boolean }) {
   const [query, setQuery] = useState("");
   const [replayingId, setReplayingId] = useState("");
   const [confirmReplayId, setConfirmReplayId] = useState("");
-  const [feedback, setFeedback] = useState("");
+  const [feedback, setFeedback] = useState<GatewayActionFeedback | null>(null);
   const [pairingAction, setPairingAction] = useState("");
   const [confirmPairingAction, setConfirmPairingAction] = useState("");
 
@@ -169,22 +172,14 @@ export function GatewayPage({ active }: { active: boolean }) {
   ) => {
     const actionId = `${action}:${input.platform}:${input.code ?? input.userId}`;
     setPairingAction(actionId);
-    setConfirmPairingAction("");
-    setFeedback("");
+    setFeedback(null);
     try {
       await desktopRequest(`/pairing/${action}`, "POST", input);
-      setFeedback(
-        action === "approve"
-          ? "Pairing approved. The sender is now allowed by Eliza PairingService."
-          : action === "deny"
-            ? "Pairing request denied and removed from Eliza PairingService."
-            : "Approved sender revoked from Eliza PairingService.",
-      );
+      setFeedback(gatewayActionFeedback(action));
+      setConfirmPairingAction("");
       refresh();
     } catch (error) {
-      setFeedback(
-        `Pairing update could not be completed: ${errorMessage(error)}`,
-      );
+      setFeedback(gatewayActionFeedback(action, errorMessage(error)));
     } finally {
       setPairingAction("");
     }
@@ -193,15 +188,13 @@ export function GatewayPage({ active }: { active: boolean }) {
   const replay = async (recordId: string) => {
     setReplayingId(recordId);
     setConfirmReplayId("");
-    setFeedback("");
+    setFeedback(null);
     try {
       await desktopRequest("/gateway/replay", "POST", { recordId });
-      setFeedback(
-        "Replay submitted. Doolittle is reprocessing the recorded inbound preview on its original thread route.",
-      );
+      setFeedback(gatewayActionFeedback("replay"));
       refresh();
     } catch (error) {
-      setFeedback(`Replay could not be submitted: ${errorMessage(error)}`);
+      setFeedback(gatewayActionFeedback("replay", errorMessage(error)));
     } finally {
       setReplayingId("");
     }
@@ -238,11 +231,8 @@ export function GatewayPage({ active }: { active: boolean }) {
         </Notice>
       ) : null}
       {feedback ? (
-        <Notice
-          announce="status"
-          tone={feedback.startsWith("Replay could") ? "bad" : "good"}
-        >
-          {feedback}
+        <Notice announce="status" tone={feedback.tone}>
+          {feedback.message}
         </Notice>
       ) : null}
 
@@ -515,63 +505,49 @@ export function GatewayPage({ active }: { active: boolean }) {
                       <time dateTime={request.createdAt}>
                         Requested {displayTimestamp(request.createdAt)}
                       </time>
-                      <div className="pairing-actions">
-                        {confirmationId === approveId ||
-                        confirmationId === denyId ? (
+                      {confirmationId === approveId ? (
+                        <InlineActionConfirmation
+                          busy={actionId === approveId}
+                          busyLabel="Approving…"
+                          confirmLabel="Confirm approve"
+                          detail={`Allows future ${request.platform} messages from this sender.`}
+                          onCancel={() => setConfirmPairingAction("")}
+                          onConfirm={() =>
+                            void updatePairing("approve", request)
+                          }
+                          title={`Approve ${request.userId}?`}
+                          tone="primary"
+                        />
+                      ) : confirmationId === denyId ? (
+                        <InlineActionConfirmation
+                          busy={actionId === denyId}
+                          busyLabel="Denying…"
+                          confirmLabel="Confirm deny"
+                          detail="Removes this request without adding the sender to Eliza’s allowlist."
+                          onCancel={() => setConfirmPairingAction("")}
+                          onConfirm={() => void updatePairing("deny", request)}
+                          title={`Deny ${request.userId}?`}
+                        />
+                      ) : (
+                        <div className="pairing-actions">
                           <button
-                            className="text-button"
+                            className="secondary-button"
                             disabled={Boolean(actionId)}
-                            onClick={() => setConfirmPairingAction("")}
+                            onClick={() => setConfirmPairingAction(approveId)}
                             type="button"
                           >
-                            Cancel
+                            Approve
                           </button>
-                        ) : null}
-                        <button
-                          className={
-                            confirmationId === approveId
-                              ? "primary-button"
-                              : "secondary-button"
-                          }
-                          disabled={Boolean(actionId)}
-                          onClick={() => {
-                            if (confirmationId === approveId) {
-                              void updatePairing("approve", request);
-                            } else {
-                              setConfirmPairingAction(approveId);
-                            }
-                          }}
-                          type="button"
-                        >
-                          {actionId === approveId
-                            ? "Approving…"
-                            : confirmationId === approveId
-                              ? "Confirm approve"
-                              : "Approve"}
-                        </button>
-                        <button
-                          className={
-                            confirmationId === denyId
-                              ? "danger-button"
-                              : "secondary-button"
-                          }
-                          disabled={Boolean(actionId)}
-                          onClick={() => {
-                            if (confirmationId === denyId) {
-                              void updatePairing("deny", request);
-                            } else {
-                              setConfirmPairingAction(denyId);
-                            }
-                          }}
-                          type="button"
-                        >
-                          {actionId === denyId
-                            ? "Denying…"
-                            : confirmationId === denyId
-                              ? "Confirm deny"
-                              : "Deny"}
-                        </button>
-                      </div>
+                          <button
+                            className="secondary-button"
+                            disabled={Boolean(actionId)}
+                            onClick={() => setConfirmPairingAction(denyId)}
+                            type="button"
+                          >
+                            Deny
+                          </button>
+                        </div>
+                      )}
                     </li>
                   );
                 })}
@@ -602,40 +578,28 @@ export function GatewayPage({ active }: { active: boolean }) {
                       <time dateTime={sender.approvedAt}>
                         Approved {displayTimestamp(sender.approvedAt)}
                       </time>
-                      <div className="pairing-actions">
-                        {confirmPairingAction === revokeId ? (
+                      {confirmPairingAction === revokeId ? (
+                        <InlineActionConfirmation
+                          busy={pairingAction === revokeId}
+                          busyLabel="Revoking…"
+                          confirmLabel="Confirm revoke"
+                          detail={`Blocks future ${sender.platform} messages until this sender pairs again.`}
+                          onCancel={() => setConfirmPairingAction("")}
+                          onConfirm={() => void updatePairing("revoke", sender)}
+                          title={`Revoke ${sender.userId}?`}
+                        />
+                      ) : (
+                        <div className="pairing-actions">
                           <button
-                            className="text-button"
+                            className="secondary-button"
                             disabled={Boolean(pairingAction)}
-                            onClick={() => setConfirmPairingAction("")}
+                            onClick={() => setConfirmPairingAction(revokeId)}
                             type="button"
                           >
-                            Cancel
+                            Revoke
                           </button>
-                        ) : null}
-                        <button
-                          className={
-                            confirmPairingAction === revokeId
-                              ? "danger-button"
-                              : "secondary-button"
-                          }
-                          disabled={Boolean(pairingAction)}
-                          onClick={() => {
-                            if (confirmPairingAction === revokeId) {
-                              void updatePairing("revoke", sender);
-                            } else {
-                              setConfirmPairingAction(revokeId);
-                            }
-                          }}
-                          type="button"
-                        >
-                          {pairingAction === revokeId
-                            ? "Revoking…"
-                            : confirmPairingAction === revokeId
-                              ? "Confirm revoke"
-                              : "Revoke"}
-                        </button>
-                      </div>
+                        </div>
+                      )}
                     </li>
                   );
                 })}

@@ -17,7 +17,7 @@ describe("AutomationDeleteConfirmation", () => {
     expect(markup).toContain("Delete Morning brief?");
     expect(markup).toContain("stops future triggers");
     expect(markup).toContain("Confirm delete");
-    expect(markup).toContain("Keep automation");
+    expect(markup).toContain("Cancel");
   });
 
   it("locks both choices while deletion is running", () => {

@@ -263,41 +263,6 @@
   justify-content: flex-start;
 }
 
-.automation-delete-confirmation {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 3px 10px;
-  min-width: 0;
-  margin-top: 12px;
-  padding: 10px;
-  background: color-mix(in srgb, var(--bad) 6%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--bad) 26%, var(--border));
-  border-radius: var(--radius-sm);
-}
-
-.automation-delete-confirmation__title {
-  grid-column: 1;
-  margin: 0;
-  padding: 0;
-  font-size: var(--text-caption);
-  font-weight: 700;
-}
-
-.automation-delete-confirmation__detail {
-  grid-column: 1;
-  color: var(--muted);
-  font-size: var(--text-meta);
-}
-
-.automation-delete-confirmation__actions {
-  display: flex;
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-items: center;
-  gap: 10px;
-}
-
 .automation-job-flow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr) 12px minmax(0, 1fr);
@@ -580,14 +545,5 @@
 
   .automation-job-flow b {
     display: none;
-  }
-
-  .automation-delete-confirmation {
-    grid-template-columns: 1fr;
-  }
-
-  .automation-delete-confirmation__actions {
-    grid-column: 1;
-    grid-row: auto;
   }
 }
