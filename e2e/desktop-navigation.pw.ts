@@ -77,11 +77,40 @@ test.describe("Doolittle desktop navigation", () => {
         "Local runtime",
         { timeout: 45_000 },
       );
+      const shellBeforeCommandMenu = await page
+        .locator(".desktop-shell")
+        .boundingBox();
       await page.keyboard.press(
         process.platform === "darwin" ? "Meta+K" : "Control+K",
       );
       const commandMenu = page.getByRole("dialog", { name: "Command menu" });
       await expect(commandMenu).toBeVisible();
+      const commandMenuLayout = await commandMenu.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        const overlay = element.previousElementSibling;
+        return {
+          centerX: bounds.left + bounds.width / 2,
+          centerY: bounds.top + bounds.height / 2,
+          position: window.getComputedStyle(element).position,
+          overlayPosition:
+            overlay instanceof HTMLElement
+              ? window.getComputedStyle(overlay).position
+              : null,
+          viewportCenterX: window.innerWidth / 2,
+          viewportCenterY: window.innerHeight / 2,
+        };
+      });
+      expect(commandMenuLayout.position).toBe("fixed");
+      expect(commandMenuLayout.overlayPosition).toBe("fixed");
+      expect(
+        Math.abs(commandMenuLayout.centerX - commandMenuLayout.viewportCenterX),
+      ).toBeLessThan(2);
+      expect(
+        Math.abs(commandMenuLayout.centerY - commandMenuLayout.viewportCenterY),
+      ).toBeLessThan(2);
+      expect(await page.locator(".desktop-shell").boundingBox()).toEqual(
+        shellBeforeCommandMenu,
+      );
       await expect(commandMenu.getByText("Quick actions")).toBeVisible();
       expect(await commandMenu.getByRole("option").count()).toBeLessThanOrEqual(
         12,

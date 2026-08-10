@@ -56,3 +56,51 @@
 [data-radix-popper-content-wrapper] {
   z-index: 1200;
 }
+
+/*
+ * @elizaos/ui ships Radix dialog structure with Tailwind utility class names.
+ * Those node_modules class names are intentionally outside Doolittle's host
+ * Tailwind scan, so restore the command menu's structural portal contract here.
+ * Visual styling remains owned by experience.css.
+ */
+.command-palette[role="dialog"] {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 1700;
+  translate: -50% -50%;
+}
+
+body > [data-state]:has(+ .command-palette[role="dialog"]) {
+  position: fixed;
+  z-index: 1690;
+  inset: 0;
+  background: color-mix(in srgb, #050504 68%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+body > [data-state="open"]:has(+ .command-palette[role="dialog"]) {
+  animation: command-overlay-in 140ms ease-out both;
+}
+
+body > [data-state="closed"]:has(+ .command-palette[role="dialog"]) {
+  animation: command-overlay-out 100ms ease-in both;
+}
+
+@keyframes command-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes command-overlay-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body > [data-state]:has(+ .command-palette[role="dialog"]) {
+    animation-duration: 0.01ms;
+  }
+}
