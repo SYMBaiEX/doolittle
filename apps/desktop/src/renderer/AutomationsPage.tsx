@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   type AutomationActionChoice,
   type AutomationConditionChoice,
@@ -136,8 +136,10 @@ export function AutomationsPage({ active }: { active: boolean }) {
       });
       jobs.reload();
       runs.reload();
+      return true;
     } catch (error) {
       setFeedback({ message: errorMessage(error), tone: "bad" });
+      return false;
     } finally {
       setBusy("");
     }
@@ -525,6 +527,53 @@ function ChoiceButtons({
   );
 }
 
+export function AutomationDeleteConfirmation({
+  automationName,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  automationName: string;
+  busy: boolean;
+  onCancel(): void;
+  onConfirm(): void;
+}) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    cancelRef.current?.focus();
+  }, []);
+  return (
+    <fieldset className="automation-delete-confirmation">
+      <legend className="automation-delete-confirmation__title">
+        Delete {automationName}?
+      </legend>
+      <small className="automation-delete-confirmation__detail">
+        This removes its configuration and stops future triggers.
+      </small>
+      <div className="automation-delete-confirmation__actions">
+        <button
+          aria-busy={busy}
+          className="danger-button"
+          disabled={busy}
+          onClick={onConfirm}
+          type="button"
+        >
+          {busy ? "Deleting…" : "Confirm delete"}
+        </button>
+        <button
+          className="text-button"
+          disabled={busy}
+          onClick={onCancel}
+          ref={cancelRef}
+          type="button"
+        >
+          Keep automation
+        </button>
+      </div>
+    </fieldset>
+  );
+}
+
 function AutomationJobCard({
   entry,
   index,
@@ -538,12 +587,15 @@ function AutomationJobCard({
   onAction(
     id: string,
     action: "pause" | "resume" | "trigger" | "delete",
-  ): Promise<void>;
+  ): Promise<boolean>;
   onFeedback(message: string): void;
 }) {
   const id = asString(entry.id, String(index));
   const status = asString(entry.status, "active");
   const summary = summarizeAutomation(entry);
+  const name = asString(entry.name, `Automation ${index + 1}`);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const deleting = busy === `${id}:delete`;
   const copyWebhookPath = async () => {
     if (!summary.webhookPath) return;
     try {
@@ -553,12 +605,17 @@ function AutomationJobCard({
       onFeedback(`Webhook path: ${summary.webhookPath}`);
     }
   };
+  const deleteAutomation = async () => {
+    if (await onAction(id, "delete")) {
+      setConfirmDelete(false);
+    }
+  };
 
   return (
     <article className="automation-job-card">
       <header>
         <div>
-          <strong>{asString(entry.name, `Automation ${index + 1}`)}</strong>
+          <strong>{name}</strong>
           <small>
             Next: {displayTimestamp(asString(entry.nextRunAt) || undefined)}
           </small>
@@ -596,34 +653,43 @@ function AutomationJobCard({
         </button>
       ) : null}
       <p>{asString(entry.prompt, "No prompt configured.")}</p>
-      <footer>
-        <button
-          className="secondary-button"
-          disabled={Boolean(busy) || status === "paused"}
-          onClick={() => void onAction(id, "trigger")}
-          type="button"
-        >
-          Run now
-        </button>
-        <button
-          className="secondary-button"
-          disabled={Boolean(busy)}
-          onClick={() =>
-            void onAction(id, status === "paused" ? "resume" : "pause")
-          }
-          type="button"
-        >
-          {status === "paused" ? "Resume" : "Pause"}
-        </button>
-        <button
-          className="danger-button"
-          disabled={Boolean(busy)}
-          onClick={() => void onAction(id, "delete")}
-          type="button"
-        >
-          Delete
-        </button>
-      </footer>
+      {confirmDelete ? (
+        <AutomationDeleteConfirmation
+          automationName={name}
+          busy={deleting}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => void deleteAutomation()}
+        />
+      ) : (
+        <footer>
+          <button
+            className="secondary-button"
+            disabled={Boolean(busy) || status === "paused"}
+            onClick={() => void onAction(id, "trigger")}
+            type="button"
+          >
+            Run now
+          </button>
+          <button
+            className="secondary-button"
+            disabled={Boolean(busy)}
+            onClick={() =>
+              void onAction(id, status === "paused" ? "resume" : "pause")
+            }
+            type="button"
+          >
+            {status === "paused" ? "Resume" : "Pause"}
+          </button>
+          <button
+            className="danger-button"
+            disabled={Boolean(busy)}
+            onClick={() => setConfirmDelete(true)}
+            type="button"
+          >
+            Delete
+          </button>
+        </footer>
+      )}
     </article>
   );
 }
