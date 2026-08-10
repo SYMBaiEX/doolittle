@@ -273,9 +273,6 @@ describe("DiagnosticsService", () => {
       expect(checks.some((check) => check.id === "onboarding.summary")).toBe(
         true,
       );
-      expect(checks.some((check) => check.id === "onboarding.native")).toBe(
-        true,
-      );
       expect(checks.some((check) => check.id === "gateway.data")).toBe(true);
       expect(checks.some((check) => check.id === "execution.remote.sync")).toBe(
         true,

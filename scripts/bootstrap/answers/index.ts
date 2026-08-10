@@ -10,13 +10,10 @@ import {
   normalizeElizaCloudLargeModel,
   normalizeElizaCloudSmallModel,
 } from "./model-normalization";
-import { buildNativeOnboardingMirror } from "./native-onboarding";
 import { reviewWizardAnswers } from "./review";
 import { summarizeAnswers } from "./summary";
 
-export type { NativeOnboardingMirrorResult } from "./types";
 export {
-  buildNativeOnboardingMirror,
   createHeadlessAnswers,
   DEFAULT_ELIZA_CLOUD_EMBEDDING_MODEL,
   DEFAULT_ELIZA_CLOUD_LARGE_MODEL,

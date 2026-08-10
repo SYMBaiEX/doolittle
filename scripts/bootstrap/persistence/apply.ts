@@ -1,7 +1,6 @@
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { loadConfig } from "@/config/env";
 import { summarizeAutonomousConnection } from "@/runtime/native/autonomous-stack";
-import { buildNativeOnboardingMirror } from "../answers";
 import { updateEnvFile } from "../core/env-file";
 import type { BootstrapOptions, WizardAnswers } from "../types";
 import { loadBootstrapGatewayConfig, loadBootstrapSettings } from "./defaults";
@@ -24,16 +23,6 @@ export async function applyBootstrapAnswers(
     answers.allowAllUsers,
     answers.pairingMode,
   );
-  const nativeOnboarding = await buildNativeOnboardingMirror(
-    answers,
-    options.headless || options.skipWizard ? "cli" : "wizard",
-  );
-  if (nativeOnboarding.serialized) {
-    writeJsonAtomicSync(
-      paths.nativeOnboardingPath,
-      nativeOnboarding.serialized,
-    );
-  }
   const nativeConnection = summarizeAutonomousConnection({
     ...loadConfig(),
     elizaCloudApiKey: answers.elizaCloudApiKey || undefined,
@@ -87,7 +76,6 @@ export async function applyBootstrapAnswers(
 
   const plan = buildBootstrapPersistencePlan({
     answers,
-    nativeOnboarding,
     nativeConnection,
     settings,
     gateway,

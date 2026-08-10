@@ -12,7 +12,6 @@ describe("bootstrap program paths", () => {
       settingsPath: "/repo/.doolittle/settings.json",
       gatewayPath: "/repo/.doolittle/gateway/gateway.json",
       onboardingPath: "/repo/.doolittle/onboarding.json",
-      nativeOnboardingPath: "/repo/.doolittle/onboarding.state.json",
     });
   });
 

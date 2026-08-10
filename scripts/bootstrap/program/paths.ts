@@ -25,7 +25,6 @@ export function resolveBootstrapPaths(root: string): BootstrapPaths {
     settingsPath: join(root, ".doolittle", "settings.json"),
     gatewayPath: join(root, ".doolittle", "gateway", "gateway.json"),
     onboardingPath: join(root, ".doolittle", "onboarding.json"),
-    nativeOnboardingPath: join(root, ".doolittle", "onboarding.state.json"),
   };
 }
 

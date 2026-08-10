@@ -7,22 +7,9 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createHeadlessAnswers } from "../answers";
 import { applyBootstrapAnswers } from "./apply";
-
-vi.mock("../answers", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../answers")>();
-  return {
-    ...actual,
-    buildNativeOnboardingMirror: async () => ({
-      serialized: { step: "SKILLS", version: 1 },
-      complete: true,
-      currentStep: "SKILLS",
-      summary: "ready",
-    }),
-  };
-});
 
 describe("applyBootstrapAnswers", () => {
   it("atomically persists all bootstrap JSON outputs with two-space formatting", async () => {
@@ -32,7 +19,6 @@ describe("applyBootstrapAnswers", () => {
       settingsPath: join(root, ".doolittle", "settings.json"),
       gatewayPath: join(root, ".doolittle", "gateway", "gateway.json"),
       onboardingPath: join(root, ".doolittle", "onboarding.json"),
-      nativeOnboardingPath: join(root, ".doolittle", "onboarding.state.json"),
     };
 
     try {
@@ -70,11 +56,6 @@ describe("applyBootstrapAnswers", () => {
               provider: "openai",
               mode: "headless",
             }),
-        ],
-        [
-          paths.nativeOnboardingPath,
-          (value: unknown) =>
-            expect(value).toEqual({ step: "SKILLS", version: 1 }),
         ],
       ] as const;
 

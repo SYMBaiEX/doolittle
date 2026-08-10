@@ -48,7 +48,7 @@ details. The source bootstrap remains a macOS/Linux/WSL workflow.
 `--check` is the dry-run receipt. It reports the directories and files that setup
 would touch, including `.env`, `.doolittle/settings.json`,
 `.doolittle/gateway/gateway.json`, `.doolittle/onboarding.json`, and
-`.doolittle/onboarding.state.json`.
+the generated skill directories.
 
 If install reports PATH changes, open a new terminal before first run.
 

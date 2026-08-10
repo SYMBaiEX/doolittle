@@ -1,4 +1,3 @@
-import type { NativeOnboardingMirrorResult } from "../answers";
 import type {
   GatewayConfig,
   OnboardingSummary,
@@ -12,7 +11,6 @@ import { buildBootstrapSettings } from "./settings";
 
 export interface BootstrapPersistencePlanArgs {
   answers: WizardAnswers;
-  nativeOnboarding: NativeOnboardingMirrorResult;
   nativeConnection: {
     kind: string;
     provider: string | null;

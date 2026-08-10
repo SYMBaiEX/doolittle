@@ -9,7 +9,6 @@ export async function buildDiagnosticsFilesystemChecks(
   isWritable: (path: string) => Promise<boolean>,
 ): Promise<DiagnosticCheck[]> {
   const onboardingSummaryPath = join(config.dataDir, "onboarding.json");
-  const onboardingStatePath = join(config.dataDir, "onboarding.state.json");
 
   return [
     {
@@ -35,12 +34,6 @@ export async function buildDiagnosticsFilesystemChecks(
       status: existsSync(onboardingSummaryPath) ? "pass" : "warn",
       summary: "Product onboarding summary",
       detail: onboardingSummaryPath,
-    },
-    {
-      id: "onboarding.native",
-      status: existsSync(onboardingStatePath) ? "pass" : "warn",
-      summary: "Native onboarding state mirror",
-      detail: onboardingStatePath,
     },
     {
       id: "gateway.data",

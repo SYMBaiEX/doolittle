@@ -54,7 +54,6 @@ export async function runBootstrapProgram(
           paths.settingsPath,
           paths.gatewayPath,
           paths.onboardingPath,
-          paths.nativeOnboardingPath,
         ].map((path) => relative(root, path) || path),
       }),
     );
@@ -79,7 +78,6 @@ export async function runBootstrapProgram(
       settingsPath: paths.settingsPath,
       gatewayPath: paths.gatewayPath,
       onboardingPath: paths.onboardingPath,
-      nativeOnboardingPath: paths.nativeOnboardingPath,
     },
     bootstrapOptions,
   );

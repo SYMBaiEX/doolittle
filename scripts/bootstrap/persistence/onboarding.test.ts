@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_TUI_THEME } from "@/runtime/theme-catalog";
-import type { NativeOnboardingMirrorResult } from "../answers";
 import type { WizardAnswers } from "../types";
 import { buildBootstrapOnboardingSummary, fingerprint } from "./onboarding";
 
@@ -56,14 +55,8 @@ const answers: WizardAnswers = {
 
 describe("bootstrap persistence onboarding summary", () => {
   it("builds a stable onboarding summary with a fingerprint", () => {
-    const nativeOnboarding: NativeOnboardingMirrorResult = {
-      complete: true,
-      currentStep: "SKILLS",
-      summary: "ready",
-    };
     const summary = buildBootstrapOnboardingSummary({
       answers,
-      nativeOnboarding,
       nativeConnection: {
         kind: "linked",
         provider: "openai",
@@ -74,7 +67,6 @@ describe("bootstrap persistence onboarding summary", () => {
     });
 
     expect(summary.timestamp).toBe("2026-03-29T12:00:00.000Z");
-    expect(summary.nativeOnboarding.summary).toBe("ready");
     expect(summary.nativeConnection.kind).toBe("linked");
     expect(summary.profile).toHaveLength(12);
     expect(fingerprint({ alpha: true, beta: ["x", "y"] })).toHaveLength(12);

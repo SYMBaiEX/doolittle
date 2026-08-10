@@ -205,11 +205,6 @@ describe("bootstrap persistence plan", () => {
   it("derives env updates, settings, gateway, and onboarding output from answers", () => {
     const plan = buildBootstrapPersistencePlan({
       answers,
-      nativeOnboarding: {
-        complete: true,
-        currentStep: "SKILLS",
-        summary: "ready",
-      },
       nativeConnection: {
         kind: "linked",
         provider: "openai",

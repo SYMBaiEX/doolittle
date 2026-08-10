@@ -9,7 +9,6 @@ export interface BootstrapPersistencePaths {
   settingsPath: string;
   gatewayPath: string;
   onboardingPath: string;
-  nativeOnboardingPath: string;
 }
 
 export interface BootstrapPersistencePlan {

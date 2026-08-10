@@ -145,11 +145,6 @@ export interface OnboardingSummary {
     tts: boolean;
     codegen: boolean;
   };
-  nativeOnboarding: {
-    complete: boolean;
-    currentStep: string;
-    summary: string;
-  };
   nativeConnection: {
     kind: string;
     provider: string | null;

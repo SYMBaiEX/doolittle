@@ -13,10 +13,6 @@ export interface BootstrapOnboardingSummary {
     maxIterations: number;
     toolProgressMode: string;
   };
-  nativeOnboarding: {
-    complete: boolean;
-    currentStep: string;
-  };
   nativeConnection: {
     kind: string;
     provider: string | null;
@@ -84,7 +80,6 @@ export function buildBootstrapPulseSummary(args: {
       `skin: ${args.themeLabel} (${onboarding.theme})`,
       `body: ${onboarding.backend}`,
       `cadence: ${onboarding.agent.runDepth} cap=${onboarding.agent.maxIterations} progress=${onboarding.agent.toolProgressMode}`,
-      `onboarding: ${onboarding.nativeOnboarding.complete ? "native-aligned" : "mirror-warn"} (${onboarding.nativeOnboarding.currentStep})`,
       `native connection: ${onboarding.nativeConnection.kind}${onboarding.nativeConnection.provider ? ` via ${onboarding.nativeConnection.provider}` : ""}`,
       `threads: devin=${onboarding.accounts.devinLinked ? "bound" : "idle"} codex=${onboarding.accounts.codexLinked ? "bound" : "idle"} claude=${onboarding.accounts.claudeCodeLinked ? "bound" : "idle"}`,
       `channels: ${onboarding.transports.join(", ") || "api, cli only"}`,

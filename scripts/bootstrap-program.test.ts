@@ -88,7 +88,6 @@ describe("bootstrap program", () => {
     expect(output).toContain("- .doolittle/settings.json");
     expect(output).toContain("- .doolittle/gateway/gateway.json");
     expect(output).toContain("- .doolittle/onboarding.json");
-    expect(output).toContain("- .doolittle/onboarding.state.json");
     expect(output).toContain("- Nub toolkit: online");
     expect(output).toContain("- .env would be created");
   });

@@ -29,11 +29,6 @@ const onboardingSummary: OnboardingSummary = {
     tts: false,
     codegen: true,
   },
-  nativeOnboarding: {
-    complete: true,
-    currentStep: "done",
-    summary: "Native alignment complete",
-  },
   nativeConnection: {
     kind: "managed",
     provider: "openai",

@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { loadConfig } from "@/config/env";
 import { summarizeAutonomousConnection } from "@/runtime/native/autonomous-stack";
-import type { NativeOnboardingMirrorResult } from "../answers";
 import type { OnboardingSummary, WizardAnswers } from "../types";
 
 function fingerprint(
@@ -13,7 +12,6 @@ function fingerprint(
 
 export function buildBootstrapOnboardingSummary(args: {
   answers: WizardAnswers;
-  nativeOnboarding: NativeOnboardingMirrorResult;
   nativeConnection: {
     kind: string;
     provider: string | null;
@@ -43,11 +41,6 @@ export function buildBootstrapOnboardingSummary(args: {
     },
     transports: answers.transports,
     tools: answers.tools,
-    nativeOnboarding: {
-      complete: args.nativeOnboarding.complete,
-      currentStep: args.nativeOnboarding.currentStep,
-      summary: args.nativeOnboarding.summary,
-    },
     nativeConnection: {
       kind: args.nativeConnection.kind,
       provider: args.nativeConnection.provider,

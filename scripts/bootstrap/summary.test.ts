@@ -46,10 +46,6 @@ describe("bootstrap summary builders", () => {
           maxIterations: 12,
           toolProgressMode: "verbose",
         },
-        nativeOnboarding: {
-          complete: true,
-          currentStep: "done",
-        },
         nativeConnection: {
           kind: "managed",
           provider: "openai",
