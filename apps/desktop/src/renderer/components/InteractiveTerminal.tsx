@@ -616,11 +616,21 @@ export function InteractiveTerminal({
   const activeSessionSupportsResize = activeTab?.supportsResize;
 
   useEffect(() => {
+    if (!active) return;
+    const frame = requestAnimationFrame(() => {
+      fitTerminalToViewport();
+      xtermRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [active, fitTerminalToViewport]);
+
+  useEffect(() => {
     if (!viewportRef.current) return;
     const viewport = viewportRef.current;
     const resizeSessionId = activeSessionId;
     const resizeTabId = activeTab?.id;
     const resizeSupports = activeSessionSupportsResize;
+    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return;
       const dimensions = fitTerminalToViewport();
@@ -634,32 +644,38 @@ export function InteractiveTerminal({
       ) {
         return;
       }
-      void window.doolittle
-        .resizeInteractiveTerminal({
-          sessionId: resizeSessionId,
-          cols: dimensions.cols,
-          rows: dimensions.rows,
-        })
-        .then((session) =>
-          syncSession(resizeTabId, {
-            id: session.id,
-            state: session.state,
-            cwd: session.cwd,
-            shell: session.shell,
-            cols: session.cols,
-            rows: session.rows,
-            startedAt: session.startedAt,
-            completedAt: session.completedAt,
-            exitCode: session.exitCode,
-            pty: session.pty,
-            supportsResize: session.supportsResize,
-            outputBytes: session.outputBytes,
-          }),
-        )
-        .catch((error) => setNotice(errorMessage(error)));
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        void window.doolittle
+          .resizeInteractiveTerminal({
+            sessionId: resizeSessionId,
+            cols: dimensions.cols,
+            rows: dimensions.rows,
+          })
+          .then((session) =>
+            syncSession(resizeTabId, {
+              id: session.id,
+              state: session.state,
+              cwd: session.cwd,
+              shell: session.shell,
+              cols: session.cols,
+              rows: session.rows,
+              startedAt: session.startedAt,
+              completedAt: session.completedAt,
+              exitCode: session.exitCode,
+              pty: session.pty,
+              supportsResize: session.supportsResize,
+              outputBytes: session.outputBytes,
+            }),
+          )
+          .catch((error) => setNotice(errorMessage(error)));
+      }, 90);
     });
     observer.observe(viewport);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (resizeTimer) clearTimeout(resizeTimer);
+    };
   }, [
     activeTab?.id,
     activeTab?.cols,

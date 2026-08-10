@@ -77,6 +77,53 @@ test.describe("Doolittle desktop navigation", () => {
         "Local runtime",
         { timeout: 45_000 },
       );
+      await page.keyboard.press(
+        process.platform === "darwin" ? "Meta+K" : "Control+K",
+      );
+      const commandMenu = page.getByRole("dialog", { name: "Command menu" });
+      await expect(commandMenu).toBeVisible();
+      await expect(commandMenu.getByText("Quick actions")).toBeVisible();
+      expect(await commandMenu.getByRole("option").count()).toBeLessThanOrEqual(
+        12,
+      );
+      await expect(
+        commandMenu
+          .locator(".command-palette__group")
+          .filter({ hasText: "Quick actions" })
+          .locator(".command-palette__item-label"),
+      ).toHaveText([
+        "New conversation",
+        "Open terminal",
+        "Choose repository",
+        "Open live tasks",
+      ]);
+      const commandMenuScreenshot = testInfo.outputPath(
+        "doolittle-command-menu.png",
+      );
+      await commandMenu.screenshot({
+        animations: "disabled",
+        path: commandMenuScreenshot,
+      });
+      await testInfo.attach("command menu", {
+        contentType: "image/png",
+        path: commandMenuScreenshot,
+      });
+      await page.keyboard.press(
+        process.platform === "darwin" ? "Meta+K" : "Control+K",
+      );
+      await expect(commandMenu).toBeHidden();
+      await page.keyboard.press(
+        process.platform === "darwin" ? "Meta+K" : "Control+K",
+      );
+      await expect(commandMenu).toBeVisible();
+      await commandMenu
+        .getByRole("combobox", { name: "Search" })
+        .fill("terminal");
+      await expect(
+        commandMenu.getByRole("option", { name: /Open terminal/ }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(commandMenu).toBeHidden();
       const liveWorkspaceHandoff = await page.evaluate(
         async ({ alternateWorkspace, repoRoot }) => {
           const requestJson = async <T>(path: string): Promise<T> => {

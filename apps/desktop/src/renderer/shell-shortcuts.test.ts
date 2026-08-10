@@ -1,9 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
   isChatTerminalShortcut,
+  isCommandPaletteShortcut,
   isEditableShortcutTarget,
   shouldIgnoreShellShortcut,
 } from "./shell-shortcuts";
+
+describe("command palette shortcut", () => {
+  it("accepts the platform modifier without extra modes", () => {
+    expect(isCommandPaletteShortcut({ key: "k", metaKey: true })).toBe(true);
+    expect(isCommandPaletteShortcut({ key: "K", ctrlKey: true })).toBe(true);
+    expect(
+      isCommandPaletteShortcut({ key: "k", metaKey: true, shiftKey: true }),
+    ).toBe(false);
+    expect(
+      isCommandPaletteShortcut({ key: "k", metaKey: true, isComposing: true }),
+    ).toBe(false);
+  });
+});
 
 describe("shell shortcut guards", () => {
   it.each(["input", "textarea", "select"])(

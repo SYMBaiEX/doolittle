@@ -199,11 +199,14 @@ export function CommandPalette<TData = unknown>({
       .map((group) => {
         const items = group.items
           .map((item) => matchCommand(item, tokens))
-          .filter((match): match is CommandMatch<TData> => match !== null)
-          .sort(
+          .filter((match): match is CommandMatch<TData> => match !== null);
+
+        if (tokens.length > 0) {
+          items.sort(
             (left, right) =>
               right.score - left.score || left.label.localeCompare(right.label),
           );
+        }
 
         return {
           groupId: group.id,
@@ -367,6 +370,15 @@ export function CommandPalette<TData = unknown>({
   const activeOptionId =
     activeIndex >= 0 ? flattenedMatches[activeIndex]?.optionId : undefined;
 
+  useEffect(() => {
+    if (!activeOptionId) return;
+    listboxRef.current
+      ?.querySelector<HTMLElement>('[aria-selected="true"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [activeOptionId]);
+
+  const resultCount = flattenedMatches.length;
+
   return (
     <Dialog
       open={isOpen}
@@ -389,9 +401,14 @@ export function CommandPalette<TData = unknown>({
         }}
       >
         <header className="command-palette__header">
-          <DialogTitle id={titleId} className="command-palette__title">
-            {title}
-          </DialogTitle>
+          <div className="command-palette__heading">
+            <span aria-hidden="true" className="command-palette__mark">
+              &gt;
+            </span>
+            <DialogTitle id={titleId} className="command-palette__title">
+              {title}
+            </DialogTitle>
+          </div>
           <DialogClose asChild>
             <Button
               type="button"
@@ -400,28 +417,31 @@ export function CommandPalette<TData = unknown>({
               size="sm"
               aria-label="Close command palette"
             >
-              Close
+              Esc
             </Button>
           </DialogClose>
         </header>
 
         <label htmlFor={inputId} className="command-palette__label">
           <span className="command-palette__sr-only">Search</span>
-          <Input
-            ref={searchRef}
-            id={inputId}
-            className="command-palette__search"
-            type="search"
-            value={query}
-            onChange={onSearchChange}
-            onKeyDown={handleKeyDown}
-            placeholder={searchPlaceholder}
-            role="combobox"
-            aria-autocomplete="list"
-            aria-controls={listId}
-            aria-activedescendant={activeOptionId}
-            aria-expanded="true"
-          />
+          <span className="command-palette__search-shell">
+            <span aria-hidden="true" className="command-palette__search-icon" />
+            <Input
+              ref={searchRef}
+              id={inputId}
+              className="command-palette__search"
+              type="search"
+              value={query}
+              onChange={onSearchChange}
+              onKeyDown={handleKeyDown}
+              placeholder={searchPlaceholder}
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls={listId}
+              aria-activedescendant={activeOptionId}
+              aria-expanded="true"
+            />
+          </span>
         </label>
 
         <ScrollArea className="command-palette__scroll">
@@ -498,6 +518,14 @@ export function CommandPalette<TData = unknown>({
             )}
           </div>
         </ScrollArea>
+        <footer className="command-palette__footer">
+          <span aria-live="polite">
+            {resultCount} {resultCount === 1 ? "result" : "results"}
+          </span>
+          <span aria-hidden="true" className="command-palette__key-guide">
+            <kbd>↑↓</kbd> move <kbd>↵</kbd> open
+          </span>
+        </footer>
       </DialogContent>
     </Dialog>
   );

@@ -374,48 +374,69 @@ textarea {
 /* Command palette */
 
 .command-palette {
-  width: min(640px, calc(100vw - 36px));
-  max-height: min(660px, 74vh);
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(590px, calc(100vh - 96px));
   gap: 0;
   padding: 0;
   overflow: hidden;
-  background: color-mix(in srgb, var(--surface-raised) 96%, transparent);
+  background: color-mix(in srgb, var(--surface-raised) 98%, transparent);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
+  border-radius: 16px;
   box-shadow:
-    0 32px 90px rgba(0, 0, 0, 0.58),
-    0 0 0 1px color-mix(in srgb, var(--accent) 5%, transparent);
-  animation: command-rise-in 180ms var(--ease-out) both;
+    0 30px 90px rgba(0, 0, 0, 0.52),
+    0 0 0 1px color-mix(in srgb, var(--accent) 4%, transparent);
+  animation: command-menu-in 150ms var(--ease-out) both;
+}
+
+.command-palette[data-state="closed"] {
+  animation: command-menu-out 110ms ease-in both;
 }
 
 .command-palette__header {
   display: flex;
-  min-height: 42px;
+  min-height: 40px;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px 4px 17px;
+  padding: 8px 10px 4px 14px;
+}
+
+.command-palette__heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.command-palette__mark {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 750;
 }
 
 .command-palette__title {
   margin: 0;
   color: var(--text-soft);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 650;
+  letter-spacing: 0.02em;
 }
 
 .command-palette__close {
-  padding: 5px 7px;
+  min-width: 0;
+  height: 24px;
+  padding: 0 7px;
   color: var(--muted);
-  background: transparent;
-  border: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
   font-family: var(--font-mono);
   font-size: var(--text-meta);
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .command-palette__label {
   display: block;
-  padding: 5px 12px 11px;
+  padding: 5px 10px 10px;
 }
 
 .command-palette__sr-only {
@@ -426,54 +447,99 @@ textarea {
   clip: rect(0, 0, 0, 0);
 }
 
-.command-palette__search {
-  height: 48px;
-  padding: 0 15px;
-  color: var(--text);
-  background: var(--surface);
+.command-palette__search-shell {
+  position: relative;
+  display: block;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  font-size: 15px;
+  border-radius: 10px;
+  background: var(--surface);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.command-palette__search-shell:focus-within {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+.command-palette__search-icon {
+  position: absolute;
+  top: 50%;
+  left: 17px;
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid var(--muted);
+  border-radius: 50%;
+  pointer-events: none;
+  translate: 0 -55%;
+}
+
+.command-palette__search-icon::after {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  width: 5px;
+  height: 1.5px;
+  background: var(--muted);
+  border-radius: 2px;
+  content: "";
+  rotate: 45deg;
+}
+
+.command-palette__search {
+  height: 50px;
+  padding: 0 14px 0 43px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+  font-size: 14px;
 }
 
 .command-palette__search:focus {
-  border-color: var(--accent-border);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
+  outline: none;
+  box-shadow: none;
 }
 
 .command-palette__scroll {
-  height: min(calc(660px - 112px), calc(74vh - 112px));
+  height: min(438px, calc(100vh - 246px));
+  min-height: 188px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 .command-palette__list {
-  padding: 0 8px 10px;
+  padding: 5px 7px 8px;
 }
 
 .command-palette__group {
   min-width: 0;
   margin: 0;
-  padding: 7px 0 2px;
+  padding: 6px 0 2px;
   border: 0;
 }
 
 .command-palette__group-label {
   margin: 0;
-  padding: 5px 10px;
+  padding: 5px 10px 4px;
   color: var(--faint);
   font-family: var(--font-mono);
-  font-size: var(--text-meta);
-  letter-spacing: 0.14em;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .command-palette__item {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   width: 100%;
-  min-height: 48px;
+  min-height: 46px;
   align-items: center;
   gap: 3px 12px;
-  padding: 8px 11px;
+  padding: 7px 10px 7px 12px;
   color: var(--text-soft);
   background: transparent;
   border: 1px solid transparent;
@@ -485,8 +551,19 @@ textarea {
 .command-palette__item:hover,
 .command-palette__item[aria-selected="true"] {
   color: var(--text);
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface-hover));
-  border-color: color-mix(in srgb, var(--accent) 14%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-hover));
+  border-color: color-mix(in srgb, var(--accent) 11%, var(--border));
+}
+
+.command-palette__item[aria-selected="true"]::before {
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: 3px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+  content: "";
 }
 
 .command-palette__item[aria-disabled="true"] {
@@ -518,6 +595,34 @@ textarea {
   color: var(--muted);
 }
 
+.command-palette__footer {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.command-palette__key-guide {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.command-palette__key-guide kbd {
+  min-width: 21px;
+  padding: 2px 4px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+  text-align: center;
+}
+
 .command-shortcut__key {
   padding: 3px 5px;
   color: inherit;
@@ -536,10 +641,17 @@ textarea {
   font-size: var(--text-meta);
 }
 
-@keyframes command-rise-in {
+@keyframes command-menu-in {
   from {
     opacity: 0;
-    transform: translateY(-8px) scale(0.985);
+    filter: blur(4px);
+  }
+}
+
+@keyframes command-menu-out {
+  to {
+    opacity: 0;
+    filter: blur(3px);
   }
 }
 

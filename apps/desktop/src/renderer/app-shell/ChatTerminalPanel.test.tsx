@@ -26,6 +26,7 @@ describe("ChatTerminalPanel", () => {
       <ChatTerminalPanel
         active
         height={320}
+        open
         onClose={() => undefined}
         onResize={() => undefined}
         onSendToChat={() => undefined}
@@ -35,9 +36,29 @@ describe("ChatTerminalPanel", () => {
     );
 
     expect(markup).toContain('aria-label="Chat terminal panel"');
+    expect(markup).toContain('data-open="true"');
+    expect(markup).not.toContain("inert");
     expect(markup).toContain("--chat-terminal-height:320px");
     expect(markup).toContain('aria-orientation="horizontal"');
     expect(markup).toContain('data-auto-start="true"');
     expect(markup).toContain('data-shortcut="⌘J"');
+  });
+
+  it("keeps the closing panel inert while its exit motion finishes", () => {
+    const markup = renderToStaticMarkup(
+      <ChatTerminalPanel
+        active
+        height={280}
+        open={false}
+        onClose={() => undefined}
+        onResize={() => undefined}
+        onSendToChat={() => undefined}
+        platform="darwin"
+        workspacePath="/workspace"
+      />,
+    );
+
+    expect(markup).toContain('data-open="false"');
+    expect(markup).toContain("inert");
   });
 });

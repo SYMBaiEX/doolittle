@@ -15,6 +15,18 @@ export interface ShellShortcutEventLike {
   target?: EventTarget | ShortcutTargetLike | null;
 }
 
+export function isCommandPaletteShortcut(
+  event: ShellShortcutEventLike,
+): boolean {
+  return Boolean(
+    !event.isComposing &&
+      (event.metaKey || event.ctrlKey) &&
+      !event.altKey &&
+      !event.shiftKey &&
+      event.key?.toLowerCase() === "k",
+  );
+}
+
 export function isChatTerminalShortcut(event: ShellShortcutEventLike): boolean {
   return Boolean(
     !event.isComposing &&

@@ -105,6 +105,7 @@ import type {
 import { projectNavigationTarget } from "./project-navigation";
 import {
   isChatTerminalShortcut,
+  isCommandPaletteShortcut,
   shouldIgnoreShellShortcut,
 } from "./shell-shortcuts";
 import { workspacePathsEqual } from "./workspace-path";
@@ -131,6 +132,7 @@ export function App() {
   const [paletteQuery, setPaletteQuery] = useState("");
   const [utilityOpen, setUtilityOpen] = useState(false);
   const [chatTerminalOpen, setChatTerminalOpen] = useState(false);
+  const [chatTerminalMounted, setChatTerminalMounted] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(
     () => localStorage.getItem(NAV_COLLAPSED_KEY) === "true",
   );
@@ -266,6 +268,7 @@ export function App() {
         ? document.activeElement
         : null;
     setMobileSidebarOpen(false);
+    setChatTerminalMounted(true);
     setChatTerminalOpen(true);
   }, [setMobileSidebarOpen]);
 
@@ -273,6 +276,12 @@ export function App() {
     if (chatTerminalOpen) closeChatTerminal();
     else openChatTerminal();
   }, [chatTerminalOpen, closeChatTerminal, openChatTerminal]);
+
+  useEffect(() => {
+    if (chatTerminalOpen || !chatTerminalMounted) return;
+    const timer = window.setTimeout(() => setChatTerminalMounted(false), 240);
+    return () => window.clearTimeout(timer);
+  }, [chatTerminalMounted, chatTerminalOpen]);
 
   const setView = useCallback(
     (next: View) => {
@@ -1150,14 +1159,15 @@ export function App() {
 
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (isCommandPaletteShortcut(event)) {
+        event.preventDefault();
+        setPaletteOpen((current) => !current);
+        return;
+      }
       if (shouldIgnoreShellShortcut(event)) return;
       if ((event.metaKey || event.ctrlKey) && event.key === ",") {
         event.preventDefault();
         setView("settings");
-      }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setPaletteOpen(true);
       }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "n") {
         event.preventDefault();
@@ -1188,8 +1198,8 @@ export function App() {
         setView("logs");
       }
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [createConversation, setView, toggleInspector, toggleNavigation]);
 
   useEffect(
@@ -1557,6 +1567,14 @@ export function App() {
         onSetView: setView,
         onSwitchRecentWorkspace: switchToRecentWorkspace,
         onToggleAppearance: toggleAppearance,
+        onToggleTerminal: () => {
+          if (view !== "chat") {
+            setView("chat");
+            openChatTerminal();
+            return;
+          }
+          toggleChatTerminal();
+        },
         onToggleNavigation: toggleNavigation,
         paletteQuery,
         platform: window.doolittle.platform,
@@ -1567,6 +1585,7 @@ export function App() {
         searchCommandGroups,
         sessionsCount: sessions.length,
         sidebarSessions,
+        terminalOpen: view === "chat" && chatTerminalOpen,
         workspacePath: workspace.currentPath,
       }),
     [
@@ -1575,6 +1594,7 @@ export function App() {
       createConversation,
       navCollapsed,
       openProjectManager,
+      openChatTerminal,
       openSession,
       paletteQuery,
       projectCards,
@@ -1588,7 +1608,10 @@ export function App() {
       sidebarSessions,
       switchToRecentWorkspace,
       toggleAppearance,
+      toggleChatTerminal,
       toggleNavigation,
+      chatTerminalOpen,
+      view,
       workspace.currentPath,
       workspace.recentPaths,
     ],
@@ -1651,8 +1674,8 @@ export function App() {
         }}
         onQueryChange={setPaletteQuery}
         resetOnOpen
-        searchPlaceholder="Search projects, chats, files, tasks, logs, pages…"
-        title="Go anywhere"
+        searchPlaceholder="Search commands, projects, chats, and files…"
+        title="Command menu"
       />
       <ProjectManager
         activeScope={projectScope}
@@ -1767,11 +1790,12 @@ export function App() {
             {content}
           </Suspense>
         </div>
-        {view === "chat" && chatTerminalOpen ? (
+        {view === "chat" && chatTerminalMounted ? (
           <Suspense fallback={null}>
             <ChatTerminalPanel
               active={backend.phase === "ready"}
               height={chatTerminalHeight}
+              open={chatTerminalOpen}
               onClose={closeChatTerminal}
               onResize={setChatTerminalHeight}
               onSendToChat={(text) =>

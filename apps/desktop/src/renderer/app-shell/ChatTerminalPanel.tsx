@@ -8,6 +8,7 @@ import "./chat-terminal-panel.css";
 export interface ChatTerminalPanelProps {
   active: boolean;
   height: number;
+  open: boolean;
   onClose: () => void;
   onResize: (height: number) => void;
   onSendToChat: (text: string) => void;
@@ -18,6 +19,7 @@ export interface ChatTerminalPanelProps {
 export function ChatTerminalPanel({
   active,
   height,
+  open,
   onClose,
   onResize,
   onSendToChat,
@@ -30,6 +32,8 @@ export function ChatTerminalPanel({
     <section
       aria-label="Chat terminal panel"
       className="chat-terminal-panel"
+      data-open={open}
+      inert={!open}
       style={
         {
           "--chat-terminal-height": `${height}px`,
@@ -45,7 +49,7 @@ export function ChatTerminalPanel({
         value={height}
       />
       <InteractiveTerminal
-        active={active}
+        active={active && open}
         autoStart
         dismissShortcut={shortcut}
         onDismiss={onClose}

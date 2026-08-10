@@ -112,7 +112,9 @@ test.describe("Doolittle desktop offline chat", () => {
       await page.keyboard.press(
         process.platform === "darwin" ? "Meta+J" : "Control+J",
       );
-      await expect(page.getByLabel("Chat terminal panel")).toBeVisible();
+      const chatTerminal = page.getByLabel("Chat terminal panel");
+      await expect(chatTerminal).toHaveAttribute("data-open", "true");
+      await expect(chatTerminal).toBeVisible();
       await expect(
         page.getByLabel("Chat terminal panel").getByRole("button", {
           name: "Ctrl+C",
@@ -137,7 +139,8 @@ test.describe("Doolittle desktop offline chat", () => {
       await page.keyboard.press(
         process.platform === "darwin" ? "Meta+J" : "Control+J",
       );
-      await expect(page.getByLabel("Chat terminal panel")).toHaveCount(0);
+      await expect(chatTerminal).toHaveAttribute("data-open", "false");
+      await expect(chatTerminal).toHaveCount(0);
       await expect(composer).toBeFocused();
       await composer.fill(prompt);
       await composer.press("Enter");
