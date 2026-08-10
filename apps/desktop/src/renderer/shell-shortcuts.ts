@@ -6,8 +6,23 @@ interface ShortcutTargetLike {
 }
 
 export interface ShellShortcutEventLike {
+  altKey?: boolean;
+  ctrlKey?: boolean;
   isComposing?: boolean;
+  key?: string;
+  metaKey?: boolean;
+  shiftKey?: boolean;
   target?: EventTarget | ShortcutTargetLike | null;
+}
+
+export function isChatTerminalShortcut(event: ShellShortcutEventLike): boolean {
+  return Boolean(
+    !event.isComposing &&
+      (event.metaKey || event.ctrlKey) &&
+      !event.altKey &&
+      !event.shiftKey &&
+      event.key?.toLowerCase() === "j",
+  );
 }
 
 export function isEditableShortcutTarget(target: unknown): boolean {

@@ -381,6 +381,12 @@ function installApplicationMenu(): void {
       label: "View",
       submenu: [
         {
+          label: "Toggle chat terminal",
+          accelerator: "CommandOrControl+J",
+          click: () => sendAppCommand("toggle-terminal"),
+        },
+        { type: "separator" },
+        {
           label: "Toggle navigation",
           accelerator: "CommandOrControl+Shift+B",
           click: () => sendAppCommand("toggle-sidebar"),

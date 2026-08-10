@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   APP_SIDEBAR_WIDTH,
+  CHAT_TERMINAL_HEIGHT,
+  clampPanelSize,
   clampPanelWidth,
+  loadPanelSize,
   loadPanelWidth,
+  savePanelSize,
   savePanelWidth,
   UTILITY_DRAWER_WIDTH,
 } from "./panel-layout";
@@ -23,6 +27,7 @@ describe("panel layout persistence", () => {
     expect(APP_SIDEBAR_WIDTH.default).toBeLessThan(
       UTILITY_DRAWER_WIDTH.default,
     );
+    expect(CHAT_TERMINAL_HEIGHT.default).toBe(280);
   });
 
   it("clamps invalid and out-of-range widths", () => {
@@ -50,5 +55,17 @@ describe("panel layout persistence", () => {
     expect(loadPanelWidth(storage, "sidebar", APP_SIDEBAR_WIDTH)).toBe(
       APP_SIDEBAR_WIDTH.default,
     );
+  });
+
+  it("uses the same bounded persistence contract for panel heights", () => {
+    const storage = memoryStorage({ terminal: "900" });
+    expect(loadPanelSize(storage, "terminal", CHAT_TERMINAL_HEIGHT)).toBe(
+      CHAT_TERMINAL_HEIGHT.max,
+    );
+    expect(clampPanelSize(120, CHAT_TERMINAL_HEIGHT)).toBe(
+      CHAT_TERMINAL_HEIGHT.min,
+    );
+    savePanelSize(storage, "terminal", 316.4, CHAT_TERMINAL_HEIGHT);
+    expect(storage.values.get("terminal")).toBe("316");
   });
 });

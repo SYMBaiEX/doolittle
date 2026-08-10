@@ -3,6 +3,7 @@ export type DesktopCommand =
   | "command-palette"
   | "settings"
   | "toggle-sidebar"
+  | "toggle-terminal"
   | "toggle-inspector";
 export interface FileSelection {
   canceled: boolean;

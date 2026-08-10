@@ -108,6 +108,16 @@ test.describe("Doolittle desktop offline chat", () => {
       await waitForChat(page, firstPageErrors);
 
       const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      await composer.focus();
+      await page.keyboard.press(
+        process.platform === "darwin" ? "Meta+J" : "Control+J",
+      );
+      await expect(page.getByLabel("Chat terminal panel")).toBeVisible();
+      await page.keyboard.press(
+        process.platform === "darwin" ? "Meta+J" : "Control+J",
+      );
+      await expect(page.getByLabel("Chat terminal panel")).toHaveCount(0);
+      await expect(composer).toBeFocused();
       await composer.fill(prompt);
       await composer.press("Enter");
       await expect(

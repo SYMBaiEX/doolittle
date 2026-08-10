@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isChatTerminalShortcut,
   isEditableShortcutTarget,
   shouldIgnoreShellShortcut,
 } from "./shell-shortcuts";
@@ -46,5 +47,22 @@ describe("shell shortcut guards", () => {
         target: { tagName: "main" },
       }),
     ).toBe(true);
+  });
+
+  it("recognizes the chat terminal shortcut without stealing modified chords", () => {
+    expect(
+      isChatTerminalShortcut({
+        key: "j",
+        metaKey: true,
+        target: { tagName: "textarea" },
+      }),
+    ).toBe(true);
+    expect(isChatTerminalShortcut({ key: "J", ctrlKey: true })).toBe(true);
+    expect(
+      isChatTerminalShortcut({ key: "j", metaKey: true, shiftKey: true }),
+    ).toBe(false);
+    expect(
+      isChatTerminalShortcut({ key: "j", metaKey: true, isComposing: true }),
+    ).toBe(false);
   });
 });

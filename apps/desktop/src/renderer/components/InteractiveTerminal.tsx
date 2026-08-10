@@ -60,10 +60,14 @@ function nextTabName(index: number): string {
 
 export function InteractiveTerminal({
   active,
+  dismissShortcut,
+  onDismiss,
   onSendToChat,
   workspacePath,
 }: {
   active: boolean;
+  dismissShortcut?: string;
+  onDismiss?: () => void;
   onSendToChat: (text: string) => void;
   workspacePath: string;
 }) {
@@ -699,6 +703,19 @@ export function InteractiveTerminal({
                 {starting ? "Opening…" : "Open shell"}
               </button>
             )}
+            {onDismiss ? (
+              <button
+                aria-label={`Hide terminal${
+                  dismissShortcut ? ` (${dismissShortcut})` : ""
+                }`}
+                className="interactive-terminal-dismiss"
+                onClick={onDismiss}
+                type="button"
+              >
+                Hide
+                {dismissShortcut ? <kbd>{dismissShortcut}</kbd> : null}
+              </button>
+            ) : null}
           </div>
         </div>
         <div className="interactive-terminal-tab-row">

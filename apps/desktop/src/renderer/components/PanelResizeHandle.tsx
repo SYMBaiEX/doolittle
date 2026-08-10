@@ -1,6 +1,12 @@
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
-import { clampPanelWidth } from "../panel-layout";
+import { clampPanelSize } from "../panel-layout";
 import "./panel-resize-handle.css";
+
+export type PanelResizeDirection =
+  | "grow-left"
+  | "grow-right"
+  | "grow-up"
+  | "grow-down";
 
 export function PanelResizeHandle({
   bounds,
@@ -12,22 +18,30 @@ export function PanelResizeHandle({
 }: {
   bounds: { default: number; min: number; max: number };
   className: string;
-  direction: "grow-left" | "grow-right";
+  direction: PanelResizeDirection;
   label: string;
   onResize: (value: number) => void;
   value: number;
 }) {
+  const resizesHeight = direction === "grow-up" || direction === "grow-down";
+  const growsWithPointer =
+    direction === "grow-right" || direction === "grow-down";
+
   const resizeStart = (event: ReactPointerEvent<HTMLHRElement>) => {
     event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = value;
-    document.documentElement.dataset.panelResizing = "true";
+    const startPosition = resizesHeight ? event.clientY : event.clientX;
+    const startSize = value;
+    document.documentElement.dataset.panelResizing = resizesHeight
+      ? "vertical"
+      : "horizontal";
 
     const onMove = (moveEvent: PointerEvent) => {
-      const delta = moveEvent.clientX - startX;
-      const next =
-        direction === "grow-right" ? startWidth + delta : startWidth - delta;
-      onResize(clampPanelWidth(next, bounds));
+      const pointerPosition = resizesHeight
+        ? moveEvent.clientY
+        : moveEvent.clientX;
+      const delta = pointerPosition - startPosition;
+      const next = growsWithPointer ? startSize + delta : startSize - delta;
+      onResize(clampPanelSize(next, bounds));
     };
     const onEnd = () => {
       delete document.documentElement.dataset.panelResizing;
@@ -42,19 +56,27 @@ export function PanelResizeHandle({
   };
 
   const resizeWithKeyboard = (event: KeyboardEvent<HTMLHRElement>) => {
-    const horizontalDelta =
-      event.key === "ArrowLeft" ? -16 : event.key === "ArrowRight" ? 16 : 0;
-    if (!horizontalDelta) return;
+    const pointerDelta = resizesHeight
+      ? event.key === "ArrowUp"
+        ? -16
+        : event.key === "ArrowDown"
+          ? 16
+          : 0
+      : event.key === "ArrowLeft"
+        ? -16
+        : event.key === "ArrowRight"
+          ? 16
+          : 0;
+    if (!pointerDelta) return;
     event.preventDefault();
-    const widthDelta =
-      direction === "grow-right" ? horizontalDelta : -horizontalDelta;
-    onResize(clampPanelWidth(value + widthDelta, bounds));
+    const sizeDelta = growsWithPointer ? pointerDelta : -pointerDelta;
+    onResize(clampPanelSize(value + sizeDelta, bounds));
   };
 
   return (
     <hr
       aria-label={label}
-      aria-orientation="vertical"
+      aria-orientation={resizesHeight ? "horizontal" : "vertical"}
       aria-valuemax={bounds.max}
       aria-valuemin={bounds.min}
       aria-valuenow={value}
@@ -63,7 +85,9 @@ export function PanelResizeHandle({
       onKeyDown={resizeWithKeyboard}
       onPointerDown={resizeStart}
       tabIndex={0}
-      title={`${label}. Drag or use arrow keys. Double-click to reset.`}
+      title={`${label}. Drag or use ${
+        resizesHeight ? "up and down" : "left and right"
+      } arrow keys. Double-click to reset.`}
     />
   );
 }

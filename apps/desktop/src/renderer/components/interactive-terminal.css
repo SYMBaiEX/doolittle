@@ -102,6 +102,18 @@
   font-size: 9px;
 }
 
+.interactive-terminal-controls .interactive-terminal-dismiss {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.interactive-terminal-dismiss kbd {
+  color: var(--faint);
+  font: inherit;
+  letter-spacing: 0;
+}
+
 .interactive-terminal-controls button:hover,
 .interactive-terminal-footer button:hover {
   color: var(--accent);

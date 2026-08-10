@@ -3,6 +3,7 @@ import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
 import {
   type CSSProperties,
   type KeyboardEvent,
+  lazy,
   Suspense,
   useCallback,
   useEffect,
@@ -86,7 +87,11 @@ import { asArray, desktopRequest, useApiResource } from "./lib";
 import {
   APP_SIDEBAR_WIDTH,
   APP_SIDEBAR_WIDTH_KEY,
+  CHAT_TERMINAL_HEIGHT,
+  CHAT_TERMINAL_HEIGHT_KEY,
+  loadPanelSize,
   loadPanelWidth,
+  savePanelSize,
   savePanelWidth,
   UTILITY_DRAWER_WIDTH,
   UTILITY_DRAWER_WIDTH_KEY,
@@ -98,7 +103,10 @@ import type {
   ProjectScope,
 } from "./project-manager/models";
 import { projectNavigationTarget } from "./project-navigation";
-import { shouldIgnoreShellShortcut } from "./shell-shortcuts";
+import {
+  isChatTerminalShortcut,
+  shouldIgnoreShellShortcut,
+} from "./shell-shortcuts";
 import { workspacePathsEqual } from "./workspace-path";
 import { resolveWorkspaceSelection } from "./workspace-selection";
 
@@ -109,6 +117,12 @@ function pathsEqual(left: string | undefined, right: string): boolean {
 type ApprovalListResponse = { approvals?: unknown[] };
 type DelegationTasksResponse = { tasks?: unknown[] };
 
+const ChatTerminalPanel = lazy(() =>
+  import("./app-shell/ChatTerminalPanel").then((module) => ({
+    default: module.ChatTerminalPanel,
+  })),
+);
+
 export function App() {
   const initialConversation = useMemo(newConversationId, []);
   const [view, setViewState] = useState<View>(viewFromHash);
@@ -116,6 +130,7 @@ export function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
   const [utilityOpen, setUtilityOpen] = useState(false);
+  const [chatTerminalOpen, setChatTerminalOpen] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(
     () => localStorage.getItem(NAV_COLLAPSED_KEY) === "true",
   );
@@ -128,6 +143,9 @@ export function App() {
       UTILITY_DRAWER_WIDTH_KEY,
       UTILITY_DRAWER_WIDTH,
     ),
+  );
+  const [chatTerminalHeight, setChatTerminalHeight] = useState(() =>
+    loadPanelSize(localStorage, CHAT_TERMINAL_HEIGHT_KEY, CHAT_TERMINAL_HEIGHT),
   );
   const [openSections, setOpenSections] =
     useState<Set<NavigationSectionId>>(loadOpenSections);
@@ -187,6 +205,7 @@ export function App() {
   const sidebarReturnFocusRef = useRef<HTMLElement | null>(null);
   const utilityRef = useRef<HTMLElement | null>(null);
   const utilityReturnFocusRef = useRef<HTMLElement | null>(null);
+  const chatTerminalReturnFocusRef = useRef<HTMLElement | null>(null);
   const projectTransitionRef = useRef(0);
   const pendingProjectScopeRef = useRef<ProjectScope | null>(null);
   const workspaceSwitchInFlightRef = useRef(0);
@@ -232,10 +251,34 @@ export function App() {
     else openUtilities();
   }, [closeUtilities, openUtilities, utilityOpen]);
 
+  const closeChatTerminal = useCallback(() => {
+    setChatTerminalOpen(false);
+    const restoreTarget = chatTerminalReturnFocusRef.current;
+    chatTerminalReturnFocusRef.current = null;
+    if (restoreTarget?.isConnected) {
+      requestAnimationFrame(() => restoreTarget.focus());
+    }
+  }, []);
+
+  const openChatTerminal = useCallback(() => {
+    chatTerminalReturnFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    setMobileSidebarOpen(false);
+    setChatTerminalOpen(true);
+  }, [setMobileSidebarOpen]);
+
+  const toggleChatTerminal = useCallback(() => {
+    if (chatTerminalOpen) closeChatTerminal();
+    else openChatTerminal();
+  }, [chatTerminalOpen, closeChatTerminal, openChatTerminal]);
+
   const setView = useCallback(
     (next: View) => {
       setViewState(next);
       setMobileSidebarOpen(false);
+      if (next !== "chat") closeChatTerminal();
       if (isMobileSidebarMode) setUtilityOpen(false);
       const section = navigation.find((entry) =>
         entry.items.some((item) => item.id === next),
@@ -248,7 +291,7 @@ export function App() {
       }
       window.location.hash = `/${next}`;
     },
-    [isMobileSidebarMode, setMobileSidebarOpen],
+    [closeChatTerminal, isMobileSidebarMode, setMobileSidebarOpen],
   );
 
   const openSidebarForMobile = useCallback(() => {
@@ -1030,6 +1073,15 @@ export function App() {
   }, [utilityDrawerWidth]);
 
   useEffect(() => {
+    savePanelSize(
+      localStorage,
+      CHAT_TERMINAL_HEIGHT_KEY,
+      chatTerminalHeight,
+      CHAT_TERMINAL_HEIGHT,
+    );
+  }, [chatTerminalHeight]);
+
+  useEffect(() => {
     localStorage.setItem(NAV_SECTIONS_KEY, JSON.stringify([...openSections]));
   }, [openSections]);
 
@@ -1083,6 +1135,18 @@ export function App() {
     if (!window.location.hash) window.location.hash = "/chat";
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
+
+  useEffect(() => {
+    const onChatTerminalKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (view !== "chat" || !isChatTerminalShortcut(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      toggleChatTerminal();
+    };
+    window.addEventListener("keydown", onChatTerminalKeyDown, true);
+    return () =>
+      window.removeEventListener("keydown", onChatTerminalKeyDown, true);
+  }, [toggleChatTerminal, view]);
 
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -1144,12 +1208,22 @@ export function App() {
           case "toggle-sidebar":
             toggleNavigation();
             break;
+          case "toggle-terminal":
+            if (view === "chat") toggleChatTerminal();
+            break;
           case "toggle-inspector":
             toggleInspector();
             break;
         }
       }),
-    [createConversation, setView, toggleInspector, toggleNavigation],
+    [
+      createConversation,
+      setView,
+      toggleChatTerminal,
+      toggleInspector,
+      toggleNavigation,
+      view,
+    ],
   );
 
   useEffect(() => {
@@ -1693,6 +1767,25 @@ export function App() {
             {content}
           </Suspense>
         </div>
+        {view === "chat" && chatTerminalOpen ? (
+          <Suspense fallback={null}>
+            <ChatTerminalPanel
+              active={backend.phase === "ready"}
+              height={chatTerminalHeight}
+              onClose={closeChatTerminal}
+              onResize={setChatTerminalHeight}
+              onSendToChat={(text) =>
+                openChatWithContext({
+                  text,
+                  workspacePath: workspace.currentPath,
+                  projectScope,
+                })
+              }
+              platform={window.doolittle.platform}
+              workspacePath={workspace.currentPath}
+            />
+          </Suspense>
+        ) : null}
       </section>
       {utilityOpen ? (
         <DesktopUtilityLayer
