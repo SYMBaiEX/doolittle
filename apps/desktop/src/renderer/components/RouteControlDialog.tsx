@@ -8,6 +8,7 @@ import {
 } from "react";
 import type { RuntimeStatus } from "../../shared/contracts";
 import {
+  type ActionFeedback,
   asRecord,
   asString,
   Badge,
@@ -111,7 +112,7 @@ export function RouteControlDialog({
   );
   const [draft, setDraft] = useState<RouteDraft | null>(null);
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState("");
+  const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -126,7 +127,7 @@ export function RouteControlDialog({
   useEffect(() => {
     if (!isOpen) {
       setDraft(null);
-      setFeedback("");
+      setFeedback(null);
       setSaving(false);
     }
   }, [isOpen]);
@@ -242,7 +243,7 @@ export function RouteControlDialog({
         ),
       };
     });
-    setFeedback("");
+    setFeedback(null);
   };
 
   const save = async (event: FormEvent) => {
@@ -250,7 +251,7 @@ export function RouteControlDialog({
     if (!draft) return;
     const current = settings.data?.settings?.model;
     setSaving(true);
-    setFeedback("");
+    setFeedback(null);
     try {
       const resolvedTemperature = parseOptionalNumber(
         draft.temperature,
@@ -278,12 +279,15 @@ export function RouteControlDialog({
 
       await desktopRequest("/settings", "POST", { changes });
 
-      setFeedback("Route updated. New turns use this model path.");
+      setFeedback({
+        message: "Route updated. New turns use this model path.",
+        tone: "good",
+      });
       settings.reload();
       accounts.reload();
       refreshRuntime();
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setSaving(false);
     }
@@ -440,11 +444,7 @@ export function RouteControlDialog({
             </div>
 
             {feedback ? (
-              <Notice
-                tone={feedback.startsWith("Route updated") ? "good" : "bad"}
-              >
-                {feedback}
-              </Notice>
+              <Notice tone={feedback.tone}>{feedback.message}</Notice>
             ) : null}
 
             <div className="route-control-actions">

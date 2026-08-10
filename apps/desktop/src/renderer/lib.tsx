@@ -7,6 +7,11 @@ import { desktopRequest } from "./eliza-client";
 export { desktopRequest } from "./eliza-client";
 
 export type UnknownRecord = Record<string, unknown>;
+export type NoticeTone = "neutral" | "good" | "warn" | "bad";
+export interface ActionFeedback {
+  message: string;
+  tone: NoticeTone;
+}
 export { asArray, asNumber, asRecord, asString } from "./value-guards";
 
 export interface ApiResource<T> {
@@ -106,7 +111,7 @@ export function Notice({
   announce?: "alert" | "status" | "off";
   children: ReactNode;
   id?: string;
-  tone?: "neutral" | "good" | "warn" | "bad";
+  tone?: NoticeTone;
 }) {
   const role =
     announce === "off"

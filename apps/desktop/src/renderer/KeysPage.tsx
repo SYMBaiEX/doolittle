@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import {
+  type ActionFeedback,
   asArray,
   asString,
   Badge,
@@ -39,7 +40,7 @@ export function KeysPage({ active }: { active: boolean }) {
   const [revealedValue, setRevealedValue] = useState("");
   const [valueVisible, setValueVisible] = useState(false);
   const [busy, setBusy] = useState<"load" | "save" | "">("");
-  const [feedback, setFeedback] = useState("");
+  const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const clearSensitiveValue = useCallback(() => {
     setDraftValue("");
     setRevealedValue("");
@@ -78,7 +79,7 @@ export function KeysPage({ active }: { active: boolean }) {
   const loadValue = async (key = draftKey.trim()) => {
     if (!key) return;
     setBusy("load");
-    setFeedback("");
+    setFeedback(null);
     try {
       const response = await desktopRequest<SecretValueResponse>(
         "/secrets/get",
@@ -90,9 +91,9 @@ export function KeysPage({ active }: { active: boolean }) {
       setRevealedValue(asString(response.value));
       setDraftValue(asString(response.value));
       setValueVisible(true);
-      setFeedback(`Loaded ${key}.`);
+      setFeedback({ message: `Loaded ${key}.`, tone: "good" });
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setBusy("");
     }
@@ -103,7 +104,7 @@ export function KeysPage({ active }: { active: boolean }) {
     const key = draftKey.trim();
     if (!key) return;
     setBusy("save");
-    setFeedback("");
+    setFeedback(null);
     try {
       await desktopRequest("/secrets/set", "POST", {
         key,
@@ -111,10 +112,10 @@ export function KeysPage({ active }: { active: boolean }) {
       });
       setSelectedKey(key);
       clearSensitiveValue();
-      setFeedback(`Stored ${key}.`);
+      setFeedback({ message: `Stored ${key}.`, tone: "good" });
       secrets.reload();
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setBusy("");
     }
@@ -137,9 +138,7 @@ export function KeysPage({ active }: { active: boolean }) {
         }
       />
       {feedback ? (
-        <Notice tone={feedback.startsWith("Stored") ? "good" : "neutral"}>
-          {feedback}
-        </Notice>
+        <Notice tone={feedback.tone}>{feedback.message}</Notice>
       ) : null}
       <div className="split-workspace">
         <section className="list-panel">
@@ -166,7 +165,7 @@ export function KeysPage({ active }: { active: boolean }) {
                     setDraftValue("");
                     setRevealedValue("");
                     setValueVisible(false);
-                    setFeedback("");
+                    setFeedback(null);
                   }}
                   type="button"
                 >

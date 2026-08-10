@@ -1,6 +1,7 @@
 import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
 import { useState } from "react";
 import {
+  type ActionFeedback,
   asArray,
   asRecord,
   asString,
@@ -25,7 +26,7 @@ export function InlineApprovalPanel({ active }: InlineApprovalPanelProps) {
     [active],
   );
   const [busyId, setBusyId] = useState("");
-  const [feedback, setFeedback] = useState("");
+  const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const approvals = asArray(resource.data?.approvals)
     .map((approval) => asRecord(approval))
     .filter((approval) => asString(approval.id))
@@ -40,21 +41,23 @@ export function InlineApprovalPanel({ active }: InlineApprovalPanelProps) {
     const id = asString(approval.id);
     if (!id || busyId) return;
     setBusyId(id);
-    setFeedback("");
+    setFeedback(null);
     try {
       await desktopRequest(
         `/execution/approvals/${encodeURIComponent(id)}/${decision}`,
         "POST",
         {},
       );
-      setFeedback(
-        decision === "approve"
-          ? "Approved. The matching command can continue."
-          : "Denied. The command was not executed.",
-      );
+      setFeedback({
+        message:
+          decision === "approve"
+            ? "Approved. The matching command can continue."
+            : "Denied. The command was not executed.",
+        tone: "good",
+      });
       resource.reload();
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setBusyId("");
     }
@@ -119,11 +122,11 @@ export function InlineApprovalPanel({ active }: InlineApprovalPanelProps) {
       </div>
       {feedback ? (
         <p
-          aria-live="polite"
-          className="inline-approval-feedback"
-          role="status"
+          aria-live={feedback.tone === "bad" ? "assertive" : "polite"}
+          className={`inline-approval-feedback ${feedback.tone}`}
+          role={feedback.tone === "bad" ? "alert" : "status"}
         >
-          {feedback}
+          {feedback.message}
         </p>
       ) : null}
     </section>

@@ -8,6 +8,7 @@ import type {
   RuntimeStatus,
 } from "../shared/contracts";
 import {
+  type ActionFeedback,
   asRecord,
   asString,
   Badge,
@@ -132,7 +133,7 @@ export function ModelsPage({
   const model = settings.data?.settings?.model;
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState("");
+  const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
 
   const fieldValue = (key: string, fallback: unknown) =>
     Object.hasOwn(draft, key) ? draft[key] : String(fallback ?? "");
@@ -155,7 +156,7 @@ export function ModelsPage({
   const save = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true);
-    setFeedback("");
+    setFeedback(null);
     try {
       const effort = fieldValue(
         "reasoningEffort",
@@ -187,11 +188,14 @@ export function ModelsPage({
         ],
       });
       setDraft({});
-      setFeedback("Model settings saved. New turns will use this selection.");
+      setFeedback({
+        message: "Model settings saved. New turns will use this selection.",
+        tone: "good",
+      });
       settings.reload();
       refreshRuntime();
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setSaving(false);
     }
@@ -394,9 +398,7 @@ export function ModelsPage({
               </label>
             </div>
             {feedback ? (
-              <Notice tone={feedback.startsWith("Model") ? "good" : "bad"}>
-                {feedback}
-              </Notice>
+              <Notice tone={feedback.tone}>{feedback.message}</Notice>
             ) : null}
             <div className="form-actions">
               <button
