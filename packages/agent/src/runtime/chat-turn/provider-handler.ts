@@ -6,6 +6,10 @@ import {
 import type { AgentExecutionContext } from "@/runtime/chat";
 import type { StreamingOutputModel } from "./provider-streaming";
 import {
+  isUnsynthesizedToolResponse,
+  synthesizeToolResultResponse,
+} from "./tool-result-synthesis";
+import {
   elapsedMsSince,
   readSdkTrajectoryStepId,
   recordEvaluationTraceEvent,
@@ -119,6 +123,50 @@ function throwIfTurnAborted(signal: AbortSignal | undefined): void {
   throw error;
 }
 
+async function discardUnsynthesizedResponseMemories(input: {
+  context: AgentExecutionContext;
+  response: string;
+  responseMessages: Memory[];
+  runId?: string;
+  sessionId: string;
+  roomId: string;
+}): Promise<Memory[]> {
+  const rejected = input.responseMessages.filter(
+    (memory) => responseText(memory) === input.response.trim(),
+  );
+  if (!rejected.length) return input.responseMessages;
+
+  const deleteMemory = input.context.runtime.deleteMemory?.bind(
+    input.context.runtime,
+  );
+  if (deleteMemory) {
+    const rejectedMemoryIds = rejected.flatMap((memory) =>
+      memory.id ? [memory.id] : [],
+    );
+    const results = await Promise.allSettled(
+      rejectedMemoryIds.map((memoryId) => deleteMemory(memoryId)),
+    );
+    const failedDeletes = results.filter(
+      (result) => result.status === "rejected",
+    ).length;
+    if (failedDeletes) {
+      input.context.runtime.logger?.warn(
+        {
+          runId: input.runId,
+          sessionId: input.sessionId,
+          roomId: input.roomId,
+          rejectedMemoryIds: rejectedMemoryIds.map(String),
+          failedDeletes,
+        },
+        "Failed to remove every unsynthesized native response memory",
+      );
+    }
+  }
+
+  const rejectedIds = new Set(rejected.map((memory) => memory.id));
+  return input.responseMessages.filter((memory) => !rejectedIds.has(memory.id));
+}
+
 export async function executeProviderMessageTurn(
   input: ProviderMessageExecutionInput,
 ): Promise<ProviderMessageExecutionResult> {
@@ -211,6 +259,34 @@ export async function executeProviderMessageTurn(
           provisionalResponse: input.streamState.getResponse(),
           actionResults,
         });
+        if (isUnsynthesizedToolResponse(response, actionResults)) {
+          input.context.runtime.logger?.warn(
+            {
+              runId: input.runId,
+              sessionId,
+              roomId: input.roomId,
+              messageId,
+              actionResultCount: actionResults.length,
+              responseChars: response.length,
+            },
+            "ElizaOS returned raw native tool output as the terminal response; synthesizing a user-facing answer",
+          );
+          responseMessages = await discardUnsynthesizedResponseMemories({
+            context: input.context,
+            response,
+            responseMessages,
+            runId: input.runId,
+            sessionId,
+            roomId: input.roomId,
+          });
+          response = await synthesizeToolResultResponse({
+            context: input.context,
+            userRequest: prompt,
+            actionResults,
+            abortSignal: input.abortSignal,
+            runtimeOverrides: input.settingsDuring.model,
+          });
+        }
         input.streamState.setResponse(response);
       } catch (error) {
         if (input.abortSignal?.aborted) throw error;

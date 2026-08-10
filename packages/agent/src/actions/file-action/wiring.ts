@@ -187,12 +187,14 @@ function createActionResult(
   success: boolean,
   text: string,
   data?: ProviderDataRecord,
+  options?: { verifiedUserFacing?: boolean },
 ): ActionResult {
+  const verifiedUserFacing = options?.verifiedUserFacing ?? success;
   return {
     success,
     text,
-    userFacingText: text,
-    verifiedUserFacing: success,
+    ...(verifiedUserFacing ? { userFacingText: text } : {}),
+    verifiedUserFacing,
     data,
   };
 }
@@ -269,6 +271,7 @@ function createReadFileAction(): Action {
             { fileOperation: { type: "read", target: path } },
             { path },
           ),
+          { verifiedUserFacing: false },
         );
       } catch (error) {
         const response = `READ_FILE failed: ${handlerError(error)}`;
@@ -566,6 +569,7 @@ function createSearchFilesAction(): Action {
               target: stringParam(params, "path", "directory") || ".",
             },
           }),
+          { verifiedUserFacing: false },
         );
       } catch (error) {
         const response = `SEARCH_FILES failed: ${handlerError(error)}`;

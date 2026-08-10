@@ -13,14 +13,25 @@ function createContext(overrides?: {
   captureNotice?: (notice: string) => void;
   trajectoryLogger?: unknown;
   sdkEmitsMessageSent?: boolean;
+  onUseModel?: (prompt: string) => Promise<string>;
 }) {
   const emittedEvents: string[] = [];
   const notices: string[] = [];
   const trajectoryLogger = overrides?.trajectoryLogger;
+  const deleteMemory = vi.fn(async () => undefined);
+  const useModel = vi.fn(
+    async (_modelType: unknown, params: { prompt?: unknown }) =>
+      overrides?.onUseModel?.(String(params.prompt ?? "")) ??
+      "Synthesized tool response.",
+  );
 
   const context = {
+    config: {},
     runtime: {
       agentId: "agent-1",
+      deleteMemory,
+      getSetting: () => undefined,
+      useModel,
       getService: (service: string) =>
         service === "trajectories" ? trajectoryLogger : null,
       getServicesByType: (service: string) =>
@@ -64,18 +75,32 @@ function createContext(overrides?: {
       },
       getActionResults: overrides?.getActionResults,
     },
+    services: {
+      settings: {
+        get: () => ({
+          agent: {
+            runDepth: "standard",
+            maxIterations: 4,
+            toolProgressMode: "compact",
+          },
+          model: createTurnSettings().model,
+        }),
+      },
+    },
   } as unknown as AgentExecutionContext;
 
   return {
     context,
     emittedEvents,
     notices,
+    deleteMemory,
     onNotice: overrides?.captureNotice
       ? async (notice: { message: string }) => {
           overrides.captureNotice?.(notice.message);
           notices.push(notice.message);
         }
       : undefined,
+    useModel,
   };
 }
 
@@ -244,6 +269,78 @@ describe("chat turn provider handler", () => {
 
     expect(result.actionResults).toEqual([sdkResult]);
     expect(streamState.getResponse()).toBe("Terminal response.");
+  });
+
+  it("synthesizes a raw file action receipt instead of persisting it", async () => {
+    const rawRead = [
+      "Read: /workspace/src/app.ts",
+      "Lines: 1-3 of 3",
+      "1|export function app() {",
+      '2|  return "ready";',
+      "3|}",
+    ].join("\n");
+    const sdkResult = {
+      success: true,
+      text: rawRead,
+      userFacingText: rawRead,
+      verifiedUserFacing: true,
+    };
+    const { context, deleteMemory, useModel } = createContext({
+      onHandleMessage: async () => ({
+        responseContent: { text: rawRead },
+        responseMessages: [
+          {
+            id: "raw-response-memory" as UUID,
+            content: { text: rawRead },
+          },
+        ],
+        state: { data: { actionResults: [sdkResult] } },
+      }),
+      onUseModel: async (prompt) => {
+        expect(prompt).toContain(
+          "<user_request>Explore the workspace</user_request>",
+        );
+        expect(prompt).toContain("Read: /workspace/src/app.ts");
+        return "This workspace contains a small TypeScript application.";
+      },
+    });
+    const streamState = createProviderStreamState({
+      resolveStreamingUpdate: () => ({
+        kind: "append",
+        emittedText: "",
+        nextText: "",
+      }),
+      extractCompatTextContent: () => "",
+    });
+
+    const result = await executeProviderMessageTurn({
+      context,
+      memory: {
+        id: "memory-raw-read" as UUID,
+        roomId: "room-raw-read" as UUID,
+        entityId: "entity-raw-read" as UUID,
+        content: {
+          text: "Explore the workspace",
+          source: "desktop",
+          channelType: ChannelType.DM,
+        },
+      } as Memory,
+      streamState,
+      messagePolicy: { useMultiStep: true, maxIterations: 4 },
+      abortSignal: undefined,
+      settingsDuring: createTurnSettings(),
+      connectionSource: "desktop",
+      roomId: "room-raw-read",
+      buildProviderFailureMessage: () => "fatal",
+    });
+
+    expect(useModel).toHaveBeenCalledTimes(1);
+    expect(deleteMemory).toHaveBeenCalledWith("raw-response-memory");
+    expect(result.response).toBe(
+      "This workspace contains a small TypeScript application.",
+    );
+    expect(result.responseMessages).toEqual([]);
+    expect(streamState.getResponse()).toBe(result.response);
   });
 
   it("starts a standalone SDK trajectory and leaves model-call logging to runtime.useModel", async () => {

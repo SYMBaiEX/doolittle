@@ -108,10 +108,12 @@ describe("file actions", () => {
     expect(result).toMatchObject({
       success: true,
       text: expect.stringContaining("2|two"),
+      verifiedUserFacing: false,
       data: {
         fileOperation: { type: "read", target: "src/app.ts" },
       },
     });
+    expect(result?.userFacingText).toBeUndefined();
   });
 
   it("resolves the coding-agent service for every invocation", async () => {
@@ -189,7 +191,9 @@ describe("file actions", () => {
     expect(result).toMatchObject({
       success: true,
       text: expect.stringContaining("src/script.ts"),
+      verifiedUserFacing: false,
     });
+    expect(result?.userFacingText).toBeUndefined();
   });
 
   it("builds mutation metadata from structured service results", async () => {
