@@ -765,10 +765,6 @@ textarea:focus {
   outline: none;
 }
 
-button:not(:disabled):active {
-  transform: translateY(1px);
-}
-
 .app-main {
   isolation: isolate;
   background: var(--bg);

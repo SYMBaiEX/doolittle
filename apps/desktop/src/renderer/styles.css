@@ -579,12 +579,6 @@ select:focus-visible {
   border: 0;
 }
 
-.primary-button:active:not(:disabled),
-.secondary-button:active:not(:disabled),
-.danger-button:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
 .content-card {
   min-width: 0;
   padding: 19px;

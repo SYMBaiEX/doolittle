@@ -355,16 +355,66 @@ test.describe("Doolittle desktop navigation", () => {
             label,
           );
           await expect(page.locator(".recovery-shell")).toHaveCount(0);
+          const viewContainer = page.locator(
+            `.view-container[data-view="${route}"]`,
+          );
+          await expect(viewContainer).toBeVisible();
           await expect
             .poll(() =>
-              page
-                .locator(`.view-container[data-view="${route}"]`)
-                .evaluate(
-                  (container) =>
-                    container.scrollWidth <= container.clientWidth + 1,
-                ),
+              viewContainer.evaluate(
+                (container) =>
+                  container.scrollWidth <= container.clientWidth + 1,
+              ),
             )
             .toBe(true);
+          const actionMotion = await viewContainer.evaluate((container) => {
+            const visible = (element: Element) => {
+              const bounds = element.getBoundingClientRect();
+              const style = window.getComputedStyle(element);
+              return (
+                bounds.width > 0 &&
+                bounds.height > 0 &&
+                style.display !== "none" &&
+                style.visibility !== "hidden"
+              );
+            };
+            const controls = Array.from(
+              container.querySelectorAll<HTMLElement>(
+                'button, a[href], summary, [role="button"], [role="tab"], input, select, textarea',
+              ),
+            ).filter(visible);
+            const actions = controls.filter((element) =>
+              element.matches(
+                'button, a[href], summary, [role="button"], [role="tab"]',
+              ),
+            );
+            const hasMotion = (element: HTMLElement) =>
+              window
+                .getComputedStyle(element)
+                .transitionDuration.split(",")
+                .some((duration) => Number.parseFloat(duration) > 0);
+            const hasDirectManipulation = (element: HTMLElement) => {
+              const touchAction = window.getComputedStyle(element).touchAction;
+              return (
+                touchAction === "manipulation" ||
+                (touchAction.includes("pan-x") && touchAction.includes("pan-y"))
+              );
+            };
+            return {
+              controlsHaveMotion: controls.every(hasMotion),
+              directManipulationFailures: actions
+                .filter((element) => !hasDirectManipulation(element))
+                .map((element) => {
+                  const touchAction =
+                    window.getComputedStyle(element).touchAction;
+                  return `${element.tagName.toLowerCase()}.${element.className}:${touchAction}`;
+                }),
+            };
+          });
+          expect(actionMotion).toEqual({
+            controlsHaveMotion: true,
+            directManipulationFailures: [],
+          });
         }
       };
 

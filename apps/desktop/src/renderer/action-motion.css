@@ -1,0 +1,136 @@
+/*
+ * Shared action feedback for every desktop route.
+ *
+ * Keep these interactions quiet and compositor-friendly. Feature styles own
+ * layout and color; this layer owns timing, press feedback, focus, and the
+ * entrance of short-lived action surfaces.
+ */
+
+:root {
+  --motion-instant: 80ms;
+  --motion-fast: 140ms;
+  --motion-medium: 180ms;
+  --motion-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+button,
+a[href],
+summary,
+[role="button"],
+[role="tab"] {
+  touch-action: manipulation;
+}
+
+button,
+a[href],
+summary,
+[role="button"],
+[role="tab"],
+input,
+select,
+textarea {
+  transition:
+    color var(--motion-instant) var(--motion-enter),
+    background-color var(--motion-instant) var(--motion-enter),
+    border-color var(--motion-instant) var(--motion-enter),
+    box-shadow var(--motion-fast) var(--motion-enter),
+    opacity var(--motion-instant) var(--motion-enter),
+    transform var(--motion-fast) var(--motion-enter);
+}
+
+button:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active,
+[role="tab"]:not([aria-disabled="true"]):active,
+summary:active {
+  transform: translate3d(0, 1px, 0) scale(0.985);
+  transition-duration: var(--motion-instant);
+}
+
+button.text-button:not(:disabled):active {
+  transform: translate3d(0, 1px, 0);
+}
+
+button:focus-visible,
+a[href]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 58%, var(--text));
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border-strong));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+/* The chat composer renders its focus ring on the containing surface. */
+.chat-composer textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+:where([aria-busy="true"], button[data-loading="true"]) {
+  cursor: progress;
+}
+
+.notice {
+  animation: action-feedback-in var(--motion-fast) var(--motion-enter) both;
+}
+
+:where(
+  .chat-prompt-library,
+  .composer-popover,
+  .voice-composer__panel,
+  .project-manager,
+  .project-editor
+) {
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  animation: action-surface-in var(--motion-medium) var(--motion-enter) both;
+}
+
+:where(.project-manager-backdrop, .project-editor-backdrop) {
+  animation: action-backdrop-in var(--motion-fast) var(--motion-enter) both;
+}
+
+@keyframes action-feedback-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
+@keyframes action-surface-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 4px, 0) scale(0.995);
+  }
+}
+
+@keyframes action-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(
+    .notice,
+    .chat-prompt-library,
+    .composer-popover,
+    .voice-composer__panel,
+    .project-manager,
+    .project-editor,
+    .project-manager-backdrop,
+    .project-editor-backdrop
+  ) {
+    animation: none;
+  }
+}

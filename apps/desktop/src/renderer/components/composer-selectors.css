@@ -86,7 +86,6 @@
   box-shadow:
     0 24px 70px color-mix(in srgb, var(--shadow) 76%, transparent),
     0 1px 0 color-mix(in srgb, var(--text) 4%, transparent) inset;
-  backdrop-filter: blur(22px);
 }
 
 .composer-project-popover {

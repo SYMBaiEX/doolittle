@@ -9,6 +9,7 @@ import "./experience.css";
 import "./recovery.css";
 import "./app-polish.css";
 import "./eliza-ui.css";
+import "./action-motion.css";
 
 document.documentElement.dataset.platform = window.doolittle.platform;
 
