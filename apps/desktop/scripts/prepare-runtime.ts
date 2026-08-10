@@ -316,6 +316,7 @@ writeFileSync(
       acpEntry: basename(acpOutputPath),
       node: "electron-embedded",
       assets: pgliteAssets,
+      nativeEntryPackages: [...nativeExternalPackages],
       nativePackages: copiedNativePackages,
     },
     null,

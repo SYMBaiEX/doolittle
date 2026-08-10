@@ -17,6 +17,7 @@ const args = process.argv.slice(2);
 type RuntimeManifest = {
   assets?: string[];
   entry?: string;
+  nativeEntryPackages?: string[];
   nativePackages?: string[];
 };
 
@@ -130,6 +131,9 @@ function verifyPackagedNativeRuntime(appAsarPath: string): string[] {
   const runtimeRequire = createRequire(resolve(runtimeBin, runtimeEntry));
   for (const packageName of nativePackages) {
     runtimeRequire.resolve(`${packageName}/package.json`);
+  }
+  for (const packageName of runtimeManifest.nativeEntryPackages ??
+    nativePackages) {
     runtimeRequire(packageName);
   }
   return nativePackages;
