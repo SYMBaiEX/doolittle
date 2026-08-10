@@ -22,6 +22,7 @@ import {
   type Strategy,
   startAccountPoolKeepAlive,
 } from "@elizaos/app-core/account-pool";
+import * as elizaCore from "@elizaos/core";
 import { readJson, writeJson } from "@/runtime/native/account-auth/shared";
 import {
   DOOLITTLE_LINKED_ACCOUNT_IDS,
@@ -29,6 +30,12 @@ import {
   getStoredClaudeCodeCredentials,
   getStoredCodexCredentials,
 } from "@/runtime/native/account-auth/store";
+import {
+  type CodingBridge,
+  getCodingAgentBridge,
+  hasOfficialCodingAgentBridgeAccessors,
+  setCodingAgentBridge,
+} from "./coding-bridge-compat";
 
 export const ACCOUNT_POOL_PROVIDERS = [
   "openai-codex",
@@ -45,7 +52,6 @@ export const ACCOUNT_POOL_STRATEGIES = [
 export type AccountPoolProvider = (typeof ACCOUNT_POOL_PROVIDERS)[number];
 export type AccountPoolStrategy = (typeof ACCOUNT_POOL_STRATEGIES)[number];
 
-const CODING_BRIDGE_SYMBOL = Symbol.for("eliza.account-pool.coding-agent.v1");
 const DOOLITTLE_BRIDGE_MARKER = "__doolittleAccountPoolBridge";
 
 export interface AccountPoolAccountSnapshot {
@@ -130,15 +136,7 @@ function readStrategy(providerId: AccountPoolProvider): AccountPoolStrategy {
   return readStrategies()[providerId] ?? "priority";
 }
 
-type CodingBridge = {
-  describe(): unknown;
-  select(
-    agentType: string,
-    options?: { strategy?: AccountPoolStrategy; [key: string]: unknown },
-  ): Promise<unknown>;
-  markRateLimited(...args: unknown[]): Promise<void>;
-  markNeedsReauth(...args: unknown[]): Promise<void>;
-  recordUsage(...args: unknown[]): Promise<void>;
+type DoolittleCodingBridge = CodingBridge & {
   [DOOLITTLE_BRIDGE_MARKER]?: boolean;
 };
 
@@ -156,23 +154,24 @@ function providerForCodingAgent(
 }
 
 /**
- * The official bridge deliberately only has a global environment strategy.
- * Wrap its selection call narrowly so Doolittle's persisted per-provider
- * strategy reaches Codex/Claude spawns while the SDK still owns credentials,
- * health, usage, and process-specific environment materialization.
+ * beta.7's bridge only applies its global environment strategy. Wrap that
+ * legacy selection call narrowly so Doolittle's persisted per-provider choice
+ * reaches Codex/Claude spawns. Newer SDKs expose public bridge accessors and
+ * honor configured accountStrategies directly, so they bypass this wrapper.
  */
 function installDoolittleCodingBridge(): void {
-  const bridge = (globalThis as Record<symbol, unknown>)[
-    CODING_BRIDGE_SYMBOL
-  ] as CodingBridge | undefined;
+  if (hasOfficialCodingAgentBridgeAccessors(elizaCore)) return;
+  const bridge = getCodingAgentBridge(
+    elizaCore,
+  ) as DoolittleCodingBridge | null;
   if (!bridge || bridge[DOOLITTLE_BRIDGE_MARKER]) return;
   const select = bridge.select.bind(bridge);
-  (globalThis as Record<symbol, unknown>)[CODING_BRIDGE_SYMBOL] = {
+  const wrappedBridge: DoolittleCodingBridge = {
     ...bridge,
     [DOOLITTLE_BRIDGE_MARKER]: true,
     select: (
       agentType: string,
-      options?: { strategy?: AccountPoolStrategy },
+      options?: { strategy?: string; [key: string]: unknown },
     ) => {
       const providerId = providerForCodingAgent(agentType);
       return select(agentType, {
@@ -182,7 +181,8 @@ function installDoolittleCodingBridge(): void {
           (providerId ? readStrategy(providerId) : undefined),
       });
     },
-  } satisfies CodingBridge;
+  };
+  setCodingAgentBridge(elizaCore, wrappedBridge);
 }
 
 export function setDoolittleAccountPoolStrategy(
@@ -391,11 +391,7 @@ export function snapshotDoolittleAccountPool(
   pool = getDoolittleAccountPool(),
 ): AccountPoolSnapshot {
   return {
-    bridgeInstalled: Boolean(
-      (globalThis as Record<symbol, unknown>)[
-        Symbol.for("eliza.account-pool.coding-agent.v1")
-      ],
-    ),
+    bridgeInstalled: Boolean(getCodingAgentBridge(elizaCore)),
     providers: Object.fromEntries(
       ACCOUNT_POOL_PROVIDERS.map((providerId) => [
         providerId,
