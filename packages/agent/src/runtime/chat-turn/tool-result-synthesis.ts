@@ -13,13 +13,14 @@ const RAW_FILE_READ =
   /^Read:\s+.+\nLines:\s+\d+-\d+\s+of\s+\d+\n(?:\d+\|[^\n]*(?:\n|$)){2,}/u;
 const RAW_FILE_SEARCH = /^(?:Content|File) matches for "[^"]+" in .+:\n[^\n]+/u;
 
+function resultTexts(result: ActionResult): string[] {
+  return [result.text, result.userFacingText].flatMap((value) =>
+    typeof value === "string" && value.trim() ? [value.trim()] : [],
+  );
+}
+
 function resultText(result: ActionResult): string {
-  if (typeof result.text === "string" && result.text.trim()) {
-    return result.text.trim();
-  }
-  return typeof result.userFacingText === "string"
-    ? result.userFacingText.trim()
-    : "";
+  return resultTexts(result)[0] ?? "";
 }
 
 function isRawToolTranscript(value: string): boolean {
@@ -40,15 +41,13 @@ export function isUnsynthesizedToolResponse(
   const normalized = response.trim();
   if (!normalized || actionResults.length === 0) return false;
 
-  const matchingResult = actionResults.find((result) => {
-    const text = resultText(result);
-    return text.length > 0 && text === normalized;
-  });
-  if (!matchingResult) return false;
-
-  return (
-    matchingResult.verifiedUserFacing !== true ||
-    isRawToolTranscript(normalized)
+  return actionResults.some((result) =>
+    resultTexts(result).some((text) => {
+      if (text === normalized) {
+        return result.verifiedUserFacing !== true || isRawToolTranscript(text);
+      }
+      return isRawToolTranscript(text) && normalized.includes(text);
+    }),
   );
 }
 

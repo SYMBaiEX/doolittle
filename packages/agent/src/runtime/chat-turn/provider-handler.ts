@@ -163,8 +163,10 @@ async function discardUnsynthesizedResponseMemories(input: {
     }
   }
 
-  const rejectedIds = new Set(rejected.map((memory) => memory.id));
-  return input.responseMessages.filter((memory) => !rejectedIds.has(memory.id));
+  const rejectedMemories = new Set(rejected);
+  return input.responseMessages.filter(
+    (memory) => !rejectedMemories.has(memory),
+  );
 }
 
 export async function executeProviderMessageTurn(
@@ -299,9 +301,12 @@ export async function executeProviderMessageTurn(
         input.context.runtime.logger?.warn(
           {
             error,
+            runId: input.runId,
+            sessionId,
             provider: input.settingsDuring.model.provider,
             model: input.settingsDuring.model.model,
             roomId: input.roomId,
+            messageId,
           },
           "ElizaOS message service turn failed",
         );

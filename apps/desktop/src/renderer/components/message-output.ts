@@ -72,6 +72,27 @@ function parseLegacyReadResult(content: string): ToolActivity | undefined {
   };
 }
 
+function parseLegacySearchResult(content: string): ToolActivity | undefined {
+  const header = /^(Content|File) matches for "([^"]+)" in ([^\n]+):\n/u.exec(
+    content,
+  );
+  if (!header) return undefined;
+  const body = content.slice(header[0].length).trim();
+  if (!body) return undefined;
+
+  return {
+    id: "legacy-search-files-result",
+    name: "SEARCH_FILES",
+    status: "completed",
+    input: {
+      pattern: header[2],
+      root: header[3],
+      target: header[1] === "File" ? "files" : "content",
+    },
+    output: content,
+  };
+}
+
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
@@ -270,11 +291,12 @@ function addEvaluation(
 }
 
 export function parseAgentMessage(content: string): ParsedAgentMessage {
-  const legacyReadResult = parseLegacyReadResult(content);
-  if (legacyReadResult) {
+  const legacyToolResult =
+    parseLegacyReadResult(content) ?? parseLegacySearchResult(content);
+  if (legacyToolResult) {
     return {
-      text: "This earlier response contained raw file output without a final explanation. The output is preserved below.",
-      tools: [legacyReadResult],
+      text: "This earlier response contained raw tool output without a final explanation. The output is preserved below.",
+      tools: [legacyToolResult],
       steps: { continued: 0, finished: 0, failed: 0 },
     };
   }

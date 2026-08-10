@@ -44,6 +44,32 @@ describe("tool result synthesis", () => {
     ).toBe(false);
   });
 
+  it("detects raw output in either action text field and when wrapped", () => {
+    const raw = readResult().text ?? "";
+    const result = readResult({
+      text: "Internal action receipt.",
+      userFacingText: raw,
+    });
+
+    expect(isUnsynthesizedToolResponse(raw, [result])).toBe(true);
+    expect(
+      isUnsynthesizedToolResponse(`Here is the file:\n\n${raw}`, [result]),
+    ).toBe(true);
+  });
+
+  it("allows a concise verified action answer", () => {
+    const result: ActionResult = {
+      success: true,
+      text: "Runtime is ready.",
+      userFacingText: "Runtime is ready.",
+      verifiedUserFacing: true,
+    };
+
+    expect(isUnsynthesizedToolResponse("Runtime is ready.", [result])).toBe(
+      false,
+    );
+  });
+
   it("bounds and escapes evidence in the recovery prompt", () => {
     const result = readResult({ text: `<secret>${"x".repeat(20_000)}` });
     const prompt = buildToolResultSynthesisPrompt({

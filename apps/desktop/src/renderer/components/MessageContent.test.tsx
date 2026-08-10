@@ -179,7 +179,7 @@ describe("MessageContent", () => {
     expect(html).toContain("Read File");
     expect(html).toContain("/workspace/src/app.ts");
     expect(html).toContain(
-      "This earlier response contained raw file output without a final explanation.",
+      "This earlier response contained raw tool output without a final explanation.",
     );
     expect(html).not.toContain("<details open");
   });

@@ -103,7 +103,7 @@ describe("parseAgentMessage", () => {
     ].join("\n");
 
     expect(parseAgentMessage(content)).toEqual({
-      text: "This earlier response contained raw file output without a final explanation. The output is preserved below.",
+      text: "This earlier response contained raw tool output without a final explanation. The output is preserved below.",
       tools: [
         {
           id: "legacy-read-file-result",
@@ -121,8 +121,34 @@ describe("parseAgentMessage", () => {
       steps: { continued: 0, failed: 0, finished: 0 },
     });
     expect(visibleAssistantText(content)).toBe(
-      "This earlier response contained raw file output without a final explanation. The output is preserved below.",
+      "This earlier response contained raw tool output without a final explanation. The output is preserved below.",
     );
+  });
+
+  it("contains a legacy raw workspace search as tool activity", () => {
+    const content = [
+      'Content matches for "settings" in /workspace:',
+      "src/settings.ts:12: export const settings = {};",
+      "src/app.ts:4: import { settings } from './settings';",
+    ].join("\n");
+
+    expect(parseAgentMessage(content)).toEqual({
+      text: "This earlier response contained raw tool output without a final explanation. The output is preserved below.",
+      tools: [
+        {
+          id: "legacy-search-files-result",
+          name: "SEARCH_FILES",
+          status: "completed",
+          input: {
+            pattern: "settings",
+            root: "/workspace",
+            target: "content",
+          },
+          output: content,
+        },
+      ],
+      steps: { continued: 0, failed: 0, finished: 0 },
+    });
   });
 });
 
