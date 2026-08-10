@@ -400,6 +400,13 @@ test.describe("Doolittle desktop navigation", () => {
                 (touchAction.includes("pan-x") && touchAction.includes("pan-y"))
               );
             };
+            const hasActionLabel = (element: HTMLElement) =>
+              Boolean(
+                element.textContent?.trim() ||
+                  element.getAttribute("aria-label")?.trim() ||
+                  element.getAttribute("aria-labelledby")?.trim() ||
+                  element.getAttribute("title")?.trim(),
+              );
             return {
               controlsHaveMotion: controls.every(hasMotion),
               directManipulationFailures: actions
@@ -409,11 +416,18 @@ test.describe("Doolittle desktop navigation", () => {
                     window.getComputedStyle(element).touchAction;
                   return `${element.tagName.toLowerCase()}.${element.className}:${touchAction}`;
                 }),
+              unlabeledActionFailures: actions
+                .filter((element) => !hasActionLabel(element))
+                .map(
+                  (element) =>
+                    `${element.tagName.toLowerCase()}.${element.className}`,
+                ),
             };
           });
           expect(actionMotion).toEqual({
             controlsHaveMotion: true,
             directManipulationFailures: [],
+            unlabeledActionFailures: [],
           });
         }
       };

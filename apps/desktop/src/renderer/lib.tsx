@@ -111,9 +111,10 @@ export function Notice({
   const role =
     announce === "off"
       ? undefined
-      : (announce ?? (tone === "bad" ? "alert" : undefined));
+      : (announce ?? (tone === "bad" ? "alert" : "status"));
   return (
     <PagePanel.Notice
+      aria-atomic="true"
       className={`notice ${tone}`}
       id={id}
       role={role}

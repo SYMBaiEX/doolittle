@@ -22,6 +22,14 @@ summary,
   touch-action: manipulation;
 }
 
+button:disabled {
+  pointer-events: none;
+}
+
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 button,
 a[href],
 summary,

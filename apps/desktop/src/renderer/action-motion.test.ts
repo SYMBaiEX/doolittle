@@ -23,6 +23,8 @@ describe("desktop action motion contract", () => {
       "--motion-enter: cubic-bezier(0.16, 1, 0.3, 1)",
     );
     expect(motionCss).toContain("touch-action: manipulation");
+    expect(motionCss).toContain("button:disabled");
+    expect(motionCss).toContain("pointer-events: none");
     expect(motionCss).toContain("translate3d(0, 1px, 0) scale(0.985)");
     expect(motionCss).toContain(":focus-visible");
     expect(motionCss).toContain("action-feedback-in");
