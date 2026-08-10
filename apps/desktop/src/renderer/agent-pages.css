@@ -117,6 +117,64 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.provider-import-disclosure {
+  margin-top: 14px;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.provider-import-disclosure > summary {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 1px 7px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--text-soft);
+}
+
+.provider-import-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.provider-import-disclosure > summary > span:first-child {
+  display: grid;
+  gap: 1px;
+}
+
+.provider-import-disclosure > summary strong {
+  font-size: 11px;
+  font-weight: 680;
+}
+
+.provider-import-disclosure > summary small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.provider-import-disclosure > summary > span:last-child {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  color: var(--accent);
+  border: 1px solid var(--line-subtle);
+  border-radius: 3px;
+  font-size: 15px;
+  transition: transform 120ms var(--ease-out);
+}
+
+.provider-import-disclosure[open] > summary > span:last-child {
+  transform: rotate(45deg);
+}
+
+.provider-import-disclosure .provider-import-form {
+  margin-top: 0;
+  padding-top: 11px;
+  border-top: 0;
+}
+
 .provider-import-form > div,
 .provider-import-form > small {
   grid-column: 1 / -1;

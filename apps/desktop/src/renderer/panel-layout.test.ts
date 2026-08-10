@@ -4,6 +4,7 @@ import {
   clampPanelWidth,
   loadPanelWidth,
   savePanelWidth,
+  UTILITY_DRAWER_WIDTH,
 } from "./panel-layout";
 
 function memoryStorage(initial: Record<string, string> = {}) {
@@ -16,6 +17,14 @@ function memoryStorage(initial: Record<string, string> = {}) {
 }
 
 describe("panel layout persistence", () => {
+  it("reserves most of the default viewport for the active workspace", () => {
+    expect(APP_SIDEBAR_WIDTH.default).toBe(264);
+    expect(UTILITY_DRAWER_WIDTH.default).toBe(360);
+    expect(APP_SIDEBAR_WIDTH.default).toBeLessThan(
+      UTILITY_DRAWER_WIDTH.default,
+    );
+  });
+
   it("clamps invalid and out-of-range widths", () => {
     expect(clampPanelWidth(Number.NaN, APP_SIDEBAR_WIDTH)).toBe(
       APP_SIDEBAR_WIDTH.default,

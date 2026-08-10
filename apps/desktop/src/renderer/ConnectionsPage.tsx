@@ -469,6 +469,9 @@ export function ConnectionsPage({
     }
   };
 
+  const showProviderGrid =
+    Boolean(resource.data) || (!resource.loading && !resource.error);
+
   return (
     <PagePanel
       className={embedded ? "settings-provider-section" : "page"}
@@ -525,7 +528,10 @@ export function ConnectionsPage({
       ) : resource.error ? (
         <ErrorBlock error={resource.error} retry={resource.reload} />
       ) : null}
-      <div className={`card-grid ${embedded ? "provider-settings-grid" : ""}`}>
+      <div
+        className={`card-grid ${embedded ? "provider-settings-grid" : ""}`}
+        hidden={!showProviderGrid}
+      >
         {displayedProviders.map((provider) => {
           const status = asRecord(resource.data?.accounts?.[provider.snapshot]);
           const ready =
@@ -929,68 +935,79 @@ export function ConnectionsPage({
                 </div>
               ) : null}
               {authProvider && provider.poolProvider ? (
-                <div className="stack-list provider-import-form">
-                  <div>
-                    <span className="eyebrow">Add pooled account</span>
-                    <h3>
-                      {poolSnapshot?.accounts.length
-                        ? "Prepare the next account"
-                        : "Prepare the first account"}
-                    </h3>
-                    <p>
-                      Enter an optional ID and label, then use Eliza&apos;s
-                      official provider sign-in flow. Credentials are saved in
-                      the private local account store and never returned here.
-                    </p>
+                <details className="provider-import-disclosure">
+                  <summary>
+                    <span>
+                      <strong>Add pooled account</strong>
+                      <small>Optional ID and label</small>
+                    </span>
+                    <span aria-hidden="true">+</span>
+                  </summary>
+                  <div className="stack-list provider-import-form">
+                    <div>
+                      <h3>
+                        {poolSnapshot?.accounts.length
+                          ? "Prepare the next account"
+                          : "Prepare the first account"}
+                      </h3>
+                      <p>
+                        Enter an optional ID and label, then use Eliza&apos;s
+                        official provider sign-in flow. Credentials are saved in
+                        the private local account store and never returned here.
+                      </p>
+                    </div>
+                    <label
+                      className="form-field"
+                      htmlFor={`account-pool-${provider.poolProvider}-id`}
+                    >
+                      <span>New account ID</span>
+                      <Input
+                        id={`account-pool-${provider.poolProvider}-id`}
+                        onChange={(event) =>
+                          setAccountImports((current) => ({
+                            ...current,
+                            [provider.poolProvider]: {
+                              accountId: event.target.value,
+                              label:
+                                current[provider.poolProvider]?.label ?? "",
+                            },
+                          }))
+                        }
+                        placeholder={`${provider.key}-timestamp`}
+                        value={
+                          accountImports[provider.poolProvider]?.accountId ?? ""
+                        }
+                      />
+                    </label>
+                    <label
+                      className="form-field"
+                      htmlFor={`account-pool-${provider.poolProvider}-label`}
+                    >
+                      <span>New account label</span>
+                      <Input
+                        id={`account-pool-${provider.poolProvider}-label`}
+                        onChange={(event) =>
+                          setAccountImports((current) => ({
+                            ...current,
+                            [provider.poolProvider]: {
+                              accountId:
+                                current[provider.poolProvider]?.accountId ?? "",
+                              label: event.target.value,
+                            },
+                          }))
+                        }
+                        placeholder={`${provider.label} account`}
+                        value={
+                          accountImports[provider.poolProvider]?.label ?? ""
+                        }
+                      />
+                    </label>
+                    <small>
+                      Use Sign in again to create another Eliza-managed account
+                      under this ID. The account pool never exposes credentials.
+                    </small>
                   </div>
-                  <label
-                    className="form-field"
-                    htmlFor={`account-pool-${provider.poolProvider}-id`}
-                  >
-                    <span>New account ID</span>
-                    <Input
-                      id={`account-pool-${provider.poolProvider}-id`}
-                      onChange={(event) =>
-                        setAccountImports((current) => ({
-                          ...current,
-                          [provider.poolProvider]: {
-                            accountId: event.target.value,
-                            label: current[provider.poolProvider]?.label ?? "",
-                          },
-                        }))
-                      }
-                      placeholder={`${provider.key}-timestamp`}
-                      value={
-                        accountImports[provider.poolProvider]?.accountId ?? ""
-                      }
-                    />
-                  </label>
-                  <label
-                    className="form-field"
-                    htmlFor={`account-pool-${provider.poolProvider}-label`}
-                  >
-                    <span>New account label</span>
-                    <Input
-                      id={`account-pool-${provider.poolProvider}-label`}
-                      onChange={(event) =>
-                        setAccountImports((current) => ({
-                          ...current,
-                          [provider.poolProvider]: {
-                            accountId:
-                              current[provider.poolProvider]?.accountId ?? "",
-                            label: event.target.value,
-                          },
-                        }))
-                      }
-                      placeholder={`${provider.label} account`}
-                      value={accountImports[provider.poolProvider]?.label ?? ""}
-                    />
-                  </label>
-                  <small>
-                    Use Sign in again to create another Eliza-managed account
-                    under this ID. The account pool never exposes credentials.
-                  </small>
-                </div>
+                </details>
               ) : null}
             </article>
           );

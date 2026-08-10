@@ -2440,3 +2440,116 @@ th {
   background: color-mix(in srgb, var(--surface-soft) 70%, transparent);
   border-top-color: var(--line-subtle);
 }
+
+/*
+ * Clean viewport rhythm
+ *
+ * Comfortable mode keeps the same information density while protecting
+ * legibility. Secondary forms use disclosure and record grids retain enough
+ * width to scan without turning into a wall of miniature cards.
+ */
+:root {
+  --page-readable-meta: 9px;
+}
+
+.view-container:not(
+    .view-chat,
+    .view-code,
+    .view-review,
+    .view-orchestration,
+    .view-browser
+  )
+  .page-header
+  p {
+  font-size: 12px;
+}
+
+.view-container:not(
+    .view-chat,
+    .view-code,
+    .view-review,
+    .view-orchestration,
+    .view-browser
+  )
+  :is(.eyebrow, .metric-card > span, .badge) {
+  font-size: var(--page-readable-meta);
+}
+
+.view-container:not(
+    .view-chat,
+    .view-code,
+    .view-review,
+    .view-orchestration,
+    .view-browser
+  )
+  :is(.primary-button, .secondary-button, .danger-button) {
+  min-height: 32px;
+}
+
+.view-connections .card-grid {
+  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 350px), 1fr));
+}
+
+.view-connections .provider-card {
+  align-self: start;
+  height: fit-content;
+  min-height: 0;
+}
+
+.view-tools .card-grid,
+.view-skills .card-grid,
+.view-plugins .card-grid,
+.view-profiles .card-grid,
+.view-registry .card-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+
+.page-settings :is(.settings-nav > button small, .settings-nav-note p),
+.page-settings :is(.setting-copy small, .setting-copy code),
+.studio-page :is(.memory-tabs, .media-tabs) .text-button,
+.utility-drawer__group-toggle,
+.utility-drawer__item-copy small {
+  font-size: var(--page-readable-meta);
+}
+
+.utility-drawer__current {
+  font-size: 8px;
+}
+
+@media (max-width: 700px) {
+  .view-container:not(
+      .view-chat,
+      .view-code,
+      .view-review,
+      .view-orchestration,
+      .view-browser
+    )
+    > .page {
+    gap: 10px;
+    padding: 12px 12px 18px;
+  }
+
+  .view-container:not(
+      .view-chat,
+      .view-code,
+      .view-review,
+      .view-orchestration,
+      .view-browser
+    )
+    .page-header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .view-container:not(
+      .view-chat,
+      .view-code,
+      .view-review,
+      .view-orchestration,
+      .view-browser
+    )
+    :is(.primary-button, .secondary-button, .danger-button) {
+    min-height: 38px;
+  }
+}

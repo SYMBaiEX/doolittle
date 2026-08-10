@@ -274,6 +274,16 @@ test.describe("Doolittle desktop navigation", () => {
             label,
           );
           await expect(page.locator(".recovery-shell")).toHaveCount(0);
+          await expect
+            .poll(() =>
+              page
+                .locator(`.view-container[data-view="${route}"]`)
+                .evaluate(
+                  (container) =>
+                    container.scrollWidth <= container.clientWidth + 1,
+                ),
+            )
+            .toBe(true);
         }
       };
 
@@ -322,9 +332,21 @@ test.describe("Doolittle desktop navigation", () => {
         name: "Routing strategy",
       });
       await expect(routingStrategy).toContainText("Priority");
-      await routingStrategy.click();
-      await expect(page.getByRole("option")).toHaveCount(4);
-      await page.keyboard.press("Escape");
+      await expect(page.locator(".provider-import-disclosure")).toHaveCount(2);
+      await expect(
+        page.getByRole("textbox", { name: "New account ID" }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByText("Checking the default chat provider…"),
+      ).toHaveCount(0, { timeout: 30_000 });
+      const providerCardHeights = await page
+        .locator(".view-connections .provider-card")
+        .evaluateAll((cards) =>
+          cards.slice(0, 2).map((card) => card.getBoundingClientRect().height),
+        );
+      expect(providerCardHeights).toHaveLength(2);
+      expect(providerCardHeights[0]).toBeLessThan(providerCardHeights[1]);
+      await providersHeading.scrollIntoViewIfNeeded();
       const providersScreenshot = testInfo.outputPath(
         "doolittle-providers-and-accounts.png",
       );
@@ -337,6 +359,24 @@ test.describe("Doolittle desktop navigation", () => {
         contentType: "image/png",
         path: providersScreenshot,
       });
+      const codexProviderCard = page
+        .locator(".provider-card")
+        .filter({ has: codexPool });
+      const accountDisclosure = codexProviderCard.getByText(
+        "Add pooled account",
+        { exact: true },
+      );
+      await accountDisclosure.click();
+      await expect(
+        codexProviderCard.getByRole("textbox", { name: "New account ID" }),
+      ).toBeVisible();
+      await accountDisclosure.click();
+      await expect(
+        codexProviderCard.getByRole("textbox", { name: "New account ID" }),
+      ).toBeHidden();
+      await routingStrategy.click();
+      await expect(page.getByRole("option")).toHaveCount(4);
+      await page.keyboard.press("Escape");
 
       await page.setViewportSize({ width: 390, height: 844 });
       await expect(
@@ -371,6 +411,7 @@ test.describe("Doolittle desktop navigation", () => {
         poolFits: true,
         previewFits: true,
       });
+      await providersHeading.scrollIntoViewIfNeeded();
       const narrowProvidersScreenshot = testInfo.outputPath(
         "doolittle-providers-and-accounts-narrow.png",
       );
@@ -384,9 +425,6 @@ test.describe("Doolittle desktop navigation", () => {
         path: narrowProvidersScreenshot,
       });
       await page.setViewportSize({ width: 1280, height: 900 });
-      await expect(
-        page.getByText("Checking the default chat provider…"),
-      ).toHaveCount(0, { timeout: 30_000 });
 
       await page.evaluate(() => {
         window.location.hash = "#/orchestration";
