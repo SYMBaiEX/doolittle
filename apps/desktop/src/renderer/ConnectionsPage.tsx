@@ -22,6 +22,7 @@ import {
   clearAccountImportDraft,
 } from "./agent-pages-helpers";
 import {
+  type ActionFeedback,
   asRecord,
   asString,
   Badge,
@@ -96,7 +97,7 @@ export function ConnectionsPage({
     [active, accountPool.loading],
   );
   const [busy, setBusy] = useState("");
-  const [feedback, setFeedback] = useState("");
+  const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const [selectedAccounts, setSelectedAccounts] = useState<
     Partial<Record<AccountPoolProvider, string>>
   >({});
@@ -130,10 +131,12 @@ export function ConnectionsPage({
           "POST",
           { provider },
         );
-        setFeedback(
-          asString(result.detail) ||
+        setFeedback({
+          message:
+            asString(result.detail) ||
             `${titleCase(provider)} is signed in and ready to use.`,
-        );
+          tone: "good",
+        });
         const poolProvider = accountPoolProviderFor(provider);
         setAccountImports((current) =>
           clearAccountImportDraft(current, poolProvider),
@@ -143,7 +146,7 @@ export function ConnectionsPage({
         resource.reload();
       } catch (error) {
         completedAuth.current.delete(provider);
-        setFeedback(errorMessage(error));
+        setFeedback({ message: errorMessage(error), tone: "bad" });
       } finally {
         setBusy("");
       }
@@ -193,7 +196,9 @@ export function ConnectionsPage({
               void finishAccountSignIn(provider);
             }
           })
-          .catch((error) => setFeedback(errorMessage(error)));
+          .catch((error) =>
+            setFeedback({ message: errorMessage(error), tone: "bad" }),
+          );
       }
     },
     1_000,
@@ -203,7 +208,7 @@ export function ConnectionsPage({
   const startAccountSignIn = async (provider: ProviderAuthProvider) => {
     completedAuth.current.delete(provider);
     setBusy(`${provider}:sign-in`);
-    setFeedback("");
+    setFeedback(null);
     try {
       const draft = accountImports[accountPoolProviderFor(provider)];
       const state = await window.doolittle.startProviderAuth(provider, {
@@ -214,10 +219,10 @@ export function ConnectionsPage({
       if (state.phase === "succeeded") {
         await finishAccountSignIn(provider);
       } else if (state.phase === "failed") {
-        setFeedback(state.message);
+        setFeedback({ message: state.message, tone: "bad" });
       }
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setBusy("");
     }
@@ -225,11 +230,15 @@ export function ConnectionsPage({
 
   const submitAccountSignInCode = async (provider: ProviderAuthProvider) => {
     setBusy(`${provider}:submit-code`);
-    setFeedback("");
+    setFeedback(null);
     try {
       setAuthState(await window.doolittle.submitProviderAuthCode(provider));
+      setFeedback({
+        message: `${titleCase(provider)} sign-in code submitted.`,
+        tone: "good",
+      });
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setBusy("");
     }
@@ -237,10 +246,15 @@ export function ConnectionsPage({
 
   const cancelAccountSignIn = async (provider: ProviderAuthProvider) => {
     setBusy(`${provider}:cancel-sign-in`);
+    setFeedback(null);
     try {
       setAuthState(await window.doolittle.cancelProviderAuth(provider));
+      setFeedback({
+        message: `${titleCase(provider)} sign-in cancelled.`,
+        tone: "neutral",
+      });
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setBusy("");
     }
@@ -251,7 +265,7 @@ export function ConnectionsPage({
     action: "refresh" | "use" | "connect" | "login",
   ) => {
     setBusy(`${provider}:${action}`);
-    setFeedback("");
+    setFeedback(null);
     try {
       const result = await desktopRequest<Record<string, unknown>>(
         `/accounts/${action}`,
@@ -262,10 +276,10 @@ export function ConnectionsPage({
         asString(result.detail) ||
         asString(result.advice) ||
         `${titleCase(provider)} ${action} request completed.`;
-      setFeedback(detail);
+      setFeedback({ message: detail, tone: "good" });
       resource.reload();
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setBusy("");
     }
@@ -279,16 +293,17 @@ export function ConnectionsPage({
     >,
   ) => {
     setBusy(`${provider}:${account.accountId}:update`);
-    setFeedback("");
+    setFeedback(null);
     try {
       await desktopRequest(
         `/runtime/account-pool/${provider}/${encodeURIComponent(account.accountId)}`,
         "PATCH",
         changes,
       );
+      setFeedback({ message: `${account.label} was updated.`, tone: "good" });
       accountPool.reload();
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setBusy("");
     }
@@ -296,7 +311,7 @@ export function ConnectionsPage({
 
   const selectAccount = async (provider: AccountPoolProvider) => {
     setBusy(`${provider}:select`);
-    setFeedback("");
+    setFeedback(null);
     try {
       const result = await desktopRequest<{
         account?: AccountPoolAccount | null;
@@ -306,14 +321,18 @@ export function ConnectionsPage({
           ...current,
           [provider]: result.account?.accountId,
         }));
-        setFeedback(
-          `Strategy selected ${result.account.label} for this preview; spawned agents select per session.`,
-        );
+        setFeedback({
+          message: `Strategy selected ${result.account.label} for this preview; spawned agents select per session.`,
+          tone: "good",
+        });
       } else {
-        setFeedback("No enabled account is available for this provider.");
+        setFeedback({
+          message: "No enabled account is available for this provider.",
+          tone: "warn",
+        });
       }
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setBusy("");
     }
@@ -324,7 +343,7 @@ export function ConnectionsPage({
     strategy: AccountPoolStrategy,
   ) => {
     setBusy(`${provider}:strategy`);
-    setFeedback("");
+    setFeedback(null);
     try {
       await desktopRequest(
         `/runtime/account-pool/${provider}/strategy`,
@@ -333,9 +352,13 @@ export function ConnectionsPage({
           strategy,
         },
       );
+      setFeedback({
+        message: `${titleCase(provider)} rotation strategy updated.`,
+        tone: "good",
+      });
       accountPool.reload();
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setBusy("");
     }
@@ -347,7 +370,7 @@ export function ConnectionsPage({
   ) => {
     const key = `${provider}:${account.id}:test`;
     setBusy(key);
-    setFeedback("");
+    setFeedback(null);
     try {
       const result = await desktopRequest<{
         ok: boolean;
@@ -357,14 +380,15 @@ export function ConnectionsPage({
         `/runtime/account-pool/${provider}/${encodeURIComponent(account.id)}/test`,
         "POST",
       );
-      setFeedback(
-        result.ok
+      setFeedback({
+        message: result.ok
           ? `${account.label} passed its credential check${typeof result.latencyMs === "number" ? ` in ${result.latencyMs}ms` : ""}.`
           : `${account.label} failed its credential check: ${result.error ?? "unknown provider error"}`,
-      );
+        tone: result.ok ? "good" : "bad",
+      });
       accountPool.reload();
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setBusy("");
     }
@@ -376,20 +400,21 @@ export function ConnectionsPage({
   ) => {
     const key = `${provider}:${account.id}:usage`;
     setBusy(key);
-    setFeedback("");
+    setFeedback(null);
     try {
       const result = await desktopRequest<{ error?: string }>(
         `/runtime/account-pool/${provider}/${encodeURIComponent(account.id)}/refresh-usage`,
         "POST",
       );
-      setFeedback(
-        result.error
+      setFeedback({
+        message: result.error
           ? `${account.label} usage could not be refreshed: ${result.error}`
           : `${account.label} usage and health were refreshed.`,
-      );
+        tone: result.error ? "bad" : "good",
+      });
       accountPool.reload();
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setBusy("");
     }
@@ -409,7 +434,7 @@ export function ConnectionsPage({
       return;
     }
     setBusy(`${provider}:${account.id}:reorder`);
-    setFeedback("");
+    setFeedback(null);
     try {
       await desktopRequest(
         `/runtime/account-pool/${provider}/${encodeURIComponent(account.id)}`,
@@ -430,9 +455,12 @@ export function ConnectionsPage({
         ).catch(() => undefined);
         throw error;
       }
-      setFeedback(`${account.label} priority was updated.`);
+      setFeedback({
+        message: `${account.label} priority was updated.`,
+        tone: "good",
+      });
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       accountPool.reload();
       setBusy("");
@@ -444,7 +472,7 @@ export function ConnectionsPage({
     account: AccountPoolAccount,
   ) => {
     setBusy(`${provider}:${account.accountId}:delete`);
-    setFeedback("");
+    setFeedback(null);
     try {
       const result = await desktopRequest<AccountPoolDeleteResponse>(
         `/runtime/account-pool/${provider}/${encodeURIComponent(account.accountId)}`,
@@ -460,10 +488,13 @@ export function ConnectionsPage({
         if (next[provider] === account.accountId) delete next[provider];
         return next;
       });
-      setFeedback(`${account.label} was disconnected and removed.`);
+      setFeedback({
+        message: `${account.label} was disconnected and removed.`,
+        tone: "good",
+      });
       accountPool.reload();
     } catch (error) {
-      setFeedback(errorMessage(error));
+      setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
       setBusy("");
     }
@@ -522,7 +553,9 @@ export function ConnectionsPage({
           never appear in this desktop page.
         </Notice>
       ) : null}
-      {feedback ? <Notice>{feedback}</Notice> : null}
+      {feedback ? (
+        <Notice tone={feedback.tone}>{feedback.message}</Notice>
+      ) : null}
       {resource.loading ? (
         <LoadingBlock label="Checking the default chat provider…" />
       ) : resource.error ? (
