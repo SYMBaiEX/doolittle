@@ -144,10 +144,7 @@ const bridge: DoolittleDesktopBridge = {
       listener,
     ),
   startInteractiveTerminal: (request: InteractiveTerminalStartRequest) =>
-    ipcRenderer.invoke(
-      desktopIpcChannels.invoke.terminalSessionStartConfirmed,
-      request,
-    ),
+    ipcRenderer.invoke(desktopIpcChannels.invoke.terminalSessionStart, request),
   writeInteractiveTerminal: (request: InteractiveTerminalInputRequest) =>
     ipcRenderer.invoke(desktopIpcChannels.invoke.terminalSessionInput, request),
   resizeInteractiveTerminal: (request: InteractiveTerminalResizeRequest) =>

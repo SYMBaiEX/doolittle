@@ -46,6 +46,7 @@ export function ChatTerminalPanel({
       />
       <InteractiveTerminal
         active={active}
+        autoStart
         dismissShortcut={shortcut}
         onDismiss={onClose}
         onSendToChat={onSendToChat}

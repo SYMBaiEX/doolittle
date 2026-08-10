@@ -113,6 +113,11 @@ test.describe("Doolittle desktop offline chat", () => {
         process.platform === "darwin" ? "Meta+J" : "Control+J",
       );
       await expect(page.getByLabel("Chat terminal panel")).toBeVisible();
+      await expect(
+        page.getByLabel("Chat terminal panel").getByRole("button", {
+          name: "Ctrl+C",
+        }),
+      ).toBeVisible({ timeout: 15_000 });
       await page.keyboard.press(
         process.platform === "darwin" ? "Meta+J" : "Control+J",
       );

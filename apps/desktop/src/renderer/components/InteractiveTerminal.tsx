@@ -60,12 +60,14 @@ function nextTabName(index: number): string {
 
 export function InteractiveTerminal({
   active,
+  autoStart = false,
   dismissShortcut,
   onDismiss,
   onSendToChat,
   workspacePath,
 }: {
   active: boolean;
+  autoStart?: boolean;
   dismissShortcut?: string;
   onDismiss?: () => void;
   onSendToChat: (text: string) => void;
@@ -98,6 +100,7 @@ export function InteractiveTerminal({
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [isClosingTab, setIsClosingTab] = useState<Record<string, boolean>>({});
   const loadedWorkspaceRef = useRef(workspacePath);
+  const autoStartedTabRef = useRef<string | null>(null);
 
   const fitTerminalToViewport = useCallback(() => {
     const terminal = xtermRef.current;
@@ -376,19 +379,14 @@ export function InteractiveTerminal({
     [appendOutputToTab, setTabToClosed],
   );
 
-  const onStart = async () => {
+  const onStart = useCallback(async () => {
     if (!activeTab || starting || !active) return;
     setStarting(true);
-    setNotice("Review the interactive shell in the native confirmation.");
+    setNotice("Opening workspace shell…");
     try {
       const dimensions = fitTerminalToViewport();
       const result =
         await window.doolittle.startInteractiveTerminal(dimensions);
-      if (result.status === "cancelled") {
-        setNotice("Terminal start cancelled.");
-        return;
-      }
-
       const session = result.session;
       updateTab(activeTab.id, (tab) => ({
         ...tab,
@@ -421,7 +419,21 @@ export function InteractiveTerminal({
     } finally {
       setStarting(false);
     }
-  };
+  }, [
+    active,
+    activeTab,
+    fitTerminalToViewport,
+    pollOutput,
+    starting,
+    updateTab,
+  ]);
+
+  useEffect(() => {
+    if (!autoStart || !active || !activeTab || running || starting) return;
+    if (autoStartedTabRef.current === activeTab.id) return;
+    autoStartedTabRef.current = activeTab.id;
+    void onStart();
+  }, [active, activeTab, autoStart, onStart, running, starting]);
 
   const onInterrupt = async () => {
     if (!activeTab?.sessionId) return;

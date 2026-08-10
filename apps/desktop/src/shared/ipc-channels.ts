@@ -31,7 +31,7 @@ export const desktopIpcChannels = {
     terminalRunConfirmed: "terminal:run-confirmed",
     terminalStreamStart: "terminal:stream-start",
     terminalStreamCancel: "terminal:stream-cancel",
-    terminalSessionStartConfirmed: "terminal:session-start-confirmed",
+    terminalSessionStart: "terminal:session-start",
     terminalSessionInput: "terminal:session-input",
     terminalSessionResize: "terminal:session-resize",
     terminalSessionInterrupt: "terminal:session-interrupt",

@@ -48,7 +48,6 @@ const UUID_PATTERN =
 export interface SensitiveActionConfirmationRequest {
   kind:
     | "command"
-    | "terminal-session"
     | "workspace-write"
     | "worktree-create"
     | "repository-mutation";

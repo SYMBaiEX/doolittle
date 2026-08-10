@@ -43,9 +43,10 @@ export interface InteractiveTerminalStartRequest {
   cols: number;
   rows: number;
 }
-export type InteractiveTerminalStartResult =
-  | { status: "cancelled" }
-  | { status: "started"; session: InteractiveTerminalSession };
+export interface InteractiveTerminalStartResult {
+  status: "started";
+  session: InteractiveTerminalSession;
+}
 export interface InteractiveTerminalInputRequest {
   sessionId: string;
   data: string;

@@ -281,21 +281,15 @@ export function registerTerminalIpcHandlers(
     },
   );
   registerHandler(
-    invokeChannels.terminalSessionStartConfirmed,
+    invokeChannels.terminalSessionStart,
     async (
       _event: IpcMainInvokeEvent,
       unsafeRequest: InteractiveTerminalStartRequest,
     ): Promise<InteractiveTerminalStartResult> => {
       const request = validateInteractiveTerminalStartRequest(unsafeRequest);
-      const confirmed = await confirmSensitiveAction({
-        kind: "terminal-session",
-        title: "Open an interactive terminal?",
-        message: "Workspace shell",
-        detail:
-          "Doolittle will open a real local pseudo-terminal in the selected workspace. Commands you type will run until you close the session.",
-        confirmLabel: "Open terminal",
-      });
-      if (!confirmed) return { status: "cancelled" };
+      // Opening an empty PTY from the trusted desktop renderer does not execute
+      // a command. Typed input and command-running IPC paths remain separate,
+      // validated boundaries; command execution still requires confirmation.
       const payload = await requestInteractiveTerminal(
         "/terminal/session/start",
         "POST",

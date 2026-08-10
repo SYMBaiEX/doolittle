@@ -316,16 +316,10 @@ describe("sensitive desktop actions", () => {
     });
 
     const commandHandler = harness.handlers.get("terminal:run-confirmed");
-    const sessionHandler = harness.handlers.get(
-      "terminal:session-start-confirmed",
-    );
     const saveHandler = harness.handlers.get("workspace:save-confirmed");
     expect(
       await commandHandler?.({}, { command: "pwd", timeoutMs: 5_000 }),
     ).toEqual({ status: "cancelled" });
-    expect(await sessionHandler?.({}, { cols: 100, rows: 30 })).toEqual({
-      status: "cancelled",
-    });
     expect(
       await saveHandler?.(
         {},
@@ -665,7 +659,7 @@ describe("sensitive desktop actions", () => {
     harness.dispose();
   });
 
-  it("opens and controls an interactive PTY only after confirmation", async () => {
+  it("opens an empty interactive PTY without a redundant confirmation", async () => {
     const sessionId = "62df6968-19be-4ea6-b7a1-479a57fa3b7c";
     const requests: Array<{ url: string; init?: RequestInit }> = [];
     const session = {
@@ -681,7 +675,7 @@ describe("sensitive desktop actions", () => {
       outputBytes: 0,
     };
     const harness = createHarness({
-      confirmed: true,
+      confirmed: false,
       fetch: async (input, init) => {
         const url = String(input);
         requests.push({ url, init });
@@ -698,7 +692,7 @@ describe("sensitive desktop actions", () => {
     });
 
     await expect(
-      harness.handlers.get("terminal:session-start-confirmed")?.(
+      harness.handlers.get("terminal:session-start")?.(
         {},
         { cols: 100, rows: 30 },
       ),
@@ -739,8 +733,7 @@ describe("sensitive desktop actions", () => {
       sessionId,
       data: "bun test\n",
     });
-    expect(harness.confirmations).toHaveLength(1);
-    expect(harness.confirmations[0]).toHaveProperty("kind", "terminal-session");
+    expect(harness.confirmations).toHaveLength(0);
     harness.dispose();
   });
 
@@ -757,7 +750,7 @@ describe("sensitive desktop actions", () => {
     });
 
     await expect(
-      harness.handlers.get("terminal:session-start-confirmed")?.(
+      harness.handlers.get("terminal:session-start")?.(
         {},
         { cols: 100, rows: 30 },
       ),
