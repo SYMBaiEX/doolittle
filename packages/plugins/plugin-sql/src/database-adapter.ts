@@ -8,7 +8,7 @@ export function patchDatabaseAdapter(runtime: IAgentRuntime): void {
     return;
   }
 
-  // beta.7's official adapter owns memory counting and relationship reads.
-  // Keep only Doolittle's product-specific relationship write projection.
+  // The official adapter owns persistence and relationship reads. Keep only
+  // Doolittle's product-specific merge-on-write projection.
   patchRelationshipWriteCompatibility(adapter);
 }

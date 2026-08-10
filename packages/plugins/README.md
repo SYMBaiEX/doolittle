@@ -37,8 +37,8 @@ The intentionally user-facing provider bridges are:
 
 Shared Doolittle-only implementation stays in
 [`provider-transport`](./provider-transport). The private
-[`plugin-sql`](./plugin-sql) compatibility layer wraps the official SQL plugin
-and carries only the pinned beta relationship-write patch.
+[`plugin-sql`](./plugin-sql) relationship projection wraps the official SQL
+plugin and adds only Doolittle's merge-on-write product semantics.
 
 Suggested runtime flow:
 

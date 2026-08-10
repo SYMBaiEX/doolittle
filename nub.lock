@@ -56,7 +56,7 @@ importers:
       '@doolittle/plugin-devin':
         specifier: workspace:*
         version: link:packages/plugins/plugin-devin
-      '@doolittle/plugin-sql-compat':
+      '@doolittle/plugin-sql-relationships':
         specifier: workspace:*
         version: link:packages/plugins/plugin-sql
       '@doolittle/provider-transport':
@@ -295,7 +295,7 @@ importers:
       '@doolittle/plugin-devin':
         specifier: workspace:*
         version: link:../plugins/plugin-devin
-      '@doolittle/plugin-sql-compat':
+      '@doolittle/plugin-sql-relationships':
         specifier: workspace:*
         version: link:../plugins/plugin-sql
       '@doolittle/provider-transport':

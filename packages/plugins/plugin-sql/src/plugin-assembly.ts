@@ -6,7 +6,7 @@ const plugin: Plugin = {
   ...officialSqlPlugin,
   name: "@elizaos/plugin-sql",
   description:
-    "Doolittle compatibility wrapper around the official Eliza SQL plugin.",
+    "Official Eliza SQL plugin with Doolittle relationship merge semantics.",
   async init(config, runtime) {
     await officialSqlPlugin.init?.(config, runtime);
     patchDatabaseAdapter(runtime);

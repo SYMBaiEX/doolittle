@@ -10,7 +10,7 @@ export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
     maturity: "production",
     enablement: "always",
     notes:
-      "Official SQL persistence plugin; a private @doolittle/plugin-sql-compat layer applies only the required beta.7 relationship-write patch.",
+      "Official SQL persistence plugin; a private @doolittle/plugin-sql-relationships layer adds Doolittle's merge-on-write relationship semantics.",
   },
   {
     id: "providers.pdf",

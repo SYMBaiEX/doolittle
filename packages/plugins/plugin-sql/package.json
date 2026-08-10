@@ -1,8 +1,8 @@
 {
-  "name": "@doolittle/plugin-sql-compat",
+  "name": "@doolittle/plugin-sql-relationships",
   "version": "2.0.3-beta.7",
   "private": true,
-  "description": "Doolittle compatibility wrapper around the official ElizaOS SQL plugin.",
+  "description": "Doolittle relationship merge projection over the official ElizaOS SQL plugin.",
   "license": "MIT",
   "type": "module",
   "exports": {

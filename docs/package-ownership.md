@@ -15,7 +15,7 @@ pinned `2.0.3-beta.7` train.
 | `packages/contracts` | Doolittle product contracts | Keep | Secret-free API, desktop, gateway, and operator records. These contracts must not shadow SDK lifecycle types. |
 | `packages/characters` | Eliza configuration | Native data | Character JSON is loaded by Eliza and contains no competing runtime implementation. |
 | `packages/plugins` | Workspace aggregator | Keep | Groups shared plugin dependencies and contains the namespaced `doolittle-plugin` product actions and projections. Official service identifiers stay reserved for upstream owners. |
-| `packages/plugins/plugin-sql` | Narrow compatibility patch | Temporary | Wraps official `@elizaos/plugin-sql` only for the pinned relationship-write beta defect; remove when the target release contains the fix. |
+| `packages/plugins/plugin-sql` | Doolittle relationship projection | Keep while needed | Wraps official `@elizaos/plugin-sql` without replacing its persistence lifecycle, adding only normalized tag and metadata merge-on-write semantics that the official create API intentionally does not provide. |
 | `packages/plugins/plugin-claude-code` | Provider gap | Keep for now | Preserves linked-account direct inference, structured Claude CLI output, explicit effort, and nested-tool suppression. The official CLI-inference package does not expose the full contract. |
 | `packages/plugins/plugin-devin` | Provider gap | Keep for now | Adapts the sanctioned Devin CLI; no official Eliza Devin provider exists on the pinned release. |
 | `packages/plugins/provider-transport` | Shared Doolittle adapter | Keep while used | Down-converts Eliza generation inputs only for the remaining custom Claude Code and Devin transports. |

@@ -1,18 +1,19 @@
-# @doolittle/plugin-sql-compat
+# @doolittle/plugin-sql-relationships
 
-Doolittle compatibility wrapper around the official Eliza SQL plugin.
+Doolittle relationship merge projection over the official Eliza SQL plugin.
 
 This package wraps the published `@elizaos/plugin-sql@2.0.3-beta.7` plugin and
-adapts it to the `@elizaos/core@2.0.3-beta.7` runtime contract used by this
-repo.
+leaves its persistence, reads, schema, migrations, and lifecycle unchanged.
 
 It is deliberately Doolittle-namespaced and private: the official package owns
-the SQL plugin, while this workspace carries only the temporary beta.7
-relationship-write compatibility patch.
+the SQL plugin, while this workspace adds the product behavior Doolittle needs
+when a relationship already exists: normalized tags, merged metadata, and
+duplicate-insert recovery.
 
 The published runtime track for this repository is verified at `2.0.3-beta.7` and
 is kept explicit via dependency alignment rather than `npm` `latest` tags.
-The workspace wrapper only retains Doolittle-specific relationship metadata
-normalization and duplicate-insert recovery. Memory counting and relationship
-reads are delegated directly to the official beta.7 adapter so its complete
-room, entity, agent, metadata, and multi-entity filters remain intact.
+This is not a fork or a replacement database adapter. It can be removed if an
+official relationship upsert/merge contract eventually provides the same
+behavior. Until then, memory counting and relationship reads delegate directly
+to the official adapter so its complete room, entity, agent, metadata, and
+multi-entity filters remain intact.

@@ -102,7 +102,7 @@
     "@elizaos/plugin-github": "2.0.3-beta.7",
     "@doolittle/plugin-claude-code": "workspace:*",
     "@doolittle/plugin-devin": "workspace:*",
-    "@doolittle/plugin-sql-compat": "workspace:*",
+    "@doolittle/plugin-sql-relationships": "workspace:*",
     "@elizaos/plugin-elizacloud": "2.0.3-beta.7",
     "@elizaos/plugin-ollama": "2.0.3-beta.7",
     "@elizaos/plugin-openai": "2.0.3-beta.7",

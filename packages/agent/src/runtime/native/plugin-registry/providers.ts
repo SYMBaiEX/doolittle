@@ -25,7 +25,7 @@ export async function loadProviderPlugins(
     { createDevinPlugin },
     { default: elizaCloudPlugin },
   ] = await Promise.all([
-    import("@doolittle/plugin-sql-compat"),
+    import("@doolittle/plugin-sql-relationships"),
     import("@elizaos/plugin-pdf"),
     import("@elizaos/plugin-codex-cli"),
     import("@doolittle/plugin-claude-code"),
