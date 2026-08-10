@@ -24,7 +24,7 @@ async function waitForOutput(
 }
 
 describe("InteractiveTerminalSessionManager", () => {
-  it("keeps a portable shell alive across input, logical resize, and close", async () => {
+  it("keeps a native PTY alive across input, resize, and close", async () => {
     const workspace = mkdtempSync(
       join(tmpdir(), "doolittle-interactive-terminal-"),
     );
@@ -37,8 +37,8 @@ describe("InteractiveTerminalSessionManager", () => {
         cwd: workspace,
         cols: 90,
         rows: 28,
-        pty: false,
-        supportsResize: false,
+        pty: true,
+        supportsResize: true,
       });
 
       manager.input(started.id, "printf '__DOOLITTLE_PTY_OK__\\n'\n");

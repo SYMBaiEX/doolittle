@@ -390,9 +390,6 @@ export function InteractiveTerminal({
       const session = result.session;
       updateTab(activeTab.id, (tab) => ({
         ...tab,
-        output: boundedOutput(
-          `${tab.output}[Doolittle started a new terminal session.]\n`,
-        ),
         cursor: 0,
         sessionId: session.id,
         state: session.state,
@@ -408,9 +405,6 @@ export function InteractiveTerminal({
         outputBytes: session.outputBytes,
         stale: false,
       }));
-      xtermRef.current?.write(
-        "\r\n[Doolittle started a new terminal session.]\r\n",
-      );
       setNotice("");
       xtermRef.current?.focus();
       void pollOutput(activeTab.id, session.id, 0);

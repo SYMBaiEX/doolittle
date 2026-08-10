@@ -26,7 +26,7 @@ const outputDir = resolve(desktopRoot, "build", "runtime");
 const outputPath = resolve(outputDir, "doolittle-runtime.mjs");
 const acpOutputPath = resolve(outputDir, "doolittle-acp.mjs");
 const runtimeNodeModulesDir = resolve(outputDir, "node_modules");
-const nativeExternalPackages = ["@snazzah/davey"] as const;
+const nativeExternalPackages = ["@snazzah/davey", "@lydell/node-pty"] as const;
 const pluginSqlRequire = createRequire(
   repoRequire.resolve("@elizaos/plugin-sql/package.json"),
 );

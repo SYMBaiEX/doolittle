@@ -11,6 +11,7 @@
     "@elizaos/app-core": "2.0.3-beta.7",
     "@elizaos/core": "2.0.3-beta.7",
     "@elizaos/logger": "2.0.3-beta.7",
+    "@lydell/node-pty": "1.1.0",
     "@elizaos/plugin-agent-orchestrator": "2.0.3-beta.7",
     "@elizaos/plugin-agent-skills": "2.0.3-beta.7",
     "@elizaos/plugin-codex-cli": "2.0.3-beta.7",

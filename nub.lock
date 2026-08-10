@@ -370,6 +370,9 @@ importers:
       '@elizaos/skills':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.5.4)(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.2)(pg@8.22.0)
+      '@lydell/node-pty':
+        specifier: 1.1.0
+        version: 1.1.0
       blessed:
         specifier: ^0.1.81
         version: 0.1.81
@@ -18558,7 +18561,6 @@ snapshots:
       '@lydell/node-pty-linux-x64': 1.1.0
       '@lydell/node-pty-win32-arm64': 1.1.0
       '@lydell/node-pty-win32-x64': 1.1.0
-    optional: true
 
   '@malept/cross-spawn-promise@2.0.0':
     dependencies:

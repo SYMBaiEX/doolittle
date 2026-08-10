@@ -118,6 +118,22 @@ test.describe("Doolittle desktop offline chat", () => {
           name: "Ctrl+C",
         }),
       ).toBeVisible({ timeout: 15_000 });
+      await expect(
+        page
+          .getByLabel("Chat terminal panel")
+          .locator(".interactive-terminal-mode"),
+      ).toContainText("PTY");
+      await page.getByLabel("Terminal output").click();
+      await page.keyboard.type("printf 'DOOLITTLE_%s\\n' INTERACTIVE");
+      await page.keyboard.press("Enter");
+      await expect
+        .poll(() =>
+          page
+            .getByLabel("Chat terminal panel")
+            .locator(".xterm-rows")
+            .textContent(),
+        )
+        .toContain("DOOLITTLE_INTERACTIVE");
       await page.keyboard.press(
         process.platform === "darwin" ? "Meta+J" : "Control+J",
       );
