@@ -9,6 +9,8 @@ import { PermissionRegistry } from "@elizaos/agent/services/permissions-registry
 import {
   AgentEventService,
   ApprovalService,
+  AutonomyService,
+  autonomyCapabilities,
   HookService,
   type IAgentRuntime,
   PairingService,
@@ -37,7 +39,11 @@ describe("foundation plugin ownership", () => {
       ElizaCharacterPersistenceService,
       LocalFileStorageService,
       AgentMediaGenerationService,
+      AutonomyService,
     ]);
+    expect(foundation?.actions).toEqual(autonomyCapabilities.actions);
+    expect(foundation?.providers).toEqual(autonomyCapabilities.providers);
+    expect(foundation?.routes).toEqual(autonomyCapabilities.routes);
   });
 
   it("starts and stops each added aggregate-safe service without aggregate plugin hooks", async () => {

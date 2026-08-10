@@ -29,6 +29,7 @@ describe("bootstrap runtime services", () => {
       "service:plugin_manager",
       "service:planning",
       "service:mcp",
+      "service:AUTONOMY",
       "service:pairing",
       "service:SECRETS",
       "service:doolittle_secrets_vault",

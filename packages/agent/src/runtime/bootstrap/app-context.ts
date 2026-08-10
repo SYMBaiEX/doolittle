@@ -95,6 +95,9 @@ export async function buildAppContext({
       advancedCapabilities: true,
       enableExtendedCapabilities: true,
       enableSecretsManager: true,
+      // The official autonomy surface is mounted by the foundation plugin,
+      // but background reasoning remains an explicit operator opt-in.
+      enableAutonomy: false,
     });
 
   appendBootstrapTrace("phase:initializeRuntime:start");

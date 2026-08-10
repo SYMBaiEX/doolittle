@@ -12,6 +12,7 @@ import { PermissionRegistry } from "@elizaos/agent/services/permissions-registry
 import {
   AgentEventService,
   ApprovalService,
+  autonomyCapabilities,
   HookService,
   PairingService,
   type Plugin,
@@ -56,7 +57,9 @@ export function loadFoundationPlugins(): Plugin[] {
     {
       name: "doolittle-eliza-foundation",
       description:
-        "Official ElizaOS knowledge, hooks, approval, policy, and plugin-management services.",
+        "Official ElizaOS knowledge, hooks, approval, policy, plugin-management, and autonomy capabilities.",
+      actions: autonomyCapabilities.actions,
+      providers: autonomyCapabilities.providers,
       schema: knowledgeGraphSchema,
       services: [
         AgentEventService,
@@ -73,7 +76,9 @@ export function loadFoundationPlugins(): Plugin[] {
         CharacterPersistenceServiceClass,
         LocalFileStorageServiceClass,
         MediaGenerationServiceClass,
+        ...autonomyCapabilities.services,
       ],
+      routes: autonomyCapabilities.routes,
     },
     browserPlugin,
   ];

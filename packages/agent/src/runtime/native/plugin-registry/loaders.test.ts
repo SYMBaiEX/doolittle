@@ -186,6 +186,7 @@ describe("loadFoundationPlugins", () => {
     expect(plugin?.schema).toBeDefined();
     expect(serviceTypes).toContain("agent_event");
     expect(serviceTypes).toContain("eliza_knowledge_graph");
+    expect(serviceTypes).toContain("AUTONOMY");
     expect(serviceTypes).toEqual(
       expect.arrayContaining([
         "eliza_permissions_registry",
@@ -197,6 +198,24 @@ describe("loadFoundationPlugins", () => {
         "media_generation",
       ]),
     );
+    expect(plugin?.actions?.map((action) => action.name)).toEqual([
+      "ENABLE_AUTONOMOUS_MODE",
+      "DISABLE_AUTONOMOUS_MODE",
+      "ESCALATE",
+    ]);
+    expect(plugin?.providers?.map((provider) => provider.name)).toEqual([
+      "ADMIN_CHAT_HISTORY",
+      "AUTONOMY_STATUS",
+    ]);
+    expect(
+      plugin?.routes?.map((route) => `${route.type} ${route.path}`),
+    ).toEqual([
+      "GET /autonomy/status",
+      "POST /autonomy/enable",
+      "POST /autonomy/disable",
+      "POST /autonomy/toggle",
+      "POST /autonomy/interval",
+    ]);
   });
 });
 

@@ -18,6 +18,7 @@ import {
 import { KNOWLEDGE_GRAPH_SERVICE } from "@elizaos/agent/services/knowledge-graph/index";
 import {
   type AgentRuntime,
+  AUTONOMY_SERVICE_TYPE,
   PairingService,
   SECRETS_SERVICE_TYPE,
   stringToUuid,
@@ -41,6 +42,7 @@ const CRITICAL_RUNTIME_SERVICES = [
   "plugin_manager",
   "planning",
   "mcp",
+  AUTONOMY_SERVICE_TYPE,
   PairingService.serviceType,
   SECRETS_SERVICE_TYPE,
   DOOLITTLE_SECRETS_VAULT_SERVICE,
