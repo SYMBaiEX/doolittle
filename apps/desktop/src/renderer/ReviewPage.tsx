@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { RepositoryReviewResponse } from "../shared/contracts";
 import type { ChatContextRequest } from "./chat-context-handoff";
 import {
+  type ActionFeedback,
   asArray,
   asString,
   desktopRequest,
@@ -82,10 +83,7 @@ export function ReviewPage({
   const migratedRecordRef = useRef("");
   const [selectedId, setSelectedId] = useState("");
   const [busy, setBusy] = useState("");
-  const [feedback, setFeedback] = useState<{
-    tone: "good" | "bad" | "warn";
-    message: string;
-  } | null>(null);
+  const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const [comments, setComments] = useState<ReviewComment[]>([]);
   const [commentTarget, setCommentTarget] = useState<{
     path: string;

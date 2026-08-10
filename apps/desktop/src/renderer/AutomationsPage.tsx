@@ -9,6 +9,7 @@ import {
 } from "./automation-model";
 import { InlineActionConfirmation } from "./components/InlineActionConfirmation";
 import {
+  type ActionFeedback,
   asArray,
   asRecord,
   asString,
@@ -55,10 +56,7 @@ export function AutomationsPage({ active }: { active: boolean }) {
   const [showCreate, setShowCreate] = useState(false);
   const [draft, setDraft] = useState<AutomationDraft>(initialDraft);
   const [busy, setBusy] = useState("");
-  const [feedback, setFeedback] = useState<{
-    message: string;
-    tone: "good" | "bad" | "neutral";
-  } | null>(null);
+  const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const [selectedRunId, setSelectedRunId] = useState("");
   const entries = asArray(jobs.data?.jobs).map(asRecord);
   const runEntries = asArray(runs.data?.runs).map(asRecord);

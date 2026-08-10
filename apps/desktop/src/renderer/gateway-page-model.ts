@@ -1,3 +1,4 @@
+import type { ActionFeedback } from "./lib";
 import { asNumber, asRecord, asString } from "./value-guards";
 
 export type GatewayDirection = "inbox" | "outbox";
@@ -33,15 +34,10 @@ export interface GatewayApprovedSender {
 
 export type GatewayAction = "approve" | "deny" | "revoke" | "replay";
 
-export interface GatewayActionFeedback {
-  message: string;
-  tone: "good" | "bad";
-}
-
 export function gatewayActionFeedback(
   action: GatewayAction,
   error?: string,
-): GatewayActionFeedback {
+): ActionFeedback {
   if (error) {
     return {
       message: `${action === "replay" ? "Replay" : "Pairing update"} could not be completed: ${error}`,

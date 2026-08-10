@@ -4,12 +4,12 @@ import {
   approvedPairingSenders,
   buildGatewayTimeline,
   filterGatewayTimeline,
-  type GatewayActionFeedback,
   gatewayActionFeedback,
   gatewayStatusTone,
   pairingRequests,
 } from "./gateway-page-model";
 import {
+  type ActionFeedback,
   asArray,
   asNumber,
   asRecord,
@@ -109,7 +109,7 @@ export function GatewayPage({ active }: { active: boolean }) {
   const [query, setQuery] = useState("");
   const [replayingId, setReplayingId] = useState("");
   const [confirmReplayId, setConfirmReplayId] = useState("");
-  const [feedback, setFeedback] = useState<GatewayActionFeedback | null>(null);
+  const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const [pairingAction, setPairingAction] = useState("");
   const [confirmPairingAction, setConfirmPairingAction] = useState("");
 
