@@ -84,6 +84,15 @@ describe("parseApiPath", () => {
     expect(parseApiPath("/health", "GET")).toBe("/health");
     expect(parseApiPath("/commands/catalog", "GET")).toBe("/commands/catalog");
     expect(parseApiPath("/runtime/status", "GET")).toBe("/runtime/status");
+    expect(parseApiPath("/autonomy/status", "GET")).toBe("/autonomy/status");
+    expect(parseApiPath("/autonomy/enable", "POST")).toBe("/autonomy/enable");
+    expect(parseApiPath("/autonomy/disable", "POST")).toBe("/autonomy/disable");
+    expect(parseApiPath("/autonomy/interval", "POST")).toBe(
+      "/autonomy/interval",
+    );
+    expect(() => parseApiPath("/autonomy/toggle", "POST")).toThrow(
+      /not available/,
+    );
     expect(parseApiPath("/runtime/models?refresh=true", "GET")).toBe(
       "/runtime/models?refresh=true",
     );

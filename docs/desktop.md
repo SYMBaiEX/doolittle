@@ -66,7 +66,8 @@ keeping Doolittle's native runtime and cross-platform Electron boundary:
   deliveries, and logs. The trail deliberately reports bounded, server-owned
   summaries: it omits commands, prompts, paths, raw log output, and secrets.
 - **Agent:** model selection, provider connections, tool and skill catalogs,
-  plugin inventory, scheduled automations, and personality profiles.
+  plugin inventory, scheduled automations, personality profiles, and explicit
+  controls for Eliza's native autonomous reasoning loop.
 - **Manage:** filtered runtime logs, every persisted non-secret setting,
   appearance profiles, execution-backend status, doctor checks, setup state,
   architecture details, local recovery commands, runtime/plugin diagnostics,
@@ -340,6 +341,16 @@ Conversation routes use the Node HTTP streaming path because a local model or
 tool-running turn can remain quiet for more than ten seconds. Stream
 producer failures become terminal SSE error events, and a disconnected
 renderer cannot crash the runtime by racing a closed stream.
+
+The foundation plugin also mounts Eliza's official autonomy service, actions,
+providers, and routes. It starts disabled: simply launching Doolittle never
+starts autonomous background reasoning. The Runtime page shows native service
+status and lets the operator choose a 5-second to 10-minute cadence before
+explicitly enabling the loop. Once enabled, Eliza owns prompt batching,
+reasoning, action execution, and shutdown; normal provider usage and costs
+apply. This native loop is distinct from Doolittle's operator autonomy profile,
+which configures product policy rather than implementing another reasoning
+engine.
 
 Quitting the application aborts active streams and sends `SIGTERM` to the owned
 child process. The API entrypoint handles that signal idempotently through one

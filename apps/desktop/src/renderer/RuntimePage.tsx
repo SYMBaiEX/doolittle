@@ -6,6 +6,10 @@ import type {
   RuntimeStatus,
 } from "../shared/contracts";
 import {
+  NativeAutonomyPanel,
+  type NativeAutonomyResponse,
+} from "./components/NativeAutonomyPanel";
+import {
   asArray,
   asNumber,
   asRecord,
@@ -72,6 +76,10 @@ export function RuntimePage({
     active ? "/runtime/account-pool" : null,
     [active],
   );
+  const autonomy = useApiResource<NativeAutonomyResponse>(
+    active ? "/autonomy/status" : null,
+    [active],
+  );
   const pooledAccounts = Object.values(
     accountPool.data?.providers ?? {},
   ).flatMap((provider) => provider.accounts);
@@ -91,7 +99,6 @@ export function RuntimePage({
   const gatewayTraces = asArray(gatewayHealth.data?.traces);
   const gatewayInventory = asArray(gatewayRuntime.data?.transportInventory);
   const gatewayPlugins = asArray(gatewayRuntime.data?.messagingPlugins);
-
   return (
     <PagePanel className="page" variant="workspace">
       <PageHeader
@@ -109,6 +116,7 @@ export function RuntimePage({
               gatewayHealth.reload();
               gatewayRuntime.reload();
               accountPool.reload();
+              autonomy.reload();
             }}
             type="button"
             variant="ghost"
@@ -227,6 +235,7 @@ export function RuntimePage({
                 value={runtime.data?.startup}
               />
             </section>
+            <NativeAutonomyPanel autonomy={autonomy} />
             <section className="content-card">
               <div className="card-heading">
                 <div>

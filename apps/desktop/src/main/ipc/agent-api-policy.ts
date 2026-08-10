@@ -152,6 +152,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
       validateQuery: validateActivityFilters,
     },
     { exact: "/runtime/status" },
+    { exact: "/autonomy/status" },
     { exact: "/runtime/e2b" },
     { exact: "/e2b/sandboxes" },
     {
@@ -483,6 +484,9 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
   ],
   POST: [
     { exact: "/settings" },
+    { exact: "/autonomy/enable" },
+    { exact: "/autonomy/disable" },
+    { exact: "/autonomy/interval" },
     { exact: "/runtime/registry/install" },
     { exact: "/e2b/sandboxes" },
     { exact: "/e2b/execute" },
