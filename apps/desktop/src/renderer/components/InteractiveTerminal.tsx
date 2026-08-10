@@ -630,22 +630,22 @@ export function InteractiveTerminal({
     const resizeSessionId = activeSessionId;
     const resizeTabId = activeTab?.id;
     const resizeSupports = activeSessionSupportsResize;
-    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+    let settledResizeTimer: ReturnType<typeof setTimeout> | undefined;
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return;
-      const dimensions = fitTerminalToViewport();
-      if (
-        !running ||
-        !resizeSessionId ||
-        !resizeTabId ||
-        !resizeSupports ||
-        (activeTab?.cols === dimensions.cols &&
-          activeTab?.rows === dimensions.rows)
-      ) {
-        return;
-      }
-      if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
+      if (settledResizeTimer) clearTimeout(settledResizeTimer);
+      settledResizeTimer = setTimeout(() => {
+        const dimensions = fitTerminalToViewport();
+        if (
+          !running ||
+          !resizeSessionId ||
+          !resizeTabId ||
+          !resizeSupports ||
+          (activeTab?.cols === dimensions.cols &&
+            activeTab?.rows === dimensions.rows)
+        ) {
+          return;
+        }
         void window.doolittle
           .resizeInteractiveTerminal({
             sessionId: resizeSessionId,
@@ -669,12 +669,12 @@ export function InteractiveTerminal({
             }),
           )
           .catch((error) => setNotice(errorMessage(error)));
-      }, 90);
+      }, 56);
     });
     observer.observe(viewport);
     return () => {
       observer.disconnect();
-      if (resizeTimer) clearTimeout(resizeTimer);
+      if (settledResizeTimer) clearTimeout(settledResizeTimer);
     };
   }, [
     activeTab?.id,

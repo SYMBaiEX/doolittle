@@ -279,7 +279,7 @@ export function App() {
 
   useEffect(() => {
     if (chatTerminalOpen || !chatTerminalMounted) return;
-    const timer = window.setTimeout(() => setChatTerminalMounted(false), 240);
+    const timer = window.setTimeout(() => setChatTerminalMounted(false), 210);
     return () => window.clearTimeout(timer);
   }, [chatTerminalMounted, chatTerminalOpen]);
 

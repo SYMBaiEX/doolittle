@@ -75,16 +75,16 @@ body > [data-state]:has(+ .command-palette[role="dialog"]) {
   position: fixed;
   z-index: 1690;
   inset: 0;
-  background: color-mix(in srgb, #050504 68%, transparent);
-  backdrop-filter: blur(2px);
+  background: color-mix(in srgb, #050504 72%, transparent);
+  will-change: opacity;
 }
 
 body > [data-state="open"]:has(+ .command-palette[role="dialog"]) {
-  animation: command-overlay-in 140ms ease-out both;
+  animation: command-overlay-in 150ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 body > [data-state="closed"]:has(+ .command-palette[role="dialog"]) {
-  animation: command-overlay-out 100ms ease-in both;
+  animation: command-overlay-out 110ms cubic-bezier(0.4, 0, 1, 1) both;
 }
 
 @keyframes command-overlay-in {

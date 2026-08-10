@@ -385,11 +385,12 @@ textarea {
   box-shadow:
     0 30px 90px rgba(0, 0, 0, 0.52),
     0 0 0 1px color-mix(in srgb, var(--accent) 4%, transparent);
-  animation: command-menu-in 150ms var(--ease-out) both;
+  will-change: opacity;
+  animation: command-menu-in 170ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .command-palette[data-state="closed"] {
-  animation: command-menu-out 110ms ease-in both;
+  animation: command-menu-out 120ms cubic-bezier(0.4, 0, 1, 1) both;
 }
 
 .command-palette__header {
@@ -644,14 +645,12 @@ textarea {
 @keyframes command-menu-in {
   from {
     opacity: 0;
-    filter: blur(4px);
   }
 }
 
 @keyframes command-menu-out {
   to {
     opacity: 0;
-    filter: blur(3px);
   }
 }
 
@@ -3718,6 +3717,8 @@ button.chat-session-meta-pill:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .command-palette,
+  .command-palette[data-state="closed"],
   .utility-drawer,
   .chat-mobile-conversations-dialog {
     animation: none;

@@ -85,6 +85,11 @@ test.describe("Doolittle desktop navigation", () => {
       );
       const commandMenu = page.getByRole("dialog", { name: "Command menu" });
       await expect(commandMenu).toBeVisible();
+      await commandMenu.evaluate(async (element) => {
+        await Promise.all(
+          element.getAnimations().map((animation) => animation.finished),
+        );
+      });
       const commandMenuLayout = await commandMenu.evaluate((element) => {
         const bounds = element.getBoundingClientRect();
         const overlay = element.previousElementSibling;
