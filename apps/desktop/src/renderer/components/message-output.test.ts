@@ -92,6 +92,38 @@ describe("parseAgentMessage", () => {
       steps: { continued: 0, failed: 0, finished: 0 },
     });
   });
+
+  it("contains a legacy raw file read as collapsed tool activity", () => {
+    const content = [
+      "Read: /workspace/src/app.ts",
+      "Lines: 1-3 of 3",
+      "1|export function app() {",
+      '2|  return "ready";',
+      "3|}",
+    ].join("\n");
+
+    expect(parseAgentMessage(content)).toEqual({
+      text: "This earlier response contained raw file output without a final explanation. The output is preserved below.",
+      tools: [
+        {
+          id: "legacy-read-file-result",
+          name: "READ_FILE",
+          status: "completed",
+          input: {
+            path: "/workspace/src/app.ts",
+            offset: 1,
+            end: 3,
+            total: 3,
+          },
+          output: content,
+        },
+      ],
+      steps: { continued: 0, failed: 0, finished: 0 },
+    });
+    expect(visibleAssistantText(content)).toBe(
+      "This earlier response contained raw file output without a final explanation. The output is preserved below.",
+    );
+  });
 });
 
 describe("webSearchResults", () => {

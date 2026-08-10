@@ -163,6 +163,27 @@ describe("MessageContent", () => {
     expect(html).not.toContain("<details open");
   });
 
+  it("renders a legacy raw file response as one bounded collapsed tool card", () => {
+    const content = [
+      "Read: /workspace/src/app.ts",
+      "Lines: 1-3 of 3",
+      "1|export function app() {",
+      '2|  return "ready";',
+      "3|}",
+    ].join("\n");
+    const html = renderToStaticMarkup(
+      <MessageContent content={content} separateAgentEvents />,
+    );
+
+    expect(html).toContain('class="message-tool-card is-completed"');
+    expect(html).toContain("Read File");
+    expect(html).toContain("/workspace/src/app.ts");
+    expect(html).toContain(
+      "This earlier response contained raw file output without a final explanation.",
+    );
+    expect(html).not.toContain("<details open");
+  });
+
   it("keeps successful evaluator bookkeeping out of the transcript", () => {
     const content = JSON.stringify({
       type: "evaluation",

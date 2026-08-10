@@ -45,6 +45,33 @@ interface JsonRange {
 const EVENT_START =
   /\{\s*"type"\s*:\s*"(?:tool_call|tool_result|evaluation)"/gu;
 
+function parseLegacyReadResult(content: string): ToolActivity | undefined {
+  const header = /^Read:\s+([^\n]+)\nLines:\s+(\d+)-(\d+)\s+of\s+(\d+)\n/u.exec(
+    content,
+  );
+  if (!header) return undefined;
+  const body = content.slice(header[0].length).split("\n");
+  if (
+    body.length < 2 ||
+    body.some((line) => line.length > 0 && !/^\d+\|/u.test(line))
+  ) {
+    return undefined;
+  }
+
+  return {
+    id: "legacy-read-file-result",
+    name: "READ_FILE",
+    status: "completed",
+    input: {
+      path: header[1],
+      offset: Number(header[2]),
+      end: Number(header[3]),
+      total: Number(header[4]),
+    },
+    output: content,
+  };
+}
+
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
@@ -243,6 +270,15 @@ function addEvaluation(
 }
 
 export function parseAgentMessage(content: string): ParsedAgentMessage {
+  const legacyReadResult = parseLegacyReadResult(content);
+  if (legacyReadResult) {
+    return {
+      text: "This earlier response contained raw file output without a final explanation. The output is preserved below.",
+      tools: [legacyReadResult],
+      steps: { continued: 0, finished: 0, failed: 0 },
+    };
+  }
+
   const tools: ToolActivity[] = [];
   const toolIndex = new Map<string, number>();
   const steps: AgentStepSummary = { continued: 0, finished: 0, failed: 0 };
