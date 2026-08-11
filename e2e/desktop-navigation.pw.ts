@@ -63,6 +63,7 @@ test.describe("Doolittle desktop navigation", () => {
         DOOLITTLE_DESKTOP_SOURCE_ROOT: repoRoot,
         DOOLITTLE_DESKTOP_CWD: repoRoot,
         DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
+        ELIZA_ACCOUNT_POOL_KEEPALIVE: "false",
       },
     });
 
@@ -432,6 +433,7 @@ test.describe("Doolittle desktop navigation", () => {
         }
       };
 
+      await page.setViewportSize({ width: 1600, height: 1000 });
       await page.evaluate(() => {
         window.location.hash = "#/connections";
       });
@@ -482,16 +484,16 @@ test.describe("Doolittle desktop navigation", () => {
         page.getByRole("region", {
           name: "Codex spawned-agent account pool",
         }),
-      ).toContainText("Account roster", { timeout: 30_000 });
+      ).toContainText("Accounts on this Mac", { timeout: 30_000 });
       await expect(
         page.getByRole("region", {
           name: "Claude Code spawned-agent account pool",
         }),
-      ).toContainText("Account roster", { timeout: 30_000 });
-      await expect(page.getByText("Bridge ready")).toHaveCount(2, {
+      ).toContainText("Accounts on this Mac", { timeout: 30_000 });
+      await expect(page.getByText("Eliza connected")).toHaveCount(2, {
         timeout: 30_000,
       });
-      await expect(page.getByText("No accounts yet")).toHaveCount(2);
+      await expect(page.locator(".provider-pool-directory")).toHaveCount(2);
       await expect(page.locator("body")).not.toContainText(/access[_-]?token/i);
       await expect(page.locator("body")).not.toContainText(
         /refresh[_-]?token/i,
@@ -530,6 +532,13 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(page.locator(".provider-connection-row")).toHaveCount(4);
       await expect(page.locator(".provider-pool-panel")).toHaveCount(2);
       await expect(page.locator(".provider-pool-toolbar")).toHaveCount(2);
+      const providerPoolColumns = await page
+        .locator(".provider-pool-stack")
+        .evaluate(
+          (element) =>
+            getComputedStyle(element).gridTemplateColumns.split(" ").length,
+        );
+      expect(providerPoolColumns).toBe(2);
       await expect(page.locator(".provider-pool-journey")).toHaveCount(0);
       await expect(
         page.locator(".view-connections .provider-card"),
@@ -558,9 +567,9 @@ test.describe("Doolittle desktop navigation", () => {
         contentType: "image/png",
         path: providerPoolScreenshot,
       });
-      const accountDisclosure = codexPool.getByText("Set up first account", {
-        exact: true,
-      });
+      const accountDisclosure = codexPool.locator(
+        ".provider-import-disclosure > summary",
+      );
       await expect(
         codexPool.getByRole("textbox", { name: "Account ID" }),
       ).toBeHidden();
@@ -574,14 +583,14 @@ test.describe("Doolittle desktop navigation", () => {
 
       await page.setViewportSize({ width: 390, height: 844 });
       await expect(
-        codexPool.getByRole("button", { name: "Preview route" }),
+        codexPool.getByRole("button", { name: "Test route" }),
       ).toBeVisible();
       const narrowProviderLayout = await page.evaluate(() => {
         const pool = document.querySelector(
           '[aria-label="Codex spawned-agent account pool"]',
         );
         const preview = [...document.querySelectorAll("button")].find(
-          (button) => button.textContent?.trim() === "Preview route",
+          (button) => button.textContent?.trim() === "Test route",
         );
         const poolRect = pool?.getBoundingClientRect();
         const previewRect = preview?.getBoundingClientRect();

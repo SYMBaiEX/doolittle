@@ -44,6 +44,15 @@ export function ProviderConnectionRow({
     : null;
   const signingIn =
     authState?.phase === "launching" || authState?.phase === "waiting";
+  const nativeReady = Boolean(status.nativeReady) || Boolean(status.reusable);
+  const fallbackReady = Boolean(status.fallbackReady) && !nativeReady;
+  const stateLabel = isDefault
+    ? "Default"
+    : nativeReady
+      ? "Ready"
+      : fallbackReady
+        ? "CLI fallback"
+        : "Needs sign-in";
 
   return (
     <article
@@ -59,23 +68,25 @@ export function ProviderConnectionRow({
       <div className="provider-connection-copy">
         <div className="provider-connection-title">
           <h3>{descriptor.label}</h3>
-          <Badge tone={isDefault ? "good" : ready ? "neutral" : "warn"}>
-            {isDefault ? "Default" : ready ? "Ready" : "Needs setup"}
+          <Badge tone={isDefault ? "good" : nativeReady ? "neutral" : "warn"}>
+            {stateLabel}
           </Badge>
         </div>
         <p>{asString(status.detail, "No account details available.")}</p>
         {authProvider ? (
           <div
-            className={`provider-auth-inline ${signingIn ? "is-pending" : ""}`}
+            className={`provider-auth-inline ${signingIn ? "is-pending" : fallbackReady ? "is-fallback" : ""}`}
             aria-live="polite"
           >
             <span aria-hidden="true" />
             <small>
               {signingIn
                 ? authState?.message
-                : ready
+                : nativeReady
                   ? `Authenticated through the official ${descriptor.label} client.`
-                  : `Use your ${descriptor.label} subscription; API keys remain optional.`}
+                  : fallbackReady
+                    ? `CLI fallback is available; subscription OAuth still needs attention.`
+                    : `Use your ${descriptor.label} subscription; API keys remain optional.`}
             </small>
           </div>
         ) : null}
@@ -112,7 +123,11 @@ export function ProviderConnectionRow({
             disabled={busy || isDefault}
             type="button"
           >
-            {isDefault ? "In use" : "Use for chats"}
+            {isDefault
+              ? "In use"
+              : fallbackReady
+                ? "Use CLI fallback"
+                : "Use for chats"}
           </Button>
         ) : authProvider ? (
           <Button
@@ -142,7 +157,7 @@ export function ProviderConnectionRow({
             type="button"
             variant="ghost"
           >
-            Add account
+            {fallbackReady ? "Repair sign-in" : "Add account"}
           </Button>
         ) : null}
         {authProvider &&

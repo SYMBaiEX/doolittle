@@ -43,6 +43,41 @@ describe("provider account surfaces", () => {
     expect(markup).toContain("Add account");
   });
 
+  it("does not present CLI fallback as an authenticated subscription", () => {
+    const markup = renderToStaticMarkup(
+      <ProviderConnectionRow
+        busy={false}
+        descriptor={{
+          key: "claude-code",
+          label: "Claude Code",
+          shortLabel: "CC",
+          accountSignIn: true,
+        }}
+        isDefault={false}
+        onCancelSignIn={noop}
+        onConnect={noop}
+        onRefresh={noop}
+        onSetDefault={noop}
+        onSignIn={noop}
+        onSubmitCode={noop}
+        ready
+        status={{
+          detail: "OAuth expired",
+          fallbackReady: true,
+          nativeReady: false,
+        }}
+      />,
+    );
+
+    expect(markup).toContain("CLI fallback");
+    expect(markup).toContain("subscription OAuth still needs attention");
+    expect(markup).toContain("Use CLI fallback");
+    expect(markup).toContain("Repair sign-in");
+    expect(markup).not.toContain(
+      "Authenticated through the official Claude Code client.",
+    );
+  });
+
   it("renders an explicit unavailable pool instead of an indefinite spinner", () => {
     const markup = renderToStaticMarkup(
       <AccountPoolPanel
@@ -96,9 +131,9 @@ describe("provider account surfaces", () => {
       />,
     );
 
-    expect(markup).toContain("Bridge ready");
+    expect(markup).toContain("Eliza connected");
     expect(markup).toContain("No accounts yet");
-    expect(markup).toContain("Set up first account");
+    expect(markup).toContain("Connect this Mac");
     expect(markup).toContain("Sign in &amp; add");
     expect(markup).toContain("private local store");
     expect(markup).toContain('class="provider-pool-toolbar"');
@@ -106,5 +141,48 @@ describe("provider account surfaces", () => {
     expect(markup).toContain("automatic fallback");
     expect(markup).not.toContain("Pool setup progress");
     expect(markup).not.toContain("Add a backup account");
+  });
+
+  it("offers an explicit native login repair for an unusable pool account", () => {
+    const markup = renderToStaticMarkup(
+      <AccountPoolPanel
+        authProvider="claude-code"
+        bridgeInstalled
+        busy=""
+        descriptor={{
+          label: "Claude Code",
+          shortLabel: "CC",
+          provider: "anthropic-subscription",
+        }}
+        onAccountImportChange={noop}
+        onDelete={asyncNoop}
+        onMove={asyncNoop}
+        onPatch={asyncNoop}
+        onPreview={noop}
+        onRefreshUsage={asyncNoop}
+        onSetStrategy={noop}
+        onSignIn={noop}
+        onTest={asyncNoop}
+        snapshot={{
+          strategy: "priority",
+          accounts: [
+            {
+              providerId: "anthropic-subscription",
+              accountId: "local-claude",
+              label: "Claude Code on this Mac",
+              source: "oauth",
+              enabled: true,
+              priority: 0,
+              createdAt: 1,
+              health: "needs-reauth",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(markup).toContain("Subscription login needs attention");
+    expect(markup).toContain("Repair login");
+    expect(markup).toContain("Connect another subscription");
   });
 });

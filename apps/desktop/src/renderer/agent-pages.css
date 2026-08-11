@@ -248,6 +248,10 @@
   animation: provider-auth-pulse 1.35s ease-in-out infinite;
 }
 
+.provider-auth-inline.is-fallback > span {
+  background: var(--warn);
+}
+
 .provider-auth-inline small {
   overflow: hidden;
   font-size: var(--text-meta);
@@ -292,6 +296,7 @@
 .provider-pool-stack {
   display: grid;
   gap: 12px;
+  align-items: start;
 }
 
 .provider-pool-panel {
@@ -306,7 +311,7 @@
   grid-template-columns: 42px minmax(0, 1fr) auto;
   gap: 14px;
   align-items: center;
-  padding: 14px 18px;
+  padding: 15px 18px;
   background: color-mix(in srgb, var(--surface-raised) 54%, transparent);
   border-bottom: 1px solid var(--line-subtle);
 }
@@ -326,7 +331,8 @@
 }
 
 .provider-pool-toolbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   min-width: 0;
   align-items: center;
   justify-content: space-between;
@@ -347,8 +353,8 @@
   display: flex;
   align-items: baseline;
   gap: 7px;
-  min-width: 92px;
-  padding: 1px 14px;
+  min-width: 76px;
+  padding: 1px 12px;
   border-left: 1px solid var(--line-subtle);
 }
 
@@ -377,7 +383,15 @@
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 8px;
+}
+
+.provider-pool-routing__label {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .provider-pool-preview {
@@ -388,7 +402,7 @@
   display: grid;
   min-width: 0;
   align-content: start;
-  gap: 10px;
+  gap: 11px;
   padding: 13px 18px 14px;
 }
 
@@ -423,6 +437,39 @@
   font-size: var(--text-meta);
 }
 
+.provider-pool-attention {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 11px;
+  color: var(--text-soft);
+  background: color-mix(in srgb, var(--bad) 7%, var(--surface-raised));
+  border: 1px solid color-mix(in srgb, var(--bad) 34%, var(--border));
+  border-radius: 4px;
+}
+
+.provider-pool-attention > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.provider-pool-attention strong {
+  color: var(--text);
+  font-size: var(--text-control);
+}
+
+.provider-pool-attention span {
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.45;
+}
+
+.provider-pool-attention button {
+  flex: 0 0 auto;
+}
+
 .provider-pool-accounts > li {
   position: relative;
 }
@@ -437,6 +484,15 @@
 
 .provider-pool-account {
   min-width: 0;
+}
+
+.provider-pool-account > div {
+  background: color-mix(in srgb, var(--surface-raised) 70%, transparent);
+  border-color: var(--line-subtle);
+}
+
+.provider-pool-account [class~="text-txt"] {
+  color: var(--text);
 }
 
 .provider-pool-accounts > li > .badge {
@@ -505,7 +561,25 @@
   display: block;
 }
 
+.provider-pool-routing > .flex > span {
+  display: none;
+}
+
 .provider-pool-routing button[role="combobox"] > span > div > span:last-child {
+  display: none;
+}
+
+.provider-pool-account > div > div:first-child > div:first-child > button {
+  flex: 1 1 120px;
+  color: var(--text);
+}
+
+.provider-pool-account > div > div:first-child > div:first-child > span[title],
+.provider-pool-account
+  > div
+  > div:first-child
+  > div:first-child
+  > span:last-child {
   display: none;
 }
 
@@ -552,6 +626,35 @@
   }
 }
 
+@media (min-width: 1440px) {
+  .provider-pool-stack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .provider-pool-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .provider-pool-routing {
+    justify-content: flex-start;
+  }
+
+  .provider-pool-directory__header {
+    align-items: start;
+  }
+
+  .provider-pool-directory__header > small {
+    max-width: 240px;
+  }
+
+  :where(.provider-pool-account > div > div:first-child > div:last-child) {
+    flex: 1 0 100%;
+    justify-content: flex-end;
+    padding-top: 6px;
+    border-top: 1px solid var(--line-subtle);
+  }
+}
+
 @media (max-width: 1180px) {
   .provider-overview {
     grid-template-columns: 1fr;
@@ -575,7 +678,7 @@
 
   .provider-pool-toolbar {
     align-items: flex-start;
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 12px;
   }
 

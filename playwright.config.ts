@@ -136,6 +136,7 @@ const applyE2eEnv = () => {
   process.env.ELIZA_API_PORT = String(runtimePort);
   process.env.DOOLITTLE_DATA_DIR = dataDir;
   process.env.DOOLITTLE_OFFLINE_BOOTSTRAP = "true";
+  process.env.ELIZA_ACCOUNT_POOL_KEEPALIVE = "false";
   process.env.DOOLITTLE_BROWSER_PROVIDER = "lightpanda";
   process.env.DOOLITTLE_BROWSER_COMMAND = "mock-lightpanda.ts";
   process.env.DOOLITTLE_BROWSER_OBEY_ROBOTS = "false";

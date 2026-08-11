@@ -103,6 +103,10 @@ export function AccountPoolPanel({
 
   const progress = accountPoolProgress(snapshot.accounts);
   const accounts = sortedAccounts(snapshot);
+  const needsAuthRepair = accounts.some(
+    (account) =>
+      account.health === "needs-reauth" || account.health === "invalid",
+  );
 
   return (
     <section
@@ -114,16 +118,13 @@ export function AccountPoolPanel({
           {descriptor.shortLabel}
         </div>
         <div className="provider-pool-panel__title">
-          <span className="eyebrow">Spawned-agent routing</span>
+          <span className="eyebrow">Agent account pool</span>
           <h3>{descriptor.label}</h3>
-          <p>
-            Selects an eligible account when a Codex or Claude agent session
-            starts.
-          </p>
+          <p>Automatic account selection for spawned agent sessions.</p>
         </div>
         <div className="provider-pool-bridge-badge">
           <Badge tone={bridgeInstalled ? "good" : "warn"}>
-            {bridgeInstalled ? "Bridge ready" : "Bridge unavailable"}
+            {bridgeInstalled ? "Eliza connected" : "Bridge unavailable"}
           </Badge>
         </div>
       </header>
@@ -132,15 +133,15 @@ export function AccountPoolPanel({
         <div className="provider-pool-toolbar">
           <dl className="provider-pool-summary" aria-label="Pool readiness">
             <div>
-              <dt>Accounts</dt>
+              <dt>Saved</dt>
               <dd>{accounts.length}</dd>
             </div>
             <div>
-              <dt>Enabled</dt>
+              <dt>Active</dt>
               <dd>{progress.enabled}</dd>
             </div>
             <div>
-              <dt>Healthy</dt>
+              <dt>Ready</dt>
               <dd className={progress.healthy > 0 ? "is-good" : "is-warn"}>
                 {progress.healthy}
               </dd>
@@ -149,7 +150,7 @@ export function AccountPoolPanel({
 
           <div className="provider-pool-routing">
             <label
-              className="sr-only"
+              className="provider-pool-routing__label"
               htmlFor={`rotation-strategy-${descriptor.provider}`}
             >
               Routing strategy
@@ -169,7 +170,7 @@ export function AccountPoolPanel({
               type="button"
               variant="secondary"
             >
-              Preview route
+              Test route
             </Button>
           </div>
         </div>
@@ -180,11 +181,9 @@ export function AccountPoolPanel({
         >
           <div className="provider-pool-directory__header">
             <div>
-              <span className="eyebrow">Account roster</span>
+              <span className="eyebrow">Accounts on this Mac</span>
               <h4>
-                {accounts.length
-                  ? `${accounts.length} available`
-                  : "No accounts yet"}
+                {accounts.length ? "Subscription roster" : "No accounts yet"}
               </h4>
             </div>
             <small>
@@ -198,54 +197,75 @@ export function AccountPoolPanel({
               automatic fallback.
             </p>
           ) : (
-            <ul className="provider-pool-accounts">
-              {accounts.map((account, index) => {
-                const sourceAccount = snapshot.accounts.find(
-                  (candidate) => candidate.accountId === account.id,
-                );
-                return (
-                  <li
-                    className={
-                      selectedAccountId === account.id
-                        ? "provider-pool-account provider-account-previewed"
-                        : "provider-pool-account"
-                    }
-                    key={account.id}
+            <>
+              {needsAuthRepair ? (
+                <div className="provider-pool-attention" role="status">
+                  <div>
+                    <strong>Subscription login needs attention</strong>
+                    <span>
+                      The saved account cannot mint a current token. Repair the
+                      official {descriptor.label} login on this Mac.
+                    </span>
+                  </div>
+                  <Button
+                    onClick={() => onSignIn(authProvider)}
+                    disabled={Boolean(busy)}
+                    type="button"
+                    variant="secondary"
                   >
-                    {selectedAccountId === account.id ? (
-                      <Badge tone="good">Previewed next</Badge>
-                    ) : null}
-                    <AccountCard
-                      account={account}
-                      isFirst={index === 0}
-                      isLast={index === accounts.length - 1}
-                      onDelete={() =>
-                        sourceAccount
-                          ? onDelete(sourceAccount)
-                          : Promise.resolve()
+                    Repair login
+                  </Button>
+                </div>
+              ) : null}
+              <ul className="provider-pool-accounts">
+                {accounts.map((account, index) => {
+                  const sourceAccount = snapshot.accounts.find(
+                    (candidate) => candidate.accountId === account.id,
+                  );
+                  return (
+                    <li
+                      className={
+                        selectedAccountId === account.id
+                          ? "provider-pool-account provider-account-previewed"
+                          : "provider-pool-account"
                       }
-                      onMoveDown={() => onMove(accounts, account.id, "down")}
-                      onMoveUp={() => onMove(accounts, account.id, "up")}
-                      onPatch={(changes) =>
-                        onPatch(
-                          { accountId: account.id, label: account.label },
-                          changes,
-                        )
-                      }
-                      onRefreshUsage={() => onRefreshUsage(account)}
-                      onTest={() => onTest(account)}
-                      refreshBusy={
-                        busy === `${descriptor.provider}:${account.id}:usage`
-                      }
-                      saving={Boolean(busy)}
-                      testBusy={
-                        busy === `${descriptor.provider}:${account.id}:test`
-                      }
-                    />
-                  </li>
-                );
-              })}
-            </ul>
+                      key={account.id}
+                    >
+                      {selectedAccountId === account.id ? (
+                        <Badge tone="good">Next account</Badge>
+                      ) : null}
+                      <AccountCard
+                        account={account}
+                        isFirst={index === 0}
+                        isLast={index === accounts.length - 1}
+                        onDelete={() =>
+                          sourceAccount
+                            ? onDelete(sourceAccount)
+                            : Promise.resolve()
+                        }
+                        onMoveDown={() => onMove(accounts, account.id, "down")}
+                        onMoveUp={() => onMove(accounts, account.id, "up")}
+                        onPatch={(changes) =>
+                          onPatch(
+                            { accountId: account.id, label: account.label },
+                            changes,
+                          )
+                        }
+                        onRefreshUsage={() => onRefreshUsage(account)}
+                        onTest={() => onTest(account)}
+                        refreshBusy={
+                          busy === `${descriptor.provider}:${account.id}:usage`
+                        }
+                        saving={Boolean(busy)}
+                        testBusy={
+                          busy === `${descriptor.provider}:${account.id}:test`
+                        }
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
           )}
 
           <details
@@ -257,8 +277,8 @@ export function AccountPoolPanel({
               <span>
                 <strong>
                   {accounts.length
-                    ? "Add another account"
-                    : "Set up first account"}
+                    ? "Connect another subscription"
+                    : "Connect this Mac"}
                 </strong>
                 <small>Optional ID and label</small>
               </span>

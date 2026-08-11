@@ -277,6 +277,7 @@ export function ConnectionsPage({
         `${titleCase(provider)} ${action} request completed.`;
       setFeedback({ message: detail, tone: "good" });
       resource.reload();
+      accountPool.reload();
     } catch (error) {
       setFeedback({ message: errorMessage(error), tone: "bad" });
     } finally {
