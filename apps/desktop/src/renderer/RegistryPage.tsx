@@ -15,6 +15,7 @@ import {
   type UnknownRecord,
   useApiResource,
 } from "./lib";
+import "./registry-page.css";
 
 interface RegistryEntry {
   name: string;
@@ -183,79 +184,104 @@ export function RegistryPage({ active }: { active: boolean }) {
             </div>
             <Badge>{entries.length}</Badge>
           </div>
-          <div className="stack-list">
+          <div className="registry-list">
             {entries.map((entry) => (
-              <div className="status-row" key={entry.name}>
-                <div>
-                  <strong>{entry.name}</strong>
-                  <small>{entry.description}</small>
-                  <small>
-                    {entry.version} · {entry.support} · {entry.trust}
-                    {entry.repository ? ` · ${entry.repository}` : ""}
-                  </small>
-                  <small>
-                    {entry.integrityVerified
-                      ? "Package integrity verified"
-                      : "Registry metadata only; no verified integrity digest is available"}
-                  </small>
-                  {entry.reasons.length ? (
-                    <small>{entry.reasons.join(" ")}</small>
-                  ) : null}
-                </div>
-                <div className="row-actions">
-                  <Badge
-                    tone={
-                      entry.installed
-                        ? "good"
-                        : entry.installable
-                          ? "neutral"
-                          : "warn"
-                    }
-                  >
-                    {entry.installed
-                      ? "Installed"
-                      : entry.installable
-                        ? "Eligible"
-                        : "Blocked"}
-                  </Badge>
-                  {entry.installable && pendingInstall !== entry.name ? (
-                    <button
-                      className="secondary-button"
-                      onClick={() => {
-                        setPendingInstall(entry.name);
-                        setInstallNotice("");
-                      }}
-                      type="button"
+              <article className="registry-entry" key={entry.name}>
+                <div className="registry-entry__main">
+                  <div className="registry-entry__identity">
+                    <strong>{entry.name}</strong>
+                    <small>{entry.description}</small>
+                    <span className="registry-entry__meta">
+                      {entry.version} · {entry.support} · {entry.trust}
+                    </span>
+                  </div>
+                  <div className="row-actions">
+                    <Badge
+                      tone={
+                        entry.installed
+                          ? "good"
+                          : entry.installable
+                            ? "neutral"
+                            : "warn"
+                      }
                     >
-                      Review install
-                    </button>
-                  ) : null}
-                  {entry.installable && pendingInstall === entry.name ? (
-                    <>
+                      {entry.installed
+                        ? "Installed"
+                        : entry.installable
+                          ? "Eligible"
+                          : "Blocked"}
+                    </Badge>
+                    {entry.installable && pendingInstall !== entry.name ? (
                       <button
-                        className="primary-button"
-                        disabled={installing}
-                        onClick={() => void install(entry)}
+                        className="secondary-button"
+                        onClick={() => {
+                          setPendingInstall(entry.name);
+                          setInstallNotice("");
+                        }}
                         type="button"
                       >
-                        {installing
-                          ? "Installing…"
-                          : `Approve ${entry.version}`}
+                        Review install
                       </button>
-                      <button
-                        className="text-button"
-                        disabled={installing}
-                        onClick={() => setPendingInstall("")}
-                        type="button"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : null}
+                    ) : null}
+                    {entry.installable && pendingInstall === entry.name ? (
+                      <>
+                        <button
+                          className="primary-button"
+                          disabled={installing}
+                          onClick={() => void install(entry)}
+                          type="button"
+                        >
+                          {installing
+                            ? "Installing…"
+                            : `Approve ${entry.version}`}
+                        </button>
+                        <button
+                          className="text-button"
+                          disabled={installing}
+                          onClick={() => setPendingInstall("")}
+                          type="button"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
+                <details className="registry-entry__details">
+                  <summary>Policy &amp; provenance</summary>
+                  <dl>
+                    <div>
+                      <dt>Package</dt>
+                      <dd>{entry.packageName}</dd>
+                    </div>
+                    <div>
+                      <dt>Integrity</dt>
+                      <dd>
+                        {entry.integrityVerified
+                          ? "Verified digest"
+                          : "Registry metadata only; no verified digest"}
+                      </dd>
+                    </div>
+                    {entry.repository ? (
+                      <div>
+                        <dt>Repository</dt>
+                        <dd>{entry.repository}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                  {entry.reasons.length ? (
+                    <p>{entry.reasons.join(" ")}</p>
+                  ) : null}
+                </details>
+              </article>
             ))}
           </div>
+          {registry.data ? (
+            <RawDataDisclosure
+              label="Inspect registry response"
+              value={registry.data}
+            />
+          ) : null}
         </section>
       ) : (
         <EmptyBlock
@@ -286,17 +312,6 @@ export function RegistryPage({ active }: { active: boolean }) {
         >
           {installNotice}
         </Notice>
-      ) : null}
-      {registry.data ? (
-        <section className="content-card" style={{ marginTop: "16px" }}>
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">Raw payload</span>
-              <h2>Registry response</h2>
-            </div>
-          </div>
-          <RawDataDisclosure label="Registry payload" value={registry.data} />
-        </section>
       ) : null}
     </div>
   );
