@@ -118,14 +118,25 @@ export function AccountPoolPanel({
           {descriptor.shortLabel}
         </div>
         <div className="provider-pool-panel__title">
-          <span className="eyebrow">Agent account pool</span>
           <h3>{descriptor.label}</h3>
-          <p>Automatic account selection for spawned agent sessions.</p>
+          <p>
+            {progress.enabled} active · {progress.healthy} ready
+          </p>
         </div>
-        <div className="provider-pool-bridge-badge">
+        <div className="provider-pool-header-actions">
           <Badge tone={bridgeInstalled ? "good" : "warn"}>
-            {bridgeInstalled ? "Eliza connected" : "Bridge unavailable"}
+            {bridgeInstalled ? "Eliza native" : "Unavailable"}
           </Badge>
+          {needsAuthRepair ? (
+            <Button
+              onClick={() => onSignIn(authProvider)}
+              disabled={Boolean(busy)}
+              type="button"
+              variant="secondary"
+            >
+              Repair auth
+            </Button>
+          ) : null}
         </div>
       </header>
 
@@ -133,12 +144,10 @@ export function AccountPoolPanel({
         <div className="provider-pool-toolbar">
           <dl className="provider-pool-summary" aria-label="Pool readiness">
             <div>
-              <dt>Saved</dt>
-              <dd>{accounts.length}</dd>
-            </div>
-            <div>
               <dt>Active</dt>
-              <dd>{progress.enabled}</dd>
+              <dd>
+                {progress.enabled}/{accounts.length}
+              </dd>
             </div>
             <div>
               <dt>Ready</dt>
@@ -153,7 +162,7 @@ export function AccountPoolPanel({
               className="provider-pool-routing__label"
               htmlFor={`rotation-strategy-${descriptor.provider}`}
             >
-              Routing strategy
+              Strategy
             </label>
             <RotationStrategyPicker
               disabled={Boolean(busy)}
@@ -170,7 +179,7 @@ export function AccountPoolPanel({
               type="button"
               variant="secondary"
             >
-              Test route
+              Preview
             </Button>
           </div>
         </div>
@@ -181,14 +190,12 @@ export function AccountPoolPanel({
         >
           <div className="provider-pool-directory__header">
             <div>
-              <span className="eyebrow">Accounts on this Mac</span>
-              <h4>
-                {accounts.length ? "Subscription roster" : "No accounts yet"}
-              </h4>
+              <h4>Accounts</h4>
+              <span className="provider-pool-count">
+                {accounts.length || "None"}
+              </span>
             </div>
-            <small>
-              Credentials remain in Eliza&apos;s private local store.
-            </small>
+            <small>Credentials stay local in Eliza.</small>
           </div>
 
           {accounts.length === 0 ? (
@@ -197,75 +204,54 @@ export function AccountPoolPanel({
               automatic fallback.
             </p>
           ) : (
-            <>
-              {needsAuthRepair ? (
-                <div className="provider-pool-attention" role="status">
-                  <div>
-                    <strong>Subscription login needs attention</strong>
-                    <span>
-                      The saved account cannot mint a current token. Repair the
-                      official {descriptor.label} login on this Mac.
-                    </span>
-                  </div>
-                  <Button
-                    onClick={() => onSignIn(authProvider)}
-                    disabled={Boolean(busy)}
-                    type="button"
-                    variant="secondary"
+            <ul className="provider-pool-accounts">
+              {accounts.map((account, index) => {
+                const sourceAccount = snapshot.accounts.find(
+                  (candidate) => candidate.accountId === account.id,
+                );
+                return (
+                  <li
+                    className={
+                      selectedAccountId === account.id
+                        ? "provider-pool-account provider-account-previewed"
+                        : "provider-pool-account"
+                    }
+                    key={account.id}
                   >
-                    Repair login
-                  </Button>
-                </div>
-              ) : null}
-              <ul className="provider-pool-accounts">
-                {accounts.map((account, index) => {
-                  const sourceAccount = snapshot.accounts.find(
-                    (candidate) => candidate.accountId === account.id,
-                  );
-                  return (
-                    <li
-                      className={
-                        selectedAccountId === account.id
-                          ? "provider-pool-account provider-account-previewed"
-                          : "provider-pool-account"
+                    {selectedAccountId === account.id ? (
+                      <Badge tone="good">Next account</Badge>
+                    ) : null}
+                    <AccountCard
+                      account={account}
+                      isFirst={index === 0}
+                      isLast={index === accounts.length - 1}
+                      onDelete={() =>
+                        sourceAccount
+                          ? onDelete(sourceAccount)
+                          : Promise.resolve()
                       }
-                      key={account.id}
-                    >
-                      {selectedAccountId === account.id ? (
-                        <Badge tone="good">Next account</Badge>
-                      ) : null}
-                      <AccountCard
-                        account={account}
-                        isFirst={index === 0}
-                        isLast={index === accounts.length - 1}
-                        onDelete={() =>
-                          sourceAccount
-                            ? onDelete(sourceAccount)
-                            : Promise.resolve()
-                        }
-                        onMoveDown={() => onMove(accounts, account.id, "down")}
-                        onMoveUp={() => onMove(accounts, account.id, "up")}
-                        onPatch={(changes) =>
-                          onPatch(
-                            { accountId: account.id, label: account.label },
-                            changes,
-                          )
-                        }
-                        onRefreshUsage={() => onRefreshUsage(account)}
-                        onTest={() => onTest(account)}
-                        refreshBusy={
-                          busy === `${descriptor.provider}:${account.id}:usage`
-                        }
-                        saving={Boolean(busy)}
-                        testBusy={
-                          busy === `${descriptor.provider}:${account.id}:test`
-                        }
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
+                      onMoveDown={() => onMove(accounts, account.id, "down")}
+                      onMoveUp={() => onMove(accounts, account.id, "up")}
+                      onPatch={(changes) =>
+                        onPatch(
+                          { accountId: account.id, label: account.label },
+                          changes,
+                        )
+                      }
+                      onRefreshUsage={() => onRefreshUsage(account)}
+                      onTest={() => onTest(account)}
+                      refreshBusy={
+                        busy === `${descriptor.provider}:${account.id}:usage`
+                      }
+                      saving={Boolean(busy)}
+                      testBusy={
+                        busy === `${descriptor.provider}:${account.id}:test`
+                      }
+                    />
+                  </li>
+                );
+              })}
+            </ul>
           )}
 
           <details
@@ -276,11 +262,8 @@ export function AccountPoolPanel({
             <summary>
               <span>
                 <strong>
-                  {accounts.length
-                    ? "Connect another subscription"
-                    : "Connect this Mac"}
+                  {accounts.length ? "Add account" : "Connect account"}
                 </strong>
-                <small>Optional ID and label</small>
               </span>
               <span aria-hidden="true">+</span>
             </summary>

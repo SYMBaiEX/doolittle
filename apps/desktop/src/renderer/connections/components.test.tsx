@@ -131,11 +131,11 @@ describe("provider account surfaces", () => {
       />,
     );
 
-    expect(markup).toContain("Eliza connected");
-    expect(markup).toContain("No accounts yet");
-    expect(markup).toContain("Connect this Mac");
+    expect(markup).toContain("Eliza native");
+    expect(markup).toContain("Accounts");
+    expect(markup).toContain("Connect account");
     expect(markup).toContain("Sign in &amp; add");
-    expect(markup).toContain("private local store");
+    expect(markup).toContain("Credentials stay local in Eliza");
     expect(markup).toContain('class="provider-pool-toolbar"');
     expect(markup).toContain('aria-label="Pool readiness"');
     expect(markup).toContain("automatic fallback");
@@ -181,8 +181,7 @@ describe("provider account surfaces", () => {
       />,
     );
 
-    expect(markup).toContain("Subscription login needs attention");
-    expect(markup).toContain("Repair login");
-    expect(markup).toContain("Connect another subscription");
+    expect(markup).toContain("Repair auth");
+    expect(markup).toContain("Add account");
   });
 });

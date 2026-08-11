@@ -484,13 +484,15 @@ test.describe("Doolittle desktop navigation", () => {
         page.getByRole("region", {
           name: "Codex spawned-agent account pool",
         }),
-      ).toContainText("Accounts on this Mac", { timeout: 30_000 });
+      ).toContainText("Accounts", { timeout: 30_000 });
       await expect(
         page.getByRole("region", {
           name: "Claude Code spawned-agent account pool",
         }),
-      ).toContainText("Accounts on this Mac", { timeout: 30_000 });
-      await expect(page.getByText("Eliza connected")).toHaveCount(2, {
+      ).toContainText("Accounts", { timeout: 30_000 });
+      await expect(
+        page.locator(".provider-pool-header-actions .badge"),
+      ).toHaveCount(2, {
         timeout: 30_000,
       });
       await expect(page.locator(".provider-pool-directory")).toHaveCount(2);
@@ -502,7 +504,7 @@ test.describe("Doolittle desktop navigation", () => {
         name: "Codex spawned-agent account pool",
       });
       const routingStrategy = codexPool.getByRole("combobox", {
-        name: "Routing strategy",
+        name: "Strategy",
       });
       await expect(routingStrategy).toContainText("Priority");
       const strategyGeometry = await routingStrategy.evaluate((element) => {
@@ -583,14 +585,14 @@ test.describe("Doolittle desktop navigation", () => {
 
       await page.setViewportSize({ width: 390, height: 844 });
       await expect(
-        codexPool.getByRole("button", { name: "Test route" }),
+        codexPool.getByRole("button", { name: "Preview" }),
       ).toBeVisible();
       const narrowProviderLayout = await page.evaluate(() => {
         const pool = document.querySelector(
           '[aria-label="Codex spawned-agent account pool"]',
         );
         const preview = [...document.querySelectorAll("button")].find(
-          (button) => button.textContent?.trim() === "Test route",
+          (button) => button.textContent?.trim() === "Preview",
         );
         const poolRect = pool?.getBoundingClientRect();
         const previewRect = preview?.getBoundingClientRect();
