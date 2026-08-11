@@ -1,46 +1,39 @@
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@elizaos/ui/components/ui/tabs";
+import { useState } from "react";
 import type {
   AccountPoolResponse,
   PluginsResponse,
   RuntimeStatus,
 } from "../shared/contracts";
+import type { NativeAutonomyResponse } from "./components/NativeAutonomyPanel";
+import { PageHeader, type UnknownRecord, useApiResource } from "./lib";
 import {
-  NativeAutonomyPanel,
-  type NativeAutonomyResponse,
-} from "./components/NativeAutonomyPanel";
-import {
-  asArray,
-  asNumber,
-  asRecord,
-  asString,
-  Badge,
-  EmptyBlock,
-  ErrorBlock,
-  LoadingBlock,
-  MetricCard,
-  PageHeader,
-  RawDataDisclosure,
-  titleCase,
-  type UnknownRecord,
-  useApiResource,
-} from "./lib";
+  type GatewayHealthResponse,
+  type GatewayRuntimeResponse,
+  type RuntimeSection,
+  runtimeResourcePolicy,
+} from "./runtime/models";
+import { RuntimeGateway } from "./runtime/RuntimeGateway";
+import { RuntimeInventory } from "./runtime/RuntimeInventory";
+import { RuntimeOverview } from "./runtime/RuntimeOverview";
+import "./runtime-page.css";
 
-interface GatewayHealthResponse {
-  summary?: UnknownRecord;
-  transportControl?: UnknownRecord;
-  sessions?: unknown[];
-  deliveries?: unknown[];
-  traces?: unknown[];
-}
-
-interface GatewayRuntimeResponse {
-  summary?: UnknownRecord;
-  runtime?: UnknownRecord;
-  transportControl?: UnknownRecord;
-  transportInventory?: unknown[];
-  messagingPlugins?: unknown[];
-}
+const RUNTIME_SECTIONS: Array<{
+  id: RuntimeSection;
+  label: string;
+  detail: string;
+}> = [
+  { id: "overview", label: "Overview", detail: "Model, accounts, autonomy" },
+  { id: "gateway", label: "Gateway", detail: "Transports and deliveries" },
+  { id: "inventory", label: "Inventory", detail: "Plugins and ecosystem" },
+];
 
 export function RuntimePage({
   active,
@@ -49,427 +42,112 @@ export function RuntimePage({
   active: boolean;
   onOpenProviders?: () => void;
 }) {
+  const [section, setSection] = useState<RuntimeSection>("overview");
+  const policy = runtimeResourcePolicy(section, active);
   const runtime = useApiResource<RuntimeStatus>(
-    active ? "/runtime/status" : null,
-    [active],
-  );
-  const plugins = useApiResource<PluginsResponse>(
-    active ? "/runtime/plugins" : null,
-    [active],
-  );
-  const ecosystem = useApiResource<UnknownRecord>(
-    active ? "/runtime/ecosystem" : null,
-    [active],
-  );
-  const insights = useApiResource<UnknownRecord>(active ? "/insights" : null, [
-    active,
-  ]);
-  const gatewayHealth = useApiResource<GatewayHealthResponse>(
-    active ? "/gateway/health" : null,
-    [active],
-  );
-  const gatewayRuntime = useApiResource<GatewayRuntimeResponse>(
-    active ? "/gateway/runtime" : null,
-    [active],
+    policy.runtime ? "/runtime/status" : null,
+    [policy.runtime],
   );
   const accountPool = useApiResource<AccountPoolResponse>(
-    active ? "/runtime/account-pool" : null,
-    [active],
+    policy.accountPool ? "/runtime/account-pool" : null,
+    [policy.accountPool],
   );
   const autonomy = useApiResource<NativeAutonomyResponse>(
-    active ? "/autonomy/status" : null,
-    [active],
+    policy.autonomy ? "/autonomy/status" : null,
+    [policy.autonomy],
   );
-  const pooledAccounts = Object.values(
-    accountPool.data?.providers ?? {},
-  ).flatMap((provider) => provider.accounts);
+  const gatewayHealth = useApiResource<GatewayHealthResponse>(
+    policy.gatewayHealth ? "/gateway/health" : null,
+    [policy.gatewayHealth],
+  );
+  const gatewayRuntime = useApiResource<GatewayRuntimeResponse>(
+    policy.gatewayRuntime ? "/gateway/runtime" : null,
+    [policy.gatewayRuntime],
+  );
+  const plugins = useApiResource<PluginsResponse>(
+    policy.plugins ? "/runtime/plugins" : null,
+    [policy.plugins],
+  );
+  const ecosystem = useApiResource<UnknownRecord>(
+    policy.ecosystem ? "/runtime/ecosystem" : null,
+    [policy.ecosystem],
+  );
+  const insights = useApiResource<UnknownRecord>(
+    policy.insights ? "/insights" : null,
+    [policy.insights],
+  );
 
-  const catalog = asArray(plugins.data?.catalog).map(asRecord);
-  const ecosystemPayload = asRecord(ecosystem.data);
-  const insightPayload = asRecord(insights.data);
-  const ownershipPayload = asRecord(insightPayload.ownership);
-  const gatewayHealthSummary = asRecord(gatewayHealth.data?.summary);
-  const gatewayRuntimeSummary = asRecord(gatewayRuntime.data?.summary);
-  const gatewayTransportControl = asRecord(
-    gatewayHealth.data?.transportControl,
-  );
-  const gatewayRuntimeControl = asRecord(gatewayRuntime.data?.transportControl);
-  const gatewaySessions = asArray(gatewayHealth.data?.sessions);
-  const gatewayDeliveries = asArray(gatewayHealth.data?.deliveries);
-  const gatewayTraces = asArray(gatewayHealth.data?.traces);
-  const gatewayInventory = asArray(gatewayRuntime.data?.transportInventory);
-  const gatewayPlugins = asArray(gatewayRuntime.data?.messagingPlugins);
+  const reloadVisibleSection = () => {
+    if (policy.runtime) runtime.reload();
+    if (policy.accountPool) accountPool.reload();
+    if (policy.autonomy) autonomy.reload();
+    if (policy.gatewayHealth) gatewayHealth.reload();
+    if (policy.gatewayRuntime) gatewayRuntime.reload();
+    if (policy.plugins) plugins.reload();
+    if (policy.ecosystem) ecosystem.reload();
+    if (policy.insights) insights.reload();
+  };
+
   return (
-    <PagePanel className="page" variant="workspace">
+    <PagePanel className="page studio-page runtime-page" variant="workspace">
       <PageHeader
         eyebrow="Runtime"
         title="Runtime"
-        description="Inspect assembled runtime details, plugin inventory, ecosystem state, and operator insights."
+        description="Inspect the active model, Eliza-native services, gateway health, and installed capability inventory without loading every diagnostic surface at once."
         actions={
           <Button
             className="text-button"
-            onClick={() => {
-              runtime.reload();
-              plugins.reload();
-              ecosystem.reload();
-              insights.reload();
-              gatewayHealth.reload();
-              gatewayRuntime.reload();
-              accountPool.reload();
-              autonomy.reload();
-            }}
+            disabled={!active}
+            onClick={reloadVisibleSection}
             type="button"
             variant="ghost"
           >
-            Refresh
+            Refresh{" "}
+            {RUNTIME_SECTIONS.find((entry) => entry.id === section)?.label}
           </Button>
         }
       />
-      {runtime.loading ? (
-        <LoadingBlock />
-      ) : runtime.error ? (
-        <ErrorBlock error={runtime.error} retry={runtime.reload} />
-      ) : (
-        <>
-          <div className="metric-grid compact">
-            <MetricCard
-              label="Spawned-agent accounts"
-              value={pooledAccounts.filter((account) => account.enabled).length}
-              detail="Codex and Claude build/research sessions"
-            />
-            <MetricCard
-              label="Provider"
-              value={asString(runtime.data?.provider, "Not set")}
-            />
-            <MetricCard
-              label="Model"
-              value={asString(runtime.data?.model, "Unknown")}
-            />
-            <MetricCard label="Plugins" value={catalog.length} />
-            <MetricCard
-              label="Ownership signals"
-              value={Object.keys(ownershipPayload).length}
-              detail={
-                runtime.data?.fallback?.offlineBootstrapMode
-                  ? "offline bootstrap enabled"
-                  : "offline bootstrap disabled"
-              }
-            />
-          </div>
-          <div className="two-column-grid">
-            <section className="content-card">
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">Spawned agents</span>
-                  <h2>Account routing</h2>
-                </div>
-                <Button
-                  className="text-button"
-                  disabled={!onOpenProviders}
-                  onClick={onOpenProviders}
-                  type="button"
-                  variant="ghost"
-                >
-                  Providers &amp; accounts
-                </Button>
-              </div>
-              {accountPool.loading ? (
-                <LoadingBlock />
-              ) : accountPool.error ? (
-                <ErrorBlock
-                  error={accountPool.error}
-                  retry={accountPool.reload}
-                />
-              ) : (
-                <div className="status-row">
-                  <div>
-                    <strong>
-                      {
-                        pooledAccounts.filter((account) => account.enabled)
-                          .length
-                      }{" "}
-                      enabled account(s)
-                    </strong>
-                    <small>
-                      Pool strategy applies to spawned build and research
-                      sessions, not this runtime's default conversation model.
-                    </small>
-                  </div>
-                  <Badge
-                    tone={
-                      pooledAccounts.some((account) => account.enabled)
-                        ? "good"
-                        : "warn"
-                    }
-                  >
-                    {pooledAccounts.some((account) => account.enabled)
-                      ? "Ready"
-                      : "Connect"}
-                  </Badge>
-                </div>
-              )}
-            </section>
-            <section className="content-card">
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">Binding</span>
-                  <h2>Active provider model</h2>
-                </div>
-                <Badge>{asString(runtime.data?.provider, "Not set")}</Badge>
-              </div>
-              <div className="status-row">
-                <div>
-                  <strong>
-                    {asString(runtime.data?.model, "Unknown model")}
-                  </strong>
-                  <small>
-                    {runtime.data?.fallback?.offlineBootstrapMode
-                      ? "Offline bootstrap: enabled"
-                      : "Offline bootstrap: disabled"}
-                  </small>
-                </div>
-                <Badge tone="good">Running</Badge>
-              </div>
-              <RawDataDisclosure
-                label="Startup receipt"
-                value={runtime.data?.startup}
-              />
-            </section>
-            <NativeAutonomyPanel autonomy={autonomy} />
-            <section className="content-card">
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">Plugins</span>
-                  <h2>Catalog summary</h2>
-                </div>
-                <Badge>{catalog.length}</Badge>
-              </div>
-              {plugins.loading ? (
-                <LoadingBlock />
-              ) : plugins.error ? (
-                <ErrorBlock error={plugins.error} retry={plugins.reload} />
-              ) : catalog.length ? (
-                <div className="stack-list">
-                  {catalog.slice(0, 20).map((entry, index) => (
-                    <article className="status-row" key={String(index)}>
-                      <div>
-                        <strong>
-                          {asString(entry.name, asString(entry.id, "Plugin"))}
-                        </strong>
-                        <small>{asString(entry.id, "No id")}</small>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <EmptyBlock title="No plugin entries">
-                  Runtime is available but has no catalog payload.
-                </EmptyBlock>
-              )}
-            </section>
-          </div>
-          <div className="two-column-grid" style={{ marginTop: "16px" }}>
-            <section className="content-card">
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">Gateway</span>
-                  <h2>Transport health</h2>
-                </div>
-                <Badge>
-                  {asNumber(gatewayTransportControl.ready, 0)}/
-                  {asNumber(gatewayTransportControl.configured, 0)} ready
-                </Badge>
-              </div>
-              {gatewayHealth.loading ? (
-                <LoadingBlock />
-              ) : gatewayHealth.error ? (
-                <ErrorBlock
-                  error={gatewayHealth.error}
-                  retry={gatewayHealth.reload}
-                />
-              ) : (
-                <>
-                  <div className="card-grid">
-                    <MetricCard
-                      label="Sessions"
-                      value={gatewaySessions.length}
-                    />
-                    <MetricCard
-                      label="Deliveries"
-                      value={gatewayDeliveries.length}
-                    />
-                    <MetricCard label="Traces" value={gatewayTraces.length} />
-                    <MetricCard
-                      label="Live services"
-                      value={asNumber(gatewayTransportControl.liveServices, 0)}
-                    />
-                  </div>
-                  <div className="stack-list">
-                    <div className="status-row">
-                      <div>
-                        <strong>
-                          {asString(
-                            gatewayHealthSummary.headline,
-                            "Gateway health unavailable",
-                          )}
-                        </strong>
-                        <small>
-                          {asString(
-                            gatewayHealthSummary.detail,
-                            "No gateway health detail was returned.",
-                          )}
-                        </small>
-                      </div>
-                    </div>
-                  </div>
-                  <RawDataDisclosure
-                    label="Gateway health payload"
-                    value={gatewayHealth.data}
-                  />
-                </>
-              )}
-            </section>
-            <section className="content-card">
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">Gateway</span>
-                  <h2>Runtime attachment</h2>
-                </div>
-                <Badge>{gatewayInventory.length} transports</Badge>
-              </div>
-              {gatewayRuntime.loading ? (
-                <LoadingBlock />
-              ) : gatewayRuntime.error ? (
-                <ErrorBlock
-                  error={gatewayRuntime.error}
-                  retry={gatewayRuntime.reload}
-                />
-              ) : (
-                <>
-                  <div className="card-grid">
-                    <MetricCard
-                      label="Configured"
-                      value={asNumber(gatewayRuntimeControl.configured, 0)}
-                    />
-                    <MetricCard
-                      label="Live services"
-                      value={asNumber(gatewayRuntimeControl.liveServices, 0)}
-                    />
-                    <MetricCard
-                      label="Messaging plugins"
-                      value={gatewayPlugins.length}
-                    />
-                    <MetricCard
-                      label="Inventory"
-                      value={gatewayInventory.length}
-                    />
-                  </div>
-                  <div className="stack-list">
-                    <div className="status-row">
-                      <div>
-                        <strong>
-                          {asString(
-                            gatewayRuntimeSummary.headline,
-                            "Gateway runtime unavailable",
-                          )}
-                        </strong>
-                        <small>
-                          {asString(
-                            gatewayRuntimeSummary.detail,
-                            "No runtime gateway detail was returned.",
-                          )}
-                        </small>
-                      </div>
-                    </div>
-                  </div>
-                  <RawDataDisclosure
-                    label="Gateway runtime payload"
-                    value={gatewayRuntime.data}
-                  />
-                </>
-              )}
-            </section>
-          </div>
-          <div className="two-column-grid" style={{ marginTop: "16px" }}>
-            <section className="content-card">
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">Ecosystem</span>
-                  <h2>Runtime ecosystem snapshot</h2>
-                </div>
-                <Badge>{Object.keys(ecosystemPayload).length}</Badge>
-              </div>
-              {ecosystem.loading ? (
-                <LoadingBlock />
-              ) : ecosystem.error ? (
-                <ErrorBlock error={ecosystem.error} retry={ecosystem.reload} />
-              ) : (
-                <>
-                  <div className="stack-list">
-                    {Object.entries(ecosystemPayload)
-                      .slice(0, 8)
-                      .map(([key, value]) => (
-                        <div className="status-row" key={key}>
-                          <div>
-                            <strong>{titleCase(key)}</strong>
-                            <small>
-                              {Array.isArray(value)
-                                ? `${value.length} entries`
-                                : typeof value === "object" && value
-                                  ? `${Object.keys(asRecord(value)).length} fields`
-                                  : String(value)}
-                            </small>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                  <RawDataDisclosure
-                    label="ElizaOS ecosystem payload"
-                    value={ecosystem.data}
-                  />
-                </>
-              )}
-            </section>
-            <section className="content-card">
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">Operator</span>
-                  <h2>Insight snapshot</h2>
-                </div>
-                <Badge>{Object.keys(insightPayload).length}</Badge>
-              </div>
-              {insights.loading ? (
-                <LoadingBlock />
-              ) : insights.error ? (
-                <ErrorBlock error={insights.error} retry={insights.reload} />
-              ) : (
-                <>
-                  <div className="stack-list">
-                    {Object.entries(ownershipPayload)
-                      .slice(0, 8)
-                      .map(([key, value]) => (
-                        <div className="status-row" key={key}>
-                          <div>
-                            <strong>{titleCase(key)}</strong>
-                            <small>
-                              {typeof value === "object" && value
-                                ? `${Object.keys(asRecord(value)).length} fields`
-                                : String(value)}
-                            </small>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                  <RawDataDisclosure
-                    label="Runtime insights payload"
-                    value={insights.data}
-                  />
-                </>
-              )}
-            </section>
-          </div>
-        </>
-      )}
+
+      <Tabs
+        className="runtime-tabs"
+        onValueChange={(value) => setSection(value as RuntimeSection)}
+        value={section}
+      >
+        <TabsList aria-label="Runtime sections" className="runtime-tabs-list">
+          {RUNTIME_SECTIONS.map((entry) => (
+            <TabsTrigger
+              className="runtime-tab"
+              key={entry.id}
+              value={entry.id}
+            >
+              <span>{entry.label}</span>
+              <small>{entry.detail}</small>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <TabsContent className="runtime-panel" value="overview">
+          <RuntimeOverview
+            accountPool={accountPool}
+            autonomy={autonomy}
+            onOpenProviders={onOpenProviders}
+            runtime={runtime}
+          />
+        </TabsContent>
+        <TabsContent className="runtime-panel" value="gateway">
+          <RuntimeGateway
+            gatewayHealth={gatewayHealth}
+            gatewayRuntime={gatewayRuntime}
+          />
+        </TabsContent>
+        <TabsContent className="runtime-panel" value="inventory">
+          <RuntimeInventory
+            ecosystem={ecosystem}
+            insights={insights}
+            plugins={plugins}
+          />
+        </TabsContent>
+      </Tabs>
     </PagePanel>
   );
 }
