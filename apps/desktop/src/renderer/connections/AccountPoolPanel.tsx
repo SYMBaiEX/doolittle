@@ -80,7 +80,10 @@ export function AccountPoolPanel({
 
   if (!snapshot) {
     return (
-      <article className="provider-pool-panel is-unavailable">
+      <section
+        aria-label={`${descriptor.label} spawned-agent account pool`}
+        className="provider-pool-panel is-unavailable"
+      >
         <div className="provider-pool-panel__header">
           <div className="provider-identity-mark" aria-hidden="true">
             {descriptor.shortLabel}
@@ -96,7 +99,7 @@ export function AccountPoolPanel({
         <EmptyBlock title="Account pool is not available">
           Refresh runtime services, then return here to configure agent routing.
         </EmptyBlock>
-      </article>
+      </section>
     );
   }
 
@@ -104,7 +107,10 @@ export function AccountPoolPanel({
   const accounts = sortedAccounts(snapshot);
 
   return (
-    <article className="provider-pool-panel">
+    <section
+      aria-label={`${descriptor.label} spawned-agent account pool`}
+      className="provider-pool-panel"
+    >
       <header className="provider-pool-panel__header">
         <div className="provider-identity-mark" aria-hidden="true">
           {descriptor.shortLabel}
@@ -350,6 +356,6 @@ export function AccountPoolPanel({
           </details>
         </section>
       </div>
-    </article>
+    </section>
   );
 }

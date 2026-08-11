@@ -456,16 +456,16 @@ test.describe("Doolittle desktop navigation", () => {
         page.getByRole("region", {
           name: "Codex spawned-agent account pool",
         }),
-      ).toContainText("Routing & accounts", { timeout: 30_000 });
+      ).toContainText("Account roster", { timeout: 30_000 });
       await expect(
         page.getByRole("region", {
           name: "Claude Code spawned-agent account pool",
         }),
-      ).toContainText("Routing & accounts", { timeout: 30_000 });
+      ).toContainText("Account roster", { timeout: 30_000 });
       await expect(page.getByText("Bridge ready")).toHaveCount(2, {
         timeout: 30_000,
       });
-      await expect(page.getByText("No pooled accounts")).toHaveCount(2);
+      await expect(page.getByText("No accounts yet")).toHaveCount(2);
       await expect(page.locator("body")).not.toContainText(/access[_-]?token/i);
       await expect(page.locator("body")).not.toContainText(
         /refresh[_-]?token/i,
@@ -479,18 +479,19 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(routingStrategy).toContainText("Priority");
       await expect(page.locator(".provider-import-disclosure")).toHaveCount(2);
       await expect(
-        page.getByRole("textbox", { name: "New account ID" }),
-      ).toHaveCount(0);
+        page.getByRole("textbox", { name: "Account ID" }),
+      ).toHaveCount(2);
       await expect(
         page.getByText("Checking the default chat provider…"),
       ).toHaveCount(0, { timeout: 30_000 });
-      const providerCardHeights = await page
-        .locator(".view-connections .provider-card")
-        .evaluateAll((cards) =>
-          cards.slice(0, 2).map((card) => card.getBoundingClientRect().height),
-        );
-      expect(providerCardHeights).toHaveLength(2);
-      expect(providerCardHeights[0]).toBeLessThan(providerCardHeights[1]);
+      await expect(page.locator(".provider-overview")).toContainText(
+        "Current route",
+      );
+      await expect(page.locator(".provider-connection-row")).toHaveCount(4);
+      await expect(page.locator(".provider-pool-panel")).toHaveCount(2);
+      await expect(
+        page.locator(".view-connections .provider-card"),
+      ).toHaveCount(0);
       await providersHeading.scrollIntoViewIfNeeded();
       const providersScreenshot = testInfo.outputPath(
         "doolittle-providers-and-accounts.png",
@@ -504,35 +505,31 @@ test.describe("Doolittle desktop navigation", () => {
         contentType: "image/png",
         path: providersScreenshot,
       });
-      const codexProviderCard = page
-        .locator(".provider-card")
-        .filter({ has: codexPool });
-      const accountDisclosure = codexProviderCard.getByText(
-        "Add pooled account",
-        { exact: true },
-      );
+      const accountDisclosure = codexPool.getByText("Set up first account", {
+        exact: true,
+      });
       await accountDisclosure.click();
       await expect(
-        codexProviderCard.getByRole("textbox", { name: "New account ID" }),
-      ).toBeVisible();
-      await accountDisclosure.click();
-      await expect(
-        codexProviderCard.getByRole("textbox", { name: "New account ID" }),
+        codexPool.getByRole("textbox", { name: "Account ID" }),
       ).toBeHidden();
+      await accountDisclosure.click();
+      await expect(
+        codexPool.getByRole("textbox", { name: "Account ID" }),
+      ).toBeVisible();
       await routingStrategy.click();
       await expect(page.getByRole("option")).toHaveCount(4);
       await page.keyboard.press("Escape");
 
       await page.setViewportSize({ width: 390, height: 844 });
       await expect(
-        codexPool.getByRole("button", { name: "Preview selection" }),
+        codexPool.getByRole("button", { name: "Preview next account" }),
       ).toBeVisible();
       const narrowProviderLayout = await page.evaluate(() => {
         const pool = document.querySelector(
           '[aria-label="Codex spawned-agent account pool"]',
         );
         const preview = [...document.querySelectorAll("button")].find(
-          (button) => button.textContent?.trim() === "Preview selection",
+          (button) => button.textContent?.trim() === "Preview next account",
         );
         const poolRect = pool?.getBoundingClientRect();
         const previewRect = preview?.getBoundingClientRect();
