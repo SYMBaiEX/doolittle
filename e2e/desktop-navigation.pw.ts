@@ -583,6 +583,53 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(page.getByRole("option")).toHaveCount(4);
       await page.keyboard.press("Escape");
 
+      await page.evaluate(() => {
+        window.location.hash = "#/dashboard";
+      });
+      await expect(
+        page.getByRole("heading", { name: "Dashboard" }),
+      ).toBeVisible();
+      const connectionsRevisit = await page.evaluate(
+        () =>
+          new Promise<{ elapsedMs: number; sawLoadingState: boolean }>(
+            (resolve, reject) => {
+              const started = performance.now();
+              let sawLoadingState = false;
+              let timeout = 0;
+              const inspect = () => {
+                sawLoadingState ||= Boolean(
+                  document.querySelector(".view-connections .loading-block"),
+                );
+                if (
+                  document.querySelectorAll(
+                    ".view-connections .provider-connection-row",
+                  ).length === 4
+                ) {
+                  window.clearTimeout(timeout);
+                  observer.disconnect();
+                  resolve({
+                    elapsedMs: performance.now() - started,
+                    sawLoadingState,
+                  });
+                }
+              };
+              const observer = new MutationObserver(inspect);
+              observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+              });
+              timeout = window.setTimeout(() => {
+                observer.disconnect();
+                reject(new Error("Connections revisit did not render"));
+              }, 5_000);
+              window.location.hash = "#/connections";
+              inspect();
+            },
+          ),
+      );
+      expect(connectionsRevisit.sawLoadingState).toBe(false);
+      expect(connectionsRevisit.elapsedMs).toBeLessThan(750);
+
       await page.setViewportSize({ width: 390, height: 844 });
       await expect(
         codexPool.getByRole("button", { name: "Preview" }),

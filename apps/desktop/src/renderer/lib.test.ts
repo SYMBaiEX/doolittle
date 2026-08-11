@@ -1,5 +1,17 @@
 import { describe, expect, test } from "vitest";
-import { errorMessage, formatDataPreview } from "./lib";
+import { apiResourceCacheKey, errorMessage, formatDataPreview } from "./lib";
+
+describe("apiResourceCacheKey", () => {
+  test("shares endpoint data while isolating workspace-scoped dependencies", () => {
+    expect(apiResourceCacheKey("/runtime/accounts", [true])).toBe(
+      apiResourceCacheKey("/runtime/accounts", [true]),
+    );
+    expect(apiResourceCacheKey("/repo/status", [true, "/repo/a"])).not.toBe(
+      apiResourceCacheKey("/repo/status", [true, "/repo/b"]),
+    );
+    expect(apiResourceCacheKey(null, [true])).toBeNull();
+  });
+});
 
 describe("errorMessage", () => {
   test("removes Electron IPC request wrappers", () => {

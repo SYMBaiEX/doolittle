@@ -1,6 +1,6 @@
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Badge as ElizaBadge } from "@elizaos/ui/components/ui/badge";
-import { useFetchData } from "@elizaos/ui/hooks/useFetchData";
+import { useCachedResource } from "@elizaos/ui/hooks/useCachedResource";
 import type { DependencyList, ReactNode } from "react";
 import { desktopRequest } from "./eliza-client";
 
@@ -19,6 +19,25 @@ export interface ApiResource<T> {
   error: string;
   loading: boolean;
   reload: () => void;
+}
+
+function cacheDependency(value: unknown, index: number): string {
+  let serialized: string | undefined;
+  try {
+    serialized = JSON.stringify(value);
+  } catch {
+    serialized = String(value);
+  }
+  return `${index}:${typeof value}:${serialized ?? String(value)}`;
+}
+
+export function apiResourceCacheKey(
+  path: string | null,
+  dependencies: DependencyList = [],
+): string | null {
+  if (!path) return null;
+  const dependencyKey = dependencies.map(cacheDependency).join("\u001f");
+  return `doolittle:api:${path}\u001e${dependencyKey}`;
 }
 
 export function errorMessage(error: unknown): string {
@@ -61,12 +80,12 @@ export function useApiResource<T>(
   path: string | null,
   dependencies: DependencyList = [],
 ): ApiResource<T> {
-  const resource = useFetchData<T | null>(
+  const resource = useCachedResource<T | null>(
+    apiResourceCacheKey(path, dependencies),
     (signal) =>
       path
         ? desktopRequest<T>(path, "GET", undefined, signal)
         : Promise.resolve(null),
-    [path, ...dependencies],
   );
 
   return {

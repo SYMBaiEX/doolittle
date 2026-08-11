@@ -92,8 +92,8 @@ export function ConnectionsPage({
     [active],
   );
   const resource = useApiResource<AccountsResponse>(
-    active && !accountPool.loading ? "/runtime/accounts" : null,
-    [active, accountPool.loading],
+    active ? "/runtime/accounts" : null,
+    [active],
   );
   const [busy, setBusy] = useState("");
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
