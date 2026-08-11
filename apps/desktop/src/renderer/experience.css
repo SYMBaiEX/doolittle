@@ -1656,10 +1656,14 @@ button.chat-session-meta-pill:hover {
 }
 
 .memory-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
   align-items: start;
 }
 
-.memory-summary-card:nth-child(3) {
+.memory-snapshot-card,
+.memory-agent-card {
   grid-column: 1 / -1;
 }
 
@@ -1696,8 +1700,15 @@ button.chat-session-meta-pill:hover {
   width: fit-content;
 }
 
-.memory-agent-card {
-  grid-column: 1 / -1;
+@media (max-width: 760px) {
+  .memory-content {
+    grid-template-columns: 1fr;
+  }
+
+  .memory-snapshot-card,
+  .memory-agent-card {
+    grid-column: auto;
+  }
 }
 
 .json-preview {
@@ -2026,6 +2037,19 @@ button.chat-session-meta-pill:hover {
 .media-form,
 .media-result {
   min-height: 100%;
+}
+
+.media-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  align-content: start;
+  gap: 0 10px;
+}
+
+.media-form > :is(.card-heading, .form-actions),
+.media-form > label:has(textarea),
+.media-form > label:first-of-type:last-of-type {
+  grid-column: 1 / -1;
 }
 
 .media-form label {

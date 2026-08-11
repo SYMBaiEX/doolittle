@@ -763,6 +763,46 @@ test.describe("Doolittle desktop navigation", () => {
       await verifyAllRoutes();
 
       await page.evaluate(() => {
+        window.location.hash = "#/runtime";
+      });
+      const runtimeTabs = page.getByRole("tablist", {
+        name: "Runtime sections",
+      });
+      await runtimeTabs.getByRole("tab", { name: /Gateway/ }).click();
+      await expect(
+        runtimeTabs.getByRole("tab", { name: /Gateway/ }),
+      ).toHaveAttribute("aria-selected", "true");
+      await expect(
+        page.getByRole("heading", { name: "Transport control" }),
+      ).toBeVisible();
+      await runtimeTabs.getByRole("tab", { name: /Inventory/ }).click();
+      await expect(
+        page.getByRole("heading", { name: "Capability catalog" }),
+      ).toBeVisible();
+      await runtimeTabs.getByRole("tab", { name: /Overview/ }).click();
+      await expect(
+        page.getByRole("heading", { name: "Account routing" }),
+      ).toBeVisible();
+
+      await page.evaluate(() => {
+        window.location.hash = "#/memory";
+      });
+      const memoryTabs = page.getByRole("tablist", {
+        name: "Memory workspaces",
+      });
+      await memoryTabs.getByRole("tab", { name: "Profiles & recall" }).click();
+      await expect(
+        memoryTabs.getByRole("tab", { name: "Profiles & recall" }),
+      ).toHaveAttribute("aria-selected", "true");
+      await expect(
+        page.getByRole("heading", { name: "Profile search" }),
+      ).toBeVisible();
+      await memoryTabs.getByRole("tab", { name: "Shared memory" }).click();
+      await expect(
+        memoryTabs.getByRole("tab", { name: "Shared memory" }),
+      ).toHaveAttribute("aria-selected", "true");
+
+      await page.evaluate(() => {
         window.location.hash = "#/skills";
       });
       await page.getByRole("tab", { name: /Workshop/ }).click();
