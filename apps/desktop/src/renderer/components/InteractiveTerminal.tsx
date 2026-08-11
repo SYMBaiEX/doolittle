@@ -17,6 +17,13 @@ import type {
 import { errorMessage } from "../lib";
 import { compactWorkspacePath } from "../workspace-path";
 import {
+  appendTerminalBytes as appendTerminalOutputBytes,
+  boundedTerminalOutput,
+  closeTerminalTabState,
+  terminalChatContext,
+  terminalTabLabelId,
+} from "./interactive-terminal-state";
+import {
   browserInteractiveTerminalStorage,
   createInteractiveTerminalTab,
   type InteractiveTerminalTabState,
@@ -28,19 +35,17 @@ import {
 } from "./interactive-terminal-store";
 import "./interactive-terminal.css";
 
-function boundedOutput(output: string): string {
-  return output.slice(-MAX_RENDERED_TERMINAL_OUTPUT);
-}
-
 export function appendTerminalBytes(
   output: string,
   chunks: string,
   truncatedBeforeCursor = false,
 ): string {
-  const marker = truncatedBeforeCursor
-    ? "\n[Doolittle retained the newest terminal output.]"
-    : "";
-  return boundedOutput(`${output}${marker}${chunks}`);
+  return appendTerminalOutputBytes(
+    output,
+    chunks,
+    MAX_RENDERED_TERMINAL_OUTPUT,
+    truncatedBeforeCursor,
+  );
 }
 
 function preserveTabs(
@@ -301,7 +306,10 @@ export function InteractiveTerminal({
                 state: "closed",
                 sessionId: null,
                 stale: true,
-                output: boundedOutput(`${tab.output}\n[${message}]\n`),
+                output: boundedTerminalOutput(
+                  `${tab.output}\n[${message}]\n`,
+                  MAX_RENDERED_TERMINAL_OUTPUT,
+                ),
                 outputBytes: 0,
               }
             : tab,
@@ -482,7 +490,7 @@ export function InteractiveTerminal({
   };
 
   const closeTab = async (tabId: string) => {
-    const target = tabs.find((tab) => tab.id === tabId);
+    const target = tabsRef.current.find((tab) => tab.id === tabId);
     if (!target) return;
     const hasClose = isClosingTab[target.id] ?? false;
     if (hasClose) return;
@@ -514,19 +522,19 @@ export function InteractiveTerminal({
       }
     }
 
-    const targetIndex = tabs.findIndex((tab) => tab.id === tabId);
-    const nextTabs = tabs.filter((tab) => tab.id !== tabId);
-    const fallback = preserveTabs(
-      workspacePath,
-      nextTabs.length
-        ? nextTabs
-        : [createInteractiveTerminalTab(nextTabName(0))],
-    );
-    setTabs(fallback);
-    if (activeTabId === tabId) {
-      const nextActive = fallback[targetIndex] ?? fallback.at(-1);
-      if (nextActive) setActiveTabId(nextActive.id);
-    }
+    const fallbackTab = createInteractiveTerminalTab(nextTabName(0));
+    fallbackTab.cwd = workspacePath || fallbackTab.cwd;
+    const reconciled = closeTerminalTabState({
+      tabs: tabsRef.current,
+      activeTabId: activeTabIdRef.current,
+      tabId,
+      fallbackTab,
+    });
+    const nextTabs = preserveTabs(workspacePath, reconciled.tabs);
+    tabsRef.current = nextTabs;
+    activeTabIdRef.current = reconciled.activeTabId;
+    setTabs(nextTabs);
+    setActiveTabId(reconciled.activeTabId);
     setIsClosingTab((current) => ({ ...current, [tabId]: false }));
     setNotice(`Closed terminal ${target.name}.`);
   };
@@ -541,14 +549,16 @@ export function InteractiveTerminal({
     next.cwd = workspacePath || next.cwd;
     const nextTabs = [...currentTabs, next];
     tabsRef.current = nextTabs;
+    activeTabIdRef.current = next.id;
     setTabs(nextTabs);
     setActiveTabId(next.id);
     requestAnimationFrame(() => tabRefs.current[next.id]?.focus());
   };
 
   const selectTab = (tabId: string) => {
-    if (tabId === activeTabId) return;
-    if (!tabs.some((tab) => tab.id === tabId)) return;
+    if (tabId === activeTabIdRef.current) return;
+    if (!tabsRef.current.some((tab) => tab.id === tabId)) return;
+    activeTabIdRef.current = tabId;
     setActiveTabId(tabId);
     setNotice("");
     requestAnimationFrame(() => tabRefs.current[tabId]?.focus());
@@ -748,8 +758,12 @@ export function InteractiveTerminal({
           >
             {tabs.map((tab, index) => {
               const isActive = tab.id === activeTabId;
+              const tabLabelId = terminalTabLabelId(tab.id);
               return (
                 <div className="interactive-terminal-tab-cell" key={tab.id}>
+                  <span className="sr-only" id={tabLabelId}>
+                    {tab.name} terminal tab
+                  </span>
                   {renamingTabId === tab.id ? (
                     <input
                       aria-label={`Rename terminal ${tab.name}`}
@@ -772,7 +786,7 @@ export function InteractiveTerminal({
                   ) : (
                     <button
                       aria-controls={`interactive-terminal-${tab.id}-panel`}
-                      aria-label={`${tab.name} terminal tab`}
+                      aria-labelledby={tabLabelId}
                       aria-selected={isActive}
                       className={`interactive-terminal-tab ${
                         isActive ? "interactive-terminal-tab-active" : ""
@@ -835,7 +849,7 @@ export function InteractiveTerminal({
         <div
           aria-label="Terminal output"
           aria-labelledby={
-            activeTab ? `interactive-terminal-${activeTab.id}-tab` : undefined
+            activeTab ? terminalTabLabelId(activeTab.id) : undefined
           }
           aria-live="off"
           className="interactive-terminal-output"
@@ -889,14 +903,7 @@ export function InteractiveTerminal({
             disabled={!activeTab?.output}
             onClick={() =>
               activeTab
-                ? onSendToChat(
-                    [
-                      "Use this interactive terminal output as context.",
-                      "<terminal_context>",
-                      activeTab.output.slice(-20_000),
-                      "</terminal_context>",
-                    ].join("\n"),
-                  )
+                ? onSendToChat(terminalChatContext(activeTab.output))
                 : undefined
             }
             type="button"

@@ -97,6 +97,30 @@ describe("interactive terminal state", () => {
     });
   });
 
+  it("does not mark an untouched persisted closed tab as stale", () => {
+    const tab = createInteractiveTerminalTab("Terminal 1");
+    tab.id = "default-tab";
+    const state = parseInteractiveTerminalState({
+      activeTabId: tab.id,
+      tabs: [tab],
+    });
+
+    expect(state.tabs[0]?.stale).toBe(false);
+  });
+
+  it("marks a persisted non-running session as stale", () => {
+    const tab = createInteractiveTerminalTab("Terminal 1");
+    tab.id = "closed-session";
+    tab.sessionId = "real-session";
+    tab.state = "closed";
+    const state = parseInteractiveTerminalState({
+      activeTabId: tab.id,
+      tabs: [tab],
+    });
+
+    expect(state.tabs[0]?.stale).toBe(true);
+  });
+
   it("preserves active tabs during initial workspace hydration after user interaction", () => {
     const secondTab = createInteractiveTerminalTab("Terminal 2");
     const current: InteractiveTerminalWorkspaceState = {

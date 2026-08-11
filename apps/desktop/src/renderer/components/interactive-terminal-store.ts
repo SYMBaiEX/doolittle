@@ -209,7 +209,12 @@ export function parseInteractiveTerminalState(
     activeTabId: activeTab ? activeTabId : normalizedTabs[0].id,
     tabs: normalizedTabs.map((tab) => ({
       ...tab,
-      stale: tab.state === "running" ? tab.stale : true,
+      // A new, untouched terminal tab is intentionally persisted as closed.
+      // Only a tab that previously had a real session is stale after reload.
+      stale:
+        tab.state === "running"
+          ? tab.stale
+          : Boolean(tab.sessionId) || tab.stale,
     })),
   };
 }
