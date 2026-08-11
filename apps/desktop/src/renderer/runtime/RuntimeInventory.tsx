@@ -1,4 +1,5 @@
 import type { PluginsResponse } from "../../shared/contracts";
+import { CompactStatStrip } from "../components/CompactStatStrip";
 import {
   type ApiResource,
   asArray,
@@ -8,7 +9,6 @@ import {
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
-  MetricCard,
   RawDataDisclosure,
   titleCase,
   type UnknownRecord,
@@ -30,17 +30,20 @@ export function RuntimeInventory({
 
   return (
     <div className="runtime-section-stack">
-      <div className="runtime-metrics runtime-metrics--three">
-        <MetricCard label="Plugins" value={catalog.length} />
-        <MetricCard
-          label="Ecosystem fields"
-          value={Object.keys(ecosystemPayload).length}
-        />
-        <MetricCard
-          label="Ownership signals"
-          value={Object.keys(ownershipPayload).length}
-        />
-      </div>
+      <CompactStatStrip
+        label="Runtime inventory summary"
+        stats={[
+          { label: "Plugins", value: catalog.length },
+          {
+            label: "Ecosystem fields",
+            value: Object.keys(ecosystemPayload).length,
+          },
+          {
+            label: "Ownership signals",
+            value: Object.keys(ownershipPayload).length,
+          },
+        ]}
+      />
 
       <div className="runtime-inventory-grid">
         <section className="content-card">

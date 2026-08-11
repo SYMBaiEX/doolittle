@@ -1,6 +1,7 @@
 import { Button } from "@elizaos/ui/components/ui/button";
 import { Input } from "@elizaos/ui/components/ui/input";
 import { type FormEvent, useState } from "react";
+import { CompactStatStrip } from "../components/CompactStatStrip";
 import {
   type ApiResource,
   asNumber,
@@ -11,7 +12,6 @@ import {
   ErrorBlock,
   formatBoundedPreview,
   LoadingBlock,
-  MetricCard,
   Notice,
   useApiResource,
 } from "../lib";
@@ -146,24 +146,18 @@ export function MemoryProfilesPanel({
             retry={profileSummary.reload}
           />
         ) : (
-          <div className="card-grid">
-            <MetricCard
-              label="Profiles"
-              value={asNumber(summary.totalProfiles, 0)}
-            />
-            <MetricCard
-              label="Beliefs"
-              value={asNumber(summary.totalBeliefs, 0)}
-            />
-            <MetricCard
-              label="Trusted"
-              value={asNumber(summary.trustedRelationships, 0)}
-            />
-            <MetricCard
-              label="Engaged"
-              value={asNumber(summary.engagedProfiles, 0)}
-            />
-          </div>
+          <CompactStatStrip
+            label="Rolodex summary"
+            stats={[
+              { label: "Profiles", value: asNumber(summary.totalProfiles, 0) },
+              { label: "Beliefs", value: asNumber(summary.totalBeliefs, 0) },
+              {
+                label: "Trusted",
+                value: asNumber(summary.trustedRelationships, 0),
+              },
+              { label: "Engaged", value: asNumber(summary.engagedProfiles, 0) },
+            ]}
+          />
         )}
       </section>
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AcpBridgePanel } from "./components/AcpBridgePanel";
 import { CompactCatalogList } from "./components/CompactCatalogList";
+import { CompactStatStrip } from "./components/CompactStatStrip";
 import { McpControlPanel } from "./components/McpControlPanel";
 import {
   asArray,
@@ -10,7 +11,6 @@ import {
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
-  MetricCard,
   PageHeader,
   titleCase,
   useApiResource,
@@ -123,32 +123,29 @@ export function ToolsPage({ active }: { active: boolean }) {
           </button>
         }
       />
-      <div className="metric-grid compact">
-        <MetricCard
-          label="Registered"
-          value={asNumber(totals.total, entries.length)}
-        />
-        <MetricCard label="Enabled" value={asNumber(totals.enabled)} />
-        <MetricCard
-          label="Categories"
-          value={asArray(totals.categories).length}
-        />
-        <MetricCard
-          label="Policy"
-          value={
-            tools.data?.policyOwned
+      <CompactStatStrip
+        label="Tool catalog summary"
+        stats={[
+          {
+            label: "Registered",
+            value: asNumber(totals.total, entries.length),
+          },
+          { label: "Enabled", value: asNumber(totals.enabled), tone: "good" },
+          { label: "Categories", value: asArray(totals.categories).length },
+          {
+            label: "Policy",
+            value: tools.data?.policyOwned
               ? titleCase(tools.data.effectiveProfile ?? profile)
-              : "Unverified"
-          }
-          detail={
-            tools.data?.policyError
+              : "Unverified",
+            detail: tools.data?.policyError
               ? tools.data.policyError
               : tools.data?.policyOwned
                 ? `Eliza ToolPolicyService · ${asNumber(totals.pluginTools)} plugin tools`
-                : "Registered actions only"
-          }
-        />
-      </div>
+                : "Registered actions only",
+            tone: tools.data?.policyOwned ? "good" : "warn",
+          },
+        ]}
+      />
       <details
         className="tools-integrations"
         onToggle={(event) => setIntegrationsOpen(event.currentTarget.open)}

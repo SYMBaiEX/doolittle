@@ -10,6 +10,7 @@ import {
 } from "@elizaos/ui/components/ui/select";
 import { useState } from "react";
 import { CompactCatalogList } from "./components/CompactCatalogList";
+import { CompactStatStrip } from "./components/CompactStatStrip";
 import {
   asArray,
   asRecord,
@@ -17,7 +18,6 @@ import {
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
-  MetricCard,
   Notice,
   PageHeader,
   titleCase,
@@ -99,12 +99,19 @@ export function PluginsPage({ active }: { active: boolean }) {
           </Button>
         }
       />
-      <div className="metric-grid compact">
-        <MetricCard label="Catalog" value={entries.length} />
-        <MetricCard label="Enabled" value={enabled} />
-        <MetricCard label="Inactive" value={entries.length - enabled} />
-        <MetricCard label="Categories" value={categories.length - 1} />
-      </div>
+      <CompactStatStrip
+        label="Plugin catalog summary"
+        stats={[
+          { label: "Catalog", value: entries.length },
+          { label: "Enabled", value: enabled, tone: "good" },
+          {
+            label: "Inactive",
+            value: entries.length - enabled,
+            tone: entries.length - enabled ? "warn" : "neutral",
+          },
+          { label: "Categories", value: categories.length - 1 },
+        ]}
+      />
       <Notice>
         This page reflects the packages actually assembled by the ElizaOS
         runtime. Provider enablement follows account and environment readiness.

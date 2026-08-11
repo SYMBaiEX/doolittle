@@ -164,7 +164,6 @@
 }
 
 .content-card,
-.metric-card,
 .panel,
 .split-workspace {
   border-color: color-mix(in srgb, var(--border) 92%, var(--accent));
@@ -189,27 +188,6 @@
 .card-heading > div,
 .panel-heading > div {
   min-width: 0;
-}
-
-.metric-grid {
-  gap: max(7px, calc(var(--page-gap) - 6px));
-}
-
-.metric-card {
-  min-height: 104px;
-  padding: var(--card-pad);
-  background:
-    linear-gradient(145deg, var(--operator-glow), transparent 44%),
-    var(--surface);
-}
-
-.metric-card::before {
-  width: 28px;
-  background: var(--accent);
-}
-
-.metric-card strong {
-  font-size: clamp(22px, 2vw, 28px);
 }
 
 .status-row,
@@ -907,7 +885,6 @@ textarea:focus {
 }
 
 .content-card,
-.metric-card,
 .panel,
 .split-workspace {
   border-color: var(--line-subtle);
@@ -931,15 +908,6 @@ textarea:focus {
 .settings-group-heading h2,
 .detail-toolbar h2 {
   font-size: 16px;
-}
-
-.metric-card {
-  min-height: 96px;
-  background: var(--surface);
-}
-
-.metric-card::before {
-  width: 22px;
 }
 
 .notice {
@@ -1407,54 +1375,6 @@ th {
   letter-spacing: 0.055em;
 }
 
-/* Summary numbers behave like one instrument strip instead of hero cards. */
-.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
-.metric-grid {
-  gap: 0;
-  background: var(--surface);
-  border: 1px solid var(--line-subtle);
-  border-radius: 4px;
-}
-
-.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
-  .metric-card {
-  min-height: 68px;
-  padding: 10px 13px;
-  background: transparent;
-  border: 0;
-  border-right: 1px solid var(--line-subtle);
-  border-radius: 0;
-}
-
-.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
-  .metric-card:last-child {
-  border-right: 0;
-}
-
-.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
-  .metric-card::before {
-  display: none;
-}
-
-.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
-  .metric-card
-  > span {
-  font-size: 8px;
-}
-
-.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
-  .metric-card
-  strong {
-  margin: 4px 0 0;
-  font-size: 21px;
-}
-
-.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
-  .metric-card
-  small {
-  font-size: 9px;
-}
-
 /* Shared records and forms */
 .view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
 .content-card {
@@ -1792,10 +1712,6 @@ th {
   border-radius: 0;
 }
 
-.activity-summary-strip {
-  border-radius: 4px;
-}
-
 .activity-event-list {
   gap: 0;
 }
@@ -1885,6 +1801,64 @@ th {
 
 .view-dashboard .dashboard-action-card {
   padding: 10px 0;
+}
+
+.operations-trace-details {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.operations-trace-details > summary {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 9px 13px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.operations-trace-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.operations-trace-details > summary > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.operations-trace-details > summary small,
+.operations-trace-details > summary > span:last-child {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+}
+
+.operations-trace-details > summary::after {
+  color: var(--muted);
+  content: "+";
+  font-family: var(--font-mono);
+}
+
+.operations-trace-details[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.operations-trace-details[open] > summary::after {
+  content: "−";
+}
+
+.operations-trace-grid {
+  gap: 8px;
+  padding: 8px;
+}
+
+.operations-trace-grid > .content-card {
+  padding: 12px;
 }
 
 .browser-page {
@@ -2120,19 +2094,6 @@ th {
 }
 
 @media (max-width: 700px) {
-  .metric-grid,
-  .gateway-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .metric-card:nth-child(2n) {
-    border-right: 0;
-  }
-
-  .metric-card:nth-child(n + 3) {
-    border-top: 1px solid var(--line-subtle);
-  }
-
   .two-column-grid,
   .field-grid {
     grid-template-columns: 1fr;
@@ -2444,7 +2405,7 @@ th {
     .view-orchestration,
     .view-browser
   )
-  :is(.eyebrow, .metric-card > span, .badge) {
+  :is(.eyebrow, .badge) {
   font-size: var(--page-readable-meta);
 }
 

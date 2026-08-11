@@ -2,6 +2,7 @@ import { LogViewer } from "@elizaos/ui/cloud-ui/components/log-viewer";
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { useState } from "react";
+import { CompactStatStrip } from "./components/CompactStatStrip";
 import {
   asArray,
   asRecord,
@@ -10,7 +11,6 @@ import {
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
-  MetricCard,
   PageHeader,
   useApiResource,
 } from "./lib";
@@ -72,12 +72,19 @@ export function LogsPage({ active }: { active: boolean }) {
           </Button>
         }
       />
-      <div className="metric-grid compact">
-        <MetricCard label="Log records" value={entries.length} />
-        <MetricCard label="Deliveries" value={deliveryEntries.length} />
-        <MetricCard label="Terminal commands" value={commandEntries.length} />
-        <MetricCard label="Filter" value={level === "all" ? "All" : level} />
-      </div>
+      <CompactStatStrip
+        label="Operations summary"
+        stats={[
+          { label: "Log records", value: entries.length },
+          { label: "Deliveries", value: deliveryEntries.length },
+          { label: "Terminal commands", value: commandEntries.length },
+          {
+            label: "Filter",
+            value: level === "all" ? "All" : level,
+            tone: level === "all" ? "neutral" : "warn",
+          },
+        ]}
+      />
       <LogViewer
         badges={[{ label: `${entries.length} records`, variant: "outline" }]}
         className="log-console"
@@ -110,125 +117,140 @@ export function LogsPage({ active }: { active: boolean }) {
           onChange: setQuery,
           placeholder: "Search messages, scopes, and details",
         }}
-        subtitle="Inspect the redacted structured event stream emitted by the private local runtime."
         title="Runtime logs"
       />
-      <div className="two-column-grid" style={{ marginTop: "16px" }}>
-        <section className="content-card">
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">Delivery state</span>
-              <h2>Recent deliveries</h2>
+      <details className="operations-trace-details">
+        <summary>
+          <span>
+            <strong>Delivery and terminal history</strong>
+            <small>Secondary operational traces</small>
+          </span>
+          <span>
+            {deliveryEntries.length} deliveries · {commandEntries.length}{" "}
+            commands
+          </span>
+        </summary>
+        <div className="two-column-grid operations-trace-grid">
+          <section className="content-card">
+            <div className="card-heading">
+              <div>
+                <span className="eyebrow">Delivery state</span>
+                <h2>Recent deliveries</h2>
+              </div>
+              <Button
+                className="text-button"
+                onClick={deliveries.reload}
+                type="button"
+                variant="ghost"
+              >
+                Refresh
+              </Button>
             </div>
-            <Button
-              className="text-button"
-              onClick={deliveries.reload}
-              type="button"
-              variant="ghost"
-            >
-              Refresh
-            </Button>
-          </div>
-          {deliveries.loading ? (
-            <LoadingBlock />
-          ) : deliveries.error ? (
-            <ErrorBlock error={deliveries.error} retry={deliveries.reload} />
-          ) : deliveryEntries.length ? (
-            <div className="stack-list">
-              {deliveryEntries.slice(0, 12).map((entry, index) => (
-                <div
-                  className="status-row"
-                  key={`${asString(entry.id, "delivery")}:${String(index)}`}
-                >
-                  <div>
-                    <strong>
+            {deliveries.loading ? (
+              <LoadingBlock />
+            ) : deliveries.error ? (
+              <ErrorBlock error={deliveries.error} retry={deliveries.reload} />
+            ) : deliveryEntries.length ? (
+              <div className="stack-list">
+                {deliveryEntries.slice(0, 12).map((entry, index) => (
+                  <div
+                    className="status-row"
+                    key={`${asString(entry.id, "delivery")}:${String(index)}`}
+                  >
+                    <div>
+                      <strong>
+                        {asString(
+                          entry.platform,
+                          asString(entry.channel, "Delivery"),
+                        )}
+                      </strong>
+                      <small>
+                        {asString(
+                          entry.preview,
+                          asString(
+                            entry.detail,
+                            asString(entry.message, "No preview"),
+                          ),
+                        )}
+                      </small>
+                    </div>
+                    <Badge>
                       {asString(
-                        entry.platform,
-                        asString(entry.channel, "Delivery"),
+                        entry.status,
+                        asString(entry.state, "recorded"),
                       )}
-                    </strong>
-                    <small>
-                      {asString(
-                        entry.preview,
-                        asString(
-                          entry.detail,
-                          asString(entry.message, "No preview"),
-                        ),
-                      )}
-                    </small>
+                    </Badge>
                   </div>
-                  <Badge>
-                    {asString(entry.status, asString(entry.state, "recorded"))}
-                  </Badge>
-                </div>
-              ))}
+                ))}
+              </div>
+            ) : (
+              <EmptyBlock title="No deliveries recorded">
+                Delivery traces will appear here once gateway or home outputs
+                run.
+              </EmptyBlock>
+            )}
+          </section>
+          <section className="content-card">
+            <div className="card-heading">
+              <div>
+                <span className="eyebrow">Command trail</span>
+                <h2>Terminal history</h2>
+              </div>
+              <Button
+                className="text-button"
+                onClick={terminalHistory.reload}
+                type="button"
+                variant="ghost"
+              >
+                Refresh
+              </Button>
             </div>
-          ) : (
-            <EmptyBlock title="No deliveries recorded">
-              Delivery traces will appear here once gateway or home outputs run.
-            </EmptyBlock>
-          )}
-        </section>
-        <section className="content-card">
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">Command trail</span>
-              <h2>Terminal history</h2>
-            </div>
-            <Button
-              className="text-button"
-              onClick={terminalHistory.reload}
-              type="button"
-              variant="ghost"
-            >
-              Refresh
-            </Button>
-          </div>
-          {terminalHistory.loading ? (
-            <LoadingBlock />
-          ) : terminalHistory.error ? (
-            <ErrorBlock
-              error={terminalHistory.error}
-              retry={terminalHistory.reload}
-            />
-          ) : commandEntries.length ? (
-            <div className="stack-list">
-              {commandEntries.slice(0, 12).map((entry, index) => (
-                <div
-                  className="status-row"
-                  key={`${asString(entry.command, "command")}:${String(index)}`}
-                >
-                  <div>
-                    <strong>
-                      {asString(entry.command, "Unknown command")}
-                    </strong>
-                    <small>
-                      {[
-                        asString(entry.backend),
-                        asString(entry.cwd),
-                        asString(entry.status),
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || "No command metadata"}
-                    </small>
+            {terminalHistory.loading ? (
+              <LoadingBlock />
+            ) : terminalHistory.error ? (
+              <ErrorBlock
+                error={terminalHistory.error}
+                retry={terminalHistory.reload}
+              />
+            ) : commandEntries.length ? (
+              <div className="stack-list">
+                {commandEntries.slice(0, 12).map((entry, index) => (
+                  <div
+                    className="status-row"
+                    key={`${asString(entry.command, "command")}:${String(index)}`}
+                  >
+                    <div>
+                      <strong>
+                        {asString(entry.command, "Unknown command")}
+                      </strong>
+                      <small>
+                        {[
+                          asString(entry.backend),
+                          asString(entry.cwd),
+                          asString(entry.status),
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "No command metadata"}
+                      </small>
+                    </div>
+                    <Badge tone={entry.ok === false ? "bad" : "neutral"}>
+                      {entry.ok === false
+                        ? "Failed"
+                        : entry.ok === true
+                          ? "OK"
+                          : asString(entry.exitCode, "Recorded")}
+                    </Badge>
                   </div>
-                  <Badge tone={entry.ok === false ? "bad" : "neutral"}>
-                    {entry.ok === false
-                      ? "Failed"
-                      : entry.ok === true
-                        ? "OK"
-                        : asString(entry.exitCode, "Recorded")}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyBlock title="No recent commands">
-              Local terminal execution history has not been recorded yet.
-            </EmptyBlock>
-          )}
-        </section>
-      </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyBlock title="No recent commands">
+                Local terminal execution history has not been recorded yet.
+              </EmptyBlock>
+            )}
+          </section>
+        </div>
+      </details>
     </PagePanel>
   );
 }

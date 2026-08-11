@@ -5,8 +5,8 @@ import type {
   ActivityExportResponse,
   ActivityFeedResponse,
 } from "../shared/contracts";
+import { CompactStatStrip } from "./components/CompactStatStrip";
 import {
-  Badge,
   desktopRequest,
   displayTimestamp,
   EmptyBlock,
@@ -241,32 +241,22 @@ export function ActivityPage({ active }: { active: boolean }) {
         <LoadingBlock label="Loading activity sources…" />
       ) : filtered.length ? (
         <>
-          <section
-            aria-label="Activity overview"
-            className="activity-summary-strip"
-          >
-            <div className="activity-summary-item">
-              <i className="activity-summary-signal live" aria-hidden="true" />
-              <span>Live now</span>
-              <strong>{overview.live}</strong>
-            </div>
-            <div className="activity-summary-item">
-              <i
-                className="activity-summary-signal attention"
-                aria-hidden="true"
-              />
-              <span>Needs attention</span>
-              <strong>{overview.attention}</strong>
-            </div>
-            <div className="activity-summary-item">
-              <i
-                className="activity-summary-signal settled"
-                aria-hidden="true"
-              />
-              <span>Recorded</span>
-              <strong>{overview.recorded}</strong>
-            </div>
-          </section>
+          <CompactStatStrip
+            label="Activity overview"
+            stats={[
+              {
+                label: "Live now",
+                tone: overview.live ? "warn" : "neutral",
+                value: overview.live,
+              },
+              {
+                label: "Needs attention",
+                tone: overview.attention ? "bad" : "good",
+                value: overview.attention,
+              },
+              { label: "Recorded", value: overview.recorded },
+            ]}
+          />
 
           <section className="content-card activity-feed">
             <div className="card-heading">
@@ -295,16 +285,11 @@ export function ActivityPage({ active }: { active: boolean }) {
                       <div className="activity-entry-body">
                         <header className="activity-entry-head">
                           <div className="activity-entry-meta">
-                            <Badge tone={tone}>{SOURCE_LABELS[row.kind]}</Badge>
-                            <Badge tone="neutral">{row.status}</Badge>
-                            <span className="activity-liveness">
-                              <i
-                                className="activity-liveness-signal"
-                                aria-hidden="true"
-                              />
-                              {state.liveness === "live" ? "Live" : "Settled"}
-                              <span aria-hidden="true">·</span>
-                              {row.target}
+                            <span className={`activity-source is-${tone}`}>
+                              {SOURCE_LABELS[row.kind]}
+                            </span>
+                            <span className="activity-event-context">
+                              {row.status} · {row.target}
                             </span>
                           </div>
                           <time dateTime={row.occurredAt}>

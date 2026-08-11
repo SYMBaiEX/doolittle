@@ -100,18 +100,10 @@ export function CompatibilityPage({ active }: { active: boolean }) {
         </EmptyBlock>
       )}
       {compatibility.data ? (
-        <section className="content-card" style={{ marginTop: "16px" }}>
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">Raw payload</span>
-              <h2>Compatibility response</h2>
-            </div>
-          </div>
-          <RawDataDisclosure
-            label="Compatibility report"
-            value={compatibility.data}
-          />
-        </section>
+        <RawDataDisclosure
+          label="Raw compatibility report"
+          value={compatibility.data}
+        />
       ) : null}
     </div>
   );

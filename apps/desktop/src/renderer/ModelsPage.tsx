@@ -70,6 +70,14 @@ const accountProviders = [
   },
 ] as const;
 
+function providerIsReady(status: Record<string, unknown>): boolean {
+  return (
+    Boolean(status.nativeReady) ||
+    Boolean(status.fallbackReady) ||
+    Boolean(status.reusable)
+  );
+}
+
 export function ModelsPage({
   active,
   runtime,
@@ -115,6 +123,12 @@ export function ModelsPage({
     [selectedModelId, selectedProvider?.models],
   );
   const reasoningOptions = selectedModel?.reasoning?.options ?? [];
+  const readyProviderCount = accountProviders.filter((provider) =>
+    providerIsReady(asRecord(accounts.data?.accounts?.[provider.snapshot])),
+  ).length;
+  const registeredCapabilityCount = (models.data?.capabilities ?? []).filter(
+    (capability) => capability.handlerRegistered,
+  ).length;
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -201,7 +215,7 @@ export function ModelsPage({
       ) : settings.error ? (
         <ErrorBlock error={settings.error} retry={settings.reload} />
       ) : (
-        <div className="two-column-grid">
+        <div className="two-column-grid models-workspace">
           <form className="content-card form-card" onSubmit={save}>
             <div className="card-heading">
               <div>
@@ -373,87 +387,104 @@ export function ModelsPage({
               </button>
             </div>
           </form>
-          <section className="content-card">
-            <div className="card-heading">
-              <div>
-                <span className="eyebrow">Linked runtimes</span>
-                <h2>Provider readiness</h2>
-              </div>
-            </div>
-            {accounts.loading ? (
-              <LoadingBlock />
-            ) : accounts.error ? (
-              <ErrorBlock error={accounts.error} retry={accounts.reload} />
-            ) : (
-              <div className="stack-list">
-                {accountProviders.map((provider) => {
-                  const status = asRecord(
-                    accounts.data?.accounts?.[provider.snapshot],
-                  );
-                  const ready =
-                    Boolean(status.nativeReady) ||
-                    Boolean(status.fallbackReady) ||
-                    Boolean(status.reusable);
-                  return (
-                    <div className="status-row" key={provider.key}>
-                      <div>
-                        <strong>{provider.label}</strong>
-                        <small>
-                          {asString(status.detail, "Not configured")}
-                        </small>
-                      </div>
-                      <Badge
-                        tone={
-                          accounts.data?.activeProvider === provider.key
-                            ? "good"
-                            : ready
-                              ? "neutral"
-                              : "warn"
-                        }
-                      >
-                        {accounts.data?.activeProvider === provider.key
-                          ? "Active"
-                          : ready
-                            ? "Ready"
-                            : "Setup needed"}
-                      </Badge>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-          <section className="content-card">
-            <div className="card-heading">
-              <div>
-                <span className="eyebrow">Runtime truth</span>
-                <h2>Registered capabilities</h2>
-              </div>
-            </div>
-            {models.loading ? (
-              <LoadingBlock />
-            ) : models.error ? (
-              <ErrorBlock error={models.error} retry={models.reload} />
-            ) : (
-              <div className="stack-list">
-                {(models.data?.capabilities ?? []).map((capability) => (
-                  <div className="status-row" key={capability.id}>
-                    <div>
-                      <strong>{capability.label}</strong>
-                      <small>{capability.detail}</small>
-                    </div>
-                    <Badge
-                      tone={capability.handlerRegistered ? "good" : "warn"}
-                    >
-                      {capability.handlerRegistered
-                        ? "Handler registered"
-                        : "Unavailable"}
-                    </Badge>
+          <aside className="models-diagnostics" aria-label="Model diagnostics">
+            <details className="model-diagnostic" open>
+              <summary>
+                <span className="model-diagnostic__copy">
+                  <strong>Provider readiness</strong>
+                  <small>Linked local runtimes</small>
+                </span>
+                <Badge tone={readyProviderCount ? "good" : "warn"}>
+                  {readyProviderCount}/{accountProviders.length} ready
+                </Badge>
+              </summary>
+              <div className="model-diagnostic__body">
+                {accounts.loading ? (
+                  <LoadingBlock />
+                ) : accounts.error ? (
+                  <ErrorBlock error={accounts.error} retry={accounts.reload} />
+                ) : (
+                  <div className="stack-list">
+                    {accountProviders.map((provider) => {
+                      const status = asRecord(
+                        accounts.data?.accounts?.[provider.snapshot],
+                      );
+                      const ready = providerIsReady(status);
+                      return (
+                        <div className="status-row" key={provider.key}>
+                          <div>
+                            <strong>{provider.label}</strong>
+                            <small>
+                              {asString(status.detail, "Not configured")}
+                            </small>
+                          </div>
+                          <Badge
+                            tone={
+                              accounts.data?.activeProvider === provider.key
+                                ? "good"
+                                : ready
+                                  ? "neutral"
+                                  : "warn"
+                            }
+                          >
+                            {accounts.data?.activeProvider === provider.key
+                              ? "Active"
+                              : ready
+                                ? "Ready"
+                                : "Setup needed"}
+                          </Badge>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </section>
+            </details>
+            <details className="model-diagnostic">
+              <summary>
+                <span className="model-diagnostic__copy">
+                  <strong>Registered capabilities</strong>
+                  <small>Runtime handler truth</small>
+                </span>
+                <Badge
+                  tone={
+                    registeredCapabilityCount ===
+                    (models.data?.capabilities ?? []).length
+                      ? "good"
+                      : "warn"
+                  }
+                >
+                  {registeredCapabilityCount}/
+                  {(models.data?.capabilities ?? []).length}
+                </Badge>
+              </summary>
+              <div className="model-diagnostic__body">
+                {models.loading ? (
+                  <LoadingBlock />
+                ) : models.error ? (
+                  <ErrorBlock error={models.error} retry={models.reload} />
+                ) : (
+                  <div className="stack-list">
+                    {(models.data?.capabilities ?? []).map((capability) => (
+                      <div className="status-row" key={capability.id}>
+                        <div>
+                          <strong>{capability.label}</strong>
+                          <small>{capability.detail}</small>
+                        </div>
+                        <Badge
+                          tone={capability.handlerRegistered ? "good" : "warn"}
+                        >
+                          {capability.handlerRegistered
+                            ? "Registered"
+                            : "Unavailable"}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </details>
+          </aside>
         </div>
       )}
     </div>

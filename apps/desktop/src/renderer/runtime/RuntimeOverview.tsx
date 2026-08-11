@@ -3,6 +3,7 @@ import type {
   AccountPoolResponse,
   RuntimeStatus,
 } from "../../shared/contracts";
+import { CompactStatStrip } from "../components/CompactStatStrip";
 import {
   NativeAutonomyPanel,
   type NativeAutonomyResponse,
@@ -14,7 +15,6 @@ import {
   Badge,
   ErrorBlock,
   LoadingBlock,
-  MetricCard,
   RawDataDisclosure,
 } from "../lib";
 
@@ -42,26 +42,28 @@ export function RuntimeOverview({
 
   return (
     <div className="runtime-section-stack">
-      <div className="runtime-metrics">
-        <MetricCard
-          label="Provider"
-          value={asString(runtime.data?.provider, "Not set")}
-        />
-        <MetricCard
-          label="Model"
-          value={asString(runtime.data?.model, "Unknown")}
-        />
-        <MetricCard
-          detail="Spawned coding and research sessions"
-          label="Enabled accounts"
-          value={enabledAccounts.length}
-        />
-        <MetricCard
-          detail="Official Eliza autonomy service"
-          label="Autonomy"
-          value={autonomyPayload.running === true ? "Running" : "Manual"}
-        />
-      </div>
+      <CompactStatStrip
+        label="Runtime summary"
+        stats={[
+          {
+            label: "Provider",
+            value: asString(runtime.data?.provider, "Not set"),
+          },
+          { label: "Model", value: asString(runtime.data?.model, "Unknown") },
+          {
+            detail: "Coding and research sessions",
+            label: "Enabled accounts",
+            tone: enabledAccounts.length ? "good" : "warn",
+            value: enabledAccounts.length,
+          },
+          {
+            detail: "Official Eliza service",
+            label: "Autonomy",
+            tone: autonomyPayload.running === true ? "good" : "neutral",
+            value: autonomyPayload.running === true ? "Running" : "Manual",
+          },
+        ]}
+      />
 
       <div className="runtime-overview-grid">
         <section className="content-card">

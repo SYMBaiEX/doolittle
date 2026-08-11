@@ -238,24 +238,6 @@ export function Badge({
   );
 }
 
-export function MetricCard({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: ReactNode;
-  detail?: ReactNode;
-}) {
-  return (
-    <PagePanel.SummaryCard className="metric-card">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      {detail ? <small>{detail}</small> : null}
-    </PagePanel.SummaryCard>
-  );
-}
-
 export function formatDataPreview(
   value: unknown,
   maxCharacters = 30_000,

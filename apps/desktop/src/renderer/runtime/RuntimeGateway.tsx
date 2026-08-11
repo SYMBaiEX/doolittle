@@ -1,3 +1,4 @@
+import { CompactStatStrip } from "../components/CompactStatStrip";
 import {
   type ApiResource,
   asArray,
@@ -7,7 +8,6 @@ import {
   Badge,
   ErrorBlock,
   LoadingBlock,
-  MetricCard,
   RawDataDisclosure,
 } from "../lib";
 import type { GatewayHealthResponse, GatewayRuntimeResponse } from "./models";
@@ -31,20 +31,24 @@ export function RuntimeGateway({
 
   return (
     <div className="runtime-section-stack">
-      <div className="runtime-metrics">
-        <MetricCard
-          detail={`${asNumber(healthControl.configured, 0)} configured`}
-          label="Ready transports"
-          value={asNumber(healthControl.ready, 0)}
-        />
-        <MetricCard label="Sessions" value={sessions.length} />
-        <MetricCard label="Deliveries" value={deliveries.length} />
-        <MetricCard
-          detail={`${messagingPlugins.length} messaging plugins`}
-          label="Inventory"
-          value={inventory.length}
-        />
-      </div>
+      <CompactStatStrip
+        label="Gateway runtime summary"
+        stats={[
+          {
+            detail: `${asNumber(healthControl.configured, 0)} configured`,
+            label: "Ready transports",
+            tone: asNumber(healthControl.ready, 0) ? "good" : "warn",
+            value: asNumber(healthControl.ready, 0),
+          },
+          { label: "Sessions", value: sessions.length },
+          { label: "Deliveries", value: deliveries.length },
+          {
+            detail: `${messagingPlugins.length} messaging plugins`,
+            label: "Inventory",
+            value: inventory.length,
+          },
+        ]}
+      />
 
       <div className="runtime-detail-grid">
         <section className="content-card">

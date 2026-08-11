@@ -11,6 +11,7 @@ import type {
   SessionSummary,
   SessionUsageSummary,
 } from "../shared/contracts";
+import { CompactStatStrip } from "./components/CompactStatStrip";
 import {
   asArray,
   asNumber,
@@ -22,7 +23,6 @@ import {
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
-  MetricCard,
   PageHeader,
   useApiResource,
 } from "./lib";
@@ -456,38 +456,43 @@ export function SessionsPage({
               {mutationError ? (
                 <div className="inline-error">{mutationError}</div>
               ) : null}
-              <div className="metric-grid compact" style={{ margin: "16px 0" }}>
-                <MetricCard
-                  label="Messages"
-                  value={compactNumber(
-                    usage.data?.usage?.messageCount ??
-                      selected.messageCount ??
-                      0,
-                  )}
-                  detail={`Updated ${displayTimestamp(
-                    usage.data?.usage?.endedAt ?? selected.endedAt,
-                  )}`}
-                />
-                <MetricCard
-                  label="Estimated tokens"
-                  value={compactNumber(usage.data?.usage?.estimatedTokens ?? 0)}
-                  detail={`${compactNumber(
-                    usage.data?.usage?.characterCount ?? 0,
-                  )} characters`}
-                />
-                <MetricCard
-                  label="Participants"
-                  value={selected.participants.length || 0}
-                  detail={selected.participants.join(", ") || "local session"}
-                />
-                <MetricCard
-                  label="Continuity"
-                  value={continuity.data?.sessions?.length ?? 0}
-                  detail={
-                    summary.data?.summary?.continuityKey || "No continuity key"
-                  }
-                />
-              </div>
+              <CompactStatStrip
+                label="Session summary"
+                stats={[
+                  {
+                    label: "Messages",
+                    value: compactNumber(
+                      usage.data?.usage?.messageCount ??
+                        selected.messageCount ??
+                        0,
+                    ),
+                    detail: `Updated ${displayTimestamp(
+                      usage.data?.usage?.endedAt ?? selected.endedAt,
+                    )}`,
+                  },
+                  {
+                    label: "Estimated tokens",
+                    value: compactNumber(
+                      usage.data?.usage?.estimatedTokens ?? 0,
+                    ),
+                    detail: `${compactNumber(
+                      usage.data?.usage?.characterCount ?? 0,
+                    )} characters`,
+                  },
+                  {
+                    label: "Participants",
+                    value: selected.participants.length || 0,
+                    detail: selected.participants.join(", ") || "Local session",
+                  },
+                  {
+                    label: "Continuity",
+                    value: continuity.data?.sessions?.length ?? 0,
+                    detail:
+                      summary.data?.summary?.continuityKey ||
+                      "No continuity key",
+                  },
+                ]}
+              />
               <div className="two-column-grid" style={{ marginBottom: "16px" }}>
                 <section className="content-card">
                   <div className="card-heading">
@@ -697,28 +702,31 @@ export function AnalyticsPage({ active }: { active: boolean }) {
         <ErrorBlock error={resource.error} retry={resource.reload} />
       ) : (
         <>
-          <div className="metric-grid">
-            <MetricCard
-              label="Sessions"
-              value={compactNumber(totals.sessions ?? 0)}
-              detail="persisted locally"
-            />
-            <MetricCard
-              label="Messages"
-              value={compactNumber(totals.messages ?? 0)}
-              detail={`${compactNumber(totals.userMessages ?? 0)} from you`}
-            />
-            <MetricCard
-              label="Estimated tokens"
-              value={compactNumber(totals.estimatedTokens ?? 0)}
-              detail="character-based estimate"
-            />
-            <MetricCard
-              label="Assistant replies"
-              value={compactNumber(totals.assistantMessages ?? 0)}
-              detail={`${compactNumber(totals.systemMessages ?? 0)} system events`}
-            />
-          </div>
+          <CompactStatStrip
+            label="Analytics summary"
+            stats={[
+              {
+                detail: "Persisted locally",
+                label: "Sessions",
+                value: compactNumber(totals.sessions ?? 0),
+              },
+              {
+                detail: `${compactNumber(totals.userMessages ?? 0)} from you`,
+                label: "Messages",
+                value: compactNumber(totals.messages ?? 0),
+              },
+              {
+                detail: "Character-based estimate",
+                label: "Estimated tokens",
+                value: compactNumber(totals.estimatedTokens ?? 0),
+              },
+              {
+                detail: `${compactNumber(totals.systemMessages ?? 0)} system events`,
+                label: "Assistant replies",
+                value: compactNumber(totals.assistantMessages ?? 0),
+              },
+            ]}
+          />
           <section className="content-card">
             <div className="card-heading">
               <div>

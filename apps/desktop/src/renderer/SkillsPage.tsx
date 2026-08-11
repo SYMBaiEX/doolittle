@@ -1,5 +1,6 @@
 import { type KeyboardEvent, useState } from "react";
 import { CompactCatalogList } from "./components/CompactCatalogList";
+import { CompactStatStrip } from "./components/CompactStatStrip";
 import { SkillWorkshopPanel } from "./components/SkillWorkshopPanel";
 import {
   asArray,
@@ -9,7 +10,6 @@ import {
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
-  MetricCard,
   PageHeader,
   titleCase,
   useApiResource,
@@ -110,18 +110,18 @@ export function SkillsPage({ active }: { active: boolean }) {
           </button>
         }
       />
-      <div className="metric-grid compact">
-        <MetricCard
-          label="Available"
-          value={asNumber(summaryValue.total, entries.length)}
-        />
-        <MetricCard label="Curated" value={asNumber(summaryValue.curated)} />
-        <MetricCard
-          label="Generated"
-          value={asNumber(summaryValue.generated)}
-        />
-        <MetricCard label="Installed" value={installedValues.length} />
-      </div>
+      <CompactStatStrip
+        label="Skill catalog summary"
+        stats={[
+          {
+            label: "Available",
+            value: asNumber(summaryValue.total, entries.length),
+          },
+          { label: "Curated", value: asNumber(summaryValue.curated) },
+          { label: "Generated", value: asNumber(summaryValue.generated) },
+          { label: "Installed", value: installedValues.length, tone: "good" },
+        ]}
+      />
       <div
         aria-label="Skills views"
         className="skills-page-switcher"

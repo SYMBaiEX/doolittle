@@ -3,6 +3,72 @@
   gap: 14px;
 }
 
+.models-workspace {
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+}
+
+.models-diagnostics {
+  display: grid;
+  gap: 8px;
+}
+
+.model-diagnostic {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.model-diagnostic > summary {
+  display: flex;
+  min-height: 49px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.model-diagnostic > summary::-webkit-details-marker {
+  display: none;
+}
+
+.model-diagnostic__copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.model-diagnostic__copy small {
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+
+.model-diagnostic > summary::after {
+  color: var(--muted);
+  content: "+";
+  font-family: var(--font-mono);
+}
+
+.model-diagnostic[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.model-diagnostic[open] > summary::after {
+  content: "−";
+}
+
+.model-diagnostic__body {
+  padding: 0 12px 8px;
+}
+
+@media (max-width: 960px) {
+  .models-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
 .provider-overview {
   position: relative;
   display: grid;

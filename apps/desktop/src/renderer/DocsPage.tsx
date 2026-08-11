@@ -1,3 +1,4 @@
+import { CompactStatStrip } from "./components/CompactStatStrip";
 import {
   asArray,
   asRecord,
@@ -5,7 +6,6 @@ import {
   Badge,
   ErrorBlock,
   LoadingBlock,
-  MetricCard,
   Notice,
   PageHeader,
   titleCase,
@@ -117,12 +117,19 @@ export function DocsPage({ active }: { active: boolean }) {
           </p>
         </div>
       </div>
-      <div className="metric-grid compact">
-        <MetricCard label="Health checks" value={checks.length} />
-        <MetricCard label="Passing" value={passing} />
-        <MetricCard label="Runtime transport" value="Loopback" />
-        <MetricCard label="Desktop bridge" value="Sandboxed" />
-      </div>
+      <CompactStatStrip
+        label="Application summary"
+        stats={[
+          { label: "Health checks", value: checks.length },
+          {
+            label: "Passing",
+            value: passing,
+            tone: passing === checks.length ? "good" : "warn",
+          },
+          { label: "Runtime transport", value: "Loopback" },
+          { label: "Desktop bridge", value: "Sandboxed", tone: "good" },
+        ]}
+      />
       <div className="two-column-grid">
         <section className="content-card">
           <div className="card-heading">

@@ -1,4 +1,5 @@
 import { Button } from "@elizaos/ui/components/ui/button";
+import { CompactStatStrip } from "../components/CompactStatStrip";
 import {
   type ApiResource,
   asArray,
@@ -10,7 +11,6 @@ import {
   ErrorBlock,
   formatBoundedPreview,
   LoadingBlock,
-  MetricCard,
   Notice,
 } from "../lib";
 import type { MemoryResponse, MemorySummary } from "./models";
@@ -75,19 +75,20 @@ export function MemorySnapshotPanel({
           </div>
           <Badge>{target === "memory" ? "Shared" : "User"}</Badge>
         </div>
-        <div className="card-grid">
-          <MetricCard label="Entries" value={asNumber(summary.entries, 0)} />
-          <MetricCard
-            label="Characters"
-            value={asNumber(summary.characters, 0)}
-          />
-          <MetricCard
-            label="Target"
-            value={
-              asString(summary.target, target) === "memory" ? "Shared" : "User"
-            }
-          />
-        </div>
+        <CompactStatStrip
+          label={`${targetLabel} summary`}
+          stats={[
+            { label: "Entries", value: asNumber(summary.entries, 0) },
+            { label: "Characters", value: asNumber(summary.characters, 0) },
+            {
+              label: "Target",
+              value:
+                asString(summary.target, target) === "memory"
+                  ? "Shared"
+                  : "User",
+            },
+          ]}
+        />
       </section>
 
       <section className="content-card memory-summary-card">

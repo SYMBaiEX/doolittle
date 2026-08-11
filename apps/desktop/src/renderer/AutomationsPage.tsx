@@ -7,6 +7,7 @@ import {
   buildAutomationRequest,
   summarizeAutomation,
 } from "./automation-model";
+import { CompactStatStrip } from "./components/CompactStatStrip";
 import { InlineActionConfirmation } from "./components/InlineActionConfirmation";
 import {
   type ActionFeedback,
@@ -20,7 +21,6 @@ import {
   ErrorBlock,
   errorMessage,
   LoadingBlock,
-  MetricCard,
   Notice,
   PageHeader,
   titleCase,
@@ -161,28 +161,33 @@ export function AutomationsPage({ active }: { active: boolean }) {
         }
       />
 
-      <div className="metric-grid compact automation-metrics">
-        <MetricCard
-          label="Active"
-          value={activeJobs}
-          detail={`${entries.length} configured`}
-        />
-        <MetricCard
-          label="Webhook inputs"
-          value={webhookJobs}
-          detail="Local capability URLs"
-        />
-        <MetricCard
-          label="Recent runs"
-          value={runEntries.length}
-          detail="Durable trace receipts"
-        />
-        <MetricCard
-          label="Failures"
-          value={failedRuns}
-          detail={failedRuns ? "Needs attention" : "All clear"}
-        />
-      </div>
+      <CompactStatStrip
+        label="Automation summary"
+        stats={[
+          {
+            detail: `${entries.length} configured`,
+            label: "Active",
+            tone: activeJobs ? "good" : "neutral",
+            value: activeJobs,
+          },
+          {
+            detail: "Local capability URLs",
+            label: "Webhook inputs",
+            value: webhookJobs,
+          },
+          {
+            detail: "Durable trace receipts",
+            label: "Recent runs",
+            value: runEntries.length,
+          },
+          {
+            detail: failedRuns ? "Needs attention" : "All clear",
+            label: "Failures",
+            tone: failedRuns ? "bad" : "good",
+            value: failedRuns,
+          },
+        ]}
+      />
 
       {showCreate ? (
         <form className="automation-builder" onSubmit={create}>

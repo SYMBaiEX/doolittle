@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { CompactStatStrip } from "./components/CompactStatStrip";
 import { InlineActionConfirmation } from "./components/InlineActionConfirmation";
 import {
   approvedPairingSenders,
@@ -20,7 +21,6 @@ import {
   EmptyBlock,
   errorMessage,
   LoadingBlock,
-  MetricCard,
   Notice,
   PageHeader,
   titleCase,
@@ -236,28 +236,34 @@ export function GatewayPage({ active }: { active: boolean }) {
         </Notice>
       ) : null}
 
-      <div className="metric-grid gateway-metrics">
-        <MetricCard
-          label="Gateway state"
-          value={gateway.running ? "Running locally" : "Not running"}
-          detail={gateway.reason}
-        />
-        <MetricCard
-          label="Transport readiness"
-          value={`${gateway.ready} ready`}
-          detail={`${gateway.operational} operational of ${gateway.configured} configured`}
-        />
-        <MetricCard
-          label="Recorded messages"
-          value={entries.length}
-          detail={`${asArray(inbox.data?.inbox).length} inbox · ${asArray(outbox.data?.outbox).length} outbox`}
-        />
-        <MetricCard
-          label="Pairing requests"
-          value={pendingPairings.length}
-          detail="Awaiting local operator approval"
-        />
-      </div>
+      <CompactStatStrip
+        label="Gateway summary"
+        stats={[
+          {
+            detail: gateway.reason,
+            label: "Gateway",
+            tone: gateway.running ? "good" : "warn",
+            value: gateway.running ? "Running" : "Stopped",
+          },
+          {
+            detail: `${gateway.operational} operational of ${gateway.configured}`,
+            label: "Transports",
+            tone: gateway.ready ? "good" : "warn",
+            value: `${gateway.ready} ready`,
+          },
+          {
+            detail: `${asArray(inbox.data?.inbox).length} inbox · ${asArray(outbox.data?.outbox).length} outbox`,
+            label: "Messages",
+            value: entries.length,
+          },
+          {
+            detail: "Awaiting approval",
+            label: "Pairing",
+            tone: pendingPairings.length ? "warn" : "neutral",
+            value: pendingPairings.length,
+          },
+        ]}
+      />
 
       <div className="gateway-layout">
         <section
@@ -348,26 +354,33 @@ export function GatewayPage({ active }: { active: boolean }) {
                   <time dateTime={entry.at}>{displayTimestamp(entry.at)}</time>
                 </div>
                 <p>{entry.preview}</p>
-                <div className="gateway-entry-details">
-                  <span>Route: {entry.sessionId || "Not recorded"}</span>
-                  <span>Room: {entry.roomId || "Not recorded"}</span>
-                  {entry.threadId ? (
-                    <span>Thread: {entry.threadId}</span>
-                  ) : null}
-                  {entry.author ? <span>From: {entry.author}</span> : null}
-                  {entry.attachmentCount ? (
-                    <span>
-                      {entry.attachmentCount} attachment
-                      {entry.attachmentCount === 1 ? "" : "s"}
-                    </span>
-                  ) : null}
-                </div>
+                <details className="gateway-entry-details">
+                  <summary>Route details</summary>
+                  <div>
+                    <span>Route: {entry.sessionId || "Not recorded"}</span>
+                    <span>Room: {entry.roomId || "Not recorded"}</span>
+                    {entry.threadId ? (
+                      <span>Thread: {entry.threadId}</span>
+                    ) : null}
+                    {entry.author ? <span>From: {entry.author}</span> : null}
+                    {entry.attachmentCount ? (
+                      <span>
+                        {entry.attachmentCount} attachment
+                        {entry.attachmentCount === 1 ? "" : "s"}
+                      </span>
+                    ) : null}
+                  </div>
+                </details>
                 {entry.direction === "inbox" ? (
                   <div className="gateway-replay-row">
-                    <span>
-                      Reprocesses this recorded inbound preview on its original
-                      thread route and may produce a new external reply.
-                    </span>
+                    {confirmReplayId === entry.id ? (
+                      <span>
+                        Reprocesses this inbound record on its original route
+                        and may produce a new external reply.
+                      </span>
+                    ) : (
+                      <span>Replay this recorded inbound message.</span>
+                    )}
                     <div className="gateway-replay-actions">
                       {confirmReplayId === entry.id ? (
                         <button

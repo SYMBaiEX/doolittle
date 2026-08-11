@@ -2,15 +2,6 @@
   --automation-line: color-mix(in srgb, var(--accent) 28%, var(--border));
 }
 
-.automation-metrics .metric-card {
-  position: relative;
-  overflow: hidden;
-}
-
-.automation-metrics .metric-card::after {
-  content: none;
-}
-
 .automation-builder {
   overflow: hidden;
   background: var(--surface);

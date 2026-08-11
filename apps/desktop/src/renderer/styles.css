@@ -654,62 +654,6 @@ select:focus-visible {
   align-items: start;
 }
 
-.metric-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.metric-card {
-  position: relative;
-  display: flex;
-  min-height: 111px;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 15px;
-  background: color-mix(in srgb, var(--surface-raised) 94%, transparent);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-}
-
-.metric-card::before {
-  position: absolute;
-  top: -1px;
-  left: -1px;
-  width: 34px;
-  height: 1px;
-  content: "";
-  background: var(--accent);
-}
-
-.metric-grid.compact .metric-card {
-  min-height: 94px;
-}
-
-.metric-card > span {
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-meta, 10px);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.metric-card strong {
-  margin: 8px 0 2px;
-  color: var(--text);
-  font-family: var(--font-display);
-  font-size: 28px;
-  font-weight: 650;
-  letter-spacing: -0.04em;
-}
-
-.metric-card small {
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-meta, 10px);
-}
-
 .badge {
   display: inline-flex;
   min-height: 21px;
@@ -2422,10 +2366,6 @@ td {
     padding-left: 24px;
   }
 
-  .metric-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .two-column-grid {
     grid-template-columns: 1fr;
   }
@@ -2465,10 +2405,6 @@ td {
   .filter-bar select {
     width: 100%;
     min-width: 0;
-  }
-
-  .metric-card {
-    min-height: 96px;
   }
 
   .content-card {
