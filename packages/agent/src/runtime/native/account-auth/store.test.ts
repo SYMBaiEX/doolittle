@@ -176,6 +176,7 @@ describe.sequential("account-auth store helpers", () => {
     expect(
       loadAccount("openai-codex", DOOLITTLE_LINKED_ACCOUNT_IDS.codex),
     ).toMatchObject({
+      label: "Codex on this Mac",
       organizationId: "chatgpt-account-id",
       credentials: {
         access: "codex-access-token",

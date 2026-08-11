@@ -4,10 +4,12 @@ const accountPool = vi.hoisted(() => ({
   deleteDoolittleAccount: vi.fn(),
   importCurrentDoolittleAccount: vi.fn(),
   isAccountPoolProvider: vi.fn((value: unknown) => value === "openai-codex"),
+  reconcileDoolittleAccountPoolCredentials: vi.fn(),
   refreshDoolittleAccountUsage: vi.fn(),
   selectDoolittleAccount: vi.fn(),
   setDoolittleAccountPoolStrategy: vi.fn(),
   snapshotDoolittleAccountPool: vi.fn(),
+  synchronizeDoolittleAccountPoolFromNativeStores: vi.fn(),
   testDoolittleAccountCredentials: vi.fn(),
   updateDoolittleAccount: vi.fn(),
 }));
@@ -156,5 +158,28 @@ describe("Doolittle account-pool routes", () => {
       latencyMs: 4,
       error: "Unable to resolve credentials for this account.",
     });
+  });
+
+  it("reconciles pool health after refreshing the native laptop login", async () => {
+    const routeShared = await import("./shared");
+    const refresh = vi
+      .spyOn(routeShared, "refreshAccounts")
+      .mockResolvedValue({ codex: { reusable: true } } as never);
+
+    const response = await handleRuntimeAccountRoutes(
+      context,
+      new Request("http://localhost/accounts/refresh", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider: "codex" }),
+      }),
+      new URL("http://localhost/accounts/refresh"),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(refresh).toHaveBeenCalledWith(context, "codex");
+    expect(
+      accountPool.reconcileDoolittleAccountPoolCredentials,
+    ).toHaveBeenCalledWith("openai-codex");
   });
 });

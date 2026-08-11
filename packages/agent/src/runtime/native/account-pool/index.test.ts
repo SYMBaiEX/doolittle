@@ -21,9 +21,11 @@ import {
   importCurrentDoolittleAccount,
   importLegacyDoolittleAccounts,
   initializeDoolittleAccountPool,
+  reconcileDoolittleAccountPoolCredentials,
   refreshDoolittleAccountUsage,
   setDoolittleAccountPoolStrategy,
   snapshotDoolittleAccountPool,
+  synchronizeDoolittleAccountPoolFromNativeStores,
   testDoolittleAccountCredentials,
 } from "./index";
 
@@ -137,6 +139,92 @@ describe.sequential("Doolittle official account pool adapter", () => {
       { providerId: "openai-codex" },
     );
   });
+
+  it("reconciles every linked account after the native login refreshes", async () => {
+    const accounts = [
+      {
+        id: "work",
+        providerId: "openai-codex",
+        label: "Work",
+        source: "oauth",
+        enabled: true,
+        priority: 0,
+        createdAt: 1,
+        health: "needs-reauth",
+      },
+    ];
+    const pool = {
+      list: vi.fn((providerId: string) =>
+        providerId === "openai-codex" ? accounts : [],
+      ),
+      get: vi.fn(() => accounts[0]),
+      markHealthy: vi.fn().mockImplementation(async () => {
+        accounts[0].health = "ok";
+      }),
+      markNeedsReauth: vi.fn().mockResolvedValue(undefined),
+      markRateLimited: vi.fn().mockResolvedValue(undefined),
+    } as unknown as AccountPool;
+
+    const snapshot = await reconcileDoolittleAccountPoolCredentials(
+      "openai-codex",
+      pool,
+      async () => "current-native-token",
+    );
+
+    expect(pool.markHealthy).toHaveBeenCalledWith("work", {
+      providerId: "openai-codex",
+    });
+    expect(snapshot.providers["openai-codex"].accounts[0]?.health).toBe("ok");
+  });
+
+  it("heals stale health from an unexpired credential without provider I/O", async () =>
+    withIsolatedAccountPool(async () => {
+      const accounts = [
+        {
+          id: "work",
+          providerId: "openai-codex",
+          label: "Work",
+          source: "oauth",
+          enabled: true,
+          priority: 0,
+          createdAt: 1,
+          health: "needs-reauth",
+        },
+      ];
+      const pool = {
+        list: vi.fn((providerId: string) =>
+          providerId === "openai-codex" ? accounts : [],
+        ),
+        markHealthy: vi.fn().mockImplementation(async () => {
+          accounts[0].health = "ok";
+        }),
+        markNeedsReauth: vi.fn().mockResolvedValue(undefined),
+      } as unknown as AccountPool;
+      saveAccount({
+        providerId: "openai-codex",
+        id: "work",
+        label: "Work",
+        source: "oauth",
+        organizationId: undefined,
+        createdAt: 1,
+        updatedAt: 1,
+        credentials: {
+          access: "current-access",
+          refresh: "current-refresh",
+          expires: Date.now() + 3_600_000,
+        },
+      });
+
+      const snapshot = await synchronizeDoolittleAccountPoolFromNativeStores(
+        pool,
+        () => undefined,
+      );
+
+      expect(pool.markHealthy).toHaveBeenCalledWith("work", {
+        providerId: "openai-codex",
+      });
+      expect(snapshot.providers["openai-codex"].accounts[0]?.health).toBe("ok");
+    }));
 
   it("refreshes usage through the official pool with the Codex account id", async () => {
     const account = {

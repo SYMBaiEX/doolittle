@@ -4,10 +4,11 @@ import {
   deleteDoolittleAccount,
   importCurrentDoolittleAccount,
   isAccountPoolProvider,
+  reconcileDoolittleAccountPoolCredentials,
   refreshDoolittleAccountUsage,
   selectDoolittleAccount,
   setDoolittleAccountPoolStrategy,
-  snapshotDoolittleAccountPool,
+  synchronizeDoolittleAccountPoolFromNativeStores,
   testDoolittleAccountCredentials,
   updateDoolittleAccount,
 } from "@/runtime/native/account-pool";
@@ -31,7 +32,7 @@ export async function handleRuntimeAccountRoutes(
     /^\/runtime\/account-pool\/(openai-codex|anthropic-subscription)(?:\/([^/]+)(?:\/(test|refresh-usage))?)?$/,
   );
   if (request.method === "GET" && url.pathname === "/runtime/account-pool") {
-    return json(snapshotDoolittleAccountPool());
+    return json(await synchronizeDoolittleAccountPoolFromNativeStores());
   }
 
   if (accountPoolRoute) {
@@ -184,7 +185,19 @@ export async function handleRuntimeAccountRoutes(
       );
     }
     try {
-      return json(await refreshAccounts(context, provider));
+      const accounts = await refreshAccounts(context, provider);
+      const poolProvider =
+        provider === "codex"
+          ? "openai-codex"
+          : provider === "claude-code"
+            ? "anthropic-subscription"
+            : provider === "all"
+              ? "all"
+              : undefined;
+      if (poolProvider) {
+        await reconcileDoolittleAccountPoolCredentials(poolProvider);
+      }
+      return json(accounts);
     } catch (error) {
       return json(
         {

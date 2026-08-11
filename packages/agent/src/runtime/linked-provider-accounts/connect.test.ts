@@ -3,6 +3,7 @@ import type { AgentExecutionContext } from "@/runtime/chat";
 
 const refreshCalls: string[] = [];
 const resolveCalls: string[] = [];
+let runtimeRefreshResult = false;
 
 function installConnectMocks() {
   vi.doMock("@/runtime/native/account-auth", () => ({
@@ -26,7 +27,7 @@ function installConnectMocks() {
     },
   }));
   vi.doMock("@/runtime/native/provider-accounts", () => ({
-    refreshRuntimeProviderAccount: async () => false,
+    refreshRuntimeProviderAccount: async () => runtimeRefreshResult,
     getRuntimeProviderAccountsSnapshot: () => ({
       codex: {
         provider: "codex",
@@ -67,6 +68,7 @@ describe("linked provider connection helpers", () => {
     vi.clearAllMocks();
     refreshCalls.length = 0;
     resolveCalls.length = 0;
+    runtimeRefreshResult = false;
     installConnectMocks();
   });
 
@@ -105,12 +107,23 @@ describe("linked provider connection helpers", () => {
     expect(result.connected).toBe(true);
     expect(result.activated).toBe(true);
     expect(result.providerState?.provider).toBe("codex");
-    expect(resolveCalls).toEqual(["codex"]);
+    expect(refreshCalls).toEqual(["codex"]);
+    expect(resolveCalls).toEqual([]);
   });
 
   it("refreshes all provider credentials when requested", async () => {
     const { refreshLinkedAccounts } = await loadConnectModule();
     await refreshLinkedAccounts("all");
     expect(refreshCalls).toEqual(["codex", "claude-code"]);
+  });
+
+  it("still reconciles native CLI credentials when a runtime service refreshes", async () => {
+    runtimeRefreshResult = true;
+    const { refreshLinkedAccounts } = await loadConnectModule();
+
+    await refreshLinkedAccounts("codex", {} as never);
+
+    expect(resolveCalls).toEqual(["codex"]);
+    expect(refreshCalls).toEqual([]);
   });
 });

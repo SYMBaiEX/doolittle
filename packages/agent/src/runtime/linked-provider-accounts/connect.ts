@@ -88,12 +88,25 @@ async function refreshProviderAccount(
   provider: LinkedProviderName,
   runtime?: AgentExecutionContext["runtime"],
 ): Promise<void> {
-  if (await refreshRuntimeProviderAccount(runtime, provider)) return;
-  await resolveProviderCredentials(provider);
+  const refreshedRuntime = await refreshRuntimeProviderAccount(
+    runtime,
+    provider,
+  );
+
+  if (refreshedRuntime) {
+    // Runtime services refresh their own execution credential, while the
+    // account-pool bridge reads the SDK-owned account record. Reconcile the
+    // current native CLI login into that record before returning; the old
+    // early return left a freshly signed-in laptop paired with stale pool data.
+    await resolveProviderCredentials(provider);
+    return;
+  }
   if (provider === "codex") {
     await refreshLinkedCodexCredentials();
   } else if (provider === "claude-code") {
     await refreshLinkedClaudeCodeCredentials();
+  } else {
+    await resolveProviderCredentials(provider);
   }
 }
 

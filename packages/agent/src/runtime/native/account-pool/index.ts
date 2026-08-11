@@ -23,6 +23,10 @@ import {
   startAccountPoolKeepAlive,
 } from "@elizaos/app-core/account-pool";
 import * as elizaCore from "@elizaos/core";
+import {
+  getLinkedClaudeCodeCredentials,
+  getLinkedCodexCredentials,
+} from "@/runtime/native/account-auth";
 import { readJson, writeJson } from "@/runtime/native/account-auth/shared";
 import {
   DOOLITTLE_LINKED_ACCOUNT_IDS,
@@ -406,6 +410,42 @@ export function snapshotDoolittleAccountPool(
   };
 }
 
+/**
+ * Discover current native CLI files without network I/O and synchronize them
+ * into Eliza's official credential records. A demonstrably unexpired access
+ * token can heal stale pool metadata immediately; refreshable expired tokens
+ * remain untouched until the explicit provider refresh performs OAuth I/O.
+ */
+export async function synchronizeDoolittleAccountPoolFromNativeStores(
+  pool = getDoolittleAccountPool(),
+  discoverNativeCredentials: () => void = () => {
+    getLinkedCodexCredentials();
+    getLinkedClaudeCodeCredentials();
+  },
+): Promise<AccountPoolSnapshot> {
+  discoverNativeCredentials();
+  const now = Date.now();
+  for (const providerId of ACCOUNT_POOL_PROVIDERS) {
+    for (const account of pool.list(providerId)) {
+      const record = loadAccount(providerId, account.id);
+      const credentials = record?.credentials;
+      const accessUsable = Boolean(
+        credentials?.access &&
+          (credentials.expires === Number.MAX_SAFE_INTEGER ||
+            credentials.expires > now + 60_000),
+      );
+      if (accessUsable) {
+        await pool.markHealthy(account.id, { providerId });
+      } else if (!credentials?.access && !credentials?.refresh) {
+        await pool.markNeedsReauth(account.id, credentialError(), {
+          providerId,
+        });
+      }
+    }
+  }
+  return snapshotDoolittleAccountPool(pool);
+}
+
 export async function selectDoolittleAccount(
   providerId: AccountPoolProvider,
   input: { strategy?: unknown; sessionKey?: unknown } = {},
@@ -480,6 +520,31 @@ export async function testDoolittleAccountCredentials(
       error: credentialError(),
     };
   }
+}
+
+/**
+ * Reconcile pool health after the native provider layer refreshes its local
+ * CLI credential. The token remains inside the official Eliza credential
+ * service; this only updates health metadata used by routing and the desktop.
+ */
+export async function reconcileDoolittleAccountPoolCredentials(
+  providerId: AccountPoolProvider | "all" = "all",
+  pool = getDoolittleAccountPool(),
+  resolveAccessToken: typeof getAccessToken = getAccessToken,
+): Promise<AccountPoolSnapshot> {
+  const providers =
+    providerId === "all" ? ACCOUNT_POOL_PROVIDERS : [providerId];
+  for (const candidateProvider of providers) {
+    for (const account of pool.list(candidateProvider)) {
+      await testDoolittleAccountCredentials(
+        candidateProvider,
+        account.id,
+        pool,
+        resolveAccessToken,
+      );
+    }
+  }
+  return snapshotDoolittleAccountPool(pool);
 }
 
 /** Refresh the SDK-owned usage view after resolving the account credential. */

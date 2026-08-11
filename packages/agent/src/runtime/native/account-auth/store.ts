@@ -175,9 +175,14 @@ function saveOfficialProviderCredentials(
       );
     }
 
-    const label =
+    const discoveredLabel =
       provider === "claude-code"
         ? (credentials as LinkedClaudeCodeCredentials).accountLabel?.trim()
+        : "Codex on this Mac";
+    const label =
+      discoveredLabel &&
+      (provider === "claude-code" || saved.label === saved.id)
+        ? discoveredLabel
         : undefined;
     const organizationId =
       provider === "codex"
