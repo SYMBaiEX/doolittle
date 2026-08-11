@@ -30,7 +30,6 @@ import {
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
-  MetricCard,
   Notice,
   PageHeader,
   useApiResource,
@@ -159,7 +158,7 @@ export function DashboardPage({
       <PageHeader
         eyebrow="Mission control"
         title="Dashboard"
-        description="Runtime health, workspace pressure, active tasks, and next operator actions in one desktop surface."
+        description="Current pressure, next actions, and workspace state."
         actions={
           <div className="page-actions">
             <button
@@ -222,15 +221,15 @@ export function DashboardPage({
           <div className="dashboard-inline-metrics">
             <div>
               <strong>{accountPoolSummary.enabled}</strong>
-              <span>Spawned-agent accounts</span>
+              <span>Agent accounts</span>
             </div>
             <div>
-              <strong>{runtime.data?.provider || "Unknown"}</strong>
-              <span>Provider</span>
+              <strong>{compactNumber(sessionSummary.total)}</strong>
+              <span>Conversations</span>
             </div>
             <div>
-              <strong>{runtime.data?.model || "Unknown"}</strong>
-              <span>Model</span>
+              <strong>{compactNumber(runtimePluginCount)}</strong>
+              <span>Runtime plugins</span>
             </div>
             <div>
               <strong>{repo.branch}</strong>
@@ -253,38 +252,6 @@ export function DashboardPage({
           </div>
         </div>
       </section>
-
-      <div className="metric-grid compact">
-        <MetricCard
-          label="Agent accounts"
-          value={compactNumber(accountPoolSummary.enabled)}
-          detail={
-            accountPool.loading
-              ? "Checking pooled accounts"
-              : `${accountPoolSummary.providersReady}/2 providers ready`
-          }
-        />
-        <MetricCard
-          label="Sessions"
-          value={compactNumber(sessionSummary.total)}
-          detail={`${compactNumber(sessionSummary.messages)} messages stored`}
-        />
-        <MetricCard
-          label="Repo state"
-          value={repo.dirty ? "Dirty" : "Clean"}
-          detail={`${repo.changedFiles} changed · ${repo.ahead} ahead · ${repo.behind} behind`}
-        />
-        <MetricCard
-          label="Runtime plugins"
-          value={compactNumber(runtimePluginCount)}
-          detail={`${ownershipCount} ownership signals`}
-        />
-        <MetricCard
-          label="Setup"
-          value={setupHealth.warnings > 0 ? "Attention" : "Ready"}
-          detail={`${setupHealth.healthy} healthy · ${setupHealth.warnings} warnings`}
-        />
-      </div>
 
       <div className="two-column-grid">
         <section className="content-card">
@@ -496,90 +463,109 @@ export function DashboardPage({
         </section>
       </div>
 
-      <section className="content-card">
-        <div className="card-heading">
-          <div>
-            <span className="eyebrow">Runtime detail</span>
-            <h2>Provider assembly</h2>
-          </div>
-          <Badge
-            tone={
-              runtime.data?.fallback?.offlineBootstrapMode ? "warn" : "good"
-            }
-          >
-            {runtime.data?.fallback?.offlineBootstrapMode
-              ? "offline bootstrap"
-              : "online"}
-          </Badge>
-        </div>
-        {runtime.loading ? (
-          <LoadingBlock />
-        ) : runtime.error ? (
-          <ErrorBlock error={runtime.error} retry={runtime.reload} />
-        ) : (
-          <div className="stack-list">
-            <div className="status-row">
+      <details className="dashboard-runtime-details">
+        <summary>
+          <span>
+            <strong>Runtime &amp; agent accounts</strong>
+            <small>
+              {runtime.data?.provider || "Unknown provider"} ·{" "}
+              {runtime.data?.model || "Unknown model"}
+            </small>
+          </span>
+          <span className="dashboard-runtime-summary-meta">
+            {runtimePluginCount} plugins · {ownershipCount} signals ·{" "}
+            {accountPoolSummary.enabled} accounts
+          </span>
+        </summary>
+        <div className="dashboard-runtime-grid">
+          <section className="content-card">
+            <div className="card-heading">
               <div>
-                <strong>{runtime.data?.provider || "Unknown provider"}</strong>
-                <small>{runtime.data?.model || "Unknown model"}</small>
+                <span className="eyebrow">Runtime detail</span>
+                <h2>Provider assembly</h2>
               </div>
-              <Badge tone="good">{runtimePluginCount} plugins</Badge>
+              <Badge
+                tone={
+                  runtime.data?.fallback?.offlineBootstrapMode ? "warn" : "good"
+                }
+              >
+                {runtime.data?.fallback?.offlineBootstrapMode
+                  ? "offline bootstrap"
+                  : "online"}
+              </Badge>
             </div>
-            {Object.entries(asRecord(runtime.data?.ownership))
-              .slice(0, 4)
-              .map(([key, value]) => (
-                <div className="status-row" key={key}>
+            {runtime.loading ? (
+              <LoadingBlock />
+            ) : runtime.error ? (
+              <ErrorBlock error={runtime.error} retry={runtime.reload} />
+            ) : (
+              <div className="stack-list">
+                <div className="status-row">
                   <div>
-                    <strong>{key}</strong>
-                    <small>{summarizeDashboardValue(value)}</small>
+                    <strong>
+                      {runtime.data?.provider || "Unknown provider"}
+                    </strong>
+                    <small>{runtime.data?.model || "Unknown model"}</small>
                   </div>
+                  <Badge tone="good">{runtimePluginCount} plugins</Badge>
                 </div>
-              ))}
-          </div>
-        )}
-      </section>
+                {Object.entries(asRecord(runtime.data?.ownership))
+                  .slice(0, 4)
+                  .map(([key, value]) => (
+                    <div className="status-row" key={key}>
+                      <div>
+                        <strong>{key}</strong>
+                        <small>{summarizeDashboardValue(value)}</small>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </section>
 
-      <section className="content-card">
-        <div className="card-heading">
-          <div>
-            <span className="eyebrow">Spawned agents</span>
-            <h2>Codex & Claude account pool</h2>
-          </div>
-          <button
-            className="text-button"
-            disabled={!onOpenProviders}
-            onClick={onOpenProviders}
-            type="button"
-          >
-            Providers &amp; accounts
-          </button>
-        </div>
-        {accountPool.loading ? (
-          <LoadingBlock />
-        ) : accountPool.error ? (
-          <ErrorBlock error={accountPool.error} retry={accountPool.reload} />
-        ) : (
-          <div className="status-row">
-            <div>
-              <strong>
-                {accountPoolSummary.enabled} enabled account
-                {accountPoolSummary.enabled === 1 ? "" : "s"}
-              </strong>
-              <small>
-                Used only for spawned build and research sessions. Your
-                conversation model remains configured separately.
-              </small>
+          <section className="content-card">
+            <div className="card-heading">
+              <div>
+                <span className="eyebrow">Spawned agents</span>
+                <h2>Codex &amp; Claude account pool</h2>
+              </div>
+              <button
+                className="text-button"
+                disabled={!onOpenProviders}
+                onClick={onOpenProviders}
+                type="button"
+              >
+                Manage
+              </button>
             </div>
-            <Badge
-              tone={accountPoolSummary.providersReady > 0 ? "good" : "warn"}
-            >
-              {accountPoolSummary.providersReady > 0
-                ? accountPoolSummary.strategies.join(" · ")
-                : "Connect accounts"}
-            </Badge>
-          </div>
-        )}
-      </section>
+            {accountPool.loading ? (
+              <LoadingBlock />
+            ) : accountPool.error ? (
+              <ErrorBlock
+                error={accountPool.error}
+                retry={accountPool.reload}
+              />
+            ) : (
+              <div className="status-row">
+                <div>
+                  <strong>
+                    {accountPoolSummary.enabled} enabled account
+                    {accountPoolSummary.enabled === 1 ? "" : "s"}
+                  </strong>
+                  <small>Used for spawned build and research sessions.</small>
+                </div>
+                <Badge
+                  tone={accountPoolSummary.providersReady > 0 ? "good" : "warn"}
+                >
+                  {accountPoolSummary.providersReady > 0
+                    ? accountPoolSummary.strategies.join(" · ")
+                    : "Connect accounts"}
+                </Badge>
+              </div>
+            )}
+          </section>
+        </div>
+      </details>
     </div>
   );
 }

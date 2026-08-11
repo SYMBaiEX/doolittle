@@ -1,5 +1,11 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { settingsResourcePolicy } from "./SettingsPage";
+
+const settingsPageSource = readFileSync(
+  new URL("./SettingsPage.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("settings resource policy", () => {
   it("keeps the settings document active while deferring detail reads for providers", () => {
@@ -42,5 +48,14 @@ describe("settings resource policy", () => {
       execution: true,
       runtime: false,
     });
+  });
+
+  it("keeps the category rail concise without repeating page-level copy", () => {
+    expect(settingsPageSource).not.toContain("settings-nav-title");
+    expect(settingsPageSource).not.toContain("settings-nav-note");
+    expect(settingsPageSource).toContain("title={entry.description}");
+    expect(settingsPageSource).not.toContain(
+      "Accounts, appearance, models, execution, and local desktop behavior",
+    );
   });
 });

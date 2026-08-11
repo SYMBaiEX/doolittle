@@ -205,7 +205,7 @@ export function GatewayPage({ active }: { active: boolean }) {
       <PageHeader
         eyebrow="Observe / gateway"
         title="Gateway inbox"
-        description="Inspect recorded local transport activity. The page is read-only except for explicit inbound replay, which can trigger a new external reply on the original thread route."
+        description="Local transport history, thread routes, and sender approvals."
         actions={
           <button className="secondary-button" onClick={refresh} type="button">
             Refresh records
@@ -447,162 +447,169 @@ export function GatewayPage({ active }: { active: boolean }) {
         </aside>
       </div>
 
-      <section className="panel pairing-panel" aria-labelledby="pairing-title">
-        <div className="panel-heading gateway-heading">
+      <details className="panel pairing-panel" aria-labelledby="pairing-title">
+        <summary className="panel-heading gateway-heading">
           <div>
             <span className="eyebrow">Secure device access</span>
             <h2 id="pairing-title">Paired sender approvals</h2>
           </div>
-          <span className="muted-copy">
-            Eliza PairingService · local control
+          <span className="pairing-summary-counts">
+            {pendingPairings.length} pending · {approvedPairings.length}{" "}
+            approved
           </span>
-        </div>
-        <Notice announce="off" tone="neutral">
-          <span>
-            This approves messaging-platform senders, not remote desktop access.
-            Pending requests expire under the Eliza runtime policy; the public
-            service does not expose a per-request expiry timestamp.
-          </span>
-        </Notice>
-        {pairingPending.data?.truncated || pairingApproved.data?.truncated ? (
-          <Notice announce="off" tone="warn">
-            Showing the newest 200 pairing records. Filter by platform through
-            the API to inspect a narrower allowlist safely.
+        </summary>
+        <div className="pairing-panel-body">
+          <Notice announce="off" tone="neutral">
+            <span>
+              Messaging senders only—not remote desktop access. Requests expire
+              under the Eliza runtime policy.
+            </span>
           </Notice>
-        ) : null}
-        <div className="pairing-columns">
-          <section aria-labelledby="pairing-pending-title">
-            <div className="pairing-section-heading">
-              <div>
-                <span className="eyebrow">Pending</span>
-                <h3 id="pairing-pending-title">Awaiting approval</h3>
+          {pairingPending.data?.truncated || pairingApproved.data?.truncated ? (
+            <Notice announce="off" tone="warn">
+              Showing the newest 200 pairing records. Filter by platform through
+              the API to inspect a narrower allowlist safely.
+            </Notice>
+          ) : null}
+          <div className="pairing-columns">
+            <section aria-labelledby="pairing-pending-title">
+              <div className="pairing-section-heading">
+                <div>
+                  <span className="eyebrow">Pending</span>
+                  <h3 id="pairing-pending-title">Awaiting approval</h3>
+                </div>
+                <Badge tone={pendingPairings.length ? "warn" : "neutral"}>
+                  {pendingPairings.length}
+                </Badge>
               </div>
-              <Badge tone={pendingPairings.length ? "warn" : "neutral"}>
-                {pendingPairings.length}
-              </Badge>
-            </div>
-            {!pendingPairings.length ? (
-              <EmptyBlock title="No pending pairing requests">
-                New sender requests will appear here after Eliza receives them.
-              </EmptyBlock>
-            ) : (
-              <ul className="pairing-list">
-                {pendingPairings.map((request) => {
-                  const approveId = `approve:${request.platform}:${request.code}`;
-                  const denyId = `deny:${request.platform}:${request.code}`;
-                  const confirmationId = confirmPairingAction;
-                  const actionId = pairingAction;
-                  return (
-                    <li key={request.id}>
-                      <Badge tone="warn">{titleCase(request.platform)}</Badge>
-                      <strong>{request.userId}</strong>
-                      <span>Code: {request.code}</span>
-                      <time dateTime={request.createdAt}>
-                        Requested {displayTimestamp(request.createdAt)}
-                      </time>
-                      {confirmationId === approveId ? (
-                        <InlineActionConfirmation
-                          busy={actionId === approveId}
-                          busyLabel="Approving…"
-                          confirmLabel="Confirm approve"
-                          detail={`Allows future ${request.platform} messages from this sender.`}
-                          onCancel={() => setConfirmPairingAction("")}
-                          onConfirm={() =>
-                            void updatePairing("approve", request)
-                          }
-                          title={`Approve ${request.userId}?`}
-                          tone="primary"
-                        />
-                      ) : confirmationId === denyId ? (
-                        <InlineActionConfirmation
-                          busy={actionId === denyId}
-                          busyLabel="Denying…"
-                          confirmLabel="Confirm deny"
-                          detail="Removes this request without adding the sender to Eliza’s allowlist."
-                          onCancel={() => setConfirmPairingAction("")}
-                          onConfirm={() => void updatePairing("deny", request)}
-                          title={`Deny ${request.userId}?`}
-                        />
-                      ) : (
-                        <div className="pairing-actions">
-                          <button
-                            className="secondary-button"
-                            disabled={Boolean(actionId)}
-                            onClick={() => setConfirmPairingAction(approveId)}
-                            type="button"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            className="secondary-button"
-                            disabled={Boolean(actionId)}
-                            onClick={() => setConfirmPairingAction(denyId)}
-                            type="button"
-                          >
-                            Deny
-                          </button>
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-          <section aria-labelledby="pairing-approved-title">
-            <div className="pairing-section-heading">
-              <div>
-                <span className="eyebrow">Approved</span>
-                <h3 id="pairing-approved-title">Current allowlist</h3>
+              {!pendingPairings.length ? (
+                <EmptyBlock title="No pending pairing requests">
+                  New sender requests will appear here after Eliza receives
+                  them.
+                </EmptyBlock>
+              ) : (
+                <ul className="pairing-list">
+                  {pendingPairings.map((request) => {
+                    const approveId = `approve:${request.platform}:${request.code}`;
+                    const denyId = `deny:${request.platform}:${request.code}`;
+                    const confirmationId = confirmPairingAction;
+                    const actionId = pairingAction;
+                    return (
+                      <li key={request.id}>
+                        <Badge tone="warn">{titleCase(request.platform)}</Badge>
+                        <strong>{request.userId}</strong>
+                        <span>Code: {request.code}</span>
+                        <time dateTime={request.createdAt}>
+                          Requested {displayTimestamp(request.createdAt)}
+                        </time>
+                        {confirmationId === approveId ? (
+                          <InlineActionConfirmation
+                            busy={actionId === approveId}
+                            busyLabel="Approving…"
+                            confirmLabel="Confirm approve"
+                            detail={`Allows future ${request.platform} messages from this sender.`}
+                            onCancel={() => setConfirmPairingAction("")}
+                            onConfirm={() =>
+                              void updatePairing("approve", request)
+                            }
+                            title={`Approve ${request.userId}?`}
+                            tone="primary"
+                          />
+                        ) : confirmationId === denyId ? (
+                          <InlineActionConfirmation
+                            busy={actionId === denyId}
+                            busyLabel="Denying…"
+                            confirmLabel="Confirm deny"
+                            detail="Removes this request without adding the sender to Eliza’s allowlist."
+                            onCancel={() => setConfirmPairingAction("")}
+                            onConfirm={() =>
+                              void updatePairing("deny", request)
+                            }
+                            title={`Deny ${request.userId}?`}
+                          />
+                        ) : (
+                          <div className="pairing-actions">
+                            <button
+                              className="secondary-button"
+                              disabled={Boolean(actionId)}
+                              onClick={() => setConfirmPairingAction(approveId)}
+                              type="button"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              className="secondary-button"
+                              disabled={Boolean(actionId)}
+                              onClick={() => setConfirmPairingAction(denyId)}
+                              type="button"
+                            >
+                              Deny
+                            </button>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+            <section aria-labelledby="pairing-approved-title">
+              <div className="pairing-section-heading">
+                <div>
+                  <span className="eyebrow">Approved</span>
+                  <h3 id="pairing-approved-title">Current allowlist</h3>
+                </div>
+                <Badge tone="good">{approvedPairings.length}</Badge>
               </div>
-              <Badge tone="good">{approvedPairings.length}</Badge>
-            </div>
-            {!approvedPairings.length ? (
-              <EmptyBlock title="No approved senders">
-                Approvals remain in Eliza’s own allowlist and appear here when
-                the service exposes them.
-              </EmptyBlock>
-            ) : (
-              <ul className="pairing-list">
-                {approvedPairings.map((sender) => {
-                  const revokeId = `revoke:${sender.platform}:${sender.userId}`;
-                  return (
-                    <li key={sender.id}>
-                      <Badge tone="good">{titleCase(sender.platform)}</Badge>
-                      <strong>{sender.userId}</strong>
-                      <time dateTime={sender.approvedAt}>
-                        Approved {displayTimestamp(sender.approvedAt)}
-                      </time>
-                      {confirmPairingAction === revokeId ? (
-                        <InlineActionConfirmation
-                          busy={pairingAction === revokeId}
-                          busyLabel="Revoking…"
-                          confirmLabel="Confirm revoke"
-                          detail={`Blocks future ${sender.platform} messages until this sender pairs again.`}
-                          onCancel={() => setConfirmPairingAction("")}
-                          onConfirm={() => void updatePairing("revoke", sender)}
-                          title={`Revoke ${sender.userId}?`}
-                        />
-                      ) : (
-                        <div className="pairing-actions">
-                          <button
-                            className="secondary-button"
-                            disabled={Boolean(pairingAction)}
-                            onClick={() => setConfirmPairingAction(revokeId)}
-                            type="button"
-                          >
-                            Revoke
-                          </button>
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
+              {!approvedPairings.length ? (
+                <EmptyBlock title="No approved senders">
+                  Approvals remain in Eliza’s own allowlist and appear here when
+                  the service exposes them.
+                </EmptyBlock>
+              ) : (
+                <ul className="pairing-list">
+                  {approvedPairings.map((sender) => {
+                    const revokeId = `revoke:${sender.platform}:${sender.userId}`;
+                    return (
+                      <li key={sender.id}>
+                        <Badge tone="good">{titleCase(sender.platform)}</Badge>
+                        <strong>{sender.userId}</strong>
+                        <time dateTime={sender.approvedAt}>
+                          Approved {displayTimestamp(sender.approvedAt)}
+                        </time>
+                        {confirmPairingAction === revokeId ? (
+                          <InlineActionConfirmation
+                            busy={pairingAction === revokeId}
+                            busyLabel="Revoking…"
+                            confirmLabel="Confirm revoke"
+                            detail={`Blocks future ${sender.platform} messages until this sender pairs again.`}
+                            onCancel={() => setConfirmPairingAction("")}
+                            onConfirm={() =>
+                              void updatePairing("revoke", sender)
+                            }
+                            title={`Revoke ${sender.userId}?`}
+                          />
+                        ) : (
+                          <div className="pairing-actions">
+                            <button
+                              className="secondary-button"
+                              disabled={Boolean(pairingAction)}
+                              onClick={() => setConfirmPairingAction(revokeId)}
+                              type="button"
+                            >
+                              Revoke
+                            </button>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          </div>
         </div>
-      </section>
+      </details>
     </section>
   );
 }

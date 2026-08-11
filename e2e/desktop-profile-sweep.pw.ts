@@ -3,6 +3,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 
 const executablePath = process.env.DOOLITTLE_DESKTOP_EXECUTABLE;
 const profileDir = process.env.DOOLITTLE_DESKTOP_PROFILE_DIR;
+const screenshotDir = process.env.DOOLITTLE_SWEEP_SCREENSHOTS_DIR?.trim();
 
 const routes = [
   "dashboard",
@@ -110,6 +111,9 @@ test.describe("Doolittle cloned-profile control sweep", () => {
         await expect(
           view.getByText("Opening workspace…", { exact: true }),
         ).toHaveCount(0, { timeout: 15_000 });
+        await expect(view.locator(".loading-block")).toHaveCount(0, {
+          timeout: 15_000,
+        });
         await page.waitForTimeout(80);
 
         const visibleControlSelector =
@@ -117,6 +121,12 @@ test.describe("Doolittle cloned-profile control sweep", () => {
         const initialControls = await view
           .locator(visibleControlSelector)
           .count();
+        if (screenshotDir) {
+          await page.screenshot({
+            animations: "disabled",
+            path: `${screenshotDir}/${route}.png`,
+          });
+        }
 
         const tabs = view.getByRole("tab");
         const tabCount = await tabs.count();

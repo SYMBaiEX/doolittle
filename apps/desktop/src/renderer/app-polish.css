@@ -91,6 +91,17 @@
   animation: route-arrive 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/*
+ * Standard pages scroll as documents. Prevent their direct sections from
+ * shrinking into one another when the page is taller than the viewport.
+ * Work surfaces own their constrained layouts separately.
+ */
+.view-container:not(.view-chat, .view-code, .view-review, .view-orchestration)
+  > .page
+  > * {
+  flex-shrink: 0;
+}
+
 .view-code,
 .view-chat,
 .view-review,
@@ -1655,7 +1666,7 @@ th {
 .page-settings .settings-layout {
   min-height: 0;
   flex: 1;
-  grid-template-columns: 208px minmax(0, 1fr);
+  grid-template-columns: 176px minmax(0, 1fr);
   gap: 14px;
 }
 
@@ -1677,13 +1688,13 @@ th {
 }
 
 .page-settings .settings-nav > button {
-  min-height: 39px;
+  min-height: 32px;
   padding: 6px 7px;
   border-radius: 2px;
 }
 
 .page-settings .settings-nav > button strong {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .page-settings .settings-nav > button small,

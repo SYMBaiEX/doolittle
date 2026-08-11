@@ -420,7 +420,7 @@ export function SettingsPage({ active }: { active: boolean }) {
       <PageHeader
         eyebrow="Doolittle"
         title="Settings"
-        description="Accounts, appearance, models, execution, and local desktop behavior—organized around what you want to change."
+        description="Local preferences and runtime controls."
         actions={
           <button
             className="secondary-button"
@@ -439,10 +439,6 @@ export function SettingsPage({ active }: { active: boolean }) {
       ) : (
         <div className="settings-layout">
           <aside className="settings-nav" aria-label="Settings categories">
-            <div className="settings-nav-title">
-              <span>Settings</span>
-              <small>Local</small>
-            </div>
             {categories.map((entry) => (
               <button
                 className={category === entry.id ? "selected" : ""}
@@ -451,19 +447,15 @@ export function SettingsPage({ active }: { active: boolean }) {
                   setCategory(entry.id);
                   setQuery("");
                 }}
+                title={entry.description}
                 type="button"
               >
                 <span>
                   <strong>{entry.label}</strong>
-                  <small>{entry.description}</small>
                 </span>
                 <i>{entry.count}</i>
               </button>
             ))}
-            <div className="settings-nav-note">
-              <strong>Private by default</strong>
-              <p>Account tokens and API keys never appear in this page.</p>
-            </div>
           </aside>
           <section className="settings-content">
             {category !== "providers" ? (

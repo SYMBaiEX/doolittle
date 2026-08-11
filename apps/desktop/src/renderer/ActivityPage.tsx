@@ -29,6 +29,18 @@ export function visibleActivityWindow<T>(
   return events.slice(0, Math.max(ACTIVITY_PAGE_SIZE, visibleCount));
 }
 
+export function activitySummaryIsDistinct(
+  title: string,
+  summary: string,
+): boolean {
+  const normalize = (value: string) =>
+    value
+      .trim()
+      .toLocaleLowerCase()
+      .replace(/[\s.!?;:]+$/u, "");
+  return Boolean(summary.trim()) && normalize(summary) !== normalize(title);
+}
+
 const SOURCE_LABELS: Record<ActivityEventKind, string> = {
   "chat-run": "Chat",
   automation: "Automation",
@@ -303,7 +315,12 @@ export function ActivityPage({ active }: { active: boolean }) {
                         <p className="activity-sentence">
                           <strong>{row.title}</strong>
                         </p>
-                        <p className="activity-outcome">{row.safeSummary}</p>
+                        {activitySummaryIsDistinct(
+                          row.title,
+                          row.safeSummary,
+                        ) ? (
+                          <p className="activity-outcome">{row.safeSummary}</p>
+                        ) : null}
                       </div>
                     </article>
                   </li>
