@@ -16,7 +16,6 @@ const DOOLITTLE_MODEL_ROUTER_PROVIDER = "doolittle-runtime";
 
 const PROVIDER_PLUGIN_NAMES: Readonly<Record<string, string>> = {
   anthropic: "anthropic",
-  "claude-code": "@doolittle/plugin-claude-code",
   codex: "codex-cli",
   devin: "@doolittle/plugin-devin",
   elizacloud: "elizaOSCloud",
@@ -26,13 +25,29 @@ const PROVIDER_PLUGIN_NAMES: Readonly<Record<string, string>> = {
 
 export function resolveSelectedModelProviderPlugin(
   provider: string | undefined,
+  anthropicAuthMode?: unknown,
 ): string | undefined {
   const normalizedProvider = provider?.trim();
   if (!normalizedProvider) {
     return undefined;
   }
 
+  if (normalizedProvider === "claude-code") {
+    return anthropicAuthMode === "claude-cli"
+      ? "@doolittle/plugin-claude-code"
+      : "anthropic";
+  }
+
   return PROVIDER_PLUGIN_NAMES[normalizedProvider] ?? normalizedProvider;
+}
+
+function resolveRuntimeModelProviderPlugin(
+  runtime: IAgentRuntime,
+): string | undefined {
+  return resolveSelectedModelProviderPlugin(
+    readRuntimeModelSettings(runtime)?.provider,
+    runtime.getSetting("ANTHROPIC_AUTH_MODE"),
+  );
 }
 
 export function createSelectedProviderTextModel(
@@ -42,9 +57,7 @@ export function createSelectedProviderTextModel(
     runtime: IAgentRuntime,
     params: GenerateTextParams,
   ): Promise<string> => {
-    const provider = resolveSelectedModelProviderPlugin(
-      readRuntimeModelSettings(runtime)?.provider,
-    );
+    const provider = resolveRuntimeModelProviderPlugin(runtime);
     if (!provider || provider === DOOLITTLE_MODEL_ROUTER_PROVIDER) {
       throw new NoModelProviderConfiguredError(
         "Doolittle has no active model provider. Choose one in Settings.",
@@ -71,9 +84,7 @@ export function createSelectedProviderResearchModel() {
     runtime: IAgentRuntime,
     params: ResearchParams,
   ): Promise<ResearchResult> => {
-    const provider = resolveSelectedModelProviderPlugin(
-      readRuntimeModelSettings(runtime)?.provider,
-    );
+    const provider = resolveRuntimeModelProviderPlugin(runtime);
     if (!provider || provider === DOOLITTLE_MODEL_ROUTER_PROVIDER) {
       throw new NoModelProviderConfiguredError(
         "Doolittle has no active research provider. Choose OpenAI or Eliza Cloud in Settings.",

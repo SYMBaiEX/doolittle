@@ -1,7 +1,6 @@
 import type { Plugin } from "@elizaos/core";
 import type { EnvConfig } from "../../../types/runtime";
 import {
-  getLinkedClaudeCodeCredentials,
   getLinkedProviderAccountsSnapshot,
   refreshLinkedClaudeCodeCredentials,
 } from "../account-auth";
@@ -21,6 +20,7 @@ export async function loadProviderPlugins(
     { default: sqlPlugin },
     { pdfPlugin },
     { codexCliPlugin },
+    { default: anthropicPlugin },
     { createClaudeCodePlugin },
     { createDevinPlugin },
     { default: elizaCloudPlugin },
@@ -28,6 +28,7 @@ export async function loadProviderPlugins(
     import("@doolittle/plugin-sql-relationships"),
     import("@elizaos/plugin-pdf"),
     import("@elizaos/plugin-codex-cli"),
+    import("@elizaos/plugin-anthropic"),
     import("@doolittle/plugin-claude-code"),
     import("@doolittle/plugin-devin"),
     import("@elizaos/plugin-elizacloud"),
@@ -37,11 +38,11 @@ export async function loadProviderPlugins(
     normalizePlugin(sqlPlugin),
     normalizePlugin(pdfPlugin),
     normalizePlugin(codexCliPlugin),
+    normalizePlugin(anthropicPlugin),
     createClaudeCodePlugin({
       enabled: true,
       allowCliFallback: config.claudeCodeCliFallback,
       getStatus: () => getLinkedProviderAccountsSnapshot().claudeCode,
-      getCredentials: () => getLinkedClaudeCodeCredentials(),
       refreshCredentials: () => refreshLinkedClaudeCodeCredentials(),
     }),
     createDevinPlugin({
@@ -81,14 +82,6 @@ export async function loadProviderPlugins(
       ),
     );
   }
-  if (config.anthropicApiKey) {
-    optionalProviderImports.push(
-      import("@elizaos/plugin-anthropic").then(({ default: anthropicPlugin }) =>
-        normalizePlugin(anthropicPlugin),
-      ),
-    );
-  }
-
   providers.push(
     ...(await Promise.all(optionalProviderImports)).filter(
       (plugin): plugin is Plugin => Boolean(plugin),

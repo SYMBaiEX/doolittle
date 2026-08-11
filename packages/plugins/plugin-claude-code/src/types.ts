@@ -6,6 +6,7 @@ export interface LinkedAccountStatus {
   authMode?: string;
   lastRefresh?: string;
   accountLabel?: string;
+  fallbackReady?: boolean;
   detail: string;
 }
 
@@ -20,15 +21,6 @@ export interface ClaudeCodePluginOptions {
     effort?: string;
     jsonSchema?: Record<string, unknown>;
   }) => Promise<string>;
-  getCredentials?: () =>
-    | {
-        accessToken?: string;
-        refreshToken?: string;
-        expiresAt?: string;
-        accountLabel?: string;
-        source?: string;
-      }
-    | undefined;
   refreshCredentials?: () => Promise<
     | {
         accessToken?: string;

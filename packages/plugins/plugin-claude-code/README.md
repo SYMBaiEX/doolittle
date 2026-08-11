@@ -1,15 +1,18 @@
 # @doolittle/plugin-claude-code
 
-Doolittle-owned ElizaOS provider bridge for using a locally signed-in Claude Code account.
+Doolittle's narrow structured local-CLI fallback behind the official Eliza
+Anthropic provider.
 
 ## What It Does
 
-- Detects reusable Claude Code OAuth credentials from local CLI stores
-- Exposes Claude Code-linked provider state to the Eliza runtime
-- Routes text generation through the Anthropic Messages API with Claude Code headers
-- Refreshes expired linked OAuth credentials automatically when possible
-- Supports the Doolittle `connect` flow so native auth is the default path
-- Keeps local Claude CLI fallback available only as an explicit escape hatch
+- Exposes linked Claude Code status to Doolittle's operator surfaces
+- Converts Eliza's single required response schema to Claude CLI structured output
+- Prevents the CLI from starting a second nested tool/agent loop
+- Runs only when explicit CLI fallback is enabled and reusable OAuth is absent
+
+Official `@elizaos/plugin-anthropic` owns OAuth inference, credential/account
+rotation, Messages API transport, tools, response handling, streaming, and
+prompt caching.
 
 ## Expected Local Login State
 
@@ -22,9 +25,10 @@ Credential sources:
 
 ## Runtime Behavior
 
-- Provider id: `claude-code`
+- Product provider id: `claude-code`
+- Runtime model owner with OAuth: `anthropic`
+- Runtime fallback owner without OAuth: `@doolittle/plugin-claude-code`
 - Default model: `claude-sonnet-4.6`
-- Default base URL: `https://api.anthropic.com`
 
 ## Operator Flows
 
@@ -47,14 +51,12 @@ export const claudeCodePlugin = createClaudeCodePlugin({
   getStatus: () => ({
     provider: "claude-code",
     available: true,
-    reusable: true,
-    nativeReady: true,
-    fallbackReady: false,
-    authMode: "oauth",
-    source: "~/.claude/.credentials.json",
-    detail: "Linked Claude Code account detected.",
+    reusable: false,
+    fallbackReady: true,
+    authMode: "claude.ai",
+    source: "claude status",
+    detail: "Claude CLI is signed in.",
   }),
-  getCredentials: () => ({ accessToken: "..." }),
 });
 ```
 
@@ -72,4 +74,5 @@ available and returns `LINKED_PROVIDER_OK` when the provider round trip passes.
 
 ## Notes
 
-This package is intended for the Doolittle alpha-native workspace and is designed for linked-account flows rather than API-key-only Anthropic usage.
+This package is not an OAuth or Anthropic API implementation. Remove it once
+the official plugin's CLI mode supports native messages/tools/response schemas.

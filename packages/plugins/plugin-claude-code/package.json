@@ -1,7 +1,7 @@
 {
   "name": "@doolittle/plugin-claude-code",
   "version": "2.0.3-beta.7",
-  "description": "Doolittle-owned ElizaOS provider bridge for linked Claude Code account execution.",
+  "description": "Structured local Claude CLI fallback behind the official Eliza Anthropic provider.",
   "license": "MIT",
   "type": "module",
   "exports": {

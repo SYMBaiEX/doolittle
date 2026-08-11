@@ -49,8 +49,12 @@ export function applyLinkedProviderSettings(
     settings.OPENAI_API_KEY = config.openAiApiKey;
   }
 
-  if (linkedClaudeCode?.accessToken) {
-    settings.ANTHROPIC_API_KEY = linkedClaudeCode.accessToken;
+  if (modelProvider === "claude-code") {
+    settings.ANTHROPIC_AUTH_MODE = linkedClaudeCode?.accessToken
+      ? "oauth"
+      : config.claudeCodeCliFallback
+        ? "claude-cli"
+        : "oauth";
   } else if (config.anthropicApiKey) {
     settings.ANTHROPIC_API_KEY = config.anthropicApiKey;
   }

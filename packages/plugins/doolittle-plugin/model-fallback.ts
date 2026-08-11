@@ -82,7 +82,10 @@ export function createOfflineBootstrapTextModel(
   ): Promise<string> => {
     const selectedProvider =
       readRuntimeModelSettings(runtime)?.provider?.trim();
-    const provider = resolveSelectedModelProviderPlugin(selectedProvider);
+    const provider = resolveSelectedModelProviderPlugin(
+      selectedProvider,
+      runtime.getSetting("ANTHROPIC_AUTH_MODE"),
+    );
     const promptText = resolveModelPromptText(params);
 
     if (provider && (await selectedOllamaIsReachable(runtime))) {
@@ -173,6 +176,7 @@ export function createOfflineBootstrapEmbeddingModel(
   ): Promise<number[]> => {
     const provider = resolveSelectedModelProviderPlugin(
       readRuntimeModelSettings(runtime)?.provider,
+      runtime.getSetting("ANTHROPIC_AUTH_MODE"),
     );
     if (provider) {
       try {

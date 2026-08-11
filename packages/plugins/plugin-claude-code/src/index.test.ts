@@ -1,27 +1,44 @@
 import { describe, expect, it, vi } from "vitest";
 import { createClaudeCodePlugin } from "./index";
 
+function runtimeSettings(model: Record<string, unknown> = {}): {
+  getSetting(key: string): unknown;
+} {
+  return {
+    getSetting: (key: string) =>
+      key === "runtimeSettings"
+        ? JSON.stringify({
+            model: {
+              provider: "claude-code",
+              model: "claude-sonnet-4.6",
+              ...model,
+            },
+          })
+        : key === "ANTHROPIC_AUTH_MODE"
+          ? "claude-cli"
+          : undefined,
+  };
+}
+
 describe("createClaudeCodePlugin", () => {
-  it("exposes linked Claude Code runtime credentials", async () => {
+  it("exposes linked account status while keeping OAuth upstream-owned", async () => {
     const plugin = createClaudeCodePlugin({
       enabled: true,
+      allowCliFallback: true,
       getStatus: () => ({
         provider: "claude-code",
         available: true,
-        reusable: true,
-        authMode: "oauth",
-        source: "/tmp/.claude/.credentials.json",
+        reusable: false,
+        fallbackReady: true,
+        authMode: "claude.ai",
+        source: "claude status",
         accountLabel: "Operator <user@example.com>",
-        lastRefresh: "1763579600000",
-        detail: "Linked Claude Code credentials detected.",
-      }),
-      getCredentials: () => ({
-        accessToken: "oauth-token",
+        detail: "Claude CLI is signed in.",
       }),
     });
 
     expect(plugin.name).toBe("@doolittle/plugin-claude-code");
-    expect(plugin.models).toBeDefined();
+    expect(plugin.description).toContain("fallback");
     const serviceCtor = plugin.services?.[0];
     expect(serviceCtor).toBeDefined();
     const service = await (
@@ -33,139 +50,13 @@ describe("createClaudeCodePlugin", () => {
       expect.objectContaining({
         provider: "claude-code",
         upstreamProvider: "anthropic",
-        reusable: true,
-        authMode: "oauth",
+        fallbackReady: true,
       }),
     );
   });
 
-  it("calls the Anthropic messages endpoint with Claude Code headers when enabled", async () => {
-    const originalFetch = globalThis.fetch;
-    const calls: Array<{ url: string; init?: RequestInit }> = [];
-    globalThis.fetch = (async (url, init) => {
-      calls.push({ url: String(url), init });
-      return new Response(
-        JSON.stringify({
-          content: [{ type: "text", text: "claude code says hello" }],
-        }),
-        { status: 200 },
-      );
-    }) as typeof fetch;
-
-    try {
-      const plugin = createClaudeCodePlugin({
-        enabled: true,
-        getStatus: () => ({
-          provider: "claude-code",
-          available: true,
-          reusable: true,
-          authMode: "oauth",
-          detail: "ready",
-        }),
-        getCredentials: () => ({
-          accessToken: "oauth-token",
-        }),
-      });
-      const handler = plugin.models?.TEXT_LARGE;
-      expect(handler).toBeDefined();
-      const result = await handler?.(
-        {
-          getSetting: (key: string) =>
-            key === "runtimeSettings"
-              ? JSON.stringify({
-                  model: {
-                    provider: "claude-code",
-                    model: "claude-sonnet-4.6",
-                    baseUrl: "https://api.anthropic.com",
-                  },
-                })
-              : null,
-        } as never,
-        {
-          prompt: "hello",
-        } as never,
-      );
-      expect(result).toBe("claude code says hello");
-      expect(calls[0]?.url).toContain("/v1/messages");
-      expect(
-        (calls[0]?.init?.headers as Record<string, string>)?.["anthropic-beta"],
-      ).toContain("claude-code-20250219");
-      expect(
-        JSON.parse(String(calls[0]?.init?.body)).system?.[0]?.text,
-      ).toContain("You are Claude Code");
-      expect(calls[0]?.init?.signal).toBeInstanceOf(AbortSignal);
-      expect(JSON.parse(String(calls[0]?.init?.body))).not.toHaveProperty(
-        "output_config",
-      );
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-  });
-
-  it("sends Claude-native effort to direct API and CLI fallback paths", async () => {
-    const originalFetch = globalThis.fetch;
-    const bodies: unknown[] = [];
-    globalThis.fetch = (async (_url, init) => {
-      bodies.push(JSON.parse(String(init?.body)));
-      return new Response(
-        JSON.stringify({ content: [{ type: "text", text: "ok" }] }),
-        {
-          status: 200,
-        },
-      );
-    }) as typeof fetch;
-
-    try {
-      const direct = createClaudeCodePlugin({
-        enabled: true,
-        getStatus: () => ({
-          provider: "claude-code",
-          available: true,
-          reusable: true,
-          detail: "ready",
-        }),
-        getCredentials: () => ({ accessToken: "oauth-token" }),
-      });
-      await direct.models?.TEXT_LARGE?.(
-        {
-          getSetting: () =>
-            JSON.stringify({
-              model: { provider: "claude-code", reasoningEffort: "high" },
-            }),
-        } as never,
-        { prompt: "hello" } as never,
-      );
-      expect(bodies[0]).toMatchObject({ output_config: { effort: "high" } });
-
-      const cli = createClaudeCodePlugin({
-        enabled: true,
-        allowCliFallback: true,
-        getStatus: () => ({
-          provider: "claude-code",
-          available: true,
-          reusable: true,
-          detail: "ready",
-        }),
-        invokeCliPrint: async ({ effort }) => {
-          expect(effort).toBe("max");
-          return "ok";
-        },
-      });
-      await cli.models?.TEXT_LARGE?.(
-        {
-          getSetting: () =>
-            JSON.stringify({
-              model: { provider: "claude-code", reasoningEffort: "max" },
-            }),
-        } as never,
-        { prompt: "hello" } as never,
-      );
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-  });
-
-  it("falls back to the signed-in Claude CLI when OAuth refresh fails", async () => {
+  it("runs ordinary Claude CLI inference without starting a nested tool loop", async () => {
+    const invokeCliPrint = vi.fn(async () => "CLAUDE_OK");
     const plugin = createClaudeCodePlugin({
       enabled: true,
       allowCliFallback: true,
@@ -174,292 +65,83 @@ describe("createClaudeCodePlugin", () => {
         available: true,
         reusable: false,
         fallbackReady: true,
-        detail: "Claude CLI is signed in",
+        detail: "ready",
       }),
-      getCredentials: () => ({
-        accessToken: "expired-oauth",
-        expiresAt: String(Date.now() - 1_000),
-      }),
-      refreshCredentials: async () => {
-        throw new Error("OAuth refresh failed");
-      },
-      invokeCliPrint: async ({ prompt, model }) => {
-        expect(prompt).toBe("hello");
-        expect(model).toBe("sonnet");
-        return "claude cli response";
-      },
+      invokeCliPrint,
     });
 
     await expect(
       plugin.models?.TEXT_LARGE?.(
-        {
-          getSetting: () =>
-            JSON.stringify({
-              model: {
-                provider: "claude-code",
-                model: "claude-sonnet-4.6",
-              },
-            }),
-        } as never,
+        runtimeSettings({ reasoningEffort: "high" }) as never,
         { prompt: "hello" } as never,
       ),
-    ).resolves.toBe("claude cli response");
+    ).resolves.toBe("CLAUDE_OK");
+    expect(invokeCliPrint).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "hello",
+        model: "sonnet",
+        effort: "high",
+        systemPrompt: expect.stringContaining("inference transport"),
+      }),
+    );
   });
 
-  it("falls back to the signed-in Claude CLI when direct OAuth rejects the selected model", async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async () =>
-      new Response(
-        JSON.stringify({
-          type: "error",
-          error: {
-            type: "not_found_error",
-            message: "model is not available on the direct API",
-          },
-        }),
-        { status: 404 },
-      )) as typeof fetch;
+  it("keeps schema-constrained response handling on the local CLI fallback", async () => {
+    const invokeCliPrint = vi.fn(
+      async () => '{"shouldRespond":"RESPOND","replyText":"CLAUDE_OK"}',
+    );
+    const plugin = createClaudeCodePlugin({
+      enabled: true,
+      allowCliFallback: true,
+      getStatus: () => ({
+        provider: "claude-code",
+        available: true,
+        reusable: false,
+        fallbackReady: true,
+        detail: "ready",
+      }),
+      invokeCliPrint,
+    });
 
-    try {
-      const plugin = createClaudeCodePlugin({
-        enabled: true,
-        allowCliFallback: true,
-        getStatus: () => ({
-          provider: "claude-code",
-          available: true,
-          reusable: true,
-          fallbackReady: true,
-          detail: "Claude CLI is signed in",
-        }),
-        getCredentials: () => ({
-          accessToken: "oauth-token",
-        }),
-        invokeCliPrint: async ({ model }) => {
-          expect(model).toBe("sonnet");
-          return "claude cli response";
-        },
-      });
-
-      await expect(
-        plugin.models?.TEXT_LARGE?.(
-          {
-            getSetting: () =>
-              JSON.stringify({
-                model: {
-                  provider: "claude-code",
-                  model: "claude-sonnet-5",
-                },
-              }),
-          } as never,
-          { prompt: "hello" } as never,
-        ),
-      ).resolves.toBe("claude cli response");
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-  });
-
-  it("refreshes Claude Code credentials after an auth failure", async () => {
-    const originalFetch = globalThis.fetch;
-    let requestCount = 0;
-    globalThis.fetch = (async (_url, init) => {
-      requestCount += 1;
-      const auth = (init?.headers as Record<string, string>)?.Authorization;
-      if (requestCount === 1) {
-        expect(auth).toBe("Bearer stale-oauth");
-        return new Response("expired", { status: 401 });
-      }
-      expect(auth).toBe("Bearer fresh-oauth");
-      return new Response(
-        JSON.stringify({
-          content: [{ type: "text", text: "refreshed claude" }],
-        }),
-        { status: 200 },
-      );
-    }) as typeof fetch;
-
-    try {
-      const plugin = createClaudeCodePlugin({
-        enabled: true,
-        getStatus: () => ({
-          provider: "claude-code",
-          available: true,
-          reusable: true,
-          authMode: "oauth",
-          detail: "ready",
-        }),
-        getCredentials: () => ({
-          accessToken: "stale-oauth",
-        }),
-        refreshCredentials: async () => ({
-          accessToken: "fresh-oauth",
-        }),
-      });
-      const handler = plugin.models?.TEXT_LARGE;
-      const result = await handler?.(
+    await expect(
+      plugin.models?.RESPONSE_HANDLER?.(
+        runtimeSettings() as never,
         {
-          getSetting: () =>
-            JSON.stringify({
-              model: {
-                provider: "claude-code",
-              },
-            }),
+          messages: [{ role: "user", content: "Reply with CLAUDE_OK" }],
+          tools: [
+            {
+              name: "HANDLE_RESPONSE",
+              parameters: { type: "object", properties: {} },
+            },
+          ],
+          toolChoice: "required",
         } as never,
-        { prompt: "hello" } as never,
-      );
-      expect(result).toBe("refreshed claude");
-      expect(requestCount).toBe(2);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-  });
-
-  it("falls back to the local Claude CLI when no reusable token store is readable", async () => {
-    const plugin = createClaudeCodePlugin({
-      enabled: true,
-      allowCliFallback: true,
-      getStatus: () => ({
-        provider: "claude-code",
-        available: true,
-        reusable: true,
-        authMode: "claude.ai",
-        detail: "ready",
+      ),
+    ).resolves.toContain("CLAUDE_OK");
+    expect(invokeCliPrint).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jsonSchema: expect.objectContaining({ type: "object" }),
       }),
-      invokeCliPrint: async ({ prompt, model, systemPrompt }) => {
-        expect(prompt).toBe("hello");
-        expect(model).toBe("sonnet");
-        expect(systemPrompt).toContain("inference transport inside Doolittle");
-        return "LINKED_PROVIDER_OK";
-      },
-    });
-
-    const handler = plugin.models?.TEXT_LARGE;
-    const result = await handler?.(
-      {
-        getSetting: () =>
-          JSON.stringify({
-            model: {
-              provider: "claude-code",
-            },
-          }),
-      } as never,
-      { prompt: "hello" } as never,
     );
-    expect(result).toBe("LINKED_PROVIDER_OK");
   });
 
-  it("prefers Claude native structured output for Eliza response handling", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
-    const plugin = createClaudeCodePlugin({
-      enabled: true,
-      allowCliFallback: true,
-      getStatus: () => ({
-        provider: "claude-code",
-        available: true,
-        reusable: true,
-        fallbackReady: true,
-        detail: "ready",
-      }),
-      getCredentials: () => ({ accessToken: "oauth-token" }),
-      invokeCliPrint: async ({ jsonSchema }) => {
-        expect(jsonSchema).toEqual(expect.objectContaining({ type: "object" }));
-        return '{"shouldRespond":"RESPOND","replyText":"CLAUDE_OK"}';
-      },
-    });
-
-    const result = await plugin.models?.RESPONSE_HANDLER?.(
-      {
-        getSetting: () =>
-          JSON.stringify({
-            model: {
-              provider: "claude-code",
-              model: "claude-sonnet-5",
-            },
-          }),
-      } as never,
-      {
-        messages: [{ role: "user", content: "Reply with CLAUDE_OK" }],
-        tools: [
-          {
-            name: "HANDLE_RESPONSE",
-            parameters: { type: "object", properties: {} },
-          },
-        ],
-        toolChoice: "required",
-      } as never,
-    );
-
-    expect(result).toBe('{"shouldRespond":"RESPOND","replyText":"CLAUDE_OK"}');
-    expect(fetchSpy).not.toHaveBeenCalled();
-    fetchSpy.mockRestore();
-  });
-
-  it("falls back to Claude CLI when expired OAuth cannot refresh", async () => {
-    let cliCalls = 0;
-    const plugin = createClaudeCodePlugin({
-      enabled: true,
-      allowCliFallback: true,
-      getStatus: () => ({
-        provider: "claude-code",
-        available: true,
-        reusable: true,
-        fallbackReady: true,
-        detail: "ready",
-      }),
-      getCredentials: () => ({
-        accessToken: "expired-token",
-        refreshToken: "refresh-token",
-        expiresAt: "1",
-      }),
-      refreshCredentials: async () => undefined,
-      invokeCliPrint: async () => {
-        cliCalls += 1;
-        return "CLI_FALLBACK_OK";
-      },
-    });
-
-    const result = await plugin.models?.TEXT_LARGE?.(
-      {
-        getSetting: () =>
-          JSON.stringify({
-            model: {
-              provider: "claude-code",
-              model: "claude-sonnet-4.6",
-            },
-          }),
-      } as never,
-      { prompt: "hello" } as never,
-    );
-
-    expect(result).toBe("CLI_FALLBACK_OK");
-    expect(cliCalls).toBe(1);
-  });
-
-  it("requires native auth material when CLI fallback is disabled", async () => {
+  it("fails closed when the explicit local fallback is disabled", async () => {
     const plugin = createClaudeCodePlugin({
       enabled: true,
       allowCliFallback: false,
       getStatus: () => ({
         provider: "claude-code",
         available: true,
-        reusable: false,
-        detail: "not ready",
+        reusable: true,
+        detail: "OAuth is ready through Eliza.",
       }),
     });
 
-    const handler = plugin.models?.TEXT_LARGE;
     await expect(
-      handler?.(
-        {
-          getSetting: () =>
-            JSON.stringify({
-              model: {
-                provider: "claude-code",
-              },
-            }),
-        } as never,
+      plugin.models?.TEXT_LARGE?.(
+        runtimeSettings() as never,
         { prompt: "hello" } as never,
       ),
-    ).rejects.toThrow("No reusable Claude Code auth material");
+    ).rejects.toThrow("official Eliza Anthropic plugin");
   });
 });

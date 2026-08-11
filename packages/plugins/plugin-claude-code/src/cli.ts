@@ -1,27 +1,9 @@
 import { runShell } from "@elizaos/agent/services/shell-execution-router";
 import { logger } from "@elizaos/core";
-import {
-  CLAUDE_CODE_SYSTEM_PREFIX,
-  CLAUDE_CODE_VERSION_FALLBACK,
-} from "./constants";
+import { CLAUDE_CODE_CLI_INFERENCE_SYSTEM_PROMPT } from "./constants";
 
-export function getClaudeCodeVersion(): string {
-  // Keep module evaluation side-effect free; runtime commands use runShell.
-  return CLAUDE_CODE_VERSION_FALLBACK;
-}
-
-export const CLAUDE_CODE_VERSION = getClaudeCodeVersion();
-
-export function withClaudeCodeSystemPrefix(): Array<{
-  type: "text";
-  text: string;
-}> {
-  return [
-    {
-      type: "text",
-      text: CLAUDE_CODE_SYSTEM_PREFIX,
-    },
-  ];
+export function withClaudeCodeSystemPrefix(): string {
+  return CLAUDE_CODE_CLI_INFERENCE_SYSTEM_PROMPT;
 }
 
 export async function invokeClaudeCodeCliPrint(params: {

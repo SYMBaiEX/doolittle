@@ -1,9 +1,24 @@
 import type { AgentExecutionContext } from "../chat";
+import {
+  claudeCodeAccessTokenIsExpiring,
+  getLinkedClaudeCodeCredentials,
+} from "../native/account-auth";
 import { resolveCloudApiBaseUrl } from "./cloud-url";
 import { normalizeElizaCloudBaseUrl } from "./messages";
 import type { LinkedProviderName } from "./types";
 
 type ProviderRuntimeSettingValue = string | boolean | null;
+
+interface ProviderRuntimeSettingsDependencies {
+  claudeCodeAccessTokenIsExpiring: typeof claudeCodeAccessTokenIsExpiring;
+  getLinkedClaudeCodeCredentials: typeof getLinkedClaudeCodeCredentials;
+}
+
+const providerRuntimeSettingsDependencies: ProviderRuntimeSettingsDependencies =
+  {
+    claudeCodeAccessTokenIsExpiring,
+    getLinkedClaudeCodeCredentials,
+  };
 
 export type ProviderRuntimeSettingsContext = Pick<
   AgentExecutionContext,
@@ -64,6 +79,7 @@ export function buildProviderRuntimeSettings(
   settings: ReturnType<
     ProviderRuntimeSettingsContext["services"]["settings"]["get"]
   >,
+  dependencies: ProviderRuntimeSettingsDependencies = providerRuntimeSettingsDependencies,
 ): Map<string, ProviderRuntimeSettingValue> {
   const runtimeSettings = new Map<string, ProviderRuntimeSettingValue>([
     ["runtimeSettings", JSON.stringify(settings)],
@@ -95,9 +111,30 @@ export function buildProviderRuntimeSettings(
   }
 
   if (provider === "anthropic" || provider === "claude-code") {
+    const linkedClaude =
+      provider === "claude-code"
+        ? dependencies.getLinkedClaudeCodeCredentials()
+        : undefined;
+    const linkedClaudeReady = Boolean(
+      linkedClaude?.accessToken?.trim() &&
+        (!linkedClaude.expiresAt ||
+          !dependencies.claudeCodeAccessTokenIsExpiring(
+            linkedClaude.expiresAt,
+          )),
+    );
     runtimeSettings.set("ANTHROPIC_SMALL_MODEL", model);
     runtimeSettings.set("ANTHROPIC_LARGE_MODEL", model);
     runtimeSettings.set("ANTHROPIC_BASE_URL", baseUrl);
+    runtimeSettings.set(
+      "ANTHROPIC_AUTH_MODE",
+      provider === "anthropic"
+        ? "apikey"
+        : linkedClaudeReady
+          ? "oauth"
+          : context.config.claudeCodeCliFallback
+            ? "claude-cli"
+            : "oauth",
+    );
     return runtimeSettings;
   }
 

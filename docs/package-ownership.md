@@ -16,7 +16,7 @@ pinned `2.0.3-beta.7` train.
 | `packages/characters` | Eliza configuration | Native data | Character JSON is loaded by Eliza and contains no competing runtime implementation. |
 | `packages/plugins` | Workspace aggregator | Keep | Groups shared plugin dependencies and contains the namespaced `doolittle-plugin` product actions and projections. Official service identifiers stay reserved for upstream owners. |
 | `packages/plugins/plugin-sql` | Doolittle relationship projection | Keep while needed | Wraps official `@elizaos/plugin-sql` without replacing its persistence lifecycle, adding only normalized tag and metadata merge-on-write semantics that the official create API intentionally does not provide. |
-| `packages/plugins/plugin-claude-code` | Provider gap | Keep for now | Preserves linked-account direct inference, structured Claude CLI output, explicit effort, and nested-tool suppression. The official CLI-inference package does not expose the full contract. |
+| `packages/plugins/plugin-claude-code` | Provider fallback | Keep narrow | Official `@elizaos/plugin-anthropic` owns linked OAuth inference, account-pool rotation, native tools, structured responses, streaming, and prompt caching. This package retains only schema-constrained local Claude CLI fallback with nested-tool suppression, which the pinned official CLI mode does not expose. |
 | `packages/plugins/plugin-devin` | Provider gap | Keep for now | Adapts the sanctioned Devin CLI; no official Eliza Devin provider exists on the pinned release. |
 | `packages/plugins/provider-transport` | Shared Doolittle adapter | Keep while used | Down-converts Eliza generation inputs only for the remaining custom Claude Code and Devin transports. |
 | `packages/app-training` | Resolver shim | Temporary | Exact beta package is unpublished. The SDK release gate declares and validates the shim. |
@@ -41,6 +41,12 @@ home for product-only actions and service projections.
   official plugin reads and refreshes the Codex CLI OAuth file itself.
 - Removed Codex from Doolittle's provider publishing pipeline because the
   package is now upstream-owned.
+- Routed linked Claude OAuth through official `@elizaos/plugin-anthropic`,
+  including account-pool rotation, native tool/response contracts, streaming,
+  and prompt caching. The Doolittle Claude package now contains only the
+  explicit structured local-CLI fallback missing from the pinned plugin.
+- Replaced Doolittle's copied Anthropic OAuth refresh client identity and HTTP
+  exchange with the official `@elizaos/agent/auth/anthropic` helper.
 - Replaced the custom `secrets-manager` runtime with the official core
   `SECRETS` service and retained only a namespaced `@elizaos/vault` persistence
   mirror for global-secret restart durability and legacy plaintext import.

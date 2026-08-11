@@ -7,6 +7,7 @@ describe("resolveProviderCachePolicy", () => {
     expect(p.mode).toBe("explicit");
     expect(p.maxStableBreakpoints).toBe(4);
     expect(p.emitsPromptCacheKey).toBe(false);
+    expect(resolveProviderCachePolicy("claude-code")).toEqual(p);
   });
 
   it("classifies OpenAI (SDK plugin) as explicit with a prompt cache key", () => {
@@ -21,14 +22,7 @@ describe("resolveProviderCachePolicy", () => {
   });
 
   it("classifies custom plugins that ignore segments, and unknowns, as none", () => {
-    for (const id of [
-      "claude-code",
-      "codex",
-      "devin",
-      "elizacloud",
-      "",
-      undefined,
-    ]) {
+    for (const id of ["codex", "devin", "elizacloud", "", undefined]) {
       expect(resolveProviderCachePolicy(id).mode).toBe("none");
     }
   });

@@ -47,9 +47,9 @@ this module; SDK message-service prompts must not.
 
 | Mode | Providers | Behavior |
 |---|---|---|
-| `explicit` | `anthropic`, `openai` (SDK plugins) | Emit `promptSegments` (+ `promptCacheKey` for OpenAI). |
 | `implicit` | `ollama` / local | No hints; an identical leading prefix is reused by the KV cache automatically. |
-| `none` | claude-code, codex, devin, official Eliza Cloud, unknown | No-op — on the pinned beta, those handlers build their request from `params.prompt` and ignore segments. |
+| `explicit` | Anthropic API key, linked Claude Code OAuth, OpenAI | Stable prompt segments and provider-native cache controls. |
+| `none` | codex, devin, explicit Claude CLI fallback, official Eliza Cloud, unknown | No-op — on the pinned beta, those handlers build their request from `params.prompt` and ignore segments. |
 
 ## Cache keys & invalidation
 

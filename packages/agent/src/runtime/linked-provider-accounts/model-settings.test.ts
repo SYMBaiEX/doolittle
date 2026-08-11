@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "../chat";
-import { syncProviderSettings } from "./model-settings";
+import {
+  buildProviderRuntimeSettings,
+  syncProviderSettings,
+} from "./model-settings";
 
 describe("syncProviderSettings", () => {
   beforeEach(() => {
@@ -115,5 +118,76 @@ describe("syncProviderSettings", () => {
     );
     expect(runtimeSettings.has("OPENAI_API_KEY")).toBe(false);
     expect(runtimeSettings.has("OPENAI_BASE_URL")).toBe(false);
+  });
+
+  it("routes linked Claude OAuth through the official Anthropic plugin mode", () => {
+    const settings = {
+      model: {
+        provider: "claude-code",
+        model: "claude-sonnet-4.6",
+        baseUrl: "",
+      },
+    } as ReturnType<AgentExecutionContext["services"]["settings"]["get"]>;
+    const context = {
+      runtime: { getSetting: () => undefined },
+      config: { claudeCodeCliFallback: true },
+      services: { settings: { get: () => settings } },
+    } as unknown as AgentExecutionContext;
+
+    const runtimeSettings = buildProviderRuntimeSettings(context, settings, {
+      claudeCodeAccessTokenIsExpiring: () => false,
+      getLinkedClaudeCodeCredentials: () => ({
+        accessToken: "linked-oauth-token",
+      }),
+    });
+
+    expect(runtimeSettings.get("ANTHROPIC_AUTH_MODE")).toBe("oauth");
+  });
+
+  it("uses the narrow Claude CLI bridge only without reusable OAuth", () => {
+    const settings = {
+      model: {
+        provider: "claude-code",
+        model: "claude-sonnet-4.6",
+        baseUrl: "",
+      },
+    } as ReturnType<AgentExecutionContext["services"]["settings"]["get"]>;
+    const context = {
+      runtime: { getSetting: () => undefined },
+      config: { claudeCodeCliFallback: true },
+      services: { settings: { get: () => settings } },
+    } as unknown as AgentExecutionContext;
+
+    const runtimeSettings = buildProviderRuntimeSettings(context, settings, {
+      claudeCodeAccessTokenIsExpiring: () => false,
+      getLinkedClaudeCodeCredentials: () => undefined,
+    });
+
+    expect(runtimeSettings.get("ANTHROPIC_AUTH_MODE")).toBe("claude-cli");
+  });
+
+  it("uses the CLI fallback for an expired linked token when explicitly enabled", () => {
+    const settings = {
+      model: {
+        provider: "claude-code",
+        model: "claude-sonnet-4.6",
+        baseUrl: "",
+      },
+    } as ReturnType<AgentExecutionContext["services"]["settings"]["get"]>;
+    const context = {
+      runtime: { getSetting: () => undefined },
+      config: { claudeCodeCliFallback: true },
+      services: { settings: { get: () => settings } },
+    } as unknown as AgentExecutionContext;
+
+    const runtimeSettings = buildProviderRuntimeSettings(context, settings, {
+      claudeCodeAccessTokenIsExpiring: () => true,
+      getLinkedClaudeCodeCredentials: () => ({
+        accessToken: "expired-oauth-token",
+        expiresAt: "1",
+      }),
+    });
+
+    expect(runtimeSettings.get("ANTHROPIC_AUTH_MODE")).toBe("claude-cli");
   });
 });

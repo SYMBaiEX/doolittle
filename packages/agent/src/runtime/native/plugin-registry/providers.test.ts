@@ -22,6 +22,7 @@ describe("loadProviderPlugins", () => {
     const secondAssembly = await loadProviderPlugins(config());
     const switchableNames = [
       "codex-cli",
+      "anthropic",
       "@doolittle/plugin-claude-code",
       "@doolittle/plugin-devin",
       "elizaOSCloud",
@@ -65,6 +66,19 @@ describe("loadProviderPlugins", () => {
     expect(codex?.models?.[ModelType.RESPONSE_HANDLER]).toBeTypeOf("function");
     expect(codex?.models?.[ModelType.ACTION_PLANNER]).toBeTypeOf("function");
     expect(codex?.services).toBeUndefined();
+  });
+
+  it("uses the official Anthropic plugin for linked OAuth, tools, and planning", async () => {
+    const providers = await loadProviderPlugins(config());
+    const anthropic = providers.find((plugin) => plugin.name === "anthropic");
+
+    expect(anthropic?.models?.[ModelType.TEXT_LARGE]).toBeTypeOf("function");
+    expect(anthropic?.models?.[ModelType.RESPONSE_HANDLER]).toBeTypeOf(
+      "function",
+    );
+    expect(anthropic?.models?.[ModelType.ACTION_PLANNER]).toBeTypeOf(
+      "function",
+    );
   });
 
   it("enables official cloud embeddings only when cloud embedding ownership is selected", async () => {

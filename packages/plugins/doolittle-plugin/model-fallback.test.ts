@@ -47,7 +47,10 @@ describe("createOfflineBootstrapTextModel", () => {
   it("resolves linked-account providers to their registered plugin identity", async () => {
     const model = createOfflineBootstrapTextModel(ModelType.TEXT_LARGE);
     const runtime = {
-      getSetting: () => JSON.stringify({ model: { provider: "claude-code" } }),
+      getSetting: (key: string) =>
+        key === "runtimeSettings"
+          ? JSON.stringify({ model: { provider: "claude-code" } })
+          : undefined,
       useModel: async (
         _modelType: string,
         _params: unknown,
@@ -56,7 +59,7 @@ describe("createOfflineBootstrapTextModel", () => {
     } as unknown as IAgentRuntime;
 
     await expect(model(runtime, { prompt: "hello" })).resolves.toBe(
-      "@doolittle/plugin-claude-code",
+      "anthropic",
     );
   });
 

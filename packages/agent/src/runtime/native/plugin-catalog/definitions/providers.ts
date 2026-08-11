@@ -57,14 +57,14 @@ export const PROVIDER_PLUGIN_CATALOG_SEEDS: NativePluginCatalogSeed[] = [
   },
   {
     id: "providers.claude-code",
-    packageName: "@doolittle/plugin-claude-code",
+    packageName: "@elizaos/plugin-anthropic",
     category: "providers",
-    source: "custom",
+    source: "official",
     kind: "provider",
     maturity: "alpha",
     enablement: "claudeCode",
     notes:
-      "Doolittle-owned Claude Code provider bridge for linked-account Claude workflows.",
+      "Official Anthropic provider for linked Claude OAuth, account-pool rotation, native tools, structured output, streaming, and prompt caching; a narrow Doolittle bridge remains only for explicit structured CLI fallback.",
   },
   {
     id: "providers.devin",

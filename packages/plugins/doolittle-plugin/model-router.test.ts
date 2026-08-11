@@ -17,12 +17,21 @@ describe("resolveSelectedModelProviderPlugin", () => {
     ["ollama", "ollama"],
     ["elizacloud", "elizaOSCloud"],
     ["codex", "codex-cli"],
-    ["claude-code", "@doolittle/plugin-claude-code"],
+    ["claude-code", "anthropic"],
     ["devin", "@doolittle/plugin-devin"],
     ["openai", "openai"],
     ["anthropic", "anthropic"],
   ])("maps %s to its registered Eliza plugin", (provider, plugin) => {
     expect(resolveSelectedModelProviderPlugin(provider)).toBe(plugin);
+  });
+
+  it("keeps only explicit Claude CLI fallback on the Doolittle bridge", () => {
+    expect(
+      resolveSelectedModelProviderPlugin("claude-code", "claude-cli"),
+    ).toBe("@doolittle/plugin-claude-code");
+    expect(resolveSelectedModelProviderPlugin("claude-code", "oauth")).toBe(
+      "anthropic",
+    );
   });
 
   it("preserves extension provider names and rejects empty selections", () => {
@@ -37,12 +46,15 @@ describe("resolveSelectedModelProviderPlugin", () => {
 describe("createSelectedProviderTextModel", () => {
   it("routes consecutive calls through the currently selected provider", async () => {
     let activeProvider = "ollama";
+    let anthropicAuthMode: string | undefined;
     const routedProviders: string[] = [];
     const runtime = {
-      getSetting: (key: string) =>
-        key === "runtimeSettings"
-          ? JSON.stringify({ model: { provider: activeProvider } })
-          : undefined,
+      getSetting: (key: string) => {
+        if (key === "runtimeSettings") {
+          return JSON.stringify({ model: { provider: activeProvider } });
+        }
+        return key === "ANTHROPIC_AUTH_MODE" ? anthropicAuthMode : undefined;
+      },
       useModel: async (
         _modelType: string,
         _params: unknown,
@@ -59,6 +71,10 @@ describe("createSelectedProviderTextModel", () => {
     );
     activeProvider = "claude-code";
     await expect(model(runtime, { prompt: "second" })).resolves.toBe(
+      "response from anthropic",
+    );
+    anthropicAuthMode = "claude-cli";
+    await expect(model(runtime, { prompt: "fallback" })).resolves.toBe(
       "response from @doolittle/plugin-claude-code",
     );
     activeProvider = "codex";
@@ -68,6 +84,7 @@ describe("createSelectedProviderTextModel", () => {
 
     expect(routedProviders).toEqual([
       "ollama",
+      "anthropic",
       "@doolittle/plugin-claude-code",
       "codex-cli",
     ]);

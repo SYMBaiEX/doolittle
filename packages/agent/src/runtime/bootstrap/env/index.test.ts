@@ -308,7 +308,8 @@ describe("bootstrap environment", () => {
       },
     );
 
-    expect(settings.ANTHROPIC_API_KEY).toBe("claude-linked-token");
+    expect(settings.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(settings.ANTHROPIC_AUTH_MODE).toBe("oauth");
     expect(settings.SECRET_SALT).toBe("injected-salt");
     expect(settings.ENCRYPTION_SALT).toBe("injected-salt");
     expect(settings.PGLITE_DATA_DIR).toBe(join(root, "pglite-explicit"));

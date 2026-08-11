@@ -45,6 +45,7 @@ export interface PluginSettings {
   CODEX_MODEL?: string;
   ANTHROPIC_SMALL_MODEL: string;
   ANTHROPIC_LARGE_MODEL: string;
+  ANTHROPIC_AUTH_MODE?: "apikey" | "oauth" | "claude-cli";
   SECRET_SALT: string;
   ENCRYPTION_SALT: string;
   PGLITE_DATA_DIR: string;

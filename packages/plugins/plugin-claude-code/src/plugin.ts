@@ -17,7 +17,7 @@ export function createClaudeCodePlugin(
     static serviceType = "claude_code";
 
     capabilityDescription =
-      "Linked Claude Code bridge for native Claude workflows, Anthropic-native routing, and optional local CLI fallback.";
+      "Structured local Claude CLI fallback for environments without reusable OAuth credentials.";
 
     static async start(runtime?: IAgentRuntime): Promise<ClaudeCodeService> {
       return new ClaudeCodeService(runtime);
@@ -36,6 +36,7 @@ export function createClaudeCodePlugin(
         upstreamProvider: "anthropic",
         available: status.available,
         reusable: status.reusable,
+        fallbackReady: status.fallbackReady ?? false,
         authMode: status.authMode ?? "oauth",
         source: status.source,
         lastRefresh: status.lastRefresh,
@@ -56,7 +57,7 @@ export function createClaudeCodePlugin(
   return {
     name: "@doolittle/plugin-claude-code",
     description:
-      "Doolittle-owned Eliza provider bridge for linked Claude Code accounts and workflow routing.",
+      "Narrow structured Claude CLI fallback behind the official Eliza Anthropic provider.",
     services: [ClaudeCodeService],
     models: options.enabled
       ? createElizaTextGenerationModelHandlers((runtime, params) =>
