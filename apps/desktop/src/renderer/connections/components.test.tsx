@@ -20,7 +20,6 @@ describe("provider account surfaces", () => {
         isDefault={false}
         onCancelSignIn={noop}
         onConnect={noop}
-        onRefresh={noop}
         onSetDefault={noop}
         onSignIn={noop}
         onSubmitCode={noop}
@@ -56,7 +55,6 @@ describe("provider account surfaces", () => {
         isDefault={false}
         onCancelSignIn={noop}
         onConnect={noop}
-        onRefresh={noop}
         onSetDefault={noop}
         onSignIn={noop}
         onSubmitCode={noop}
@@ -138,6 +136,8 @@ describe("provider account surfaces", () => {
     expect(markup).toContain("Credentials stay local in Eliza");
     expect(markup).toContain('class="provider-pool-toolbar"');
     expect(markup).toContain('aria-label="Pool readiness"');
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain('class="provider-pool-body" hidden=""');
     expect(markup).toContain("automatic fallback");
     expect(markup).not.toContain("Pool setup progress");
     expect(markup).not.toContain("Add a backup account");

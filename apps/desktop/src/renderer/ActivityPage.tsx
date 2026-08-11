@@ -20,6 +20,15 @@ import {
 
 type ActivitySource = "all" | ActivityEventKind;
 
+export const ACTIVITY_PAGE_SIZE = 20;
+
+export function visibleActivityWindow<T>(
+  events: readonly T[],
+  visibleCount: number,
+): readonly T[] {
+  return events.slice(0, Math.max(ACTIVITY_PAGE_SIZE, visibleCount));
+}
+
 const SOURCE_LABELS: Record<ActivityEventKind, string> = {
   "chat-run": "Chat",
   automation: "Automation",
@@ -56,6 +65,7 @@ function activityState(event: ActivityEvent): {
 export function ActivityPage({ active }: { active: boolean }) {
   const [query, setQuery] = useState("");
   const [source, setSource] = useState<ActivitySource>("all");
+  const [visibleCount, setVisibleCount] = useState(ACTIVITY_PAGE_SIZE);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
 
@@ -101,6 +111,8 @@ export function ActivityPage({ active }: { active: boolean }) {
 
   const loading = timeline.loading;
   const errors = timeline.error ? [timeline.error] : [];
+  const visibleRows = visibleActivityWindow(filtered, visibleCount);
+  const remainingRows = Math.max(0, filtered.length - visibleRows.length);
 
   const exportTimeline = async () => {
     if (exporting) return;
@@ -136,7 +148,7 @@ export function ActivityPage({ active }: { active: boolean }) {
       <PageHeader
         eyebrow="Operator"
         title="Activity"
-        description="A concise, server-owned record of agent work and how each operation ended."
+        description="Agent work, outcomes, and runtime events in one timeline."
         actions={
           <div className="row-actions">
             <button
@@ -168,7 +180,10 @@ export function ActivityPage({ active }: { active: boolean }) {
             id="activity-query"
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setVisibleCount(ACTIVITY_PAGE_SIZE);
+            }}
             placeholder="Search actions, outcomes, routes, or status"
             disabled={!active}
           />
@@ -178,9 +193,10 @@ export function ActivityPage({ active }: { active: boolean }) {
           <select
             id="activity-source"
             value={source}
-            onChange={(event) =>
-              setSource(event.target.value as ActivitySource)
-            }
+            onChange={(event) => {
+              setSource(event.target.value as ActivitySource);
+              setVisibleCount(ACTIVITY_PAGE_SIZE);
+            }}
             disabled={!active}
           >
             <option value="all">All sources</option>
@@ -247,13 +263,13 @@ export function ActivityPage({ active }: { active: boolean }) {
                 <h2>What happened</h2>
               </div>
               <small>
-                {filtered.length} visible
+                {visibleRows.length} visible
                 {rows.length !== filtered.length ? ` of ${rows.length}` : ""}
               </small>
             </div>
 
             <ol className="activity-event-list">
-              {filtered.map((row) => {
+              {visibleRows.map((row) => {
                 const tone = activityTone(row);
                 const state = activityState(row);
                 return (
@@ -275,6 +291,8 @@ export function ActivityPage({ active }: { active: boolean }) {
                                 aria-hidden="true"
                               />
                               {state.liveness === "live" ? "Live" : "Settled"}
+                              <span aria-hidden="true">·</span>
+                              {row.target}
                             </span>
                           </div>
                           <time dateTime={row.occurredAt}>
@@ -286,39 +304,26 @@ export function ActivityPage({ active }: { active: boolean }) {
                           <strong>{row.title}</strong>
                         </p>
                         <p className="activity-outcome">{row.safeSummary}</p>
-
-                        <details className="activity-disclosure">
-                          <summary>Inspect safe details</summary>
-                          <div className="activity-detail-panel">
-                            <dl className="activity-structured-details">
-                              <div className="activity-detail-row">
-                                <dt>Action</dt>
-                                <dd>{row.title}</dd>
-                              </div>
-                              <div className="activity-detail-row">
-                                <dt>Outcome</dt>
-                                <dd>{row.safeSummary}</dd>
-                              </div>
-                              <div className="activity-detail-row">
-                                <dt>State</dt>
-                                <dd>
-                                  {row.status} · {state.severity} ·{" "}
-                                  {state.liveness}
-                                </dd>
-                              </div>
-                              <div className="activity-detail-row">
-                                <dt>Route</dt>
-                                <dd>{row.target}</dd>
-                              </div>
-                            </dl>
-                          </div>
-                        </details>
                       </div>
                     </article>
                   </li>
                 );
               })}
             </ol>
+            {remainingRows ? (
+              <footer className="activity-feed-more">
+                <span>{remainingRows} older events</span>
+                <button
+                  className="secondary-button"
+                  onClick={() =>
+                    setVisibleCount((count) => count + ACTIVITY_PAGE_SIZE)
+                  }
+                  type="button"
+                >
+                  Show next {Math.min(ACTIVITY_PAGE_SIZE, remainingRows)}
+                </button>
+              </footer>
+            ) : null}
           </section>
         </>
       ) : (

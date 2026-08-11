@@ -1950,76 +1950,17 @@ button.chat-session-meta-pill:hover {
   overflow-wrap: anywhere;
 }
 
-.activity-disclosure {
-  margin-top: 10px;
-}
-
-.activity-disclosure > summary {
-  width: fit-content;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-meta);
-  list-style-position: inside;
-  cursor: pointer;
-  user-select: none;
-}
-
-.activity-disclosure > summary:hover {
-  color: var(--accent);
-}
-
-.activity-disclosure > summary:focus-visible {
-  color: var(--text);
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
-  border-radius: 1px;
-}
-
-.activity-detail-panel {
-  display: grid;
-  grid-template-columns: minmax(240px, 0.8fr) minmax(300px, 1.2fr);
+.activity-feed-more {
+  display: flex;
   gap: 12px;
-  margin-top: 10px;
-}
-
-.activity-structured-details {
-  display: grid;
-  gap: 0;
-  align-content: start;
-  padding: 0;
-  margin: 0;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
-
-.activity-detail-row {
-  display: grid;
-  grid-template-columns: 78px minmax(0, 1fr);
-  gap: 10px;
-  padding: 9px 11px;
-  border-bottom: 1px solid var(--border);
-}
-
-.activity-detail-row:last-child {
-  border-bottom: 0;
-}
-
-.activity-structured-details dt {
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 8px 18px;
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: var(--text-meta);
-  text-transform: uppercase;
-}
-
-.activity-structured-details dd {
-  min-width: 0;
-  margin: 0;
-  color: var(--text-soft);
-  font-size: var(--text-caption);
-  line-height: 1.5;
-  overflow-wrap: anywhere;
+  background: color-mix(in srgb, var(--surface-soft) 82%, transparent);
 }
 
 .media-panel,
@@ -2034,6 +1975,17 @@ button.chat-session-meta-pill:hover {
   align-items: start;
 }
 
+.media-tab-panel > :only-child {
+  grid-column: 1 / -1;
+  width: min(100%, 820px);
+}
+
+.media-result-stack {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
 .media-form,
 .media-result {
   min-height: 100%;
@@ -2046,9 +1998,67 @@ button.chat-session-meta-pill:hover {
   gap: 0 10px;
 }
 
-.media-form > :is(.card-heading, .form-actions),
+.media-form > :is(.card-heading, .form-actions, .media-options),
 .media-form > label:has(textarea),
 .media-form > label:first-of-type:last-of-type {
+  grid-column: 1 / -1;
+}
+
+.media-options {
+  margin: 0 0 11px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-soft) 78%, transparent);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.media-options > summary {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 10px;
+  cursor: pointer;
+  color: var(--text-soft);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  list-style: none;
+  text-transform: uppercase;
+}
+
+.media-options > summary::-webkit-details-marker {
+  display: none;
+}
+
+.media-options > summary::after {
+  color: var(--accent);
+  content: "+";
+}
+
+.media-options[open] > summary::after {
+  content: "−";
+}
+
+.media-options > summary span {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 10px;
+  padding: 10px 10px 0;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.media-options-wide {
   grid-column: 1 / -1;
 }
 
@@ -2347,6 +2357,14 @@ button.chat-session-meta-pill:hover {
     grid-template-columns: 1fr;
   }
 
+  .media-options-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .media-options-wide {
+    grid-column: auto;
+  }
+
   .activity-summary-strip {
     grid-template-columns: 1fr;
   }
@@ -2362,10 +2380,6 @@ button.chat-session-meta-pill:hover {
 
   .activity-entry {
     padding: 0 13px;
-  }
-
-  .activity-detail-panel {
-    grid-template-columns: 1fr;
   }
 
   .activity-entry-head {

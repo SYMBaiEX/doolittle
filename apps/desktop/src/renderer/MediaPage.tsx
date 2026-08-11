@@ -105,8 +105,7 @@ function InspectAnalyzeTab({
     }
   };
 
-  const runAnalyze = async (event: FormEvent) => {
-    event.preventDefault();
+  const runAnalyze = async () => {
     const trimmed = path.trim();
     if (!trimmed) {
       setAnalyzeError("Path is required.");
@@ -137,20 +136,38 @@ function InspectAnalyzeTab({
       <form className="content-card media-form" onSubmit={runInspect}>
         <div className="card-heading">
           <div>
-            <span className="eyebrow">Inspect</span>
-            <h2>Read metadata from a local file</h2>
+            <span className="eyebrow">Local media</span>
+            <h2>Inspect or analyze a file</h2>
           </div>
         </div>
         <label>
-          <span>Local file path</span>
+          <span>File</span>
           <input
             value={path}
             onChange={(event) => setPath(event.target.value)}
             placeholder="/tmp/example.wav"
             aria-label="Media path for inspection"
           />
-          <small>Returned paths are not auto-opened.</small>
         </label>
+        <details className="media-options">
+          <summary>
+            Analysis settings <span>{analyzeFocus || "Auto"}</span>
+          </summary>
+          <div className="media-options-grid">
+            <label>
+              <span>Focus</span>
+              <select
+                value={analyzeFocus}
+                onChange={(event) => setAnalyzeFocus(event.target.value)}
+              >
+                <option value="">auto</option>
+                <option value="voice">voice</option>
+                <option value="vision">vision</option>
+                <option value="research">research</option>
+              </select>
+            </label>
+          </div>
+        </details>
         <div className="form-actions">
           <button
             className="secondary-button"
@@ -158,6 +175,14 @@ function InspectAnalyzeTab({
             type="button"
           >
             Browse…
+          </button>
+          <button
+            className="secondary-button"
+            disabled={analyzeBusy}
+            onClick={() => void runAnalyze()}
+            type="button"
+          >
+            {analyzeBusy ? "Analyzing…" : "Analyze"}
           </button>
           <button
             className="primary-button"
@@ -169,63 +194,36 @@ function InspectAnalyzeTab({
         </div>
       </form>
 
-      {inspectError ? <Notice tone="bad">{inspectError}</Notice> : null}
-      {inspectResult ? (
-        <div className="content-card media-result">
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">Inspect result</span>
-              <h2>Bounded metadata</h2>
+      {inspectError || analyzeError || inspectResult || analyzeResult ? (
+        <div className="media-result-stack">
+          {inspectError ? <Notice tone="bad">{inspectError}</Notice> : null}
+          {analyzeError ? <Notice tone="bad">{analyzeError}</Notice> : null}
+          {inspectResult ? (
+            <div className="content-card media-result">
+              <div className="card-heading">
+                <div>
+                  <span className="eyebrow">Inspect result</span>
+                  <h2>Metadata</h2>
+                </div>
+              </div>
+              <pre className="json-preview" aria-live="polite">
+                {formatBoundedPreview(inspectResult, BOUNDS.mediaResultChars)}
+              </pre>
             </div>
-          </div>
-          <pre className="json-preview" aria-live="polite">
-            {formatBoundedPreview(inspectResult, BOUNDS.mediaResultChars)}
-          </pre>
-        </div>
-      ) : null}
-
-      <form className="content-card media-form" onSubmit={runAnalyze}>
-        <div className="card-heading">
-          <div>
-            <span className="eyebrow">Analyze</span>
-            <h2>Run model analysis</h2>
-          </div>
-        </div>
-        <label>
-          <span>Focus</span>
-          <select
-            value={analyzeFocus}
-            onChange={(event) => setAnalyzeFocus(event.target.value)}
-          >
-            <option value="">auto</option>
-            <option value="voice">voice</option>
-            <option value="vision">vision</option>
-            <option value="research">research</option>
-          </select>
-        </label>
-        <div className="form-actions">
-          <button
-            className="secondary-button"
-            disabled={analyzeBusy}
-            type="submit"
-          >
-            {analyzeBusy ? "Analyzing…" : "Analyze"}
-          </button>
-        </div>
-      </form>
-
-      {analyzeError ? <Notice tone="bad">{analyzeError}</Notice> : null}
-      {analyzeResult ? (
-        <div className="content-card media-result">
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">Analysis result</span>
-              <h2>Bounded JSON/text</h2>
+          ) : null}
+          {analyzeResult ? (
+            <div className="content-card media-result">
+              <div className="card-heading">
+                <div>
+                  <span className="eyebrow">Analysis result</span>
+                  <h2>Model output</h2>
+                </div>
+              </div>
+              <pre className="json-preview" aria-live="polite">
+                {formatBoundedPreview(analyzeResult, BOUNDS.mediaResultChars)}
+              </pre>
             </div>
-          </div>
-          <pre className="json-preview" aria-live="polite">
-            {formatBoundedPreview(analyzeResult, BOUNDS.mediaResultChars)}
-          </pre>
+          ) : null}
         </div>
       ) : null}
     </section>
@@ -302,37 +300,44 @@ function TranscribeTab({
           </div>
         </div>
         <label>
-          <span>Audio/video file path</span>
+          <span>Audio or video file</span>
           <input
             value={path}
             onChange={(event) => setPath(event.target.value)}
             placeholder="/tmp/meeting.webm"
           />
         </label>
-        <label>
-          <span>Language</span>
-          <input
-            value={language}
-            onChange={(event) => setLanguage(event.target.value)}
-            placeholder="en-US"
-          />
-        </label>
-        <label>
-          <span>Source name</span>
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="meeting"
-          />
-        </label>
-        <label>
-          <span>Prompt</span>
-          <input
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            placeholder="Emphasize action items"
-          />
-        </label>
+        <details className="media-options">
+          <summary>
+            Transcription settings <span>{language || "Automatic"}</span>
+          </summary>
+          <div className="media-options-grid">
+            <label>
+              <span>Language</span>
+              <input
+                value={language}
+                onChange={(event) => setLanguage(event.target.value)}
+                placeholder="en-US"
+              />
+            </label>
+            <label>
+              <span>Source name</span>
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="meeting"
+              />
+            </label>
+            <label className="media-options-wide">
+              <span>Prompt</span>
+              <input
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                placeholder="Emphasize action items"
+              />
+            </label>
+          </div>
+        </details>
         <div className="form-actions">
           <button
             className="secondary-button"
@@ -448,43 +453,50 @@ function SpeechTab({
             placeholder="Write your summary…"
           />
         </label>
-        <label>
-          <span>Output name</span>
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="summary-audio"
-          />
-        </label>
-        <label>
-          <span>Voice</span>
-          <input
-            value={voice}
-            onChange={(event) => setVoice(event.target.value)}
-            placeholder="default"
-          />
-        </label>
-        <label>
-          <span>Format</span>
-          <select
-            value={format}
-            onChange={(event) => setFormat(event.target.value)}
-          >
-            <option value="mp3">mp3</option>
-            <option value="svg">svg</option>
-          </select>
-        </label>
-        <label>
-          <span>Speed</span>
-          <input
-            value={speed}
-            onChange={(event) => setSpeed(event.target.value)}
-            type="number"
-            min="0.5"
-            max="3"
-            step="0.1"
-          />
-        </label>
+        <details className="media-options">
+          <summary>
+            Voice and output <span>{voice || "Default"}</span>
+          </summary>
+          <div className="media-options-grid">
+            <label>
+              <span>Output name</span>
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="summary-audio"
+              />
+            </label>
+            <label>
+              <span>Voice</span>
+              <input
+                value={voice}
+                onChange={(event) => setVoice(event.target.value)}
+                placeholder="default"
+              />
+            </label>
+            <label>
+              <span>Format</span>
+              <select
+                value={format}
+                onChange={(event) => setFormat(event.target.value)}
+              >
+                <option value="mp3">mp3</option>
+                <option value="svg">svg</option>
+              </select>
+            </label>
+            <label>
+              <span>Speed</span>
+              <input
+                value={speed}
+                onChange={(event) => setSpeed(event.target.value)}
+                type="number"
+                min="0.5"
+                max="3"
+                step="0.1"
+              />
+            </label>
+          </div>
+        </details>
         <div className="form-actions">
           <button className="primary-button" disabled={busy} type="submit">
             {busy ? "Generating…" : "Generate speech"}
@@ -593,38 +605,45 @@ function ImageTab({
             placeholder="Design a clean operator dashboard"
           />
         </label>
-        <label>
-          <span>Name</span>
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="dashboard-art"
-          />
-        </label>
-        <label>
-          <span>Size</span>
-          <input
-            value={size}
-            onChange={(event) => setSize(event.target.value)}
-            placeholder="1024x1024"
-          />
-        </label>
-        <label>
-          <span>Style</span>
-          <input
-            value={style}
-            onChange={(event) => setStyle(event.target.value)}
-            placeholder="cinematic"
-          />
-        </label>
-        <label>
-          <span>Focus</span>
-          <input
-            value={focus}
-            onChange={(event) => setFocus(event.target.value)}
-            placeholder="UI layout"
-          />
-        </label>
+        <details className="media-options">
+          <summary>
+            Image settings <span>{size || "Provider default"}</span>
+          </summary>
+          <div className="media-options-grid">
+            <label>
+              <span>Name</span>
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="dashboard-art"
+              />
+            </label>
+            <label>
+              <span>Size</span>
+              <input
+                value={size}
+                onChange={(event) => setSize(event.target.value)}
+                placeholder="1024x1024"
+              />
+            </label>
+            <label>
+              <span>Style</span>
+              <input
+                value={style}
+                onChange={(event) => setStyle(event.target.value)}
+                placeholder="cinematic"
+              />
+            </label>
+            <label>
+              <span>Focus</span>
+              <input
+                value={focus}
+                onChange={(event) => setFocus(event.target.value)}
+                placeholder="UI layout"
+              />
+            </label>
+          </div>
+        </details>
         <div className="form-actions">
           <button className="primary-button" disabled={busy} type="submit">
             {busy ? "Generating…" : "Generate"}
@@ -723,7 +742,7 @@ export function MediaPage({ active }: { active: boolean }) {
       <PageHeader
         eyebrow="Operator"
         title="Media"
-        description="Inspect media files, analyze content, transcribe, synthesize speech, and generate images."
+        description="Inspect, transcribe, and generate with Eliza media services."
       />
 
       <div aria-label="Media action tabs" className="media-tabs" role="tablist">

@@ -19,7 +19,6 @@ export function ProviderConnectionRow({
   isDefault,
   onCancelSignIn,
   onConnect,
-  onRefresh,
   onSetDefault,
   onSignIn,
   onSubmitCode,
@@ -32,7 +31,6 @@ export function ProviderConnectionRow({
   isDefault: boolean;
   onCancelSignIn: (provider: ProviderAuthProvider) => void;
   onConnect: () => void;
-  onRefresh: () => void;
   onSetDefault: () => void;
   onSignIn: (provider: ProviderAuthProvider) => void;
   onSubmitCode: (provider: ProviderAuthProvider) => void;
@@ -142,14 +140,6 @@ export function ProviderConnectionRow({
             Connect
           </Button>
         )}
-        <Button
-          onClick={onRefresh}
-          disabled={busy}
-          type="button"
-          variant="secondary"
-        >
-          Refresh
-        </Button>
         {authProvider && ready && !signingIn ? (
           <Button
             onClick={() => onSignIn(authProvider)}

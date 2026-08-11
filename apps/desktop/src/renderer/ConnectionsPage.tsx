@@ -39,6 +39,13 @@ interface AccountsResponse {
   connect?: Record<string, unknown>;
 }
 
+export function connectionsResourcePolicy(active: boolean, poolOpen: boolean) {
+  return {
+    accounts: active,
+    accountPool: active && poolOpen,
+  };
+}
+
 function accountPoolProviderFor(
   provider: ProviderAuthProvider,
 ): AccountPoolProvider {
@@ -87,13 +94,15 @@ export function ConnectionsPage({
   active: boolean;
   embedded?: boolean;
 }) {
+  const [poolOpen, setPoolOpen] = useState(false);
+  const resourcePolicy = connectionsResourcePolicy(active, poolOpen);
   const accountPool = useApiResource<AccountPoolResponse>(
-    active ? "/runtime/account-pool" : null,
-    [active],
+    resourcePolicy.accountPool ? "/runtime/account-pool" : null,
+    [resourcePolicy.accountPool],
   );
   const resource = useApiResource<AccountsResponse>(
-    active ? "/runtime/accounts" : null,
-    [active],
+    resourcePolicy.accounts ? "/runtime/accounts" : null,
+    [resourcePolicy.accounts],
   );
   const [busy, setBusy] = useState("");
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
@@ -522,13 +531,6 @@ export function ConnectionsPage({
   const readyProviderCount = providerViews.filter(
     (provider) => provider.ready,
   ).length;
-  const pooledAccountCount = accountPool.data
-    ? Object.values(accountPool.data.providers).reduce(
-        (total, provider) => total + provider.accounts.length,
-        0,
-      )
-    : 0;
-
   return (
     <PagePanel
       className={embedded ? "settings-provider-section" : "page"}
@@ -595,7 +597,7 @@ export function ConnectionsPage({
                 credentials remain inside Eliza&apos;s private local services.
               </p>
             </div>
-            <dl className="provider-overview__metrics">
+            <dl className="provider-overview__metrics is-compact">
               <div>
                 <dt>Chat providers</dt>
                 <dd>
@@ -604,25 +606,10 @@ export function ConnectionsPage({
                 </dd>
               </div>
               <div>
-                <dt>Pooled accounts</dt>
+                <dt>Current provider</dt>
                 <dd>
-                  <strong>{pooledAccountCount}</strong>
-                  <span>across agent routes</span>
-                </dd>
-              </div>
-              <div>
-                <dt>Eliza bridge</dt>
-                <dd>
-                  <strong>
-                    {accountPool.data?.bridgeInstalled ? "Live" : "—"}
-                  </strong>
-                  <span>
-                    {accountPool.loading
-                      ? "checking runtime"
-                      : accountPool.data?.bridgeInstalled
-                        ? "native selector ready"
-                        : "not available"}
-                  </span>
+                  <strong>{activeDefault?.provider.shortLabel ?? "—"}</strong>
+                  <span>{activeDefault?.provider.label ?? "not selected"}</span>
                 </dd>
               </div>
             </dl>
@@ -654,7 +641,6 @@ export function ConnectionsPage({
                     void cancelAccountSignIn(provider)
                   }
                   onConnect={() => void mutate(entry.provider.key, "connect")}
-                  onRefresh={() => void mutate(entry.provider.key, "refresh")}
                   onSetDefault={() => void mutate(entry.provider.key, "use")}
                   onSignIn={(provider) => void startAccountSignIn(provider)}
                   onSubmitCode={(provider) =>
@@ -667,85 +653,87 @@ export function ConnectionsPage({
             </div>
           </section>
 
-          <section
-            className="provider-surface"
-            aria-labelledby="agent-routing-title"
+          <details
+            className="provider-surface provider-routing-disclosure"
+            onToggle={(event) => setPoolOpen(event.currentTarget.open)}
           >
-            <header className="provider-section-heading">
-              <div>
+            <summary>
+              <span>
                 <span className="eyebrow">Agent routing</span>
-                <h2 id="agent-routing-title">Subscription account pools</h2>
-              </div>
-              <p>
-                Balance spawned coding and research sessions without exposing
-                credentials.
-              </p>
-            </header>
-            {accountPool.error ? (
-              <ErrorBlock
-                error={accountPool.error}
-                retry={accountPool.reload}
-              />
-            ) : accountPool.loading ? (
-              <LoadingBlock label="Loading Eliza account pools…" />
-            ) : (
-              <div className="provider-pool-stack">
-                {providerViews.map((entry) => {
-                  const poolProvider = entry.provider.poolProvider;
-                  if (!poolProvider || !entry.authProvider) return null;
-                  return (
-                    <AccountPoolPanel
-                      accountImport={accountImports[poolProvider]}
-                      authProvider={entry.authProvider}
-                      bridgeInstalled={Boolean(
-                        accountPool.data?.bridgeInstalled,
-                      )}
-                      busy={busy}
-                      descriptor={{
-                        label: entry.provider.label,
-                        shortLabel: entry.provider.shortLabel,
-                        provider: poolProvider,
-                      }}
-                      key={poolProvider}
-                      onAccountImportChange={(draft) =>
-                        setAccountImports((current) => ({
-                          ...current,
-                          [poolProvider]: draft,
-                        }))
-                      }
-                      onDelete={(account) =>
-                        deleteAccount(poolProvider, account)
-                      }
-                      onMove={(accounts, accountId, direction) =>
-                        movePoolAccount(
-                          poolProvider,
-                          accounts,
-                          accountId,
-                          direction,
-                        )
-                      }
-                      onPatch={(account, changes) =>
-                        updateAccount(poolProvider, account, changes)
-                      }
-                      onPreview={() => void selectAccount(poolProvider)}
-                      onRefreshUsage={(account) =>
-                        refreshPoolAccountUsage(poolProvider, account)
-                      }
-                      onSetStrategy={(strategy) =>
-                        void setPoolStrategy(poolProvider, strategy)
-                      }
-                      onSignIn={(provider) => void startAccountSignIn(provider)}
-                      onTest={(account) =>
-                        testPoolAccount(poolProvider, account)
-                      }
-                      selectedAccountId={selectedAccounts[poolProvider]}
-                      snapshot={accountPool.data?.providers[poolProvider]}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </section>
+                <strong>Subscription account pools</strong>
+                <small>Codex and Claude rotation for spawned agents</small>
+              </span>
+              <span>{poolOpen ? "Hide" : "Manage"}</span>
+            </summary>
+            <div className="provider-routing-content">
+              {accountPool.error ? (
+                <ErrorBlock
+                  error={accountPool.error}
+                  retry={accountPool.reload}
+                />
+              ) : accountPool.loading ? (
+                <LoadingBlock label="Loading Eliza account pools…" />
+              ) : (
+                <div className="provider-pool-stack">
+                  {providerViews.map((entry) => {
+                    const poolProvider = entry.provider.poolProvider;
+                    if (!poolProvider || !entry.authProvider) return null;
+                    return (
+                      <AccountPoolPanel
+                        accountImport={accountImports[poolProvider]}
+                        authProvider={entry.authProvider}
+                        bridgeInstalled={Boolean(
+                          accountPool.data?.bridgeInstalled,
+                        )}
+                        busy={busy}
+                        descriptor={{
+                          label: entry.provider.label,
+                          shortLabel: entry.provider.shortLabel,
+                          provider: poolProvider,
+                        }}
+                        key={poolProvider}
+                        onAccountImportChange={(draft) =>
+                          setAccountImports((current) => ({
+                            ...current,
+                            [poolProvider]: draft,
+                          }))
+                        }
+                        onDelete={(account) =>
+                          deleteAccount(poolProvider, account)
+                        }
+                        onMove={(accounts, accountId, direction) =>
+                          movePoolAccount(
+                            poolProvider,
+                            accounts,
+                            accountId,
+                            direction,
+                          )
+                        }
+                        onPatch={(account, changes) =>
+                          updateAccount(poolProvider, account, changes)
+                        }
+                        onPreview={() => void selectAccount(poolProvider)}
+                        onRefreshUsage={(account) =>
+                          refreshPoolAccountUsage(poolProvider, account)
+                        }
+                        onSetStrategy={(strategy) =>
+                          void setPoolStrategy(poolProvider, strategy)
+                        }
+                        onSignIn={(provider) =>
+                          void startAccountSignIn(provider)
+                        }
+                        onTest={(account) =>
+                          testPoolAccount(poolProvider, account)
+                        }
+                        selectedAccountId={selectedAccounts[poolProvider]}
+                        snapshot={accountPool.data?.providers[poolProvider]}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </details>
         </div>
       ) : null}
     </PagePanel>

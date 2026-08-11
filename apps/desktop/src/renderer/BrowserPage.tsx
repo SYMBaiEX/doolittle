@@ -240,14 +240,10 @@ export function BrowserPage({
         <div>
           <span className="eyebrow">Build and verify</span>
           <h1>Browser & preview</h1>
-          <p>
-            Run localhost previews and turn any page into inspectable,
-            reviewable evidence.
-          </p>
+          <p>Preview localhost. Capture evidence from any URL.</p>
         </div>
         <div className="browser-status">
           <i className={status.error ? "offline" : ""} />
-          <span>Browser service</span>
           <strong>{status.error ? "Unavailable" : statusLabel}</strong>
           <button
             className="text-button"
@@ -403,60 +399,66 @@ export function BrowserPage({
           <div className="browser-actions">
             {ACTIONS.map((action) => (
               <button
+                aria-label={`${action.label}: ${action.detail}`}
                 disabled={!active || Boolean(busy)}
                 key={action.id}
                 onClick={() => void runAction(action.id)}
+                title={action.detail}
                 type="button"
               >
                 <span>{action.label}</span>
-                <small>{action.detail}</small>
                 <i>{busy === action.id ? "…" : "↗"}</i>
               </button>
             ))}
           </div>
 
-          <div className="browser-compare">
-            <span className="eyebrow">Visual regression</span>
-            <label>
-              Compare with
-              <input
-                aria-describedby={
-                  error && errorField === "compare"
-                    ? "browser-url-error"
-                    : undefined
-                }
-                aria-invalid={errorField === "compare" ? true : undefined}
-                onChange={(event) => {
-                  setCompareUrl(event.target.value);
-                  if (errorField === "compare") {
-                    setError("");
-                    setErrorField(null);
+          <details className="browser-compare">
+            <summary>
+              <span>Compare versions</span>
+              <small>Optional</small>
+            </summary>
+            <div className="browser-compare-body">
+              <label>
+                Compare with
+                <input
+                  aria-describedby={
+                    error && errorField === "compare"
+                      ? "browser-url-error"
+                      : undefined
                   }
-                }}
-                placeholder="https://staging.example.com"
-                spellCheck={false}
-                value={compareUrl}
-              />
-            </label>
-            <div>
-              <button
-                className="secondary-button"
-                disabled={!active || Boolean(busy) || !compareUrl.trim()}
-                onClick={() => void compare(false)}
-                type="button"
-              >
-                {busy === "compare" ? "Comparing…" : "Compare"}
-              </button>
-              <button
-                className="secondary-button"
-                disabled={!active || Boolean(busy) || !compareUrl.trim()}
-                onClick={() => void compare(true)}
-                type="button"
-              >
-                {busy === "compare-analyze" ? "Analyzing…" : "AI review"}
-              </button>
+                  aria-invalid={errorField === "compare" ? true : undefined}
+                  onChange={(event) => {
+                    setCompareUrl(event.target.value);
+                    if (errorField === "compare") {
+                      setError("");
+                      setErrorField(null);
+                    }
+                  }}
+                  placeholder="https://staging.example.com"
+                  spellCheck={false}
+                  value={compareUrl}
+                />
+              </label>
+              <div className="browser-compare-actions">
+                <button
+                  className="secondary-button"
+                  disabled={!active || Boolean(busy) || !compareUrl.trim()}
+                  onClick={() => void compare(false)}
+                  type="button"
+                >
+                  {busy === "compare" ? "Comparing…" : "Compare"}
+                </button>
+                <button
+                  className="secondary-button"
+                  disabled={!active || Boolean(busy) || !compareUrl.trim()}
+                  onClick={() => void compare(true)}
+                  type="button"
+                >
+                  {busy === "compare-analyze" ? "Analyzing…" : "AI review"}
+                </button>
+              </div>
             </div>
-          </div>
+          </details>
 
           {result ? (
             <BrowserResultPanel

@@ -41,6 +41,7 @@ const TOOL_PROFILES: readonly ToolProfile[] = [
 
 export function ToolsPage({ active }: { active: boolean }) {
   const [profile, setProfile] = useState<ToolProfile>("full");
+  const [integrationsOpen, setIntegrationsOpen] = useState(false);
   const toolsPath = active ? `/tools?profile=${profile}` : null;
   const summaryPath = active ? `/tools/summary?profile=${profile}` : null;
   const tools = useApiResource<ToolsResponse>(toolsPath, [active, profile]);
@@ -76,7 +77,7 @@ export function ToolsPage({ active }: { active: boolean }) {
       <PageHeader
         eyebrow="Agent"
         title="Tools"
-        description="Inspect every local, service, adapter, and MCP capability available to Doolittle."
+        description="Search the capabilities available to this runtime."
         actions={
           <button
             className="secondary-button"
@@ -93,7 +94,6 @@ export function ToolsPage({ active }: { active: boolean }) {
           value={asNumber(totals.total, entries.length)}
         />
         <MetricCard label="Enabled" value={asNumber(totals.enabled)} />
-        <MetricCard label="Disabled" value={asNumber(totals.disabled)} />
         <MetricCard
           label="Categories"
           value={asArray(totals.categories).length}
@@ -114,8 +114,24 @@ export function ToolsPage({ active }: { active: boolean }) {
           }
         />
       </div>
-      <McpControlPanel active={active} />
-      <AcpBridgePanel active={active} />
+      <details
+        className="tools-integrations"
+        onToggle={(event) => setIntegrationsOpen(event.currentTarget.open)}
+      >
+        <summary>
+          <span>
+            <strong>Integration bridges</strong>
+            <small>MCP discovery and ACP diagnostics</small>
+          </span>
+          <span>{integrationsOpen ? "Hide" : "Inspect"}</span>
+        </summary>
+        {integrationsOpen ? (
+          <div className="tools-integrations__body">
+            <McpControlPanel active={active} />
+            <AcpBridgePanel active={active} />
+          </div>
+        ) : null}
+      </details>
       <div className="filter-bar">
         <label className="search-field">
           <span className="sr-only">Search tools</span>

@@ -75,6 +75,7 @@ export function AccountPoolPanel({
   snapshot?: AccountPoolProviderSnapshot;
 }) {
   const [setupOpen, setSetupOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   if (!snapshot) {
     return (
@@ -111,7 +112,9 @@ export function AccountPoolPanel({
   return (
     <section
       aria-label={`${descriptor.label} spawned-agent account pool`}
-      className="provider-pool-panel"
+      className={
+        expanded ? "provider-pool-panel is-expanded" : "provider-pool-panel"
+      }
     >
       <header className="provider-pool-panel__header">
         <div className="provider-identity-mark" aria-hidden="true">
@@ -137,10 +140,23 @@ export function AccountPoolPanel({
               Repair auth
             </Button>
           ) : null}
+          <Button
+            aria-controls={`provider-pool-${descriptor.provider}`}
+            aria-expanded={expanded}
+            onClick={() => setExpanded((current) => !current)}
+            type="button"
+            variant="secondary"
+          >
+            {expanded ? "Done" : "Manage"}
+          </Button>
         </div>
       </header>
 
-      <div className="provider-pool-body">
+      <div
+        className="provider-pool-body"
+        hidden={!expanded}
+        id={`provider-pool-${descriptor.provider}`}
+      >
         <div className="provider-pool-toolbar">
           <dl className="provider-pool-summary" aria-label="Pool readiness">
             <div>

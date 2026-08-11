@@ -29,7 +29,7 @@
 
 .browser-status {
   display: grid;
-  grid-template-columns: auto auto auto auto;
+  grid-template-columns: auto auto auto;
   align-items: center;
   gap: 8px;
   padding: 6px 7px 6px 10px;
@@ -50,10 +50,6 @@
 
 .browser-status > i.offline {
   background: var(--bad);
-}
-
-.browser-status > span {
-  color: var(--muted);
 }
 
 .browser-status > strong {
@@ -300,11 +296,11 @@
 
 .browser-actions button {
   display: grid;
-  min-height: 62px;
+  min-height: 38px;
   grid-template-columns: minmax(0, 1fr) auto;
   align-content: center;
-  gap: 4px 8px;
-  padding: 9px 10px;
+  gap: 8px;
+  padding: 7px 9px;
   color: var(--text-soft);
   background: var(--surface-soft);
   border: 1px solid var(--border);
@@ -323,31 +319,60 @@
   font-weight: 800;
 }
 
-.browser-actions button small {
-  grid-column: 1;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .browser-actions button i {
   grid-column: 2;
-  grid-row: 1 / 3;
   align-self: center;
   color: var(--accent);
   font-style: normal;
 }
 
 .browser-compare {
-  display: grid;
-  gap: 8px;
-  padding: 12px 14px 14px;
   border-bottom: 1px solid var(--border);
 }
 
-.browser-compare label {
+.browser-compare > summary {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  cursor: pointer;
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 750;
+  list-style: none;
+}
+
+.browser-compare > summary::-webkit-details-marker {
+  display: none;
+}
+
+.browser-compare > summary::after {
+  color: var(--accent);
+  content: "+";
+}
+
+.browser-compare[open] > summary::after {
+  content: "−";
+}
+
+.browser-compare > summary small {
+  margin-left: auto;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.browser-compare-body {
+  display: grid;
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+
+.browser-compare-body label {
   display: grid;
   gap: 5px;
   color: var(--muted);
@@ -355,7 +380,7 @@
   font-size: 10px;
 }
 
-.browser-compare input {
+.browser-compare-body input {
   height: 35px;
   padding: 0 9px;
   border-radius: var(--radius-xs);
@@ -363,7 +388,7 @@
   font-size: 10px;
 }
 
-.browser-compare > div {
+.browser-compare-actions {
   display: flex;
   gap: 6px;
 }
@@ -688,8 +713,7 @@
     overflow: auto;
   }
 
-  .browser-header p,
-  .browser-status > span {
+  .browser-header p {
     display: none;
   }
 
