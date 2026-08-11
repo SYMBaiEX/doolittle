@@ -21,7 +21,13 @@ const appPolishCss = readFileSync(
 describe("thread workbench viewport layout contract", () => {
   it("mounts the workbench as a dedicated sibling pane beside the chat conversation", () => {
     expect(chatPage).toMatch(
-      /<section className="chat-conversation"[\s\S]*?<\/section>[\s\S]*?\{inspectorVisible \? \([\s\S]*?<div className="chat-workbench-pane" id="thread-workbench">[\s\S]*?<ThreadWorkbenchRail/s,
+      /<section className="chat-conversation"[\s\S]*?<\/section>[\s\S]*?\{inspectorVisible \? \([\s\S]*?<div className="chat-workbench-pane" id="thread-workbench">[\s\S]*?<Suspense[\s\S]*?<ThreadWorkbenchRail/s,
+    );
+    expect(chatPage).toContain(
+      "const ThreadWorkbenchRail = lazy(async () => {",
+    );
+    expect(chatPage).not.toContain(
+      'ThreadWorkbenchRail,\n} from "./components/ThreadWorkbenchRail"',
     );
     expect(experienceCss).toMatch(
       /\.chat-workspace > #thread-workbench\s*{[^}]*grid-column:\s*2;[^}]*grid-row:\s*1;[^}]*align-self:\s*stretch;[^}]*display:\s*grid;[^}]*grid-template-rows:\s*minmax\(0, 1fr\);[^}]*height:\s*100%;[^}]*max-height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s,

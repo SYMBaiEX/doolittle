@@ -1,6 +1,8 @@
 import {
   type FormEvent,
+  lazy,
   type SetStateAction,
+  Suspense,
   useCallback,
   useEffect,
   useEffectEvent,
@@ -41,10 +43,7 @@ import type { ChatContextHandoff } from "./chat-context-handoff";
 import { commandCompletions } from "./command-completion";
 import { visibleAssistantText } from "./components/message-output";
 import { RouteControlDialog } from "./components/RouteControlDialog";
-import {
-  type ThreadWorkbenchFullView,
-  ThreadWorkbenchRail,
-} from "./components/ThreadWorkbenchRail";
+import type { ThreadWorkbenchFullView } from "./components/ThreadWorkbenchRail";
 import type { VoiceRecorderMime } from "./components/VoiceComposerButton";
 import {
   type ContextPressureSnapshot,
@@ -85,6 +84,10 @@ interface SessionUsageResponse {
 const STORAGE_KEY = "doolittle.desktop.conversations.v2";
 const INSPECTOR_STORAGE_KEY = "doolittle.desktop.chat-inspector-visible.v1";
 const MEMORY_MATCH_DEBOUNCE_MS = 380;
+const ThreadWorkbenchRail = lazy(async () => {
+  const module = await import("./components/ThreadWorkbenchRail");
+  return { default: module.ThreadWorkbenchRail };
+});
 
 function loadMessages(): ConversationStore {
   try {
@@ -1672,14 +1675,24 @@ export function ChatPage({
       ) : null}
       {inspectorVisible ? (
         <div className="chat-workbench-pane" id="thread-workbench">
-          <ThreadWorkbenchRail
-            active={backend.phase === "ready"}
-            onInsertContext={insertChatContext}
-            onOpenFullView={onOpenWorkspaceView}
-            onRequestClose={() => setInspectorVisible(false)}
-            sessionId={selectedId}
-            workspacePath={workspacePath}
-          />
+          <Suspense
+            fallback={
+              <div
+                aria-label="Loading thread workbench"
+                className="thread-workbench"
+                role="status"
+              />
+            }
+          >
+            <ThreadWorkbenchRail
+              active={backend.phase === "ready"}
+              onInsertContext={insertChatContext}
+              onOpenFullView={onOpenWorkspaceView}
+              onRequestClose={() => setInspectorVisible(false)}
+              sessionId={selectedId}
+              workspacePath={workspacePath}
+            />
+          </Suspense>
         </div>
       ) : null}
       <RouteControlDialog

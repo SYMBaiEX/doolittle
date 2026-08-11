@@ -834,6 +834,9 @@ export function InteractiveTerminal({
       <div className="interactive-terminal-stage">
         <div
           aria-label="Terminal output"
+          aria-labelledby={
+            activeTab ? `interactive-terminal-${activeTab.id}-tab` : undefined
+          }
           aria-live="off"
           className="interactive-terminal-output"
           id={

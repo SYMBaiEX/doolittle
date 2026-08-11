@@ -7,7 +7,10 @@ import {
   type ThreadWorkbenchFilesPanelProps,
 } from "./ThreadWorkbenchFilesPanel";
 
+const codeEditorModule = vi.hoisted(() => vi.fn());
+
 vi.mock("./CodeEditor", async () => {
+  codeEditorModule();
   const { createElement } = await import("react");
   return {
     CodeEditor: ({ ariaLabel, path }: { ariaLabel?: string; path: string }) =>
@@ -52,6 +55,12 @@ function render(overrides: Partial<ThreadWorkbenchFilesPanelProps> = {}) {
 }
 
 describe("ThreadWorkbenchFilesPanel", () => {
+  it("does not load the editor runtime before a file is selected", () => {
+    render();
+
+    expect(codeEditorModule).not.toHaveBeenCalled();
+  });
+
   it("renders the Files wrapper and loading state", () => {
     const markup = render({
       tree: {
@@ -93,8 +102,8 @@ describe("ThreadWorkbenchFilesPanel", () => {
     expect(markup).toContain("Select a file");
   });
 
-  it("renders a selected preview with language, editor ARIA, and enabled insertion", () => {
-    const markup = render({
+  it("loads the editor only for a selected preview and preserves its ARIA label", async () => {
+    const selectedPreview = {
       entries: [{ path: "src/index.ts", type: "file", depth: 1 }],
       file: {
         data: { content: "export {};" },
@@ -104,7 +113,14 @@ describe("ThreadWorkbenchFilesPanel", () => {
       },
       selectedLanguage: { id: "typescript", label: "TypeScript" },
       selectedPath: "src/index.ts",
-    });
+    } satisfies Partial<ThreadWorkbenchFilesPanelProps>;
+
+    const loadingMarkup = render(selectedPreview);
+    expect(loadingMarkup).toContain(
+      'aria-label="Loading preview src/index.ts"',
+    );
+    await vi.dynamicImportSettled();
+    const markup = render(selectedPreview);
 
     expect(markup).toContain('role="tree"');
     expect(markup).toContain("src/index.ts");
@@ -112,6 +128,7 @@ describe("ThreadWorkbenchFilesPanel", () => {
     expect(markup).toContain('aria-label="Preview src/index.ts"');
     expect(markup).toContain('data-code-editor-path="src/index.ts"');
     expect(markup).toMatch(/<button type="button">Add to chat<\/button>/u);
+    expect(codeEditorModule).toHaveBeenCalledTimes(1);
   });
 
   it("disables insertion until selected file content is available", () => {
