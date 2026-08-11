@@ -5,6 +5,12 @@
     },
     "apps/desktop": {
       "ignoreDependencies": ["electron-builder"]
+    },
+    "packages/plugins": {
+      "project": ["doolittle-plugin/**/*.ts"]
+    },
+    "packages/plugins/plugin-sql": {
+      "project": ["src/**/*.ts"]
     }
   }
 }
