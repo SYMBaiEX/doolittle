@@ -174,7 +174,11 @@ export function getClaudeCodeAccountStatus(
   homePath: string | undefined,
   deps: ClaudeCodeAuthDependencies,
 ): LinkedProviderAccountStatus {
-  const cliStatus = getClaudeCodeCliAuthStatus(homePath, deps);
+  let cliStatus: ReturnType<typeof getClaudeCodeCliAuthStatus> | undefined;
+  const readCliStatus = () => {
+    cliStatus ??= getClaudeCodeCliAuthStatus(homePath, deps);
+    return cliStatus;
+  };
   const home = deps.resolveHome(homePath);
   const credentialsPath = getClaudeCodeCredentialsPath(homePath, deps);
   const profilePath = join(home, ".claude.json");
@@ -183,10 +187,14 @@ export function getClaudeCodeAccountStatus(
   const envCredentials = resolveClaudeCodeEnvCredentials(homePath, deps);
 
   if (fileCreds && hasTokenCredentials(fileCreds)) {
+    const fallbackReady =
+      (!fileCreds.expiresAt ||
+        claudeCodeAccessTokenIsExpiring(fileCreds.expiresAt)) &&
+      readCliStatus().loggedIn;
     return buildFileClaudeCodeStatus({
       fileCreds,
       accountLabel,
-      fallbackReady: cliStatus.loggedIn,
+      fallbackReady,
     });
   }
 
@@ -194,13 +202,18 @@ export function getClaudeCodeAccountStatus(
     return buildEnvClaudeCodeStatus({
       envCredentials,
       accountLabel,
-      fallbackReady: cliStatus.loggedIn,
+      fallbackReady: false,
     });
   }
 
   const stored = getReusableStoredTokenCredentials(deps.getStoredCredentials());
   if (stored) {
-    return buildStoredClaudeCodeStatus(stored, cliStatus.loggedIn);
+    const fallbackReady =
+      (stored.authMode || "oauth") === "oauth" &&
+      (!stored.expiresAt ||
+        claudeCodeAccessTokenIsExpiring(stored.expiresAt)) &&
+      readCliStatus().loggedIn;
+    return buildStoredClaudeCodeStatus(stored, fallbackReady);
   }
 
   const officialStatus = getOfficialSubscriptionProviderStatus(
@@ -208,18 +221,16 @@ export function getClaudeCodeAccountStatus(
     homePath,
   );
   if (officialStatus?.nativeReady) {
-    return {
-      ...officialStatus,
-      fallbackReady: cliStatus.loggedIn || officialStatus.fallbackReady,
-    };
+    return officialStatus;
   }
 
-  if (accountLabel || existsSync(credentialsPath) || cliStatus.available) {
+  const localCliStatus = readCliStatus();
+  if (accountLabel || existsSync(credentialsPath) || localCliStatus.available) {
     return buildLocalClaudeCodeStatus({
       accountLabel,
       credentialsPath,
       profilePath,
-      cliStatus,
+      cliStatus: localCliStatus,
     });
   }
 

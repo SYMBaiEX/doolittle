@@ -1,9 +1,8 @@
 import type { Plugin } from "@elizaos/core";
 import type { EnvConfig } from "../../../types/runtime";
-import {
-  getLinkedProviderAccountsSnapshot,
-  refreshLinkedClaudeCodeCredentials,
-} from "../account-auth";
+import { refreshLinkedClaudeCodeCredentials } from "../account-auth";
+import { getClaudeCodeAccountStatus } from "../account-auth/claude-code";
+import { getDevinAccountStatus } from "../account-auth/devin";
 import { createDoolittleOllamaUxPlugin } from "./local-ollama";
 import { normalizePlugin } from "./support";
 
@@ -42,7 +41,7 @@ export async function loadProviderPlugins(
     createClaudeCodePlugin({
       enabled: true,
       allowCliFallback: config.claudeCodeCliFallback,
-      getStatus: () => getLinkedProviderAccountsSnapshot().claudeCode,
+      getStatus: () => getClaudeCodeAccountStatus(),
       refreshCredentials: () => refreshLinkedClaudeCodeCredentials(),
     }),
     createDevinPlugin({
@@ -51,7 +50,7 @@ export async function loadProviderPlugins(
       model: config.devinModel,
       timeoutMs: config.devinTimeoutMs,
       getCwd: () => config.workspaceDir,
-      getStatus: () => getLinkedProviderAccountsSnapshot().devin,
+      getStatus: () => getDevinAccountStatus(),
     }),
     normalizePlugin({
       ...elizaCloudPlugin,

@@ -152,17 +152,19 @@ export async function handleRuntimeAccountRoutes(
     request.method === "GET" &&
     (url.pathname === "/runtime/accounts" || url.pathname === "/accounts")
   ) {
+    const accounts = getAccountsSnapshot(context);
     return json({
       activeProvider: context.services.settings.get().model.provider,
-      accounts: getAccountsSnapshot(context),
-      connect: buildAccountConnectAdvice(),
+      accounts,
+      connect: buildAccountConnectAdvice(accounts),
     });
   }
 
   if (request.method === "GET" && url.pathname === "/accounts/doctor") {
+    const accounts = getAccountsSnapshot(context);
     return json({
-      accounts: getAccountsSnapshot(context),
-      connect: buildAccountConnectAdvice(),
+      accounts,
+      connect: buildAccountConnectAdvice(accounts),
     });
   }
 
@@ -274,11 +276,12 @@ export async function handleRuntimeAccountRoutes(
     if (body.provider !== "claude-code") {
       return json({ error: "provider must be claude-code" }, 400);
     }
+    const details = getAccountLoginDetails(context, "claude-code");
     return json({
       provider: body.provider,
-      command: getAccountLoginDetails(context, "claude-code").setupCommand,
-      advice: getAccountLoginDetails(context, "claude-code").advice,
-      accounts: getAccountsSnapshot(context),
+      command: details.setupCommand,
+      advice: details.advice,
+      accounts: details.accounts,
     });
   }
 

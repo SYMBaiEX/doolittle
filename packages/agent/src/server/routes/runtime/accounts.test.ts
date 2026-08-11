@@ -182,4 +182,76 @@ describe("Doolittle account-pool routes", () => {
       accountPool.reconcileDoolittleAccountPoolCredentials,
     ).toHaveBeenCalledWith("openai-codex");
   });
+
+  it("reuses one provider snapshot for account status and connect advice", async () => {
+    const routeShared = await import("./shared");
+    const accounts = {
+      codex: { provider: "codex", available: true, reusable: true },
+      claudeCode: {
+        provider: "claude-code",
+        available: false,
+        reusable: false,
+      },
+      devin: { provider: "devin", available: false, reusable: false },
+      elizaCloud: {
+        provider: "elizacloud",
+        available: false,
+        reusable: false,
+      },
+    } as never;
+    const getSnapshot = vi
+      .spyOn(routeShared, "getAccountsSnapshot")
+      .mockReturnValue(accounts);
+    const buildAdvice = vi.spyOn(routeShared, "buildAccountConnectAdvice");
+    const readContext = {
+      services: {
+        settings: { get: () => ({ model: { provider: "codex" } }) },
+      },
+    } as never;
+
+    const response = await handleRuntimeAccountRoutes(
+      readContext,
+      new Request("http://localhost/runtime/accounts"),
+      new URL("http://localhost/runtime/accounts"),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(getSnapshot).toHaveBeenCalledOnce();
+    expect(buildAdvice).toHaveBeenCalledOnce();
+    expect(buildAdvice).toHaveBeenCalledWith(accounts);
+  });
+
+  it("reuses one login-details snapshot for setup-token guidance", async () => {
+    const routeShared = await import("./shared");
+    const details = {
+      provider: "claude-code",
+      setupCommand: "claude setup-token",
+      advice: { ready: false },
+      accounts: { claudeCode: { reusable: false } },
+    } as never;
+    const getDetails = vi
+      .spyOn(routeShared, "getAccountLoginDetails")
+      .mockReturnValue(details);
+    const getSnapshot = vi.spyOn(routeShared, "getAccountsSnapshot");
+
+    const response = await handleRuntimeAccountRoutes(
+      context,
+      new Request("http://localhost/accounts/setup-token", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider: "claude-code" }),
+      }),
+      new URL("http://localhost/accounts/setup-token"),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(getDetails).toHaveBeenCalledOnce();
+    expect(getSnapshot).not.toHaveBeenCalled();
+    await expect(response?.json()).resolves.toEqual({
+      provider: "claude-code",
+      command: "claude setup-token",
+      advice: { ready: false },
+      accounts: { claudeCode: { reusable: false } },
+    });
+  });
 });

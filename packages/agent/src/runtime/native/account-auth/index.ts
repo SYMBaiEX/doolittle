@@ -52,6 +52,7 @@ export type {
   ProviderAuthStoreShape,
 } from "./types";
 export {
+  buildLinkedProviderConnectAdvice,
   claudeCodeAccessTokenIsExpiring,
   getLinkedClaudeCodeCredentials,
   getLinkedDevinCredentials,

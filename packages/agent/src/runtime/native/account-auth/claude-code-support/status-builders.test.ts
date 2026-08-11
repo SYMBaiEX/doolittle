@@ -20,6 +20,8 @@ let cliStatus: {
   source?: string;
   detail?: string;
 } = { available: false, loggedIn: false };
+let cliStatusReads = 0;
+let officialStatus: Record<string, unknown> | undefined;
 
 function installStatusBuilderMocks() {
   vi.doMock("../credentials", () => ({
@@ -37,7 +39,13 @@ function installStatusBuilderMocks() {
       ),
   }));
   vi.doMock("./cli", () => ({
-    getClaudeCodeCliAuthStatus: () => cliStatus,
+    getClaudeCodeCliAuthStatus: () => {
+      cliStatusReads += 1;
+      return cliStatus;
+    },
+  }));
+  vi.doMock("../official-subscription-status", () => ({
+    getOfficialSubscriptionProviderStatus: () => officialStatus,
   }));
   vi.doMock("./files", () => ({
     claudeCodeAccessTokenIsExpiring: (expiresAt?: string) =>
@@ -59,6 +67,8 @@ beforeEach(() => {
   envCredential = undefined;
   homePath = "/tmp";
   cliStatus = { available: false, loggedIn: false };
+  cliStatusReads = 0;
+  officialStatus = undefined;
   vi.restoreAllMocks();
   vi.resetModules();
   vi.clearAllMocks();
@@ -102,6 +112,7 @@ describe("claude-code status builders", () => {
       detail:
         "Eliza-managed Claude Code credentials are available in the official account record.",
     });
+    expect(cliStatusReads).toBe(0);
   });
 
   it("builds file-backed reusable status when no stored credentials exist", async () => {
@@ -122,6 +133,7 @@ describe("claude-code status builders", () => {
     expect(status.fallbackReady).toBe(false);
     expect(status.source).toBe("/tmp/home/.claude/.credentials.json");
     expect(status.authMode).toBe("oauth");
+    expect(cliStatusReads).toBe(0);
   });
 
   it("does not report an expired stored OAuth session as ready", async () => {
@@ -145,6 +157,7 @@ describe("claude-code status builders", () => {
       fallbackReady: false,
     });
     expect(status.detail).toContain("expired");
+    expect(cliStatusReads).toBe(1);
   });
 
   it("does not trust stored OAuth credentials without an expiry", async () => {
@@ -166,6 +179,7 @@ describe("claude-code status builders", () => {
       fallbackReady: false,
     });
     expect(status.detail).toContain("cannot be verified");
+    expect(cliStatusReads).toBe(1);
   });
 
   it("falls back to env credentials when file credentials are unavailable", async () => {
@@ -191,6 +205,7 @@ describe("claude-code status builders", () => {
     expect(status.detail).toBe(
       "A Claude Code setup token is configured for native Claude execution.",
     );
+    expect(cliStatusReads).toBe(0);
   });
 
   it("builds local CLI fallback status with account label and logged-in fallback", async () => {
@@ -216,6 +231,28 @@ describe("claude-code status builders", () => {
     expect(status.detail).toContain(
       "Doolittle can use the local Claude CLI directly",
     );
+    expect(cliStatusReads).toBe(1);
+  });
+
+  it("uses official native subscription readiness without probing the CLI", async () => {
+    officialStatus = {
+      provider: "claude-code",
+      available: true,
+      reusable: true,
+      nativeReady: true,
+      fallbackReady: false,
+      source: "eliza-subscription-status",
+      authMode: "oauth",
+      detail: "Eliza reports a reusable Claude Code subscription.",
+    };
+    const { getClaudeCodeAccountStatus } = await loadStatusBuildersModule();
+    const status = getClaudeCodeAccountStatus(undefined, {
+      getStoredCredentials: () => undefined,
+      resolveHome: () => homePath,
+    } as never);
+
+    expect(status).toEqual(officialStatus);
+    expect(cliStatusReads).toBe(0);
   });
 
   it("reports unavailable when no reusable credentials or cli artifacts exist", async () => {
@@ -233,5 +270,6 @@ describe("claude-code status builders", () => {
     expect(status.detail).toBe(
       "No Claude Code CLI login artifacts were found on this machine.",
     );
+    expect(cliStatusReads).toBe(1);
   });
 });

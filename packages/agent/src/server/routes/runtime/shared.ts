@@ -5,9 +5,10 @@ import {
   refreshLinkedAccounts,
 } from "@/runtime/linked-provider-accounts";
 import {
-  getLinkedProviderConnectAdvice,
+  buildLinkedProviderConnectAdvice,
   getLinkedProviderLoginCommand,
   getLinkedProviderSetupCommand,
+  type LinkedProviderAccountsSnapshot,
 } from "@/runtime/native/account-auth";
 import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
 import { getNativeOwnershipControlPlane } from "@/runtime/native/service-bridge/ownership";
@@ -37,12 +38,20 @@ export function readLinkedProvider(
     : undefined;
 }
 
-export function buildAccountConnectAdvice() {
+export function buildAccountConnectAdvice(
+  accounts: LinkedProviderAccountsSnapshot,
+) {
   return {
-    elizaCloud: getLinkedProviderConnectAdvice("elizacloud"),
-    codex: getLinkedProviderConnectAdvice("codex"),
-    claudeCode: getLinkedProviderConnectAdvice("claude-code"),
-    devin: getLinkedProviderConnectAdvice("devin"),
+    elizaCloud: buildLinkedProviderConnectAdvice(
+      "elizacloud",
+      accounts.elizaCloud,
+    ),
+    codex: buildLinkedProviderConnectAdvice("codex", accounts.codex),
+    claudeCode: buildLinkedProviderConnectAdvice(
+      "claude-code",
+      accounts.claudeCode,
+    ),
+    devin: buildLinkedProviderConnectAdvice("devin", accounts.devin),
   };
 }
 
@@ -68,12 +77,21 @@ export function getAccountLoginDetails(
   context: AppContext,
   provider: LinkedProvider,
 ) {
+  const accounts = getAccountsSnapshot(context);
+  const status =
+    provider === "codex"
+      ? accounts.codex
+      : provider === "claude-code"
+        ? accounts.claudeCode
+        : provider === "devin"
+          ? accounts.devin
+          : accounts.elizaCloud;
   return {
     provider,
     command: getLinkedProviderLoginCommand(provider),
     setupCommand: getLinkedProviderSetupCommand(provider),
-    advice: getLinkedProviderConnectAdvice(provider),
-    accounts: getRuntimeProviderAccountsSnapshot(context.runtime),
+    advice: buildLinkedProviderConnectAdvice(provider, status),
+    accounts,
   };
 }
 
