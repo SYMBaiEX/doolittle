@@ -385,6 +385,54 @@ test.describe("Doolittle desktop navigation", () => {
               viewContainer.getByText("System checks", { exact: true }),
             ).toBeVisible();
           }
+          if (route === "automations") {
+            const createAutomation = viewContainer.getByRole("button", {
+              name: "New automation",
+            });
+            await expect(createAutomation).toBeVisible();
+            await createAutomation.click();
+            await expect(
+              viewContainer.getByRole("heading", {
+                name: "When this happens, decide, then act",
+              }),
+            ).toBeVisible();
+            await viewContainer
+              .getByRole("button", { name: "Close builder" })
+              .click();
+            await expect(
+              viewContainer.getByRole("heading", {
+                name: "When this happens, decide, then act",
+              }),
+            ).toBeHidden();
+          }
+          if (route === "gateway") {
+            const pairing = viewContainer.locator(".pairing-panel");
+            await pairing.locator("summary").click();
+            await expect(pairing).toHaveAttribute("open", "");
+            await pairing.locator("summary").click();
+            await expect(pairing).not.toHaveAttribute("open", "");
+          }
+          if (route === "models") {
+            const diagnostics = viewContainer.locator(".model-diagnostic");
+            await expect(diagnostics).toHaveCount(2);
+            await expect(diagnostics.nth(0)).toHaveAttribute("open", "");
+            await diagnostics.nth(1).locator("summary").click();
+            await expect(diagnostics.nth(1)).toHaveAttribute("open", "");
+          }
+          if (route === "logs") {
+            const traces = viewContainer.locator(".operations-trace-details");
+            await traces.locator("summary").click();
+            await expect(traces).toHaveAttribute("open", "");
+            await traces.locator("summary").click();
+            await expect(traces).not.toHaveAttribute("open", "");
+          }
+          if (route === "compatibility") {
+            const rawReport = viewContainer.locator(".raw-data-disclosure");
+            if ((await rawReport.count()) > 0) {
+              await rawReport.locator("summary").click();
+              await expect(rawReport).toHaveAttribute("open", "");
+            }
+          }
           const actionMotion = await viewContainer.evaluate((container) => {
             const visible = (element: Element) => {
               const bounds = element.getBoundingClientRect();
@@ -1149,9 +1197,20 @@ test.describe("Doolittle desktop navigation", () => {
       });
 
       await page.getByRole("button", { name: "Workbench" }).click();
-      const workbenchTree = page
-        .locator("#thread-workbench")
-        .getByRole("tree", { name: "Workspace files" });
+      const workbench = page.locator("#thread-workbench");
+      const workbenchTree = workbench.getByRole("tree", {
+        name: "Workspace files",
+      });
+      const workbenchLoadError = workbench.getByRole("alert");
+      await Promise.race([
+        workbenchTree.waitFor({ state: "visible", timeout: 30_000 }),
+        workbenchLoadError.waitFor({ state: "visible", timeout: 30_000 }),
+      ]);
+      if (await workbenchLoadError.isVisible()) {
+        await workbenchLoadError
+          .getByRole("button", { name: "Try again" })
+          .click();
+      }
       await expect(workbenchTree).toBeVisible({ timeout: 30_000 });
       const workbenchAppsFolder = workbenchTree.getByRole("treeitem", {
         name: "apps",
