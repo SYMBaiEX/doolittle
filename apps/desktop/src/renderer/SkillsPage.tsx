@@ -1,11 +1,11 @@
 import { type KeyboardEvent, useState } from "react";
+import { CompactCatalogList } from "./components/CompactCatalogList";
 import { SkillWorkshopPanel } from "./components/SkillWorkshopPanel";
 import {
   asArray,
   asNumber,
   asRecord,
   asString,
-  Badge,
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
@@ -52,6 +52,21 @@ export function SkillsPage({ active }: { active: boolean }) {
         .toLowerCase()
         .includes(normalized)
     );
+  });
+  const catalogEntries = filtered.map((entry, index) => {
+    const slug = asString(entry.slug, asString(entry.id, `skill-${index}`));
+    return {
+      id: slug,
+      eyebrow: titleCase(asString(entry.category, slug.split("/")[0])),
+      title: asString(entry.name, titleCase(slug)),
+      description: asString(
+        entry.description,
+        "A locally available Doolittle skill.",
+      ),
+      status: "Available",
+      tone: "good" as const,
+      code: slug,
+    };
   });
   const summaryValue = summary.data?.summary ?? {};
   const installedValues = asArray(installed.data?.installed);
@@ -153,38 +168,11 @@ export function SkillsPage({ active }: { active: boolean }) {
           ) : skills.error ? (
             <ErrorBlock error={skills.error} retry={skills.reload} />
           ) : filtered.length ? (
-            <div className="card-grid dense">
-              {filtered.map((entry, index) => {
-                const slug = asString(
-                  entry.slug,
-                  asString(entry.id, `skill-${index}`),
-                );
-                return (
-                  <article className="content-card catalog-card" key={slug}>
-                    <div className="card-heading">
-                      <div>
-                        <span className="eyebrow">
-                          {titleCase(
-                            asString(entry.category, slug.split("/")[0]),
-                          )}
-                        </span>
-                        <h2>{asString(entry.name, titleCase(slug))}</h2>
-                      </div>
-                      <Badge tone="good">Available</Badge>
-                    </div>
-                    <p>
-                      {asString(
-                        entry.description,
-                        "A locally available Doolittle skill.",
-                      )}
-                    </p>
-                    <div className="card-footer">
-                      <code>{slug}</code>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+            <CompactCatalogList
+              ariaLabel="Skill catalog"
+              entries={catalogEntries}
+              resetKey={query.trim().toLowerCase()}
+            />
           ) : (
             <EmptyBlock title="No skills match">
               Change the search, or add skills to the local skill workspace.

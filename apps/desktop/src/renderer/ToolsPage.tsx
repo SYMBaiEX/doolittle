@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { AcpBridgePanel } from "./components/AcpBridgePanel";
+import { CompactCatalogList } from "./components/CompactCatalogList";
 import { McpControlPanel } from "./components/McpControlPanel";
 import {
   asArray,
   asNumber,
   asRecord,
   asString,
-  Badge,
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
@@ -69,6 +69,41 @@ export function ToolsPage({ active }: { active: boolean }) {
         .toLowerCase()
         .includes(normalized);
     return matchesCategory && matchesQuery;
+  });
+  const catalogEntries = filtered.map((entry, index) => {
+    const id = asString(entry.id, `tool-${index}`);
+    const profiles = asArray(entry.allowedProfiles)
+      .map((value) => titleCase(asString(value)))
+      .filter(Boolean)
+      .join(" · ");
+    return {
+      id,
+      eyebrow: titleCase(asString(entry.category, "uncategorized")),
+      title: asString(entry.name, id || "Unnamed tool"),
+      description: asString(entry.description, "No description provided."),
+      status: entry.enabled === false ? "Disabled" : "Enabled",
+      tone: entry.enabled === false ? ("warn" as const) : ("good" as const),
+      code: id,
+      meta: profiles || titleCase(asString(entry.transport, "native")),
+      facts: [
+        {
+          label: "Transport",
+          value: titleCase(asString(entry.transport, "native")),
+        },
+        {
+          label: "Profiles",
+          value: profiles || "Runtime default",
+        },
+        ...(entry.enabled === false && entry.policyReason
+          ? [
+              {
+                label: "Policy",
+                value: asString(entry.policyReason),
+              },
+            ]
+          : []),
+      ],
+    };
   });
   const totals = summary.data?.summary ?? {};
 
@@ -170,41 +205,11 @@ export function ToolsPage({ active }: { active: boolean }) {
       ) : tools.error ? (
         <ErrorBlock error={tools.error} retry={tools.reload} />
       ) : filtered.length ? (
-        <div className="card-grid dense">
-          {filtered.map((entry, index) => (
-            <article
-              className="content-card catalog-card"
-              key={asString(entry.id, String(index))}
-            >
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">
-                    {titleCase(asString(entry.category, "uncategorized"))}
-                  </span>
-                  <h2>
-                    {asString(entry.name, asString(entry.id, "Unnamed tool"))}
-                  </h2>
-                </div>
-                <Badge tone={entry.enabled === false ? "warn" : "good"}>
-                  {entry.enabled === false ? "Disabled" : "Enabled"}
-                </Badge>
-              </div>
-              <p>{asString(entry.description, "No description provided.")}</p>
-              <div className="card-footer">
-                <code>{asString(entry.id)}</code>
-                <span>
-                  {entry.enabled === false && entry.policyReason
-                    ? asString(entry.policyReason)
-                    : asArray(entry.allowedProfiles).length
-                      ? asArray(entry.allowedProfiles)
-                          .map((value) => titleCase(asString(value)))
-                          .join(" · ")
-                      : titleCase(asString(entry.transport, "native"))}
-                </span>
-              </div>
-            </article>
-          ))}
-        </div>
+        <CompactCatalogList
+          ariaLabel="Runtime tool catalog"
+          entries={catalogEntries}
+          resetKey={`${profile}:${category}:${query.trim().toLowerCase()}`}
+        />
       ) : (
         <EmptyBlock title="No tools match">
           Change the search or category filter.

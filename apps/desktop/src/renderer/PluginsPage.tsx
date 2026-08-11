@@ -9,11 +9,11 @@ import {
   SelectValue,
 } from "@elizaos/ui/components/ui/select";
 import { useState } from "react";
+import { CompactCatalogList } from "./components/CompactCatalogList";
 import {
   asArray,
   asRecord,
   asString,
-  Badge,
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
@@ -56,6 +56,29 @@ export function PluginsPage({ active }: { active: boolean }) {
           .toLowerCase()
           .includes(normalized))
     );
+  });
+  const catalogEntries = filtered.map((entry, index) => {
+    const id = asString(entry.id, `plugin-${index}`);
+    return {
+      id,
+      eyebrow: titleCase(asString(entry.category, "plugin")),
+      title: titleCase(id || "Unnamed plugin"),
+      description: asString(entry.notes, "No plugin notes available."),
+      status: entry.enabled ? "Enabled" : "Inactive",
+      tone: entry.enabled ? ("good" as const) : ("warn" as const),
+      code: asString(entry.packageName, id),
+      meta: titleCase(asString(entry.source, "unknown")),
+      facts: [
+        {
+          label: "Source",
+          value: titleCase(asString(entry.source, "unknown")),
+        },
+        {
+          label: "Maturity",
+          value: titleCase(asString(entry.maturity, "unknown")),
+        },
+      ],
+    };
   });
   const enabled = entries.filter((entry) => Boolean(entry.enabled)).length;
 
@@ -115,40 +138,11 @@ export function PluginsPage({ active }: { active: boolean }) {
       ) : resource.error ? (
         <ErrorBlock error={resource.error} retry={resource.reload} />
       ) : filtered.length ? (
-        <div className="card-grid dense">
-          {filtered.map((entry, index) => (
-            <article
-              className="content-card catalog-card"
-              key={asString(entry.id, String(index))}
-            >
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">
-                    {titleCase(asString(entry.category, "plugin"))}
-                  </span>
-                  <h2>{titleCase(asString(entry.id, "Unnamed plugin"))}</h2>
-                </div>
-                <Badge tone={entry.enabled ? "good" : "warn"}>
-                  {entry.enabled ? "Enabled" : "Inactive"}
-                </Badge>
-              </div>
-              <p>{asString(entry.notes, "No plugin notes available.")}</p>
-              <dl className="fact-list compact">
-                <div>
-                  <dt>Source</dt>
-                  <dd>{titleCase(asString(entry.source, "unknown"))}</dd>
-                </div>
-                <div>
-                  <dt>Maturity</dt>
-                  <dd>{titleCase(asString(entry.maturity, "unknown"))}</dd>
-                </div>
-              </dl>
-              <div className="card-footer">
-                <code>{asString(entry.packageName, asString(entry.id))}</code>
-              </div>
-            </article>
-          ))}
-        </div>
+        <CompactCatalogList
+          ariaLabel="Plugin catalog"
+          entries={catalogEntries}
+          resetKey={`${category}:${query.trim().toLowerCase()}`}
+        />
       ) : (
         <EmptyBlock title="No plugins match">
           Change the search or category filter.
