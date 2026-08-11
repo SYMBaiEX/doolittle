@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import type { IAgentRuntime } from "@elizaos/core";
 import {
   type NativePdfService,
@@ -9,6 +8,7 @@ import {
   resolveWorkspaceDirectory,
   type WorkspaceDirectorySource,
 } from "./workspace-directory";
+import { resolveWorkspaceServicePath } from "./workspace-service/path";
 
 export interface PdfExtractOptions {
   startPage?: number;
@@ -27,9 +27,10 @@ export class DocumentsService {
     path: string,
     options: PdfExtractOptions = {},
   ): Promise<string> {
-    const resolvedPath = resolve(
+    const resolvedPath = resolveWorkspaceServicePath(
       resolveWorkspaceDirectory(this.workspaceDirectory),
       path,
+      "read",
     );
     const buffer = readFileSync(resolvedPath);
     return this.extractPdfFromBuffer(buffer, options);

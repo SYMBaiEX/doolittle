@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleContextDocumentRoutes } from "./context-documents";
 
@@ -43,7 +43,7 @@ describe("handleContextDocumentRoutes", () => {
       createContext(),
       new Request("http://localhost/documents/pdf/extract", {
         method: "POST",
-        body: JSON.stringify({ base64: "PDFDATA", startPage: 1 }),
+        body: JSON.stringify({ base64: "UERGREFUQQ==", startPage: 1 }),
         headers: { "content-type": "application/json" },
       }),
       new URL("http://localhost/documents/pdf/extract"),
@@ -56,7 +56,7 @@ describe("handleContextDocumentRoutes", () => {
       text: "path:/tmp/demo.pdf:{}",
     });
     await expect(base64Response?.json()).resolves.toEqual({
-      text: 'base64:PDFDATA:{"startPage":1}',
+      text: 'base64:UERGREFUQQ==:{"startPage":1}',
     });
   });
 
@@ -73,8 +73,62 @@ describe("handleContextDocumentRoutes", () => {
 
     expect(response?.status).toBe(400);
     await expect(response?.json()).resolves.toEqual({
-      error: "path or base64 is required",
+      error: "Provide exactly one valid path or base64 PDF payload.",
     });
+  });
+
+  it("rejects malformed and ambiguous PDF requests before service access", async () => {
+    const context = createContext();
+    const fromPath = vi.spyOn(context.services.documents, "extractPdfFromPath");
+    const fromBase64 = vi.spyOn(
+      context.services.documents,
+      "extractPdfFromBase64",
+    );
+    const bodies: Array<string | Record<string, unknown> | null> = [
+      "not-json",
+      null,
+      { path: "one.pdf", base64: "UERG" },
+      { path: "one.pdf", unknown: true },
+      { base64: "not base64" },
+      { path: "one.pdf", startPage: 2, endPage: 1 },
+      { path: "one.pdf", preserveWhitespace: "yes" },
+    ];
+
+    for (const body of bodies) {
+      const response = await handleContextDocumentRoutes(
+        context,
+        new Request("http://localhost/documents/pdf/extract", {
+          method: "POST",
+          body: body === "not-json" ? body : JSON.stringify(body),
+          headers: { "content-type": "application/json" },
+        }),
+        new URL("http://localhost/documents/pdf/extract"),
+      );
+      expect(response?.status).toBe(400);
+    }
+
+    expect(fromPath).not.toHaveBeenCalled();
+    expect(fromBase64).not.toHaveBeenCalled();
+  });
+
+  it("does not misclassify document service failures as request errors", async () => {
+    const context = createContext();
+    vi.spyOn(
+      context.services.documents,
+      "extractPdfFromPath",
+    ).mockRejectedValue(new TypeError("PDF parser failed"));
+
+    await expect(
+      handleContextDocumentRoutes(
+        context,
+        new Request("http://localhost/documents/pdf/extract", {
+          method: "POST",
+          body: JSON.stringify({ path: "document.pdf" }),
+          headers: { "content-type": "application/json" },
+        }),
+        new URL("http://localhost/documents/pdf/extract"),
+      ),
+    ).rejects.toThrow("PDF parser failed");
   });
 
   it("returns null for unrelated routes", async () => {

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -52,5 +52,38 @@ describe("DocumentsService", () => {
     await expect(
       service.extractPdfFromBase64(Buffer.from("pdf").toString("base64")),
     ).rejects.toThrow("The Eliza PDF service is not ready");
+  });
+
+  it("rejects paths outside the selected workspace, including symlink escapes", async () => {
+    const workspace = mkdtempSync(join(tmpdir(), "doolittle-documents-root-"));
+    const outside = mkdtempSync(join(tmpdir(), "doolittle-documents-outside-"));
+    const service = new DocumentsService(
+      {
+        getService: () => ({
+          convertPdfToTextWithOptions: async () => ({
+            success: true,
+            text: "unexpected",
+          }),
+        }),
+      } as never,
+      () => workspace,
+    );
+
+    try {
+      const outsidePdf = join(outside, "outside.pdf");
+      writeFileSync(outsidePdf, "outside");
+      symlinkSync(outsidePdf, join(workspace, "linked.pdf"));
+
+      await expect(
+        service.extractPdfFromPath("../outside.pdf"),
+      ).rejects.toThrow("Path must stay inside the configured workspace");
+      await expect(service.extractPdfFromPath(outsidePdf)).rejects.toThrow();
+      await expect(service.extractPdfFromPath("linked.pdf")).rejects.toThrow(
+        "Workspace path cannot resolve outside the workspace",
+      );
+    } finally {
+      rmSync(workspace, { force: true, recursive: true });
+      rmSync(outside, { force: true, recursive: true });
+    }
   });
 });
