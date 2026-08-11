@@ -101,5 +101,10 @@ describe("provider account surfaces", () => {
     expect(markup).toContain("Set up first account");
     expect(markup).toContain("Sign in &amp; add");
     expect(markup).toContain("private local store");
+    expect(markup).toContain('class="provider-pool-toolbar"');
+    expect(markup).toContain('aria-label="Pool readiness"');
+    expect(markup).toContain("automatic fallback");
+    expect(markup).not.toContain("Pool setup progress");
+    expect(markup).not.toContain("Add a backup account");
   });
 });

@@ -453,6 +453,32 @@ test.describe("Doolittle desktop navigation", () => {
       }
       await expect(providersHeading).toBeVisible();
       await expect(
+        page.getByText(
+          "Route chats, connect provider subscriptions, and shape how spawned agents move across pooled accounts.",
+          { exact: true },
+        ),
+      ).toBeVisible();
+      const providerHeaderLayout = await page
+        .locator(".page-header")
+        .evaluate((element) => {
+          const headerRect = element.getBoundingClientRect();
+          const content = element.firstElementChild;
+          const action = element.querySelector(".page-actions");
+          const contentRect = content?.getBoundingClientRect();
+          const actionRect = action?.getBoundingClientRect();
+          return {
+            actionRightGap: actionRect
+              ? Math.round(headerRect.right - actionRect.right)
+              : null,
+            contentWidth: contentRect ? Math.round(contentRect.width) : null,
+            headerWidth: Math.round(headerRect.width),
+          };
+        });
+      expect(providerHeaderLayout.actionRightGap).toBeLessThanOrEqual(4);
+      expect(providerHeaderLayout.contentWidth).toBe(
+        providerHeaderLayout.headerWidth,
+      );
+      await expect(
         page.getByRole("region", {
           name: "Codex spawned-agent account pool",
         }),
@@ -477,10 +503,24 @@ test.describe("Doolittle desktop navigation", () => {
         name: "Routing strategy",
       });
       await expect(routingStrategy).toContainText("Priority");
-      await expect(page.locator(".provider-import-disclosure")).toHaveCount(2);
+      const strategyGeometry = await routingStrategy.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return {
+          display: style.display,
+          height: Math.round(rect.height),
+          width: Math.round(rect.width),
+        };
+      });
+      expect(strategyGeometry).toEqual({
+        display: "flex",
+        height: 32,
+        width: 160,
+      });
       await expect(
-        page.getByRole("textbox", { name: "Account ID" }),
-      ).toHaveCount(2);
+        routingStrategy.getByText("Always prefer the top healthy account."),
+      ).toBeHidden();
+      await expect(page.locator(".provider-import-disclosure")).toHaveCount(2);
       await expect(
         page.getByText("Checking the default chat provider…"),
       ).toHaveCount(0, { timeout: 30_000 });
@@ -489,6 +529,8 @@ test.describe("Doolittle desktop navigation", () => {
       );
       await expect(page.locator(".provider-connection-row")).toHaveCount(4);
       await expect(page.locator(".provider-pool-panel")).toHaveCount(2);
+      await expect(page.locator(".provider-pool-toolbar")).toHaveCount(2);
+      await expect(page.locator(".provider-pool-journey")).toHaveCount(0);
       await expect(
         page.locator(".view-connections .provider-card"),
       ).toHaveCount(0);
@@ -505,10 +547,20 @@ test.describe("Doolittle desktop navigation", () => {
         contentType: "image/png",
         path: providersScreenshot,
       });
+      const providerPoolScreenshot = testInfo.outputPath(
+        "doolittle-provider-account-pool.png",
+      );
+      await codexPool.screenshot({
+        animations: "disabled",
+        path: providerPoolScreenshot,
+      });
+      await testInfo.attach("provider account pool", {
+        contentType: "image/png",
+        path: providerPoolScreenshot,
+      });
       const accountDisclosure = codexPool.getByText("Set up first account", {
         exact: true,
       });
-      await accountDisclosure.click();
       await expect(
         codexPool.getByRole("textbox", { name: "Account ID" }),
       ).toBeHidden();
@@ -522,14 +574,14 @@ test.describe("Doolittle desktop navigation", () => {
 
       await page.setViewportSize({ width: 390, height: 844 });
       await expect(
-        codexPool.getByRole("button", { name: "Preview next account" }),
+        codexPool.getByRole("button", { name: "Preview route" }),
       ).toBeVisible();
       const narrowProviderLayout = await page.evaluate(() => {
         const pool = document.querySelector(
           '[aria-label="Codex spawned-agent account pool"]',
         );
         const preview = [...document.querySelectorAll("button")].find(
-          (button) => button.textContent?.trim() === "Preview next account",
+          (button) => button.textContent?.trim() === "Preview route",
         );
         const poolRect = pool?.getBoundingClientRect();
         const previewRect = preview?.getBoundingClientRect();

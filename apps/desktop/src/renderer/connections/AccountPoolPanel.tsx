@@ -74,9 +74,7 @@ export function AccountPoolPanel({
   selectedAccountId?: string;
   snapshot?: AccountPoolProviderSnapshot;
 }) {
-  const [setupOpen, setSetupOpen] = useState(
-    !snapshot || snapshot.accounts.length === 0,
-  );
+  const [setupOpen, setSetupOpen] = useState(false);
 
   if (!snapshot) {
     return (
@@ -130,11 +128,11 @@ export function AccountPoolPanel({
         </div>
       </header>
 
-      <div className="provider-pool-layout">
-        <aside className="provider-pool-control">
-          <dl className="provider-pool-summary">
+      <div className="provider-pool-body">
+        <div className="provider-pool-toolbar">
+          <dl className="provider-pool-summary" aria-label="Pool readiness">
             <div>
-              <dt>Total</dt>
+              <dt>Accounts</dt>
               <dd>{accounts.length}</dd>
             </div>
             <div>
@@ -143,15 +141,13 @@ export function AccountPoolPanel({
             </div>
             <div>
               <dt>Healthy</dt>
-              <dd>{progress.healthy}</dd>
+              <dd className={progress.healthy > 0 ? "is-good" : "is-warn"}>
+                {progress.healthy}
+              </dd>
             </div>
           </dl>
 
           <div className="provider-pool-routing">
-            <div>
-              <span className="eyebrow">Selection policy</span>
-              <p>Applied once when each spawned-agent session begins.</p>
-            </div>
             <label
               className="sr-only"
               htmlFor={`rotation-strategy-${descriptor.provider}`}
@@ -167,52 +163,16 @@ export function AccountPoolPanel({
               value={snapshot.strategy}
             />
             <Button
+              className="secondary-button provider-pool-preview"
               onClick={onPreview}
               disabled={Boolean(busy) || progress.enabled === 0}
               type="button"
               variant="secondary"
             >
-              Preview next account
+              Preview route
             </Button>
           </div>
-
-          <ol
-            className="provider-pool-journey"
-            aria-label="Pool setup progress"
-          >
-            {[
-              ["first-account", "01", "Connect", "Add the first account"],
-              ["second-account", "02", "Resilience", "Add a backup account"],
-              ["strategy", "03", "Route", "Choose a selection policy"],
-              ["verify", "04", "Verify", "Preview the next account"],
-            ].map(([step, number, label, detail]) => {
-              const order = [
-                "first-account",
-                "second-account",
-                "strategy",
-                "verify",
-              ];
-              const currentIndex = order.indexOf(progress.nextStep);
-              const stepIndex = order.indexOf(step);
-              return (
-                <li
-                  className={
-                    step === progress.nextStep
-                      ? "current"
-                      : stepIndex < currentIndex
-                        ? "complete"
-                        : ""
-                  }
-                  key={step}
-                >
-                  <span>{number}</span>
-                  <strong>{label}</strong>
-                  <small>{detail}</small>
-                </li>
-              );
-            })}
-          </ol>
-        </aside>
+        </div>
 
         <section
           className="provider-pool-directory"
@@ -233,22 +193,22 @@ export function AccountPoolPanel({
           </div>
 
           {accounts.length === 0 ? (
-            <EmptyBlock title={`Connect ${descriptor.label}`}>
-              Add one account to start agent sessions, or two to unlock
-              resilient routing.
-            </EmptyBlock>
+            <p className="provider-pool-empty-copy">
+              Connect one account to start agent sessions. Add a second for
+              automatic fallback.
+            </p>
           ) : (
-            <div className="stack-list provider-pool-accounts">
+            <ul className="provider-pool-accounts">
               {accounts.map((account, index) => {
                 const sourceAccount = snapshot.accounts.find(
                   (candidate) => candidate.accountId === account.id,
                 );
                 return (
-                  <div
+                  <li
                     className={
                       selectedAccountId === account.id
-                        ? "provider-account-previewed"
-                        : undefined
+                        ? "provider-pool-account provider-account-previewed"
+                        : "provider-pool-account"
                     }
                     key={account.id}
                   >
@@ -282,10 +242,10 @@ export function AccountPoolPanel({
                         busy === `${descriptor.provider}:${account.id}:test`
                       }
                     />
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
 
           <details
