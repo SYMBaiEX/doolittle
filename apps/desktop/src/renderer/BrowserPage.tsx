@@ -1,14 +1,15 @@
 import { type FormEvent, useMemo, useState } from "react";
 import {
-  BROWSER_FEEDBACK_COMMENT_LIMIT,
-  compileBrowserEvidenceContext,
-} from "./browser-feedback";
+  type BrowserAction,
+  type BrowserResult,
+  buildBrowserResultViewModel,
+} from "./browser-result-model";
+import { BrowserResultPanel } from "./components/BrowserResultPanel";
 import {
   asRecord,
   asString,
   Badge,
   desktopRequest,
-  displayTimestamp,
   EmptyBlock,
   errorMessage,
   Notice,
@@ -17,57 +18,13 @@ import {
 } from "./lib";
 import "./browser.css";
 
-type BrowserAction =
-  | "inspect"
-  | "capture"
-  | "screenshot"
-  | "snapshot"
-  | "analyze";
 type PreviewSize = "responsive" | "desktop" | "tablet" | "mobile";
 
 interface BrowserStatusResponse {
   browser?: unknown;
 }
 
-interface BrowserResult {
-  action: BrowserAction | "compare" | "compare-analyze";
-  title: string;
-  payload: unknown;
-}
-
 type BrowserErrorField = "address" | "compare" | null;
-
-interface ResultCard {
-  label: string;
-  value: string;
-  detail?: string;
-}
-
-interface ResultArtifact {
-  label: string;
-  value: string;
-}
-
-interface ResultPreview {
-  label: string;
-  src: string;
-}
-
-interface ResultViewModel {
-  cards: ResultCard[];
-  artifacts: ResultArtifact[];
-  previews: ResultPreview[];
-  responseText: string;
-  responseTruncated: boolean;
-  rawText: string;
-  rawTruncated: boolean;
-  summary: string;
-}
-
-const RAW_RESULT_LIMIT = 12_000;
-const RESPONSE_PREVIEW_LIMIT = 1_600;
-const IMAGE_PATH_PATTERN =
-  /\.(?:apng|avif|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/iu;
 
 function normalizeUrl(value: string): string {
   const input = value.trim();
@@ -92,321 +49,13 @@ function normalizeUrl(value: string): string {
   return parsed.toString();
 }
 
-function canEmbed(url: string): boolean {
+export function isLocalPreviewUrl(url: string): boolean {
   try {
     const host = new URL(url).hostname.toLowerCase();
     return host === "localhost" || host === "127.0.0.1";
   } catch {
     return false;
   }
-}
-
-function readableResult(value: unknown): string {
-  if (typeof value === "string") return value;
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-
-function readableResultSlice(
-  value: unknown,
-  maxCharacters: number,
-): { text: string; truncated: boolean } {
-  const text = readableResult(value);
-  if (text.length <= maxCharacters) return { text, truncated: false };
-  return {
-    text: `${text.slice(0, maxCharacters).trimEnd()}\n…`,
-    truncated: true,
-  };
-}
-
-function compactValue(value: string, maxLength = 84): string {
-  if (value.length <= maxLength) return value;
-  const prefix = Math.max(18, Math.floor((maxLength - 1) / 2));
-  const suffix = Math.max(12, maxLength - prefix - 1);
-  return `${value.slice(0, prefix)}…${value.slice(-suffix)}`;
-}
-
-function formatCount(label: string, value: unknown): string | null {
-  return typeof value === "number" && Number.isFinite(value)
-    ? `${value.toLocaleString()} ${label}`
-    : null;
-}
-
-function formatDelta(label: string, value: unknown): string | null {
-  if (typeof value !== "number" || !Number.isFinite(value)) return null;
-  if (value === 0) return `0 ${label}`;
-  return `${value > 0 ? "+" : ""}${value.toLocaleString()} ${label}`;
-}
-
-function safeImageSource(value: string): string | null {
-  if (value.startsWith("data:image/")) return value;
-  try {
-    const parsed = new URL(value);
-    if (!["http:", "https:"].includes(parsed.protocol)) return null;
-    return IMAGE_PATH_PATTERN.test(parsed.pathname) ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-function isArtifactLike(value: string): boolean {
-  return (
-    value.startsWith("/") ||
-    value.startsWith("./") ||
-    value.startsWith("../") ||
-    /^[A-Za-z]:[\\/]/u.test(value) ||
-    value.startsWith("data:image/") ||
-    /^https?:\/\//iu.test(value)
-  );
-}
-
-function collectPreviewSources(
-  value: unknown,
-  trail: string[] = [],
-  previews: ResultPreview[] = [],
-  seen = new Set<string>(),
-  depth = 0,
-): ResultPreview[] {
-  if (depth > 5) return previews;
-  if (typeof value === "string") {
-    const preview = safeImageSource(value);
-    const key = trail.at(-1) ?? "preview";
-    if (preview && !seen.has(preview)) {
-      seen.add(preview);
-      previews.push({ label: titleCase(key), src: preview });
-    }
-    return previews;
-  }
-  if (Array.isArray(value)) {
-    for (const entry of value.slice(0, 20)) {
-      collectPreviewSources(entry, trail, previews, seen, depth + 1);
-    }
-    return previews;
-  }
-  const record = asRecord(value);
-  for (const [key, entry] of Object.entries(record).slice(0, 24)) {
-    collectPreviewSources(entry, [...trail, key], previews, seen, depth + 1);
-  }
-  return previews;
-}
-
-function buildResultViewModel(result: BrowserResult): ResultViewModel {
-  const payload = asRecord(result.payload);
-  const inspection = asRecord(payload.inspection);
-  const capture = asRecord(payload.capture);
-  const analysis = asRecord(payload.analysis);
-  const comparison =
-    asRecord(payload.comparison).left || asRecord(payload.comparison).right
-      ? asRecord(payload.comparison)
-      : asRecord(analysis.comparison);
-  const primaryBundle =
-    Object.keys(capture).length > 0
-      ? capture
-      : Object.keys(asRecord(analysis.capture)).length > 0
-        ? asRecord(analysis.capture)
-        : inspection;
-  const primaryPage = asRecord(primaryBundle.page);
-  const responseText = asString(payload.response);
-  const cards: ResultCard[] = [];
-  const artifacts: ResultArtifact[] = [];
-  const previews = collectPreviewSources(result.payload);
-  const artifactKeys = new Set<string>();
-
-  const pushCard = (label: string, value: string | null, detail?: string) => {
-    if (!value) return;
-    cards.push({ label, value, detail });
-  };
-
-  const pushArtifact = (label: string, value: unknown) => {
-    if (typeof value !== "string" || !value.trim() || !isArtifactLike(value)) {
-      return;
-    }
-    const key = `${label}:${value}`;
-    if (artifactKeys.has(key)) return;
-    artifactKeys.add(key);
-    artifacts.push({ label, value });
-  };
-
-  if (primaryPage.title || primaryPage.url) {
-    pushCard(
-      "Page",
-      asString(primaryPage.title) ||
-        compactValue(asString(primaryPage.url), 60),
-      asString(primaryPage.url)
-        ? compactValue(asString(primaryPage.url), 88)
-        : undefined,
-    );
-  }
-
-  if (primaryPage.provider || primaryPage.mode) {
-    pushCard(
-      "Renderer",
-      [asString(primaryPage.provider), asString(primaryPage.mode)]
-        .filter(Boolean)
-        .join(" · "),
-      displayTimestamp(asString(primaryPage.renderedAt)),
-    );
-  }
-
-  const contentSummary = [
-    typeof primaryPage.contentLength === "number"
-      ? `${primaryPage.contentLength.toLocaleString()} chars`
-      : null,
-    formatCount("lines", primaryPage.lineCount),
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  pushCard(
-    "Document",
-    asString(primaryPage.contentType) || null,
-    contentSummary || undefined,
-  );
-
-  const structureSummary = [
-    formatCount("links", primaryPage.linkCount),
-    formatCount("images", primaryPage.imageCount),
-    formatCount("headings", primaryPage.headingCount),
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  pushCard(
-    "Structure",
-    formatCount("words", primaryPage.wordCount),
-    structureSummary || undefined,
-  );
-
-  if (primaryBundle.captureMode || asRecord(primaryBundle.status).captureMode) {
-    const status = asRecord(primaryBundle.status);
-    pushCard(
-      "Capture",
-      titleCase(
-        asString(primaryBundle.captureMode) || asString(status.captureMode),
-      ),
-      typeof status.captureReady === "boolean"
-        ? status.captureReady
-          ? "Capture-ready backend"
-          : "Placeholder capture backend"
-        : undefined,
-    );
-  }
-
-  if (Object.keys(analysis).length > 0) {
-    const highlights = Array.isArray(analysis.highlights)
-      ? analysis.highlights.length
-      : 0;
-    pushCard(
-      "Analysis",
-      titleCase(asString(analysis.focus) || "browser"),
-      highlights > 0
-        ? `${highlights.toLocaleString()} highlight${highlights === 1 ? "" : "s"}`
-        : undefined,
-    );
-  }
-
-  if (responseText) {
-    pushCard(
-      "Model response",
-      `${responseText.length.toLocaleString()} chars`,
-      compactValue(responseText.replace(/\s+/gu, " "), 88),
-    );
-  }
-
-  if (Object.keys(comparison).length > 0) {
-    const summary = asRecord(comparison.summary);
-    const left = asRecord(comparison.left);
-    const right = asRecord(comparison.right);
-    const leftPage = asRecord(left.page);
-    const rightPage = asRecord(right.page);
-    pushCard(
-      "Compare left",
-      compactValue(asString(leftPage.title) || asString(leftPage.url), 60) ||
-        null,
-      asString(leftPage.url)
-        ? compactValue(asString(leftPage.url), 88)
-        : undefined,
-    );
-    pushCard(
-      "Compare right",
-      compactValue(asString(rightPage.title) || asString(rightPage.url), 60) ||
-        null,
-      asString(rightPage.url)
-        ? compactValue(asString(rightPage.url), 88)
-        : undefined,
-    );
-    pushCard(
-      "Diff",
-      summary.hashChanged ? "Content changed" : "Content matched",
-      [
-        typeof summary.titleChanged === "boolean"
-          ? summary.titleChanged
-            ? "title changed"
-            : "title stable"
-          : null,
-        formatDelta("words", summary.wordDelta),
-        formatDelta("links", summary.linkDelta),
-        formatDelta("images", summary.imageDelta),
-        formatDelta("headings", summary.headingDelta),
-      ]
-        .filter(Boolean)
-        .join(" · ") || undefined,
-    );
-  }
-
-  pushArtifact(
-    result.action === "snapshot" ? "Snapshot path" : "Artifact path",
-    payload.path,
-  );
-
-  const collectBundleArtifacts = (
-    label: string,
-    bundle: Record<string, unknown>,
-  ) => {
-    if (Object.keys(bundle).length === 0) return;
-    pushArtifact(`${label} snapshot`, bundle.snapshotPath);
-    pushArtifact(`${label} screenshot`, bundle.screenshotPath);
-    pushArtifact(`${label} screenshot SVG`, bundle.screenshotSvgPath);
-    pushArtifact(`${label} manifest`, bundle.manifestPath);
-    pushArtifact(`${label} report`, bundle.reportPath);
-  };
-
-  collectBundleArtifacts("Inspection", inspection);
-  collectBundleArtifacts("Capture", capture);
-  collectBundleArtifacts("Analysis", asRecord(analysis.capture));
-  pushArtifact("Comparison manifest", comparison.manifestPath);
-  pushArtifact("Comparison report", comparison.reportPath);
-  collectBundleArtifacts("Left capture", asRecord(comparison.left));
-  collectBundleArtifacts("Right capture", asRecord(comparison.right));
-
-  const raw = readableResultSlice(result.payload, RAW_RESULT_LIMIT);
-  const responsePreview = readableResultSlice(
-    responseText,
-    RESPONSE_PREVIEW_LIMIT,
-  );
-  const summaryParts = [
-    cards.length
-      ? `${cards.length} detail${cards.length === 1 ? "" : "s"}`
-      : null,
-    artifacts.length
-      ? `${artifacts.length} artifact${artifacts.length === 1 ? "" : "s"}`
-      : null,
-    previews.length
-      ? `${previews.length} preview${previews.length === 1 ? "" : "s"}`
-      : null,
-  ].filter(Boolean);
-
-  return {
-    cards,
-    artifacts,
-    previews,
-    responseText: responseText ? responsePreview.text : "",
-    responseTruncated: responseText ? responsePreview.truncated : false,
-    rawText: raw.text,
-    rawTruncated: raw.truncated,
-    summary: summaryParts.join(" · ") || "Structured payload captured",
-  };
 }
 
 const ACTIONS: Array<{
@@ -438,23 +87,18 @@ export function BrowserPage({
   const [error, setError] = useState("");
   const [errorField, setErrorField] = useState<BrowserErrorField>(null);
   const [result, setResult] = useState<BrowserResult | null>(null);
-  const [evidenceComment, setEvidenceComment] = useState("");
-  const [evidenceSelector, setEvidenceSelector] = useState("");
-  const [evidenceRegion, setEvidenceRegion] = useState("");
-  const [evidenceViewportNote, setEvidenceViewportNote] = useState("");
-  const [evidenceSent, setEvidenceSent] = useState(false);
   const status = useApiResource<BrowserStatusResponse>(
     active ? "/browser/status" : null,
     [active],
   );
   const statusRecord = asRecord(status.data?.browser);
-  const embedded = currentUrl && canEmbed(currentUrl);
+  const embedded = currentUrl && isLocalPreviewUrl(currentUrl);
   const statusLabel =
     asString(statusRecord.mode) ||
     asString(statusRecord.captureMode) ||
     (status.loading ? "Checking" : "Available");
   const resultView = useMemo(
-    () => (result ? buildResultViewModel(result) : null),
+    () => (result ? buildBrowserResultViewModel(result) : null),
     [result],
   );
   const resultStatusMessage = useMemo(() => {
@@ -465,31 +109,6 @@ export function BrowserPage({
     }
     return "Browser tool idle.";
   }, [busy, error, result, resultView]);
-  const evidenceContext = useMemo(
-    () =>
-      result
-        ? compileBrowserEvidenceContext({
-            result,
-            url: currentUrl || address,
-            viewport: evidenceViewportNote.trim()
-              ? `${previewSize} · ${evidenceViewportNote.trim()}`
-              : previewSize,
-            comment: evidenceComment,
-            selector: evidenceSelector,
-            region: evidenceRegion,
-          })
-        : "",
-    [
-      address,
-      currentUrl,
-      evidenceComment,
-      evidenceRegion,
-      evidenceSelector,
-      evidenceViewportNote,
-      previewSize,
-      result,
-    ],
-  );
 
   const showUrl = (url: string, recordHistory = false) => {
     setAddress(url);
@@ -564,7 +183,6 @@ export function BrowserPage({
         title: `${ACTIONS.find((entry) => entry.id === action)?.label ?? action} result`,
         payload,
       });
-      setEvidenceSent(false);
     } catch (actionError) {
       setError(errorMessage(actionError));
       setErrorField(null);
@@ -605,7 +223,6 @@ export function BrowserPage({
         title: analyze ? "Comparison analysis" : "Comparison bundle",
         payload,
       });
-      setEvidenceSent(false);
     } catch (compareError) {
       setError(errorMessage(compareError));
       setErrorField(null);
@@ -731,7 +348,7 @@ export function BrowserPage({
               <iframe
                 key={currentUrl}
                 referrerPolicy="no-referrer"
-                sandbox="allow-forms allow-modals allow-pointer-lock allow-popups allow-scripts"
+                sandbox="allow-forms allow-modals allow-pointer-lock allow-popups allow-same-origin allow-scripts"
                 src={currentUrl}
                 title="Local application preview"
               />
@@ -775,7 +392,6 @@ export function BrowserPage({
                 className="text-button"
                 onClick={() => {
                   setResult(null);
-                  setEvidenceSent(false);
                 }}
                 type="button"
               >
@@ -842,209 +458,26 @@ export function BrowserPage({
             </div>
           </div>
 
-          <div className="browser-result">
-            {result && resultView ? (
-              <>
-                <div className="browser-result-heading">
-                  <div>
-                    <span className="eyebrow">{result.action}</span>
-                    <h3>{result.title}</h3>
-                  </div>
-                  <Badge tone="good">{resultView.summary}</Badge>
-                </div>
-
-                {resultView.cards.length > 0 ? (
-                  <div className="browser-result-cards">
-                    {resultView.cards.map((card) => (
-                      <article className="browser-result-card" key={card.label}>
-                        <span>{card.label}</span>
-                        <strong>{card.value}</strong>
-                        {card.detail ? <small>{card.detail}</small> : null}
-                      </article>
-                    ))}
-                  </div>
-                ) : null}
-
-                {resultView.previews.length > 0 ? (
-                  <section className="browser-result-section">
-                    <div className="browser-result-section-heading">
-                      <span className="eyebrow">Preview assets</span>
-                      <strong>Safe image thumbnails</strong>
-                    </div>
-                    <div className="browser-result-previews">
-                      {resultView.previews.map((preview) => (
-                        <figure
-                          className="browser-result-preview"
-                          key={preview.src}
-                        >
-                          <img
-                            alt={preview.label}
-                            loading="lazy"
-                            src={preview.src}
-                          />
-                          <figcaption>{preview.label}</figcaption>
-                        </figure>
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-
-                {resultView.artifacts.length > 0 ? (
-                  <section className="browser-result-section">
-                    <div className="browser-result-section-heading">
-                      <span className="eyebrow">Artifacts</span>
-                      <strong>Captured paths and URLs</strong>
-                    </div>
-                    <div className="browser-result-artifacts">
-                      {resultView.artifacts.map((artifact) => (
-                        <article
-                          className="browser-result-artifact"
-                          key={`${artifact.label}:${artifact.value}`}
-                        >
-                          <span>{artifact.label}</span>
-                          <code>{artifact.value}</code>
-                        </article>
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-
-                {resultView.responseText ? (
-                  <section className="browser-result-section">
-                    <div className="browser-result-section-heading">
-                      <span className="eyebrow">Analysis response</span>
-                      <strong>Model output preview</strong>
-                    </div>
-                    <pre className="browser-result-response">
-                      {resultView.responseText}
-                      {resultView.responseTruncated
-                        ? "\n\nResponse preview truncated."
-                        : ""}
-                    </pre>
-                  </section>
-                ) : null}
-
-                <section className="browser-evidence-composer">
-                  <div className="browser-result-section-heading">
-                    <span className="eyebrow">Thread handoff</span>
-                    <strong>Send a reviewable browser receipt</strong>
-                  </div>
-                  <p>
-                    The active thread receives only this bounded context.
-                    Capture mode and artifacts travel with your note.
-                  </p>
-                  <label>
-                    Operator note
-                    <textarea
-                      maxLength={BROWSER_FEEDBACK_COMMENT_LIMIT}
-                      onChange={(event) => {
-                        setEvidenceComment(event.target.value);
-                        setEvidenceSent(false);
-                      }}
-                      placeholder="What should the agent verify or change?"
-                      value={evidenceComment}
-                    />
-                  </label>
-                  <div className="browser-evidence-targets">
-                    <label>
-                      Selector (optional)
-                      <input
-                        onChange={(event) => {
-                          setEvidenceSelector(event.target.value);
-                          setEvidenceSent(false);
-                        }}
-                        placeholder="#checkout-button"
-                        value={evidenceSelector}
-                      />
-                    </label>
-                    <label>
-                      Region (optional)
-                      <input
-                        onChange={(event) => {
-                          setEvidenceRegion(event.target.value);
-                          setEvidenceSent(false);
-                        }}
-                        placeholder="Hero CTA"
-                        value={evidenceRegion}
-                      />
-                    </label>
-                    <label>
-                      Viewport note (optional)
-                      <input
-                        onChange={(event) => {
-                          setEvidenceViewportNote(event.target.value);
-                          setEvidenceSent(false);
-                        }}
-                        placeholder="390 × 844, logged in"
-                        value={evidenceViewportNote}
-                      />
-                    </label>
-                  </div>
-                  <div className="browser-evidence-summary">
-                    <span>URL</span>
-                    <code>{currentUrl || address}</code>
-                    <span>Viewport</span>
-                    <code>
-                      {evidenceViewportNote.trim()
-                        ? `${previewSize} · ${evidenceViewportNote.trim()}`
-                        : previewSize}
-                    </code>
-                    <span>Capture</span>
-                    <code>
-                      {resultView.cards.find((card) => card.label === "Capture")
-                        ?.value ?? "Structured receipt"}
-                    </code>
-                  </div>
-                  <details className="browser-evidence-preview">
-                    <summary>Preview exact context for thread</summary>
-                    <pre>{evidenceContext}</pre>
-                  </details>
-                  <div className="browser-evidence-send">
-                    <span>
-                      {evidenceSent
-                        ? "Sent to the active thread."
-                        : onSendToChat
-                          ? "Ready to hand off"
-                          : "Thread handoff is unavailable."}
-                    </span>
-                    <button
-                      className="primary-button"
-                      disabled={!onSendToChat || !evidenceContext}
-                      onClick={() => {
-                        if (!onSendToChat || !evidenceContext) return;
-                        try {
-                          onSendToChat(evidenceContext);
-                          setEvidenceSent(true);
-                        } catch (handoffError) {
-                          setError(errorMessage(handoffError));
-                          setErrorField(null);
-                          setEvidenceSent(false);
-                        }
-                      }}
-                      type="button"
-                    >
-                      Send to thread
-                    </button>
-                  </div>
-                </section>
-
-                <details className="browser-result-raw">
-                  <summary>Raw JSON fallback</summary>
-                  <pre>
-                    {resultView.rawText}
-                    {resultView.rawTruncated
-                      ? "\n\nRaw payload truncated."
-                      : ""}
-                  </pre>
-                </details>
-              </>
-            ) : (
+          {result ? (
+            <BrowserResultPanel
+              address={address}
+              currentUrl={currentUrl}
+              onError={(message) => {
+                setError(message);
+                setErrorField(null);
+              }}
+              onSendToChat={onSendToChat}
+              previewSize={previewSize}
+              result={result}
+            />
+          ) : (
+            <div className="browser-result">
               <EmptyBlock title="No evidence yet">
                 Inspect, capture, or analyze the current page to keep a bounded
                 receipt.
               </EmptyBlock>
-            )}
-          </div>
+            </div>
+          )}
         </aside>
       </div>
     </div>
