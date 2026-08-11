@@ -92,7 +92,11 @@ export class DesktopErrorBoundary extends Component<
     if (!error) return children;
 
     return (
-      <main className="recovery-shell" role="alert">
+      <main className="recovery-shell">
+        <p className="sr-only" role="alert">
+          Doolittle encountered a rendering error. Recovery actions are
+          available.
+        </p>
         <div className="recovery-glow" aria-hidden="true" />
         <section className="recovery-card">
           <div className="recovery-mark" aria-hidden="true">

@@ -21,13 +21,23 @@ const appPolishCss = readFileSync(
 describe("thread workbench viewport layout contract", () => {
   it("mounts the workbench as a dedicated sibling pane beside the chat conversation", () => {
     expect(chatPage).toMatch(
-      /<section className="chat-conversation"[\s\S]*?<\/section>[\s\S]*?\{inspectorVisible \? \([\s\S]*?<div className="chat-workbench-pane" id="thread-workbench">[\s\S]*?<Suspense[\s\S]*?<ThreadWorkbenchRail/s,
+      /<section[\s\S]*?className="chat-conversation"[\s\S]*?<\/section>[\s\S]*?\{inspectorVisible \? \([\s\S]*?<div[\s\S]*?\{\.\.\.workbenchAccessibilityProps\}[\s\S]*?className="chat-workbench-pane"[\s\S]*?id="thread-workbench"[\s\S]*?<Suspense[\s\S]*?<ThreadWorkbenchRail/s,
     );
     expect(chatPage).toContain(
       "const ThreadWorkbenchRail = lazy(async () => {",
     );
     expect(chatPage).not.toContain(
       'ThreadWorkbenchRail,\n} from "./components/ThreadWorkbenchRail"',
+    );
+    expect(chatPage).toContain(
+      'const NARROW_WORKBENCH_QUERY = "(max-width: 720px)";',
+    );
+    expect(chatPage).toContain('role: "dialog" as const');
+    expect(chatPage).toContain('role: "region" as const');
+    expect(chatPage).toContain("{...workbenchAccessibilityProps}");
+    expect(chatPage).toContain("inert={inspectorVisible && isNarrowWorkbench}");
+    expect(chatPage).toContain(
+      "requestAnimationFrame(() => workbenchToggleRef.current?.focus())",
     );
     expect(experienceCss).toMatch(
       /\.chat-workspace > #thread-workbench\s*{[^}]*grid-column:\s*2;[^}]*grid-row:\s*1;[^}]*align-self:\s*stretch;[^}]*display:\s*grid;[^}]*grid-template-rows:\s*minmax\(0, 1fr\);[^}]*height:\s*100%;[^}]*max-height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s,
@@ -52,6 +62,15 @@ describe("thread workbench viewport layout contract", () => {
     );
     expect(appPolishCss).not.toContain(
       ':root[data-density="compact"] .chat-workspace.inspector-open',
+    );
+    expect(threadWorkbenchCss).toMatch(
+      /@media \(max-width: 720px\)[\s\S]*?\.chat-workspace\.inspector-open > #thread-workbench\s*{[^}]*position:\s*fixed;[^}]*z-index:\s*120;[^}]*inset:\s*0;[^}]*width:\s*100%;/s,
+    );
+    expect(threadWorkbenchCss).toMatch(
+      /@media \(max-width: 720px\)[\s\S]*?\.thread-workbench\s*{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*max-width:\s*none;[^}]*flex:\s*1 1 auto;/s,
+    );
+    expect(threadWorkbenchCss).toMatch(
+      /@media \(max-width: 720px\)[\s\S]*?\.thread-workbench-resizer\s*{[^}]*display:\s*none;/s,
     );
   });
 

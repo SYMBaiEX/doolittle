@@ -1270,6 +1270,12 @@
   animation: coding-terminal-pulse 1.5s ease-in-out infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .coding-terminal-output.running .coding-terminal-run-status > i {
+    animation: none;
+  }
+}
+
 @keyframes coding-terminal-pulse {
   50% {
     opacity: 0.45;
@@ -1550,8 +1556,9 @@
 
   .coding-grid {
     flex: 0 0 auto;
-    min-height: 1080px;
     grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(13rem, 1fr) auto;
+    overflow: visible;
   }
 
   .coding-explorer-resizer,
@@ -1561,13 +1568,21 @@
 
   .coding-explorer,
   .coding-editor {
-    min-height: 300px;
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
 
+  .coding-explorer {
+    min-height: clamp(7rem, 18svh, 8.5rem);
+  }
+
+  .coding-editor {
+    min-height: clamp(13rem, 34svh, 16rem);
+  }
+
   .coding-utility {
     grid-column: auto;
+    min-height: clamp(8rem, 21svh, 10rem);
   }
 }
 

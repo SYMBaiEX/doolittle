@@ -1,3 +1,4 @@
+import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
 import {
   type FormEvent,
   lazy,
@@ -84,6 +85,7 @@ interface SessionUsageResponse {
 const STORAGE_KEY = "doolittle.desktop.conversations.v2";
 const INSPECTOR_STORAGE_KEY = "doolittle.desktop.chat-inspector-visible.v1";
 const MEMORY_MATCH_DEBOUNCE_MS = 380;
+const NARROW_WORKBENCH_QUERY = "(max-width: 720px)";
 const ThreadWorkbenchRail = lazy(async () => {
   const module = await import("./components/ThreadWorkbenchRail");
   return { default: module.ThreadWorkbenchRail };
@@ -223,6 +225,7 @@ export function ChatPage({
   const [inspectorVisible, setInspectorVisible] = useState(
     loadInspectorVisibility,
   );
+  const isNarrowWorkbench = useMediaQuery(NARROW_WORKBENCH_QUERY);
   const [pinnedSessions, setPinnedSessions] = useState(() =>
     loadConversationPins(localStorage),
   );
@@ -276,6 +279,9 @@ export function ChatPage({
   const mobileConversationsButtonRef = useRef<HTMLButtonElement>(null);
   const mobileConversationsDialogRef = useRef<HTMLDivElement>(null);
   const mobileConversationsWasOpen = useRef(false);
+  const workbenchToggleRef = useRef<HTMLButtonElement>(null);
+  const workbenchDialogRef = useRef<HTMLDivElement>(null);
+  const workbenchWasModal = useRef(false);
   const queueRef = useRef<HTMLDivElement>(null);
   const queueDispatchRef = useRef<string | null>(null);
   const requestSession = useRef<Record<string, string>>({});
@@ -468,6 +474,55 @@ export function ChatPage({
       mobileConversationsButtonRef.current?.focus();
     }
   }, [mobileConversationsOpen]);
+
+  useEffect(() => {
+    if (!inspectorVisible || !isNarrowWorkbench) return;
+    workbenchWasModal.current = true;
+    const handleWorkbenchKeys = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setInspectorVisible(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(
+        workbenchDialogRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+      const first = focusable.at(0);
+      const last = focusable.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        workbenchDialogRef.current?.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", handleWorkbenchKeys);
+    requestAnimationFrame(() => {
+      workbenchDialogRef.current
+        ?.querySelector<HTMLButtonElement>(
+          '[aria-label="Close thread workbench"]',
+        )
+        ?.focus();
+    });
+    return () => window.removeEventListener("keydown", handleWorkbenchKeys);
+  }, [inspectorVisible, isNarrowWorkbench]);
+
+  useEffect(() => {
+    if (inspectorVisible && isNarrowWorkbench) return;
+    if (!inspectorVisible && workbenchWasModal.current) {
+      workbenchWasModal.current = false;
+      requestAnimationFrame(() => workbenchToggleRef.current?.focus());
+      return;
+    }
+    if (!isNarrowWorkbench) workbenchWasModal.current = false;
+  }, [inspectorVisible, isNarrowWorkbench]);
 
   useEffect(() => {
     const query = draft.trim();
@@ -1348,6 +1403,17 @@ export function ChatPage({
     selectedMessages.length === 0 &&
     (selectedSession?.messageCount ?? 0) === 0 &&
     !activeRequest;
+  const workbenchAccessibilityProps = isNarrowWorkbench
+    ? {
+        "aria-label": "Thread workbench",
+        "aria-modal": true as const,
+        role: "dialog" as const,
+        tabIndex: -1,
+      }
+    : {
+        "aria-label": "Thread workbench",
+        role: "region" as const,
+      };
 
   return (
     <div
@@ -1481,6 +1547,7 @@ export function ChatPage({
                       inspectorVisible ? "selected" : ""
                     }`}
                     onClick={toggleInspector}
+                    ref={workbenchToggleRef}
                     type="button"
                   >
                     <span aria-hidden="true">◧</span>
@@ -1492,7 +1559,12 @@ export function ChatPage({
             chromeHost,
           )
         : null}
-      <section className="chat-conversation" aria-label="Conversation detail">
+      <section
+        aria-hidden={inspectorVisible && isNarrowWorkbench ? "true" : undefined}
+        aria-label="Conversation detail"
+        className="chat-conversation"
+        inert={inspectorVisible && isNarrowWorkbench}
+      >
         <ChatTranscript
           activeRequest={activeRequest}
           backendReady={backend.phase === "ready"}
@@ -1674,7 +1746,12 @@ export function ChatPage({
         </div>
       ) : null}
       {inspectorVisible ? (
-        <div className="chat-workbench-pane" id="thread-workbench">
+        <div
+          {...workbenchAccessibilityProps}
+          className="chat-workbench-pane"
+          id="thread-workbench"
+          ref={workbenchDialogRef}
+        >
           <Suspense
             fallback={
               <div

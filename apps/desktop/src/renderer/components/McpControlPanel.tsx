@@ -231,6 +231,30 @@ export function mcpStatusLabel(status: McpStatus | undefined): string {
     : "Connecting";
 }
 
+export function mcpLiveStatus(
+  status: McpStatus | undefined,
+  toolCount: number,
+  selectedToolName = "",
+  selectedMarketplaceName = "",
+): string {
+  if (!status) return "Checking MCP connections.";
+
+  const serverCount = asNumber(status.serverCount, 0);
+  const connectedServers = asNumber(status.connectedServers, 0);
+  const summary = [
+    `MCP ${mcpStatusLabel(status).toLowerCase()}.`,
+    `${connectedServers} of ${serverCount} servers connected.`,
+    `${toolCount} cached tool${toolCount === 1 ? "" : "s"}.`,
+  ];
+  if (selectedToolName) {
+    summary.push(`Tool details selected: ${selectedToolName}.`);
+  }
+  if (selectedMarketplaceName) {
+    summary.push(`Registry definition selected: ${selectedMarketplaceName}.`);
+  }
+  return summary.join(" ");
+}
+
 export function McpControlPanel({ active }: { active: boolean }) {
   const status = useApiResource<McpStatusResponse>(
     active ? "/mcp/status" : null,
@@ -301,6 +325,12 @@ export function McpControlPanel({ active }: { active: boolean }) {
   );
   const loading = status.loading || cached.loading;
   const staticError = status.error || cached.error;
+  const liveStatus = mcpLiveStatus(
+    bridge,
+    asNumber(bridge?.discoveredTools, allTools.length),
+    selectedName,
+    marketplaceName,
+  );
 
   const refresh = () => {
     status.reload();
@@ -350,6 +380,9 @@ export function McpControlPanel({ active }: { active: boolean }) {
       aria-labelledby="mcp-control-heading"
       className="mcp-control-panel"
     >
+      <p aria-atomic="true" aria-live="polite" className="sr-only">
+        {liveStatus}
+      </p>
       <header className="mcp-control-header">
         <div>
           <span className="eyebrow">Model Context Protocol</span>

@@ -1879,6 +1879,14 @@
   }
 
   .review-workspace {
-    grid-template-columns: minmax(250px, 280px) minmax(0, 1fr);
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(220px, 300px) minmax(0, 1fr);
+  }
+
+  .review-rail {
+    max-height: 300px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
   }
 }

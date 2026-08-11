@@ -228,11 +228,16 @@
   min-height: 58px;
   resize: vertical;
 }
-.git-control-panel input:focus,
-.git-control-panel textarea:focus {
-  border-color: var(--border);
-  box-shadow: none;
-  outline: none;
+.git-control-panel :is(button, input, textarea):focus-visible {
+  position: relative;
+  z-index: 1;
+  border-color: color-mix(in srgb, var(--accent) 72%, var(--border));
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.git-control-panel input[type="checkbox"]:focus-visible {
+  outline-offset: 3px;
 }
 .git-commit-form > label {
   color: var(--muted);

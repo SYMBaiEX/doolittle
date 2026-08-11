@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  mcpLiveStatus,
   mcpStatusLabel,
   normalizeMcpMarketplace,
   normalizeMcpMarketplaceDetail,
@@ -46,6 +47,25 @@ describe("mcpStatusLabel", () => {
     expect(mcpStatusLabel({ enabled: true, failedServers: 1 })).toBe(
       "Needs attention",
     );
+  });
+});
+
+describe("mcpLiveStatus", () => {
+  it("summarizes connection counts and announces selected read-only details", () => {
+    expect(
+      mcpLiveStatus(
+        { enabled: true, serverCount: 2, connectedServers: 1 },
+        4,
+        "calendar_search",
+        "io.example/calendar",
+      ),
+    ).toBe(
+      "MCP connecting. 1 of 2 servers connected. 4 cached tools. Tool details selected: calendar_search. Registry definition selected: io.example/calendar.",
+    );
+  });
+
+  it("does not announce an empty registry before MCP status is available", () => {
+    expect(mcpLiveStatus(undefined, 0)).toBe("Checking MCP connections.");
   });
 });
 

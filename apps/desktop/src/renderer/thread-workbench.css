@@ -1268,6 +1268,35 @@
 }
 
 @media (max-width: 720px) {
+  /* Keep the full operator surface available without compressing chat to a sliver. */
+  .chat-workspace.inspector-open > #thread-workbench {
+    position: fixed;
+    z-index: 120;
+    inset: 0;
+    width: 100%;
+  }
+
+  .thread-workbench {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 auto;
+    box-shadow: none;
+  }
+
+  .thread-workbench-resizer {
+    display: none;
+  }
+
+  .thread-workbench-header {
+    padding: 10px;
+  }
+
+  .thread-workbench-icon-button {
+    width: 32px;
+    height: 32px;
+  }
+
   .thread-workbench-tabs button {
     min-height: 38px;
   }
