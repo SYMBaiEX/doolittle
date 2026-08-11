@@ -58,6 +58,30 @@ describe("RepositoryService review model", () => {
     expect((await repository.summary()).root).toBe(second);
   });
 
+  it("ignores incomplete ancestor .git directories and exposes an ordinary workspace as non-repository state", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "doolittle-non-repository-"));
+    createdDirectories.push(directory);
+    mkdirSync(join(directory, ".git", "hooks"), { recursive: true });
+    const workspace = join(directory, "projects", "test");
+    mkdirSync(workspace, { recursive: true });
+    const repository = new RepositoryService(workspace);
+
+    expect(repository.isRepository()).toBe(false);
+    await expect(repository.summary()).resolves.toEqual({
+      isRepository: false,
+      ahead: 0,
+      behind: 0,
+      dirty: false,
+      changedFiles: 0,
+    });
+    await expect(repository.changes()).resolves.toEqual([]);
+    await expect(repository.worktrees()).resolves.toEqual([]);
+    await expect(repository.branches()).resolves.toEqual([]);
+    await expect(repository.remotes()).resolves.toEqual([]);
+    await expect(repository.stashes()).resolves.toEqual([]);
+    await expect(repository.conflicts()).resolves.toEqual([]);
+  });
+
   it("reports branch state, changed files, patches, and worktrees", async () => {
     const directory = createRepository();
     writeFileSync(join(directory, "tracked.txt"), "after\n", "utf8");

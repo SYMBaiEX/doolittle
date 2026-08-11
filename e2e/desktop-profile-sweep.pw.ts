@@ -34,6 +34,34 @@ const routes = [
   "docs",
 ] as const;
 
+const apiProbePaths: Partial<
+  Record<(typeof routes)[number], readonly string[]>
+> = {
+  code: [
+    "/repo/summary",
+    "/workspace/tree?depth=12",
+    "/repo/changes",
+    "/repo/log",
+    "/repo/worktrees",
+    "/repo/branches",
+    "/repo/remotes",
+    "/repo/stashes",
+    "/repo/conflicts",
+  ],
+  activity: ["/activity?limit=200"],
+  runtime: [
+    "/runtime/status",
+    "/runtime/account-pool",
+    "/autonomy/status",
+    "/gateway/health",
+    "/gateway/runtime",
+    "/runtime/plugins",
+    "/runtime/ecosystem",
+    "/insights",
+  ],
+  compatibility: ["/runtime/compatibility"],
+};
+
 test.describe("Doolittle cloned-profile control sweep", () => {
   test.skip(
     !executablePath || !profileDir,
@@ -66,6 +94,7 @@ test.describe("Doolittle cloned-profile control sweep", () => {
       const audit: Array<{
         route: string;
         badNotices: string[];
+        initialControls: number;
         controls: number;
         tabs: number;
         apiFailures?: Array<{ path: string; status: number; body: string }>;
@@ -78,7 +107,16 @@ test.describe("Doolittle cloned-profile control sweep", () => {
         const view = page.locator(`.view-container[data-view="${route}"]`);
         await expect(view).toBeVisible();
         await expect(page.locator(".recovery-shell")).toHaveCount(0);
-        await page.waitForTimeout(180);
+        await expect(
+          view.getByText("Opening workspace…", { exact: true }),
+        ).toHaveCount(0, { timeout: 15_000 });
+        await page.waitForTimeout(80);
+
+        const visibleControlSelector =
+          'button:visible, a[href]:visible, summary:visible, input:visible, select:visible, textarea:visible, [role="tab"]:visible';
+        const initialControls = await view
+          .locator(visibleControlSelector)
+          .count();
 
         const tabs = view.getByRole("tab");
         const tabCount = await tabs.count();
@@ -108,48 +146,42 @@ test.describe("Doolittle cloned-profile control sweep", () => {
           }
         }
 
-        const apiFailures =
-          route === "runtime" || route === "compatibility"
-            ? await page.evaluate(
-                async (paths) => {
-                  const responses = await Promise.all(
-                    paths.map(async (path) => {
-                      const response = await window.doolittle.requestAgent({
-                        path,
-                        method: "GET",
-                        headers: { accept: "application/json" },
-                      });
-                      return {
-                        path,
-                        status: response.status,
-                        body: response.body.slice(0, 320),
-                      };
-                    }),
-                  );
-                  return responses.filter((response) => response.status >= 400);
-                },
-                route === "runtime"
-                  ? [
-                      "/runtime/status",
-                      "/runtime/account-pool",
-                      "/autonomy/status",
-                      "/gateway/health",
-                      "/gateway/runtime",
-                      "/runtime/plugins",
-                      "/runtime/ecosystem",
-                      "/insights",
-                    ]
-                  : ["/runtime/compatibility"],
-              )
-            : undefined;
+        const probePaths = apiProbePaths[route];
+        const apiFailures = probePaths
+          ? await page.evaluate(async (paths) => {
+              const responses = await Promise.all(
+                paths.map(async (path) => {
+                  try {
+                    const response = await window.doolittle.requestAgent({
+                      path,
+                      method: "GET",
+                      headers: { accept: "application/json" },
+                    });
+                    return {
+                      path,
+                      status: response.status,
+                      body: response.body.slice(0, 320),
+                    };
+                  } catch (error) {
+                    return {
+                      path,
+                      status: 0,
+                      body:
+                        error instanceof Error ? error.message : String(error),
+                    };
+                  }
+                }),
+              );
+              return responses.filter(
+                (response) => response.status === 0 || response.status >= 400,
+              );
+            }, probePaths)
+          : undefined;
         audit.push({
           route,
           badNotices: await view.locator(".notice.bad").allTextContents(),
-          controls: await view
-            .locator(
-              'button, a[href], summary, input, select, textarea, [role="tab"]',
-            )
-            .count(),
+          initialControls,
+          controls: await view.locator(visibleControlSelector).count(),
           tabs: tabCount,
           ...(apiFailures?.length ? { apiFailures } : {}),
         });
@@ -157,6 +189,19 @@ test.describe("Doolittle cloned-profile control sweep", () => {
       }
 
       console.log(`DOOLITTLE_PROFILE_SWEEP=${JSON.stringify(audit)}`);
+      expect(
+        audit.flatMap((entry) =>
+          entry.badNotices.map((notice) => `${entry.route}: ${notice}`),
+        ),
+      ).toEqual([]);
+      expect(
+        audit.flatMap((entry) =>
+          (entry.apiFailures ?? []).map(
+            (failure) =>
+              `${entry.route} ${failure.path}: ${failure.status} ${failure.body}`,
+          ),
+        ),
+      ).toEqual([]);
       expect(pageErrors, pageErrors.join("\n\n")).toEqual([]);
       expect(consoleErrors, consoleErrors.join("\n\n")).toEqual([]);
     } finally {

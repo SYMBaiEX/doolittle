@@ -610,6 +610,10 @@ describe("parseApiPath", () => {
       parseApiPath("/repo/patch?path=src%2Findex.ts&staged=true", "GET"),
     ).toBe("/repo/patch?path=src%2Findex.ts&staged=true");
     expect(parseApiPath("/repo/worktrees", "GET")).toBe("/repo/worktrees");
+    expect(parseApiPath("/repo/branches", "GET")).toBe("/repo/branches");
+    expect(parseApiPath("/repo/remotes", "GET")).toBe("/repo/remotes");
+    expect(parseApiPath("/repo/stashes", "GET")).toBe("/repo/stashes");
+    expect(parseApiPath("/repo/conflicts", "GET")).toBe("/repo/conflicts");
     expect(parseApiPath("/workspace/checkpoints", "POST")).toBe(
       "/workspace/checkpoints",
     );

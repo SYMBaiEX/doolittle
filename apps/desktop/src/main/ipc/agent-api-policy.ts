@@ -437,6 +437,10 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
       validateQuery: validateRepositoryFilters,
     },
     { exact: "/repo/worktrees" },
+    { exact: "/repo/branches" },
+    { exact: "/repo/remotes" },
+    { exact: "/repo/stashes" },
+    { exact: "/repo/conflicts" },
     { exact: "/plans" },
     {
       predicate: (pathname) => matchesResourcePath(pathname, "/plans"),

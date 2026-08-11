@@ -1,5 +1,5 @@
-import { existsSync, realpathSync } from "node:fs";
-import { dirname, isAbsolute, join, relative } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type {
   RepositoryBranch,
   RepositoryConflict,
@@ -49,6 +49,19 @@ export type {
 } from "./repository/models";
 
 const MAX_PATCH_CHARACTERS = 240_000;
+
+function hasValidGitMarker(directory: string): boolean {
+  const marker = join(directory, ".git");
+  if (existsSync(join(marker, "HEAD"))) return true;
+
+  try {
+    const match = /^gitdir:\s*(.+)$/u.exec(readFileSync(marker, "utf8").trim());
+    if (!match?.[1]) return false;
+    return existsSync(join(resolve(directory, match[1]), "HEAD"));
+  } catch {
+    return false;
+  }
+}
 
 export class RepositoryService {
   private gitRootCache?: {
@@ -457,7 +470,7 @@ export class RepositoryService {
     let current = workspaceDir;
 
     while (true) {
-      if (existsSync(join(current, ".git"))) {
+      if (hasValidGitMarker(current)) {
         this.gitRootCache = { workspaceDir, root: current };
         return current;
       }
