@@ -9,7 +9,13 @@ import {
   createAutocoderWorkflowContext,
   failAutocoderWorkflowContext,
 } from "@/server/autocoder-workflow-context";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
+
+async function readSecretBody(request: Request) {
+  const parsed = await readJsonObjectBody(request);
+  return parsed.ok ? parsed.value : undefined;
+}
 
 export async function handleSecretsRoutes(
   context: AppContext,
@@ -23,10 +29,8 @@ export async function handleSecretsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/secrets/get") {
-    const body = (await request.json()) as {
-      key?: string;
-    };
-    if (!body.key) {
+    const body = await readSecretBody(request);
+    if (!body || typeof body.key !== "string" || !body.key) {
       return json({ error: "key is required" }, 400);
     }
     return json({
@@ -36,11 +40,13 @@ export async function handleSecretsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/secrets/set") {
-    const body = (await request.json()) as {
-      key?: string;
-      value?: string;
-    };
-    if (!body.key || body.value === undefined) {
+    const body = await readSecretBody(request);
+    if (
+      !body ||
+      typeof body.key !== "string" ||
+      !body.key ||
+      typeof body.value !== "string"
+    ) {
       return json({ error: "key and value are required" }, 400);
     }
     const workflow = await createAutocoderWorkflowContext(context, {

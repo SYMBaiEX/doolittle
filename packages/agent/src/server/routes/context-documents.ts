@@ -1,5 +1,5 @@
-import { isPlainObject } from "@elizaos/shared/type-guards";
 import type { AppContext } from "@/runtime/bootstrap";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 
 const PDF_BODY_KEYS = new Set([
@@ -87,16 +87,12 @@ export async function handleContextDocumentRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/documents/pdf/extract") {
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
+    const parsedBody = await readJsonObjectBody(request);
+    if (!parsedBody.ok) {
       return json({ error: "A valid JSON body is required." }, 400);
     }
-    if (
-      !isPlainObject(body) ||
-      Object.keys(body).some((key) => !PDF_BODY_KEYS.has(key))
-    ) {
+    const body = parsedBody.value;
+    if (Object.keys(body).some((key) => !PDF_BODY_KEYS.has(key))) {
       return json({ error: "Invalid PDF extraction request." }, 400);
     }
 

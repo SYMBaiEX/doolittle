@@ -166,6 +166,26 @@ describe("handleBrowserRoutes", () => {
     });
   });
 
+  it.each(["not-json", "null", "[]"])(
+    "rejects non-object browser request body %s",
+    async (body) => {
+      const response = await handleBrowserRoutes(
+        createContext(),
+        new Request("http://localhost/browser/capture", {
+          method: "POST",
+          body,
+          headers: { "content-type": "application/json" },
+        }),
+        new URL("http://localhost/browser/capture"),
+      );
+
+      expect(response?.status).toBe(400);
+      await expect(response?.json()).resolves.toEqual({
+        error: "A valid JSON object body is required",
+      });
+    },
+  );
+
   it("rejects non-http URLs on every URL-bearing browser route", async () => {
     const responses = await Promise.all([
       handleBrowserRoutes(

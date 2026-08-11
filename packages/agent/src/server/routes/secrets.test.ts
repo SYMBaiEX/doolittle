@@ -106,6 +106,33 @@ describe("handleSecretsRoutes", () => {
     });
   });
 
+  it.each(["not-json", "null", "[]"])(
+    "rejects invalid secret request body %s",
+    async (body) => {
+      const get = await handleSecretsRoutes(
+        createContext(),
+        new Request("http://localhost/secrets/get", {
+          method: "POST",
+          body,
+          headers: { "content-type": "application/json" },
+        }),
+        new URL("http://localhost/secrets/get"),
+      );
+      const set = await handleSecretsRoutes(
+        createContext(),
+        new Request("http://localhost/secrets/set", {
+          method: "POST",
+          body,
+          headers: { "content-type": "application/json" },
+        }),
+        new URL("http://localhost/secrets/set"),
+      );
+
+      expect(get?.status).toBe(400);
+      expect(set?.status).toBe(400);
+    },
+  );
+
   it("stores secrets and records the workflow lifecycle", async () => {
     const context = createContext();
     const response = await handleSecretsRoutes(

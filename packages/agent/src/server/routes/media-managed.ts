@@ -1,5 +1,5 @@
-import { isPlainObject } from "@elizaos/shared/type-guards";
 import type { AppContext } from "@/runtime/bootstrap";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import {
   ManagedAttachmentError,
@@ -41,16 +41,12 @@ export async function handleManagedMediaRoutes(
     return null;
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
+  const parsedBody = await readJsonObjectBody(request);
+  if (!parsedBody.ok) {
     return json({ error: "A valid JSON body is required." }, 400);
   }
-  if (
-    !isPlainObject(body) ||
-    Object.keys(body).some((key) => !ALLOWED_BODY_KEYS.has(key))
-  ) {
+  const body = parsedBody.value;
+  if (Object.keys(body).some((key) => !ALLOWED_BODY_KEYS.has(key))) {
     return json(
       {
         error: "Only attachmentId, language, prompt, and name are accepted.",

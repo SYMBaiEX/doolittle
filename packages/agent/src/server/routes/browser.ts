@@ -12,12 +12,22 @@ import {
   snapshotBrowserPage,
 } from "@/runtime/native/service-bridge/browser";
 import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
+import { type JsonObject, readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import { hasEncodedAsciiControlCharacters } from "@/utils/text-validation";
 
 type BrowserAnalysisTurn = typeof runModelAnalysis;
 
 const MAX_BROWSER_URL_LENGTH = 4_096;
+
+async function readBrowserBody(
+  request: Request,
+): Promise<JsonObject | Response> {
+  const parsed = await readJsonObjectBody(request);
+  return parsed.ok
+    ? parsed.value
+    : json({ error: "A valid JSON object body is required" }, 400);
+}
 
 function validateBrowserUrl(value: unknown, field: string): string | null {
   if (typeof value !== "string" || value.length === 0) {
@@ -88,7 +98,8 @@ export async function handleBrowserRoutes(
     request.method === "POST" &&
     (url.pathname === "/web/snapshot" || url.pathname === "/browser/snapshot")
   ) {
-    const body = (await request.json()) as { url?: unknown };
+    const body = await readBrowserBody(request);
+    if (body instanceof Response) return body;
     const error = validateBrowserUrl(body.url, "url");
     if (error) return json({ error }, 400);
     return json({
@@ -97,7 +108,8 @@ export async function handleBrowserRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/browser/screenshot") {
-    const body = (await request.json()) as { url?: unknown };
+    const body = await readBrowserBody(request);
+    if (body instanceof Response) return body;
     const error = validateBrowserUrl(body.url, "url");
     if (error) return json({ error }, 400);
     return json({
@@ -106,7 +118,8 @@ export async function handleBrowserRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/browser/capture") {
-    const body = (await request.json()) as { url?: unknown };
+    const body = await readBrowserBody(request);
+    if (body instanceof Response) return body;
     const error = validateBrowserUrl(body.url, "url");
     if (error) return json({ error }, 400);
     return json({
@@ -115,7 +128,8 @@ export async function handleBrowserRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/browser/analyze") {
-    const body = (await request.json()) as { url?: unknown };
+    const body = await readBrowserBody(request);
+    if (body instanceof Response) return body;
     const error = validateBrowserUrl(body.url, "url");
     if (error) return json({ error }, 400);
     const analysis = await analyzeBrowserPage(
@@ -133,10 +147,8 @@ export async function handleBrowserRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/browser/compare") {
-    const body = (await request.json()) as {
-      leftUrl?: unknown;
-      rightUrl?: unknown;
-    };
+    const body = await readBrowserBody(request);
+    if (body instanceof Response) return body;
     if (!body.leftUrl || !body.rightUrl) {
       return json({ error: "leftUrl and rightUrl are required" }, 400);
     }
@@ -157,10 +169,8 @@ export async function handleBrowserRoutes(
     request.method === "POST" &&
     url.pathname === "/browser/compare/analyze"
   ) {
-    const body = (await request.json()) as {
-      leftUrl?: unknown;
-      rightUrl?: unknown;
-    };
+    const body = await readBrowserBody(request);
+    if (body instanceof Response) return body;
     if (!body.leftUrl || !body.rightUrl) {
       return json({ error: "leftUrl and rightUrl are required" }, 400);
     }

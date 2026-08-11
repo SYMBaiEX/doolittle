@@ -6,6 +6,7 @@ import {
   getEffectivePersonalityList,
   getEffectivePersonalitySummary,
 } from "@/runtime/native/service-bridge/ownership";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import { handleIdentityProfileRoutes } from "./identity/profiles";
 
@@ -31,9 +32,12 @@ export async function handleIdentityRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/personality") {
-    const body = (await request.json()) as { id: string };
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok || typeof parsed.value.id !== "string" || !parsed.value.id) {
+      return json({ error: "id is required" }, 400);
+    }
     return json({
-      active: activateEffectivePersonality(context.runtime, body.id),
+      active: activateEffectivePersonality(context.runtime, parsed.value.id),
     });
   }
 

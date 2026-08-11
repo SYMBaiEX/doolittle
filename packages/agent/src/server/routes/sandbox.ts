@@ -7,9 +7,8 @@ import {
   listEffectiveSandboxes,
 } from "@/runtime/native/service-bridge/autocoder";
 import { getNativeExecutionControlPlane } from "@/runtime/native/service-bridge/control-planes";
+import { type JsonObject, readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
-
-type JsonObject = Record<string, unknown>;
 
 function badRequest(error: string): Response {
   return json({ error }, 400);
@@ -25,14 +24,13 @@ function isStringRecord(value: unknown): value is Record<string, string> {
 async function readJsonObject(
   request: Request,
 ): Promise<JsonObject | Response> {
-  try {
-    const body: unknown = await request.json();
-    return isPlainObject(body)
-      ? body
-      : badRequest("Request body must be a JSON object");
-  } catch {
-    return badRequest("Request body must be valid JSON");
-  }
+  const parsed = await readJsonObjectBody(request);
+  if (parsed.ok) return parsed.value;
+  return badRequest(
+    parsed.reason === "invalid_json"
+      ? "Request body must be valid JSON"
+      : "Request body must be a JSON object",
+  );
 }
 
 function optionalNonEmptyString(

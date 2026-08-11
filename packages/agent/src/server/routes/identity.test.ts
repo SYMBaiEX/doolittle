@@ -66,6 +66,26 @@ describe("handleIdentityRoutes", () => {
     });
   });
 
+  it.each(["not-json", "null", "[]", "{}"])(
+    "rejects invalid personality request body %s",
+    async (body) => {
+      const response = await handleIdentityRoutes(
+        createIdentityTestContext(),
+        new Request("http://localhost/personality", {
+          method: "POST",
+          body,
+          headers: { "content-type": "application/json" },
+        }),
+        new URL("http://localhost/personality"),
+      );
+
+      expect(response?.status).toBe(400);
+      await expect(response?.json()).resolves.toEqual({
+        error: "id is required",
+      });
+    },
+  );
+
   it("handles profile detail and mutation endpoints", async () => {
     const context = createIdentityTestContext();
     const search = await handleIdentityRoutes(
