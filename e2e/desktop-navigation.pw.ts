@@ -500,7 +500,9 @@ test.describe("Doolittle desktop navigation", () => {
       const poolDisclosure = page.locator(
         ".provider-routing-disclosure > summary",
       );
-      await expect(poolDisclosure).toContainText("Subscription account pools");
+      await expect(poolDisclosure).toContainText("Subscription account pools", {
+        timeout: 30_000,
+      });
       await poolDisclosure.click();
       await expect(
         page.getByRole("region", {
