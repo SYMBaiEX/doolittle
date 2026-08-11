@@ -18,8 +18,8 @@ import { errorMessage } from "../lib";
 import { compactWorkspacePath } from "../workspace-path";
 import {
   appendTerminalBytes as appendTerminalOutputBytes,
-  boundedTerminalOutput,
   closeTerminalTabState,
+  isCurrentTerminalSession,
   terminalChatContext,
   terminalTabLabelId,
 } from "./interactive-terminal-state";
@@ -306,10 +306,6 @@ export function InteractiveTerminal({
                 state: "closed",
                 sessionId: null,
                 stale: true,
-                output: boundedTerminalOutput(
-                  `${tab.output}\n[${message}]\n`,
-                  MAX_RENDERED_TERMINAL_OUTPUT,
-                ),
                 outputBytes: 0,
               }
             : tab,
@@ -375,10 +371,10 @@ export function InteractiveTerminal({
         );
         appendOutputToTab(tabId, snapshot);
       } catch (error) {
-        setTabToClosed(
-          tabId,
-          `Terminal ${tabId.slice(0, 8)} cannot be polled after navigation.`,
-        );
+        if (!isCurrentTerminalSession(tabsRef.current, tabId, sessionId)) {
+          return;
+        }
+        setTabToClosed(tabId);
         setNotice(errorMessage(error));
       } finally {
         pollingRef.current = false;

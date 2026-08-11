@@ -6,6 +6,14 @@ export function terminalTabLabelId(tabId: string): string {
   return `interactive-terminal-${tabId}-label`;
 }
 
+export function isCurrentTerminalSession(
+  tabs: InteractiveTerminalTabState[],
+  tabId: string,
+  sessionId: string,
+): boolean {
+  return tabs.some((tab) => tab.id === tabId && tab.sessionId === sessionId);
+}
+
 export function boundedTerminalOutput(
   output: string,
   maxCharacters: number,

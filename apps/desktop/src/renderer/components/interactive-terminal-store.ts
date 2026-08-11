@@ -65,7 +65,12 @@ function truncateHistory(value: unknown, maxEntries: number): string[] {
 
 function truncateOutput(value: unknown, maxCharacters: number): string {
   if (!isString(value)) return "";
-  return value.slice(-maxCharacters);
+  return value
+    .replace(
+      /\[Terminal [\da-f-]{1,8} cannot be polled after navigation\.\](?:\r\n|\n|\r)?/giu,
+      "",
+    )
+    .slice(-maxCharacters);
 }
 
 function randomId(): string {

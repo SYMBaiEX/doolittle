@@ -27,6 +27,22 @@ function fakeStorage(): Storage & { values: Map<string, string> } {
 }
 
 describe("interactive terminal state", () => {
+  it("removes obsolete navigation-poll notices from persisted output", () => {
+    const tab = createInteractiveTerminalTab("Terminal 1");
+    tab.output = [
+      "before",
+      "[Terminal dceae3e2 cannot be polled after navigation.]",
+      "after",
+    ].join("\n");
+
+    const parsed = parseInteractiveTerminalState({
+      activeTabId: tab.id,
+      tabs: [tab],
+    });
+
+    expect(parsed.tabs[0]?.output).toBe("before\nafter");
+  });
+
   it("builds a workspace default when storage is empty", () => {
     const state = loadInteractiveTerminalState("/tmp/empty", fakeStorage());
 

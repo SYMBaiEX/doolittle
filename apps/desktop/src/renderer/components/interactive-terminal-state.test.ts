@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendTerminalBytes,
   closeTerminalTabState,
+  isCurrentTerminalSession,
   terminalChatContext,
   terminalTabLabelId,
 } from "./interactive-terminal-state";
@@ -56,5 +57,15 @@ describe("interactive terminal pure state", () => {
     expect(terminalTabLabelId("a-tab")).toBe(
       "interactive-terminal-a-tab-label",
     );
+  });
+
+  it("ignores a poll result after its tab or session has been replaced", () => {
+    const tab = createInteractiveTerminalTab("Terminal 1");
+    tab.id = "tab-1";
+    tab.sessionId = "session-2";
+
+    expect(isCurrentTerminalSession([tab], "tab-1", "session-2")).toBe(true);
+    expect(isCurrentTerminalSession([tab], "tab-1", "session-1")).toBe(false);
+    expect(isCurrentTerminalSession([], "tab-1", "session-2")).toBe(false);
   });
 });
