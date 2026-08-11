@@ -1,6 +1,6 @@
 # Package Ownership and Eliza Migration Status
 
-Last reviewed: August 7, 2026
+Last reviewed: August 11, 2026
 
 This is the package-level companion to the runtime
 [plugin inventory](plugin-inventory.md). Each workspace is classified by why it
@@ -47,6 +47,11 @@ home for product-only actions and service projections.
   explicit structured local-CLI fallback missing from the pinned plugin.
 - Replaced Doolittle's copied Anthropic OAuth refresh client identity and HTTP
   exchange with the official `@elizaos/agent/auth/anthropic` helper.
+- Made official `@elizaos/agent/auth/credentials` subscription status the
+  default-machine readiness source for Codex and Claude accounts, including
+  macOS Keychain and CLI discovery. Doolittle retains only the product
+  projection that distinguishes native model credentials from explicit Claude
+  CLI fallback, plus path-aware readers for isolated homes and tests.
 - Replaced the custom `secrets-manager` runtime with the official core
   `SECRETS` service and retained only a namespaced `@elizaos/vault` persistence
   mirror for global-secret restart durability and legacy plaintext import.
