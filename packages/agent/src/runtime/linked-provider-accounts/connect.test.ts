@@ -7,6 +7,8 @@ let runtimeRefreshResult = false;
 
 function installConnectMocks() {
   vi.doMock("@/runtime/native/account-auth", () => ({
+    claudeCodeAccessTokenIsExpiring: () => false,
+    getLinkedClaudeCodeCredentials: () => undefined,
     getLinkedProviderConnectAdvice: (provider: string) => ({
       provider,
       detail: "advice",

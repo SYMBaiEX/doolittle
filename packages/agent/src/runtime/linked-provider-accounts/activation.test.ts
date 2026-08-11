@@ -5,6 +5,8 @@ let snapshotCallCount = 0;
 
 function installActivationMocks() {
   vi.doMock("@/runtime/native/account-auth", () => ({
+    claudeCodeAccessTokenIsExpiring: () => false,
+    getLinkedClaudeCodeCredentials: () => undefined,
     getLinkedProviderConnectAdvice: (provider: string) => ({
       provider,
       detail: "advice",
