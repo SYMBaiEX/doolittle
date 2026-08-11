@@ -1758,31 +1758,9 @@ th {
   border-radius: 3px;
 }
 
-/* Catalog routes stay scannable without becoming a wall of tiles. */
-.view-models :is(.two-column-grid, .card-grid),
-.view-tools .card-grid,
-.view-skills .card-grid,
-.view-plugins .card-grid,
-.view-profiles .card-grid {
+/* Model controls stay scannable without becoming a wall of tiles. */
+.view-models .two-column-grid {
   gap: 8px;
-}
-
-.view-models :is(.catalog-card, .profile-card),
-.view-tools :is(.catalog-card, .profile-card),
-.view-skills :is(.catalog-card, .profile-card),
-.view-plugins :is(.catalog-card, .profile-card),
-.view-profiles :is(.catalog-card, .profile-card) {
-  min-height: 0;
-}
-
-.view-profiles .profile-card {
-  padding-top: 47px;
-}
-
-.profile-avatar {
-  top: 11px;
-  left: 13px;
-  border-radius: 3px;
 }
 
 /* Studio routes use restrained tabs and dense evidence lists. */

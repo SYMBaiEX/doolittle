@@ -15,7 +15,6 @@ import {
   ErrorBlock,
   errorMessage,
   LoadingBlock,
-  MetricCard,
   Notice,
   PageHeader,
   useApiResource,
@@ -239,20 +238,6 @@ export function KeysPage({ active }: { active: boolean }) {
               ) : null}
             </div>
           </form>
-          <div className="metric-grid compact" style={{ marginTop: "14px" }}>
-            <MetricCard label="Known keys" value={keys.length} />
-            <MetricCard
-              label="Selected key"
-              value={draftKey || "None"}
-              detail="Names are listed without values."
-            />
-            <MetricCard
-              label="Renderer access"
-              value={revealedValue ? "Explicit" : "Protected"}
-              detail="Values are returned only on demand."
-            />
-            <MetricCard label="Storage" value="Local only" />
-          </div>
           {revealedValue ? (
             <Notice tone="warn">
               The selected value is loaded into the protected editor above.

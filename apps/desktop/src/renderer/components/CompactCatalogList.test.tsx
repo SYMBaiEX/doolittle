@@ -34,4 +34,22 @@ describe("CompactCatalogList", () => {
     expect(markup).toContain("Show 6 more");
     expect(markup).toContain("<summary>Details</summary>");
   });
+
+  it("keeps a row action adjacent to its status", () => {
+    const markup = renderToStaticMarkup(
+      <CompactCatalogList
+        ariaLabel="Profiles"
+        entries={[
+          {
+            ...entry(1),
+            action: <button type="button">Use profile</button>,
+          },
+        ]}
+        resetKey="profiles"
+      />,
+    );
+
+    expect(markup).toContain('class="compact-catalog__actions"');
+    expect(markup).toContain("Use profile");
+  });
 });

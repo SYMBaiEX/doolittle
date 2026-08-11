@@ -630,9 +630,7 @@ select:focus-visible {
   letter-spacing: -0.015em;
 }
 
-.content-card > p,
-.catalog-card > p,
-.profile-card > p {
+.content-card > p {
   margin: 0 0 15px;
   color: var(--text-soft);
   font-size: var(--text-body, 13px);
@@ -1006,26 +1004,6 @@ select:focus-visible {
   color: var(--text-soft);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.profile-card {
-  position: relative;
-  padding-top: 54px;
-}
-
-.profile-avatar {
-  position: absolute;
-  top: 16px;
-  left: 18px;
-  display: grid;
-  width: 29px;
-  height: 29px;
-  place-items: center;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-border);
-  border-radius: 3px;
-  font-family: var(--font-display);
 }
 
 .split-workspace {

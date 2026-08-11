@@ -2085,18 +2085,6 @@ button.chat-session-meta-pill:hover {
   text-transform: none;
 }
 
-.catalog-card,
-.profile-card {
-  display: flex;
-  min-height: 100%;
-  flex-direction: column;
-}
-
-.catalog-card .card-footer,
-.profile-card > button {
-  margin-top: auto;
-}
-
 .page-settings {
   width: min(100%, 1480px);
   gap: 20px;

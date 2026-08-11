@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Badge } from "../lib";
 import "./compact-catalog-list.css";
 
@@ -17,6 +17,7 @@ export interface CompactCatalogEntry {
   code?: string;
   meta?: string;
   facts?: CompactCatalogFact[];
+  action?: ReactNode;
 }
 
 export function CompactCatalogList({
@@ -67,7 +68,10 @@ export function CompactCatalogList({
                   </div>
                 ) : null}
               </div>
-              <Badge tone={entry.tone}>{entry.status}</Badge>
+              <div className="compact-catalog__actions">
+                <Badge tone={entry.tone}>{entry.status}</Badge>
+                {entry.action}
+              </div>
             </div>
           </li>
         ))}
