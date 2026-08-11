@@ -3,7 +3,7 @@ import {
   DOOLITTLE_SDK_CAPABILITIES_SERVICE,
 } from "@doolittle/contracts";
 import { installDatabaseTrajectoryLogger } from "@elizaos/agent/runtime/trajectory-persistence";
-import type { AgentRuntime } from "@elizaos/core";
+import { type AgentRuntime, TrajectoriesService } from "@elizaos/core";
 
 /**
  * Completes configuration that requires an initialized runtime.
@@ -15,7 +15,7 @@ import type { AgentRuntime } from "@elizaos/core";
 export async function finalizeCoreRuntimeServices(
   runtime: AgentRuntime,
 ): Promise<void> {
-  await runtime.getServiceLoadPromise("trajectories");
+  await runtime.getServiceLoadPromise(TrajectoriesService.serviceType);
   await installDatabaseTrajectoryLogger(runtime);
   await runtime.getServiceLoadPromise(DOOLITTLE_RUN_PROGRESS_SERVICE);
   await runtime.getServiceLoadPromise(DOOLITTLE_SDK_CAPABILITIES_SERVICE);

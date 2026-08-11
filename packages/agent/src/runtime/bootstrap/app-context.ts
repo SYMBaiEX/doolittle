@@ -9,6 +9,7 @@ import {
   createProviderFailureTemplates,
   initializeElizaRuntime,
 } from "@/runtime/bootstrap/runtime";
+import { DOOLITTLE_RUNTIME_CAPABILITY_OPTIONS } from "@/runtime/bootstrap/runtime/capability-options";
 import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
 import type {
   AppContext,
@@ -92,12 +93,7 @@ export async function buildAppContext({
         },
       },
       plugins: nativePluginAssembly.initial,
-      advancedCapabilities: true,
-      enableExtendedCapabilities: true,
-      enableSecretsManager: true,
-      // The official autonomy surface is mounted by the foundation plugin,
-      // but background reasoning remains an explicit operator opt-in.
-      enableAutonomy: false,
+      ...DOOLITTLE_RUNTIME_CAPABILITY_OPTIONS,
     });
 
   appendBootstrapTrace("phase:initializeRuntime:start");

@@ -19,9 +19,13 @@ import { KNOWLEDGE_GRAPH_SERVICE } from "@elizaos/agent/services/knowledge-graph
 import {
   type AgentRuntime,
   AUTONOMY_SERVICE_TYPE,
+  DocumentService,
   PairingService,
+  PluginManagerService,
+  RelationshipsService,
   SECRETS_SERVICE_TYPE,
   stringToUuid,
+  TrajectoriesService,
 } from "@elizaos/core";
 import { AgentSkillsService } from "@elizaos/plugin-agent-skills";
 import { appendBootstrapTrace } from "@/runtime/bootstrap/trace";
@@ -36,10 +40,13 @@ const CRITICAL_RUNTIME_SERVICES = [
   EXPERIENCE_SERVICE_TYPE,
   CHARACTER_MANAGEMENT_SERVICE_TYPE,
   PERSONALITY_STORE_SERVICE_TYPE,
+  DocumentService.serviceType,
+  RelationshipsService.serviceType,
+  TrajectoriesService.serviceType,
   DOOLITTLE_PERSONALITY_SERVICE,
   DOOLITTLE_ROLODEX_SERVICE,
   DOOLITTLE_EXPERIENCE_SERVICE,
-  "plugin_manager",
+  PluginManagerService.serviceType,
   "planning",
   "mcp",
   AUTONOMY_SERVICE_TYPE,

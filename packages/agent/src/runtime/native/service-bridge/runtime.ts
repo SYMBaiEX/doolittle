@@ -13,9 +13,13 @@ import {
   type KnowledgeGraphService,
 } from "@elizaos/agent/services/knowledge-graph/index";
 import {
-  type HookService,
-  type PairingService,
+  ApprovalService,
+  HookService,
+  PairingService,
+  PluginManagerService,
   SECRETS_SERVICE_TYPE,
+  ToolPolicyService,
+  TrajectoriesService,
 } from "@elizaos/core";
 import type {
   NativeActionPlanningService,
@@ -107,7 +111,7 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
     ),
     trajectoryLogger: service<NativeTrajectoryLoggerService>(
       runtime,
-      "trajectories",
+      TrajectoriesService.serviceType,
     ),
     agentOrchestrator: service<NativeAgentOrchestratorService>(
       runtime,
@@ -117,15 +121,21 @@ function buildNativeServices(runtime: RuntimeLike): NativeServices {
       runtime,
       DOOLITTLE_CODING_AGENT_SERVICE,
     ),
-    approval: service<NativeApprovalService>(runtime, "approval"),
-    pairing: service<PairingService>(runtime, "pairing"),
-    hooks: service<HookService>(runtime, "hooks"),
+    approval: service<NativeApprovalService>(
+      runtime,
+      ApprovalService.serviceType,
+    ),
+    pairing: service<PairingService>(runtime, PairingService.serviceType),
+    hooks: service<HookService>(runtime, HookService.serviceType),
     agentEvent,
     pluginManager: service<NativePluginManagerService>(
       runtime,
-      "plugin_manager",
+      PluginManagerService.serviceType,
     ),
-    toolPolicy: service<NativeToolPolicyService>(runtime, "tool_policy"),
+    toolPolicy: service<NativeToolPolicyService>(
+      runtime,
+      ToolPolicyService.serviceType,
+    ),
     telegram: service<NativeTelegramTransportService>(runtime, "telegram"),
     discordTransport: service<NativeDiscordTransportService>(
       runtime,

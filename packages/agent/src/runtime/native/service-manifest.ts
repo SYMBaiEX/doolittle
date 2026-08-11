@@ -4,7 +4,12 @@ import {
   DOOLITTLE_ROLODEX_SERVICE,
 } from "@doolittle/contracts";
 import { KNOWLEDGE_GRAPH_SERVICE } from "@elizaos/agent/services/knowledge-graph/index";
-import { SECRETS_SERVICE_TYPE } from "@elizaos/core";
+import {
+  PluginManagerService,
+  SECRETS_SERVICE_TYPE,
+  ToolPolicyService,
+  TrajectoriesService,
+} from "@elizaos/core";
 import type { NativeServices } from "./service-bridge/runtime-contracts";
 import {
   AGENT_SKILLS_SERVICE,
@@ -155,7 +160,7 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
     {
       capability: "trajectoryLogger",
       nativeKey: "trajectoryLogger",
-      nativeService: "trajectories",
+      nativeService: TrajectoriesService.serviceType,
       requirement: "required official Eliza trajectories service",
     },
     {
@@ -173,13 +178,13 @@ export const SERVICE_RESOLUTION_DEFINITIONS: readonly ServiceResolutionDefinitio
     {
       capability: "pluginManager",
       nativeKey: "pluginManager",
-      nativeService: "plugin_manager",
+      nativeService: PluginManagerService.serviceType,
       requirement: "required official Eliza plugin manager service",
     },
     {
       capability: "toolPolicy",
       nativeKey: "toolPolicy",
-      nativeService: "tool_policy",
+      nativeService: ToolPolicyService.serviceType,
       requirement: "required official Eliza ToolPolicyService",
     },
     {
