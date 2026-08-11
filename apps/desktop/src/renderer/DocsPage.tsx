@@ -11,9 +11,75 @@ import {
   titleCase,
   useApiResource,
 } from "./lib";
+import "./diagnostics-pages.css";
 
 interface DoctorResponse {
   checks?: unknown[];
+}
+
+export interface DoctorCheckView {
+  id: string;
+  label: string;
+  detail: string;
+  status: string;
+}
+
+export function normalizeDoctorChecks(value: unknown): DoctorCheckView[] {
+  return asArray(asRecord(value).checks).map(
+    (value, index): DoctorCheckView => {
+      const check = asRecord(value);
+      const label = asString(
+        check.summary,
+        asString(check.name, asString(check.label, "Unnamed check")),
+      ).trim();
+      const detail = asString(
+        check.detail,
+        asString(check.message, "No details"),
+      ).trim();
+      return {
+        id: asString(check.id, `${label}:${detail}:${index}`),
+        label,
+        detail,
+        status: asString(check.status, "unknown").trim().toLowerCase(),
+      };
+    },
+  );
+}
+
+export function prioritizeDoctorChecks(
+  checks: DoctorCheckView[],
+  limit = 8,
+): { visible: DoctorCheckView[]; remaining: DoctorCheckView[] } {
+  const prioritized = [
+    ...checks.filter((check) => check.status !== "pass"),
+    ...checks.filter((check) => check.status === "pass"),
+  ];
+  return {
+    visible: prioritized.slice(0, limit),
+    remaining: prioritized.slice(limit),
+  };
+}
+
+function DoctorCheckRow({ check }: { check: DoctorCheckView }) {
+  return (
+    <div className="status-row">
+      <div>
+        <strong>{check.label}</strong>
+        <small>{check.detail}</small>
+      </div>
+      <Badge
+        tone={
+          ["pass", "ready", "ok"].includes(check.status)
+            ? "good"
+            : check.status === "warn"
+              ? "warn"
+              : "bad"
+        }
+      >
+        {titleCase(check.status)}
+      </Badge>
+    </div>
+  );
 }
 
 export function DocsPage({ active }: { active: boolean }) {
@@ -24,7 +90,8 @@ export function DocsPage({ active }: { active: boolean }) {
     active ? "/setup/summary" : null,
     [active],
   );
-  const checks = asArray(doctor.data?.checks).map(asRecord);
+  const checks = normalizeDoctorChecks(doctor.data);
+  const prioritizedChecks = prioritizeDoctorChecks(checks);
   const passing = checks.filter((check) =>
     ["pass", "ready", "ok"].includes(asString(check.status).toLowerCase()),
   ).length;
@@ -77,49 +144,23 @@ export function DocsPage({ active }: { active: boolean }) {
             <ErrorBlock error={doctor.error} retry={doctor.reload} />
           ) : (
             <div className="stack-list">
-              {checks.map((check) => {
-                const status = asString(check.status, "unknown");
-                return (
-                  <div
-                    className="status-row"
-                    key={`${asString(
-                      check.name,
-                      asString(check.label, "Unnamed check"),
-                    )}:${asString(
-                      check.detail,
-                      asString(check.message),
-                    )}:${JSON.stringify(check)}`}
-                  >
-                    <div>
-                      <strong>
-                        {asString(
-                          check.name,
-                          asString(check.label, "Unnamed check"),
-                        )}
-                      </strong>
-                      <small>
-                        {asString(
-                          check.detail,
-                          asString(check.message, "No details"),
-                        )}
-                      </small>
-                    </div>
-                    <Badge
-                      tone={
-                        ["pass", "ready", "ok"].includes(status.toLowerCase())
-                          ? "good"
-                          : status === "warn"
-                            ? "warn"
-                            : "bad"
-                      }
-                    >
-                      {titleCase(status)}
-                    </Badge>
-                  </div>
-                );
-              })}
+              {prioritizedChecks.visible.map((check) => (
+                <DoctorCheckRow check={check} key={check.id} />
+              ))}
             </div>
           )}
+          {prioritizedChecks.remaining.length ? (
+            <details className="compact-disclosure">
+              <summary>
+                {prioritizedChecks.remaining.length} more checks
+              </summary>
+              <div className="stack-list">
+                {prioritizedChecks.remaining.map((check) => (
+                  <DoctorCheckRow check={check} key={check.id} />
+                ))}
+              </div>
+            </details>
+          ) : null}
         </section>
         <section className="content-card">
           <div className="card-heading">

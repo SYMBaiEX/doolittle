@@ -9,10 +9,149 @@ import {
   LoadingBlock,
   PageHeader,
   RawDataDisclosure,
-  titleCase,
   type UnknownRecord,
   useApiResource,
 } from "./lib";
+import "./diagnostics-pages.css";
+
+export interface SetupChecklistItemView {
+  id: string;
+  label: string;
+  detail: string;
+  status: string;
+}
+
+export interface SetupSnapshotRow {
+  id: string;
+  label: string;
+  value: string;
+  detail: string;
+  tone: "neutral" | "good" | "warn" | "bad";
+}
+
+export function normalizeSetupChecklist(
+  value: unknown,
+): SetupChecklistItemView[] {
+  return asArray(asRecord(value).checklist)
+    .map((item, index): SetupChecklistItemView | null => {
+      if (typeof item === "string") {
+        const label = item.trim();
+        return label
+          ? { id: `guidance-${index}`, label, detail: "", status: "" }
+          : null;
+      }
+      const record = asRecord(item);
+      const label = asString(
+        record.summary,
+        asString(record.label, asString(record.name)),
+      ).trim();
+      if (!label) return null;
+      return {
+        id: asString(record.id, `guidance-${index}`),
+        label,
+        detail: asString(record.detail, asString(record.description)).trim(),
+        status: asString(record.status).trim().toLowerCase(),
+      };
+    })
+    .filter((item): item is SetupChecklistItemView => item !== null);
+}
+
+function readinessTone(value: string): SetupSnapshotRow["tone"] {
+  if (value === "ready") return "good";
+  if (value === "blocked") return "bad";
+  return value ? "warn" : "neutral";
+}
+
+export function normalizeSetupSnapshot(value: unknown): SetupSnapshotRow[] {
+  const summary = asRecord(asRecord(value).summary);
+  const rows: SetupSnapshotRow[] = [];
+  const readiness = asRecord(summary.readiness);
+  const readinessLevel = asString(readiness.level).toLowerCase();
+  const readinessHeadline = asString(readiness.headline).trim();
+  if (readinessHeadline) {
+    rows.push({
+      id: "readiness",
+      label: "Readiness",
+      value: readinessHeadline,
+      detail: asString(readiness.detail).trim(),
+      tone: readinessTone(readinessLevel),
+    });
+  }
+
+  const version = asRecord(summary.version);
+  const versionNumber = asString(version.version).trim();
+  if (versionNumber) {
+    const environment = [
+      asString(version.node).trim()
+        ? `Node ${asString(version.node).trim()}`
+        : "",
+      asString(version.nub).trim() ? `Nub ${asString(version.nub).trim()}` : "",
+    ].filter(Boolean);
+    rows.push({
+      id: "version",
+      label: "Runtime version",
+      value: versionNumber,
+      detail: environment.join(" · "),
+      tone: "neutral",
+    });
+  }
+
+  const addReadinessRow = (id: string, label: string, source: unknown) => {
+    const items = asArray(source).map(asRecord);
+    if (!items.length) return;
+    const ready = items.filter((item) => item.ready === true).length;
+    rows.push({
+      id,
+      label,
+      value: `${ready}/${items.length} ready`,
+      detail:
+        ready === items.length
+          ? "All checks passed"
+          : "Review unavailable entries",
+      tone: ready === items.length ? "good" : "warn",
+    });
+  };
+  addReadinessRow("providers", "Providers", summary.providers);
+  addReadinessRow("transports", "Transports", summary.transports);
+
+  const directories = asArray(summary.directories).map(asRecord);
+  if (directories.length) {
+    const existing = directories.filter(
+      (entry) => entry.exists === true,
+    ).length;
+    rows.push({
+      id: "directories",
+      label: "Directories",
+      value: `${existing}/${directories.length} available`,
+      detail:
+        existing === directories.length
+          ? "Local paths are ready"
+          : "Some local paths are missing",
+      tone: existing === directories.length ? "good" : "warn",
+    });
+  }
+
+  const serviceGroups = asArray(summary.nativeServices).map(asRecord);
+  if (serviceGroups.length) {
+    const services = serviceGroups.reduce((total, group) => {
+      const count = group.count;
+      return (
+        total +
+        (typeof count === "number" && Number.isFinite(count)
+          ? count
+          : asArray(group.services).length)
+      );
+    }, 0);
+    rows.push({
+      id: "services",
+      label: "Native services",
+      value: `${services} available`,
+      detail: `${serviceGroups.length} service groups`,
+      tone: services ? "good" : "neutral",
+    });
+  }
+  return rows;
+}
 
 export function SetupPage({
   active,
@@ -36,11 +175,8 @@ export function SetupPage({
   const pooledEnabled = Object.values(accountPool.data?.providers ?? {})
     .flatMap((provider) => provider.accounts)
     .filter((account) => account.enabled).length;
-  const checklistItems = asArray(asRecord(checklist.data).checklist).map(
-    asRecord,
-  );
-  const summaryPayload = asRecord(summary.data);
-  const summaryEntries = Object.entries(asRecord(summaryPayload.summary));
+  const checklistItems = normalizeSetupChecklist(checklist.data);
+  const summaryEntries = normalizeSetupSnapshot(summary.data);
 
   return (
     <div className="page">
@@ -94,56 +230,7 @@ export function SetupPage({
                 </div>
               )}
             </section>
-            <section className="content-card">
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">Checklist</span>
-                  <h2>Readiness items</h2>
-                </div>
-                <button
-                  className="text-button"
-                  onClick={checklist.reload}
-                  type="button"
-                >
-                  Refresh
-                </button>
-              </div>
-              {checklist.loading ? (
-                <LoadingBlock />
-              ) : checklist.error ? (
-                <ErrorBlock error={checklist.error} retry={checklist.reload} />
-              ) : checklistItems.length ? (
-                <div className="stack-list">
-                  {checklistItems.map((entry, index) => {
-                    const status = asString(entry.status, "pending");
-                    const done = status.toLowerCase() === "done";
-                    return (
-                      <div className="status-row" key={String(index)}>
-                        <div>
-                          <strong>
-                            {asString(
-                              entry.label,
-                              asString(entry.name, "Item"),
-                            )}
-                          </strong>
-                          <small>
-                            {asString(entry.description, "No details")}
-                          </small>
-                        </div>
-                        <Badge tone={done ? "good" : "warn"}>
-                          {done ? "Done" : "Pending"}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <EmptyBlock title="No checklist items">
-                  No setup checklist items were returned.
-                </EmptyBlock>
-              )}
-            </section>
-            <section className="content-card">
+            <section className="content-card setup-snapshot">
               <div className="card-heading">
                 <div>
                   <span className="eyebrow">Summary</span>
@@ -163,12 +250,22 @@ export function SetupPage({
                 <ErrorBlock error={summary.error} retry={summary.reload} />
               ) : summaryEntries.length ? (
                 <div className="stack-list">
-                  {summaryEntries.map(([key, value]) => (
-                    <div className="status-row" key={key}>
+                  {summaryEntries.map((entry) => (
+                    <div className="status-row" key={entry.id}>
                       <div>
-                        <strong>{titleCase(key)}</strong>
-                        <small>{String(value)}</small>
+                        <strong>{entry.label}</strong>
+                        <small>{entry.value}</small>
+                        {entry.detail ? <small>{entry.detail}</small> : null}
                       </div>
+                      <Badge tone={entry.tone}>
+                        {entry.tone === "good"
+                          ? "Ready"
+                          : entry.tone === "warn"
+                            ? "Review"
+                            : entry.tone === "bad"
+                              ? "Blocked"
+                              : "Info"}
+                      </Badge>
                     </div>
                   ))}
                 </div>
@@ -177,22 +274,71 @@ export function SetupPage({
                   No setup summary is available.
                 </EmptyBlock>
               )}
+              {summary.data ? (
+                <RawDataDisclosure
+                  label="Inspect raw setup response"
+                  value={summary.data}
+                />
+              ) : null}
             </section>
           </div>
-          {summary.data ? (
-            <section className="content-card" style={{ marginTop: "16px" }}>
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">Raw payload</span>
-                  <h2>Setup response</h2>
-                </div>
+          <details className="content-card setup-guidance">
+            <summary>
+              <span>
+                <span className="eyebrow">Checklist</span>
+                <strong>Configuration guidance</strong>
+              </span>
+              <span className="setup-guidance__meta">
+                {checklist.loading
+                  ? "Loading…"
+                  : `${checklistItems.length} items`}
+              </span>
+            </summary>
+            <div className="setup-guidance__body">
+              <div className="setup-guidance__toolbar">
+                <p>
+                  Reference steps for optional providers, transports, and remote
+                  execution.
+                </p>
+                <button
+                  className="text-button"
+                  onClick={checklist.reload}
+                  type="button"
+                >
+                  Refresh
+                </button>
               </div>
-              <RawDataDisclosure
-                label="Setup summary payload"
-                value={summary.data}
-              />
-            </section>
-          ) : null}
+              {checklist.error ? (
+                <ErrorBlock error={checklist.error} retry={checklist.reload} />
+              ) : checklistItems.length ? (
+                <ol className="setup-guidance__list">
+                  {checklistItems.map((entry) => (
+                    <li key={entry.id}>
+                      <span>{entry.label}</span>
+                      {entry.detail ? <small>{entry.detail}</small> : null}
+                      {entry.status ? (
+                        <Badge
+                          tone={
+                            entry.status === "done" || entry.status === "pass"
+                              ? "good"
+                              : "warn"
+                          }
+                        >
+                          {entry.status}
+                        </Badge>
+                      ) : null}
+                    </li>
+                  ))}
+                </ol>
+              ) : checklist.loading ? (
+                <LoadingBlock />
+              ) : (
+                <EmptyBlock title="No checklist items">
+                  No setup guidance was returned.
+                </EmptyBlock>
+              )}
+            </div>
+          </details>
         </>
       )}
     </div>

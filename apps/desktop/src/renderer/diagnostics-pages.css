@@ -1,0 +1,130 @@
+.compact-disclosure,
+.setup-guidance {
+  overflow: hidden;
+}
+
+.compact-disclosure > summary,
+.setup-guidance > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.compact-disclosure > summary::-webkit-details-marker,
+.setup-guidance > summary::-webkit-details-marker {
+  display: none;
+}
+
+.compact-disclosure > summary {
+  padding: 9px 1px;
+  color: var(--text-soft);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+}
+
+.compact-disclosure > summary::before,
+.setup-guidance > summary::before {
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--accent);
+  content: "›";
+  transition: transform 120ms ease;
+}
+
+.compact-disclosure[open] > summary::before,
+.setup-guidance[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.setup-snapshot .raw-data-disclosure {
+  margin-top: 12px;
+}
+
+.setup-guidance {
+  padding: 0;
+}
+
+.setup-guidance > summary {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  gap: 12px;
+  padding: var(--card-pad);
+}
+
+.setup-guidance > summary > span:first-of-type {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.setup-guidance__meta {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+}
+
+.setup-guidance__body {
+  padding: 0 var(--card-pad) var(--card-pad);
+  border-top: 1px solid var(--border);
+}
+
+.setup-guidance__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.setup-guidance__toolbar p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+
+.setup-guidance__list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  counter-reset: setup-guidance;
+  list-style: none;
+}
+
+.setup-guidance__list li {
+  display: grid;
+  min-height: 42px;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 9px;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+  counter-increment: setup-guidance;
+  color: var(--text-soft);
+  font-size: var(--text-control);
+  line-height: 1.45;
+}
+
+.setup-guidance__list li::before {
+  color: var(--accent);
+  content: counter(setup-guidance, decimal-leading-zero);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+}
+
+.setup-guidance__list li small {
+  grid-column: 2;
+  color: var(--muted);
+}
+
+@media (max-width: 700px) {
+  .setup-guidance__toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .setup-guidance > summary {
+    min-height: 56px;
+  }
+}
