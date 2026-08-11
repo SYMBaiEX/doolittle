@@ -31,20 +31,35 @@ export function createBrowserRuntimeService(
     }
 
     static async start(runtime: IAgentRuntime): Promise<Service> {
-      const service = new BrowserRuntimeService(runtime);
-      const browser = runtime.getService<BrowserService>(BROWSER_SERVICE_TYPE);
-      browser?.registerTarget(createDoolittleBrowserTarget(services.web));
-      service.browser = browser ?? undefined;
-      return service;
+      return new BrowserRuntimeService(runtime);
     }
 
     private browser?: BrowserService;
+    private browserPromise?: Promise<BrowserService>;
+
+    private async getBrowser(): Promise<BrowserService> {
+      if (this.browser) return this.browser;
+      if (!this.browserPromise) {
+        this.browserPromise = (async () => {
+          const browser =
+            this.runtime.getService<BrowserService>(BROWSER_SERVICE_TYPE) ??
+            ((await this.runtime.getServiceLoadPromise(
+              BROWSER_SERVICE_TYPE,
+            )) as BrowserService);
+          browser.registerTarget(createDoolittleBrowserTarget(services.web));
+          this.browser = browser;
+          return browser;
+        })().catch((error) => {
+          this.browserPromise = undefined;
+          throw error;
+        });
+      }
+      return this.browserPromise;
+    }
 
     private async execute<T>(command: BrowserWorkspaceCommand): Promise<T> {
-      if (!this.browser) {
-        throw new Error("The official Eliza BrowserService is not available.");
-      }
-      const result = await this.browser.execute(
+      const browser = await this.getBrowser();
+      const result = await browser.execute(
         command,
         DOOLITTLE_BROWSER_TARGET_ID,
       );
@@ -103,6 +118,8 @@ export function createBrowserRuntimeService(
 
     async stop(): Promise<void> {
       this.browser?.unregisterTarget(DOOLITTLE_BROWSER_TARGET_ID);
+      this.browser = undefined;
+      this.browserPromise = undefined;
     }
   }
 

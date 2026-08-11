@@ -64,6 +64,7 @@ describe("createBrowserRuntimeService", () => {
     };
 
     expect(Service.serviceType).toBe(DOOLITTLE_BROWSER_SERVICE);
+    await expect(service.status()).resolves.toEqual({ ready: true });
     expect(browser.registerTarget).toHaveBeenCalledOnce();
     expect(target?.id).toBe(DOOLITTLE_BROWSER_TARGET_ID);
     expect(
@@ -73,7 +74,6 @@ describe("createBrowserRuntimeService", () => {
         mobile: false,
       }),
     ).toBeNull();
-    await expect(service.status()).resolves.toEqual({ ready: true });
     await expect(service.fetch("https://a")).resolves.toEqual({
       url: "https://a",
       text: "page",
@@ -98,6 +98,35 @@ describe("createBrowserRuntimeService", () => {
     await expect(
       service.analyzeComparison("https://a", "https://b"),
     ).resolves.toMatchObject({ prompt: "comparison" });
+    await service.stop();
+    expect(browser.unregisterTarget).toHaveBeenCalledWith(
+      DOOLITTLE_BROWSER_TARGET_ID,
+    );
+  });
+
+  it("resolves the official browser lazily after parallel plugin startup", async () => {
+    const Service = createBrowserRuntimeService({
+      web: { status: vi.fn(async () => ({ ready: true })) },
+    } as unknown as AppServices) as ServiceClass;
+    const browser = {
+      registerTarget: vi.fn(),
+      unregisterTarget: vi.fn(() => true),
+      execute: vi.fn(async () => ({ value: { ready: true } })),
+    };
+    const runtime = {
+      getService: vi.fn(() => undefined),
+      getServiceLoadPromise: vi.fn(async () => browser),
+    } as unknown as IAgentRuntime;
+    const service = (await Service.start(runtime)) as Service & {
+      status(): Promise<unknown>;
+      stop(): Promise<void>;
+    };
+
+    await expect(service.status()).resolves.toEqual({ ready: true });
+    await expect(service.status()).resolves.toEqual({ ready: true });
+    expect(runtime.getServiceLoadPromise).toHaveBeenCalledOnce();
+    expect(browser.registerTarget).toHaveBeenCalledOnce();
+
     await service.stop();
     expect(browser.unregisterTarget).toHaveBeenCalledWith(
       DOOLITTLE_BROWSER_TARGET_ID,

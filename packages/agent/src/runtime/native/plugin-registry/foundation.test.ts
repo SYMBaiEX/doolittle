@@ -43,7 +43,12 @@ describe("foundation plugin ownership", () => {
     ]);
     expect(foundation?.actions).toEqual(autonomyCapabilities.actions);
     expect(foundation?.providers).toEqual(autonomyCapabilities.providers);
-    expect(foundation?.routes).toEqual(autonomyCapabilities.routes);
+    expect(foundation?.routes).toEqual(
+      autonomyCapabilities.routes.map((route) => ({
+        ...route,
+        rawPath: true,
+      })),
+    );
   });
 
   it("starts and stops each added aggregate-safe service without aggregate plugin hooks", async () => {

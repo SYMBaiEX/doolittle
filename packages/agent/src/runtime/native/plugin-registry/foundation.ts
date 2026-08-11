@@ -22,6 +22,15 @@ import {
 } from "@elizaos/core";
 import { browserPlugin } from "@elizaos/plugin-browser";
 
+const autonomyRoutes = autonomyCapabilities.routes.map((route) => ({
+  ...route,
+  // AgentRuntime namespaces plugin routes by default. These are public,
+  // first-party Eliza routes whose documented contract is rooted at
+  // `/autonomy/*`, so preserve that contract when mounting them in the
+  // aggregate-safe foundation plugin.
+  rawPath: true,
+}));
+
 // beta.7's PairingService constructor requires a runtime while ServiceClass
 // still declares that constructor argument optional. Runtime registration uses
 // the compatible static start contract, so keep the mismatch isolated here.
@@ -78,7 +87,7 @@ export function loadFoundationPlugins(): Plugin[] {
         MediaGenerationServiceClass,
         ...autonomyCapabilities.services,
       ],
-      routes: autonomyCapabilities.routes,
+      routes: autonomyRoutes,
     },
     browserPlugin,
   ];
