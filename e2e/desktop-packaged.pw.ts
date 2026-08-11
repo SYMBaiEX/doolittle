@@ -58,18 +58,17 @@ test.describe("packaged Doolittle desktop", () => {
       await page.keyboard.press(
         process.platform === "darwin" ? "Meta+J" : "Control+J",
       );
-      await expect(page.getByLabel("Chat terminal panel")).toBeVisible();
+      const chatTerminal = page.getByLabel("Chat terminal panel");
+      await expect(chatTerminal).toBeVisible();
       await expect(
-        page.getByLabel("Chat terminal panel").getByRole("button", {
+        chatTerminal.getByRole("button", {
           name: "Ctrl+C",
         }),
       ).toBeVisible({ timeout: 15_000 });
       await expect(
-        page
-          .getByLabel("Chat terminal panel")
-          .locator(".interactive-terminal-mode"),
+        chatTerminal.locator(".interactive-terminal-mode"),
       ).toContainText("PTY");
-      await page.getByLabel("Terminal output").click();
+      await chatTerminal.getByRole("tabpanel").click();
       await page.keyboard.type("printf 'DOOLITTLE_%s\\n' INTERACTIVE");
       await page.keyboard.press("Enter");
       await expect
@@ -83,7 +82,7 @@ test.describe("packaged Doolittle desktop", () => {
       await page.keyboard.press(
         process.platform === "darwin" ? "Meta+J" : "Control+J",
       );
-      await expect(page.getByLabel("Chat terminal panel")).toHaveCount(0);
+      await expect(chatTerminal).toHaveCount(0);
       await expect(composer).toBeFocused();
       await composer.fill(prompt);
       await composer.press("Enter");

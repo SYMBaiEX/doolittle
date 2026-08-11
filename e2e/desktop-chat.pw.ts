@@ -125,7 +125,7 @@ test.describe("Doolittle desktop offline chat", () => {
           .getByLabel("Chat terminal panel")
           .locator(".interactive-terminal-mode"),
       ).toContainText("PTY");
-      await page.getByLabel("Terminal output").click();
+      await chatTerminal.getByRole("tabpanel").click();
       await page.keyboard.type("printf 'DOOLITTLE_%s\\n' INTERACTIVE");
       await page.keyboard.press("Enter");
       await expect
