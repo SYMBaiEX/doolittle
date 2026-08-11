@@ -49,7 +49,7 @@ this module; SDK message-service prompts must not.
 |---|---|---|
 | `implicit` | `ollama` / local | No hints; an identical leading prefix is reused by the KV cache automatically. |
 | `explicit` | Anthropic API key, linked Claude Code OAuth, OpenAI | Stable prompt segments and provider-native cache controls. |
-| `none` | codex, devin, explicit Claude CLI fallback, official Eliza Cloud, unknown | No-op — on the pinned beta, those handlers build their request from `params.prompt` and ignore segments. |
+| `none` | codex, devin, official Eliza Cloud, unknown | No-op — on the pinned beta, those handlers build their request from `params.prompt` and ignore segments. Explicit Claude CLI fallback accepts the same lossless prompt and ignores native Anthropic cache hints. |
 
 ## Cache keys & invalidation
 

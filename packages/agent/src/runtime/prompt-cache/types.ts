@@ -9,7 +9,7 @@ import type { PromptSegment } from "@elizaos/core";
  *    with no explicit hints (ollama / llama.cpp). Stable-first ordering helps;
  *    no provider options are emitted.
  *  - `none`      — provider has no prompt caching (CLI-print providers such as
- *    devin / codex / claude-code). Segmentation is a no-op but harmless.
+ *    devin / codex). Segmentation is a no-op but harmless.
  */
 export type ProviderCacheMode = "explicit" | "implicit" | "none";
 
