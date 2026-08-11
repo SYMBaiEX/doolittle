@@ -327,7 +327,7 @@ describe.sequential("Claude Code account auth", () => {
     });
 
     expect(parsed.requests).toHaveLength(1);
-    expect(parsed.requests[0]).toContain("refresh_token=file-refresh");
+    expect(parsed.requests[0]).toContain('"refresh_token":"file-refresh"');
     expect(parsed.credentials).toEqual(
       expect.objectContaining({
         accessToken: "stored-refreshed-access",
@@ -389,7 +389,7 @@ describe.sequential("Claude Code account auth", () => {
     });
 
     expect(parsed.requests).toHaveLength(1);
-    expect(parsed.requests[0]).toContain("refresh_token=file-refresh");
+    expect(parsed.requests[0]).toContain('"refresh_token":"file-refresh"');
     expect(parsed.credentials).toEqual(
       expect.objectContaining({
         accessToken: "file-refreshed-access",
@@ -452,7 +452,7 @@ describe.sequential("Claude Code account auth", () => {
     });
 
     expect(parsed.requests).toHaveLength(1);
-    expect(parsed.requests[0]).toContain("refresh_token=file-refresh");
+    expect(parsed.requests[0]).toContain('"refresh_token":"file-refresh"');
     expect(parsed.credentials).toEqual({
       accessToken: "sk-ant-oat01-env",
       accountLabel: "Operator <operator@example.com>",
