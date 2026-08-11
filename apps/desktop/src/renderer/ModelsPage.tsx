@@ -1,8 +1,5 @@
 import { type FormEvent, useMemo, useState } from "react";
 import type {
-  AccountPoolProvider,
-  AccountPoolStrategy,
-  ProviderAuthProvider,
   RuntimeModelsResponse,
   RuntimeReasoningEffort,
   RuntimeStatus,
@@ -40,40 +37,6 @@ interface AccountsResponse {
   activeProvider?: string;
   accounts?: Record<string, unknown>;
   connect?: Record<string, unknown>;
-}
-
-const _accountPoolStrategies: AccountPoolStrategy[] = [
-  "priority",
-  "round-robin",
-  "least-used",
-  "quota-aware",
-];
-
-function _formatPoolTimestamp(value?: number): string {
-  if (!value) return "Not yet";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not available";
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function _poolUsageSummary(usage: unknown): string | null {
-  if (!usage || typeof usage !== "object" || Array.isArray(usage)) return null;
-  const record = usage as Record<string, unknown>;
-  const pairs = Object.entries(record).flatMap(([key, value]) =>
-    typeof value === "number" ? [`${titleCase(key)}: ${value}`] : [],
-  );
-  return pairs.length > 0 ? pairs.join(" · ") : null;
-}
-
-function _accountPoolProviderFor(
-  provider: ProviderAuthProvider,
-): AccountPoolProvider {
-  return provider === "codex" ? "openai-codex" : "anthropic-subscription";
 }
 
 const accountProviders = [

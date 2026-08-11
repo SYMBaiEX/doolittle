@@ -52,6 +52,31 @@ interface FlatSetting {
   category: string;
 }
 
+export interface SettingsResourcePolicy {
+  settings: boolean;
+  themes: boolean;
+  execution: boolean;
+  runtime: boolean;
+}
+
+/**
+ * Keep the settings shell responsive by loading only data needed by the
+ * selected category. The settings document remains available for category
+ * construction; detail resources are activated as their panels become
+ * visible.
+ */
+export function settingsResourcePolicy(
+  category: string,
+  active: boolean,
+): SettingsResourcePolicy {
+  return {
+    settings: active,
+    themes: active && (category === "appearance" || category === "advanced"),
+    execution: active && (category === "execution" || category === "advanced"),
+    runtime: active && category === "model",
+  };
+}
+
 function flattenSettings(
   value: unknown,
   prefix = "",
@@ -244,22 +269,24 @@ function SettingControl({
 }
 
 export function SettingsPage({ active }: { active: boolean }) {
+  const [category, setCategory] = useState("providers");
+  const resourcePolicy = settingsResourcePolicy(category, active);
   const settings = useApiResource<SettingsResponse>(
-    active ? "/settings" : null,
-    [active],
+    resourcePolicy.settings ? "/settings" : null,
+    [resourcePolicy.settings],
   );
-  const themes = useApiResource<ThemeResponse>(active ? "/theme" : null, [
-    active,
-  ]);
+  const themes = useApiResource<ThemeResponse>(
+    resourcePolicy.themes ? "/theme" : null,
+    [resourcePolicy.themes],
+  );
   const execution = useApiResource<Record<string, unknown>>(
-    active ? "/execution/status" : null,
-    [active],
+    resourcePolicy.execution ? "/execution/status" : null,
+    [resourcePolicy.execution],
   );
   const runtime = useApiResource<RuntimeStatus>(
-    active ? "/runtime/status" : null,
-    [active],
+    resourcePolicy.runtime ? "/runtime/status" : null,
+    [resourcePolicy.runtime],
   );
-  const [category, setCategory] = useState("providers");
   const [query, setQuery] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
   const [appearance, setAppearance] = useState<DesktopAppearance>(

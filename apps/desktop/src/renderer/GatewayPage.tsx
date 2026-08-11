@@ -253,11 +253,6 @@ export function GatewayPage({ active }: { active: boolean }) {
           detail={`${asArray(inbox.data?.inbox).length} inbox · ${asArray(outbox.data?.outbox).length} outbox`}
         />
         <MetricCard
-          label="Thread routes"
-          value={localSessions.length}
-          detail="Local session route records"
-        />
-        <MetricCard
           label="Pairing requests"
           value={pendingPairings.length}
           detail="Awaiting local operator approval"
