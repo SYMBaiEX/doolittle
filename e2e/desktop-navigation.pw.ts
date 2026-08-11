@@ -368,6 +368,23 @@ test.describe("Doolittle desktop navigation", () => {
               ),
             )
             .toBe(true);
+          if (route === "operatorSetup") {
+            await expect(viewContainer).not.toContainText("[object Object]");
+            await expect(
+              viewContainer.getByText("Configuration guidance", {
+                exact: true,
+              }),
+            ).toBeVisible();
+            await expect(
+              viewContainer.locator(".setup-guidance"),
+            ).not.toHaveAttribute("open");
+          }
+          if (route === "docs") {
+            await expect(viewContainer).not.toContainText("Unnamed check");
+            await expect(
+              viewContainer.getByText("System checks", { exact: true }),
+            ).toBeVisible();
+          }
           const actionMotion = await viewContainer.evaluate((container) => {
             const visible = (element: Element) => {
               const bounds = element.getBoundingClientRect();
@@ -480,6 +497,11 @@ test.describe("Doolittle desktop navigation", () => {
       expect(providerHeaderLayout.contentWidth).toBe(
         providerHeaderLayout.headerWidth,
       );
+      const poolDisclosure = page.locator(
+        ".provider-routing-disclosure > summary",
+      );
+      await expect(poolDisclosure).toContainText("Subscription account pools");
+      await poolDisclosure.click();
       await expect(
         page.getByRole("region", {
           name: "Codex spawned-agent account pool",
@@ -503,6 +525,7 @@ test.describe("Doolittle desktop navigation", () => {
       const codexPool = page.getByRole("region", {
         name: "Codex spawned-agent account pool",
       });
+      await codexPool.getByRole("button", { name: "Manage" }).click();
       const routingStrategy = codexPool.getByRole("combobox", {
         name: "Strategy",
       });
@@ -629,6 +652,22 @@ test.describe("Doolittle desktop navigation", () => {
       );
       expect(connectionsRevisit.sawLoadingState).toBe(false);
       expect(connectionsRevisit.elapsedMs).toBeLessThan(750);
+
+      if (
+        !(await page
+          .locator(".provider-routing-disclosure")
+          .evaluate((element) => element.hasAttribute("open")))
+      ) {
+        await poolDisclosure.click();
+      }
+      await expect(codexPool).toBeVisible();
+      const manageCodexPool = codexPool.getByRole("button", {
+        name: /Manage|Done/,
+      });
+      await expect(manageCodexPool).toBeVisible();
+      if ((await manageCodexPool.textContent())?.trim() === "Manage") {
+        await manageCodexPool.click();
+      }
 
       await page.setViewportSize({ width: 390, height: 844 });
       await expect(
@@ -923,6 +962,11 @@ test.describe("Doolittle desktop navigation", () => {
       await page.evaluate(() => {
         window.location.hash = "#/tools";
       });
+      const integrationDisclosure = page.locator(
+        ".tools-integrations > summary",
+      );
+      await expect(integrationDisclosure).toContainText("Integration bridges");
+      await integrationDisclosure.click();
       await expect(
         page.getByRole("heading", { name: "ACP bridge" }),
       ).toBeVisible();
