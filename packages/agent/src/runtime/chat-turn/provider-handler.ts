@@ -83,6 +83,12 @@ function actionResultsFromState(state: unknown): ActionResult[] {
   return Array.isArray(actionResults) ? (actionResults as ActionResult[]) : [];
 }
 
+function actionResultsFromMessageResult(result: unknown): ActionResult[] {
+  if (!result || typeof result !== "object") return [];
+  const actionResults = (result as { actionResults?: unknown }).actionResults;
+  return Array.isArray(actionResults) ? (actionResults as ActionResult[]) : [];
+}
+
 /**
  * The message service can invoke callbacks for a response-handler preamble
  * before its planner executes actions. Its returned responseContent is the
@@ -234,6 +240,7 @@ export async function executeProviderMessageTurn(
         if (!messageService) {
           throw new Error("ElizaOS message service is not registered.");
         }
+        const settledActionResults: ActionResult[] = [];
         const messageResult = await messageService.handleMessage(
           input.context.runtime,
           input.memory,
@@ -249,12 +256,27 @@ export async function executeProviderMessageTurn(
             continueAfterActions: true,
             abortSignal: input.abortSignal,
             onStreamChunk: input.streamState.onStreamChunk,
+            // Available in current Eliza develop and ignored by beta.7. Keep
+            // committed action evidence even if a later planner stage fails.
+            onSettledActionResult: (result: ActionResult) => {
+              settledActionResults.push(result);
+            },
+          } as Parameters<typeof messageService.handleMessage>[3] & {
+            onSettledActionResult: (result: ActionResult) => void;
           },
         );
         throwIfTurnAborted(input.abortSignal);
         handledMessage = true;
         responseMessages = messageResult?.responseMessages ?? [];
-        actionResults = actionResultsFromState(messageResult?.state);
+        const directActionResults =
+          actionResultsFromMessageResult(messageResult);
+        const stateActionResults = actionResultsFromState(messageResult?.state);
+        actionResults =
+          directActionResults.length > 0
+            ? directActionResults
+            : stateActionResults.length > 0
+              ? stateActionResults
+              : settledActionResults;
         response = resolveSdkMessageResponse({
           responseContent: messageResult?.responseContent,
           responseMessages,

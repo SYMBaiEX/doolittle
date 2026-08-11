@@ -19,11 +19,13 @@ import { getEffectiveToolInventory } from "@/runtime/native/service-bridge/servi
 import { getEffectiveShellHistory } from "@/runtime/native/service-bridge/tooling";
 import { buildProjectPromptContext } from "@/runtime/prompt-cache";
 import { renderDoolittleSoulContext } from "@/runtime/soul";
+import { renderWorkspaceMutationExecutionContract } from "@/runtime/workspace-mutation-intent";
 import type { AppServices } from "@/services";
 import {
   buildDelegationProjectionOverview,
   buildDelegationProjectionWorkers,
 } from "@/services/delegation/reporting";
+import { messageText } from "@/utils/eliza-compat";
 import { renderIdentitySections } from "./sections/identity";
 import { renderMemorySections } from "./sections/memory";
 import { renderOperationSections } from "./sections/operations";
@@ -180,6 +182,7 @@ function coreContextResult(
 async function workspaceContextResult(
   services: AppServices,
   runtime: IAgentRuntime,
+  message: Memory,
 ): Promise<ProviderResult> {
   const skillEntries = getEffectiveSkills(runtime, services);
   const recentTerminal = getEffectiveShellHistory(runtime, 5);
@@ -193,13 +196,16 @@ async function workspaceContextResult(
   }
 
   return {
-    text: renderWorkspaceSections({
-      contextFiles: services.contextFiles.render(),
-      skillEntries,
-      workspaceSummary: services.workspace.summary(16),
-      recentTerminal,
-      repoSummary,
-    }).join("\n"),
+    text: [
+      ...renderWorkspaceMutationExecutionContract(messageText(message)),
+      ...renderWorkspaceSections({
+        contextFiles: services.contextFiles.render(),
+        skillEntries,
+        workspaceSummary: services.workspace.summary(16),
+        recentTerminal,
+        repoSummary,
+      }),
+    ].join("\n"),
     values: {},
     data: {
       skillsCount: skillEntries.length,
@@ -290,8 +296,11 @@ export function createAgentContextProviders(services: AppServices): Provider[] {
     contextGate: { anyOf: ["code", "files", "terminal"] },
     cacheStable: false,
     cacheScope: "turn",
-    get: async (runtime: IAgentRuntime): Promise<ProviderResult> =>
-      workspaceContextResult(services, runtime),
+    get: async (
+      runtime: IAgentRuntime,
+      message: Memory,
+    ): Promise<ProviderResult> =>
+      workspaceContextResult(services, runtime, message),
   };
 
   const operationsProvider: Provider = {

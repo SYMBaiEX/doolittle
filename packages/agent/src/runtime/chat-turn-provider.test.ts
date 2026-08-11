@@ -347,6 +347,111 @@ describe("chat turn provider seam", () => {
     expect(harness.progressPhases).toEqual([]);
   });
 
+  it("consumes current Eliza direct action results before legacy state projections", async () => {
+    const harness = createProviderContext();
+    const settingsBefore = harness.context.services.settings.get();
+    harness.context.runtime.messageService = {
+      handleMessage: async (
+        _runtime: unknown,
+        _memory: unknown,
+        _onContent: unknown,
+        options?: {
+          onSettledActionResult?: (result: unknown) => void;
+        },
+      ) => {
+        const committed = {
+          success: true,
+          data: {
+            actionName: "WRITE_FILE",
+            mutationKind: "local-file",
+            mutationAction: "WRITE_FILE",
+            mutation: { action: "WRITE_FILE", success: true },
+          },
+        };
+        options?.onSettledActionResult?.(committed);
+        return {
+          responseContent: { text: "Wrote README.md." },
+          responseMessages: [],
+          actionResults: [committed],
+          state: {
+            data: {
+              actionResults: [
+                { success: true, data: { actionName: "READ_FILE" } },
+              ],
+            },
+          },
+        };
+      },
+    } as unknown as typeof harness.context.runtime.messageService;
+
+    const result = await runProviderModelTurn({
+      context: harness.context,
+      turn: createTurn(),
+      userId: "alice",
+      effectiveMessage: "Review the repo and write a README.md for it",
+      settingsBefore,
+      settingsDuring: settingsBefore,
+      messagePolicy: {
+        runDepth: "standard",
+        useMultiStep: true,
+        maxIterations: 15,
+        toolProgressMode: "all",
+      },
+    });
+
+    expect(result.response).toBe("Wrote README.md.");
+    expect(result.actionResults).toEqual([
+      expect.objectContaining({
+        data: expect.objectContaining({ actionName: "WRITE_FILE" }),
+      }),
+    ]);
+  });
+
+  it("retains settled action evidence when a newer SDK turn fails to project it", async () => {
+    const harness = createProviderContext();
+    const settingsBefore = harness.context.services.settings.get();
+    harness.context.runtime.messageService = {
+      handleMessage: async (
+        _runtime: unknown,
+        _memory: unknown,
+        _onContent: unknown,
+        options?: {
+          onSettledActionResult?: (result: unknown) => void;
+        },
+      ) => {
+        options?.onSettledActionResult?.({
+          success: true,
+          data: { actionName: "SEARCH_FILES" },
+        });
+        return {
+          responseContent: { text: "Search complete." },
+          responseMessages: [],
+        };
+      },
+    } as unknown as typeof harness.context.runtime.messageService;
+
+    const result = await runProviderModelTurn({
+      context: harness.context,
+      turn: createTurn(),
+      userId: "alice",
+      effectiveMessage: "Search the project",
+      settingsBefore,
+      settingsDuring: settingsBefore,
+      messagePolicy: {
+        runDepth: "standard",
+        useMultiStep: true,
+        maxIterations: 15,
+        toolProgressMode: "all",
+      },
+    });
+
+    expect(result.actionResults).toEqual([
+      expect.objectContaining({
+        data: expect.objectContaining({ actionName: "SEARCH_FILES" }),
+      }),
+    ]);
+  });
+
   it("does not promote an action receipt when an action run has no terminal reply", async () => {
     const harness = createProviderContext();
     const settingsBefore = harness.context.services.settings.get();

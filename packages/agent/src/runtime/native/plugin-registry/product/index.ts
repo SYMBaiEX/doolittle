@@ -33,6 +33,7 @@ import {
 } from "@/actions/shell-command-action";
 import { createWorkspaceAction } from "@/actions/workspace-action";
 import { createMemoryNudgeEvaluator } from "@/evaluators/memory-nudge-evaluator";
+import { workspaceMutationRoutingEvaluator } from "@/evaluators/workspace-mutation-routing-evaluator";
 import { createAgentContextProviders } from "@/providers/agent-context";
 import { createSelfAwarenessProvider } from "@/providers/self-awareness";
 import {
@@ -112,6 +113,7 @@ export function createDoolittleProductPlugin(
         createCommandShortcut(config.workspaceDir),
       ],
       evaluators,
+      responseHandlerEvaluators: [workspaceMutationRoutingEvaluator],
       events: {
         ...createRunProgressEvents(services),
         ...createSdkCapabilityEvents(),

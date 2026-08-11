@@ -8,12 +8,13 @@ function createMemory(
   id = "turn-1",
   roomId = "sdk-room",
   source = "api",
+  text = "hello",
 ): Memory {
   return {
     id,
     roomId,
     entityId: "entity-1",
-    content: { text: "hello", source },
+    content: { text, source },
     createdAt: Date.now(),
     metadata: {
       sessionId: "session-1",
@@ -347,6 +348,40 @@ describe("agent context providers", () => {
       "sdk-release [managed]: Ship through the official Eliza skill runtime.",
     );
     expect(result.data?.skillsCount).toBe(1);
+  });
+
+  it("adds a receipt-backed completion contract for explicit file changes", async () => {
+    const workspace = provider(
+      createAgentContextProviders(createServices()),
+      "DOOLITTLE_WORKSPACE_CONTEXT_PROVIDER",
+    );
+
+    const mutation = await workspace.get(
+      createRuntime() as never,
+      createMemory(
+        "mutation-turn",
+        "mutation-room",
+        "desktop",
+        "Review the repo and write a README.md for it",
+      ),
+      {} as never,
+    );
+    const readOnly = await workspace.get(
+      createRuntime() as never,
+      createMemory(
+        "read-turn",
+        "read-room",
+        "desktop",
+        "Review the repo and tell me what it is",
+      ),
+      {} as never,
+    );
+
+    expect(mutation.text).toContain("TURN EXECUTION CONTRACT");
+    expect(mutation.text).toContain(
+      "Reading, searching, inspecting, or describing a planned change is not completion.",
+    );
+    expect(readOnly.text).not.toContain("TURN EXECUTION CONTRACT");
   });
 
   it("adds bounded latest ACP editor state only to desktop turns", async () => {

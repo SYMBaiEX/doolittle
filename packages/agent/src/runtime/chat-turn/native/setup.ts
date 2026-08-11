@@ -15,9 +15,9 @@ export function resolveNativeMessagePolicy(
     runDepth: agent.runDepth,
     maxIterations: Math.max(1, agent.maxIterations),
     toolProgressMode: agent.toolProgressMode,
-    // The SDK's Stage 1 handler still routes ordinary conversation to its
-    // direct-reply mode. This flag only permits the native planner loop when
-    // Stage 1 determines that tools or multiple steps are required.
+    // Retained for pre-v5 message-service compatibility. Eliza v5 owns routing
+    // through Stage 1 regardless of this legacy flag; Doolittle's completion
+    // safety is enforced by native response routing plus mutation receipts.
     useMultiStep: agent.runDepth !== "quick" && agent.maxIterations > 1,
   };
 }

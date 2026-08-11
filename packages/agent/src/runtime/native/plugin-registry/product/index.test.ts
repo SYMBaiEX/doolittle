@@ -64,6 +64,11 @@ describe("native Doolittle product plugin", () => {
         "SHELL",
       ]),
     });
+    expect(plugin.responseHandlerEvaluators).toEqual([
+      expect.objectContaining({
+        name: "doolittle.workspace_mutation_routing",
+      }),
+    ]);
     expect(plugin.shortcuts?.map((shortcut) => shortcut.id)).toEqual([
       "doolittle-web-search-command",
       "doolittle-research-command",

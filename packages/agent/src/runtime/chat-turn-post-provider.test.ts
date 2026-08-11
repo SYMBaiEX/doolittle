@@ -279,7 +279,7 @@ describe("ElizaOS-native post-provider seam", () => {
     );
 
     expect(result.runFailureMessage).toContain(
-      "did not produce a verified SDK action-result mutation receipt",
+      "No verified local mutation receipt was recorded (WRITE_FILE)",
     );
     expect(harness.finishEvents[0]?.status).toBe("error");
   });
@@ -311,7 +311,7 @@ describe("ElizaOS-native post-provider seam", () => {
     expect(harness.finishEvents[0]?.status).not.toBe("error");
   });
 
-  it("does not infer execution requirements from user or provider prose", async () => {
+  it("rejects a progress-only terminal reply when an explicit mutation never ran", async () => {
     const harness = createHarness(2);
     const message = "create a website file in this project";
 
@@ -323,12 +323,12 @@ describe("ElizaOS-native post-provider seam", () => {
       }),
     );
 
-    expect(result).toMatchObject({
-      kind: "final",
-      response: "🔎 Provider executed: []",
-      runFailureMessage: undefined,
-    });
-    expect(harness.finishEvents[0]?.status).toBe("complete");
+    expect(result).toMatchObject({ kind: "final" });
+    expect(result.response).toContain(
+      "I stopped before completing the requested workspace change",
+    );
+    expect(result.runFailureMessage).toBe(result.response);
+    expect(harness.finishEvents[0]?.status).toBe("error");
   });
 
   it("accepts a file change backed by the official ActionResult contract", async () => {

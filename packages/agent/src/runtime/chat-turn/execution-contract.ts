@@ -1,8 +1,10 @@
 import type { ActionResult } from "@elizaos/core";
 import {
+  actionResultActionName,
   actionResultMutationActionName,
   extractVerifiedLocalMutationFromActionResult,
 } from "@/runtime/action-result-metadata";
+import { hasExplicitWorkspaceMutationIntent } from "@/runtime/workspace-mutation-intent";
 
 // The ElizaOS executor records the selected action name on every ActionResult.
 // Keep the local-mutation boundary explicit; prompt, command, and response text
@@ -14,6 +16,7 @@ const LOCAL_MUTATION_ACTIONS = new Set([
 ]);
 
 export interface TurnExecutionContract {
+  requestedLocalMutation: boolean;
   selectedMutationActions: string[];
 }
 
@@ -36,10 +39,27 @@ function selectedLocalMutationActions(
   });
 }
 
+function observedSuccessfulLocalMutationAction(
+  actionResults: readonly ActionResult[],
+): boolean {
+  return actionResults.some((result) => {
+    const actionName = actionResultActionName(result);
+    return (
+      result.success === true &&
+      typeof actionName === "string" &&
+      LOCAL_MUTATION_ACTIONS.has(actionName)
+    );
+  });
+}
+
 export function buildTurnExecutionContract(input: {
   actionResults?: ActionResult[];
+  userRequest?: string;
 }): TurnExecutionContract {
   return {
+    requestedLocalMutation: hasExplicitWorkspaceMutationIntent(
+      input.userRequest ?? "",
+    ),
     selectedMutationActions: selectedLocalMutationActions(
       input.actionResults ?? [],
     ),
@@ -51,10 +71,7 @@ export function assessTurnExecutionContract(input: {
   actionResults?: ActionResult[];
   runFailureMessage?: string;
 }): TurnExecutionAssessment {
-  if (
-    input.runFailureMessage ||
-    input.contract.selectedMutationActions.length === 0
-  ) {
+  if (input.runFailureMessage) {
     return { ok: true };
   }
 
@@ -69,6 +86,14 @@ export function assessTurnExecutionContract(input: {
     (actionName) => !successfulReceipts.has(actionName),
   );
 
+  if (
+    input.contract.requestedLocalMutation &&
+    successfulReceipts.size === 0 &&
+    !observedSuccessfulLocalMutationAction(input.actionResults ?? [])
+  ) {
+    missingReceipts.unshift("REQUESTED_LOCAL_MUTATION");
+  }
+
   if (missingReceipts.length === 0) {
     return { ok: true };
   }
@@ -76,7 +101,7 @@ export function assessTurnExecutionContract(input: {
   return {
     ok: false,
     failureMessage:
-      "Native execution failed: a selected local mutation action did not produce a verified SDK action-result mutation receipt " +
-      `(${missingReceipts.join(", ")}).`,
+      "I stopped before completing the requested workspace change. No verified local mutation receipt was recorded " +
+      `(${[...new Set(missingReceipts)].join(", ")}), so this turn was not marked complete.`,
   };
 }

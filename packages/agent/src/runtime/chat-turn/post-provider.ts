@@ -18,6 +18,7 @@ export async function runPostProviderTurn(
 ): Promise<PostProviderTurnResult> {
   const executionContract = buildTurnExecutionContract({
     actionResults: input.actionResults,
+    userRequest: input.effectiveInput.message,
   });
   const activeRun = input.context.services.runController.getActive(
     input.turn.sessionId,
