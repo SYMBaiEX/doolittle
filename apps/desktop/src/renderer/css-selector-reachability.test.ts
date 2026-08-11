@@ -4,6 +4,10 @@ import { describe, expect, it } from "vitest";
 const globalCss = ["styles.css", "experience.css", "app-polish.css"]
   .map((name) => readFileSync(new URL(`./${name}`, import.meta.url), "utf8"))
   .join("\n");
+const elizaTailwindCss = readFileSync(
+  new URL("./eliza-tailwind.css", import.meta.url),
+  "utf8",
+);
 
 // These selectors belonged to removed navigation, chat-sidebar, inspector,
 // utility, and activity implementations. A complete repository search found
@@ -82,5 +86,20 @@ describe("global CSS selector reachability", () => {
     ]) {
       expect(globalCss).toContain(selector);
     }
+  });
+
+  it("includes published Eliza component classes in the host Tailwind build", () => {
+    expect(elizaTailwindCss).toContain(
+      '@source "../../../../node_modules/@elizaos/ui/components/accounts"',
+    );
+    expect(elizaTailwindCss).toContain(
+      '@source "../../../../node_modules/@elizaos/ui/components/composites/page-panel"',
+    );
+    expect(elizaTailwindCss).toContain(
+      '@source "../../../../node_modules/@elizaos/ui/components/ui"',
+    );
+    expect(elizaTailwindCss).toContain(
+      '@source "../../../../node_modules/@elizaos/ui/cloud-ui/components/log-viewer"',
+    );
   });
 });

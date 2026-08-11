@@ -94,7 +94,7 @@ export function PageHeader({
         actions={actions ? <div className="page-actions">{actions}</div> : null}
         bordered={false}
         description={<p>{description}</p>}
-        descriptionClassName="!static !h-auto !w-auto !overflow-visible !whitespace-normal !p-0"
+        descriptionClassName="page-header__description"
         eyebrow={<span className="eyebrow">{eyebrow}</span>}
         heading={<h1>{title}</h1>}
       />

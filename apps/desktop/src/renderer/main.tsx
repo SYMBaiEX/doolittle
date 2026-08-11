@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { DesktopErrorBoundary } from "./components/DesktopErrorBoundary";
 import { ElizaUiBridge } from "./ElizaUiBridge";
-import "@elizaos/ui/cloud-ui/index.css";
+import "./eliza-tailwind.css";
 import "./styles.css";
 import "./experience.css";
 import "./recovery.css";
