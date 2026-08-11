@@ -65,7 +65,7 @@ function writeProviderAuthStore(store: ProviderAuthStoreShape): void {
   writeJson(getProviderAuthStorePath(), store);
 }
 
-function withOfficialAuthHome<T>(operation: () => T): T {
+export function withOfficialAuthHome<T>(operation: () => T): T {
   if (process.env.ELIZA_HOME?.trim()) return operation();
   const previous = process.env.ELIZA_HOME;
   process.env.ELIZA_HOME = dirname(dirname(getProviderAuthStorePath()));

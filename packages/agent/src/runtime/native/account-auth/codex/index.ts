@@ -9,6 +9,7 @@ import {
   resolveStoredOrLoadedTokenCredentials,
 } from "../credentials";
 import { refreshOAuthCredentials } from "../oauth-refresh";
+import { getOfficialSubscriptionProviderStatus } from "../official-subscription-status";
 import type {
   LinkedCodexCredentials,
   LinkedProviderAccountStatus,
@@ -68,7 +69,31 @@ export function getCodexAccountStatus(
     return buildStoredCodexStatus(stored);
   }
 
+  const officialStatus = getOfficialSubscriptionProviderStatus(
+    "codex",
+    homePath,
+  );
+  if (officialStatus?.nativeReady) {
+    return officialStatus;
+  }
+
   const cliStatus = getCodexCliAuthStatus(homePath, deps);
+  if (cliStatus.loggedIn && officialStatus) {
+    return {
+      ...officialStatus,
+      available: true,
+      reusable: true,
+      nativeReady: true,
+      fallbackReady: false,
+      source: cliStatus.source || officialStatus.source,
+      authMode: cliStatus.authMethod || officialStatus.authMode,
+      detail:
+        "Eliza and the Codex CLI report a signed-in Codex subscription on this machine.",
+    };
+  }
+  if (officialStatus && !cliStatus.available) {
+    return officialStatus;
+  }
   return buildUnavailableProviderStatus({
     provider: "codex",
     available: cliStore.authFilePresent || cliStatus.available,
@@ -82,7 +107,8 @@ export function getCodexAccountStatus(
         ? "Codex CLI reports a logged-in session, but Doolittle could not read a reusable local auth store yet."
         : cliStatus.available
           ? "Codex CLI is installed, but no reusable local signed-in auth store was found. Run `codex login`."
-          : "Codex CLI is not installed and no local auth store was found.",
+          : officialStatus?.detail ||
+            "Codex CLI is not installed and no local auth store was found.",
   });
 }
 

@@ -8,6 +8,7 @@ import {
   getReusableStoredTokenCredentials,
   hasTokenCredentials,
 } from "../credentials";
+import { getOfficialSubscriptionProviderStatus } from "../official-subscription-status";
 import type { LinkedProviderAccountStatus } from "../types";
 import { getClaudeCodeCliAuthStatus } from "./cli";
 import {
@@ -202,6 +203,17 @@ export function getClaudeCodeAccountStatus(
     return buildStoredClaudeCodeStatus(stored, cliStatus.loggedIn);
   }
 
+  const officialStatus = getOfficialSubscriptionProviderStatus(
+    "claude-code",
+    homePath,
+  );
+  if (officialStatus?.nativeReady) {
+    return {
+      ...officialStatus,
+      fallbackReady: cliStatus.loggedIn || officialStatus.fallbackReady,
+    };
+  }
+
   if (accountLabel || existsSync(credentialsPath) || cliStatus.available) {
     return buildLocalClaudeCodeStatus({
       accountLabel,
@@ -209,6 +221,18 @@ export function getClaudeCodeAccountStatus(
       profilePath,
       cliStatus,
     });
+  }
+
+  if (officialStatus) {
+    return officialStatus.fallbackReady
+      ? {
+          ...officialStatus,
+          reusable: false,
+          fallbackReady: false,
+          detail:
+            "Eliza detected Claude Code subscription credentials, but the Claude CLI is not available as an executable signed-in fallback.",
+        }
+      : officialStatus;
   }
 
   return buildUnavailableProviderStatus({

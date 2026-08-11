@@ -26,6 +26,7 @@ import * as elizaCore from "@elizaos/core";
 import {
   getLinkedClaudeCodeCredentials,
   getLinkedCodexCredentials,
+  invalidateOfficialSubscriptionStatusCache,
 } from "@/runtime/native/account-auth";
 import { readJson, writeJson } from "@/runtime/native/account-auth/shared";
 import {
@@ -337,6 +338,7 @@ export function importCurrentDoolittleAccount(
   if (!imported && !loadAccount(providerId, normalizedId)) {
     return null;
   }
+  invalidateOfficialSubscriptionStatusCache();
   const account = getDoolittleAccountPool().get(normalizedId, providerId);
   return account ? toSnapshot(account as never) : null;
 }
@@ -353,12 +355,13 @@ export function importLegacyDoolittleAccounts(): number {
   const hadClaude = Boolean(loadAccount("anthropic-subscription", claudeId));
   getStoredCodexCredentials();
   getStoredClaudeCodeCredentials();
-  return (
+  const imported =
     Number(!hadCodex && Boolean(loadAccount("openai-codex", codexId))) +
     Number(
       !hadClaude && Boolean(loadAccount("anthropic-subscription", claudeId)),
-    )
-  );
+    );
+  if (imported > 0) invalidateOfficialSubscriptionStatusCache();
+  return imported;
 }
 
 /** Construct the SDK singleton and its official orchestrator bridge at boot. */
@@ -649,6 +652,7 @@ export async function deleteDoolittleAccount(
   if (!pool.get(accountId, providerId)) return false;
   await pool.deleteMetadata(providerId, accountId);
   deleteCredentials(providerId, accountId);
+  invalidateOfficialSubscriptionStatusCache();
   return true;
 }
 

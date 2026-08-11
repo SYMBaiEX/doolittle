@@ -1,7 +1,7 @@
 import {
   getClaudeCodeAccountStatus,
   getLinkedClaudeCodeCredentials,
-  refreshLinkedClaudeCodeCredentials,
+  refreshLinkedClaudeCodeCredentials as refreshLinkedClaudeCodeCredentialsImpl,
 } from "./claude-code";
 import { claudeCodeAccessTokenIsExpiring } from "./claude-code-support/files";
 import {
@@ -22,6 +22,7 @@ import {
   getLinkedElizaCloudCredentials as getLinkedElizaCloudCredentialsImpl,
 } from "./elizacloud";
 import { getElizaCloudAuthDependencies } from "./elizacloud-support";
+import { invalidateOfficialSubscriptionStatusCache } from "./official-subscription-status";
 import { DEFAULT_REFRESH_SKEW_SECONDS } from "./shared";
 import {
   getStoredElizaCloudCredentials,
@@ -50,14 +51,13 @@ export type {
   LinkedProviderName,
   ProviderAuthStoreShape,
 } from "./types";
-
 export {
   claudeCodeAccessTokenIsExpiring,
   getLinkedClaudeCodeCredentials,
   getLinkedDevinCredentials,
   getLinkedProviderLoginCommand,
   getLinkedProviderSetupCommand,
-  refreshLinkedClaudeCodeCredentials,
+  invalidateOfficialSubscriptionStatusCache,
 };
 
 function getCodexAccountStatus(homePath?: string) {
@@ -84,10 +84,24 @@ export function codexAccessTokenIsExpiring(
 export async function refreshLinkedCodexCredentials(
   homePath?: string,
 ): Promise<LinkedCodexCredentials | undefined> {
-  return refreshLinkedCodexCredentialsImpl(
-    homePath,
-    getCodexAuthDependencies(),
-  );
+  try {
+    return await refreshLinkedCodexCredentialsImpl(
+      homePath,
+      getCodexAuthDependencies(),
+    );
+  } finally {
+    invalidateOfficialSubscriptionStatusCache();
+  }
+}
+
+export async function refreshLinkedClaudeCodeCredentials(
+  homePath?: string,
+): Promise<LinkedClaudeCodeCredentials | undefined> {
+  try {
+    return await refreshLinkedClaudeCodeCredentialsImpl(homePath);
+  } finally {
+    invalidateOfficialSubscriptionStatusCache();
+  }
 }
 
 export function getLinkedElizaCloudCredentials(
