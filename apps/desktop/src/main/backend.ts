@@ -136,6 +136,7 @@ export class BackendManager {
   private readonly listeners = new Set<(state: BackendState) => void>();
   private startup: Promise<BackendState> | null = null;
   private stopping = false;
+  private activeStops = 0;
 
   constructor(
     private readonly target: BackendLaunchTarget,
@@ -158,6 +159,7 @@ export class BackendManager {
   }
 
   start(): Promise<BackendState> {
+    if (this.activeStops > 0) return Promise.resolve(this.getState());
     if (this.state.phase === "ready") return Promise.resolve(this.getState());
     if (this.startup) return this.startup;
     this.startup = this.startImpl().finally(() => {
@@ -312,8 +314,11 @@ export class BackendManager {
       this.update(next);
       return next;
     } catch (error) {
-      await this.stop();
+      // This stop is startup cleanup, not a shutdown request. Preserve an
+      // already-requested shutdown so recovery cannot relaunch the backend.
+      await this.stopChild(false);
       const detail = error instanceof Error ? error.message : String(error);
+      if (this.stopping) return this.getState();
       if (
         !pgliteRecoveryAttempted &&
         isRecoverablePgliteStartupFailure(recentOutput)
@@ -324,6 +329,7 @@ export class BackendManager {
             phase: "booting",
             message: "Recovering the local database and restarting Doolittle…",
           });
+          if (this.stopping) return this.getState();
           return this.startImpl(true);
         } catch (recoveryError) {
           const recoveryDetail =
@@ -372,6 +378,16 @@ export class BackendManager {
   }
 
   async stop(updateState = true): Promise<void> {
+    this.stopping = true;
+    this.activeStops += 1;
+    try {
+      await this.stopChild(updateState);
+    } finally {
+      this.activeStops -= 1;
+    }
+  }
+
+  private async stopChild(updateState = true): Promise<void> {
     const child = this.child;
     if (!child) {
       if (updateState) {
@@ -382,7 +398,6 @@ export class BackendManager {
       }
       return;
     }
-    this.stopping = true;
     this.child = null;
     child.kill("SIGTERM");
     await Promise.race([
