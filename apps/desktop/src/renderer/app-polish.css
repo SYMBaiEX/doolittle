@@ -1749,7 +1749,6 @@ th {
 
 /* Catalog routes stay scannable without becoming a wall of tiles. */
 .view-models :is(.two-column-grid, .card-grid),
-.view-connections .card-grid,
 .view-tools .card-grid,
 .view-skills .card-grid,
 .view-plugins .card-grid,
@@ -1757,23 +1756,12 @@ th {
   gap: 8px;
 }
 
-.view-models :is(.provider-card, .catalog-card, .profile-card),
-.view-connections :is(.provider-card, .catalog-card, .profile-card),
-.view-tools :is(.provider-card, .catalog-card, .profile-card),
-.view-skills :is(.provider-card, .catalog-card, .profile-card),
-.view-plugins :is(.provider-card, .catalog-card, .profile-card),
-.view-profiles :is(.provider-card, .catalog-card, .profile-card) {
+.view-models :is(.catalog-card, .profile-card),
+.view-tools :is(.catalog-card, .profile-card),
+.view-skills :is(.catalog-card, .profile-card),
+.view-plugins :is(.catalog-card, .profile-card),
+.view-profiles :is(.catalog-card, .profile-card) {
   min-height: 0;
-}
-
-.provider-auth-state {
-  margin: 1px 0 9px;
-  padding: 7px 8px;
-  border-radius: 3px;
-}
-
-.provider-auth-mark {
-  box-shadow: none;
 }
 
 .view-profiles .profile-card {
@@ -2480,17 +2468,6 @@ th {
   )
   :is(.primary-button, .secondary-button, .danger-button) {
   min-height: 32px;
-}
-
-.view-connections .card-grid {
-  align-items: start;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 350px), 1fr));
-}
-
-.view-connections .provider-card {
-  align-self: start;
-  height: fit-content;
-  min-height: 0;
 }
 
 .view-tools .card-grid,

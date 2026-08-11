@@ -614,7 +614,6 @@ select:focus-visible {
 
 .content-card > p,
 .catalog-card > p,
-.provider-card > p,
 .profile-card > p {
   margin: 0 0 15px;
   color: var(--text-soft);
@@ -1419,21 +1418,6 @@ td {
   min-width: 0;
   flex-direction: column;
   gap: 14px;
-}
-
-.provider-settings-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.provider-settings-grid .provider-card:nth-child(-n + 2) {
-  border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
-  background:
-    linear-gradient(
-      145deg,
-      color-mix(in srgb, var(--accent) 5%, transparent),
-      transparent 46%
-    ),
-    color-mix(in srgb, var(--surface-raised) 94%, transparent);
 }
 
 .settings-group {
@@ -2622,10 +2606,6 @@ td {
 
   .settings-nav-note {
     display: none;
-  }
-
-  .provider-settings-grid {
-    grid-template-columns: 1fr;
   }
 
   .settings-content-header,
