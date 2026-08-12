@@ -65,6 +65,10 @@ export function reviewWorkspaceScopeKey(
   return `${workspacePath}\u0000${projectScope}`;
 }
 
+export function shouldShowReviewWorkspace(itemCount: number): boolean {
+  return itemCount > 0;
+}
+
 export function ReviewPage({
   active,
   embedded = false,
@@ -626,7 +630,7 @@ export function ReviewPage({
         <ErrorBlock error={blockingError} retry={reload} />
       ) : loading && items.length === 0 ? (
         <LoadingBlock label="Assembling completed work…" />
-      ) : (
+      ) : !shouldShowReviewWorkspace(items.length) ? null : (
         <div className="review-workspace">
           <ReviewQueue
             filter={filter}

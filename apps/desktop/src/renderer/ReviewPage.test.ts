@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { reviewWorkspaceScopeKey } from "./ReviewPage";
+import {
+  reviewWorkspaceScopeKey,
+  shouldShowReviewWorkspace,
+} from "./ReviewPage";
 
 describe("review workspace scope", () => {
   it("changes for either the selected workspace or project scope", () => {
@@ -17,5 +20,10 @@ describe("review workspace scope", () => {
     expect(reviewWorkspaceScopeKey("/work/a", "bc")).not.toBe(
       reviewWorkspaceScopeKey("/work/ab", "c"),
     );
+  });
+
+  it("omits the duplicate queue and detail shell until review items exist", () => {
+    expect(shouldShowReviewWorkspace(0)).toBe(false);
+    expect(shouldShowReviewWorkspace(1)).toBe(true);
   });
 });
