@@ -17,6 +17,11 @@ describe("desktop route preloaders", () => {
     expect(DESKTOP_ROUTE_RESOURCE_PREFETCHES.connections).toEqual([
       { path: "/runtime/accounts", dependencies: [true] },
     ]);
+    expect(DESKTOP_ROUTE_RESOURCE_PREFETCHES.dashboard).toEqual([
+      { path: "/repo/status", dependencies: [true] },
+      { path: "/setup/summary", dependencies: [true] },
+      { path: "/runtime/account-pool", dependencies: [true] },
+    ]);
     expect(DESKTOP_ROUTE_RESOURCE_PREFETCHES.gateway).toEqual([
       { path: "/gateway/state", dependencies: [true] },
       { path: "/gateway/inbox?limit=25", dependencies: [true] },

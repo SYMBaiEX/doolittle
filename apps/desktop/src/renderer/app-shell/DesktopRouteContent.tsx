@@ -206,6 +206,11 @@ export const DESKTOP_ROUTE_RESOURCE_PREFETCHES: Readonly<
   browser: [{ path: "/browser/status", dependencies: [true] }],
   compatibility: [{ path: "/runtime/compatibility", dependencies: [true] }],
   connections: [{ path: "/runtime/accounts", dependencies: [true] }],
+  dashboard: [
+    { path: "/repo/status", dependencies: [true] },
+    { path: "/setup/summary", dependencies: [true] },
+    { path: "/runtime/account-pool", dependencies: [true] },
+  ],
   gateway: [
     { path: "/gateway/state", dependencies: [true] },
     { path: "/gateway/inbox?limit=25", dependencies: [true] },
