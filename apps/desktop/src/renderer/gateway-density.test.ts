@@ -36,6 +36,8 @@ describe("GatewayPage density", () => {
     expect(source).toContain("Load routes");
     expect(source).toContain('className="gateway-secondary-grid"');
     expect(css).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
+    expect(css).toContain(".gateway-secondary-grid > .panel {");
+    expect(css).toContain("border: 1px solid var(--border)");
     expect(css).toContain(".gateway-session-panel > summary {");
     expect(polish).not.toContain("minmax(230px, 310px)");
     expect(polish).not.toContain(

@@ -23,6 +23,9 @@
 
 .gateway-secondary-grid > .panel {
   min-width: 0;
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
 }
 
 .gateway-heading {
