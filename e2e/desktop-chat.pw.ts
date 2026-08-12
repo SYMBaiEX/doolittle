@@ -175,6 +175,11 @@ test.describe("Doolittle desktop offline chat", () => {
       expect(messageGeometry.actions.top).toBeGreaterThanOrEqual(
         messageGeometry.body.bottom,
       );
+      await messageActions.getByLabel("Copy message").click();
+      await page.mouse.move(1, 1);
+      await expect(messageActions).toHaveCSS("opacity", "0");
+      await messageActions.getByLabel("Copy message").focus();
+      await expect(messageActions).toHaveCSS("opacity", "1");
       const assistantMessage = page.locator(".chat-message.assistant").last();
       await expect(assistantMessage).toBeVisible({ timeout: 45_000 });
       await expect(page.getByRole("status")).toContainText(

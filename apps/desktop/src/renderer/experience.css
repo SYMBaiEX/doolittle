@@ -540,7 +540,8 @@ button.chat-session-meta-pill:hover {
 }
 
 .chat-message:hover .chat-message-actions,
-.chat-message:focus-within .chat-message-actions {
+.chat-message:has(.chat-message-actions button:focus-visible)
+  .chat-message-actions {
   opacity: 1;
   pointer-events: auto;
 }
