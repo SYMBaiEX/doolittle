@@ -17,6 +17,7 @@ import {
   normalizeTasks,
   sessionCountSummary,
   summarizeAccountPool,
+  summarizeOperatorState,
   summarizeRepoStatus,
   summarizeSetupEntries,
   summarizeSetupHealth,
@@ -107,6 +108,16 @@ export function DashboardPage({
     () => sessionCountSummary(sessions),
     [sessions],
   );
+  const operatorState = useMemo(
+    () =>
+      summarizeOperatorState({
+        pendingApprovals: approvalCards.length,
+        runningTasks: taskCards.length,
+        repo,
+        setupWarnings: setupHealth.warnings,
+      }),
+    [approvalCards.length, repo, setupHealth.warnings, taskCards.length],
+  );
   const nextActions = useMemo(
     () =>
       buildNextActions({
@@ -167,25 +178,6 @@ export function DashboardPage({
     );
   }
 
-  const headline = approvalCards.length
-    ? "Decisions are waiting."
-    : taskCards.length
-      ? "Execution is in motion."
-      : repo.dirty
-        ? "Workspace changed locally."
-        : setupHealth.warnings
-          ? "Setup needs attention."
-          : "Runtime is stable.";
-  const summary = approvalCards.length
-    ? "Clear approvals first so blocked commands can continue."
-    : taskCards.length
-      ? "Delegated work is active. Keep the queue visible and the repo clean."
-      : repo.dirty
-        ? "The checkout has local edits. Review them before the next heavy run."
-        : setupHealth.warnings
-          ? `${setupHealth.warnings} setup signal${setupHealth.warnings === 1 ? "" : "s"} still need attention.`
-          : "No immediate blockers surfaced across runtime, setup, or repository state.";
-
   return (
     <div className="page page-dashboard">
       <PageHeader
@@ -206,17 +198,15 @@ export function DashboardPage({
         </Notice>
       ) : null}
 
-      <section className="content-card dashboard-hero">
-        <div>
+      <section
+        aria-label="Operator state"
+        className={`dashboard-status-rail is-${operatorState.tone}`}
+      >
+        <div className="dashboard-status-copy">
           <span className="eyebrow">Operator state</span>
-          <h2>{headline}</h2>
-          <p>{summary}</p>
-          <p className="dashboard-pressure-line">
-            <span>{approvalCards.length} approvals</span>
-            <span>{taskCards.length} running tasks</span>
-            <span>{setupHealth.warnings} setup warnings</span>
-          </p>
+          <strong>{operatorState.headline}</strong>
         </div>
+        <span className="dashboard-status-fact">{operatorState.fact}</span>
       </section>
 
       <DashboardPriorityPanel

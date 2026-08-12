@@ -3,6 +3,7 @@ import {
   buildNextActions,
   summarizeAccountPool,
   summarizeDashboardValue,
+  summarizeOperatorState,
   summarizeRepoStatus,
   summarizeSetupEntries,
 } from "./dashboard-helpers";
@@ -116,6 +117,66 @@ describe("dashboard helpers", () => {
       "setup",
       "review",
     ]);
+  });
+
+  it("summarizes only the highest-priority operator pressure", () => {
+    const repo = {
+      branch: "main",
+      ahead: 0,
+      behind: 0,
+      dirty: true,
+      changedFiles: 3,
+      lines: [],
+    };
+
+    expect(
+      summarizeOperatorState({
+        pendingApprovals: 2,
+        runningTasks: 4,
+        repo,
+        setupWarnings: 5,
+      }),
+    ).toEqual({
+      headline: "Decisions are waiting",
+      fact: "2 approvals",
+      tone: "warn",
+    });
+    expect(
+      summarizeOperatorState({
+        pendingApprovals: 0,
+        runningTasks: 4,
+        repo,
+        setupWarnings: 5,
+      }),
+    ).toMatchObject({ fact: "4 running tasks", tone: "neutral" });
+    expect(
+      summarizeOperatorState({
+        pendingApprovals: 0,
+        runningTasks: 0,
+        repo,
+        setupWarnings: 5,
+      }),
+    ).toMatchObject({ fact: "3 changed files", tone: "warn" });
+    expect(
+      summarizeOperatorState({
+        pendingApprovals: 0,
+        runningTasks: 0,
+        repo: { ...repo, dirty: false, changedFiles: 0 },
+        setupWarnings: 1,
+      }),
+    ).toMatchObject({ fact: "1 setup warning", tone: "warn" });
+    expect(
+      summarizeOperatorState({
+        pendingApprovals: 0,
+        runningTasks: 0,
+        repo: { ...repo, dirty: false, changedFiles: 0 },
+        setupWarnings: 0,
+      }),
+    ).toEqual({
+      headline: "Runtime is stable",
+      fact: "No immediate blockers",
+      tone: "good",
+    });
   });
 
   it("summarizes pooled spawned-agent accounts without treating them as chat readiness", () => {

@@ -1716,20 +1716,6 @@ th {
   padding: 10px 0;
 }
 
-.view-dashboard .dashboard-hero {
-  padding: 16px;
-}
-
-.view-dashboard .dashboard-hero h2 {
-  margin: 4px 0 7px;
-  font-size: clamp(23px, 2.3vw, 31px);
-}
-
-.view-dashboard .dashboard-hero p {
-  font-size: 12px;
-  line-height: 1.5;
-}
-
 .view-dashboard .dashboard-action-card {
   padding: 10px 0;
 }
