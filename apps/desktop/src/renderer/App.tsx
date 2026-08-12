@@ -25,11 +25,7 @@ import type {
   WorkspaceState,
 } from "../shared/contracts";
 import { DesktopMobileMenuButton } from "./app-shell/DesktopMobileMenuButton";
-import {
-  DesktopRouteContent,
-  preloadDesktopRoute,
-  warmDesktopRoute,
-} from "./app-shell/DesktopRouteContent";
+import { DesktopRouteContent } from "./app-shell/DesktopRouteContent";
 import { DesktopRouteLoadingFallback } from "./app-shell/DesktopRouteLoadingFallback";
 import { DesktopRuntimeNotices } from "./app-shell/DesktopRuntimeNotices";
 import { DesktopSidebar } from "./app-shell/DesktopSidebar";
@@ -37,6 +33,10 @@ import { DesktopUtilityLayer } from "./app-shell/DesktopUtilityLayer";
 import { DesktopWindowContext } from "./app-shell/DesktopWindowContext";
 import { DesktopWindowTools } from "./app-shell/DesktopWindowTools";
 import { buildDesktopCommandGroups } from "./app-shell/desktop-command-groups";
+import {
+  preloadDesktopRoute,
+  warmDesktopRoute,
+} from "./app-shell/desktop-route-registry";
 import {
   type ChatContextHandoff,
   type ChatContextRequest,

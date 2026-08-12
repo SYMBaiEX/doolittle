@@ -1,9 +1,4 @@
-import {
-  type ComponentType,
-  type LazyExoticComponent,
-  lazy,
-  type ReactNode,
-} from "react";
+import type { ReactNode } from "react";
 import type {
   BackendState,
   RuntimeStatus,
@@ -14,201 +9,38 @@ import type {
   ChatContextHandoff,
   ChatContextRequest,
 } from "../chat-context-handoff";
-import { type View, views } from "../desktop-navigation";
+import type { View } from "../desktop-navigation";
 import type { DesktopNavigationIntent } from "../desktop-navigation-intent";
 import type { ApiResource } from "../lib";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
-import { prefetchDesktopRouteResources } from "./desktop-route-prefetch";
-
-export { DESKTOP_ROUTE_RESOURCE_PREFETCHES } from "./desktop-route-prefetch";
-
-type RouteLoader = () => Promise<unknown>;
-type ComponentExportKey<Module> = {
-  [Key in keyof Module]-?: Module[Key] extends ComponentType<infer _Props>
-    ? Key
-    : never;
-}[keyof Module];
-type RouteComponent<Module, Key extends keyof Module> =
-  Module[Key] extends ComponentType<infer Props> ? ComponentType<Props> : never;
-
-const registeredRouteLoaders: Partial<Record<View, RouteLoader>> = {};
-
-/** Register lazy rendering and preloading from one loader declaration. */
-function lazyNamedRoute<Module extends object, Key extends keyof Module>(
-  routeViews: readonly View[],
-  load: () => Promise<Module>,
-  exportName: Key & ComponentExportKey<Module>,
-): LazyExoticComponent<RouteComponent<Module, Key>> {
-  for (const view of routeViews) registeredRouteLoaders[view] = load;
-  return lazy(async () => {
-    const module = await load();
-    const component = module[exportName];
-    if (typeof component !== "function") {
-      throw new Error(`Missing route component export: ${String(exportName)}`);
-    }
-    return { default: component } as {
-      default: RouteComponent<Module, Key>;
-    };
-  });
-}
-
-const DashboardPage = lazyNamedRoute(
-  ["dashboard"],
-  () => import("../DashboardPage"),
-  "DashboardPage",
-);
-const ChatPage = lazyNamedRoute(
-  ["chat"],
-  () => import("../ChatPage"),
-  "ChatPage",
-);
-const CodingWorkspacePage = lazyNamedRoute(
-  ["code"],
-  () => import("../CodingWorkspacePage"),
-  "CodingWorkspacePage",
-);
-const BrowserPage = lazyNamedRoute(
-  ["browser"],
-  () => import("../BrowserPage"),
-  "BrowserPage",
-);
-const GatewayPage = lazyNamedRoute(
-  ["gateway"],
-  () => import("../GatewayPage"),
-  "GatewayPage",
-);
-const OrchestrationPage = lazyNamedRoute(
-  ["review", "orchestration"],
-  () => import("../OrchestrationPage"),
-  "OrchestrationPage",
-);
-const SessionsPage = lazyNamedRoute(
-  ["sessions"],
-  () => import("../sessions/SessionsPage"),
-  "SessionsPage",
-);
-const AnalyticsPage = lazyNamedRoute(
-  ["analytics"],
-  () => import("../analytics/AnalyticsPage"),
-  "AnalyticsPage",
-);
-const ActivityPage = lazyNamedRoute(
-  ["activity"],
-  () => import("../ActivityPage"),
-  "ActivityPage",
-);
-const MediaPage = lazyNamedRoute(
-  ["media"],
-  () => import("../MediaPage"),
-  "MediaPage",
-);
-const MemoryPage = lazyNamedRoute(
-  ["memory"],
-  () => import("../MemoryPage"),
-  "MemoryPage",
-);
-const ModelsPage = lazyNamedRoute(
-  ["models"],
-  () => import("../ModelsPage"),
-  "ModelsPage",
-);
-const ConnectionsPage = lazyNamedRoute(
-  ["connections"],
-  () => import("../ConnectionsPage"),
-  "ConnectionsPage",
-);
-const ToolsPage = lazyNamedRoute(
-  ["tools"],
-  () => import("../ToolsPage"),
-  "ToolsPage",
-);
-const SkillsPage = lazyNamedRoute(
-  ["skills"],
-  () => import("../SkillsPage"),
-  "SkillsPage",
-);
-const PluginsPage = lazyNamedRoute(
-  ["plugins"],
-  () => import("../PluginsPage"),
-  "PluginsPage",
-);
-const ProfilesPage = lazyNamedRoute(
-  ["profiles"],
-  () => import("../ProfilesPage"),
-  "ProfilesPage",
-);
-const AutomationsPage = lazyNamedRoute(
-  ["automations"],
-  () => import("../AutomationsPage"),
-  "AutomationsPage",
-);
-const LogsPage = lazyNamedRoute(
-  ["logs"],
-  () => import("../LogsPage"),
-  "LogsPage",
-);
-const SettingsPage = lazyNamedRoute(
-  ["settings"],
-  () => import("../SettingsPage"),
-  "SettingsPage",
-);
-const KeysPage = lazyNamedRoute(
-  ["keys"],
-  () => import("../KeysPage"),
-  "KeysPage",
-);
-const DocsPage = lazyNamedRoute(
-  ["docs"],
-  () => import("../DocsPage"),
-  "DocsPage",
-);
-const RuntimePage = lazyNamedRoute(
-  ["runtime"],
-  () => import("../RuntimePage"),
-  "RuntimePage",
-);
-const CompatibilityPage = lazyNamedRoute(
-  ["compatibility"],
-  () => import("../CompatibilityPage"),
-  "CompatibilityPage",
-);
-const RegistryPage = lazyNamedRoute(
-  ["registry"],
-  () => import("../RegistryPage"),
-  "RegistryPage",
-);
-const SetupPage = lazyNamedRoute(
-  ["operatorSetup"],
-  () => import("../SetupPage"),
-  "SetupPage",
-);
-
-function completeRouteLoaderRegistry(): Readonly<Record<View, RouteLoader>> {
-  for (const view of views) {
-    if (!registeredRouteLoaders[view]) {
-      throw new Error(`Missing desktop route loader: ${view}`);
-    }
-  }
-  return registeredRouteLoaders as Record<View, RouteLoader>;
-}
-
-export const DESKTOP_ROUTE_PRELOADERS = completeRouteLoaderRegistry();
-
-export async function warmDesktopRoute(view: View): Promise<void> {
-  await Promise.all([
-    DESKTOP_ROUTE_PRELOADERS[view](),
-    prefetchDesktopRouteResources(view),
-  ]);
-}
-
-/**
- * Preload only the route module for exploratory focus and hover intent.
- * Runtime data is warmed once navigation is committed, avoiding a burst of
- * large API reads while the pointer moves through the navigation.
- */
-export function preloadDesktopRoute(view: View): void {
-  void DESKTOP_ROUTE_PRELOADERS[view]().catch(() => undefined);
-}
+import {
+  ActivityPage,
+  AnalyticsPage,
+  AutomationsPage,
+  BrowserPage,
+  ChatPage,
+  CodingWorkspacePage,
+  CompatibilityPage,
+  ConnectionsPage,
+  DashboardPage,
+  DocsPage,
+  GatewayPage,
+  KeysPage,
+  LogsPage,
+  MediaPage,
+  MemoryPage,
+  ModelsPage,
+  OrchestrationPage,
+  PluginsPage,
+  ProfilesPage,
+  RegistryPage,
+  RuntimePage,
+  SessionsPage,
+  SettingsPage,
+  SetupPage,
+  SkillsPage,
+  ToolsPage,
+} from "./desktop-route-registry";
 
 export interface DesktopRouteNavigation {
   setView: (view: View) => void;

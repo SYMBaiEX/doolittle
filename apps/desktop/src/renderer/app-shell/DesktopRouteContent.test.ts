@@ -1,11 +1,14 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { views } from "../desktop-navigation";
-import { DESKTOP_ROUTE_PRELOADERS } from "./DesktopRouteContent";
 import { DESKTOP_ROUTE_RESOURCE_PREFETCHES } from "./desktop-route-prefetch";
+import {
+  DESKTOP_ROUTE_PRELOADERS,
+  preloadDesktopRoute,
+} from "./desktop-route-registry";
 
-const routeContentSource = readFileSync(
-  new URL("./DesktopRouteContent.tsx", import.meta.url),
+const routeRegistrySource = readFileSync(
+  new URL("./desktop-route-registry.ts", import.meta.url),
   "utf8",
 );
 
@@ -46,11 +49,12 @@ describe("desktop route preloaders", () => {
   });
 
   test("keeps exploratory route preloads free of runtime data requests", () => {
-    expect(routeContentSource).toContain(
+    expect(routeRegistrySource).toContain(
       "void DESKTOP_ROUTE_PRELOADERS[view]().catch(() => undefined)",
     );
-    expect(routeContentSource).not.toMatch(
+    expect(routeRegistrySource).not.toMatch(
       /function preloadDesktopRoute[\s\S]*?warmDesktopRoute\(view\)/u,
     );
+    expect(() => preloadDesktopRoute("dashboard")).not.toThrow();
   });
 });
