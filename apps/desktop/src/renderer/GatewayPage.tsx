@@ -23,7 +23,9 @@ import {
   desktopRequest,
   displayTimestamp,
   EmptyBlock,
+  ErrorBlock,
   errorMessage,
+  LoadingBlock,
   Notice,
   PageHeader,
   titleCase,
@@ -82,7 +84,8 @@ function sessionMetadata(session: unknown) {
 
 export function GatewayPage({ active }: { active: boolean }) {
   const [pairingOpen, setPairingOpen] = useState(false);
-  const resourcePolicy = gatewayResourcePolicy(active, pairingOpen);
+  const [routesOpen, setRoutesOpen] = useState(false);
+  const resourcePolicy = gatewayResourcePolicy(active, pairingOpen, routesOpen);
   const state = useApiResource<GatewayStateResponse>(
     resourcePolicy.primary ? "/gateway/state" : null,
     [resourcePolicy.primary],
@@ -96,8 +99,8 @@ export function GatewayPage({ active }: { active: boolean }) {
     [resourcePolicy.primary],
   );
   const sessions = useApiResource<GatewaySessionsResponse>(
-    resourcePolicy.primary ? "/sessions/gateway" : null,
-    [resourcePolicy.primary],
+    resourcePolicy.routes ? "/sessions/gateway" : null,
+    [resourcePolicy.routes],
   );
   const pairingPending = useApiResource<PairingPendingResponse>(
     resourcePolicy.pairing ? "/pairing/pending?limit=200" : null,
@@ -143,20 +146,14 @@ export function GatewayPage({ active }: { active: boolean }) {
     () => approvedPairingSenders(pairingApproved.data?.approved),
     [pairingApproved.data?.approved],
   );
-  const errors = [
-    state.error,
-    inbox.error,
-    outbox.error,
-    sessions.error,
-  ].filter(Boolean);
-  const loading =
-    state.loading || inbox.loading || outbox.loading || sessions.loading;
+  const errors = [state.error, inbox.error, outbox.error].filter(Boolean);
+  const loading = state.loading || inbox.loading || outbox.loading;
 
   const refresh = () => {
     state.reload();
     inbox.reload();
     outbox.reload();
-    sessions.reload();
+    if (routesOpen) sessions.reload();
     if (pairingOpen) {
       pairingPending.reload();
       pairingApproved.reload();
@@ -287,42 +284,61 @@ export function GatewayPage({ active }: { active: boolean }) {
           visibleEntries={visibleEntries}
         />
 
-        <aside
+        <details
           className="panel gateway-session-panel"
-          aria-labelledby="gateway-sessions-title"
+          onToggle={(event) => setRoutesOpen(event.currentTarget.open)}
+          open={routesOpen}
         >
-          <div className="panel-heading">
-            <div>
-              <span className="eyebrow">Thread routes</span>
-              <h2 id="gateway-sessions-title">Gateway sessions</h2>
+          <summary>
+            <span>
+              <strong>Thread routes</strong>
+              <small>Gateway rooms, threads, and attached agent sessions</small>
+            </span>
+            <span>
+              {routesOpen
+                ? sessions.loading
+                  ? "Loading…"
+                  : `${localSessions.length} routes`
+                : "Open to load"}
+            </span>
+          </summary>
+          {routesOpen ? (
+            <div className="gateway-session-body">
+              {sessions.loading ? (
+                <LoadingBlock label="Loading gateway routes…" />
+              ) : sessions.error ? (
+                <ErrorBlock error={sessions.error} retry={sessions.reload} />
+              ) : !localSessions.length ? (
+                <EmptyBlock title="No local routes yet">
+                  Routes appear after Doolittle accepts an inbound gateway
+                  message.
+                </EmptyBlock>
+              ) : (
+                <ul className="gateway-sessions">
+                  {localSessions.slice(0, 12).map((session) => (
+                    <li key={session.id}>
+                      <Badge>{titleCase(session.platform)}</Badge>
+                      <strong>{session.room}</strong>
+                      <span>
+                        {session.thread
+                          ? `Thread ${session.thread}`
+                          : "Root route"}
+                      </span>
+                      <small>
+                        {session.agentSession
+                          ? `Agent: ${session.agentSession}`
+                          : "Agent session not recorded"}
+                      </small>
+                      <time dateTime={session.updatedAt}>
+                        {displayTimestamp(session.updatedAt)}
+                      </time>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          </div>
-          {!localSessions.length ? (
-            <EmptyBlock title="No local routes yet">
-              Routes appear after Doolittle accepts an inbound gateway message.
-            </EmptyBlock>
-          ) : (
-            <ul className="gateway-sessions">
-              {localSessions.slice(0, 12).map((session) => (
-                <li key={session.id}>
-                  <Badge>{titleCase(session.platform)}</Badge>
-                  <strong>{session.room}</strong>
-                  <span>
-                    {session.thread ? `Thread ${session.thread}` : "Root route"}
-                  </span>
-                  <small>
-                    {session.agentSession
-                      ? `Agent: ${session.agentSession}`
-                      : "Agent session not recorded"}
-                  </small>
-                  <time dateTime={session.updatedAt}>
-                    {displayTimestamp(session.updatedAt)}
-                  </time>
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
+          ) : null}
+        </details>
       </div>
 
       <GatewayPairingPanel

@@ -23,4 +23,13 @@ describe("GatewayPage density", () => {
     expect(pairingSource).toContain("approved.length} approved");
     expect(css).toContain(".pairing-panel > summary {");
   });
+
+  it("keeps thread routes in an independently loaded disclosure", () => {
+    expect(source).toContain(
+      'resourcePolicy.routes ? "/sessions/gateway" : null',
+    );
+    expect(source).toContain('className="panel gateway-session-panel"');
+    expect(source).toContain("Open to load");
+    expect(css).toContain(".gateway-session-panel > summary {");
+  });
 });

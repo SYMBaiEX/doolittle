@@ -4,7 +4,7 @@
 
 .gateway-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(250px, 340px);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-items: start;
 }
@@ -301,6 +301,56 @@
 .pairing-actions .danger-button {
   min-height: 29px;
   font-size: 11px;
+}
+
+.gateway-session-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.gateway-session-panel > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.gateway-session-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.gateway-session-panel > summary > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gateway-session-panel > summary > span:last-child,
+.gateway-session-panel > summary small {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+}
+
+.gateway-session-panel > summary::after {
+  color: var(--accent);
+  content: "+";
+  font-family: var(--font-mono);
+}
+
+.gateway-session-panel[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.gateway-session-panel[open] > summary::after {
+  content: "−";
+}
+
+.gateway-session-body {
+  padding: 0 14px 14px;
 }
 
 @media (max-width: 1060px) {

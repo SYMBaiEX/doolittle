@@ -116,17 +116,20 @@ describe("gateway page timeline model", () => {
   });
 
   it("defers pairing records until the approval drawer is opened", () => {
-    expect(gatewayResourcePolicy(true, false)).toEqual({
+    expect(gatewayResourcePolicy(true, false, false)).toEqual({
       primary: true,
       pairing: false,
+      routes: false,
     });
-    expect(gatewayResourcePolicy(true, true)).toEqual({
+    expect(gatewayResourcePolicy(true, true, true)).toEqual({
       primary: true,
       pairing: true,
+      routes: true,
     });
-    expect(gatewayResourcePolicy(false, true)).toEqual({
+    expect(gatewayResourcePolicy(false, true, true)).toEqual({
       primary: false,
       pairing: false,
+      routes: false,
     });
   });
 });
