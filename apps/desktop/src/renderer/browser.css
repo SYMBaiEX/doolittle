@@ -326,6 +326,12 @@
   font-style: normal;
 }
 
+.browser-actions .browser-action-analyze {
+  grid-column: 1 / -1;
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface-soft));
+  border-color: var(--accent-border);
+}
+
 .browser-compare {
   border-bottom: 1px solid var(--border);
 }

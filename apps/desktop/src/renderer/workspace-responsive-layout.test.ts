@@ -48,5 +48,8 @@ describe("workspace responsive layout contracts", () => {
     expect(browserCss).toMatch(
       /\.browser-actions\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/u,
     );
+    expect(browserCss).toMatch(
+      /\.browser-actions \.browser-action-analyze\s*\{[^}]*grid-column:\s*1 \/ -1;/u,
+    );
   });
 });
