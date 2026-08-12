@@ -1,10 +1,7 @@
 import type { RepositoryMutationRequest } from "@doolittle/contracts/repository";
-import type { FormEvent } from "react";
+import { type FormEvent, lazy, Suspense } from "react";
 import type { CodeLanguage } from "../code-language";
-import {
-  CodeEditor,
-  type CodeEditorStateSnapshot,
-} from "../components/CodeEditor";
+import type { CodeEditorStateSnapshot } from "../components/CodeEditor";
 import type {
   DesktopAcpPhase,
   DesktopAcpPromptPhase,
@@ -20,6 +17,11 @@ import type {
 } from "./models";
 import { fileName, patchLines, statusLabel } from "./models";
 import { PaneTabs } from "./PaneTabs";
+
+const CodeEditor = lazy(async () => {
+  const module = await import("../components/CodeEditor");
+  return { default: module.CodeEditor };
+});
 
 type VisiblePatchMutation = Extract<
   RepositoryMutationRequest["type"],
@@ -227,16 +229,24 @@ export function CodingWorkspaceEditor({
                   {fileNotice.message}
                 </div>
               ) : null}
-              <CodeEditor
-                disabled={savingFile}
-                language={selectedLanguage}
-                onChange={onDraftChange}
-                onEditorStateChange={onEditorStateChange}
-                onSave={onSave}
-                path={selectedPath}
-                value={draftContent}
-                workspacePath={workspacePath}
-              />
+              <Suspense
+                fallback={
+                  <LoadingBlock
+                    label={`Loading editor ${fileName(selectedPath)}…`}
+                  />
+                }
+              >
+                <CodeEditor
+                  disabled={savingFile}
+                  language={selectedLanguage}
+                  onChange={onDraftChange}
+                  onEditorStateChange={onEditorStateChange}
+                  onSave={onSave}
+                  path={selectedPath}
+                  value={draftContent}
+                  workspacePath={workspacePath}
+                />
+              </Suspense>
             </>
           )
         ) : !selectedChange ? (

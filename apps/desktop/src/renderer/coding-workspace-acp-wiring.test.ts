@@ -7,9 +7,16 @@ import {
   CodingWorkspaceEditor,
 } from "./coding-workspace/CodingWorkspaceEditor";
 
-vi.mock("./components/CodeEditor", () => ({
-  CodeEditor: () => null,
-}));
+const codeEditorModule = vi.hoisted(() => vi.fn());
+
+vi.mock("./components/CodeEditor", async () => {
+  codeEditorModule();
+  const { createElement } = await import("react");
+  return {
+    CodeEditor: ({ path }: { path: string }) =>
+      createElement("div", { "data-code-editor-path": path }),
+  };
+});
 
 const acpEditor: CodingWorkspaceAcpViewModel = {
   cancel: vi.fn().mockResolvedValue(undefined),
@@ -88,5 +95,60 @@ describe("Code workspace ACP task wiring", () => {
     );
     expect(markup).toContain(">ACP task</button>");
     expect(markup).toContain(">Ask Doolittle</button>");
+    expect(codeEditorModule).not.toHaveBeenCalled();
+  });
+
+  it("loads the editor only after the selected file is ready", async () => {
+    const readyFile = {
+      acpEditor,
+      acpTaskDraft: "",
+      acpTaskOpen: false,
+      draftContent: "export {};",
+      editorPane: "file" as const,
+      fileDirty: false,
+      fileNotice: null,
+      fileResource: {
+        data: { content: "export {};", path: "src/index.ts" },
+        error: "",
+        loading: false,
+        reload: vi.fn(),
+      },
+      onAcpTaskDraftChange: vi.fn(),
+      onAcpTaskOpenChange: vi.fn(),
+      onDiscard: vi.fn(),
+      onDraftChange: vi.fn(),
+      onEditorPaneChange: vi.fn(),
+      onEditorStateChange: vi.fn(),
+      onMutateVisiblePatch: vi.fn(),
+      onSave: vi.fn(),
+      onSendSelectedContext: vi.fn(),
+      onSetStagedPatch: vi.fn(),
+      onSubmitAcpTask: vi.fn(),
+      patchResource: {
+        data: null,
+        error: "",
+        loading: false,
+        reload: vi.fn(),
+      },
+      savingFile: false,
+      selectedChange: undefined,
+      selectedLanguage: { id: "typescript", label: "TypeScript" },
+      selectedPath: "src/index.ts",
+      stagedPatch: false,
+      workspacePath: "/work/doolittle",
+    };
+
+    const loadingMarkup = renderToStaticMarkup(
+      createElement(CodingWorkspaceEditor, readyFile),
+    );
+    expect(loadingMarkup).toContain("Loading editor index.ts…");
+    expect(loadingMarkup).toContain('role="status"');
+
+    await vi.dynamicImportSettled();
+    const markup = renderToStaticMarkup(
+      createElement(CodingWorkspaceEditor, readyFile),
+    );
+    expect(markup).toContain('data-code-editor-path="src/index.ts"');
+    expect(codeEditorModule).toHaveBeenCalledTimes(1);
   });
 });
