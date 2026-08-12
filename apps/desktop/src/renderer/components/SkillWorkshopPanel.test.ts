@@ -1,4 +1,7 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { SkillWorkshopPanel } from "./SkillWorkshopPanel";
 import {
   normalizeProposal,
   normalizeProposalStatus,
@@ -7,6 +10,17 @@ import {
 } from "./skill-workshop-model";
 
 describe("skill workshop helpers", () => {
+  it("uses one quiet pressed-state control for each proposal filter", () => {
+    const markup = renderToStaticMarkup(
+      createElement(SkillWorkshopPanel, { active: true }),
+    );
+
+    expect(markup.match(/aria-pressed=/gu)).toHaveLength(4);
+    expect(markup).toContain("skill-workshop-filter-chip is-selected");
+    expect(markup.match(/aria-pressed="true"/gu)).toHaveLength(1);
+    expect(markup).not.toContain("Review before activation</h2>");
+  });
+
   it("normalizes proposal statuses", () => {
     expect(normalizeProposalStatus("pending")).toBe("pending");
     expect(normalizeProposalStatus("approved")).toBe("approved");

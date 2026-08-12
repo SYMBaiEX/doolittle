@@ -167,16 +167,6 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
 
   return (
     <section className="skill-workshop">
-      <header className="skill-workshop-header">
-        <div>
-          <span className="eyebrow">Proposal review</span>
-          <h2>Review before activation</h2>
-          <p>
-            Inspect generated SKILL.md payloads and their safety results before
-            they enter the workspace.
-          </p>
-        </div>
-      </header>
       {creatingMessage ? <Notice tone="good">{creatingMessage}</Notice> : null}
       <CompactStatStrip
         label="Skill proposal summary"
@@ -251,11 +241,12 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
           {(["all", "pending", "approved", "rejected"] as const).map(
             (value) => (
               <button
+                aria-pressed={filter === value}
                 key={value}
                 type="button"
-                className={
-                  filter === value ? "secondary-button" : "primary-button"
-                }
+                className={`skill-workshop-filter-chip ${
+                  filter === value ? "is-selected" : ""
+                }`}
                 onClick={() => setFilter(value)}
               >
                 {value}

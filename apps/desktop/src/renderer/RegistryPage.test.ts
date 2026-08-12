@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   normalizeRegistryEntries,
+  REGISTRY_INSTALL_CAVEAT,
   registryCatalogPresentation,
+  registryResultLabel,
 } from "./RegistryPage";
 
 describe("normalizeRegistryEntries", () => {
@@ -72,5 +74,40 @@ describe("normalizeRegistryEntries", () => {
       status: "Restricted",
       tone: "neutral",
     });
+  });
+
+  it("lets the install action carry ordinary eligibility without another badge", () => {
+    expect(
+      registryCatalogPresentation({
+        name: "@example/plugin-one",
+        packageName: "@example/plugin-one",
+        description: "Example",
+        version: "1.0.0",
+        repository: "",
+        support: "community",
+        trust: "community",
+        installed: false,
+        installable: true,
+        reasons: [],
+        integrityVerified: false,
+      }),
+    ).toMatchObject({
+      eyebrow: undefined,
+      status: undefined,
+      tone: undefined,
+    });
+    expect(REGISTRY_INSTALL_CAVEAT).toContain("unreported by this SDK");
+  });
+
+  it("announces registry failures instead of presenting them as empty results", () => {
+    expect(
+      registryResultLabel({ count: 0, error: "offline", loading: false }),
+    ).toBe("Unavailable");
+    expect(registryResultLabel({ count: 0, error: "", loading: true })).toBe(
+      "Searching…",
+    );
+    expect(registryResultLabel({ count: 12, error: "", loading: false })).toBe(
+      "12 results",
+    );
   });
 });

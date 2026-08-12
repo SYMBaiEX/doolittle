@@ -3,24 +3,6 @@
   gap: 12px;
 }
 
-.skill-workshop-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: end;
-}
-
-.skill-workshop-header h2 {
-  margin: 3px 0 0;
-  font-size: 1.08rem;
-}
-
-.skill-workshop-header p {
-  max-width: 68ch;
-  margin: 4px 0 0;
-  color: var(--text-soft);
-}
-
 .skill-workshop-form {
   display: grid;
   gap: 12px;
@@ -101,12 +83,24 @@
   padding: 0;
 }
 
-.skill-workshop-filter-chips .secondary-button,
-.skill-workshop-filter-chips .primary-button {
-  min-width: 94px;
+.skill-workshop-filter-chip {
+  min-height: 28px;
+  padding: 0 10px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  text-transform: capitalize;
 }
 
-.skill-workshop-filter-chips .secondary-button {
+.skill-workshop-filter-chip:hover,
+.skill-workshop-filter-chip:focus-visible,
+.skill-workshop-filter-chip.is-selected {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
 }
 

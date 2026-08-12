@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import { CompactCatalogList } from "./components/CompactCatalogList";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
@@ -18,6 +19,7 @@ import {
   useDebouncedValue,
 } from "./lib";
 import "./registry.css";
+import "./catalog-pages.css";
 
 export interface RegistryEntry {
   name: string;
@@ -33,18 +35,35 @@ export interface RegistryEntry {
   integrityVerified: boolean;
 }
 
+export const REGISTRY_INSTALL_CAVEAT =
+  "Eliza installer · integrity and fallback source unreported by this SDK.";
+
+export function registryResultLabel({
+  count,
+  error,
+  loading,
+}: {
+  count: number;
+  error: string;
+  loading: boolean;
+}): string {
+  if (loading) return "Searching…";
+  if (error) return "Unavailable";
+  return `${count} results`;
+}
+
 export function registryCatalogPresentation(entry: RegistryEntry) {
   return {
     eyebrow: entry.support === "community" ? undefined : entry.support,
     status: entry.installed
       ? "Installed"
       : entry.installable
-        ? "Eligible"
+        ? undefined
         : "Restricted",
     tone: entry.installed
       ? ("good" as const)
       : entry.installable
-        ? ("neutral" as const)
+        ? undefined
         : ("neutral" as const),
     code: entry.packageName === entry.name ? undefined : entry.packageName,
     meta: `${entry.version} · ${entry.trust}`,
@@ -183,24 +202,27 @@ export function RegistryPage({ active }: { active: boolean }) {
     ],
     action: entry.installable ? (
       pendingInstall === entry.name ? (
-        <>
-          <button
-            className="primary-button"
-            disabled={installing}
-            onClick={() => void install(entry)}
-            type="button"
-          >
-            {installing ? "Installing…" : `Approve ${entry.version}`}
-          </button>
-          <button
-            className="text-button"
-            disabled={installing}
-            onClick={() => setPendingInstall("")}
-            type="button"
-          >
-            Cancel
-          </button>
-        </>
+        <div className="registry-install-review">
+          <span>{REGISTRY_INSTALL_CAVEAT}</span>
+          <div className="registry-install-review__actions">
+            <button
+              className="primary-button"
+              disabled={installing}
+              onClick={() => void install(entry)}
+              type="button"
+            >
+              {installing ? "Installing…" : `Approve ${entry.version}`}
+            </button>
+            <button
+              className="text-button"
+              disabled={installing}
+              onClick={() => setPendingInstall("")}
+              type="button"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       ) : (
         <button
           className="secondary-button"
@@ -221,7 +243,7 @@ export function RegistryPage({ active }: { active: boolean }) {
       <PageHeader
         eyebrow="Runtime"
         title="Plugin registry"
-        description="Search Eliza's registry, inspect provenance, and explicitly approve policy-eligible installs."
+        description="Search Eliza plugins, review provenance, and approve eligible installs."
         actions={
           <button
             className="text-button"
@@ -234,17 +256,17 @@ export function RegistryPage({ active }: { active: boolean }) {
         }
       />
       {active ? (
-        <div className="filter-bar">
-          <label className="search-field grow">
-            <span className="sr-only">Search the plugin registry</span>
-            <input
-              placeholder="Search by plugin name"
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
-        </div>
+        <CatalogFilterBar
+          onQueryChange={setQuery}
+          placeholder="Search plugins"
+          query={query}
+          resultLabel={registryResultLabel({
+            count: entries.length,
+            error: registry.error,
+            loading: registry.loading,
+          })}
+          searchLabel="Search the plugin registry"
+        />
       ) : null}
       {!active ? (
         <OfflineRouteState>
@@ -271,6 +293,7 @@ export function RegistryPage({ active }: { active: boolean }) {
         </>
       ) : (
         <EmptyBlock
+          density="compact"
           title="No registry entries"
           actions={
             <button
@@ -285,13 +308,6 @@ export function RegistryPage({ active }: { active: boolean }) {
           No registry rows returned for this query.
         </EmptyBlock>
       )}
-      {active && pendingInstall ? (
-        <Notice tone="warn">
-          Approval requests the reviewed registry version through Eliza's
-          official installer. The installed beta SDK does not report an npm
-          integrity digest or whether it fell back to a repository source.
-        </Notice>
-      ) : null}
       {active && installNotice ? (
         <Notice
           tone={installNotice.startsWith("Install failed") ? "bad" : "good"}

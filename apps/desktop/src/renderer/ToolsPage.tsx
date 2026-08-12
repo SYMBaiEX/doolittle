@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AcpBridgePanel } from "./components/AcpBridgePanel";
+import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import {
   CompactCatalogList,
   catalogExceptionStatus,
@@ -20,6 +21,7 @@ import {
   useApiResource,
 } from "./lib";
 import "./agent-pages.css";
+import "./catalog-pages.css";
 
 interface ToolsResponse {
   tools?: unknown[];
@@ -52,7 +54,7 @@ export function ToolsPage({ active }: { active: boolean }) {
   const [category, setCategory] = useState("all");
   if (!active) {
     return (
-      <div className="page">
+      <div className="page page-tools">
         <PageHeader
           actions={
             <button
@@ -64,7 +66,7 @@ export function ToolsPage({ active }: { active: boolean }) {
               Refresh
             </button>
           }
-          description="Search the capabilities available to this runtime."
+          description="Search runtime capabilities and inspect integration bridges."
           eyebrow="Agent"
           title="Tools"
         />
@@ -132,11 +134,11 @@ export function ToolsPage({ active }: { active: boolean }) {
   const totals = tools.data?.summary ?? {};
 
   return (
-    <div className="page">
+    <div className="page page-tools">
       <PageHeader
         eyebrow="Agent"
         title="Tools"
-        description="Search the capabilities available to this runtime."
+        description="Search runtime capabilities and inspect integration bridges."
         actions={
           <button
             className="secondary-button"
@@ -182,7 +184,7 @@ export function ToolsPage({ active }: { active: boolean }) {
         <summary>
           <span>
             <strong>Integration bridges</strong>
-            <small>MCP discovery and ACP diagnostics</small>
+            <small>MCP + ACP diagnostics</small>
           </span>
           <span>{integrationsOpen ? "Hide" : "Inspect"}</span>
         </summary>
@@ -193,16 +195,19 @@ export function ToolsPage({ active }: { active: boolean }) {
           </div>
         ) : null}
       </details>
-      <div className="filter-bar">
-        <label className="search-field">
-          <span className="sr-only">Search tools</span>
-          <input
-            placeholder="Search tools"
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
+      <CatalogFilterBar
+        onQueryChange={setQuery}
+        placeholder="Search tools"
+        query={query}
+        resultLabel={
+          tools.loading
+            ? "Loading…"
+            : tools.error
+              ? "Unavailable"
+              : `${filtered.length} of ${entries.length}`
+        }
+        searchLabel="Search tools"
+      >
         <select
           aria-label="Tool category"
           value={category}
@@ -225,7 +230,7 @@ export function ToolsPage({ active }: { active: boolean }) {
             </option>
           ))}
         </select>
-      </div>
+      </CatalogFilterBar>
       {tools.loading ? (
         <LoadingBlock label="Reading tool registry…" />
       ) : tools.error ? (
@@ -237,7 +242,7 @@ export function ToolsPage({ active }: { active: boolean }) {
           resetKey={`${profile}:${category}:${query.trim().toLowerCase()}`}
         />
       ) : (
-        <EmptyBlock title="No tools match">
+        <EmptyBlock density="compact" title="No tools match">
           Change the search or category filter.
         </EmptyBlock>
       )}
