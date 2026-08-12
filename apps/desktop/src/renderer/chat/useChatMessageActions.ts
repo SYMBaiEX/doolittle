@@ -32,16 +32,17 @@ export function useChatMessageActions(): ChatMessageActionsState {
   );
 
   const copyMessage = useCallback(async (id: string, value: string) => {
+    let state: CopyState = "copied";
     if (!value || !navigator.clipboard?.writeText) {
-      setCopyStates((current) => ({ ...current, [id]: "failed" }));
-      return;
+      state = "failed";
+    } else {
+      try {
+        await navigator.clipboard.writeText(value);
+      } catch {
+        state = "failed";
+      }
     }
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopyStates((current) => ({ ...current, [id]: "copied" }));
-    } catch {
-      setCopyStates((current) => ({ ...current, [id]: "failed" }));
-    }
+    setCopyStates((current) => ({ ...current, [id]: state }));
     const priorTimeout = copyTimeoutsRef.current.get(id);
     if (priorTimeout !== undefined) window.clearTimeout(priorTimeout);
     const timeout = window.setTimeout(() => {

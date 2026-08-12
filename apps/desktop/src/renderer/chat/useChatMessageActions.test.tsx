@@ -95,6 +95,8 @@ describe("useChatMessageActions", () => {
     });
     expect(writeText).not.toHaveBeenCalled();
     expect(latest?.copyStates).toEqual({ "message-2": "failed" });
+    act(() => vi.advanceTimersByTime(1_500));
+    expect(latest?.copyStates).toEqual({});
   });
 
   it("reads completed assistant messages and clears the active item", () => {
