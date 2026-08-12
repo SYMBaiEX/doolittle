@@ -43,6 +43,7 @@ const visualAuditRoutes = new Set([
   "operatorSetup",
   "docs",
   "settings",
+  "tools",
 ]);
 
 test.describe("Doolittle desktop navigation", () => {
@@ -1106,6 +1107,14 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(page.locator(".acp-bridge-summary")).toContainText(
         "Registered tools",
       );
+      const mcpMarketplace = page.locator(".mcp-control-marketplace");
+      const mcpToolBrowser = page.locator(".mcp-control-browser");
+      await expect(mcpMarketplace).not.toHaveAttribute("open");
+      await expect(mcpToolBrowser).toHaveAttribute("open", "");
+      await mcpMarketplace.locator("summary").click();
+      await expect(mcpMarketplace).toHaveAttribute("open", "");
+      await mcpMarketplace.locator("summary").click();
+      await expect(mcpMarketplace).not.toHaveAttribute("open");
       await page
         .getByRole("textbox", { name: "Search ACP bridge tools" })
         .fill("workspace");
