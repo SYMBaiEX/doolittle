@@ -4,7 +4,28 @@
 }
 
 .models-workspace {
-  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.55fr);
+  gap: 9px;
+}
+
+.view-models > .page,
+.settings-model-section {
+  gap: 10px;
+}
+
+.view-models .page-header {
+  min-height: 74px;
+  padding-bottom: 12px;
+}
+
+.models-workspace > .form-card {
+  padding: 11px 12px;
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.models-workspace > .form-card > .field-grid {
+  gap: 8px 10px;
 }
 
 .models-diagnostics {
@@ -61,6 +82,52 @@
 
 .model-diagnostic__body {
   padding: 0 12px 8px;
+}
+
+.model-tuning {
+  margin-top: 9px;
+  overflow: hidden;
+  border-block: 1px solid var(--line-subtle);
+}
+
+.model-tuning > summary {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 1px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.model-tuning > summary::-webkit-details-marker {
+  display: none;
+}
+
+.model-tuning > summary > span:first-child {
+  display: grid;
+  gap: 1px;
+}
+
+.model-tuning :where(summary > span > strong) {
+  color: var(--text);
+  font-size: var(--text-control);
+}
+
+.model-tuning :where(summary > span > small) {
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+
+.model-tuning__body {
+  padding: 8px 0 10px;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.models-workspace > .form-card > .form-actions {
+  margin-top: 9px;
+  padding-top: 8px;
 }
 
 @media (max-width: 960px) {

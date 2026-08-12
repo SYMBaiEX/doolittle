@@ -85,6 +85,7 @@ export function ModelsPage({
   embedded?: boolean;
 }) {
   const [readinessOpen, setReadinessOpen] = useState(false);
+  const [tuningOpen, setTuningOpen] = useState(false);
   const [liveDiscovery, setLiveDiscovery] = useState(false);
   const resourcePolicy = modelRequests({ active, readinessOpen });
   const settings = useApiResource<SettingsResponse>(
@@ -197,10 +198,7 @@ export function ModelsPage({
           <div>
             <span className="eyebrow">Inference</span>
             <h2>Provider & model</h2>
-            <p>
-              Choose from live provider catalogs. Changes apply to the next
-              turn, including inside an existing conversation.
-            </p>
+            <p>Choose the provider and model used by the next turn.</p>
           </div>
           <div className="row-actions">
             {active && runtime ? (
@@ -222,7 +220,7 @@ export function ModelsPage({
         <PageHeader
           eyebrow="Agent"
           title="Models"
-          description="Choose the provider and model Doolittle uses for new work, with local-first defaults."
+          description="Choose the provider and model used by the next turn."
           actions={
             <div className="row-actions">
               {active && runtime ? (
@@ -325,92 +323,107 @@ export function ModelsPage({
                 ) : null}
                 {models.error ? <small>{models.error}</small> : null}
               </label>
-              {reasoningOptions.length ? (
-                <label>
-                  <span>Reasoning effort</span>
-                  <select
+            </div>
+            <details
+              className="model-tuning"
+              onToggle={(event) => setTuningOpen(event.currentTarget.open)}
+              open={tuningOpen}
+            >
+              <summary>
+                <span>
+                  <strong>Generation controls</strong>
+                  <small>Reasoning, endpoint, temperature, and output</small>
+                </span>
+                <Badge>{tuningOpen ? "Open" : "Advanced"}</Badge>
+              </summary>
+              <div className="field-grid model-tuning__body">
+                {reasoningOptions.length ? (
+                  <label>
+                    <span>Reasoning effort</span>
+                    <select
+                      value={fieldValue(
+                        "reasoningEffort",
+                        model?.reasoningEffort ??
+                          selectedModel?.reasoning?.default ??
+                          "",
+                      )}
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          reasoningEffort: event.target.value,
+                        }))
+                      }
+                    >
+                      {reasoningOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <small>
+                      {
+                        reasoningOptions.find(
+                          (option) =>
+                            option.id ===
+                            fieldValue(
+                              "reasoningEffort",
+                              model?.reasoningEffort ??
+                                selectedModel?.reasoning?.default,
+                            ),
+                        )?.description
+                      }
+                    </small>
+                  </label>
+                ) : null}
+                <label className="field-span">
+                  <span>Base URL</span>
+                  <input
                     value={fieldValue(
-                      "reasoningEffort",
-                      model?.reasoningEffort ??
-                        selectedModel?.reasoning?.default ??
-                        "",
+                      "baseUrl",
+                      selectedProvider?.baseUrl ?? model?.baseUrl,
                     )}
                     onChange={(event) =>
                       setDraft((current) => ({
                         ...current,
-                        reasoningEffort: event.target.value,
+                        baseUrl: event.target.value,
                       }))
                     }
-                  >
-                    {reasoningOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <small>
-                    {
-                      reasoningOptions.find(
-                        (option) =>
-                          option.id ===
-                          fieldValue(
-                            "reasoningEffort",
-                            model?.reasoningEffort ??
-                              selectedModel?.reasoning?.default,
-                          ),
-                      )?.description
-                    }
-                  </small>
+                    placeholder="http://127.0.0.1:11434/v1"
+                  />
                 </label>
-              ) : null}
-              <label className="field-span">
-                <span>Base URL</span>
-                <input
-                  value={fieldValue(
-                    "baseUrl",
-                    selectedProvider?.baseUrl ?? model?.baseUrl,
-                  )}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      baseUrl: event.target.value,
-                    }))
-                  }
-                  placeholder="http://127.0.0.1:11434/v1"
-                />
-              </label>
-              <label>
-                <span>Temperature</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="2"
-                  step="0.05"
-                  value={fieldValue("temperature", model?.temperature)}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      temperature: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label>
-                <span>Maximum tokens</span>
-                <input
-                  type="number"
-                  min="128"
-                  step="128"
-                  value={fieldValue("maxTokens", model?.maxTokens)}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      maxTokens: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-            </div>
+                <label>
+                  <span>Temperature</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="2"
+                    step="0.05"
+                    value={fieldValue("temperature", model?.temperature)}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        temperature: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Maximum tokens</span>
+                  <input
+                    type="number"
+                    min="128"
+                    step="128"
+                    value={fieldValue("maxTokens", model?.maxTokens)}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        maxTokens: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+            </details>
             {feedback ? (
               <Notice tone={feedback.tone}>{feedback.message}</Notice>
             ) : null}

@@ -1,11 +1,6 @@
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@elizaos/ui/components/ui/tabs";
+import { Tabs, TabsContent } from "@elizaos/ui/components/ui/tabs";
 import { useState } from "react";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { PageHeader, useApiResource } from "./lib";
@@ -18,14 +13,33 @@ import {
   memoryResourcePolicy,
   type ProfileSummaryResponse,
 } from "./memory/models";
+import { RuntimeSectionNav } from "./runtime-state/RuntimeSectionNav";
+import "./memory-page.css";
 
 const MEMORY_SECTIONS: Array<{
+  detail: string;
   id: MemorySection;
   label: string;
+  refreshLabel: string;
 }> = [
-  { id: "shared", label: "Shared memory" },
-  { id: "user", label: "User memory" },
-  { id: "profiles", label: "Profiles & recall" },
+  {
+    detail: "Conversation knowledge available across the workspace",
+    id: "shared",
+    label: "Shared",
+    refreshLabel: "shared",
+  },
+  {
+    detail: "Saved operator details for the current desktop user",
+    id: "user",
+    label: "User",
+    refreshLabel: "user",
+  },
+  {
+    detail: "Profile inventory, agent card, and bounded recall",
+    id: "profiles",
+    label: "Profiles & recall",
+    refreshLabel: "profiles",
+  },
 ];
 
 export function MemoryPage({ active }: { active: boolean }) {
@@ -97,10 +111,13 @@ export function MemoryPage({ active }: { active: boolean }) {
             variant="secondary"
           >
             Refresh{" "}
-            {MEMORY_SECTIONS.find((entry) => entry.id === section)?.label}
+            {
+              MEMORY_SECTIONS.find((entry) => entry.id === section)
+                ?.refreshLabel
+            }
           </Button>
         }
-        description="Inspect one bounded memory target at a time, then move to profile recall only when you need operator context."
+        description="Inspect shared knowledge, saved operator details, and bounded profile recall."
         eyebrow="Operator Workspace"
         title="Memory"
       />
@@ -109,17 +126,10 @@ export function MemoryPage({ active }: { active: boolean }) {
         onValueChange={(value) => setSection(value as MemorySection)}
         value={section}
       >
-        <TabsList aria-label="Memory workspaces" className="memory-tabs">
-          {MEMORY_SECTIONS.map((entry) => (
-            <TabsTrigger
-              className="text-button"
-              key={entry.id}
-              value={entry.id}
-            >
-              {entry.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <RuntimeSectionNav
+          ariaLabel="Memory workspaces"
+          sections={MEMORY_SECTIONS}
+        />
 
         <TabsContent aria-live="polite" value="shared">
           <MemorySnapshotPanel

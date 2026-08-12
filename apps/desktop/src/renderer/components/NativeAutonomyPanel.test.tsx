@@ -31,6 +31,7 @@ describe("NativeAutonomyPanel", () => {
     });
 
     expect(markup).toContain("Autonomy loop");
+    expect(markup).toContain("runtime-autonomy-panel");
     expect(markup).toContain("Off");
     expect(markup).toContain("Enable native autonomy");
     expect(markup).toContain("30 seconds");

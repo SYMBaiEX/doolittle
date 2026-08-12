@@ -62,7 +62,7 @@ export function NativeAutonomyPanel({
   }
 
   return (
-    <section className="content-card">
+    <section className="content-card runtime-autonomy-panel">
       <div className="card-heading">
         <div>
           <span className="eyebrow">Eliza native</span>

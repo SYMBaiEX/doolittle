@@ -1,11 +1,6 @@
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@elizaos/ui/components/ui/tabs";
+import { Tabs, TabsContent } from "@elizaos/ui/components/ui/tabs";
 import { useState } from "react";
 import type {
   AccountPoolResponse,
@@ -24,6 +19,7 @@ import {
 import { RuntimeGateway } from "./runtime/RuntimeGateway";
 import { RuntimeInventory } from "./runtime/RuntimeInventory";
 import { RuntimeOverview } from "./runtime/RuntimeOverview";
+import { RuntimeSectionNav } from "./runtime-state/RuntimeSectionNav";
 import "./runtime-page.css";
 
 const RUNTIME_SECTIONS: Array<{
@@ -96,7 +92,7 @@ export function RuntimePage({
         <PageHeader
           eyebrow="Runtime"
           title="Runtime"
-          description="Inspect the active model, Eliza-native services, gateway health, and installed capability inventory without loading every diagnostic surface at once."
+          description="Inspect model binding, Eliza services, gateway health, and capability inventory."
           actions={
             <Button
               className="text-button"
@@ -122,7 +118,7 @@ export function RuntimePage({
       <PageHeader
         eyebrow="Runtime"
         title="Runtime"
-        description="Inspect the active model, Eliza-native services, gateway health, and installed capability inventory without loading every diagnostic surface at once."
+        description="Inspect model binding, Eliza services, gateway health, and capability inventory."
         actions={
           <Button
             className="text-button"
@@ -142,18 +138,10 @@ export function RuntimePage({
         onValueChange={(value) => setSection(value as RuntimeSection)}
         value={section}
       >
-        <TabsList aria-label="Runtime sections" className="runtime-tabs-list">
-          {RUNTIME_SECTIONS.map((entry) => (
-            <TabsTrigger
-              className="runtime-tab"
-              key={entry.id}
-              value={entry.id}
-            >
-              <span>{entry.label}</span>
-              <small>{entry.detail}</small>
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <RuntimeSectionNav
+          ariaLabel="Runtime sections"
+          sections={RUNTIME_SECTIONS}
+        />
 
         <TabsContent className="runtime-panel" value="overview">
           <RuntimeOverview

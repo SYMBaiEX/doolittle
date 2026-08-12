@@ -1,0 +1,86 @@
+.memory-page {
+  width: min(100%, 1420px);
+  gap: 10px;
+}
+
+.memory-page .page-header {
+  min-height: 74px;
+  padding-bottom: 12px;
+}
+
+.memory-workspace {
+  display: grid;
+  min-height: 0;
+  gap: 10px;
+  align-content: start;
+}
+
+.memory-page .memory-content {
+  gap: 9px;
+}
+
+.memory-page .memory-summary-card {
+  min-width: 0;
+  padding: 11px 12px;
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.memory-page .memory-empty-card {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.5fr) minmax(0, 1.5fr);
+  gap: 8px 12px;
+  align-items: stretch;
+}
+
+.memory-page .memory-empty-card > .card-heading {
+  min-height: 0;
+  margin: 0;
+  padding-right: 12px;
+  border-right: 1px solid var(--line-subtle);
+}
+
+.memory-page .memory-empty-card > .compact-stat-strip {
+  align-self: stretch;
+  border: 0;
+}
+
+.memory-page
+  .memory-empty-card
+  > .compact-stat-strip
+  .compact-stat-strip__item {
+  min-height: 46px;
+  padding-block: 7px;
+}
+
+.memory-page .memory-empty-state {
+  grid-column: 1 / -1;
+  min-height: 30px;
+  margin-top: 0;
+  padding-top: 8px;
+}
+
+.memory-page .memory-recall-form {
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.memory-page .memory-match-list li {
+  padding-block: 7px;
+}
+
+@media (max-width: 760px) {
+  .memory-page .memory-empty-card {
+    grid-template-columns: 1fr;
+  }
+
+  .memory-page .memory-empty-card > .card-heading {
+    padding-right: 0;
+    border-right: 0;
+  }
+
+  .memory-page .memory-empty-card > .compact-stat-strip,
+  .memory-page .memory-empty-state {
+    grid-column: auto;
+  }
+}

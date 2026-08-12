@@ -1,62 +1,17 @@
 .runtime-page {
   width: min(100%, 1420px);
-  gap: 12px;
+  gap: 10px;
+}
+
+.runtime-page .page-header {
+  min-height: 74px;
+  padding-bottom: 12px;
 }
 
 .runtime-tabs {
   display: grid;
   min-height: 0;
   gap: 12px;
-}
-
-.runtime-tabs-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  padding: 0;
-  background: transparent;
-  border: 1px solid var(--line-subtle);
-  border-radius: 4px;
-}
-
-.runtime-tab {
-  display: grid;
-  min-width: 0;
-  min-height: 48px;
-  gap: 2px;
-  place-items: center;
-  padding: 7px 12px;
-  color: var(--muted);
-  background: var(--surface);
-  border: 0;
-  border-right: 1px solid var(--line-subtle);
-  border-radius: 0;
-  text-align: center;
-}
-
-.runtime-tab:last-child {
-  border-right: 0;
-}
-
-.runtime-tab[data-state="active"] {
-  color: var(--text);
-  background: color-mix(in srgb, var(--accent) 7%, var(--surface-raised));
-  box-shadow: inset 0 -2px var(--accent);
-}
-
-.runtime-tab span {
-  font-size: 11px;
-  font-weight: 760;
-}
-
-.runtime-tab small {
-  overflow: hidden;
-  color: var(--faint);
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.035em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .runtime-panel,
@@ -88,7 +43,7 @@
 
 .runtime-page .content-card {
   min-width: 0;
-  padding: 12px 13px;
+  padding: 11px 12px;
   border-radius: 4px;
   box-shadow: none;
 }
@@ -107,38 +62,62 @@
   border-radius: 0;
 }
 
+.runtime-page .runtime-autonomy-panel {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto;
+  gap: 8px 10px;
+  align-items: end;
+}
+
+.runtime-page .runtime-autonomy-panel > .card-heading,
+.runtime-page .runtime-autonomy-panel > .status-row,
+.runtime-page .runtime-autonomy-panel > .notice,
+.runtime-page .runtime-autonomy-panel > .loading-block {
+  grid-column: 1 / -1;
+}
+
+.runtime-page .runtime-autonomy-panel > .field-grid {
+  grid-template-columns: minmax(150px, 1fr);
+}
+
+.runtime-page .runtime-autonomy-panel > .button-row {
+  justify-content: flex-end;
+}
+
 @media (max-width: 1080px) {
   .runtime-overview-grid,
   .runtime-inventory-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .runtime-overview-grid > :last-child,
-  .runtime-inventory-grid > :last-child {
+  .runtime-page .runtime-autonomy-panel,
+  .runtime-page .runtime-inventory-grid > :last-child {
     grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 760px) {
-  .runtime-tabs-list,
   .runtime-overview-grid,
   .runtime-detail-grid,
   .runtime-inventory-grid {
     grid-template-columns: 1fr;
   }
 
-  .runtime-tab {
-    min-height: 40px;
-    border-right: 0;
-    border-bottom: 1px solid var(--line-subtle);
-  }
-
-  .runtime-tab:last-child {
-    border-bottom: 0;
-  }
-
-  .runtime-overview-grid > :last-child,
-  .runtime-inventory-grid > :last-child {
+  .runtime-page .runtime-autonomy-panel,
+  .runtime-page .runtime-inventory-grid > :last-child {
     grid-column: auto;
+  }
+
+  .runtime-page .runtime-autonomy-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .runtime-page .runtime-autonomy-panel > .field-grid,
+  .runtime-page .runtime-autonomy-panel > .button-row {
+    grid-column: 1;
+  }
+
+  .runtime-page .runtime-autonomy-panel > .button-row {
+    justify-content: flex-start;
   }
 }

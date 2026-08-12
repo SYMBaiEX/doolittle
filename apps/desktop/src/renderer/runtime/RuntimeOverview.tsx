@@ -102,8 +102,8 @@ export function RuntimeOverview({
               <div>
                 <strong>{enabledAccounts.length} enabled account(s)</strong>
                 <small>
-                  Applied to spawned build and research sessions, independently
-                  of this conversation model.
+                  Spawned build and research sessions; separate from this
+                  conversation.
                 </small>
               </div>
               <Badge tone={enabledAccounts.length ? "good" : "warn"}>
@@ -117,7 +117,7 @@ export function RuntimeOverview({
           <div className="card-heading">
             <div>
               <span className="eyebrow">Conversation binding</span>
-              <h2>Active provider model</h2>
+              <h2>Conversation model</h2>
             </div>
             <Badge>{asString(runtime.data?.provider, "Not set")}</Badge>
           </div>
