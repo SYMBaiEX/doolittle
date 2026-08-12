@@ -176,6 +176,10 @@
   gap: 16px;
 }
 
+.automation-workspace.is-empty {
+  width: min(100%, 1040px);
+}
+
 .automation-runs-panel {
   padding: 0;
   overflow: hidden;
