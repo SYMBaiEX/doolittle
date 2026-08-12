@@ -23,7 +23,6 @@ import { ChatComposer } from "./chat/ChatComposer";
 import { ChatTranscript } from "./chat/ChatTranscript";
 import {
   type BranchMode,
-  type CopyState,
   type DisplayMessage,
   isDesktopRunUpdate,
   MAX_MESSAGE_ATTACHMENT_BYTES,
@@ -33,6 +32,7 @@ import {
 } from "./chat/models";
 import { useChatComposerSupport } from "./chat/useChatComposerSupport";
 import { useChatConversationState } from "./chat/useChatConversationState";
+import { useChatMessageActions } from "./chat/useChatMessageActions";
 import { useModalFocusBoundary } from "./chat/useModalFocusBoundary";
 import type { ChatContextHandoff } from "./chat-context-handoff";
 import { visibleAssistantText } from "./components/message-output";
@@ -177,9 +177,7 @@ export function ChatPage({
       : "",
   );
   const [runReceipts, setRunReceipts] = useState<RunReceiptStore>({});
-  const [copyStates, setCopyStates] = useState<Record<string, CopyState>>({});
   const [forkingMessageId, setForkingMessageId] = useState("");
-  const [speakingMessageId, setSpeakingMessageId] = useState("");
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
   const [attachmentValidationError, setAttachmentValidationError] =
     useState("");
@@ -206,7 +204,6 @@ export function ChatPage({
   });
   const queueRef = useRef<HTMLDivElement>(null);
   const queueDispatchRef = useRef<string | null>(null);
-  const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const pendingBranchAttachments = useRef<{
     sessionId: string;
     attachments: ManagedAttachmentDescriptor[];
@@ -235,6 +232,14 @@ export function ChatPage({
     setDraft,
     setQueueAnnouncement,
   });
+  const {
+    copyMessage,
+    copyStates,
+    readMessage,
+    speakingMessageId,
+    speechSupported,
+    stopSpeaking,
+  } = useChatMessageActions();
 
   const insertChatContext = useCallback(
     (text: string) => {
@@ -256,14 +261,6 @@ export function ChatPage({
   useEffect(() => {
     saveConversationQueue(localStorage, queuedMessages);
   }, [queuedMessages]);
-
-  useEffect(
-    () => () => {
-      window.speechSynthesis?.cancel();
-      speechUtteranceRef.current = null;
-    },
-    [],
-  );
 
   useEffect(() => {
     localStorage.setItem(
@@ -440,68 +437,6 @@ export function ChatPage({
   });
 
   useEffect(() => window.doolittle.onChatEvent(handleChatEvent), []);
-
-  const copyMessage = async (id: string, value: string) => {
-    if (!value || !navigator.clipboard?.writeText) {
-      setCopyStates((current) => ({ ...current, [id]: "failed" }));
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopyStates((current) => ({ ...current, [id]: "copied" }));
-    } catch {
-      setCopyStates((current) => ({ ...current, [id]: "failed" }));
-    }
-    window.setTimeout(() => {
-      setCopyStates((current) => {
-        const next = { ...current };
-        if (Object.hasOwn(next, id)) {
-          delete next[id];
-        }
-        return next;
-      });
-    }, 1500);
-  };
-
-  const speechSupported =
-    "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
-
-  const stopSpeaking = useCallback(() => {
-    if (speechSupported) window.speechSynthesis.cancel();
-    speechUtteranceRef.current = null;
-    setSpeakingMessageId("");
-  }, [speechSupported]);
-
-  const readMessage = useCallback(
-    (message: DisplayMessage) => {
-      const readableContent =
-        message.role === "assistant"
-          ? visibleAssistantText(message.content)
-          : message.content;
-      if (
-        !speechSupported ||
-        message.role !== "assistant" ||
-        message.pending ||
-        message.error ||
-        !readableContent.trim()
-      ) {
-        return;
-      }
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(readableContent);
-      speechUtteranceRef.current = utterance;
-      setSpeakingMessageId(message.id);
-      const finish = () => {
-        if (speechUtteranceRef.current !== utterance) return;
-        speechUtteranceRef.current = null;
-        setSpeakingMessageId("");
-      };
-      utterance.onend = finish;
-      utterance.onerror = finish;
-      window.speechSynthesis.speak(utterance);
-    },
-    [speechSupported],
-  );
 
   const sendMessage = async (
     input: string,
