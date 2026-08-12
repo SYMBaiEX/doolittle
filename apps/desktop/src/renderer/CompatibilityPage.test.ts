@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { compatibilityCatalogEntries } from "./CompatibilityPage";
 
@@ -43,5 +44,16 @@ describe("compatibilityCatalogEntries", () => {
         status: "Unknown",
       }),
     ]);
+  });
+
+  it("keeps the no-checks state compact beside the raw report", () => {
+    const source = readFileSync(
+      new URL("./CompatibilityPage.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(source).toMatch(
+      /<EmptyBlock\s+density="compact"\s+title="No compatibility checks found"/u,
+    );
   });
 });

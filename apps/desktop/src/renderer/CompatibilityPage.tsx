@@ -85,6 +85,7 @@ export function CompatibilityPage({ active }: { active: boolean }) {
         />
       ) : (
         <EmptyBlock
+          density="compact"
           title="No compatibility checks found"
           actions={
             <button
