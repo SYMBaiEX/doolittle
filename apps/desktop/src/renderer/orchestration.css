@@ -350,6 +350,23 @@
   min-width: 0;
 }
 
+.orchestration-master-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 9px 2px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.orchestration-master-footer .secondary-button {
+  min-height: 26px;
+  padding: 4px 7px;
+  font-size: 9px;
+}
+
 .orchestration-master-item {
   display: grid;
   width: 100%;

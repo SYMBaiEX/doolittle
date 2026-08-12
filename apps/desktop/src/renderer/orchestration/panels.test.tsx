@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AgentRosterPanel } from "./AgentRosterPanel";
 import { PlanPanel } from "./PlanPanel";
 import { TaskCreateForm } from "./TaskCreateForm";
+import { TASK_QUEUE_PAGE_SIZE, TaskQueuePanel } from "./TaskQueuePanel";
 
 const resource = () => ({ error: "", loading: false, reload: vi.fn() });
 
@@ -116,5 +117,53 @@ describe("orchestration presentational panels", () => {
     expect(markup).toContain(
       "Coding starts only in the selected active Git worktree",
     );
+  });
+
+  it("keeps the initial task rail bounded", () => {
+    const tasks = Array.from(
+      { length: TASK_QUEUE_PAGE_SIZE + 5 },
+      (_, index) => ({
+        id: `task-${index}`,
+        title: `Task ${index}`,
+        objective: `Objective ${index}`,
+        status: "pending",
+      }),
+    );
+    const markup = renderToStaticMarkup(
+      createElement(TaskQueuePanel, {
+        active: true,
+        projectScope: "all",
+        effectiveOverview: { total: tasks.length },
+        tasksResource: resource(),
+        tasks,
+        busyKeys: {},
+        selectedTaskNote: "",
+        showChildCreate: false,
+        childTitle: "",
+        childObjective: "",
+        childWorkspaceRoot: "",
+        worktrees: [],
+        confirmedAction: null,
+        cascadeChildren: false,
+        confirmDialogRef: { current: null },
+        onSelectTask: vi.fn(),
+        onRunTaskAction: vi.fn(),
+        onRequestDestructiveAction: vi.fn(),
+        onCloseConfirmation: vi.fn(),
+        onCascadeChildrenChange: vi.fn(),
+        onToggleChildCreate: vi.fn(),
+        onChildTitleChange: vi.fn(),
+        onChildObjectiveChange: vi.fn(),
+        onChildWorkspaceRootChange: vi.fn(),
+        onSubmitSpawn: vi.fn(),
+        onTaskNoteChange: vi.fn(),
+        onSubmitNote: vi.fn(),
+      }),
+    );
+
+    expect(markup).toContain("Task 19");
+    expect(markup).not.toContain("Task 20");
+    expect(markup).toContain("Showing 20 of 25");
+    expect(markup).toContain("Show 5 more");
   });
 });

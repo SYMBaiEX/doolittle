@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { Badge } from "../lib";
 import "./compact-catalog-list.css";
+import { progressiveWindow } from "./progressive-window";
 
 export interface CompactCatalogFact {
   label: string;
@@ -32,9 +33,11 @@ export function CompactCatalogList({
   resetKey: string;
 }) {
   const [page, setPage] = useState({ key: resetKey, limit: pageSize });
-  const limit = page.key === resetKey ? page.limit : pageSize;
-  const visible = entries.slice(0, limit);
-  const remaining = Math.max(0, entries.length - visible.length);
+  const requested = page.key === resetKey ? page.limit : pageSize;
+  const { limit, remaining, visible } = progressiveWindow(entries, {
+    pageSize,
+    requested,
+  });
 
   return (
     <section aria-label={ariaLabel} className="compact-catalog">

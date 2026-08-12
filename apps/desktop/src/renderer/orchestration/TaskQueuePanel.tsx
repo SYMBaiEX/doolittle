@@ -1,4 +1,5 @@
-import type { FormEvent, RefObject } from "react";
+import { type FormEvent, type RefObject, useState } from "react";
+import { progressiveWindow } from "../components/progressive-window";
 import {
   asArray,
   asNumber,
@@ -29,6 +30,8 @@ import {
 } from "./detail-primitives";
 import type { ConfirmedAction, ResourceState, TaskAction } from "./models";
 import { normalizeText } from "./models";
+
+export const TASK_QUEUE_PAGE_SIZE = 20;
 
 export function TaskQueuePanel({
   active,
@@ -97,6 +100,21 @@ export function TaskQueuePanel({
   onSubmitNote: (event: FormEvent<HTMLFormElement>) => void;
   onNewCodingTask?: () => void;
 }) {
+  const pageKey = `${projectScope}:${tasks.length}:${tasks[0]?.id ?? "empty"}`;
+  const [page, setPage] = useState({
+    key: pageKey,
+    limit: TASK_QUEUE_PAGE_SIZE,
+  });
+  const requested = page.key === pageKey ? page.limit : TASK_QUEUE_PAGE_SIZE;
+  const selectedIndex = selectedTask
+    ? tasks.findIndex((task) => task.id === selectedTask.id)
+    : -1;
+  const taskWindow = progressiveWindow(tasks, {
+    pageSize: TASK_QUEUE_PAGE_SIZE,
+    requested,
+    selectedIndex,
+  });
+
   const renderTaskRail = () => {
     if (tasksResource.error) {
       return (
@@ -131,7 +149,7 @@ export function TaskQueuePanel({
     }
     return (
       <ul className="orchestration-master-list">
-        {tasks.map((task) => {
+        {taskWindow.visible.map((task) => {
           const status = asString(task.status, "pending");
           const tier = orchestrationStatusTier(status);
           return (
@@ -175,6 +193,25 @@ export function TaskQueuePanel({
             </li>
           );
         })}
+        {taskWindow.remaining ? (
+          <li className="orchestration-master-footer">
+            <span>
+              Showing {taskWindow.visible.length} of {tasks.length}
+            </span>
+            <button
+              className="secondary-button"
+              onClick={() =>
+                setPage({
+                  key: pageKey,
+                  limit: taskWindow.limit + TASK_QUEUE_PAGE_SIZE,
+                })
+              }
+              type="button"
+            >
+              Show {Math.min(TASK_QUEUE_PAGE_SIZE, taskWindow.remaining)} more
+            </button>
+          </li>
+        ) : null}
       </ul>
     );
   };

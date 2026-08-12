@@ -6,6 +6,7 @@ import type {
   ActivityFeedResponse,
 } from "../shared/contracts";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { progressiveWindow } from "./components/progressive-window";
 import {
   desktopRequest,
   displayTimestamp,
@@ -26,7 +27,10 @@ export function visibleActivityWindow<T>(
   events: readonly T[],
   visibleCount: number,
 ): readonly T[] {
-  return events.slice(0, Math.max(ACTIVITY_PAGE_SIZE, visibleCount));
+  return progressiveWindow(events, {
+    pageSize: ACTIVITY_PAGE_SIZE,
+    requested: visibleCount,
+  }).visible;
 }
 
 export function activitySummaryIsDistinct(
