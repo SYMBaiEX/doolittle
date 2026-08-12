@@ -125,6 +125,14 @@ describe("operational route density", () => {
     );
   });
 
+  it("loads desktop lifecycle state only on the matching settings category", () => {
+    const settings = read("./SettingsPage.tsx");
+
+    expect(settings).toContain('desktop: active && category === "desktop"');
+    expect(settings).toContain("if (!resourcePolicy.desktop) return;");
+    expect(settings).toContain("[resourcePolicy.desktop]");
+  });
+
   it("keeps the primary model readiness visible and capability detail optional", () => {
     const models = read("./ModelsPage.tsx");
     expect(models.match(/className="model-diagnostic"/gu)).toHaveLength(2);

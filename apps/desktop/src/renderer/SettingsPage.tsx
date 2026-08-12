@@ -53,6 +53,7 @@ interface ThemeResponse {
 export interface SettingsResourcePolicy {
   settings: boolean;
   themes: boolean;
+  desktop: boolean;
   execution: boolean;
   runtime: boolean;
 }
@@ -70,6 +71,7 @@ export function settingsResourcePolicy(
   return {
     settings: active,
     themes: active && category === "appearance",
+    desktop: active && category === "desktop",
     execution: active && category === "execution",
     runtime: active && category === "model",
   };
@@ -106,7 +108,7 @@ export function SettingsPage({ active }: { active: boolean }) {
   const [update, setUpdate] = useState<DesktopUpdateState | null>(null);
   const [updateBusy, setUpdateBusy] = useState(false);
   useEffect(() => {
-    if (!active) return;
+    if (!resourcePolicy.desktop) return;
     let disposed = false;
     void window.doolittle
       .getLifecycleState()
@@ -121,7 +123,7 @@ export function SettingsPage({ active }: { active: boolean }) {
       disposed = true;
       unsubscribe();
     };
-  }, [active]);
+  }, [resourcePolicy.desktop]);
   const fields = useMemo(
     () => flattenSettings(settings.data?.settings ?? {}),
     [settings.data],

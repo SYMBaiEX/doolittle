@@ -12,12 +12,14 @@ describe("settings resource policy", () => {
     expect(settingsResourcePolicy("providers", true)).toEqual({
       settings: true,
       themes: false,
+      desktop: false,
       execution: false,
       runtime: false,
     });
     expect(settingsResourcePolicy("providers", false)).toEqual({
       settings: false,
       themes: false,
+      desktop: false,
       execution: false,
       runtime: false,
     });
@@ -27,24 +29,35 @@ describe("settings resource policy", () => {
     expect(settingsResourcePolicy("appearance", true)).toMatchObject({
       settings: true,
       themes: true,
+      desktop: false,
       execution: false,
       runtime: false,
     });
     expect(settingsResourcePolicy("execution", true)).toMatchObject({
       settings: true,
       themes: false,
+      desktop: false,
       execution: true,
       runtime: false,
     });
     expect(settingsResourcePolicy("model", true)).toMatchObject({
       settings: true,
       themes: false,
+      desktop: false,
       execution: false,
       runtime: true,
+    });
+    expect(settingsResourcePolicy("desktop", true)).toEqual({
+      settings: true,
+      themes: false,
+      desktop: true,
+      execution: false,
+      runtime: false,
     });
     expect(settingsResourcePolicy("advanced", true)).toEqual({
       settings: true,
       themes: false,
+      desktop: false,
       execution: false,
       runtime: false,
     });
