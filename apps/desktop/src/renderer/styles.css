@@ -1451,6 +1451,63 @@ td {
   flex-direction: column;
 }
 
+.settings-field-groups {
+  display: grid;
+  gap: 7px;
+}
+
+.settings-field-disclosure {
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-soft) 68%, transparent);
+  border: 1px solid var(--line-subtle);
+  border-radius: 4px;
+}
+
+.settings-field-disclosure > summary {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 8px 11px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.settings-field-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-field-disclosure > summary > span:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.settings-field-disclosure > summary strong {
+  font-size: var(--text-control);
+}
+
+.settings-field-disclosure > summary small,
+.settings-field-disclosure > summary > span:last-child {
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+
+.settings-field-disclosure > summary > span:last-child {
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.settings-field-disclosure[open] > summary {
+  background: var(--surface-hover);
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.settings-field-disclosure > .settings-rows {
+  padding-inline: 11px;
+}
+
 .setting-row {
   display: grid;
   grid-template-columns: minmax(160px, 0.5fr) minmax(240px, 1fr);

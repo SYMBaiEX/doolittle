@@ -44,8 +44,8 @@ describe("settings resource policy", () => {
     });
     expect(settingsResourcePolicy("advanced", true)).toEqual({
       settings: true,
-      themes: true,
-      execution: true,
+      themes: false,
+      execution: false,
       runtime: false,
     });
   });
@@ -56,6 +56,19 @@ describe("settings resource policy", () => {
     expect(settingsPageSource).toContain("title={entry.description}");
     expect(settingsPageSource).not.toContain(
       "Accounts, appearance, models, execution, and local desktop behavior",
+    );
+  });
+
+  it("keeps advanced focused on grouped runtime fields instead of duplicating other settings panels", () => {
+    expect(settingsPageSource).toContain('advanced={category === "advanced"}');
+    expect(settingsPageSource).not.toContain(
+      'category === "appearance" || category === "advanced"',
+    );
+    expect(settingsPageSource).not.toContain(
+      'category === "desktop" || category === "advanced"',
+    );
+    expect(settingsPageSource).not.toContain(
+      'category === "execution" || category === "advanced"',
     );
   });
 });
