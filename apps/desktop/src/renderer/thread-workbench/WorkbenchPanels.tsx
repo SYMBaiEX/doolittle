@@ -17,7 +17,6 @@ import {
   LoadingBlock,
 } from "../lib";
 import type { RepositoryControlChange } from "../repository-control";
-import { THREAD_WORKBENCH_TABS } from "../thread-workbench";
 import {
   bounded,
   commandOutput,
@@ -32,6 +31,7 @@ import {
   TAB_LABELS,
   type ThreadWorkbenchFullView,
   type WorkbenchController,
+  workbenchPanelMeta,
 } from "./models";
 import { ResourceState } from "./ResourceState";
 
@@ -193,67 +193,73 @@ function ChangesPanel({ controller }: { controller: ChangesPanelController }) {
             }>
           }
         />
-        <section
-          aria-label="Workspace checkpoints"
-          className="thread-workbench-checkpoints"
-        >
-          <div>
-            <strong>Checkpoints</strong>
+        <details className="thread-workbench-checkpoints">
+          <summary>
+            <span>
+              <strong>Checkpoints</strong>
+              <small>Local Git snapshots</small>
+            </span>
+            <Badge>
+              {asArray(checkpoints.data?.checkpoints).length || "None"}
+            </Badge>
+          </summary>
+          <div className="thread-workbench-checkpoints-body">
             <small>
-              Local Git snapshots. Restore requires confirmation and never
-              restarts Doolittle.
+              Restore requires confirmation and never restarts Doolittle.
             </small>
+            {checkpoints.data?.support?.supported ? (
+              <button
+                className="thread-workbench-text-button"
+                disabled={checkpointBusy}
+                onClick={() => void createCheckpoint()}
+                type="button"
+              >
+                {checkpointBusy ? "Working…" : "Create checkpoint"}
+              </button>
+            ) : (
+              <small>
+                {asString(
+                  checkpoints.data?.support?.reason,
+                  "Checkpoints unavailable.",
+                )}
+              </small>
+            )}
+            {checkpointMessage ? (
+              <p role="status">{checkpointMessage}</p>
+            ) : null}
+            {checkpoints.data?.support?.supported ? (
+              <div className="thread-workbench-checkpoint-list">
+                {asArray(checkpoints.data?.checkpoints)
+                  .slice(0, 8)
+                  .map((value) => {
+                    const checkpoint = asRecord(value);
+                    const id = asString(checkpoint.id);
+                    if (!id) return null;
+                    return (
+                      <div key={id}>
+                        <span className="thread-workbench-checkpoint-details">
+                          <strong>
+                            {asString(checkpoint.label, "Checkpoint")}
+                          </strong>
+                          <small>
+                            {displayTimestamp(asString(checkpoint.createdAt))} ·{" "}
+                            {asString(checkpoint.revision).slice(0, 8)}
+                          </small>
+                        </span>
+                        <button
+                          disabled={checkpointBusy}
+                          onClick={() => void restoreCheckpoint(id)}
+                          type="button"
+                        >
+                          Restore
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : null}
           </div>
-          {checkpoints.data?.support?.supported ? (
-            <button
-              className="thread-workbench-text-button"
-              disabled={checkpointBusy}
-              onClick={() => void createCheckpoint()}
-              type="button"
-            >
-              {checkpointBusy ? "Working…" : "Create checkpoint"}
-            </button>
-          ) : (
-            <small>
-              {asString(
-                checkpoints.data?.support?.reason,
-                "Checkpoints unavailable.",
-              )}
-            </small>
-          )}
-          {checkpointMessage ? <p role="status">{checkpointMessage}</p> : null}
-          {checkpoints.data?.support?.supported ? (
-            <div className="thread-workbench-checkpoint-list">
-              {asArray(checkpoints.data?.checkpoints)
-                .slice(0, 8)
-                .map((value) => {
-                  const checkpoint = asRecord(value);
-                  const id = asString(checkpoint.id);
-                  if (!id) return null;
-                  return (
-                    <div key={id}>
-                      <span className="thread-workbench-checkpoint-details">
-                        <strong>
-                          {asString(checkpoint.label, "Checkpoint")}
-                        </strong>
-                        <small>
-                          {displayTimestamp(asString(checkpoint.createdAt))} ·{" "}
-                          {asString(checkpoint.revision).slice(0, 8)}
-                        </small>
-                      </span>
-                      <button
-                        disabled={checkpointBusy}
-                        onClick={() => void restoreCheckpoint(id)}
-                        type="button"
-                      >
-                        Restore
-                      </button>
-                    </div>
-                  );
-                })}
-            </div>
-          ) : null}
-        </section>
+        </details>
       </div>
       <ResourceState
         error={changes.error}
@@ -795,8 +801,8 @@ function SettingsPanel({
               )}
             </div>
           </section>
-          <section className="thread-workbench-settings-nav">
-            <h3>Open full-screen navigation</h3>
+          <details className="thread-workbench-settings-nav">
+            <summary>Open a full page</summary>
             <div>
               {QUICK_NAVIGATION.map((item) => (
                 <button
@@ -810,7 +816,7 @@ function SettingsPanel({
                 </button>
               ))}
             </div>
-          </section>
+          </details>
         </div>
       ) : null}
     </div>
@@ -878,6 +884,16 @@ export function WorkbenchPanels({
     asString(previewRecord.captureMode) ||
     "Available";
   const selectedFullView = FULL_VIEW[model.selectedTab];
+  const panelMeta = workbenchPanelMeta(model.selectedTab, {
+    approvals: controller.approvalEntries.length,
+    changes: controller.changeEntries.length,
+    commands: controller.commandEntries.length,
+    files: controller.fileEntries.length,
+    plans: controller.planEntries.length,
+    preview: previewMode,
+    settings: controller.settingEntries.length,
+    tasks: controller.delegatedTaskEntries.length,
+  });
 
   return (
     <section
@@ -888,30 +904,10 @@ export function WorkbenchPanels({
     >
       <div className="thread-workbench-panel-heading">
         <div>
-          <span className="thread-workbench-panel-kicker">
-            Module{" "}
-            {String(
-              THREAD_WORKBENCH_TABS.indexOf(model.selectedTab) + 1,
-            ).padStart(2, "0")}
-          </span>
           <span className="thread-workbench-panel-title">
             {TAB_LABELS[model.selectedTab]}
           </span>
-          <small>
-            {model.selectedTab === "files"
-              ? `${controller.fileEntries.length} entries`
-              : model.selectedTab === "changes"
-                ? `${controller.changeEntries.length} changed`
-                : model.selectedTab === "terminal"
-                  ? `${controller.commandEntries.length} commands`
-                  : model.selectedTab === "plans"
-                    ? `${controller.planEntries.length} plans`
-                    : model.selectedTab === "brief"
-                      ? `${controller.approvalEntries.length} pending approvals · ${controller.delegatedTaskEntries.length} recent tasks`
-                      : model.selectedTab === "settings"
-                        ? `${controller.settingEntries.length} values`
-                        : previewMode}
-          </small>
+          <small>{panelMeta}</small>
         </div>
         {selectedFullView ? (
           <button

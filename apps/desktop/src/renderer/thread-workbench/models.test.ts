@@ -6,6 +6,7 @@ import {
   QUICK_NAVIGATION,
   statusTone,
   TAB_LABELS,
+  workbenchPanelMeta,
 } from "./models";
 
 describe("thread workbench presentation models", () => {
@@ -29,5 +30,21 @@ describe("thread workbench presentation models", () => {
     expect(FULL_VIEW.changes).toBe("review");
     expect(FULL_VIEW.brief).toBeUndefined();
     expect(QUICK_NAVIGATION).toHaveLength(8);
+  });
+
+  it("keeps panel metadata concise and domain-specific", () => {
+    const metrics = {
+      approvals: 2,
+      changes: 3,
+      commands: 4,
+      files: 5,
+      plans: 6,
+      preview: "Connected",
+      settings: 7,
+      tasks: 8,
+    };
+    expect(workbenchPanelMeta("files", metrics)).toBe("5 entries");
+    expect(workbenchPanelMeta("brief", metrics)).toBe("2 approvals · 8 tasks");
+    expect(workbenchPanelMeta("preview", metrics)).toBe("Connected");
   });
 });

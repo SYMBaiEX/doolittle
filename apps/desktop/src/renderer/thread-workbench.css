@@ -461,11 +461,10 @@
   border-radius: 5px;
 }
 
-.thread-workbench-panel-kicker {
-  color: var(--thread-workbench-accent);
-  font: 7px / 1 var(--font-mono, ui-monospace, monospace);
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+.thread-workbench-panel-heading > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .thread-workbench-panel-title {
@@ -565,26 +564,46 @@
 }
 
 .thread-workbench-checkpoints {
-  display: grid;
-  gap: 7px;
   flex: 0 0 auto;
   margin-bottom: 0;
-  padding: 9px;
   border: 1px solid color-mix(in srgb, currentColor 10%, transparent);
   border-radius: 9px;
   background: color-mix(in srgb, currentColor 3%, transparent);
+  overflow: hidden;
 }
 
-.thread-workbench-checkpoints > div:first-child,
+.thread-workbench-checkpoints > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 35px;
+  padding: 7px 9px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.thread-workbench-checkpoints > summary::-webkit-details-marker {
+  display: none;
+}
+
+.thread-workbench-checkpoints > summary > span,
 .thread-workbench-checkpoints .thread-workbench-checkpoint-details,
 .thread-workbench-checkpoint-list > div {
   display: flex;
   gap: 7px;
 }
 
-.thread-workbench-checkpoints > div:first-child,
+.thread-workbench-checkpoints > summary > span,
 .thread-workbench-checkpoints .thread-workbench-checkpoint-details {
   flex-direction: column;
+}
+
+.thread-workbench-checkpoints-body {
+  display: grid;
+  gap: 7px;
+  padding: 8px 9px 9px;
+  border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent);
 }
 
 .thread-workbench-checkpoints small,
@@ -1085,11 +1104,25 @@
   min-height: 96px;
 }
 
-.thread-workbench-settings section {
+.thread-workbench-settings :is(section, details) {
   background: color-mix(in srgb, currentColor 3%, transparent);
   border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
   border-radius: 10px;
   padding: 10px;
+}
+
+.thread-workbench-settings-nav > summary {
+  min-height: 34px;
+  padding: 0;
+  color: var(--thread-workbench-accent);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 650;
+  list-style: none;
+}
+
+.thread-workbench-settings-nav > summary::-webkit-details-marker {
+  display: none;
 }
 
 /* biome-ignore lint/style/noDescendingSpecificity: Keep settings section header sizing consistent with global brief section styling. */
@@ -1172,6 +1205,11 @@
 .thread-workbench-quick-nav {
   display: grid;
   gap: 7px;
+}
+
+.thread-workbench-settings-nav > div {
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent);
 }
 
 .thread-workbench-preview-status dl {

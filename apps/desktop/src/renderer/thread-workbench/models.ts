@@ -22,6 +22,17 @@ export interface NavigationCard {
   blurb: string;
 }
 
+export interface WorkbenchPanelMetrics {
+  approvals: number;
+  changes: number;
+  commands: number;
+  files: number;
+  plans: number;
+  preview: string;
+  settings: number;
+  tasks: number;
+}
+
 export const TAB_LABELS: Record<ThreadWorkbenchTab, string> = {
   files: "Files",
   changes: "Changes",
@@ -52,6 +63,28 @@ export const FULL_VIEW: Partial<
   settings: "settings",
   preview: "browser",
 };
+
+export function workbenchPanelMeta(
+  tab: ThreadWorkbenchTab,
+  metrics: WorkbenchPanelMetrics,
+): string {
+  switch (tab) {
+    case "files":
+      return `${metrics.files} entries`;
+    case "changes":
+      return `${metrics.changes} changed`;
+    case "terminal":
+      return `${metrics.commands} commands`;
+    case "plans":
+      return `${metrics.plans} plans`;
+    case "brief":
+      return `${metrics.approvals} approvals · ${metrics.tasks} tasks`;
+    case "settings":
+      return `${metrics.settings} values`;
+    case "preview":
+      return metrics.preview;
+  }
+}
 
 export const QUICK_NAVIGATION: NavigationCard[] = [
   {
