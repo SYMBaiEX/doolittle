@@ -21,6 +21,11 @@
   line-height: 1.45;
 }
 
+.compatibility-page > .empty-block--compact {
+  min-height: 72px;
+  flex: 0 0 auto;
+}
+
 .compact-disclosure > summary,
 .setup-guidance > summary {
   cursor: pointer;

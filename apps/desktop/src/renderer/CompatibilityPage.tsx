@@ -16,6 +16,7 @@ import {
   type UnknownRecord,
   useApiResource,
 } from "./lib";
+import "./diagnostics-pages.css";
 
 export function compatibilityCatalogEntries(
   value: unknown,
@@ -53,7 +54,7 @@ export function CompatibilityPage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className="page">
+    <div className="page compatibility-page">
       <PageHeader
         eyebrow="Runtime"
         title="Compatibility"

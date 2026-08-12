@@ -51,9 +51,17 @@ describe("compatibilityCatalogEntries", () => {
       new URL("./CompatibilityPage.tsx", import.meta.url),
       "utf8",
     );
+    const styles = readFileSync(
+      new URL("./diagnostics-pages.css", import.meta.url),
+      "utf8",
+    );
 
     expect(source).toMatch(
       /<EmptyBlock\s+density="compact"\s+title="No compatibility checks found"/u,
+    );
+    expect(source).toContain('className="page compatibility-page"');
+    expect(styles).toMatch(
+      /\.compatibility-page > \.empty-block--compact\s*\{[^}]*min-height:\s*72px;[^}]*flex:\s*0 0 auto;/su,
     );
   });
 });
