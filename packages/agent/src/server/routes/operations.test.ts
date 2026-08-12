@@ -622,46 +622,60 @@ describe("handleOperationsRoutes", () => {
     });
   });
 
-  it("returns session-derived analytics despite an individual usage failure", async () => {
+  it("returns the bounded session analytics projection", async () => {
     const context = createContext();
-    context.services.sessions.listSessions = (limit: number) => {
+    context.services.sessions.analytics = (limit, recentLimit) => {
       expect(limit).toBe(1000);
-      return [
-        {
-          sessionId: "session-1",
-          title: "First",
-          messageCount: 3,
-          startedAt: "2026-07-25T08:00:00Z",
-          endedAt: "2026-07-25T08:02:00Z",
-          participants: ["user", "assistant"],
-          preview: ["hello"],
-        },
-        {
-          sessionId: "session-2",
-          messageCount: 2,
-          startedAt: "2026-07-26T09:00:00Z",
-          endedAt: "2026-07-26T09:01:00Z",
-          participants: ["user", "assistant"],
-          preview: ["retry"],
-        },
-      ];
-    };
-    context.services.sessions.usage = (sessionId: string) => {
-      if (sessionId === "session-2") {
-        throw new Error("damaged usage row");
-      }
+      expect(recentLimit).toBe(20);
       return {
-        sessionId,
-        title: "First",
-        messageCount: 3,
-        userMessages: 2,
-        assistantMessages: 1,
-        systemMessages: 0,
-        startedAt: "2026-07-25T08:00:00Z",
-        endedAt: "2026-07-25T08:02:00Z",
-        characterCount: 80,
-        estimatedTokens: 20,
-        lastPreview: "done",
+        totals: {
+          sessions: 2,
+          messages: 5,
+          estimatedTokens: 30,
+          userMessages: 3,
+          assistantMessages: 2,
+          systemMessages: 0,
+        },
+        recentSessions: [
+          {
+            sessionId: "session-1",
+            title: "First",
+            messageCount: 3,
+            userMessages: 2,
+            assistantMessages: 1,
+            systemMessages: 0,
+            startedAt: "2026-07-25T08:00:00Z",
+            endedAt: "2026-07-25T08:02:00Z",
+            characterCount: 80,
+            estimatedTokens: 20,
+            lastPreview: "done",
+          },
+          {
+            sessionId: "session-2",
+            messageCount: 2,
+            userMessages: 1,
+            assistantMessages: 1,
+            systemMessages: 0,
+            startedAt: "2026-07-26T09:00:00Z",
+            endedAt: "2026-07-26T09:01:00Z",
+            characterCount: 40,
+            estimatedTokens: 10,
+          },
+        ],
+        dailyActivity: [
+          {
+            date: "2026-07-25",
+            sessions: 1,
+            messages: 3,
+            estimatedTokens: 20,
+          },
+          {
+            date: "2026-07-26",
+            sessions: 1,
+            messages: 2,
+            estimatedTokens: 10,
+          },
+        ],
       };
     };
 
@@ -675,14 +689,14 @@ describe("handleOperationsRoutes", () => {
     expect(payload.totals).toEqual({
       sessions: 2,
       messages: 5,
-      estimatedTokens: 20,
-      userMessages: 2,
-      assistantMessages: 1,
+      estimatedTokens: 30,
+      userMessages: 3,
+      assistantMessages: 2,
       systemMessages: 0,
     });
     expect(payload.recentSessions).toHaveLength(2);
     expect(payload.recentSessions[0].usage.estimatedTokens).toBe(20);
-    expect(payload.recentSessions[1].usage).toBeNull();
+    expect(payload.recentSessions[1].usage.estimatedTokens).toBe(10);
     expect(payload.dailyActivity).toEqual([
       {
         date: "2026-07-25",
@@ -694,7 +708,7 @@ describe("handleOperationsRoutes", () => {
         date: "2026-07-26",
         sessions: 1,
         messages: 2,
-        estimatedTokens: 0,
+        estimatedTokens: 10,
       },
     ]);
   });

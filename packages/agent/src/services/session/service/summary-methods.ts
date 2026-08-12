@@ -10,6 +10,7 @@ export const sessionServiceSummaryMethods: Pick<
   | "listTitled"
   | "resolveByTitle"
   | "usage"
+  | "analytics"
 > &
   ThisType<SessionService> = {
   summary(limit = 10) {
@@ -37,5 +38,9 @@ export const sessionServiceSummaryMethods: Pick<
 
   usage(sessionId, options) {
     return getSessionServiceState(this).summaries.usage(sessionId, options);
+  },
+
+  analytics(limit = 1_000, recentLimit = 20) {
+    return getSessionServiceState(this).summaries.analytics(limit, recentLimit);
   },
 };

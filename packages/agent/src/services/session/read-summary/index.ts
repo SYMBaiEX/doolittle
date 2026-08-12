@@ -1,9 +1,11 @@
 import type { SessionDatabase } from "@/services/session/database";
 import type {
+  SessionAnalyticsSnapshot,
   SessionSummary,
   SessionUsageOptions,
   SessionUsageSummary,
 } from "@/types";
+import { resolveSessionAnalytics } from "./analytics";
 import { findContinuitySessions } from "./continuity";
 import { listSessionSummaries, listTitledSessions } from "./listing";
 import { buildSessionSummary, loadSummaryStats } from "./query";
@@ -62,6 +64,10 @@ export class SessionReadSummaryHelpers {
       sessionId,
       options,
     );
+  }
+
+  analytics(limit = 1_000, recentLimit = 20): SessionAnalyticsSnapshot {
+    return resolveSessionAnalytics(this.db, limit, recentLimit);
   }
 
   continuity(sessionId: string, limit = 20): SessionSummary[] {

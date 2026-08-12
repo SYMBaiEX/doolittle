@@ -1,6 +1,7 @@
 import type {
   Project,
   ProjectResource,
+  SessionAnalyticsSnapshot,
   SessionExchangeMutationResult,
   SessionForkInput,
   SessionForkResult,
@@ -63,6 +64,7 @@ export interface SessionServiceApi {
   listTitled(limit: number): SessionSummary[];
   resolveByTitle(query: string): SessionSummary | undefined;
   usage(sessionId: string, options?: SessionUsageOptions): SessionUsageSummary;
+  analytics(limit?: number, recentLimit?: number): SessionAnalyticsSnapshot;
   rename(sessionId: string, title: string): SessionSummary;
   metadata(sessionId: string): SessionMetadataValue | undefined;
   continuity(sessionId: string, limit?: number): SessionSummary[];

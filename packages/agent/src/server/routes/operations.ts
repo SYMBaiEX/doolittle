@@ -227,81 +227,23 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "GET" && url.pathname === "/analytics") {
-    const sessions = context.services.sessions.listSessions(1000);
-    const usageBySession = sessions.map((session) => {
-      try {
-        return {
-          session,
-          usage: context.services.sessions.usage(session.sessionId),
-        };
-      } catch {
-        return {
-          session,
-          usage: null,
-        };
-      }
-    });
-    const recentSessions = usageBySession.slice(0, 20).map((entry) => ({
-      ...entry.session,
-      usage: entry.usage,
-    }));
-    const totals = usageBySession.reduce(
-      (result, entry) => {
-        result.messages +=
-          entry.usage?.messageCount ?? entry.session.messageCount;
-        result.estimatedTokens += entry.usage?.estimatedTokens ?? 0;
-        result.userMessages += entry.usage?.userMessages ?? 0;
-        result.assistantMessages += entry.usage?.assistantMessages ?? 0;
-        result.systemMessages += entry.usage?.systemMessages ?? 0;
-        return result;
-      },
-      {
-        sessions: sessions.length,
-        messages: 0,
-        estimatedTokens: 0,
-        userMessages: 0,
-        assistantMessages: 0,
-        systemMessages: 0,
-      },
-    );
-    const activityByDate = new Map<
-      string,
-      {
-        date: string;
-        sessions: number;
-        messages: number;
-        estimatedTokens: number;
-      }
-    >();
-    for (const entry of usageBySession) {
-      const timestamp =
-        entry.usage?.endedAt ??
-        entry.session.endedAt ??
-        entry.usage?.startedAt ??
-        entry.session.startedAt;
-      const date = timestamp?.slice(0, 10);
-      if (!date) {
-        continue;
-      }
-      const activity = activityByDate.get(date) ?? {
-        date,
-        sessions: 0,
-        messages: 0,
-        estimatedTokens: 0,
-      };
-      activity.sessions += 1;
-      activity.messages +=
-        entry.usage?.messageCount ?? entry.session.messageCount;
-      activity.estimatedTokens += entry.usage?.estimatedTokens ?? 0;
-      activityByDate.set(date, activity);
-    }
-    const dailyActivity = [...activityByDate.values()]
-      .sort((left, right) => left.date.localeCompare(right.date))
-      .slice(-30);
+    const analytics = context.services.sessions.analytics(1_000, 20);
     return json({
-      totals,
-      recentSessions,
-      dailyActivity,
+      ...analytics,
+      recentSessions: analytics.recentSessions.map((usage) => ({
+        sessionId: usage.sessionId,
+        title: usage.title,
+        messageCount: usage.messageCount,
+        startedAt: usage.startedAt,
+        endedAt: usage.endedAt,
+        participants: [
+          ...(usage.userMessages ? (["user"] as const) : []),
+          ...(usage.assistantMessages ? (["assistant"] as const) : []),
+          ...(usage.systemMessages ? (["system"] as const) : []),
+        ],
+        preview: usage.lastPreview ? [usage.lastPreview] : [],
+        usage,
+      })),
     });
   }
 

@@ -1176,6 +1176,37 @@ td {
   font-size: var(--text-meta);
 }
 
+.analytics-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(34rem, 1.18fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.analytics-grid .content-card {
+  min-width: 0;
+}
+
+.analytics-chart-card .bar-chart {
+  min-height: 210px;
+  padding-top: 10px;
+}
+
+.analytics-chart-card .bar-track {
+  height: 145px;
+}
+
+.analytics-sessions-card .table-wrap {
+  max-height: 270px;
+  overflow: auto;
+}
+
+@media (max-width: 1120px) {
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .log-console {
   overflow: hidden;
   background: #0e0d0c;

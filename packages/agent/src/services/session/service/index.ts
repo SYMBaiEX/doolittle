@@ -44,6 +44,7 @@ export class SessionService {
   declare listTitled: SessionServiceApi["listTitled"];
   declare resolveByTitle: SessionServiceApi["resolveByTitle"];
   declare usage: SessionServiceApi["usage"];
+  declare analytics: SessionServiceApi["analytics"];
   declare rename: SessionServiceApi["rename"];
   declare metadata: SessionServiceApi["metadata"];
   declare continuity: SessionServiceApi["continuity"];

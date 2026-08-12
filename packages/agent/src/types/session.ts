@@ -98,6 +98,26 @@ export interface SessionUsageSummary {
   lastPreview?: string;
 }
 
+export interface SessionAnalyticsDay {
+  date: string;
+  sessions: number;
+  messages: number;
+  estimatedTokens: number;
+}
+
+export interface SessionAnalyticsSnapshot {
+  totals: {
+    sessions: number;
+    messages: number;
+    estimatedTokens: number;
+    userMessages: number;
+    assistantMessages: number;
+    systemMessages: number;
+  };
+  recentSessions: SessionUsageSummary[];
+  dailyActivity: SessionAnalyticsDay[];
+}
+
 export interface Project {
   id: string;
   name: string;

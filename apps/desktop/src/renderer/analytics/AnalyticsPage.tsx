@@ -35,6 +35,9 @@ export function AnalyticsPage({ active }: { active: boolean }) {
   const activity = asArray(resource.data?.dailyActivity).map((value) =>
     asRecord(value),
   );
+  const recentSessions = asArray(resource.data?.recentSessions).map((value) =>
+    asRecord(value),
+  );
   const maxMessages = Math.max(
     1,
     ...activity.map((entry) =>
@@ -89,73 +92,74 @@ export function AnalyticsPage({ active }: { active: boolean }) {
               },
             ]}
           />
-          <section className="content-card">
-            <div className="card-heading">
-              <div>
-                <span className="eyebrow">Recent activity</span>
-                <h2>Messages by day</h2>
+          <div className="analytics-grid">
+            <section className="content-card analytics-chart-card">
+              <div className="card-heading">
+                <div>
+                  <span className="eyebrow">Recent activity</span>
+                  <h2>Messages by day</h2>
+                </div>
               </div>
-            </div>
-            {activity.length ? (
-              <div
-                aria-label="Messages by day"
-                className="bar-chart"
-                role="img"
-              >
-                {activity.map((entry) => {
-                  const messages = asNumber(
-                    entry.messages,
-                    asNumber(entry.messageCount),
-                  );
-                  const label = asString(
-                    entry.date,
-                    asString(entry.day, "No date"),
-                  );
-                  return (
-                    <div
-                      className="bar-column"
-                      key={`${label}:${JSON.stringify(entry)}`}
-                    >
-                      <span className="bar-value">{messages}</span>
-                      <div className="bar-track">
-                        <i
-                          style={{
-                            height: `${Math.max(4, (messages / maxMessages) * 100)}%`,
-                          }}
-                        />
+              {activity.length ? (
+                <div
+                  aria-label="Messages by day"
+                  className="bar-chart"
+                  role="img"
+                >
+                  {activity.map((entry) => {
+                    const messages = asNumber(
+                      entry.messages,
+                      asNumber(entry.messageCount),
+                    );
+                    const label = asString(
+                      entry.date,
+                      asString(entry.day, "No date"),
+                    );
+                    return (
+                      <div
+                        className="bar-column"
+                        key={`${label}:${JSON.stringify(entry)}`}
+                      >
+                        <span className="bar-value">{messages}</span>
+                        <div className="bar-track">
+                          <i
+                            style={{
+                              height: `${Math.max(4, (messages / maxMessages) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                        <small>{label.slice(5) || label}</small>
                       </div>
-                      <small>{label.slice(5) || label}</small>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              ) : (
+                <EmptyBlock title="No activity yet">
+                  Start chatting with Doolittle and activity will accumulate
+                  here.
+                </EmptyBlock>
+              )}
+            </section>
+            <section className="content-card analytics-sessions-card">
+              <div className="card-heading">
+                <div>
+                  <span className="eyebrow">Conversations</span>
+                  <h2>Recent session usage</h2>
+                </div>
               </div>
-            ) : (
-              <EmptyBlock title="No activity yet">
-                Start chatting with Doolittle and activity will accumulate here.
-              </EmptyBlock>
-            )}
-          </section>
-          <section className="content-card">
-            <div className="card-heading">
-              <div>
-                <span className="eyebrow">Conversations</span>
-                <h2>Recent session usage</h2>
-              </div>
-            </div>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Session</th>
-                    <th>Messages</th>
-                    <th>Est. tokens</th>
-                    <th>Last activity</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {asArray(resource.data?.recentSessions).map(
-                    (value, index) => {
-                      const entry = asRecord(value);
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Session</th>
+                      <th>Messages</th>
+                      <th>Est. tokens</th>
+                      <th>Last activity</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentSessions.map((entry, index) => {
+                      const usage = asRecord(entry.usage);
                       return (
                         <tr key={asString(entry.sessionId, String(index))}>
                           <td>
@@ -166,7 +170,12 @@ export function AnalyticsPage({ active }: { active: boolean }) {
                           </td>
                           <td>{asNumber(entry.messageCount)}</td>
                           <td>
-                            {compactNumber(asNumber(entry.estimatedTokens))}
+                            {compactNumber(
+                              asNumber(
+                                usage.estimatedTokens,
+                                asNumber(entry.estimatedTokens),
+                              ),
+                            )}
                           </td>
                           <td>
                             {displayTimestamp(
@@ -175,12 +184,12 @@ export function AnalyticsPage({ active }: { active: boolean }) {
                           </td>
                         </tr>
                       );
-                    },
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
         </>
       )}
     </div>

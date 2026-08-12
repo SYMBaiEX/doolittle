@@ -3,6 +3,7 @@ import {
   SessionReadSummaryHelpers,
 } from "@/services/session/read-summary";
 import type {
+  SessionAnalyticsSnapshot,
   SessionSummary,
   SessionUsageOptions,
   SessionUsageSummary,
@@ -43,5 +44,9 @@ export class SessionSummaryOperations {
 
   usage(sessionId: string, options?: SessionUsageOptions): SessionUsageSummary {
     return this.helpers.usage(sessionId, options);
+  }
+
+  analytics(limit = 1_000, recentLimit = 20): SessionAnalyticsSnapshot {
+    return this.helpers.analytics(limit, recentLimit);
   }
 }

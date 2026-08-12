@@ -242,6 +242,90 @@ describe("SessionReadSummaryHelpers", () => {
     );
   });
 
+  it("builds analytics with one bounded aggregate projection", () => {
+    const db = createDb();
+    const helpers = new SessionReadSummaryHelpers(db, buildResolver(db));
+    const insert = db.query(`
+      INSERT INTO messages (
+        id, session_id, room_id, entity_id, role, text, created_at
+      )
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+    `);
+    insert.run(
+      "1",
+      "session:older",
+      "session:older",
+      "user:1",
+      "user",
+      "older prompt",
+      "2026-03-19T00:00:00.000Z",
+    );
+    insert.run(
+      "2",
+      "session:newer",
+      "session:newer",
+      "user:1",
+      "user",
+      "new prompt",
+      "2026-03-20T00:00:00.000Z",
+    );
+    insert.run(
+      "3",
+      "session:newer",
+      "session:newer",
+      "assistant:1",
+      "assistant",
+      "new response",
+      "2026-03-20T00:00:01.000Z",
+    );
+    db.query(
+      `
+        INSERT INTO session_metadata (
+          session_id, title, continuity_key, updated_at
+        ) VALUES (?1, ?2, ?3, ?4)
+      `,
+    ).run(
+      "session:newer",
+      "New session",
+      "session:newer",
+      "2026-03-20T00:00:01.000Z",
+    );
+
+    const analytics = helpers.analytics(10, 1);
+
+    expect(analytics.totals).toEqual({
+      sessions: 2,
+      messages: 3,
+      estimatedTokens: 9,
+      userMessages: 2,
+      assistantMessages: 1,
+      systemMessages: 0,
+    });
+    expect(analytics.recentSessions).toEqual([
+      expect.objectContaining({
+        sessionId: "session:newer",
+        title: "New session",
+        messageCount: 2,
+        estimatedTokens: 6,
+        lastPreview: "new response",
+      }),
+    ]);
+    expect(analytics.dailyActivity).toEqual([
+      {
+        date: "2026-03-19",
+        sessions: 1,
+        messages: 1,
+        estimatedTokens: 3,
+      },
+      {
+        date: "2026-03-20",
+        sessions: 1,
+        messages: 2,
+        estimatedTokens: 6,
+      },
+    ]);
+  });
+
   it("bounds the sample and display percent while retaining overflow pressure", () => {
     const db = createDb();
     const helpers = new SessionReadSummaryHelpers(db, buildResolver(db));
