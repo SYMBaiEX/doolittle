@@ -177,12 +177,17 @@
 }
 
 .automation-workspace.is-empty {
-  width: min(100%, 1040px);
+  width: min(100%, 900px);
 }
 
 .automation-runs-panel {
   padding: 0;
   overflow: hidden;
+}
+
+.automation-runs-panel.is-quiet {
+  background: transparent;
+  border-style: dashed;
 }
 
 .automation-runs-panel > summary {
@@ -270,6 +275,73 @@
   margin: 0;
   font-size: var(--text-meta);
   line-height: 1.45;
+}
+
+.automation-starters {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.automation-starters > button {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 2px;
+  color: var(--text-soft);
+  background: transparent;
+  border: 0;
+  text-align: left;
+}
+
+.automation-starters > button + button {
+  padding-left: 14px;
+  border-left: 1px solid var(--border);
+}
+
+.automation-starters > button:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+
+.automation-starters > button > span:first-child,
+.automation-starters i {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.automation-starters > button > span:nth-child(2) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.automation-starters strong,
+.automation-starters small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.automation-starters strong {
+  color: var(--text-strong);
+  font-size: 12px;
+}
+
+.automation-starters small {
+  color: var(--muted);
+  font-size: var(--text-meta);
 }
 
 .automation-job-list {
@@ -638,6 +710,16 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 3px;
+  }
+
+  .automation-starters {
+    grid-template-columns: 1fr;
+  }
+
+  .automation-starters > button + button {
+    padding-left: 2px;
+    border-top: 1px solid var(--border);
+    border-left: 0;
   }
 
   .automation-builder__fieldset {

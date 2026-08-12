@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   type AutomationDraft,
   buildAutomationRequest,
+  createAutomationDraft,
   summarizeAutomation,
 } from "./automation-model";
 
@@ -18,6 +19,26 @@ const baseDraft: AutomationDraft = {
 };
 
 describe("automation model", () => {
+  it("creates blank and useful local starter drafts", () => {
+    expect(createAutomationDraft()).toMatchObject({
+      name: "",
+      triggerType: "schedule",
+      actionType: "run-agent",
+      prompt: "",
+    });
+    expect(createAutomationDraft("weekday-brief")).toMatchObject({
+      name: "Weekday brief",
+      schedule: "0 9 * * 1-5",
+      triggerType: "schedule",
+      actionType: "run-agent",
+    });
+    expect(createAutomationDraft("webhook-triage")).toMatchObject({
+      name: "Webhook triage",
+      triggerType: "webhook",
+      actionType: "run-agent",
+    });
+  });
+
   it("builds an explicit trigger-condition-action payload", () => {
     expect(buildAutomationRequest(baseDraft)).toEqual({
       ok: true,

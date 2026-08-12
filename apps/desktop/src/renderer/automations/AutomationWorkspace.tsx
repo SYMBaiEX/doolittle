@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { summarizeAutomation } from "../automation-model";
+import {
+  type AutomationStarterChoice,
+  summarizeAutomation,
+} from "../automation-model";
 import { InlineActionConfirmation } from "../components/InlineActionConfirmation";
 import {
   asString,
@@ -181,7 +184,7 @@ export function AutomationWorkspace({
   jobsError: string | null;
   jobsLoading: boolean;
   onAction(id: string, action: AutomationAction): Promise<boolean>;
-  onCreate(): void;
+  onCreate(starter: AutomationStarterChoice): void;
   onFeedback(message: string): void;
   onReloadJobs(): void;
   onReloadRuns(): void;
@@ -224,17 +227,45 @@ export function AutomationWorkspace({
           )}
         </section>
       ) : builderOpen ? null : (
-        <section className="content-card automation-empty-panel">
-          <div className="automation-empty-starter" role="status">
+        <section
+          aria-labelledby="automation-starter-title"
+          className="content-card automation-empty-panel"
+        >
+          <div className="automation-empty-starter">
             <div>
-              <span className="eyebrow">First workflow</span>
-              <strong>Automate one repeatable task</strong>
-              <p>Choose a trigger, an optional condition, and an action.</p>
+              <span className="eyebrow">Start here</span>
+              <strong id="automation-starter-title">
+                Build your first workflow
+              </strong>
+              <p>Start blank or adapt a practical local preset.</p>
             </div>
-            <button className="primary-button" onClick={onCreate} type="button">
-              Open builder
+            <button
+              className="primary-button"
+              onClick={() => onCreate("blank")}
+              type="button"
+            >
+              Blank workflow
             </button>
           </div>
+          <fieldset className="automation-starters">
+            <legend className="sr-only">Automation starters</legend>
+            <button onClick={() => onCreate("weekday-brief")} type="button">
+              <span aria-hidden="true">01</span>
+              <span>
+                <strong>Weekday brief</strong>
+                <small>9 AM weekdays → run agent</small>
+              </span>
+              <i>Use starter</i>
+            </button>
+            <button onClick={() => onCreate("webhook-triage")} type="button">
+              <span aria-hidden="true">02</span>
+              <span>
+                <strong>Webhook triage</strong>
+                <small>Local webhook → run agent</small>
+              </span>
+              <i>Use starter</i>
+            </button>
+          </fieldset>
         </section>
       )}
 
@@ -243,6 +274,7 @@ export function AutomationWorkspace({
         onReload={onReloadRuns}
         onSelectRun={onSelectRun}
         open={runsOpen}
+        quiet={jobs.length === 0}
         runs={runs}
         runsError={runsError}
         runsLoading={runsLoading}

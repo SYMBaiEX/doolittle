@@ -81,6 +81,7 @@ export function AutomationRunHistory({
   onReload,
   onSelectRun,
   open,
+  quiet = false,
   runs,
   runsError,
   runsLoading,
@@ -90,6 +91,7 @@ export function AutomationRunHistory({
   onReload(): void;
   onSelectRun(id: string): void;
   open: boolean;
+  quiet?: boolean;
   runs: UnknownRecord[];
   runsError: string | null;
   runsLoading: boolean;
@@ -97,17 +99,23 @@ export function AutomationRunHistory({
 }) {
   return (
     <details
-      className="content-card automation-runs-panel"
+      className={`content-card automation-runs-panel${quiet ? " is-quiet" : ""}`}
       onToggle={(event) => onOpenChange(event.currentTarget.open)}
       open={open}
     >
       <summary>
         <span>
-          <strong>Trace receipts</strong>
-          <small>Execution history</small>
+          <strong>{quiet ? "Run history" : "Trace receipts"}</strong>
+          <small>
+            {quiet ? "Receipts appear after execution" : "Execution history"}
+          </small>
         </span>
         <span className="automation-runs-panel__meta">
-          {open ? `${runs.length} loaded` : "Open to load"}
+          {open
+            ? `${runs.length} loaded`
+            : quiet
+              ? "View past runs"
+              : "Open to load"}
         </span>
       </summary>
       {open ? (

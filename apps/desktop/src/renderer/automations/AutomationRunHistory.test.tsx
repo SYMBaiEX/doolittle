@@ -59,4 +59,23 @@ describe("AutomationRunHistory", () => {
     expect(markup).toContain("Accepted for delivery.");
     expect(markup).toContain("Brief delivered.");
   });
+
+  it("keeps empty-workspace history visually subordinate but inspectable", () => {
+    const markup = renderToStaticMarkup(
+      <AutomationRunHistory
+        onOpenChange={vi.fn()}
+        onReload={vi.fn()}
+        onSelectRun={vi.fn()}
+        open={false}
+        quiet
+        runs={[]}
+        runsError=""
+        runsLoading={false}
+      />,
+    );
+
+    expect(markup).toContain("automation-runs-panel is-quiet");
+    expect(markup).toContain("Run history");
+    expect(markup).toContain("View past runs");
+  });
 });

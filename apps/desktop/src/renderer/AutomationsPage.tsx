@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import {
   type AutomationDraft,
   buildAutomationRequest,
+  createAutomationDraft,
   summarizeAutomation,
 } from "./automation-model";
 import { AutomationBuilder } from "./automations/AutomationBuilder";
@@ -33,18 +34,6 @@ interface CronResponse {
   runs?: unknown[];
 }
 
-const initialDraft = (): AutomationDraft => ({
-  name: "",
-  triggerType: "schedule",
-  schedule: "0 9 * * 1-5",
-  conditionType: "always",
-  conditionPath: "",
-  conditionValue: "",
-  actionType: "run-agent",
-  prompt: "",
-  webhookUrl: "",
-});
-
 export function AutomationsPage({ active }: { active: boolean }) {
   const [runsOpen, setRunsOpen] = useState(false);
   const resourcePolicy = automationRequests({ active, runsOpen });
@@ -57,7 +46,7 @@ export function AutomationsPage({ active }: { active: boolean }) {
     [resourcePolicy.runs],
   );
   const [showCreate, setShowCreate] = useState(false);
-  const [draft, setDraft] = useState<AutomationDraft>(initialDraft);
+  const [draft, setDraft] = useState<AutomationDraft>(createAutomationDraft);
   const [busy, setBusy] = useState("");
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const [selectedRunId, setSelectedRunId] = useState("");
@@ -108,7 +97,7 @@ export function AutomationsPage({ active }: { active: boolean }) {
     setFeedback(null);
     try {
       await desktopRequest("/cron/jobs", "POST", request.payload);
-      setDraft(initialDraft());
+      setDraft(createAutomationDraft());
       setShowCreate(false);
       setFeedback({ message: "Automation created.", tone: "good" });
       jobs.reload();
@@ -233,7 +222,11 @@ export function AutomationsPage({ active }: { active: boolean }) {
           jobsError={jobs.error}
           jobsLoading={jobs.loading}
           onAction={act}
-          onCreate={() => setShowCreate(true)}
+          onCreate={(starter) => {
+            setDraft(createAutomationDraft(starter));
+            setFeedback(null);
+            setShowCreate(true);
+          }}
           onFeedback={(message) => setFeedback({ message, tone: "good" })}
           onReloadJobs={jobs.reload}
           onReloadRuns={runs.reload}

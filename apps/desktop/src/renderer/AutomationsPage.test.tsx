@@ -157,20 +157,33 @@ describe("AutomationsPage", () => {
       container.querySelector('[aria-label="Automation summary"]'),
     ).toBeNull();
     expect(container.querySelector(".automation-empty-panel")).not.toBeNull();
-    expect(container.textContent).toContain("Automate one repeatable task");
+    expect(container.textContent).toContain("Build your first workflow");
     expect(container.textContent).not.toContain("Webhook inputs");
+    expect(container.textContent).toContain("Weekday brief");
+    expect(container.textContent).toContain("Webhook triage");
+    expect(container.textContent).toContain("View past runs");
 
-    const openBuilder = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Open builder",
+    const useStarter = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("Weekday brief"),
     );
-    expect(openBuilder).toBeDefined();
+    expect(useStarter).toBeDefined();
 
-    act(() => openBuilder?.click());
+    act(() => useStarter?.click());
 
     expect(container.textContent).toContain("Automation definition");
     expect(container.textContent).toContain("Close builder");
     expect(container.querySelector(".automation-empty-panel")).toBeNull();
-    expect(container.textContent).toContain("Trace receipts");
+    expect(container.textContent).toContain("Run history");
+    expect(
+      container.querySelector<HTMLInputElement>(
+        'input[placeholder="Release readiness"]',
+      )?.value,
+    ).toBe("Weekday brief");
+    expect(
+      container.querySelector<HTMLTextAreaElement>(
+        'textarea[placeholder^="Review the latest work"]',
+      )?.value,
+    ).toContain("current workspace");
   });
 
   it("loads trace receipts only after the operator opens the drawer", () => {

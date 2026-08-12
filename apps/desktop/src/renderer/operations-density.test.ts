@@ -151,10 +151,10 @@ describe("operational route density", () => {
       'detail: runsOpen ? "Durable trace receipts" : "Open to load"',
     );
     expect(workspace).toContain("<AutomationRunHistory");
-    expect(history).toContain('className="content-card automation-runs-panel"');
-    expect(history).toMatch(
-      /open \? `\$\{runs\.length\} loaded` : "Open to load"/u,
-    );
+    expect(history).toContain("automation-runs-panel");
+    expect(history).toContain('quiet ? "Run history" : "Trace receipts"');
+    expect(history).toContain('"View past runs"');
+    expect(history).toContain('"Open to load"');
   });
 
   it("uses compact empty states for zero-data inventory panes", () => {
@@ -165,8 +165,10 @@ describe("operational route density", () => {
     expect(automationWorkspace).toContain(
       'className="automation-empty-starter"',
     );
-    expect(automationWorkspace).toContain("Automate one repeatable task");
-    expect(automationWorkspace).toContain("Open builder");
+    expect(automationWorkspace).toContain("Build your first workflow");
+    expect(automationWorkspace).toContain("Blank workflow");
+    expect(automationWorkspace).toContain("Weekday brief");
+    expect(automationWorkspace).toContain("Webhook triage");
     expect(automationWorkspace).not.toContain('title="No automations yet"');
     expect(read("./automations.css")).toContain(
       ".automation-workspace.is-empty",

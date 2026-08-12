@@ -7,6 +7,10 @@ export type AutomationConditionChoice =
   | "exists"
   | "equals"
   | "contains";
+export type AutomationStarterChoice =
+  | "blank"
+  | "weekday-brief"
+  | "webhook-triage";
 
 export interface AutomationDraft {
   name: string;
@@ -34,6 +38,41 @@ export type AutomationRequestResult =
   | { ok: false; error: string };
 
 const conditionPathPattern = /^[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/iu;
+
+export function createAutomationDraft(
+  starter: AutomationStarterChoice = "blank",
+): AutomationDraft {
+  const draft: AutomationDraft = {
+    name: "",
+    triggerType: "schedule",
+    schedule: "0 9 * * 1-5",
+    conditionType: "always",
+    conditionPath: "",
+    conditionValue: "",
+    actionType: "run-agent",
+    prompt: "",
+    webhookUrl: "",
+  };
+
+  if (starter === "weekday-brief") {
+    return {
+      ...draft,
+      name: "Weekday brief",
+      prompt:
+        "Review the current workspace and surface the next operator priorities.",
+    };
+  }
+  if (starter === "webhook-triage") {
+    return {
+      ...draft,
+      name: "Webhook triage",
+      triggerType: "webhook",
+      prompt:
+        "Review the incoming webhook payload and report the next operator action.",
+    };
+  }
+  return draft;
+}
 
 export function buildAutomationRequest(
   draft: AutomationDraft,
