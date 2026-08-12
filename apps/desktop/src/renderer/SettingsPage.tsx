@@ -5,6 +5,7 @@ import type {
   RuntimeStatus,
 } from "../shared/contracts";
 import { ConnectionsPage } from "./ConnectionsPage";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   announceAppearance,
   announceDensity,
@@ -71,10 +72,16 @@ export function settingsResourcePolicy(
   return {
     settings: active,
     themes: active && category === "appearance",
-    desktop: active && category === "desktop",
+    // Lifecycle and update controls belong to the Electron shell, so they
+    // remain usable even when the local agent runtime is stopped.
+    desktop: category === "desktop",
     execution: active && category === "execution",
     runtime: active && category === "model",
   };
+}
+
+export function settingsCategoryOffline(category: string, active: boolean) {
+  return !active && !["appearance", "desktop"].includes(category);
 }
 
 export function SettingsPage({ active }: { active: boolean }) {
@@ -183,6 +190,7 @@ export function SettingsPage({ active }: { active: boolean }) {
     categories.find((entry) => entry.id === category) ?? categories[0];
 
   const changeTheme = async (theme: string) => {
+    if (!active) return;
     try {
       const response = await desktopRequest<ThemeResponse>("/theme", "POST", {
         theme,
@@ -219,6 +227,11 @@ export function SettingsPage({ active }: { active: boolean }) {
     setSavedMessage(`${titleCase(next)} interface density is now active.`);
   };
 
+  const reloadSettings = () => {
+    if (active) settings.reload();
+  };
+  const runtimeCategoryOffline = settingsCategoryOffline(category, active);
+
   return (
     <div className="page page-settings">
       <PageHeader
@@ -228,7 +241,8 @@ export function SettingsPage({ active }: { active: boolean }) {
         actions={
           <button
             className="secondary-button"
-            onClick={settings.reload}
+            disabled={!active}
+            onClick={reloadSettings}
             type="button"
           >
             Reload
@@ -236,10 +250,10 @@ export function SettingsPage({ active }: { active: boolean }) {
         }
       />
       {savedMessage ? <Notice>{savedMessage}</Notice> : null}
-      {settings.loading ? (
+      {active && settings.loading ? (
         <LoadingBlock label="Loading runtime configuration…" />
-      ) : settings.error ? (
-        <ErrorBlock error={settings.error} retry={settings.reload} />
+      ) : active && settings.error ? (
+        <ErrorBlock error={settings.error} retry={reloadSettings} />
       ) : (
         <div className="settings-layout">
           <aside className="settings-nav" aria-label="Settings categories">
@@ -263,7 +277,13 @@ export function SettingsPage({ active }: { active: boolean }) {
             ))}
           </aside>
           <section className="settings-content">
-            {category !== "providers" ? (
+            {runtimeCategoryOffline && category !== "providers" ? (
+              <OfflineRouteState>
+                Runtime configuration, provider connections, and execution
+                controls are unavailable until the local runtime is ready.
+              </OfflineRouteState>
+            ) : null}
+            {!runtimeCategoryOffline && category !== "providers" ? (
               <header className="settings-content-header">
                 <div>
                   <span className="eyebrow">Configuration</span>
@@ -286,7 +306,7 @@ export function SettingsPage({ active }: { active: boolean }) {
             {category === "providers" ? (
               <ConnectionsPage active={active} embedded />
             ) : null}
-            {category === "appearance" ? (
+            {!runtimeCategoryOffline && category === "appearance" ? (
               <section className="settings-group">
                 <div className="settings-group-heading">
                   <div>
@@ -358,10 +378,18 @@ export function SettingsPage({ active }: { active: boolean }) {
                     </p>
                   </div>
                   <Badge>
-                    {titleCase(asString(themes.data?.active, "orange"))}
+                    {active
+                      ? titleCase(asString(themes.data?.active, "orange"))
+                      : "Unavailable"}
                   </Badge>
                 </div>
-                <div className="theme-grid">
+                {!active ? (
+                  <OfflineRouteState>
+                    Saved color themes are unavailable until the local runtime
+                    is ready. Appearance and density remain available locally.
+                  </OfflineRouteState>
+                ) : null}
+                <div className="theme-grid" hidden={!active}>
                   {asArray(themes.data?.themes).map((value, index) => {
                     const entry = asRecord(value);
                     const name = asString(entry.name, String(index));
@@ -407,7 +435,7 @@ export function SettingsPage({ active }: { active: boolean }) {
                 </div>
               </section>
             ) : null}
-            {category === "model" ? (
+            {!runtimeCategoryOffline && category === "model" ? (
               <ModelsPage
                 active={active}
                 embedded
@@ -418,7 +446,7 @@ export function SettingsPage({ active }: { active: boolean }) {
                 runtime={runtime.data ?? null}
               />
             ) : null}
-            {category === "desktop" ? (
+            {!runtimeCategoryOffline && category === "desktop" ? (
               <section className="settings-group">
                 <div className="settings-group-heading">
                   <div>
@@ -539,7 +567,7 @@ export function SettingsPage({ active }: { active: boolean }) {
             ) : null}
             {!["providers", "desktop", "appearance", "model"].includes(
               category,
-            ) ? (
+            ) && !runtimeCategoryOffline ? (
               <section className="settings-group">
                 <div className="settings-group-heading">
                   <div>
@@ -565,7 +593,7 @@ export function SettingsPage({ active }: { active: boolean }) {
                 />
               </section>
             ) : null}
-            {category === "execution" ? (
+            {!runtimeCategoryOffline && category === "execution" ? (
               <section className="settings-group">
                 <div className="settings-group-heading">
                   <div>

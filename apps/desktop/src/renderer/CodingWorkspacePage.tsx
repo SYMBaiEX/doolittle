@@ -40,6 +40,7 @@ import {
   type WorkspaceTreeResponse,
 } from "./coding-workspace/models";
 import type { CodeEditorStateSnapshot } from "./components/CodeEditor";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import { useDesktopAcpEditorBridge } from "./desktop-acp-client";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import {
@@ -48,6 +49,7 @@ import {
   asRecord,
   asString,
   errorMessage,
+  PageHeader,
   useApiResource,
 } from "./lib";
 import {
@@ -350,6 +352,7 @@ export function CodingWorkspacePage({
   }, [active]);
 
   const refreshAll = () => {
+    if (!active) return;
     summaryResource.reload();
     treeResource.reload();
     changesResource.reload();
@@ -366,6 +369,7 @@ export function CodingWorkspacePage({
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!active) return;
     const nextQuery = searchDraft.trim();
     if (!nextQuery) return;
     setSearchQuery(nextQuery);
@@ -381,7 +385,7 @@ export function CodingWorkspacePage({
   };
 
   const saveFile = async () => {
-    if (!selectedPath || !fileDirty || savingFile) return;
+    if (!active || !selectedPath || !fileDirty || savingFile) return;
     setSavingFile(true);
     setFileNotice({
       tone: "neutral",
@@ -423,6 +427,7 @@ export function CodingWorkspacePage({
       "stage-hunk" | "unstage-hunk" | "discard-hunk"
     >,
   ) => {
+    if (!active) return;
     const patch = patchResource.data?.patch;
     if (!patch?.patch || patch.truncated) return;
     setFileNotice({
@@ -450,7 +455,7 @@ export function CodingWorkspacePage({
   };
 
   const sendSelectedContext = () => {
-    if (!selectedPath) return;
+    if (!active || !selectedPath) return;
     void acpEditor.flushEditorState();
     if (editorPane === "diff") {
       const patch = patchResource.data?.patch?.patch ?? "";
@@ -479,8 +484,35 @@ export function CodingWorkspacePage({
   };
 
   const submitAcpTask = async (event: FormEvent<HTMLFormElement>) => {
+    if (!active) return;
     await submitAcpEditorTask(event, acpEditor.prompt, acpTaskDraft);
   };
+
+  if (!active) {
+    return (
+      <div className={`page coding-workspace-page ${zenMode ? "zen" : ""}`}>
+        <PageHeader
+          actions={
+            <button
+              className="secondary-button"
+              disabled
+              onClick={refreshAll}
+              type="button"
+            >
+              Refresh
+            </button>
+          }
+          description="Inspect files, changes, and workspace operations without leaving the desktop."
+          eyebrow="Agentic workspace"
+          title="Code"
+        />
+        <OfflineRouteState>
+          Workspace files, repository state, and coding actions are unavailable
+          until the local runtime is ready.
+        </OfflineRouteState>
+      </div>
+    );
+  }
 
   return (
     <div className={`page coding-workspace-page ${zenMode ? "zen" : ""}`}>

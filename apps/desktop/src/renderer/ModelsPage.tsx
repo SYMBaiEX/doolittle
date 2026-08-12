@@ -4,6 +4,7 @@ import type {
   RuntimeReasoningEffort,
   RuntimeStatus,
 } from "../shared/contracts";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   type ActionFeedback,
   asRecord,
@@ -107,6 +108,12 @@ export function ModelsPage({
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
 
+  const discoverModels = () => {
+    if (!active) return;
+    if (liveDiscovery) models.reload();
+    else setLiveDiscovery(true);
+  };
+
   const fieldValue = (key: string, fallback: unknown) =>
     Object.hasOwn(draft, key) ? draft[key] : String(fallback ?? "");
   const selectedProviderId = fieldValue("provider", model?.provider);
@@ -136,6 +143,7 @@ export function ModelsPage({
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
+    if (!active) return;
     setSaving(true);
     setFeedback(null);
     try {
@@ -195,17 +203,15 @@ export function ModelsPage({
             </p>
           </div>
           <div className="row-actions">
-            {runtime ? (
+            {active && runtime ? (
               <Badge tone="good">
                 {runtime.provider} · {runtime.model}
               </Badge>
             ) : null}
             <button
               className="text-button"
-              onClick={() => {
-                if (liveDiscovery) models.reload();
-                else setLiveDiscovery(true);
-              }}
+              disabled={!active}
+              onClick={discoverModels}
               type="button"
             >
               {liveDiscovery ? "Refresh catalog" : "Discover live models"}
@@ -219,17 +225,15 @@ export function ModelsPage({
           description="Choose the provider and model Doolittle uses for new work, with local-first defaults."
           actions={
             <div className="row-actions">
-              {runtime ? (
+              {active && runtime ? (
                 <Badge tone="good">
                   {runtime.provider} · {runtime.model}
                 </Badge>
               ) : null}
               <button
                 className="text-button"
-                onClick={() => {
-                  if (liveDiscovery) models.reload();
-                  else setLiveDiscovery(true);
-                }}
+                disabled={!active}
+                onClick={discoverModels}
                 type="button"
               >
                 {liveDiscovery ? "Refresh catalog" : "Discover live models"}
@@ -238,7 +242,12 @@ export function ModelsPage({
           }
         />
       )}
-      {settings.loading ? (
+      {!active ? (
+        <OfflineRouteState>
+          Model settings and provider catalogs are unavailable until the local
+          runtime is ready.
+        </OfflineRouteState>
+      ) : settings.loading ? (
         <LoadingBlock label="Loading model settings…" />
       ) : settings.error ? (
         <ErrorBlock error={settings.error} retry={settings.reload} />

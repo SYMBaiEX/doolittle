@@ -7,6 +7,7 @@ import {
   TabsTrigger,
 } from "@elizaos/ui/components/ui/tabs";
 import { useState } from "react";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import { PageHeader, useApiResource } from "./lib";
 import { MemoryProfilesPanel } from "./memory/MemoryProfilesPanel";
 import { MemorySnapshotPanel } from "./memory/MemorySnapshotPanel";
@@ -48,6 +49,7 @@ export function MemoryPage({ active }: { active: boolean }) {
   );
 
   const reloadVisibleSection = () => {
+    if (!active) return;
     if (policy.shared) sharedMemory.reload();
     if (policy.user) userMemory.reload();
     if (policy.profiles) {
@@ -55,6 +57,33 @@ export function MemoryPage({ active }: { active: boolean }) {
       agentProfile.reload();
     }
   };
+
+  if (!active) {
+    return (
+      <PagePanel className="page studio-page memory-page" variant="workspace">
+        <PageHeader
+          actions={
+            <Button
+              className="secondary-button"
+              disabled
+              onClick={reloadVisibleSection}
+              type="button"
+              variant="secondary"
+            >
+              Refresh memory
+            </Button>
+          }
+          description="Inspect bounded memory targets and operator profile recall."
+          eyebrow="Operator Workspace"
+          title="Memory"
+        />
+        <OfflineRouteState>
+          Memory snapshots and profile recall are unavailable until the local
+          runtime is ready.
+        </OfflineRouteState>
+      </PagePanel>
+    );
+  }
 
   return (
     <PagePanel className="page studio-page memory-page" variant="workspace">

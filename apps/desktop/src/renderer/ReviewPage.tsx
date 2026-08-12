@@ -7,6 +7,7 @@ import type {
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RepositoryReviewResponse } from "../shared/contracts";
 import type { ChatContextRequest } from "./chat-context-handoff";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   type ActionFeedback,
   asArray,
@@ -16,6 +17,7 @@ import {
   errorMessage,
   LoadingBlock,
   Notice,
+  PageHeader,
   useApiResource,
 } from "./lib";
 import { reviewRequests } from "./resource-request-policy";
@@ -294,6 +296,7 @@ export function ReviewPage({
   ]);
 
   const reload = () => {
+    if (!active) return;
     approvals.reload();
     changes.reload();
     runs.reload();
@@ -344,7 +347,7 @@ export function ReviewPage({
   };
 
   const saveComment = async () => {
-    if (!commentTarget || !commentDraft.trim()) return;
+    if (!active || !commentTarget || !commentDraft.trim()) return;
     const now = new Date().toISOString();
     if (editingCommentId) {
       const nextComments = comments.map((comment) =>
@@ -395,6 +398,7 @@ export function ReviewPage({
   };
 
   const toggleCommentResolved = async (commentId: string) => {
+    if (!active) return;
     const now = new Date().toISOString();
     const selectedComment = comments.find(
       (comment) => comment.id === commentId,
@@ -426,6 +430,7 @@ export function ReviewPage({
   };
 
   const deleteComment = async (commentId: string) => {
+    if (!active) return;
     persistComments(comments.filter((comment) => comment.id !== commentId));
     if (editingCommentId === commentId) cancelComment();
     try {
@@ -441,7 +446,7 @@ export function ReviewPage({
   };
 
   const sendReviewFeedback = async () => {
-    if (openCommentCount === 0) return;
+    if (!active || openCommentCount === 0) return;
     onSendToChat({
       text: compileReviewFeedback({
         identity: commentIdentity,
@@ -463,7 +468,7 @@ export function ReviewPage({
   };
 
   const decideApproval = async (decision: "approve" | "deny") => {
-    if (selected?.kind !== "approvals") return;
+    if (!active || selected?.kind !== "approvals") return;
     const approvalId = asString(selected.raw.id);
     if (!approvalId) return;
     setBusy(decision);
@@ -504,6 +509,37 @@ export function ReviewPage({
     items.length === 0 && sourceErrors.length === 4
       ? (sourceErrors[0] ?? "")
       : "";
+  if (!active) {
+    return (
+      <div
+        className={`page review-page${embedded ? " review-page--embedded" : ""}`}
+        data-project-scope={projectScope}
+        data-workspace-path={workspacePath}
+      >
+        {!embedded ? (
+          <PageHeader
+            actions={
+              <button
+                className="secondary-button"
+                disabled
+                onClick={reload}
+                type="button"
+              >
+                Refresh
+              </button>
+            }
+            description="Inspect completed work, changed files, verification, and decisions from the local runtime."
+            eyebrow="Agent work"
+            title="Review"
+          />
+        ) : null}
+        <OfflineRouteState>
+          Review evidence and approval actions are unavailable until the local
+          runtime is ready.
+        </OfflineRouteState>
+      </div>
+    );
+  }
   return (
     <div
       className={`page review-page${embedded ? " review-page--embedded" : ""}`}

@@ -1,6 +1,7 @@
 import { type KeyboardEvent, useState } from "react";
 import { CompactCatalogList } from "./components/CompactCatalogList";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import { SkillWorkshopPanel } from "./components/SkillWorkshopPanel";
 import {
   asArray,
@@ -28,8 +29,36 @@ export function SkillsPage({ active }: { active: boolean }) {
   const skills = useApiResource<SkillsResponse>(active ? "/skills" : null, [
     active,
   ]);
+  const refresh = () => {
+    if (active) skills.reload();
+  };
   const [query, setQuery] = useState("");
   const [section, setSection] = useState<"catalog" | "workshop">("catalog");
+  if (!active) {
+    return (
+      <div className="page">
+        <PageHeader
+          actions={
+            <button
+              className="secondary-button"
+              disabled
+              onClick={refresh}
+              type="button"
+            >
+              Refresh
+            </button>
+          }
+          description="Browse the skills Doolittle can load for specialized work and inspect the local skill hub."
+          eyebrow="Agent"
+          title="Skills"
+        />
+        <OfflineRouteState>
+          Skill catalog and proposal review are unavailable until the local
+          runtime is ready.
+        </OfflineRouteState>
+      </div>
+    );
+  }
   const entries = asArray(skills.data?.skills).map(asRecord);
   const filtered = entries.filter((entry) => {
     const normalized = query.trim().toLowerCase();
@@ -91,7 +120,8 @@ export function SkillsPage({ active }: { active: boolean }) {
         actions={
           <button
             className="secondary-button"
-            onClick={skills.reload}
+            disabled={!active}
+            onClick={refresh}
             type="button"
           >
             Refresh
@@ -107,7 +137,11 @@ export function SkillsPage({ active }: { active: boolean }) {
           },
           { label: "Curated", value: asNumber(summaryValue.curated) },
           { label: "Generated", value: asNumber(summaryValue.generated) },
-          { label: "Installed", value: installedValues.length, tone: "good" },
+          {
+            label: "Installed",
+            value: installedValues.length,
+            tone: "good",
+          },
         ]}
       />
       <div

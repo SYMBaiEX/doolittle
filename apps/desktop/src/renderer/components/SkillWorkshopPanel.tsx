@@ -11,6 +11,7 @@ import {
   useApiResource,
 } from "../lib";
 import { CompactStatStrip } from "./CompactStatStrip";
+import { OfflineRouteState } from "./OfflineRouteState";
 import { SkillProposalCard } from "./SkillProposalCard";
 import {
   normalizeProposal,
@@ -95,6 +96,7 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
 
   const submitProposal = async (event: FormEvent) => {
     event.preventDefault();
+    if (!active) return;
     const trimmedSlug = slug.trim();
     const trimmedContent = content.trim();
 
@@ -129,6 +131,7 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
   };
 
   const applyMutation = async (id: string, action: "approve" | "reject") => {
+    if (!active) return;
     setActionBusy(`${id}:${action}`);
     setMutationError("");
     try {
@@ -150,6 +153,17 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
 
   const updateReason = (id: string, value: string) =>
     setFeedbackByProposal((current) => ({ ...current, [id]: value }));
+
+  if (!active) {
+    return (
+      <section className="skill-workshop">
+        <OfflineRouteState>
+          Skill proposals and activation actions are unavailable until the local
+          runtime is ready.
+        </OfflineRouteState>
+      </section>
+    );
+  }
 
   return (
     <section className="skill-workshop">

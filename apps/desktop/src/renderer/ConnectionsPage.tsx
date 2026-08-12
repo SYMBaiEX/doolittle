@@ -5,6 +5,7 @@ import type {
   AccountPoolResponse,
   ProviderAuthProvider,
 } from "../shared/contracts";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import { AccountPoolPanel } from "./connections/AccountPoolPanel";
 import { ProviderConnectionRow } from "./connections/ProviderConnectionRow";
 import {
@@ -106,6 +107,63 @@ export function ConnectionsPage({
     updateAccount,
   } = useConnectionsActions({ accountPool, active, accounts: resource });
 
+  const refresh = () => {
+    if (!active) return;
+    void mutate("all", "refresh");
+  };
+
+  if (!active) {
+    return (
+      <PagePanel
+        className={embedded ? "settings-provider-section" : "page"}
+        variant={embedded ? "section" : "workspace"}
+      >
+        {embedded ? (
+          <header className="settings-section-header">
+            <div>
+              <span className="eyebrow">Accounts</span>
+              <h2>Provider sign in</h2>
+              <p>
+                Use your Codex or Claude subscription. Doolittle opens the
+                official account flow and keeps credentials outside the UI.
+              </p>
+            </div>
+            <Button
+              className="secondary-button"
+              disabled
+              onClick={refresh}
+              type="button"
+              variant="secondary"
+            >
+              Refresh all
+            </Button>
+          </header>
+        ) : (
+          <PageHeader
+            actions={
+              <Button
+                className="secondary-button"
+                disabled
+                onClick={refresh}
+                type="button"
+                variant="secondary"
+              >
+                Refresh all
+              </Button>
+            }
+            description="Route chats, connect provider subscriptions, and shape how spawned agents move across pooled accounts."
+            eyebrow="Agent"
+            title="Providers & accounts"
+          />
+        )}
+        <OfflineRouteState>
+          Provider connections and account pools are unavailable until the local
+          runtime is ready.
+        </OfflineRouteState>
+      </PagePanel>
+    );
+  }
+
   const providerViews = displayedProviders.map((provider) => {
     const status = asRecord(resource.data?.accounts?.[provider.snapshot]);
     const ready =
@@ -145,8 +203,8 @@ export function ConnectionsPage({
           </div>
           <Button
             className="secondary-button"
-            onClick={() => void mutate("all", "refresh")}
-            disabled={Boolean(busy)}
+            disabled={!active || Boolean(busy)}
+            onClick={refresh}
             type="button"
             variant="secondary"
           >
@@ -161,8 +219,8 @@ export function ConnectionsPage({
           actions={
             <Button
               className="secondary-button"
-              onClick={() => void mutate("all", "refresh")}
-              disabled={Boolean(busy)}
+              disabled={!active || Boolean(busy)}
+              onClick={refresh}
               type="button"
               variant="secondary"
             >

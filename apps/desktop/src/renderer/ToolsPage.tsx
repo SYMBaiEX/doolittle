@@ -3,6 +3,7 @@ import { AcpBridgePanel } from "./components/AcpBridgePanel";
 import { CompactCatalogList } from "./components/CompactCatalogList";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { McpControlPanel } from "./components/McpControlPanel";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   asArray,
   asNumber,
@@ -41,8 +42,36 @@ export function ToolsPage({ active }: { active: boolean }) {
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
   const toolsPath = active ? `/tools?profile=${profile}` : null;
   const tools = useApiResource<ToolsResponse>(toolsPath, [active, profile]);
+  const refresh = () => {
+    if (active) tools.reload();
+  };
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
+  if (!active) {
+    return (
+      <div className="page">
+        <PageHeader
+          actions={
+            <button
+              className="secondary-button"
+              disabled
+              onClick={refresh}
+              type="button"
+            >
+              Refresh
+            </button>
+          }
+          description="Search the capabilities available to this runtime."
+          eyebrow="Agent"
+          title="Tools"
+        />
+        <OfflineRouteState>
+          Tool inventory and integration bridges are unavailable until the local
+          runtime is ready.
+        </OfflineRouteState>
+      </div>
+    );
+  }
   const entries = asArray(tools.data?.tools).map(asRecord);
   const categories = [
     "all",
@@ -108,7 +137,8 @@ export function ToolsPage({ active }: { active: boolean }) {
         actions={
           <button
             className="secondary-button"
-            onClick={tools.reload}
+            disabled={!active}
+            onClick={refresh}
             type="button"
           >
             Refresh
@@ -122,7 +152,11 @@ export function ToolsPage({ active }: { active: boolean }) {
             label: "Registered",
             value: asNumber(totals.total, entries.length),
           },
-          { label: "Enabled", value: asNumber(totals.enabled), tone: "good" },
+          {
+            label: "Enabled",
+            value: asNumber(totals.enabled),
+            tone: "good",
+          },
           { label: "Categories", value: asArray(totals.categories).length },
           {
             label: "Policy",
