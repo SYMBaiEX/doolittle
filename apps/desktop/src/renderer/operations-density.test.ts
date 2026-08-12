@@ -15,7 +15,7 @@ describe("operational route density", () => {
       "./SkillsPage.tsx",
       "./PluginsPage.tsx",
       "./DocsPage.tsx",
-      "./DashboardPage.tsx",
+      "./dashboard/DashboardPriorityPanel.tsx",
       "./SetupPage.tsx",
       "./runtime/RuntimeOverview.tsx",
       "./runtime/RuntimeInventory.tsx",
