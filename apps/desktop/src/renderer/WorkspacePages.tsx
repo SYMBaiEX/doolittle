@@ -125,7 +125,6 @@ export function SessionsPage({
     sessions.find((session) => session.sessionId === selectedId) ??
     filtered[0] ??
     sessions[0];
-  const offlineEmpty = !active && sessions.length === 0;
   const exportArchive = async () => {
     if (!active || !selected || transferring) return;
     setMutationError("");
@@ -277,110 +276,104 @@ export function SessionsPage({
       {active && mutationError ? (
         <div className="inline-error">{mutationError}</div>
       ) : null}
-      <div
-        className={`split-workspace ${
-          offlineEmpty || shouldShowSessionEmptyLanding(sessions.length, query)
-            ? "is-empty"
-            : ""
-        }`}
-      >
-        {offlineEmpty ||
-        shouldShowSessionEmptyLanding(sessions.length, query) ? (
-          <section className="session-empty-landing">
-            {active ? (
+      {!active ? (
+        <OfflineRouteState>
+          Saved sessions, transcript details, and transfer actions will be
+          available again when the local runtime is ready.
+        </OfflineRouteState>
+      ) : (
+        <div
+          className={`split-workspace ${
+            shouldShowSessionEmptyLanding(sessions.length, query)
+              ? "is-empty"
+              : ""
+          }`}
+        >
+          {shouldShowSessionEmptyLanding(sessions.length, query) ? (
+            <section className="session-empty-landing">
               <EmptyBlock title="No sessions yet">
                 Start a conversation from Chat, or import a portable archive.
               </EmptyBlock>
+            </section>
+          ) : null}
+          <section className="list-panel">
+            <label className="search-field">
+              <span className="sr-only">Search sessions</span>
+              <input
+                placeholder="Search conversations or message text"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </label>
+            {active && query.trim() ? (
+              <div style={{ marginBottom: "10px" }}>
+                {search.loading ? (
+                  <LoadingBlock label="Searching persisted sessions…" />
+                ) : search.error ? (
+                  <ErrorBlock error={search.error} retry={search.reload} />
+                ) : search.data?.hits?.length ? (
+                  <div className="status-row">
+                    <div>
+                      <strong>Full-text search</strong>
+                      <small>{search.data.hits.length} persisted hit(s)</small>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            <section
+              aria-label="Conversations"
+              className="list-scroll session-list-scroll"
+            >
+              {filtered.map((session) => (
+                <button
+                  className={`row-card ${
+                    selected?.sessionId === session.sessionId ? "selected" : ""
+                  }`}
+                  key={session.sessionId}
+                  onClick={() => setSelectedId(session.sessionId)}
+                  type="button"
+                >
+                  <span className="row-card-main">
+                    <strong>
+                      {session.title ||
+                        session.preview?.[0] ||
+                        "Untitled conversation"}
+                    </strong>
+                    <small>{session.preview?.[0] || session.sessionId}</small>
+                  </span>
+                  <span className="row-card-meta">
+                    <small>{session.messageCount} messages</small>
+                    <small>{displayTimestamp(session.endedAt)}</small>
+                  </span>
+                </button>
+              ))}
+              {!filtered.length ? (
+                <EmptyBlock title="No matching sessions">
+                  Try another search, or begin a conversation from Chat.
+                </EmptyBlock>
+              ) : null}
+            </section>
+          </section>
+          <section className="detail-panel">
+            {!selected ? (
+              <EmptyBlock title="No sessions yet">
+                Your saved conversations will appear here.
+              </EmptyBlock>
             ) : (
-              <OfflineRouteState>
-                Saved sessions will be available again when the local runtime is
-                ready.
-              </OfflineRouteState>
+              <SessionDetail
+                active={active}
+                onExport={() => void exportArchive()}
+                onOpenChat={openChat}
+                onRefresh={refresh}
+                onSelectSession={setSelectedId}
+                selected={selected}
+                transferring={transferring}
+              />
             )}
           </section>
-        ) : null}
-        <section className="list-panel">
-          <label className="search-field">
-            <span className="sr-only">Search sessions</span>
-            <input
-              placeholder="Search conversations or message text"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
-          {active && query.trim() ? (
-            <div style={{ marginBottom: "10px" }}>
-              {search.loading ? (
-                <LoadingBlock label="Searching persisted sessions…" />
-              ) : search.error ? (
-                <ErrorBlock error={search.error} retry={search.reload} />
-              ) : search.data?.hits?.length ? (
-                <div className="status-row">
-                  <div>
-                    <strong>Full-text search</strong>
-                    <small>{search.data.hits.length} persisted hit(s)</small>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          <section
-            aria-label="Conversations"
-            className="list-scroll session-list-scroll"
-          >
-            {filtered.map((session) => (
-              <button
-                className={`row-card ${
-                  selected?.sessionId === session.sessionId ? "selected" : ""
-                }`}
-                key={session.sessionId}
-                onClick={() => setSelectedId(session.sessionId)}
-                type="button"
-              >
-                <span className="row-card-main">
-                  <strong>
-                    {session.title ||
-                      session.preview?.[0] ||
-                      "Untitled conversation"}
-                  </strong>
-                  <small>{session.preview?.[0] || session.sessionId}</small>
-                </span>
-                <span className="row-card-meta">
-                  <small>{session.messageCount} messages</small>
-                  <small>{displayTimestamp(session.endedAt)}</small>
-                </span>
-              </button>
-            ))}
-            {!filtered.length ? (
-              <EmptyBlock title="No matching sessions">
-                Try another search, or begin a conversation from Chat.
-              </EmptyBlock>
-            ) : null}
-          </section>
-        </section>
-        <section className="detail-panel">
-          {!active ? (
-            <OfflineRouteState>
-              Session actions and transcript details are unavailable until the
-              local runtime is ready.
-            </OfflineRouteState>
-          ) : !selected ? (
-            <EmptyBlock title="No sessions yet">
-              Your saved conversations will appear here.
-            </EmptyBlock>
-          ) : (
-            <SessionDetail
-              active={active}
-              onExport={() => void exportArchive()}
-              onOpenChat={openChat}
-              onRefresh={refresh}
-              onSelectSession={setSelectedId}
-              selected={selected}
-              transferring={transferring}
-            />
-          )}
-        </section>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

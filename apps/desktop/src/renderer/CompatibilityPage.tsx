@@ -2,6 +2,7 @@ import {
   type CompactCatalogEntry,
   CompactCatalogList,
 } from "./components/CompactCatalogList";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   asArray,
   asRecord,
@@ -47,6 +48,9 @@ export function CompatibilityPage({ active }: { active: boolean }) {
     [active],
   );
   const checks = compatibilityCatalogEntries(compatibility.data);
+  const refresh = () => {
+    if (active) compatibility.reload();
+  };
 
   return (
     <div className="page">
@@ -57,7 +61,8 @@ export function CompatibilityPage({ active }: { active: boolean }) {
         actions={
           <button
             className="text-button"
-            onClick={compatibility.reload}
+            disabled={!active}
+            onClick={refresh}
             type="button"
           >
             Refresh
@@ -65,9 +70,9 @@ export function CompatibilityPage({ active }: { active: boolean }) {
         }
       />
       {!active ? (
-        <EmptyBlock title="Compatibility checks are offline">
-          Restart the local runtime to inspect provider and runtime readiness.
-        </EmptyBlock>
+        <OfflineRouteState>
+          Compatibility checks are unavailable until the local runtime is ready.
+        </OfflineRouteState>
       ) : compatibility.loading ? (
         <LoadingBlock />
       ) : compatibility.error ? (
@@ -94,7 +99,7 @@ export function CompatibilityPage({ active }: { active: boolean }) {
           The runtime did not return a checks payload.
         </EmptyBlock>
       )}
-      {compatibility.data ? (
+      {active && compatibility.data ? (
         <RawDataDisclosure
           label="Raw compatibility report"
           value={compatibility.data}

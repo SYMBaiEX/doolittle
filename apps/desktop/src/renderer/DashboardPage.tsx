@@ -5,6 +5,7 @@ import type {
   SessionSummary,
 } from "../shared/contracts";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   buildNextActions,
   countOwnershipSignals,
@@ -150,6 +151,43 @@ export function DashboardPage({
     accountPool.error,
   ].filter(Boolean);
 
+  const refresh = () => {
+    if (!active) return;
+    void refreshRuntime();
+    approvals.reload();
+    tasks.reload();
+    repoStatus.reload();
+    setup.reload();
+    accountPool.reload();
+  };
+
+  if (!active) {
+    return (
+      <div className="page">
+        <PageHeader
+          eyebrow="Mission control"
+          title="Dashboard"
+          description="Current pressure, next actions, and workspace state."
+          actions={
+            <div className="page-actions">
+              <button
+                className="secondary-button"
+                disabled
+                onClick={refresh}
+                type="button"
+              >
+                Refresh
+              </button>
+            </div>
+          }
+        />
+        <OfflineRouteState>
+          Dashboard data is unavailable until the local runtime is ready.
+        </OfflineRouteState>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <PageHeader
@@ -160,14 +198,7 @@ export function DashboardPage({
           <div className="page-actions">
             <button
               className="secondary-button"
-              onClick={() => {
-                void refreshRuntime();
-                approvals.reload();
-                tasks.reload();
-                repoStatus.reload();
-                setup.reload();
-                accountPool.reload();
-              }}
+              onClick={refresh}
               type="button"
             >
               Refresh

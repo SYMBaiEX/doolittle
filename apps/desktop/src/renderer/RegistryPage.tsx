@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { CompactCatalogList } from "./components/CompactCatalogList";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   asArray,
   asRecord,
@@ -93,8 +94,16 @@ export function RegistryPage({ active }: { active: boolean }) {
   ]);
   const entries = normalizeRegistryEntries(registry.data);
 
+  const refreshRegistry = () => {
+    if (!active) return;
+    setRefreshRequest((current) => ({
+      nonce: (current?.nonce ?? 0) + 1,
+      query: query.trim(),
+    }));
+  };
+
   const install = async (entry: RegistryEntry) => {
-    if (installing || pendingInstall !== entry.name) return;
+    if (!active || installing || pendingInstall !== entry.name) return;
     setInstalling(true);
     setInstallNotice("");
     try {
@@ -209,12 +218,8 @@ export function RegistryPage({ active }: { active: boolean }) {
         actions={
           <button
             className="text-button"
-            onClick={() =>
-              setRefreshRequest((current) => ({
-                nonce: (current?.nonce ?? 0) + 1,
-                query: query.trim(),
-              }))
-            }
+            disabled={!active}
+            onClick={refreshRegistry}
             type="button"
           >
             Refresh registry
@@ -235,9 +240,10 @@ export function RegistryPage({ active }: { active: boolean }) {
         </div>
       ) : null}
       {!active ? (
-        <EmptyBlock title="Plugin registry is offline">
-          Restart the local runtime to search installed and available plugins.
-        </EmptyBlock>
+        <OfflineRouteState>
+          Plugin registry search and installs are unavailable until the local
+          runtime is ready.
+        </OfflineRouteState>
       ) : registry.loading ? (
         <LoadingBlock />
       ) : registry.error ? (
@@ -272,14 +278,14 @@ export function RegistryPage({ active }: { active: boolean }) {
           No registry rows returned for this query.
         </EmptyBlock>
       )}
-      {pendingInstall ? (
+      {active && pendingInstall ? (
         <Notice tone="warn">
           Approval requests the reviewed registry version through Eliza's
           official installer. The installed beta SDK does not report an npm
           integrity digest or whether it fell back to a repository source.
         </Notice>
       ) : null}
-      {installNotice ? (
+      {active && installNotice ? (
         <Notice
           tone={installNotice.startsWith("Install failed") ? "bad" : "good"}
         >

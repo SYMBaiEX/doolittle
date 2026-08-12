@@ -5,6 +5,7 @@ import {
   buildBrowserResultViewModel,
 } from "./browser-result-model";
 import { BrowserResultPanel } from "./components/BrowserResultPanel";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   asRecord,
   asString,
@@ -97,6 +98,10 @@ export function BrowserPage({
     asString(statusRecord.mode) ||
     asString(statusRecord.captureMode) ||
     (status.loading ? "Checking" : "Available");
+  const refreshStatus = () => {
+    if (!active) return;
+    status.reload();
+  };
   const resultView = useMemo(
     () => (result ? buildBrowserResultViewModel(result) : null),
     [result],
@@ -125,6 +130,7 @@ export function BrowserPage({
 
   const navigate = (event?: FormEvent) => {
     event?.preventDefault();
+    if (!active) return;
     setError("");
     setErrorField(null);
     try {
@@ -136,6 +142,7 @@ export function BrowserPage({
   };
 
   const travelHistory = (direction: -1 | 1) => {
+    if (!active) return;
     const nextIndex = historyIndex + direction;
     const nextUrl = history[nextIndex];
     if (!nextUrl) return;
@@ -144,6 +151,7 @@ export function BrowserPage({
   };
 
   const reloadPreview = () => {
+    if (!active) return;
     setError("");
     setErrorField(null);
     try {
@@ -157,6 +165,7 @@ export function BrowserPage({
   };
 
   const runAction = async (action: BrowserAction) => {
+    if (!active) return;
     setError("");
     setErrorField(null);
     let url = "";
@@ -192,6 +201,7 @@ export function BrowserPage({
   };
 
   const compare = async (analyze: boolean) => {
+    if (!active) return;
     setError("");
     setErrorField(null);
     let leftUrl = "";
@@ -231,6 +241,36 @@ export function BrowserPage({
     }
   };
 
+  if (!active) {
+    return (
+      <div className="page browser-page">
+        <header className="browser-header">
+          <div>
+            <span className="eyebrow">Build and verify</span>
+            <h1>Browser &amp; preview</h1>
+            <p>Preview localhost. Capture evidence from any URL.</p>
+          </div>
+          <div className="browser-status">
+            <i className="offline" />
+            <strong>Offline</strong>
+            <button
+              className="text-button"
+              disabled
+              onClick={refreshStatus}
+              type="button"
+            >
+              Refresh
+            </button>
+          </div>
+        </header>
+        <OfflineRouteState>
+          Browser preview and evidence capture are unavailable until the local
+          runtime is ready.
+        </OfflineRouteState>
+      </div>
+    );
+  }
+
   return (
     <div className="page browser-page">
       <div aria-live="polite" className="sr-only" role="status">
@@ -248,7 +288,7 @@ export function BrowserPage({
           <button
             className="text-button"
             disabled={!active}
-            onClick={status.reload}
+            onClick={refreshStatus}
             type="button"
           >
             Refresh

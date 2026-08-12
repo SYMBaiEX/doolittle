@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import { GatewayPairingPanel } from "./gateway/GatewayPairingPanel";
 import {
   type GatewayTimelineDirection,
@@ -150,6 +151,7 @@ export function GatewayPage({ active }: { active: boolean }) {
   const loading = state.loading || inbox.loading || outbox.loading;
 
   const refresh = () => {
+    if (!active) return;
     state.reload();
     inbox.reload();
     outbox.reload();
@@ -164,6 +166,7 @@ export function GatewayPage({ active }: { active: boolean }) {
     action: "approve" | "deny" | "revoke",
     input: { platform: string; code?: string; userId?: string },
   ) => {
+    if (!active) return;
     const actionId = `${action}:${input.platform}:${input.code ?? input.userId}`;
     setPairingAction(actionId);
     setFeedback(null);
@@ -180,6 +183,7 @@ export function GatewayPage({ active }: { active: boolean }) {
   };
 
   const replay = async (recordId: string) => {
+    if (!active) return;
     setReplayingId(recordId);
     setFeedback(null);
     try {
@@ -192,6 +196,32 @@ export function GatewayPage({ active }: { active: boolean }) {
       setReplayingId("");
     }
   };
+
+  if (!active) {
+    return (
+      <section className="page gateway-page">
+        <PageHeader
+          eyebrow="Observe / gateway"
+          title="Gateway inbox"
+          description="Local transport history, thread routes, and sender approvals."
+          actions={
+            <button
+              className="secondary-button"
+              disabled
+              onClick={refresh}
+              type="button"
+            >
+              Refresh records
+            </button>
+          }
+        />
+        <OfflineRouteState>
+          Gateway history, routes, and sender approvals are unavailable until
+          the local runtime is ready.
+        </OfflineRouteState>
+      </section>
+    );
+  }
 
   return (
     <section className="page gateway-page">
@@ -206,14 +236,6 @@ export function GatewayPage({ active }: { active: boolean }) {
         }
       />
 
-      {!active ? (
-        <Notice tone="warn">
-          <strong>Local runtime unavailable.</strong>
-          <span>
-            Start or reconnect the runtime to inspect recorded gateway traffic.
-          </span>
-        </Notice>
-      ) : null}
       {errors.length ? (
         <Notice tone="warn">
           <strong>Some gateway data is unavailable.</strong>

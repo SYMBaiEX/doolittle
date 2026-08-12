@@ -1,4 +1,5 @@
 import { CompactStatStrip } from "../components/CompactStatStrip";
+import { OfflineRouteState } from "../components/OfflineRouteState";
 import {
   type ApiResource,
   asArray,
@@ -13,12 +14,22 @@ import {
 import type { GatewayHealthResponse, GatewayRuntimeResponse } from "./models";
 
 export function RuntimeGateway({
+  active = true,
   gatewayHealth,
   gatewayRuntime,
 }: {
+  active?: boolean;
   gatewayHealth: ApiResource<GatewayHealthResponse>;
   gatewayRuntime: ApiResource<GatewayRuntimeResponse>;
 }) {
+  if (!active) {
+    return (
+      <OfflineRouteState>
+        Gateway diagnostics are unavailable until the local runtime is ready.
+      </OfflineRouteState>
+    );
+  }
+
   const healthSummary = asRecord(gatewayHealth.data?.summary);
   const runtimeSummary = asRecord(gatewayRuntime.data?.summary);
   const healthControl = asRecord(gatewayHealth.data?.transportControl);

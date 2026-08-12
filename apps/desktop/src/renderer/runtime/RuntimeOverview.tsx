@@ -8,6 +8,7 @@ import {
   NativeAutonomyPanel,
   type NativeAutonomyResponse,
 } from "../components/NativeAutonomyPanel";
+import { OfflineRouteState } from "../components/OfflineRouteState";
 import {
   type ApiResource,
   asRecord,
@@ -19,16 +20,26 @@ import {
 } from "../lib";
 
 export function RuntimeOverview({
+  active = true,
   accountPool,
   autonomy,
   onOpenProviders,
   runtime,
 }: {
+  active?: boolean;
   accountPool: ApiResource<AccountPoolResponse>;
   autonomy: ApiResource<NativeAutonomyResponse>;
   onOpenProviders?: () => void;
   runtime: ApiResource<RuntimeStatus>;
 }) {
+  if (!active) {
+    return (
+      <OfflineRouteState>
+        Runtime overview is unavailable until the local runtime is ready.
+      </OfflineRouteState>
+    );
+  }
+
   const pooledAccounts = Object.values(
     accountPool.data?.providers ?? {},
   ).flatMap((provider) => provider.accounts);

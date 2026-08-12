@@ -13,6 +13,7 @@ import type {
   RuntimeStatus,
 } from "../shared/contracts";
 import type { NativeAutonomyResponse } from "./components/NativeAutonomyPanel";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import { PageHeader, type UnknownRecord, useApiResource } from "./lib";
 import {
   type GatewayHealthResponse,
@@ -78,6 +79,7 @@ export function RuntimePage({
   );
 
   const reloadVisibleSection = () => {
+    if (!active) return;
     if (policy.runtime) runtime.reload();
     if (policy.accountPool) accountPool.reload();
     if (policy.autonomy) autonomy.reload();
@@ -87,6 +89,33 @@ export function RuntimePage({
     if (policy.ecosystem) ecosystem.reload();
     if (policy.insights) insights.reload();
   };
+
+  if (!active) {
+    return (
+      <PagePanel className="page studio-page runtime-page" variant="workspace">
+        <PageHeader
+          eyebrow="Runtime"
+          title="Runtime"
+          description="Inspect the active model, Eliza-native services, gateway health, and installed capability inventory without loading every diagnostic surface at once."
+          actions={
+            <Button
+              className="text-button"
+              disabled
+              onClick={reloadVisibleSection}
+              type="button"
+              variant="ghost"
+            >
+              Refresh
+            </Button>
+          }
+        />
+        <OfflineRouteState>
+          Runtime diagnostics and capability inventory are unavailable until the
+          local runtime is ready.
+        </OfflineRouteState>
+      </PagePanel>
+    );
+  }
 
   return (
     <PagePanel className="page studio-page runtime-page" variant="workspace">
@@ -128,6 +157,7 @@ export function RuntimePage({
 
         <TabsContent className="runtime-panel" value="overview">
           <RuntimeOverview
+            active={active}
             accountPool={accountPool}
             autonomy={autonomy}
             onOpenProviders={onOpenProviders}
@@ -136,12 +166,14 @@ export function RuntimePage({
         </TabsContent>
         <TabsContent className="runtime-panel" value="gateway">
           <RuntimeGateway
+            active={active}
             gatewayHealth={gatewayHealth}
             gatewayRuntime={gatewayRuntime}
           />
         </TabsContent>
         <TabsContent className="runtime-panel" value="inventory">
           <RuntimeInventory
+            active={active}
             ecosystem={ecosystem}
             insights={insights}
             plugins={plugins}

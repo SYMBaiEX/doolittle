@@ -3,6 +3,7 @@ import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   asArray,
   asRecord,
@@ -57,6 +58,42 @@ export function LogsPage({ active }: { active: boolean }) {
     ["error", "fatal"].includes(asString(entry.level).toLowerCase()),
   ).length;
 
+  const refresh = () => {
+    if (!active) return;
+    resource.reload();
+    if (historyOpen) {
+      deliveries.reload();
+      terminalHistory.reload();
+    }
+  };
+
+  if (!active) {
+    return (
+      <PagePanel className="page page-logs" variant="workspace">
+        <PageHeader
+          eyebrow="Operations"
+          title="Logs"
+          description="Inspect the redacted structured event stream emitted by the private local runtime."
+          actions={
+            <Button
+              className="secondary-button"
+              disabled
+              onClick={refresh}
+              type="button"
+              variant="secondary"
+            >
+              Refresh
+            </Button>
+          }
+        />
+        <OfflineRouteState>
+          Runtime logs and secondary traces are unavailable until the local
+          runtime is ready.
+        </OfflineRouteState>
+      </PagePanel>
+    );
+  }
+
   return (
     <PagePanel className="page page-logs" variant="workspace">
       <PageHeader
@@ -66,13 +103,7 @@ export function LogsPage({ active }: { active: boolean }) {
         actions={
           <Button
             className="secondary-button"
-            onClick={() => {
-              resource.reload();
-              if (historyOpen) {
-                deliveries.reload();
-                terminalHistory.reload();
-              }
-            }}
+            onClick={refresh}
             type="button"
             variant="secondary"
           >
@@ -118,7 +149,7 @@ export function LogsPage({ active }: { active: boolean }) {
           ],
         }}
         loading={resource.loading}
-        onRefresh={resource.reload}
+        onRefresh={refresh}
         onRetry={resource.reload}
         search={{
           value: query,

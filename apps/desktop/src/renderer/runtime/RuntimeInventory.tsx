@@ -1,5 +1,6 @@
 import type { PluginsResponse } from "../../shared/contracts";
 import { CompactStatStrip } from "../components/CompactStatStrip";
+import { OfflineRouteState } from "../components/OfflineRouteState";
 import {
   type ApiResource,
   asArray,
@@ -15,14 +16,25 @@ import {
 } from "../lib";
 
 export function RuntimeInventory({
+  active = true,
   ecosystem,
   insights,
   plugins,
 }: {
+  active?: boolean;
   ecosystem: ApiResource<UnknownRecord>;
   insights: ApiResource<UnknownRecord>;
   plugins: ApiResource<PluginsResponse>;
 }) {
+  if (!active) {
+    return (
+      <OfflineRouteState>
+        Runtime capability inventory is unavailable until the local runtime is
+        ready.
+      </OfflineRouteState>
+    );
+  }
+
   const catalog = asArray(plugins.data?.catalog).map(asRecord);
   const ecosystemPayload = asRecord(ecosystem.data);
   const insightPayload = asRecord(insights.data);
