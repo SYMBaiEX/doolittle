@@ -1,4 +1,4 @@
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent } from "react";
 import type {
   AutomationActionChoice,
   AutomationConditionChoice,
@@ -6,54 +6,34 @@ import type {
   AutomationTriggerChoice,
 } from "../automation-model";
 
-function AutomationBuilderStep({
-  index,
-  label,
-  description,
-  children,
-}: {
-  index: string;
-  label: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="automation-builder-step">
-      <header>
-        <span>{index}</span>
-        <div>
-          <strong>{label}</strong>
-          <small>{description}</small>
-        </div>
-      </header>
-      <div className="automation-builder-step__body">{children}</div>
-    </section>
-  );
-}
-
 function ChoiceButtons({
   choices,
   selected,
   onSelect,
+  label,
 }: {
   choices: Array<[string, string]>;
   selected: string;
   onSelect(value: string): void;
+  label: string;
 }) {
   return (
-    <div className="automation-choice-grid">
-      {choices.map(([value, label]) => (
-        <button
-          aria-pressed={selected === value}
-          className={selected === value ? "selected" : ""}
-          key={value}
-          onClick={() => onSelect(value)}
-          type="button"
-        >
-          {label}
-        </button>
-      ))}
-    </div>
+    <fieldset className="automation-choice-fieldset">
+      <legend className="sr-only">{label}</legend>
+      <div className="automation-choice-grid">
+        {choices.map(([value, label]) => (
+          <button
+            aria-pressed={selected === value}
+            className={selected === value ? "selected" : ""}
+            key={value}
+            onClick={() => onSelect(value)}
+            type="button"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 
@@ -71,6 +51,23 @@ export function AutomationBuilder({
     value: AutomationDraft[Key],
   ): void;
 }) {
+  const triggerHelp =
+    draft.triggerType === "schedule"
+      ? "Runs on a 5-field cron or interval such as every 30m."
+      : draft.triggerType === "manual"
+        ? "Runs only when you press Run now."
+        : "A private local webhook path is generated after save.";
+  const conditionHelp =
+    draft.conditionType === "always"
+      ? "Every accepted trigger continues to the action."
+      : draft.conditionType === "exists"
+        ? "Checks whether a payload field is present."
+        : "Checks a payload field before the action runs.";
+  const actionHelp =
+    draft.actionType === "webhook"
+      ? "Sends a JSON POST without stored authorization headers."
+      : "The prompt is stored with the workflow and added to each run trace.";
+
   return (
     <form className="automation-builder" onSubmit={onSubmit}>
       <div className="automation-builder__header">
@@ -88,82 +85,80 @@ export function AutomationBuilder({
         </label>
       </div>
 
-      <div className="automation-builder__flow">
-        <AutomationBuilderStep
-          index="01"
-          label="Trigger"
-          description="Starts the workflow"
-        >
-          <ChoiceButtons
-            choices={[
-              ["schedule", "Schedule"],
-              ["manual", "Manual"],
-              ["webhook", "Webhook"],
-            ]}
-            selected={draft.triggerType}
-            onSelect={(value) =>
-              onUpdate("triggerType", value as AutomationTriggerChoice)
-            }
-          />
-          {draft.triggerType === "schedule" ? (
-            <label>
-              <span>Schedule</span>
-              <input
-                required
-                value={draft.schedule}
-                onChange={(event) => onUpdate("schedule", event.target.value)}
-                placeholder="0 9 * * 1-5 or every 2h"
-              />
-              <small>5-field cron or an interval such as every 30m.</small>
-            </label>
-          ) : (
-            <div className="automation-builder__truth">
-              {draft.triggerType === "manual"
-                ? "Runs only when you press Run now."
-                : "A private local webhook path is generated after save."}
+      <fieldset className="automation-builder__fieldset">
+        <legend>Automation definition</legend>
+        <div className="automation-builder__grid">
+          <section className="automation-builder__section">
+            <div className="automation-builder__section-heading">
+              <strong>Trigger</strong>
+              <small>Starts the workflow</small>
             </div>
-          )}
-        </AutomationBuilderStep>
-
-        <span className="automation-flow-arrow" aria-hidden="true">
-          →
-        </span>
-
-        <AutomationBuilderStep
-          index="02"
-          label="Condition"
-          description="Guards the action"
-        >
-          <label>
-            <span>Continue when</span>
-            <select
-              value={draft.conditionType}
-              onChange={(event) =>
-                onUpdate(
-                  "conditionType",
-                  event.target.value as AutomationConditionChoice,
-                )
-              }
-            >
-              <option value="always">Always</option>
-              <option value="exists">Payload field exists</option>
-              <option value="equals">Payload field equals</option>
-              <option value="contains">Payload field contains</option>
-            </select>
-          </label>
-          {draft.conditionType !== "always" ? (
-            <>
+            <div className="automation-builder__field">
+              <span>Start when</span>
+              <ChoiceButtons
+                choices={[
+                  ["schedule", "Schedule"],
+                  ["manual", "Manual"],
+                  ["webhook", "Webhook"],
+                ]}
+                label="Choose a trigger"
+                selected={draft.triggerType}
+                onSelect={(value) =>
+                  onUpdate("triggerType", value as AutomationTriggerChoice)
+                }
+              />
+            </div>
+            {draft.triggerType === "schedule" ? (
               <label>
-                <span>Payload field</span>
+                <span>Schedule</span>
                 <input
-                  value={draft.conditionPath}
-                  onChange={(event) =>
-                    onUpdate("conditionPath", event.target.value)
-                  }
-                  placeholder="event.status"
+                  required
+                  value={draft.schedule}
+                  onChange={(event) => onUpdate("schedule", event.target.value)}
+                  placeholder="0 9 * * 1-5 or every 2h"
                 />
               </label>
-              {draft.conditionType !== "exists" ? (
+            ) : null}
+            <p className="automation-builder__hint">{triggerHelp}</p>
+          </section>
+
+          <section className="automation-builder__section automation-builder__section--condition">
+            <div className="automation-builder__section-heading">
+              <strong>Condition</strong>
+              <small>Guards the action</small>
+            </div>
+            <div className="automation-builder__inline-grid">
+              <label>
+                <span>Continue when</span>
+                <select
+                  value={draft.conditionType}
+                  onChange={(event) =>
+                    onUpdate(
+                      "conditionType",
+                      event.target.value as AutomationConditionChoice,
+                    )
+                  }
+                >
+                  <option value="always">Always</option>
+                  <option value="exists">Payload field exists</option>
+                  <option value="equals">Payload field equals</option>
+                  <option value="contains">Payload field contains</option>
+                </select>
+              </label>
+              {draft.conditionType !== "always" ? (
+                <label>
+                  <span>Payload field</span>
+                  <input
+                    value={draft.conditionPath}
+                    onChange={(event) =>
+                      onUpdate("conditionPath", event.target.value)
+                    }
+                    placeholder="event.status"
+                  />
+                </label>
+              ) : null}
+              {draft.conditionType !== "always" &&
+              draft.conditionType !== "exists" ? (
                 <label>
                   <span>Value</span>
                   <input
@@ -175,60 +170,57 @@ export function AutomationBuilder({
                   />
                 </label>
               ) : null}
-            </>
-          ) : (
-            <div className="automation-builder__truth">
-              Every accepted trigger continues to the action.
             </div>
-          )}
-        </AutomationBuilderStep>
+            <p className="automation-builder__hint">{conditionHelp}</p>
+          </section>
 
-        <span className="automation-flow-arrow" aria-hidden="true">
-          →
-        </span>
-
-        <AutomationBuilderStep
-          index="03"
-          label="Action"
-          description="Performs the work"
-        >
-          <ChoiceButtons
-            choices={[
-              ["run-agent", "Run agent"],
-              ["prompt", "Prompt"],
-              ["webhook", "Webhook"],
-            ]}
-            selected={draft.actionType}
-            onSelect={(value) =>
-              onUpdate("actionType", value as AutomationActionChoice)
-            }
-          />
-          {draft.actionType === "webhook" ? (
-            <label>
-              <span>Destination URL</span>
-              <input
-                type="url"
-                value={draft.webhookUrl}
-                onChange={(event) => onUpdate("webhookUrl", event.target.value)}
-                placeholder="https://example.com/hooks/doolittle"
+          <section className="automation-builder__section automation-builder__section--action">
+            <div className="automation-builder__section-heading">
+              <strong>Action</strong>
+              <small>Performs the work</small>
+            </div>
+            <div className="automation-builder__field">
+              <span>Then do</span>
+              <ChoiceButtons
+                choices={[
+                  ["run-agent", "Run agent"],
+                  ["prompt", "Prompt"],
+                  ["webhook", "Webhook"],
+                ]}
+                label="Choose an action"
+                selected={draft.actionType}
+                onSelect={(value) =>
+                  onUpdate("actionType", value as AutomationActionChoice)
+                }
               />
-              <small>
-                Sends a JSON POST without stored authorization headers.
-              </small>
-            </label>
-          ) : (
-            <label>
-              <span>Prompt</span>
-              <textarea
-                rows={5}
-                value={draft.prompt}
-                onChange={(event) => onUpdate("prompt", event.target.value)}
-                placeholder="Review the latest work and produce an operator-ready receipt."
-              />
-            </label>
-          )}
-        </AutomationBuilderStep>
-      </div>
+            </div>
+            {draft.actionType === "webhook" ? (
+              <label>
+                <span>Destination URL</span>
+                <input
+                  type="url"
+                  value={draft.webhookUrl}
+                  onChange={(event) =>
+                    onUpdate("webhookUrl", event.target.value)
+                  }
+                  placeholder="https://example.com/hooks/doolittle"
+                />
+              </label>
+            ) : (
+              <label>
+                <span>Prompt</span>
+                <textarea
+                  rows={4}
+                  value={draft.prompt}
+                  onChange={(event) => onUpdate("prompt", event.target.value)}
+                  placeholder="Review the latest work and produce an operator-ready receipt."
+                />
+              </label>
+            )}
+            <p className="automation-builder__hint">{actionHelp}</p>
+          </section>
+        </div>
+      </fieldset>
 
       <div className="automation-builder__footer">
         <span>

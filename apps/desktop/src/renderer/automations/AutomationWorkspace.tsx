@@ -75,34 +75,34 @@ function AutomationJobCard({
   return (
     <article className="automation-job-card">
       <header>
-        <div>
+        <div className="automation-job-card__heading">
           <strong>{name}</strong>
           <small>
-            Next: {displayTimestamp(asString(entry.nextRunAt) || undefined)}
+            {displayTimestamp(asString(entry.nextRunAt) || undefined)}
           </small>
         </div>
         <Badge tone={status === "paused" ? "warn" : "good"}>
           {titleCase(status)}
         </Badge>
       </header>
-      <div className="automation-job-flow">
-        <span>
+      <div className="automation-job-summary">
+        <span className="automation-job-summary__segment">
           <i>Trigger</i>
-          {summary.triggerLabel}
+          <span>{summary.triggerLabel}</span>
         </span>
         <b aria-hidden="true">›</b>
-        <span>
+        <span className="automation-job-summary__segment">
           <i>Condition</i>
-          {summary.conditionLabel}
+          <span>{summary.conditionLabel}</span>
         </span>
         <b aria-hidden="true">›</b>
-        <span>
+        <span className="automation-job-summary__segment">
           <i>Action</i>
-          {summary.actionLabel}
+          <span>{summary.actionLabel}</span>
         </span>
       </div>
       <details className="automation-job-details">
-        <summary>Workflow details</summary>
+        <summary>Details</summary>
         {summary.webhookPath ? (
           <button
             className="automation-webhook-path"
@@ -300,7 +300,9 @@ export function AutomationWorkspace({
             <strong>Trace receipts</strong>
             <small>Execution history and phase-level output</small>
           </span>
-          <span>{runsOpen ? `${runs.length} loaded` : "Open to load"}</span>
+          <span className="automation-runs-panel__meta">
+            {runsOpen ? `${runs.length} loaded` : "Open to load"}
+          </span>
         </summary>
         {runsOpen ? (
           <div className="automation-runs-body">
