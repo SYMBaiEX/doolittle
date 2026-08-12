@@ -4,7 +4,7 @@ import {
   normalizeProposalStatus,
   proposalCanApprove,
   skillWorkshopLabelCounts,
-} from "./SkillWorkshopPanel";
+} from "./skill-workshop-model";
 
 describe("skill workshop helpers", () => {
   it("normalizes proposal statuses", () => {

@@ -3,50 +3,73 @@
   gap: 12px;
 }
 
-.skill-workshop-overview {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.skill-workshop-metric {
+.skill-workshop-header {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 78px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
+  justify-content: space-between;
+  gap: 16px;
+  align-items: end;
 }
 
-.skill-workshop-metric span {
-  color: var(--muted);
-  font-size: 12px;
-  letter-spacing: 0.01em;
+.skill-workshop-header h2 {
+  margin: 3px 0 0;
+  font-size: 1.08rem;
 }
 
-.skill-workshop-metric strong {
-  font-size: 1.7rem;
-}
-
-.skill-workshop-metric small {
+.skill-workshop-header p {
+  max-width: 68ch;
+  margin: 4px 0 0;
   color: var(--text-soft);
 }
 
 .skill-workshop-form {
   display: grid;
   gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
-.skill-workshop-form__heading h2 {
-  margin: 0 0 3px;
-  font-size: 1.01rem;
-}
-
-.skill-workshop-form__heading p {
+.skill-workshop-create {
   margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.skill-workshop-create > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.skill-workshop-create > summary::-webkit-details-marker {
+  display: none;
+}
+
+.skill-workshop-create > summary > span:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.skill-workshop-create > summary small,
+.skill-workshop-create > summary > span:last-child {
   color: var(--muted);
+}
+
+.skill-workshop-create > summary > span:last-child {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  text-transform: uppercase;
+}
+
+.skill-workshop-create[open] > summary > span:last-child {
+  color: var(--accent);
+}
+
+.skill-workshop-create .skill-workshop-form {
+  margin: 0 14px 14px;
 }
 
 .skill-workshop-form__actions {
@@ -152,7 +175,7 @@
   font-weight: 700;
 }
 
-.skills-page-switcher small {
+.skills-page-switcher button > small {
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: var(--text-meta);
@@ -182,7 +205,8 @@
 
 .skill-workshop-item {
   display: grid;
-  gap: 10px;
+  gap: 9px;
+  padding: 12px;
 }
 
 .skill-workshop-item__facts {
@@ -214,38 +238,64 @@
   font-size: 0.78rem;
 }
 
+.skill-workshop-safety {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.skill-workshop-safety > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.skill-workshop-safety > summary::-webkit-details-marker {
+  display: none;
+}
+
+.skill-workshop-safety > summary small {
+  color: var(--muted);
+}
+
+.skill-workshop-safety[open] {
+  padding-bottom: 10px;
+}
+
 .skill-workshop-findings {
-  padding: 8px 10px;
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-  color: var(--text-soft);
-  font-size: 0.94rem;
-}
-
-.skill-workshop-findings ul {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   padding-left: 18px;
-}
-
-.skill-workshop-findings strong {
-  color: var(--text);
-}
-
-.skill-workshop-reason {
-  margin: 0;
   color: var(--text-soft);
   font-size: 0.9rem;
 }
 
-.skill-workshop-action-reason label span {
-  display: inline-block;
-  margin-bottom: 6px;
+.skill-workshop-reason {
+  margin: 8px 0 0;
+  color: var(--text-soft);
+  font-size: 0.9rem;
 }
 
 .skill-workshop-item__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.skill-workshop-reject-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.skill-workshop-reject-panel label {
+  display: grid;
+  gap: 5px;
 }
 
 .skill-workshop-preview {
@@ -270,7 +320,6 @@
 }
 
 @media (max-width: 1140px) {
-  .skill-workshop-overview,
   .skill-workshop-grid {
     grid-template-columns: 1fr;
   }
@@ -285,8 +334,12 @@
     gap: 18px;
   }
 
-  .skills-page-switcher small {
+  .skills-page-switcher button > small {
     display: none;
+  }
+
+  .skill-workshop-reject-panel {
+    grid-template-columns: 1fr;
   }
 }
 

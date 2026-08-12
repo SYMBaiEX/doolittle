@@ -1,19 +1,22 @@
 import { type FormEvent, useMemo, useState } from "react";
 import {
   asArray,
-  asNumber,
-  asRecord,
   asString,
-  Badge,
   desktopRequest,
   EmptyBlock,
   ErrorBlock,
   errorMessage,
   LoadingBlock,
   Notice,
-  PageHeader,
   useApiResource,
 } from "../lib";
+import { CompactStatStrip } from "./CompactStatStrip";
+import { SkillProposalCard } from "./SkillProposalCard";
+import {
+  normalizeProposal,
+  type SkillProposalFilter,
+  skillWorkshopLabelCounts,
+} from "./skill-workshop-model";
 import "./skill-workshop-panel.css";
 
 interface SkillProposalResponse {
@@ -23,158 +26,6 @@ interface SkillProposalResponse {
 interface SkillProposalDetailResponse {
   proposal?: unknown;
 }
-
-export type SkillProposalFilter = "all" | "pending" | "approved" | "rejected";
-
-export type SkillProposalStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "blocked"
-  | "unknown";
-
-export interface ProposalSafety {
-  blocked: boolean;
-  badges: string[];
-  findings: string[];
-  reason: string;
-}
-
-export interface SkillProposal {
-  id: string;
-  slug: string;
-  status: SkillProposalStatus;
-  author: string;
-  createdAt: string;
-  reviewedAt: string;
-  content: string;
-  reason: string;
-  safety: ProposalSafety;
-}
-
-const normalizeTextArray = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((entry) => asString(entry, ""))
-    .map((entry) => entry.trim())
-    .filter((entry): entry is string => Boolean(entry))
-    .slice(0, 20);
-};
-
-const normalizeFindingArray = (value: unknown): string[] =>
-  asArray(value)
-    .map((entry) => {
-      if (typeof entry === "string") return entry.trim();
-      const finding = asRecord(entry);
-      const message = asString(finding.message).trim();
-      const code = asString(finding.code).trim();
-      return [code, message].filter(Boolean).join(" · ");
-    })
-    .filter((entry): entry is string => Boolean(entry))
-    .slice(0, 20);
-
-const asBoolean = (value: unknown): boolean =>
-  typeof value === "boolean" ? value : String(value).toLowerCase() === "true";
-
-export const normalizeProposalStatus = (
-  status: unknown,
-): SkillProposalStatus => {
-  switch (asString(status, "").toLowerCase().trim()) {
-    case "pending":
-      return "pending";
-    case "approved":
-      return "approved";
-    case "rejected":
-    case "deny":
-    case "denied":
-      return "rejected";
-    default:
-      return "unknown";
-  }
-};
-
-export const normalizeProposal = (
-  value: unknown,
-  fallbackIndex: number,
-): SkillProposal => {
-  const record = asRecord(value);
-  const safetyRecord = asRecord(record.safety);
-  const safetyOutcome = asString(record.safety).toLowerCase().trim();
-  const id = asString(record.id, `proposal-${fallbackIndex}`);
-  const status = normalizeProposalStatus(record.disposition ?? record.status);
-  const blocked =
-    asBoolean(record.blocked ?? record.blockedFor ?? safetyRecord.blocked) ||
-    safetyOutcome === "blocked";
-  const normalizedStatus = blocked && status === "pending" ? "blocked" : status;
-  const safetyBadges = [
-    ...(safetyOutcome ? [safetyOutcome] : []),
-    ...normalizeTextArray(safetyRecord.badges),
-    ...normalizeTextArray(record.badges),
-    ...normalizeTextArray(record.tags),
-  ];
-  const findings = normalizeFindingArray(
-    safetyRecord.findings ?? record.findings,
-  );
-
-  return {
-    id,
-    slug: asString(record.slug, asString(record.name, id)),
-    status: normalizedStatus,
-    author: asString(
-      record.author,
-      asString(record.submittedBy, asString(record.taskId, "Manual proposal")),
-    ),
-    createdAt: asString(record.createdAt, asString(record.createdAtTimestamp)),
-    reviewedAt: asString(
-      record.decidedAt,
-      asString(record.reviewedAt, asString(record.reviewedAtTimestamp)),
-    ),
-    content: asString(
-      record.content,
-      asString(record.skillMarkdown, "No SKILL.md content available."),
-    ),
-    reason: asString(
-      record.rejectionReason,
-      asString(record.reason, asString(record.reviewReason, "")),
-    ),
-    safety: {
-      blocked,
-      reason: asString(record.safetyReason, asString(safetyRecord.reason, "")),
-      badges: [...new Set(safetyBadges)].slice(0, 12),
-      findings,
-    },
-  };
-};
-
-export const proposalCanApprove = (proposal: SkillProposal): boolean =>
-  proposal.status === "pending" && !proposal.safety.blocked;
-
-const proposalTone = (status: SkillProposalStatus): "good" | "warn" | "bad" => {
-  switch (status) {
-    case "approved":
-      return "good";
-    case "rejected":
-    case "blocked":
-      return "bad";
-    default:
-      return "warn";
-  }
-};
-
-export const skillWorkshopLabelCounts = (
-  proposals: SkillProposal[],
-): Record<
-  "pending" | "approved" | "rejected" | "blocked" | "total",
-  number
-> => ({
-  pending: proposals.filter((proposal) => proposal.status === "pending").length,
-  approved: proposals.filter((proposal) => proposal.status === "approved")
-    .length,
-  rejected: proposals.filter((proposal) => proposal.status === "rejected")
-    .length,
-  blocked: proposals.filter((proposal) => proposal.status === "blocked").length,
-  total: proposals.length,
-});
 
 export function SkillWorkshopPanel({ active }: { active: boolean }) {
   const proposals = useApiResource<SkillProposalResponse>(
@@ -193,6 +44,7 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
   const [creatingMessage, setCreatingMessage] = useState("");
   const [creatingError, setCreatingError] = useState("");
   const [actionBusy, setActionBusy] = useState("");
+  const [rejectingId, setRejectingId] = useState("");
   const [mutationError, setMutationError] = useState("");
   const normalizedEntries = useMemo(
     () =>
@@ -287,6 +139,7 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
         action === "reject" ? { reason } : {},
       );
       setFeedbackByProposal((current) => ({ ...current, [id]: "" }));
+      setRejectingId("");
       proposals.reload();
     } catch (error) {
       setMutationError(errorMessage(error));
@@ -298,97 +151,78 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
   const updateReason = (id: string, value: string) =>
     setFeedbackByProposal((current) => ({ ...current, [id]: value }));
 
-  const statusLabel = (status: SkillProposalStatus) => {
-    switch (status) {
-      case "approved":
-        return "Approved";
-      case "rejected":
-        return "Rejected";
-      case "blocked":
-        return "Blocked";
-      case "pending":
-        return "Pending";
-      default:
-        return "Unknown";
-    }
-  };
-
   return (
     <section className="skill-workshop">
-      <PageHeader
-        eyebrow="Engineering"
-        title="Skill Workshop"
-        description="Review proposed SKILL.md payloads, enforce safety checks, and approve or reject before merging into the workspace."
-      />
+      <header className="skill-workshop-header">
+        <div>
+          <span className="eyebrow">Proposal review</span>
+          <h2>Review before activation</h2>
+          <p>
+            Inspect generated SKILL.md payloads and their safety results before
+            they enter the workspace.
+          </p>
+        </div>
+      </header>
       {creatingMessage ? <Notice tone="good">{creatingMessage}</Notice> : null}
-      <div className="skill-workshop-overview">
-        <article className="skill-workshop-metric">
-          <span>Queue</span>
-          <strong>{counts.total}</strong>
-          <small>
-            {asNumber(counts.pending)} pending, {asNumber(counts.approved)}{" "}
-            approved, {asNumber(counts.rejected + counts.blocked)} rejected
-          </small>
-        </article>
-        <article className="skill-workshop-metric">
-          <span>Blocked</span>
-          <strong>{counts.blocked}</strong>
-          <small>Safety policy hard-stop</small>
-        </article>
-        <article className="skill-workshop-metric">
-          <span>Pending</span>
-          <strong>{counts.pending}</strong>
-          <small>Ready for decision</small>
-        </article>
-      </div>
+      <CompactStatStrip
+        label="Skill proposal summary"
+        stats={[
+          { label: "Queue", value: counts.total },
+          { label: "Pending", value: counts.pending, tone: "warn" },
+          { label: "Approved", value: counts.approved, tone: "good" },
+          { label: "Blocked", value: counts.blocked, tone: "bad" },
+        ]}
+      />
 
-      <form
-        className="content-card skill-workshop-form"
-        onSubmit={submitProposal}
-      >
-        <div className="skill-workshop-form__heading">
-          <h2>Create a skill proposal</h2>
-          <p>Paste raw SKILL.md content and a slug for review.</p>
-        </div>
-        <label>
-          <span>Slug</span>
-          <input
-            autoCapitalize="none"
-            maxLength={63}
-            pattern="[a-z0-9][a-z0-9-]{0,62}"
-            placeholder="auto-summary"
-            value={slug}
-            onChange={(event) => setSlug(event.target.value)}
-          />
-        </label>
-        <label>
-          <span>SKILL.md</span>
-          <textarea
-            rows={8}
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            placeholder={
-              "---\n" +
-              "name: auto-summary\n" +
-              "description: Summarize a completed work session.\n" +
-              "---\n\n" +
-              "# Auto Summary\n\n" +
-              "Describe the reusable workflow."
-            }
-          />
-        </label>
-        <div className="skill-workshop-form__actions">
-          <button
-            className="primary-button"
-            type="submit"
-            disabled={submitting}
-          >
-            {submitting ? "Creating…" : "Create proposal"}
-          </button>
-          <span>{`${content.length} characters`}</span>
-        </div>
-        {creatingError ? <Notice tone="bad">{creatingError}</Notice> : null}
-      </form>
+      <details className="content-card skill-workshop-create">
+        <summary>
+          <span>
+            <strong>Create a skill proposal</strong>
+            <small>Paste a slug and raw SKILL.md only when needed.</small>
+          </span>
+          <span>New proposal</span>
+        </summary>
+        <form className="skill-workshop-form" onSubmit={submitProposal}>
+          <label>
+            <span>Slug</span>
+            <input
+              autoCapitalize="none"
+              maxLength={63}
+              pattern="[a-z0-9][a-z0-9-]{0,62}"
+              placeholder="auto-summary"
+              value={slug}
+              onChange={(event) => setSlug(event.target.value)}
+            />
+          </label>
+          <label>
+            <span>SKILL.md</span>
+            <textarea
+              rows={8}
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
+              placeholder={
+                "---\n" +
+                "name: auto-summary\n" +
+                "description: Summarize a completed work session.\n" +
+                "---\n\n" +
+                "# Auto Summary\n\n" +
+                "Describe the reusable workflow."
+              }
+            />
+          </label>
+          <div className="skill-workshop-form__actions">
+            <button
+              className="primary-button"
+              type="submit"
+              disabled={submitting}
+            >
+              {submitting ? "Creating…" : "Create proposal"}
+            </button>
+            <span>{`${content.length} characters`}</span>
+          </div>
+          {creatingError ? <Notice tone="bad">{creatingError}</Notice> : null}
+        </form>
+      </details>
 
       <div className="skill-workshop-filters">
         <label className="search-field">
@@ -426,112 +260,33 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
           <div className="skill-workshop-list">
             <h2>Proposal queue</h2>
             {filtered.map((proposal) => {
-              const busy =
-                actionBusy === `${proposal.id}:approve` ||
-                actionBusy === `${proposal.id}:reject`;
-              const approveDisabled =
-                !proposalCanApprove(proposal) || busy || actionBusy !== "";
-              const rejectDisabled = busy || actionBusy !== "";
               const isSelected = proposal.id === selectedId;
 
               return (
-                <article
-                  className={`content-card skill-workshop-item ${
-                    isSelected ? "is-selected" : ""
-                  }`}
+                <SkillProposalCard
+                  actionBusy={Boolean(actionBusy)}
+                  isRejecting={rejectingId === proposal.id}
+                  isSelected={isSelected}
                   key={proposal.id}
-                >
-                  <div className="card-heading">
-                    <div>
-                      <span className="eyebrow">
-                        {statusLabel(proposal.status)}
-                      </span>
-                      <h3>{proposal.slug}</h3>
-                    </div>
-                    <Badge tone={proposalTone(proposal.status)}>
-                      {statusLabel(proposal.status)}
-                    </Badge>
-                  </div>
-                  <div className="skill-workshop-item__facts">
-                    <span>By {proposal.author}</span>
-                    <span>
-                      {proposal.createdAt
-                        ? `Submitted ${proposal.createdAt}`
-                        : "Submitted"}
-                    </span>
-                  </div>
-                  {proposal.safety.badges.length ? (
-                    <div className="skill-workshop-badges">
-                      {proposal.safety.badges.map((badge) => (
-                        <span className="skill-workshop-badge" key={badge}>
-                          {badge}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  {proposal.safety.findings.length ? (
-                    <div className="skill-workshop-findings">
-                      <strong>Findings</strong>
-                      <ul>
-                        {proposal.safety.findings.map((finding) => (
-                          <li key={finding}>{finding}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                  {proposal.safety.reason ? (
-                    <p className="skill-workshop-reason">
-                      {proposal.safety.reason}
-                    </p>
-                  ) : null}
-
-                  <label className="skill-workshop-action-reason">
-                    <span>Rejection note</span>
-                    <textarea
-                      rows={2}
-                      value={asString(feedbackByProposal[proposal.id], "")}
-                      onChange={(event) =>
-                        updateReason(proposal.id, event.target.value)
-                      }
-                      placeholder="Add a review reason"
-                    />
-                  </label>
-                  <div className="skill-workshop-item__actions">
-                    <button
-                      className="secondary-button"
-                      type="button"
-                      onClick={() => setSelectedId(proposal.id)}
-                      aria-pressed={isSelected}
-                    >
-                      {isSelected ? "Hide SKILL.md" : "View SKILL.md"}
-                    </button>
-                    <button
-                      className="primary-button"
-                      type="button"
-                      onClick={() => void applyMutation(proposal.id, "approve")}
-                      disabled={approveDisabled}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      className="secondary-button"
-                      type="button"
-                      onClick={() => void applyMutation(proposal.id, "reject")}
-                      disabled={rejectDisabled}
-                    >
-                      Reject
-                    </button>
-                  </div>
-                  {proposal.safety.blocked ? (
-                    <Notice tone="warn">
-                      Blocked by safety review. Resolve all findings before
-                      approval.
-                    </Notice>
-                  ) : null}
-                  {proposal.status === "blocked" ? (
-                    <small>Safety check auto-blocked this proposal.</small>
-                  ) : null}
-                </article>
+                  onApprove={() => void applyMutation(proposal.id, "approve")}
+                  onReasonChange={(value) => updateReason(proposal.id, value)}
+                  onReject={() => void applyMutation(proposal.id, "reject")}
+                  onRejectToggle={() =>
+                    setRejectingId((current) =>
+                      current === proposal.id ? "" : proposal.id,
+                    )
+                  }
+                  onSelect={() =>
+                    setSelectedId((current) =>
+                      current === proposal.id ? "" : proposal.id,
+                    )
+                  }
+                  proposal={proposal}
+                  rejectionReason={asString(
+                    feedbackByProposal[proposal.id],
+                    "",
+                  )}
+                />
               );
             })}
           </div>
