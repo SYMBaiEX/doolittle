@@ -21,4 +21,11 @@ describe("orchestration runs loading boundary", () => {
     expect(source).toContain('role="status"');
     expect(source).toContain("Loading workflow tools…");
   });
+
+  it("keeps review loading behind its own lazy boundary", () => {
+    expect(source).toContain("const ReviewPage = lazy(() =>");
+    expect(source).toContain('import("./ReviewPage")');
+    expect(source).toContain('activeTab === "review"');
+    expect(source).toContain("Loading review tools…");
+  });
 });

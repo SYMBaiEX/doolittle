@@ -20,13 +20,15 @@ import { TaskSupervisionControls } from "./orchestration/TaskSupervisionControls
 import { useOrchestrationActions } from "./orchestration/useOrchestrationActions";
 import { orchestrationStatusTier } from "./orchestration-helpers";
 import { useOrchestrationResources } from "./orchestration-resources";
-import { ReviewPage } from "./ReviewPage";
 import "./orchestration.css";
 
 const OrchestrationRunsPanel = lazy(() =>
   import("./orchestration/OrchestrationRunsPanel").then((module) => ({
     default: module.OrchestrationRunsPanel,
   })),
+);
+const ReviewPage = lazy(() =>
+  import("./ReviewPage").then((module) => ({ default: module.ReviewPage })),
 );
 
 export type WorkTabId = "tasks" | "agents" | "plans" | "runs" | "review";
@@ -604,13 +606,25 @@ export function OrchestrationPage({
         className="orchestration-panel"
       >
         {activeTab === "review" ? (
-          <ReviewPage
-            active={active}
-            embedded
-            onSendToChat={onSendToChat}
-            projectScope={projectScope}
-            workspacePath={workspacePath ?? ""}
-          />
+          <Suspense
+            fallback={
+              <div
+                aria-live="polite"
+                className="orchestration-review-loading"
+                role="status"
+              >
+                Loading review tools…
+              </div>
+            }
+          >
+            <ReviewPage
+              active={active}
+              embedded
+              onSendToChat={onSendToChat}
+              projectScope={projectScope}
+              workspacePath={workspacePath ?? ""}
+            />
+          </Suspense>
         ) : null}
         {activeTab === "tasks" ? (
           <TaskQueuePanel
