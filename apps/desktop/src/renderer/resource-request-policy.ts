@@ -82,3 +82,16 @@ export function reviewRequests({
     sourceControl: active && evidenceOpen && sourceControlOpen,
   };
 }
+
+export function sessionDetailRequests({
+  active,
+  continuityOpen,
+}: {
+  active: boolean;
+  continuityOpen: boolean;
+}) {
+  return {
+    primary: active,
+    continuity: active && continuityOpen,
+  };
+}

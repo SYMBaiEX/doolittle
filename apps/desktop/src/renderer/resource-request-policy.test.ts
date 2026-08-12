@@ -3,6 +3,7 @@ import {
   codingWorkspaceRequests,
   orchestrationRequests,
   reviewRequests,
+  sessionDetailRequests,
 } from "./resource-request-policy";
 
 describe("coding workspace request policy", () => {
@@ -135,5 +136,19 @@ describe("review request policy", () => {
         sourceControlOpen: true,
       }),
     ).toEqual({ primary: false, sourceControl: false });
+  });
+});
+
+describe("session detail request policy", () => {
+  it("loads transcript data immediately and continuity only on demand", () => {
+    expect(
+      sessionDetailRequests({ active: true, continuityOpen: false }),
+    ).toEqual({ primary: true, continuity: false });
+    expect(
+      sessionDetailRequests({ active: true, continuityOpen: true }),
+    ).toEqual({ primary: true, continuity: true });
+    expect(
+      sessionDetailRequests({ active: false, continuityOpen: true }),
+    ).toEqual({ primary: false, continuity: false });
   });
 });

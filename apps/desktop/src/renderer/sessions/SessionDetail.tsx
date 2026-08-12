@@ -14,10 +14,7 @@ import {
   LoadingBlock,
   useApiResource,
 } from "../lib";
-
-interface SessionSummaryResponse {
-  summary?: SessionSummary;
-}
+import { sessionDetailRequests } from "../resource-request-policy";
 
 interface SessionUsageResponse {
   usage?: SessionUsageSummary;
@@ -28,6 +25,7 @@ interface SessionContinuityResponse {
 }
 
 export function SessionDetail({
+  active,
   onExport,
   onOpenChat,
   onRefresh,
@@ -35,6 +33,7 @@ export function SessionDetail({
   selected,
   transferring,
 }: {
+  active: boolean;
   onExport(): void;
   onOpenChat(sessionId: string): void;
   onRefresh(): void;
@@ -45,21 +44,25 @@ export function SessionDetail({
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState("");
   const [mutationError, setMutationError] = useState("");
+  const [continuityOpen, setContinuityOpen] = useState(false);
+  const requestPolicy = sessionDetailRequests({ active, continuityOpen });
   const transcript = useApiResource<SessionMessagesResponse>(
-    `/sessions/messages?sessionId=${encodeURIComponent(selected.sessionId)}&limit=500`,
-    [selected.sessionId],
-  );
-  const summary = useApiResource<SessionSummaryResponse>(
-    `/sessions/summary?sessionId=${encodeURIComponent(selected.sessionId)}`,
-    [selected.sessionId],
+    requestPolicy.primary
+      ? `/sessions/messages?sessionId=${encodeURIComponent(selected.sessionId)}&limit=500`
+      : null,
+    [requestPolicy.primary, selected.sessionId],
   );
   const usage = useApiResource<SessionUsageResponse>(
-    `/sessions/usage?sessionId=${encodeURIComponent(selected.sessionId)}`,
-    [selected.sessionId],
+    requestPolicy.primary
+      ? `/sessions/usage?sessionId=${encodeURIComponent(selected.sessionId)}`
+      : null,
+    [requestPolicy.primary, selected.sessionId],
   );
   const continuity = useApiResource<SessionContinuityResponse>(
-    `/sessions/continuity?sessionId=${encodeURIComponent(selected.sessionId)}&limit=8`,
-    [selected.sessionId],
+    requestPolicy.continuity
+      ? `/sessions/continuity?sessionId=${encodeURIComponent(selected.sessionId)}&limit=8`
+      : null,
+    [requestPolicy.continuity, selected.sessionId],
   );
 
   const rename = async (event: FormEvent) => {
@@ -165,8 +168,16 @@ export function SessionDetail({
           },
           {
             label: "Continuity",
-            value: continuity.data?.sessions?.length ?? 0,
-            detail: summary.data?.summary?.continuityKey || "No continuity key",
+            value: continuityOpen
+              ? continuity.loading
+                ? "…"
+                : (continuity.data?.sessions?.length ?? 0)
+              : selected.parentSessionId
+                ? "Branch"
+                : "—",
+            detail: continuityOpen
+              ? selected.continuityKey || "No continuity key"
+              : "Open related sessions",
           },
         ]}
       />
@@ -180,79 +191,72 @@ export function SessionDetail({
             <span>Inspect</span>
           </summary>
           <div className="stack-list">
-            {summary.loading ? (
-              <LoadingBlock />
-            ) : summary.error ? (
-              <ErrorBlock error={summary.error} retry={summary.reload} />
-            ) : (
-              <>
-                <div className="status-row">
-                  <div>
-                    <strong>Session id</strong>
-                    <small>{selected.sessionId}</small>
-                  </div>
+            <div className="status-row">
+              <div>
+                <strong>Session id</strong>
+                <small>{selected.sessionId}</small>
+              </div>
+            </div>
+            {selected.parentSessionId ? (
+              <div className="status-row">
+                <div>
+                  <strong>Parent branch</strong>
+                  <small>{selected.parentSessionId}</small>
                 </div>
-                {summary.data?.summary?.parentSessionId ? (
-                  <div className="status-row">
-                    <div>
-                      <strong>Parent branch</strong>
-                      <small>{summary.data.summary.parentSessionId}</small>
-                    </div>
-                  </div>
-                ) : null}
-                {summary.data?.summary?.rootSessionId ? (
-                  <div className="status-row">
-                    <div>
-                      <strong>Branch root</strong>
-                      <small>{summary.data.summary.rootSessionId}</small>
-                    </div>
-                  </div>
-                ) : null}
-                {summary.data?.summary?.forkedFromMessageId ? (
-                  <div className="status-row">
-                    <div>
-                      <strong>Fork anchor</strong>
-                      <small>{summary.data.summary.forkedFromMessageId}</small>
-                    </div>
-                  </div>
-                ) : null}
-                <div className="status-row">
-                  <div>
-                    <strong>Started</strong>
-                    <small>
-                      {displayTimestamp(
-                        summary.data?.summary?.startedAt ?? selected.startedAt,
-                      )}
-                    </small>
-                  </div>
+              </div>
+            ) : null}
+            {selected.rootSessionId ? (
+              <div className="status-row">
+                <div>
+                  <strong>Branch root</strong>
+                  <small>{selected.rootSessionId}</small>
                 </div>
-                <div className="status-row">
-                  <div>
-                    <strong>Latest preview</strong>
-                    <small>
-                      {summary.data?.summary?.preview?.[0] ??
-                        selected.preview?.[0] ??
-                        "No preview"}
-                    </small>
-                  </div>
+              </div>
+            ) : null}
+            {selected.forkedFromMessageId ? (
+              <div className="status-row">
+                <div>
+                  <strong>Fork anchor</strong>
+                  <small>{selected.forkedFromMessageId}</small>
                 </div>
-              </>
-            )}
+              </div>
+            ) : null}
+            <div className="status-row">
+              <div>
+                <strong>Started</strong>
+                <small>{displayTimestamp(selected.startedAt)}</small>
+              </div>
+            </div>
+            <div className="status-row">
+              <div>
+                <strong>Latest preview</strong>
+                <small>{selected.preview?.[0] ?? "No preview"}</small>
+              </div>
+            </div>
           </div>
         </details>
-        <details className="session-insight-disclosure">
+        <details
+          className="session-insight-disclosure"
+          onToggle={(event) => setContinuityOpen(event.currentTarget.open)}
+        >
           <summary>
             <span>
               <strong>Related sessions</strong>
               <small>Branches sharing this continuity key</small>
             </span>
-            <span>{continuity.data?.sessions?.length ?? 0}</span>
+            <span>
+              {continuityOpen
+                ? continuity.loading
+                  ? "…"
+                  : (continuity.data?.sessions?.length ?? 0)
+                : "Open"}
+            </span>
           </summary>
-          {continuity.loading ? (
+          {continuityOpen && continuity.loading ? (
             <LoadingBlock />
-          ) : continuity.error ? (
+          ) : continuityOpen && continuity.error ? (
             <ErrorBlock error={continuity.error} retry={continuity.reload} />
-          ) : continuity.data?.sessions?.length ? (
+          ) : continuityOpen && continuity.data?.sessions?.length ? (
             <div className="stack-list">
               {continuity.data.sessions.map((session) => (
                 <button
@@ -276,11 +280,11 @@ export function SessionDetail({
                 </button>
               ))}
             </div>
-          ) : (
+          ) : continuityOpen ? (
             <EmptyBlock title="No related sessions">
               This session does not currently have a continuity chain.
             </EmptyBlock>
-          )}
+          ) : null}
         </details>
       </div>
       <div className="transcript">

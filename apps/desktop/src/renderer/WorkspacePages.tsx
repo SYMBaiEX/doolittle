@@ -352,6 +352,7 @@ export function SessionsPage({
             </EmptyBlock>
           ) : (
             <SessionDetail
+              active={active}
               onExport={() => void exportArchive()}
               onOpenChat={openChat}
               onRefresh={refresh}

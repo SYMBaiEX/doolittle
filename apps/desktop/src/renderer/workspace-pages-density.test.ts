@@ -18,11 +18,15 @@ describe("workspace route density", () => {
     const detail = read("./sessions/SessionDetail.tsx");
 
     expect(page).toContain("<SessionDetail");
+    expect(page).toContain("active={active}");
     expect(
-      detail.match(/<details className="session-insight-disclosure">/gu),
+      detail.match(/className="session-insight-disclosure"/gu),
     ).toHaveLength(2);
     expect(detail).not.toContain(
       '<details className="session-insight-disclosure" open>',
     );
+    expect(detail).not.toContain('"/sessions/summary?');
+    expect(detail).toContain("requestPolicy.continuity");
+    expect(detail).toContain("continuityOpen && continuity.loading");
   });
 });
