@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type {
   AccountPoolResponse,
   RuntimeStatus,
-  SessionsResponse,
+  SessionSummary,
 } from "../shared/contracts";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import {
@@ -36,10 +36,6 @@ import {
   useApiResource,
 } from "./lib";
 
-interface DelegationTasksResponse {
-  tasks?: unknown[];
-}
-
 interface RepoStatusResponse {
   status?: string;
 }
@@ -51,6 +47,10 @@ interface SetupSummaryResponse {
 export function DashboardPage({
   active,
   approvalsResource: approvals,
+  tasksResource: tasks,
+  runtime,
+  sessions,
+  refreshRuntime,
   onOpenChat,
   onOpenReview,
   onOpenTasks,
@@ -59,24 +59,16 @@ export function DashboardPage({
 }: {
   active: boolean;
   approvalsResource: ApiResource<{ approvals?: unknown[] }>;
+  tasksResource: ApiResource<{ tasks?: unknown[] }>;
+  runtime: RuntimeStatus | null;
+  sessions: readonly SessionSummary[];
+  refreshRuntime: () => Promise<boolean>;
   onOpenChat?: (sessionId?: string) => void;
   onOpenReview?: () => void;
   onOpenTasks?: () => void;
   onOpenSetup?: () => void;
   onOpenProviders?: () => void;
 }) {
-  const runtime = useApiResource<RuntimeStatus>(
-    active ? "/runtime/status" : null,
-    [active],
-  );
-  const sessions = useApiResource<SessionsResponse>(
-    active ? "/sessions?limit=8" : null,
-    [active],
-  );
-  const tasks = useApiResource<DelegationTasksResponse>(
-    active ? "/delegation/tasks?status=running&limit=8" : null,
-    [active],
-  );
   const repoStatus = useApiResource<RepoStatusResponse>(
     active ? "/repo/status" : null,
     [active],
@@ -91,8 +83,8 @@ export function DashboardPage({
   );
 
   const sessionCards = useMemo(
-    () => normalizeSessions(sessions.data?.sessions ?? []),
-    [sessions.data?.sessions],
+    () => normalizeSessions(sessions).slice(0, 8),
+    [sessions],
   );
   const approvalCards = useMemo(
     () => normalizeApprovals(asArray(approvals.data?.approvals)),
@@ -119,8 +111,8 @@ export function DashboardPage({
     [accountPool.data],
   );
   const sessionSummary = useMemo(
-    () => sessionCountSummary(sessions.data?.sessions),
-    [sessions.data?.sessions],
+    () => sessionCountSummary(sessions),
+    [sessions],
   );
   const nextActions = useMemo(
     () =>
@@ -142,11 +134,9 @@ export function DashboardPage({
     ],
   );
 
-  const runtimePluginCount = countRuntimePlugins(runtime.data?.plugins);
-  const ownershipCount = countOwnershipSignals(runtime.data?.ownership);
+  const runtimePluginCount = countRuntimePlugins(runtime?.plugins);
+  const ownershipCount = countOwnershipSignals(runtime?.ownership);
   const topLevelErrors = [
-    runtime.error,
-    sessions.error,
     approvals.error,
     tasks.error,
     repoStatus.error,
@@ -165,8 +155,7 @@ export function DashboardPage({
             <button
               className="secondary-button"
               onClick={() => {
-                runtime.reload();
-                sessions.reload();
+                void refreshRuntime();
                 approvals.reload();
                 tasks.reload();
                 repoStatus.reload();
@@ -371,11 +360,7 @@ export function DashboardPage({
               Open chat
             </button>
           </div>
-          {sessions.loading ? (
-            <LoadingBlock />
-          ) : sessions.error ? (
-            <ErrorBlock error={sessions.error} retry={sessions.reload} />
-          ) : sessionCards.length ? (
+          {sessionCards.length ? (
             <div className="stack-list">
               {sessionCards.map((session) => (
                 <button
@@ -475,8 +460,8 @@ export function DashboardPage({
           <span>
             <strong>Runtime &amp; agent accounts</strong>
             <small>
-              {runtime.data?.provider || "Unknown provider"} ·{" "}
-              {runtime.data?.model || "Unknown model"}
+              {runtime?.provider || "Unknown provider"} ·{" "}
+              {runtime?.model || "Unknown model"}
             </small>
           </span>
           <span className="dashboard-runtime-summary-meta">
@@ -492,31 +477,23 @@ export function DashboardPage({
                 <h2>Provider assembly</h2>
               </div>
               <Badge
-                tone={
-                  runtime.data?.fallback?.offlineBootstrapMode ? "warn" : "good"
-                }
+                tone={runtime?.fallback?.offlineBootstrapMode ? "warn" : "good"}
               >
-                {runtime.data?.fallback?.offlineBootstrapMode
+                {runtime?.fallback?.offlineBootstrapMode
                   ? "offline bootstrap"
                   : "online"}
               </Badge>
             </div>
-            {runtime.loading ? (
-              <LoadingBlock />
-            ) : runtime.error ? (
-              <ErrorBlock error={runtime.error} retry={runtime.reload} />
-            ) : (
+            {runtime ? (
               <div className="stack-list">
                 <div className="status-row">
                   <div>
-                    <strong>
-                      {runtime.data?.provider || "Unknown provider"}
-                    </strong>
-                    <small>{runtime.data?.model || "Unknown model"}</small>
+                    <strong>{runtime.provider || "Unknown provider"}</strong>
+                    <small>{runtime.model || "Unknown model"}</small>
                   </div>
                   <Badge tone="good">{runtimePluginCount} plugins</Badge>
                 </div>
-                {Object.entries(asRecord(runtime.data?.ownership))
+                {Object.entries(asRecord(runtime.ownership))
                   .slice(0, 4)
                   .map(([key, value]) => (
                     <div className="status-row" key={key}>
@@ -527,6 +504,8 @@ export function DashboardPage({
                     </div>
                   ))}
               </div>
+            ) : (
+              <LoadingBlock />
             )}
           </section>
 

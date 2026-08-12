@@ -159,6 +159,7 @@ export interface DesktopRouteContentProps {
   chatChromeHost: HTMLElement | null;
   workspacePath: string;
   approvalsResource: ApiResource<{ approvals?: unknown[] }>;
+  tasksResource: ApiResource<{ tasks?: unknown[] }>;
   refreshRuntime: () => Promise<boolean>;
   navigation: DesktopRouteNavigation;
 }
@@ -166,6 +167,7 @@ export interface DesktopRouteContentProps {
 export function DesktopRouteContent({
   activeProject,
   approvalsResource,
+  tasksResource,
   backend,
   chatChromeHost,
   navigation,
@@ -194,6 +196,10 @@ export function DesktopRouteContent({
         <DashboardPage
           active={active}
           approvalsResource={approvalsResource}
+          tasksResource={tasksResource}
+          runtime={runtime}
+          sessions={scopedSessions}
+          refreshRuntime={refreshRuntime}
           onOpenChat={(sessionId) => {
             if (sessionId) navigation.openSession(sessionId);
             else navigation.setView("chat");

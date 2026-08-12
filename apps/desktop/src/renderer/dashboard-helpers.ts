@@ -203,7 +203,7 @@ export function summarizeSetupEntries(summary: unknown): DashboardSetupEntry[] {
 }
 
 export function normalizeSessions(
-  sessions: SessionSummary[],
+  sessions: readonly SessionSummary[],
 ): DashboardSessionCard[] {
   return [...sessions]
     .sort((left, right) =>
@@ -390,7 +390,9 @@ export function summarizeSetupHealth(entries: DashboardSetupEntry[]): {
   );
 }
 
-export function sessionCountSummary(sessions: SessionSummary[] | undefined): {
+export function sessionCountSummary(
+  sessions: readonly SessionSummary[] | undefined,
+): {
   total: number;
   messages: number;
 } {

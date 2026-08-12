@@ -1621,6 +1621,7 @@ export function App() {
     <DesktopRouteContent
       activeProject={activeProject}
       approvalsResource={approvalsResource}
+      tasksResource={tasksResource}
       backend={backend}
       chatChromeHost={chatChromeHost}
       navigation={{

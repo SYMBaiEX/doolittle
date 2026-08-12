@@ -89,6 +89,17 @@ describe("operational route density", () => {
     expect(docs).not.toContain("runtime answered successfully");
   });
 
+  it("reuses shell-owned dashboard state instead of refetching it on navigation", () => {
+    const dashboard = read("./DashboardPage.tsx");
+
+    expect(dashboard).toContain("tasksResource: tasks");
+    expect(dashboard).toContain("sessions: readonly SessionSummary[]");
+    expect(dashboard).toContain("runtime: RuntimeStatus | null");
+    expect(dashboard).not.toContain('"/runtime/status"');
+    expect(dashboard).not.toContain('"/sessions?limit=8"');
+    expect(dashboard).not.toContain('"/delegation/tasks?status=running');
+  });
+
   it("keeps the primary model readiness visible and capability detail optional", () => {
     const models = read("./ModelsPage.tsx");
     expect(
