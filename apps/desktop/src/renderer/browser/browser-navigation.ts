@@ -20,6 +20,17 @@ export const INITIAL_BROWSER_NAVIGATION: BrowserNavigationState = {
   historyIndex: -1,
 };
 
+export function browserNavigationMatches(
+  left: BrowserNavigationState,
+  right: BrowserNavigationState,
+): boolean {
+  return (
+    left.address === right.address &&
+    left.currentUrl === right.currentUrl &&
+    left.historyIndex === right.historyIndex
+  );
+}
+
 export function normalizeBrowserUrl(value: string): string {
   const input = value.trim();
   if (!input) throw new Error("Enter a URL to preview.");

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  browserNavigationMatches,
   browserNavigationReducer,
   INITIAL_BROWSER_NAVIGATION,
   isLocalPreviewUrl,
@@ -7,6 +8,28 @@ import {
 } from "./browser-navigation";
 
 describe("browser navigation model", () => {
+  it("detects navigation changes made while an action is pending", () => {
+    const started = browserNavigationReducer(INITIAL_BROWSER_NAVIGATION, {
+      type: "show-url",
+      url: "http://localhost:3000/",
+      recordHistory: true,
+    });
+
+    expect(browserNavigationMatches(started, started)).toBe(true);
+    expect(
+      browserNavigationMatches(started, {
+        ...started,
+        address: "http://localhost:3000/settings",
+      }),
+    ).toBe(false);
+    expect(
+      browserNavigationMatches(started, {
+        ...started,
+        historyIndex: started.historyIndex + 1,
+      }),
+    ).toBe(false);
+  });
+
   it("normalizes safe HTTP URLs and rejects unsupported or sensitive inputs", () => {
     expect(normalizeBrowserUrl(" localhost:3000 ")).toBe(
       "http://localhost:3000/",

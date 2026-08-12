@@ -1,4 +1,4 @@
-import { useMemo, useReducer, useState } from "react";
+import { useMemo, useReducer, useRef, useState } from "react";
 import {
   type BrowserAction,
   type BrowserResult,
@@ -14,6 +14,7 @@ import {
 } from "../lib";
 import {
   type BrowserPreviewSize,
+  browserNavigationMatches,
   browserNavigationReducer,
   INITIAL_BROWSER_NAVIGATION,
   isLocalPreviewUrl,
@@ -43,6 +44,8 @@ export function useBrowserWorkspace(active: boolean) {
     browserNavigationReducer,
     INITIAL_BROWSER_NAVIGATION,
   );
+  const navigationRef = useRef(navigation);
+  navigationRef.current = navigation;
   const [previewSize, setPreviewSize] =
     useState<BrowserPreviewSize>("responsive");
   const [compareUrl, setCompareUrl] = useState("");
@@ -139,6 +142,7 @@ export function useBrowserWorkspace(active: boolean) {
       fail(validationError, "address");
       return;
     }
+    const navigationAtStart = navigation;
     setBusy(action);
     try {
       const payload =
@@ -149,7 +153,9 @@ export function useBrowserWorkspace(active: boolean) {
           : await desktopRequest<unknown>(`/browser/${action}`, "POST", {
               url,
             });
-      dispatchNavigation({ type: "show-url", url, recordHistory: true });
+      if (browserNavigationMatches(navigationAtStart, navigationRef.current)) {
+        dispatchNavigation({ type: "show-url", url, recordHistory: true });
+      }
       setResult({
         action,
         title: `${BROWSER_ACTIONS.find((entry) => entry.id === action)?.label ?? action} result`,
