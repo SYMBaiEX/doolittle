@@ -1,10 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { views } from "../desktop-navigation";
-import {
-  DESKTOP_ROUTE_PRELOADERS,
-  DESKTOP_ROUTE_RESOURCE_PREFETCHES,
-} from "./DesktopRouteContent";
+import { DESKTOP_ROUTE_PRELOADERS } from "./DesktopRouteContent";
+import { DESKTOP_ROUTE_RESOURCE_PREFETCHES } from "./desktop-route-prefetch";
 
 const routeContentSource = readFileSync(
   new URL("./DesktopRouteContent.tsx", import.meta.url),
