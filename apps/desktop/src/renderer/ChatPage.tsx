@@ -40,6 +40,7 @@ import {
   type RunReceiptStore,
   runEventKey,
 } from "./chat/models";
+import { useModalFocusBoundary } from "./chat/useModalFocusBoundary";
 import type { ChatContextHandoff } from "./chat-context-handoff";
 import { commandCompletions } from "./command-completion";
 import { visibleAssistantText } from "./components/message-output";
@@ -277,11 +278,21 @@ export function ChatPage({
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const promptRenameRef = useRef<HTMLInputElement>(null);
   const mobileConversationsButtonRef = useRef<HTMLButtonElement>(null);
-  const mobileConversationsDialogRef = useRef<HTMLDivElement>(null);
-  const mobileConversationsWasOpen = useRef(false);
   const workbenchToggleRef = useRef<HTMLButtonElement>(null);
-  const workbenchDialogRef = useRef<HTMLDivElement>(null);
-  const workbenchWasModal = useRef(false);
+  const mobileConversationsDialogRef = useModalFocusBoundary({
+    active: mobileConversationsOpen,
+    initialFocusSelector: "[data-mobile-conversation]",
+    onClose: () => setMobileConversationsOpen(false),
+    restoreFocus: true,
+    restoreFocusRef: mobileConversationsButtonRef,
+  });
+  const workbenchDialogRef = useModalFocusBoundary({
+    active: inspectorVisible && isNarrowWorkbench,
+    initialFocusSelector: '[aria-label="Close thread workbench"]',
+    onClose: () => setInspectorVisible(false),
+    restoreFocus: !inspectorVisible,
+    restoreFocusRef: workbenchToggleRef,
+  });
   const queueRef = useRef<HTMLDivElement>(null);
   const queueDispatchRef = useRef<string | null>(null);
   const requestSession = useRef<Record<string, string>>({});
@@ -429,100 +440,6 @@ export function ChatPage({
     const timeout = window.setTimeout(() => setQueueAnnouncement(""), 2_500);
     return () => window.clearTimeout(timeout);
   }, [queueAnnouncement]);
-
-  useEffect(() => {
-    if (!mobileConversationsOpen) return;
-    const handleEscape = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setMobileConversationsOpen(false);
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const focusable = Array.from(
-        mobileConversationsDialogRef.current?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      );
-      const first = focusable.at(0);
-      const last = focusable.at(-1);
-      if (!first || !last) {
-        event.preventDefault();
-        mobileConversationsDialogRef.current?.focus();
-      } else if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", handleEscape);
-    requestAnimationFrame(() => {
-      mobileConversationsDialogRef.current
-        ?.querySelector<HTMLButtonElement>("[data-mobile-conversation]")
-        ?.focus();
-    });
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [mobileConversationsOpen]);
-
-  useEffect(() => {
-    if (mobileConversationsOpen) {
-      mobileConversationsWasOpen.current = true;
-    } else if (mobileConversationsWasOpen.current) {
-      mobileConversationsWasOpen.current = false;
-      mobileConversationsButtonRef.current?.focus();
-    }
-  }, [mobileConversationsOpen]);
-
-  useEffect(() => {
-    if (!inspectorVisible || !isNarrowWorkbench) return;
-    workbenchWasModal.current = true;
-    const handleWorkbenchKeys = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setInspectorVisible(false);
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const focusable = Array.from(
-        workbenchDialogRef.current?.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      );
-      const first = focusable.at(0);
-      const last = focusable.at(-1);
-      if (!first || !last) {
-        event.preventDefault();
-        workbenchDialogRef.current?.focus();
-      } else if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", handleWorkbenchKeys);
-    requestAnimationFrame(() => {
-      workbenchDialogRef.current
-        ?.querySelector<HTMLButtonElement>(
-          '[aria-label="Close thread workbench"]',
-        )
-        ?.focus();
-    });
-    return () => window.removeEventListener("keydown", handleWorkbenchKeys);
-  }, [inspectorVisible, isNarrowWorkbench]);
-
-  useEffect(() => {
-    if (inspectorVisible && isNarrowWorkbench) return;
-    if (!inspectorVisible && workbenchWasModal.current) {
-      workbenchWasModal.current = false;
-      requestAnimationFrame(() => workbenchToggleRef.current?.focus());
-      return;
-    }
-    if (!isNarrowWorkbench) workbenchWasModal.current = false;
-  }, [inspectorVisible, isNarrowWorkbench]);
 
   useEffect(() => {
     const query = draft.trim();

@@ -37,8 +37,9 @@ describe("thread workbench viewport layout contract", () => {
     expect(chatPage).toContain("{...workbenchAccessibilityProps}");
     expect(chatPage).toContain("inert={inspectorVisible && isNarrowWorkbench}");
     expect(chatPage).toContain(
-      "requestAnimationFrame(() => workbenchToggleRef.current?.focus())",
+      "const workbenchDialogRef = useModalFocusBoundary({",
     );
+    expect(chatPage).toContain("restoreFocus: !inspectorVisible");
     expect(experienceCss).toMatch(
       /\.chat-workspace > #thread-workbench\s*{[^}]*grid-column:\s*2;[^}]*grid-row:\s*1;[^}]*align-self:\s*stretch;[^}]*display:\s*grid;[^}]*grid-template-rows:\s*minmax\(0, 1fr\);[^}]*height:\s*100%;[^}]*max-height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s,
     );
