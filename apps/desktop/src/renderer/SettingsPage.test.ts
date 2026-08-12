@@ -71,6 +71,8 @@ describe("settings resource policy", () => {
     expect(settingsPageSource).toContain('useState("appearance")');
     expect(settingsPageSource).not.toContain('id: "providers"');
     expect(settingsPageSource).not.toContain("ConnectionsPage");
+    expect(settingsPageSource).not.toContain('from "./ModelsPage"');
+    expect(settingsPageSource).toContain("LazyModelsPage");
     expect(settingsPageSource).not.toContain("settings-nav-title");
     expect(settingsPageSource).not.toContain("settings-nav-note");
     expect(settingsNavigationSource).toContain("title={entry.description}");
@@ -84,6 +86,13 @@ describe("settings resource policy", () => {
     expect(settingsPageSource).not.toContain(
       "Accounts, appearance, models, execution, and local desktop behavior",
     );
+  });
+
+  it("loads model-only UI behind an accessible suspense boundary", () => {
+    expect(settingsPageSource).toContain("import { Suspense");
+    expect(settingsPageSource).toContain("fallback={<LoadingBlock");
+    expect(settingsPageSource).toContain('label="Loading model settings…"');
+    expect(settingsPageSource).toContain("<LazyModelsPage");
   });
 
   it("offers search only for categories backed by runtime fields", () => {

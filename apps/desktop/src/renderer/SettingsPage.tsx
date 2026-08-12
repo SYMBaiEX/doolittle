@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import type {
   DesktopLifecycleState,
   DesktopUpdateState,
@@ -33,13 +33,13 @@ import {
   type UnknownRecord,
   useApiResource,
 } from "./lib";
-import { ModelsPage } from "./ModelsPage";
 import {
   type FlatSetting,
   flattenSettings,
   SettingsFieldCollection,
 } from "./settings/SettingsFields";
 import "./configuration-pages.css";
+import { LazyModelsPage } from "./settings/lazy-panels";
 import { SettingsNavigation } from "./settings/SettingsNavigation";
 
 interface SettingsResponse {
@@ -413,15 +413,19 @@ export function SettingsPage({ active }: { active: boolean }) {
               </section>
             ) : null}
             {!runtimeCategoryOffline && category === "model" ? (
-              <ModelsPage
-                active={active}
-                embedded
-                refreshRuntime={() => {
-                  runtime.reload();
-                  settings.reload();
-                }}
-                runtime={runtime.data ?? null}
-              />
+              <Suspense
+                fallback={<LoadingBlock label="Loading model settings…" />}
+              >
+                <LazyModelsPage
+                  active={active}
+                  embedded
+                  refreshRuntime={() => {
+                    runtime.reload();
+                    settings.reload();
+                  }}
+                  runtime={runtime.data ?? null}
+                />
+              </Suspense>
             ) : null}
             {!runtimeCategoryOffline && category === "desktop" ? (
               <section className="settings-group">
