@@ -16,7 +16,6 @@ import type {
   ActivityFeedResponse,
   BackendState,
   Project,
-  ProjectResponse,
   ProjectsResponse,
   RuntimeStatus,
   SessionSummary,
@@ -59,7 +58,6 @@ import {
   PROJECT_SCOPE_KEY,
   type View,
   viewFromHash,
-  workspaceName,
 } from "./desktop-navigation";
 import {
   acknowledgeNavigationIntent,
@@ -98,18 +96,14 @@ import {
   UTILITY_DRAWER_WIDTH,
   UTILITY_DRAWER_WIDTH_KEY,
 } from "./panel-layout";
-import type {
-  ProjectDraft,
-  ProjectLike,
-  ProjectResourceLike,
-  ProjectScope,
-} from "./project-manager/models";
+import type { ProjectLike, ProjectScope } from "./project-manager/models";
 import { projectNavigationTarget } from "./project-navigation";
 import {
   isChatTerminalShortcut,
   isCommandPaletteShortcut,
   shouldIgnoreShellShortcut,
 } from "./shell-shortcuts";
+import { useProjectManagement } from "./use-project-management";
 import { useWorkspaceProjectNavigation } from "./use-workspace-project-navigation";
 import { workspacePathsEqual } from "./workspace-path";
 
@@ -480,14 +474,6 @@ export function App() {
     }
   }, [pushToast]);
 
-  const reloadProjects = useCallback(async () => {
-    const response = await desktopRequest<ProjectsResponse>(
-      "/projects?includeArchived=true",
-    );
-    setProjects(response.projects);
-    return response.projects;
-  }, []);
-
   const {
     chooseWorkspace,
     handleWorkspaceState,
@@ -546,272 +532,34 @@ export function App() {
     [transitionToProjectScope],
   );
 
-  const createProject = useCallback(
-    async (draft: ProjectDraft) => {
-      const response = await desktopRequest<ProjectResponse>(
-        "/projects",
-        "POST",
-        {
-          ...draft,
-          primaryPath: workspace.currentPath || undefined,
-        },
-      );
-      await reloadProjects();
-      setProjectScope(response.project.id);
-      setSelectedSession(newConversationId());
-      setView("chat");
-      pushToast({
-        tone: "success",
-        title: `${response.project.name} created`,
-        message: workspace.currentPath
-          ? "New chats now use this project and its current workspace."
-          : "Add a folder when you are ready to give this project local context.",
-      });
-    },
-    [pushToast, reloadProjects, setView, workspace.currentPath],
-  );
-
-  const chooseRepositoryForConversation = useCallback(
-    async (targetSessionId?: string) => {
-      try {
-        const result = await window.doolittle.pickWorkspace();
-        setWorkspace(result.state);
-        if (result.canceled || !result.state.currentPath) return;
-
-        const repositoryPath = result.state.currentPath;
-        let project = projects.find(
-          (entry) =>
-            pathsEqual(entry.primaryPath, repositoryPath) ||
-            entry.resources.some(
-              (resource) =>
-                resource.kind === "folder" &&
-                pathsEqual(resource.value, repositoryPath),
-            ),
-        );
-
-        if (project?.archivedAt) {
-          const restored = await desktopRequest<ProjectResponse>(
-            `/projects/${encodeURIComponent(project.id)}/archive`,
-            "POST",
-            { archived: false },
-          );
-          project = restored.project;
-        }
-
-        if (!project) {
-          const created = await desktopRequest<ProjectResponse>(
-            "/projects",
-            "POST",
-            {
-              name: workspaceName(repositoryPath),
-              description: "Local repository workspace",
-              color: "#ff6a00",
-              primaryPath: repositoryPath,
-            },
-          );
-          project = created.project;
-        }
-
-        const selectedProject = project;
-        setProjects((current) => [
-          ...current.filter((entry) => entry.id !== selectedProject.id),
-          selectedProject,
-        ]);
-        transitionToProjectScope(
-          selectedProject.id,
-          targetSessionId ?? newConversationId(),
-          projectNavigationTarget("new-conversation"),
-        );
-        pushToast({
-          tone: "success",
-          title: `Ready in ${selectedProject.name}`,
-          message: "This conversation is linked to the selected repository.",
-        });
-      } catch (error) {
-        pushToast({
-          tone: "error",
-          title: "Repository could not be opened",
-          message: error instanceof Error ? error.message : String(error),
-        });
-      }
-    },
-    [projects, pushToast, transitionToProjectScope],
-  );
-
-  const updateProject = useCallback(
-    async (project: ProjectLike, draft: ProjectDraft) => {
-      const response = await desktopRequest<ProjectResponse>(
-        `/projects/${encodeURIComponent(project.id)}`,
-        "PATCH",
-        draft,
-      );
-      setProjects((current) =>
-        current.map((entry) =>
-          entry.id === response.project.id ? response.project : entry,
-        ),
-      );
-      pushToast({
-        tone: "success",
-        title: `${response.project.name} updated`,
-        message: "Project context and instructions were saved locally.",
-      });
-    },
-    [pushToast],
-  );
-
-  const archiveProject = useCallback(
-    async (project: ProjectLike, archived: boolean) => {
-      const response = await desktopRequest<ProjectResponse>(
-        `/projects/${encodeURIComponent(project.id)}/archive`,
-        "POST",
-        { archived },
-      );
-      setProjects((current) =>
-        current.map((entry) =>
-          entry.id === response.project.id ? response.project : entry,
-        ),
-      );
-      if (archived && projectScope === project.id) {
-        selectProjectScope("all");
-      }
-      pushToast({
-        tone: "success",
-        title: archived ? "Project archived" : "Project restored",
-        message: `${response.project.name} ${
-          archived ? "is hidden from active projects" : "is active again"
-        }.`,
-      });
-    },
-    [projectScope, pushToast, selectProjectScope],
-  );
-
-  const pinProject = useCallback(
-    async (project: ProjectLike, pinned: boolean) => {
-      const response = await desktopRequest<ProjectResponse>(
-        `/projects/${encodeURIComponent(project.id)}`,
-        "PATCH",
-        { pinned },
-      );
-      setProjects((current) =>
-        current.map((entry) =>
-          entry.id === response.project.id ? response.project : entry,
-        ),
-      );
-    },
-    [],
-  );
-
-  const addProjectResources = useCallback(
-    async (project: ProjectLike, kind: "file" | "folder") => {
-      const selection =
-        kind === "file"
-          ? await window.doolittle.pickProjectFiles()
-          : await window.doolittle.pickProjectFolders();
-      if (selection.canceled || selection.paths.length === 0) return;
-      for (const path of selection.paths) {
-        await desktopRequest(
-          `/projects/${encodeURIComponent(project.id)}/resources`,
-          "POST",
-          {
-            kind,
-            label: workspaceName(path),
-            value: path,
-          },
-        );
-      }
-      const storedProject = projects.find((entry) => entry.id === project.id);
-      if (kind === "folder" && !storedProject?.primaryPath) {
-        await desktopRequest<ProjectResponse>(
-          `/projects/${encodeURIComponent(project.id)}`,
-          "PATCH",
-          { primaryPath: selection.paths[0] },
-        );
-      }
-      await reloadProjects();
-      pushToast({
-        tone: "success",
-        title: `${selection.paths.length} ${
-          kind === "file" ? "file" : "folder"
-        }${selection.paths.length === 1 ? "" : "s"} added`,
-        message: `Doolittle can now use ${
-          selection.paths.length === 1 ? "this source" : "these sources"
-        } as ${project.name} context.`,
-      });
-    },
-    [projects, pushToast, reloadProjects],
-  );
-
-  const removeProjectResource = useCallback(
-    async (project: ProjectLike, resource: ProjectResourceLike) => {
-      await desktopRequest(
-        `/projects/${encodeURIComponent(project.id)}/resources/${encodeURIComponent(
-          resource.id,
-        )}`,
-        "DELETE",
-      );
-      await reloadProjects();
-    },
-    [reloadProjects],
-  );
-
-  const setProjectPrimaryPath = useCallback(
-    async (project: ProjectLike, primaryPath: string) => {
-      const response = await desktopRequest<ProjectResponse>(
-        `/projects/${encodeURIComponent(project.id)}`,
-        "PATCH",
-        { primaryPath },
-      );
-      setProjects((current) =>
-        current.map((entry) =>
-          entry.id === response.project.id ? response.project : entry,
-        ),
-      );
-      const canSwitch = workspace.recentPaths.some((path) =>
-        pathsEqual(path, primaryPath),
-      );
-      if (!pathsEqual(primaryPath, workspace.currentPath) && canSwitch) {
-        await switchToRecentWorkspace(primaryPath);
-      }
-      pushToast({
-        tone: canSwitch ? "success" : "warning",
-        title: `${workspaceName(primaryPath)} is primary`,
-        message: canSwitch
-          ? "New chats, Git operations, and project discovery now start from this folder."
-          : "The project was updated. Open this folder once as a workspace before Doolittle can switch the private runtime automatically.",
-      });
-    },
-    [
-      pushToast,
-      switchToRecentWorkspace,
-      workspace.currentPath,
-      workspace.recentPaths,
-    ],
-  );
-
-  const moveCurrentChat = useCallback(
-    async (projectId: string | null) => {
-      await desktopRequest("/sessions/project", "POST", {
-        sessionId: selectedSession,
-        projectId,
-      });
-      setSessions((current) =>
-        current.map((session) =>
-          session.sessionId === selectedSession
-            ? { ...session, projectId: projectId ?? undefined }
-            : session,
-        ),
-      );
-      transitionToProjectScope(projectId ?? "unscoped", selectedSession);
-      pushToast({
-        tone: "success",
-        title: "Conversation moved",
-        message: projectId
-          ? "This chat now uses the selected project context."
-          : "This chat is now unscoped.",
-      });
-    },
-    [pushToast, selectedSession, transitionToProjectScope],
-  );
+  const {
+    addProjectResources,
+    archiveProject,
+    chooseRepositoryForConversation,
+    createProject,
+    moveCurrentChat,
+    pinProject,
+    removeProjectResource,
+    setProjectPrimaryPath,
+    updateProject,
+  } = useProjectManagement({
+    createSessionId: newConversationId,
+    pathsEqual,
+    projectScope,
+    projects,
+    pushToast,
+    selectProjectScope,
+    selectedSession,
+    setProjectScope,
+    setProjects,
+    setSelectedSession,
+    setSessions,
+    setView,
+    setWorkspace,
+    switchToRecentWorkspace,
+    transitionToProjectScope,
+    workspace,
+  });
 
   useEffect(() => {
     applyDesktopAppearance(appearance, systemPrefersDark);
