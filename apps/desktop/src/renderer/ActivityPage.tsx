@@ -292,7 +292,7 @@ export function ActivityPage({ active }: { active: boolean }) {
             label="Activity overview"
             stats={[
               {
-                label: "Live now",
+                label: "Pending signals",
                 tone: overview.live ? "warn" : "neutral",
                 value: overview.live,
               },

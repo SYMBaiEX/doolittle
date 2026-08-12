@@ -1131,6 +1131,14 @@ td {
   overflow: auto;
 }
 
+.analytics-session-label {
+  max-width: 30rem;
+  overflow: hidden;
+  color: var(--text-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .analytics-empty-cell {
   height: 58px;
   color: var(--muted);

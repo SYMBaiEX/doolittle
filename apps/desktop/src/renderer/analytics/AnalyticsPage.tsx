@@ -27,6 +27,24 @@ interface AnalyticsResponse {
   dailyActivity?: unknown[];
 }
 
+const SESSION_LABEL_LIMIT = 72;
+
+export function analyticsSessionLabel(entry: Record<string, unknown>): string {
+  const usage = asRecord(entry.usage);
+  const preview = asArray(entry.preview)
+    .map((value) => asString(value).trim())
+    .find(Boolean);
+  const label =
+    asString(entry.title).trim() ||
+    preview ||
+    asString(usage.lastPreview).trim();
+  if (!label) return "Untitled session";
+  const normalized = label.replace(/^\[(?:assistant|system|user)\]\s*/iu, "");
+  return normalized.length > SESSION_LABEL_LIMIT
+    ? `${normalized.slice(0, SESSION_LABEL_LIMIT - 1).trimEnd()}…`
+    : normalized;
+}
+
 export function AnalyticsPage({ active }: { active: boolean }) {
   const resource = useApiResource<AnalyticsResponse>(
     active ? "/analytics" : null,
@@ -175,11 +193,8 @@ export function AnalyticsPage({ active }: { active: boolean }) {
                       const usage = asRecord(entry.usage);
                       return (
                         <tr key={asString(entry.sessionId, String(index))}>
-                          <td>
-                            {asString(
-                              entry.title,
-                              asString(entry.sessionId, "Untitled"),
-                            )}
+                          <td className="analytics-session-label">
+                            {analyticsSessionLabel(entry)}
                           </td>
                           <td>{asNumber(entry.messageCount)}</td>
                           <td>
