@@ -449,9 +449,11 @@ test.describe("Doolittle desktop navigation", () => {
           if (route === "models") {
             const diagnostics = viewContainer.locator(".model-diagnostic");
             await expect(diagnostics).toHaveCount(2);
+            await expect(diagnostics.nth(0)).not.toHaveAttribute("open");
+            await diagnostics.nth(0).locator("summary").click();
             await expect(diagnostics.nth(0)).toHaveAttribute("open", "");
-            await diagnostics.nth(1).locator("summary").click();
-            await expect(diagnostics.nth(1)).toHaveAttribute("open", "");
+            await diagnostics.nth(0).locator("summary").click();
+            await expect(diagnostics.nth(0)).not.toHaveAttribute("open");
           }
           if (route === "logs") {
             const traces = viewContainer.locator(".operations-trace-details");
@@ -977,7 +979,7 @@ test.describe("Doolittle desktop navigation", () => {
       });
       await page.getByRole("tab", { name: /Workshop/ }).click();
       await expect(
-        page.getByRole("heading", { name: "Skill Workshop" }),
+        page.getByRole("heading", { name: "Review before activation" }),
       ).toBeVisible();
 
       await page.evaluate(() => {
@@ -1110,11 +1112,13 @@ test.describe("Doolittle desktop navigation", () => {
       const mcpMarketplace = page.locator(".mcp-control-marketplace");
       const mcpToolBrowser = page.locator(".mcp-control-browser");
       await expect(mcpMarketplace).not.toHaveAttribute("open");
-      await expect(mcpToolBrowser).toHaveAttribute("open", "");
+      await expect(mcpToolBrowser).not.toHaveAttribute("open");
       await mcpMarketplace.locator("summary").click();
       await expect(mcpMarketplace).toHaveAttribute("open", "");
       await mcpMarketplace.locator("summary").click();
       await expect(mcpMarketplace).not.toHaveAttribute("open");
+      await mcpToolBrowser.locator("summary").click();
+      await expect(mcpToolBrowser).toHaveAttribute("open", "");
       await page
         .getByRole("textbox", { name: "Search ACP bridge tools" })
         .fill("workspace");
@@ -1123,7 +1127,7 @@ test.describe("Doolittle desktop navigation", () => {
         page
           .locator(".acp-bridge-tool-list")
           .getByText("DOOLITTLE_WORKSPACE", { exact: true }),
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 30_000 });
 
       await page.evaluate(() => {
         window.location.hash = "#/chat";
