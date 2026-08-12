@@ -1,0 +1,28 @@
+.plugins-catalog-controls {
+  display: grid;
+  grid-template-columns: minmax(560px, 1.2fr) minmax(340px, 0.8fr);
+  align-items: stretch;
+  gap: 8px;
+}
+
+.plugins-catalog-controls > .compact-stat-strip,
+.plugins-filter-bar {
+  min-width: 0;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.plugins-filter-bar {
+  padding: 6px 8px;
+}
+
+.plugins-filter-bar .search-field {
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .plugins-catalog-controls {
+    grid-template-columns: 1fr;
+  }
+}
