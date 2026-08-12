@@ -145,6 +145,34 @@ describe("AutomationsPage", () => {
     container.remove();
   });
 
+  it("replaces zero-value chrome with one focused first-workflow action", () => {
+    useApiResourceMock.mockImplementation((path: string | null) => {
+      if (path === "/cron/jobs") return buildResource({ jobs: [] });
+      return buildResource(null);
+    });
+
+    act(() => root.render(<AutomationsPage active />));
+
+    expect(
+      container.querySelector('[aria-label="Automation summary"]'),
+    ).toBeNull();
+    expect(container.querySelector(".automation-empty-panel")).not.toBeNull();
+    expect(container.textContent).toContain("Automate one repeatable task");
+    expect(container.textContent).not.toContain("Webhook inputs");
+
+    const openBuilder = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Open builder",
+    );
+    expect(openBuilder).toBeDefined();
+
+    act(() => openBuilder?.click());
+
+    expect(container.textContent).toContain("Automation definition");
+    expect(container.textContent).toContain("Close builder");
+    expect(container.querySelector(".automation-empty-panel")).toBeNull();
+    expect(container.textContent).toContain("Trace receipts");
+  });
+
   it("loads trace receipts only after the operator opens the drawer", () => {
     const requestedPaths: Array<string | null> = [];
     useApiResourceMock.mockImplementation((path: string | null) => {

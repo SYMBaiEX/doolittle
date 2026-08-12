@@ -165,7 +165,8 @@ describe("operational route density", () => {
     expect(automationWorkspace).toContain(
       'className="automation-empty-starter"',
     );
-    expect(automationWorkspace).toContain("Use New automation above");
+    expect(automationWorkspace).toContain("Automate one repeatable task");
+    expect(automationWorkspace).toContain("Open builder");
     expect(automationWorkspace).not.toContain('title="No automations yet"');
     const memory = read("./memory/MemorySnapshotPanel.tsx");
     expect(memory).toContain("memory-empty-card");

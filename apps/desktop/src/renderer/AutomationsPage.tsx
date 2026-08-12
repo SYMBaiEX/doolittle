@@ -75,6 +75,9 @@ export function AutomationsPage({ active }: { active: boolean }) {
   const webhookJobs = entries.filter(
     (entry) => summarizeAutomation(entry).triggerType === "webhook",
   ).length;
+  const hasJobs = entries.length > 0;
+  const showHeaderAction =
+    showCreate || hasJobs || jobs.loading || Boolean(jobs.error);
 
   useEffect(() => {
     if (
@@ -151,16 +154,18 @@ export function AutomationsPage({ active }: { active: boolean }) {
       <PageHeader
         eyebrow="Operations"
         title="Automations"
-        description="Compose reliable agent workflows with explicit triggers, conditions, actions, and inspectable execution traces."
+        description="Build local workflows from explicit triggers, conditions, and actions."
         actions={
-          <button
-            className={showCreate ? "secondary-button" : "primary-button"}
-            disabled={!active}
-            onClick={() => setShowCreate((value) => !value)}
-            type="button"
-          >
-            {showCreate ? "Close builder" : "New automation"}
-          </button>
+          showHeaderAction ? (
+            <button
+              className={showCreate ? "secondary-button" : "primary-button"}
+              disabled={!active}
+              onClick={() => setShowCreate((value) => !value)}
+              type="button"
+            >
+              {showCreate ? "Close builder" : "New automation"}
+            </button>
+          ) : null
         }
       />
 
@@ -171,7 +176,7 @@ export function AutomationsPage({ active }: { active: boolean }) {
         </OfflineRouteState>
       ) : null}
 
-      {active ? (
+      {active && hasJobs ? (
         <CompactStatStrip
           label="Automation summary"
           stats={[
@@ -222,11 +227,13 @@ export function AutomationsPage({ active }: { active: boolean }) {
 
       {active ? (
         <AutomationWorkspace
+          builderOpen={showCreate}
           busy={busy}
           jobs={entries}
           jobsError={jobs.error}
           jobsLoading={jobs.loading}
           onAction={act}
+          onCreate={() => setShowCreate(true)}
           onFeedback={(message) => setFeedback({ message, tone: "good" })}
           onReloadJobs={jobs.reload}
           onReloadRuns={runs.reload}

@@ -223,11 +223,13 @@ function AutomationTrace({ entry }: { entry: UnknownRecord }) {
 }
 
 export function AutomationWorkspace({
+  builderOpen,
   busy,
   jobs,
   jobsError,
   jobsLoading,
   onAction,
+  onCreate,
   onFeedback,
   onReloadJobs,
   onReloadRuns,
@@ -239,11 +241,13 @@ export function AutomationWorkspace({
   runsOpen,
   selectedRun,
 }: {
+  builderOpen: boolean;
   busy: string;
   jobs: UnknownRecord[];
   jobsError: string | null;
   jobsLoading: boolean;
   onAction(id: string, action: AutomationAction): Promise<boolean>;
+  onCreate(): void;
   onFeedback(message: string): void;
   onReloadJobs(): void;
   onReloadRuns(): void;
@@ -256,44 +260,49 @@ export function AutomationWorkspace({
   selectedRun?: UnknownRecord;
 }) {
   return (
-    <div className="automation-workspace">
-      <section
-        className={`content-card automation-jobs-panel${jobs.length ? "" : " is-empty"}`}
-      >
-        <div className="card-heading">
-          <div>
-            <span className="eyebrow">Workflows</span>
-            <h2>Automations</h2>
+    <div className={`automation-workspace${jobs.length ? "" : " is-empty"}`}>
+      {jobsLoading || jobsError || jobs.length ? (
+        <section className="content-card automation-jobs-panel">
+          <div className="card-heading">
+            <div>
+              <span className="eyebrow">Workflows</span>
+              <h2>Automations</h2>
+            </div>
+            <Badge>{jobs.length}</Badge>
           </div>
-          <Badge>{jobs.length}</Badge>
-        </div>
-        {jobsLoading ? (
-          <LoadingBlock label="Loading automations…" />
-        ) : jobsError ? (
-          <ErrorBlock error={jobsError} retry={onReloadJobs} />
-        ) : jobs.length ? (
-          <div className="automation-job-list">
-            {jobs.map((entry, index) => (
-              <AutomationJobCard
-                busy={busy}
-                entry={entry}
-                index={index}
-                key={asString(entry.id, String(index))}
-                onAction={onAction}
-                onFeedback={onFeedback}
-              />
-            ))}
-          </div>
-        ) : (
+          {jobsLoading ? (
+            <LoadingBlock label="Loading automations…" />
+          ) : jobsError ? (
+            <ErrorBlock error={jobsError} retry={onReloadJobs} />
+          ) : (
+            <div className="automation-job-list">
+              {jobs.map((entry, index) => (
+                <AutomationJobCard
+                  busy={busy}
+                  entry={entry}
+                  index={index}
+                  key={asString(entry.id, String(index))}
+                  onAction={onAction}
+                  onFeedback={onFeedback}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : builderOpen ? null : (
+        <section className="content-card automation-empty-panel">
           <div className="automation-empty-starter" role="status">
-            <strong>No workflows yet</strong>
-            <span>
-              Use New automation above to connect a trigger, condition, and
-              action.
-            </span>
+            <div>
+              <span className="eyebrow">First workflow</span>
+              <strong>Automate one repeatable task</strong>
+              <p>Choose a trigger, an optional condition, and an action.</p>
+            </div>
+            <button className="primary-button" onClick={onCreate} type="button">
+              Open builder
+            </button>
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       <details
         className="content-card automation-runs-panel"
@@ -303,7 +312,7 @@ export function AutomationWorkspace({
         <summary>
           <span>
             <strong>Trace receipts</strong>
-            <small>Execution history and phase-level output</small>
+            <small>Execution history</small>
           </span>
           <span className="automation-runs-panel__meta">
             {runsOpen ? `${runs.length} loaded` : "Open to load"}
