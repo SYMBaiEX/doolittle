@@ -22,9 +22,28 @@ export function CompactStatStrip({
           className={`compact-stat-strip__item is-${stat.tone ?? "neutral"}`}
           key={stat.label}
         >
-          <span>{stat.label}</span>
-          <strong>{stat.value}</strong>
-          {stat.detail ? <small>{stat.detail}</small> : null}
+          <span title={stat.label}>{stat.label}</span>
+          <strong
+            title={
+              typeof stat.value === "string" || typeof stat.value === "number"
+                ? String(stat.value)
+                : undefined
+            }
+          >
+            {stat.value}
+          </strong>
+          {stat.detail ? (
+            <small
+              title={
+                typeof stat.detail === "string" ||
+                typeof stat.detail === "number"
+                  ? String(stat.detail)
+                  : undefined
+              }
+            >
+              {stat.detail}
+            </small>
+          ) : null}
         </div>
       ))}
     </section>

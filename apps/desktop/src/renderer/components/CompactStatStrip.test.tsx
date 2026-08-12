@@ -22,6 +22,9 @@ describe("CompactStatStrip", () => {
     expect(html).toContain('aria-label="Runtime summary"');
     expect(html).toContain("compact-stat-strip__item is-good");
     expect(html).toContain("Needs attention");
+    expect(html).toContain('title="Ready"');
+    expect(html).toContain('title="3"');
+    expect(html).toContain('title="Needs attention"');
     expect(html).not.toContain("metric-card");
   });
 });

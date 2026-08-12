@@ -51,7 +51,8 @@ describe("SetupPage projections", () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: "readiness",
-          value: "Finish provider setup",
+          value: "Needs attention",
+          detail: "Finish provider setup · One provider is unavailable.",
           tone: "warn",
         }),
         expect.objectContaining({

@@ -65,6 +65,12 @@ function readinessTone(value: string): SetupSnapshotRow["tone"] {
   return value ? "warn" : "neutral";
 }
 
+function readinessLabel(value: string): string {
+  if (value === "ready") return "Ready";
+  if (value === "blocked") return "Blocked";
+  return value ? "Needs attention" : "Unknown";
+}
+
 export function normalizeSetupSnapshot(value: unknown): SetupSnapshotRow[] {
   const summary = asRecord(asRecord(value).summary);
   const rows: SetupSnapshotRow[] = [];
@@ -75,8 +81,10 @@ export function normalizeSetupSnapshot(value: unknown): SetupSnapshotRow[] {
     rows.push({
       id: "readiness",
       label: "Readiness",
-      value: readinessHeadline,
-      detail: asString(readiness.detail).trim(),
+      value: readinessLabel(readinessLevel),
+      detail: [readinessHeadline, asString(readiness.detail).trim()]
+        .filter(Boolean)
+        .join(" · "),
       tone: readinessTone(readinessLevel),
     });
   }
