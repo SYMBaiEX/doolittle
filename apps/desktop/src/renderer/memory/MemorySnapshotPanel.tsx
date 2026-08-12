@@ -18,6 +18,14 @@ import type { MemoryResponse, MemorySummary } from "./models";
 const SNAPSHOT_CHARACTER_LIMIT = 1_400;
 const PREVIEW_ITEM_LIMIT = 5;
 
+export function hasMemorySnapshot(
+  snapshot: string,
+  entryCount: number,
+): boolean {
+  if (!snapshot.trim()) return false;
+  return !(entryCount === 0 && /\(\s*empty\s*\)/iu.test(snapshot));
+}
+
 export function MemorySnapshotPanel({
   active,
   resource,
@@ -31,10 +39,11 @@ export function MemorySnapshotPanel({
   const summary = asRecord(resource.data?.summary) as MemorySummary;
   const snapshot = asString(resource.data?.snapshot, "");
   const entryCount = asNumber(summary.entries, 0);
+  const snapshotAvailable = hasMemorySnapshot(snapshot, entryCount);
   const preview = asArray(summary.preview)
     .slice(-PREVIEW_ITEM_LIMIT)
     .map((entry) => asString(entry));
-  const empty = entryCount === 0 && preview.length === 0 && !snapshot;
+  const empty = entryCount === 0 && preview.length === 0 && !snapshotAvailable;
 
   if (resource.loading) {
     return <LoadingBlock label={`Loading ${target} memory snapshot…`} />;
@@ -126,11 +135,11 @@ export function MemorySnapshotPanel({
               <span className="eyebrow">Readable snapshot</span>
               <h2>Latest bounded snapshot</h2>
             </div>
-            <Notice tone={snapshot ? "good" : "warn"}>
-              {snapshot ? "Loaded" : "Unavailable"}
+            <Notice tone={snapshotAvailable ? "good" : "warn"}>
+              {snapshotAvailable ? "Loaded" : "Unavailable"}
             </Notice>
           </div>
-          {snapshot ? (
+          {snapshotAvailable ? (
             <pre className="json-preview">
               {formatBoundedPreview(snapshot, SNAPSHOT_CHARACTER_LIMIT)}
             </pre>

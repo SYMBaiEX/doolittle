@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { ApiResource } from "../lib";
-import { MemorySnapshotPanel } from "./MemorySnapshotPanel";
+import { hasMemorySnapshot, MemorySnapshotPanel } from "./MemorySnapshotPanel";
 import type { MemoryResponse } from "./models";
 
 function resource(data: MemoryResponse): ApiResource<MemoryResponse> {
@@ -14,6 +14,13 @@ function resource(data: MemoryResponse): ApiResource<MemoryResponse> {
 }
 
 describe("MemorySnapshotPanel", () => {
+  it("treats the bounded empty sentinel as absent memory", () => {
+    expect(hasMemorySnapshot("MEMORY [0% — 0/2200 chars]\n(empty)", 0)).toBe(
+      false,
+    );
+    expect(hasMemorySnapshot("Remember the operator preference", 0)).toBe(true);
+  });
+
   it("collapses a truly empty memory target into one authoritative card", () => {
     const markup = renderToStaticMarkup(
       <MemorySnapshotPanel
@@ -76,5 +83,22 @@ describe("MemorySnapshotPanel", () => {
     expect(markup).not.toContain("Recent entries");
     expect(markup).toContain("Readable snapshot");
     expect(markup).toContain("Bounded runtime snapshot");
+  });
+
+  it("collapses a bounded empty sentinel into the single empty card", () => {
+    const markup = renderToStaticMarkup(
+      <MemorySnapshotPanel
+        active
+        resource={resource({
+          summary: { characters: 0, entries: 0, preview: [], target: "memory" },
+          snapshot: "MEMORY [0% — 0/2200 chars]\n(empty)",
+        })}
+        target="memory"
+      />,
+    );
+
+    expect(markup).toContain("memory-empty-card");
+    expect(markup).not.toContain("Readable snapshot");
+    expect(markup).not.toContain("MEMORY [0%");
   });
 });
