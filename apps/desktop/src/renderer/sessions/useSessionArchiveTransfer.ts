@@ -1,6 +1,7 @@
 import { type ChangeEvent, useRef, useState } from "react";
 import type { SessionSummary } from "../../shared/contracts";
 import { desktopRequest } from "../lib";
+import { compactSessionPreview } from "../session-preview";
 
 interface Preview {
   sourceApplication: string;
@@ -52,8 +53,8 @@ export function useSessionArchiveTransfer({
       );
       const link = document.createElement("a");
       const basename = (
-        selected.title ||
-        selected.preview?.[0] ||
+        compactSessionPreview(selected.title ?? "") ||
+        compactSessionPreview(selected.preview?.[0] ?? "") ||
         "doolittle-session"
       )
         .replace(/[^\p{L}\p{N}._-]+/gu, "-")

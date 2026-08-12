@@ -55,6 +55,14 @@ describe("desktop navigation descriptors", () => {
         preview: ["Preview label"],
       }),
     ).toBe("Preview label");
+    expect(
+      sessionLabel({
+        sessionId: "resource",
+        messageCount: 1,
+        participants: ["user"],
+        preview: ["Read /Users/symbiex/dev/test/package.json"],
+      }),
+    ).toBe("Read package.json");
   });
 
   it("exposes stable grouped navigation for the shell and utility drawer", () => {

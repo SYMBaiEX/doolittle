@@ -17,6 +17,7 @@ import {
   useApiResource,
 } from "../lib";
 import { sessionDetailRequests } from "../resource-request-policy";
+import { compactSessionPreview } from "../session-preview";
 
 interface SessionUsageResponse {
   usage?: SessionUsageSummary;
@@ -125,7 +126,9 @@ export function SessionDetail({
         <div>
           <span className="eyebrow">Transcript</span>
           <h2>
-            {selected.title || selected.preview?.[0] || "Untitled conversation"}
+            {compactSessionPreview(selected.title || "") ||
+              compactSessionPreview(selected.preview?.[0] || "") ||
+              "Untitled conversation"}
           </h2>
         </div>
         <div className="button-row">
@@ -266,7 +269,10 @@ export function SessionDetail({
             <div className="status-row">
               <div>
                 <strong>Latest preview</strong>
-                <small>{selected.preview?.[0] ?? "No preview"}</small>
+                <small>
+                  {compactSessionPreview(selected.preview?.[0] ?? "") ||
+                    "No preview"}
+                </small>
               </div>
             </div>
           </div>
@@ -303,8 +309,8 @@ export function SessionDetail({
                 >
                   <div>
                     <strong>
-                      {session.title ||
-                        session.preview?.[0] ||
+                      {compactSessionPreview(session.title || "") ||
+                        compactSessionPreview(session.preview?.[0] || "") ||
                         session.sessionId}
                     </strong>
                     <small>

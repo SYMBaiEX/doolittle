@@ -1,5 +1,6 @@
 import type { SessionSummary } from "../shared/contracts";
 import type { ProjectScope } from "./project-manager/models";
+import { compactSessionPreview } from "./session-preview";
 
 export type View =
   | "dashboard"
@@ -247,5 +248,9 @@ export function collectSidebarFocusables(
 }
 
 export function sessionLabel(session: SessionSummary): string {
-  return session.title?.trim() || session.preview[0]?.trim() || "Conversation";
+  return (
+    compactSessionPreview(session.title ?? "") ||
+    compactSessionPreview(session.preview[0] ?? "") ||
+    "Conversation"
+  );
 }

@@ -12,6 +12,7 @@ import {
   useApiResource,
   useDebouncedValue,
 } from "../lib";
+import { compactSessionPreview } from "../session-preview";
 
 export const SESSION_LIST_PAGE_SIZE = 20;
 
@@ -123,11 +124,14 @@ export function SessionListPanel({
           >
             <span className="row-card-main">
               <strong>
-                {session.title ||
-                  session.preview?.[0] ||
+                {compactSessionPreview(session.title || "") ||
+                  compactSessionPreview(session.preview?.[0] || "") ||
                   "Untitled conversation"}
               </strong>
-              <small>{session.preview?.[0] || session.sessionId}</small>
+              <small>
+                {compactSessionPreview(session.preview?.[0] || "") ||
+                  session.sessionId}
+              </small>
             </span>
             <span className="row-card-meta">
               <small>{session.messageCount} messages</small>

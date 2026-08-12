@@ -1,5 +1,6 @@
 import type { SessionSummary } from "../../shared/contracts";
 import type { ProjectLike } from "../project-manager/models";
+import { compactSessionPreview } from "../session-preview";
 
 export interface ProjectConversationGroup {
   project: ProjectLike;
@@ -20,7 +21,9 @@ function sessionActivity(session: SessionSummary): string {
 
 export function conversationLabel(session: SessionSummary): string {
   const value =
-    session.title?.trim() || session.preview[0]?.trim() || "New conversation";
+    compactSessionPreview(session.title ?? "") ||
+    compactSessionPreview(session.preview[0] ?? "") ||
+    "New conversation";
   return (
     value.replace(/^\[(?:user|assistant|system)\]\s*/iu, "").trim() ||
     "New conversation"

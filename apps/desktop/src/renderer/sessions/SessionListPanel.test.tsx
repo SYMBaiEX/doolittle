@@ -206,4 +206,34 @@ describe("SessionListPanel", () => {
     expect(container.textContent).toContain("Session 42");
     expect(container.textContent).toContain("Showing 43 of 55");
   });
+
+  it("keeps local paths out of session list summaries", () => {
+    useApiResourceMock.mockReturnValue({
+      data: null,
+      error: "",
+      loading: false,
+      reload: vi.fn(),
+    });
+    act(() => {
+      root.render(
+        <SessionListPanel
+          active
+          onSelect={vi.fn()}
+          selectedId=""
+          sessions={[
+            {
+              messageCount: 1,
+              participants: ["user"],
+              preview: ["Read /Users/symbiex/dev/test/src/app/page.tsx"],
+              sessionId: "resource-session",
+              title: "",
+            },
+          ]}
+        />,
+      );
+    });
+    const row = container.querySelector(".row-card");
+    expect(row?.textContent).toContain("page.tsx");
+    expect(row?.textContent).not.toContain("/Users/");
+  });
 });

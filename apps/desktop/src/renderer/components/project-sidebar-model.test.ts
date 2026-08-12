@@ -110,4 +110,13 @@ describe("conversationLabel", () => {
       }),
     ).toBe("What is this repo?");
   });
+
+  it("compacts embedded resource labels", () => {
+    expect(
+      conversationLabel({
+        ...session("resource", "repo", "2026-07-27T15:00:00.000Z"),
+        preview: ["[Embedded resource: /Users/symbiex/dev/test/package.json]"],
+      }),
+    ).toBe("Referenced package.json");
+  });
 });
