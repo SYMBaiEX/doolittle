@@ -16,11 +16,14 @@ import {
   researchRunReceipt,
 } from "./research-run";
 
-async function listAndReconcileOfficialTaskDetails(runtime: RuntimeLike) {
+async function listAndReconcileOfficialTaskDetails(
+  runtime: RuntimeLike,
+  options?: { limit?: number },
+) {
   const service = requireOfficialOrchestrator(runtime);
   const summaries = await service.listTasks({
     includeArchived: true,
-    limit: 500,
+    limit: options?.limit ?? 500,
   });
   const details = await Promise.all(
     summaries.map((task) => service.getTask(task.id)),
@@ -69,10 +72,13 @@ type OfficialTaskDetails = Awaited<
 
 const officialTaskDetailReads = new WeakMap<
   object,
-  Promise<OfficialTaskDetails>
+  Map<number, Promise<OfficialTaskDetails>>
 >();
 
-async function listOfficialTaskDetails(runtime: RuntimeLike) {
+async function listOfficialTaskDetails(
+  runtime: RuntimeLike,
+  options?: { limit?: number },
+) {
   // Projection refresh is the first durable delegation seam during startup.
   // Only non-live sessionless runs are reconciled, so in-process RESEARCH work
   // is never mistaken for a post-restart orphan.
@@ -80,22 +86,36 @@ async function listOfficialTaskDetails(runtime: RuntimeLike) {
   // native expansion so one navigation does not fan out into three list +
   // getTask passes over the same durable records.
   const runtimeKey = runtime as object;
-  const current = officialTaskDetailReads.get(runtimeKey);
+  const limit = options?.limit ?? 500;
+  let cache = officialTaskDetailReads.get(runtimeKey);
+  if (!cache) {
+    cache = new Map<number, Promise<OfficialTaskDetails>>();
+    officialTaskDetailReads.set(runtimeKey, cache);
+  }
+  const current = cache.get(limit);
   if (current) return current;
 
-  const pending = listAndReconcileOfficialTaskDetails(runtime);
-  officialTaskDetailReads.set(runtimeKey, pending);
+  const pending = listAndReconcileOfficialTaskDetails(runtime, { limit });
+  cache.set(limit, pending);
   try {
     return await pending;
   } finally {
-    if (officialTaskDetailReads.get(runtimeKey) === pending) {
+    if (cache.get(limit) === pending) {
+      cache.delete(limit);
+    }
+    if (cache.size === 0 && officialTaskDetailReads.get(runtimeKey) === cache) {
       officialTaskDetailReads.delete(runtimeKey);
     }
   }
 }
 
-export async function getEffectiveDelegationTasks(runtime: RuntimeLike) {
-  return projectOfficialTaskList(await listOfficialTaskDetails(runtime));
+export async function getEffectiveDelegationTasks(
+  runtime: RuntimeLike,
+  options?: { limit?: number },
+) {
+  return projectOfficialTaskList(
+    await listOfficialTaskDetails(runtime, options),
+  );
 }
 
 export async function getEffectiveDelegationQueue(runtime: RuntimeLike) {

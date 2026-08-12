@@ -83,19 +83,20 @@ export async function handleDelegationReadRoutes(
 
   if (request.method === "GET" && url.pathname === "/delegation/tasks") {
     const filters = parseDelegationFilters(url);
-    const nativeTasks = await getEffectiveDelegationTasks(context.runtime);
-    if (
-      !filters.group &&
-      !filters.profile &&
-      !filters.priority &&
-      !filters.label &&
-      !filters.parentTaskId &&
-      !filters.status &&
-      !filters.executionMode &&
-      Array.isArray(nativeTasks)
-    ) {
+    const hasClientSideFilters =
+      Boolean(filters.group) ||
+      Boolean(filters.profile) ||
+      Boolean(filters.priority) ||
+      Boolean(filters.label) ||
+      Boolean(filters.parentTaskId) ||
+      Boolean(filters.status) ||
+      Boolean(filters.executionMode);
+    const nativeTasks = await getEffectiveDelegationTasks(context.runtime, {
+      limit: hasClientSideFilters ? undefined : filters.limit,
+    });
+    if (!hasClientSideFilters && Array.isArray(nativeTasks)) {
       return json({
-        tasks: nativeTasks.slice(0, filters.limit),
+        tasks: nativeTasks,
       });
     }
     return json({
@@ -162,10 +163,9 @@ export async function handleDelegationReadRoutes(
     const filters = parseDelegationFilters(url);
     return json({
       overview: await getEffectiveDelegationOverview(context.runtime),
-      workers: (await getEffectiveDelegationTasks(context.runtime)).slice(
-        0,
-        filters.limit,
-      ),
+      workers: await getEffectiveDelegationTasks(context.runtime, {
+        limit: filters.limit,
+      }),
     });
   }
 

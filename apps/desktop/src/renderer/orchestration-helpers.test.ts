@@ -3,7 +3,9 @@ import {
   compactDuration,
   orchestrationStatusTier,
   orchestrationTimingLabel,
+  projectScopedOrchestrationOverview,
   scopeTasksByWorkspace,
+  summarizeScopedTaskOverview,
   taskCapabilityLabel,
   taskCreatePayload,
   taskExecutionLabel,
@@ -82,6 +84,52 @@ describe("orchestration helpers", () => {
         platform: "linux",
       }),
     ).toEqual(tasks);
+  });
+
+  it("summarizes scoped task counts by lifecycle tier", () => {
+    expect(
+      summarizeScopedTaskOverview([
+        { status: "active" },
+        { status: "draft" },
+        { status: "completed" },
+        { status: "failed" },
+      ]),
+    ).toEqual({
+      total: 4,
+      running: 1,
+      pending: 1,
+      completed: 1,
+      failed: 1,
+    });
+  });
+
+  it("falls back to the global overview until the queue tab is visible", () => {
+    const globalOverview = { total: 12, running: 2, pending: 3 };
+    expect(
+      projectScopedOrchestrationOverview({
+        projectScope: "workspace",
+        activeTab: "review",
+        tasks: [],
+        globalOverview,
+      }),
+    ).toBe(globalOverview);
+  });
+
+  it("uses scoped queue counts once queue data is loaded", () => {
+    expect(
+      projectScopedOrchestrationOverview({
+        projectScope: "workspace",
+        activeTab: "tasks",
+        tasks: [{ status: "pending" }, { status: "done" }],
+        globalOverview: { total: 99 },
+      }),
+    ).toEqual({
+      total: 2,
+      running: 0,
+      pending: 1,
+      completed: 1,
+      failed: 0,
+    });
   });
 
   it("builds canonical task fields while keeping the legacy profile", () => {

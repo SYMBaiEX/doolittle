@@ -159,6 +159,42 @@ export function orchestrationStatusTier(
   return "idle";
 }
 
+export function summarizeScopedTaskOverview(
+  tasks: ReadonlyArray<{ status?: string }>,
+): {
+  total: number;
+  running: number;
+  pending: number;
+  completed: number;
+  failed: number;
+} {
+  return tasks.reduce(
+    (summary, task) => {
+      const tier = orchestrationStatusTier(task.status);
+      summary.total += 1;
+      if (tier === "running") summary.running += 1;
+      if (tier === "queued" || tier === "approval") summary.pending += 1;
+      if (tier === "completed") summary.completed += 1;
+      if (tier === "failed") summary.failed += 1;
+      return summary;
+    },
+    { total: 0, running: 0, pending: 0, completed: 0, failed: 0 },
+  );
+}
+
+export function projectScopedOrchestrationOverview(input: {
+  projectScope: string;
+  activeTab: "tasks" | "agents" | "plans" | "runs" | "review";
+  tasks: ReadonlyArray<{ status?: string }>;
+  globalOverview: Record<string, unknown>;
+}): Record<string, unknown> {
+  if (input.projectScope === "all") return input.globalOverview;
+  if (input.activeTab !== "tasks" && input.tasks.length === 0) {
+    return input.globalOverview;
+  }
+  return summarizeScopedTaskOverview(input.tasks);
+}
+
 export function compactDuration(ms: number): string {
   if (!Number.isFinite(ms) || ms <= 0) return "<1m";
   if (ms < 60_000) return "<1m";

@@ -53,7 +53,54 @@ function contextWith(tasks = [detail("one"), detail("two", { group: "ops" })]) {
   } as unknown as AppContext;
 }
 
+function contextWithService(service: Record<string, unknown>) {
+  return {
+    runtime: {
+      getService: (name: string) =>
+        name === "ORCHESTRATOR_TASK_SERVICE" ? service : null,
+    },
+    services: {},
+  } as unknown as AppContext;
+}
+
 describe("handleDelegationReadRoutes", () => {
+  it("bounds unfiltered task reads at the requested limit", async () => {
+    const tasks = [detail("one"), detail("two"), detail("three")];
+    const service = {
+      listTasks: async ({
+        limit,
+      }: {
+        limit?: number;
+        includeArchived?: boolean;
+      } = {}) => tasks.slice(0, limit),
+      getTask: async (id: string) =>
+        tasks.find((task) => task.id === id) ?? null,
+      getStatus: async () => ({
+        taskCount: tasks.length,
+        activeTaskCount: 0,
+        pausedTaskCount: 0,
+        blockedTaskCount: 0,
+        validatingTaskCount: 0,
+        sessionCount: 0,
+        activeSessionCount: 0,
+        byStatus: {},
+      }),
+    };
+
+    const response = await handleDelegationReadRoutes(
+      contextWithService(service),
+      new Request("http://localhost/delegation/tasks?limit=2"),
+      new URL("http://localhost/delegation/tasks?limit=2"),
+    );
+
+    await expect(response?.json()).resolves.toEqual({
+      tasks: [
+        expect.objectContaining({ id: "one" }),
+        expect.objectContaining({ id: "two" }),
+      ],
+    });
+  });
+
   it("serves filtered legacy DTOs from the official task service", async () => {
     const response = await handleDelegationReadRoutes(
       contextWith(),

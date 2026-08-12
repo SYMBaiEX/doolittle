@@ -18,7 +18,10 @@ import { TaskCreateForm } from "./orchestration/TaskCreateForm";
 import { TaskQueuePanel } from "./orchestration/TaskQueuePanel";
 import { TaskSupervisionControls } from "./orchestration/TaskSupervisionControls";
 import { useOrchestrationActions } from "./orchestration/useOrchestrationActions";
-import { orchestrationStatusTier } from "./orchestration-helpers";
+import {
+  orchestrationStatusTier,
+  projectScopedOrchestrationOverview,
+} from "./orchestration-helpers";
 import { useOrchestrationResources } from "./orchestration-resources";
 import "./orchestration.css";
 
@@ -180,22 +183,12 @@ export function OrchestrationPage({
   const localOverview = asRecord(overview.local);
   const globalOverview =
     Object.keys(nativeOverview).length > 0 ? nativeOverview : localOverview;
-  const scopedOverview =
-    projectScope === "all"
-      ? globalOverview
-      : tasks.reduce(
-          (summary, task) => {
-            const tier = orchestrationStatusTier(task.status);
-            summary.total += 1;
-            if (tier === "running") summary.running += 1;
-            if (tier === "queued" || tier === "approval") summary.pending += 1;
-            if (tier === "completed") summary.completed += 1;
-            if (tier === "failed") summary.failed += 1;
-            return summary;
-          },
-          { total: 0, running: 0, pending: 0, completed: 0, failed: 0 },
-        );
-  const effectiveOverview = scopedOverview;
+  const effectiveOverview = projectScopedOrchestrationOverview({
+    projectScope,
+    activeTab,
+    tasks,
+    globalOverview,
+  });
   const workerOverview = asRecord(workersResource.data?.overview);
   const codegenExecution = asRecord(
     codegenRuntimeResource.data?.execution?.codeGeneration,

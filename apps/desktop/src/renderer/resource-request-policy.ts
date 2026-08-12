@@ -54,8 +54,8 @@ export function orchestrationRequests({
 
   return {
     overview: active,
-    // These back the persistent header's scoped and completed counts.
-    tasks: active,
+    // The full queue is only needed when the Queue tab is visible.
+    tasks: active && activeTab === "tasks",
     workers: active && activeTab === "agents",
     worktrees: active && activeTab === "tasks",
     // This backs the persistent header's approval count.

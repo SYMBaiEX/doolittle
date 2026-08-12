@@ -109,6 +109,25 @@ describe("official delegation service bridge", () => {
     expect(service.getStatus).toHaveBeenCalledOnce();
   });
 
+  it("passes bounded list limits through the official task bridge", async () => {
+    const service = {
+      listTasks: vi.fn(async () => [detail()]),
+      getTask: vi.fn(async () => detail()),
+    };
+
+    await expect(
+      getEffectiveDelegationTasks(runtimeWith(service) as never, {
+        limit: 100,
+      }),
+    ).resolves.toHaveLength(1);
+
+    expect(service.listTasks).toHaveBeenCalledWith({
+      includeArchived: true,
+      limit: 100,
+    });
+    expect(service.getTask).toHaveBeenCalledOnce();
+  });
+
   it("keeps capability profile separate from an explicitly selected framework", async () => {
     const createTask = vi.fn(async () => detail());
     const service = { createTask };

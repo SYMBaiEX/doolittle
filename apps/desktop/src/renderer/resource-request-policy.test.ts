@@ -123,7 +123,7 @@ describe("orchestration request policy", () => {
       hasSelectedWorkflow: true,
       hasSelectedRun: true,
     });
-    expect(plans.tasks).toBe(true);
+    expect(plans.tasks).toBe(false);
     expect(plans.plans).toBe(true);
     expect(plans.workflowDetail).toBe(false);
 
@@ -135,6 +135,22 @@ describe("orchestration request policy", () => {
     });
     expect(runs.workflowDetail).toBe(true);
     expect(runs.runDetail).toBe(true);
+  });
+
+  it("does not prefetch the queue while the review surface is active", () => {
+    expect(
+      orchestrationRequests({
+        active: true,
+        activeTab: "review",
+        hasSelectedWorkflow: false,
+        hasSelectedRun: false,
+      }),
+    ).toMatchObject({
+      overview: true,
+      tasks: false,
+      workers: false,
+      plans: true,
+    });
   });
 });
 
