@@ -40,6 +40,7 @@ describe("provider account surfaces", () => {
     expect(markup).toContain("Native");
     expect(markup).toContain("Use for chats");
     expect(markup).toContain("Add account");
+    expect(markup).toContain("provider-connection-secondary");
   });
 
   it("does not present CLI fallback as an authenticated subscription", () => {

@@ -142,6 +142,7 @@ export function ProviderConnectionRow({
         )}
         {authProvider && ready && !signingIn ? (
           <Button
+            className="provider-connection-secondary"
             onClick={() => onSignIn(authProvider)}
             disabled={busy}
             type="button"

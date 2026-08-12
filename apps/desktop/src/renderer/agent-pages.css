@@ -222,8 +222,8 @@
     );
   gap: 13px;
   align-items: center;
-  min-height: 74px;
-  padding: 10px 14px;
+  min-height: 68px;
+  padding: 8px 14px;
   border-bottom: 1px solid var(--line-subtle);
   transition:
     background-color 140ms var(--ease-out),
@@ -361,6 +361,13 @@
 
 .provider-connection-actions button {
   min-height: 28px;
+}
+
+.provider-connection-actions .provider-connection-secondary {
+  color: var(--text-soft);
+  font-size: var(--text-meta);
+  min-height: 26px;
+  padding-inline: 8px;
 }
 
 .provider-pool-stack {

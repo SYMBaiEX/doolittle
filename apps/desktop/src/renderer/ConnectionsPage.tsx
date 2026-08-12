@@ -248,8 +248,8 @@ export function ConnectionsPage({
                   : "Choose a provider for new chats"}
               </h2>
               <p>
-                Chat routing and spawned-agent routing are independent. Account
-                credentials remain inside Eliza&apos;s private local services.
+                Chat and agent routing stay separate; credentials remain in
+                Eliza&apos;s local services.
               </p>
             </div>
             <dl className="provider-overview__metrics is-compact">
@@ -280,8 +280,7 @@ export function ConnectionsPage({
                 <h2 id="provider-connections-title">Provider connections</h2>
               </div>
               <p>
-                Connect once, then choose which runtime starts every new
-                conversation.
+                Connect once, then choose the runtime for new conversations.
               </p>
             </header>
             <div className="provider-roster">
