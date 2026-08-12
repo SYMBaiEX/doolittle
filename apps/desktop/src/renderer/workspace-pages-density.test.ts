@@ -29,11 +29,17 @@ describe("workspace route density", () => {
     expect(detail).not.toContain('"/sessions/summary?');
     expect(detail).toContain("requestPolicy.continuity");
     expect(detail).toContain("continuityOpen && continuity.loading");
+    expect(detail).toContain('className="session-detail-stack"');
+    expect(detail).toContain('className="session-transcript-panel"');
+    expect(detail).toContain(">Persisted messages<");
+    expect(detail).not.toContain("Session highlights");
     expect(page).toContain('import "./sessions.css"');
     expect(css).toContain(
       "grid-template-columns: clamp(250px, 24vw, 320px) minmax(0, 1fr)",
     );
-    expect(css).toContain("min-height: 38px");
-    expect(css).toContain("padding-top: 14px");
+    expect(css).toContain("grid-template-columns: minmax(0, 1fr) auto");
+    expect(css).toContain("width: min(100%, 1080px)");
+    expect(css).toContain("session-transcript-panel__header");
+    expect(css).toContain("width: min(100%, 720px)");
   });
 });

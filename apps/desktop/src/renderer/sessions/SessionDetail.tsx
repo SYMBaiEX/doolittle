@@ -91,6 +91,15 @@ export function SessionDetail({
       : null,
     [requestPolicy.continuity, selected.sessionId],
   );
+  const transcriptMessages = transcript.data?.messages ?? [];
+  const transcriptCount = transcriptMessages.length;
+  const transcriptStatusLabel = transcript.loading
+    ? "Loading…"
+    : transcript.error
+      ? "Unavailable"
+      : `${compactNumber(transcriptCount)} message${
+          transcriptCount === 1 ? "" : "s"
+        }`;
 
   const rename = async (event: FormEvent) => {
     event.preventDefault();
@@ -111,7 +120,7 @@ export function SessionDetail({
   };
 
   return (
-    <>
+    <div className="session-detail-stack">
       <div className="detail-toolbar">
         <div>
           <span className="eyebrow">Transcript</span>
@@ -314,21 +323,29 @@ export function SessionDetail({
           ) : null}
         </details>
       </div>
-      <div className="transcript">
-        {transcript.loading ? (
-          <LoadingBlock label="Loading transcript…" />
-        ) : transcript.error ? (
-          <ErrorBlock error={transcript.error} retry={transcript.reload} />
-        ) : transcript.data?.messages.length ? (
-          transcript.data.messages.map((message) => (
-            <SessionTranscriptMessage key={message.id} message={message} />
-          ))
-        ) : (
-          <EmptyBlock title="Empty transcript">
-            No persisted messages were found for this session.
-          </EmptyBlock>
-        )}
-      </div>
-    </>
+      <section className="session-transcript-panel">
+        <header className="session-transcript-panel__header">
+          <span>
+            <strong>Persisted messages</strong>
+          </span>
+          <small>{transcriptStatusLabel}</small>
+        </header>
+        <div className="transcript">
+          {transcript.loading ? (
+            <LoadingBlock label="Loading transcript…" />
+          ) : transcript.error ? (
+            <ErrorBlock error={transcript.error} retry={transcript.reload} />
+          ) : transcriptCount ? (
+            transcriptMessages.map((message) => (
+              <SessionTranscriptMessage key={message.id} message={message} />
+            ))
+          ) : (
+            <EmptyBlock title="Empty transcript">
+              No persisted messages were found for this session.
+            </EmptyBlock>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }

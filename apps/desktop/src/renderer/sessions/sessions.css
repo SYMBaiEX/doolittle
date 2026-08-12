@@ -63,8 +63,26 @@
   padding: 14px 16px 0;
 }
 
+.page-sessions .session-detail-stack {
+  width: min(100%, 1080px);
+  margin: 0 auto;
+  padding-bottom: 18px;
+}
+
 .page-sessions .detail-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
   padding-bottom: 9px;
+}
+
+.page-sessions .inline-form {
+  padding-top: 12px;
+}
+
+.page-sessions .compact-stat-strip {
+  margin-top: 10px;
 }
 
 .page-sessions .compact-stat-strip__item {
@@ -73,6 +91,11 @@
 
 .page-sessions .compact-stat-strip__item > strong {
   font-size: 14px;
+}
+
+.page-sessions .session-transcript-panel__header > small {
+  color: var(--text-muted);
+  font-size: 10px;
 }
 
 .page-sessions .session-insight-grid {
@@ -133,12 +156,68 @@
   padding: 8px;
 }
 
+.page-sessions .session-transcript-panel {
+  margin-top: 8px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-raised) 68%, transparent);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+}
+
+.page-sessions .session-transcript-panel__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.page-sessions .session-transcript-panel__header > span {
+  display: grid;
+}
+
+.page-sessions .session-transcript-panel__header strong {
+  color: var(--text-strong);
+  font-size: 11px;
+}
+
 .page-sessions .transcript {
-  padding-top: 14px;
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px 12px;
+}
+
+.page-sessions .transcript-message {
+  width: min(100%, 720px);
+  margin: 0;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--surface) 64%, transparent);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+}
+
+.page-sessions .transcript-message__header {
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.page-sessions .transcript-message > .message-content {
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 @media (max-width: 860px) {
+  .page-sessions .detail-toolbar {
+    grid-template-columns: 1fr;
+  }
+
   .page-sessions .session-insight-grid {
     grid-template-columns: 1fr;
+  }
+
+  .page-sessions .session-transcript-panel__header {
+    align-items: start;
+    flex-direction: column;
   }
 }
