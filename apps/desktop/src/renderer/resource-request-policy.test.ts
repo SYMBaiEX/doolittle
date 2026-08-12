@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   automationRequests,
   codingWorkspaceRequests,
+  modelRequests,
   orchestrationRequests,
   reviewRequests,
   sessionDetailRequests,
@@ -185,6 +186,23 @@ describe("automation request policy", () => {
     expect(automationRequests({ active: false, runsOpen: true })).toEqual({
       jobs: false,
       runs: false,
+    });
+  });
+});
+
+describe("model request policy", () => {
+  it("loads model selection immediately and account diagnostics on demand", () => {
+    expect(modelRequests({ active: true, readinessOpen: false })).toEqual({
+      primary: true,
+      accounts: false,
+    });
+    expect(modelRequests({ active: true, readinessOpen: true })).toEqual({
+      primary: true,
+      accounts: true,
+    });
+    expect(modelRequests({ active: false, readinessOpen: true })).toEqual({
+      primary: false,
+      accounts: false,
     });
   });
 });

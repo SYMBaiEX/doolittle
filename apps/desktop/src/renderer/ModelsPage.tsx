@@ -19,6 +19,7 @@ import {
   useApiResource,
 } from "./lib";
 import { linkedProviderAccess } from "./model-routing";
+import { modelRequests } from "./resource-request-policy";
 import "./agent-pages.css";
 
 interface SettingsResponse {
@@ -82,17 +83,19 @@ export function ModelsPage({
   refreshRuntime: () => void;
   embedded?: boolean;
 }) {
+  const [readinessOpen, setReadinessOpen] = useState(false);
+  const resourcePolicy = modelRequests({ active, readinessOpen });
   const settings = useApiResource<SettingsResponse>(
-    active ? "/settings" : null,
-    [active],
+    resourcePolicy.primary ? "/settings" : null,
+    [resourcePolicy.primary],
   );
   const accounts = useApiResource<AccountsResponse>(
-    active ? "/runtime/accounts" : null,
-    [active],
+    resourcePolicy.accounts ? "/runtime/accounts" : null,
+    [resourcePolicy.accounts],
   );
   const models = useApiResource<RuntimeModelsResponse>(
-    active ? "/runtime/models?refresh=true" : null,
-    [active],
+    resourcePolicy.primary ? "/runtime/models?refresh=true" : null,
+    [resourcePolicy.primary],
   );
   const model = settings.data?.settings?.model;
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -384,57 +387,76 @@ export function ModelsPage({
             </div>
           </form>
           <aside className="models-diagnostics" aria-label="Model diagnostics">
-            <details className="model-diagnostic" open>
+            <details
+              className="model-diagnostic"
+              onToggle={(event) => setReadinessOpen(event.currentTarget.open)}
+              open={readinessOpen}
+            >
               <summary>
                 <span className="model-diagnostic__copy">
                   <strong>Provider readiness</strong>
                   <small>Native accounts and local fallbacks</small>
                 </span>
-                <Badge tone={usableProviderCount ? "good" : "warn"}>
-                  {usableProviderCount}/{accountProviders.length} usable
+                <Badge
+                  tone={
+                    readinessOpen
+                      ? usableProviderCount
+                        ? "good"
+                        : "warn"
+                      : "neutral"
+                  }
+                >
+                  {readinessOpen
+                    ? `${usableProviderCount}/${accountProviders.length} usable`
+                    : "Open to load"}
                 </Badge>
               </summary>
-              <div className="model-diagnostic__body">
-                {accounts.loading ? (
-                  <LoadingBlock />
-                ) : accounts.error ? (
-                  <ErrorBlock error={accounts.error} retry={accounts.reload} />
-                ) : (
-                  <div className="stack-list">
-                    {accountProviders.map((provider) => {
-                      const status = asRecord(
-                        accounts.data?.accounts?.[provider.snapshot],
-                      );
-                      const access = linkedProviderAccess(status);
-                      const selected =
-                        accounts.data?.activeProvider === provider.key;
-                      return (
-                        <div className="status-row" key={provider.key}>
-                          <div>
-                            <strong>{provider.label}</strong>
-                            <small>
-                              {asString(status.detail, "Not configured")}
-                            </small>
+              {readinessOpen ? (
+                <div className="model-diagnostic__body">
+                  {accounts.loading ? (
+                    <LoadingBlock />
+                  ) : accounts.error ? (
+                    <ErrorBlock
+                      error={accounts.error}
+                      retry={accounts.reload}
+                    />
+                  ) : (
+                    <div className="stack-list">
+                      {accountProviders.map((provider) => {
+                        const status = asRecord(
+                          accounts.data?.accounts?.[provider.snapshot],
+                        );
+                        const access = linkedProviderAccess(status);
+                        const selected =
+                          accounts.data?.activeProvider === provider.key;
+                        return (
+                          <div className="status-row" key={provider.key}>
+                            <div>
+                              <strong>{provider.label}</strong>
+                              <small>
+                                {asString(status.detail, "Not configured")}
+                              </small>
+                            </div>
+                            <Badge
+                              tone={
+                                selected && access.usable ? "good" : access.tone
+                              }
+                            >
+                              {selected
+                                ? access.mode === "fallback"
+                                  ? "Active · fallback"
+                                  : access.usable
+                                    ? "Active"
+                                    : "Selected · blocked"
+                                : access.label}
+                            </Badge>
                           </div>
-                          <Badge
-                            tone={
-                              selected && access.usable ? "good" : access.tone
-                            }
-                          >
-                            {selected
-                              ? access.mode === "fallback"
-                                ? "Active · fallback"
-                                : access.usable
-                                  ? "Active"
-                                  : "Selected · blocked"
-                              : access.label}
-                          </Badge>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </details>
             <details className="model-diagnostic">
               <summary>

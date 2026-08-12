@@ -127,10 +127,10 @@ describe("operational route density", () => {
 
   it("keeps the primary model readiness visible and capability detail optional", () => {
     const models = read("./ModelsPage.tsx");
-    expect(
-      models.match(/<details className="model-diagnostic"/gu),
-    ).toHaveLength(2);
-    expect(models).toContain('<details className="model-diagnostic" open>');
-    expect(models).toContain('<details className="model-diagnostic">');
+    expect(models.match(/className="model-diagnostic"/gu)).toHaveLength(2);
+    expect(models).toContain("resourcePolicy.accounts");
+    expect(models).toMatch(/readinessOpen\s+\?\s+`\$\{usableProviderCount\}/u);
+    expect(models).toContain('className="model-diagnostic"');
+    expect(models).not.toContain('<details className="model-diagnostic" open>');
   });
 });

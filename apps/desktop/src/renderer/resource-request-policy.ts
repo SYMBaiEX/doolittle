@@ -121,3 +121,16 @@ export function automationRequests({
     runs: active && runsOpen,
   };
 }
+
+export function modelRequests({
+  active,
+  readinessOpen,
+}: {
+  active: boolean;
+  readinessOpen: boolean;
+}) {
+  return {
+    primary: active,
+    accounts: active && readinessOpen,
+  };
+}
