@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   normalizeSetupChecklist,
@@ -6,6 +7,20 @@ import {
 } from "./SetupPage";
 
 describe("SetupPage projections", () => {
+  it("keeps optional account and checklist disclosures compact", () => {
+    const styles = readFileSync(
+      new URL("./diagnostics-pages.css", import.meta.url),
+      "utf8",
+    );
+
+    expect(styles).toMatch(
+      /\.setup-account-bar\s*\{[^}]*min-height:\s*48px;/su,
+    );
+    expect(styles).toMatch(
+      /\.setup-guidance > summary\s*\{[^}]*min-height:\s*52px;/su,
+    );
+  });
+
   it("preserves the native string checklist as guidance", () => {
     expect(
       normalizeSetupChecklist({

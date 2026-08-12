@@ -21,9 +21,40 @@
   line-height: 1.45;
 }
 
-.compatibility-page > .empty-block--compact {
-  min-height: 72px;
-  flex: 0 0 auto;
+.compatibility-empty {
+  display: grid;
+  min-height: 52px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 11px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.compatibility-empty > span {
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.compatibility-empty > div {
+  display: grid;
+  gap: 1px;
+}
+
+.compatibility-empty strong {
+  color: var(--text);
+  font-size: var(--text-control);
+}
+
+.compatibility-empty small {
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+
+.compatibility-empty > button {
+  min-height: 28px;
 }
 
 .compact-disclosure > summary,
@@ -60,11 +91,11 @@
 
 .setup-account-bar {
   display: flex;
-  min-height: 54px;
+  min-height: 48px;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 9px 13px;
+  padding: 7px 11px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -104,7 +135,7 @@
 
 .setup-guidance > summary {
   display: flex;
-  min-height: 64px;
+  min-height: 52px;
   align-items: center;
   gap: 12px;
   padding: var(--card-pad);
@@ -178,6 +209,15 @@
 }
 
 @media (max-width: 700px) {
+  .compatibility-empty {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .compatibility-empty > button {
+    grid-column: 2;
+    justify-self: start;
+  }
+
   .setup-account-bar {
     align-items: stretch;
     flex-direction: column;

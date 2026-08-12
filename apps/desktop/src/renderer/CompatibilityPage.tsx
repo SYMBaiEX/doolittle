@@ -7,7 +7,6 @@ import {
   asArray,
   asRecord,
   asString,
-  EmptyBlock,
   ErrorBlock,
   LoadingBlock,
   PageHeader,
@@ -41,6 +40,26 @@ export function compatibilityCatalogEntries(
           : "bad",
     };
   });
+}
+
+export function CompatibilityEmptyState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <section
+      aria-labelledby="compatibility-empty-title"
+      className="compatibility-empty"
+    >
+      <span aria-hidden="true">○</span>
+      <div>
+        <strong id="compatibility-empty-title">
+          No compatibility checks reported
+        </strong>
+        <small>The runtime returned no checks payload.</small>
+      </div>
+      <button className="secondary-button" onClick={onRetry} type="button">
+        Run checks again
+      </button>
+    </section>
+  );
 }
 
 export function CompatibilityPage({ active }: { active: boolean }) {
@@ -85,21 +104,7 @@ export function CompatibilityPage({ active }: { active: boolean }) {
           resetKey={checks.map((check) => check.id).join(":")}
         />
       ) : (
-        <EmptyBlock
-          density="compact"
-          title="No compatibility checks found"
-          actions={
-            <button
-              className="secondary-button"
-              onClick={compatibility.reload}
-              type="button"
-            >
-              Run checks again
-            </button>
-          }
-        >
-          The runtime did not return a checks payload.
-        </EmptyBlock>
+        <CompatibilityEmptyState onRetry={compatibility.reload} />
       )}
       {active && compatibility.data ? (
         <RawDataDisclosure

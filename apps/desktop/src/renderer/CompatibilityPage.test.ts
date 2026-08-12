@@ -56,12 +56,10 @@ describe("compatibilityCatalogEntries", () => {
       "utf8",
     );
 
-    expect(source).toMatch(
-      /<EmptyBlock\s+density="compact"\s+title="No compatibility checks found"/u,
-    );
+    expect(source).toContain("<CompatibilityEmptyState");
     expect(source).toContain('className="page compatibility-page"');
     expect(styles).toMatch(
-      /\.compatibility-page > \.empty-block--compact\s*\{[^}]*min-height:\s*72px;[^}]*flex:\s*0 0 auto;/su,
+      /\.compatibility-empty\s*\{[^}]*min-height:\s*52px;[^}]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto;/su,
     );
   });
 });
