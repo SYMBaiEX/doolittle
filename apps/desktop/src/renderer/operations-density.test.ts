@@ -80,7 +80,7 @@ describe("operational route density", () => {
   });
 
   it("uses row status for catalog exceptions instead of repeating healthy state", () => {
-    expect(read("./ToolsPage.tsx")).toContain(
+    expect(read("./catalog-entry-models.ts")).toContain(
       'catalogExceptionStatus(entry.enabled !== false, "Disabled")',
     );
     expect(read("./plugins/plugin-catalog-model.ts")).toContain(

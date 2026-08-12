@@ -1,10 +1,8 @@
 import { lazy, Suspense, useState } from "react";
+import { buildToolCatalogEntries } from "./catalog-entry-models";
 import { AcpBridgePanel } from "./components/AcpBridgePanel";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
-import {
-  CompactCatalogList,
-  catalogExceptionStatus,
-} from "./components/CompactCatalogList";
+import { CompactCatalogList } from "./components/CompactCatalogList";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
@@ -128,41 +126,7 @@ export function ToolsPage({ active }: { active: boolean }) {
         .includes(normalized);
     return matchesCategory && matchesQuery;
   });
-  const catalogEntries = filtered.map((entry, index) => {
-    const id = asString(entry.id, `tool-${index}`);
-    const profiles = asArray(entry.allowedProfiles)
-      .map((value) => titleCase(asString(value)))
-      .filter(Boolean)
-      .join(" · ");
-    return {
-      id,
-      eyebrow: titleCase(asString(entry.category, "uncategorized")),
-      title: asString(entry.name, id || "Unnamed tool"),
-      description: asString(entry.description, "No description provided."),
-      descriptionMode: "details" as const,
-      ...catalogExceptionStatus(entry.enabled !== false, "Disabled"),
-      code: id,
-      meta: profiles || titleCase(asString(entry.transport, "native")),
-      facts: [
-        {
-          label: "Transport",
-          value: titleCase(asString(entry.transport, "native")),
-        },
-        {
-          label: "Profiles",
-          value: profiles || "Runtime default",
-        },
-        ...(entry.enabled === false && entry.policyReason
-          ? [
-              {
-                label: "Policy",
-                value: asString(entry.policyReason),
-              },
-            ]
-          : []),
-      ],
-    };
-  });
+  const catalogEntries = buildToolCatalogEntries(filtered);
   const totals = tools.data?.summary ?? {};
 
   return (

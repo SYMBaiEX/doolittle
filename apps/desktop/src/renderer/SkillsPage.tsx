@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useRef, useState } from "react";
+import { buildSkillCatalogEntries } from "./catalog-entry-models";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import { CompactCatalogList } from "./components/CompactCatalogList";
 import { CompactStatStrip } from "./components/CompactStatStrip";
@@ -8,12 +9,10 @@ import {
   asArray,
   asNumber,
   asRecord,
-  asString,
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
   PageHeader,
-  titleCase,
   useApiResource,
 } from "./lib";
 import "./agent-pages.css";
@@ -95,20 +94,7 @@ export function SkillsPage({ active }: { active: boolean }) {
         .includes(normalized)
     );
   });
-  const catalogEntries = filtered.map((entry, index) => {
-    const slug = asString(entry.slug, asString(entry.id, `skill-${index}`));
-    return {
-      id: slug,
-      eyebrow: titleCase(asString(entry.category, slug.split("/")[0])),
-      title: asString(entry.name, titleCase(slug)),
-      description: asString(
-        entry.description,
-        "A locally available Doolittle skill.",
-      ),
-      descriptionMode: "details" as const,
-      code: slug,
-    };
-  });
+  const catalogEntries = buildSkillCatalogEntries(filtered);
   const summaryValue = skills.data?.summary ?? {};
   const installedValues = asArray(skills.data?.installed);
   const selectSectionWithKeyboard = (
