@@ -20,7 +20,8 @@ describe("operational route density", () => {
       "./runtime/RuntimeOverview.tsx",
       "./runtime/RuntimeInventory.tsx",
       "./runtime/RuntimeGateway.tsx",
-      "./WorkspacePages.tsx",
+      "./sessions/SessionDetail.tsx",
+      "./analytics/AnalyticsPage.tsx",
       "./memory/MemoryProfilesPanel.tsx",
       "./memory/MemorySnapshotPanel.tsx",
     ]) {

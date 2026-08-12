@@ -1,23 +1,9 @@
-import {
-  type ChangeEvent,
-  type FormEvent,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ChangeEvent, useMemo, useRef, useState } from "react";
 import type {
-  SessionMessagesResponse,
   SessionSearchResponse,
   SessionSummary,
-  SessionUsageSummary,
 } from "../shared/contracts";
-import { CompactStatStrip } from "./components/CompactStatStrip";
 import {
-  asArray,
-  asNumber,
-  asRecord,
-  asString,
-  compactNumber,
   desktopRequest,
   displayTimestamp,
   EmptyBlock,
@@ -26,18 +12,9 @@ import {
   PageHeader,
   useApiResource,
 } from "./lib";
+import { SessionDetail } from "./sessions/SessionDetail";
 
-interface SessionSummaryResponse {
-  summary?: SessionSummary;
-}
-
-interface SessionUsageResponse {
-  usage?: SessionUsageSummary;
-}
-
-interface SessionContinuityResponse {
-  sessions?: SessionSummary[];
-}
+export { AnalyticsPage } from "./analytics/AnalyticsPage";
 
 interface SessionArchivePreview {
   sourceApplication: string;
@@ -86,8 +63,6 @@ export function SessionsPage({
 }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(sessions[0]?.sessionId ?? "");
-  const [editing, setEditing] = useState(false);
-  const [title, setTitle] = useState("");
   const [mutationError, setMutationError] = useState("");
   const [transferStatus, setTransferStatus] = useState("");
   const [transferring, setTransferring] = useState(false);
@@ -147,49 +122,6 @@ export function SessionsPage({
     sessions.find((session) => session.sessionId === selectedId) ??
     filtered[0] ??
     sessions[0];
-  const transcript = useApiResource<SessionMessagesResponse>(
-    active && selected?.sessionId
-      ? `/sessions/messages?sessionId=${encodeURIComponent(selected.sessionId)}&limit=500`
-      : null,
-    [selected?.sessionId],
-  );
-  const summary = useApiResource<SessionSummaryResponse>(
-    active && selected?.sessionId
-      ? `/sessions/summary?sessionId=${encodeURIComponent(selected.sessionId)}`
-      : null,
-    [selected?.sessionId],
-  );
-  const usage = useApiResource<SessionUsageResponse>(
-    active && selected?.sessionId
-      ? `/sessions/usage?sessionId=${encodeURIComponent(selected.sessionId)}`
-      : null,
-    [selected?.sessionId],
-  );
-  const continuity = useApiResource<SessionContinuityResponse>(
-    active && selected?.sessionId
-      ? `/sessions/continuity?sessionId=${encodeURIComponent(selected.sessionId)}&limit=8`
-      : null,
-    [selected?.sessionId],
-  );
-
-  const rename = async (event: FormEvent) => {
-    event.preventDefault();
-    const nextTitle = title.trim();
-    if (!selected || !nextTitle) return;
-    setMutationError("");
-    try {
-      await desktopRequest("/sessions/title", "POST", {
-        sessionId: selected.sessionId,
-        title: nextTitle,
-      });
-      setEditing(false);
-      setTitle("");
-      refresh();
-    } catch (error) {
-      setMutationError(error instanceof Error ? error.message : String(error));
-    }
-  };
-
   const exportArchive = async () => {
     if (!selected || transferring) return;
     setMutationError("");
@@ -337,6 +269,9 @@ export function SessionsPage({
           {transferStatus}
         </div>
       ) : null}
+      {mutationError ? (
+        <div className="inline-error">{mutationError}</div>
+      ) : null}
       <div
         className={`split-workspace ${
           shouldShowSessionEmptyLanding(sessions.length, query)
@@ -416,431 +351,17 @@ export function SessionsPage({
               Your saved conversations will appear here.
             </EmptyBlock>
           ) : (
-            <>
-              <div className="detail-toolbar">
-                <div>
-                  <span className="eyebrow">Transcript</span>
-                  <h2>
-                    {selected.title ||
-                      selected.preview?.[0] ||
-                      "Untitled conversation"}
-                  </h2>
-                </div>
-                <div className="button-row">
-                  <button
-                    className="secondary-button"
-                    onClick={() => {
-                      setTitle(selected.title ?? "");
-                      setEditing(true);
-                    }}
-                    type="button"
-                  >
-                    Rename
-                  </button>
-                  <button
-                    className="secondary-button"
-                    disabled={transferring}
-                    onClick={() => void exportArchive()}
-                    type="button"
-                  >
-                    {transferring ? "Working…" : "Export portable archive"}
-                  </button>
-                  <button
-                    className="primary-button"
-                    onClick={() => openChat(selected.sessionId)}
-                    type="button"
-                  >
-                    Open in chat
-                  </button>
-                </div>
-              </div>
-              {editing ? (
-                <form className="inline-form" onSubmit={rename}>
-                  <input
-                    aria-label="Session title"
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                  />
-                  <button className="primary-button" type="submit">
-                    Save
-                  </button>
-                  <button
-                    className="text-button"
-                    onClick={() => setEditing(false)}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                </form>
-              ) : null}
-              {mutationError ? (
-                <div className="inline-error">{mutationError}</div>
-              ) : null}
-              <CompactStatStrip
-                label="Session summary"
-                stats={[
-                  {
-                    label: "Messages",
-                    value: compactNumber(
-                      usage.data?.usage?.messageCount ??
-                        selected.messageCount ??
-                        0,
-                    ),
-                    detail: `Updated ${displayTimestamp(
-                      usage.data?.usage?.endedAt ?? selected.endedAt,
-                    )}`,
-                  },
-                  {
-                    label: "Estimated tokens",
-                    value: compactNumber(
-                      usage.data?.usage?.estimatedTokens ?? 0,
-                    ),
-                    detail: `${compactNumber(
-                      usage.data?.usage?.characterCount ?? 0,
-                    )} characters`,
-                  },
-                  {
-                    label: "Participants",
-                    value: selected.participants.length || 0,
-                    detail: selected.participants.join(", ") || "Local session",
-                  },
-                  {
-                    label: "Continuity",
-                    value: continuity.data?.sessions?.length ?? 0,
-                    detail:
-                      summary.data?.summary?.continuityKey ||
-                      "No continuity key",
-                  },
-                ]}
-              />
-              <div className="two-column-grid" style={{ marginBottom: "16px" }}>
-                <section className="content-card">
-                  <div className="card-heading">
-                    <div>
-                      <span className="eyebrow">Summary</span>
-                      <h2>Session metadata</h2>
-                    </div>
-                  </div>
-                  {summary.loading ? (
-                    <LoadingBlock />
-                  ) : summary.error ? (
-                    <ErrorBlock error={summary.error} retry={summary.reload} />
-                  ) : (
-                    <div className="stack-list">
-                      <div className="status-row">
-                        <div>
-                          <strong>Session id</strong>
-                          <small>{selected.sessionId}</small>
-                        </div>
-                      </div>
-                      {summary.data?.summary?.parentSessionId ? (
-                        <div className="status-row">
-                          <div>
-                            <strong>Parent branch</strong>
-                            <small>
-                              {summary.data.summary.parentSessionId}
-                            </small>
-                          </div>
-                        </div>
-                      ) : null}
-                      {summary.data?.summary?.rootSessionId ? (
-                        <div className="status-row">
-                          <div>
-                            <strong>Branch root</strong>
-                            <small>{summary.data.summary.rootSessionId}</small>
-                          </div>
-                        </div>
-                      ) : null}
-                      {summary.data?.summary?.forkedFromMessageId ? (
-                        <div className="status-row">
-                          <div>
-                            <strong>Fork anchor</strong>
-                            <small>
-                              {summary.data.summary.forkedFromMessageId}
-                            </small>
-                          </div>
-                        </div>
-                      ) : null}
-                      <div className="status-row">
-                        <div>
-                          <strong>Started</strong>
-                          <small>
-                            {displayTimestamp(
-                              summary.data?.summary?.startedAt ??
-                                selected.startedAt,
-                            )}
-                          </small>
-                        </div>
-                      </div>
-                      <div className="status-row">
-                        <div>
-                          <strong>Latest preview</strong>
-                          <small>
-                            {summary.data?.summary?.preview?.[0] ??
-                              selected.preview?.[0] ??
-                              "No preview"}
-                          </small>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </section>
-                <section className="content-card">
-                  <div className="card-heading">
-                    <div>
-                      <span className="eyebrow">Continuity</span>
-                      <h2>Related sessions</h2>
-                    </div>
-                  </div>
-                  {continuity.loading ? (
-                    <LoadingBlock />
-                  ) : continuity.error ? (
-                    <ErrorBlock
-                      error={continuity.error}
-                      retry={continuity.reload}
-                    />
-                  ) : continuity.data?.sessions?.length ? (
-                    <div className="stack-list">
-                      {continuity.data.sessions.map((session) => (
-                        <button
-                          className="status-row"
-                          key={session.sessionId}
-                          onClick={() => setSelectedId(session.sessionId)}
-                          type="button"
-                        >
-                          <div>
-                            <strong>
-                              {session.title ||
-                                session.preview?.[0] ||
-                                session.sessionId}
-                            </strong>
-                            <small>
-                              {displayTimestamp(session.endedAt)} ·{" "}
-                              {compactNumber(session.messageCount)} messages
-                              {session.parentSessionId ? " · branch" : ""}
-                            </small>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyBlock title="No related sessions">
-                      This session does not currently have a continuity chain.
-                    </EmptyBlock>
-                  )}
-                </section>
-              </div>
-              <div className="transcript">
-                {transcript.loading ? (
-                  <LoadingBlock label="Loading transcript…" />
-                ) : transcript.error ? (
-                  <ErrorBlock
-                    error={transcript.error}
-                    retry={transcript.reload}
-                  />
-                ) : transcript.data?.messages.length ? (
-                  transcript.data.messages.map((message) => (
-                    <article
-                      className={`transcript-message ${message.role}`}
-                      key={message.id}
-                    >
-                      <div>
-                        <strong>
-                          {message.role === "assistant"
-                            ? "Doolittle"
-                            : message.role === "user"
-                              ? "You"
-                              : "System"}
-                        </strong>
-                        <time>{displayTimestamp(message.createdAt)}</time>
-                      </div>
-                      <p>{message.text}</p>
-                    </article>
-                  ))
-                ) : (
-                  <EmptyBlock title="Empty transcript">
-                    No persisted messages were found for this session.
-                  </EmptyBlock>
-                )}
-              </div>
-            </>
+            <SessionDetail
+              onExport={() => void exportArchive()}
+              onOpenChat={openChat}
+              onRefresh={refresh}
+              onSelectSession={setSelectedId}
+              selected={selected}
+              transferring={transferring}
+            />
           )}
         </section>
       </div>
-    </div>
-  );
-}
-
-interface AnalyticsResponse {
-  totals?: {
-    sessions?: number;
-    messages?: number;
-    estimatedTokens?: number;
-    userMessages?: number;
-    assistantMessages?: number;
-    systemMessages?: number;
-  };
-  recentSessions?: unknown[];
-  dailyActivity?: unknown[];
-}
-
-export function AnalyticsPage({ active }: { active: boolean }) {
-  const resource = useApiResource<AnalyticsResponse>(
-    active ? "/analytics" : null,
-    [active],
-  );
-  const totals = resource.data?.totals ?? {};
-  const activity = asArray(resource.data?.dailyActivity).map((value) =>
-    asRecord(value),
-  );
-  const maxMessages = Math.max(
-    1,
-    ...activity.map((entry) =>
-      asNumber(entry.messages, asNumber(entry.messageCount)),
-    ),
-  );
-
-  return (
-    <div className="page">
-      <PageHeader
-        eyebrow="Workspace"
-        title="Analytics"
-        description="Real local session activity and estimated context usage—no remote telemetry."
-        actions={
-          <button
-            className="secondary-button"
-            onClick={resource.reload}
-            type="button"
-          >
-            Refresh
-          </button>
-        }
-      />
-      {resource.loading ? (
-        <LoadingBlock label="Calculating local activity…" />
-      ) : resource.error ? (
-        <ErrorBlock error={resource.error} retry={resource.reload} />
-      ) : (
-        <>
-          <CompactStatStrip
-            label="Analytics summary"
-            stats={[
-              {
-                detail: "Persisted locally",
-                label: "Sessions",
-                value: compactNumber(totals.sessions ?? 0),
-              },
-              {
-                detail: `${compactNumber(totals.userMessages ?? 0)} from you`,
-                label: "Messages",
-                value: compactNumber(totals.messages ?? 0),
-              },
-              {
-                detail: "Character-based estimate",
-                label: "Estimated tokens",
-                value: compactNumber(totals.estimatedTokens ?? 0),
-              },
-              {
-                detail: `${compactNumber(totals.systemMessages ?? 0)} system events`,
-                label: "Assistant replies",
-                value: compactNumber(totals.assistantMessages ?? 0),
-              },
-            ]}
-          />
-          <section className="content-card">
-            <div className="card-heading">
-              <div>
-                <span className="eyebrow">Recent activity</span>
-                <h2>Messages by day</h2>
-              </div>
-            </div>
-            {activity.length ? (
-              <div
-                className="bar-chart"
-                aria-label="Messages by day"
-                role="img"
-              >
-                {activity.map((entry) => {
-                  const messages = asNumber(
-                    entry.messages,
-                    asNumber(entry.messageCount),
-                  );
-                  const label = asString(
-                    entry.date,
-                    asString(entry.day, "No date"),
-                  );
-                  return (
-                    <div
-                      className="bar-column"
-                      key={`${label}:${JSON.stringify(entry)}`}
-                    >
-                      <span className="bar-value">{messages}</span>
-                      <div className="bar-track">
-                        <i
-                          style={{
-                            height: `${Math.max(4, (messages / maxMessages) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                      <small>{label.slice(5) || label}</small>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <EmptyBlock title="No activity yet">
-                Start chatting with Doolittle and activity will accumulate here.
-              </EmptyBlock>
-            )}
-          </section>
-          <section className="content-card">
-            <div className="card-heading">
-              <div>
-                <span className="eyebrow">Conversations</span>
-                <h2>Recent session usage</h2>
-              </div>
-            </div>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Session</th>
-                    <th>Messages</th>
-                    <th>Est. tokens</th>
-                    <th>Last activity</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {asArray(resource.data?.recentSessions).map(
-                    (value, index) => {
-                      const entry = asRecord(value);
-                      return (
-                        <tr key={asString(entry.sessionId, String(index))}>
-                          <td>
-                            {asString(
-                              entry.title,
-                              asString(entry.sessionId, "Untitled"),
-                            )}
-                          </td>
-                          <td>{asNumber(entry.messageCount)}</td>
-                          <td>
-                            {compactNumber(asNumber(entry.estimatedTokens))}
-                          </td>
-                          <td>
-                            {displayTimestamp(
-                              asString(entry.endedAt) || undefined,
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    },
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </>
-      )}
     </div>
   );
 }

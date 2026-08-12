@@ -1587,6 +1587,70 @@ th {
   scrollbar-gutter: stable;
 }
 
+.session-insight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.session-insight-disclosure {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--surface-raised) 72%, transparent);
+}
+
+.session-insight-disclosure > summary {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.session-insight-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.session-insight-disclosure > summary > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.session-insight-disclosure > summary strong {
+  color: var(--text-strong);
+  font-size: 11px;
+}
+
+.session-insight-disclosure > summary small,
+.session-insight-disclosure > summary > span:last-child {
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.session-insight-disclosure[open] > summary {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.session-insight-disclosure > .stack-list,
+.session-insight-disclosure > .empty-block,
+.session-insight-disclosure > .loading-block {
+  margin: 0;
+  padding: 8px;
+}
+
+@media (max-width: 860px) {
+  .session-insight-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .table-wrap {
   max-height: min(58vh, 620px);
   overflow: auto;
