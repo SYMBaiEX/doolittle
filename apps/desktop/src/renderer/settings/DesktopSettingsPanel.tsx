@@ -1,0 +1,103 @@
+import type {
+  DesktopLifecycleState,
+  DesktopUpdateState,
+} from "../../shared/contracts";
+
+export interface DesktopSettingsPanelProps {
+  lifecycle: DesktopLifecycleState | null;
+  update: DesktopUpdateState | null;
+  updateBusy: boolean;
+  onBackgroundChange: (enabled: boolean) => void;
+  onCheckUpdates: () => void;
+  onDownloadUpdate: () => void;
+  onInstallUpdate: () => void;
+}
+
+export function DesktopSettingsPanel({
+  lifecycle,
+  update,
+  updateBusy,
+  onBackgroundChange,
+  onCheckUpdates,
+  onDownloadUpdate,
+  onInstallUpdate,
+}: DesktopSettingsPanelProps) {
+  return (
+    <section className="settings-group">
+      <div className="settings-group-heading">
+        <div>
+          <span className="eyebrow">Desktop</span>
+          <h2>Background & updates</h2>
+        </div>
+      </div>
+      <div className="settings-rows">
+        <div className="setting-row">
+          <div className="setting-copy">
+            <strong>Keep running in the background</strong>
+            <small>
+              When enabled, closing the window hides Doolittle so active local
+              work can continue. Quit always stops it.
+            </small>
+          </div>
+          <div className="setting-control">
+            <label className="switch">
+              <input
+                checked={lifecycle?.keepRunningInBackground ?? false}
+                disabled={!lifecycle}
+                type="checkbox"
+                onChange={(event) => onBackgroundChange(event.target.checked)}
+              />
+              <i />
+              <span>{lifecycle?.keepRunningInBackground ? "On" : "Off"}</span>
+            </label>
+          </div>
+        </div>
+        <div className="setting-row">
+          <div className="setting-copy">
+            <strong>Application updates</strong>
+            <small>{update?.message ?? "Loading update status…"}</small>
+            {update?.progress !== undefined ? (
+              <small>{update.progress}% downloaded</small>
+            ) : null}
+          </div>
+          <div className="setting-control">
+            <div className="button-row">
+              <button
+                className="secondary-button"
+                disabled={
+                  updateBusy ||
+                  update?.phase === "unavailable" ||
+                  update?.phase === "checking" ||
+                  update?.phase === "downloading"
+                }
+                onClick={onCheckUpdates}
+                type="button"
+              >
+                Check for updates
+              </button>
+              {update?.phase === "available" ? (
+                <button
+                  className="secondary-button"
+                  disabled={updateBusy}
+                  onClick={onDownloadUpdate}
+                  type="button"
+                >
+                  Download
+                </button>
+              ) : null}
+              {update?.phase === "downloaded" ? (
+                <button
+                  className="primary-button"
+                  onClick={onInstallUpdate}
+                  type="button"
+                >
+                  Install and restart
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}

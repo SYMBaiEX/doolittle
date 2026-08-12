@@ -33,6 +33,7 @@ import {
   type UnknownRecord,
   useApiResource,
 } from "./lib";
+import { DesktopSettingsPanel } from "./settings/DesktopSettingsPanel";
 import {
   type FlatSetting,
   flattenSettings,
@@ -228,6 +229,37 @@ export function SettingsPage({ active }: { active: boolean }) {
 
   const reloadSettings = () => {
     if (active) settings.reload();
+  };
+  const updateLifecycleBackground = (enabled: boolean) => {
+    void window.doolittle
+      .setKeepRunningInBackground(enabled)
+      .then(setLifecycle)
+      .catch((error) => setSavedMessage(errorMessage(error)));
+  };
+  const checkForUpdates = () => {
+    setUpdateBusy(true);
+    void window.doolittle
+      .checkForUpdates()
+      .then(setUpdate)
+      .catch((error) =>
+        setUpdate({ phase: "error", message: errorMessage(error) }),
+      )
+      .finally(() => setUpdateBusy(false));
+  };
+  const downloadUpdate = () => {
+    setUpdateBusy(true);
+    void window.doolittle
+      .downloadUpdate()
+      .then(setUpdate)
+      .catch((error) =>
+        setUpdate({ phase: "error", message: errorMessage(error) }),
+      )
+      .finally(() => setUpdateBusy(false));
+  };
+  const installUpdate = () => {
+    void window.doolittle
+      .installUpdate()
+      .catch((error) => setSavedMessage(errorMessage(error)));
   };
   const runtimeCategoryOffline = settingsCategoryOffline(category, active);
 
@@ -428,123 +460,15 @@ export function SettingsPage({ active }: { active: boolean }) {
               </Suspense>
             ) : null}
             {!runtimeCategoryOffline && category === "desktop" ? (
-              <section className="settings-group">
-                <div className="settings-group-heading">
-                  <div>
-                    <span className="eyebrow">Desktop</span>
-                    <h2>Background & updates</h2>
-                  </div>
-                </div>
-                <div className="settings-rows">
-                  <div className="setting-row">
-                    <div className="setting-copy">
-                      <strong>Keep running in the background</strong>
-                      <small>
-                        When enabled, closing the window hides Doolittle so
-                        active local work can continue. Quit always stops it.
-                      </small>
-                    </div>
-                    <div className="setting-control">
-                      <label className="switch">
-                        <input
-                          checked={lifecycle?.keepRunningInBackground ?? false}
-                          disabled={!lifecycle}
-                          type="checkbox"
-                          onChange={(event) =>
-                            void window.doolittle
-                              .setKeepRunningInBackground(event.target.checked)
-                              .then(setLifecycle)
-                              .catch((error) =>
-                                setSavedMessage(errorMessage(error)),
-                              )
-                          }
-                        />
-                        <i />
-                        <span>
-                          {lifecycle?.keepRunningInBackground ? "On" : "Off"}
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                  <div className="setting-row">
-                    <div className="setting-copy">
-                      <strong>Application updates</strong>
-                      <small>
-                        {update?.message ?? "Loading update status…"}
-                      </small>
-                      {update?.progress !== undefined ? (
-                        <small>{update.progress}% downloaded</small>
-                      ) : null}
-                    </div>
-                    <div className="setting-control">
-                      <div className="button-row">
-                        <button
-                          className="secondary-button"
-                          disabled={
-                            updateBusy ||
-                            update?.phase === "unavailable" ||
-                            update?.phase === "checking" ||
-                            update?.phase === "downloading"
-                          }
-                          onClick={() => {
-                            setUpdateBusy(true);
-                            void window.doolittle
-                              .checkForUpdates()
-                              .then(setUpdate)
-                              .catch((error) =>
-                                setUpdate({
-                                  phase: "error",
-                                  message: errorMessage(error),
-                                }),
-                              )
-                              .finally(() => setUpdateBusy(false));
-                          }}
-                          type="button"
-                        >
-                          Check for updates
-                        </button>
-                        {update?.phase === "available" ? (
-                          <button
-                            className="secondary-button"
-                            disabled={updateBusy}
-                            onClick={() => {
-                              setUpdateBusy(true);
-                              void window.doolittle
-                                .downloadUpdate()
-                                .then(setUpdate)
-                                .catch((error) =>
-                                  setUpdate({
-                                    phase: "error",
-                                    message: errorMessage(error),
-                                  }),
-                                )
-                                .finally(() => setUpdateBusy(false));
-                            }}
-                            type="button"
-                          >
-                            Download
-                          </button>
-                        ) : null}
-                        {update?.phase === "downloaded" ? (
-                          <button
-                            className="primary-button"
-                            onClick={() =>
-                              void window.doolittle
-                                .installUpdate()
-                                .catch((error) =>
-                                  setSavedMessage(errorMessage(error)),
-                                )
-                            }
-                            type="button"
-                          >
-                            Install and restart
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
+              <DesktopSettingsPanel
+                lifecycle={lifecycle}
+                onBackgroundChange={updateLifecycleBackground}
+                onCheckUpdates={checkForUpdates}
+                onDownloadUpdate={downloadUpdate}
+                onInstallUpdate={installUpdate}
+                update={update}
+                updateBusy={updateBusy}
+              />
             ) : null}
             {!["desktop", "appearance", "model"].includes(category) &&
             !runtimeCategoryOffline ? (
