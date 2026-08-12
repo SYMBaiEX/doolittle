@@ -32,7 +32,7 @@ function projectOfficialSkill(
   return {
     slug: skill.slug,
     title: local?.title ?? skill.name,
-    description: skill.description,
+    description: local?.description ?? skill.description,
     path:
       local?.path ??
       (basename(skill.path).toLowerCase() === "skill.md"

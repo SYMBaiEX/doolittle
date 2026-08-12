@@ -22,3 +22,7 @@
   display: grid;
   gap: 10px;
 }
+
+.page-skills .catalog-browser {
+  min-height: clamp(400px, 54vh, 600px);
+}

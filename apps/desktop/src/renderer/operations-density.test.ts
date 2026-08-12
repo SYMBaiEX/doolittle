@@ -94,6 +94,13 @@ describe("operational route density", () => {
     expect(pluginCatalog).not.toContain(
       'item.enabled ? <Badge tone="good">Enabled</Badge>',
     );
+    const skillCatalog = read("./skills/SkillCatalogWorkspace.tsx");
+    expect(skillCatalog).toContain(
+      "!item.userInvocable && !item.modelInvocable ? (",
+    );
+    expect(skillCatalog).not.toContain(
+      'item.userInvocable ? <Badge tone="good">Invocable</Badge>',
+    );
   });
 
   it("requests only the native plugin catalog on inventory screens", () => {

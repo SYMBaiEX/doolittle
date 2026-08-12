@@ -1,10 +1,9 @@
-import { type KeyboardEvent, useRef, useState } from "react";
+import { type KeyboardEvent, lazy, Suspense, useRef, useState } from "react";
+import type { SkillsResponse } from "../shared/contracts";
 import { buildSkillCatalogEntries } from "./catalog-entry-models";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
-import { CompactCatalogList } from "./components/CompactCatalogList";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
-import { SkillWorkshopPanel } from "./components/SkillWorkshopPanel";
 import {
   asArray,
   asNumber,
@@ -15,16 +14,14 @@ import {
   PageHeader,
   useApiResource,
 } from "./lib";
+import { SkillCatalogWorkspace } from "./skills/SkillCatalogWorkspace";
 import "./agent-pages.css";
 import "./catalog-pages.css";
 
-interface SkillsResponse {
-  skills?: unknown[];
-  hub?: unknown;
-  workspace?: unknown;
-  summary?: Record<string, unknown>;
-  installed?: unknown;
-}
+const LazySkillWorkshopPanel = lazy(async () => {
+  const module = await import("./components/SkillWorkshopPanel");
+  return { default: module.SkillWorkshopPanel };
+});
 
 type SkillsSection = "catalog" | "workshop";
 const SKILLS_SECTIONS: readonly SkillsSection[] = ["catalog", "workshop"];
@@ -83,18 +80,26 @@ export function SkillsPage({ active }: { active: boolean }) {
       </div>
     );
   }
-  const entries = asArray(skills.data?.skills).map(asRecord);
+  const entries = buildSkillCatalogEntries(
+    asArray(skills.data?.skills).map(asRecord),
+  );
   const filtered = entries.filter((entry) => {
     const normalized = query.trim().toLowerCase();
     return (
       !normalized ||
-      [entry.slug, entry.name, entry.description, entry.category]
+      [
+        entry.slug,
+        entry.title,
+        entry.description,
+        entry.family,
+        entry.source,
+        entry.commandName,
+      ]
         .join(" ")
         .toLowerCase()
         .includes(normalized)
     );
   });
-  const catalogEntries = buildSkillCatalogEntries(filtered);
   const summaryValue = skills.data?.summary ?? {};
   const installedValues = asArray(skills.data?.installed);
   const selectSectionWithKeyboard = (
@@ -203,9 +208,8 @@ export function SkillsPage({ active }: { active: boolean }) {
             ) : skills.error ? (
               <ErrorBlock error={skills.error} retry={skills.reload} />
             ) : filtered.length ? (
-              <CompactCatalogList
-                ariaLabel="Skill catalog"
-                entries={catalogEntries}
+              <SkillCatalogWorkspace
+                entries={filtered}
                 resetKey={query.trim().toLowerCase()}
               />
             ) : (
@@ -223,7 +227,11 @@ export function SkillsPage({ active }: { active: boolean }) {
         id="skills-workshop-panel"
         role="tabpanel"
       >
-        {section === "workshop" ? <SkillWorkshopPanel active={active} /> : null}
+        {section === "workshop" ? (
+          <Suspense fallback={<LoadingBlock label="Loading skill workshop…" />}>
+            <LazySkillWorkshopPanel active={active} />
+          </Suspense>
+        ) : null}
       </div>
     </div>
   );

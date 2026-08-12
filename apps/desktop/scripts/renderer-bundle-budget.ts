@@ -54,6 +54,18 @@ export const RENDERER_BUNDLE_BUDGETS: readonly BundleBudget[] = [
     required: true,
   },
   {
+    label: "skills route",
+    pattern: /^SkillsPage-[^.]+\.js$/u,
+    maxBytes: 10_000,
+    required: true,
+  },
+  {
+    label: "lazy skill workshop",
+    pattern: /^SkillWorkshopPanel-[^.]+\.js$/u,
+    maxBytes: 12_000,
+    required: true,
+  },
+  {
     label: "plugins route",
     pattern: /^PluginsPage-[^.]+\.js$/u,
     maxBytes: 8_000,

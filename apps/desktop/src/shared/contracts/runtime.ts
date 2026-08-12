@@ -165,6 +165,8 @@ export interface SkillsResponse {
   skills?: unknown[];
   hub?: unknown;
   workspace?: unknown;
+  summary?: Record<string, unknown>;
+  installed?: unknown;
 }
 export interface SkillsSummaryResponse {
   summary?: unknown;
