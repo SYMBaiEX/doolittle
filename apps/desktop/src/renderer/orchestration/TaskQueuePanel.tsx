@@ -29,7 +29,6 @@ import {
   statusTone,
 } from "./detail-primitives";
 import type { ConfirmedAction, ResourceState, TaskAction } from "./models";
-import { normalizeText } from "./models";
 
 export const TASK_QUEUE_PAGE_SIZE = 20;
 
@@ -152,6 +151,18 @@ export function TaskQueuePanel({
         {taskWindow.visible.map((task) => {
           const status = asString(task.status, "pending");
           const tier = orchestrationStatusTier(status);
+          const timing = orchestrationTimingLabel({
+            status,
+            startedAt: asString(task.startedAt),
+            completedAt: asString(task.completedAt),
+            updatedAt: asString(task.updatedAt),
+            createdAt: asString(task.createdAt),
+          });
+          const priority = asString(task.priority, "normal");
+          const capability = taskCapabilityLabel(
+            task.capabilityProfile,
+            task.kind,
+          );
           return (
             <li key={task.id}>
               <button
@@ -171,24 +182,9 @@ export function TaskQueuePanel({
                   </span>
                   <Badge tone={statusTone(status)}>{status}</Badge>
                 </span>
-                <span className="master-summary">
-                  {normalizeText(asString(task.objective), 92)}
-                </span>
-                <span className="master-row master-row-bottom">
-                  <small>
-                    {orchestrationTimingLabel({
-                      status,
-                      startedAt: asString(task.startedAt),
-                      completedAt: asString(task.completedAt),
-                      updatedAt: asString(task.updatedAt),
-                      createdAt: asString(task.createdAt),
-                    })}
-                  </small>
-                  <small>{asString(task.priority, "normal")} priority</small>
-                  <small>
-                    {taskCapabilityLabel(task.capabilityProfile, task.kind)}
-                  </small>
-                </span>
+                <small className="orchestration-task-rail-meta">
+                  {timing} · {priority} · {capability}
+                </small>
               </button>
             </li>
           );
@@ -359,10 +355,13 @@ function TaskDetail({
           {asString(selectedTask.priority, "normal")} priority
         </DetailTag>
         <DetailTag>
-          {selectedTask.workerPid
-            ? `PID ${selectedTask.workerPid}`
-            : "No live worker"}
+          {selectedTask.workspaceRoot
+            ? compactWorkspacePath(selectedTask.workspaceRoot)
+            : "current workspace"}
         </DetailTag>
+        {selectedTask.workerPid ? (
+          <DetailTag>PID {selectedTask.workerPid}</DetailTag>
+        ) : null}
         <DetailTag>
           {selectedTask.accountLabel || selectedTask.accountId
             ? `account ${selectedTask.accountLabel || selectedTask.accountId}`
@@ -544,7 +543,17 @@ function TaskDetail({
         </form>
       ) : null}
 
-      <div className="orchestration-detail-grid">
+      <details className="orchestration-task-diagnostics">
+        <summary>
+          <span>
+            <strong>Execution details</strong>
+            <small>IDs, session, account, and runtime diagnostics</small>
+          </span>
+          <small>
+            {asNumber(selectedTask.attempts)} /{" "}
+            {asNumber(selectedTask.maxAttempts, 1)} attempts
+          </small>
+        </summary>
         <dl>
           <DetailRow label="Task ID" value={selectedTask.id} />
           <DetailRow
@@ -602,13 +611,18 @@ function TaskDetail({
           />
           <DetailRow label="Worker PID" value={selectedTask.workerPid} />
         </dl>
-        <div className="orchestration-evidence">
+      </details>
+
+      <div className="orchestration-task-support">
+        <section className="orchestration-evidence">
           <span className="detail-kicker">Evidence</span>
           {selectedTask.lastOutputPath ? (
             <code>{selectedTask.lastOutputPath}</code>
           ) : (
             <SmallEmpty>No artifact path reported.</SmallEmpty>
           )}
+        </section>
+        <section className="orchestration-evidence">
           <span className="detail-kicker">Task notes</span>
           {asArray(selectedTask.notes).length > 0 ? (
             <ul>
@@ -623,7 +637,7 @@ function TaskDetail({
           ) : (
             <SmallEmpty>No notes recorded.</SmallEmpty>
           )}
-        </div>
+        </section>
       </div>
 
       <form className="orchestration-note-composer" onSubmit={onSubmitNote}>

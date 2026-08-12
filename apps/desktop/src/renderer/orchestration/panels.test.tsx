@@ -163,7 +163,77 @@ describe("orchestration presentational panels", () => {
 
     expect(markup).toContain("Task 19");
     expect(markup).not.toContain("Task 20");
+    expect(markup).not.toContain("Objective 0");
     expect(markup).toContain("Showing 20 of 25");
     expect(markup).toContain("Show 5 more");
+  });
+
+  it("keeps primary task controls visible and secondary diagnostics disclosed", () => {
+    const selectedTask = {
+      id: "task-research",
+      title: "Research account routing",
+      objective: "Trace the native Eliza account selection path.",
+      status: "running",
+      attempts: 1,
+      maxAttempts: 3,
+      priority: "high",
+      capabilityProfile: "research",
+      kind: "research",
+      framework: "codex",
+      executionMode: "delegated",
+      workspaceRoot: "/workspace/project",
+      accountProviderId: "codex",
+      accountLabel: "Primary",
+      sessionId: "session-1",
+      workerPid: 321,
+      lastOutputPath: "/workspace/project/research.md",
+      notes: ["Verified native routing."],
+    };
+    const markup = renderToStaticMarkup(
+      createElement(TaskQueuePanel, {
+        active: true,
+        projectScope: "all",
+        effectiveOverview: { total: 1 },
+        tasksResource: resource(),
+        tasks: [selectedTask],
+        selectedTask,
+        busyKeys: {},
+        selectedTaskNote: "",
+        showChildCreate: false,
+        childTitle: "",
+        childObjective: "",
+        childWorkspaceRoot: "",
+        worktrees: [],
+        confirmedAction: null,
+        cascadeChildren: false,
+        confirmDialogRef: { current: null },
+        onSelectTask: vi.fn(),
+        onRunTaskAction: vi.fn(),
+        onRequestDestructiveAction: vi.fn(),
+        onCloseConfirmation: vi.fn(),
+        onCascadeChildrenChange: vi.fn(),
+        onToggleChildCreate: vi.fn(),
+        onChildTitleChange: vi.fn(),
+        onChildObjectiveChange: vi.fn(),
+        onChildWorkspaceRootChange: vi.fn(),
+        onSubmitSpawn: vi.fn(),
+        onTaskNoteChange: vi.fn(),
+        onSubmitNote: vi.fn(),
+      }),
+    );
+
+    expect(markup).toContain("Execute");
+    expect(markup).toContain("Add child");
+    expect(markup).toContain(
+      '<details class="orchestration-task-diagnostics">',
+    );
+    expect(markup).not.toContain(
+      '<details class="orchestration-task-diagnostics" open="">',
+    );
+    expect(markup).toContain("IDs, session, account, and runtime diagnostics");
+    expect(markup).toContain("/workspace/project");
+    expect(markup).toContain("research.md");
+    expect(markup).toContain("Verified native routing.");
+    expect(markup).toContain("Operator note");
   });
 });
