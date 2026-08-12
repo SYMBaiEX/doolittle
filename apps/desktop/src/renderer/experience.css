@@ -1595,7 +1595,7 @@ button.chat-session-meta-pill:hover {
 }
 
 .page-settings {
-  width: min(100%, 1480px);
+  width: min(100%, 1280px);
   gap: 20px;
   padding-top: 26px;
 }

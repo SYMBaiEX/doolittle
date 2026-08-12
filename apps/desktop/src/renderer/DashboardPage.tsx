@@ -149,7 +149,7 @@ export function DashboardPage({
 
   if (!active) {
     return (
-      <div className="page">
+      <div className="page page-dashboard">
         <PageHeader
           eyebrow="Mission control"
           title="Dashboard"
@@ -187,7 +187,7 @@ export function DashboardPage({
           : "No immediate blockers surfaced across runtime, setup, or repository state.";
 
   return (
-    <div className="page">
+    <div className="page page-dashboard">
       <PageHeader
         eyebrow="Mission control"
         title="Dashboard"

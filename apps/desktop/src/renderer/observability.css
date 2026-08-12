@@ -1,6 +1,8 @@
 .activity-page,
 .page-analytics {
+  width: min(100%, 1280px);
   gap: 9px;
+  margin-inline: auto;
 }
 
 .activity-page .activity-filter-bar,

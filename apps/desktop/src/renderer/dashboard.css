@@ -1,3 +1,9 @@
+.page-dashboard {
+  width: min(100%, 1320px);
+  gap: 10px;
+  margin-inline: auto;
+}
+
 .dashboard-hero {
   position: relative;
   overflow: hidden;
@@ -145,6 +151,15 @@
   align-items: start;
 }
 
+.page-dashboard .dashboard-command-grid {
+  grid-template-columns: minmax(0, 1.02fr) minmax(20rem, 0.98fr);
+  gap: 10px;
+}
+
+.page-dashboard .dashboard-mini-grid {
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+}
+
 .dashboard-runtime-details {
   overflow: hidden;
   background: var(--surface);
@@ -237,6 +252,7 @@
 }
 
 @media (max-width: 980px) {
+  .page-dashboard .dashboard-command-grid,
   .dashboard-mini-grid,
   .dashboard-runtime-grid {
     grid-template-columns: 1fr;

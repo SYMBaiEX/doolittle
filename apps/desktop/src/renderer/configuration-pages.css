@@ -3,7 +3,7 @@
 }
 
 .page-settings .settings-layout {
-  grid-template-columns: 144px minmax(0, 1fr);
+  grid-template-columns: 156px minmax(0, 1fr);
   gap: 10px;
 }
 
