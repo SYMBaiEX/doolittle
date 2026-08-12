@@ -16,6 +16,7 @@ describe("workspace route density", () => {
   it("keeps secondary session context closed until requested", () => {
     const page = read("./sessions/SessionsPage.tsx");
     const detail = read("./sessions/SessionDetail.tsx");
+    const css = read("./sessions/sessions.css");
 
     expect(page).toContain("<SessionDetail");
     expect(page).toContain("active={active}");
@@ -28,5 +29,11 @@ describe("workspace route density", () => {
     expect(detail).not.toContain('"/sessions/summary?');
     expect(detail).toContain("requestPolicy.continuity");
     expect(detail).toContain("continuityOpen && continuity.loading");
+    expect(page).toContain('import "./sessions.css"');
+    expect(css).toContain(
+      "grid-template-columns: clamp(250px, 24vw, 320px) minmax(0, 1fr)",
+    );
+    expect(css).toContain("min-height: 38px");
+    expect(css).toContain("padding-top: 14px");
   });
 });

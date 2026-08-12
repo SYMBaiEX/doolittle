@@ -1,0 +1,144 @@
+.view-sessions {
+  overflow: hidden;
+}
+
+.view-sessions > .page-sessions {
+  display: flex;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-sessions > :is(.page-header, .notice) {
+  flex: 0 0 auto;
+}
+
+.page-sessions > .split-workspace {
+  min-height: 0;
+  flex: 1 1 0;
+  grid-template-columns: clamp(250px, 24vw, 320px) minmax(0, 1fr);
+}
+
+.page-sessions > .split-workspace.is-empty {
+  grid-template-columns: 1fr;
+}
+
+.page-sessions > .split-workspace.is-empty > :is(.list-panel, .detail-panel) {
+  display: none;
+}
+
+.session-empty-landing {
+  display: grid;
+  min-height: 0;
+  place-items: center;
+}
+
+.page-sessions .list-panel {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.page-sessions .session-search-status {
+  margin-bottom: 6px;
+}
+
+.page-sessions .session-list-scroll {
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.page-sessions .row-card {
+  min-height: 46px;
+  padding: 8px;
+}
+
+.page-sessions .detail-panel {
+  padding: 14px 16px 0;
+}
+
+.page-sessions .detail-toolbar {
+  padding-bottom: 9px;
+}
+
+.page-sessions .compact-stat-strip__item {
+  padding: 6px 9px;
+}
+
+.page-sessions .compact-stat-strip__item > strong {
+  font-size: 14px;
+}
+
+.page-sessions .session-insight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.page-sessions .session-insight-disclosure {
+  min-width: 0;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-raised) 72%, transparent);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+}
+
+.page-sessions .session-insight-disclosure > summary {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.page-sessions .session-insight-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.page-sessions .session-insight-disclosure > summary > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.page-sessions .session-insight-disclosure > summary strong {
+  color: var(--text-strong);
+  font-size: 10px;
+}
+
+.page-sessions .session-insight-disclosure > summary small,
+.page-sessions .session-insight-disclosure > summary > span:last-child {
+  color: var(--text-muted);
+  font-size: 8px;
+}
+
+.page-sessions .session-insight-disclosure[open] > summary {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.page-sessions
+  .session-insight-disclosure
+  > :is(.stack-list, .empty-block, .loading-block) {
+  margin: 0;
+  padding: 8px;
+}
+
+.page-sessions .transcript {
+  padding-top: 14px;
+}
+
+@media (max-width: 860px) {
+  .page-sessions .session-insight-grid {
+    grid-template-columns: 1fr;
+  }
+}

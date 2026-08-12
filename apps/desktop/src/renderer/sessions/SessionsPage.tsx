@@ -15,6 +15,7 @@ import {
   useDebouncedValue,
 } from "../lib";
 import { SessionDetail } from "./SessionDetail";
+import "./sessions.css";
 
 interface SessionArchivePreview {
   sourceApplication: string;
@@ -304,7 +305,7 @@ export function SessionsPage({
               />
             </label>
             {active && query.trim() ? (
-              <div style={{ marginBottom: "10px" }}>
+              <div className="session-search-status">
                 {search.loading ? (
                   <LoadingBlock label="Searching persisted sessions…" />
                 ) : search.error ? (
