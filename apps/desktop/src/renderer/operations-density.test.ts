@@ -152,10 +152,13 @@ describe("operational route density", () => {
     );
   });
 
-  it("loads desktop lifecycle state only on the matching settings category", () => {
+  it("loads shell-owned desktop state only on its category, even offline", () => {
     const settings = read("./SettingsPage.tsx");
 
-    expect(settings).toContain('desktop: active && category === "desktop"');
+    expect(settings).toContain('desktop: category === "desktop"');
+    expect(settings).toContain(
+      '!active && !["appearance", "desktop"].includes(category)',
+    );
     expect(settings).toContain("if (!resourcePolicy.desktop) return;");
     expect(settings).toContain("[resourcePolicy.desktop]");
   });
