@@ -14,8 +14,8 @@ const MAX_PERSISTED_SESSIONS = 250;
 const MAX_DRAFT_LENGTH = 50_000;
 const MAX_QUEUE_ITEMS = 50;
 const MAX_ATTACHMENT_COUNT = 8;
-const MAX_PROMPT_LIBRARY_ITEMS = 50;
-const MAX_PROMPT_TITLE_LENGTH = 80;
+export const MAX_PROMPT_LIBRARY_ITEMS = 50;
+export const MAX_PROMPT_TITLE_LENGTH = 80;
 
 export interface StorageLike {
   getItem(key: string): string | null;

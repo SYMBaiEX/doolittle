@@ -58,13 +58,10 @@ import {
   loadConversationDrafts,
   loadConversationPins,
   loadConversationQueue,
-  loadPromptLibrary,
   type PersistedQueuedMessage,
-  type PromptLibraryEntry,
   saveConversationDrafts,
   saveConversationPins,
   saveConversationQueue,
-  savePromptLibrary,
 } from "./conversation-persistence";
 import { desktopRequest, displayTimestamp, errorMessage } from "./lib";
 import {
@@ -248,16 +245,6 @@ export function ChatPage({
   const [runReceipts, setRunReceipts] = useState<RunReceiptStore>({});
   const [copyStates, setCopyStates] = useState<Record<string, CopyState>>({});
   const [forkingMessageId, setForkingMessageId] = useState("");
-  const [promptLibrary, setPromptLibrary] = useState<PromptLibraryEntry[]>(() =>
-    loadPromptLibrary(localStorage),
-  );
-  const [promptLibraryOpen, setPromptLibraryOpen] = useState(false);
-  const [promptTitle, setPromptTitle] = useState("");
-  const [promptScope, setPromptScope] = useState<"general" | "project">(
-    activeProject ? "project" : "general",
-  );
-  const [editingPromptId, setEditingPromptId] = useState("");
-  const [editingPromptTitle, setEditingPromptTitle] = useState("");
   const [speakingMessageId, setSpeakingMessageId] = useState("");
   const [sessionUsage, setSessionUsage] = useState<
     Record<string, ContextPressureSnapshot>
@@ -276,7 +263,6 @@ export function ChatPage({
   }>({ commands: [], error: "" });
   const endRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
-  const promptRenameRef = useRef<HTMLInputElement>(null);
   const mobileConversationsButtonRef = useRef<HTMLButtonElement>(null);
   const workbenchToggleRef = useRef<HTMLButtonElement>(null);
   const mobileConversationsDialogRef = useModalFocusBoundary({
@@ -400,18 +386,6 @@ export function ChatPage({
   useEffect(() => {
     saveConversationQueue(localStorage, queuedMessages);
   }, [queuedMessages]);
-
-  useEffect(() => {
-    savePromptLibrary(localStorage, promptLibrary);
-  }, [promptLibrary]);
-
-  useEffect(() => {
-    if (!activeProject) setPromptScope("general");
-  }, [activeProject]);
-
-  useEffect(() => {
-    if (editingPromptId) promptRenameRef.current?.focus();
-  }, [editingPromptId]);
 
   useEffect(
     () => () => {
@@ -1237,76 +1211,6 @@ export function ChatPage({
     (sum, attachment) => sum + attachment.sizeBytes,
     0,
   );
-  const visiblePromptLibrary = promptLibrary.filter((entry) =>
-    activeProject && promptScope === "project"
-      ? entry.projectId === activeProject.id
-      : !entry.projectId,
-  );
-  const saveCurrentPrompt = () => {
-    const content = draft.trim();
-    if (!content) {
-      setQueueAnnouncement("Write a prompt before saving it.");
-      composerRef.current?.focus();
-      return;
-    }
-    const fallbackTitle =
-      content.split(/\r?\n/u, 1)[0]?.replace(/\s+/gu, " ").slice(0, 80) ||
-      "Saved prompt";
-    const title = (promptTitle.trim() || fallbackTitle).slice(0, 80);
-    const now = new Date().toISOString();
-    setPromptLibrary((current) =>
-      [
-        {
-          id: crypto.randomUUID(),
-          title,
-          content,
-          ...(activeProject && promptScope === "project"
-            ? { projectId: activeProject.id }
-            : {}),
-          createdAt: now,
-          updatedAt: now,
-        },
-        ...current,
-      ].slice(0, 50),
-    );
-    setPromptTitle("");
-    setQueueAnnouncement(`Saved “${title}” to the prompt library.`);
-  };
-  const restorePrompt = (entry: PromptLibraryEntry) => {
-    setDraft(entry.content);
-    setPromptLibraryOpen(false);
-    setQueueAnnouncement(`Restored “${entry.title}”.`);
-    requestAnimationFrame(() => composerRef.current?.focus());
-  };
-  const deletePrompt = (entry: PromptLibraryEntry) => {
-    setPromptLibrary((current) =>
-      current.filter((candidate) => candidate.id !== entry.id),
-    );
-    if (editingPromptId === entry.id) {
-      setEditingPromptId("");
-      setEditingPromptTitle("");
-    }
-    setQueueAnnouncement(`Deleted “${entry.title}” from the prompt library.`);
-  };
-  const beginPromptRename = (entry: PromptLibraryEntry) => {
-    setEditingPromptId(entry.id);
-    setEditingPromptTitle(entry.title);
-  };
-  const finishPromptRename = () => {
-    const title = editingPromptTitle.trim().slice(0, 80);
-    if (!editingPromptId || !title) return;
-    const now = new Date().toISOString();
-    setPromptLibrary((current) =>
-      current.map((entry) =>
-        entry.id === editingPromptId
-          ? { ...entry, title, updatedAt: now }
-          : entry,
-      ),
-    );
-    setEditingPromptId("");
-    setEditingPromptTitle("");
-    setQueueAnnouncement(`Renamed prompt to “${title}”.`);
-  };
   const composerValidationError =
     attachmentValidationError ||
     (isCommandMessage(draft.trim()) && attachedFiles.length > 0
@@ -1531,7 +1435,6 @@ export function ChatPage({
           onSubmit={submit}
           composerRef={composerRef}
           queueRef={queueRef}
-          promptRenameRef={promptRenameRef}
           queuedMessages={queuedMessages}
           queuePaused={queuePaused}
           setQueuePaused={setQueuePaused}
@@ -1552,22 +1455,6 @@ export function ChatPage({
           pickContextFiles={pickContextFiles}
           importAndTranscribeRecording={importAndTranscribeRecording}
           insertDictationTranscript={insertDictationTranscript}
-          promptLibraryOpen={promptLibraryOpen}
-          setPromptLibraryOpen={setPromptLibraryOpen}
-          visiblePromptLibrary={visiblePromptLibrary}
-          promptScope={promptScope}
-          setPromptScope={setPromptScope}
-          promptTitle={promptTitle}
-          setPromptTitle={setPromptTitle}
-          saveCurrentPrompt={saveCurrentPrompt}
-          editingPromptId={editingPromptId}
-          editingPromptTitle={editingPromptTitle}
-          setEditingPromptId={setEditingPromptId}
-          setEditingPromptTitle={setEditingPromptTitle}
-          finishPromptRename={finishPromptRename}
-          restorePrompt={restorePrompt}
-          deletePrompt={deletePrompt}
-          beginPromptRename={beginPromptRename}
           selectedContext={selectedContext}
           selectedContextPercent={selectedContextPercent}
           selectedContextTone={selectedContextTone}

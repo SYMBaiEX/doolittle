@@ -25,13 +25,11 @@ import type {
   ContextPressureTone,
 } from "../context-pressure";
 import { contextPressureLabel } from "../context-pressure";
-import type {
-  PersistedQueuedMessage,
-  PromptLibraryEntry,
-} from "../conversation-persistence";
+import type { PersistedQueuedMessage } from "../conversation-persistence";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import type { ChatMemoryMatchState } from "./models";
 import { attachmentSize, fileName, MAX_MESSAGE_ATTACHMENTS } from "./models";
+import { PromptLibrary } from "./PromptLibrary";
 
 export interface ChatComposerProps {
   activeProject?: {
@@ -57,7 +55,6 @@ export interface ChatComposerProps {
   onSubmit: (event?: FormEvent<HTMLFormElement>) => void | Promise<void>;
   composerRef: RefObject<HTMLTextAreaElement | null>;
   queueRef: RefObject<HTMLDivElement | null>;
-  promptRenameRef: RefObject<HTMLInputElement | null>;
   queuedMessages: PersistedQueuedMessage[];
   queuePaused: boolean;
   setQueuePaused: Dispatch<SetStateAction<boolean>>;
@@ -82,22 +79,6 @@ export interface ChatComposerProps {
     name: string,
   ) => Promise<{ transcriptText: string }>;
   insertDictationTranscript: (transcript: string) => void;
-  promptLibraryOpen: boolean;
-  setPromptLibraryOpen: Dispatch<SetStateAction<boolean>>;
-  visiblePromptLibrary: PromptLibraryEntry[];
-  promptScope: "general" | "project";
-  setPromptScope: Dispatch<SetStateAction<"general" | "project">>;
-  promptTitle: string;
-  setPromptTitle: Dispatch<SetStateAction<string>>;
-  saveCurrentPrompt: () => void;
-  editingPromptId: string;
-  editingPromptTitle: string;
-  setEditingPromptId: Dispatch<SetStateAction<string>>;
-  setEditingPromptTitle: Dispatch<SetStateAction<string>>;
-  finishPromptRename: () => void;
-  restorePrompt: (entry: PromptLibraryEntry) => void;
-  deletePrompt: (entry: PromptLibraryEntry) => void;
-  beginPromptRename: (entry: PromptLibraryEntry) => void;
   selectedContext?: ContextPressureSnapshot;
   selectedContextPercent: number;
   selectedContextTone: ContextPressureTone;
@@ -129,7 +110,6 @@ export function ChatComposer({
   onSubmit,
   composerRef,
   queueRef,
-  promptRenameRef,
   queuedMessages,
   queuePaused,
   setQueuePaused,
@@ -150,22 +130,6 @@ export function ChatComposer({
   pickContextFiles,
   importAndTranscribeRecording,
   insertDictationTranscript,
-  promptLibraryOpen,
-  setPromptLibraryOpen,
-  visiblePromptLibrary,
-  promptScope,
-  setPromptScope,
-  promptTitle,
-  setPromptTitle,
-  saveCurrentPrompt,
-  editingPromptId,
-  editingPromptTitle,
-  setEditingPromptId,
-  setEditingPromptTitle,
-  finishPromptRename,
-  restorePrompt,
-  deletePrompt,
-  beginPromptRename,
   selectedContext,
   selectedContextPercent,
   selectedContextTone,
@@ -372,141 +336,13 @@ export function ChatComposer({
           importAndTranscribe={importAndTranscribeRecording}
           onTranscript={insertDictationTranscript}
         />
-        <button
-          aria-controls="chat-prompt-library"
-          aria-expanded={promptLibraryOpen}
-          className="secondary-button"
-          onClick={() => setPromptLibraryOpen((current) => !current)}
-          type="button"
-        >
-          Prompts
-          {visiblePromptLibrary.length > 0
-            ? ` · ${visiblePromptLibrary.length}`
-            : ""}
-        </button>
-        {promptLibraryOpen ? (
-          <section
-            aria-label="Prompt library"
-            className="chat-prompt-library"
-            id="chat-prompt-library"
-          >
-            <header>
-              <div className="chat-prompt-library__heading">
-                <strong>Prompt library</strong>
-                <small>
-                  {activeProject && promptScope === "project"
-                    ? activeProject.name
-                    : "General"}
-                </small>
-              </div>
-              <button
-                aria-label="Close prompt library"
-                onClick={() => setPromptLibraryOpen(false)}
-                type="button"
-              >
-                ×
-              </button>
-            </header>
-            {activeProject ? (
-              <fieldset
-                aria-label="Prompt library scope"
-                className="chat-prompt-library__scope"
-              >
-                <legend className="sr-only">Prompt library scope</legend>
-                <button
-                  aria-pressed={promptScope === "project"}
-                  onClick={() => setPromptScope("project")}
-                  type="button"
-                >
-                  {activeProject.name}
-                </button>
-                <button
-                  aria-pressed={promptScope === "general"}
-                  onClick={() => setPromptScope("general")}
-                  type="button"
-                >
-                  General
-                </button>
-              </fieldset>
-            ) : null}
-            <div className="chat-prompt-library__save">
-              <input
-                aria-label="Saved prompt title"
-                maxLength={80}
-                onChange={(event) => setPromptTitle(event.target.value)}
-                placeholder="Title (optional)"
-                value={promptTitle}
-              />
-              <button
-                disabled={!draft.trim()}
-                onClick={saveCurrentPrompt}
-                type="button"
-              >
-                Save draft
-              </button>
-            </div>
-            {visiblePromptLibrary.length > 0 ? (
-              <ul>
-                {visiblePromptLibrary.map((entry) => (
-                  <li key={entry.id}>
-                    {editingPromptId === entry.id ? (
-                      <input
-                        aria-label={`Rename ${entry.title}`}
-                        maxLength={80}
-                        onBlur={finishPromptRename}
-                        onChange={(event) =>
-                          setEditingPromptTitle(event.target.value)
-                        }
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            finishPromptRename();
-                          } else if (event.key === "Escape") {
-                            setEditingPromptId("");
-                            setEditingPromptTitle("");
-                          }
-                        }}
-                        ref={promptRenameRef}
-                        value={editingPromptTitle}
-                      />
-                    ) : (
-                      <button
-                        className="chat-prompt-library__restore"
-                        onClick={() => restorePrompt(entry)}
-                        title={entry.content}
-                        type="button"
-                      >
-                        <strong>{entry.title}</strong>
-                        <small>{entry.content}</small>
-                      </button>
-                    )}
-                    <span>
-                      <button
-                        aria-label={`Rename ${entry.title}`}
-                        onClick={() => beginPromptRename(entry)}
-                        type="button"
-                      >
-                        Rename
-                      </button>
-                      <button
-                        aria-label={`Delete ${entry.title}`}
-                        onClick={() => deletePrompt(entry)}
-                        type="button"
-                      >
-                        Delete
-                      </button>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>
-                No saved prompts in this scope. Write a draft and save it here
-                for reuse.
-              </p>
-            )}
-          </section>
-        ) : null}
+        <PromptLibrary
+          activeProject={activeProject}
+          composerRef={composerRef}
+          draft={draft}
+          setAnnouncement={setQueueAnnouncement}
+          setDraft={setDraft}
+        />
         <ComposerModelSelector
           active={backend.phase === "ready"}
           onOpenModelsPage={onOpenModelsPage}
