@@ -48,6 +48,7 @@ export interface DesktopSidebarProps {
   onOpenSession: (sessionId: string) => void;
   onSelectScope: (scope: ProjectScope) => void;
   onViewAll: () => void;
+  onPreloadView: (view: View) => void;
   onSetView: (view: View) => void;
   onToggleUtilities: () => void;
   utilityOpen: boolean;
@@ -83,6 +84,7 @@ export function DesktopSidebar({
   onOpenSession,
   onSelectScope,
   onViewAll,
+  onPreloadView,
   onSetView,
   onToggleUtilities,
   utilityOpen,
@@ -200,6 +202,8 @@ export function DesktopSidebar({
                 className={navigationView === item.id ? "selected" : ""}
                 key={item.id}
                 onClick={() => onSetView(item.id)}
+                onFocus={() => onPreloadView(item.id)}
+                onPointerEnter={() => onPreloadView(item.id)}
                 title={item.description}
                 type="button"
               >
@@ -233,6 +237,8 @@ export function DesktopSidebar({
               aria-label="Open settings"
               className={`sidebar-account${view === "settings" ? " selected" : ""}`}
               onClick={() => onSetView("settings")}
+              onFocus={() => onPreloadView("settings")}
+              onPointerEnter={() => onPreloadView("settings")}
               title="Settings"
               type="button"
             >

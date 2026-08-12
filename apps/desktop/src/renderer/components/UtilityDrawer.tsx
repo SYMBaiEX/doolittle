@@ -20,6 +20,7 @@ export interface UtilityDrawerProps<TView extends string = string> {
   activity: ReactNode;
   children?: ReactNode;
   onClose: () => void;
+  onPreload?: (view: TView) => void;
   onSelect: (view: TView) => void;
   /** The shell owns persistence; this component owns only its local filter. */
   openSections?: ReadonlySet<string>;
@@ -64,6 +65,7 @@ export function UtilityDrawer<TView extends string>({
   activity,
   children,
   onClose,
+  onPreload,
   onSelect,
   onToggleSection,
   openSections,
@@ -160,6 +162,8 @@ export function UtilityDrawer<TView extends string>({
                           className={selected ? "is-selected" : undefined}
                           key={item.id}
                           onClick={() => onSelect(item.id)}
+                          onFocus={() => onPreload?.(item.id)}
+                          onPointerEnter={() => onPreload?.(item.id)}
                           type="button"
                         >
                           {item.icon ? (

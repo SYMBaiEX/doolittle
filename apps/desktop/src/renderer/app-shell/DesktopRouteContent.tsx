@@ -14,108 +14,170 @@ import type { DesktopNavigationIntent } from "../desktop-navigation-intent";
 import type { ApiResource } from "../lib";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
 
+const loadDashboardPage = () => import("../DashboardPage");
+const loadChatPage = () => import("../ChatPage");
+const loadCodingWorkspacePage = () => import("../CodingWorkspacePage");
+const loadBrowserPage = () => import("../BrowserPage");
+const loadGatewayPage = () => import("../GatewayPage");
+const loadOrchestrationPage = () => import("../OrchestrationPage");
+const loadWorkspacePages = () => import("../WorkspacePages");
+const loadActivityPage = () => import("../ActivityPage");
+const loadMediaPage = () => import("../MediaPage");
+const loadMemoryPage = () => import("../MemoryPage");
+const loadModelsPage = () => import("../ModelsPage");
+const loadConnectionsPage = () => import("../ConnectionsPage");
+const loadToolsPage = () => import("../ToolsPage");
+const loadSkillsPage = () => import("../SkillsPage");
+const loadPluginsPage = () => import("../PluginsPage");
+const loadProfilesPage = () => import("../ProfilesPage");
+const loadAutomationsPage = () => import("../AutomationsPage");
+const loadLogsPage = () => import("../LogsPage");
+const loadSettingsPage = () => import("../SettingsPage");
+const loadKeysPage = () => import("../KeysPage");
+const loadDocsPage = () => import("../DocsPage");
+const loadRuntimePage = () => import("../RuntimePage");
+const loadCompatibilityPage = () => import("../CompatibilityPage");
+const loadRegistryPage = () => import("../RegistryPage");
+const loadSetupPage = () => import("../SetupPage");
+
 const DashboardPage = lazy(() =>
-  import("../DashboardPage").then((module) => ({
+  loadDashboardPage().then((module) => ({
     default: module.DashboardPage,
   })),
 );
 const ChatPage = lazy(() =>
-  import("../ChatPage").then((module) => ({ default: module.ChatPage })),
+  loadChatPage().then((module) => ({ default: module.ChatPage })),
 );
 const CodingWorkspacePage = lazy(() =>
-  import("../CodingWorkspacePage").then((module) => ({
+  loadCodingWorkspacePage().then((module) => ({
     default: module.CodingWorkspacePage,
   })),
 );
 const BrowserPage = lazy(() =>
-  import("../BrowserPage").then((module) => ({ default: module.BrowserPage })),
+  loadBrowserPage().then((module) => ({ default: module.BrowserPage })),
 );
 const GatewayPage = lazy(() =>
-  import("../GatewayPage").then((module) => ({ default: module.GatewayPage })),
+  loadGatewayPage().then((module) => ({ default: module.GatewayPage })),
 );
 const OrchestrationPage = lazy(() =>
-  import("../OrchestrationPage").then((module) => ({
+  loadOrchestrationPage().then((module) => ({
     default: module.OrchestrationPage,
   })),
 );
 const SessionsPage = lazy(() =>
-  import("../WorkspacePages").then((module) => ({
+  loadWorkspacePages().then((module) => ({
     default: module.SessionsPage,
   })),
 );
 const AnalyticsPage = lazy(() =>
-  import("../WorkspacePages").then((module) => ({
+  loadWorkspacePages().then((module) => ({
     default: module.AnalyticsPage,
   })),
 );
 const ActivityPage = lazy(() =>
-  import("../ActivityPage").then((module) => ({
+  loadActivityPage().then((module) => ({
     default: module.ActivityPage,
   })),
 );
 const MediaPage = lazy(() =>
-  import("../MediaPage").then((module) => ({ default: module.MediaPage })),
+  loadMediaPage().then((module) => ({ default: module.MediaPage })),
 );
 const MemoryPage = lazy(() =>
-  import("../MemoryPage").then((module) => ({ default: module.MemoryPage })),
+  loadMemoryPage().then((module) => ({ default: module.MemoryPage })),
 );
 const ModelsPage = lazy(() =>
-  import("../ModelsPage").then((module) => ({ default: module.ModelsPage })),
+  loadModelsPage().then((module) => ({ default: module.ModelsPage })),
 );
 const ConnectionsPage = lazy(() =>
-  import("../ConnectionsPage").then((module) => ({
+  loadConnectionsPage().then((module) => ({
     default: module.ConnectionsPage,
   })),
 );
 const ToolsPage = lazy(() =>
-  import("../ToolsPage").then((module) => ({ default: module.ToolsPage })),
+  loadToolsPage().then((module) => ({ default: module.ToolsPage })),
 );
 const SkillsPage = lazy(() =>
-  import("../SkillsPage").then((module) => ({ default: module.SkillsPage })),
+  loadSkillsPage().then((module) => ({ default: module.SkillsPage })),
 );
 const PluginsPage = lazy(() =>
-  import("../PluginsPage").then((module) => ({ default: module.PluginsPage })),
+  loadPluginsPage().then((module) => ({ default: module.PluginsPage })),
 );
 const ProfilesPage = lazy(() =>
-  import("../ProfilesPage").then((module) => ({
+  loadProfilesPage().then((module) => ({
     default: module.ProfilesPage,
   })),
 );
 const AutomationsPage = lazy(() =>
-  import("../AutomationsPage").then((module) => ({
+  loadAutomationsPage().then((module) => ({
     default: module.AutomationsPage,
   })),
 );
 const LogsPage = lazy(() =>
-  import("../LogsPage").then((module) => ({ default: module.LogsPage })),
+  loadLogsPage().then((module) => ({ default: module.LogsPage })),
 );
 const SettingsPage = lazy(() =>
-  import("../SettingsPage").then((module) => ({
+  loadSettingsPage().then((module) => ({
     default: module.SettingsPage,
   })),
 );
 const KeysPage = lazy(() =>
-  import("../KeysPage").then((module) => ({ default: module.KeysPage })),
+  loadKeysPage().then((module) => ({ default: module.KeysPage })),
 );
 const DocsPage = lazy(() =>
-  import("../DocsPage").then((module) => ({ default: module.DocsPage })),
+  loadDocsPage().then((module) => ({ default: module.DocsPage })),
 );
 const RuntimePage = lazy(() =>
-  import("../RuntimePage").then((module) => ({ default: module.RuntimePage })),
+  loadRuntimePage().then((module) => ({ default: module.RuntimePage })),
 );
 const CompatibilityPage = lazy(() =>
-  import("../CompatibilityPage").then((module) => ({
+  loadCompatibilityPage().then((module) => ({
     default: module.CompatibilityPage,
   })),
 );
 const RegistryPage = lazy(() =>
-  import("../RegistryPage").then((module) => ({
+  loadRegistryPage().then((module) => ({
     default: module.RegistryPage,
   })),
 );
 const SetupPage = lazy(() =>
-  import("../SetupPage").then((module) => ({ default: module.SetupPage })),
+  loadSetupPage().then((module) => ({ default: module.SetupPage })),
 );
+
+export const DESKTOP_ROUTE_PRELOADERS: Readonly<
+  Record<View, () => Promise<unknown>>
+> = {
+  dashboard: loadDashboardPage,
+  chat: loadChatPage,
+  code: loadCodingWorkspacePage,
+  browser: loadBrowserPage,
+  gateway: loadGatewayPage,
+  review: loadOrchestrationPage,
+  orchestration: loadOrchestrationPage,
+  sessions: loadWorkspacePages,
+  activity: loadActivityPage,
+  analytics: loadWorkspacePages,
+  media: loadMediaPage,
+  models: loadModelsPage,
+  connections: loadConnectionsPage,
+  tools: loadToolsPage,
+  skills: loadSkillsPage,
+  plugins: loadPluginsPage,
+  memory: loadMemoryPage,
+  automations: loadAutomationsPage,
+  profiles: loadProfilesPage,
+  logs: loadLogsPage,
+  keys: loadKeysPage,
+  settings: loadSettingsPage,
+  docs: loadDocsPage,
+  runtime: loadRuntimePage,
+  compatibility: loadCompatibilityPage,
+  registry: loadRegistryPage,
+  operatorSetup: loadSetupPage,
+};
+
+export function preloadDesktopRoute(view: View): void {
+  void DESKTOP_ROUTE_PRELOADERS[view]().catch(() => undefined);
+}
 
 export interface DesktopRouteNavigation {
   setView: (view: View) => void;

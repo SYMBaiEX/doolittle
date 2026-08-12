@@ -22,6 +22,7 @@ export interface DesktopUtilityLayerProps {
   utilityRef: RefObject<HTMLElement | null>;
   onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => void;
   onClose: () => void;
+  onPreload: (view: View) => void;
   onSelect: (view: View) => void;
   onToggleSection: (sectionId: NavigationSectionId) => void;
   onResize: (width: number) => void;
@@ -35,6 +36,7 @@ export function DesktopUtilityLayer({
   utilityRef,
   onKeyDown,
   onClose,
+  onPreload,
   onSelect,
   onToggleSection,
   onResize,
@@ -52,6 +54,7 @@ export function DesktopUtilityLayer({
           activeView={activeView}
           activity={activity}
           onClose={onClose}
+          onPreload={onPreload}
           onSelect={onSelect}
           onToggleSection={(sectionId) =>
             onToggleSection(sectionId as NavigationSectionId)

@@ -26,7 +26,10 @@ import type {
   WorkspaceState,
 } from "../shared/contracts";
 import { DesktopMobileMenuButton } from "./app-shell/DesktopMobileMenuButton";
-import { DesktopRouteContent } from "./app-shell/DesktopRouteContent";
+import {
+  DesktopRouteContent,
+  preloadDesktopRoute,
+} from "./app-shell/DesktopRouteContent";
 import { DesktopRouteLoadingFallback } from "./app-shell/DesktopRouteLoadingFallback";
 import { DesktopRuntimeNotices } from "./app-shell/DesktopRuntimeNotices";
 import { DesktopSidebar } from "./app-shell/DesktopSidebar";
@@ -1731,6 +1734,7 @@ export function App() {
         onManageProjects={openProjectManager}
         onStartConversation={startConversation}
         onOpenSession={openSession}
+        onPreloadView={preloadDesktopRoute}
         onSelectScope={selectProjectScope}
         onViewAll={() => setView("sessions")}
         onSetView={setView}
@@ -1831,6 +1835,7 @@ export function App() {
           }
           onClose={closeUtilities}
           onKeyDown={handleUtilityKeyDown}
+          onPreload={preloadDesktopRoute}
           onResize={setUtilityDrawerWidth}
           onSelect={setView}
           onToggleSection={toggleSection}
