@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import {
   asArray,
@@ -14,6 +15,13 @@ import "./diagnostics-pages.css";
 
 interface DoctorResponse {
   checks?: unknown[];
+}
+
+export function doctorResourcePath(
+  active: boolean,
+  requested: boolean,
+): "/doctor" | null {
+  return active && requested ? "/doctor" : null;
 }
 
 export interface DoctorCheckView {
@@ -82,9 +90,9 @@ function DoctorCheckRow({ check }: { check: DoctorCheckView }) {
 }
 
 export function DocsPage({ active }: { active: boolean }) {
-  const doctor = useApiResource<DoctorResponse>(active ? "/doctor" : null, [
-    active,
-  ]);
+  const [doctorRequested, setDoctorRequested] = useState(false);
+  const doctorPath = doctorResourcePath(active, doctorRequested);
+  const doctor = useApiResource<DoctorResponse>(doctorPath, [doctorPath]);
   const checks = normalizeDoctorChecks(doctor.data);
   const prioritizedChecks = prioritizeDoctorChecks(checks, 5);
   const passing = checks.filter((check) =>
@@ -115,14 +123,21 @@ export function DocsPage({ active }: { active: boolean }) {
       <CompactStatStrip
         label="Application summary"
         stats={[
-          { label: "Health checks", value: checks.length },
-          {
-            label: "Passing",
-            value: passing,
-            tone: passing === checks.length ? "good" : "warn",
-          },
           { label: "Runtime transport", value: "Loopback" },
           { label: "Desktop bridge", value: "Sandboxed", tone: "good" },
+          { label: "Storage", value: "Local" },
+          {
+            label: "Diagnostics",
+            value: doctorRequested
+              ? `${passing}/${checks.length}`
+              : "On demand",
+            tone:
+              doctorRequested && !doctor.loading && checks.length
+                ? passing === checks.length
+                  ? "good"
+                  : "warn"
+                : "neutral",
+          },
         ]}
       />
       <div className="two-column-grid">
@@ -134,13 +149,24 @@ export function DocsPage({ active }: { active: boolean }) {
             </div>
             <button
               className="text-button"
-              onClick={doctor.reload}
+              onClick={() => {
+                if (doctorRequested) doctor.reload();
+                else setDoctorRequested(true);
+              }}
               type="button"
             >
-              Run again
+              {doctorRequested ? "Run again" : "Run diagnostics"}
             </button>
           </div>
-          {doctor.loading ? (
+          {!doctorRequested ? (
+            <div className="diagnostics-idle">
+              <strong>Checks are ready when you need them.</strong>
+              <small>
+                Doolittle avoids probing providers and local services just to
+                open this page.
+              </small>
+            </div>
+          ) : doctor.loading ? (
             <LoadingBlock />
           ) : doctor.error ? (
             <ErrorBlock error={doctor.error} retry={doctor.reload} />

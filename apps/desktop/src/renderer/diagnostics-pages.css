@@ -3,6 +3,24 @@
   overflow: hidden;
 }
 
+.diagnostics-idle {
+  display: grid;
+  gap: 3px;
+  padding: 12px 0 4px;
+}
+
+.diagnostics-idle strong {
+  color: var(--text-soft);
+  font-size: var(--text-control);
+}
+
+.diagnostics-idle small {
+  max-width: 52ch;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.45;
+}
+
 .compact-disclosure > summary,
 .setup-guidance > summary {
   cursor: pointer;

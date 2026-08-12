@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { normalizeDoctorChecks, prioritizeDoctorChecks } from "./DocsPage";
+import {
+  doctorResourcePath,
+  normalizeDoctorChecks,
+  prioritizeDoctorChecks,
+} from "./DocsPage";
 
 describe("DocsPage diagnostics projection", () => {
+  it("keeps the runtime doctor deferred until the operator requests it", () => {
+    expect(doctorResourcePath(true, false)).toBeNull();
+    expect(doctorResourcePath(false, true)).toBeNull();
+    expect(doctorResourcePath(true, true)).toBe("/doctor");
+  });
+
   it("uses the native DiagnosticCheck summary and stable id", () => {
     expect(
       normalizeDoctorChecks({
