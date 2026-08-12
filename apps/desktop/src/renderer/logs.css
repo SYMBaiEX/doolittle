@@ -52,6 +52,26 @@
   font-size: 9px;
 }
 
+.log-console-entry {
+  color: var(--text-soft);
+}
+
+.log-console-entry.is-info [data-slot="badge"] {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  border-color: var(--line-subtle);
+}
+
+.log-console-entry.is-debug,
+.log-console-entry.is-trace {
+  opacity: 0.76;
+}
+
+.log-console-entry.is-warn [data-slot="badge"] {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 48%, var(--border));
+}
+
 @media (max-width: 700px) {
   .logs-filter-bar {
     grid-template-columns: 1fr;

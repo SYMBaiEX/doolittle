@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { toLogViewerEntries } from "./log-viewer-mapping";
+import {
+  logEntryBorderColor,
+  logEntryClassName,
+  logEntryLevelVariant,
+  toLogViewerEntries,
+} from "./log-viewer-mapping";
 
 describe("toLogViewerEntries", () => {
   it("renders scope, message, and detail as one scannable line", () => {
@@ -28,5 +33,25 @@ describe("toLogViewerEntries", () => {
       level: "info",
       message: "runtime · Event",
     });
+  });
+
+  it("keeps routine entries quiet and reserves strong treatment for failures", () => {
+    expect(logEntryClassName({ level: "info", message: "ready" })).toBe(
+      "log-console-entry is-info",
+    );
+    expect(logEntryLevelVariant("info")).toBe("secondary");
+    expect(logEntryBorderColor("info")).toBe("var(--line-subtle)");
+
+    expect(logEntryClassName({ level: "warning", message: "retry" })).toBe(
+      "log-console-entry is-warn",
+    );
+    expect(logEntryLevelVariant("warning")).toBe("outline");
+    expect(logEntryBorderColor("warning")).toBe("var(--warning)");
+
+    expect(logEntryClassName({ level: "fatal", message: "stopped" })).toBe(
+      "log-console-entry is-error",
+    );
+    expect(logEntryLevelVariant("fatal")).toBe("destructive");
+    expect(logEntryBorderColor("fatal")).toBe("var(--danger)");
   });
 });

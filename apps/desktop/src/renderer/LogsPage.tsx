@@ -12,7 +12,12 @@ import {
   useApiResource,
   useDebouncedValue,
 } from "./lib";
-import { toLogViewerEntries } from "./log-viewer-mapping";
+import {
+  logEntryBorderColor,
+  logEntryClassName,
+  logEntryLevelVariant,
+  toLogViewerEntries,
+} from "./log-viewer-mapping";
 import { OperationsTracePanel } from "./logs/OperationsTracePanel";
 import "./logs.css";
 
@@ -156,6 +161,9 @@ export function LogsPage({ active }: { active: boolean }) {
           description: "The current filters did not match any recent records.",
         }}
         entries={logEntries}
+        entryClassName={logEntryClassName}
+        entryLevelBorderColor={logEntryBorderColor}
+        entryLevelVariant={logEntryLevelVariant}
         error={resource.error || undefined}
         errorTitle="Could not load runtime logs"
         heightClassName="log-console__viewport"
