@@ -84,7 +84,8 @@ describe("operational route density", () => {
   it("uses the runtime doctor as the single health source on the About page", () => {
     const docs = read("./DocsPage.tsx");
 
-    expect(docs).toContain('active ? "/doctor" : null');
+    expect(docs).toContain("doctorResourcePath(active, doctorRequested)");
+    expect(docs).toContain('return active && requested ? "/doctor" : null');
     expect(docs).not.toContain('"/setup/summary"');
     expect(docs).not.toContain("runtime answered successfully");
   });
