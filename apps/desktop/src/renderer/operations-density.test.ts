@@ -66,6 +66,13 @@ describe("operational route density", () => {
     expect(skills).not.toContain('"/skills/installed"');
   });
 
+  it("reuses the native tool inventory summary instead of computing it twice", () => {
+    const tools = read("./ToolsPage.tsx");
+
+    expect(tools).toContain("tools.data?.summary");
+    expect(tools).not.toContain('"/tools/summary');
+  });
+
   it("keeps the primary model readiness visible and capability detail optional", () => {
     const models = read("./ModelsPage.tsx");
     expect(

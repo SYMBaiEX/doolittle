@@ -46,6 +46,12 @@ describe("handleToolRoutes", () => {
     expect(body.runtimeOwned).toBe(true);
     expect(body.policyOwned).toBe(false);
     expect(body.effectiveProfile).toBe("full");
+    expect(body.summary).toMatchObject({
+      total: 1,
+      enabled: 1,
+      runtimeOwned: true,
+      effectiveProfile: "full",
+    });
     expect(body.controlPlane).toEqual({
       total: 1,
       transports: [{ id: "transport-1" }],

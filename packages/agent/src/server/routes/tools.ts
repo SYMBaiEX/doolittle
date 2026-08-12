@@ -46,6 +46,7 @@ export async function handleToolRoutes(
       policyOwned: inventory.policyOwned,
       effectiveProfile: inventory.effectiveProfile,
       ...(inventory.policyError ? { policyError: inventory.policyError } : {}),
+      summary: inventory.summary,
       controlPlane: inventory.summary.controlPlane,
       nativePluginManager: getEffectivePluginManagerInventory(context.runtime),
     });

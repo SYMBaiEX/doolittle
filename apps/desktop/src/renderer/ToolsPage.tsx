@@ -24,9 +24,6 @@ interface ToolsResponse {
   policyOwned?: boolean;
   effectiveProfile?: string;
   policyError?: string;
-}
-
-interface ToolsSummaryResponse {
   summary?: Record<string, unknown>;
 }
 
@@ -43,12 +40,7 @@ export function ToolsPage({ active }: { active: boolean }) {
   const [profile, setProfile] = useState<ToolProfile>("full");
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
   const toolsPath = active ? `/tools?profile=${profile}` : null;
-  const summaryPath = active ? `/tools/summary?profile=${profile}` : null;
   const tools = useApiResource<ToolsResponse>(toolsPath, [active, profile]);
-  const summary = useApiResource<ToolsSummaryResponse>(summaryPath, [
-    active,
-    profile,
-  ]);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const entries = asArray(tools.data?.tools).map(asRecord);
@@ -105,7 +97,7 @@ export function ToolsPage({ active }: { active: boolean }) {
       ],
     };
   });
-  const totals = summary.data?.summary ?? {};
+  const totals = tools.data?.summary ?? {};
 
   return (
     <div className="page">
