@@ -1649,8 +1649,8 @@ td {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: clamp(22px, 4vw, 38px);
+  gap: 18px;
+  padding: 18px 22px;
   overflow: hidden;
   background: color-mix(in srgb, var(--accent) 4%, var(--surface-raised));
   border: 1px solid var(--border);
@@ -1670,22 +1670,22 @@ td {
 .about-mark {
   display: grid;
   flex: 0 0 auto;
-  width: 82px;
-  height: 82px;
+  width: 58px;
+  height: 58px;
   place-items: center;
   color: #160b03;
   background: var(--accent);
   border: 1px solid var(--accent);
   border-radius: 4px;
   font-family: var(--font-display);
-  font-size: 38px;
+  font-size: 27px;
   font-weight: 750;
 }
 
 .about-hero h2 {
   margin: 7px 0 6px;
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: clamp(23px, 2.4vw, 31px);
   font-weight: 650;
   letter-spacing: -0.035em;
 }
@@ -1695,7 +1695,7 @@ td {
   margin: 0;
   color: var(--text-soft);
   font-size: 11px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .command-list {
@@ -1756,6 +1756,55 @@ td {
 .architecture-flow > i {
   color: var(--accent);
   font-style: normal;
+}
+
+.architecture-disclosure {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.architecture-disclosure > summary {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 9px 13px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.architecture-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.architecture-disclosure > summary > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.architecture-disclosure > summary small,
+.architecture-disclosure > summary > span:last-child {
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+
+.architecture-disclosure > summary > span:last-child {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.architecture-disclosure[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.architecture-disclosure__body {
+  padding: 13px;
 }
 
 .chat-workspace {

@@ -4,6 +4,7 @@ import type {
   RuntimeStatus,
   SessionsResponse,
 } from "../shared/contracts";
+import { CompactStatStrip } from "./components/CompactStatStrip";
 import {
   buildNextActions,
   countOwnershipSignals,
@@ -218,40 +219,34 @@ export function DashboardPage({
                         } still need attention before every runtime surface is ready.`
                       : "No immediate blockers surfaced across runtime, setup, or repository state."}
           </p>
-          <div className="dashboard-inline-metrics">
-            <div>
-              <strong>{accountPoolSummary.enabled}</strong>
-              <span>Agent accounts</span>
-            </div>
-            <div>
-              <strong>{compactNumber(sessionSummary.total)}</strong>
-              <span>Conversations</span>
-            </div>
-            <div>
-              <strong>{compactNumber(runtimePluginCount)}</strong>
-              <span>Runtime plugins</span>
-            </div>
-            <div>
-              <strong>{repo.branch}</strong>
-              <span>Workspace branch</span>
-            </div>
-          </div>
-        </div>
-        <div className="dashboard-side-column">
-          <div>
-            <small>Pending approvals</small>
-            <strong>{compactNumber(approvalCards.length)}</strong>
-          </div>
-          <div>
-            <small>Running tasks</small>
-            <strong>{compactNumber(taskCards.length)}</strong>
-          </div>
-          <div>
-            <small>Setup warnings</small>
-            <strong>{compactNumber(setupHealth.warnings)}</strong>
-          </div>
+          <p className="dashboard-pressure-line">
+            <span>{approvalCards.length} approvals</span>
+            <span>{taskCards.length} running tasks</span>
+            <span>{setupHealth.warnings} setup warnings</span>
+          </p>
         </div>
       </section>
+
+      <CompactStatStrip
+        label="Workspace summary"
+        stats={[
+          { label: "Agent accounts", value: accountPoolSummary.enabled },
+          {
+            label: "Conversations",
+            value: compactNumber(sessionSummary.total),
+          },
+          {
+            label: "Runtime plugins",
+            value: compactNumber(runtimePluginCount),
+          },
+          {
+            detail: repo.dirty ? `${repo.changedFiles} changed` : "Clean",
+            label: "Workspace branch",
+            tone: repo.dirty ? "warn" : "good",
+            value: repo.branch,
+          },
+        ]}
+      />
 
       <div className="two-column-grid">
         <section className="content-card">
@@ -321,23 +316,35 @@ export function DashboardPage({
                 {repo.dirty ? `${repo.changedFiles} changed` : "Clean"}
               </Badge>
             </div>
-            {setupEntries.slice(0, 4).map((entry) => (
-              <div className="status-row" key={entry.key}>
-                <div>
-                  <strong>{entry.label}</strong>
-                  <small>{entry.value}</small>
-                </div>
-                <Badge tone={entry.tone}>{entry.tone}</Badge>
-              </div>
-            ))}
           </div>
-          {repo.lines.length > 0 ? (
-            <div className="dashboard-line-list spaced">
-              {repo.lines.slice(0, 4).map((line) => (
-                <code key={line}>{line}</code>
+          <details className="dashboard-workspace-details">
+            <summary>
+              <span>Workspace diagnostics</span>
+              <Badge tone={setupHealth.warnings ? "warn" : "good"}>
+                {setupHealth.warnings
+                  ? `${setupHealth.warnings} warnings`
+                  : "Ready"}
+              </Badge>
+            </summary>
+            <div className="stack-list">
+              {setupEntries.slice(0, 4).map((entry) => (
+                <div className="status-row" key={entry.key}>
+                  <div>
+                    <strong>{entry.label}</strong>
+                    <small>{entry.value}</small>
+                  </div>
+                  <Badge tone={entry.tone}>{entry.tone}</Badge>
+                </div>
               ))}
             </div>
-          ) : null}
+            {repo.lines.length > 0 ? (
+              <div className="dashboard-line-list spaced">
+                {repo.lines.slice(0, 4).map((line) => (
+                  <code key={line}>{line}</code>
+                ))}
+              </div>
+            ) : null}
+          </details>
           {repoStatus.loading || setup.loading ? <LoadingBlock /> : null}
           {repoStatus.error ? (
             <ErrorBlock error={repoStatus.error} retry={repoStatus.reload} />

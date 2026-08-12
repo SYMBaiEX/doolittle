@@ -1,4 +1,5 @@
 import type { AccountPoolResponse } from "../shared/contracts";
+import { CompactStatStrip } from "./components/CompactStatStrip";
 import {
   asArray,
   asRecord,
@@ -153,6 +154,19 @@ export function normalizeSetupSnapshot(value: unknown): SetupSnapshotRow[] {
   return rows;
 }
 
+export function selectPrimarySetupSnapshot(
+  rows: SetupSnapshotRow[],
+): SetupSnapshotRow[] {
+  const primaryIds = new Set([
+    "readiness",
+    "providers",
+    "transports",
+    "services",
+  ]);
+  const primary = rows.filter((row) => primaryIds.has(row.id));
+  return primary.length ? primary : rows.slice(0, 4);
+}
+
 export function SetupPage({
   active,
   onOpenProviders,
@@ -177,10 +191,26 @@ export function SetupPage({
     .filter((account) => account.enabled).length;
   const checklistItems = normalizeSetupChecklist(checklist.data);
   const summaryEntries = normalizeSetupSnapshot(summary.data);
+  const primarySummaryEntries = selectPrimarySetupSnapshot(summaryEntries);
 
   return (
     <div className="page">
       <PageHeader
+        actions={
+          active ? (
+            <button
+              className="text-button"
+              onClick={() => {
+                accountPool.reload();
+                checklist.reload();
+                summary.reload();
+              }}
+              type="button"
+            >
+              Refresh
+            </button>
+          ) : null
+        }
         eyebrow="Operator"
         title="Setup"
         description="Track local setup health and onboarding checklist status."
@@ -191,97 +221,63 @@ export function SetupPage({
         </EmptyBlock>
       ) : (
         <>
-          <div className="two-column-grid">
-            <section className="content-card">
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">Optional for delegated work</span>
-                  <h2>Spawned-agent accounts</h2>
-                </div>
-                <button
-                  className="text-button"
-                  disabled={!onOpenProviders}
-                  onClick={onOpenProviders}
-                  type="button"
-                >
-                  Providers &amp; accounts
-                </button>
-              </div>
+          <section className="setup-account-bar">
+            <div className="setup-account-bar__copy">
+              <span className="eyebrow">Optional for delegated work</span>
+              <strong>Spawned-agent accounts</strong>
+              <small>
+                Rotate Codex or Claude subscriptions across build and research
+                sessions.
+              </small>
+            </div>
+            <div className="setup-account-bar__actions">
               {accountPool.loading ? (
-                <LoadingBlock />
+                <span className="setup-account-bar__state">Checking…</span>
               ) : accountPool.error ? (
-                <ErrorBlock
-                  error={accountPool.error}
-                  retry={accountPool.reload}
-                />
+                <Badge tone="warn">Unavailable</Badge>
               ) : (
-                <div className="status-row">
-                  <div>
-                    <strong>{pooledEnabled} enabled account(s)</strong>
-                    <small>
-                      Add Codex or Claude accounts to rotate spawned build and
-                      research sessions. This does not change the conversation
-                      model above.
-                    </small>
-                  </div>
-                  <Badge tone={pooledEnabled ? "good" : "neutral"}>
-                    {pooledEnabled ? "Available" : "Optional"}
-                  </Badge>
-                </div>
+                <Badge tone={pooledEnabled ? "good" : "neutral"}>
+                  {pooledEnabled ? `${pooledEnabled} enabled` : "Optional"}
+                </Badge>
               )}
-            </section>
-            <section className="content-card setup-snapshot">
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">Summary</span>
-                  <h2>Setup snapshot</h2>
-                </div>
-                <button
-                  className="text-button"
-                  onClick={summary.reload}
-                  type="button"
-                >
-                  Refresh
-                </button>
-              </div>
-              {summary.loading ? (
-                <LoadingBlock />
-              ) : summary.error ? (
-                <ErrorBlock error={summary.error} retry={summary.reload} />
-              ) : summaryEntries.length ? (
-                <div className="stack-list">
-                  {summaryEntries.map((entry) => (
-                    <div className="status-row" key={entry.id}>
-                      <div>
-                        <strong>{entry.label}</strong>
-                        <small>{entry.value}</small>
-                        {entry.detail ? <small>{entry.detail}</small> : null}
-                      </div>
-                      <Badge tone={entry.tone}>
-                        {entry.tone === "good"
-                          ? "Ready"
-                          : entry.tone === "warn"
-                            ? "Review"
-                            : entry.tone === "bad"
-                              ? "Blocked"
-                              : "Info"}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyBlock title="No summary payload">
-                  No setup summary is available.
-                </EmptyBlock>
-              )}
-              {summary.data ? (
-                <RawDataDisclosure
-                  label="Inspect raw setup response"
-                  value={summary.data}
-                />
-              ) : null}
-            </section>
-          </div>
+              <button
+                className="text-button"
+                disabled={!onOpenProviders}
+                onClick={onOpenProviders}
+                type="button"
+              >
+                Providers &amp; accounts
+              </button>
+            </div>
+          </section>
+          {accountPool.error ? (
+            <ErrorBlock error={accountPool.error} retry={accountPool.reload} />
+          ) : null}
+          {summary.loading ? (
+            <LoadingBlock />
+          ) : summary.error ? (
+            <ErrorBlock error={summary.error} retry={summary.reload} />
+          ) : primarySummaryEntries.length ? (
+            <CompactStatStrip
+              label="Setup snapshot"
+              stats={primarySummaryEntries.map((entry) => ({
+                detail: entry.detail,
+                label: entry.label,
+                tone: entry.tone,
+                value: entry.value,
+              }))}
+            />
+          ) : (
+            <EmptyBlock title="No summary payload">
+              No setup summary is available.
+            </EmptyBlock>
+          )}
+          {summary.data ? (
+            <RawDataDisclosure
+              label="Inspect raw setup response"
+              value={summary.data}
+            />
+          ) : null}
           <details className="content-card setup-guidance">
             <summary>
               <span>

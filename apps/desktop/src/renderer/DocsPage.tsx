@@ -91,7 +91,7 @@ export function DocsPage({ active }: { active: boolean }) {
     [active],
   );
   const checks = normalizeDoctorChecks(doctor.data);
-  const prioritizedChecks = prioritizeDoctorChecks(checks);
+  const prioritizedChecks = prioritizeDoctorChecks(checks, 5);
   const passing = checks.filter((check) =>
     ["pass", "ready", "ok"].includes(asString(check.status).toLowerCase()),
   ).length;
@@ -204,14 +204,15 @@ export function DocsPage({ active }: { active: boolean }) {
           ) : null}
         </section>
       </div>
-      <section className="content-card">
-        <div className="card-heading">
-          <div>
-            <span className="eyebrow">Architecture</span>
-            <h2>Desktop security boundary</h2>
-          </div>
-        </div>
-        <div className="architecture-flow">
+      <details className="architecture-disclosure">
+        <summary>
+          <span>
+            <strong>Desktop security boundary</strong>
+            <small>Renderer → preload → Electron → local runtime</small>
+          </span>
+          <span>Inspect</span>
+        </summary>
+        <div className="architecture-flow architecture-disclosure__body">
           <div>
             <strong>React renderer</strong>
             <span>Sandboxed UI</span>
@@ -232,7 +233,7 @@ export function DocsPage({ active }: { active: boolean }) {
             <span>127.0.0.1 ephemeral port</span>
           </div>
         </div>
-      </section>
+      </details>
     </div>
   );
 }

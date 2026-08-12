@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { normalizeSetupChecklist, normalizeSetupSnapshot } from "./SetupPage";
+import {
+  normalizeSetupChecklist,
+  normalizeSetupSnapshot,
+  selectPrimarySetupSnapshot,
+} from "./SetupPage";
 
 describe("SetupPage projections", () => {
   it("preserves the native string checklist as guidance", () => {
@@ -58,5 +62,22 @@ describe("SetupPage projections", () => {
       ]),
     );
     expect(JSON.stringify(rows)).not.toContain("[object Object]");
+    expect(selectPrimarySetupSnapshot(rows).map((row) => row.id)).toEqual([
+      "readiness",
+      "providers",
+      "transports",
+      "services",
+    ]);
+  });
+
+  it("keeps a bounded fallback when the native summary has no primary rows", () => {
+    const rows = normalizeSetupSnapshot({
+      summary: {
+        version: { version: "2.0.3-beta.7" },
+        directories: [{ exists: true }],
+      },
+    });
+
+    expect(selectPrimarySetupSnapshot(rows)).toEqual(rows);
   });
 });

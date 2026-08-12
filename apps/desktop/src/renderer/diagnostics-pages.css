@@ -35,8 +35,44 @@
   transform: rotate(90deg);
 }
 
-.setup-snapshot .raw-data-disclosure {
-  margin-top: 12px;
+.setup-account-bar {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 9px 13px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.setup-account-bar__copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.setup-account-bar__copy strong {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 15px;
+}
+
+.setup-account-bar__copy small,
+.setup-account-bar__state {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.setup-account-bar__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
 }
 
 .setup-guidance {
@@ -119,6 +155,15 @@
 }
 
 @media (max-width: 700px) {
+  .setup-account-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .setup-account-bar__actions {
+    justify-content: space-between;
+  }
+
   .setup-guidance__toolbar {
     align-items: stretch;
     flex-direction: column;
