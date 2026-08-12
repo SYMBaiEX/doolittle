@@ -1,5 +1,4 @@
 import {
-  type FormEvent,
   type KeyboardEvent,
   useEffect,
   useMemo,
@@ -8,50 +7,17 @@ import {
 } from "react";
 import type { ChatContextRequest } from "./chat-context-handoff";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
-import {
-  asNumber,
-  asRecord,
-  asString,
-  desktopRequest,
-  errorMessage,
-  Notice,
-  type UnknownRecord,
-} from "./lib";
+import { asNumber, asRecord, asString, Notice } from "./lib";
 import { AgentRosterPanel } from "./orchestration/AgentRosterPanel";
-import type {
-  ConfirmedAction,
-  NoticeKind,
-  PlanStatus,
-  SurfaceNotice,
-  TaskAction,
-  TaskCreatePriority,
-} from "./orchestration/models";
-import { compactControlValue, compactStatus } from "./orchestration/models";
+import { compactControlValue } from "./orchestration/models";
 import { OrchestrationRunsPanel } from "./orchestration/OrchestrationRunsPanel";
-import {
-  CODEGEN_MODES,
-  type CodegenMode,
-} from "./orchestration/orchestration-runs-model";
 import { PlanCreateForm } from "./orchestration/PlanCreateForm";
 import { PlanPanel } from "./orchestration/PlanPanel";
 import { TaskCreateForm } from "./orchestration/TaskCreateForm";
 import { TaskQueuePanel } from "./orchestration/TaskQueuePanel";
-import {
-  orchestrationStatusTier,
-  type TaskCapability,
-  taskCreatePayload,
-  taskSpawnPayload,
-} from "./orchestration-helpers";
-import {
-  type CodegenCancellationResponse,
-  type CodegenRunRecord,
-  type DelegationTaskRecord,
-  isolatedCodingWorktrees,
-  orchestrationResourceId,
-  type PlanRecord,
-  useOrchestrationResources,
-  type WorkflowBundleResponse,
-} from "./orchestration-resources";
+import { useOrchestrationActions } from "./orchestration/useOrchestrationActions";
+import { orchestrationStatusTier } from "./orchestration-helpers";
+import { useOrchestrationResources } from "./orchestration-resources";
 import { ReviewPage } from "./ReviewPage";
 import "./orchestration.css";
 
@@ -63,14 +29,6 @@ export const WORK_TABS: ReadonlyArray<{ id: WorkTabId; label: string }> = [
   { id: "runs", label: "Build & research" },
   { id: "review", label: "Review" },
 ];
-
-async function postJson<T>(path: string, body: UnknownRecord): Promise<T> {
-  return desktopRequest<T>(
-    path as Parameters<typeof desktopRequest<T>>[0],
-    "POST",
-    body,
-  );
-}
 
 function SummaryChip({
   label,
@@ -118,12 +76,6 @@ export function OrchestrationPage({
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [selectedWorkflowId, setSelectedWorkflowId] = useState("");
   const [selectedRunId, setSelectedRunId] = useState("");
-  const [bundleWorkflowId, setBundleWorkflowId] = useState("");
-  const [bundleResult, setBundleResult] =
-    useState<WorkflowBundleResponse | null>(null);
-  const [bundleError, setBundleError] = useState("");
-  const [bundleLoading, setBundleLoading] = useState(false);
-  const [confirmedRunCancellation, setConfirmedRunCancellation] = useState("");
   const tabRefs = useRef<Record<WorkTabId, HTMLButtonElement | null>>({
     tasks: null,
     agents: null,
@@ -131,8 +83,6 @@ export function OrchestrationPage({
     runs: null,
     review: null,
   });
-  const confirmDialogRef = useRef<HTMLDivElement>(null);
-  const confirmReturnRef = useRef<HTMLButtonElement | null>(null);
   const consumedNavigationIntents = useRef(new Set<string>());
 
   useEffect(() => {
@@ -182,97 +132,6 @@ export function OrchestrationPage({
     plans.find((entry) => asString(entry.id) === selectedPlanId) ?? plans[0];
   const { selectedWorkflow, selectedRun, visibleRuns } = codegenSelection;
 
-  const [showTaskCreate, setShowTaskCreate] = useState(false);
-  const [showPlanCreate, setShowPlanCreate] = useState(false);
-  const [showChildCreate, setShowChildCreate] = useState(false);
-  const [taskCreateTitle, setTaskCreateTitle] = useState("");
-  const [taskCreateObjective, setTaskCreateObjective] = useState("");
-  const [taskCreateCapability, setTaskCreateCapability] =
-    useState<TaskCapability>("coding");
-  const [taskCreateFramework, setTaskCreateFramework] = useState("");
-  const [taskCreateGroup, setTaskCreateGroup] = useState("");
-  const [taskCreatePriority, setTaskCreatePriority] =
-    useState<TaskCreatePriority>("");
-  const [taskCreateWorkspaceRoot, setTaskCreateWorkspaceRoot] = useState("");
-  const availableTaskCreateWorktrees =
-    taskCreateCapability === "coding"
-      ? isolatedCodingWorktrees(
-          worktrees,
-          workspacePath,
-          window.doolittle.platform,
-        )
-      : worktrees;
-  const selectedTaskCreateWorktree = availableTaskCreateWorktrees.find(
-    (worktree) => worktree.path === taskCreateWorkspaceRoot,
-  );
-  const [childTitle, setChildTitle] = useState("");
-  const [childObjective, setChildObjective] = useState("");
-  const [childWorkspaceRoot, setChildWorkspaceRoot] = useState("");
-  const [superviseConcurrency, setSuperviseConcurrency] = useState("3");
-  const [taskNotes, setTaskNotes] = useState<Record<string, string>>({});
-  const [cascadeChildren, setCascadeChildren] = useState(true);
-  const [confirmedAction, setConfirmedAction] =
-    useState<ConfirmedAction | null>(null);
-
-  const [planTitle, setPlanTitle] = useState("");
-  const [planObjective, setPlanObjective] = useState("");
-  const [planStatus, setPlanStatus] = useState<PlanStatus>("draft");
-  const [planTaskId, setPlanTaskId] = useState("");
-  const [planWorkflowId, setPlanWorkflowId] = useState("");
-  const [planSteerInstruction, setPlanSteerInstruction] = useState("");
-
-  const [codegenMode, setCodegenMode] = useState<CodegenMode>("generate");
-  const [codegenProjectName, setCodegenProjectName] = useState("");
-  const [codegenPrompt, setCodegenPrompt] = useState("");
-  const [codegenProjectPath, setCodegenProjectPath] = useState("");
-  const [codegenTargetType, setCodegenTargetType] = useState("plugin");
-
-  const [busyKeys, setBusyKeys] = useState<Record<string, boolean>>({});
-  const [notices, setNotices] = useState<SurfaceNotice[]>([]);
-  const guidedCodingLaunchId = useRef("");
-
-  useEffect(() => {
-    if (!workspacePath?.trim()) return;
-    setCodegenProjectPath((current) => current || workspacePath);
-    setCodegenProjectName(
-      (current) => current || workspaceLabel || "workspace",
-    );
-  }, [workspaceLabel, workspacePath]);
-
-  useEffect(() => {
-    if (navigationIntent?.kind !== "orchestration-task" || !active) return;
-    if (consumedNavigationIntents.current.has(navigationIntent.id)) {
-      onAcknowledgeNavigationIntent(navigationIntent.id);
-      return;
-    }
-    const taskId = navigationIntent.target.taskId.trim();
-    if (!taskId || tasksResource.loading) return;
-    if (!tasks.some((task) => task.id === taskId)) {
-      consumedNavigationIntents.current.add(navigationIntent.id);
-      setNotices((current) => [
-        {
-          id: Date.now(),
-          tone: "warn",
-          message:
-            "That task is no longer available in the selected workspace.",
-        },
-        ...current,
-      ]);
-      onAcknowledgeNavigationIntent(navigationIntent.id);
-      return;
-    }
-    consumedNavigationIntents.current.add(navigationIntent.id);
-    setActiveTab("tasks");
-    setSelectedTaskId(taskId);
-    onAcknowledgeNavigationIntent(navigationIntent.id);
-  }, [
-    active,
-    navigationIntent,
-    onAcknowledgeNavigationIntent,
-    tasks,
-    tasksResource.loading,
-  ]);
-
   useEffect(() => {
     if (tasks.length > 0 && !tasks.some((task) => task.id === selectedTaskId)) {
       setSelectedTaskId(tasks[0]?.id ?? "");
@@ -305,15 +164,6 @@ export function OrchestrationPage({
       setSelectedRunId(codegenSelection.selectedRunIdUpdate);
     }
   }, [codegenSelection.selectedRunIdUpdate]);
-
-  useEffect(() => {
-    if (
-      confirmedRunCancellation &&
-      confirmedRunCancellation !== selectedRun?.id
-    ) {
-      setConfirmedRunCancellation("");
-    }
-  }, [confirmedRunCancellation, selectedRun?.id]);
 
   const overview = asRecord(overviewResource.data?.overview);
   const nativeOverview = asRecord(overview.native);
@@ -355,9 +205,6 @@ export function OrchestrationPage({
   const workflowSummary = asRecord(codegenWorkflowsResource.data?.summary);
   const planningControl = asRecord(plansResource.data?.control);
   const supportsPlanCreate = Boolean(planningControl.supportsCreate);
-  const selectedTaskNote = selectedTask
-    ? (taskNotes[selectedTask.id] ?? "")
-    : "";
   const linkedPlanTask = selectedPlan?.taskId
     ? tasks.find((task) => task.id === selectedPlan.taskId)
     : undefined;
@@ -365,6 +212,143 @@ export function OrchestrationPage({
     asString(selectedPlan?.status) === "active" &&
     Boolean(linkedPlanTask) &&
     asString(linkedPlanTask?.status) === "pending";
+
+  const {
+    approvePlan,
+    availableTaskCreateWorktrees,
+    bundleError,
+    bundleLoading,
+    bundleResult,
+    bundleWorkflowId,
+    busyKeys,
+    cancelCodegenRun,
+    cascadeChildren,
+    childObjective,
+    childTitle,
+    childWorkspaceRoot,
+    closeTaskConfirmation,
+    codegenMode,
+    codegenProjectName,
+    codegenProjectPath,
+    codegenPrompt,
+    codegenTargetType,
+    confirmedAction,
+    confirmedRunCancellation,
+    confirmDialogRef,
+    loadBundle,
+    notices,
+    onSubmitCodegen,
+    onSubmitCreatePlan,
+    onSubmitCreateTask,
+    onSubmitSpawn,
+    openTaskCreate,
+    planObjective,
+    planStatus,
+    planSteerInstruction,
+    planTaskId,
+    planTitle,
+    planWorkflowId,
+    publishNotice,
+    requestDestructiveTaskAction,
+    runSupervise,
+    runTaskAction,
+    selectWorkflow,
+    selectedTaskNote,
+    setCascadeChildren,
+    setChildObjective,
+    setChildTitle,
+    setChildWorkspaceRoot,
+    setCodegenMode,
+    setCodegenProjectName,
+    setCodegenProjectPath,
+    setCodegenPrompt,
+    setCodegenTargetType,
+    setConfirmedAction,
+    setConfirmedRunCancellation,
+    setPlanObjective,
+    setPlanStatus,
+    setPlanSteerInstruction,
+    setPlanTaskId,
+    setPlanTitle,
+    setPlanWorkflowId,
+    setShowChildCreate,
+    setShowPlanCreate,
+    setShowTaskCreate,
+    setSuperviseConcurrency,
+    setTaskCreateCapability,
+    setTaskCreateFramework,
+    setTaskCreateGroup,
+    setTaskCreateObjective,
+    setTaskCreatePriority,
+    setTaskCreateTitle,
+    setTaskCreateWorkspaceRoot,
+    setTaskNotes,
+    showChildCreate,
+    showPlanCreate,
+    showTaskCreate,
+    steerPlan,
+    superviseConcurrency,
+    taskCreateCapability,
+    taskCreateFramework,
+    taskCreateGroup,
+    taskCreateObjective,
+    taskCreatePriority,
+    taskCreateTitle,
+    taskCreateWorkspaceRoot,
+  } = useOrchestrationActions({
+    active,
+    codegenExecution,
+    codegenReady,
+    onSelectPlan: setSelectedPlanId,
+    onSelectRun: setSelectedRunId,
+    onSelectTask: setSelectedTaskId,
+    onSelectWorkflow: setSelectedWorkflowId,
+    planCanSteer,
+    planningControl,
+    platform: window.doolittle.platform,
+    recommendedPooledFramework,
+    refreshCodegen,
+    refreshDelegation,
+    reloadPlans: plansResource.reload,
+    selectedPlan,
+    selectedRun,
+    selectedTask,
+    selectedWorkflow,
+    supportsPlanCreate,
+    workspaceLabel,
+    workspacePath,
+    worktrees,
+  });
+
+  useEffect(() => {
+    if (navigationIntent?.kind !== "orchestration-task" || !active) return;
+    if (consumedNavigationIntents.current.has(navigationIntent.id)) {
+      onAcknowledgeNavigationIntent(navigationIntent.id);
+      return;
+    }
+    const taskId = navigationIntent.target.taskId.trim();
+    if (!taskId || tasksResource.loading) return;
+    if (!tasks.some((task) => task.id === taskId)) {
+      consumedNavigationIntents.current.add(navigationIntent.id);
+      publishNotice({
+        tone: "warn",
+        message: "That task is no longer available in the selected workspace.",
+      });
+      onAcknowledgeNavigationIntent(navigationIntent.id);
+      return;
+    }
+    consumedNavigationIntents.current.add(navigationIntent.id);
+    setActiveTab("tasks");
+    setSelectedTaskId(taskId);
+    onAcknowledgeNavigationIntent(navigationIntent.id);
+  }, [
+    active,
+    navigationIntent,
+    onAcknowledgeNavigationIntent,
+    publishNotice,
+    tasks,
+    tasksResource.loading,
+  ]);
 
   const planMetaLines = useMemo(() => {
     return Object.entries(planningControl).map(
@@ -385,458 +369,6 @@ export function OrchestrationPage({
       orchestrationStatusTier(asString(worker.status, "idle")) === "running",
   ).length;
 
-  const publishNotice = ({
-    tone,
-    message,
-    details,
-  }: {
-    tone: NoticeKind;
-    message: string;
-    details?: string;
-  }) => {
-    setNotices((current) => [
-      ...current.slice(-2),
-      { id: Date.now(), tone, message, details },
-    ]);
-  };
-
-  const runBusy = (key: string, next: boolean) => {
-    setBusyKeys((current) => {
-      if (next) return { ...current, [key]: true };
-      const nextState = { ...current };
-      delete nextState[key];
-      return nextState;
-    });
-  };
-
-  const onSubmitCreateTask = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!taskCreateTitle.trim() || !taskCreateObjective.trim()) {
-      publishNotice({
-        tone: "bad",
-        message: "Title and objective are required.",
-      });
-      return;
-    }
-    const startsCoding = taskCreateCapability === "coding";
-    if (startsCoding && !selectedTaskCreateWorktree?.branch) {
-      publishNotice({
-        tone: "bad",
-        message: "Choose an active branch worktree before starting coding.",
-      });
-      return;
-    }
-    const key = "task:create";
-    runBusy(key, true);
-    try {
-      const payload = taskCreatePayload({
-        title: taskCreateTitle,
-        objective: taskCreateObjective,
-        capability: taskCreateCapability,
-        framework: taskCreateFramework,
-        group: taskCreateGroup,
-        priority: taskCreatePriority,
-        workspaceRoot: taskCreateWorkspaceRoot,
-      });
-      if (startsCoding && !guidedCodingLaunchId.current) {
-        guidedCodingLaunchId.current = crypto.randomUUID();
-      }
-      let nextId = "";
-      if (startsCoding) {
-        const result = await postJson<{
-          launch?: { task?: DelegationTaskRecord; review?: { tab?: string } };
-        }>("/delegation/tasks/start-coding", {
-          ...payload,
-          branch: selectedTaskCreateWorktree?.branch,
-          launchId: guidedCodingLaunchId.current,
-        });
-        nextId = asString(result.launch?.task?.id);
-      } else {
-        const result = await postJson<{ task?: DelegationTaskRecord }>(
-          "/delegation/tasks",
-          payload,
-        );
-        nextId = asString(result.task?.id);
-      }
-      if (nextId) setSelectedTaskId(nextId);
-      setTaskCreateTitle("");
-      setTaskCreateObjective("");
-      setTaskCreateFramework("");
-      setTaskCreateGroup("");
-      setTaskCreatePriority("");
-      setTaskCreateWorkspaceRoot("");
-      guidedCodingLaunchId.current = "";
-      setShowTaskCreate(false);
-      publishNotice({
-        tone: "good",
-        message: startsCoding
-          ? "Coding session started. Follow its output in Queue; review is ready in the Review tab."
-          : "Task created.",
-      });
-      refreshDelegation();
-    } catch (error) {
-      publishNotice({
-        tone: "bad",
-        message: "Task creation failed.",
-        details: errorMessage(error),
-      });
-    } finally {
-      runBusy(key, false);
-    }
-  };
-
-  const onSubmitSpawn = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!active || !selectedTask || !childObjective.trim()) return;
-    const key = `task:${selectedTask.id}:spawn`;
-    runBusy(key, true);
-    try {
-      const result = await postJson<{ task?: DelegationTaskRecord }>(
-        `/delegation/tasks/${orchestrationResourceId(selectedTask.id)}/spawn`,
-        taskSpawnPayload({
-          title: childTitle || "Child task",
-          objective: childObjective,
-          group: selectedTask.group,
-          profile: selectedTask.profile,
-          capabilityProfile: selectedTask.capabilityProfile,
-          kind: selectedTask.kind,
-          framework: selectedTask.framework,
-          executionMode: selectedTask.executionMode,
-          workspaceRoot: childWorkspaceRoot,
-        }),
-      );
-      setChildTitle("");
-      setChildObjective("");
-      setChildWorkspaceRoot("");
-      setShowChildCreate(false);
-      const childId = asString(result.task?.id);
-      if (childId) setSelectedTaskId(childId);
-      publishNotice({ tone: "good", message: "Child task spawned." });
-      refreshDelegation();
-    } catch (error) {
-      publishNotice({
-        tone: "bad",
-        message: "Child task could not be spawned.",
-        details: errorMessage(error),
-      });
-    } finally {
-      runBusy(key, false);
-    }
-  };
-
-  const runTaskAction = async (
-    task: DelegationTaskRecord,
-    action: TaskAction,
-  ) => {
-    if (!active) return;
-    const key = `task:${task.id}:${action}`;
-    const note = taskNotes[task.id]?.trim() ?? "";
-    if (action === "note" && !note) {
-      publishNotice({ tone: "bad", message: "Write a note before adding it." });
-      return;
-    }
-    runBusy(key, true);
-    try {
-      await postJson<UnknownRecord>(
-        `/delegation/tasks/${orchestrationResourceId(task.id)}/${action}`,
-        {
-          note: note || undefined,
-          cascadeChildren:
-            action === "cancel" || action === "fail"
-              ? cascadeChildren
-              : undefined,
-        },
-      );
-      if (action === "note") {
-        setTaskNotes((current) => ({ ...current, [task.id]: "" }));
-      }
-      const restoreConfirmationFocus =
-        confirmedAction?.taskId === task.id &&
-        (action === "cancel" || action === "fail");
-      setConfirmedAction(null);
-      if (restoreConfirmationFocus) {
-        requestAnimationFrame(() => confirmReturnRef.current?.focus());
-      }
-      publishNotice({
-        tone: "good",
-        message: `${compactStatus(action)} accepted for ${task.title}.`,
-      });
-      refreshDelegation();
-    } catch (error) {
-      publishNotice({
-        tone: "bad",
-        message: `${compactStatus(action)} failed for ${task.title}.`,
-        details: errorMessage(error),
-      });
-    } finally {
-      runBusy(key, false);
-    }
-  };
-
-  const requestDestructiveTaskAction = (
-    task: DelegationTaskRecord,
-    action: "cancel" | "fail",
-    returnTarget: HTMLButtonElement,
-  ) => {
-    confirmReturnRef.current = returnTarget;
-    setConfirmedAction({ taskId: task.id, action });
-  };
-
-  const closeTaskConfirmation = () => {
-    setConfirmedAction(null);
-    requestAnimationFrame(() => confirmReturnRef.current?.focus());
-  };
-
-  useEffect(() => {
-    if (!confirmedAction) return;
-    requestAnimationFrame(() => confirmDialogRef.current?.focus());
-  }, [confirmedAction]);
-
-  const runSupervise = async () => {
-    const key = "task:supervise";
-    runBusy(key, true);
-    try {
-      const concurrency = Number(superviseConcurrency);
-      await postJson<UnknownRecord>("/delegation/supervise", {
-        concurrency:
-          Number.isFinite(concurrency) && concurrency > 0
-            ? concurrency
-            : undefined,
-      });
-      publishNotice({ tone: "good", message: "Queue supervision completed." });
-      refreshDelegation();
-    } catch (error) {
-      publishNotice({
-        tone: "bad",
-        message: "Queue supervision failed.",
-        details: errorMessage(error),
-      });
-    } finally {
-      runBusy(key, false);
-    }
-  };
-
-  const onSubmitCreatePlan = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!active || !supportsPlanCreate) {
-      publishNotice({
-        tone: "bad",
-        message: "Plan creation is unavailable in the current runtime.",
-        details: asString(planningControl.detail) || undefined,
-      });
-      return;
-    }
-    if (!planTitle.trim() || !planObjective.trim()) {
-      publishNotice({
-        tone: "bad",
-        message: "Plan title and objective are required.",
-      });
-      return;
-    }
-    const key = "plan:create";
-    runBusy(key, true);
-    try {
-      const result = await postJson<{ plan?: PlanRecord }>("/plans/create", {
-        title: planTitle.trim(),
-        objective: planObjective.trim(),
-        status: planStatus,
-        taskId: planTaskId.trim() || undefined,
-        workflowId: planWorkflowId.trim() || undefined,
-      });
-      const nextId = asString(result.plan?.id);
-      if (nextId) setSelectedPlanId(nextId);
-      setPlanTitle("");
-      setPlanObjective("");
-      setPlanTaskId("");
-      setPlanWorkflowId("");
-      setShowPlanCreate(false);
-      publishNotice({ tone: "good", message: "Plan created." });
-      plansResource.reload();
-    } catch (error) {
-      publishNotice({
-        tone: "bad",
-        message: "Plan creation failed.",
-        details: errorMessage(error),
-      });
-    } finally {
-      runBusy(key, false);
-    }
-  };
-
-  const approvePlan = async (plan: PlanRecord) => {
-    const key = `plan:${plan.id}:approve`;
-    runBusy(key, true);
-    try {
-      await postJson<{ plan?: PlanRecord }>(
-        `/plans/${orchestrationResourceId(plan.id)}/approve`,
-        {},
-      );
-      publishNotice({
-        tone: "good",
-        message: "Plan approved.",
-        details:
-          "Approval activates the plan. The linked task still requires a separate explicit execution.",
-      });
-      plansResource.reload();
-    } catch (error) {
-      publishNotice({
-        tone: "bad",
-        message: "Plan approval failed.",
-        details: errorMessage(error),
-      });
-    } finally {
-      runBusy(key, false);
-    }
-  };
-
-  const steerPlan = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!selectedPlan || !planSteerInstruction.trim() || !planCanSteer) return;
-    const key = `plan:${selectedPlan.id}:steer`;
-    runBusy(key, true);
-    try {
-      await postJson<UnknownRecord>(
-        `/plans/${orchestrationResourceId(selectedPlan.id)}/steer`,
-        {
-          instruction: planSteerInstruction.trim(),
-        },
-      );
-      setPlanSteerInstruction("");
-      publishNotice({
-        tone: "good",
-        message: "Operator steering recorded.",
-        details:
-          "The instruction will enter the linked task on its next execution or retry.",
-      });
-      plansResource.reload();
-      refreshDelegation();
-    } catch (error) {
-      publishNotice({
-        tone: "bad",
-        message: "Plan steering failed.",
-        details: errorMessage(error),
-      });
-    } finally {
-      runBusy(key, false);
-    }
-  };
-
-  const onSubmitCodegen = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!active || !codegenReady) {
-      publishNotice({
-        tone: "bad",
-        message: "Code generation is not ready.",
-        details: asString(codegenExecution.detail) || undefined,
-      });
-      return;
-    }
-    const isQa = codegenMode === "qa";
-    if (
-      (isQa && !codegenProjectPath.trim()) ||
-      (!isQa && (!codegenProjectName.trim() || !codegenPrompt.trim()))
-    ) {
-      publishNotice({
-        tone: "bad",
-        message: isQa
-          ? "Project path is required for QA."
-          : "Project name and request are required.",
-      });
-      return;
-    }
-    const key = `codegen:${codegenMode}`;
-    runBusy(key, true);
-    try {
-      const body = isQa
-        ? { projectPath: codegenProjectPath.trim() }
-        : codegenMode === "generate"
-          ? {
-              projectName: codegenProjectName.trim(),
-              prompt: codegenPrompt.trim(),
-            }
-          : {
-              projectName: codegenProjectName.trim(),
-              description: codegenPrompt.trim(),
-              targetType: codegenTargetType.trim() || "plugin",
-            };
-      const result = await postJson<UnknownRecord>(
-        `/codegen/${codegenMode}`,
-        body,
-      );
-      const nextWorkflowId = asString(result.workflowId);
-      const nextRun = asRecord(
-        result.run ?? result.prdRun ?? result.researchRun,
-      );
-      if (nextWorkflowId) setSelectedWorkflowId(nextWorkflowId);
-      if (asString(nextRun.id)) setSelectedRunId(asString(nextRun.id));
-      publishNotice({
-        tone: "good",
-        message: `${CODEGEN_MODES.find((mode) => mode.id === codegenMode)?.label} completed.`,
-        details: nextWorkflowId ? `Workflow ${nextWorkflowId}` : undefined,
-      });
-      setCodegenPrompt("");
-      refreshDelegation();
-      refreshCodegen();
-    } catch (error) {
-      publishNotice({
-        tone: "bad",
-        message: `${compactStatus(codegenMode)} failed.`,
-        details: errorMessage(error),
-      });
-    } finally {
-      runBusy(key, false);
-    }
-  };
-
-  const loadBundle = async () => {
-    if (!selectedWorkflow) return;
-    const workflowId = selectedWorkflow.id;
-    setBundleWorkflowId(workflowId);
-    setBundleResult(null);
-    setBundleError("");
-    setBundleLoading(true);
-    try {
-      const result = await postJson<WorkflowBundleResponse>(
-        `/codegen/workflows/${orchestrationResourceId(workflowId)}/bundle`,
-        {},
-      );
-      setBundleResult(result);
-    } catch (error) {
-      setBundleError(errorMessage(error));
-    } finally {
-      setBundleLoading(false);
-    }
-  };
-
-  const cancelCodegenRun = async (run: CodegenRunRecord) => {
-    const key = `codegen:${run.id}:cancel`;
-    runBusy(key, true);
-    try {
-      const result = await postJson<CodegenCancellationResponse>(
-        `/codegen/runs/${orchestrationResourceId(run.id)}/cancel`,
-        {},
-      );
-      setConfirmedRunCancellation("");
-      publishNotice({
-        tone: "warn",
-        message: result.cancellation?.alreadyCancelled
-          ? "Run was already cancelled."
-          : "Run lifecycle marked cancelled.",
-        details:
-          result.cancellation?.note ?? "The cancellation receipt was recorded.",
-      });
-      refreshCodegen();
-    } catch (error) {
-      publishNotice({
-        tone: "bad",
-        message: "Run cancellation failed.",
-        details: errorMessage(error),
-      });
-    } finally {
-      runBusy(key, false);
-    }
-  };
-
   const selectTab = (tab: WorkTabId) => {
     setActiveTab(tab);
     onSectionChange?.(tab);
@@ -848,15 +380,6 @@ export function OrchestrationPage({
     const next =
       WORK_TABS[(index + direction + WORK_TABS.length) % WORK_TABS.length];
     selectTab(next.id);
-  };
-
-  const openTaskCreate = (capability: TaskCapability) => {
-    setTaskCreateCapability(capability);
-    setTaskCreateFramework((current) => current || recommendedPooledFramework);
-    setTaskCreateWorkspaceRoot((current) =>
-      capability === "coding" ? "" : current || workspacePath || "",
-    );
-    setShowTaskCreate(true);
   };
 
   return (
@@ -1202,13 +725,7 @@ export function OrchestrationPage({
             onCodegenProjectPathChange={setCodegenProjectPath}
             onCodegenTargetTypeChange={setCodegenTargetType}
             onSubmitCodegen={onSubmitCodegen}
-            onSelectWorkflow={(workflowId) => {
-              setSelectedWorkflowId(workflowId);
-              setSelectedRunId("");
-              setBundleWorkflowId("");
-              setBundleResult(null);
-              setBundleError("");
-            }}
+            onSelectWorkflow={selectWorkflow}
             onSelectRun={setSelectedRunId}
             onRequestRunCancellation={setConfirmedRunCancellation}
             onDismissRunCancellation={() => setConfirmedRunCancellation("")}
