@@ -26,7 +26,11 @@ import {
 import { resolveWorkspaceServicePath } from "./path";
 import { searchWorkspace } from "./search";
 import { summarizeWorkspaceTree } from "./summary";
-import { listWorkspaceTree } from "./tree";
+import {
+  listWorkspaceTree,
+  listWorkspaceTreeAsync,
+  type WorkspaceTreeSnapshot,
+} from "./tree";
 
 export type {
   WorkspaceDirectoryResult,
@@ -47,6 +51,10 @@ export class WorkspaceService {
 
   tree(maxDepth = 2): WorkspaceEntry[] {
     return listWorkspaceTree(this.root(), maxDepth);
+  }
+
+  treeAsync(maxDepth = 2, maxEntries?: number): Promise<WorkspaceTreeSnapshot> {
+    return listWorkspaceTreeAsync(this.root(), maxDepth, maxEntries);
   }
 
   read(path: string): string {

@@ -8,8 +8,12 @@ export async function handleWorkspaceRoutes(
 ): Promise<Response | null> {
   if (request.method === "GET" && url.pathname === "/workspace/tree") {
     const depth = Number(url.searchParams.get("depth") ?? "2");
+    const snapshot = await context.services.workspace.treeAsync(
+      Number.isNaN(depth) ? 2 : depth,
+    );
     return json({
-      entries: context.services.workspace.tree(Number.isNaN(depth) ? 2 : depth),
+      entries: snapshot.entries,
+      truncated: snapshot.truncated,
     });
   }
 

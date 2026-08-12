@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { runTextProcess } from "@/services/process-execution";
 import type { WorkspaceEntry } from "@/types";
 import { resolveWorkspacePath } from "./path";
-import { listWorkspaceTree } from "./tree";
+import { listWorkspaceTree, listWorkspaceTreeAsync } from "./tree";
 
 export interface WorkspaceSearchResult {
   path: string;
@@ -18,16 +19,25 @@ export async function searchWorkspace(
     return [];
   }
 
-  const ripgrepResults = await searchWorkspaceWithRipgrep(
+  const files = (await listWorkspaceTreeAsync(workspaceDir, 8)).entries
+    .filter((entry) => entry.type === "file")
+    .map((entry) => entry.path);
+  const ripgrepResults = await searchWorkspaceWithRipgrepFiles(
     workspaceDir,
     query,
     maxResults,
+    files,
   );
   if (ripgrepResults !== undefined) {
     return ripgrepResults;
   }
 
-  return searchWorkspaceWithoutRipgrep(workspaceDir, query, maxResults);
+  return searchWorkspaceWithoutRipgrepAsync(
+    workspaceDir,
+    query,
+    maxResults,
+    files,
+  );
 }
 
 export function searchWorkspaceWithoutRipgrep(
@@ -76,14 +86,25 @@ export async function searchWorkspaceWithRipgrep(
   query: string,
   maxResults: number,
 ): Promise<WorkspaceSearchResult[] | undefined> {
+  return searchWorkspaceWithRipgrepFiles(
+    workspaceDir,
+    query,
+    maxResults,
+    searchableWorkspaceFiles(workspaceDir).map((entry) => entry.path),
+  );
+}
+
+async function searchWorkspaceWithRipgrepFiles(
+  workspaceDir: string,
+  query: string,
+  maxResults: number,
+  files: string[],
+): Promise<WorkspaceSearchResult[] | undefined> {
   const trimmed = query.trim();
   if (!trimmed || maxResults <= 0) {
     return [];
   }
 
-  const files = searchableWorkspaceFiles(workspaceDir).map(
-    (entry) => entry.path,
-  );
   if (!files.length) {
     return [];
   }
@@ -152,6 +173,37 @@ export async function searchWorkspaceWithRipgrep(
   } catch {
     return undefined;
   }
+}
+
+async function searchWorkspaceWithoutRipgrepAsync(
+  workspaceDir: string,
+  query: string,
+  maxResults: number,
+  files: string[],
+): Promise<WorkspaceSearchResult[]> {
+  const lowerQuery = query.trim().toLowerCase();
+  if (!lowerQuery || maxResults <= 0) return [];
+
+  const results: WorkspaceSearchResult[] = [];
+  for (const path of files) {
+    let content = "";
+    try {
+      content = await readFile(
+        resolveWorkspacePath(workspaceDir, path),
+        "utf8",
+      );
+    } catch {
+      continue;
+    }
+
+    const matches = content
+      .split("\n")
+      .filter((line) => line.toLowerCase().includes(lowerQuery))
+      .slice(0, 3);
+    if (matches.length) results.push({ path, matches });
+    if (results.length >= maxResults) break;
+  }
+  return results;
 }
 
 function searchableWorkspaceFiles(workspaceDir: string): WorkspaceEntry[] {

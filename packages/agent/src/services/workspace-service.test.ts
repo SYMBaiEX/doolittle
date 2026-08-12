@@ -328,6 +328,42 @@ describe("WorkspaceService", () => {
     }
   });
 
+  it("builds a deterministic bounded tree without blocking the runtime", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-workspace-async-tree-"));
+    const service = new WorkspaceService(root);
+
+    try {
+      mkdirSync(join(root, "src"), { recursive: true });
+      writeFileSync(join(root, "a.txt"), "a\n", "utf8");
+      writeFileSync(join(root, "src", "b.txt"), "b\n", "utf8");
+      for (let index = 0; index < 300; index += 1) {
+        writeFileSync(
+          join(root, `generated-${String(index).padStart(3, "0")}.txt`),
+          "generated\n",
+          "utf8",
+        );
+      }
+
+      let timerRan = false;
+      setTimeout(() => {
+        timerRan = true;
+      }, 0);
+      const complete = await service.treeAsync(4, 1_000);
+
+      expect(timerRan).toBe(true);
+      expect(complete.truncated).toBe(false);
+      expect(complete.entries).toEqual(service.tree(4));
+
+      const bounded = await service.treeAsync(4, 3);
+      expect(bounded).toEqual({
+        entries: complete.entries.slice(0, 3),
+        truncated: true,
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("applies the same exposure policy to ripgrep and fallback search", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-workspace-search-"));
 

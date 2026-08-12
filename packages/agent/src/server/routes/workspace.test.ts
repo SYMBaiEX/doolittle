@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
+import type { WorkspaceTreeSnapshot } from "@/services/workspace-service/tree";
 import { handleWorkspaceRoutes } from "./workspace";
 
 function createContext(): AppContext {
   return {
     services: {
       workspace: {
-        tree: (depth: number) => [{ id: `tree:${depth}` }],
+        treeAsync: async (depth: number) => ({
+          entries: [{ id: `tree:${depth}` }],
+          truncated: false,
+        }),
         read: (path: string) => `contents:${path}`,
         search: (query: string) => [{ query }],
         checkpointSupport: () => ({ supported: true }),
@@ -56,6 +60,7 @@ describe("handleWorkspaceRoutes", () => {
 
     await expect(tree?.json()).resolves.toEqual({
       entries: [{ id: "tree:4" }],
+      truncated: false,
     });
     await expect(read?.json()).resolves.toEqual({
       path: "README.md",
@@ -63,6 +68,33 @@ describe("handleWorkspaceRoutes", () => {
     });
     await expect(search?.json()).resolves.toEqual({
       results: [{ query: "runtime" }],
+    });
+  });
+
+  it("awaits the bounded asynchronous workspace traversal", async () => {
+    let resolveTree: ((value: WorkspaceTreeSnapshot) => void) | undefined;
+    const context = createContext();
+    context.services.workspace.treeAsync = () =>
+      new Promise((resolve) => {
+        resolveTree = resolve;
+      });
+
+    const responsePromise = handleWorkspaceRoutes(
+      context,
+      new Request("http://localhost/workspace/tree?depth=12"),
+      new URL("http://localhost/workspace/tree?depth=12"),
+    );
+    await Promise.resolve();
+    expect(resolveTree).toBeTypeOf("function");
+
+    resolveTree?.({
+      entries: [{ path: "bounded.ts", type: "file", depth: 0 }],
+      truncated: true,
+    });
+    const response = await responsePromise;
+    await expect(response?.json()).resolves.toEqual({
+      entries: [{ path: "bounded.ts", type: "file", depth: 0 }],
+      truncated: true,
     });
   });
 
