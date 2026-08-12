@@ -37,10 +37,12 @@ const routes = [
 ] as const;
 
 const visualAuditRoutes = new Set([
+  "automations",
   "dashboard",
   "media",
   "operatorSetup",
   "docs",
+  "settings",
 ]);
 
 test.describe("Doolittle desktop navigation", () => {
@@ -456,6 +458,20 @@ test.describe("Doolittle desktop navigation", () => {
             await expect(traces).toHaveAttribute("open", "");
             await traces.locator("summary").click();
             await expect(traces).not.toHaveAttribute("open", "");
+          }
+          if (route === "settings") {
+            await viewContainer
+              .getByRole("button", { name: /Advanced/ })
+              .click();
+            const advancedGroups = viewContainer.locator(
+              ".settings-field-disclosure",
+            );
+            await expect(advancedGroups.first()).toBeVisible();
+            await expect(advancedGroups.first()).not.toHaveAttribute("open");
+            await advancedGroups.first().locator("summary").click();
+            await expect(advancedGroups.first()).toHaveAttribute("open", "");
+            await advancedGroups.first().locator("summary").click();
+            await expect(advancedGroups.first()).not.toHaveAttribute("open");
           }
           if (route === "sessions") {
             await expect(
