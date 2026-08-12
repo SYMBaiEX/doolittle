@@ -77,7 +77,8 @@
 }
 
 .thread-workbench-heading,
-.thread-workbench-repository,
+.thread-workbench-context-row,
+.thread-workbench-context-primary,
 .thread-workbench-panel-heading,
 .thread-workbench-preview > div,
 .thread-workbench-plan-list article > div,
@@ -88,7 +89,7 @@
 }
 
 .thread-workbench-heading > div,
-.thread-workbench-repository > div,
+.thread-workbench-context-copy,
 .thread-workbench-panel-heading > div {
   display: grid;
   gap: 3px;
@@ -187,28 +188,41 @@
   outline: none;
 }
 
-.thread-workbench-repository {
+.thread-workbench-context-row {
   background: var(--surface-soft);
   border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
-  border-radius: 6px;
+  border-radius: 8px;
   gap: 9px;
-  justify-content: flex-start;
-  padding: 8px;
+  min-width: 0;
+  padding: 7px 8px;
 }
 
-.thread-workbench-status-strip {
+.thread-workbench-context-primary {
+  flex: 1 1 auto;
+  gap: 8px;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.thread-workbench-context-copy {
+  flex: 1 1 auto;
+}
+
+.thread-workbench-context-meta {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
-  padding: 0 2px;
   color: color-mix(in srgb, currentColor 42%, transparent);
   font: 7px / 1 var(--font-mono, ui-monospace, monospace);
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  justify-content: flex-end;
 }
 
-.thread-workbench-status-strip span {
+.thread-workbench-context-meta span {
   display: inline-flex;
   align-items: center;
   min-width: 0;
@@ -218,17 +232,21 @@
   white-space: nowrap;
 }
 
-.thread-workbench-status-strip span:first-child {
+.thread-workbench-context-meta > .badge {
+  margin-right: 2px;
+}
+
+.thread-workbench-context-meta span:first-of-type {
   color: color-mix(in srgb, currentColor 65%, transparent);
 }
 
-.thread-workbench-status-strip span:not(:last-child)::after {
+.thread-workbench-context-meta span:not(:last-child)::after {
   margin-left: 3px;
   color: color-mix(in srgb, currentColor 26%, transparent);
   content: "/";
 }
 
-.thread-workbench-status-strip i {
+.thread-workbench-context-meta i {
   width: 5px;
   height: 5px;
   background: var(--good, #6cc46e);
@@ -236,22 +254,18 @@
   box-shadow: 0 0 6px color-mix(in srgb, var(--good, #6cc46e) 60%, transparent);
 }
 
-.thread-workbench-repository > div {
-  flex: 1;
-}
-
-.thread-workbench-repository strong,
-.thread-workbench-repository small {
+.thread-workbench-context-copy strong,
+.thread-workbench-context-copy small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.thread-workbench-repository strong {
+.thread-workbench-context-copy strong {
   font: 650 11px / 1.2 var(--font-mono, ui-monospace, monospace);
 }
 
-.thread-workbench-repository small {
+.thread-workbench-context-copy small {
   color: color-mix(in srgb, currentColor 53%, transparent);
   font-size: 10px;
 }
@@ -732,6 +746,13 @@
   color: color-mix(in srgb, currentColor 64%, transparent);
   font-size: 10px;
   line-height: 1.45;
+}
+
+.thread-workbench-brief-empty {
+  color: color-mix(in srgb, currentColor 48%, transparent);
+  font-size: 10px;
+  line-height: 1.45;
+  margin: 0;
 }
 
 .thread-workbench-brief-stat {
@@ -1276,7 +1297,7 @@
     padding-inline: 11px;
   }
 
-  .thread-workbench-repository small {
+  .thread-workbench-context-copy small {
     display: none;
   }
 }
@@ -1291,8 +1312,9 @@
     font-size: 13px;
   }
 
-  .thread-workbench-repository {
-    padding: 8px;
+  .thread-workbench-context-row {
+    align-items: flex-start;
+    gap: 7px;
   }
 
   .thread-workbench-repo-mark {
@@ -1300,8 +1322,12 @@
     width: 25px;
   }
 
-  .thread-workbench-repository strong {
+  .thread-workbench-context-copy strong {
     font-size: 10px;
+  }
+
+  .thread-workbench-context-meta {
+    justify-content: flex-start;
   }
 }
 

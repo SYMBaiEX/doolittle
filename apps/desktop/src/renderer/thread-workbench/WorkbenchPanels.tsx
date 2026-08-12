@@ -4,6 +4,7 @@ import type {
   RepositoryRemote,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
+import type { ReactNode } from "react";
 import { GitControlPanel } from "../components/GitControlPanel";
 import { ThreadWorkbenchFilesPanel } from "../components/ThreadWorkbenchFilesPanel";
 import {
@@ -94,8 +95,6 @@ type BriefPanelController = Pick<
   | "approvals"
   | "terminal"
   | "briefPlanSummary"
-  | "model"
-  | "repositorySummary"
   | "delegatedTaskEntries"
   | "approvalEntries"
   | "activeRunCount"
@@ -111,6 +110,10 @@ type SettingsPanelController = Pick<
 >;
 
 type PreviewPanelController = Pick<WorkbenchController, "preview">;
+
+function BriefEmpty({ children }: { children: ReactNode }) {
+  return <p className="thread-workbench-brief-empty">{children}</p>;
+}
 
 function FilesPanel({
   controller,
@@ -477,8 +480,6 @@ function BriefPanel({
     approvals,
     terminal,
     briefPlanSummary,
-    model,
-    repositorySummary,
     delegatedTaskEntries,
     approvalEntries,
     activeRunCount,
@@ -522,23 +523,6 @@ function BriefPanel({
         <div className="thread-workbench-brief">
           <section className="thread-workbench-brief-stack">
             <article>
-              <h3>Workspace pulse</h3>
-              <div>
-                <span>Branch</span>
-                <strong>{branchHeadLabel(model.branch, model.head)}</strong>
-              </div>
-              <div>
-                <span>Repository</span>
-                <strong>
-                  {asString(repositorySummary?.root, model.workspacePath)}
-                </strong>
-              </div>
-              <div>
-                <span>Dirty files</span>
-                <strong>{asNumber(repositorySummary?.changedFiles, 0)}</strong>
-              </div>
-            </article>
-            <article>
               <h3>Current plan</h3>
               {briefPlanSummary.activePlan ? (
                 <>
@@ -565,12 +549,12 @@ function BriefPanel({
                   </div>
                 </>
               ) : (
-                <p className="thread-workbench-empty">
-                  No active plan right now.{" "}
+                <BriefEmpty>
+                  No active plan.{" "}
                   {briefPlanSummary.draftCount > 0
                     ? `There are ${briefPlanSummary.draftCount} draft(s).`
                     : ""}
-                </p>
+                </BriefEmpty>
               )}
               <button
                 onClick={() =>
@@ -643,9 +627,7 @@ function BriefPanel({
                 })}
               </div>
             ) : (
-              <p className="thread-workbench-empty">
-                No recent tasks in the delegation queue.
-              </p>
+              <BriefEmpty>No queued delegation tasks.</BriefEmpty>
             )}
             {approvalEntries.length ? (
               <div className="thread-workbench-list">
@@ -680,6 +662,8 @@ function BriefPanel({
                   );
                 })}
               </div>
+            ) : delegatedTaskEntries.length ? (
+              <BriefEmpty>No pending execution approvals.</BriefEmpty>
             ) : null}
           </section>
 
@@ -718,9 +702,7 @@ function BriefPanel({
                   );
                 })
               ) : (
-                <p className="thread-workbench-empty">
-                  No terminal activity yet in this workspace.
-                </p>
+                <BriefEmpty>No terminal history yet.</BriefEmpty>
               )}
             </div>
           </section>

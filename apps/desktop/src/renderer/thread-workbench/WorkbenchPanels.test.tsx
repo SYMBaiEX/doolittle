@@ -12,7 +12,7 @@ vi.mock("../components/GitControlPanel", () => ({
 }));
 
 function controller(
-  selectedTab: "changes" | "plans" | "preview" | "settings",
+  selectedTab: "brief" | "changes" | "plans" | "preview" | "settings",
 ): WorkbenchController {
   return {
     model: { branch: "main", head: "12345678", selectedTab },
@@ -24,18 +24,34 @@ function controller(
       reload: vi.fn(),
     },
     planEntries: [],
+    briefPlanSummary: {
+      activePlan: null,
+      draftCount: 0,
+    },
     fileEntries: [],
     changeEntries: [],
     commandEntries: [],
     approvalEntries: [],
     delegatedTaskEntries: [],
     settingEntries: [],
+    runEntries: [],
+    activeRunCount: 0,
+    failedRunCount: 0,
     repositorySummary: { isRepository: false },
     branches: { data: null },
     conflicts: { data: null },
     remotes: { data: null },
     stashes: { data: null },
     worktrees: { data: null },
+    delegationTasks: { data: null, error: "", loading: false, reload: vi.fn() },
+    codegen: {
+      data: { summary: { total: 0 } },
+      error: "",
+      loading: false,
+      reload: vi.fn(),
+    },
+    approvals: { data: null, error: "", loading: false, reload: vi.fn() },
+    terminal: { data: null, error: "", loading: false, reload: vi.fn() },
     refreshGit: vi.fn(),
     checkpoints: {
       data: { checkpoints: [], support: { supported: false } },
@@ -53,7 +69,9 @@ function controller(
   } as unknown as WorkbenchController;
 }
 
-function render(selectedTab: "changes" | "plans" | "preview" | "settings") {
+function render(
+  selectedTab: "brief" | "changes" | "plans" | "preview" | "settings",
+) {
   const props: WorkbenchPanelsProps = {
     controller: controller(selectedTab),
     onOpenFullView: vi.fn(),
@@ -76,6 +94,19 @@ describe("WorkbenchPanels", () => {
     const markup = render("preview");
     expect(markup).toContain("Local preview tools are connected");
     expect(markup).toContain("Available");
+  });
+
+  it("renders the brief tab as a terse operational summary without duplicate workspace facts", () => {
+    const markup = render("brief");
+    expect(markup).toContain("Current plan");
+    expect(markup).toContain("No active plan.");
+    expect(markup).toContain("No queued delegation tasks.");
+    expect(markup).toContain("No terminal history yet.");
+    expect(markup).toContain('class="thread-workbench-brief-empty"');
+    expect(markup).toContain(">Add plan context</button>");
+    expect(markup).not.toContain("Workspace pulse");
+    expect(markup).not.toContain("Dirty files");
+    expect(markup).not.toContain("Repository");
   });
 
   it("defers secondary checkpoint and full-page navigation controls", () => {

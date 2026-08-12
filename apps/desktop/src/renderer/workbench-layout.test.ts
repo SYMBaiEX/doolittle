@@ -129,7 +129,7 @@ describe("thread workbench viewport layout contract", () => {
       /\.thread-workbench-tabs\s*{[^}]*grid-template-columns:\s*repeat\(7, minmax\(0, 1fr\)\);[^}]*min-width:\s*0;[^}]*overflow:\s*hidden;/s,
     );
     expect(threadWorkbenchCss).toMatch(
-      /@media \(max-width: 1180px\)[\s\S]*?\.thread-workbench-repository small\s*{[^}]*display:\s*none;/s,
+      /@media \(max-width: 1180px\)[\s\S]*?\.thread-workbench-context-copy small\s*{[^}]*display:\s*none;/s,
     );
     expect(threadWorkbenchCss).toMatch(
       /@media \(max-width: 720px\)[\s\S]*?\.thread-workbench-tabs button small\s*{[^}]*display:\s*none;/s,

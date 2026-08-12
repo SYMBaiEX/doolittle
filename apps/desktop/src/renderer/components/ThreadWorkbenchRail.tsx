@@ -137,44 +137,46 @@ export function ThreadWorkbenchRail({
             ×
           </button>
         </div>
-        <div className="thread-workbench-repository">
-          <span className="thread-workbench-repo-mark" aria-hidden="true">
-            ⎇
-          </span>
-          <div>
-            <strong>{branchHeadLabel(model.branch, model.head)}</strong>
-            <small title={model.worktreePath || model.workspacePath}>
-              {model.worktreePath
-                ? `Worktree · ${compactRailLabel(model.worktreePath)}`
-                : `Local · ${compactRailLabel(model.workspacePath)}`}
-            </small>
+        <div className="thread-workbench-context-row">
+          <div className="thread-workbench-context-primary">
+            <span className="thread-workbench-repo-mark" aria-hidden="true">
+              ⎇
+            </span>
+            <div className="thread-workbench-context-copy">
+              <strong>{branchHeadLabel(model.branch, model.head)}</strong>
+              <small title={model.worktreePath || model.workspacePath}>
+                {model.worktreePath
+                  ? `Worktree · ${compactRailLabel(model.worktreePath)}`
+                  : `Local · ${compactRailLabel(model.workspacePath)}`}
+              </small>
+            </div>
           </div>
-          <Badge
-            tone={
-              repositorySummary?.dirty
-                ? "warn"
-                : repositorySummary?.isRepository
-                  ? "good"
-                  : "neutral"
-            }
+          <div
+            className="thread-workbench-context-meta"
+            aria-label="Workbench status"
+            role="status"
           >
-            {repositorySummary?.dirty
-              ? `${asNumber(repositorySummary.changedFiles)} changed`
-              : repositorySummary?.isRepository
-                ? "clean"
-                : "workspace"}
-          </Badge>
-        </div>
-        <div
-          className="thread-workbench-status-strip"
-          aria-label="Workbench status"
-          role="status"
-        >
-          <span>
-            <i aria-hidden="true" /> {model.lifecycle}
-          </span>
-          <span>{model.environment}</span>
-          <span>{THREAD_WORKBENCH_TABS.length} modules</span>
+            <Badge
+              tone={
+                repositorySummary?.dirty
+                  ? "warn"
+                  : repositorySummary?.isRepository
+                    ? "good"
+                    : "neutral"
+              }
+            >
+              {repositorySummary?.dirty
+                ? `${asNumber(repositorySummary.changedFiles)} changed`
+                : repositorySummary?.isRepository
+                  ? "clean"
+                  : "workspace"}
+            </Badge>
+            <span>
+              <i aria-hidden="true" /> {model.lifecycle}
+            </span>
+            <span>{model.environment}</span>
+            <span>{THREAD_WORKBENCH_TABS.length} tabs</span>
+          </div>
         </div>
       </header>
 
