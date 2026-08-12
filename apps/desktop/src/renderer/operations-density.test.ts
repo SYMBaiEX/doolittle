@@ -59,6 +59,13 @@ describe("operational route density", () => {
     );
   });
 
+  it("reuses the native skill summary instead of fetching installed skills twice", () => {
+    const skills = read("./SkillsPage.tsx");
+
+    expect(skills).toContain("asArray(summary.data?.installed)");
+    expect(skills).not.toContain('"/skills/installed"');
+  });
+
   it("keeps the primary model readiness visible and capability detail optional", () => {
     const models = read("./ModelsPage.tsx");
     expect(

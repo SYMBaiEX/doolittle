@@ -36,10 +36,6 @@ export function SkillsPage({ active }: { active: boolean }) {
     active ? "/skills/summary" : null,
     [active],
   );
-  const installed = useApiResource<Record<string, unknown>>(
-    active ? "/skills/installed" : null,
-    [active],
-  );
   const [query, setQuery] = useState("");
   const [section, setSection] = useState<"catalog" | "workshop">("catalog");
   const entries = asArray(skills.data?.skills).map(asRecord);
@@ -69,7 +65,7 @@ export function SkillsPage({ active }: { active: boolean }) {
     };
   });
   const summaryValue = summary.data?.summary ?? {};
-  const installedValues = asArray(installed.data?.installed);
+  const installedValues = asArray(summary.data?.installed);
   const selectSectionWithKeyboard = (
     event: KeyboardEvent<HTMLButtonElement>,
     next: "catalog" | "workshop",
