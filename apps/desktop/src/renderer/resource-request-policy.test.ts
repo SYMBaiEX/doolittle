@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   codingWorkspaceRequests,
   orchestrationRequests,
+  reviewRequests,
 } from "./resource-request-policy";
 
 describe("coding workspace request policy", () => {
@@ -101,5 +102,38 @@ describe("orchestration request policy", () => {
     });
     expect(runs.workflowDetail).toBe(true);
     expect(runs.runDetail).toBe(true);
+  });
+});
+
+describe("review request policy", () => {
+  it("defers source-control collections until both evidence drawers are open", () => {
+    expect(
+      reviewRequests({
+        active: true,
+        evidenceOpen: false,
+        sourceControlOpen: false,
+      }),
+    ).toEqual({ primary: true, sourceControl: false });
+    expect(
+      reviewRequests({
+        active: true,
+        evidenceOpen: true,
+        sourceControlOpen: false,
+      }),
+    ).toEqual({ primary: true, sourceControl: false });
+    expect(
+      reviewRequests({
+        active: true,
+        evidenceOpen: true,
+        sourceControlOpen: true,
+      }),
+    ).toEqual({ primary: true, sourceControl: true });
+    expect(
+      reviewRequests({
+        active: false,
+        evidenceOpen: true,
+        sourceControlOpen: true,
+      }),
+    ).toEqual({ primary: false, sourceControl: false });
   });
 });

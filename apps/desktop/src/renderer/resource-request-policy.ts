@@ -67,3 +67,18 @@ export function orchestrationRequests({
     runDetail: active && runsVisible && hasSelectedRun,
   };
 }
+
+export function reviewRequests({
+  active,
+  evidenceOpen,
+  sourceControlOpen,
+}: {
+  active: boolean;
+  evidenceOpen: boolean;
+  sourceControlOpen: boolean;
+}) {
+  return {
+    primary: active,
+    sourceControl: active && evidenceOpen && sourceControlOpen,
+  };
+}

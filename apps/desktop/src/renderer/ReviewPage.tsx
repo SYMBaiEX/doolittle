@@ -18,6 +18,7 @@ import {
   Notice,
   useApiResource,
 } from "./lib";
+import { reviewRequests } from "./resource-request-policy";
 import {
   type ApprovalResponse,
   type ChangesResponse,
@@ -91,46 +92,53 @@ export function ReviewPage({
   } | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
   const [editingCommentId, setEditingCommentId] = useState("");
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [sourceControlOpen, setSourceControlOpen] = useState(false);
+  const requestPolicy = reviewRequests({
+    active,
+    evidenceOpen,
+    sourceControlOpen,
+  });
 
   const approvals = useApiResource<ApprovalResponse>(
-    active ? "/execution/approvals" : null,
-    [active, scopeKey],
+    requestPolicy.primary ? "/execution/approvals" : null,
+    [requestPolicy.primary, scopeKey],
   );
   const changes = useApiResource<ChangesResponse>(
-    active ? "/repo/changes" : null,
-    [active, scopeKey],
+    requestPolicy.primary ? "/repo/changes" : null,
+    [requestPolicy.primary, scopeKey],
   );
   const branches = useApiResource<RepositoryBranchesResponse>(
-    active ? "/repo/branches" : null,
-    [active, scopeKey],
+    requestPolicy.sourceControl ? "/repo/branches" : null,
+    [requestPolicy.sourceControl, scopeKey],
   );
   const remotes = useApiResource<RepositoryRemotesResponse>(
-    active ? "/repo/remotes" : null,
-    [active, scopeKey],
+    requestPolicy.sourceControl ? "/repo/remotes" : null,
+    [requestPolicy.sourceControl, scopeKey],
   );
   const stashes = useApiResource<RepositoryStashesResponse>(
-    active ? "/repo/stashes" : null,
-    [active, scopeKey],
+    requestPolicy.sourceControl ? "/repo/stashes" : null,
+    [requestPolicy.sourceControl, scopeKey],
   );
   const conflicts = useApiResource<RepositoryConflictsResponse>(
-    active ? "/repo/conflicts" : null,
-    [active, scopeKey],
+    requestPolicy.sourceControl ? "/repo/conflicts" : null,
+    [requestPolicy.sourceControl, scopeKey],
   );
   const worktrees = useApiResource<RepositoryWorktreesResponse>(
-    active ? "/repo/worktrees" : null,
-    [active, scopeKey],
+    requestPolicy.sourceControl ? "/repo/worktrees" : null,
+    [requestPolicy.sourceControl, scopeKey],
   );
-  const runs = useApiResource<RunsResponse>(active ? "/codegen/runs" : null, [
-    active,
-    scopeKey,
-  ]);
+  const runs = useApiResource<RunsResponse>(
+    requestPolicy.primary ? "/codegen/runs" : null,
+    [requestPolicy.primary, scopeKey],
+  );
   const repositoryReview = useApiResource<RepositoryReviewResponse>(
-    active ? "/repo/review" : null,
-    [active, scopeKey],
+    requestPolicy.primary ? "/repo/review" : null,
+    [requestPolicy.primary, scopeKey],
   );
   const branchRecord = useApiResource<ReviewRecordResponse>(
-    active ? "/review-record?limit=80" : null,
-    [active, scopeKey],
+    requestPolicy.primary ? "/review-record?limit=80" : null,
+    [requestPolicy.primary, scopeKey],
   );
   const review = repositoryReview.data?.review;
   const commentIdentity = useMemo(
@@ -291,11 +299,13 @@ export function ReviewPage({
     runs.reload();
     repositoryReview.reload();
     branchRecord.reload();
-    branches.reload();
-    remotes.reload();
-    stashes.reload();
-    conflicts.reload();
-    worktrees.reload();
+    if (requestPolicy.sourceControl) {
+      branches.reload();
+      remotes.reload();
+      stashes.reload();
+      conflicts.reload();
+      worktrees.reload();
+    }
     if (selected?.kind === "changes") patch.reload();
   };
 
@@ -528,13 +538,36 @@ export function ReviewPage({
         changes={gitChanges(changes.data)}
         checkSummary={checkSummary}
         conflicts={gitRecords<RepositoryConflict>(conflicts.data?.conflicts)}
+        evidenceOpen={evidenceOpen}
+        onEvidenceOpenChange={(open) => {
+          setEvidenceOpen(open);
+          if (!open) setSourceControlOpen(false);
+        }}
         onRefresh={reload}
+        onSourceControlOpenChange={setSourceControlOpen}
         openCommentCount={openCommentCount}
         pendingCount={pendingCount}
         remotes={gitRecords<RepositoryRemote>(remotes.data?.remotes)}
         repositoryReviewError={repositoryReview.error}
         review={review}
         stashes={gitRecords<RepositoryStash>(stashes.data?.stashes)}
+        sourceControlErrorCount={
+          [
+            branches.error,
+            remotes.error,
+            stashes.error,
+            conflicts.error,
+            worktrees.error,
+          ].filter(Boolean).length
+        }
+        sourceControlLoading={
+          branches.loading ||
+          remotes.loading ||
+          stashes.loading ||
+          conflicts.loading ||
+          worktrees.loading
+        }
+        sourceControlOpen={sourceControlOpen}
         worktrees={gitRecords<{
           path: string;
           branch?: string;

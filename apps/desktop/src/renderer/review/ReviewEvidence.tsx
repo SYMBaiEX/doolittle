@@ -7,7 +7,7 @@ import type {
 import type { RepositoryReview } from "../../shared/contracts";
 import { GitControlPanel } from "../components/GitControlPanel";
 import { GitHubPullRequestPanel } from "../components/GitHubPullRequestPanel";
-import { Notice } from "../lib";
+import { LoadingBlock, Notice } from "../lib";
 import type { RepositoryControlChange } from "../repository-control";
 import type {
   ReviewRecordEvent,
@@ -39,6 +39,12 @@ export interface ReviewEvidenceProps {
     current?: boolean;
     prunable?: boolean;
   }>;
+  evidenceOpen: boolean;
+  sourceControlOpen: boolean;
+  sourceControlLoading: boolean;
+  sourceControlErrorCount: number;
+  onEvidenceOpenChange: (open: boolean) => void;
+  onSourceControlOpenChange: (open: boolean) => void;
 }
 
 export function ReviewEvidence({
@@ -60,9 +66,18 @@ export function ReviewEvidence({
   remotes,
   stashes,
   worktrees,
+  evidenceOpen,
+  sourceControlOpen,
+  sourceControlLoading,
+  sourceControlErrorCount,
+  onEvidenceOpenChange,
+  onSourceControlOpenChange,
 }: ReviewEvidenceProps) {
   return (
-    <details className="review-evidence-drawer">
+    <details
+      className="review-evidence-drawer"
+      onToggle={(event) => onEvidenceOpenChange(event.currentTarget.open)}
+    >
       <summary>
         <span>
           <strong>Repository evidence</strong>
@@ -74,47 +89,71 @@ export function ReviewEvidence({
         </span>
         <i aria-hidden="true">›</i>
       </summary>
-      <div className="review-evidence-body">
-        {repositoryReviewError ? (
-          <Notice tone="warn">
-            GitHub review is unavailable. Local evidence remains reviewable.
-          </Notice>
-        ) : (
-          <GitHubPullRequestPanel
-            active={active}
-            onRefresh={onRefresh}
-            review={review}
+      {evidenceOpen ? (
+        <div className="review-evidence-body">
+          {repositoryReviewError ? (
+            <Notice tone="warn">
+              GitHub review is unavailable. Local evidence remains reviewable.
+            </Notice>
+          ) : (
+            <GitHubPullRequestPanel
+              active={active}
+              onRefresh={onRefresh}
+              review={review}
+            />
+          )}
+          <ReviewBranchRecord
+            agentRunCount={agentRunCount}
+            branchRecordError={branchRecordError}
+            branchScope={branchScope}
+            checkSummary={checkSummary}
+            events={branchEvents}
+            openCommentCount={openCommentCount}
+            pendingCount={pendingCount}
+            reviewBranch={review?.local.branch ?? review?.branch}
+            reviewHead={review?.local.head}
           />
-        )}
-        <ReviewBranchRecord
-          agentRunCount={agentRunCount}
-          branchRecordError={branchRecordError}
-          branchScope={branchScope}
-          checkSummary={checkSummary}
-          events={branchEvents}
-          openCommentCount={openCommentCount}
-          pendingCount={pendingCount}
-          reviewBranch={review?.local.branch ?? review?.branch}
-          reviewHead={review?.local.head}
-        />
-        <details className="review-git-controls">
-          <summary>
-            Source control · {changedFileCount} changes
-            {conflicts.length ? ` · ${conflicts.length} conflicts` : ""}
-          </summary>
-          <GitControlPanel
-            active={active && review?.local.isRepository !== false}
-            branches={branches}
-            changes={changes}
-            conflicts={conflicts}
-            onRefresh={onRefresh}
-            remotes={remotes}
-            stashes={stashes}
-            variant="full"
-            worktrees={worktrees}
-          />
-        </details>
-      </div>
+          <details
+            className="review-git-controls"
+            onToggle={(event) =>
+              onSourceControlOpenChange(event.currentTarget.open)
+            }
+          >
+            <summary>
+              Source control · {changedFileCount} changes
+              {conflicts.length ? ` · ${conflicts.length} conflicts` : ""}
+            </summary>
+            {sourceControlOpen ? (
+              sourceControlLoading ? (
+                <LoadingBlock label="Loading source-control details…" />
+              ) : (
+                <>
+                  {sourceControlErrorCount ? (
+                    <Notice tone="warn">
+                      {sourceControlErrorCount} source-control{" "}
+                      {sourceControlErrorCount === 1
+                        ? "source is"
+                        : "sources are"}{" "}
+                      unavailable. Connected repository data remains usable.
+                    </Notice>
+                  ) : null}
+                  <GitControlPanel
+                    active={active && review?.local.isRepository !== false}
+                    branches={branches}
+                    changes={changes}
+                    conflicts={conflicts}
+                    onRefresh={onRefresh}
+                    remotes={remotes}
+                    stashes={stashes}
+                    variant="full"
+                    worktrees={worktrees}
+                  />
+                </>
+              )
+            ) : null}
+          </details>
+        </div>
+      ) : null}
     </details>
   );
 }
