@@ -948,12 +948,12 @@
   gap: 1px;
 }
 
-.tools-integrations__loading strong {
+.tools-integrations__loading-title {
   color: var(--text-soft);
   font-size: var(--text-control);
 }
 
-.tools-integrations__loading small {
+.tools-integrations__loading-detail {
   font-size: var(--text-meta);
 }
 

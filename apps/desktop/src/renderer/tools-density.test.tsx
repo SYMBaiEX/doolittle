@@ -20,6 +20,7 @@ describe("ToolsPage density", () => {
     expect(markup).toContain('role="status"');
     expect(markup).toContain('aria-live="polite"');
     expect(markup).toContain('aria-busy="true"');
+    expect(markup).toContain('class="tools-integrations__loading-title"');
     expect(markup).toContain("Loading MCP workspace…");
     expect(markup).toContain("Server and tool reads begin");
   });

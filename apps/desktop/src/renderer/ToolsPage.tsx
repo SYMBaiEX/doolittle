@@ -63,8 +63,12 @@ export function McpControlPanelFallback() {
     >
       <span aria-hidden="true">◇</span>
       <div>
-        <strong>Loading MCP workspace…</strong>
-        <small>Server and tool reads begin when the controls are ready.</small>
+        <strong className="tools-integrations__loading-title">
+          Loading MCP workspace…
+        </strong>
+        <small className="tools-integrations__loading-detail">
+          Server and tool reads begin when the controls are ready.
+        </small>
       </div>
     </div>
   );
