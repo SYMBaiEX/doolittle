@@ -73,6 +73,7 @@ export function TaskQueueRail({
               }
               aria-pressed={task.id === selectedTaskId}
               onClick={() => onSelectTask(task)}
+              title={asString(task.title, "Untitled task")}
             >
               <span className="master-row master-row-top">
                 <span className="master-title-line">
@@ -81,9 +82,13 @@ export function TaskQueueRail({
                 </span>
                 <Badge tone={statusTone(status)}>{status}</Badge>
               </span>
-              <small className="orchestration-task-rail-meta">
-                {timing} · {priority} · {capability}
-              </small>
+              <span className="master-row master-row-bottom">
+                <span className="master-meta-pills">
+                  <span>{capability}</span>
+                  {priority !== "normal" ? <span>{priority}</span> : null}
+                </span>
+                <small className="orchestration-task-rail-meta">{timing}</small>
+              </span>
             </button>
           </li>
         );

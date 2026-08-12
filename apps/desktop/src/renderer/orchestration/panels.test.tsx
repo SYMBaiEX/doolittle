@@ -207,6 +207,8 @@ describe("orchestration presentational panels", () => {
     expect(markup).not.toContain("Objective 0");
     expect(markup).toContain("Showing 20 of 25");
     expect(markup).toContain("Show 5 more");
+    expect(markup).toContain("master-meta-pills");
+    expect(markup).not.toContain(">normal</span>");
     expect(markup).toContain('placeholder="Filter tasks"');
     expect(markup).toContain('aria-label="Task lifecycle"');
   });
@@ -268,6 +270,9 @@ describe("orchestration presentational panels", () => {
 
     expect(markup).toContain("Execute");
     expect(markup).toContain("Add child");
+    expect(markup).toContain("More actions");
+    expect(markup).toContain("Task controls");
+    expect(markup).toContain("orchestration-task-workspace");
     expect(markup).toContain(
       '<details class="orchestration-task-diagnostics">',
     );

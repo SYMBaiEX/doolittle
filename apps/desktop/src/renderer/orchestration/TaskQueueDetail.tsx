@@ -76,6 +76,7 @@ export function TaskQueueDetail({
   worktrees,
 }: TaskQueueDetailProps) {
   const status = asString(selectedTask.status, "pending");
+  const notes = asArray(selectedTask.notes);
   return (
     <>
       <div className="orchestration-detail-header">
@@ -98,7 +99,7 @@ export function TaskQueueDetail({
         <Badge tone={statusTone(status)}>{status}</Badge>
       </div>
 
-      <div className="orchestration-detail-tags">
+      <div className="orchestration-detail-tags orchestration-detail-facts">
         <DetailTag tone={statusTone(status)}>
           {orchestrationTimingLabel({
             status,
@@ -127,81 +128,91 @@ export function TaskQueueDetail({
         </DetailTag>
       </div>
 
-      <div className="orchestration-action-deck">
-        <div className="orchestration-action-main">
-          {(["execute", "run", "complete"] as const).map((action) => (
+      <section className="orchestration-action-card">
+        <span className="detail-kicker">Task controls</span>
+        <div className="orchestration-action-deck">
+          <div className="orchestration-action-main">
+            {(["execute", "run", "complete"] as const).map((action) => (
+              <button
+                className={
+                  action === "execute" ? "primary-button" : "secondary-button"
+                }
+                type="button"
+                key={action}
+                onClick={() => onRunTaskAction(selectedTask, action)}
+                disabled={
+                  !active || busyKeys[`task:${selectedTask.id}:${action}`]
+                }
+              >
+                {action === "execute"
+                  ? "Execute"
+                  : action === "run"
+                    ? "Mark running"
+                    : "Complete"}
+              </button>
+            ))}
+          </div>
+          <div className="orchestration-action-secondary">
             <button
-              className={
-                action === "execute" ? "primary-button" : "secondary-button"
-              }
+              className="text-button"
               type="button"
-              key={action}
-              onClick={() => onRunTaskAction(selectedTask, action)}
-              disabled={
-                !active || busyKeys[`task:${selectedTask.id}:${action}`]
+              onClick={() => onRunTaskAction(selectedTask, "retry")}
+              disabled={!active || busyKeys[`task:${selectedTask.id}:retry`]}
+            >
+              Retry
+            </button>
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => onToggleChildCreate(selectedTask)}
+              aria-expanded={showChildCreate}
+              disabled={!active || !taskDetailReady}
+              title={
+                !taskDetailReady
+                  ? "Loading task details before creating a child"
+                  : undefined
               }
             >
-              {action === "execute"
-                ? "Execute"
-                : action === "run"
-                  ? "Mark running"
-                  : "Complete"}
+              Add child
             </button>
-          ))}
+            <details className="orchestration-action-overflow">
+              <summary>More actions</summary>
+              <div className="orchestration-action-overflow__body">
+                <button
+                  className="text-button danger-text-button"
+                  type="button"
+                  onClick={(event) =>
+                    onRequestDestructiveAction(
+                      selectedTask,
+                      "fail",
+                      event.currentTarget,
+                    )
+                  }
+                  disabled={!active || busyKeys[`task:${selectedTask.id}:fail`]}
+                >
+                  Mark failed
+                </button>
+                <button
+                  className="text-button danger-text-button"
+                  type="button"
+                  onClick={(event) =>
+                    onRequestDestructiveAction(
+                      selectedTask,
+                      "cancel",
+                      event.currentTarget,
+                    )
+                  }
+                  disabled={
+                    !active || busyKeys[`task:${selectedTask.id}:cancel`]
+                  }
+                >
+                  Cancel
+                </button>
+              </div>
+            </details>
+          </div>
         </div>
-        <div className="orchestration-action-secondary">
-          <button
-            className="text-button"
-            type="button"
-            onClick={() => onRunTaskAction(selectedTask, "retry")}
-            disabled={!active || busyKeys[`task:${selectedTask.id}:retry`]}
-          >
-            Retry
-          </button>
-          <button
-            className="text-button"
-            type="button"
-            onClick={() => onToggleChildCreate(selectedTask)}
-            aria-expanded={showChildCreate}
-            disabled={!active || !taskDetailReady}
-            title={
-              !taskDetailReady
-                ? "Loading task details before creating a child"
-                : undefined
-            }
-          >
-            Add child
-          </button>
-          <button
-            className="text-button danger-text-button"
-            type="button"
-            onClick={(event) =>
-              onRequestDestructiveAction(
-                selectedTask,
-                "fail",
-                event.currentTarget,
-              )
-            }
-            disabled={!active || busyKeys[`task:${selectedTask.id}:fail`]}
-          >
-            Mark failed
-          </button>
-          <button
-            className="text-button danger-text-button"
-            type="button"
-            onClick={(event) =>
-              onRequestDestructiveAction(
-                selectedTask,
-                "cancel",
-                event.currentTarget,
-              )
-            }
-            disabled={!active || busyKeys[`task:${selectedTask.id}:cancel`]}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
+      </section>
 
       {confirmedAction?.taskId === selectedTask.id ? (
         <div
@@ -306,6 +317,58 @@ export function TaskQueueDetail({
         </form>
       ) : null}
 
+      <div className="orchestration-task-workspace">
+        <section className="orchestration-evidence orchestration-workspace-card">
+          <span className="detail-kicker">Evidence</span>
+          {selectedTask.lastOutputPath ? (
+            <code>{selectedTask.lastOutputPath}</code>
+          ) : (
+            <SmallEmpty>No artifact path reported.</SmallEmpty>
+          )}
+        </section>
+        <section className="orchestration-evidence orchestration-workspace-card">
+          <span className="detail-kicker">Task notes</span>
+          {notes.length > 0 ? (
+            <ul>
+              {notes.slice(-5).map((note) => (
+                <li key={`${selectedTask.id}:note:${asString(note)}`}>
+                  {asString(note)}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <SmallEmpty>No notes recorded.</SmallEmpty>
+          )}
+          <form className="orchestration-note-composer" onSubmit={onSubmitNote}>
+            <label>
+              <span>Operator note</span>
+              <textarea
+                rows={2}
+                value={selectedTaskNote}
+                onChange={(event) =>
+                  onTaskNoteChange(event.target.value, selectedTask.id)
+                }
+                placeholder="Record context for this task. Notes stay isolated per task."
+                disabled={!active || busyKeys[`task:${selectedTask.id}:note`]}
+              />
+            </label>
+            <button
+              className="secondary-button"
+              type="submit"
+              disabled={
+                !active ||
+                !selectedTaskNote.trim() ||
+                busyKeys[`task:${selectedTask.id}:note`]
+              }
+            >
+              {busyKeys[`task:${selectedTask.id}:note`]
+                ? "Adding…"
+                : "Add note"}
+            </button>
+          </form>
+        </section>
+      </div>
+
       <details className="orchestration-task-diagnostics">
         <summary>
           <span>
@@ -375,59 +438,6 @@ export function TaskQueueDetail({
           <DetailRow label="Worker PID" value={selectedTask.workerPid} />
         </dl>
       </details>
-
-      <div className="orchestration-task-support">
-        <section className="orchestration-evidence">
-          <span className="detail-kicker">Evidence</span>
-          {selectedTask.lastOutputPath ? (
-            <code>{selectedTask.lastOutputPath}</code>
-          ) : (
-            <SmallEmpty>No artifact path reported.</SmallEmpty>
-          )}
-        </section>
-        <section className="orchestration-evidence">
-          <span className="detail-kicker">Task notes</span>
-          {asArray(selectedTask.notes).length > 0 ? (
-            <ul>
-              {asArray(selectedTask.notes)
-                .slice(-5)
-                .map((note) => (
-                  <li key={`${selectedTask.id}:note:${asString(note)}`}>
-                    {asString(note)}
-                  </li>
-                ))}
-            </ul>
-          ) : (
-            <SmallEmpty>No notes recorded.</SmallEmpty>
-          )}
-        </section>
-      </div>
-
-      <form className="orchestration-note-composer" onSubmit={onSubmitNote}>
-        <label>
-          <span>Operator note</span>
-          <textarea
-            rows={2}
-            value={selectedTaskNote}
-            onChange={(event) =>
-              onTaskNoteChange(event.target.value, selectedTask.id)
-            }
-            placeholder="Record context for this task. Notes stay isolated per task."
-            disabled={!active || busyKeys[`task:${selectedTask.id}:note`]}
-          />
-        </label>
-        <button
-          className="secondary-button"
-          type="submit"
-          disabled={
-            !active ||
-            !selectedTaskNote.trim() ||
-            busyKeys[`task:${selectedTask.id}:note`]
-          }
-        >
-          {busyKeys[`task:${selectedTask.id}:note`] ? "Adding…" : "Add note"}
-        </button>
-      </form>
     </>
   );
 }
