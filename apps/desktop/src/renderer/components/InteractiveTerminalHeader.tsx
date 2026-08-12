@@ -10,6 +10,7 @@ export interface InteractiveTerminalHeaderProps {
   activeShell: string;
   currentStatus: string;
   dismissShortcut?: string;
+  hasPriorOutput: boolean;
   isClosingTab: Record<string, boolean>;
   onDismiss?: () => void;
   onInterrupt: () => void;
@@ -44,6 +45,7 @@ export function InteractiveTerminalHeader({
   activeShell,
   currentStatus,
   dismissShortcut,
+  hasPriorOutput,
   isClosingTab,
   onDismiss,
   onInterrupt,
@@ -92,7 +94,11 @@ export function InteractiveTerminalHeader({
               onClick={onStart}
               type="button"
             >
-              {starting ? "Opening…" : "Open shell"}
+              {starting
+                ? "Opening…"
+                : hasPriorOutput
+                  ? "Restart shell"
+                  : "Open shell"}
             </button>
           )}
           {onDismiss ? (

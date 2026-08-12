@@ -16,6 +16,7 @@ describe("InteractiveTerminalHeader", () => {
         activeShell="zsh"
         activeTabId={tab.id}
         currentStatus="PTY · 100×30"
+        hasPriorOutput={false}
         isClosingTab={{}}
         maxTabs={4}
         onBeginRename={vi.fn()}
@@ -47,5 +48,45 @@ describe("InteractiveTerminalHeader", () => {
     expect(markup).toContain('aria-label="Create terminal tab"');
     expect(markup).toContain("Open shell");
     expect(markup).toContain("~/repo");
+  });
+
+  it("describes starting a new session after preserved output", () => {
+    const tab = {
+      ...createInteractiveTerminalTab("Terminal 1"),
+      output: "prior session output",
+    };
+    const markup = renderToStaticMarkup(
+      <InteractiveTerminalHeader
+        active
+        activeCwdLabel="~/repo"
+        activeShell="zsh"
+        activeTabId={tab.id}
+        currentStatus="PTY · 100×30"
+        hasPriorOutput
+        isClosingTab={{}}
+        maxTabs={4}
+        onBeginRename={vi.fn()}
+        onCancelRename={vi.fn()}
+        onCloseActiveSession={vi.fn()}
+        onCloseTab={vi.fn()}
+        onCreateTab={vi.fn()}
+        onInterrupt={vi.fn()}
+        onRenameChange={vi.fn()}
+        onSaveRename={vi.fn()}
+        onSelectTab={vi.fn()}
+        onStart={vi.fn()}
+        onTabKeyDown={vi.fn()}
+        renameInputRef={{ current: null }}
+        renamingTabId={null}
+        renamingValue=""
+        running={false}
+        starting={false}
+        tabRefs={{ current: {} }}
+        tabs={[tab]}
+      />,
+    );
+
+    expect(markup).toContain("Restart shell");
+    expect(markup).not.toContain(">Open shell</button>");
   });
 });

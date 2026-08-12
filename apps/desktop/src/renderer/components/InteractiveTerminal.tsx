@@ -709,6 +709,7 @@ export function InteractiveTerminal({
         activeTabId={activeTabId}
         currentStatus={currentStatus}
         dismissShortcut={dismissShortcut}
+        hasPriorOutput={Boolean(activeTab?.output)}
         isClosingTab={isClosingTab}
         maxTabs={MAX_INTERACTIVE_TERMINAL_TABS}
         onBeginRename={beginRename}
