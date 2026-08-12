@@ -2,11 +2,34 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { AccountPoolPanel } from "./AccountPoolPanel";
 import { ProviderConnectionRow } from "./ProviderConnectionRow";
+import { ProviderRouteSummary } from "./ProviderRouteSummary";
 
 const noop = () => undefined;
 const asyncNoop = async () => undefined;
 
 describe("provider account surfaces", () => {
+  it("summarizes chat routing without repeating the provider roster", () => {
+    const markup = renderToStaticMarkup(
+      <ProviderRouteSummary activeProvider="Claude Code" ready={3} total={4} />,
+    );
+
+    expect(markup).toContain('aria-label="Chat provider status"');
+    expect(markup).toContain("Ready");
+    expect(markup).toContain("3/4");
+    expect(markup).toContain("New chats");
+    expect(markup).toContain("Claude Code");
+    expect(markup).not.toContain("Current route");
+  });
+
+  it("makes an unselected chat route actionable in the summary", () => {
+    const markup = renderToStaticMarkup(
+      <ProviderRouteSummary ready={0} total={4} />,
+    );
+
+    expect(markup).toContain("0/4");
+    expect(markup).toContain("Choose provider");
+  });
+
   it("keeps provider status, facts, and routing action in one compact row", () => {
     const markup = renderToStaticMarkup(
       <ProviderConnectionRow

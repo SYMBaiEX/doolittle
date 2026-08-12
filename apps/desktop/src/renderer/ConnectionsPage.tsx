@@ -8,6 +8,7 @@ import type {
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { AccountPoolPanel } from "./connections/AccountPoolPanel";
 import { ProviderConnectionRow } from "./connections/ProviderConnectionRow";
+import { ProviderRouteSummary } from "./connections/ProviderRouteSummary";
 import {
   type AccountsResponse,
   useConnectionsActions,
@@ -239,49 +240,20 @@ export function ConnectionsPage({
       ) : null}
       {!resource.loading && !resource.error ? (
         <div className={`provider-console ${embedded ? "is-embedded" : ""}`}>
-          <section className="provider-overview" aria-label="Provider overview">
-            <div className="provider-overview__lead">
-              <span className="eyebrow">Current route</span>
-              <h2>
-                {activeDefault
-                  ? `${activeDefault.provider.label} handles new chats`
-                  : "Choose a provider for new chats"}
-              </h2>
-              <p>
-                Chat and agent routing stay separate; credentials remain in
-                Eliza&apos;s local services.
-              </p>
-            </div>
-            <dl className="provider-overview__metrics is-compact">
-              <div>
-                <dt>Chat providers</dt>
-                <dd>
-                  <strong>{readyProviderCount}</strong>
-                  <span>of {providerViews.length} ready</span>
-                </dd>
-              </div>
-              <div>
-                <dt>Current provider</dt>
-                <dd>
-                  <strong>{activeDefault?.provider.shortLabel ?? "—"}</strong>
-                  <span>{activeDefault?.provider.label ?? "not selected"}</span>
-                </dd>
-              </div>
-            </dl>
-          </section>
-
           <section
             className="provider-surface"
             aria-labelledby="provider-connections-title"
           >
-            <header className="provider-section-heading">
+            <header className="provider-section-heading is-route-summary">
               <div>
                 <span className="eyebrow">Chat routing</span>
                 <h2 id="provider-connections-title">Provider connections</h2>
               </div>
-              <p>
-                Connect once, then choose the runtime for new conversations.
-              </p>
+              <ProviderRouteSummary
+                activeProvider={activeDefault?.provider.label}
+                ready={readyProviderCount}
+                total={providerViews.length}
+              />
             </header>
             <div className="provider-roster">
               {providerViews.map((entry) => (
