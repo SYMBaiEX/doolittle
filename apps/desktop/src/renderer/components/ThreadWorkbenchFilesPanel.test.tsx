@@ -102,6 +102,21 @@ describe("ThreadWorkbenchFilesPanel", () => {
     expect(markup).toContain("Select a file");
   });
 
+  it("labels a bounded large-workspace tree without hiding its files", () => {
+    const markup = render({
+      entries: [{ path: "src/index.ts", type: "file", depth: 1 }],
+      tree: {
+        data: { entries: [], truncated: true },
+        error: "",
+        loading: false,
+        reload: vi.fn(),
+      },
+    });
+
+    expect(markup).toContain("limited view");
+    expect(markup).toContain("1 file · 1 folder");
+  });
+
   it("loads the editor only for a selected preview and preserves its ARIA label", async () => {
     const selectedPreview = {
       entries: [{ path: "src/index.ts", type: "file", depth: 1 }],

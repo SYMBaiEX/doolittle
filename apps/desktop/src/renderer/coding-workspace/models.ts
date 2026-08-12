@@ -51,6 +51,7 @@ export interface RepositoryPatchResponse {
 
 export interface WorkspaceTreeResponse {
   entries?: WorkspaceTreeEntry[];
+  truncated?: boolean;
 }
 
 export interface WorkspaceSearchResponse {

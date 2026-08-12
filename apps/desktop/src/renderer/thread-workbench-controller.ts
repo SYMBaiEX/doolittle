@@ -39,6 +39,7 @@ interface RepositorySummaryResponse {
 }
 interface WorkspaceTreeResponse {
   entries?: unknown[];
+  truncated?: boolean;
 }
 interface RepositoryChangesResponse {
   changes?: unknown[];

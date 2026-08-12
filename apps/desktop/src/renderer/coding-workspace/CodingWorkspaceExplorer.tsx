@@ -85,6 +85,7 @@ export function CodingWorkspaceExplorer({
               entries={treeEntries}
               onOpenFile={onOpenPath}
               selectedPath={selectedPath}
+              truncated={treeResource.data?.truncated}
             />
           ) : (
             <EmptyBlock title="Workspace is empty">

@@ -13,6 +13,7 @@ const CodeEditor = lazy(async () => {
 
 export interface ThreadWorkbenchFilesTreeData {
   entries?: unknown[];
+  truncated?: boolean;
 }
 
 export interface ThreadWorkbenchFilesFileData {
@@ -57,6 +58,7 @@ export function ThreadWorkbenchFilesPanel({
                 key={workspacePath}
                 onOpenFile={onSelectPath}
                 selectedPath={selectedPath}
+                truncated={tree.data?.truncated}
               />
             ) : (
               <p className="thread-workbench-empty">

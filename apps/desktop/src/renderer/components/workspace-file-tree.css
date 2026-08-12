@@ -44,6 +44,12 @@
   font-size: 9px;
 }
 
+.workspace-file-tree-limited {
+  margin-left: 6px;
+  color: var(--warning);
+  font-style: normal;
+}
+
 .workspace-file-tree-header > div:last-child {
   display: flex;
   flex: 0 0 auto;

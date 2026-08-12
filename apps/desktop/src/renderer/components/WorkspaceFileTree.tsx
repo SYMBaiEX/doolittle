@@ -23,10 +23,12 @@ export function WorkspaceFileTree({
   entries,
   onOpenFile,
   selectedPath,
+  truncated = false,
 }: {
   entries: WorkspaceTreeEntry[];
   onOpenFile: (path: string) => void;
   selectedPath: string;
+  truncated?: boolean;
 }) {
   const [expandedDirectories, setExpandedDirectories] = useState<Set<string>>(
     () => new Set(),
@@ -109,7 +111,17 @@ export function WorkspaceFileTree({
         <div>
           <strong>Workspace</strong>
           <span>
-            {fileCount} files · {directories.length} folders
+            {fileCount} {fileCount === 1 ? "file" : "files"} ·{" "}
+            {directories.length}{" "}
+            {directories.length === 1 ? "folder" : "folders"}
+            {truncated ? (
+              <em
+                className="workspace-file-tree-limited"
+                title="This large workspace is showing a bounded tree view. Search can still find additional files."
+              >
+                limited view
+              </em>
+            ) : null}
           </span>
         </div>
         <div>
