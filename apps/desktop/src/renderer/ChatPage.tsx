@@ -2,7 +2,6 @@ import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
 import {
   type FormEvent,
   lazy,
-  type SetStateAction,
   Suspense,
   useCallback,
   useEffect,
@@ -21,7 +20,6 @@ import type {
   RuntimeStatus,
   SavedProfileRecallResponse,
   SessionForkResponse,
-  SessionMessagesResponse,
   SessionSummary,
   SessionUsageSummary,
 } from "../shared/contracts";
@@ -30,16 +28,15 @@ import { ChatTranscript } from "./chat/ChatTranscript";
 import {
   type BranchMode,
   type ChatMemoryMatchState,
-  type ConversationStore,
   type CopyState,
   type DisplayMessage,
   isDesktopRunUpdate,
   MAX_MESSAGE_ATTACHMENT_BYTES,
   MAX_MESSAGE_ATTACHMENTS,
-  type Role,
   type RunReceiptStore,
   runEventKey,
 } from "./chat/models";
+import { useChatConversationState } from "./chat/useChatConversationState";
 import { useModalFocusBoundary } from "./chat/useModalFocusBoundary";
 import type { ChatContextHandoff } from "./chat-context-handoff";
 import { commandCompletions } from "./command-completion";
@@ -54,13 +51,8 @@ import {
 } from "./context-pressure";
 import { newConversationId } from "./conversation-id";
 import {
-  CONVERSATION_PINS_EVENT,
-  loadConversationDrafts,
-  loadConversationPins,
   loadConversationQueue,
   type PersistedQueuedMessage,
-  saveConversationDrafts,
-  saveConversationPins,
   saveConversationQueue,
 } from "./conversation-persistence";
 import { desktopRequest, displayTimestamp, errorMessage } from "./lib";
@@ -72,15 +64,10 @@ import {
 } from "./memory-matches";
 import type { ProjectLike, ProjectScope } from "./project-manager/models";
 
-interface SessionForRender extends SessionSummary {
-  pinned: boolean;
-}
-
 interface SessionUsageResponse {
   usage?: SessionUsageSummary;
 }
 
-const STORAGE_KEY = "doolittle.desktop.conversations.v2";
 const INSPECTOR_STORAGE_KEY = "doolittle.desktop.chat-inspector-visible.v1";
 const MEMORY_MATCH_DEBOUNCE_MS = 380;
 const NARROW_WORKBENCH_QUERY = "(max-width: 720px)";
@@ -88,22 +75,6 @@ const ThreadWorkbenchRail = lazy(async () => {
   const module = await import("./components/ThreadWorkbenchRail");
   return { default: module.ThreadWorkbenchRail };
 });
-
-function loadMessages(): ConversationStore {
-  try {
-    const value = localStorage.getItem(STORAGE_KEY);
-    if (!value) return {};
-    const parsed = JSON.parse(value) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return {};
-    }
-    return Object.fromEntries(
-      Object.entries(parsed).filter(([, messages]) => Array.isArray(messages)),
-    ) as ConversationStore;
-  } catch {
-    return {};
-  }
-}
 
 function loadInspectorVisibility(): boolean {
   try {
@@ -179,55 +150,40 @@ export function ChatPage({
   runningTasks: number;
   chromeHost: HTMLElement | null;
 }) {
-  const initialId = useMemo(
-    () => selectedId || newConversationId(),
-    [selectedId],
-  );
-  const [messages, setMessages] = useState<ConversationStore>(() => {
-    const stored = loadMessages();
-    return Object.hasOwn(stored, initialId)
-      ? stored
-      : { ...stored, [initialId]: [] };
+  const [activeRequest, setActiveRequest] = useState<string | null>(null);
+  const requestSession = useRef<Record<string, string>>({});
+  const {
+    draft,
+    historyError,
+    loadingHistory,
+    selectedMessages,
+    selectedSession,
+    sessionSearch,
+    sessions,
+    setDraft,
+    setDraftForSession,
+    setMessages,
+    setSessionSearch,
+    togglePin,
+  } = useChatConversationState({
+    activeRequest,
+    backendReady: backend.phase === "ready",
+    onSelect,
+    remoteSessions,
+    requestSession,
+    selectedId,
   });
-  const draftSessionId = selectedId || initialId;
-  const [conversationDrafts, setConversationDrafts] = useState(() =>
-    loadConversationDrafts(localStorage),
-  );
-  const draft = conversationDrafts[draftSessionId] ?? "";
-  const setDraft = useCallback(
-    (nextValue: SetStateAction<string>) => {
-      setConversationDrafts((current) => {
-        const previous = current[draftSessionId] ?? "";
-        const next =
-          typeof nextValue === "function" ? nextValue(previous) : nextValue;
-        if (!next) {
-          if (!Object.hasOwn(current, draftSessionId)) return current;
-          const updated = { ...current };
-          delete updated[draftSessionId];
-          return updated;
-        }
-        return { ...current, [draftSessionId]: next };
-      });
-    },
-    [draftSessionId],
-  );
+  const latestSelectedMessage = selectedMessages.at(-1);
   const [memoryMatches, setMemoryMatches] = useState<ChatMemoryMatchState>({
     query: "",
     matches: [],
     status: "idle",
   });
-  const [activeRequest, setActiveRequest] = useState<string | null>(null);
   const [progress, setProgress] = useState("");
-  const [historyError, setHistoryError] = useState("");
-  const [loadingHistory, setLoadingHistory] = useState("");
   const [inspectorVisible, setInspectorVisible] = useState(
     loadInspectorVisibility,
   );
   const isNarrowWorkbench = useMediaQuery(NARROW_WORKBENCH_QUERY);
-  const [pinnedSessions, setPinnedSessions] = useState(() =>
-    loadConversationPins(localStorage),
-  );
-  const [sessionSearch, setSessionSearch] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<
     ManagedAttachmentDescriptor[]
   >([]);
@@ -281,8 +237,6 @@ export function ChatPage({
   });
   const queueRef = useRef<HTMLDivElement>(null);
   const queueDispatchRef = useRef<string | null>(null);
-  const requestSession = useRef<Record<string, string>>({});
-  const requestedHistory = useRef(new Set<string>());
   const memoryRecallSequence = useRef(0);
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const pendingBranchAttachments = useRef<{
@@ -336,10 +290,6 @@ export function ChatPage({
   );
 
   useEffect(() => {
-    if (!selectedId) onSelect(initialId);
-  }, [initialId, onSelect, selectedId]);
-
-  useEffect(() => {
     void refreshSessionUsage(selectedId);
   }, [refreshSessionUsage, selectedId]);
 
@@ -371,17 +321,9 @@ export function ChatPage({
   }, [backend.phase]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    if (!latestSelectedMessage) return;
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  useEffect(() => {
-    saveConversationPins(localStorage, pinnedSessions);
-  }, [pinnedSessions]);
-
-  useEffect(() => {
-    saveConversationDrafts(localStorage, conversationDrafts);
-  }, [conversationDrafts]);
+  }, [latestSelectedMessage]);
 
   useEffect(() => {
     saveConversationQueue(localStorage, queuedMessages);
@@ -394,13 +336,6 @@ export function ChatPage({
     },
     [],
   );
-
-  useEffect(() => {
-    const syncPins = () =>
-      setPinnedSessions(loadConversationPins(localStorage));
-    window.addEventListener(CONVERSATION_PINS_EVENT, syncPins);
-    return () => window.removeEventListener(CONVERSATION_PINS_EVENT, syncPins);
-  }, []);
 
   useEffect(() => {
     localStorage.setItem(
@@ -491,20 +426,6 @@ export function ChatPage({
   ]);
 
   useEffect(() => {
-    const selectedIsRemote = remoteSessions.some(
-      (session) => session.sessionId === selectedId,
-    );
-    if (!selectedId || selectedIsRemote) {
-      return;
-    }
-    setMessages((current) =>
-      Object.hasOwn(current, selectedId)
-        ? current
-        : { ...current, [selectedId]: [] },
-    );
-  }, [remoteSessions, selectedId]);
-
-  useEffect(() => {
     const pending = pendingBranchAttachments.current;
     if (pending?.sessionId === selectedId) {
       setAttachedFiles(pending.attachments);
@@ -515,114 +436,6 @@ export function ChatPage({
     setAttachmentValidationError("");
   }, [selectedId]);
 
-  useEffect(() => {
-    const remoteSession = remoteSessions.find(
-      (session) => session.sessionId === selectedId,
-    );
-    const selectedRequestIsActive =
-      Boolean(activeRequest) &&
-      requestSession.current[activeRequest ?? ""] === selectedId;
-    if (
-      backend.phase !== "ready" ||
-      !selectedId ||
-      !remoteSession ||
-      selectedRequestIsActive
-    ) {
-      return;
-    }
-    const historyVersion = [
-      selectedId,
-      remoteSession.messageCount,
-      remoteSession.endedAt ?? "",
-    ].join(":");
-    if (requestedHistory.current.has(historyVersion)) return;
-
-    requestedHistory.current.add(historyVersion);
-    setLoadingHistory(selectedId);
-    setHistoryError("");
-    const path =
-      `/sessions/messages?sessionId=${encodeURIComponent(selectedId)}&limit=500` as const;
-    void desktopRequest<SessionMessagesResponse>(path)
-      .then((response) => {
-        const history = response.messages
-          .filter(
-            (message) =>
-              message.role === "user" || message.role === "assistant",
-          )
-          .map<DisplayMessage>((message) => ({
-            id: message.id,
-            role: message.role as Role,
-            content: message.text,
-            attachments: message.attachments,
-            createdAt: message.createdAt,
-          }));
-        setMessages((current) => ({ ...current, [selectedId]: history }));
-      })
-      .catch((error) => {
-        requestedHistory.current.delete(historyVersion);
-        setHistoryError(errorMessage(error));
-      })
-      .finally(() =>
-        setLoadingHistory((current) => (current === selectedId ? "" : current)),
-      );
-  }, [activeRequest, backend.phase, remoteSessions, selectedId]);
-
-  const sessions = useMemo(() => {
-    const query = sessionSearch.trim().toLowerCase();
-    const byId = new Map(
-      remoteSessions.map((session) => [session.sessionId, session]),
-    );
-
-    for (const [sessionId, localMessages] of Object.entries(messages)) {
-      const firstUser = localMessages.find(
-        (message) => message.role === "user",
-      );
-      const last = localMessages.at(-1);
-      const remoteSession = byId.get(sessionId);
-      byId.set(sessionId, {
-        ...remoteSession,
-        sessionId,
-        title:
-          remoteSession?.title ??
-          firstUser?.content.slice(0, 52) ??
-          "New conversation",
-        messageCount: localMessages.length,
-        endedAt: last?.createdAt,
-        participants: [],
-        preview: firstUser ? [firstUser.content] : [],
-      });
-    }
-
-    return [...byId.values()]
-      .filter((session) => {
-        if (!query) return true;
-        const searchable = [
-          session.title ?? "",
-          session.sessionId,
-          session.preview?.[0] ?? "",
-        ]
-          .join(" ")
-          .toLowerCase();
-        return searchable.includes(query);
-      })
-      .map((session) => {
-        return {
-          ...session,
-          pinned: Boolean(pinnedSessions[session.sessionId]),
-        };
-      })
-      .sort((left, right) => {
-        if (left.pinned !== right.pinned) {
-          return left.pinned ? -1 : 1;
-        }
-        return (right.endedAt ?? "").localeCompare(left.endedAt ?? "");
-      }) as SessionForRender[];
-  }, [messages, pinnedSessions, remoteSessions, sessionSearch]);
-
-  const selectedMessages = messages[selectedId] ?? [];
-  const selectedSession = sessions.find(
-    (session) => session.sessionId === selectedId,
-  );
   const selectedContext = sessionUsage[selectedId];
   const selectedUsageError = usageErrors[selectedId];
   const selectedUpdatedAt =
@@ -942,10 +755,7 @@ export function ChatPage({
       const fork = response.fork;
 
       if (mode === "edit") {
-        setConversationDrafts((current) => ({
-          ...current,
-          [fork.sessionId]: message.content,
-        }));
+        setDraftForSession(fork.sessionId, message.content);
         pendingBranchAttachments.current = {
           sessionId: fork.sessionId,
           attachments: message.attachments ?? [],
@@ -1069,20 +879,6 @@ export function ChatPage({
     const id = newConversationId();
     setMessages((current) => ({ ...current, [id]: [] }));
     onSelect(id);
-  };
-
-  const togglePin = (sessionId: string) => {
-    setPinnedSessions((current) => {
-      const next = { ...current };
-      if (next[sessionId]) {
-        delete next[sessionId];
-      } else {
-        next[sessionId] = true;
-      }
-      saveConversationPins(localStorage, next);
-      window.dispatchEvent(new Event(CONVERSATION_PINS_EVENT));
-      return next;
-    });
   };
 
   const pickContextFiles = async () => {
