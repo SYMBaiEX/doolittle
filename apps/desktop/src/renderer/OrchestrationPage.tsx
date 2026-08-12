@@ -1,5 +1,7 @@
 import {
   type KeyboardEvent,
+  lazy,
+  Suspense,
   useEffect,
   useMemo,
   useRef,
@@ -10,7 +12,6 @@ import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import { asNumber, asRecord, asString, Notice } from "./lib";
 import { AgentRosterPanel } from "./orchestration/AgentRosterPanel";
 import { compactControlValue } from "./orchestration/models";
-import { OrchestrationRunsPanel } from "./orchestration/OrchestrationRunsPanel";
 import { PlanCreateForm } from "./orchestration/PlanCreateForm";
 import { PlanPanel } from "./orchestration/PlanPanel";
 import { TaskCreateForm } from "./orchestration/TaskCreateForm";
@@ -21,6 +22,12 @@ import { orchestrationStatusTier } from "./orchestration-helpers";
 import { useOrchestrationResources } from "./orchestration-resources";
 import { ReviewPage } from "./ReviewPage";
 import "./orchestration.css";
+
+const OrchestrationRunsPanel = lazy(() =>
+  import("./orchestration/OrchestrationRunsPanel").then((module) => ({
+    default: module.OrchestrationRunsPanel,
+  })),
+);
 
 export type WorkTabId = "tasks" | "agents" | "plans" | "runs" | "review";
 export const WORK_TABS: ReadonlyArray<{ id: WorkTabId; label: string }> = [
@@ -680,46 +687,58 @@ export function OrchestrationPage({
           />
         ) : null}
         {activeTab === "runs" ? (
-          <OrchestrationRunsPanel
-            active={active}
-            workspaceLabel={workspaceLabel}
-            workspacePath={workspacePath}
-            codegenRuntimeResource={codegenRuntimeResource}
-            codegenWorkflowsResource={codegenWorkflowsResource}
-            workflowDetailResource={workflowDetailResource}
-            runDetailResource={runDetailResource}
-            codegenExecution={codegenExecution}
-            codegenAvailable={codegenAvailable}
-            codegenReady={codegenReady}
-            workflowSummary={workflowSummary}
-            codegenMode={codegenMode}
-            codegenProjectName={codegenProjectName}
-            codegenPrompt={codegenPrompt}
-            codegenProjectPath={codegenProjectPath}
-            codegenTargetType={codegenTargetType}
-            busyKeys={busyKeys}
-            workflows={workflows}
-            visibleRuns={visibleRuns}
-            selectedWorkflow={selectedWorkflow}
-            selectedRun={selectedRun}
-            bundleWorkflowId={bundleWorkflowId}
-            bundleResult={bundleResult}
-            bundleError={bundleError}
-            bundleLoading={bundleLoading}
-            confirmedRunCancellation={confirmedRunCancellation}
-            onCodegenModeChange={setCodegenMode}
-            onCodegenProjectNameChange={setCodegenProjectName}
-            onCodegenPromptChange={setCodegenPrompt}
-            onCodegenProjectPathChange={setCodegenProjectPath}
-            onCodegenTargetTypeChange={setCodegenTargetType}
-            onSubmitCodegen={onSubmitCodegen}
-            onSelectWorkflow={selectWorkflow}
-            onSelectRun={setSelectedRunId}
-            onRequestRunCancellation={setConfirmedRunCancellation}
-            onDismissRunCancellation={() => setConfirmedRunCancellation("")}
-            onLoadBundle={loadBundle}
-            onCancelRun={cancelCodegenRun}
-          />
+          <Suspense
+            fallback={
+              <div
+                aria-live="polite"
+                className="orchestration-runs-loading"
+                role="status"
+              >
+                Loading workflow tools…
+              </div>
+            }
+          >
+            <OrchestrationRunsPanel
+              active={active}
+              workspaceLabel={workspaceLabel}
+              workspacePath={workspacePath}
+              codegenRuntimeResource={codegenRuntimeResource}
+              codegenWorkflowsResource={codegenWorkflowsResource}
+              workflowDetailResource={workflowDetailResource}
+              runDetailResource={runDetailResource}
+              codegenExecution={codegenExecution}
+              codegenAvailable={codegenAvailable}
+              codegenReady={codegenReady}
+              workflowSummary={workflowSummary}
+              codegenMode={codegenMode}
+              codegenProjectName={codegenProjectName}
+              codegenPrompt={codegenPrompt}
+              codegenProjectPath={codegenProjectPath}
+              codegenTargetType={codegenTargetType}
+              busyKeys={busyKeys}
+              workflows={workflows}
+              visibleRuns={visibleRuns}
+              selectedWorkflow={selectedWorkflow}
+              selectedRun={selectedRun}
+              bundleWorkflowId={bundleWorkflowId}
+              bundleResult={bundleResult}
+              bundleError={bundleError}
+              bundleLoading={bundleLoading}
+              confirmedRunCancellation={confirmedRunCancellation}
+              onCodegenModeChange={setCodegenMode}
+              onCodegenProjectNameChange={setCodegenProjectName}
+              onCodegenPromptChange={setCodegenPrompt}
+              onCodegenProjectPathChange={setCodegenProjectPath}
+              onCodegenTargetTypeChange={setCodegenTargetType}
+              onSubmitCodegen={onSubmitCodegen}
+              onSelectWorkflow={selectWorkflow}
+              onSelectRun={setSelectedRunId}
+              onRequestRunCancellation={setConfirmedRunCancellation}
+              onDismissRunCancellation={() => setConfirmedRunCancellation("")}
+              onLoadBundle={loadBundle}
+              onCancelRun={cancelCodegenRun}
+            />
+          </Suspense>
         ) : null}
       </section>
     </div>
