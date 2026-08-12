@@ -122,7 +122,7 @@ test.describe("Doolittle cloned-profile control sweep", () => {
         await expect(view).toBeVisible();
         await expect(page.locator(".recovery-shell")).toHaveCount(0);
         await expect(
-          view.getByText("Opening workspace…", { exact: true }),
+          view.getByText("Opening view…", { exact: true }),
         ).toHaveCount(0, { timeout: 15_000 });
         await expect(view.locator(".loading-block")).toHaveCount(0, {
           timeout: 15_000,
