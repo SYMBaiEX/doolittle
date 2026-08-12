@@ -1,0 +1,96 @@
+.profile-picker {
+  display: grid;
+  gap: 16px;
+}
+
+.page-profiles > .page-header,
+.page-profiles > .notice,
+.page-profiles > .loading-block,
+.page-profiles > .empty-block,
+.page-profiles > .profile-picker {
+  width: min(100%, 1040px);
+  margin-inline: auto;
+}
+
+.profile-current {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+.profile-current__mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent) 11%, var(--surface-soft));
+  border: 1px solid color-mix(in srgb, var(--accent) 44%, var(--border));
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  font-weight: 700;
+}
+
+.profile-current__copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.profile-current__copy strong {
+  font-size: var(--text-section);
+}
+
+.profile-current__copy p {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: var(--text-meta);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-alternatives {
+  display: grid;
+  gap: 7px;
+}
+
+.profile-alternatives__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-inline: 2px;
+}
+
+.profile-alternatives__header > span:last-child {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+}
+
+@media (max-width: 700px) {
+  .profile-current {
+    grid-template-columns: 38px minmax(0, 1fr);
+    align-items: start;
+    padding: 12px;
+  }
+
+  .profile-current > .badge {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .profile-current__copy p {
+    overflow: visible;
+    white-space: normal;
+  }
+}
