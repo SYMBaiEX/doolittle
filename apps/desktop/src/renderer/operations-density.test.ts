@@ -140,9 +140,12 @@ describe("operational route density", () => {
     expect(read("./analytics/AnalyticsPage.tsx")).toContain(
       '<EmptyBlock density="compact" title="No activity yet">',
     );
-    expect(read("./automations/AutomationWorkspace.tsx")).toContain(
-      '<EmptyBlock density="compact" title="No automations yet">',
+    const automationWorkspace = read("./automations/AutomationWorkspace.tsx");
+    expect(automationWorkspace).toContain(
+      'className="automation-empty-starter"',
     );
+    expect(automationWorkspace).toContain("Use New automation above");
+    expect(automationWorkspace).not.toContain('title="No automations yet"');
     const memory = read("./memory/MemorySnapshotPanel.tsx");
     expect(memory).toContain(
       '<EmptyBlock density="compact" title="No entries">',

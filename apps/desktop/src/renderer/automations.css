@@ -186,7 +186,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 16px;
+  padding: 10px 12px;
   cursor: pointer;
   list-style: none;
 }
@@ -239,6 +239,37 @@
 .automation-jobs-panel,
 .automation-runs-panel {
   min-width: 0;
+}
+
+.automation-jobs-panel.is-empty {
+  padding-bottom: 10px;
+}
+
+.automation-empty-starter {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 8px 10px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-soft) 58%, transparent);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+}
+
+.automation-empty-starter strong {
+  flex: 0 0 auto;
+  color: var(--text-strong);
+  font-size: 11px;
+}
+
+.automation-empty-starter span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .automation-job-list {
@@ -601,6 +632,17 @@
 
   .automation-name-field {
     width: 100%;
+  }
+
+  .automation-empty-starter {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .automation-empty-starter span {
+    overflow: visible;
+    white-space: normal;
   }
 
   .automation-builder__fieldset {

@@ -257,7 +257,9 @@ export function AutomationWorkspace({
 }) {
   return (
     <div className="automation-workspace">
-      <section className="content-card automation-jobs-panel">
+      <section
+        className={`content-card automation-jobs-panel${jobs.length ? "" : " is-empty"}`}
+      >
         <div className="card-heading">
           <div>
             <span className="eyebrow">Workflows</span>
@@ -283,10 +285,13 @@ export function AutomationWorkspace({
             ))}
           </div>
         ) : (
-          <EmptyBlock density="compact" title="No automations yet">
-            Build a trigger, condition, and action to give Doolittle reliable
-            background work.
-          </EmptyBlock>
+          <div className="automation-empty-starter" role="status">
+            <strong>No workflows yet</strong>
+            <span>
+              Use New automation above to connect a trigger, condition, and
+              action.
+            </span>
+          </div>
         )}
       </section>
 
