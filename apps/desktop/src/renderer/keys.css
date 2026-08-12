@@ -1,0 +1,38 @@
+.page-keys > .split-workspace.is-empty {
+  width: min(100%, 980px);
+  min-height: 0;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.page-keys > .split-workspace.is-empty > .detail-panel {
+  padding: 12px 14px 14px;
+}
+
+.page-keys > .split-workspace.is-empty .detail-toolbar {
+  padding-bottom: 8px;
+}
+
+.page-keys .form-card {
+  padding: 13px 14px;
+}
+
+.page-keys .field-grid {
+  grid-template-columns: minmax(220px, 0.65fr) minmax(0, 1.35fr);
+}
+
+.page-keys .field-grid > .field-span {
+  grid-column: auto;
+}
+
+.page-keys .form-actions {
+  margin-top: 10px;
+  padding-top: 9px;
+}
+
+@media (max-width: 800px) {
+  .page-keys .field-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -5,11 +5,7 @@ const keysPage = readFileSync(
   new URL("./KeysPage.tsx", import.meta.url),
   "utf8",
 );
-const appPolish = readFileSync(
-  new URL("./app-polish.css", import.meta.url),
-  "utf8",
-);
-
+const keysCss = readFileSync(new URL("./keys.css", import.meta.url), "utf8");
 describe("keys workspace layout", () => {
   it("removes the unused inventory column only after an empty response", () => {
     expect(keysPage).toContain(
@@ -18,8 +14,11 @@ describe("keys workspace layout", () => {
     expect(keysPage).toContain('inventoryEmpty ? " is-empty" : ""');
     expect(keysPage).toContain("{inventoryEmpty ? null : (");
     expect(keysPage).toContain("No stored keys yet");
-    expect(appPolish).toMatch(
-      /\.page-keys > \.split-workspace\.is-empty\s*{[^}]*grid-template-columns:\s*1fr;/s,
+    expect(keysPage).toContain('import "./keys.css"');
+    expect(keysCss).toContain("width: min(100%, 980px)");
+    expect(keysCss).toContain(
+      "grid-template-columns: minmax(220px, 0.65fr) minmax(0, 1.35fr)",
     );
+    expect(keysCss).toContain("grid-template-columns: minmax(0, 1fr)");
   });
 });

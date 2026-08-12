@@ -19,6 +19,7 @@ import {
   PageHeader,
   useApiResource,
 } from "./lib";
+import "./keys.css";
 
 interface SecretsResponse {
   keys?: unknown[];
