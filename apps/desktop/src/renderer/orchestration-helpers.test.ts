@@ -5,6 +5,7 @@ import {
   orchestrationTimingLabel,
   projectScopedOrchestrationOverview,
   scopeTasksByWorkspace,
+  shouldShowOrchestrationSummary,
   summarizeScopedTaskOverview,
   taskCapabilityLabel,
   taskCreatePayload,
@@ -103,23 +104,27 @@ describe("orchestration helpers", () => {
     });
   });
 
-  it("falls back to the global overview until the queue tab is visible", () => {
+  it("does not present global work as belonging to a selected project", () => {
     const globalOverview = { total: 12, running: 2, pending: 3 };
     expect(
       projectScopedOrchestrationOverview({
         projectScope: "workspace",
-        activeTab: "review",
         tasks: [],
         globalOverview,
       }),
-    ).toBe(globalOverview);
+    ).toEqual({
+      total: 0,
+      running: 0,
+      pending: 0,
+      completed: 0,
+      failed: 0,
+    });
   });
 
   it("uses scoped queue counts once queue data is loaded", () => {
     expect(
       projectScopedOrchestrationOverview({
         projectScope: "workspace",
-        activeTab: "tasks",
         tasks: [{ status: "pending" }, { status: "done" }],
         globalOverview: { total: 99 },
       }),
@@ -130,6 +135,25 @@ describe("orchestration helpers", () => {
       completed: 1,
       failed: 0,
     });
+  });
+
+  it("hides an all-zero work summary without hiding active work", () => {
+    expect(
+      shouldShowOrchestrationSummary({
+        queued: 0,
+        running: 0,
+        approval: 0,
+        completed: 0,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowOrchestrationSummary({
+        queued: 0,
+        running: 1,
+        approval: 0,
+        completed: 0,
+      }),
+    ).toBe(true);
   });
 
   it("builds canonical task fields while keeping the legacy profile", () => {

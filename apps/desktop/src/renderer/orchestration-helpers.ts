@@ -184,15 +184,25 @@ export function summarizeScopedTaskOverview(
 
 export function projectScopedOrchestrationOverview(input: {
   projectScope: string;
-  activeTab: "tasks" | "agents" | "plans" | "runs" | "review";
   tasks: ReadonlyArray<{ status?: string }>;
   globalOverview: Record<string, unknown>;
 }): Record<string, unknown> {
   if (input.projectScope === "all") return input.globalOverview;
-  if (input.activeTab !== "tasks" && input.tasks.length === 0) {
-    return input.globalOverview;
-  }
+  // Project views must never borrow global counts while the queue resource is
+  // intentionally deferred on another tab. An empty scoped summary is more
+  // truthful than presenting work from unrelated repositories as local work.
   return summarizeScopedTaskOverview(input.tasks);
+}
+
+export function shouldShowOrchestrationSummary(input: {
+  queued: number;
+  running: number;
+  approval: number;
+  completed: number;
+}): boolean {
+  return Object.values(input).some(
+    (value) => Number.isFinite(value) && value > 0,
+  );
 }
 
 export function compactDuration(ms: number): string {

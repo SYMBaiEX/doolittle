@@ -21,6 +21,7 @@ import { useOrchestrationActions } from "./orchestration/useOrchestrationActions
 import {
   orchestrationStatusTier,
   projectScopedOrchestrationOverview,
+  shouldShowOrchestrationSummary,
 } from "./orchestration-helpers";
 import { useOrchestrationResources } from "./orchestration-resources";
 import "./orchestration.css";
@@ -191,7 +192,6 @@ export function OrchestrationPage({
     Object.keys(nativeOverview).length > 0 ? nativeOverview : localOverview;
   const effectiveOverview = projectScopedOrchestrationOverview({
     projectScope,
-    activeTab,
     tasks,
     globalOverview,
   });
@@ -377,6 +377,17 @@ export function OrchestrationPage({
     (worker) =>
       orchestrationStatusTier(asString(worker.status, "idle")) === "running",
   ).length;
+  const queuedCount = asNumber(effectiveOverview.pending);
+  const runningCount = Math.max(
+    asNumber(effectiveOverview.running),
+    projectScope === "all" ? workerActiveCount : 0,
+  );
+  const showHeaderSummary = shouldShowOrchestrationSummary({
+    queued: queuedCount,
+    running: runningCount,
+    approval: approvalCount,
+    completed: completedCount,
+  });
 
   const selectTab = (tab: WorkTabId) => {
     setActiveTab(tab);
@@ -404,21 +415,18 @@ export function OrchestrationPage({
           </p>
         </div>
         <div className="orchestration-header-metrics">
-          <SummaryChip
-            label="Queued"
-            value={asNumber(effectiveOverview.pending)}
-            tone="neutral"
-          />
-          <SummaryChip
-            label="Running"
-            value={Math.max(
-              asNumber(effectiveOverview.running),
-              projectScope === "all" ? workerActiveCount : 0,
-            )}
-            tone="warn"
-          />
-          <SummaryChip label="Approval" value={approvalCount} tone="warn" />
-          <SummaryChip label="Completed" value={completedCount} tone="good" />
+          {showHeaderSummary ? (
+            <>
+              <SummaryChip label="Queued" value={queuedCount} tone="neutral" />
+              <SummaryChip label="Running" value={runningCount} tone="warn" />
+              <SummaryChip label="Approval" value={approvalCount} tone="warn" />
+              <SummaryChip
+                label="Completed"
+                value={completedCount}
+                tone="good"
+              />
+            </>
+          ) : null}
           <button
             className="icon-button orchestration-refresh"
             type="button"
@@ -484,10 +492,18 @@ export function OrchestrationPage({
               }}
             >
               {entry.label}
-              {entry.id === "tasks" ? <span>{tasks.length}</span> : null}
-              {entry.id === "agents" ? <span>{workers.length}</span> : null}
-              {entry.id === "plans" ? <span>{plans.length}</span> : null}
-              {entry.id === "runs" ? <span>{runs.length}</span> : null}
+              {entry.id === "tasks" && tasks.length > 0 ? (
+                <span>{tasks.length}</span>
+              ) : null}
+              {entry.id === "agents" && workers.length > 0 ? (
+                <span>{workers.length}</span>
+              ) : null}
+              {entry.id === "plans" && plans.length > 0 ? (
+                <span>{plans.length}</span>
+              ) : null}
+              {entry.id === "runs" && runs.length > 0 ? (
+                <span>{runs.length}</span>
+              ) : null}
               {entry.id === "review" && approvalCount > 0 ? (
                 <span>{approvalCount}</span>
               ) : null}
@@ -497,13 +513,15 @@ export function OrchestrationPage({
         <div className="orchestration-command-bar">
           {activeTab === "tasks" ? (
             <>
-              <TaskSupervisionControls
-                active={active}
-                busy={Boolean(busyKeys["task:supervise"])}
-                concurrency={superviseConcurrency}
-                onConcurrencyChange={setSuperviseConcurrency}
-                onSupervise={runSupervise}
-              />
+              {tasks.length > 0 ? (
+                <TaskSupervisionControls
+                  active={active}
+                  busy={Boolean(busyKeys["task:supervise"])}
+                  concurrency={superviseConcurrency}
+                  onConcurrencyChange={setSuperviseConcurrency}
+                  onSupervise={runSupervise}
+                />
+              ) : null}
               <button
                 className="primary-button"
                 type="button"
