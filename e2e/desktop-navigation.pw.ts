@@ -476,6 +476,27 @@ test.describe("Doolittle desktop navigation", () => {
             await diagnostics.nth(0).locator("summary").click();
             await expect(diagnostics.nth(0)).not.toHaveAttribute("open");
           }
+          if (route === "plugins") {
+            const pluginWorkspace = viewContainer.locator(
+              ".plugin-catalog-workspace",
+            );
+            await expect(pluginWorkspace.getByRole("tab")).toHaveCount(8);
+            await expect(
+              pluginWorkspace.getByRole("button", { name: "Show 8 more" }),
+            ).toBeVisible();
+            const pluginGeometry = await pluginWorkspace.evaluate((element) => {
+              const facts = element.querySelector(".catalog-browser__facts");
+              if (!facts) throw new Error("Missing plugin facts.");
+              return {
+                columns: getComputedStyle(facts)
+                  .gridTemplateColumns.split(" ")
+                  .filter(Boolean).length,
+                height: Math.round(element.getBoundingClientRect().height),
+              };
+            });
+            expect(pluginGeometry.columns).toBe(2);
+            expect(pluginGeometry.height).toBeLessThanOrEqual(520);
+          }
           if (route === "logs") {
             const traces = viewContainer.locator(".operations-trace-details");
             await traces.locator("summary").click();

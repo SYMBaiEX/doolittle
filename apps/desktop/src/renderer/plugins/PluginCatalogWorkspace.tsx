@@ -3,7 +3,7 @@ import { useCatalogBrowser } from "../components/useCatalogBrowser";
 import { Badge, titleCase } from "../lib";
 import type { PluginCatalogItem } from "./plugin-catalog-model";
 
-export const PLUGIN_CATALOG_PAGE_SIZE = 12;
+export const PLUGIN_CATALOG_PAGE_SIZE = 8;
 
 export function PluginCatalogWorkspace({
   entries,

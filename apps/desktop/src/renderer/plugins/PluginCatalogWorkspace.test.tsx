@@ -59,8 +59,8 @@ describe("PluginCatalogWorkspace", () => {
       ),
     );
 
-    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(12);
-    expect(container.textContent).toContain("12 of 20");
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(8);
+    expect(container.textContent).toContain("8 of 20");
     expect(container.textContent).toContain("Runtime purpose 0");
     expect(container.textContent).not.toContain("Runtime purpose 10");
     expect(container.querySelectorAll(".badge")).toHaveLength(1);
@@ -122,11 +122,18 @@ describe("PluginCatalogWorkspace", () => {
       ),
     );
 
-    const showMore = Array.from(container.querySelectorAll("button")).find(
+    let showMore = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent === "Show 8 more",
     );
     act(() => showMore?.click());
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(16);
+    expect(container.textContent).toContain("16 of 20");
+
+    showMore = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Show 4 more",
+    );
+    act(() => showMore?.click());
     expect(container.querySelectorAll('[role="tab"]')).toHaveLength(20);
-    expect(container.textContent).not.toContain("12 of 20");
+    expect(container.textContent).not.toContain("of 20");
   });
 });

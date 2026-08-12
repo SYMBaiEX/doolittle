@@ -41,6 +41,13 @@ describe("PluginsPage density", () => {
     expect(styles).toContain("@media (max-width: 1180px)");
     expect(styles).toContain("@media (max-width: 680px)");
     expect(styles).toContain(".plugins-page .catalog-browser");
+    expect(styles).toContain("min-height: clamp(380px, 42vh, 500px)");
+    expect(styles).toContain(
+      ".plugin-catalog-workspace .catalog-browser__facts",
+    );
+    expect(styles).toContain(
+      "grid-template-columns: repeat(2, minmax(0, 1fr))",
+    );
     expect(catalogBrowserStyles).toContain("@media (max-width: 820px)");
     expect(catalogBrowserStyles).toContain(
       "grid-template-columns: minmax(0, 1fr)",

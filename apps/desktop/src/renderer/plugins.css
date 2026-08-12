@@ -50,11 +50,20 @@
 }
 
 .plugins-page .catalog-browser {
-  min-height: clamp(400px, 54vh, 600px);
+  min-height: clamp(380px, 42vh, 500px);
+}
+
+.plugin-catalog-workspace .catalog-browser__facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 22px;
 }
 
 @media (max-width: 1180px) {
   .plugins-catalog-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .plugin-catalog-workspace .catalog-browser__facts {
     grid-template-columns: 1fr;
   }
 }
