@@ -2726,11 +2726,6 @@ button.chat-session-meta-pill:hover {
   margin-left: 0;
 }
 
-.chat-message.user .chat-message-actions {
-  opacity: 1;
-  pointer-events: auto;
-}
-
 .chat-composer {
   position: relative;
   flex: 0 0 auto;

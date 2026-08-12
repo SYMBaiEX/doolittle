@@ -10,9 +10,6 @@ import {
 
 const repoRoot = process.cwd();
 const desktopRoot = resolve(repoRoot, "apps/desktop");
-const fallbackResponse =
-  "Doolittle's local runtime is ready, but its model provider is unavailable.";
-
 type Session = { sessionId: string; preview?: string[]; messageCount: number };
 type StoredMessage = { role: string; text: string };
 
@@ -153,10 +150,11 @@ test.describe("Doolittle desktop offline chat", () => {
         .locator(".chat-message.user")
         .filter({ hasText: prompt })
         .last();
-      await userMessage.hover();
       const messageActions = userMessage.getByRole("toolbar", {
         name: "Message actions",
       });
+      await expect(messageActions).toHaveCSS("opacity", "0");
+      await userMessage.hover();
       await expect(messageActions).toHaveCSS("opacity", "1");
       const messageGeometry = await userMessage.evaluate((message) => {
         const bounds = (selector: string) => {
@@ -177,14 +175,31 @@ test.describe("Doolittle desktop offline chat", () => {
       expect(messageGeometry.actions.top).toBeGreaterThanOrEqual(
         messageGeometry.body.bottom,
       );
-      await expect(
-        page.getByText(fallbackResponse, { exact: false }),
-      ).toBeVisible({
+      const assistantMessage = page.locator(".chat-message.assistant").last();
+      await expect(assistantMessage).toBeVisible({ timeout: 45_000 });
+      await expect(page.getByRole("status")).toContainText(
+        "Doolittle replied.",
+        {
+          timeout: 45_000,
+        },
+      );
+      await expect(assistantMessage.locator(".thinking")).toHaveCount(0, {
         timeout: 45_000,
       });
+      const assistantText = (
+        (await assistantMessage.locator(".chat-message-body").textContent()) ??
+        ""
+      ).trim();
+      expect(assistantText).not.toBe("");
       await expect(page.locator(".recovery-shell")).toHaveCount(0);
       expect(firstPageErrors).toEqual([]);
 
+      await expect
+        .poll(
+          async () =>
+            (await persistedTranscript(page, prompt)).session.messageCount,
+        )
+        .toBeGreaterThanOrEqual(2);
       const persisted = await persistedTranscript(page, prompt);
       expect(persisted.session.messageCount).toBeGreaterThanOrEqual(2);
       expect(persisted.messages).toEqual(
@@ -192,7 +207,7 @@ test.describe("Doolittle desktop offline chat", () => {
           expect.objectContaining({ role: "user", text: prompt }),
           expect.objectContaining({
             role: "assistant",
-            text: expect.stringContaining(fallbackResponse),
+            text: expect.stringContaining(assistantText),
           }),
         ]),
       );
@@ -213,7 +228,7 @@ test.describe("Doolittle desktop offline chat", () => {
           expect.objectContaining({ role: "user", text: prompt }),
           expect.objectContaining({
             role: "assistant",
-            text: expect.stringContaining(fallbackResponse),
+            text: expect.stringContaining(assistantText),
           }),
         ]),
       );

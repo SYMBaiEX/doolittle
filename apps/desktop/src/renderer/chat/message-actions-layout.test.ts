@@ -21,8 +21,11 @@ describe("chat message action layout", () => {
     expect(css).toMatch(
       /\.chat-message\.user \.chat-message-footer\s*{[^}]*justify-content:\s*flex-end;[^}]*margin-left:\s*0;/s,
     );
-    expect(css).toMatch(
+    expect(css).not.toMatch(
       /\.chat-message\.user \.chat-message-actions\s*{[^}]*opacity:\s*1;[^}]*pointer-events:\s*auto;/s,
+    );
+    expect(css).toMatch(
+      /\.chat-message:hover \.chat-message-actions,\s*\.chat-message:focus-within \.chat-message-actions\s*{[^}]*opacity:\s*1;[^}]*pointer-events:\s*auto;/s,
     );
     expect(css).toMatch(
       /@media \(hover: none\)\s*{[^}]*\.chat-message-actions\s*{[^}]*opacity:\s*1;[^}]*pointer-events:\s*auto;/s,
