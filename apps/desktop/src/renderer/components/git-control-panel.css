@@ -228,7 +228,7 @@
   min-height: 58px;
   resize: vertical;
 }
-.git-control-panel :is(button, input, textarea):focus-visible {
+.git-control-panel :is(button, input, textarea, summary):focus-visible {
   position: relative;
   z-index: 1;
   border-color: color-mix(in srgb, var(--accent) 72%, var(--border));
@@ -288,6 +288,69 @@
   margin-left: auto;
 }
 
+.git-advanced-disclosure {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs, 5px);
+  background: color-mix(in srgb, var(--surface-raised) 72%, transparent);
+}
+
+.git-advanced-disclosure > summary {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 9px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.git-advanced-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.git-advanced-disclosure > summary > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.git-advanced-disclosure > summary strong {
+  color: var(--text-soft);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.git-advanced-disclosure > summary small,
+.git-advanced-disclosure > summary > span:last-child {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.git-advanced-disclosure > summary::after {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  content: "+";
+}
+
+.git-advanced-disclosure[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.git-advanced-disclosure[open] > summary::after {
+  content: "−";
+}
+
+.git-advanced-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px;
+}
+
 .git-control-panel.compact .git-control-scroll {
   gap: 6px;
 }
@@ -311,5 +374,8 @@
   }
   .git-sync-actions button {
     flex: 1;
+  }
+  .git-advanced-controls {
+    grid-template-columns: 1fr;
   }
 }

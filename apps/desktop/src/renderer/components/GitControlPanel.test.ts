@@ -10,6 +10,10 @@ const gitControlCss = readFileSync(
   new URL("./git-control-panel.css", import.meta.url),
   "utf8",
 );
+const gitControlSource = readFileSync(
+  new URL("./GitControlPanel.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("GitControlPanel input model", () => {
   it("uses the shared repository records required by the panel", () => {
@@ -32,12 +36,31 @@ describe("GitControlPanel input model", () => {
 describe("GitControlPanel keyboard focus contract", () => {
   it("keeps compact controls visibly focusable without styling unfocused fields", () => {
     expect(gitControlCss).toContain(
-      ".git-control-panel :is(button, input, textarea):focus-visible",
+      ".git-control-panel :is(button, input, textarea, summary):focus-visible",
     );
     expect(gitControlCss).toContain(
       '.git-control-panel input[type="checkbox"]:focus-visible',
     );
     expect(gitControlCss).toContain("outline-offset: 2px;");
     expect(gitControlCss).not.toContain(".git-control-panel input:focus,");
+  });
+});
+
+describe("GitControlPanel density", () => {
+  it("keeps everyday change and commit controls outside advanced operations", () => {
+    const advancedIndex = gitControlSource.indexOf(
+      '<details className="git-advanced-disclosure">',
+    );
+
+    expect(advancedIndex).toBeGreaterThan(0);
+    expect(gitControlSource.indexOf("git-change-section")).toBeLessThan(
+      advancedIndex,
+    );
+    expect(gitControlSource.indexOf("git-commit-form")).toBeLessThan(
+      advancedIndex,
+    );
+    expect(gitControlSource).not.toContain(
+      '<details className="git-advanced-disclosure" open>',
+    );
   });
 });
