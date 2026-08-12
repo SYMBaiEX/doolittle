@@ -14,12 +14,7 @@ import {
 import type {
   ActivityEvent,
   ActivityFeedResponse,
-  BackendState,
-  Project,
-  ProjectsResponse,
-  RuntimeStatus,
   SessionSummary,
-  SessionsResponse,
   ThemeResponse,
   WorkspaceState,
 } from "../shared/contracts";
@@ -104,6 +99,7 @@ import {
   shouldIgnoreShellShortcut,
 } from "./shell-shortcuts";
 import { useProjectManagement } from "./use-project-management";
+import { useRuntimeWorkspaceData } from "./use-runtime-workspace-data";
 import { useWorkspaceProjectNavigation } from "./use-workspace-project-navigation";
 import { workspacePathsEqual } from "./workspace-path";
 
@@ -147,13 +143,6 @@ export function App() {
   );
   const [openSections, setOpenSections] =
     useState<Set<NavigationSectionId>>(loadOpenSections);
-  const [backend, setBackend] = useState<BackendState>({
-    phase: "booting",
-    message: "Connecting to the local runtime…",
-  });
-  const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
-  const [sessions, setSessions] = useState<SessionSummary[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [projectScope, setProjectScope] =
     useState<ProjectScope>(loadProjectScope);
   const [projectManagerOpen, setProjectManagerOpen] = useState(false);
@@ -167,7 +156,6 @@ export function App() {
     useState<ChatContextHandoff | null>(null);
   const [pendingNavigationIntent, setPendingNavigationIntent] =
     useState<DesktopNavigationIntent | null>(null);
-  const [globalError, setGlobalError] = useState("");
   const [appearance, setAppearance] = useState<DesktopAppearance>(
     loadAppearancePreference,
   );
@@ -181,6 +169,18 @@ export function App() {
     pause: pauseToast,
     resume: resumeToast,
   } = useToasts({ maxVisible: 3, defaultTimeoutMs: 4_500 });
+  const {
+    backend,
+    globalError,
+    projects,
+    refreshRuntime,
+    refreshWithFeedback,
+    restartRuntime,
+    runtime,
+    sessions,
+    setProjects,
+    setSessions,
+  } = useRuntimeWorkspaceData(pushToast);
   const approvalsResource = useApiResource<ApprovalListResponse>(
     backend.phase === "ready" ? "/execution/approvals?status=pending" : null,
     [backend.phase],
@@ -398,81 +398,6 @@ export function App() {
       return next;
     });
   }, []);
-
-  const refreshRuntime = useCallback(async () => {
-    if (backend.phase !== "ready") return false;
-    setGlobalError("");
-    let succeeded = true;
-    const [runtimeResult, sessionsResult, projectsResult] =
-      await Promise.allSettled([
-        desktopRequest<RuntimeStatus>("/runtime/status"),
-        desktopRequest<SessionsResponse>("/sessions?limit=200"),
-        desktopRequest<ProjectsResponse>("/projects?includeArchived=true"),
-      ]);
-    if (runtimeResult.status === "fulfilled") {
-      setRuntime(runtimeResult.value);
-    } else {
-      succeeded = false;
-      setGlobalError(
-        runtimeResult.reason instanceof Error
-          ? runtimeResult.reason.message
-          : String(runtimeResult.reason),
-      );
-    }
-    if (sessionsResult.status === "fulfilled") {
-      setSessions(sessionsResult.value.sessions);
-    } else {
-      succeeded = false;
-      setGlobalError(
-        sessionsResult.reason instanceof Error
-          ? sessionsResult.reason.message
-          : String(sessionsResult.reason),
-      );
-    }
-    if (projectsResult.status === "fulfilled") {
-      setProjects(projectsResult.value.projects);
-    } else {
-      succeeded = false;
-      setGlobalError(
-        projectsResult.reason instanceof Error
-          ? projectsResult.reason.message
-          : String(projectsResult.reason),
-      );
-    }
-    return succeeded;
-  }, [backend.phase]);
-
-  const refreshWithFeedback = useCallback(async () => {
-    const succeeded = await refreshRuntime();
-    pushToast({
-      tone: succeeded ? "success" : "error",
-      title: succeeded ? "Workspace refreshed" : "Refresh incomplete",
-      message: succeeded
-        ? "Runtime and conversation state are up to date."
-        : "Some local runtime data could not be loaded.",
-    });
-  }, [pushToast, refreshRuntime]);
-
-  const restartRuntime = useCallback(async () => {
-    try {
-      const next = await window.doolittle.retryBackend();
-      setBackend(next);
-      pushToast({
-        tone: next.phase === "ready" ? "success" : "warning",
-        title:
-          next.phase === "ready"
-            ? "Runtime restarted"
-            : "Runtime still offline",
-        message: next.message,
-      });
-    } catch (error) {
-      pushToast({
-        tone: "error",
-        title: "Runtime restart failed",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }, [pushToast]);
 
   const {
     chooseWorkspace,
@@ -797,22 +722,9 @@ export function App() {
   );
 
   useEffect(() => {
-    void window.doolittle.getBackendState().then(setBackend);
-    return window.doolittle.onBackendState(setBackend);
-  }, []);
-
-  useEffect(() => {
     void window.doolittle.getWorkspaceState().then(setWorkspace);
     return window.doolittle.onWorkspaceState(handleWorkspaceState);
   }, [handleWorkspaceState]);
-
-  useEffect(() => {
-    if (backend.phase === "ready") {
-      void refreshRuntime();
-    } else {
-      setRuntime(null);
-    }
-  }, [backend.phase, refreshRuntime]);
 
   useIntervalWhenDocumentVisible(
     () => {
