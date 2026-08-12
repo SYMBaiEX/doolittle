@@ -22,7 +22,6 @@ import type {
   SessionSummary,
   SessionsResponse,
   ThemeResponse,
-  WorkspacePickResult,
   WorkspaceState,
 } from "../shared/contracts";
 import { DesktopMobileMenuButton } from "./app-shell/DesktopMobileMenuButton";
@@ -58,7 +57,6 @@ import {
   type NavigationSectionId,
   navigation,
   PROJECT_SCOPE_KEY,
-  PROJECT_SWITCH_DEBOUNCE_MS,
   type View,
   viewFromHash,
   workspaceName,
@@ -112,8 +110,8 @@ import {
   isCommandPaletteShortcut,
   shouldIgnoreShellShortcut,
 } from "./shell-shortcuts";
+import { useWorkspaceProjectNavigation } from "./use-workspace-project-navigation";
 import { workspacePathsEqual } from "./workspace-path";
-import { resolveWorkspaceSelection } from "./workspace-selection";
 
 function pathsEqual(left: string | undefined, right: string): boolean {
   return workspacePathsEqual(left, right, window.doolittle.platform);
@@ -212,9 +210,6 @@ export function App() {
   const utilityRef = useRef<HTMLElement | null>(null);
   const utilityReturnFocusRef = useRef<HTMLElement | null>(null);
   const chatTerminalReturnFocusRef = useRef<HTMLElement | null>(null);
-  const projectTransitionRef = useRef(0);
-  const pendingProjectScopeRef = useRef<ProjectScope | null>(null);
-  const workspaceSwitchInFlightRef = useRef(0);
   const isMobileSidebarMode = useMediaQuery(MOBILE_SIDEBAR_QUERY);
   const mobileSidebarOpen = sidebarOpen && isMobileSidebarMode;
 
@@ -485,111 +480,6 @@ export function App() {
     }
   }, [pushToast]);
 
-  const applyWorkspaceSelection = useCallback(
-    (state: WorkspaceState, sessionId = selectedSession) => {
-      const selection = resolveWorkspaceSelection({
-        workspacePath: state.currentPath,
-        projects,
-        sessions,
-        selectedSessionId: sessionId,
-        createSessionId: newConversationId,
-        pathsEqual,
-      });
-      setWorkspace(state);
-      setProjectScope(selection.projectScope);
-      setSelectedSession(selection.sessionId);
-    },
-    [projects, selectedSession, sessions],
-  );
-
-  const chooseWorkspace =
-    useCallback(async (): Promise<WorkspacePickResult> => {
-      const transition = projectTransitionRef.current + 1;
-      projectTransitionRef.current = transition;
-      pendingProjectScopeRef.current = null;
-      workspaceSwitchInFlightRef.current += 1;
-      try {
-        const result = await window.doolittle.pickWorkspace();
-        if (projectTransitionRef.current === transition && !result.canceled) {
-          applyWorkspaceSelection(result.state);
-        }
-        return result;
-      } finally {
-        workspaceSwitchInFlightRef.current -= 1;
-      }
-    }, [applyWorkspaceSelection]);
-
-  const openWorkspacePath = useCallback(
-    async (path: string): Promise<WorkspacePickResult> => {
-      const transition = projectTransitionRef.current + 1;
-      projectTransitionRef.current = transition;
-      pendingProjectScopeRef.current = null;
-      workspaceSwitchInFlightRef.current += 1;
-      try {
-        const result = await window.doolittle.openWorkspace(path);
-        if (projectTransitionRef.current === transition && !result.canceled) {
-          applyWorkspaceSelection(result.state);
-        }
-        return result;
-      } finally {
-        workspaceSwitchInFlightRef.current -= 1;
-      }
-    },
-    [applyWorkspaceSelection],
-  );
-
-  const switchToRecentWorkspace = useCallback(
-    async (
-      path: string,
-      options: {
-        announce?: boolean;
-        sessionId?: string;
-        transition?: number;
-      } = {},
-    ) => {
-      const announce = options.announce ?? true;
-      const transition = options.transition ?? projectTransitionRef.current + 1;
-      if (options.transition === undefined) {
-        projectTransitionRef.current = transition;
-        pendingProjectScopeRef.current = null;
-      }
-      workspaceSwitchInFlightRef.current += 1;
-      try {
-        const result = await window.doolittle.switchWorkspace(path);
-        if (projectTransitionRef.current !== transition) return false;
-        // Commit the runtime workspace and its project/chat identity as one
-        // parent-owned transition. A recent folder cannot leave the Code/Git
-        // surface on one repository while Chat is scoped to another.
-        applyWorkspaceSelection(
-          result.state,
-          options.sessionId ?? selectedSession,
-        );
-        if (options.transition === undefined) {
-          pendingProjectScopeRef.current = null;
-        }
-        if (announce) {
-          pushToast({
-            tone: "success",
-            title: `Opened ${workspaceName(result.state.currentPath)}`,
-            message:
-              "Chats, Git, files, and tools now use this project. The runtime stayed connected.",
-          });
-        }
-        return true;
-      } catch (error) {
-        pushToast({
-          tone: "error",
-          title: "Workspace could not be switched",
-          message: error instanceof Error ? error.message : String(error),
-        });
-        return false;
-      } finally {
-        workspaceSwitchInFlightRef.current -= 1;
-      }
-    },
-    [applyWorkspaceSelection, pushToast, selectedSession],
-  );
-
   const reloadProjects = useCallback(async () => {
     const response = await desktopRequest<ProjectsResponse>(
       "/projects?includeArchived=true",
@@ -598,90 +488,27 @@ export function App() {
     return response.projects;
   }, []);
 
-  const activateProjectWorkspace = useCallback(
-    async (
-      scope: ProjectScope,
-      transition?: number,
-      sessionId?: string,
-    ): Promise<boolean> => {
-      const project =
-        scope === "all" || scope === "unscoped"
-          ? undefined
-          : projects.find((entry) => entry.id === scope);
-      if (
-        project?.primaryPath &&
-        !pathsEqual(project.primaryPath, workspace.currentPath)
-      ) {
-        if (
-          workspace.recentPaths.some((path) =>
-            pathsEqual(path, project.primaryPath as string),
-          )
-        ) {
-          return switchToRecentWorkspace(project.primaryPath, {
-            announce: false,
-            sessionId,
-            transition,
-          });
-        } else {
-          pushToast({
-            tone: "warning",
-            title: "Project folder needs approval",
-            message:
-              "Open this folder once with the native workspace picker before Doolittle can switch to it automatically.",
-          });
-          return false;
-        }
-      }
-      return true;
-    },
-    [
-      projects,
-      pushToast,
-      switchToRecentWorkspace,
-      workspace.currentPath,
-      workspace.recentPaths,
-    ],
-  );
-
-  const transitionToProjectScope = useCallback(
-    (
-      scope: ProjectScope,
-      sessionId: string,
-      nextView?: View,
-      onActivated?: () => void,
-    ) => {
-      const transition = projectTransitionRef.current + 1;
-      projectTransitionRef.current = transition;
-      pendingProjectScopeRef.current = scope;
-      const project =
-        scope === "all" || scope === "unscoped"
-          ? undefined
-          : projects.find((entry) => entry.id === scope);
-      const needsWorkspaceSwitch =
-        Boolean(project?.primaryPath) &&
-        !pathsEqual(project?.primaryPath, workspace.currentPath);
-      const activate = () => {
-        if (projectTransitionRef.current !== transition) return;
-        void activateProjectWorkspace(scope, transition, sessionId).then(
-          (activated) => {
-            if (projectTransitionRef.current !== transition) return;
-            pendingProjectScopeRef.current = null;
-            if (!activated) return;
-            setProjectScope(scope);
-            setSelectedSession(sessionId);
-            if (nextView) setView(nextView);
-            onActivated?.();
-          },
-        );
-      };
-      if (needsWorkspaceSwitch) {
-        window.setTimeout(activate, PROJECT_SWITCH_DEBOUNCE_MS);
-      } else {
-        activate();
-      }
-    },
-    [activateProjectWorkspace, projects, setView, workspace.currentPath],
-  );
+  const {
+    chooseWorkspace,
+    handleWorkspaceState,
+    openWorkspacePath,
+    switchToRecentWorkspace,
+    transitionToProjectScope,
+  } = useWorkspaceProjectNavigation({
+    backendReady: backend.phase === "ready",
+    createSessionId: newConversationId,
+    pathsEqual,
+    projects,
+    projectScope,
+    pushToast,
+    selectedSession,
+    sessions,
+    setProjectScope,
+    setSelectedSession,
+    setView,
+    setWorkspace,
+    workspace,
+  });
 
   const selectProjectScope = useCallback(
     (scope: ProjectScope) => {
@@ -1042,36 +869,6 @@ export function App() {
   }, [projectScope, projects]);
 
   useEffect(() => {
-    if (
-      backend.phase !== "ready" ||
-      pendingProjectScopeRef.current !== null ||
-      projectScope === "all" ||
-      projectScope === "unscoped"
-    ) {
-      return;
-    }
-    const project = projects.find(
-      (entry) => entry.id === projectScope && !entry.archivedAt,
-    );
-    const projectPath = project?.primaryPath;
-    if (
-      !projectPath ||
-      pathsEqual(projectPath, workspace.currentPath) ||
-      !workspace.recentPaths.some((path) => pathsEqual(path, projectPath))
-    ) {
-      return;
-    }
-    void switchToRecentWorkspace(projectPath, { announce: false });
-  }, [
-    backend.phase,
-    projectScope,
-    projects,
-    switchToRecentWorkspace,
-    workspace.currentPath,
-    workspace.recentPaths,
-  ]);
-
-  useEffect(() => {
     localStorage.setItem(NAV_COLLAPSED_KEY, String(navCollapsed));
   }, [navCollapsed]);
 
@@ -1258,14 +1055,8 @@ export function App() {
 
   useEffect(() => {
     void window.doolittle.getWorkspaceState().then(setWorkspace);
-    return window.doolittle.onWorkspaceState((state) => {
-      if (workspaceSwitchInFlightRef.current > 0) {
-        setWorkspace(state);
-        return;
-      }
-      applyWorkspaceSelection(state);
-    });
-  }, [applyWorkspaceSelection]);
+    return window.doolittle.onWorkspaceState(handleWorkspaceState);
+  }, [handleWorkspaceState]);
 
   useEffect(() => {
     if (backend.phase === "ready") {

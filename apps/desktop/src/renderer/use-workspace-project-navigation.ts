@@ -1,0 +1,397 @@
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
+import type {
+  Project,
+  SessionSummary,
+  WorkspacePickResult,
+  WorkspaceState,
+} from "../shared/contracts";
+import type { ToastInput } from "./components/ToastRegion";
+import {
+  PROJECT_SWITCH_DEBOUNCE_MS,
+  type View,
+  workspaceName,
+} from "./desktop-navigation";
+import type { ProjectScope } from "./project-manager/models";
+import { resolveWorkspaceSelection } from "./workspace-selection";
+
+interface WorkspaceTransitionSnapshot {
+  readonly current: number;
+  readonly inFlight: number;
+  readonly pendingScope: ProjectScope | null;
+}
+
+export interface WorkspaceTransitionCoordinator {
+  begin(pendingScope: ProjectScope | null): number;
+  clearPending(transition: number): void;
+  finishRequest(): void;
+  isCurrent(transition: number): boolean;
+  snapshot(): WorkspaceTransitionSnapshot;
+  startRequest(): void;
+}
+
+/**
+ * Owns the counters shared by workspace picker, direct path, recent workspace,
+ * and project-scope transitions. Keeping this state outside React rendering
+ * lets every async completion check one monotonically increasing generation.
+ */
+export function createWorkspaceTransitionCoordinator(): WorkspaceTransitionCoordinator {
+  let current = 0;
+  let inFlight = 0;
+  let pendingScope: ProjectScope | null = null;
+
+  return {
+    begin(nextPendingScope) {
+      current += 1;
+      pendingScope = nextPendingScope;
+      return current;
+    },
+    clearPending(transition) {
+      if (current === transition) pendingScope = null;
+    },
+    finishRequest() {
+      inFlight = Math.max(0, inFlight - 1);
+    },
+    isCurrent(transition) {
+      return current === transition;
+    },
+    snapshot() {
+      return { current, inFlight, pendingScope };
+    },
+    startRequest() {
+      inFlight += 1;
+    },
+  };
+}
+
+export interface WorkspaceRequestOutcome<T> {
+  readonly current: boolean;
+  readonly result: T;
+  readonly transition: number;
+}
+
+/**
+ * Runs one native workspace request and commits its result only while its
+ * transition still owns the desktop context. The request counter is balanced
+ * for success, stale completion, and errors.
+ */
+export async function runWorkspaceRequest<T>({
+  coordinator,
+  operation,
+  onCurrent,
+  transition: parentTransition,
+}: {
+  coordinator: WorkspaceTransitionCoordinator;
+  operation: () => Promise<T>;
+  onCurrent: (result: T) => void;
+  transition?: number;
+}): Promise<WorkspaceRequestOutcome<T>> {
+  const transition = parentTransition ?? coordinator.begin(null);
+  coordinator.startRequest();
+  try {
+    const result = await operation();
+    const current = coordinator.isCurrent(transition);
+    if (current) onCurrent(result);
+    return { current, result, transition };
+  } finally {
+    coordinator.finishRequest();
+  }
+}
+
+interface UseWorkspaceProjectNavigationOptions {
+  readonly backendReady: boolean;
+  readonly createSessionId: () => string;
+  readonly pathsEqual: (left: string | undefined, right: string) => boolean;
+  readonly projects: readonly Project[];
+  readonly projectScope: ProjectScope;
+  readonly pushToast: (toast: ToastInput) => string;
+  readonly selectedSession: string;
+  readonly sessions: readonly SessionSummary[];
+  readonly setProjectScope: Dispatch<SetStateAction<ProjectScope>>;
+  readonly setSelectedSession: Dispatch<SetStateAction<string>>;
+  readonly setView: (view: View) => void;
+  readonly setWorkspace: Dispatch<SetStateAction<WorkspaceState>>;
+  readonly workspace: WorkspaceState;
+}
+
+interface SwitchRecentWorkspaceOptions {
+  readonly announce?: boolean;
+  readonly sessionId?: string;
+  readonly transition?: number;
+}
+
+export interface WorkspaceProjectNavigation {
+  readonly chooseWorkspace: () => Promise<WorkspacePickResult>;
+  readonly handleWorkspaceState: (state: WorkspaceState) => void;
+  readonly openWorkspacePath: (path: string) => Promise<WorkspacePickResult>;
+  readonly switchToRecentWorkspace: (
+    path: string,
+    options?: SwitchRecentWorkspaceOptions,
+  ) => Promise<boolean>;
+  readonly transitionToProjectScope: (
+    scope: ProjectScope,
+    sessionId: string,
+    nextView?: View,
+    onActivated?: () => void,
+  ) => void;
+}
+
+export function useWorkspaceProjectNavigation({
+  backendReady,
+  createSessionId,
+  pathsEqual,
+  projects,
+  projectScope,
+  pushToast,
+  selectedSession,
+  sessions,
+  setProjectScope,
+  setSelectedSession,
+  setView,
+  setWorkspace,
+  workspace,
+}: UseWorkspaceProjectNavigationOptions): WorkspaceProjectNavigation {
+  const coordinatorRef = useRef<WorkspaceTransitionCoordinator | null>(null);
+  coordinatorRef.current ??= createWorkspaceTransitionCoordinator();
+  const coordinator = coordinatorRef.current;
+
+  const applyWorkspaceSelection = useCallback(
+    (state: WorkspaceState, sessionId = selectedSession) => {
+      const selection = resolveWorkspaceSelection({
+        workspacePath: state.currentPath,
+        projects,
+        sessions,
+        selectedSessionId: sessionId,
+        createSessionId,
+        pathsEqual,
+      });
+      setWorkspace(state);
+      setProjectScope(selection.projectScope);
+      setSelectedSession(selection.sessionId);
+    },
+    [
+      createSessionId,
+      pathsEqual,
+      projects,
+      selectedSession,
+      sessions,
+      setProjectScope,
+      setSelectedSession,
+      setWorkspace,
+    ],
+  );
+
+  const chooseWorkspace =
+    useCallback(async (): Promise<WorkspacePickResult> => {
+      const outcome = await runWorkspaceRequest({
+        coordinator,
+        operation: () => window.doolittle.pickWorkspace(),
+        onCurrent: (result) => {
+          if (!result.canceled) applyWorkspaceSelection(result.state);
+        },
+      });
+      return outcome.result;
+    }, [applyWorkspaceSelection, coordinator]);
+
+  const openWorkspacePath = useCallback(
+    async (path: string): Promise<WorkspacePickResult> => {
+      const outcome = await runWorkspaceRequest({
+        coordinator,
+        operation: () => window.doolittle.openWorkspace(path),
+        onCurrent: (result) => {
+          if (!result.canceled) applyWorkspaceSelection(result.state);
+        },
+      });
+      return outcome.result;
+    },
+    [applyWorkspaceSelection, coordinator],
+  );
+
+  const switchToRecentWorkspace = useCallback(
+    async (path: string, options: SwitchRecentWorkspaceOptions = {}) => {
+      const announce = options.announce ?? true;
+      try {
+        const outcome = await runWorkspaceRequest({
+          coordinator,
+          operation: () => window.doolittle.switchWorkspace(path),
+          transition: options.transition,
+          onCurrent: (result) => {
+            // Commit workspace and chat identity as one parent-owned transition.
+            applyWorkspaceSelection(
+              result.state,
+              options.sessionId ?? selectedSession,
+            );
+            if (options.transition === undefined) {
+              coordinator.clearPending(coordinator.snapshot().current);
+            }
+            if (announce) {
+              pushToast({
+                tone: "success",
+                title: `Opened ${workspaceName(result.state.currentPath)}`,
+                message:
+                  "Chats, Git, files, and tools now use this project. The runtime stayed connected.",
+              });
+            }
+          },
+        });
+        return outcome.current;
+      } catch (error) {
+        pushToast({
+          tone: "error",
+          title: "Workspace could not be switched",
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return false;
+      }
+    },
+    [applyWorkspaceSelection, coordinator, pushToast, selectedSession],
+  );
+
+  const activateProjectWorkspace = useCallback(
+    async (
+      scope: ProjectScope,
+      transition: number,
+      sessionId: string,
+    ): Promise<boolean> => {
+      const project =
+        scope === "all" || scope === "unscoped"
+          ? undefined
+          : projects.find((entry) => entry.id === scope);
+      if (
+        project?.primaryPath &&
+        !pathsEqual(project.primaryPath, workspace.currentPath)
+      ) {
+        if (
+          workspace.recentPaths.some((path) =>
+            pathsEqual(path, project.primaryPath as string),
+          )
+        ) {
+          return switchToRecentWorkspace(project.primaryPath, {
+            announce: false,
+            sessionId,
+            transition,
+          });
+        }
+        pushToast({
+          tone: "warning",
+          title: "Project folder needs approval",
+          message:
+            "Open this folder once with the native workspace picker before Doolittle can switch to it automatically.",
+        });
+        return false;
+      }
+      return true;
+    },
+    [
+      pathsEqual,
+      projects,
+      pushToast,
+      switchToRecentWorkspace,
+      workspace.currentPath,
+      workspace.recentPaths,
+    ],
+  );
+
+  const transitionToProjectScope = useCallback(
+    (
+      scope: ProjectScope,
+      sessionId: string,
+      nextView?: View,
+      onActivated?: () => void,
+    ) => {
+      const transition = coordinator.begin(scope);
+      const project =
+        scope === "all" || scope === "unscoped"
+          ? undefined
+          : projects.find((entry) => entry.id === scope);
+      const needsWorkspaceSwitch =
+        Boolean(project?.primaryPath) &&
+        !pathsEqual(project?.primaryPath, workspace.currentPath);
+      const activate = () => {
+        if (!coordinator.isCurrent(transition)) return;
+        void activateProjectWorkspace(scope, transition, sessionId).then(
+          (activated) => {
+            if (!coordinator.isCurrent(transition)) return;
+            coordinator.clearPending(transition);
+            if (!activated) return;
+            setProjectScope(scope);
+            setSelectedSession(sessionId);
+            if (nextView) setView(nextView);
+            onActivated?.();
+          },
+        );
+      };
+      if (needsWorkspaceSwitch) {
+        window.setTimeout(activate, PROJECT_SWITCH_DEBOUNCE_MS);
+      } else {
+        activate();
+      }
+    },
+    [
+      activateProjectWorkspace,
+      coordinator,
+      pathsEqual,
+      projects,
+      setProjectScope,
+      setSelectedSession,
+      setView,
+      workspace.currentPath,
+    ],
+  );
+
+  const handleWorkspaceState = useCallback(
+    (state: WorkspaceState) => {
+      if (coordinator.snapshot().inFlight > 0) {
+        setWorkspace(state);
+        return;
+      }
+      applyWorkspaceSelection(state);
+    },
+    [applyWorkspaceSelection, coordinator, setWorkspace],
+  );
+
+  useEffect(() => {
+    if (
+      !backendReady ||
+      coordinator.snapshot().pendingScope !== null ||
+      projectScope === "all" ||
+      projectScope === "unscoped"
+    ) {
+      return;
+    }
+    const project = projects.find(
+      (entry) => entry.id === projectScope && !entry.archivedAt,
+    );
+    const projectPath = project?.primaryPath;
+    if (
+      !projectPath ||
+      pathsEqual(projectPath, workspace.currentPath) ||
+      !workspace.recentPaths.some((path) => pathsEqual(path, projectPath))
+    ) {
+      return;
+    }
+    void switchToRecentWorkspace(projectPath, { announce: false });
+  }, [
+    backendReady,
+    coordinator,
+    pathsEqual,
+    projectScope,
+    projects,
+    switchToRecentWorkspace,
+    workspace.currentPath,
+    workspace.recentPaths,
+  ]);
+
+  return {
+    chooseWorkspace,
+    handleWorkspaceState,
+    openWorkspacePath,
+    switchToRecentWorkspace,
+    transitionToProjectScope,
+  };
+}
