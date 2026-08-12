@@ -109,6 +109,22 @@ describe("operational route density", () => {
     expect(app).toContain("if (utilityOpen) activityResource.reload();");
   });
 
+  it("defers automation trace receipts behind a compact disclosure", () => {
+    const automations = read("./AutomationsPage.tsx");
+    const workspace = read("./automations/AutomationWorkspace.tsx");
+
+    expect(automations).toContain("resourcePolicy.runs");
+    expect(automations).toContain(
+      'detail: runsOpen ? "Durable trace receipts" : "Open to load"',
+    );
+    expect(workspace).toContain(
+      'className="content-card automation-runs-panel"',
+    );
+    expect(workspace).toMatch(
+      /runsOpen \? `\$\{runs\.length\} loaded` : "Open to load"/u,
+    );
+  });
+
   it("keeps the primary model readiness visible and capability detail optional", () => {
     const models = read("./ModelsPage.tsx");
     expect(

@@ -25,6 +25,7 @@ import {
   useApiResource,
 } from "./lib";
 import "./automations.css";
+import { automationRequests } from "./resource-request-policy";
 
 interface CronResponse {
   jobs?: unknown[];
@@ -44,12 +45,16 @@ const initialDraft = (): AutomationDraft => ({
 });
 
 export function AutomationsPage({ active }: { active: boolean }) {
-  const jobs = useApiResource<CronResponse>(active ? "/cron/jobs" : null, [
-    active,
-  ]);
-  const runs = useApiResource<CronResponse>(active ? "/cron/runs" : null, [
-    active,
-  ]);
+  const [runsOpen, setRunsOpen] = useState(false);
+  const resourcePolicy = automationRequests({ active, runsOpen });
+  const jobs = useApiResource<CronResponse>(
+    resourcePolicy.jobs ? "/cron/jobs" : null,
+    [resourcePolicy.jobs],
+  );
+  const runs = useApiResource<CronResponse>(
+    resourcePolicy.runs ? "/cron/runs" : null,
+    [resourcePolicy.runs],
+  );
   const [showCreate, setShowCreate] = useState(false);
   const [draft, setDraft] = useState<AutomationDraft>(initialDraft);
   const [busy, setBusy] = useState("");
@@ -170,15 +175,19 @@ export function AutomationsPage({ active }: { active: boolean }) {
             value: webhookJobs,
           },
           {
-            detail: "Durable trace receipts",
+            detail: runsOpen ? "Durable trace receipts" : "Open to load",
             label: "Recent runs",
-            value: runEntries.length,
+            value: runsOpen ? runEntries.length : "—",
           },
           {
-            detail: failedRuns ? "Needs attention" : "All clear",
+            detail: runsOpen
+              ? failedRuns
+                ? "Needs attention"
+                : "All clear"
+              : "Trace drawer closed",
             label: "Failures",
-            tone: failedRuns ? "bad" : "good",
-            value: failedRuns,
+            tone: runsOpen && failedRuns ? "bad" : "neutral",
+            value: runsOpen ? failedRuns : "—",
           },
         ]}
       />
@@ -207,10 +216,12 @@ export function AutomationsPage({ active }: { active: boolean }) {
         onFeedback={(message) => setFeedback({ message, tone: "good" })}
         onReloadJobs={jobs.reload}
         onReloadRuns={runs.reload}
+        onRunsOpenChange={setRunsOpen}
         onSelectRun={setSelectedRunId}
         runs={runEntries}
         runsError={runs.error}
         runsLoading={runs.loading}
+        runsOpen={runsOpen}
         selectedRun={selectedRun}
       />
     </div>

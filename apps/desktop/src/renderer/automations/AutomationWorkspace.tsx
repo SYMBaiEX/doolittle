@@ -231,10 +231,12 @@ export function AutomationWorkspace({
   onFeedback,
   onReloadJobs,
   onReloadRuns,
+  onRunsOpenChange,
   onSelectRun,
   runs,
   runsError,
   runsLoading,
+  runsOpen,
   selectedRun,
 }: {
   busy: string;
@@ -245,10 +247,12 @@ export function AutomationWorkspace({
   onFeedback(message: string): void;
   onReloadJobs(): void;
   onReloadRuns(): void;
+  onRunsOpenChange(open: boolean): void;
   onSelectRun(id: string): void;
   runs: UnknownRecord[];
   runsError: string | null;
   runsLoading: boolean;
+  runsOpen: boolean;
   selectedRun?: UnknownRecord;
 }) {
   return (
@@ -286,66 +290,90 @@ export function AutomationWorkspace({
         )}
       </section>
 
-      <section className="content-card automation-runs-panel">
-        <div className="card-heading">
-          <div>
-            <span className="eyebrow">Execution</span>
-            <h2>Trace receipts</h2>
+      <details
+        className="content-card automation-runs-panel"
+        onToggle={(event) => onRunsOpenChange(event.currentTarget.open)}
+        open={runsOpen}
+      >
+        <summary>
+          <span>
+            <strong>Trace receipts</strong>
+            <small>Execution history and phase-level output</small>
+          </span>
+          <span>{runsOpen ? `${runs.length} loaded` : "Open to load"}</span>
+        </summary>
+        {runsOpen ? (
+          <div className="automation-runs-body">
+            <div className="automation-runs-toolbar">
+              <span>Latest durable execution receipts</span>
+              <button
+                className="text-button"
+                onClick={onReloadRuns}
+                type="button"
+              >
+                Refresh
+              </button>
+            </div>
+            {runsLoading ? (
+              <LoadingBlock label="Loading traces…" />
+            ) : runsError ? (
+              <ErrorBlock error={runsError} retry={onReloadRuns} />
+            ) : runs.length ? (
+              <div className="automation-trace-layout">
+                <ul
+                  aria-label="Automation runs"
+                  className="automation-run-list"
+                >
+                  {runs.map((entry, index) => {
+                    const id = asString(entry.id, String(index));
+                    const status = asString(entry.status, "completed");
+                    return (
+                      <li key={id}>
+                        <button
+                          aria-pressed={asString(selectedRun?.id) === id}
+                          className={
+                            asString(selectedRun?.id) === id ? "selected" : ""
+                          }
+                          onClick={() => onSelectRun(id)}
+                          type="button"
+                        >
+                          <span className={`automation-run-status ${status}`} />
+                          <span>
+                            <strong className="automation-run-list__title">
+                              {asString(entry.jobName, "Automation run")}
+                            </strong>
+                            <small className="automation-run-list__meta">
+                              {titleCase(
+                                asString(entry.triggerType, "schedule"),
+                              )}{" "}
+                              ·{" "}
+                              {displayTimestamp(
+                                asString(
+                                  entry.completedAt,
+                                  asString(entry.createdAt),
+                                ) || undefined,
+                              )}
+                            </small>
+                          </span>
+                          <Badge tone={runTone(status)}>
+                            {titleCase(status)}
+                          </Badge>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {selectedRun ? <AutomationTrace entry={selectedRun} /> : null}
+              </div>
+            ) : (
+              <EmptyBlock title="No trace receipts">
+                Run an automation to inspect its trigger, condition, action, and
+                delivery phases.
+              </EmptyBlock>
+            )}
           </div>
-          <button className="text-button" onClick={onReloadRuns} type="button">
-            Refresh
-          </button>
-        </div>
-        {runsLoading ? (
-          <LoadingBlock label="Loading traces…" />
-        ) : runsError ? (
-          <ErrorBlock error={runsError} retry={onReloadRuns} />
-        ) : runs.length ? (
-          <div className="automation-trace-layout">
-            <ul aria-label="Automation runs" className="automation-run-list">
-              {runs.map((entry, index) => {
-                const id = asString(entry.id, String(index));
-                const status = asString(entry.status, "completed");
-                return (
-                  <li key={id}>
-                    <button
-                      aria-pressed={asString(selectedRun?.id) === id}
-                      className={
-                        asString(selectedRun?.id) === id ? "selected" : ""
-                      }
-                      onClick={() => onSelectRun(id)}
-                      type="button"
-                    >
-                      <span className={`automation-run-status ${status}`} />
-                      <span>
-                        <strong className="automation-run-list__title">
-                          {asString(entry.jobName, "Automation run")}
-                        </strong>
-                        <small className="automation-run-list__meta">
-                          {titleCase(asString(entry.triggerType, "schedule"))} ·{" "}
-                          {displayTimestamp(
-                            asString(
-                              entry.completedAt,
-                              asString(entry.createdAt),
-                            ) || undefined,
-                          )}
-                        </small>
-                      </span>
-                      <Badge tone={runTone(status)}>{titleCase(status)}</Badge>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            {selectedRun ? <AutomationTrace entry={selectedRun} /> : null}
-          </div>
-        ) : (
-          <EmptyBlock title="No trace receipts">
-            Run an automation to inspect its trigger, condition, action, and
-            delivery phases.
-          </EmptyBlock>
-        )}
-      </section>
+        ) : null}
+      </details>
     </div>
   );
 }

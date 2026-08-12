@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  automationRequests,
   codingWorkspaceRequests,
   orchestrationRequests,
   reviewRequests,
@@ -167,6 +168,23 @@ describe("setup request policy", () => {
     expect(setupRequests({ active: false, checklistOpen: true })).toEqual({
       primary: false,
       checklist: false,
+    });
+  });
+});
+
+describe("automation request policy", () => {
+  it("keeps workflow management primary and defers trace receipts", () => {
+    expect(automationRequests({ active: true, runsOpen: false })).toEqual({
+      jobs: true,
+      runs: false,
+    });
+    expect(automationRequests({ active: true, runsOpen: true })).toEqual({
+      jobs: true,
+      runs: true,
+    });
+    expect(automationRequests({ active: false, runsOpen: true })).toEqual({
+      jobs: false,
+      runs: false,
     });
   });
 });

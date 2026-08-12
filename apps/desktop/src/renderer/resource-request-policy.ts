@@ -108,3 +108,16 @@ export function setupRequests({
     checklist: active && checklistOpen,
   };
 }
+
+export function automationRequests({
+  active,
+  runsOpen,
+}: {
+  active: boolean;
+  runsOpen: boolean;
+}) {
+  return {
+    jobs: active,
+    runs: active && runsOpen,
+  };
+}
