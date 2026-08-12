@@ -4,6 +4,7 @@ import {
   buildGatewayTimeline,
   filterGatewayTimeline,
   gatewayActionFeedback,
+  gatewayResourcePolicy,
   gatewayStatusTone,
   pairingRequests,
 } from "./gateway-page-model";
@@ -111,6 +112,21 @@ describe("gateway page timeline model", () => {
     expect(gatewayActionFeedback("replay", "record expired")).toEqual({
       message: "Replay could not be completed: record expired",
       tone: "bad",
+    });
+  });
+
+  it("defers pairing records until the approval drawer is opened", () => {
+    expect(gatewayResourcePolicy(true, false)).toEqual({
+      primary: true,
+      pairing: false,
+    });
+    expect(gatewayResourcePolicy(true, true)).toEqual({
+      primary: true,
+      pairing: true,
+    });
+    expect(gatewayResourcePolicy(false, true)).toEqual({
+      primary: false,
+      pairing: false,
     });
   });
 });

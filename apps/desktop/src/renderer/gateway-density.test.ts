@@ -5,6 +5,10 @@ const source = readFileSync(
   new URL("./GatewayPage.tsx", import.meta.url),
   "utf8",
 );
+const pairingSource = readFileSync(
+  new URL("./gateway/GatewayPairingPanel.tsx", import.meta.url),
+  "utf8",
+);
 const css = readFileSync(
   new URL("./gateway-page.css", import.meta.url),
   "utf8",
@@ -12,10 +16,11 @@ const css = readFileSync(
 
 describe("GatewayPage density", () => {
   it("keeps sender approvals in a concise status disclosure", () => {
-    expect(source).toContain('<details className="panel pairing-panel"');
-    expect(source).toContain("{pendingPairings.length} pending");
-    expect(source).toContain("{approvedPairings.length}");
-    expect(source).toContain("approved");
+    expect(source).toContain("<GatewayPairingPanel");
+    expect(pairingSource).toContain('className="panel pairing-panel"');
+    expect(pairingSource).toContain("Open to load");
+    expect(pairingSource).toContain("pending.length} pending");
+    expect(pairingSource).toContain("approved.length} approved");
     expect(css).toContain(".pairing-panel > summary {");
   });
 });

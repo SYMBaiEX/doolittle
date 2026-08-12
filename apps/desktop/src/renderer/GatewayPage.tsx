@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
-import { InlineActionConfirmation } from "./components/InlineActionConfirmation";
+import { GatewayPairingPanel } from "./gateway/GatewayPairingPanel";
 import {
   type GatewayTimelineDirection,
   GatewayTimelinePanel,
@@ -10,6 +10,7 @@ import {
   buildGatewayTimeline,
   filterGatewayTimeline,
   gatewayActionFeedback,
+  gatewayResourcePolicy,
   pairingRequests,
 } from "./gateway-page-model";
 import {
@@ -80,29 +81,31 @@ function sessionMetadata(session: unknown) {
 }
 
 export function GatewayPage({ active }: { active: boolean }) {
+  const [pairingOpen, setPairingOpen] = useState(false);
+  const resourcePolicy = gatewayResourcePolicy(active, pairingOpen);
   const state = useApiResource<GatewayStateResponse>(
-    active ? "/gateway/state" : null,
-    [active],
+    resourcePolicy.primary ? "/gateway/state" : null,
+    [resourcePolicy.primary],
   );
   const inbox = useApiResource<GatewayHistoryResponse>(
-    active ? "/gateway/inbox?limit=25" : null,
-    [active],
+    resourcePolicy.primary ? "/gateway/inbox?limit=25" : null,
+    [resourcePolicy.primary],
   );
   const outbox = useApiResource<GatewayHistoryResponse>(
-    active ? "/gateway/outbox?limit=25" : null,
-    [active],
+    resourcePolicy.primary ? "/gateway/outbox?limit=25" : null,
+    [resourcePolicy.primary],
   );
   const sessions = useApiResource<GatewaySessionsResponse>(
-    active ? "/sessions/gateway" : null,
-    [active],
+    resourcePolicy.primary ? "/sessions/gateway" : null,
+    [resourcePolicy.primary],
   );
   const pairingPending = useApiResource<PairingPendingResponse>(
-    active ? "/pairing/pending?limit=200" : null,
-    [active],
+    resourcePolicy.pairing ? "/pairing/pending?limit=200" : null,
+    [resourcePolicy.pairing],
   );
   const pairingApproved = useApiResource<PairingApprovedResponse>(
-    active ? "/pairing/approved?limit=200" : null,
-    [active],
+    resourcePolicy.pairing ? "/pairing/approved?limit=200" : null,
+    [resourcePolicy.pairing],
   );
   const [direction, setDirection] = useState<GatewayTimelineDirection>("all");
   const [platform, setPlatform] = useState("all");
@@ -145,24 +148,19 @@ export function GatewayPage({ active }: { active: boolean }) {
     inbox.error,
     outbox.error,
     sessions.error,
-    pairingPending.error,
-    pairingApproved.error,
   ].filter(Boolean);
   const loading =
-    state.loading ||
-    inbox.loading ||
-    outbox.loading ||
-    sessions.loading ||
-    pairingPending.loading ||
-    pairingApproved.loading;
+    state.loading || inbox.loading || outbox.loading || sessions.loading;
 
   const refresh = () => {
     state.reload();
     inbox.reload();
     outbox.reload();
     sessions.reload();
-    pairingPending.reload();
-    pairingApproved.reload();
+    if (pairingOpen) {
+      pairingPending.reload();
+      pairingApproved.reload();
+    }
   };
 
   const updatePairing = async (
@@ -255,10 +253,20 @@ export function GatewayPage({ active }: { active: boolean }) {
             value: entries.length,
           },
           {
-            detail: "Awaiting approval",
+            detail:
+              pairingOpen && (pairingPending.loading || pairingApproved.loading)
+                ? "Loading approvals"
+                : pairingOpen
+                  ? "Awaiting approval"
+                  : "Open to load",
             label: "Pairing",
-            tone: pendingPairings.length ? "warn" : "neutral",
-            value: pendingPairings.length,
+            tone: pairingOpen && pendingPairings.length ? "warn" : "neutral",
+            value:
+              pairingOpen && (pairingPending.loading || pairingApproved.loading)
+                ? "…"
+                : pairingOpen
+                  ? pendingPairings.length
+                  : "—",
           },
         ]}
       />
@@ -317,169 +325,25 @@ export function GatewayPage({ active }: { active: boolean }) {
         </aside>
       </div>
 
-      <details className="panel pairing-panel" aria-labelledby="pairing-title">
-        <summary className="panel-heading gateway-heading">
-          <div>
-            <span className="eyebrow">Secure device access</span>
-            <h2 id="pairing-title">Paired sender approvals</h2>
-          </div>
-          <span className="pairing-summary-counts">
-            {pendingPairings.length} pending · {approvedPairings.length}{" "}
-            approved
-          </span>
-        </summary>
-        <div className="pairing-panel-body">
-          <Notice announce="off" tone="neutral">
-            <span>
-              Messaging senders only—not remote desktop access. Requests expire
-              under the Eliza runtime policy.
-            </span>
-          </Notice>
-          {pairingPending.data?.truncated || pairingApproved.data?.truncated ? (
-            <Notice announce="off" tone="warn">
-              Showing the newest 200 pairing records. Filter by platform through
-              the API to inspect a narrower allowlist safely.
-            </Notice>
-          ) : null}
-          <div className="pairing-columns">
-            <section aria-labelledby="pairing-pending-title">
-              <div className="pairing-section-heading">
-                <div>
-                  <span className="eyebrow">Pending</span>
-                  <h3 id="pairing-pending-title">Awaiting approval</h3>
-                </div>
-                <Badge tone={pendingPairings.length ? "warn" : "neutral"}>
-                  {pendingPairings.length}
-                </Badge>
-              </div>
-              {!pendingPairings.length ? (
-                <EmptyBlock title="No pending pairing requests">
-                  New sender requests will appear here after Eliza receives
-                  them.
-                </EmptyBlock>
-              ) : (
-                <ul className="pairing-list">
-                  {pendingPairings.map((request) => {
-                    const approveId = `approve:${request.platform}:${request.code}`;
-                    const denyId = `deny:${request.platform}:${request.code}`;
-                    const confirmationId = confirmPairingAction;
-                    const actionId = pairingAction;
-                    return (
-                      <li key={request.id}>
-                        <Badge tone="warn">{titleCase(request.platform)}</Badge>
-                        <strong>{request.userId}</strong>
-                        <span>Code: {request.code}</span>
-                        <time dateTime={request.createdAt}>
-                          Requested {displayTimestamp(request.createdAt)}
-                        </time>
-                        {confirmationId === approveId ? (
-                          <InlineActionConfirmation
-                            busy={actionId === approveId}
-                            busyLabel="Approving…"
-                            confirmLabel="Confirm approve"
-                            detail={`Allows future ${request.platform} messages from this sender.`}
-                            onCancel={() => setConfirmPairingAction("")}
-                            onConfirm={() =>
-                              void updatePairing("approve", request)
-                            }
-                            title={`Approve ${request.userId}?`}
-                            tone="primary"
-                          />
-                        ) : confirmationId === denyId ? (
-                          <InlineActionConfirmation
-                            busy={actionId === denyId}
-                            busyLabel="Denying…"
-                            confirmLabel="Confirm deny"
-                            detail="Removes this request without adding the sender to Eliza’s allowlist."
-                            onCancel={() => setConfirmPairingAction("")}
-                            onConfirm={() =>
-                              void updatePairing("deny", request)
-                            }
-                            title={`Deny ${request.userId}?`}
-                          />
-                        ) : (
-                          <div className="pairing-actions">
-                            <button
-                              className="secondary-button"
-                              disabled={Boolean(actionId)}
-                              onClick={() => setConfirmPairingAction(approveId)}
-                              type="button"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              className="secondary-button"
-                              disabled={Boolean(actionId)}
-                              onClick={() => setConfirmPairingAction(denyId)}
-                              type="button"
-                            >
-                              Deny
-                            </button>
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
-            <section aria-labelledby="pairing-approved-title">
-              <div className="pairing-section-heading">
-                <div>
-                  <span className="eyebrow">Approved</span>
-                  <h3 id="pairing-approved-title">Current allowlist</h3>
-                </div>
-                <Badge tone="good">{approvedPairings.length}</Badge>
-              </div>
-              {!approvedPairings.length ? (
-                <EmptyBlock title="No approved senders">
-                  Approvals remain in Eliza’s own allowlist and appear here when
-                  the service exposes them.
-                </EmptyBlock>
-              ) : (
-                <ul className="pairing-list">
-                  {approvedPairings.map((sender) => {
-                    const revokeId = `revoke:${sender.platform}:${sender.userId}`;
-                    return (
-                      <li key={sender.id}>
-                        <Badge tone="good">{titleCase(sender.platform)}</Badge>
-                        <strong>{sender.userId}</strong>
-                        <time dateTime={sender.approvedAt}>
-                          Approved {displayTimestamp(sender.approvedAt)}
-                        </time>
-                        {confirmPairingAction === revokeId ? (
-                          <InlineActionConfirmation
-                            busy={pairingAction === revokeId}
-                            busyLabel="Revoking…"
-                            confirmLabel="Confirm revoke"
-                            detail={`Blocks future ${sender.platform} messages until this sender pairs again.`}
-                            onCancel={() => setConfirmPairingAction("")}
-                            onConfirm={() =>
-                              void updatePairing("revoke", sender)
-                            }
-                            title={`Revoke ${sender.userId}?`}
-                          />
-                        ) : (
-                          <div className="pairing-actions">
-                            <button
-                              className="secondary-button"
-                              disabled={Boolean(pairingAction)}
-                              onClick={() => setConfirmPairingAction(revokeId)}
-                              type="button"
-                            >
-                              Revoke
-                            </button>
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </section>
-          </div>
-        </div>
-      </details>
+      <GatewayPairingPanel
+        actionId={pairingAction}
+        approved={approvedPairings}
+        confirmationId={confirmPairingAction}
+        error={pairingPending.error || pairingApproved.error}
+        loading={pairingPending.loading || pairingApproved.loading}
+        onConfirmationChange={setConfirmPairingAction}
+        onOpenChange={setPairingOpen}
+        onRetry={() => {
+          pairingPending.reload();
+          pairingApproved.reload();
+        }}
+        onUpdate={(action, input) => void updatePairing(action, input)}
+        open={pairingOpen}
+        pending={pendingPairings}
+        truncated={Boolean(
+          pairingPending.data?.truncated || pairingApproved.data?.truncated,
+        )}
+      />
     </section>
   );
 }

@@ -34,6 +34,13 @@ export interface GatewayApprovedSender {
 
 export type GatewayAction = "approve" | "deny" | "revoke" | "replay";
 
+export function gatewayResourcePolicy(active: boolean, pairingOpen: boolean) {
+  return {
+    primary: active,
+    pairing: active && pairingOpen,
+  };
+}
+
 export function gatewayActionFeedback(
   action: GatewayAction,
   error?: string,
