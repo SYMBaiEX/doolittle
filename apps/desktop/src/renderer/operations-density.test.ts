@@ -65,6 +65,7 @@ describe("operational route density", () => {
     expect(skills).toContain("asArray(skills.data?.installed)");
     expect(skills).not.toContain('"/skills/summary"');
     expect(skills).not.toContain('"/skills/installed"');
+    expect(skills).not.toContain('status: "Available"');
   });
 
   it("requests only the native plugin catalog on inventory screens", () => {

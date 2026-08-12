@@ -101,4 +101,17 @@ describe("CompactCatalogList", () => {
     expect(markup).toContain("Entry 1");
     expect(markup).not.toContain('class="eyebrow"');
   });
+
+  it("omits redundant status chrome when the containing catalog owns state", () => {
+    const markup = renderToStaticMarkup(
+      <CompactCatalogList
+        ariaLabel="Skills"
+        entries={[{ ...entry(1), status: undefined, tone: undefined }]}
+        resetKey="skills"
+      />,
+    );
+
+    expect(markup).toContain("Entry 1");
+    expect(markup).not.toContain('class="badge');
+  });
 });

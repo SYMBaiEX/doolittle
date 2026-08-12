@@ -15,8 +15,8 @@ export interface CompactCatalogEntry {
   eyebrow?: string;
   title: string;
   description: string;
-  status: string;
-  tone: "neutral" | "good" | "warn" | "bad";
+  status?: string;
+  tone?: "neutral" | "good" | "warn" | "bad";
   code?: string;
   meta?: string;
   facts?: CompactCatalogFact[];
@@ -81,7 +81,9 @@ export function CompactCatalogList({
                 </div>
               </div>
               <div className="compact-catalog__actions">
-                <Badge tone={entry.tone}>{entry.status}</Badge>
+                {entry.status ? (
+                  <Badge tone={entry.tone}>{entry.status}</Badge>
+                ) : null}
                 {entry.action}
               </div>
             </div>
