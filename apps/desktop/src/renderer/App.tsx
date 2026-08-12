@@ -7,6 +7,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -115,6 +116,92 @@ const LazyCommandPalette = lazy(async () => ({
   default: (await preloadCommandPalette()).CommandPalette,
 }));
 
+interface CommandPaletteLoadingFallbackProps {
+  open: boolean;
+  onClose: () => void;
+  returnFocusTarget: HTMLElement | null;
+}
+
+export function CommandPaletteLoadingFallback({
+  open,
+  onClose,
+  returnFocusTarget,
+}: CommandPaletteLoadingFallbackProps) {
+  const titleId = useId();
+  const descriptionId = useId();
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    dialogRef.current?.focus();
+  }, [open]);
+
+  const closeAndRestoreFocus = useCallback(() => {
+    onClose();
+    if (returnFocusTarget?.isConnected) {
+      requestAnimationFrame(() => returnFocusTarget.focus());
+    }
+  }, [onClose, returnFocusTarget]);
+
+  if (!open) return null;
+
+  return (
+    <div className="command-palette-loading-backdrop" role="presentation">
+      <button
+        aria-label="Close command palette"
+        className="command-palette-loading-dismiss"
+        onClick={closeAndRestoreFocus}
+        type="button"
+      />
+      <div
+        aria-describedby={descriptionId}
+        aria-labelledby={titleId}
+        aria-modal="true"
+        className="command-palette-loading"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closeAndRestoreFocus();
+          } else if (event.key === "Tab") {
+            event.preventDefault();
+            closeRef.current?.focus();
+          }
+        }}
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+      >
+        <header className="command-palette-loading__header">
+          <span aria-hidden="true" className="command-palette__mark">
+            &gt;
+          </span>
+          <h2 id={titleId}>Command menu</h2>
+          <button
+            aria-label="Close command palette"
+            className="command-palette__close"
+            onClick={closeAndRestoreFocus}
+            ref={closeRef}
+            type="button"
+          >
+            Esc
+          </button>
+        </header>
+        <div
+          aria-busy="true"
+          aria-live="polite"
+          className="command-palette-loading__status"
+          id={descriptionId}
+          role="status"
+        >
+          <i aria-hidden="true" />
+          <span>Loading commands…</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const initialConversation = useMemo(newConversationId, []);
   const [view, setViewState] = useState<View>(viewFromHash);
@@ -199,6 +286,7 @@ export function App() {
   const sidebarReturnFocusRef = useRef<HTMLElement | null>(null);
   const utilityRef = useRef<HTMLElement | null>(null);
   const utilityReturnFocusRef = useRef<HTMLElement | null>(null);
+  const paletteReturnFocusRef = useRef<HTMLElement | null>(null);
   const chatTerminalReturnFocusRef = useRef<HTMLElement | null>(null);
   const isMobileSidebarMode = useMediaQuery(MOBILE_SIDEBAR_QUERY);
   const mobileSidebarOpen = sidebarOpen && isMobileSidebarMode;
@@ -220,6 +308,11 @@ export function App() {
   }, [setMobileSidebarOpen]);
 
   const openCommandPalette = useCallback(() => {
+    paletteReturnFocusRef.current =
+      document.activeElement instanceof HTMLElement &&
+      document.activeElement !== document.body
+        ? document.activeElement
+        : null;
     void preloadCommandPalette();
     setPaletteMounted(true);
     setPaletteOpen(true);
@@ -678,9 +771,16 @@ export function App() {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (isCommandPaletteShortcut(event)) {
         event.preventDefault();
-        void preloadCommandPalette();
-        setPaletteMounted(true);
-        setPaletteOpen((current) => !current);
+        if (paletteOpen) {
+          setPaletteOpen(false);
+          setPaletteQuery("");
+          const returnTarget = paletteReturnFocusRef.current;
+          if (returnTarget?.isConnected) {
+            requestAnimationFrame(() => returnTarget.focus());
+          }
+        } else {
+          openCommandPalette();
+        }
         return;
       }
       if (shouldIgnoreShellShortcut(event)) return;
@@ -719,7 +819,14 @@ export function App() {
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [createConversation, setView, toggleInspector, toggleNavigation]);
+  }, [
+    createConversation,
+    openCommandPalette,
+    paletteOpen,
+    setView,
+    toggleInspector,
+    toggleNavigation,
+  ]);
 
   useEffect(
     () =>
@@ -982,7 +1089,18 @@ export function App() {
       }
     >
       {paletteMounted ? (
-        <Suspense fallback={null}>
+        <Suspense
+          fallback={
+            <CommandPaletteLoadingFallback
+              onClose={() => {
+                setPaletteOpen(false);
+                setPaletteQuery("");
+              }}
+              open={paletteOpen}
+              returnFocusTarget={paletteReturnFocusRef.current}
+            />
+          }
+        >
           <LazyCommandPalette
             groups={commandGroups}
             isOpen={paletteOpen}
@@ -992,6 +1110,7 @@ export function App() {
             }}
             onQueryChange={setPaletteQuery}
             resetOnOpen
+            returnFocusTarget={paletteReturnFocusRef.current}
             searchPlaceholder="Search commands, projects, chats, and files…"
             title="Command menu"
           />

@@ -21,5 +21,10 @@ describe("mobile conversations loading boundary", () => {
     expect(source).toContain('role="dialog"');
     expect(source).toContain("dialogRef={mobileConversationsDialogRef}");
     expect(source).toContain("Loading conversations…");
+    expect(source).toContain("data-mobile-conversation");
+    expect(source).toContain("chat-mobile-conversations-dismiss");
+    expect(source).toContain(
+      "onClose={() => setMobileConversationsOpen(false)}",
+    );
   });
 });

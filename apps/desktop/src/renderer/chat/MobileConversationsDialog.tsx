@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { type RefObject, useLayoutEffect } from "react";
 import type { SessionSummary } from "../../shared/contracts";
 import { displayTimestamp } from "../lib";
 
@@ -27,6 +27,14 @@ export function MobileConversationsDialog({
   selectedId,
   sessions,
 }: MobileConversationsDialogProps) {
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || dialog.contains(document.activeElement)) return;
+    (
+      dialog.querySelector<HTMLElement>("[data-mobile-conversation]") ?? dialog
+    ).focus();
+  }, [dialogRef]);
+
   return (
     <div className="chat-mobile-conversations-backdrop">
       <button
@@ -42,6 +50,7 @@ export function MobileConversationsDialog({
         id="mobile-conversations"
         ref={dialogRef}
         role="dialog"
+        tabIndex={-1}
       >
         <header>
           <div>

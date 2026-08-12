@@ -96,4 +96,12 @@ describe("MobileConversationsDialog", () => {
     );
     expect(onNewConversation).toHaveBeenCalledTimes(1);
   });
+
+  it("recovers focus inside the dialog when lazy content replaces its fallback", () => {
+    const firstConversation = container.querySelector<HTMLElement>(
+      "[data-mobile-conversation]",
+    );
+
+    expect(document.activeElement).toBe(firstConversation);
+  });
 });

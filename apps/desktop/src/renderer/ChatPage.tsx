@@ -66,11 +66,19 @@ const MobileConversationsDialog = lazy(async () => {
 
 function MobileConversationsDialogFallback({
   dialogRef,
+  onClose,
 }: {
   dialogRef: RefObject<HTMLDivElement | null>;
+  onClose: () => void;
 }) {
   return (
     <div className="chat-mobile-conversations-backdrop">
+      <button
+        aria-label="Close conversations"
+        className="chat-mobile-conversations-dismiss"
+        onClick={onClose}
+        type="button"
+      />
       <div
         aria-label="Conversations"
         aria-modal="true"
@@ -85,6 +93,15 @@ function MobileConversationsDialogFallback({
           className="chat-mobile-conversations-loading"
           role="status"
         >
+          <button
+            aria-label="Close conversations"
+            className="chat-mobile-conversations-close"
+            data-mobile-conversation
+            onClick={onClose}
+            type="button"
+          >
+            Close
+          </button>
           Loading conversations…
         </div>
       </div>
@@ -1100,6 +1117,7 @@ export function ChatPage({
           fallback={
             <MobileConversationsDialogFallback
               dialogRef={mobileConversationsDialogRef}
+              onClose={() => setMobileConversationsOpen(false)}
             />
           }
         >

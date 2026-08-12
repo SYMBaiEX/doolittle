@@ -61,11 +61,37 @@ describe("desktop shell overlay CSS ownership", () => {
     expect(appSource).toContain('import("./components/CommandPalette")');
     expect(appSource).toContain("const LazyCommandPalette = lazy");
     expect(appSource).toMatch(
-      /paletteMounted \? \(\s*<Suspense fallback=\{null\}>\s*<LazyCommandPalette/u,
+      /paletteMounted \? \(\s*<Suspense\s+fallback=\{/u,
     );
+    expect(appSource).toContain("<CommandPaletteLoadingFallback");
     expect(appSource).toContain("void preloadCommandPalette();");
     expect(appSource).toContain("setPaletteMounted(true);");
     expect(appSource).toContain("isOpen={paletteOpen}");
+    expect(appSource).toContain(
+      "returnFocusTarget={paletteReturnFocusRef.current}",
+    );
+  });
+
+  it("keeps the first-load fallback modal, centered, and motion-safe", () => {
+    for (const selector of [
+      "command-palette-loading-backdrop",
+      "command-palette-loading",
+      "command-palette-loading__header",
+      "command-palette-loading__status",
+    ]) {
+      expect(shellOverlaysCss).toMatch(exactClassSelector(selector));
+      expect(appSource).toContain(selector);
+    }
+    expect(shellOverlaysCss).toMatch(
+      /\.command-palette-loading-backdrop\s*\{[\s\S]*position: fixed;[\s\S]*place-items: center;/u,
+    );
+    expect(shellOverlaysCss).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.command-palette-loading/u,
+    );
+    expect(appSource).toContain('aria-modal="true"');
+    expect(appSource).toContain('role="dialog"');
+    expect(appSource).toContain('role="status"');
+    expect(appSource).toContain('event.key === "Escape"');
   });
 
   it("loads overlays immediately after the experience layer", () => {

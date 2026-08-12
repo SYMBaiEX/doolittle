@@ -8,6 +8,78 @@
 
 /* Command palette */
 
+.command-palette-loading-backdrop {
+  position: fixed;
+  z-index: 160;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.8);
+  animation: dialog-backdrop-in 160ms ease-out both;
+}
+
+.command-palette-loading-dismiss {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.command-palette-loading {
+  position: relative;
+  z-index: 1;
+  width: min(620px, calc(100vw - 32px));
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-raised) 98%, transparent);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.52);
+  outline: none;
+  animation: command-menu-in 170ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.command-palette-loading__header {
+  display: grid;
+  min-height: 40px;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 4px 14px;
+}
+
+.command-palette-loading__header h2 {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.command-palette-loading__status {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  gap: 10px;
+  margin: 5px 10px 10px;
+  padding: 0 16px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: var(--text-sm);
+}
+
+.command-palette-loading__status i {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 10%, transparent);
+  animation: command-palette-loading-pulse 900ms ease-in-out infinite alternate;
+}
+
 .command-palette {
   width: min(620px, calc(100vw - 32px));
   max-height: min(590px, calc(100vh - 96px));
@@ -469,6 +541,12 @@
   }
 }
 
+@keyframes command-palette-loading-pulse {
+  to {
+    opacity: 0.42;
+  }
+}
+
 @keyframes route-control-in {
   from {
     opacity: 0;
@@ -511,7 +589,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .command-palette,
-  .command-palette[data-state="closed"] {
+  .command-palette[data-state="closed"],
+  .command-palette-loading,
+  .command-palette-loading-backdrop,
+  .command-palette-loading__status i {
     animation: none;
   }
 }
