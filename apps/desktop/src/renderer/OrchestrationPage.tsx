@@ -147,12 +147,10 @@ export function OrchestrationPage({
     overviewResource,
     tasksResource,
     workersResource,
-    worktreesResource,
     plansResource,
     codegenRuntimeResource,
     accountPoolResource,
     codegenWorkflowsResource,
-    codegenRunsResource,
     workflowDetailResource,
     runDetailResource,
     tasks,
@@ -162,6 +160,9 @@ export function OrchestrationPage({
     workflows,
     runs,
     codegenSelection,
+    refreshAll,
+    refreshCodegen,
+    refreshDelegation,
   } = useOrchestrationResources({
     active,
     activeTab,
@@ -406,29 +407,6 @@ export function OrchestrationPage({
       delete nextState[key];
       return nextState;
     });
-  };
-
-  const refreshDelegation = () => {
-    tasksResource.reload();
-    workersResource.reload();
-    overviewResource.reload();
-  };
-
-  const refreshCodegen = () => {
-    codegenRuntimeResource.reload();
-    codegenWorkflowsResource.reload();
-    codegenRunsResource.reload();
-    if (selectedWorkflowId) workflowDetailResource.reload();
-    if (selectedRunId) runDetailResource.reload();
-  };
-
-  const refreshAll = () => {
-    if (!active) return;
-    refreshDelegation();
-    worktreesResource.reload();
-    plansResource.reload();
-    accountPoolResource.reload();
-    refreshCodegen();
   };
 
   const onSubmitCreateTask = async (event: FormEvent<HTMLFormElement>) => {

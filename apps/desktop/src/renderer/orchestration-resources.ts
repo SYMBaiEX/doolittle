@@ -6,6 +6,11 @@ import {
   type UnknownRecord,
   useApiResource,
 } from "./lib";
+import {
+  refreshCodegenResources,
+  refreshDelegationResources,
+  refreshOrchestrationResources,
+} from "./orchestration/orchestration-refresh";
 import { projectCodegenSelection } from "./orchestration-codegen-selection";
 import { scopeTasksByWorkspace } from "./orchestration-helpers";
 import type { RepositoryWorktreesResponse } from "./repository-resource-models";
@@ -396,6 +401,40 @@ export function useOrchestrationResources(input: {
     workflowDetailLoading: workflowDetailResource.loading,
     detailedRun: runDetailResource.data?.run,
   });
+  const refreshDelegation = () =>
+    refreshDelegationResources({
+      overview: overviewResource,
+      tasks: tasksResource,
+      workers: workersResource,
+    });
+  const refreshCodegen = () =>
+    refreshCodegenResources({
+      runDetail: runDetailResource,
+      runs: codegenRunsResource,
+      runtime: codegenRuntimeResource,
+      selectedRunId: input.selectedRunId,
+      selectedWorkflowId: input.selectedWorkflowId,
+      workflowDetail: workflowDetailResource,
+      workflows: codegenWorkflowsResource,
+    });
+  const refreshAll = () => {
+    if (!input.active) return;
+    refreshOrchestrationResources({
+      accountPool: accountPoolResource,
+      overview: overviewResource,
+      plans: plansResource,
+      runDetail: runDetailResource,
+      runs: codegenRunsResource,
+      runtime: codegenRuntimeResource,
+      selectedRunId: input.selectedRunId,
+      selectedWorkflowId: input.selectedWorkflowId,
+      tasks: tasksResource,
+      workers: workersResource,
+      workflowDetail: workflowDetailResource,
+      workflows: codegenWorkflowsResource,
+      worktrees: worktreesResource,
+    });
+  };
 
   return {
     requestPolicy,
@@ -413,5 +452,8 @@ export function useOrchestrationResources(input: {
     ...normalized,
     tasks,
     codegenSelection,
+    refreshAll,
+    refreshCodegen,
+    refreshDelegation,
   };
 }
