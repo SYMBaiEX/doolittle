@@ -6,7 +6,6 @@ import {
   Badge,
   ErrorBlock,
   LoadingBlock,
-  Notice,
   PageHeader,
   titleCase,
   useApiResource,
@@ -86,10 +85,6 @@ export function DocsPage({ active }: { active: boolean }) {
   const doctor = useApiResource<DoctorResponse>(active ? "/doctor" : null, [
     active,
   ]);
-  const setup = useApiResource<Record<string, unknown>>(
-    active ? "/setup/summary" : null,
-    [active],
-  );
   const checks = normalizeDoctorChecks(doctor.data);
   const prioritizedChecks = prioritizeDoctorChecks(checks, 5);
   const passing = checks.filter((check) =>
@@ -194,14 +189,6 @@ export function DocsPage({ active }: { active: boolean }) {
               <span>Open the terminal interface.</span>
             </div>
           </div>
-          {setup.error ? (
-            <Notice tone="warn">{setup.error}</Notice>
-          ) : setup.data ? (
-            <Notice tone="good">
-              The local operator setup summary is available and the runtime
-              answered successfully.
-            </Notice>
-          ) : null}
         </section>
       </div>
       <details className="architecture-disclosure">

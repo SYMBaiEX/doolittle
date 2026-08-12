@@ -81,6 +81,14 @@ describe("operational route density", () => {
     expect(setup).toContain("Open to load");
   });
 
+  it("uses the runtime doctor as the single health source on the About page", () => {
+    const docs = read("./DocsPage.tsx");
+
+    expect(docs).toContain('active ? "/doctor" : null');
+    expect(docs).not.toContain('"/setup/summary"');
+    expect(docs).not.toContain("runtime answered successfully");
+  });
+
   it("keeps the primary model readiness visible and capability detail optional", () => {
     const models = read("./ModelsPage.tsx");
     expect(
