@@ -935,6 +935,49 @@ test.describe("Doolittle desktop navigation", () => {
       await verifyAllRoutes();
 
       await page.evaluate(() => {
+        window.location.hash = "#/connections";
+      });
+      const connectionsViewport = page.locator(
+        '.view-container[data-view="connections"]',
+      );
+      await expect(connectionsViewport).toBeVisible();
+      await expect(
+        connectionsViewport.getByRole("heading", {
+          name: "Providers & accounts",
+        }),
+      ).toBeVisible();
+      await expect
+        .poll(() =>
+          connectionsViewport.evaluate(
+            (container) => container.scrollHeight - container.clientHeight,
+          ),
+        )
+        .toBeGreaterThan(0);
+      await connectionsViewport.evaluate((container) => {
+        container.scrollTop = container.scrollHeight;
+      });
+      await expect
+        .poll(() =>
+          connectionsViewport.evaluate((container) => container.scrollTop),
+        )
+        .toBeGreaterThan(0);
+      await page.evaluate(() => {
+        window.location.hash = "#/dashboard";
+      });
+      const dashboardViewport = page.locator(
+        '.view-container[data-view="dashboard"]',
+      );
+      await expect(dashboardViewport).toBeVisible();
+      await expect
+        .poll(() =>
+          dashboardViewport.evaluate((container) => container.scrollTop),
+        )
+        .toBe(0);
+      await expect(
+        dashboardViewport.getByRole("heading", { name: "Dashboard" }),
+      ).toBeInViewport();
+
+      await page.evaluate(() => {
         window.location.hash = "#/runtime";
       });
       const runtimeTabs = page.getByRole("tablist", {

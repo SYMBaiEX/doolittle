@@ -1786,7 +1786,11 @@ export function App() {
           onRefresh={() => void refreshWithFeedback()}
           onRestart={() => void restartRuntime()}
         />
-        <div className={`view-container view-${view}`} data-view={view}>
+        <div
+          className={`view-container view-${view}`}
+          data-view={view}
+          key={view}
+        >
           <Suspense fallback={<DesktopRouteLoadingFallback />}>
             {content}
           </Suspense>
