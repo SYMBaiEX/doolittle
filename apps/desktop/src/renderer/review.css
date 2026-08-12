@@ -1624,7 +1624,7 @@
 }
 
 .review-work-overview.is-empty {
-  width: min(100%, 760px);
+  width: 100%;
   min-height: 54px;
   grid-template-columns: minmax(0, 1fr);
 }
