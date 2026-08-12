@@ -132,9 +132,10 @@ describe("official delegation service bridge", () => {
       getStatus: vi.fn(async () => ({ activeSessionCount: 1 })),
     };
 
-    await expect(
-      getEffectiveDelegationOverviewsSnapshot(runtimeWith(service) as never),
-    ).resolves.toMatchObject({
+    const overview = await getEffectiveDelegationOverviewsSnapshot(
+      runtimeWith(service) as never,
+    );
+    expect(overview).toMatchObject({
       local: { total: 1, running: 1 },
       native: {
         available: true,
@@ -143,6 +144,8 @@ describe("official delegation service bridge", () => {
         total: 1,
       },
     });
+    expect(overview.local).not.toHaveProperty("byGroup");
+    expect(overview.native).not.toHaveProperty("activeWorkers");
 
     expect(service.listTasks).toHaveBeenCalledOnce();
     expect(service.getTask).not.toHaveBeenCalled();
