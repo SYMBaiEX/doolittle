@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { AcpBridgePanel } from "./components/AcpBridgePanel";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import {
@@ -6,7 +6,6 @@ import {
   catalogExceptionStatus,
 } from "./components/CompactCatalogList";
 import { CompactStatStrip } from "./components/CompactStatStrip";
-import { McpControlPanel } from "./components/McpControlPanel";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   asArray,
@@ -41,6 +40,35 @@ const TOOL_PROFILES: readonly ToolProfile[] = [
   "messaging",
   "full",
 ];
+
+type McpControlPanelModule = typeof import("./components/McpControlPanel");
+let mcpControlPanelModule: Promise<McpControlPanelModule> | null = null;
+
+export function preloadMcpControlPanel(): Promise<McpControlPanelModule> {
+  mcpControlPanelModule ??= import("./components/McpControlPanel");
+  return mcpControlPanelModule;
+}
+
+const LazyMcpControlPanel = lazy(async () => ({
+  default: (await preloadMcpControlPanel()).McpControlPanel,
+}));
+
+export function McpControlPanelFallback() {
+  return (
+    <div
+      aria-busy="true"
+      aria-live="polite"
+      className="tools-integrations__loading"
+      role="status"
+    >
+      <span aria-hidden="true">◇</span>
+      <div>
+        <strong>Loading MCP workspace…</strong>
+        <small>Server and tool reads begin when the controls are ready.</small>
+      </div>
+    </div>
+  );
+}
 
 export function ToolsPage({ active }: { active: boolean }) {
   const [profile, setProfile] = useState<ToolProfile>("full");
@@ -181,7 +209,10 @@ export function ToolsPage({ active }: { active: boolean }) {
         className="tools-integrations"
         onToggle={(event) => setIntegrationsOpen(event.currentTarget.open)}
       >
-        <summary>
+        <summary
+          onFocus={() => void preloadMcpControlPanel()}
+          onPointerEnter={() => void preloadMcpControlPanel()}
+        >
           <span>
             <strong>Integration bridges</strong>
             <small>MCP + ACP diagnostics</small>
@@ -190,7 +221,9 @@ export function ToolsPage({ active }: { active: boolean }) {
         </summary>
         {integrationsOpen ? (
           <div className="tools-integrations__body">
-            <McpControlPanel active={active} />
+            <Suspense fallback={<McpControlPanelFallback />}>
+              <LazyMcpControlPanel active={active} />
+            </Suspense>
             <AcpBridgePanel active={active} />
           </div>
         ) : null}

@@ -41,6 +41,18 @@ export const RENDERER_BUNDLE_BUDGETS: readonly BundleBudget[] = [
     maxBytes: 550_000,
     required: true,
   },
+  {
+    label: "tools route",
+    pattern: /^ToolsPage-[^.]+\.js$/u,
+    maxBytes: 12_000,
+    required: true,
+  },
+  {
+    label: "lazy MCP controls",
+    pattern: /^McpControlPanel-[^.]+\.js$/u,
+    maxBytes: 20_000,
+    required: true,
+  },
 ];
 
 export function rendererBundleBudgetFailures(

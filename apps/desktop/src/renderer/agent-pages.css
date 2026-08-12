@@ -978,6 +978,39 @@
   border-top: 1px solid var(--line-subtle);
 }
 
+.tools-integrations__loading {
+  display: grid;
+  min-height: 56px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-soft) 72%, transparent);
+  border: 1px solid var(--line-subtle);
+  border-radius: 4px;
+}
+
+.tools-integrations__loading > span {
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.tools-integrations__loading > div {
+  display: grid;
+  gap: 1px;
+}
+
+.tools-integrations__loading strong {
+  color: var(--text-soft);
+  font-size: var(--text-control);
+}
+
+.tools-integrations__loading small {
+  font-size: var(--text-meta);
+}
+
 .provider-routing-disclosure {
   overflow: hidden;
   padding: 0;

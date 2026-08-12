@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { ToolsPage } from "./ToolsPage";
+import { McpControlPanelFallback, ToolsPage } from "./ToolsPage";
 
 describe("ToolsPage density", () => {
   it("defers verbose integration diagnostics behind one disclosure", () => {
@@ -12,5 +12,15 @@ describe("ToolsPage density", () => {
     expect(markup).toContain("Loading…");
     expect(markup).not.toContain("ACP bridge");
     expect(markup).not.toContain("MCP control plane");
+  });
+
+  it("provides a compact accessible boundary while MCP code loads", () => {
+    const markup = renderToStaticMarkup(<McpControlPanelFallback />);
+
+    expect(markup).toContain('role="status"');
+    expect(markup).toContain('aria-live="polite"');
+    expect(markup).toContain('aria-busy="true"');
+    expect(markup).toContain("Loading MCP workspace…");
+    expect(markup).toContain("Server and tool reads begin");
   });
 });
