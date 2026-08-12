@@ -59,60 +59,6 @@ export interface DashboardNextAction {
   target: "review" | "tasks" | "setup" | "chat" | "providers";
 }
 
-export interface DashboardOperatorState {
-  headline: string;
-  fact: string;
-  tone: "good" | "warn" | "neutral";
-}
-
-function countLabel(count: number, singular: string, plural = `${singular}s`) {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
-
-export function summarizeOperatorState(input: {
-  pendingApprovals: number;
-  runningTasks: number;
-  repo: DashboardRepoSnapshot;
-  setupWarnings: number;
-}): DashboardOperatorState {
-  if (input.pendingApprovals > 0) {
-    return {
-      headline: "Decisions are waiting",
-      fact: countLabel(input.pendingApprovals, "approval"),
-      tone: "warn",
-    };
-  }
-  if (input.runningTasks > 0) {
-    return {
-      headline: "Execution is in motion",
-      fact: countLabel(input.runningTasks, "running task"),
-      tone: "neutral",
-    };
-  }
-  if (input.repo.dirty) {
-    return {
-      headline: "Workspace changed locally",
-      fact:
-        input.repo.changedFiles > 0
-          ? countLabel(input.repo.changedFiles, "changed file")
-          : "Local changes detected",
-      tone: "warn",
-    };
-  }
-  if (input.setupWarnings > 0) {
-    return {
-      headline: "Setup needs attention",
-      fact: countLabel(input.setupWarnings, "setup warning"),
-      tone: "warn",
-    };
-  }
-  return {
-    headline: "Runtime is stable",
-    fact: "No immediate blockers",
-    tone: "good",
-  };
-}
-
 function compactListSummary(values: unknown[]): string {
   const ready = values.filter((value) => asRecord(value).ready === true).length;
   if (values.length === 0) return "None reported";

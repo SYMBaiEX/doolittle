@@ -28,12 +28,10 @@ const appPolishCss = readFileSync(
 
 describe("dashboard operator metric layout", () => {
   it("uses the shared compact summary rail for workspace facts", () => {
-    expect(dashboardPage).toContain('aria-label="Operator state"');
-    expect(dashboardPage).toContain("dashboard-status-rail");
+    expect(dashboardPage).not.toContain('aria-label="Operator state"');
+    expect(dashboardPage).not.toContain("dashboard-status-rail");
     expect(dashboardPage).not.toContain("dashboard-pressure-line");
-    expect(dashboardCss).toMatch(
-      /\.dashboard-status-rail\s*{[^}]*min-height:\s*52px;/s,
-    );
+    expect(dashboardCss).not.toContain(".dashboard-status-rail");
     expect(dashboardPage).toContain("<DashboardPriorityPanel");
     expect(priorityPanel).toContain("<CompactStatStrip");
     for (const label of [

@@ -17,7 +17,6 @@ import {
   normalizeTasks,
   sessionCountSummary,
   summarizeAccountPool,
-  summarizeOperatorState,
   summarizeRepoStatus,
   summarizeSetupEntries,
   summarizeSetupHealth,
@@ -108,16 +107,6 @@ export function DashboardPage({
     () => sessionCountSummary(sessions),
     [sessions],
   );
-  const operatorState = useMemo(
-    () =>
-      summarizeOperatorState({
-        pendingApprovals: approvalCards.length,
-        runningTasks: taskCards.length,
-        repo,
-        setupWarnings: setupHealth.warnings,
-      }),
-    [approvalCards.length, repo, setupHealth.warnings, taskCards.length],
-  );
   const nextActions = useMemo(
     () =>
       buildNextActions({
@@ -197,17 +186,6 @@ export function DashboardPage({
           available.
         </Notice>
       ) : null}
-
-      <section
-        aria-label="Operator state"
-        className={`dashboard-status-rail is-${operatorState.tone}`}
-      >
-        <div className="dashboard-status-copy">
-          <span className="eyebrow">Operator state</span>
-          <strong>{operatorState.headline}</strong>
-        </div>
-        <span className="dashboard-status-fact">{operatorState.fact}</span>
-      </section>
 
       <DashboardPriorityPanel
         agentAccounts={accountPoolSummary.enabled}
