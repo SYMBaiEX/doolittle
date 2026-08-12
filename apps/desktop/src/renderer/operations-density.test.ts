@@ -157,9 +157,8 @@ describe("operational route density", () => {
     expect(automationWorkspace).toContain("Use New automation above");
     expect(automationWorkspace).not.toContain('title="No automations yet"');
     const memory = read("./memory/MemorySnapshotPanel.tsx");
-    expect(memory).toContain(
-      '<EmptyBlock density="compact" title="No entries">',
-    );
+    expect(memory).toContain("memory-empty-card");
+    expect(memory).toContain("No stored entries yet");
     expect(memory).toContain(
       '<EmptyBlock density="compact" title="No snapshot">',
     );

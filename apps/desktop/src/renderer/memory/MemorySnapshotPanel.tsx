@@ -30,9 +30,11 @@ export function MemorySnapshotPanel({
   const targetLabel = target === "memory" ? "Shared memory" : "User memory";
   const summary = asRecord(resource.data?.summary) as MemorySummary;
   const snapshot = asString(resource.data?.snapshot, "");
+  const entryCount = asNumber(summary.entries, 0);
   const preview = asArray(summary.preview)
     .slice(-PREVIEW_ITEM_LIMIT)
     .map((entry) => asString(entry));
+  const empty = entryCount === 0 && preview.length === 0 && !snapshot;
 
   if (resource.loading) {
     return <LoadingBlock label={`Loading ${target} memory snapshot…`} />;
@@ -67,7 +69,9 @@ export function MemorySnapshotPanel({
 
   return (
     <div className="memory-content memory-snapshot-grid">
-      <section className="content-card memory-summary-card">
+      <section
+        className={`content-card memory-summary-card${empty ? " memory-empty-card" : ""}`}
+      >
         <div className="card-heading">
           <div>
             <span className="eyebrow">Summary</span>
@@ -78,7 +82,7 @@ export function MemorySnapshotPanel({
         <CompactStatStrip
           label={`${targetLabel} summary`}
           stats={[
-            { label: "Entries", value: asNumber(summary.entries, 0) },
+            { label: "Entries", value: entryCount },
             { label: "Characters", value: asNumber(summary.characters, 0) },
             {
               label: "Target",
@@ -89,48 +93,60 @@ export function MemorySnapshotPanel({
             },
           ]}
         />
+        {empty ? (
+          <div className="memory-empty-state">
+            <strong>No stored entries yet</strong>
+            <span>
+              Memory appears here after a conversation or saved operator detail.
+            </span>
+          </div>
+        ) : null}
       </section>
 
-      <section className="content-card memory-summary-card">
-        <div className="card-heading">
-          <div>
-            <span className="eyebrow">Recent entries</span>
-            <h2>Preview</h2>
+      {!empty ? (
+        <section className="content-card memory-summary-card">
+          <div className="card-heading">
+            <div>
+              <span className="eyebrow">Recent entries</span>
+              <h2>Preview</h2>
+            </div>
           </div>
-        </div>
-        {preview.length ? (
-          <ul>
-            {preview.map((entry) => (
-              <li key={entry}>{entry}</li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyBlock density="compact" title="No entries">
-            No memory entries were found.
-          </EmptyBlock>
-        )}
-      </section>
+          {preview.length ? (
+            <ul>
+              {preview.map((entry) => (
+                <li key={entry}>{entry}</li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyBlock density="compact" title="No entries">
+              No memory entries were found.
+            </EmptyBlock>
+          )}
+        </section>
+      ) : null}
 
-      <section className="content-card memory-summary-card memory-snapshot-card">
-        <div className="card-heading">
-          <div>
-            <span className="eyebrow">Readable snapshot</span>
-            <h2>Latest bounded snapshot</h2>
+      {!empty ? (
+        <section className="content-card memory-summary-card memory-snapshot-card">
+          <div className="card-heading">
+            <div>
+              <span className="eyebrow">Readable snapshot</span>
+              <h2>Latest bounded snapshot</h2>
+            </div>
+            <Notice tone={snapshot ? "good" : "warn"}>
+              {snapshot ? "Loaded" : "Unavailable"}
+            </Notice>
           </div>
-          <Notice tone={snapshot ? "good" : "warn"}>
-            {snapshot ? "Loaded" : "Unavailable"}
-          </Notice>
-        </div>
-        {snapshot ? (
-          <pre className="json-preview">
-            {formatBoundedPreview(snapshot, SNAPSHOT_CHARACTER_LIMIT)}
-          </pre>
-        ) : (
-          <EmptyBlock density="compact" title="No snapshot">
-            Snapshot is empty.
-          </EmptyBlock>
-        )}
-      </section>
+          {snapshot ? (
+            <pre className="json-preview">
+              {formatBoundedPreview(snapshot, SNAPSHOT_CHARACTER_LIMIT)}
+            </pre>
+          ) : (
+            <EmptyBlock density="compact" title="No snapshot">
+              Snapshot is empty.
+            </EmptyBlock>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -1659,6 +1659,30 @@ button.chat-session-meta-pill:hover {
   grid-column: 1 / -1;
 }
 
+.memory-empty-card {
+  grid-column: 1 / -1;
+}
+
+.memory-empty-state {
+  display: flex;
+  gap: 8px 14px;
+  align-items: baseline;
+  margin-top: 10px;
+  padding-top: 10px;
+  color: var(--muted);
+  border-top: 1px solid var(--line-subtle);
+}
+
+.memory-empty-state strong {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.memory-empty-state span {
+  font-size: 11px;
+}
+
 .memory-operator-card {
   min-height: 0;
 }
@@ -1700,6 +1724,10 @@ button.chat-session-meta-pill:hover {
   .memory-snapshot-card,
   .memory-agent-card {
     grid-column: auto;
+  }
+
+  .memory-empty-state {
+    display: grid;
   }
 }
 
