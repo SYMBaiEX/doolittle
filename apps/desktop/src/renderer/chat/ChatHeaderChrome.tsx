@@ -1,6 +1,7 @@
 import type { RefObject } from "react";
 import type { ContextPressureTone } from "../context-pressure";
 import { displayTimestamp } from "../lib";
+import { compactSessionPreview } from "../session-preview";
 import type { ChatSessionForRender } from "./useChatConversationState";
 
 export interface ChatHeaderChromeProps {
@@ -60,7 +61,12 @@ export function ChatHeaderChrome({
     <div className="chat-header-content">
       <div className="chat-header-mainline">
         <div className="chat-header-title-wrap">
-          <h2>{selectedSession?.title ?? "New conversation"}</h2>
+          <h2>
+            {selectedSession
+              ? compactSessionPreview(selectedSession.title ?? "") ||
+                "Untitled conversation"
+              : "New conversation"}
+          </h2>
         </div>
         <div className="chat-session-meta-wrap">
           <div className="chat-session-meta">

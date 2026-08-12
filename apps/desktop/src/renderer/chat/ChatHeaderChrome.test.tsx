@@ -115,4 +115,25 @@ describe("ChatHeaderChrome", () => {
     expect(handlers.onCancelRequest).toHaveBeenCalledWith("request-1");
     expect(handlers.onPrepareCompression).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps embedded resource paths out of the chat header", () => {
+    render({
+      isNewConversation: false,
+      selectedSession: {
+        sessionId: "session-resource",
+        title: "[Embedded resource: /Users/symbiex/dev/test/package.json]",
+        messageCount: 1,
+        participants: ["user"],
+        pinned: false,
+        preview: [],
+      },
+    });
+
+    expect(container.querySelector("h2")?.textContent).toBe(
+      "Referenced package.json",
+    );
+    expect(container.textContent).not.toContain(
+      "/Users/symbiex/dev/test/package.json",
+    );
+  });
 });

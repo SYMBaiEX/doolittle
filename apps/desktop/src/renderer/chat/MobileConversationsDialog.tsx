@@ -1,6 +1,7 @@
 import { type RefObject, useLayoutEffect } from "react";
 import type { SessionSummary } from "../../shared/contracts";
 import { displayTimestamp } from "../lib";
+import { compactSessionPreview } from "../session-preview";
 
 export interface MobileConversationsDialogProps {
   activeProjectName?: string;
@@ -87,7 +88,10 @@ export function MobileConversationsDialog({
               }}
               type="button"
             >
-              <strong>{session.title || "Untitled conversation"}</strong>
+              <strong>
+                {compactSessionPreview(session.title ?? "") ||
+                  "Untitled conversation"}
+              </strong>
               <span>
                 {session.messageCount} messages ·{" "}
                 {displayTimestamp(session.endedAt)}

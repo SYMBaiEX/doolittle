@@ -104,4 +104,37 @@ describe("MobileConversationsDialog", () => {
 
     expect(document.activeElement).toBe(firstConversation);
   });
+
+  it("compacts embedded resource titles in the conversation list", () => {
+    act(() =>
+      root.render(
+        <MobileConversationsDialog
+          activeProjectName="Doolittle"
+          dialogRef={{ current: null }}
+          onClose={onClose}
+          onNewConversation={onNewConversation}
+          onSearchChange={onSearchChange}
+          onSelect={onSelect}
+          projectLabels={{}}
+          search=""
+          selectedId="resource"
+          sessions={[
+            {
+              sessionId: "resource",
+              title:
+                "[Embedded resource: /Users/symbiex/dev/test/package.json]",
+              messageCount: 1,
+              participants: ["user"],
+              preview: [],
+            },
+          ]}
+        />,
+      ),
+    );
+
+    expect(container.textContent).toContain("Referenced package.json");
+    expect(container.textContent).not.toContain(
+      "/Users/symbiex/dev/test/package.json",
+    );
+  });
 });
