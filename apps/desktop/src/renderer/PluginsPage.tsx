@@ -125,8 +125,11 @@ export function PluginsPage({ active }: { active: boolean }) {
             ]}
           />
           <div className="filter-bar plugins-filter-bar">
-            <label className="search-field grow" htmlFor="plugin-search">
-              <span className="sr-only">Search plugins</span>
+            <label
+              className="search-field grow plugins-filter-control plugins-filter-search"
+              htmlFor="plugin-search"
+            >
+              <span className="plugins-filter-label">Search</span>
               <Input
                 id="plugin-search"
                 placeholder="Search plugins"
@@ -135,18 +138,26 @@ export function PluginsPage({ active }: { active: boolean }) {
                 onChange={(event) => setQuery(event.target.value)}
               />
             </label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger aria-label="Plugin category">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {titleCase(value)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="plugins-filter-control plugins-filter-category">
+              <span className="plugins-filter-label" id="plugin-category-label">
+                Category
+              </span>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger
+                  aria-labelledby="plugin-category-label"
+                  className="plugins-category-trigger"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {titleCase(value)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       ) : null}
