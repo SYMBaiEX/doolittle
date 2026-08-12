@@ -52,7 +52,6 @@ function lazyNamedRoute<Module extends object, Key extends keyof Module>(
   });
 }
 
-const loadWorkspacePages = () => import("../WorkspacePages");
 const DashboardPage = lazyNamedRoute(
   ["dashboard"],
   () => import("../DashboardPage"),
@@ -85,12 +84,12 @@ const OrchestrationPage = lazyNamedRoute(
 );
 const SessionsPage = lazyNamedRoute(
   ["sessions"],
-  loadWorkspacePages,
+  () => import("../sessions/SessionsPage"),
   "SessionsPage",
 );
 const AnalyticsPage = lazyNamedRoute(
   ["analytics"],
-  loadWorkspacePages,
+  () => import("../analytics/AnalyticsPage"),
   "AnalyticsPage",
 );
 const ActivityPage = lazyNamedRoute(

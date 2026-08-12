@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { shouldShowSessionEmptyLanding } from "./WorkspacePages";
+import { shouldShowSessionEmptyLanding } from "./sessions/SessionsPage";
 
 const read = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8");
@@ -14,7 +14,7 @@ describe("workspace route density", () => {
   });
 
   it("keeps secondary session context closed until requested", () => {
-    const page = read("./WorkspacePages.tsx");
+    const page = read("./sessions/SessionsPage.tsx");
     const detail = read("./sessions/SessionDetail.tsx");
 
     expect(page).toContain("<SessionDetail");

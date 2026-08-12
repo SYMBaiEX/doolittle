@@ -18,7 +18,7 @@ import { RuntimePage } from "./RuntimePage";
 import { RuntimeGateway } from "./runtime/RuntimeGateway";
 import { RuntimeInventory } from "./runtime/RuntimeInventory";
 import { RuntimeOverview } from "./runtime/RuntimeOverview";
-import { SessionsPage } from "./WorkspacePages";
+import { SessionsPage } from "./sessions/SessionsPage";
 
 describe("inactive desktop routes", () => {
   const emptyResource = {
