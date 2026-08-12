@@ -19,7 +19,6 @@ import {
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
-  Notice,
   PageHeader,
   titleCase,
   useApiResource,
@@ -120,13 +119,6 @@ export function PluginsPage({ active }: { active: boolean }) {
             { label: "Categories", value: categories.length - 1 },
           ]}
         />
-      ) : null}
-      {active ? (
-        <Notice>
-          This page reflects the packages actually assembled by the ElizaOS
-          runtime. Provider enablement follows account and environment
-          readiness.
-        </Notice>
       ) : null}
       {active ? (
         <div className="filter-bar">

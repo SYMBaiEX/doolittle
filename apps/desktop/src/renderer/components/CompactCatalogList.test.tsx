@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   type CompactCatalogEntry,
   CompactCatalogList,
+  DEFAULT_CATALOG_PAGE_SIZE,
 } from "./CompactCatalogList";
 
 function entry(index: number): CompactCatalogEntry {
@@ -19,6 +20,22 @@ function entry(index: number): CompactCatalogEntry {
 }
 
 describe("CompactCatalogList", () => {
+  it("starts large inventories with a viewport-sized window", () => {
+    const markup = renderToStaticMarkup(
+      <CompactCatalogList
+        ariaLabel="Runtime catalog"
+        entries={Array.from({ length: 30 }, (_, index) => entry(index))}
+        resetKey="all"
+      />,
+    );
+
+    expect(DEFAULT_CATALOG_PAGE_SIZE).toBe(12);
+    expect(markup.match(/<li class="compact-catalog__row"/g)).toHaveLength(12);
+    expect(markup).toContain("Showing 12 of 30");
+    expect(markup).toContain("Show 12 more");
+    expect(markup).toContain('class="compact-catalog__summary"');
+  });
+
   it("bounds the initial catalog while keeping expansion explicit", () => {
     const markup = renderToStaticMarkup(
       <CompactCatalogList

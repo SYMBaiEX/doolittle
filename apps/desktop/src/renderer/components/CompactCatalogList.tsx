@@ -3,6 +3,8 @@ import { Badge } from "../lib";
 import "./compact-catalog-list.css";
 import { progressiveWindow } from "./progressive-window";
 
+export const DEFAULT_CATALOG_PAGE_SIZE = 12;
+
 export interface CompactCatalogFact {
   label: string;
   value: string;
@@ -26,7 +28,7 @@ export interface CompactCatalogEntry {
 export function CompactCatalogList({
   ariaLabel,
   entries,
-  pageSize = 24,
+  pageSize = DEFAULT_CATALOG_PAGE_SIZE,
   resetKey,
 }: {
   ariaLabel: string;
@@ -52,27 +54,29 @@ export function CompactCatalogList({
                   <span className="eyebrow">{entry.eyebrow}</span>
                   <strong>{entry.title}</strong>
                 </div>
-                <p>{entry.description}</p>
-                {entry.code || entry.meta || entry.facts?.length ? (
-                  <div className="compact-catalog__meta">
-                    {entry.code ? <code>{entry.code}</code> : null}
-                    {entry.meta ? <span>{entry.meta}</span> : null}
-                    {entry.facts?.length ? (
-                      <details className="compact-catalog__details">
-                        <summary>{entry.detailsLabel ?? "Details"}</summary>
-                        <dl>
-                          {entry.facts.map((fact) => (
-                            <div key={`${entry.id}:${fact.label}`}>
-                              <dt>{fact.label}</dt>
-                              <dd>{fact.value}</dd>
-                            </div>
-                          ))}
-                        </dl>
-                        {entry.detailsNote ? <p>{entry.detailsNote}</p> : null}
-                      </details>
-                    ) : null}
-                  </div>
-                ) : null}
+                <div className="compact-catalog__summary">
+                  <p title={entry.description}>{entry.description}</p>
+                  {entry.code || entry.meta ? (
+                    <span className="compact-catalog__meta">
+                      {entry.code ? <code>{entry.code}</code> : null}
+                      {entry.meta ? <span>{entry.meta}</span> : null}
+                    </span>
+                  ) : null}
+                  {entry.facts?.length ? (
+                    <details className="compact-catalog__details">
+                      <summary>{entry.detailsLabel ?? "Details"}</summary>
+                      <dl>
+                        {entry.facts.map((fact) => (
+                          <div key={`${entry.id}:${fact.label}`}>
+                            <dt>{fact.label}</dt>
+                            <dd>{fact.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                      {entry.detailsNote ? <p>{entry.detailsNote}</p> : null}
+                    </details>
+                  ) : null}
+                </div>
               </div>
               <div className="compact-catalog__actions">
                 <Badge tone={entry.tone}>{entry.status}</Badge>
