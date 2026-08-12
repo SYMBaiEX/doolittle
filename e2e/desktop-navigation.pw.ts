@@ -88,6 +88,7 @@ test.describe("Doolittle desktop navigation", () => {
       );
       const commandMenu = page.getByRole("dialog", { name: "Command menu" });
       await expect(commandMenu).toBeVisible();
+      await expect(commandMenu.getByText("Quick actions")).toBeVisible();
       await commandMenu.evaluate(async (element) => {
         await Promise.all(
           element.getAnimations().map((animation) => animation.finished),
@@ -119,7 +120,6 @@ test.describe("Doolittle desktop navigation", () => {
       expect(await page.locator(".desktop-shell").boundingBox()).toEqual(
         shellBeforeCommandMenu,
       );
-      await expect(commandMenu.getByText("Quick actions")).toBeVisible();
       expect(await commandMenu.getByRole("option").count()).toBeLessThanOrEqual(
         12,
       );
@@ -413,7 +413,7 @@ test.describe("Doolittle desktop navigation", () => {
           }
           if (route === "automations") {
             const createAutomation = viewContainer.getByRole("button", {
-              name: "New automation",
+              name: /^(?:New automation|Open builder)$/u,
             });
             await expect(createAutomation).toBeVisible();
             await createAutomation.click();
@@ -1004,9 +1004,9 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         page.getByRole("heading", { name: "Profile search" }),
       ).toBeVisible();
-      await memoryTabs.getByRole("tab", { name: "Shared memory" }).click();
+      await memoryTabs.getByRole("tab", { name: /^Shared:/u }).click();
       await expect(
-        memoryTabs.getByRole("tab", { name: "Shared memory" }),
+        memoryTabs.getByRole("tab", { name: /^Shared:/u }),
       ).toHaveAttribute("aria-selected", "true");
 
       await page.evaluate(() => {
@@ -1014,7 +1014,7 @@ test.describe("Doolittle desktop navigation", () => {
       });
       await page.getByRole("tab", { name: /Workshop/ }).click();
       await expect(
-        page.getByRole("heading", { name: "Review before activation" }),
+        page.getByText("Create a skill proposal", { exact: true }),
       ).toBeVisible();
 
       await page.evaluate(() => {
@@ -1059,6 +1059,7 @@ test.describe("Doolittle desktop navigation", () => {
         "data-project-scope",
         /^[0-9a-f-]{36}$/,
       );
+      await expect(page.locator(".review-workspace")).toBeVisible();
       await page.setViewportSize({ width: 390, height: 844 });
       const narrowReviewLayout = await page.evaluate(() => {
         const workspace = document.querySelector(".review-workspace");
@@ -1124,7 +1125,7 @@ test.describe("Doolittle desktop navigation", () => {
         page.getByRole("heading", { name: "Memory", exact: true }),
       ).toBeVisible();
       await expect(
-        page.getByRole("tab", { name: "Shared memory" }),
+        page.getByRole("tab", { name: /^Shared:/u }),
       ).toHaveAttribute("aria-selected", "true");
 
       await page.evaluate(() => {
@@ -1455,7 +1456,7 @@ test.describe("Doolittle desktop navigation", () => {
       });
       await page.getByRole("tab", { name: /Brief/ }).click();
       await expect(
-        page.getByRole("heading", { name: "Workspace pulse" }),
+        page.getByRole("heading", { name: "Current plan" }),
       ).toBeVisible();
       await page
         .getByRole("button", { name: "Close thread workbench" })
