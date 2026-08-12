@@ -50,6 +50,8 @@ describe("handleSkillRoutes", () => {
     expect(body).toHaveProperty("skills");
     expect(body).toHaveProperty("hub");
     expect(body).toHaveProperty("workspace");
+    expect(body).toHaveProperty("summary");
+    expect(body).toHaveProperty("installed");
   });
 
   it("routes catalog queries through search", async () => {

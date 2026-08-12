@@ -31,6 +31,11 @@ export async function handleSkillsSummaryRoutes(
       skills: getEffectiveSkills(context.runtime, context.services),
       hub: getEffectiveSkillHubSummary(context.services),
       workspace: getEffectiveSkillHubWorkspace(context.services),
+      summary: getEffectiveSkillsSummary(context.runtime, context.services),
+      installed: getEffectiveSkillHubInstalled(
+        context.runtime,
+        context.services,
+      ),
     });
   }
 

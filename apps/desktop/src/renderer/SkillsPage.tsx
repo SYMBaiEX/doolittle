@@ -20,11 +20,7 @@ interface SkillsResponse {
   skills?: unknown[];
   hub?: unknown;
   workspace?: unknown;
-}
-
-interface SkillsSummaryResponse {
   summary?: Record<string, unknown>;
-  hub?: unknown;
   installed?: unknown;
 }
 
@@ -32,10 +28,6 @@ export function SkillsPage({ active }: { active: boolean }) {
   const skills = useApiResource<SkillsResponse>(active ? "/skills" : null, [
     active,
   ]);
-  const summary = useApiResource<SkillsSummaryResponse>(
-    active ? "/skills/summary" : null,
-    [active],
-  );
   const [query, setQuery] = useState("");
   const [section, setSection] = useState<"catalog" | "workshop">("catalog");
   const entries = asArray(skills.data?.skills).map(asRecord);
@@ -64,8 +56,8 @@ export function SkillsPage({ active }: { active: boolean }) {
       code: slug,
     };
   });
-  const summaryValue = summary.data?.summary ?? {};
-  const installedValues = asArray(summary.data?.installed);
+  const summaryValue = skills.data?.summary ?? {};
+  const installedValues = asArray(skills.data?.installed);
   const selectSectionWithKeyboard = (
     event: KeyboardEvent<HTMLButtonElement>,
     next: "catalog" | "workshop",
