@@ -2,6 +2,7 @@ import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
 import {
   type FormEvent,
   lazy,
+  type RefObject,
   Suspense,
   useCallback,
   useEffect,
@@ -21,7 +22,6 @@ import type {
 } from "../shared/contracts";
 import { ChatComposer } from "./chat/ChatComposer";
 import { ChatTranscript } from "./chat/ChatTranscript";
-import { MobileConversationsDialog } from "./chat/MobileConversationsDialog";
 import {
   type BranchMode,
   type DisplayMessage,
@@ -59,6 +59,38 @@ const ThreadWorkbenchRail = lazy(async () => {
   const module = await import("./components/ThreadWorkbenchRail");
   return { default: module.ThreadWorkbenchRail };
 });
+const MobileConversationsDialog = lazy(async () => {
+  const module = await import("./chat/MobileConversationsDialog");
+  return { default: module.MobileConversationsDialog };
+});
+
+function MobileConversationsDialogFallback({
+  dialogRef,
+}: {
+  dialogRef: RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <div className="chat-mobile-conversations-backdrop">
+      <div
+        aria-label="Conversations"
+        aria-modal="true"
+        className="chat-mobile-conversations-dialog"
+        id="mobile-conversations"
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+      >
+        <div
+          aria-live="polite"
+          className="chat-mobile-conversations-loading"
+          role="status"
+        >
+          Loading conversations…
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function loadInspectorVisibility(): boolean {
   try {
@@ -1064,22 +1096,30 @@ export function ChatPage({
         />
       </section>
       {mobileConversationsOpen ? (
-        <MobileConversationsDialog
-          activeProjectName={activeProject?.name}
-          dialogRef={mobileConversationsDialogRef}
-          onClose={() => setMobileConversationsOpen(false)}
-          onNewConversation={() => {
-            if (onRequestNewConversation) onRequestNewConversation();
-            else createConversation();
-            setMobileConversationsOpen(false);
-          }}
-          onSearchChange={setSessionSearch}
-          onSelect={onSelect}
-          projectLabels={projectLabels}
-          search={sessionSearch}
-          selectedId={selectedId}
-          sessions={sessions}
-        />
+        <Suspense
+          fallback={
+            <MobileConversationsDialogFallback
+              dialogRef={mobileConversationsDialogRef}
+            />
+          }
+        >
+          <MobileConversationsDialog
+            activeProjectName={activeProject?.name}
+            dialogRef={mobileConversationsDialogRef}
+            onClose={() => setMobileConversationsOpen(false)}
+            onNewConversation={() => {
+              if (onRequestNewConversation) onRequestNewConversation();
+              else createConversation();
+              setMobileConversationsOpen(false);
+            }}
+            onSearchChange={setSessionSearch}
+            onSelect={onSelect}
+            projectLabels={projectLabels}
+            search={sessionSearch}
+            selectedId={selectedId}
+            sessions={sessions}
+          />
+        </Suspense>
       ) : null}
       {inspectorVisible ? (
         <div

@@ -30,7 +30,6 @@ import {
   warmDesktopRoute,
 } from "./app-shell/desktop-route-registry";
 import { ActivityCenter } from "./components/ActivityCenter";
-import { CommandPalette } from "./components/CommandPalette";
 import { ProjectManager } from "./components/ProjectManager";
 import { ToastRegion, useToasts } from "./components/ToastRegion";
 import { newConversationId } from "./conversation-id";
@@ -103,11 +102,25 @@ const ChatTerminalPanel = lazy(() =>
   })),
 );
 
+type CommandPaletteModule = typeof import("./components/CommandPalette");
+
+let commandPaletteModule: Promise<CommandPaletteModule> | null = null;
+
+export function preloadCommandPalette(): Promise<CommandPaletteModule> {
+  commandPaletteModule ??= import("./components/CommandPalette");
+  return commandPaletteModule;
+}
+
+const LazyCommandPalette = lazy(async () => ({
+  default: (await preloadCommandPalette()).CommandPalette,
+}));
+
 export function App() {
   const initialConversation = useMemo(newConversationId, []);
   const [view, setViewState] = useState<View>(viewFromHash);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteMounted, setPaletteMounted] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
   const [utilityOpen, setUtilityOpen] = useState(false);
   const [chatTerminalOpen, setChatTerminalOpen] = useState(false);
@@ -205,6 +218,12 @@ export function App() {
     setMobileSidebarOpen(false);
     setProjectManagerOpen(true);
   }, [setMobileSidebarOpen]);
+
+  const openCommandPalette = useCallback(() => {
+    void preloadCommandPalette();
+    setPaletteMounted(true);
+    setPaletteOpen(true);
+  }, []);
 
   const closeUtilities = useCallback(() => {
     setUtilityOpen(false);
@@ -659,6 +678,8 @@ export function App() {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (isCommandPaletteShortcut(event)) {
         event.preventDefault();
+        void preloadCommandPalette();
+        setPaletteMounted(true);
         setPaletteOpen((current) => !current);
         return;
       }
@@ -708,7 +729,7 @@ export function App() {
             createConversation();
             break;
           case "command-palette":
-            setPaletteOpen(true);
+            openCommandPalette();
             break;
           case "settings":
             setView("settings");
@@ -726,6 +747,7 @@ export function App() {
       }),
     [
       createConversation,
+      openCommandPalette,
       setView,
       toggleChatTerminal,
       toggleInspector,
@@ -959,18 +981,22 @@ export function App() {
         } as CSSProperties
       }
     >
-      <CommandPalette
-        groups={commandGroups}
-        isOpen={paletteOpen}
-        onClose={() => {
-          setPaletteOpen(false);
-          setPaletteQuery("");
-        }}
-        onQueryChange={setPaletteQuery}
-        resetOnOpen
-        searchPlaceholder="Search commands, projects, chats, and files…"
-        title="Command menu"
-      />
+      {paletteMounted ? (
+        <Suspense fallback={null}>
+          <LazyCommandPalette
+            groups={commandGroups}
+            isOpen={paletteOpen}
+            onClose={() => {
+              setPaletteOpen(false);
+              setPaletteQuery("");
+            }}
+            onQueryChange={setPaletteQuery}
+            resetOnOpen
+            searchPlaceholder="Search commands, projects, chats, and files…"
+            title="Command menu"
+          />
+        </Suspense>
+      ) : null}
       <ProjectManager
         activeScope={projectScope}
         allChatCount={sessions.length}
@@ -1019,7 +1045,7 @@ export function App() {
         onResize={setSidebarWidth}
         onToggleNavigation={toggleNavigation}
         onSetNewConversationMenuOpen={setNewConversationMenuOpen}
-        onOpenPalette={() => setPaletteOpen(true)}
+        onOpenPalette={openCommandPalette}
         onChooseRepository={chooseRepositoryForConversation}
         onManageProjects={openProjectManager}
         onStartConversation={startConversation}
@@ -1065,7 +1091,7 @@ export function App() {
             <div className="window-tools">
               <DesktopWindowTools
                 backend={backend}
-                onOpenPalette={() => setPaletteOpen(true)}
+                onOpenPalette={openCommandPalette}
                 onRefresh={() => void refreshWithFeedback()}
                 onToggleUtilities={toggleUtilities}
                 platform={window.doolittle.platform}

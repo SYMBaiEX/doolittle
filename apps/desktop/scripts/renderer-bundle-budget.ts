@@ -20,7 +20,13 @@ export const RENDERER_BUNDLE_BUDGETS: readonly BundleBudget[] = [
   {
     label: "initial renderer entry",
     pattern: /^index-[^.]+\.js$/u,
-    maxBytes: 1_000_000,
+    maxBytes: 800_000,
+    required: true,
+  },
+  {
+    label: "lazy command palette",
+    pattern: /^CommandPalette-[^.]+\.js$/u,
+    maxBytes: 40_000,
     required: true,
   },
   {
@@ -51,6 +57,12 @@ export const RENDERER_BUNDLE_BUDGETS: readonly BundleBudget[] = [
     label: "lazy MCP controls",
     pattern: /^McpControlPanel-[^.]+\.js$/u,
     maxBytes: 20_000,
+    required: true,
+  },
+  {
+    label: "lazy mobile conversations",
+    pattern: /^MobileConversationsDialog-[^.]+\.js$/u,
+    maxBytes: 8_000,
     required: true,
   },
 ];

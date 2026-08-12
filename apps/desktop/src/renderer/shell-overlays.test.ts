@@ -7,6 +7,7 @@ const readSource = (path: string) =>
 const experienceCss = readSource("./experience.css");
 const shellOverlaysCss = readSource("./shell-overlays.css");
 const mainSource = readSource("./main.tsx");
+const appSource = readSource("./App.tsx");
 const commandPaletteSource = readSource("./components/CommandPalette.tsx");
 const routeDialogSource = readSource("./components/RouteControlDialog.tsx");
 const shortcutHintSource = readSource("./components/ShortcutHint.tsx");
@@ -53,6 +54,20 @@ const routeDialogSelectors = [
 ] as const;
 
 describe("desktop shell overlay CSS ownership", () => {
+  it("keeps the command palette out of the initial renderer entry", () => {
+    expect(appSource).not.toContain(
+      'import { CommandPalette } from "./components/CommandPalette"',
+    );
+    expect(appSource).toContain('import("./components/CommandPalette")');
+    expect(appSource).toContain("const LazyCommandPalette = lazy");
+    expect(appSource).toMatch(
+      /paletteMounted \? \(\s*<Suspense fallback=\{null\}>\s*<LazyCommandPalette/u,
+    );
+    expect(appSource).toContain("void preloadCommandPalette();");
+    expect(appSource).toContain("setPaletteMounted(true);");
+    expect(appSource).toContain("isOpen={paletteOpen}");
+  });
+
   it("loads overlays immediately after the experience layer", () => {
     expect(mainSource).toContain(
       'import "./experience.css";\nimport "./shell-overlays.css";\nimport "./recovery.css";',
