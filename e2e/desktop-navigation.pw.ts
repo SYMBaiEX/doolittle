@@ -596,7 +596,7 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(providersHeading).toBeVisible();
       await expect(
         page.getByText(
-          "Route chats, connect provider subscriptions, and shape how spawned agents move across pooled accounts.",
+          "Connect chat providers and route spawned agents across local account pools.",
           { exact: true },
         ),
       ).toBeVisible();
@@ -676,9 +676,11 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         page.getByText("Checking the default chat provider…"),
       ).toHaveCount(0, { timeout: 30_000 });
-      await expect(page.locator(".provider-overview")).toContainText(
-        "Current route",
+      const providerStatus = page.locator(
+        '[aria-label="Chat provider status"]',
       );
+      await expect(providerStatus).toContainText("Ready");
+      await expect(providerStatus).toContainText("New chats");
       await expect(page.locator(".provider-connection-row")).toHaveCount(4);
       await expect(page.locator(".provider-pool-panel")).toHaveCount(2);
       await expect(page.locator(".provider-pool-toolbar")).toHaveCount(2);
