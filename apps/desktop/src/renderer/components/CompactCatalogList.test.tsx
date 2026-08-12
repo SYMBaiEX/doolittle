@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   type CompactCatalogEntry,
   CompactCatalogList,
+  catalogExceptionStatus,
   DEFAULT_CATALOG_PAGE_SIZE,
 } from "./CompactCatalogList";
 
@@ -20,6 +21,17 @@ function entry(index: number): CompactCatalogEntry {
 }
 
 describe("CompactCatalogList", () => {
+  it("shows catalog exceptions without repeating healthy state", () => {
+    expect(catalogExceptionStatus(true, "Disabled")).toEqual({
+      status: undefined,
+      tone: undefined,
+    });
+    expect(catalogExceptionStatus(false, "Disabled")).toEqual({
+      status: "Disabled",
+      tone: "warn",
+    });
+  });
+
   it("starts large inventories with a viewport-sized window", () => {
     const markup = renderToStaticMarkup(
       <CompactCatalogList

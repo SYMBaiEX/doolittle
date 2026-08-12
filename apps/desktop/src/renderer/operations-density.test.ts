@@ -68,6 +68,15 @@ describe("operational route density", () => {
     expect(skills).not.toContain('status: "Available"');
   });
 
+  it("uses row status for catalog exceptions instead of repeating healthy state", () => {
+    expect(read("./ToolsPage.tsx")).toContain(
+      'catalogExceptionStatus(entry.enabled !== false, "Disabled")',
+    );
+    expect(read("./PluginsPage.tsx")).toContain(
+      'catalogExceptionStatus(Boolean(entry.enabled), "Inactive")',
+    );
+  });
+
   it("requests only the native plugin catalog on inventory screens", () => {
     expect(read("./PluginsPage.tsx")).toContain(
       '"/runtime/plugins?view=catalog"',

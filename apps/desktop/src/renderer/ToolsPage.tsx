@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { AcpBridgePanel } from "./components/AcpBridgePanel";
-import { CompactCatalogList } from "./components/CompactCatalogList";
+import {
+  CompactCatalogList,
+  catalogExceptionStatus,
+} from "./components/CompactCatalogList";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { McpControlPanel } from "./components/McpControlPanel";
 import { OfflineRouteState } from "./components/OfflineRouteState";
@@ -102,8 +105,7 @@ export function ToolsPage({ active }: { active: boolean }) {
       eyebrow: titleCase(asString(entry.category, "uncategorized")),
       title: asString(entry.name, id || "Unnamed tool"),
       description: asString(entry.description, "No description provided."),
-      status: entry.enabled === false ? "Disabled" : "Enabled",
-      tone: entry.enabled === false ? ("warn" as const) : ("good" as const),
+      ...catalogExceptionStatus(entry.enabled !== false, "Disabled"),
       code: id,
       meta: profiles || titleCase(asString(entry.transport, "native")),
       facts: [

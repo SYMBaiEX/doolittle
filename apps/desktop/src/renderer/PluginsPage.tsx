@@ -9,7 +9,10 @@ import {
   SelectValue,
 } from "@elizaos/ui/components/ui/select";
 import { useState } from "react";
-import { CompactCatalogList } from "./components/CompactCatalogList";
+import {
+  CompactCatalogList,
+  catalogExceptionStatus,
+} from "./components/CompactCatalogList";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
@@ -64,8 +67,7 @@ export function PluginsPage({ active }: { active: boolean }) {
       eyebrow: titleCase(asString(entry.category, "plugin")),
       title: titleCase(id || "Unnamed plugin"),
       description: asString(entry.notes, "No plugin notes available."),
-      status: entry.enabled ? "Enabled" : "Inactive",
-      tone: entry.enabled ? ("good" as const) : ("warn" as const),
+      ...catalogExceptionStatus(Boolean(entry.enabled), "Inactive"),
       code: asString(entry.packageName, id),
       meta: titleCase(asString(entry.source, "unknown")),
       facts: [

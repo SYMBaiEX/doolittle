@@ -5,6 +5,15 @@ import { progressiveWindow } from "./progressive-window";
 
 export const DEFAULT_CATALOG_PAGE_SIZE = 12;
 
+export function catalogExceptionStatus(
+  healthy: boolean,
+  exceptionLabel: string,
+): Pick<CompactCatalogEntry, "status" | "tone"> {
+  return healthy
+    ? { status: undefined, tone: undefined }
+    : { status: exceptionLabel, tone: "warn" };
+}
+
 export interface CompactCatalogFact {
   label: string;
   value: string;
