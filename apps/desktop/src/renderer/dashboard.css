@@ -1,7 +1,7 @@
 .dashboard-hero {
   position: relative;
   overflow: hidden;
-  padding: 16px;
+  padding: 12px 14px;
 }
 
 .dashboard-hero::before {
@@ -14,9 +14,9 @@
 }
 
 .dashboard-hero h2 {
-  margin: 5px 0 7px;
+  margin: 3px 0 5px;
   font-family: var(--font-display);
-  font-size: clamp(24px, 2.5vw, 32px);
+  font-size: clamp(22px, 2.2vw, 28px);
   line-height: 1.02;
   letter-spacing: -0.04em;
 }
@@ -32,8 +32,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 7px 16px;
-  margin-top: 11px;
-  padding-top: 10px;
+  margin-top: 8px;
+  padding-top: 7px;
   border-top: 1px solid var(--border);
 }
 
