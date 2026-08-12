@@ -86,7 +86,7 @@ function showBackgroundNotification({
 }
 
 function currentWorkspaceDialogPath(): string | undefined {
-  return workspaceState?.getState().currentPath;
+  return workspaceState?.getState().currentPath || undefined;
 }
 
 async function pickFiles() {
@@ -588,8 +588,8 @@ app.whenReady().then(async () => {
     runtimeDataDir,
     sourceRepoRoot ? resolve(sourceRepoRoot, ".doolittle") : undefined,
   );
-  const requestedWorkspace =
-    process.env.DOOLITTLE_DESKTOP_CWD?.trim() || homedir();
+  const requestedWorkspaceOverride = process.env.DOOLITTLE_DESKTOP_CWD?.trim();
+  const requestedWorkspace = requestedWorkspaceOverride || homedir();
   let fallbackWorkspace = homedir();
   try {
     fallbackWorkspace = normalizeWorkspaceDirectory(requestedWorkspace);
@@ -599,6 +599,7 @@ app.whenReady().then(async () => {
   workspaceState = new WorkspaceStateManager(
     resolve(app.getPath("userData"), "workspace-state.json"),
     fallbackWorkspace,
+    { selectFallback: Boolean(requestedWorkspaceOverride) },
   );
   desktopPreferences = new DesktopPreferences(
     resolve(app.getPath("userData"), "desktop-preferences.json"),
@@ -612,7 +613,7 @@ app.whenReady().then(async () => {
   backend = new BackendManager(
     target,
     runtimeDataDir,
-    workspaceState.getState().currentPath,
+    workspaceState.getState().currentPath || fallbackWorkspace,
   );
   mainWindow = createWindow();
   const providerAuth = new ProviderAuthController({

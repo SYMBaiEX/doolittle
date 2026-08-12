@@ -6,6 +6,11 @@ import type { WorkspacePickResult, WorkspaceState } from "../shared/contracts";
 export const MAX_RECENT_WORKSPACES = 8;
 const MAX_STATE_FILE_BYTES = 64_000;
 
+export interface WorkspaceStateLoadOptions {
+  maxRecent?: number;
+  selectFallback?: boolean;
+}
+
 export interface DirectoryPickerResult {
   canceled: boolean;
   filePaths: string[];
@@ -52,6 +57,7 @@ function normalizePersistedState(
   value: unknown,
   fallbackPath: string,
   maxRecent: number,
+  selectFallback: boolean,
 ): WorkspaceState {
   const record =
     value && typeof value === "object" && !Array.isArray(value)
@@ -59,11 +65,11 @@ function normalizePersistedState(
       : {};
   const rawCurrent =
     typeof record.currentPath === "string" ? record.currentPath : "";
-  let currentPath = fallbackPath;
+  let currentPath = selectFallback ? fallbackPath : "";
   try {
     if (rawCurrent) currentPath = normalizeWorkspaceDirectory(rawCurrent);
   } catch {
-    currentPath = fallbackPath;
+    currentPath = selectFallback ? fallbackPath : "";
   }
 
   const candidates = Array.isArray(record.recentPaths)
@@ -95,27 +101,31 @@ function normalizePersistedState(
 export function loadWorkspaceState(
   statePath: string,
   fallbackPath: string,
-  maxRecent = MAX_RECENT_WORKSPACES,
+  {
+    maxRecent = MAX_RECENT_WORKSPACES,
+    selectFallback = true,
+  }: WorkspaceStateLoadOptions = {},
 ): WorkspaceState {
   const normalizedFallback = normalizeWorkspaceDirectory(fallbackPath);
+  const fallbackState = selectFallback
+    ? {
+        currentPath: normalizedFallback,
+        recentPaths: [normalizedFallback],
+      }
+    : { currentPath: "", recentPaths: [] };
   try {
     const contents = readFileSync(statePath, "utf8");
     if (contents.length > MAX_STATE_FILE_BYTES) {
-      return {
-        currentPath: normalizedFallback,
-        recentPaths: [normalizedFallback],
-      };
+      return fallbackState;
     }
     return normalizePersistedState(
       JSON.parse(contents) as unknown,
       normalizedFallback,
       maxRecent,
+      selectFallback,
     );
   } catch {
-    return {
-      currentPath: normalizedFallback,
-      recentPaths: [normalizedFallback],
-    };
+    return fallbackState;
   }
 }
 
@@ -128,14 +138,16 @@ export function saveWorkspaceState(
 
 export class WorkspaceStateManager {
   private state: WorkspaceState;
+  private readonly maxRecent: number;
   private readonly listeners = new Set<(state: WorkspaceState) => void>();
 
   constructor(
     private readonly statePath: string,
     fallbackPath: string,
-    private readonly maxRecent = MAX_RECENT_WORKSPACES,
+    options: WorkspaceStateLoadOptions = {},
   ) {
-    this.state = loadWorkspaceState(statePath, fallbackPath, maxRecent);
+    this.maxRecent = options.maxRecent ?? MAX_RECENT_WORKSPACES;
+    this.state = loadWorkspaceState(statePath, fallbackPath, options);
   }
 
   getState(): WorkspaceState {

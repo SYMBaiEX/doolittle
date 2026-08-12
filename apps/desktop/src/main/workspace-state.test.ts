@@ -72,6 +72,29 @@ describe("workspace state", () => {
     });
   });
 
+  it("keeps a fresh desktop unscoped until the operator selects a workspace", () => {
+    withFixture(({ statePath, workspaces }) => {
+      const fallback = workspaces[0] as string;
+      const manager = new WorkspaceStateManager(statePath, fallback, {
+        selectFallback: false,
+      });
+
+      expect(manager.getState()).toEqual({ currentPath: "", recentPaths: [] });
+      expect(
+        loadWorkspaceState(statePath, fallback, { selectFallback: false }),
+      ).toEqual({ currentPath: "", recentPaths: [] });
+
+      const selected = manager.applyPickerResult({
+        canceled: false,
+        filePaths: [workspaces[1] as string],
+      });
+      expect(selected.state.currentPath).toBe(
+        normalizeWorkspaceDirectory(workspaces[1] as string),
+      );
+      expect(selected.state.recentPaths).toEqual([selected.state.currentPath]);
+    });
+  });
+
   it("deduplicates and bounds recent workspace history", () => {
     withFixture(({ workspaces }) => {
       let state = {
