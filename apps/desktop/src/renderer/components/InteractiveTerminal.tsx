@@ -16,12 +16,12 @@ import type {
 } from "../../shared/contracts";
 import { errorMessage } from "../lib";
 import { compactWorkspacePath } from "../workspace-path";
+import { InteractiveTerminalHeader } from "./InteractiveTerminalHeader";
+import { InteractiveTerminalSurface } from "./InteractiveTerminalSurface";
 import {
   appendTerminalBytes as appendTerminalOutputBytes,
   closeTerminalTabState,
   isCurrentTerminalSession,
-  terminalChatContext,
-  terminalTabLabelId,
 } from "./interactive-terminal-state";
 import {
   browserInteractiveTerminalStorage,
@@ -699,215 +699,49 @@ export function InteractiveTerminal({
 
   return (
     <section className="interactive-terminal" aria-label="Interactive terminal">
-      <header className="interactive-terminal-header">
-        <div className="interactive-terminal-session-bar">
-          <div className="interactive-terminal-identity">
-            <i className={running ? "running" : ""} />
-            <span>{activeTab?.shell || "shell"}</span>
-            <strong title={activeTab?.cwd}>
-              {activeTab
-                ? compactWorkspacePath(activeTab.cwd, 3)
-                : "Local workspace"}
-            </strong>
-          </div>
-          <div className="interactive-terminal-controls">
-            <span className="interactive-terminal-mode">{currentStatus}</span>
-            {running ? (
-              <>
-                <button onClick={onInterrupt} type="button">
-                  Ctrl+C
-                </button>
-                <button onClick={onCloseActiveSession} type="button">
-                  Close
-                </button>
-              </>
-            ) : (
-              <button
-                className="interactive-terminal-open"
-                disabled={!active || starting}
-                onClick={onStart}
-                type="button"
-              >
-                {starting ? "Opening…" : "Open shell"}
-              </button>
-            )}
-            {onDismiss ? (
-              <button
-                aria-label={`Hide terminal${
-                  dismissShortcut ? ` (${dismissShortcut})` : ""
-                }`}
-                className="interactive-terminal-dismiss"
-                onClick={onDismiss}
-                type="button"
-              >
-                Hide
-                {dismissShortcut ? <kbd>{dismissShortcut}</kbd> : null}
-              </button>
-            ) : null}
-          </div>
-        </div>
-        <div className="interactive-terminal-tab-row">
-          <div
-            aria-label="Interactive terminal tabs"
-            className="interactive-terminal-tabs"
-            role="tablist"
-          >
-            {tabs.map((tab, index) => {
-              const isActive = tab.id === activeTabId;
-              const tabLabelId = terminalTabLabelId(tab.id);
-              return (
-                <div className="interactive-terminal-tab-cell" key={tab.id}>
-                  <span className="sr-only" id={tabLabelId}>
-                    {tab.name} terminal tab
-                  </span>
-                  {renamingTabId === tab.id ? (
-                    <input
-                      aria-label={`Rename terminal ${tab.name}`}
-                      className="interactive-terminal-tab-name-input"
-                      onBlur={saveRename}
-                      onChange={(event) => setRenamingValue(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          saveRename();
-                        } else if (event.key === "Escape") {
-                          event.preventDefault();
-                          cancelRename();
-                        }
-                      }}
-                      ref={renameInputRef}
-                      type="text"
-                      value={renamingValue}
-                    />
-                  ) : (
-                    <button
-                      aria-controls={`interactive-terminal-${tab.id}-panel`}
-                      aria-labelledby={tabLabelId}
-                      aria-selected={isActive}
-                      className={`interactive-terminal-tab ${
-                        isActive ? "interactive-terminal-tab-active" : ""
-                      }`}
-                      id={`interactive-terminal-${tab.id}-tab`}
-                      onClick={() => selectTab(tab.id)}
-                      onDoubleClick={() => beginRename(tab.id)}
-                      onKeyDown={(event) => onTabKeyDown(event, index)}
-                      ref={(node) => {
-                        tabRefs.current[tab.id] = node;
-                      }}
-                      role="tab"
-                      tabIndex={isActive ? 0 : -1}
-                      title={`${tab.name} (${tab.state})`}
-                      type="button"
-                    >
-                      <span className="interactive-terminal-tab-label">
-                        {tab.name}
-                      </span>
-                      <small
-                        className={`interactive-terminal-tab-state-${tab.state}`}
-                      >
-                        {tab.state}
-                      </small>
-                    </button>
-                  )}
-                  <button
-                    aria-label={`Rename terminal ${tab.name}`}
-                    className="interactive-terminal-tab-rename"
-                    onClick={() => beginRename(tab.id)}
-                    type="button"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    aria-label={`Close terminal ${tab.name}`}
-                    className="interactive-terminal-tab-close"
-                    disabled={isClosingTab[tab.id]}
-                    onClick={() => void closeTab(tab.id)}
-                    type="button"
-                  >
-                    ×
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          <button
-            aria-label="Create terminal tab"
-            className="interactive-terminal-tab-add"
-            disabled={tabs.length >= MAX_INTERACTIVE_TERMINAL_TABS}
-            onClick={createTab}
-            type="button"
-          >
-            +
-          </button>
-        </div>
-      </header>
-      <div className="interactive-terminal-stage">
-        <div
-          aria-label="Terminal output"
-          aria-labelledby={
-            activeTab ? terminalTabLabelId(activeTab.id) : undefined
-          }
-          aria-live="off"
-          className="interactive-terminal-output"
-          id={
-            activeTab ? `interactive-terminal-${activeTab.id}-panel` : undefined
-          }
-          ref={viewportRef}
-          role="tabpanel"
-        />
-        {!running && !activeTab?.output ? (
-          <div className="interactive-terminal-launchpad">
-            <span aria-hidden="true">&gt;_</span>
-            <strong>Shell ready</strong>
-            <p>
-              Start a native {activeTab?.shell || "shell"} session in this
-              repository.
-            </p>
-            <button
-              disabled={!active || starting}
-              onClick={onStart}
-              type="button"
-            >
-              {starting ? "Opening…" : "Open shell"}
-            </button>
-          </div>
-        ) : null}
-      </div>
-      <footer className="interactive-terminal-footer">
-        <span>
-          {notice ||
-            "Active tab output is preserved across workspace navigation."}
-          {activeTab?.stale ? " · stale session" : ""}
-        </span>
-        <div>
-          <button
-            disabled={!activeTab?.output}
-            onClick={() =>
-              activeTab
-                ? setTabs((current) =>
-                    current.map((tab) =>
-                      tab.id === activeTab.id ? { ...tab, output: "" } : tab,
-                    ),
-                  )
-                : undefined
-            }
-            type="button"
-          >
-            Clear view
-          </button>
-          <button
-            disabled={!activeTab?.output}
-            onClick={() =>
-              activeTab
-                ? onSendToChat(terminalChatContext(activeTab.output))
-                : undefined
-            }
-            type="button"
-          >
-            Add to chat
-          </button>
-        </div>
-      </footer>
+      <InteractiveTerminalHeader
+        active={active}
+        activeCwdLabel={
+          activeTab ? compactWorkspacePath(activeTab.cwd, 3) : "Local workspace"
+        }
+        activeCwdTitle={activeTab?.cwd}
+        activeShell={activeTab?.shell || "shell"}
+        activeTabId={activeTabId}
+        currentStatus={currentStatus}
+        dismissShortcut={dismissShortcut}
+        isClosingTab={isClosingTab}
+        maxTabs={MAX_INTERACTIVE_TERMINAL_TABS}
+        onBeginRename={beginRename}
+        onCancelRename={cancelRename}
+        onCloseActiveSession={onCloseActiveSession}
+        onCloseTab={closeTab}
+        onCreateTab={createTab}
+        onDismiss={onDismiss}
+        onInterrupt={onInterrupt}
+        onRenameChange={setRenamingValue}
+        onSaveRename={saveRename}
+        onSelectTab={selectTab}
+        onStart={onStart}
+        onTabKeyDown={onTabKeyDown}
+        renameInputRef={renameInputRef}
+        renamingTabId={renamingTabId}
+        renamingValue={renamingValue}
+        running={running}
+        starting={starting}
+        tabRefs={tabRefs}
+        tabs={tabs}
+      />
+      <InteractiveTerminalSurface
+        active={active}
+        activeTab={activeTab}
+        notice={notice}
+        onSendToChat={onSendToChat}
+        onStart={onStart}
+        running={running}
+        setTabs={setTabs}
+        starting={starting}
+        viewportRef={viewportRef}
+      />
     </section>
   );
 }
