@@ -6,6 +6,10 @@ const settingsPageSource = readFileSync(
   new URL("./SettingsPage.tsx", import.meta.url),
   "utf8",
 );
+const settingsNavigationSource = readFileSync(
+  new URL("./settings/SettingsNavigation.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("settings resource policy", () => {
   it("keeps the settings document active while deferring unrelated detail reads", () => {
@@ -69,11 +73,11 @@ describe("settings resource policy", () => {
     expect(settingsPageSource).not.toContain("ConnectionsPage");
     expect(settingsPageSource).not.toContain("settings-nav-title");
     expect(settingsPageSource).not.toContain("settings-nav-note");
-    expect(settingsPageSource).toContain("title={entry.description}");
-    expect(settingsPageSource).toMatch(
+    expect(settingsNavigationSource).toContain("title={entry.description}");
+    expect(settingsNavigationSource).toMatch(
       /aria-label=\{`\$\{entry\.label\}: \$\{entry\.description\}`\}/u,
     );
-    expect(settingsPageSource).toContain(
+    expect(settingsNavigationSource).toContain(
       'aria-current={category === entry.id ? "page" : undefined}',
     );
     expect(settingsPageSource).not.toContain("<i>{entry.count}</i>");

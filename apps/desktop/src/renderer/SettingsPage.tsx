@@ -40,6 +40,7 @@ import {
   SettingsFieldCollection,
 } from "./settings/SettingsFields";
 import "./configuration-pages.css";
+import { SettingsNavigation } from "./settings/SettingsNavigation";
 
 interface SettingsResponse {
   settings?: UnknownRecord;
@@ -254,24 +255,14 @@ export function SettingsPage({ active }: { active: boolean }) {
         <ErrorBlock error={settings.error} retry={reloadSettings} />
       ) : (
         <div className="settings-layout">
-          <aside className="settings-nav" aria-label="Settings categories">
-            {categories.map((entry) => (
-              <button
-                aria-label={`${entry.label}: ${entry.description}`}
-                className={category === entry.id ? "selected" : ""}
-                key={entry.id}
-                onClick={() => {
-                  setCategory(entry.id);
-                  setQuery("");
-                }}
-                title={entry.description}
-                aria-current={category === entry.id ? "page" : undefined}
-                type="button"
-              >
-                <strong>{entry.label}</strong>
-              </button>
-            ))}
-          </aside>
+          <SettingsNavigation
+            categories={categories}
+            category={category}
+            onSelect={(id) => {
+              setCategory(id);
+              setQuery("");
+            }}
+          />
           <section className="settings-content">
             {runtimeCategoryOffline ? (
               <OfflineRouteState>
