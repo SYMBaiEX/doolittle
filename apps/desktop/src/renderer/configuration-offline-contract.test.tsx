@@ -137,7 +137,10 @@ describe("configuration routes when the local runtime is inactive", () => {
     expect(markup).toContain('aria-label="Settings categories"');
     expect(markup).toContain("Appearance");
     expect(markup).toContain("Desktop");
-    expect(markup).toContain("Light, dark &amp; system");
+    expect(markup).toContain('aria-label="Application appearance"');
+    expect(markup).toContain('aria-label="Dark: Dark surfaces"');
+    expect(markup).toContain('aria-label="Light: Light surfaces"');
+    expect(markup).toContain('aria-label="System: Match this device"');
     expect(markup).toContain(
       "Saved color themes are unavailable until the local runtime is ready",
     );

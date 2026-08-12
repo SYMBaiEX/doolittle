@@ -18,6 +18,11 @@ export function settingsCategoryLabel(category: string): string {
   return titleCase(category);
 }
 
+export function settingFieldLabel(path: string): string {
+  const name = path.split(".").at(-1) ?? path;
+  return titleCase(name.replace(/([\p{Ll}\d])(\p{Lu})/gu, "$1 $2"));
+}
+
 export function flattenSettings(
   value: unknown,
   prefix = "",
@@ -168,7 +173,7 @@ export function SettingControl({
   return (
     <div className="setting-row">
       <div className="setting-copy">
-        <strong>{titleCase(field.path.split(".").at(-1) ?? field.path)}</strong>
+        <strong>{settingFieldLabel(field.path)}</strong>
         <small>{settingDescription(field)}</small>
         <code>{field.path}</code>
       </div>

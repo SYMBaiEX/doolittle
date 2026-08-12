@@ -39,6 +39,7 @@ import {
   flattenSettings,
   SettingsFieldCollection,
 } from "./settings/SettingsFields";
+import "./configuration-pages.css";
 
 interface SettingsResponse {
   settings?: UnknownRecord;
@@ -182,6 +183,9 @@ export function SettingsPage({ active }: { active: boolean }) {
   });
   const activeCategory =
     categories.find((entry) => entry.id === category) ?? categories[0];
+  const categorySupportsSearch = !["appearance", "desktop", "model"].includes(
+    category,
+  );
 
   const changeTheme = async (theme: string) => {
     if (!active) return;
@@ -253,6 +257,7 @@ export function SettingsPage({ active }: { active: boolean }) {
           <aside className="settings-nav" aria-label="Settings categories">
             {categories.map((entry) => (
               <button
+                aria-label={`${entry.label}: ${entry.description}`}
                 className={category === entry.id ? "selected" : ""}
                 key={entry.id}
                 onClick={() => {
@@ -263,10 +268,7 @@ export function SettingsPage({ active }: { active: boolean }) {
                 aria-current={category === entry.id ? "page" : undefined}
                 type="button"
               >
-                <span>
-                  <strong>{entry.label}</strong>
-                  <small>{entry.description}</small>
-                </span>
+                <strong>{entry.label}</strong>
               </button>
             ))}
           </aside>
@@ -284,7 +286,7 @@ export function SettingsPage({ active }: { active: boolean }) {
                   <h2>{activeCategory?.label ?? "Settings"}</h2>
                   <p>{activeCategory?.description}</p>
                 </div>
-                {category !== "desktop" ? (
+                {categorySupportsSearch ? (
                   <label className="search-field settings-search">
                     <span className="sr-only">Search settings</span>
                     <input
@@ -299,12 +301,6 @@ export function SettingsPage({ active }: { active: boolean }) {
             ) : null}
             {!runtimeCategoryOffline && category === "appearance" ? (
               <section className="settings-group">
-                <div className="settings-group-heading">
-                  <div>
-                    <span className="eyebrow">Appearance</span>
-                    <h2>Light, dark & system</h2>
-                  </div>
-                </div>
                 <fieldset
                   aria-label="Application appearance"
                   className="appearance-segmented"
@@ -312,10 +308,20 @@ export function SettingsPage({ active }: { active: boolean }) {
                   <legend className="sr-only">Application appearance</legend>
                   {(["dark", "light", "system"] as const).map((option) => (
                     <button
+                      aria-label={`${titleCase(option)}: ${
+                        option === "system"
+                          ? "Match this device"
+                          : `${titleCase(option)} surfaces`
+                      }`}
                       aria-pressed={appearance === option}
                       className={appearance === option ? "selected" : ""}
                       key={option}
                       onClick={() => changeAppearance(option)}
+                      title={
+                        option === "system"
+                          ? "Match this device"
+                          : `${titleCase(option)} surfaces`
+                      }
                       type="button"
                     >
                       <i aria-hidden="true">
@@ -325,24 +331,14 @@ export function SettingsPage({ active }: { active: boolean }) {
                             ? "☼"
                             : "◑"}
                       </i>
-                      <span>
-                        <strong>{titleCase(option)}</strong>
-                        <small>
-                          {option === "system"
-                            ? "Match this device"
-                            : `${titleCase(option)} surfaces`}
-                        </small>
-                      </span>
+                      <strong>{titleCase(option)}</strong>
                     </button>
                   ))}
                 </fieldset>
                 <div className="settings-inline-choice">
                   <div>
                     <strong>Interface density</strong>
-                    <small>
-                      Adjust the shared spacing used by pages, cards, lists,
-                      tables, and management panels.
-                    </small>
+                    <small>Spacing across pages, tables, and panels.</small>
                   </div>
                   <fieldset aria-label="Interface density">
                     <legend className="sr-only">Interface density</legend>
@@ -364,8 +360,7 @@ export function SettingsPage({ active }: { active: boolean }) {
                     <span className="eyebrow">Color system</span>
                     <h2>Operator signal</h2>
                     <p>
-                      The selected palette follows you through chat, code,
-                      review, workbench, and the terminal.
+                      Shared across chat, code, review, workbench, and terminal.
                     </p>
                   </div>
                   <Badge>
@@ -386,13 +381,20 @@ export function SettingsPage({ active }: { active: boolean }) {
                     const name = asString(entry.name, String(index));
                     const primary = asString(entry.primary, "#ff6a00");
                     const secondary = asString(entry.secondary, primary);
+                    const label = asString(entry.label, titleCase(name));
+                    const tagline = asString(
+                      entry.tagline,
+                      "Desktop color system",
+                    );
                     return (
                       <button
+                        aria-label={`${label}: ${tagline}`}
                         className={
                           themes.data?.active === name ? "selected" : ""
                         }
                         key={name}
                         onClick={() => void changeTheme(name)}
+                        title={tagline}
                         type="button"
                       >
                         <span
@@ -409,14 +411,7 @@ export function SettingsPage({ active }: { active: boolean }) {
                             }}
                           />
                         </span>
-                        <span>
-                          <strong>
-                            {asString(entry.label, titleCase(name))}
-                          </strong>
-                          <small>
-                            {asString(entry.tagline, "Desktop color system")}
-                          </small>
-                        </span>
+                        <strong>{label}</strong>
                         <b aria-hidden="true">
                           {themes.data?.active === name ? "✓" : ""}
                         </b>

@@ -132,7 +132,7 @@ export function KeysPage({ active }: { active: boolean }) {
       <PageHeader
         eyebrow="Credentials"
         title="Keys"
-        description="Inspect which local secrets exist, reveal a value on demand, and update provider credentials from the desktop shell."
+        description="Inspect, reveal, and update credentials in the local secret store."
         actions={
           <button
             className="secondary-button"
@@ -198,15 +198,17 @@ export function KeysPage({ active }: { active: boolean }) {
               <div>
                 <span className="eyebrow">Local secret store</span>
                 <h2>{draftKey || "Add or update a key"}</h2>
+                <small>
+                  {inventoryEmpty
+                    ? "No stored keys. Save the first credential here."
+                    : "Values remain concealed until you request one."}
+                </small>
               </div>
-              {selectedKey ? <Badge>{selectedKey}</Badge> : null}
             </div>
-            {inventoryEmpty ? (
-              <Notice announce="off">
-                No stored keys yet. Save the first local credential below.
-              </Notice>
-            ) : null}
-            <form className="content-card form-card" onSubmit={saveValue}>
+            <form
+              className="content-card form-card keys-editor-form"
+              onSubmit={saveValue}
+            >
               <div className="field-grid">
                 <label className="field-span">
                   <span>Key name</span>
@@ -234,7 +236,7 @@ export function KeysPage({ active }: { active: boolean }) {
                   onClick={() => void loadValue()}
                   type="button"
                 >
-                  {busy === "load" ? "Loading…" : "Reveal stored value"}
+                  {busy === "load" ? "Loading…" : "Reveal value"}
                 </button>
                 <button
                   className="primary-button"

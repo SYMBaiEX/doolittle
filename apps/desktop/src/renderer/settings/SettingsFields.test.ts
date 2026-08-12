@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   flattenSettings,
   groupSettingsByCategory,
+  settingFieldLabel,
   settingsCategoryLabel,
 } from "./SettingsFields";
 
@@ -32,5 +33,12 @@ describe("settings field model", () => {
     expect(settingsCategoryLabel("ui")).toBe("UI");
     expect(settingsCategoryLabel("mcp")).toBe("MCP");
     expect(settingsCategoryLabel("execution")).toBe("Execution");
+  });
+
+  it("turns camel-cased runtime paths into readable control labels", () => {
+    expect(settingFieldLabel("agent.maxIterations")).toBe("Max Iterations");
+    expect(settingFieldLabel("execution.remoteArtifactPolicy")).toBe(
+      "Remote Artifact Policy",
+    );
   });
 });

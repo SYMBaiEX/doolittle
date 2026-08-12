@@ -1,0 +1,182 @@
+.page-settings {
+  gap: 10px;
+}
+
+.page-settings .settings-layout {
+  grid-template-columns: 144px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.page-settings .settings-nav {
+  gap: 1px;
+  padding: 3px;
+}
+
+.page-settings .settings-nav > button {
+  min-height: 29px;
+  padding: 5px 7px 5px 9px;
+}
+
+.page-settings .settings-nav > button.selected::before {
+  top: 6px;
+  bottom: 6px;
+}
+
+.page-settings .settings-nav > button > strong {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-settings .settings-content {
+  gap: 7px;
+}
+
+.page-settings .settings-content-header {
+  min-height: 42px;
+  align-items: center;
+  padding: 1px 0 7px;
+}
+
+.page-settings .settings-content-header h2 {
+  margin-top: 2px;
+  font-size: 16px;
+}
+
+.page-settings .settings-content-header p {
+  font-size: 9px;
+}
+
+.page-settings .settings-group {
+  gap: 6px;
+  padding: 9px 10px;
+}
+
+.page-settings .appearance-segmented {
+  gap: 5px;
+}
+
+.page-settings .appearance-segmented button {
+  min-height: 42px;
+  gap: 7px;
+  padding: 6px 9px;
+}
+
+.page-settings .appearance-segmented button > i {
+  width: 25px;
+  height: 25px;
+  font-size: 12px;
+}
+
+.page-settings .appearance-segmented button > strong {
+  font-size: 10px;
+}
+
+.page-settings .settings-inline-choice {
+  min-height: 42px;
+  margin-top: 0;
+  padding: 6px 8px;
+}
+
+.page-settings .settings-inline-choice > div:first-child {
+  gap: 1px;
+}
+
+.page-settings .settings-inline-choice > div:first-child small {
+  font-size: 8px;
+}
+
+.page-settings .settings-inline-choice fieldset {
+  padding: 2px;
+}
+
+.page-settings .settings-inline-choice button {
+  min-height: 24px;
+  padding: 3px 7px;
+}
+
+.page-settings .theme-heading {
+  min-height: 38px;
+  margin-top: 7px;
+  margin-bottom: 0;
+  padding-bottom: 7px;
+}
+
+.page-settings .theme-heading p {
+  margin-top: 2px;
+  font-size: 8px;
+}
+
+.page-settings .theme-grid {
+  grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
+  gap: 5px;
+}
+
+.page-settings .theme-grid button {
+  grid-template-columns: 28px minmax(0, 1fr) 12px;
+  gap: 7px;
+  min-height: 42px;
+  padding: 6px 7px;
+}
+
+.page-settings .theme-grid button > strong {
+  overflow: hidden;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-settings .theme-card-signal {
+  width: 28px;
+  height: 28px;
+  gap: 2px;
+  padding: 4px;
+}
+
+.page-settings .theme-grid .theme-card-signal i {
+  width: 4px;
+  height: 9px;
+}
+
+.page-settings .setting-row {
+  min-height: 46px;
+  padding: 6px 0;
+}
+
+@media (max-width: 980px) {
+  .page-settings .settings-nav {
+    position: static;
+    display: flex;
+    max-height: none;
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .page-settings .settings-nav > button {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .page-settings .appearance-segmented {
+    grid-template-columns: 1fr;
+  }
+
+  .page-settings .settings-inline-choice {
+    align-items: stretch;
+  }
+
+  .page-settings .settings-inline-choice fieldset {
+    width: 100%;
+  }
+
+  .page-settings .settings-inline-choice button {
+    flex: 1;
+  }
+
+  .page-settings .theme-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

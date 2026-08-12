@@ -70,6 +70,9 @@ describe("settings resource policy", () => {
     expect(settingsPageSource).not.toContain("settings-nav-title");
     expect(settingsPageSource).not.toContain("settings-nav-note");
     expect(settingsPageSource).toContain("title={entry.description}");
+    expect(settingsPageSource).toMatch(
+      /aria-label=\{`\$\{entry\.label\}: \$\{entry\.description\}`\}/u,
+    );
     expect(settingsPageSource).toContain(
       'aria-current={category === entry.id ? "page" : undefined}',
     );
@@ -77,6 +80,14 @@ describe("settings resource policy", () => {
     expect(settingsPageSource).not.toContain(
       "Accounts, appearance, models, execution, and local desktop behavior",
     );
+  });
+
+  it("offers search only for categories backed by runtime fields", () => {
+    expect(settingsPageSource).toContain("categorySupportsSearch");
+    expect(settingsPageSource).toContain('"appearance"');
+    expect(settingsPageSource).toContain('"desktop"');
+    expect(settingsPageSource).toContain('"model"');
+    expect(settingsPageSource).toContain("{categorySupportsSearch ? (");
   });
 
   it("keeps advanced focused on grouped runtime fields instead of duplicating other settings panels", () => {
