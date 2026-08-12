@@ -1,5 +1,6 @@
 import type { SessionSummary } from "../shared/contracts";
 import { asArray, asNumber, asRecord, asString, titleCase } from "./lib";
+import { compactSessionPreview } from "./session-preview";
 
 export interface DashboardSessionCard {
   id: string;
@@ -57,27 +58,6 @@ export interface DashboardNextAction {
   description: string;
   tone: "good" | "warn" | "neutral";
   target: "review" | "tasks" | "setup" | "chat" | "providers";
-}
-
-function compactSessionPreview(value: string): string {
-  const normalized = value.replace(/\s+/gu, " ").trim();
-  if (!normalized) return "";
-
-  const embeddedResource = normalized.match(
-    /\[Embedded resource:\s*(?<path>[^\]]+)\]/iu,
-  );
-  if (!embeddedResource?.groups?.path) return normalized;
-
-  const resourcePath = embeddedResource.groups.path.trim();
-  const resourceName = resourcePath.split(/[\\/]/u).pop() || "resource";
-  const withoutPath = normalized
-    .replace(embeddedResource[0], "")
-    .replace(/\s{2,}/gu, " ")
-    .trim();
-
-  return withoutPath
-    ? `${withoutPath} · ${resourceName}`
-    : `Referenced ${resourceName}`;
 }
 
 function compactListSummary(values: unknown[]): string {

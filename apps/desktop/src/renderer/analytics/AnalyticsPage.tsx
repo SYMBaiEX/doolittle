@@ -13,6 +13,7 @@ import {
   PageHeader,
   useApiResource,
 } from "../lib";
+import { compactSessionPreview } from "../session-preview";
 import "../observability.css";
 
 interface AnalyticsResponse {
@@ -40,7 +41,9 @@ export function analyticsSessionLabel(entry: Record<string, unknown>): string {
     preview ||
     asString(usage.lastPreview).trim();
   if (!label) return "Untitled session";
-  const normalized = label.replace(/^\[(?:assistant|system|user)\]\s*/iu, "");
+  const normalized = compactSessionPreview(
+    label.replace(/^\[(?:assistant|system|user)\]\s*/iu, ""),
+  );
   return normalized.length > SESSION_LABEL_LIMIT
     ? `${normalized.slice(0, SESSION_LABEL_LIMIT - 1).trimEnd()}…`
     : normalized;

@@ -34,4 +34,13 @@ describe("analyticsSessionLabel", () => {
       }),
     ).toBe("Untitled session");
   });
+
+  it("keeps local resource paths out of recent-session labels", () => {
+    expect(
+      analyticsSessionLabel({
+        sessionId: "desktop:resource",
+        preview: ["[user] Read: /Users/symbiex/dev/test/src/app/page.tsx"],
+      }),
+    ).toBe("Read: page.tsx");
+  });
 });
