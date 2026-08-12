@@ -55,4 +55,26 @@ describe("MemorySnapshotPanel", () => {
     expect(markup).toContain("Readable snapshot");
     expect(markup).toContain("Prefers concise updates");
   });
+
+  it("does not allocate a preview card when only a readable snapshot exists", () => {
+    const markup = renderToStaticMarkup(
+      <MemorySnapshotPanel
+        active
+        resource={resource({
+          summary: {
+            characters: 24,
+            entries: 0,
+            preview: [],
+            target: "memory",
+          },
+          snapshot: "Bounded runtime snapshot",
+        })}
+        target="memory"
+      />,
+    );
+
+    expect(markup).not.toContain("Recent entries");
+    expect(markup).toContain("Readable snapshot");
+    expect(markup).toContain("Bounded runtime snapshot");
+  });
 });

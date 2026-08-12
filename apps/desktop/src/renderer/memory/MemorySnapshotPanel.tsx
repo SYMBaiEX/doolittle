@@ -103,7 +103,7 @@ export function MemorySnapshotPanel({
         ) : null}
       </section>
 
-      {!empty ? (
+      {preview.length ? (
         <section className="content-card memory-summary-card">
           <div className="card-heading">
             <div>
@@ -111,17 +111,11 @@ export function MemorySnapshotPanel({
               <h2>Preview</h2>
             </div>
           </div>
-          {preview.length ? (
-            <ul>
-              {preview.map((entry) => (
-                <li key={entry}>{entry}</li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyBlock density="compact" title="No entries">
-              No memory entries were found.
-            </EmptyBlock>
-          )}
+          <ul>
+            {preview.map((entry) => (
+              <li key={entry}>{entry}</li>
+            ))}
+          </ul>
         </section>
       ) : null}
 

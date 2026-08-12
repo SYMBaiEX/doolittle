@@ -159,9 +159,7 @@ describe("operational route density", () => {
     const memory = read("./memory/MemorySnapshotPanel.tsx");
     expect(memory).toContain("memory-empty-card");
     expect(memory).toContain("No stored entries yet");
-    expect(memory).toContain(
-      '<EmptyBlock density="compact" title="No snapshot">',
-    );
+    expect(memory).toContain("{preview.length ? (");
   });
 
   it("loads shell-owned desktop state only on its category, even offline", () => {
