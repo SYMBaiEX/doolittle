@@ -80,9 +80,37 @@ describe("GatewayTimelinePanel", () => {
       />,
     );
 
-    expect(markup).toContain("No gateway messages recorded yet");
+    expect(markup).toContain("Waiting for gateway traffic");
+    expect(markup).toContain("0 records");
+    expect(markup).toContain('class="gateway-history-state is-empty"');
+    expect(markup).toContain('role="status"');
+    expect(markup).not.toContain('class="empty-block');
     expect(markup).not.toContain("Gateway record filters");
     expect(markup).not.toContain("Find record");
+  });
+
+  it("uses the same compact rail while local history is loading", () => {
+    const markup = renderToStaticMarkup(
+      <GatewayTimelinePanel
+        direction="all"
+        entries={[]}
+        loading
+        onDirectionChange={vi.fn()}
+        onPlatformChange={vi.fn()}
+        onQueryChange={vi.fn()}
+        onReplay={vi.fn()}
+        platform="all"
+        platforms={[]}
+        query=""
+        replayingId=""
+        visibleEntries={[]}
+      />,
+    );
+
+    expect(markup).toContain("Reading message history");
+    expect(markup).toContain('class="gateway-history-state is-loading"');
+    expect(markup).toContain('aria-busy="true"');
+    expect(markup).not.toContain('class="loading-block');
   });
 
   it("retains filters when existing records have no current match", () => {

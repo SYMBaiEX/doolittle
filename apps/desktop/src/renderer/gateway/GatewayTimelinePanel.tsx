@@ -4,13 +4,7 @@ import {
   type GatewayTimelineItem,
   gatewayStatusTone,
 } from "../gateway-page-model";
-import {
-  Badge,
-  displayTimestamp,
-  EmptyBlock,
-  LoadingBlock,
-  titleCase,
-} from "../lib";
+import { Badge, displayTimestamp, EmptyBlock, titleCase } from "../lib";
 
 export type GatewayTimelineDirection = "all" | "inbox" | "outbox";
 
@@ -107,13 +101,36 @@ export function GatewayTimelinePanel({
       ) : null}
 
       {loading && !entries.length ? (
-        <LoadingBlock label="Reading local gateway records…" />
+        <div
+          aria-busy="true"
+          aria-live="polite"
+          className="gateway-history-state is-loading"
+          role="status"
+        >
+          <span aria-hidden="true" className="gateway-history-state-dot" />
+          <span className="gateway-history-state-copy">
+            <strong>Reading message history</strong>
+            <small>Checking the local inbox and outbox.</small>
+          </span>
+          <span className="gateway-history-state-meta">Local only</span>
+        </div>
       ) : null}
       {!loading && !entries.length ? (
-        <EmptyBlock density="compact" title="No gateway messages recorded yet">
-          Configure a transport and wait for real traffic. This page does not
-          create test sends.
-        </EmptyBlock>
+        <div
+          aria-live="polite"
+          className="gateway-history-state is-empty"
+          role="status"
+        >
+          <span aria-hidden="true" className="gateway-history-state-dot" />
+          <span className="gateway-history-state-copy">
+            <strong>Waiting for gateway traffic</strong>
+            <small>
+              Real inbound and outbound records appear here. This view never
+              creates test sends.
+            </small>
+          </span>
+          <span className="gateway-history-state-meta">0 records</span>
+        </div>
       ) : null}
       {entries.length > 0 && !visibleEntries.length ? (
         <EmptyBlock density="compact" title="No records match these filters">

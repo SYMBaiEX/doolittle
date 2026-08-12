@@ -45,4 +45,16 @@ describe("GatewayPage density", () => {
       ".gateway-page :is(.gateway-timeline-panel, .gateway-session-panel)",
     );
   });
+
+  it("uses a compact status rail instead of a full empty history panel", () => {
+    expect(
+      readFileSync(
+        new URL("./gateway/GatewayTimelinePanel.tsx", import.meta.url),
+        "utf8",
+      ),
+    ).toContain('className="gateway-history-state is-empty"');
+    expect(css).toContain(".gateway-history-state {");
+    expect(css).toContain("min-height: 58px");
+    expect(css).toContain("@media (prefers-reduced-motion: reduce)");
+  });
 });

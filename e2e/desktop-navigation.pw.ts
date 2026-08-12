@@ -446,6 +446,21 @@ test.describe("Doolittle desktop navigation", () => {
             ).toBeHidden();
           }
           if (route === "gateway") {
+            const emptyHistory = viewContainer.locator(
+              ".gateway-history-state.is-empty",
+            );
+            if ((await emptyHistory.count()) > 0) {
+              await expect(emptyHistory).toContainText(
+                "Waiting for gateway traffic",
+              );
+              await expect(
+                viewContainer.locator(".gateway-timeline-panel .empty-block"),
+              ).toHaveCount(0);
+              const emptyHistoryHeight = await emptyHistory.evaluate(
+                (element) => Math.round(element.getBoundingClientRect().height),
+              );
+              expect(emptyHistoryHeight).toBeLessThanOrEqual(72);
+            }
             const pairing = viewContainer.locator(".pairing-panel");
             await pairing.locator("summary").click();
             await expect(pairing).toHaveAttribute("open", "");
