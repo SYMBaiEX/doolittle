@@ -119,6 +119,47 @@ describe("orchestration presentational panels", () => {
     );
   });
 
+  it("uses one compact task state before a queue exists", () => {
+    const markup = renderToStaticMarkup(
+      createElement(TaskQueuePanel, {
+        active: true,
+        projectScope: "all",
+        effectiveOverview: { total: 0 },
+        tasksResource: resource(),
+        tasks: [],
+        busyKeys: {},
+        selectedTaskNote: "",
+        showChildCreate: false,
+        childTitle: "",
+        childObjective: "",
+        childWorkspaceRoot: "",
+        worktrees: [],
+        confirmedAction: null,
+        cascadeChildren: false,
+        confirmDialogRef: { current: null },
+        onSelectTask: vi.fn(),
+        onRunTaskAction: vi.fn(),
+        onRequestDestructiveAction: vi.fn(),
+        onCloseConfirmation: vi.fn(),
+        onCascadeChildrenChange: vi.fn(),
+        onToggleChildCreate: vi.fn(),
+        onChildTitleChange: vi.fn(),
+        onChildObjectiveChange: vi.fn(),
+        onChildWorkspaceRootChange: vi.fn(),
+        onSubmitSpawn: vi.fn(),
+        onTaskNoteChange: vi.fn(),
+        onSubmitNote: vi.fn(),
+        onNewCodingTask: vi.fn(),
+      }),
+    );
+
+    expect(markup.match(/No tasks yet/g)).toHaveLength(1);
+    expect(markup).toContain("empty-block--compact");
+    expect(markup).toContain("New coding task");
+    expect(markup).not.toContain("Choose a task");
+    expect(markup).not.toContain("orchestration-master-detail");
+  });
+
   it("keeps the initial task rail bounded", () => {
     const tasks = Array.from(
       { length: TASK_QUEUE_PAGE_SIZE + 5 },

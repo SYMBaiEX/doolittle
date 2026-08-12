@@ -133,37 +133,6 @@ export function TaskQueuePanel({
   });
 
   const renderTaskRail = () => {
-    if (tasksResource.error) {
-      return (
-        <ErrorBlock error={tasksResource.error} retry={tasksResource.reload} />
-      );
-    }
-    if (tasksResource.loading) return <LoadingBlock />;
-    if (tasks.length === 0) {
-      return (
-        <EmptyBlock
-          title={
-            projectScope === "all"
-              ? "No tasks yet"
-              : `No tasks for ${workspaceLabel || "this project"}`
-          }
-          actions={
-            onNewCodingTask ? (
-              <button
-                className="primary-button"
-                disabled={!active}
-                onClick={onNewCodingTask}
-                type="button"
-              >
-                New coding task
-              </button>
-            ) : undefined
-          }
-        >
-          Create a focused task to start an operator workflow in this workspace.
-        </EmptyBlock>
-      );
-    }
     if (filteredTasks.length === 0) {
       return (
         <EmptyBlock
@@ -251,6 +220,41 @@ export function TaskQueuePanel({
       </ul>
     );
   };
+
+  if (tasksResource.error) {
+    return (
+      <ErrorBlock error={tasksResource.error} retry={tasksResource.reload} />
+    );
+  }
+  if (tasksResource.loading && tasks.length === 0) {
+    return <LoadingBlock label="Loading task queue…" />;
+  }
+  if (tasks.length === 0) {
+    return (
+      <EmptyBlock
+        actions={
+          onNewCodingTask ? (
+            <button
+              className="primary-button"
+              disabled={!active}
+              onClick={onNewCodingTask}
+              type="button"
+            >
+              New coding task
+            </button>
+          ) : undefined
+        }
+        density="compact"
+        title={
+          projectScope === "all"
+            ? "No tasks yet"
+            : `No tasks for ${workspaceLabel || "this project"}`
+        }
+      >
+        Create a focused task to start an operator workflow in this workspace.
+      </EmptyBlock>
+    );
+  }
 
   return (
     <div className="orchestration-master-detail">
