@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   asArray,
   asRecord,
@@ -128,11 +129,13 @@ export function DocsPage({ active }: { active: boolean }) {
           { label: "Storage", value: "Local" },
           {
             label: "Diagnostics",
-            value: doctorRequested
-              ? `${passing}/${checks.length}`
-              : "On demand",
+            value: !active
+              ? "Offline"
+              : doctorRequested
+                ? `${passing}/${checks.length}`
+                : "On demand",
             tone:
-              doctorRequested && !doctor.loading && checks.length
+              active && doctorRequested && !doctor.loading && checks.length
                 ? passing === checks.length
                   ? "good"
                   : "warn"
@@ -149,6 +152,7 @@ export function DocsPage({ active }: { active: boolean }) {
             </div>
             <button
               className="text-button"
+              disabled={!active}
               onClick={() => {
                 if (doctorRequested) doctor.reload();
                 else setDoctorRequested(true);
@@ -158,7 +162,12 @@ export function DocsPage({ active }: { active: boolean }) {
               {doctorRequested ? "Run again" : "Run diagnostics"}
             </button>
           </div>
-          {!doctorRequested ? (
+          {!active ? (
+            <OfflineRouteState>
+              Runtime diagnostics are unavailable until the local runtime is
+              ready.
+            </OfflineRouteState>
+          ) : !doctorRequested ? (
             <div className="diagnostics-idle">
               <strong>Checks are ready when you need them.</strong>
               <small>
@@ -177,7 +186,7 @@ export function DocsPage({ active }: { active: boolean }) {
               ))}
             </div>
           )}
-          {prioritizedChecks.remaining.length ? (
+          {active && prioritizedChecks.remaining.length ? (
             <details className="compact-disclosure">
               <summary>
                 {prioritizedChecks.remaining.length} more checks

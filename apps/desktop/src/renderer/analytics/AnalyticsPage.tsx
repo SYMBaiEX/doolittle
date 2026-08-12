@@ -1,4 +1,5 @@
 import { CompactStatStrip } from "../components/CompactStatStrip";
+import { OfflineRouteState } from "../components/OfflineRouteState";
 import {
   asArray,
   asNumber,
@@ -54,6 +55,7 @@ export function AnalyticsPage({ active }: { active: boolean }) {
         actions={
           <button
             className="secondary-button"
+            disabled={!active}
             onClick={resource.reload}
             type="button"
           >
@@ -61,7 +63,11 @@ export function AnalyticsPage({ active }: { active: boolean }) {
           </button>
         }
       />
-      {resource.loading ? (
+      {!active ? (
+        <OfflineRouteState>
+          Analytics are unavailable until the local runtime is ready.
+        </OfflineRouteState>
+      ) : resource.loading ? (
         <LoadingBlock label="Calculating local activity…" />
       ) : resource.error ? (
         <ErrorBlock error={resource.error} retry={resource.reload} />

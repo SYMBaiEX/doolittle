@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useRef, useState } from "react";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import { PageHeader } from "./lib";
 import { ImageTab } from "./media/ImageTab";
 import { InspectAnalyzeTab } from "./media/InspectAnalyzeTab";
@@ -39,44 +40,56 @@ export function MediaPage({ active }: { active: boolean }) {
         title="Media"
       />
 
-      <div aria-label="Media action tabs" className="media-tabs" role="tablist">
-        {MEDIA_TABS.map((entry) => (
-          <button
-            aria-controls={`media-panel-${entry.id}`}
-            aria-selected={entry.id === activeTab}
-            className={`text-button ${entry.id === activeTab ? "selected" : ""}`}
-            disabled={!active}
-            id={`media-tab-${entry.id}`}
-            key={entry.id}
-            onClick={() => setActiveTab(entry.id)}
-            onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
-              if (event.key === "ArrowLeft") {
-                event.preventDefault();
-                moveTab(-1);
-              }
-              if (event.key === "ArrowRight") {
-                event.preventDefault();
-                moveTab(1);
-              }
-            }}
-            ref={(node) => {
-              tabRefs.current[entry.id] = node;
-            }}
-            role="tab"
-            tabIndex={entry.id === activeTab ? 0 : -1}
-            type="button"
+      {!active ? (
+        <OfflineRouteState>
+          Media operations are unavailable until the local runtime is ready.
+        </OfflineRouteState>
+      ) : (
+        <>
+          <div
+            aria-label="Media action tabs"
+            className="media-tabs"
+            role="tablist"
           >
-            {entry.label}
-          </button>
-        ))}
-      </div>
+            {MEDIA_TABS.map((entry) => (
+              <button
+                aria-controls={`media-panel-${entry.id}`}
+                aria-selected={entry.id === activeTab}
+                className={`text-button ${entry.id === activeTab ? "selected" : ""}`}
+                disabled={!active}
+                id={`media-tab-${entry.id}`}
+                key={entry.id}
+                onClick={() => setActiveTab(entry.id)}
+                onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
+                  if (event.key === "ArrowLeft") {
+                    event.preventDefault();
+                    moveTab(-1);
+                  }
+                  if (event.key === "ArrowRight") {
+                    event.preventDefault();
+                    moveTab(1);
+                  }
+                }}
+                ref={(node) => {
+                  tabRefs.current[entry.id] = node;
+                }}
+                role="tab"
+                tabIndex={entry.id === activeTab ? 0 : -1}
+                type="button"
+              >
+                {entry.label}
+              </button>
+            ))}
+          </div>
 
-      <div className="media-panel">
-        <InspectAnalyzeTab active={activeTab === "inspect-analyze"} />
-        <TranscribeTab active={activeTab === "transcribe"} />
-        <SpeechTab active={activeTab === "speech"} />
-        <ImageTab active={activeTab === "image"} />
-      </div>
+          <div className="media-panel">
+            <InspectAnalyzeTab active={activeTab === "inspect-analyze"} />
+            <TranscribeTab active={activeTab === "transcribe"} />
+            <SpeechTab active={activeTab === "speech"} />
+            <ImageTab active={activeTab === "image"} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

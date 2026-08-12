@@ -11,6 +11,7 @@ import {
 import { useState } from "react";
 import { CompactCatalogList } from "./components/CompactCatalogList";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   asArray,
   asRecord,
@@ -91,6 +92,7 @@ export function PluginsPage({ active }: { active: boolean }) {
         actions={
           <Button
             className="secondary-button"
+            disabled={!active}
             onClick={resource.reload}
             type="button"
             variant="secondary"
@@ -99,62 +101,76 @@ export function PluginsPage({ active }: { active: boolean }) {
           </Button>
         }
       />
-      <CompactStatStrip
-        label="Plugin catalog summary"
-        stats={[
-          { label: "Catalog", value: entries.length },
-          { label: "Enabled", value: enabled, tone: "good" },
-          {
-            label: "Inactive",
-            value: entries.length - enabled,
-            tone: entries.length - enabled ? "warn" : "neutral",
-          },
-          { label: "Categories", value: categories.length - 1 },
-        ]}
-      />
-      <Notice>
-        This page reflects the packages actually assembled by the ElizaOS
-        runtime. Provider enablement follows account and environment readiness.
-      </Notice>
-      <div className="filter-bar">
-        <label className="search-field grow" htmlFor="plugin-search">
-          <span className="sr-only">Search plugins</span>
-          <Input
-            id="plugin-search"
-            placeholder="Search plugins"
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
-        <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger aria-label="Plugin category">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {categories.map((value) => (
-              <SelectItem key={value} value={value}>
-                {titleCase(value)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      {resource.loading ? (
-        <LoadingBlock label="Inspecting native plugin assembly…" />
-      ) : resource.error ? (
-        <ErrorBlock error={resource.error} retry={resource.reload} />
-      ) : filtered.length ? (
-        <CompactCatalogList
-          ariaLabel="Plugin catalog"
-          entries={catalogEntries}
-          resetKey={`${category}:${query.trim().toLowerCase()}`}
+      {!active ? (
+        <OfflineRouteState>
+          Plugin assembly is unavailable until the local runtime is ready.
+        </OfflineRouteState>
+      ) : null}
+      {active ? (
+        <CompactStatStrip
+          label="Plugin catalog summary"
+          stats={[
+            { label: "Catalog", value: entries.length },
+            { label: "Enabled", value: enabled, tone: "good" },
+            {
+              label: "Inactive",
+              value: entries.length - enabled,
+              tone: entries.length - enabled ? "warn" : "neutral",
+            },
+            { label: "Categories", value: categories.length - 1 },
+          ]}
         />
-      ) : (
-        <EmptyBlock title="No plugins match">
-          Change the search or category filter.
-        </EmptyBlock>
-      )}
+      ) : null}
+      {active ? (
+        <Notice>
+          This page reflects the packages actually assembled by the ElizaOS
+          runtime. Provider enablement follows account and environment
+          readiness.
+        </Notice>
+      ) : null}
+      {active ? (
+        <div className="filter-bar">
+          <label className="search-field grow" htmlFor="plugin-search">
+            <span className="sr-only">Search plugins</span>
+            <Input
+              id="plugin-search"
+              placeholder="Search plugins"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger aria-label="Plugin category">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {titleCase(value)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
+      {active ? (
+        resource.loading ? (
+          <LoadingBlock label="Inspecting native plugin assembly…" />
+        ) : resource.error ? (
+          <ErrorBlock error={resource.error} retry={resource.reload} />
+        ) : filtered.length ? (
+          <CompactCatalogList
+            ariaLabel="Plugin catalog"
+            entries={catalogEntries}
+            resetKey={`${category}:${query.trim().toLowerCase()}`}
+          />
+        ) : (
+          <EmptyBlock title="No plugins match">
+            Change the search or category filter.
+          </EmptyBlock>
+        )
+      ) : null}
     </PagePanel>
   );
 }

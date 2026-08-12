@@ -13,6 +13,7 @@ import {
 export { AutomationDeleteConfirmation } from "./automations/AutomationWorkspace";
 
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   type ActionFeedback,
   asArray,
@@ -94,6 +95,7 @@ export function AutomationsPage({ active }: { active: boolean }) {
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
+    if (!active) return;
     const request = buildAutomationRequest(draft);
     if (!request.ok) {
       setFeedback({ message: request.error, tone: "bad" });
@@ -115,6 +117,7 @@ export function AutomationsPage({ active }: { active: boolean }) {
   };
 
   const act = async (id: string, action: AutomationAction) => {
+    if (!active) return false;
     setBusy(`${id}:${action}`);
     setFeedback(null);
     try {
@@ -152,6 +155,7 @@ export function AutomationsPage({ active }: { active: boolean }) {
         actions={
           <button
             className={showCreate ? "secondary-button" : "primary-button"}
+            disabled={!active}
             onClick={() => setShowCreate((value) => !value)}
             type="button"
           >
@@ -160,39 +164,48 @@ export function AutomationsPage({ active }: { active: boolean }) {
         }
       />
 
-      <CompactStatStrip
-        label="Automation summary"
-        stats={[
-          {
-            detail: `${entries.length} configured`,
-            label: "Active",
-            tone: activeJobs ? "good" : "neutral",
-            value: activeJobs,
-          },
-          {
-            detail: "Local capability URLs",
-            label: "Webhook inputs",
-            value: webhookJobs,
-          },
-          {
-            detail: runsOpen ? "Durable trace receipts" : "Open to load",
-            label: "Recent runs",
-            value: runsOpen ? runEntries.length : "—",
-          },
-          {
-            detail: runsOpen
-              ? failedRuns
-                ? "Needs attention"
-                : "All clear"
-              : "Trace drawer closed",
-            label: "Failures",
-            tone: runsOpen && failedRuns ? "bad" : "neutral",
-            value: runsOpen ? failedRuns : "—",
-          },
-        ]}
-      />
+      {!active ? (
+        <OfflineRouteState>
+          Automations stay local to the runtime and cannot be created or run
+          while it is offline.
+        </OfflineRouteState>
+      ) : null}
 
-      {showCreate ? (
+      {active ? (
+        <CompactStatStrip
+          label="Automation summary"
+          stats={[
+            {
+              detail: `${entries.length} configured`,
+              label: "Active",
+              tone: activeJobs ? "good" : "neutral",
+              value: activeJobs,
+            },
+            {
+              detail: "Local capability URLs",
+              label: "Webhook inputs",
+              value: webhookJobs,
+            },
+            {
+              detail: runsOpen ? "Durable trace receipts" : "Open to load",
+              label: "Recent runs",
+              value: runsOpen ? runEntries.length : "—",
+            },
+            {
+              detail: runsOpen
+                ? failedRuns
+                  ? "Needs attention"
+                  : "All clear"
+                : "Trace drawer closed",
+              label: "Failures",
+              tone: runsOpen && failedRuns ? "bad" : "neutral",
+              value: runsOpen ? failedRuns : "—",
+            },
+          ]}
+        />
+      ) : null}
+
+      {active && showCreate ? (
         <AutomationBuilder
           busy={busy === "create"}
           draft={draft}
@@ -201,29 +214,31 @@ export function AutomationsPage({ active }: { active: boolean }) {
         />
       ) : null}
 
-      {feedback ? (
+      {active && feedback ? (
         <Notice announce="status" tone={feedback.tone}>
           {feedback.message}
         </Notice>
       ) : null}
 
-      <AutomationWorkspace
-        busy={busy}
-        jobs={entries}
-        jobsError={jobs.error}
-        jobsLoading={jobs.loading}
-        onAction={act}
-        onFeedback={(message) => setFeedback({ message, tone: "good" })}
-        onReloadJobs={jobs.reload}
-        onReloadRuns={runs.reload}
-        onRunsOpenChange={setRunsOpen}
-        onSelectRun={setSelectedRunId}
-        runs={runEntries}
-        runsError={runs.error}
-        runsLoading={runs.loading}
-        runsOpen={runsOpen}
-        selectedRun={selectedRun}
-      />
+      {active ? (
+        <AutomationWorkspace
+          busy={busy}
+          jobs={entries}
+          jobsError={jobs.error}
+          jobsLoading={jobs.loading}
+          onAction={act}
+          onFeedback={(message) => setFeedback({ message, tone: "good" })}
+          onReloadJobs={jobs.reload}
+          onReloadRuns={runs.reload}
+          onRunsOpenChange={setRunsOpen}
+          onSelectRun={setSelectedRunId}
+          runs={runEntries}
+          runsError={runs.error}
+          runsLoading={runs.loading}
+          runsOpen={runsOpen}
+          selectedRun={selectedRun}
+        />
+      ) : null}
     </div>
   );
 }

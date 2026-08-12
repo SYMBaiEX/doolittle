@@ -3,6 +3,7 @@ import type {
   SessionSearchResponse,
   SessionSummary,
 } from "../shared/contracts";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   desktopRequest,
   displayTimestamp,
@@ -100,7 +101,7 @@ export function SessionsPage({
     return hits;
   }, [search.data]);
   const filtered = useMemo(() => {
-    if (!query.trim() || !searchHitsBySession.size) {
+    if (!active || !query.trim() || !searchHitsBySession.size) {
       return localFiltered;
     }
     return [...searchHitsBySession.entries()].map(([sessionId, hit]) => {
@@ -118,14 +119,15 @@ export function SessionsPage({
         }
       );
     });
-  }, [localFiltered, query, searchHitsBySession, sessions]);
+  }, [active, localFiltered, query, searchHitsBySession, sessions]);
   const selected =
     filtered.find((session) => session.sessionId === selectedId) ??
     sessions.find((session) => session.sessionId === selectedId) ??
     filtered[0] ??
     sessions[0];
+  const offlineEmpty = !active && sessions.length === 0;
   const exportArchive = async () => {
-    if (!selected || transferring) return;
+    if (!active || !selected || transferring) return;
     setMutationError("");
     setTransferStatus("Preparing portable archive…");
     setTransferring(true);
@@ -168,7 +170,7 @@ export function SessionsPage({
   const importArchive = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file || transferring) return;
+    if (!active || !file || transferring) return;
     setMutationError("");
     setTransferStatus("Validating archive before import…");
     setTransferring(true);
@@ -250,7 +252,7 @@ export function SessionsPage({
             />
             <button
               className="secondary-button"
-              disabled={transferring}
+              disabled={!active || transferring}
               onClick={() => archiveInputRef.current?.click()}
               type="button"
             >
@@ -258,6 +260,7 @@ export function SessionsPage({
             </button>
             <button
               className="secondary-button"
+              disabled={!active}
               onClick={refresh}
               type="button"
             >
@@ -266,26 +269,34 @@ export function SessionsPage({
           </>
         }
       />
-      {transferStatus ? (
+      {active && transferStatus ? (
         <div aria-live="polite" className="notice neutral" role="status">
           {transferStatus}
         </div>
       ) : null}
-      {mutationError ? (
+      {active && mutationError ? (
         <div className="inline-error">{mutationError}</div>
       ) : null}
       <div
         className={`split-workspace ${
-          shouldShowSessionEmptyLanding(sessions.length, query)
+          offlineEmpty || shouldShowSessionEmptyLanding(sessions.length, query)
             ? "is-empty"
             : ""
         }`}
       >
-        {shouldShowSessionEmptyLanding(sessions.length, query) ? (
+        {offlineEmpty ||
+        shouldShowSessionEmptyLanding(sessions.length, query) ? (
           <section className="session-empty-landing">
-            <EmptyBlock title="No sessions yet">
-              Start a conversation from Chat, or import a portable archive.
-            </EmptyBlock>
+            {active ? (
+              <EmptyBlock title="No sessions yet">
+                Start a conversation from Chat, or import a portable archive.
+              </EmptyBlock>
+            ) : (
+              <OfflineRouteState>
+                Saved sessions will be available again when the local runtime is
+                ready.
+              </OfflineRouteState>
+            )}
           </section>
         ) : null}
         <section className="list-panel">
@@ -297,7 +308,7 @@ export function SessionsPage({
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
-          {query.trim() ? (
+          {active && query.trim() ? (
             <div style={{ marginBottom: "10px" }}>
               {search.loading ? (
                 <LoadingBlock label="Searching persisted sessions…" />
@@ -348,7 +359,12 @@ export function SessionsPage({
           </section>
         </section>
         <section className="detail-panel">
-          {!selected ? (
+          {!active ? (
+            <OfflineRouteState>
+              Session actions and transcript details are unavailable until the
+              local runtime is ready.
+            </OfflineRouteState>
+          ) : !selected ? (
             <EmptyBlock title="No sessions yet">
               Your saved conversations will appear here.
             </EmptyBlock>

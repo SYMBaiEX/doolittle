@@ -6,6 +6,7 @@ import type {
   ActivityFeedResponse,
 } from "../shared/contracts";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { OfflineRouteState } from "./components/OfflineRouteState";
 import { progressiveWindow } from "./components/progressive-window";
 import {
   desktopRequest,
@@ -165,7 +166,7 @@ export function ActivityPage({ active }: { active: boolean }) {
   const remainingGroups = Math.max(0, grouped.length - visibleGroups.length);
 
   const exportTimeline = async () => {
-    if (exporting) return;
+    if (!active || exporting) return;
     setExporting(true);
     setExportError("");
     try {
@@ -263,19 +264,27 @@ export function ActivityPage({ active }: { active: boolean }) {
         </label>
       </div>
 
-      {errors.map((error) => (
-        <ErrorBlock key={String(error)} error={error as string} />
-      ))}
-      {exportError ? <Notice tone="bad">{exportError}</Notice> : null}
+      {active
+        ? errors.map((error) => (
+            <ErrorBlock key={String(error)} error={error as string} />
+          ))
+        : null}
+      {active && exportError ? <Notice tone="bad">{exportError}</Notice> : null}
       <div aria-live="polite" className="sr-only" role="status">
-        {loading
-          ? "Loading activity sources."
-          : `${filtered.length} activity ${
-              filtered.length === 1 ? "event" : "events"
-            } loaded.`}
+        {!active
+          ? "Activity is unavailable until the local runtime is ready."
+          : loading
+            ? "Loading activity sources."
+            : `${filtered.length} activity ${
+                filtered.length === 1 ? "event" : "events"
+              } loaded.`}
       </div>
 
-      {loading ? (
+      {!active ? (
+        <OfflineRouteState>
+          Activity history is unavailable until the local runtime is ready.
+        </OfflineRouteState>
+      ) : loading ? (
         <LoadingBlock label="Loading activity sources…" />
       ) : filtered.length ? (
         <>
