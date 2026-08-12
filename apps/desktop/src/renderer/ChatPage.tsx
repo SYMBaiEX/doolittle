@@ -14,20 +14,15 @@ import { createPortal } from "react-dom";
 import type {
   BackendState,
   ChatEvent,
-  CommandCatalogItem,
-  CommandCatalogResponse,
   ManagedAttachmentDescriptor,
   RuntimeStatus,
-  SavedProfileRecallResponse,
   SessionForkResponse,
   SessionSummary,
-  SessionUsageSummary,
 } from "../shared/contracts";
 import { ChatComposer } from "./chat/ChatComposer";
 import { ChatTranscript } from "./chat/ChatTranscript";
 import {
   type BranchMode,
-  type ChatMemoryMatchState,
   type CopyState,
   type DisplayMessage,
   isDesktopRunUpdate,
@@ -36,19 +31,14 @@ import {
   type RunReceiptStore,
   runEventKey,
 } from "./chat/models";
+import { useChatComposerSupport } from "./chat/useChatComposerSupport";
 import { useChatConversationState } from "./chat/useChatConversationState";
 import { useModalFocusBoundary } from "./chat/useModalFocusBoundary";
 import type { ChatContextHandoff } from "./chat-context-handoff";
-import { commandCompletions } from "./command-completion";
 import { visibleAssistantText } from "./components/message-output";
 import { RouteControlDialog } from "./components/RouteControlDialog";
 import type { ThreadWorkbenchFullView } from "./components/ThreadWorkbenchRail";
 import type { VoiceRecorderMime } from "./components/VoiceComposerButton";
-import {
-  type ContextPressureSnapshot,
-  clampContextPercent,
-  contextPressureTone,
-} from "./context-pressure";
 import { newConversationId } from "./conversation-id";
 import {
   loadConversationQueue,
@@ -57,19 +47,12 @@ import {
 } from "./conversation-persistence";
 import { desktopRequest, displayTimestamp, errorMessage } from "./lib";
 import {
-  canRecallSavedProfileMatches,
   freezeMemoryMatchSnapshot,
   type MemoryMatchSnapshot,
-  normalizeSavedProfileMatches,
 } from "./memory-matches";
 import type { ProjectLike, ProjectScope } from "./project-manager/models";
 
-interface SessionUsageResponse {
-  usage?: SessionUsageSummary;
-}
-
 const INSPECTOR_STORAGE_KEY = "doolittle.desktop.chat-inspector-visible.v1";
-const MEMORY_MATCH_DEBOUNCE_MS = 380;
 const NARROW_WORKBENCH_QUERY = "(max-width: 720px)";
 const ThreadWorkbenchRail = lazy(async () => {
   const module = await import("./components/ThreadWorkbenchRail");
@@ -174,11 +157,6 @@ export function ChatPage({
     selectedId,
   });
   const latestSelectedMessage = selectedMessages.at(-1);
-  const [memoryMatches, setMemoryMatches] = useState<ChatMemoryMatchState>({
-    query: "",
-    matches: [],
-    status: "idle",
-  });
   const [progress, setProgress] = useState("");
   const [inspectorVisible, setInspectorVisible] = useState(
     loadInspectorVisibility,
@@ -202,21 +180,12 @@ export function ChatPage({
   const [copyStates, setCopyStates] = useState<Record<string, CopyState>>({});
   const [forkingMessageId, setForkingMessageId] = useState("");
   const [speakingMessageId, setSpeakingMessageId] = useState("");
-  const [sessionUsage, setSessionUsage] = useState<
-    Record<string, ContextPressureSnapshot>
-  >({});
-  const [usageLoading, setUsageLoading] = useState("");
-  const [usageErrors, setUsageErrors] = useState<Record<string, string>>({});
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
   const [attachmentValidationError, setAttachmentValidationError] =
     useState("");
   const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
   const [commandSelection, setCommandSelection] = useState(0);
   const [commandMenuDismissed, setCommandMenuDismissed] = useState(false);
-  const [commandCatalog, setCommandCatalog] = useState<{
-    commands: CommandCatalogItem[];
-    error: string;
-  }>({ commands: [], error: "" });
   const endRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const mobileConversationsButtonRef = useRef<HTMLButtonElement>(null);
@@ -237,7 +206,6 @@ export function ChatPage({
   });
   const queueRef = useRef<HTMLDivElement>(null);
   const queueDispatchRef = useRef<string | null>(null);
-  const memoryRecallSequence = useRef(0);
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const pendingBranchAttachments = useRef<{
     sessionId: string;
@@ -245,37 +213,28 @@ export function ChatPage({
   } | null>(null);
   const consumedContextHandoffs = useRef(new Set<string>());
 
-  const refreshSessionUsage = useCallback(
-    async (sessionId: string) => {
-      if (!sessionId || backend.phase !== "ready") return;
-      setUsageLoading(sessionId);
-      setUsageErrors((current) => {
-        const next = { ...current };
-        delete next[sessionId];
-        return next;
-      });
-      try {
-        const path =
-          `/sessions/usage?sessionId=${encodeURIComponent(sessionId)}` as const;
-        const response = await desktopRequest<SessionUsageResponse>(path);
-        const context = response.usage?.context;
-        if (context) {
-          setSessionUsage((current) => ({
-            ...current,
-            [sessionId]: context,
-          }));
-        }
-      } catch (error) {
-        setUsageErrors((current) => ({
-          ...current,
-          [sessionId]: errorMessage(error),
-        }));
-      } finally {
-        setUsageLoading((current) => (current === sessionId ? "" : current));
-      }
-    },
-    [backend.phase],
-  );
+  const {
+    commandCatalog,
+    commandSuggestions,
+    memoryMatches,
+    refreshSessionUsage,
+    selectCommandSuggestion,
+    selectedContext,
+    selectedContextLabel,
+    selectedContextPercent,
+    selectedContextTone,
+    selectedUsageError,
+    usageLoading,
+  } = useChatComposerSupport({
+    backendReady: backend.phase === "ready",
+    commandMenuDismissed,
+    composerRef,
+    draft,
+    selectedId,
+    setCommandMenuDismissed,
+    setDraft,
+    setQueueAnnouncement,
+  });
 
   const insertChatContext = useCallback(
     (text: string) => {
@@ -288,37 +247,6 @@ export function ChatPage({
     },
     [setDraft],
   );
-
-  useEffect(() => {
-    void refreshSessionUsage(selectedId);
-  }, [refreshSessionUsage, selectedId]);
-
-  useEffect(() => {
-    if (backend.phase !== "ready") {
-      setCommandCatalog({ commands: [], error: "" });
-      return;
-    }
-
-    let cancelled = false;
-    void desktopRequest<CommandCatalogResponse>("/commands/catalog")
-      .then((response) => {
-        if (!cancelled) {
-          setCommandCatalog({ commands: response.commands, error: "" });
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setCommandCatalog({
-            commands: [],
-            error: `Command catalog unavailable: ${errorMessage(error)}`,
-          });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [backend.phase]);
 
   useEffect(() => {
     if (!latestSelectedMessage) return;
@@ -349,45 +277,6 @@ export function ChatPage({
     const timeout = window.setTimeout(() => setQueueAnnouncement(""), 2_500);
     return () => window.clearTimeout(timeout);
   }, [queueAnnouncement]);
-
-  useEffect(() => {
-    const query = draft.trim();
-    const sequence = memoryRecallSequence.current + 1;
-    memoryRecallSequence.current = sequence;
-    if (
-      backend.phase !== "ready" ||
-      isCommandMessage(query) ||
-      !canRecallSavedProfileMatches(query)
-    ) {
-      setMemoryMatches({ query: "", matches: [], status: "idle" });
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      setMemoryMatches((current) => ({
-        query,
-        matches: current.query === query ? current.matches : [],
-        status: "loading",
-      }));
-      const path =
-        `/profiles/users/recall?userId=desktop-user&query=${encodeURIComponent(query)}` as const;
-      void desktopRequest<SavedProfileRecallResponse>(path)
-        .then((response) => {
-          if (memoryRecallSequence.current !== sequence) return;
-          setMemoryMatches({
-            query,
-            matches: normalizeSavedProfileMatches(response),
-            status: "ready",
-          });
-        })
-        .catch(() => {
-          if (memoryRecallSequence.current !== sequence) return;
-          setMemoryMatches({ query, matches: [], status: "error" });
-        });
-    }, MEMORY_MATCH_DEBOUNCE_MS);
-
-    return () => window.clearTimeout(timeout);
-  }, [backend.phase, draft]);
 
   useEffect(() => {
     const handleToggleInspector = () => {
@@ -436,25 +325,12 @@ export function ChatPage({
     setAttachmentValidationError("");
   }, [selectedId]);
 
-  const selectedContext = sessionUsage[selectedId];
-  const selectedUsageError = usageErrors[selectedId];
   const selectedUpdatedAt =
     selectedSession?.endedAt ??
     selectedMessages.at(-1)?.createdAt ??
     selectedSession?.startedAt;
   const selectedMessageCount =
     selectedSession?.messageCount ?? selectedMessages.length;
-  const selectedContextPercent = selectedContext
-    ? clampContextPercent(selectedContext.percent)
-    : 0;
-  const selectedContextTone = selectedContext
-    ? contextPressureTone(selectedContext.usageFraction)
-    : "neutral";
-  const selectedContextLabel = selectedContext
-    ? `${Math.round(selectedContextPercent)}%`
-    : selectedUsageError
-      ? "—"
-      : "0%";
   const latestAssistant = [...selectedMessages]
     .reverse()
     .find((message) => message.role === "assistant");
@@ -991,18 +867,6 @@ export function ChatPage({
   const runtimeProvider = runtime?.provider ?? "Loading provider";
   const runtimeModel = runtime?.model ?? "Loading model";
   const modelRouteLabel = `${runtimeProvider} · ${runtimeModel}`;
-  const commandSuggestions = !commandMenuDismissed
-    ? commandCompletions(commandCatalog.commands, draft)
-    : [];
-  const selectCommandSuggestion = (command: CommandCatalogItem) => {
-    if (command.disabledReason) {
-      setQueueAnnouncement(command.disabledReason);
-      return;
-    }
-    setDraft(command.command);
-    setCommandMenuDismissed(true);
-    requestAnimationFrame(() => composerRef.current?.focus());
-  };
   const attachmentTotalBytes = attachedFiles.reduce(
     (sum, attachment) => sum + attachment.sizeBytes,
     0,
