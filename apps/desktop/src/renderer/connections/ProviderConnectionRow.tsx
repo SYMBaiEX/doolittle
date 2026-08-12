@@ -110,6 +110,7 @@ export function ProviderConnectionRow({
           <Button
             onClick={() => onCancelSignIn(authProvider)}
             disabled={busy}
+            size="sm"
             type="button"
             variant="secondary"
           >
@@ -119,7 +120,9 @@ export function ProviderConnectionRow({
           <Button
             onClick={onSetDefault}
             disabled={busy || isDefault}
+            size="sm"
             type="button"
+            variant="secondary"
           >
             {isDefault
               ? "In use"
@@ -131,12 +134,13 @@ export function ProviderConnectionRow({
           <Button
             onClick={() => onSignIn(authProvider)}
             disabled={busy}
+            size="sm"
             type="button"
           >
             Sign in
           </Button>
         ) : (
-          <Button onClick={onConnect} disabled={busy} type="button">
+          <Button onClick={onConnect} disabled={busy} size="sm" type="button">
             Connect
           </Button>
         )}
@@ -145,6 +149,7 @@ export function ProviderConnectionRow({
             className="provider-connection-secondary"
             onClick={() => onSignIn(authProvider)}
             disabled={busy}
+            size="sm"
             type="button"
             variant="ghost"
           >
@@ -158,6 +163,7 @@ export function ProviderConnectionRow({
           <Button
             onClick={() => onSubmitCode(authProvider)}
             disabled={busy}
+            size="sm"
             type="button"
           >
             Use copied code

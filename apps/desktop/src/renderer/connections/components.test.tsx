@@ -64,6 +64,8 @@ describe("provider account surfaces", () => {
     expect(markup).toContain("Use for chats");
     expect(markup).toContain("Add account");
     expect(markup).toContain("provider-connection-secondary");
+    expect(markup).toContain("bg-bg-accent");
+    expect(markup).toContain("h-9");
   });
 
   it("does not present CLI fallback as an authenticated subscription", () => {
