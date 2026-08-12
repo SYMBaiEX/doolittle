@@ -139,7 +139,11 @@ describe("chat presentation components", () => {
     expect(html).toContain('aria-label="Message attachments"');
     expect(html).toContain("brief.md");
     expect(html).toContain("document · 2 KB");
+    expect(html).toContain('class="chat-message-footer"');
     expect(html).toContain('class="chat-message-actions"');
+    expect(html.indexOf('class="chat-message-footer"')).toBeGreaterThan(
+      html.indexOf('class="chat-message-body"'),
+    );
   });
 
   it("keeps the transcript wrapper and blank-state behavior in one component", () => {

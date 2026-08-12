@@ -149,6 +149,34 @@ test.describe("Doolittle desktop offline chat", () => {
           exact: true,
         }),
       ).toBeVisible();
+      const userMessage = page
+        .locator(".chat-message.user")
+        .filter({ hasText: prompt })
+        .last();
+      await userMessage.hover();
+      const messageActions = userMessage.getByRole("toolbar", {
+        name: "Message actions",
+      });
+      await expect(messageActions).toHaveCSS("opacity", "1");
+      const messageGeometry = await userMessage.evaluate((message) => {
+        const bounds = (selector: string) => {
+          const element = message.querySelector(selector);
+          if (!element) throw new Error(`Missing ${selector}.`);
+          const rect = element.getBoundingClientRect();
+          return { top: rect.top, right: rect.right, bottom: rect.bottom };
+        };
+        return {
+          label: bounds(".chat-message-label"),
+          body: bounds(".chat-message-body"),
+          actions: bounds(".chat-message-actions"),
+        };
+      });
+      expect(messageGeometry.actions.top).toBeGreaterThanOrEqual(
+        messageGeometry.label.bottom,
+      );
+      expect(messageGeometry.actions.top).toBeGreaterThanOrEqual(
+        messageGeometry.body.bottom,
+      );
       await expect(
         page.getByText(fallbackResponse, { exact: false }),
       ).toBeVisible({

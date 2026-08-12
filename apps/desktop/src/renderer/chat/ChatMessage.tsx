@@ -77,8 +77,8 @@ export function ChatMessage({
               : "No saved profile matches for this turn"}
           </p>
         ) : null}
-        {actions}
       </div>
+      <footer className="chat-message-footer">{actions}</footer>
     </article>
   );
 }

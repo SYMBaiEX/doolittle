@@ -36,7 +36,11 @@ export function MessageActions({
     Boolean(message.error) ||
     Boolean(forkingMessageId);
   return (
-    <div className="chat-message-actions">
+    <div
+      aria-label="Message actions"
+      className="chat-message-actions"
+      role="toolbar"
+    >
       <button
         aria-label="Fork conversation from this message"
         disabled={branchDisabled}

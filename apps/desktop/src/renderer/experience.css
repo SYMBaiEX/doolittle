@@ -510,19 +510,14 @@ button.chat-session-meta-pill:hover {
   align-items: center;
 }
 
-/* Anchors the absolutely positioned .chat-message-actions overlay below.
-   Typography for the body is owned by the canonical rule further down. */
-.chat-message-body {
-  position: relative;
-}
-
 .chat-message-actions {
-  position: absolute;
-  top: -29px;
-  right: 0;
+  position: static;
   display: flex;
+  align-items: center;
   gap: 2px;
   opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
 }
 
 .chat-message-actions button {
@@ -547,6 +542,7 @@ button.chat-session-meta-pill:hover {
 .chat-message:hover .chat-message-actions,
 .chat-message:focus-within .chat-message-actions {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .message-content {
@@ -2630,7 +2626,7 @@ button.chat-session-meta-pill:hover {
 
 .chat-message {
   width: min(100%, 880px);
-  margin-bottom: 22px;
+  margin-bottom: 5px;
 }
 
 .chat-message-label {
@@ -2717,8 +2713,22 @@ button.chat-session-meta-pill:hover {
   white-space: pre-wrap;
 }
 
-.chat-message-actions {
-  top: -27px;
+.chat-message-footer {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 2px 0 0 34px;
+}
+
+.chat-message.user .chat-message-footer {
+  justify-content: flex-end;
+  margin-left: 0;
+}
+
+.chat-message.user .chat-message-actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .chat-composer {
@@ -3135,9 +3145,20 @@ button.chat-session-meta-pill:hover {
   }
 }
 
+@media (hover: none) {
+  .chat-message-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .utility-drawer,
   .chat-mobile-conversations-dialog {
     animation: none;
+  }
+
+  .chat-message-actions {
+    transition: none;
   }
 }
