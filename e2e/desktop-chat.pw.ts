@@ -178,7 +178,11 @@ test.describe("Doolittle desktop offline chat", () => {
       await messageActions.getByLabel("Copy message").click();
       await page.mouse.move(1, 1);
       await expect(messageActions).toHaveCSS("opacity", "0");
-      await messageActions.getByLabel("Copy message").focus();
+      const copyMessage = messageActions.getByLabel("Copy message");
+      await copyMessage.focus();
+      await page.keyboard.press("Shift+Tab");
+      await page.keyboard.press("Tab");
+      await expect(copyMessage).toBeFocused();
       await expect(messageActions).toHaveCSS("opacity", "1");
       const assistantMessage = page.locator(".chat-message.assistant").last();
       await expect(assistantMessage).toBeVisible({ timeout: 45_000 });
