@@ -302,7 +302,7 @@ export function ComposerModelSelector({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const models = useApiResource<RuntimeModelsResponse>(
-    active && open ? "/runtime/models?refresh=true" : null,
+    active && open ? "/runtime/models?refresh=false" : null,
     [active, open],
   );
   const accountPool = useApiResource<AccountPoolResponse>(

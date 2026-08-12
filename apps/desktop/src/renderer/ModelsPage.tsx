@@ -84,6 +84,7 @@ export function ModelsPage({
   embedded?: boolean;
 }) {
   const [readinessOpen, setReadinessOpen] = useState(false);
+  const [liveDiscovery, setLiveDiscovery] = useState(false);
   const resourcePolicy = modelRequests({ active, readinessOpen });
   const settings = useApiResource<SettingsResponse>(
     resourcePolicy.primary ? "/settings" : null,
@@ -94,8 +95,12 @@ export function ModelsPage({
     [resourcePolicy.accounts],
   );
   const models = useApiResource<RuntimeModelsResponse>(
-    resourcePolicy.primary ? "/runtime/models?refresh=true" : null,
-    [resourcePolicy.primary],
+    resourcePolicy.primary
+      ? liveDiscovery
+        ? "/runtime/models?refresh=true"
+        : "/runtime/models?refresh=false"
+      : null,
+    [resourcePolicy.primary, liveDiscovery],
   );
   const model = settings.data?.settings?.model;
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -189,11 +194,23 @@ export function ModelsPage({
               turn, including inside an existing conversation.
             </p>
           </div>
-          {runtime ? (
-            <Badge tone="good">
-              {runtime.provider} · {runtime.model}
-            </Badge>
-          ) : null}
+          <div className="row-actions">
+            {runtime ? (
+              <Badge tone="good">
+                {runtime.provider} · {runtime.model}
+              </Badge>
+            ) : null}
+            <button
+              className="text-button"
+              onClick={() => {
+                if (liveDiscovery) models.reload();
+                else setLiveDiscovery(true);
+              }}
+              type="button"
+            >
+              {liveDiscovery ? "Refresh catalog" : "Discover live models"}
+            </button>
+          </div>
         </header>
       ) : (
         <PageHeader
@@ -201,11 +218,23 @@ export function ModelsPage({
           title="Models"
           description="Choose the provider and model Doolittle uses for new work, with local-first defaults."
           actions={
-            runtime ? (
-              <Badge tone="good">
-                {runtime.provider} · {runtime.model}
-              </Badge>
-            ) : null
+            <div className="row-actions">
+              {runtime ? (
+                <Badge tone="good">
+                  {runtime.provider} · {runtime.model}
+                </Badge>
+              ) : null}
+              <button
+                className="text-button"
+                onClick={() => {
+                  if (liveDiscovery) models.reload();
+                  else setLiveDiscovery(true);
+                }}
+                type="button"
+              >
+                {liveDiscovery ? "Refresh catalog" : "Discover live models"}
+              </button>
+            </div>
           }
         />
       )}

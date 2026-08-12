@@ -60,6 +60,10 @@ type LinkedProviderReadiness = Partial<
   Record<"claude-code" | "codex" | "devin" | "elizacloud", boolean>
 >;
 
+export function modelDiscoveryRequested(url: URL): boolean {
+  return !["false", "0"].includes(url.searchParams.get("refresh") ?? "");
+}
+
 const codexReasoning: ModelReasoningCapability = {
   default: "medium",
   options: (["none", "low", "medium", "high", "xhigh", "max"] as const).map(
@@ -153,6 +157,7 @@ export async function handleRuntimeModelRoutes(
         accounts.elizaCloud.nativeReady || accounts.elizaCloud.reusable,
       ),
     },
+    modelDiscoveryRequested(url),
   );
   return json({
     activeProvider: settings.provider,
@@ -172,6 +177,7 @@ export async function discoverModelProviders(
   activeModel: string,
   fetchImplementation: typeof fetch = fetch,
   linkedReadiness: LinkedProviderReadiness = {},
+  liveDiscovery = true,
 ): Promise<ModelProvider[]> {
   const definitions = providerDefinitions(
     config,
@@ -179,6 +185,14 @@ export async function discoverModelProviders(
     activeModel,
     linkedReadiness,
   );
+  if (!liveDiscovery) {
+    return definitions.map((definition) => ({
+      ...definition,
+      discovery: definition.ready
+        ? ("configured" as const)
+        : ("unavailable" as const),
+    }));
+  }
   const discovered = await Promise.all(
     definitions.map(async (definition) => {
       const [providerResult, linkedResult] = await Promise.all([

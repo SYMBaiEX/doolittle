@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { EnvConfig } from "@/types";
-import { discoverModelProviders, parseCodexModelCache } from "./models";
+import {
+  discoverModelProviders,
+  modelDiscoveryRequested,
+  parseCodexModelCache,
+} from "./models";
 
 function config(overrides: Partial<EnvConfig> = {}): EnvConfig {
   return {
@@ -25,6 +29,40 @@ function config(overrides: Partial<EnvConfig> = {}): EnvConfig {
 }
 
 describe("runtime model discovery", () => {
+  it("returns configured models without probing providers until requested", async () => {
+    const fetchImplementation = vi.fn<typeof fetch>();
+    const providers = await discoverModelProviders(
+      config(),
+      "codex",
+      "gpt-5.6-sol",
+      fetchImplementation,
+      { codex: true },
+      false,
+    );
+
+    expect(fetchImplementation).not.toHaveBeenCalled();
+    expect(providers.find((provider) => provider.id === "codex")).toMatchObject(
+      {
+        ready: true,
+        discovery: "configured",
+      },
+    );
+    expect(
+      providers.find((provider) => provider.id === "openai"),
+    ).toMatchObject({
+      ready: false,
+      discovery: "unavailable",
+    });
+    expect(
+      modelDiscoveryRequested(new URL("http://localhost/runtime/models")),
+    ).toBe(true);
+    expect(
+      modelDiscoveryRequested(
+        new URL("http://localhost/runtime/models?refresh=false"),
+      ),
+    ).toBe(false);
+  });
+
   it("merges live provider models with configured fallbacks", async () => {
     const fetchImplementation = vi.fn<typeof fetch>(async (input) => {
       const url = String(input);
