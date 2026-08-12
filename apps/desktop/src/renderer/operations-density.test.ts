@@ -83,7 +83,7 @@ describe("operational route density", () => {
     expect(read("./ToolsPage.tsx")).toContain(
       'catalogExceptionStatus(entry.enabled !== false, "Disabled")',
     );
-    expect(read("./PluginsPage.tsx")).toContain(
+    expect(read("./plugins/plugin-catalog-model.ts")).toContain(
       'catalogExceptionStatus(Boolean(entry.enabled), "Inactive")',
     );
   });

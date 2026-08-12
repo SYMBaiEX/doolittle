@@ -149,4 +149,23 @@ describe("CompactCatalogList", () => {
     expect(markup).toContain("Entry 1");
     expect(markup).not.toContain('class="badge');
   });
+
+  it("renders a catalog group once for consecutive entries", () => {
+    const markup = renderToStaticMarkup(
+      <CompactCatalogList
+        ariaLabel="Plugins"
+        entries={[
+          { ...entry(1), eyebrow: undefined, group: "Foundation" },
+          { ...entry(2), eyebrow: undefined, group: "Foundation" },
+          { ...entry(3), eyebrow: undefined, group: "Providers" },
+        ]}
+        resetKey="plugins"
+      />,
+    );
+
+    expect(markup.match(/class="compact-catalog__group"/g)).toHaveLength(2);
+    expect(markup.match(/<h3>Foundation<\/h3>/g)).toHaveLength(1);
+    expect(markup).toContain("<h3>Providers</h3>");
+    expect(markup).not.toContain('class="eyebrow"');
+  });
 });

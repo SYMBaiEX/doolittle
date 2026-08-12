@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { Fragment, type ReactNode, useState } from "react";
 import { Badge } from "../lib";
 import "./compact-catalog-list.css";
 import { progressiveWindow } from "./progressive-window";
@@ -21,6 +21,7 @@ export interface CompactCatalogFact {
 
 export interface CompactCatalogEntry {
   id: string;
+  group?: string;
   eyebrow?: string;
   title: string;
   description: string;
@@ -56,58 +57,65 @@ export function CompactCatalogList({
   return (
     <section aria-label={ariaLabel} className="compact-catalog">
       <ul className="compact-catalog__list">
-        {visible.map((entry) => (
-          <li className="compact-catalog__row" key={entry.id}>
-            <div className="compact-catalog__main">
-              <div className="compact-catalog__copy">
-                <div className="compact-catalog__title">
-                  {entry.eyebrow ? (
-                    <span className="eyebrow">{entry.eyebrow}</span>
-                  ) : null}
-                  <strong>{entry.title}</strong>
+        {visible.map((entry, index) => (
+          <Fragment key={entry.id}>
+            {entry.group && visible[index - 1]?.group !== entry.group ? (
+              <li className="compact-catalog__group">
+                <h3>{entry.group}</h3>
+              </li>
+            ) : null}
+            <li className="compact-catalog__row">
+              <div className="compact-catalog__main">
+                <div className="compact-catalog__copy">
+                  <div className="compact-catalog__title">
+                    {entry.eyebrow ? (
+                      <span className="eyebrow">{entry.eyebrow}</span>
+                    ) : null}
+                    <strong>{entry.title}</strong>
+                  </div>
+                  <div className="compact-catalog__summary">
+                    {entry.descriptionMode !== "details" ? (
+                      <p title={entry.description}>{entry.description}</p>
+                    ) : null}
+                    {entry.code || entry.meta ? (
+                      <span className="compact-catalog__meta">
+                        {entry.code ? <code>{entry.code}</code> : null}
+                        {entry.meta ? <span>{entry.meta}</span> : null}
+                      </span>
+                    ) : null}
+                    {entry.descriptionMode === "details" ||
+                    entry.facts?.length ? (
+                      <details className="compact-catalog__details">
+                        <summary>{entry.detailsLabel ?? "Details"}</summary>
+                        {entry.descriptionMode === "details" ? (
+                          <p className="compact-catalog__details-description">
+                            {entry.description}
+                          </p>
+                        ) : null}
+                        {entry.facts?.length ? (
+                          <dl>
+                            {entry.facts.map((fact) => (
+                              <div key={`${entry.id}:${fact.label}`}>
+                                <dt>{fact.label}</dt>
+                                <dd>{fact.value}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        ) : null}
+                        {entry.detailsNote ? <p>{entry.detailsNote}</p> : null}
+                      </details>
+                    ) : null}
+                  </div>
                 </div>
-                <div className="compact-catalog__summary">
-                  {entry.descriptionMode !== "details" ? (
-                    <p title={entry.description}>{entry.description}</p>
+                <div className="compact-catalog__actions">
+                  {entry.status ? (
+                    <Badge tone={entry.tone}>{entry.status}</Badge>
                   ) : null}
-                  {entry.code || entry.meta ? (
-                    <span className="compact-catalog__meta">
-                      {entry.code ? <code>{entry.code}</code> : null}
-                      {entry.meta ? <span>{entry.meta}</span> : null}
-                    </span>
-                  ) : null}
-                  {entry.descriptionMode === "details" ||
-                  entry.facts?.length ? (
-                    <details className="compact-catalog__details">
-                      <summary>{entry.detailsLabel ?? "Details"}</summary>
-                      {entry.descriptionMode === "details" ? (
-                        <p className="compact-catalog__details-description">
-                          {entry.description}
-                        </p>
-                      ) : null}
-                      {entry.facts?.length ? (
-                        <dl>
-                          {entry.facts.map((fact) => (
-                            <div key={`${entry.id}:${fact.label}`}>
-                              <dt>{fact.label}</dt>
-                              <dd>{fact.value}</dd>
-                            </div>
-                          ))}
-                        </dl>
-                      ) : null}
-                      {entry.detailsNote ? <p>{entry.detailsNote}</p> : null}
-                    </details>
-                  ) : null}
+                  {entry.action}
                 </div>
               </div>
-              <div className="compact-catalog__actions">
-                {entry.status ? (
-                  <Badge tone={entry.tone}>{entry.status}</Badge>
-                ) : null}
-                {entry.action}
-              </div>
-            </div>
-          </li>
+            </li>
+          </Fragment>
         ))}
       </ul>
       {remaining ? (

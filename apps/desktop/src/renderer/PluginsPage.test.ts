@@ -6,6 +6,10 @@ const source = readFileSync(
   "utf8",
 );
 const styles = readFileSync(new URL("./plugins.css", import.meta.url), "utf8");
+const model = readFileSync(
+  new URL("./plugins/plugin-catalog-model.ts", import.meta.url),
+  "utf8",
+);
 
 describe("PluginsPage density", () => {
   it("keeps the plugin search as the primary desktop control with a bounded category rail", () => {
@@ -28,5 +32,15 @@ describe("PluginsPage density", () => {
     expect(styles).toContain("width: 100%;");
     expect(styles).toContain("@media (max-width: 1180px)");
     expect(styles).toContain("@media (max-width: 680px)");
+  });
+
+  it("groups the catalog once and keeps plugin purpose visible", () => {
+    expect(source).toContain("buildPluginCatalogEntries(filtered)");
+    expect(model).toContain(
+      'group: titleCase(asString(entry.category, "plugin"))',
+    );
+    expect(model).toContain('descriptionMode: "inline"');
+    expect(model).not.toContain("facts:");
+    expect(model).not.toContain('descriptionMode: "details"');
   });
 });

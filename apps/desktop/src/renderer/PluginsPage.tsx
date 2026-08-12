@@ -9,10 +9,8 @@ import {
   SelectValue,
 } from "@elizaos/ui/components/ui/select";
 import { useState } from "react";
-import {
-  CompactCatalogList,
-  catalogExceptionStatus,
-} from "./components/CompactCatalogList";
+import type { PluginsResponse } from "../shared/contracts";
+import { CompactCatalogList } from "./components/CompactCatalogList";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
@@ -26,15 +24,9 @@ import {
   titleCase,
   useApiResource,
 } from "./lib";
+import { buildPluginCatalogEntries } from "./plugins/plugin-catalog-model";
 import "./agent-pages.css";
 import "./plugins.css";
-
-interface PluginsResponse {
-  catalog?: unknown[];
-  grouped?: Record<string, unknown[]>;
-  serviceRegistry?: unknown;
-  pluginManager?: unknown;
-}
 
 export function PluginsPage({ active }: { active: boolean }) {
   const resource = useApiResource<PluginsResponse>(
@@ -61,29 +53,7 @@ export function PluginsPage({ active }: { active: boolean }) {
           .includes(normalized))
     );
   });
-  const catalogEntries = filtered.map((entry, index) => {
-    const id = asString(entry.id, `plugin-${index}`);
-    return {
-      id,
-      eyebrow: titleCase(asString(entry.category, "plugin")),
-      title: titleCase(id || "Unnamed plugin"),
-      description: asString(entry.notes, "No plugin notes available."),
-      descriptionMode: "details" as const,
-      ...catalogExceptionStatus(Boolean(entry.enabled), "Inactive"),
-      code: asString(entry.packageName, id),
-      meta: titleCase(asString(entry.source, "unknown")),
-      facts: [
-        {
-          label: "Source",
-          value: titleCase(asString(entry.source, "unknown")),
-        },
-        {
-          label: "Maturity",
-          value: titleCase(asString(entry.maturity, "unknown")),
-        },
-      ],
-    };
-  });
+  const catalogEntries = buildPluginCatalogEntries(filtered);
   const enabled = entries.filter((entry) => Boolean(entry.enabled)).length;
 
   return (
