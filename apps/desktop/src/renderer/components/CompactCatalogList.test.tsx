@@ -52,4 +52,23 @@ describe("CompactCatalogList", () => {
     expect(markup).toContain('class="compact-catalog__actions"');
     expect(markup).toContain("Use profile");
   });
+
+  it("supports page-specific disclosure copy without a custom row system", () => {
+    const markup = renderToStaticMarkup(
+      <CompactCatalogList
+        ariaLabel="Registry"
+        entries={[
+          {
+            ...entry(1),
+            detailsLabel: "Policy & provenance",
+            detailsNote: "Approval requires an explicit allowlist entry.",
+          },
+        ]}
+        resetKey="registry"
+      />,
+    );
+
+    expect(markup).toContain("<summary>Policy &amp; provenance</summary>");
+    expect(markup).toContain("Approval requires an explicit allowlist entry.");
+  });
 });

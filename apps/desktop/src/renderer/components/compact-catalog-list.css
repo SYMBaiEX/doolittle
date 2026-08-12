@@ -153,6 +153,13 @@
   font-size: var(--text-meta);
 }
 
+.compact-catalog__details > p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.45;
+}
+
 .compact-catalog__footer {
   display: flex;
   align-items: center;

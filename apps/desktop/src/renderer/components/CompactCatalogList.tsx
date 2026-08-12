@@ -18,6 +18,8 @@ export interface CompactCatalogEntry {
   code?: string;
   meta?: string;
   facts?: CompactCatalogFact[];
+  detailsLabel?: string;
+  detailsNote?: string;
   action?: ReactNode;
 }
 
@@ -57,7 +59,7 @@ export function CompactCatalogList({
                     {entry.meta ? <span>{entry.meta}</span> : null}
                     {entry.facts?.length ? (
                       <details className="compact-catalog__details">
-                        <summary>Details</summary>
+                        <summary>{entry.detailsLabel ?? "Details"}</summary>
                         <dl>
                           {entry.facts.map((fact) => (
                             <div key={`${entry.id}:${fact.label}`}>
@@ -66,6 +68,7 @@ export function CompactCatalogList({
                             </div>
                           ))}
                         </dl>
+                        {entry.detailsNote ? <p>{entry.detailsNote}</p> : null}
                       </details>
                     ) : null}
                   </div>
