@@ -36,6 +36,13 @@ const routes = [
   ["docs", "About"],
 ] as const;
 
+const visualAuditRoutes = new Set([
+  "dashboard",
+  "media",
+  "operatorSetup",
+  "docs",
+]);
+
 test.describe("Doolittle desktop navigation", () => {
   test("boots the real Electron shell and renders every application route", async ({
     browserName,
@@ -371,6 +378,12 @@ test.describe("Doolittle desktop navigation", () => {
           if (route === "operatorSetup") {
             await expect(viewContainer).not.toContainText("[object Object]");
             await expect(
+              viewContainer.locator(".compact-stat-strip"),
+            ).toBeVisible();
+            await expect(viewContainer.locator(".two-column-grid")).toHaveCount(
+              0,
+            );
+            await expect(
               viewContainer.getByText("Configuration guidance", {
                 exact: true,
               }),
@@ -384,6 +397,24 @@ test.describe("Doolittle desktop navigation", () => {
             await expect(
               viewContainer.getByText("System checks", { exact: true }),
             ).toBeVisible();
+            const architecture = viewContainer.locator(
+              ".architecture-disclosure",
+            );
+            await expect(architecture).not.toHaveAttribute("open");
+            await architecture.locator("summary").click();
+            await expect(architecture).toHaveAttribute("open", "");
+            await architecture.locator("summary").click();
+            await expect(architecture).not.toHaveAttribute("open");
+          }
+          if (route === "dashboard") {
+            const workspaceDetails = viewContainer.locator(
+              ".dashboard-workspace-details",
+            );
+            await expect(workspaceDetails).not.toHaveAttribute("open");
+            await workspaceDetails.locator("summary").click();
+            await expect(workspaceDetails).toHaveAttribute("open", "");
+            await workspaceDetails.locator("summary").click();
+            await expect(workspaceDetails).not.toHaveAttribute("open");
           }
           if (route === "automations") {
             const createAutomation = viewContainer.getByRole("button", {
@@ -426,11 +457,25 @@ test.describe("Doolittle desktop navigation", () => {
             await traces.locator("summary").click();
             await expect(traces).not.toHaveAttribute("open", "");
           }
+          if (route === "sessions") {
+            await expect(
+              viewContainer
+                .locator(".session-empty-landing")
+                .getByText("No sessions yet", { exact: true }),
+            ).toBeVisible();
+            await expect(
+              viewContainer.locator(".split-workspace.is-empty"),
+            ).toBeVisible();
+            await expect(viewContainer.locator(".list-panel")).toBeHidden();
+            await expect(viewContainer.locator(".detail-panel")).toBeHidden();
+          }
           if (route === "compatibility") {
             const rawReport = viewContainer.locator(".raw-data-disclosure");
             if ((await rawReport.count()) > 0) {
               await rawReport.locator("summary").click();
               await expect(rawReport).toHaveAttribute("open", "");
+              await rawReport.locator("summary").click();
+              await expect(rawReport).not.toHaveAttribute("open");
             }
           }
           const actionMotion = await viewContainer.evaluate((container) => {
@@ -495,6 +540,25 @@ test.describe("Doolittle desktop navigation", () => {
             directManipulationFailures: [],
             unlabeledActionFailures: [],
           });
+          if (visualAuditRoutes.has(route)) {
+            await expect(viewContainer.locator(".loading-block")).toHaveCount(
+              0,
+              {
+                timeout: 30_000,
+              },
+            );
+            const routeScreenshot = testInfo.outputPath(
+              `doolittle-${route}-route.png`,
+            );
+            await page.screenshot({
+              animations: "disabled",
+              path: routeScreenshot,
+            });
+            await testInfo.attach(`${route} route`, {
+              contentType: "image/png",
+              path: routeScreenshot,
+            });
+          }
         }
       };
 
