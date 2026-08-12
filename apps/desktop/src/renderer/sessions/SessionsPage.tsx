@@ -19,12 +19,14 @@ export function SessionsPage({
   sessions,
   refresh,
   openChat,
+  onNewConversation,
   projectId,
 }: {
   active: boolean;
   sessions: SessionSummary[];
   refresh: () => void;
   openChat: (sessionId: string) => void;
+  onNewConversation: () => void;
   projectId?: string | null;
 }) {
   const [query, setQuery] = useState("");
@@ -44,6 +46,8 @@ export function SessionsPage({
     refresh,
     openChat,
   });
+  const showEmptyLanding =
+    active && shouldShowSessionEmptyLanding(sessions.length, query);
 
   return (
     <div className="page page-sessions">
@@ -67,14 +71,16 @@ export function SessionsPage({
               ref={transfer.archiveInputRef}
               type="file"
             />
-            <button
-              className="secondary-button"
-              disabled={!active || transfer.transferring}
-              onClick={() => transfer.archiveInputRef.current?.click()}
-              type="button"
-            >
-              Import archive
-            </button>
+            {!showEmptyLanding ? (
+              <button
+                className="secondary-button"
+                disabled={!active || transfer.transferring}
+                onClick={() => transfer.archiveInputRef.current?.click()}
+                type="button"
+              >
+                Import archive
+              </button>
+            ) : null}
             <button
               className="secondary-button"
               disabled={!active}
@@ -101,17 +107,35 @@ export function SessionsPage({
         </OfflineRouteState>
       ) : (
         <div
-          className={`split-workspace ${
-            shouldShowSessionEmptyLanding(sessions.length, query)
-              ? "is-empty"
-              : ""
-          }`}
+          className={`split-workspace ${showEmptyLanding ? "is-empty" : ""}`}
         >
-          {shouldShowSessionEmptyLanding(sessions.length, query) ? (
-            <section className="session-empty-landing">
-              <EmptyBlock title="No sessions yet">
-                Start a conversation from Chat, or import a portable archive.
-              </EmptyBlock>
+          {showEmptyLanding ? (
+            <section
+              aria-labelledby="sessions-empty-title"
+              className="session-empty-landing"
+            >
+              <div className="session-empty-landing__copy">
+                <span className="eyebrow">Conversation archive</span>
+                <h2 id="sessions-empty-title">No saved conversations</h2>
+                <p>Start fresh, or bring in a portable Doolittle archive.</p>
+              </div>
+              <div className="session-empty-landing__actions">
+                <button
+                  className="primary-button"
+                  onClick={onNewConversation}
+                  type="button"
+                >
+                  New conversation
+                </button>
+                <button
+                  className="secondary-button"
+                  disabled={transfer.transferring}
+                  onClick={() => transfer.archiveInputRef.current?.click()}
+                  type="button"
+                >
+                  Import archive
+                </button>
+              </div>
             </section>
           ) : null}
           <SessionListPanel

@@ -486,7 +486,17 @@ test.describe("Doolittle desktop navigation", () => {
             await expect(
               viewContainer
                 .locator(".session-empty-landing")
-                .getByText("No sessions yet", { exact: true }),
+                .getByText("No saved conversations", { exact: true }),
+            ).toBeVisible();
+            await expect(
+              viewContainer
+                .locator(".session-empty-landing")
+                .getByRole("button", { name: "New conversation" }),
+            ).toBeVisible();
+            await expect(
+              viewContainer
+                .locator(".session-empty-landing")
+                .getByRole("button", { name: "Import archive" }),
             ).toBeVisible();
             await expect(
               viewContainer.locator(".split-workspace.is-empty"),

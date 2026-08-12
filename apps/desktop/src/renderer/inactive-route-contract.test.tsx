@@ -77,6 +77,7 @@ describe("inactive desktop routes", () => {
         <SessionsPage
           active={false}
           openChat={() => undefined}
+          onNewConversation={() => undefined}
           refresh={() => undefined}
           sessions={[]}
         />
@@ -151,6 +152,7 @@ describe("inactive desktop routes", () => {
       <SessionsPage
         active={false}
         openChat={() => undefined}
+        onNewConversation={() => undefined}
         refresh={() => undefined}
         sessions={[
           {

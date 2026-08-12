@@ -225,6 +225,7 @@ export function DesktopRouteContent({
         <SessionsPage
           active={active}
           openChat={navigation.openSession}
+          onNewConversation={navigation.createConversation}
           projectId={
             activeProject?.id ??
             (projectScope === "unscoped" ? null : undefined)

@@ -37,6 +37,10 @@ describe("workspace route density", () => {
     expect(css).toContain(
       "grid-template-columns: clamp(250px, 24vw, 320px) minmax(0, 1fr)",
     );
+    expect(css).toMatch(
+      /\.page-sessions > \.split-workspace\.is-empty\s*\{[^}]*flex:\s*0 0 auto;/su,
+    );
+    expect(css).toContain(".session-empty-landing__actions");
     expect(css).toContain("grid-template-columns: minmax(0, 1fr) auto");
     expect(css).toContain("width: min(100%, 1080px)");
     expect(css).toContain("session-transcript-panel__header");
