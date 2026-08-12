@@ -504,6 +504,25 @@ test.describe("Doolittle desktop navigation", () => {
             await expect(viewContainer.locator(".list-panel")).toBeHidden();
             await expect(viewContainer.locator(".detail-panel")).toBeHidden();
           }
+          if (route === "analytics") {
+            const emptyAnalytics = viewContainer.locator(
+              ".analytics-empty-landing",
+            );
+            await expect(
+              emptyAnalytics.getByRole("heading", {
+                name: "No local activity yet",
+              }),
+            ).toBeVisible();
+            await expect(
+              emptyAnalytics.getByRole("button", {
+                name: "Start conversation",
+              }),
+            ).toBeVisible();
+            await expect(viewContainer.locator(".analytics-grid")).toBeHidden();
+            await expect(
+              viewContainer.locator(".compact-stat-strip"),
+            ).toBeHidden();
+          }
           if (route === "compatibility") {
             const rawReport = viewContainer.locator(".raw-data-disclosure");
             if ((await rawReport.count()) > 0) {

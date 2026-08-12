@@ -61,7 +61,9 @@ describe("inactive desktop routes", () => {
     ],
     [
       "analytics",
-      () => <AnalyticsPage active={false} />,
+      () => (
+        <AnalyticsPage active={false} onNewConversation={() => undefined} />
+      ),
       "Analytics are unavailable",
       "Sessions",
     ],

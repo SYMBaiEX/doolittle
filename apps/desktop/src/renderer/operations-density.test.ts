@@ -50,6 +50,9 @@ describe("operational route density", () => {
     expect(css).toMatch(
       /@media \(max-width: 700px\)[\s\S]*\.activity-page \.activity-filter-bar[\s\S]*grid-template-columns: 1fr/u,
     );
+    expect(css).toMatch(
+      /@media \(max-width: 700px\)[\s\S]*\.page-analytics \.analytics-empty-landing[\s\S]*flex-direction: column/u,
+    );
   });
 
   it("keeps secondary operational diagnostics closed until requested", () => {
@@ -173,9 +176,12 @@ describe("operational route density", () => {
   });
 
   it("uses compact empty states for zero-data inventory panes", () => {
-    expect(read("./analytics/AnalyticsPage.tsx")).toContain(
-      '<EmptyBlock density="compact" title="No activity yet">',
+    const analytics = read("./analytics/AnalyticsPage.tsx");
+    expect(analytics).toContain(
+      'className="content-card analytics-empty-landing"',
     );
+    expect(analytics).toContain("Start conversation");
+    expect(analytics).toContain("!hasActivity ? (");
     const automationWorkspace = read("./automations/AutomationWorkspace.tsx");
     expect(automationWorkspace).toContain(
       'className="automation-empty-starter"',

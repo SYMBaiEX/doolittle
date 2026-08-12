@@ -46,7 +46,27 @@ export function analyticsSessionLabel(entry: Record<string, unknown>): string {
     : normalized;
 }
 
-export function AnalyticsPage({ active }: { active: boolean }) {
+export function hasAnalyticsActivity(
+  totals: NonNullable<AnalyticsResponse["totals"]>,
+  activityCount: number,
+  recentSessionCount: number,
+): boolean {
+  return (
+    activityCount > 0 ||
+    recentSessionCount > 0 ||
+    Object.values(totals).some(
+      (value) => typeof value === "number" && value > 0,
+    )
+  );
+}
+
+export function AnalyticsPage({
+  active,
+  onNewConversation,
+}: {
+  active: boolean;
+  onNewConversation: () => void;
+}) {
   const resource = useApiResource<AnalyticsResponse>(
     active ? "/analytics" : null,
     [active],
@@ -63,6 +83,11 @@ export function AnalyticsPage({ active }: { active: boolean }) {
     ...activity.map((entry) =>
       asNumber(entry.messages, asNumber(entry.messageCount)),
     ),
+  );
+  const hasActivity = hasAnalyticsActivity(
+    totals,
+    activity.length,
+    recentSessions.length,
   );
 
   return (
@@ -90,6 +115,27 @@ export function AnalyticsPage({ active }: { active: boolean }) {
         <LoadingBlock label="Calculating local activity…" />
       ) : resource.error ? (
         <ErrorBlock error={resource.error} retry={resource.reload} />
+      ) : !hasActivity ? (
+        <section
+          aria-labelledby="analytics-empty-title"
+          className="content-card analytics-empty-landing"
+        >
+          <div className="analytics-empty-landing__copy">
+            <span className="eyebrow">Private by design</span>
+            <h2 id="analytics-empty-title">No local activity yet</h2>
+            <p>
+              Start a conversation. Session counts and context estimates stay on
+              this device.
+            </p>
+          </div>
+          <button
+            className="primary-button"
+            onClick={onNewConversation}
+            type="button"
+          >
+            Start conversation
+          </button>
+        </section>
       ) : (
         <>
           <CompactStatStrip
@@ -155,9 +201,9 @@ export function AnalyticsPage({ active }: { active: boolean }) {
                   })}
                 </div>
               ) : (
-                <EmptyBlock density="compact" title="No activity yet">
-                  Start chatting with Doolittle and activity will accumulate
-                  here.
+                <EmptyBlock density="compact" title="No daily activity yet">
+                  Session totals are available, but no daily message series was
+                  reported.
                 </EmptyBlock>
               )}
             </section>

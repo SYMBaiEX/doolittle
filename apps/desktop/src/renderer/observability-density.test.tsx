@@ -136,7 +136,9 @@ describe("observability route density", () => {
       }),
     );
 
-    act(() => root.render(<AnalyticsPage active />));
+    act(() =>
+      root.render(<AnalyticsPage active onNewConversation={vi.fn()} />),
+    );
 
     expect(container.querySelector(".page-analytics")).not.toBeNull();
     expect(
@@ -146,5 +148,32 @@ describe("observability route density", () => {
       container.querySelectorAll(".compact-stat-strip__item small"),
     ).toHaveLength(0);
     expect(container.textContent).toContain("No remote telemetry");
+  });
+
+  it("collapses zero analytics into one actionable local-first landing", () => {
+    const onNewConversation = vi.fn();
+    useApiResourceMock.mockReturnValue(
+      resource({
+        dailyActivity: [],
+        recentSessions: [],
+        totals: {},
+      }),
+    );
+
+    act(() =>
+      root.render(
+        <AnalyticsPage active onNewConversation={onNewConversation} />,
+      ),
+    );
+
+    expect(container.querySelector(".analytics-empty-landing")).not.toBeNull();
+    expect(container.querySelector(".compact-stat-strip")).toBeNull();
+    expect(container.querySelector(".analytics-grid")).toBeNull();
+    const action = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Start conversation",
+    );
+    expect(action).not.toBeUndefined();
+    act(() => action?.click());
+    expect(onNewConversation).toHaveBeenCalledTimes(1);
   });
 });

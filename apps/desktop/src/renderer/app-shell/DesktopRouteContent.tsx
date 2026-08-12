@@ -237,7 +237,12 @@ export function DesktopRouteContent({
     case "activity":
       return <ActivityPage active={active} />;
     case "analytics":
-      return <AnalyticsPage active={active} />;
+      return (
+        <AnalyticsPage
+          active={active}
+          onNewConversation={navigation.createConversation}
+        />
+      );
     case "media":
       return <MediaPage active={active} />;
     case "models":
