@@ -15,6 +15,7 @@ import { PlanCreateForm } from "./orchestration/PlanCreateForm";
 import { PlanPanel } from "./orchestration/PlanPanel";
 import { TaskCreateForm } from "./orchestration/TaskCreateForm";
 import { TaskQueuePanel } from "./orchestration/TaskQueuePanel";
+import { TaskSupervisionControls } from "./orchestration/TaskSupervisionControls";
 import { useOrchestrationActions } from "./orchestration/useOrchestrationActions";
 import { orchestrationStatusTier } from "./orchestration-helpers";
 import { useOrchestrationResources } from "./orchestration-resources";
@@ -488,26 +489,13 @@ export function OrchestrationPage({
         <div className="orchestration-command-bar">
           {activeTab === "tasks" ? (
             <>
-              <label>
-                <span>Parallel</span>
-                <input
-                  aria-label="Supervision concurrency"
-                  inputMode="numeric"
-                  value={superviseConcurrency}
-                  onChange={(event) =>
-                    setSuperviseConcurrency(event.target.value)
-                  }
-                  disabled={!active || busyKeys["task:supervise"]}
-                />
-              </label>
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={runSupervise}
-                disabled={!active || busyKeys["task:supervise"]}
-              >
-                {busyKeys["task:supervise"] ? "Supervising…" : "Supervise"}
-              </button>
+              <TaskSupervisionControls
+                active={active}
+                busy={Boolean(busyKeys["task:supervise"])}
+                concurrency={superviseConcurrency}
+                onConcurrencyChange={setSuperviseConcurrency}
+                onSupervise={runSupervise}
+              />
               <button
                 className="primary-button"
                 type="button"
