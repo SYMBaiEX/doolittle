@@ -21,6 +21,7 @@ import type {
 } from "../shared/contracts";
 import { ChatComposer } from "./chat/ChatComposer";
 import { ChatTranscript } from "./chat/ChatTranscript";
+import { MobileConversationsDialog } from "./chat/MobileConversationsDialog";
 import {
   type BranchMode,
   type DisplayMessage,
@@ -1063,86 +1064,22 @@ export function ChatPage({
         />
       </section>
       {mobileConversationsOpen ? (
-        <div className="chat-mobile-conversations-backdrop">
-          <button
-            aria-label="Close conversations"
-            className="chat-mobile-conversations-dismiss"
-            onClick={() => setMobileConversationsOpen(false)}
-            type="button"
-          />
-          <div
-            aria-label="Conversations"
-            aria-modal="true"
-            className="chat-mobile-conversations-dialog"
-            id="mobile-conversations"
-            ref={mobileConversationsDialogRef}
-            role="dialog"
-          >
-            <header>
-              <div>
-                <span className="eyebrow">
-                  {activeProject?.name ?? "Workspace"}
-                </span>
-                <h2>Conversations</h2>
-              </div>
-              <button
-                aria-label="Close conversations"
-                className="icon-button"
-                onClick={() => setMobileConversationsOpen(false)}
-                type="button"
-              >
-                ×
-              </button>
-            </header>
-            <input
-              aria-label="Search conversations"
-              onChange={(event) => setSessionSearch(event.target.value)}
-              placeholder="Search conversations"
-              type="search"
-              value={sessionSearch}
-            />
-            <div className="chat-mobile-conversations-list">
-              {sessions.map((session) => (
-                <button
-                  aria-current={
-                    session.sessionId === selectedId ? "page" : undefined
-                  }
-                  data-mobile-conversation
-                  key={session.sessionId}
-                  onClick={() => {
-                    onSelect(session.sessionId);
-                    setMobileConversationsOpen(false);
-                  }}
-                  type="button"
-                >
-                  <strong>{session.title || "Untitled conversation"}</strong>
-                  <span>
-                    {session.messageCount} messages ·{" "}
-                    {displayTimestamp(session.endedAt)}
-                    {projectLabels
-                      ? ` · ${
-                          session.projectId
-                            ? (projectLabels[session.projectId] ?? "Project")
-                            : "Unscoped"
-                        }`
-                      : ""}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <button
-              className="new-chat-button"
-              onClick={() => {
-                if (onRequestNewConversation) onRequestNewConversation();
-                else createConversation();
-                setMobileConversationsOpen(false);
-              }}
-              type="button"
-            >
-              <span>＋</span> New conversation
-            </button>
-          </div>
-        </div>
+        <MobileConversationsDialog
+          activeProjectName={activeProject?.name}
+          dialogRef={mobileConversationsDialogRef}
+          onClose={() => setMobileConversationsOpen(false)}
+          onNewConversation={() => {
+            if (onRequestNewConversation) onRequestNewConversation();
+            else createConversation();
+            setMobileConversationsOpen(false);
+          }}
+          onSearchChange={setSessionSearch}
+          onSelect={onSelect}
+          projectLabels={projectLabels}
+          search={sessionSearch}
+          selectedId={selectedId}
+          sessions={sessions}
+        />
       ) : null}
       {inspectorVisible ? (
         <div
