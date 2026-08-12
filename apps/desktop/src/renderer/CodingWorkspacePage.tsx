@@ -48,6 +48,7 @@ import {
   asNumber,
   asRecord,
   asString,
+  EmptyBlock,
   errorMessage,
   PageHeader,
   useApiResource,
@@ -126,9 +127,15 @@ export function CodingWorkspacePage({
   const [acpTaskDraft, setAcpTaskDraft] = useState("");
   const fileDirtyRef = useRef(false);
   const consumedNavigationIntents = useRef(new Set<string>());
-  const acpEditor = useDesktopAcpEditorBridge({ active, workspacePath });
+  const hasWorkspace = Boolean(workspacePath.trim());
+  const workspaceActive = active && hasWorkspace;
+  const acpEditor = useDesktopAcpEditorBridge({
+    active: workspaceActive,
+    workspacePath,
+  });
   const requestPolicy = codingWorkspaceRequests({
     active,
+    hasWorkspace,
     explorerVisible,
     utilityVisible,
     leftPane,
@@ -510,6 +517,34 @@ export function CodingWorkspacePage({
           Workspace files, repository state, and coding actions are unavailable
           until the local runtime is ready.
         </OfflineRouteState>
+      </div>
+    );
+  }
+
+  if (!hasWorkspace) {
+    return (
+      <div className={`page coding-workspace-page ${zenMode ? "zen" : ""}`}>
+        <PageHeader
+          description="Inspect files, changes, and workspace operations without leaving the desktop."
+          eyebrow="Agentic workspace"
+          title="Code"
+        />
+        <EmptyBlock
+          actions={
+            <button
+              className="primary-button"
+              onClick={() => void onChooseWorkspace()}
+              type="button"
+            >
+              Choose workspace
+            </button>
+          }
+          density="compact"
+          title="Choose a workspace"
+        >
+          Select a local project before Doolittle reads files or opens a
+          workspace terminal.
+        </EmptyBlock>
       </div>
     );
   }

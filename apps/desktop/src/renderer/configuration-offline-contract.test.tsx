@@ -90,6 +90,26 @@ describe("configuration routes when the local runtime is inactive", () => {
     expect(markup).not.toContain("No review items yet");
   });
 
+  it("keeps Code idle until a workspace is explicitly selected", () => {
+    const markup = renderToStaticMarkup(
+      <CodingWorkspacePage
+        active
+        navigationIntent={null}
+        onAcknowledgeNavigationIntent={() => undefined}
+        onChooseWorkspace={pickWorkspace}
+        onOpenWorkspacePath={pickWorkspace}
+        onSendToChat={() => undefined}
+        projectScope="all"
+        workspacePath=""
+      />,
+    );
+
+    expect(markup).toContain("Choose a workspace");
+    expect(markup).toContain("before Doolittle reads files");
+    expect(markup).not.toContain("Reading workspace tree");
+    expect(markup).not.toContain("Connecting terminal to workspace");
+  });
+
   it("keeps only local appearance and desktop controls visible offline", () => {
     expect(settingsCategoryOffline("providers", false)).toBe(true);
     expect(settingsCategoryOffline("model", false)).toBe(true);

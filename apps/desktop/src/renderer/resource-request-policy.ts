@@ -1,5 +1,6 @@
 export type CodingWorkspaceRequestState = {
   active: boolean;
+  hasWorkspace: boolean;
   explorerVisible: boolean;
   utilityVisible: boolean;
   leftPane: "files" | "changes" | "search";
@@ -10,6 +11,7 @@ export type CodingWorkspaceRequestState = {
 };
 
 export function codingWorkspaceRequests(state: CodingWorkspaceRequestState) {
+  const available = state.active && state.hasWorkspace;
   const sourceControlVisible =
     state.utilityVisible && state.utilityPane === "source-control";
   const changesVisible =
@@ -18,21 +20,20 @@ export function codingWorkspaceRequests(state: CodingWorkspaceRequestState) {
     sourceControlVisible;
 
   return {
-    summary: state.active,
-    tree: state.active && state.explorerVisible && state.leftPane === "files",
-    changes: state.active && changesVisible,
-    log:
-      state.active && state.utilityVisible && state.utilityPane === "commits",
+    summary: available,
+    tree: available && state.explorerVisible && state.leftPane === "files",
+    changes: available && changesVisible,
+    log: available && state.utilityVisible && state.utilityPane === "commits",
     worktrees:
-      state.active && state.utilityVisible && state.utilityPane === "worktrees",
-    sourceControl: state.active && sourceControlVisible,
+      available && state.utilityVisible && state.utilityPane === "worktrees",
+    sourceControl: available && sourceControlVisible,
     search:
-      state.active &&
+      available &&
       state.explorerVisible &&
       state.leftPane === "search" &&
       state.hasSearchQuery,
-    file: state.active && state.editorPane === "file" && state.hasSelectedPath,
-    patch: state.active && state.editorPane === "diff" && state.hasSelectedPath,
+    file: available && state.editorPane === "file" && state.hasSelectedPath,
+    patch: available && state.editorPane === "diff" && state.hasSelectedPath,
   };
 }
 

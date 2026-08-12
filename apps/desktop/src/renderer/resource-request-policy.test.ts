@@ -14,6 +14,7 @@ describe("coding workspace request policy", () => {
     expect(
       codingWorkspaceRequests({
         active: true,
+        hasWorkspace: true,
         explorerVisible: true,
         utilityVisible: true,
         leftPane: "files",
@@ -38,6 +39,7 @@ describe("coding workspace request policy", () => {
   it("loads the dependencies required by the visible diff and source-control panes", () => {
     const diff = codingWorkspaceRequests({
       active: true,
+      hasWorkspace: true,
       explorerVisible: false,
       utilityVisible: false,
       leftPane: "files",
@@ -53,6 +55,7 @@ describe("coding workspace request policy", () => {
     const sourceControl = codingWorkspaceRequests({
       ...{
         active: true,
+        hasWorkspace: true,
         explorerVisible: false,
         utilityVisible: true,
         leftPane: "files" as const,
@@ -64,6 +67,32 @@ describe("coding workspace request policy", () => {
     });
     expect(sourceControl.changes).toBe(true);
     expect(sourceControl.sourceControl).toBe(true);
+  });
+
+  it("does not inspect the packaged runtime directory without a selected workspace", () => {
+    expect(
+      codingWorkspaceRequests({
+        active: true,
+        hasWorkspace: false,
+        explorerVisible: true,
+        utilityVisible: true,
+        leftPane: "files",
+        editorPane: "file",
+        utilityPane: "terminal",
+        hasSelectedPath: false,
+        hasSearchQuery: false,
+      }),
+    ).toEqual({
+      summary: false,
+      tree: false,
+      changes: false,
+      log: false,
+      worktrees: false,
+      sourceControl: false,
+      search: false,
+      file: false,
+      patch: false,
+    });
   });
 });
 
