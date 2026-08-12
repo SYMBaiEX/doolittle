@@ -11,7 +11,6 @@ import {
   asString,
   Badge,
   desktopRequest,
-  EmptyBlock,
   ErrorBlock,
   errorMessage,
   LoadingBlock,
@@ -54,6 +53,8 @@ export function KeysPage({ active }: { active: boolean }) {
         .sort((left, right) => left.localeCompare(right)),
     [secrets.data],
   );
+  const inventoryEmpty =
+    !secrets.loading && !secrets.error && keys.length === 0;
 
   useEffect(() => {
     if (!selectedKey && keys[0]) {
@@ -139,49 +140,46 @@ export function KeysPage({ active }: { active: boolean }) {
       {feedback ? (
         <Notice tone={feedback.tone}>{feedback.message}</Notice>
       ) : null}
-      <div className="split-workspace">
-        <section className="list-panel">
-          <div className="detail-toolbar">
-            <div>
-              <span className="eyebrow">Known keys</span>
-              <h2>Secret inventory</h2>
+      <div className={`split-workspace${inventoryEmpty ? " is-empty" : ""}`}>
+        {inventoryEmpty ? null : (
+          <section className="list-panel">
+            <div className="detail-toolbar">
+              <div>
+                <span className="eyebrow">Known keys</span>
+                <h2>Secret inventory</h2>
+              </div>
+              <Badge>{keys.length}</Badge>
             </div>
-            <Badge>{keys.length}</Badge>
-          </div>
-          {secrets.loading ? (
-            <LoadingBlock label="Loading secret names…" />
-          ) : secrets.error ? (
-            <ErrorBlock error={secrets.error} retry={secrets.reload} />
-          ) : (
-            <div className="list-scroll">
-              {keys.map((key) => (
-                <button
-                  className={`row-card ${selectedKey === key ? "selected" : ""}`}
-                  key={key}
-                  onClick={() => {
-                    setSelectedKey(key);
-                    setDraftKey(key);
-                    setDraftValue("");
-                    setRevealedValue("");
-                    setValueVisible(false);
-                    setFeedback(null);
-                  }}
-                  type="button"
-                >
-                  <span className="row-card-main">
-                    <strong>{key}</strong>
-                    <small>Stored locally</small>
-                  </span>
-                </button>
-              ))}
-              {!keys.length ? (
-                <EmptyBlock title="No stored keys">
-                  Add your first provider or tool credential from the form.
-                </EmptyBlock>
-              ) : null}
-            </div>
-          )}
-        </section>
+            {secrets.loading ? (
+              <LoadingBlock label="Loading secret names…" />
+            ) : secrets.error ? (
+              <ErrorBlock error={secrets.error} retry={secrets.reload} />
+            ) : (
+              <div className="list-scroll">
+                {keys.map((key) => (
+                  <button
+                    className={`row-card ${selectedKey === key ? "selected" : ""}`}
+                    key={key}
+                    onClick={() => {
+                      setSelectedKey(key);
+                      setDraftKey(key);
+                      setDraftValue("");
+                      setRevealedValue("");
+                      setValueVisible(false);
+                      setFeedback(null);
+                    }}
+                    type="button"
+                  >
+                    <span className="row-card-main">
+                      <strong>{key}</strong>
+                      <small>Stored locally</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
         <section className="detail-panel">
           <div className="detail-toolbar">
             <div>
@@ -190,6 +188,11 @@ export function KeysPage({ active }: { active: boolean }) {
             </div>
             {selectedKey ? <Badge>{selectedKey}</Badge> : null}
           </div>
+          {inventoryEmpty ? (
+            <Notice announce="off">
+              No stored keys yet. Save the first local credential below.
+            </Notice>
+          ) : null}
           <form className="content-card form-card" onSubmit={saveValue}>
             <div className="field-grid">
               <label className="field-span">

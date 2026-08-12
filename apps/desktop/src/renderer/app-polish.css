@@ -1566,6 +1566,20 @@ th {
   display: none;
 }
 
+.page-keys > .split-workspace.is-empty {
+  min-height: 0;
+  flex: 0 0 auto;
+  grid-template-columns: 1fr;
+}
+
+.page-keys > .split-workspace.is-empty > .detail-panel {
+  padding: 14px;
+}
+
+.page-keys > .split-workspace.is-empty .detail-toolbar {
+  padding-bottom: 10px;
+}
+
 .session-empty-landing {
   display: grid;
   min-height: 0;
