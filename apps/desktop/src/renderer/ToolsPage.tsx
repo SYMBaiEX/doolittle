@@ -209,10 +209,7 @@ export function ToolsPage({ active }: { active: boolean }) {
         className="tools-integrations"
         onToggle={(event) => setIntegrationsOpen(event.currentTarget.open)}
       >
-        <summary
-          onFocus={() => void preloadMcpControlPanel()}
-          onPointerEnter={() => void preloadMcpControlPanel()}
-        >
+        <summary>
           <span>
             <strong>Integration bridges</strong>
             <small>MCP + ACP diagnostics</small>
