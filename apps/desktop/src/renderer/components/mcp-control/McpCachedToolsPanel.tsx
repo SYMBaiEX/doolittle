@@ -1,5 +1,5 @@
 import { Badge, EmptyBlock, LoadingBlock, Notice } from "../../lib";
-import type { McpToolSummary } from "../McpControlPanel";
+import type { McpToolSummary } from "./model";
 
 export interface McpCachedToolsPanelProps {
   draft: string;

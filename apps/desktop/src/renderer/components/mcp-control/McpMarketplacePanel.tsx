@@ -3,7 +3,7 @@ import type {
   McpMarketplaceDetail,
   McpMarketplaceRequirement,
   McpMarketplaceSummary,
-} from "../McpControlPanel";
+} from "./model";
 
 export interface McpMarketplacePanelProps {
   draft: string;
