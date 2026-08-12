@@ -11,6 +11,7 @@ export {
   getEffectiveDelegationChildren,
   getEffectiveDelegationOverview,
   getEffectiveDelegationOverviews,
+  getEffectiveDelegationOverviewsSnapshot,
   getEffectiveDelegationQueue,
   getEffectiveDelegationTask,
   getEffectiveDelegationTasks,

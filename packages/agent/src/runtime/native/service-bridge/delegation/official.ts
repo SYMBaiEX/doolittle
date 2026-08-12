@@ -199,7 +199,7 @@ export function projectOfficialTask(
 }
 
 export function projectOfficialTaskList(
-  tasks: NativeOrchestratorTaskDetail[],
+  tasks: Array<NativeOrchestratorTaskThread | NativeOrchestratorTaskDetail>,
 ): DelegationTaskRecord[] {
   const projected = tasks.map(projectOfficialTask);
   const children = new Map<string, string[]>();

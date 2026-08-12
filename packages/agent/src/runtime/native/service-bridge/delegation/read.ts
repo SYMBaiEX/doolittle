@@ -66,6 +66,16 @@ async function listAndReconcileOfficialTaskDetails(
   );
 }
 
+async function listOfficialTaskSummaries(
+  runtime: RuntimeLike,
+  options?: { limit?: number },
+) {
+  return requireOfficialOrchestrator(runtime).listTasks({
+    includeArchived: true,
+    limit: options?.limit ?? 500,
+  });
+}
+
 type OfficialTaskDetails = Awaited<
   ReturnType<typeof listAndReconcileOfficialTaskDetails>
 >;
@@ -152,6 +162,34 @@ export async function getEffectiveDelegationOverviews(runtime: RuntimeLike) {
     ),
     native: {
       ...buildDelegationProjectionOverview(tasks, status.activeSessionCount),
+      service: "ORCHESTRATOR_TASK_SERVICE",
+      available: true,
+    },
+  };
+}
+
+export async function getEffectiveDelegationOverviewsSnapshot(
+  runtime: RuntimeLike,
+) {
+  // The desktop startup surface consumes aggregate counts only. Keep richer
+  // group, label, worker, parent, and reconciliation reads on the detail-backed
+  // projections below instead of expanding every task during route entry.
+  const service = requireOfficialOrchestrator(runtime);
+  const [status, tasks] = await Promise.all([
+    service.getStatus(),
+    listOfficialTaskSummaries(runtime),
+  ]);
+  const projected = projectOfficialTaskList(tasks);
+  return {
+    local: buildDelegationProjectionOverview(
+      projected,
+      projected.filter((task) => task.status === "running").length,
+    ),
+    native: {
+      ...buildDelegationProjectionOverview(
+        projected,
+        status.activeSessionCount,
+      ),
       service: "ORCHESTRATOR_TASK_SERVICE",
       available: true,
     },

@@ -6,6 +6,7 @@ import {
   createEffectiveDelegationTask,
   executeEffectiveDelegationTask,
   getEffectiveDelegationOverviews,
+  getEffectiveDelegationOverviewsSnapshot,
   getEffectiveDelegationTask,
   getEffectiveDelegationTasks,
   OrchestratorTaskServiceUnavailableError,
@@ -50,6 +51,21 @@ function detail(overrides: Record<string, unknown> = {}) {
     events: [],
     ...overrides,
   };
+}
+
+function thread(overrides: Record<string, unknown> = {}) {
+  const {
+    acceptanceCriteria: _acceptanceCriteria,
+    events: _events,
+    goal: _goal,
+    messages: _messages,
+    metadata: _metadata,
+    parentTaskId: _parentTaskId,
+    providerPolicy: _providerPolicy,
+    sessions: _sessions,
+    ...summary
+  } = detail(overrides);
+  return summary;
 }
 
 function runtimeWith(service: Record<string, unknown>) {
@@ -106,6 +122,30 @@ describe("official delegation service bridge", () => {
     });
     expect(service.listTasks).toHaveBeenCalledOnce();
     expect(service.getTask).toHaveBeenCalledOnce();
+    expect(service.getStatus).toHaveBeenCalledOnce();
+  });
+
+  it("builds overview snapshots from official summaries without expanding details", async () => {
+    const service = {
+      listTasks: vi.fn(async () => [thread()]),
+      getTask: vi.fn(async () => detail()),
+      getStatus: vi.fn(async () => ({ activeSessionCount: 1 })),
+    };
+
+    await expect(
+      getEffectiveDelegationOverviewsSnapshot(runtimeWith(service) as never),
+    ).resolves.toMatchObject({
+      local: { total: 1, running: 1 },
+      native: {
+        available: true,
+        concurrency: 1,
+        service: "ORCHESTRATOR_TASK_SERVICE",
+        total: 1,
+      },
+    });
+
+    expect(service.listTasks).toHaveBeenCalledOnce();
+    expect(service.getTask).not.toHaveBeenCalled();
     expect(service.getStatus).toHaveBeenCalledOnce();
   });
 

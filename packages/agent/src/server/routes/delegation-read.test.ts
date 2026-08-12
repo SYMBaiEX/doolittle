@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleDelegationReadRoutes } from "./delegation-read";
 
@@ -27,6 +27,21 @@ function detail(id: string, metadata: Record<string, unknown> = {}) {
     messages: [],
     events: [],
   };
+}
+
+function thread(id: string) {
+  const {
+    acceptanceCriteria: _acceptanceCriteria,
+    events: _events,
+    goal: _goal,
+    messages: _messages,
+    metadata: _metadata,
+    parentTaskId: _parentTaskId,
+    providerPolicy: _providerPolicy,
+    sessions: _sessions,
+    ...summary
+  } = detail(id);
+  return summary;
 }
 
 function contextWith(tasks = [detail("one"), detail("two", { group: "ops" })]) {
@@ -164,5 +179,81 @@ describe("handleDelegationReadRoutes", () => {
         },
       },
     });
+  });
+
+  it("keeps overview startup reads from expanding every task detail", async () => {
+    const details = Array.from({ length: 500 }, (_, index) =>
+      detail(`task-${index + 1}`),
+    );
+    const summaries = Array.from({ length: 500 }, (_, index) =>
+      thread(`task-${index + 1}`),
+    );
+    const service = {
+      listTasks: async ({
+        limit,
+      }: {
+        limit?: number;
+        includeArchived?: boolean;
+      } = {}) => summaries.slice(0, limit),
+      getTask: async (id: string) =>
+        details.find((task) => task.id === id) ?? null,
+      getStatus: async () => ({
+        taskCount: details.length,
+        activeTaskCount: 0,
+        pausedTaskCount: 0,
+        blockedTaskCount: 0,
+        validatingTaskCount: 0,
+        sessionCount: 0,
+        activeSessionCount: 0,
+        byStatus: {
+          open: details.length,
+          active: 0,
+          waiting_on_user: 0,
+          blocked: 0,
+          validating: 0,
+          done: 0,
+          failed: 0,
+          archived: 0,
+          interrupted: 0,
+        },
+      }),
+    };
+    const context = contextWithService(service);
+    const listSpy = vi.spyOn(service, "listTasks");
+    const getTaskSpy = vi.spyOn(service, "getTask");
+
+    const [overviewResponse, tasksResponse] = await Promise.all([
+      handleDelegationReadRoutes(
+        context,
+        new Request("http://localhost/delegation/overview"),
+        new URL("http://localhost/delegation/overview"),
+      ),
+      handleDelegationReadRoutes(
+        context,
+        new Request("http://localhost/delegation/tasks?limit=100"),
+        new URL("http://localhost/delegation/tasks?limit=100"),
+      ),
+    ]);
+
+    await expect(overviewResponse?.json()).resolves.toMatchObject({
+      overview: {
+        local: { total: 500, pending: 500 },
+        native: { total: 500, available: true },
+      },
+    });
+    await expect(tasksResponse?.json()).resolves.toMatchObject({
+      tasks: expect.arrayContaining([
+        expect.objectContaining({ id: "task-1" }),
+      ]),
+    });
+    expect(listSpy).toHaveBeenNthCalledWith(1, {
+      includeArchived: true,
+      limit: 500,
+    });
+    expect(listSpy).toHaveBeenNthCalledWith(2, {
+      includeArchived: true,
+      limit: 100,
+    });
+    expect(getTaskSpy).toHaveBeenCalledTimes(100);
   });
 });
