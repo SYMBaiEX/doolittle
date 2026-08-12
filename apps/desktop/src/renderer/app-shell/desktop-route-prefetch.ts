@@ -18,6 +18,7 @@ export const DESKTOP_ROUTE_RESOURCE_PREFETCHES: Readonly<
   Partial<Record<View, readonly DesktopRouteResourcePrefetch[]>>
 > = {
   activity: [{ path: "/activity?limit=200", dependencies: [true] }],
+  analytics: [{ path: "/analytics", dependencies: [true] }],
   automations: [{ path: "/cron/jobs", dependencies: [true] }],
   browser: [{ path: "/browser/status", dependencies: [true] }],
   compatibility: [{ path: "/runtime/compatibility", dependencies: [true] }],
