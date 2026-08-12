@@ -191,6 +191,13 @@ test.describe("Doolittle desktop offline chat", () => {
         ""
       ).trim();
       expect(assistantText).not.toBe("");
+      const assistantActions = assistantMessage.getByRole("toolbar", {
+        name: "Message actions",
+      });
+      await page.mouse.move(1, 1);
+      await expect(assistantActions).toHaveCSS("opacity", "0");
+      await assistantMessage.hover();
+      await expect(assistantActions).toHaveCSS("opacity", "1");
       await expect(page.locator(".recovery-shell")).toHaveCount(0);
       expect(firstPageErrors).toEqual([]);
 
