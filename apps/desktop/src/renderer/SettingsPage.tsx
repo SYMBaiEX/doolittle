@@ -4,7 +4,6 @@ import type {
   DesktopUpdateState,
   RuntimeStatus,
 } from "../shared/contracts";
-import { ConnectionsPage } from "./ConnectionsPage";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   announceAppearance,
@@ -85,7 +84,7 @@ export function settingsCategoryOffline(category: string, active: boolean) {
 }
 
 export function SettingsPage({ active }: { active: boolean }) {
-  const [category, setCategory] = useState("providers");
+  const [category, setCategory] = useState("appearance");
   const resourcePolicy = settingsResourcePolicy(category, active);
   const settings = useApiResource<SettingsResponse>(
     resourcePolicy.settings ? "/settings" : null,
@@ -137,11 +136,6 @@ export function SettingsPage({ active }: { active: boolean }) {
   );
   const rawCategories = [...new Set(fields.map((field) => field.category))];
   const categories = [
-    {
-      id: "providers",
-      label: "Providers",
-      description: "Account sign in",
-    },
     {
       id: "appearance",
       label: "Appearance",
@@ -277,13 +271,13 @@ export function SettingsPage({ active }: { active: boolean }) {
             ))}
           </aside>
           <section className="settings-content">
-            {runtimeCategoryOffline && category !== "providers" ? (
+            {runtimeCategoryOffline ? (
               <OfflineRouteState>
-                Runtime configuration, provider connections, and execution
-                controls are unavailable until the local runtime is ready.
+                Runtime configuration and execution controls are unavailable
+                until the local runtime is ready.
               </OfflineRouteState>
             ) : null}
-            {!runtimeCategoryOffline && category !== "providers" ? (
+            {!runtimeCategoryOffline ? (
               <header className="settings-content-header">
                 <div>
                   <span className="eyebrow">Configuration</span>
@@ -302,9 +296,6 @@ export function SettingsPage({ active }: { active: boolean }) {
                   </label>
                 ) : null}
               </header>
-            ) : null}
-            {category === "providers" ? (
-              <ConnectionsPage active={active} embedded />
             ) : null}
             {!runtimeCategoryOffline && category === "appearance" ? (
               <section className="settings-group">
@@ -565,9 +556,8 @@ export function SettingsPage({ active }: { active: boolean }) {
                 </div>
               </section>
             ) : null}
-            {!["providers", "desktop", "appearance", "model"].includes(
-              category,
-            ) && !runtimeCategoryOffline ? (
+            {!["desktop", "appearance", "model"].includes(category) &&
+            !runtimeCategoryOffline ? (
               <section className="settings-group">
                 <div className="settings-group-heading">
                   <div>

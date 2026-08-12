@@ -8,15 +8,15 @@ const settingsPageSource = readFileSync(
 );
 
 describe("settings resource policy", () => {
-  it("keeps the settings document active while deferring detail reads for providers", () => {
-    expect(settingsResourcePolicy("providers", true)).toEqual({
+  it("keeps the settings document active while deferring unrelated detail reads", () => {
+    expect(settingsResourcePolicy("advanced", true)).toEqual({
       settings: true,
       themes: false,
       desktop: false,
       execution: false,
       runtime: false,
     });
-    expect(settingsResourcePolicy("providers", false)).toEqual({
+    expect(settingsResourcePolicy("advanced", false)).toEqual({
       settings: false,
       themes: false,
       desktop: false,
@@ -64,6 +64,9 @@ describe("settings resource policy", () => {
   });
 
   it("keeps the category rail concise without repeating page-level copy", () => {
+    expect(settingsPageSource).toContain('useState("appearance")');
+    expect(settingsPageSource).not.toContain('id: "providers"');
+    expect(settingsPageSource).not.toContain("ConnectionsPage");
     expect(settingsPageSource).not.toContain("settings-nav-title");
     expect(settingsPageSource).not.toContain("settings-nav-note");
     expect(settingsPageSource).toContain("title={entry.description}");

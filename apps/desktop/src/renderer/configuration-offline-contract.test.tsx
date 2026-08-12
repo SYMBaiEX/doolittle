@@ -111,7 +111,6 @@ describe("configuration routes when the local runtime is inactive", () => {
   });
 
   it("keeps only local appearance and desktop controls visible offline", () => {
-    expect(settingsCategoryOffline("providers", false)).toBe(true);
     expect(settingsCategoryOffline("model", false)).toBe(true);
     expect(settingsCategoryOffline("execution", false)).toBe(true);
     expect(settingsCategoryOffline("advanced", false)).toBe(true);
@@ -135,12 +134,13 @@ describe("configuration routes when the local runtime is inactive", () => {
     });
 
     const markup = renderToStaticMarkup(<SettingsPage active={false} />);
-    expect(markup).toContain(
-      "Provider connections and account pools are unavailable",
-    );
     expect(markup).toContain('aria-label="Settings categories"');
     expect(markup).toContain("Appearance");
     expect(markup).toContain("Desktop");
-    expect(markup).not.toContain("Light, dark &amp; system");
+    expect(markup).toContain("Light, dark &amp; system");
+    expect(markup).toContain(
+      "Saved color themes are unavailable until the local runtime is ready",
+    );
+    expect(markup).not.toContain("Provider connections");
   });
 });
