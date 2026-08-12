@@ -1,9 +1,21 @@
-import { resolve } from "node:path";
+import { existsSync, rmSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { _electron as electron, expect, test } from "@playwright/test";
 
 const executablePath = process.env.DOOLITTLE_DESKTOP_EXECUTABLE;
 const profileDir = process.env.DOOLITTLE_DESKTOP_PROFILE_DIR;
 const screenshotDir = process.env.DOOLITTLE_SWEEP_SCREENSHOTS_DIR?.trim();
+
+function sanitizeClonedRuntimeProfile(root: string): void {
+  const runtimeDir = join(resolve(root), "runtime");
+  const transientPaths = [
+    join(runtimeDir, "pglite", "eliza-pglite.lock"),
+    join(runtimeDir, "pglite", "postmaster.pid"),
+  ];
+  for (const target of transientPaths) {
+    if (existsSync(target)) rmSync(target, { force: true });
+  }
+}
 
 const routes = [
   "dashboard",
@@ -71,6 +83,7 @@ test.describe("Doolittle cloned-profile control sweep", () => {
 
   test("opens safe controls across every route without renderer failures", async () => {
     test.setTimeout(180_000);
+    sanitizeClonedRuntimeProfile(profileDir as string);
     const app = await electron.launch({
       executablePath: resolve(executablePath as string),
       args: [`--user-data-dir=${resolve(profileDir as string)}`],
