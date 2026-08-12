@@ -1830,12 +1830,11 @@ th {
 
 .gateway-page .gateway-layout {
   min-height: 0;
-  flex: 1 1 440px;
-  grid-template-columns: minmax(0, 1fr) minmax(230px, 310px);
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
-.gateway-page :is(.gateway-timeline-panel, .gateway-session-panel) {
+.gateway-page .gateway-timeline-panel {
   min-height: 0;
   padding: 12px 13px;
   overflow: auto;
@@ -2155,7 +2154,7 @@ th {
     grid-template-columns: 1fr;
   }
 
-  .gateway-page :is(.gateway-timeline-panel, .gateway-session-panel) {
+  .gateway-page .gateway-timeline-panel {
     overflow: visible;
   }
 }

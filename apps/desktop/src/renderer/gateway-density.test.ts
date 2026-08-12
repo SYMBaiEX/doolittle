@@ -13,6 +13,10 @@ const css = readFileSync(
   new URL("./gateway-page.css", import.meta.url),
   "utf8",
 );
+const polish = readFileSync(
+  new URL("./app-polish.css", import.meta.url),
+  "utf8",
+);
 
 describe("GatewayPage density", () => {
   it("keeps sender approvals in a concise status disclosure", () => {
@@ -31,5 +35,9 @@ describe("GatewayPage density", () => {
     expect(source).toContain('className="panel gateway-session-panel"');
     expect(source).toContain("Open to load");
     expect(css).toContain(".gateway-session-panel > summary {");
+    expect(polish).not.toContain("minmax(230px, 310px)");
+    expect(polish).not.toContain(
+      ".gateway-page :is(.gateway-timeline-panel, .gateway-session-panel)",
+    );
   });
 });
