@@ -3,7 +3,6 @@ import { ArtifactViewer } from "../components/ArtifactViewer";
 import {
   type ApiResource,
   asArray,
-  asNumber,
   asRecord,
   asString,
   Badge,
@@ -24,7 +23,6 @@ import type {
   CodegenWorkflowRecord,
   WorkflowBundleResponse,
 } from "../orchestration-resources";
-import { compactWorkspacePath } from "../workspace-path";
 import {
   DetailRow,
   DetailTag,
@@ -32,7 +30,8 @@ import {
   statusTone,
 } from "./detail-primitives";
 import type { CodegenMode } from "./orchestration-runs-model";
-import { CODEGEN_MODES, runArtifacts } from "./orchestration-runs-model";
+import { runArtifacts } from "./orchestration-runs-model";
+import { OrchestrationLauncher } from "./runs-panel/OrchestrationLauncher";
 
 type CodegenRuntimeResponse = {
   execution?: {
@@ -135,121 +134,28 @@ export function OrchestrationRunsPanel({
 }: OrchestrationRunsPanelProps) {
   return (
     <div className="orchestration-runs-layout">
-      <aside className="orchestration-launcher">
-        {codegenRuntimeResource.error ? (
-          <ErrorBlock
-            error={codegenRuntimeResource.error}
-            retry={codegenRuntimeResource.reload}
-          />
-        ) : null}
-        <div className="orchestration-pane-heading">
-          <span>New workflow</span>
-          <Badge
-            tone={codegenReady ? "good" : codegenAvailable ? "warn" : "bad"}
-          >
-            {codegenReady
-              ? "ready"
-              : codegenAvailable
-                ? "setup needed"
-                : "offline"}
-          </Badge>
-        </div>
-        <fieldset className="orchestration-mode-grid">
-          <legend>Code generation mode</legend>
-          {CODEGEN_MODES.map((mode) => (
-            <button
-              key={mode.id}
-              type="button"
-              aria-pressed={codegenMode === mode.id}
-              className={codegenMode === mode.id ? "selected" : ""}
-              onClick={() => onCodegenModeChange(mode.id)}
-            >
-              <strong>{mode.label}</strong>
-              <span>{mode.detail}</span>
-            </button>
-          ))}
-        </fieldset>
-        <form className="orchestration-codegen-form" onSubmit={onSubmitCodegen}>
-          {codegenMode === "qa" ? (
-            <label>
-              <span>Project path</span>
-              <input
-                value={codegenProjectPath}
-                onChange={(event) =>
-                  onCodegenProjectPathChange(event.target.value)
-                }
-                placeholder="/workspace/project"
-              />
-            </label>
-          ) : (
-            <>
-              <label>
-                <span>Project name</span>
-                <input
-                  value={codegenProjectName}
-                  onChange={(event) =>
-                    onCodegenProjectNameChange(event.target.value)
-                  }
-                  placeholder={workspaceLabel || "doolittle"}
-                />
-              </label>
-              {codegenMode !== "generate" ? (
-                <label>
-                  <span>Target</span>
-                  <input
-                    value={codegenTargetType}
-                    onChange={(event) =>
-                      onCodegenTargetTypeChange(event.target.value)
-                    }
-                    placeholder="plugin"
-                  />
-                </label>
-              ) : null}
-              <label>
-                <span>
-                  {codegenMode === "generate" ? "Build request" : "Description"}
-                </span>
-                <textarea
-                  rows={6}
-                  value={codegenPrompt}
-                  onChange={(event) =>
-                    onCodegenPromptChange(event.target.value)
-                  }
-                  placeholder="Describe the intended result, constraints, and evidence."
-                />
-              </label>
-            </>
-          )}
-          <button
-            className="primary-button"
-            type="submit"
-            disabled={
-              !active || !codegenReady || busyKeys[`codegen:${codegenMode}`]
-            }
-          >
-            {busyKeys[`codegen:${codegenMode}`]
-              ? "Running…"
-              : `Run ${
-                  CODEGEN_MODES.find((mode) => mode.id === codegenMode)?.label
-                }`}
-          </button>
-        </form>
-        <p className="orchestration-runtime-version">
-          {asString(codegenExecution.source, "product")} engine ·{" "}
-          {asArray(codegenExecution.methods).length} methods ·{" "}
-          {asNumber(workflowSummary.total)} workflows
-        </p>
-        {!codegenReady && asString(codegenExecution.detail) ? (
-          <p className="orchestration-runtime-detail">
-            {asString(codegenExecution.detail)}
-          </p>
-        ) : null}
-        <p className="orchestration-task-routing-note">
-          {workspacePath
-            ? `Project defaults come from ${compactWorkspacePath(workspacePath)}. QA uses this path directly; other workflows retain the selected project name in their receipt.`
-            : "Choose a workspace to prefill project context for build and research receipts."}
-        </p>
-      </aside>
+      <OrchestrationLauncher
+        active={active}
+        workspaceLabel={workspaceLabel}
+        workspacePath={workspacePath}
+        codegenRuntimeResource={codegenRuntimeResource}
+        codegenExecution={codegenExecution}
+        codegenAvailable={codegenAvailable}
+        codegenReady={codegenReady}
+        workflowSummary={workflowSummary}
+        codegenMode={codegenMode}
+        codegenProjectName={codegenProjectName}
+        codegenPrompt={codegenPrompt}
+        codegenProjectPath={codegenProjectPath}
+        codegenTargetType={codegenTargetType}
+        busyKeys={busyKeys}
+        onCodegenModeChange={onCodegenModeChange}
+        onCodegenProjectNameChange={onCodegenProjectNameChange}
+        onCodegenPromptChange={onCodegenPromptChange}
+        onCodegenProjectPathChange={onCodegenProjectPathChange}
+        onCodegenTargetTypeChange={onCodegenTargetTypeChange}
+        onSubmitCodegen={onSubmitCodegen}
+      />
 
       <aside className="orchestration-run-browser">
         <div className="orchestration-pane-heading">
