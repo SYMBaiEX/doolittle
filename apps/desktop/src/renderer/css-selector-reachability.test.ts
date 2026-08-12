@@ -1,17 +1,36 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const globalCss = ["styles.css", "experience.css", "app-polish.css"]
+const globalCss = [
+  "styles.css",
+  "experience.css",
+  "app-polish.css",
+  "review.css",
+  "coding-workspace.css",
+]
   .map((name) => readFileSync(new URL(`./${name}`, import.meta.url), "utf8"))
   .join("\n");
+const codingWorkspaceCss = readFileSync(
+  new URL("./coding-workspace.css", import.meta.url),
+  "utf8",
+);
+const reviewCss = readFileSync(
+  new URL("./review.css", import.meta.url),
+  "utf8",
+);
+const interactiveTerminalCss = readFileSync(
+  new URL("./components/interactive-terminal.css", import.meta.url),
+  "utf8",
+);
 const elizaTailwindCss = readFileSync(
   new URL("./eliza-tailwind.css", import.meta.url),
   "utf8",
 );
 
 // These selectors belonged to removed navigation, chat-sidebar, inspector,
-// utility, and activity implementations. A complete repository search found
-// no current JSX/static contract that can produce them.
+// utility, activity, coding-terminal, worktree-list, and review-repository
+// implementations. A complete repository search found no current JSX/static
+// contract that can produce them.
 const unreachableLegacySelectors = [
   "app-navigation",
   "nav-section",
@@ -66,7 +85,52 @@ const unreachableLegacySelectors = [
   "utility-navigation-items",
   "chat-meta-project",
   "chat-meta-context",
+  "card-grid",
+  "fact-list",
+  "card-footer",
+  "settings-nav-title",
+  "settings-nav-note",
+  "review-repository-ribbon",
 ] as const;
+
+const unreachableWorkspaceSelectors = [
+  "coding-terminal",
+  "coding-terminal-history",
+  "coding-terminal-overview",
+  "coding-terminal-empty",
+  "coding-terminal-panels",
+  "coding-terminal-panel",
+  "coding-terminal-history-copy",
+  "coding-terminal-history-meta",
+  "coding-terminal-command",
+  "coding-terminal-output",
+  "coding-terminal-output-meta",
+  "coding-terminal-output-summary",
+  "coding-terminal-context-button",
+  "coding-terminal-run-status",
+  "coding-command-presets",
+  "coding-command-composer",
+  "coding-command-notice",
+  "coding-stop-command",
+  "coding-worktree-list",
+  "coding-worktrees",
+  "coding-worktree-composer",
+  "coding-worktree-notice",
+  "coding-worktree-dot",
+  "coding-worktree-name",
+  "coding-worktree-head",
+  "coding-readonly-status",
+  "review-repository-ribbon",
+  "review-repository-identity",
+  "review-repository-pr",
+  "review-repository-sync",
+  "review-repository-mark",
+  "review-check-summary",
+  "review-comment-thread",
+] as const;
+
+const hasExactClassSelector = (selector: string) =>
+  new RegExp(`\\.${selector}(?![-\\w])`, "u");
 
 describe("global CSS selector reachability", () => {
   it("does not retain selectors with no current renderer contract", () => {
@@ -74,6 +138,42 @@ describe("global CSS selector reachability", () => {
       expect(globalCss).not.toMatch(
         new RegExp(`\\.${selector}(?![-\\w])`, "u"),
       );
+    }
+  });
+
+  it("removes confirmed dead coding and review workspace selectors exactly", () => {
+    const workspaceCss = `${codingWorkspaceCss}\n${reviewCss}`;
+    for (const selector of unreachableWorkspaceSelectors) {
+      expect(workspaceCss).not.toMatch(hasExactClassSelector(selector));
+    }
+    expect(codingWorkspaceCss).not.toContain("coding-terminal-pulse");
+  });
+
+  it("keeps live coding, review, and interactive terminal contracts", () => {
+    for (const selector of [
+      "coding-action-notice",
+      "coding-commit-list",
+      "coding-worktree-field",
+      "coding-worktree-input",
+    ]) {
+      expect(codingWorkspaceCss).toMatch(hasExactClassSelector(selector));
+    }
+
+    for (const selector of [
+      "review-branch-record",
+      "review-branch-events",
+      "review-ci-hero",
+      "review-ci-checks",
+    ]) {
+      expect(reviewCss).toMatch(hasExactClassSelector(selector));
+    }
+
+    for (const selector of [
+      "interactive-terminal",
+      "interactive-terminal-output",
+      "interactive-terminal-footer",
+    ]) {
+      expect(interactiveTerminalCss).toMatch(hasExactClassSelector(selector));
     }
   });
 

@@ -11,12 +11,6 @@ const browserCss = readFileSync(
 );
 
 describe("workspace responsive layout contracts", () => {
-  it("keeps the active terminal indicator visible without motion when requested", () => {
-    expect(codingWorkspaceCss).toMatch(
-      /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.coding-terminal-output\.running \.coding-terminal-run-status > i\s*\{[^}]*animation:\s*none;/u,
-    );
-  });
-
   it("uses compact, content-led coding panes below 760px instead of a fixed scaffold", () => {
     expect(codingWorkspaceCss).not.toContain("min-height: 1080px");
     expect(codingWorkspaceCss).not.toContain("min-height: 300px");

@@ -55,115 +55,6 @@
   font-size: 13px;
 }
 
-.review-repository-ribbon {
-  display: grid;
-  min-height: 57px;
-  flex: 0 0 auto;
-  grid-template-columns: minmax(190px, 1.15fr) auto minmax(220px, 1fr) auto;
-  align-items: center;
-  gap: 18px;
-  padding: 8px 12px;
-  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  box-shadow: inset 2px 0 var(--accent);
-}
-
-.review-repository-ribbon.degraded {
-  box-shadow: inset 2px 0 var(--warn);
-}
-
-.review-repository-identity,
-.review-repository-pr,
-.review-repository-sync,
-.review-check-summary {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 10px;
-}
-
-.review-repository-identity > span:last-child,
-.review-repository-pr > span {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.review-repository-identity strong,
-.review-repository-pr strong {
-  overflow: hidden;
-  color: var(--text);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.review-repository-identity small,
-.review-repository-pr small {
-  overflow: hidden;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.review-repository-mark {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 auto;
-  place-items: center;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-border);
-  border-radius: var(--radius-xs);
-  font-size: 15px;
-}
-
-.review-repository-sync,
-.review-check-summary {
-  padding-left: 16px;
-  border-left: 1px solid var(--border);
-}
-
-.review-repository-sync span,
-.review-check-summary span {
-  display: grid;
-  gap: 1px;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 8px;
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.review-repository-sync strong,
-.review-check-summary strong {
-  color: var(--text-soft);
-  font-size: 11px;
-}
-
-.review-check-summary .good strong {
-  color: var(--good);
-}
-
-.review-check-summary .warn strong {
-  color: var(--warn);
-}
-
-.review-check-summary .bad strong {
-  color: var(--bad);
-}
-
-.review-repository-pr {
-  justify-content: space-between;
-  padding-left: 16px;
-  border-left: 1px solid var(--border);
-}
-
-.review-repository-pr a,
 .review-ci-hero a {
   flex: 0 0 auto;
   color: var(--accent);
@@ -174,7 +65,6 @@
   text-transform: uppercase;
 }
 
-.review-repository-pr a:hover,
 .review-ci-hero a:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -1102,14 +992,6 @@
 }
 
 @media (max-width: 940px) {
-  .review-repository-ribbon {
-    grid-template-columns: minmax(190px, 1fr) auto minmax(190px, 1fr);
-  }
-
-  .review-check-summary {
-    display: none;
-  }
-
   .review-workspace {
     grid-template-columns: minmax(270px, 0.42fr) minmax(360px, 1fr);
   }
@@ -1146,15 +1028,6 @@
   .review-branch-evidence {
     border-right: 0;
     border-bottom: 1px solid var(--border);
-  }
-
-  .review-repository-ribbon {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .review-repository-pr,
-  .review-check-summary {
-    display: none;
   }
 
   .review-rail {
@@ -1837,7 +1710,6 @@
 .review-ci-hero,
 .review-decision,
 .review-ci-checks,
-.review-comment-thread,
 .review-command {
   border-radius: 4px;
 }

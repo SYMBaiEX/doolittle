@@ -50,10 +50,6 @@
   min-height: 56px;
 }
 
-:root[data-density="compact"] .review-repository-ribbon {
-  min-height: 48px;
-}
-
 :root[data-density="compact"] .browser-page {
   gap: 7px;
   padding: 9px 11px 11px;
