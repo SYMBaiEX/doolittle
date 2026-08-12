@@ -1502,6 +1502,19 @@ th {
   font-size: 10px;
 }
 
+.empty-block--compact {
+  min-height: 72px;
+  padding: 11px 14px;
+}
+
+.empty-block--compact .empty-glyph {
+  display: none;
+}
+
+.empty-block--compact h3 {
+  margin-top: 0;
+}
+
 .raw-data-disclosure > summary {
   min-height: 34px;
   padding: 7px 9px;

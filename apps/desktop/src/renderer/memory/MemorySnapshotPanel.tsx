@@ -105,7 +105,7 @@ export function MemorySnapshotPanel({
             ))}
           </ul>
         ) : (
-          <EmptyBlock title="No entries">
+          <EmptyBlock density="compact" title="No entries">
             No memory entries were found.
           </EmptyBlock>
         )}
@@ -126,7 +126,9 @@ export function MemorySnapshotPanel({
             {formatBoundedPreview(snapshot, SNAPSHOT_CHARACTER_LIMIT)}
           </pre>
         ) : (
-          <EmptyBlock title="No snapshot">Snapshot is empty.</EmptyBlock>
+          <EmptyBlock density="compact" title="No snapshot">
+            Snapshot is empty.
+          </EmptyBlock>
         )}
       </section>
     </div>

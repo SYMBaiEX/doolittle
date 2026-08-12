@@ -136,6 +136,22 @@ describe("operational route density", () => {
     );
   });
 
+  it("uses compact empty states for zero-data inventory panes", () => {
+    expect(read("./analytics/AnalyticsPage.tsx")).toContain(
+      '<EmptyBlock density="compact" title="No activity yet">',
+    );
+    expect(read("./automations/AutomationWorkspace.tsx")).toContain(
+      '<EmptyBlock density="compact" title="No automations yet">',
+    );
+    const memory = read("./memory/MemorySnapshotPanel.tsx");
+    expect(memory).toContain(
+      '<EmptyBlock density="compact" title="No entries">',
+    );
+    expect(memory).toContain(
+      '<EmptyBlock density="compact" title="No snapshot">',
+    );
+  });
+
   it("loads desktop lifecycle state only on the matching settings category", () => {
     const settings = read("./SettingsPage.tsx");
 

@@ -28,7 +28,6 @@ import {
   Badge,
   compactNumber,
   displayTimestamp,
-  EmptyBlock,
   ErrorBlock,
   LoadingBlock,
   Notice,
@@ -94,6 +93,13 @@ export function DashboardPage({
     () => normalizeTasks(asArray(tasks.data?.tasks)),
     [tasks.data?.tasks],
   );
+  const executionHasContent =
+    approvalCards.length > 0 ||
+    taskCards.length > 0 ||
+    approvals.loading ||
+    tasks.loading ||
+    Boolean(approvals.error) ||
+    Boolean(tasks.error);
   const repo = useMemo(
     () => summarizeRepoStatus(asString(repoStatus.data?.status)),
     [repoStatus.data?.status],
@@ -345,11 +351,16 @@ export function DashboardPage({
       </div>
 
       <div className="dashboard-mini-grid">
-        <section className="content-card">
+        <section
+          className={`content-card${sessionCards.length ? "" : " dashboard-quiet-card"}`}
+        >
           <div className="card-heading">
             <div>
               <span className="eyebrow">Recent conversations</span>
-              <h2>Sessions</h2>
+              <h2>{sessionCards.length ? "Sessions" : "No saved sessions"}</h2>
+              {sessionCards.length ? null : (
+                <small>Start a conversation to build local history.</small>
+              )}
             </div>
             <button
               className="text-button"
@@ -380,18 +391,21 @@ export function DashboardPage({
                 </button>
               ))}
             </div>
-          ) : (
-            <EmptyBlock title="No saved sessions yet">
-              Start a conversation to build local history.
-            </EmptyBlock>
-          )}
+          ) : null}
         </section>
 
-        <section className="content-card">
+        <section
+          className={`content-card${executionHasContent ? "" : " dashboard-quiet-card"}`}
+        >
           <div className="card-heading">
             <div>
               <span className="eyebrow">Execution queue</span>
-              <h2>Approvals and tasks</h2>
+              <h2>
+                {executionHasContent ? "Approvals and tasks" : "Queue clear"}
+              </h2>
+              {executionHasContent ? null : (
+                <small>No approvals or delegated tasks need attention.</small>
+              )}
             </div>
             <div className="page-actions">
               <button
@@ -412,45 +426,46 @@ export function DashboardPage({
               </button>
             </div>
           </div>
-          <div className="stack-list">
-            {approvalCards.slice(0, 3).map((approval) => (
-              <div className="status-row" key={approval.id}>
-                <div>
-                  <strong>{approval.command}</strong>
-                  <small>
-                    {approval.reason} · expires{" "}
-                    {displayTimestamp(approval.expiresAt)}
-                  </small>
-                </div>
-                <Badge tone="warn">pending</Badge>
+          {executionHasContent ? (
+            <>
+              <div className="stack-list">
+                {approvalCards.slice(0, 3).map((approval) => (
+                  <div className="status-row" key={approval.id}>
+                    <div>
+                      <strong>{approval.command}</strong>
+                      <small>
+                        {approval.reason} · expires{" "}
+                        {displayTimestamp(approval.expiresAt)}
+                      </small>
+                    </div>
+                    <Badge tone="warn">pending</Badge>
+                  </div>
+                ))}
+                {taskCards.slice(0, 4).map((task) => (
+                  <div className="status-row" key={task.id}>
+                    <div>
+                      <strong>{task.title}</strong>
+                      <small>
+                        {task.profile} · {task.priority} · {task.executionMode}{" "}
+                        · {displayTimestamp(task.updatedAt)}
+                      </small>
+                    </div>
+                    <Badge
+                      tone={task.status === "running" ? "good" : "neutral"}
+                    >
+                      {task.status}
+                    </Badge>
+                  </div>
+                ))}
               </div>
-            ))}
-            {taskCards.slice(0, 4).map((task) => (
-              <div className="status-row" key={task.id}>
-                <div>
-                  <strong>{task.title}</strong>
-                  <small>
-                    {task.profile} · {task.priority} · {task.executionMode} ·{" "}
-                    {displayTimestamp(task.updatedAt)}
-                  </small>
-                </div>
-                <Badge tone={task.status === "running" ? "good" : "neutral"}>
-                  {task.status}
-                </Badge>
-              </div>
-            ))}
-          </div>
-          {approvalCards.length === 0 && taskCards.length === 0 ? (
-            <EmptyBlock title="No active execution pressure">
-              There are no pending approvals or running delegated tasks.
-            </EmptyBlock>
-          ) : null}
-          {approvals.loading || tasks.loading ? <LoadingBlock /> : null}
-          {approvals.error ? (
-            <ErrorBlock error={approvals.error} retry={approvals.reload} />
-          ) : null}
-          {tasks.error ? (
-            <ErrorBlock error={tasks.error} retry={tasks.reload} />
+              {approvals.loading || tasks.loading ? <LoadingBlock /> : null}
+              {approvals.error ? (
+                <ErrorBlock error={approvals.error} retry={approvals.reload} />
+              ) : null}
+              {tasks.error ? (
+                <ErrorBlock error={tasks.error} retry={tasks.reload} />
+              ) : null}
+            </>
           ) : null}
         </section>
       </div>

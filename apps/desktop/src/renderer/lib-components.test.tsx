@@ -1,6 +1,23 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Notice, RawDataDisclosure } from "./lib";
+import { EmptyBlock, Notice, RawDataDisclosure } from "./lib";
+
+describe("EmptyBlock density", () => {
+  it("offers a compact inventory state without changing the default treatment", () => {
+    const compact = renderToStaticMarkup(
+      <EmptyBlock density="compact" title="No activity yet">
+        Activity will appear here.
+      </EmptyBlock>,
+    );
+    const defaultState = renderToStaticMarkup(
+      <EmptyBlock title="Choose a file">Select a workspace file.</EmptyBlock>,
+    );
+
+    expect(compact).toContain("empty-block--compact");
+    expect(defaultState).toMatch(/class="[^"]*\bempty-block\b[^"]*"/);
+    expect(defaultState).not.toContain("empty-block--compact");
+  });
+});
 
 describe("Notice announcements", () => {
   it("announces normal action feedback politely and errors assertively", () => {

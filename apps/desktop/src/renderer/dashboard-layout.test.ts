@@ -52,5 +52,10 @@ describe("dashboard operator metric layout", () => {
     expect(dashboardCss).toMatch(
       /\.dashboard-mini-grid\s*{[^}]*align-items:\s*start;/s,
     );
+    expect(dashboardPage).toContain('"Sessions" : "No saved sessions"');
+    expect(dashboardPage).toContain('"Approvals and tasks" : "Queue clear"');
+    expect(dashboardCss).toMatch(
+      /\.dashboard-quiet-card\s*{[^}]*min-height:\s*72px;[^}]*display:\s*flex;/s,
+    );
   });
 });

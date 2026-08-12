@@ -1201,6 +1201,12 @@ td {
   overflow: auto;
 }
 
+.analytics-empty-cell {
+  height: 58px;
+  color: var(--muted);
+  text-align: center;
+}
+
 @media (max-width: 1120px) {
   .analytics-grid {
     grid-template-columns: 1fr;

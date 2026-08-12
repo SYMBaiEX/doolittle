@@ -283,7 +283,7 @@ export function AutomationWorkspace({
             ))}
           </div>
         ) : (
-          <EmptyBlock title="No automations yet">
+          <EmptyBlock density="compact" title="No automations yet">
             Build a trigger, condition, and action to give Doolittle reliable
             background work.
           </EmptyBlock>

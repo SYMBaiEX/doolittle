@@ -134,7 +134,7 @@ export function AnalyticsPage({ active }: { active: boolean }) {
                   })}
                 </div>
               ) : (
-                <EmptyBlock title="No activity yet">
+                <EmptyBlock density="compact" title="No activity yet">
                   Start chatting with Doolittle and activity will accumulate
                   here.
                 </EmptyBlock>
@@ -158,6 +158,13 @@ export function AnalyticsPage({ active }: { active: boolean }) {
                     </tr>
                   </thead>
                   <tbody>
+                    {recentSessions.length === 0 ? (
+                      <tr>
+                        <td className="analytics-empty-cell" colSpan={4}>
+                          No session usage yet
+                        </td>
+                      </tr>
+                    ) : null}
                     {recentSessions.map((entry, index) => {
                       const usage = asRecord(entry.usage);
                       return (

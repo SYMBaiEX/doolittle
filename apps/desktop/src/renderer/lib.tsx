@@ -237,17 +237,19 @@ export function EmptyBlock({
   title,
   children,
   actions,
+  density = "default",
 }: {
   title: string;
   children: ReactNode;
   actions?: ReactNode;
+  density?: "default" | "compact";
 }) {
   return (
     <PagePanel.Empty
       action={
         actions ? <div className="empty-actions">{actions}</div> : undefined
       }
-      className="empty-block"
+      className={`empty-block${density === "compact" ? " empty-block--compact" : ""}`}
       title={title}
       variant="inset"
     >
