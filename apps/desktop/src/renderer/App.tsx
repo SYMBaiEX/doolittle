@@ -29,6 +29,7 @@ import { DesktopMobileMenuButton } from "./app-shell/DesktopMobileMenuButton";
 import {
   DesktopRouteContent,
   preloadDesktopRoute,
+  warmDesktopRoute,
 } from "./app-shell/DesktopRouteContent";
 import { DesktopRouteLoadingFallback } from "./app-shell/DesktopRouteLoadingFallback";
 import { DesktopRuntimeNotices } from "./app-shell/DesktopRuntimeNotices";
@@ -286,9 +287,9 @@ export function App() {
     return () => window.clearTimeout(timer);
   }, [chatTerminalMounted, chatTerminalOpen]);
 
-  const setView = useCallback(
+  const applyViewTransition = useCallback(
     (next: View) => {
-      preloadDesktopRoute(next);
+      void warmDesktopRoute(next).catch(() => undefined);
       setViewState(next);
       setMobileSidebarOpen(false);
       if (next !== "chat") closeChatTerminal();
@@ -302,9 +303,16 @@ export function App() {
           return new Set([...current, section.id]);
         });
       }
-      window.location.hash = `/${next}`;
     },
     [closeChatTerminal, isMobileSidebarMode, setMobileSidebarOpen],
+  );
+
+  const setView = useCallback(
+    (next: View) => {
+      applyViewTransition(next);
+      window.location.hash = `/${next}`;
+    },
+    [applyViewTransition],
   );
 
   const openSidebarForMobile = useCallback(() => {
@@ -1144,14 +1152,13 @@ export function App() {
 
   useEffect(() => {
     const onHashChange = () => {
-      const nextView = viewFromHash();
-      preloadDesktopRoute(nextView);
-      setViewState(nextView);
+      applyViewTransition(viewFromHash());
     };
     window.addEventListener("hashchange", onHashChange);
     if (!window.location.hash) window.location.hash = "/chat";
+    else onHashChange();
     return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
+  }, [applyViewTransition]);
 
   useEffect(() => {
     const onChatTerminalKeyDown = (event: globalThis.KeyboardEvent) => {

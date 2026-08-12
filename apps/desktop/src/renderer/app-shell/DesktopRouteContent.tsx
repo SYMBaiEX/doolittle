@@ -261,8 +261,13 @@ export async function warmDesktopRoute(view: View): Promise<void> {
   ]);
 }
 
+/**
+ * Preload only the route module for exploratory focus and hover intent.
+ * Runtime data is warmed once navigation is committed, avoiding a burst of
+ * large API reads while the pointer moves through the navigation.
+ */
 export function preloadDesktopRoute(view: View): void {
-  void warmDesktopRoute(view).catch(() => undefined);
+  void DESKTOP_ROUTE_PRELOADERS[view]().catch(() => undefined);
 }
 
 export interface DesktopRouteNavigation {

@@ -1,9 +1,15 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { views } from "../desktop-navigation";
 import {
   DESKTOP_ROUTE_PRELOADERS,
   DESKTOP_ROUTE_RESOURCE_PREFETCHES,
 } from "./DesktopRouteContent";
+
+const routeContentSource = readFileSync(
+  new URL("./DesktopRouteContent.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("desktop route preloaders", () => {
   test("covers every application route", () => {
@@ -39,5 +45,14 @@ describe("desktop route preloaders", () => {
         expect(Array.isArray(resource.dependencies)).toBe(true);
       }
     }
+  });
+
+  test("keeps exploratory route preloads free of runtime data requests", () => {
+    expect(routeContentSource).toContain(
+      "void DESKTOP_ROUTE_PRELOADERS[view]().catch(() => undefined)",
+    );
+    expect(routeContentSource).not.toMatch(
+      /function preloadDesktopRoute[\s\S]*?warmDesktopRoute\(view\)/u,
+    );
   });
 });
