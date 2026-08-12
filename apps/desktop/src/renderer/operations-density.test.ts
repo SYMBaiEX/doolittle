@@ -43,7 +43,13 @@ describe("operational route density", () => {
 
   it("keeps secondary operational diagnostics closed until requested", () => {
     expect(read("./LogsPage.tsx")).toContain(
-      '<details className="operations-trace-details">',
+      'className="operations-trace-details"',
+    );
+    expect(read("./LogsPage.tsx")).toContain(
+      'active && historyOpen ? "/deliveries" : null',
+    );
+    expect(read("./LogsPage.tsx")).toContain(
+      'active && historyOpen ? "/terminal/history" : null',
     );
     expect(read("./gateway/GatewayTimelinePanel.tsx")).toContain(
       '<details className="gateway-entry-details">',
