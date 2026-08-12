@@ -230,12 +230,13 @@
 
 .orchestration-queue-starter {
   display: flex;
-  min-height: 64px;
+  width: min(calc(100% - 24px), 920px);
+  min-height: 88px;
   flex: 0 0 auto;
   align-items: center;
   gap: 14px;
-  margin: 10px 12px;
-  padding: 11px 14px;
+  margin: clamp(12px, 6vh, 72px) auto 12px;
+  padding: 16px 18px;
   background: color-mix(in srgb, var(--surface) 90%, var(--bg));
   border: 1px solid var(--border);
   border-left: 2px solid var(--orchestration-accent);

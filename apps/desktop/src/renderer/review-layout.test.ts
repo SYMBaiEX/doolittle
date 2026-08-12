@@ -7,12 +7,12 @@ const reviewCss = readFileSync(
 );
 
 describe("review narrow viewport layout contract", () => {
-  it("keeps the empty embedded review state full-width and intentional", () => {
+  it("keeps the empty embedded review state focused and fluid", () => {
     expect(reviewCss).toMatch(
-      /\.review-work-overview\.is-empty\s*{[^}]*width:\s*100%;[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,
+      /\.review-work-overview\.is-empty\s*{[^}]*width:\s*min\(100%, 920px\);[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,
     );
-    expect(reviewCss).not.toMatch(
-      /\.review-work-overview\.is-empty\s*{[^}]*760px/s,
+    expect(reviewCss).toMatch(
+      /\.review-work-overview\.is-empty\s*{[^}]*align-self:\s*center;[^}]*margin-top:\s*clamp\(12px, 6vh, 72px\);/s,
     );
   });
 

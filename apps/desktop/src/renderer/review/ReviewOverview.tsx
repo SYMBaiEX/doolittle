@@ -83,7 +83,7 @@ export function ReviewOverview({
       <div className="review-work-outcome">
         <i aria-hidden="true">{workState.icon}</i>
         <span>
-          <small>Current workset</small>
+          <small>{empty ? "Review ready" : "Current workset"}</small>
           <strong>{workState.title}</strong>
           <p>{workState.detail}</p>
         </span>

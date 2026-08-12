@@ -1654,13 +1654,19 @@
 }
 
 .review-work-overview.is-empty {
-  width: 100%;
-  min-height: 54px;
+  width: min(100%, 920px);
+  min-height: 88px;
+  align-self: center;
   grid-template-columns: minmax(0, 1fr);
+  margin-top: clamp(12px, 6vh, 72px);
+  background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--border-strong);
+  border-radius: var(--radius-sm);
 }
 
 .review-work-overview.is-empty .review-work-outcome {
-  padding-block: 9px;
+  padding: 16px 18px;
 }
 
 .review-evidence-drawer {

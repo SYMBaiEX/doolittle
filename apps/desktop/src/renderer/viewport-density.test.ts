@@ -41,4 +41,19 @@ describe("wide route viewport density", () => {
       /@media \(max-width: 700px\)[\s\S]*\.profile-picker\s*{[^}]*grid-template-columns:\s*1fr;/s,
     );
   });
+
+  it("focuses zero-work orchestration and review states without full-width strips", () => {
+    const orchestration = source("./OrchestrationPage.tsx");
+    const orchestrationCss = source("./orchestration.css");
+    const reviewCss = source("./review.css");
+
+    expect(orchestration).toContain("shouldShowOrchestrationSummary");
+    expect(orchestration).toContain("tasks.length > 0 ? (");
+    expect(orchestrationCss).toMatch(
+      /\.orchestration-queue-starter\s*{[^}]*width:\s*min\(calc\(100% - 24px\), 920px\);[^}]*margin:\s*clamp\(12px, 6vh, 72px\) auto 12px;/s,
+    );
+    expect(reviewCss).toMatch(
+      /\.review-work-overview\.is-empty\s*{[^}]*width:\s*min\(100%, 920px\);[^}]*align-self:\s*center;[^}]*margin-top:\s*clamp\(12px, 6vh, 72px\);/s,
+    );
+  });
 });
