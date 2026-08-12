@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   defaultBaseUrlForProvider,
   defaultModelForProvider,
+  linkedProviderAccess,
   providerReadiness,
 } from "./model-routing";
 
@@ -40,6 +41,28 @@ describe("model-routing helpers", () => {
       detail: "Login required",
       ready: false,
       tone: "warn",
+    });
+  });
+
+  it("distinguishes native authentication from a usable CLI fallback", () => {
+    expect(
+      linkedProviderAccess({
+        detail: "OAuth expired",
+        fallbackReady: true,
+        nativeReady: false,
+        reusable: false,
+      }),
+    ).toEqual({
+      label: "CLI fallback",
+      mode: "fallback",
+      tone: "neutral",
+      usable: true,
+    });
+    expect(linkedProviderAccess({ detail: "Login required" })).toEqual({
+      label: "Setup needed",
+      mode: "unavailable",
+      tone: "warn",
+      usable: false,
     });
   });
 });

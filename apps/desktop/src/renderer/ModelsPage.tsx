@@ -18,6 +18,7 @@ import {
   titleCase,
   useApiResource,
 } from "./lib";
+import { linkedProviderAccess } from "./model-routing";
 import "./agent-pages.css";
 
 interface SettingsResponse {
@@ -70,14 +71,6 @@ const accountProviders = [
   },
 ] as const;
 
-function providerIsReady(status: Record<string, unknown>): boolean {
-  return (
-    Boolean(status.nativeReady) ||
-    Boolean(status.fallbackReady) ||
-    Boolean(status.reusable)
-  );
-}
-
 export function ModelsPage({
   active,
   runtime,
@@ -123,8 +116,11 @@ export function ModelsPage({
     [selectedModelId, selectedProvider?.models],
   );
   const reasoningOptions = selectedModel?.reasoning?.options ?? [];
-  const readyProviderCount = accountProviders.filter((provider) =>
-    providerIsReady(asRecord(accounts.data?.accounts?.[provider.snapshot])),
+  const usableProviderCount = accountProviders.filter(
+    (provider) =>
+      linkedProviderAccess(
+        asRecord(accounts.data?.accounts?.[provider.snapshot]),
+      ).usable,
   ).length;
   const registeredCapabilityCount = (models.data?.capabilities ?? []).filter(
     (capability) => capability.handlerRegistered,
@@ -392,10 +388,10 @@ export function ModelsPage({
               <summary>
                 <span className="model-diagnostic__copy">
                   <strong>Provider readiness</strong>
-                  <small>Linked local runtimes</small>
+                  <small>Native accounts and local fallbacks</small>
                 </span>
-                <Badge tone={readyProviderCount ? "good" : "warn"}>
-                  {readyProviderCount}/{accountProviders.length} ready
+                <Badge tone={usableProviderCount ? "good" : "warn"}>
+                  {usableProviderCount}/{accountProviders.length} usable
                 </Badge>
               </summary>
               <div className="model-diagnostic__body">
@@ -409,7 +405,9 @@ export function ModelsPage({
                       const status = asRecord(
                         accounts.data?.accounts?.[provider.snapshot],
                       );
-                      const ready = providerIsReady(status);
+                      const access = linkedProviderAccess(status);
+                      const selected =
+                        accounts.data?.activeProvider === provider.key;
                       return (
                         <div className="status-row" key={provider.key}>
                           <div>
@@ -420,18 +418,16 @@ export function ModelsPage({
                           </div>
                           <Badge
                             tone={
-                              accounts.data?.activeProvider === provider.key
-                                ? "good"
-                                : ready
-                                  ? "neutral"
-                                  : "warn"
+                              selected && access.usable ? "good" : access.tone
                             }
                           >
-                            {accounts.data?.activeProvider === provider.key
-                              ? "Active"
-                              : ready
-                                ? "Ready"
-                                : "Setup needed"}
+                            {selected
+                              ? access.mode === "fallback"
+                                ? "Active · fallback"
+                                : access.usable
+                                  ? "Active"
+                                  : "Selected · blocked"
+                              : access.label}
                           </Badge>
                         </div>
                       );

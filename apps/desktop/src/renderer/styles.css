@@ -1233,8 +1233,7 @@ td {
 
 .settings-nav > button {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: block;
   align-items: center;
   gap: 10px;
   min-height: 47px;
@@ -1281,19 +1280,6 @@ td {
 .settings-nav button small {
   color: var(--muted);
   font-size: var(--text-meta);
-}
-
-.settings-nav > button > i {
-  min-width: 22px;
-  padding: 3px 5px;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-style: normal;
-  text-align: center;
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
-  border-radius: 10px;
 }
 
 .settings-nav-note {

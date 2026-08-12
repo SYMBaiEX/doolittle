@@ -132,19 +132,16 @@ export function SettingsPage({ active }: { active: boolean }) {
       id: "providers",
       label: "Providers",
       description: "Account sign in",
-      count: 2,
     },
     {
       id: "appearance",
       label: "Appearance",
       description: "Theme and display",
-      count: fields.filter((field) => field.category === "ui").length,
     },
     {
       id: "desktop",
       label: "Desktop",
       description: "Updates and lifecycle",
-      count: 2,
     },
     ...rawCategories
       .filter(
@@ -159,13 +156,11 @@ export function SettingsPage({ active }: { active: boolean }) {
             : value === "execution"
               ? "Permissions and tools"
               : "Runtime preferences",
-        count: fields.filter((field) => field.category === value).length,
       })),
     {
       id: "advanced",
       label: "Advanced",
       description: "Every runtime field",
-      count: fields.length,
     },
   ];
   const fieldCategory =
@@ -255,12 +250,13 @@ export function SettingsPage({ active }: { active: boolean }) {
                   setQuery("");
                 }}
                 title={entry.description}
+                aria-current={category === entry.id ? "page" : undefined}
                 type="button"
               >
                 <span>
                   <strong>{entry.label}</strong>
+                  <small>{entry.description}</small>
                 </span>
-                <i>{entry.count}</i>
               </button>
             ))}
           </aside>

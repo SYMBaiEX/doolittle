@@ -54,6 +54,10 @@ describe("settings resource policy", () => {
     expect(settingsPageSource).not.toContain("settings-nav-title");
     expect(settingsPageSource).not.toContain("settings-nav-note");
     expect(settingsPageSource).toContain("title={entry.description}");
+    expect(settingsPageSource).toContain(
+      'aria-current={category === entry.id ? "page" : undefined}',
+    );
+    expect(settingsPageSource).not.toContain("<i>{entry.count}</i>");
     expect(settingsPageSource).not.toContain(
       "Accounts, appearance, models, execution, and local desktop behavior",
     );

@@ -36,6 +36,13 @@ export interface ProviderReadinessSummary {
   tone: "bad" | "good" | "neutral" | "warn";
 }
 
+export interface LinkedProviderAccessSummary {
+  label: "CLI fallback" | "Ready" | "Setup needed";
+  mode: "fallback" | "native" | "unavailable";
+  tone: "neutral" | "warn";
+  usable: boolean;
+}
+
 export const ROUTE_PROVIDER_OPTIONS: readonly RouteProviderOption[] = [
   {
     id: "ollama",
@@ -177,5 +184,36 @@ export function providerReadiness(
       (ready
         ? "Ready to route new turns."
         : "Account setup is still required."),
+  };
+}
+
+/**
+ * Describe how a linked provider is usable without presenting a local CLI
+ * fallback as healthy native authentication.
+ */
+export function linkedProviderAccess(
+  status: LinkedProviderStatus | null | undefined,
+): LinkedProviderAccessSummary {
+  if (status?.nativeReady || status?.reusable) {
+    return {
+      label: "Ready",
+      mode: "native",
+      tone: "neutral",
+      usable: true,
+    };
+  }
+  if (status?.fallbackReady) {
+    return {
+      label: "CLI fallback",
+      mode: "fallback",
+      tone: "neutral",
+      usable: true,
+    };
+  }
+  return {
+    label: "Setup needed",
+    mode: "unavailable",
+    tone: "warn",
+    usable: false,
   };
 }
