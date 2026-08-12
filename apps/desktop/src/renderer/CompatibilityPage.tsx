@@ -1,8 +1,11 @@
 import {
+  type CompactCatalogEntry,
+  CompactCatalogList,
+} from "./components/CompactCatalogList";
+import {
   asArray,
   asRecord,
   asString,
-  Badge,
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
@@ -13,12 +16,37 @@ import {
   useApiResource,
 } from "./lib";
 
+export function compatibilityCatalogEntries(
+  value: unknown,
+): CompactCatalogEntry[] {
+  return asArray(asRecord(value).checks).map((rawCheck, index) => {
+    const check = asRecord(rawCheck);
+    const status = asString(check.status, "unknown");
+    const normalizedStatus = status.toLowerCase();
+    return {
+      id: asString(check.id, `${asString(check.name, "check")}-${index}`),
+      eyebrow: "Runtime check",
+      title: asString(check.name, "Check"),
+      description: asString(
+        check.message,
+        asString(check.detail, "No details"),
+      ),
+      status: titleCase(status),
+      tone: ["pass", "ready", "ok"].includes(normalizedStatus)
+        ? "good"
+        : normalizedStatus === "warn"
+          ? "warn"
+          : "bad",
+    };
+  });
+}
+
 export function CompatibilityPage({ active }: { active: boolean }) {
   const compatibility = useApiResource<UnknownRecord>(
     active ? "/runtime/compatibility" : null,
     [active],
   );
-  const checks = asArray(asRecord(compatibility.data).checks).map(asRecord);
+  const checks = compatibilityCatalogEntries(compatibility.data);
 
   return (
     <div className="page">
@@ -45,44 +73,11 @@ export function CompatibilityPage({ active }: { active: boolean }) {
       ) : compatibility.error ? (
         <ErrorBlock error={compatibility.error} retry={compatibility.reload} />
       ) : checks.length ? (
-        <section className="content-card">
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">Checks</span>
-              <h2>Runtime compatibility</h2>
-            </div>
-            <Badge>{checks.length}</Badge>
-          </div>
-          <div className="stack-list">
-            {checks.map((check, index) => {
-              const status = asString(check.status, "unknown");
-              return (
-                <div className="status-row" key={String(index)}>
-                  <div>
-                    <strong>{asString(check.name, "Check")}</strong>
-                    <small>
-                      {asString(
-                        check.message,
-                        asString(check.detail, "No details"),
-                      )}
-                    </small>
-                  </div>
-                  <Badge
-                    tone={
-                      ["pass", "ready", "ok"].includes(status.toLowerCase())
-                        ? "good"
-                        : status.toLowerCase() === "warn"
-                          ? "warn"
-                          : "bad"
-                    }
-                  >
-                    {titleCase(status)}
-                  </Badge>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+        <CompactCatalogList
+          ariaLabel="Runtime compatibility checks"
+          entries={checks}
+          resetKey={checks.map((check) => check.id).join(":")}
+        />
       ) : (
         <EmptyBlock
           title="No compatibility checks found"
