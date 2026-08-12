@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildPluginCatalogEntries } from "./plugin-catalog-model";
+import {
+  buildPluginCatalogEntries,
+  pluginDisplayTitle,
+} from "./plugin-catalog-model";
 
 describe("buildPluginCatalogEntries", () => {
   it("groups plugins while keeping the useful row facts visible", () => {
@@ -19,7 +22,7 @@ describe("buildPluginCatalogEntries", () => {
       {
         id: "openai-model",
         group: "Providers",
-        title: "Openai Model",
+        title: "OpenAI Model",
         description: "Adds OpenAI model support.",
         descriptionMode: "inline",
         status: undefined,
@@ -28,6 +31,16 @@ describe("buildPluginCatalogEntries", () => {
         meta: "Official · Stable",
       },
     ]);
+  });
+
+  it("removes the repeated group prefix and preserves product acronyms", () => {
+    expect(pluginDisplayTitle("providers-sql", "providers")).toBe("SQL");
+    expect(pluginDisplayTitle("providers-pdf", "providers")).toBe("PDF");
+    expect(pluginDisplayTitle("providers-elizacloud", "providers")).toBe(
+      "Eliza Cloud",
+    );
+    expect(pluginDisplayTitle("providers-openai", "providers")).toBe("OpenAI");
+    expect(pluginDisplayTitle("foundation-agent", "foundation")).toBe("Agent");
   });
 
   it("does not invent unknown metadata", () => {

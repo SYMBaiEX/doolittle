@@ -36,8 +36,9 @@ describe("PluginsPage density", () => {
 
   it("groups the catalog once and keeps plugin purpose visible", () => {
     expect(source).toContain("buildPluginCatalogEntries(filtered)");
+    expect(model).toContain("group: titleCase(category)");
     expect(model).toContain(
-      'group: titleCase(asString(entry.category, "plugin"))',
+      'title: pluginDisplayTitle(id || "unnamed-plugin", category)',
     );
     expect(model).toContain('descriptionMode: "inline"');
     expect(model).not.toContain("facts:");
