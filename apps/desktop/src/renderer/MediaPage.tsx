@@ -1,19 +1,12 @@
 import { type FormEvent, type KeyboardEvent, useRef, useState } from "react";
+import { MediaResult } from "./components/MediaResult";
 import {
   desktopRequest,
   errorMessage,
-  formatBoundedPreview,
   Notice,
   PageHeader,
   type UnknownRecord,
 } from "./lib";
-
-const BOUNDS = {
-  memorySnapshotChars: 1_400,
-  mediaResultChars: 2_400,
-  memoryPreviewItems: 5,
-  agentCardChars: 1_000,
-};
 
 interface AnalyzeResponse {
   analysis?: UnknownRecord;
@@ -199,30 +192,18 @@ function InspectAnalyzeTab({
           {inspectError ? <Notice tone="bad">{inspectError}</Notice> : null}
           {analyzeError ? <Notice tone="bad">{analyzeError}</Notice> : null}
           {inspectResult ? (
-            <div className="content-card media-result">
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">Inspect result</span>
-                  <h2>Metadata</h2>
-                </div>
-              </div>
-              <pre className="json-preview" aria-live="polite">
-                {formatBoundedPreview(inspectResult, BOUNDS.mediaResultChars)}
-              </pre>
-            </div>
+            <MediaResult
+              eyebrow="Inspect result"
+              result={inspectResult}
+              title="Metadata"
+            />
           ) : null}
           {analyzeResult ? (
-            <div className="content-card media-result">
-              <div className="card-heading">
-                <div>
-                  <span className="eyebrow">Analysis result</span>
-                  <h2>Model output</h2>
-                </div>
-              </div>
-              <pre className="json-preview" aria-live="polite">
-                {formatBoundedPreview(analyzeResult, BOUNDS.mediaResultChars)}
-              </pre>
-            </div>
+            <MediaResult
+              eyebrow="Analysis result"
+              result={analyzeResult}
+              title="Model output"
+            />
           ) : null}
         </div>
       ) : null}
@@ -354,17 +335,11 @@ function TranscribeTab({
 
       {error ? <Notice tone="bad">{error}</Notice> : null}
       {result ? (
-        <div className="content-card media-result">
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">Transcribe result</span>
-              <h2>Bounded output</h2>
-            </div>
-          </div>
-          <pre className="json-preview" aria-live="polite">
-            {formatBoundedPreview(result, BOUNDS.mediaResultChars)}
-          </pre>
-        </div>
+        <MediaResult
+          eyebrow="Transcribe result"
+          result={result}
+          title="Bounded output"
+        />
       ) : null}
     </section>
   );
@@ -506,17 +481,11 @@ function SpeechTab({
 
       {error ? <Notice tone="bad">{error}</Notice> : null}
       {result ? (
-        <div className="content-card media-result">
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">Speech result</span>
-              <h2>Bounded output</h2>
-            </div>
-          </div>
-          <pre className="json-preview" aria-live="polite">
-            {formatBoundedPreview(result, BOUNDS.mediaResultChars)}
-          </pre>
-        </div>
+        <MediaResult
+          eyebrow="Speech result"
+          result={result}
+          title="Bounded output"
+        />
       ) : null}
     </section>
   );
@@ -653,17 +622,11 @@ function ImageTab({
 
       {error ? <Notice tone="bad">{error}</Notice> : null}
       {result ? (
-        <div className="content-card media-result">
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">Image result</span>
-              <h2>Bounded output</h2>
-            </div>
-          </div>
-          <pre className="json-preview" aria-live="polite">
-            {formatBoundedPreview(result, BOUNDS.mediaResultChars)}
-          </pre>
-        </div>
+        <MediaResult
+          eyebrow="Image result"
+          result={result}
+          title="Bounded output"
+        />
       ) : null}
     </section>
   );
