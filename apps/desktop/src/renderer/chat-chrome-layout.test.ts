@@ -12,6 +12,10 @@ const chatPage = readFileSync(
   new URL("./ChatPage.tsx", import.meta.url),
   "utf8",
 );
+const chatHeader = readFileSync(
+  new URL("./chat/ChatHeaderChrome.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("chat chrome density contract", () => {
   it("does not retain unreachable legacy chat shell selectors", () => {
@@ -27,13 +31,13 @@ describe("chat chrome density contract", () => {
     );
     expect(chatPage).toContain("createPortal(");
     expect(chatPage).not.toContain('className="chat-header"');
-    expect(chatPage).toMatch(
+    expect(chatHeader).toMatch(
       /className="chat-session-meta"[\s\S]*?chat-meta-count[\s\S]*?chat-meta-workspace[\s\S]*?chat-meta-updated/,
     );
-    expect(chatPage).toMatch(
-      /className="chat-model-route"[\s\S]*?setRouteDialogOpen\(true\)/,
+    expect(chatHeader).toMatch(
+      /className="chat-model-route"[\s\S]*?onOpenRouteControls/,
     );
-    expect(chatPage).toMatch(
+    expect(chatHeader).toMatch(
       /chat-mobile-conversations-button[\s\S]*?History[\s\S]*?chat-workbench-toggle[\s\S]*?Workbench/,
     );
     expect(css).toMatch(

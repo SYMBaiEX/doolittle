@@ -21,6 +21,7 @@ import type {
   SessionSummary,
 } from "../shared/contracts";
 import { ChatComposer } from "./chat/ChatComposer";
+import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
 import { ChatTranscript } from "./chat/ChatTranscript";
 import {
   type BranchMode,
@@ -46,7 +47,7 @@ import {
   type PersistedQueuedMessage,
   saveConversationQueue,
 } from "./conversation-persistence";
-import { desktopRequest, displayTimestamp, errorMessage } from "./lib";
+import { desktopRequest, errorMessage } from "./lib";
 import {
   freezeMemoryMatchSnapshot,
   type MemoryMatchSnapshot,
@@ -889,139 +890,38 @@ export function ChatPage({
     >
       {chromeHost
         ? createPortal(
-            <div className="chat-header-content">
-              <div className="chat-header-mainline">
-                <div className="chat-header-title-wrap">
-                  <h2>{selectedSession?.title ?? "New conversation"}</h2>
-                </div>
-                <div className="chat-session-meta-wrap">
-                  <div className="chat-session-meta">
-                    {selectedSession?.parentSessionId ? (
-                      <span
-                        className="chat-session-meta-pill chat-meta-branch"
-                        title={`Forked from ${selectedSession.parentSessionId}`}
-                      >
-                        Branch
-                      </span>
-                    ) : null}
-                    <span className="chat-session-meta-pill chat-meta-count">
-                      {selectedMessageCount.toLocaleString()} messages
-                    </span>
-                    <button
-                      className="chat-session-meta-pill chat-meta-workspace"
-                      onClick={() => onOpenWorkspaceView("code")}
-                      title={
-                        workspacePath || "Open the current coding workspace"
-                      }
-                      type="button"
-                    >
-                      Code
-                    </button>
-                    <span className="chat-session-meta-pill chat-meta-updated">
-                      {selectedUpdatedAt
-                        ? `Updated ${displayTimestamp(selectedUpdatedAt)}`
-                        : "Not started"}
-                    </span>
-                  </div>
-                </div>
-                <div className="chat-header-top-actions">
-                  {selectedContextPercent >= 70 ? (
-                    <button
-                      aria-label={`${selectedContextLabel} context used. Prepare context compression.`}
-                      className={`chat-context-compact context-${selectedContextTone}`}
-                      onClick={() => {
-                        setDraft((current) =>
-                          current.trim() ? current : "/compress ",
-                        );
-                        requestAnimationFrame(() =>
-                          composerRef.current?.focus(),
-                        );
-                      }}
-                      title={`${selectedContextLabel} context used · Compress context`}
-                      type="button"
-                    >
-                      {selectedContextLabel}
-                    </button>
-                  ) : (
-                    <span
-                      className={`chat-context-compact context-${selectedContextTone}`}
-                      title={
-                        selectedUsageError
-                          ? "Context usage unavailable"
-                          : `${selectedContextLabel} context used`
-                      }
-                    >
-                      {selectedContextLabel}
-                    </span>
-                  )}
-                  <button
-                    aria-label={
-                      selectedSession?.pinned
-                        ? "Unpin conversation"
-                        : "Pin conversation"
-                    }
-                    aria-pressed={Boolean(selectedSession?.pinned)}
-                    className={`chat-session-meta-pill chat-meta-pin ${
-                      selectedSession?.pinned ? "selected" : ""
-                    }`.trim()}
-                    onClick={() => togglePin(selectedId)}
-                    title={
-                      selectedSession?.pinned
-                        ? "Unpin conversation"
-                        : "Pin conversation"
-                    }
-                    type="button"
-                  >
-                    <span aria-hidden="true">
-                      {selectedSession?.pinned ? "◆" : "◇"}
-                    </span>
-                  </button>
-                  <button
-                    aria-label={`Open route controls. Current route ${modelRouteLabel}.`}
-                    className="chat-model-route"
-                    onClick={() => setRouteDialogOpen(true)}
-                    type="button"
-                  >
-                    <strong>{modelRouteLabel}</strong>
-                  </button>
-                  <button
-                    aria-controls="mobile-conversations"
-                    aria-expanded={mobileConversationsOpen}
-                    className="chat-mobile-conversations-button secondary-button"
-                    onClick={() => setMobileConversationsOpen(true)}
-                    ref={mobileConversationsButtonRef}
-                    type="button"
-                  >
-                    <span>History</span>
-                    <small>{sessions.length}</small>
-                  </button>
-                  {activeRequest ? (
-                    <button
-                      className="secondary-button"
-                      onClick={() =>
-                        void window.doolittle.cancelChat(activeRequest)
-                      }
-                      type="button"
-                    >
-                      Stop response
-                    </button>
-                  ) : null}
-                  <button
-                    aria-controls="thread-workbench"
-                    aria-expanded={inspectorVisible}
-                    className={`secondary-button chat-workbench-toggle ${
-                      inspectorVisible ? "selected" : ""
-                    }`}
-                    onClick={toggleInspector}
-                    ref={workbenchToggleRef}
-                    type="button"
-                  >
-                    <span aria-hidden="true">◧</span>
-                    Workbench
-                  </button>
-                </div>
-              </div>
-            </div>,
+            <ChatHeaderChrome
+              activeRequest={activeRequest}
+              inspectorVisible={inspectorVisible}
+              isNewConversation={isNewConversation}
+              mobileConversationsButtonRef={mobileConversationsButtonRef}
+              mobileConversationsOpen={mobileConversationsOpen}
+              modelRouteLabel={modelRouteLabel}
+              onCancelRequest={(requestId) =>
+                void window.doolittle.cancelChat(requestId)
+              }
+              onOpenMobileConversations={() => setMobileConversationsOpen(true)}
+              onOpenRouteControls={() => setRouteDialogOpen(true)}
+              onOpenWorkspace={() => onOpenWorkspaceView("code")}
+              onPrepareCompression={() => {
+                setDraft((current) =>
+                  current.trim() ? current : "/compress ",
+                );
+                requestAnimationFrame(() => composerRef.current?.focus());
+              }}
+              onToggleInspector={toggleInspector}
+              onTogglePin={() => togglePin(selectedId)}
+              selectedContextLabel={selectedContextLabel}
+              selectedContextPercent={selectedContextPercent}
+              selectedContextTone={selectedContextTone}
+              selectedMessageCount={selectedMessageCount}
+              selectedSession={selectedSession}
+              selectedUpdatedAt={selectedUpdatedAt}
+              selectedUsageError={selectedUsageError}
+              sessionsCount={sessions.length}
+              workbenchToggleRef={workbenchToggleRef}
+              workspacePath={workspacePath}
+            />,
             chromeHost,
           )
         : null}
