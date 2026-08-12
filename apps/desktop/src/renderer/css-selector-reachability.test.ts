@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const globalCss = [
   "styles.css",
   "experience.css",
+  "shell-overlays.css",
   "app-polish.css",
   "review.css",
   "coding-workspace.css",

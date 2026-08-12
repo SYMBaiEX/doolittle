@@ -6,6 +6,7 @@ import { ElizaUiBridge } from "./ElizaUiBridge";
 import "./eliza-tailwind.css";
 import "./styles.css";
 import "./experience.css";
+import "./shell-overlays.css";
 import "./recovery.css";
 import "./app-polish.css";
 import "./eliza-ui.css";
