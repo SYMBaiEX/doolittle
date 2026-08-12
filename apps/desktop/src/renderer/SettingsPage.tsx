@@ -20,7 +20,6 @@ import {
 } from "./desktop-theme";
 import {
   asArray,
-  asRecord,
   asString,
   Badge,
   desktopRequest,
@@ -35,6 +34,7 @@ import {
 } from "./lib";
 import { DesktopSettingsPanel } from "./settings/DesktopSettingsPanel";
 import { SettingsAppearancePanel } from "./settings/SettingsAppearancePanel";
+import { SettingsExecutionStatusPanel } from "./settings/SettingsExecutionStatusPanel";
 import {
   type FlatSetting,
   flattenSettings,
@@ -389,53 +389,12 @@ export function SettingsPage({ active }: { active: boolean }) {
               </section>
             ) : null}
             {!runtimeCategoryOffline && category === "execution" ? (
-              <section className="settings-group">
-                <div className="settings-group-heading">
-                  <div>
-                    <span className="eyebrow">Readiness</span>
-                    <h2>Execution backends</h2>
-                  </div>
-                  <button
-                    className="text-button"
-                    onClick={execution.reload}
-                    type="button"
-                  >
-                    Recheck
-                  </button>
-                </div>
-                {execution.loading ? (
-                  <LoadingBlock />
-                ) : execution.error ? (
-                  <ErrorBlock
-                    error={execution.error}
-                    retry={execution.reload}
-                  />
-                ) : (
-                  <div className="stack-list">
-                    {asArray(execution.data?.backends).map((value, index) => {
-                      const backend = asRecord(value);
-                      return (
-                        <div
-                          className="status-row"
-                          key={asString(backend.backend, String(index))}
-                        >
-                          <div>
-                            <strong>
-                              {titleCase(asString(backend.backend, "Backend"))}
-                            </strong>
-                            <small>
-                              {asString(backend.detail, "No health detail")}
-                            </small>
-                          </div>
-                          <Badge tone={backend.ready ? "good" : "warn"}>
-                            {backend.ready ? "Ready" : "Unavailable"}
-                          </Badge>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
+              <SettingsExecutionStatusPanel
+                data={execution.data}
+                error={execution.error}
+                loading={execution.loading}
+                onReload={execution.reload}
+              />
             ) : null}
           </section>
         </div>
