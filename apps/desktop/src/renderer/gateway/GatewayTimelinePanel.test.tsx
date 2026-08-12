@@ -61,4 +61,49 @@ describe("GatewayTimelinePanel", () => {
     expect(markup).not.toContain("Replay this inbound message?");
     expect(markup).not.toContain("Replay this recorded inbound message.");
   });
+
+  it("omits inert filters until gateway history exists", () => {
+    const markup = renderToStaticMarkup(
+      <GatewayTimelinePanel
+        direction="all"
+        entries={[]}
+        loading={false}
+        onDirectionChange={vi.fn()}
+        onPlatformChange={vi.fn()}
+        onQueryChange={vi.fn()}
+        onReplay={vi.fn()}
+        platform="all"
+        platforms={[]}
+        query=""
+        replayingId=""
+        visibleEntries={[]}
+      />,
+    );
+
+    expect(markup).toContain("No gateway messages recorded yet");
+    expect(markup).not.toContain("Gateway record filters");
+    expect(markup).not.toContain("Find record");
+  });
+
+  it("retains filters when existing records have no current match", () => {
+    const markup = renderToStaticMarkup(
+      <GatewayTimelinePanel
+        direction="inbox"
+        entries={entries}
+        loading={false}
+        onDirectionChange={vi.fn()}
+        onPlatformChange={vi.fn()}
+        onQueryChange={vi.fn()}
+        onReplay={vi.fn()}
+        platform="discord"
+        platforms={["discord"]}
+        query="missing"
+        replayingId=""
+        visibleEntries={[]}
+      />,
+    );
+
+    expect(markup).toContain("Gateway record filters");
+    expect(markup).toContain("No records match these filters");
+  });
 });

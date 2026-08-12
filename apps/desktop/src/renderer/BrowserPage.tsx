@@ -11,7 +11,6 @@ import {
   asString,
   Badge,
   desktopRequest,
-  EmptyBlock,
   errorMessage,
   Notice,
   titleCase,
@@ -57,6 +56,14 @@ export function isLocalPreviewUrl(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+export function BrowserEmptyEvidence() {
+  return (
+    <p className="browser-result-empty">
+      Evidence appears here after an inspect, capture, or analysis.
+    </p>
+  );
 }
 
 const ACTIONS: Array<{
@@ -513,12 +520,7 @@ export function BrowserPage({
               result={result}
             />
           ) : (
-            <div className="browser-result">
-              <EmptyBlock title="No evidence yet">
-                Inspect, capture, or analyze the current page to keep a bounded
-                receipt.
-              </EmptyBlock>
-            </div>
+            <BrowserEmptyEvidence />
           )}
         </aside>
       </div>

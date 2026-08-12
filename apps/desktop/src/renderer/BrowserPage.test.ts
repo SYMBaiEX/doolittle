@@ -1,5 +1,7 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { isLocalPreviewUrl } from "./BrowserPage";
+import { BrowserEmptyEvidence, isLocalPreviewUrl } from "./BrowserPage";
 
 describe("isLocalPreviewUrl", () => {
   it("permits only localhost preview hosts", () => {
@@ -12,5 +14,15 @@ describe("isLocalPreviewUrl", () => {
     expect(isLocalPreviewUrl("http://localhost.example.test")).toBe(false);
     expect(isLocalPreviewUrl("http://[::1]:3000")).toBe(false);
     expect(isLocalPreviewUrl("not a URL")).toBe(false);
+  });
+
+  it("uses a compact receipt hint before evidence exists", () => {
+    const markup = renderToStaticMarkup(createElement(BrowserEmptyEvidence));
+
+    expect(markup).toContain('class="browser-result-empty"');
+    expect(markup).toContain(
+      "Evidence appears here after an inspect, capture, or analysis.",
+    );
+    expect(markup).not.toContain("empty-block");
   });
 });

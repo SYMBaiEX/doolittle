@@ -54,51 +54,57 @@ export function GatewayTimelinePanel({
         <div>
           <h2 id="gateway-timeline-title">Message history</h2>
         </div>
-        <span className="muted-copy">
-          {entries.length
-            ? `${visibleEntries.length} of ${entries.length}`
-            : "No records"}
-        </span>
+        {loading && !entries.length ? (
+          <span className="muted-copy">Reading…</span>
+        ) : entries.length ? (
+          <span className="muted-copy">
+            {visibleEntries.length} of {entries.length}
+          </span>
+        ) : null}
       </div>
-      <fieldset className="gateway-filters">
-        <legend className="sr-only">Gateway record filters</legend>
-        <label>
-          Direction
-          <select
-            onChange={(event) =>
-              onDirectionChange(event.target.value as GatewayTimelineDirection)
-            }
-            value={direction}
-          >
-            <option value="all">All directions</option>
-            <option value="inbox">Inbox only</option>
-            <option value="outbox">Outbox only</option>
-          </select>
-        </label>
-        <label>
-          Platform
-          <select
-            onChange={(event) => onPlatformChange(event.target.value)}
-            value={platform}
-          >
-            <option value="all">All platforms</option>
-            {platforms.map((entry) => (
-              <option key={entry} value={entry}>
-                {titleCase(entry)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="gateway-search">
-          Find record
-          <input
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Message, room, thread, or route"
-            type="search"
-            value={query}
-          />
-        </label>
-      </fieldset>
+      {entries.length > 0 ? (
+        <fieldset className="gateway-filters">
+          <legend className="sr-only">Gateway record filters</legend>
+          <label>
+            Direction
+            <select
+              onChange={(event) =>
+                onDirectionChange(
+                  event.target.value as GatewayTimelineDirection,
+                )
+              }
+              value={direction}
+            >
+              <option value="all">All directions</option>
+              <option value="inbox">Inbox only</option>
+              <option value="outbox">Outbox only</option>
+            </select>
+          </label>
+          <label>
+            Platform
+            <select
+              onChange={(event) => onPlatformChange(event.target.value)}
+              value={platform}
+            >
+              <option value="all">All platforms</option>
+              {platforms.map((entry) => (
+                <option key={entry} value={entry}>
+                  {titleCase(entry)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="gateway-search">
+            Find record
+            <input
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder="Message, room, thread, or route"
+              type="search"
+              value={query}
+            />
+          </label>
+        </fieldset>
+      ) : null}
 
       {loading && !entries.length ? (
         <LoadingBlock label="Reading local gateway records…" />
