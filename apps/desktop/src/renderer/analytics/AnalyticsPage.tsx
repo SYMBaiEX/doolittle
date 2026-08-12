@@ -13,6 +13,7 @@ import {
   PageHeader,
   useApiResource,
 } from "../lib";
+import "../observability.css";
 
 interface AnalyticsResponse {
   totals?: {
@@ -65,11 +66,11 @@ export function AnalyticsPage({ active }: { active: boolean }) {
   );
 
   return (
-    <div className="page">
+    <div className="page page-analytics">
       <PageHeader
         eyebrow="Workspace"
         title="Analytics"
-        description="Real local session activity and estimated context usage—no remote telemetry."
+        description="Local session and context estimates. No remote telemetry."
         actions={
           <button
             className="secondary-button"
@@ -95,23 +96,19 @@ export function AnalyticsPage({ active }: { active: boolean }) {
             label="Analytics summary"
             stats={[
               {
-                detail: "Persisted locally",
                 label: "Sessions",
                 value: compactNumber(totals.sessions ?? 0),
               },
               {
-                detail: `${compactNumber(totals.userMessages ?? 0)} from you`,
-                label: "Messages",
+                label: `Messages · ${compactNumber(totals.userMessages ?? 0)} yours`,
                 value: compactNumber(totals.messages ?? 0),
               },
               {
-                detail: "Character-based estimate",
-                label: "Estimated tokens",
+                label: "Est. tokens",
                 value: compactNumber(totals.estimatedTokens ?? 0),
               },
               {
-                detail: `${compactNumber(totals.systemMessages ?? 0)} system events`,
-                label: "Assistant replies",
+                label: `Replies · ${compactNumber(totals.systemMessages ?? 0)} system`,
                 value: compactNumber(totals.assistantMessages ?? 0),
               },
             ]}
@@ -168,7 +165,7 @@ export function AnalyticsPage({ active }: { active: boolean }) {
               <div className="card-heading">
                 <div>
                   <span className="eyebrow">Conversations</span>
-                  <h2>Recent session usage</h2>
+                  <h2>Recent sessions</h2>
                 </div>
               </div>
               <div className="table-wrap">

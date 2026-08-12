@@ -41,6 +41,17 @@ describe("operational route density", () => {
     }
   });
 
+  it("keeps observability density overrides route-scoped and responsive", () => {
+    const css = read("./observability.css");
+
+    expect(css).toContain(".activity-page .activity-entry");
+    expect(css).toContain(".page-analytics .analytics-grid");
+    expect(css).toContain(".page-logs .log-console__viewport");
+    expect(css).toMatch(
+      /@media \(max-width: 700px\)[\s\S]*\.activity-page \.activity-filter-bar[\s\S]*grid-template-columns: 1fr/u,
+    );
+  });
+
   it("keeps secondary operational diagnostics closed until requested", () => {
     expect(read("./LogsPage.tsx")).toContain(
       'className="operations-trace-details"',

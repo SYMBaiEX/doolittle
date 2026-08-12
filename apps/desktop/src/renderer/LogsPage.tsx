@@ -20,6 +20,7 @@ import {
 } from "./log-viewer-mapping";
 import { OperationsTracePanel } from "./logs/OperationsTracePanel";
 import "./logs.css";
+import "./observability.css";
 
 interface LogsResponse {
   logs?: unknown[];
@@ -79,7 +80,7 @@ export function LogsPage({ active }: { active: boolean }) {
         <PageHeader
           eyebrow="Operations"
           title="Logs"
-          description="Inspect the redacted structured event stream emitted by the private local runtime."
+          description="Redacted runtime events and local operational traces."
           actions={
             <Button
               className="secondary-button"
@@ -105,7 +106,7 @@ export function LogsPage({ active }: { active: boolean }) {
       <PageHeader
         eyebrow="Operations"
         title="Logs"
-        description="Inspect the redacted structured event stream emitted by the private local runtime."
+        description="Redacted runtime events and local operational traces."
         actions={
           <Button
             className="secondary-button"
@@ -123,18 +124,13 @@ export function LogsPage({ active }: { active: boolean }) {
           { label: "Log records", value: entries.length },
           { label: "Warnings", value: warningCount, tone: "warn" },
           { label: "Errors", value: errorCount, tone: "bad" },
-          {
-            label: "Filter",
-            value: level === "all" ? "All" : level,
-            tone: level === "all" ? "neutral" : "warn",
-          },
         ]}
       />
       <div className="filter-bar logs-filter-bar">
         <label className="search-field grow">
           <span className="sr-only">Search runtime logs</span>
           <input
-            placeholder="Search messages, scopes, and details"
+            placeholder="Search logs"
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}

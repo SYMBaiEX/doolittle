@@ -19,6 +19,7 @@ import {
   PageHeader,
   useApiResource,
 } from "./lib";
+import "./observability.css";
 
 type ActivitySource = "all" | ActivityEventKind;
 
@@ -240,7 +241,7 @@ export function ActivityPage({ active }: { active: boolean }) {
       <PageHeader
         eyebrow="Operator"
         title="Activity"
-        description="Agent work, outcomes, and runtime events in one timeline."
+        description="Agent work, outcomes, and runtime events."
         actions={
           <div className="row-actions">
             <button
@@ -249,7 +250,7 @@ export function ActivityPage({ active }: { active: boolean }) {
               type="button"
               disabled={!active || exporting}
             >
-              {exporting ? "Exporting…" : "Export safe JSON"}
+              {exporting ? "Exporting…" : "Export JSON"}
             </button>
             <button
               className="secondary-button"
@@ -276,7 +277,7 @@ export function ActivityPage({ active }: { active: boolean }) {
               setQuery(event.target.value);
               setVisibleCount(ACTIVITY_PAGE_SIZE);
             }}
-            placeholder="Search actions, outcomes, routes, or status"
+            placeholder="Search activity"
             disabled={!active}
           />
         </label>
@@ -333,12 +334,12 @@ export function ActivityPage({ active }: { active: boolean }) {
             label="Activity overview"
             stats={[
               {
-                label: "Pending signals",
+                label: "Pending",
                 tone: overview.live ? "warn" : "neutral",
                 value: overview.live,
               },
               {
-                label: "Needs attention",
+                label: "Attention",
                 tone: overview.attention ? "bad" : "good",
                 value: overview.attention,
               },
@@ -350,7 +351,7 @@ export function ActivityPage({ active }: { active: boolean }) {
             <div className="card-heading">
               <div>
                 <span className="eyebrow">Operator stream</span>
-                <h2>What happened</h2>
+                <h2>Timeline</h2>
               </div>
               <small>
                 {visibleGroups.length} visible
