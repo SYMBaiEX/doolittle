@@ -100,6 +100,15 @@ describe("operational route density", () => {
     expect(dashboard).not.toContain('"/delegation/tasks?status=running');
   });
 
+  it("loads and polls the shell activity feed only while the utility drawer is visible", () => {
+    const app = read("./App.tsx");
+
+    expect(app).toContain(
+      'backend.phase === "ready" && utilityOpen ? "/activity?limit=50" : null',
+    );
+    expect(app).toContain("if (utilityOpen) activityResource.reload();");
+  });
+
   it("keeps the primary model readiness visible and capability detail optional", () => {
     const models = read("./ModelsPage.tsx");
     expect(

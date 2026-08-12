@@ -196,8 +196,8 @@ export function App() {
     [backend.phase],
   );
   const activityResource = useApiResource<ActivityFeedResponse>(
-    backend.phase === "ready" ? "/activity?limit=50" : null,
-    [backend.phase],
+    backend.phase === "ready" && utilityOpen ? "/activity?limit=50" : null,
+    [backend.phase, utilityOpen],
   );
   const appMainRef = useRef<HTMLElement | null>(null);
   const [chatChromeHost, setChatChromeHost] = useState<HTMLElement | null>(
@@ -1262,7 +1262,7 @@ export function App() {
 
   useIntervalWhenDocumentVisible(
     () => {
-      activityResource.reload();
+      if (utilityOpen) activityResource.reload();
       approvalsResource.reload();
       tasksResource.reload();
     },
