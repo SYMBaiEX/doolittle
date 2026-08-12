@@ -1002,13 +1002,13 @@ select:focus-visible {
   margin: 0 auto 25px;
 }
 
-.transcript-message > div {
+.transcript-message__header {
   display: flex;
   justify-content: space-between;
   margin-bottom: 8px;
 }
 
-.transcript-message strong {
+.transcript-message__header > strong {
   color: var(--accent);
   font-family: var(--font-mono);
   font-size: var(--text-meta);
@@ -1016,21 +1016,19 @@ select:focus-visible {
   text-transform: uppercase;
 }
 
-.transcript-message time {
+.transcript-message__header > time {
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: var(--text-meta);
 }
 
-.transcript-message p {
-  margin: 0;
+.transcript-message > .message-content {
   color: var(--text-soft);
   font-size: 13px;
   line-height: 1.7;
-  white-space: pre-wrap;
 }
 
-.transcript-message.user p {
+.transcript-message.user > .message-content {
   padding-left: 13px;
   border-left: 1px solid var(--border-strong);
 }

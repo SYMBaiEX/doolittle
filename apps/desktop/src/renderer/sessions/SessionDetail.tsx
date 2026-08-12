@@ -3,8 +3,10 @@ import type {
   SessionMessagesResponse,
   SessionSummary,
   SessionUsageSummary,
+  StoredMessage,
 } from "../../shared/contracts";
 import { CompactStatStrip } from "../components/CompactStatStrip";
+import { MessageContent } from "../components/MessageContent";
 import {
   compactNumber,
   desktopRequest,
@@ -22,6 +24,31 @@ interface SessionUsageResponse {
 
 interface SessionContinuityResponse {
   sessions?: SessionSummary[];
+}
+
+export function SessionTranscriptMessage({
+  message,
+}: {
+  message: StoredMessage;
+}) {
+  return (
+    <article className={`transcript-message ${message.role}`}>
+      <div className="transcript-message__header">
+        <strong>
+          {message.role === "assistant"
+            ? "Doolittle"
+            : message.role === "user"
+              ? "You"
+              : "System"}
+        </strong>
+        <time>{displayTimestamp(message.createdAt)}</time>
+      </div>
+      <MessageContent
+        content={message.text}
+        separateAgentEvents={message.role === "assistant"}
+      />
+    </article>
+  );
 }
 
 export function SessionDetail({
@@ -294,22 +321,7 @@ export function SessionDetail({
           <ErrorBlock error={transcript.error} retry={transcript.reload} />
         ) : transcript.data?.messages.length ? (
           transcript.data.messages.map((message) => (
-            <article
-              className={`transcript-message ${message.role}`}
-              key={message.id}
-            >
-              <div>
-                <strong>
-                  {message.role === "assistant"
-                    ? "Doolittle"
-                    : message.role === "user"
-                      ? "You"
-                      : "System"}
-                </strong>
-                <time>{displayTimestamp(message.createdAt)}</time>
-              </div>
-              <p>{message.text}</p>
-            </article>
+            <SessionTranscriptMessage key={message.id} message={message} />
           ))
         ) : (
           <EmptyBlock title="Empty transcript">
