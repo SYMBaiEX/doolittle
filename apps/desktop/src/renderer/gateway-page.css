@@ -14,6 +14,17 @@
   min-width: 0;
 }
 
+.gateway-secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.gateway-secondary-grid > .panel {
+  min-width: 0;
+}
+
 .gateway-heading {
   align-items: center;
 }
@@ -362,7 +373,8 @@
 }
 
 @media (max-width: 1060px) {
-  .gateway-layout {
+  .gateway-layout,
+  .gateway-secondary-grid {
     grid-template-columns: 1fr;
   }
 

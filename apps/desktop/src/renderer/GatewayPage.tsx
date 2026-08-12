@@ -277,7 +277,7 @@ export function GatewayPage({ active }: { active: boolean }) {
                 ? "Loading approvals"
                 : pairingOpen
                   ? "Awaiting approval"
-                  : "Open to load",
+                  : "Open sender approvals",
             label: "Pairing",
             tone: pairingOpen && pendingPairings.length ? "warn" : "neutral",
             value:
@@ -285,7 +285,7 @@ export function GatewayPage({ active }: { active: boolean }) {
                 ? "…"
                 : pairingOpen
                   ? pendingPairings.length
-                  : "—",
+                  : "On demand",
           },
         ]}
       />
@@ -306,82 +306,84 @@ export function GatewayPage({ active }: { active: boolean }) {
           visibleEntries={visibleEntries}
         />
 
-        <details
-          className="panel gateway-session-panel"
-          onToggle={(event) => setRoutesOpen(event.currentTarget.open)}
-          open={routesOpen}
-        >
-          <summary>
-            <span>
-              <strong>Thread routes</strong>
-              <small>Room and attached-agent routes</small>
-            </span>
-            <span>
-              {routesOpen
-                ? sessions.loading
-                  ? "Loading…"
-                  : `${localSessions.length} routes`
-                : "Open to load"}
-            </span>
-          </summary>
-          {routesOpen ? (
-            <div className="gateway-session-body">
-              {sessions.loading ? (
-                <LoadingBlock label="Loading gateway routes…" />
-              ) : sessions.error ? (
-                <ErrorBlock error={sessions.error} retry={sessions.reload} />
-              ) : !localSessions.length ? (
-                <EmptyBlock density="compact" title="No local routes yet">
-                  Routes appear after Doolittle accepts an inbound gateway
-                  message.
-                </EmptyBlock>
-              ) : (
-                <ul className="gateway-sessions">
-                  {localSessions.slice(0, 12).map((session) => (
-                    <li key={session.id}>
-                      <Badge>{titleCase(session.platform)}</Badge>
-                      <strong>{session.room}</strong>
-                      <span>
-                        {session.thread
-                          ? `Thread ${session.thread}`
-                          : "Root route"}
-                      </span>
-                      <small>
-                        {session.agentSession
-                          ? `Agent: ${session.agentSession}`
-                          : "Agent session not recorded"}
-                      </small>
-                      <time dateTime={session.updatedAt}>
-                        {displayTimestamp(session.updatedAt)}
-                      </time>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ) : null}
-        </details>
-      </div>
+        <div className="gateway-secondary-grid">
+          <details
+            className="panel gateway-session-panel"
+            onToggle={(event) => setRoutesOpen(event.currentTarget.open)}
+            open={routesOpen}
+          >
+            <summary>
+              <span>
+                <strong>Thread routes</strong>
+                <small>Room and attached-agent routes</small>
+              </span>
+              <span>
+                {routesOpen
+                  ? sessions.loading
+                    ? "Loading…"
+                    : `${localSessions.length} routes`
+                  : "Load routes"}
+              </span>
+            </summary>
+            {routesOpen ? (
+              <div className="gateway-session-body">
+                {sessions.loading ? (
+                  <LoadingBlock label="Loading gateway routes…" />
+                ) : sessions.error ? (
+                  <ErrorBlock error={sessions.error} retry={sessions.reload} />
+                ) : !localSessions.length ? (
+                  <EmptyBlock density="compact" title="No local routes yet">
+                    Routes appear after Doolittle accepts an inbound gateway
+                    message.
+                  </EmptyBlock>
+                ) : (
+                  <ul className="gateway-sessions">
+                    {localSessions.slice(0, 12).map((session) => (
+                      <li key={session.id}>
+                        <Badge>{titleCase(session.platform)}</Badge>
+                        <strong>{session.room}</strong>
+                        <span>
+                          {session.thread
+                            ? `Thread ${session.thread}`
+                            : "Root route"}
+                        </span>
+                        <small>
+                          {session.agentSession
+                            ? `Agent: ${session.agentSession}`
+                            : "Agent session not recorded"}
+                        </small>
+                        <time dateTime={session.updatedAt}>
+                          {displayTimestamp(session.updatedAt)}
+                        </time>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
+          </details>
 
-      <GatewayPairingPanel
-        actionId={pairingAction}
-        approved={approvedPairings}
-        confirmationId={confirmPairingAction}
-        error={pairingPending.error || pairingApproved.error}
-        loading={pairingPending.loading || pairingApproved.loading}
-        onConfirmationChange={setConfirmPairingAction}
-        onOpenChange={setPairingOpen}
-        onRetry={() => {
-          pairingPending.reload();
-          pairingApproved.reload();
-        }}
-        onUpdate={(action, input) => void updatePairing(action, input)}
-        open={pairingOpen}
-        pending={pendingPairings}
-        truncated={Boolean(
-          pairingPending.data?.truncated || pairingApproved.data?.truncated,
-        )}
-      />
+          <GatewayPairingPanel
+            actionId={pairingAction}
+            approved={approvedPairings}
+            confirmationId={confirmPairingAction}
+            error={pairingPending.error || pairingApproved.error}
+            loading={pairingPending.loading || pairingApproved.loading}
+            onConfirmationChange={setConfirmPairingAction}
+            onOpenChange={setPairingOpen}
+            onRetry={() => {
+              pairingPending.reload();
+              pairingApproved.reload();
+            }}
+            onUpdate={(action, input) => void updatePairing(action, input)}
+            open={pairingOpen}
+            pending={pendingPairings}
+            truncated={Boolean(
+              pairingPending.data?.truncated || pairingApproved.data?.truncated,
+            )}
+          />
+        </div>
+      </div>
     </section>
   );
 }

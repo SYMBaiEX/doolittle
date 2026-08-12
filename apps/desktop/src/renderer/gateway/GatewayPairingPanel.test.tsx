@@ -39,7 +39,7 @@ describe("GatewayPairingPanel", () => {
   it("keeps pairing records out of the closed disclosure", () => {
     const html = renderPanel(false);
 
-    expect(html).toContain("Open to load");
+    expect(html).toContain("Load approvals");
     expect(html).not.toContain("pending-user");
     expect(html).not.toContain("approved-user");
   });

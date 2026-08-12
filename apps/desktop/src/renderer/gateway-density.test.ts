@@ -22,7 +22,7 @@ describe("GatewayPage density", () => {
   it("keeps sender approvals in a concise status disclosure", () => {
     expect(source).toContain("<GatewayPairingPanel");
     expect(pairingSource).toContain('className="panel pairing-panel"');
-    expect(pairingSource).toContain("Open to load");
+    expect(pairingSource).toContain("Load approvals");
     expect(pairingSource).toContain("pending.length} pending");
     expect(pairingSource).toContain("approved.length} approved");
     expect(css).toContain(".pairing-panel > summary {");
@@ -33,7 +33,9 @@ describe("GatewayPage density", () => {
       'resourcePolicy.routes ? "/sessions/gateway" : null',
     );
     expect(source).toContain('className="panel gateway-session-panel"');
-    expect(source).toContain("Open to load");
+    expect(source).toContain("Load routes");
+    expect(source).toContain('className="gateway-secondary-grid"');
+    expect(css).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
     expect(css).toContain(".gateway-session-panel > summary {");
     expect(polish).not.toContain("minmax(230px, 310px)");
     expect(polish).not.toContain(

@@ -61,7 +61,7 @@ export function GatewayPairingPanel({
             ? "Loading…"
             : open
               ? `${pending.length} pending · ${approved.length} approved`
-              : "Open to load"}
+              : "Load approvals"}
         </span>
       </summary>
       {open && loading ? (
