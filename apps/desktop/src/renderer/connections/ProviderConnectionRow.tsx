@@ -1,4 +1,10 @@
 import { Button } from "@elizaos/ui/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@elizaos/ui/components/ui/dropdown-menu";
 import type {
   ProviderAuthProvider,
   ProviderAuthState,
@@ -44,6 +50,8 @@ export function ProviderConnectionRow({
     authState?.phase === "launching" || authState?.phase === "waiting";
   const nativeReady = Boolean(status.nativeReady) || Boolean(status.reusable);
   const fallbackReady = Boolean(status.fallbackReady) && !nativeReady;
+  const needsCodeSubmission =
+    Boolean(authState?.needsCodeSubmission) && !authState?.codeSubmitted;
   const stateLabel = isDefault
     ? "Default"
     : nativeReady
@@ -51,6 +59,74 @@ export function ProviderConnectionRow({
       : fallbackReady
         ? "CLI fallback"
         : "Needs sign-in";
+  const runtimeLabel = nativeReady
+    ? "Native"
+    : fallbackReady
+      ? "CLI fallback"
+      : "Offline";
+  const detail = signingIn
+    ? authState?.message || `Waiting for ${descriptor.label} sign-in…`
+    : fallbackReady
+      ? "CLI fallback is available; subscription sign-in needs attention."
+      : asString(
+          status.detail,
+          authProvider
+            ? `Use your ${descriptor.label} subscription; API keys remain optional.`
+            : "No account details available.",
+        );
+  const facts = [
+    { label: "Runtime", value: runtimeLabel },
+    { label: "Account", value: asString(status.accountLabel) },
+    { label: "Source", value: asString(status.source) },
+  ].filter((fact) => fact.value);
+
+  const primaryAction = signingIn
+    ? needsCodeSubmission && authProvider
+      ? {
+          label: "Use copied code",
+          onClick: () => onSubmitCode(authProvider),
+          variant: undefined,
+        }
+      : authProvider
+        ? {
+            label: "Cancel",
+            onClick: () => onCancelSignIn(authProvider),
+            variant: "secondary" as const,
+          }
+        : null
+    : ready
+      ? {
+          label: isDefault
+            ? "In use"
+            : fallbackReady
+              ? "Use CLI fallback"
+              : "Use for chats",
+          onClick: onSetDefault,
+          variant: "secondary" as const,
+        }
+      : authProvider
+        ? {
+            label: "Sign in",
+            onClick: () => onSignIn(authProvider),
+            variant: undefined,
+          }
+        : {
+            label: "Connect",
+            onClick: onConnect,
+            variant: undefined,
+          };
+  const secondaryAction =
+    authProvider && ready && !signingIn
+      ? {
+          label: fallbackReady ? "Repair sign-in" : "Add account",
+          onClick: () => onSignIn(authProvider),
+        }
+      : authProvider && signingIn && needsCodeSubmission
+        ? {
+            label: "Cancel sign-in",
+            onClick: () => onCancelSignIn(authProvider),
+          }
+        : null;
 
   return (
     <article
@@ -70,104 +146,61 @@ export function ProviderConnectionRow({
             {stateLabel}
           </Badge>
         </div>
-        <p>{asString(status.detail, "No account details available.")}</p>
-        {authProvider ? (
-          <div
-            className={`provider-auth-inline ${signingIn ? "is-pending" : fallbackReady ? "is-fallback" : ""}`}
-            aria-live="polite"
-          >
-            <span aria-hidden="true" />
-            <small>
-              {signingIn
-                ? authState?.message
-                : nativeReady
-                  ? `Authenticated through the official ${descriptor.label} client.`
-                  : fallbackReady
-                    ? `CLI fallback is available; subscription OAuth still needs attention.`
-                    : `Use your ${descriptor.label} subscription; API keys remain optional.`}
-            </small>
-          </div>
-        ) : null}
+        <div
+          className={`provider-connection-status-line ${signingIn ? "is-pending" : fallbackReady ? "is-fallback" : ready ? "is-ready" : "is-offline"}`}
+          aria-live="polite"
+        >
+          <span aria-hidden="true" />
+          <p title={detail}>{detail}</p>
+        </div>
+        <dl className="provider-connection-facts">
+          {facts.map((fact) => (
+            <div key={fact.label} title={`${fact.label}: ${fact.value}`}>
+              <dt className="sr-only">{fact.label}</dt>
+              <dd>{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
-      <dl className="provider-connection-facts">
-        <div>
-          <dt>Source</dt>
-          <dd>{asString(status.source, "Not detected")}</dd>
-        </div>
-        <div>
-          <dt>Account</dt>
-          <dd>{asString(status.accountLabel, "Local credential")}</dd>
-        </div>
-        <div>
-          <dt>Runtime</dt>
-          <dd>
-            {status.nativeReady ? "Native" : ready ? "Fallback" : "Offline"}
-          </dd>
-        </div>
-      </dl>
       <div className="provider-connection-actions">
-        {signingIn && authProvider ? (
+        {primaryAction ? (
           <Button
-            onClick={() => onCancelSignIn(authProvider)}
-            disabled={busy}
+            onClick={primaryAction.onClick}
+            disabled={busy || (ready && !signingIn && isDefault)}
             size="sm"
             type="button"
-            variant="secondary"
+            variant={primaryAction.variant}
           >
-            Cancel
-          </Button>
-        ) : ready ? (
-          <Button
-            onClick={onSetDefault}
-            disabled={busy || isDefault}
-            size="sm"
-            type="button"
-            variant="secondary"
-          >
-            {isDefault
-              ? "In use"
-              : fallbackReady
-                ? "Use CLI fallback"
-                : "Use for chats"}
-          </Button>
-        ) : authProvider ? (
-          <Button
-            onClick={() => onSignIn(authProvider)}
-            disabled={busy}
-            size="sm"
-            type="button"
-          >
-            Sign in
-          </Button>
-        ) : (
-          <Button onClick={onConnect} disabled={busy} size="sm" type="button">
-            Connect
-          </Button>
-        )}
-        {authProvider && ready && !signingIn ? (
-          <Button
-            className="provider-connection-secondary"
-            onClick={() => onSignIn(authProvider)}
-            disabled={busy}
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            {fallbackReady ? "Repair sign-in" : "Add account"}
+            {primaryAction.label}
           </Button>
         ) : null}
-        {authProvider &&
-        signingIn &&
-        authState?.needsCodeSubmission &&
-        !authState.codeSubmitted ? (
-          <Button
-            onClick={() => onSubmitCode(authProvider)}
-            disabled={busy}
-            size="sm"
-            type="button"
-          >
-            Use copied code
-          </Button>
+        {secondaryAction ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                aria-label={`More actions for ${descriptor.label}`}
+                className="provider-connection-more"
+                disabled={busy}
+                size="icon-sm"
+                title={`More actions for ${descriptor.label}`}
+                type="button"
+                variant="ghost"
+              >
+                <span aria-hidden="true">•••</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="provider-connection-menu"
+            >
+              <DropdownMenuItem
+                onSelect={secondaryAction.onClick}
+                disabled={busy}
+              >
+                {secondaryAction.label}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : null}
       </div>
     </article>

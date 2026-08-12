@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { providerRouteLabel } from "../ConnectionsPage";
 import { AccountPoolPanel } from "./AccountPoolPanel";
 import { ProviderConnectionRow } from "./ProviderConnectionRow";
 import { ProviderRouteSummary } from "./ProviderRouteSummary";
@@ -62,10 +63,18 @@ describe("provider account surfaces", () => {
     expect(markup).toContain("Work");
     expect(markup).toContain("Native");
     expect(markup).toContain("Use for chats");
-    expect(markup).toContain("Add account");
-    expect(markup).toContain("provider-connection-secondary");
+    expect(markup).toContain("provider-connection-status-line is-ready");
+    expect(markup).toContain("provider-connection-more");
+    expect(markup).toContain('aria-label="More actions for Codex"');
     expect(markup).toContain("bg-bg-accent");
     expect(markup).toContain("h-9");
+  });
+
+  it("names active non-account chat routes instead of asking for a provider", () => {
+    expect(providerRouteLabel("ollama")).toBe("Ollama");
+    expect(providerRouteLabel("openai-codex")).toBe("OpenAI Codex");
+    expect(providerRouteLabel("codex")).toBe("Codex");
+    expect(providerRouteLabel(undefined)).toBeUndefined();
   });
 
   it("does not present CLI fallback as an authenticated subscription", () => {
@@ -94,9 +103,9 @@ describe("provider account surfaces", () => {
     );
 
     expect(markup).toContain("CLI fallback");
-    expect(markup).toContain("subscription OAuth still needs attention");
+    expect(markup).toContain("subscription sign-in needs attention");
     expect(markup).toContain("Use CLI fallback");
-    expect(markup).toContain("Repair sign-in");
+    expect(markup).toContain('aria-label="More actions for Claude Code"');
     expect(markup).not.toContain(
       "Authenticated through the official Claude Code client.",
     );

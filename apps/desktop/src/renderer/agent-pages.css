@@ -250,14 +250,11 @@
 .provider-connection-row {
   position: relative;
   display: grid;
-  grid-template-columns: 38px minmax(220px, 1.25fr) minmax(290px, 0.9fr) minmax(
-      190px,
-      auto
-    );
-  gap: 13px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 11px;
   align-items: center;
-  min-height: 68px;
-  padding: 8px 14px;
+  min-height: 64px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--line-subtle);
   transition:
     background-color 140ms var(--ease-out),
@@ -322,16 +319,7 @@
   letter-spacing: -0.015em;
 }
 
-.provider-connection-copy > p {
-  margin: 0;
-  overflow: hidden;
-  color: var(--text-soft);
-  font-size: var(--text-meta);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.provider-auth-inline {
+.provider-connection-status-line {
   display: flex;
   min-width: 0;
   align-items: center;
@@ -339,24 +327,29 @@
   color: var(--muted);
 }
 
-.provider-auth-inline > span {
+.provider-connection-status-line > span {
   width: 6px;
   height: 6px;
   flex: 0 0 auto;
   border-radius: 50%;
+  background: var(--muted);
+}
+
+.provider-connection-status-line.is-ready > span {
   background: var(--good);
 }
 
-.provider-auth-inline.is-pending > span {
+.provider-connection-status-line.is-pending > span {
   background: var(--accent);
   animation: provider-auth-pulse 1.35s ease-in-out infinite;
 }
 
-.provider-auth-inline.is-fallback > span {
+.provider-connection-status-line.is-fallback > span {
   background: var(--warn);
 }
 
-.provider-auth-inline small {
+.provider-connection-status-line > p {
+  margin: 0;
   overflow: hidden;
   font-size: var(--text-meta);
   text-overflow: ellipsis;
@@ -364,23 +357,29 @@
 }
 
 .provider-connection-facts {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
   min-width: 0;
   margin: 0;
+  overflow: hidden;
+  color: var(--muted);
 }
 
 .provider-connection-facts > div {
-  display: grid;
+  display: flex;
   min-width: 0;
-  gap: 3px;
-  padding: 1px 10px;
-  border-left: 1px solid var(--line-subtle);
+  align-items: center;
+}
+
+.provider-connection-facts > div + div::before {
+  flex: 0 0 auto;
+  padding-inline: 6px;
+  content: "·";
+  color: var(--line-strong);
 }
 
 .provider-connection-facts dd {
+  max-width: min(28vw, 260px);
   overflow: hidden;
-  color: var(--text-soft);
   font-size: var(--text-meta);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -388,7 +387,8 @@
 
 .provider-connection-actions {
   display: flex;
-  flex-wrap: wrap;
+  position: relative;
+  align-items: center;
   justify-content: flex-end;
   gap: 6px;
 }
@@ -397,11 +397,26 @@
   min-height: 28px;
 }
 
-.provider-connection-actions .provider-connection-secondary {
+.provider-connection-more {
   color: var(--text-soft);
-  font-size: var(--text-meta);
-  min-height: 26px;
-  padding-inline: 8px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+.provider-connection-more:hover,
+.provider-connection-more:focus-visible,
+.provider-connection-more[data-state="open"] {
+  color: var(--text);
+  background: var(--surface-raised);
+}
+
+.provider-connection-menu {
+  min-width: 138px;
+}
+
+.provider-connection-menu [role="menuitem"] {
+  font-size: var(--text-control);
 }
 
 .provider-pool-stack {
@@ -763,15 +778,6 @@
 }
 
 @media (max-width: 1180px) {
-  .provider-connection-row {
-    grid-template-columns: 42px minmax(240px, 1fr) minmax(280px, 1fr);
-  }
-
-  .provider-connection-actions {
-    grid-column: 2 / -1;
-    justify-content: flex-start;
-  }
-
   .provider-pool-toolbar {
     align-items: flex-start;
     grid-template-columns: 1fr;
@@ -814,9 +820,9 @@
     grid-template-columns: 38px minmax(0, 1fr);
   }
 
-  .provider-connection-facts,
   .provider-connection-actions {
     grid-column: 2;
+    justify-content: flex-start;
   }
 
   .provider-pool-routing {
@@ -826,16 +832,12 @@
 }
 
 @media (max-width: 620px) {
-  .provider-connection-facts,
   .provider-import-form {
     grid-template-columns: 1fr;
   }
 
-  .provider-connection-facts > div {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: baseline;
-    border-right: 0;
-    border-bottom: 1px solid var(--line-subtle);
+  .provider-connection-facts {
+    flex-wrap: wrap;
   }
 
   .provider-pool-toolbar {
@@ -867,7 +869,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .provider-auth-inline.is-pending > span,
+  .provider-connection-status-line.is-pending > span,
   .provider-import-form {
     animation: none;
   }

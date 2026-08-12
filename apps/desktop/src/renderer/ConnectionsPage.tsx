@@ -15,10 +15,12 @@ import {
 } from "./connections/useConnectionsActions";
 import {
   asRecord,
+  asString,
   ErrorBlock,
   LoadingBlock,
   Notice,
   PageHeader,
+  titleCase,
   useApiResource,
 } from "./lib";
 import "./agent-pages.css";
@@ -64,6 +66,27 @@ const accountProviders = [
     accountSignIn: false,
   },
 ] as const;
+
+export function providerRouteLabel(
+  provider: string | undefined,
+): string | undefined {
+  const normalized = provider?.trim();
+  if (!normalized) return undefined;
+  const words: Record<string, string> = {
+    ai: "AI",
+    api: "API",
+    cli: "CLI",
+    openai: "OpenAI",
+  };
+  return (
+    accountProviders.find((candidate) => candidate.key === normalized)?.label ??
+    normalized
+      .split(/[-_\s]+/u)
+      .filter(Boolean)
+      .map((word) => words[word.toLowerCase()] ?? titleCase(word))
+      .join(" ")
+  );
+}
 
 export function ConnectionsPage({
   active,
@@ -152,7 +175,7 @@ export function ConnectionsPage({
                 Refresh all
               </Button>
             }
-            description="Route chats, connect provider subscriptions, and shape how spawned agents move across pooled accounts."
+            description="Connect chat providers and route spawned agents across local account pools."
             eyebrow="Agent"
             title="Providers & accounts"
           />
@@ -216,7 +239,7 @@ export function ConnectionsPage({
         <PageHeader
           eyebrow="Agent"
           title="Providers & accounts"
-          description="Route chats, connect provider subscriptions, and shape how spawned agents move across pooled accounts."
+          description="Connect chat providers and route spawned agents across local account pools."
           actions={
             <Button
               className="secondary-button"
@@ -250,7 +273,10 @@ export function ConnectionsPage({
                 <h2 id="provider-connections-title">Provider connections</h2>
               </div>
               <ProviderRouteSummary
-                activeProvider={activeDefault?.provider.label}
+                activeProvider={
+                  activeDefault?.provider.label ??
+                  providerRouteLabel(asString(resource.data?.activeProvider))
+                }
                 ready={readyProviderCount}
                 total={providerViews.length}
               />
