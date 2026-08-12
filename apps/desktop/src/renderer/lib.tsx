@@ -1,7 +1,7 @@
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Badge as ElizaBadge } from "@elizaos/ui/components/ui/badge";
 import { useCachedResource } from "@elizaos/ui/hooks/useCachedResource";
-import type { DependencyList, ReactNode } from "react";
+import { type DependencyList, type ReactNode, useState } from "react";
 import { desktopRequest } from "./eliza-client";
 
 export { desktopRequest } from "./eliza-client";
@@ -281,14 +281,21 @@ export function RawDataDisclosure({
   value: unknown;
   defaultOpen?: boolean;
 }) {
-  const formatted = formatDataPreview(value);
+  const [open, setOpen] = useState(defaultOpen);
+  const formatted = open ? formatDataPreview(value) : "";
   return (
-    <details className="raw-data-disclosure" open={defaultOpen}>
+    <details
+      className="raw-data-disclosure"
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+      open={open}
+    >
       <summary>
         <span>{label}</span>
-        <small>{formatted.length.toLocaleString()} characters</small>
+        <small>
+          {open ? `${formatted.length.toLocaleString()} characters` : "Inspect"}
+        </small>
       </summary>
-      <pre className="json-preview">{formatted}</pre>
+      {open ? <pre className="json-preview">{formatted}</pre> : null}
     </details>
   );
 }
