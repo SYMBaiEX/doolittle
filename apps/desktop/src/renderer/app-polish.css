@@ -191,7 +191,6 @@
 }
 
 .status-row,
-.fact-list > div,
 th,
 td {
   padding-top: var(--row-pad);
@@ -1062,7 +1061,6 @@ th {
 
 .coding-grid,
 .review-workspace,
-.review-repository-ribbon,
 .review-branch-record {
   border-color: var(--line-subtle);
   border-radius: var(--radius-sm);
@@ -1079,7 +1077,6 @@ th {
   border-bottom-color: var(--line-subtle);
 }
 
-.review-repository-ribbon,
 .review-branch-record {
   background: color-mix(in srgb, var(--surface-raised) 82%, var(--surface));
 }
@@ -1113,11 +1110,6 @@ th {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     max-height: 250px;
   }
-
-  .settings-nav-title,
-  .settings-nav-note {
-    grid-column: 1 / -1;
-  }
 }
 
 @media (max-width: 760px) {
@@ -1131,11 +1123,6 @@ th {
 
   .settings-nav {
     grid-template-columns: 1fr;
-  }
-
-  .settings-nav-title,
-  .settings-nav-note {
-    grid-column: auto;
   }
 }
 
@@ -1708,11 +1695,6 @@ th {
   scrollbar-gutter: stable;
 }
 
-.page-settings .settings-nav-title {
-  min-height: 32px;
-  padding: 6px 7px;
-}
-
 .page-settings .settings-nav > button {
   min-height: 32px;
   padding: 6px 7px;
@@ -1723,15 +1705,8 @@ th {
   font-size: 11px;
 }
 
-.page-settings .settings-nav > button small,
-.page-settings .settings-nav-note p {
+.page-settings .settings-nav > button small {
   font-size: 8px;
-}
-
-.page-settings .settings-nav-note {
-  margin: 5px 3px 2px;
-  padding: 8px 5px 3px;
-  border-top: 1px solid var(--line-subtle);
 }
 
 .page-settings .settings-content {
@@ -2516,15 +2491,7 @@ th {
   min-height: 32px;
 }
 
-.view-tools .card-grid,
-.view-skills .card-grid,
-.view-plugins .card-grid,
-.view-profiles .card-grid,
-.view-registry .card-grid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-}
-
-.page-settings :is(.settings-nav > button small, .settings-nav-note p),
+.page-settings :is(.settings-nav > button small),
 .page-settings :is(.setting-copy small, .setting-copy code),
 .studio-page :is(.memory-tabs, .media-tabs) .text-button,
 .utility-drawer__group-toggle,
