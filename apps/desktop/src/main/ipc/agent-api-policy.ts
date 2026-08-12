@@ -458,7 +458,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
       exact: "/delegation/task-summaries",
       allowedQueries: ["limit"],
       validateQuery: (query) =>
-        validateIntegerQuery(query, "limit", { min: 1, max: 200 }),
+        validateIntegerQuery(query, "limit", { min: 1, max: 500 }),
     },
     { exact: "/delegation/overview" },
     { exact: "/delegation/overview-snapshot" },

@@ -23,6 +23,10 @@ function parseDelegationFilters(url: URL): {
   executionMode?: "local" | "delegated";
 } {
   const rawLimit = Number(url.searchParams.get("limit") ?? "25");
+  const limit =
+    Number.isSafeInteger(rawLimit) && rawLimit > 0
+      ? Math.min(rawLimit, 500)
+      : 25;
   const priority = url.searchParams.get("priority") ?? undefined;
   const status = url.searchParams.get("status") ?? undefined;
   const executionMode =
@@ -31,7 +35,7 @@ function parseDelegationFilters(url: URL): {
     undefined;
 
   return {
-    limit: Number.isNaN(rawLimit) || rawLimit <= 0 ? 25 : rawLimit,
+    limit,
     group: url.searchParams.get("group") ?? undefined,
     profile: url.searchParams.get("profile") ?? undefined,
     priority:

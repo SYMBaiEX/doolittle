@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isolatedCodingWorktrees,
   normalizeOrchestrationResources,
+  ORCHESTRATION_TASK_SUMMARY_LIMIT,
   orchestrationResourceId,
   orchestrationResourcePaths,
   projectOrchestrationCodegenSelection,
@@ -13,7 +14,7 @@ describe("orchestration resource paths", () => {
       "/delegation/overview-snapshot",
     );
     expect(orchestrationResourcePaths.tasks).toBe(
-      "/delegation/task-summaries?limit=100",
+      `/delegation/task-summaries?limit=${ORCHESTRATION_TASK_SUMMARY_LIMIT}`,
     );
     expect(orchestrationResourcePaths.workers).toBe(
       "/delegation/workers?limit=100",

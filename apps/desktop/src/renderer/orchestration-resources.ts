@@ -231,9 +231,14 @@ export type CodegenCancellationResponse = {
   };
 };
 
+// Keep the data window aligned with the overview snapshot. The queue still
+// mounts only TASK_QUEUE_PAGE_SIZE rows at a time, so this widens search and
+// selection coverage without turning the rail into a large DOM surface.
+export const ORCHESTRATION_TASK_SUMMARY_LIMIT = 500;
+
 export const orchestrationResourcePaths = {
   overview: "/delegation/overview-snapshot",
-  tasks: "/delegation/task-summaries?limit=100",
+  tasks: `/delegation/task-summaries?limit=${ORCHESTRATION_TASK_SUMMARY_LIMIT}`,
   workers: "/delegation/workers?limit=100",
   worktrees: "/repo/worktrees",
   plans: "/plans",

@@ -116,6 +116,36 @@ describe("handleDelegationReadRoutes", () => {
     });
   });
 
+  it("caps direct delegation reads at the bounded summary window", async () => {
+    const listTasks = vi.fn(async () => [thread("one")]);
+    const service = {
+      listTasks,
+      getTask: async () => null,
+      getStatus: async () => ({
+        taskCount: 1,
+        activeTaskCount: 0,
+        pausedTaskCount: 0,
+        blockedTaskCount: 0,
+        validatingTaskCount: 0,
+        sessionCount: 0,
+        activeSessionCount: 0,
+        byStatus: {},
+      }),
+    };
+
+    const response = await handleDelegationReadRoutes(
+      contextWithService(service),
+      new Request("http://localhost/delegation/task-summaries?limit=9000"),
+      new URL("http://localhost/delegation/task-summaries?limit=9000"),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(listTasks).toHaveBeenCalledWith({
+      includeArchived: true,
+      limit: 500,
+    });
+  });
+
   it("serves filtered legacy DTOs from the official task service", async () => {
     const response = await handleDelegationReadRoutes(
       contextWith(),
@@ -240,8 +270,8 @@ describe("handleDelegationReadRoutes", () => {
       ),
       handleDelegationReadRoutes(
         context,
-        new Request("http://localhost/delegation/task-summaries?limit=100"),
-        new URL("http://localhost/delegation/task-summaries?limit=100"),
+        new Request("http://localhost/delegation/task-summaries?limit=500"),
+        new URL("http://localhost/delegation/task-summaries?limit=500"),
       ),
     ]);
 
@@ -265,7 +295,7 @@ describe("handleDelegationReadRoutes", () => {
     });
     expect(listSpy).toHaveBeenNthCalledWith(2, {
       includeArchived: true,
-      limit: 100,
+      limit: 500,
     });
     expect(getTaskSpy).not.toHaveBeenCalled();
   });
@@ -309,8 +339,8 @@ describe("handleDelegationReadRoutes", () => {
 
     const response = await handleDelegationReadRoutes(
       contextWithService(service),
-      new Request("http://localhost/delegation/task-summaries?limit=100"),
-      new URL("http://localhost/delegation/task-summaries?limit=100"),
+      new Request("http://localhost/delegation/task-summaries?limit=500"),
+      new URL("http://localhost/delegation/task-summaries?limit=500"),
     );
 
     await expect(response?.json()).resolves.toEqual({

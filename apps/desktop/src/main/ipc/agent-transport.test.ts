@@ -682,8 +682,8 @@ describe("parseApiPath", () => {
     expect(parseApiPath("/delegation/overview-snapshot", "GET")).toBe(
       "/delegation/overview-snapshot",
     );
-    expect(parseApiPath("/delegation/task-summaries?limit=100", "GET")).toBe(
-      "/delegation/task-summaries?limit=100",
+    expect(parseApiPath("/delegation/task-summaries?limit=500", "GET")).toBe(
+      "/delegation/task-summaries?limit=500",
     );
     expect(parseApiPath("/delegation/groups", "GET")).toBe(
       "/delegation/groups",
@@ -786,6 +786,9 @@ describe("parseApiPath", () => {
     expect(() => parseApiPath("/delegation/tasks?limit=201", "GET")).toThrow(
       /Unsupported query/,
     );
+    expect(() =>
+      parseApiPath("/delegation/task-summaries?limit=501", "GET"),
+    ).toThrow(/Unsupported query/);
     expect(() =>
       parseApiPath("/delegation/tasks?priority=urgent", "GET"),
     ).toThrow(/Unsupported query/);

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AgentRosterPanel } from "./AgentRosterPanel";
 import { PlanPanel } from "./PlanPanel";
 import { TaskCreateForm } from "./TaskCreateForm";
-import { TASK_QUEUE_PAGE_SIZE, TaskQueuePanel } from "./TaskQueuePanel";
+import { TaskQueuePanel } from "./TaskQueuePanel";
 
 const resource = () => ({ error: "", loading: false, reload: vi.fn() });
 
@@ -161,15 +161,12 @@ describe("orchestration presentational panels", () => {
   });
 
   it("keeps the initial task rail bounded", () => {
-    const tasks = Array.from(
-      { length: TASK_QUEUE_PAGE_SIZE + 5 },
-      (_, index) => ({
-        id: `task-${index}`,
-        title: `Task ${index}`,
-        objective: `Objective ${index}`,
-        status: "pending",
-      }),
-    );
+    const tasks = Array.from({ length: 159 }, (_, index) => ({
+      id: `task-${index}`,
+      title: `Task ${index}`,
+      objective: `Objective ${index}`,
+      status: "pending",
+    }));
     const markup = renderToStaticMarkup(
       createElement(TaskQueuePanel, {
         active: true,
@@ -205,8 +202,9 @@ describe("orchestration presentational panels", () => {
     expect(markup).toContain("Task 19");
     expect(markup).not.toContain("Task 20");
     expect(markup).not.toContain("Objective 0");
-    expect(markup).toContain("Showing 20 of 25");
-    expect(markup).toContain("Show 5 more");
+    expect(markup).toContain("Showing 20 of 159");
+    expect(markup).toContain("Show 20 more");
+    expect(markup).toContain("159 total");
     expect(markup).toContain("master-meta-pills");
     expect(markup).not.toContain(">normal</span>");
     expect(markup).toContain('placeholder="Filter tasks"');
