@@ -1759,6 +1759,26 @@
   padding: 2px 4px 6px;
 }
 
+.orchestration-queue-controls {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr) minmax(92px, 0.46fr);
+  gap: 5px;
+  padding: 6px 7px;
+  border-bottom: 1px solid var(--border);
+}
+
+.orchestration-queue-controls label {
+  min-width: 0;
+}
+
+.orchestration-queue-controls :is(input, select) {
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 7px;
+  font-size: 9px;
+}
+
 .orchestration-master-list {
   gap: 0;
 }

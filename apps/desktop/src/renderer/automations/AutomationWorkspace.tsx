@@ -366,7 +366,7 @@ export function AutomationWorkspace({
                 {selectedRun ? <AutomationTrace entry={selectedRun} /> : null}
               </div>
             ) : (
-              <EmptyBlock title="No trace receipts">
+              <EmptyBlock density="compact" title="No trace receipts">
                 Run an automation to inspect its trigger, condition, action, and
                 delivery phases.
               </EmptyBlock>

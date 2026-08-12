@@ -101,13 +101,13 @@ export function GatewayTimelinePanel({
         <LoadingBlock label="Reading local gateway records…" />
       ) : null}
       {!loading && !entries.length ? (
-        <EmptyBlock title="No gateway messages recorded yet">
+        <EmptyBlock density="compact" title="No gateway messages recorded yet">
           Configure a transport and wait for real traffic. This page does not
           create test sends.
         </EmptyBlock>
       ) : null}
       {entries.length > 0 && !visibleEntries.length ? (
-        <EmptyBlock title="No records match these filters">
+        <EmptyBlock density="compact" title="No records match these filters">
           Adjust the direction, platform, or text filter.
         </EmptyBlock>
       ) : null}

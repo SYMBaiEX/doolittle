@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { acpBridgeStatusLabel, normalizeAcpTools } from "./AcpBridgePanel";
+import {
+  acpBridgeStatusLabel,
+  acpBridgeSummary,
+  normalizeAcpTools,
+} from "./AcpBridgePanel";
 
 describe("ACP bridge panel helpers", () => {
   it("keeps only display-safe discovered tool fields", () => {
@@ -32,5 +36,16 @@ describe("ACP bridge panel helpers", () => {
     expect(
       acpBridgeStatusLabel({ enabled: true, detail: "", timeoutMs: 5000 }),
     ).toBe("Configured");
+  });
+
+  it("keeps an honest summary available when static reads fail", () => {
+    expect(acpBridgeSummary(undefined, undefined, true)).toEqual({
+      command: "Unavailable",
+      detail: "Bridge status could not be read.",
+      toolCount: 0,
+      sessionCount: 0,
+      lastProbe: "Not yet",
+      lastError: "No bridge error recorded.",
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { type FormEvent, type RefObject, useState } from "react";
+import { type FormEvent, type RefObject, useEffect, useState } from "react";
 import { progressiveWindow } from "../components/progressive-window";
 import {
   asArray,
@@ -9,6 +9,7 @@ import {
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
+  titleCase,
   type UnknownRecord,
 } from "../lib";
 import {
@@ -29,6 +30,11 @@ import {
   statusTone,
 } from "./detail-primitives";
 import type { ConfirmedAction, ResourceState, TaskAction } from "./models";
+import {
+  availableTaskQueueTiers,
+  filterTaskQueue,
+  type TaskQueueTier,
+} from "./task-queue-model";
 
 export const TASK_QUEUE_PAGE_SIZE = 20;
 
@@ -104,11 +110,23 @@ export function TaskQueuePanel({
     key: pageKey,
     limit: TASK_QUEUE_PAGE_SIZE,
   });
-  const requested = page.key === pageKey ? page.limit : TASK_QUEUE_PAGE_SIZE;
+  const [query, setQuery] = useState("");
+  const [tier, setTier] = useState<TaskQueueTier>("all");
+  const tiers = availableTaskQueueTiers(tasks);
+  const effectiveTier = tiers.includes(tier) ? tier : "all";
+  useEffect(() => {
+    if (tier !== effectiveTier) setTier(effectiveTier);
+  }, [effectiveTier, tier]);
+  const filteredTasks = filterTaskQueue(tasks, {
+    query,
+    tier: effectiveTier,
+  });
+  const filterKey = `${pageKey}:${effectiveTier}:${query.trim().toLocaleLowerCase()}`;
+  const requested = page.key === filterKey ? page.limit : TASK_QUEUE_PAGE_SIZE;
   const selectedIndex = selectedTask
-    ? tasks.findIndex((task) => task.id === selectedTask.id)
+    ? filteredTasks.findIndex((task) => task.id === selectedTask.id)
     : -1;
-  const taskWindow = progressiveWindow(tasks, {
+  const taskWindow = progressiveWindow(filteredTasks, {
     pageSize: TASK_QUEUE_PAGE_SIZE,
     requested,
     selectedIndex,
@@ -143,6 +161,28 @@ export function TaskQueuePanel({
           }
         >
           Create a focused task to start an operator workflow in this workspace.
+        </EmptyBlock>
+      );
+    }
+    if (filteredTasks.length === 0) {
+      return (
+        <EmptyBlock
+          actions={
+            <button
+              className="secondary-button"
+              onClick={() => {
+                setQuery("");
+                setTier("all");
+              }}
+              type="button"
+            >
+              Clear filters
+            </button>
+          }
+          density="compact"
+          title="No matching tasks"
+        >
+          Change the search or lifecycle filter.
         </EmptyBlock>
       );
     }
@@ -192,13 +232,13 @@ export function TaskQueuePanel({
         {taskWindow.remaining ? (
           <li className="orchestration-master-footer">
             <span>
-              Showing {taskWindow.visible.length} of {tasks.length}
+              Showing {taskWindow.visible.length} of {filteredTasks.length}
             </span>
             <button
               className="secondary-button"
               onClick={() =>
                 setPage({
-                  key: pageKey,
+                  key: filterKey,
                   limit: taskWindow.limit + TASK_QUEUE_PAGE_SIZE,
                 })
               }
@@ -224,6 +264,35 @@ export function TaskQueuePanel({
               : ` · ${workspaceLabel || "selected project"}`}
           </small>
         </div>
+        {tasks.length > 0 ? (
+          <div className="orchestration-queue-controls">
+            <label>
+              <span className="sr-only">Search task queue</span>
+              <input
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Filter tasks"
+                type="search"
+                value={query}
+              />
+            </label>
+            <label>
+              <span className="sr-only">Task lifecycle</span>
+              <select
+                aria-label="Task lifecycle"
+                onChange={(event) =>
+                  setTier(event.target.value as TaskQueueTier)
+                }
+                value={effectiveTier}
+              >
+                {tiers.map((value) => (
+                  <option key={value} value={value}>
+                    {value === "all" ? "All states" : titleCase(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : null}
         <div className="orchestration-scroll">{renderTaskRail()}</div>
       </aside>
 

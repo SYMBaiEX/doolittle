@@ -120,7 +120,7 @@ export function MemoryProfilesPanel({
             ))}
           </ul>
         ) : submittedRecallQuery ? (
-          <EmptyBlock title="No recalled matches">
+          <EmptyBlock density="compact" title="No recalled matches">
             No saved profile details matched this query.
           </EmptyBlock>
         ) : (
@@ -184,7 +184,7 @@ export function MemoryProfilesPanel({
         ) : agentCard ? (
           <pre className="json-preview">{agentCard}</pre>
         ) : (
-          <EmptyBlock title="No agent card">
+          <EmptyBlock density="compact" title="No agent card">
             The runtime did not return an agent profile card.
           </EmptyBlock>
         )}

@@ -115,7 +115,7 @@ function PullRequestReview({ selected, review }: ReviewCiPanelProps) {
             })}
           </ul>
         ) : (
-          <EmptyBlock title="No checks reported">
+          <EmptyBlock density="compact" title="No checks reported">
             GitHub has not reported checks for this pull request.
           </EmptyBlock>
         )}

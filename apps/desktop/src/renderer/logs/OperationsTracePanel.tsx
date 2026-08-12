@@ -80,7 +80,7 @@ export function OperationsTracePanel({
             ))}
           </div>
         ) : (
-          <EmptyBlock title="No deliveries recorded">
+          <EmptyBlock density="compact" title="No deliveries recorded">
             Delivery traces will appear here once gateway or home outputs run.
           </EmptyBlock>
         )}
@@ -137,7 +137,7 @@ export function OperationsTracePanel({
             ))}
           </div>
         ) : (
-          <EmptyBlock title="No recent commands">
+          <EmptyBlock density="compact" title="No recent commands">
             Local terminal execution history has not been recorded yet.
           </EmptyBlock>
         )}

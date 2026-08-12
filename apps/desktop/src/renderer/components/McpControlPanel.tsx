@@ -538,7 +538,7 @@ export function McpControlPanel({ active }: { active: boolean }) {
               !marketplace.error &&
               !marketplace.data?.marketplace?.error &&
               !marketplaceServers.length ? (
-                <EmptyBlock title="No registry matches">
+                <EmptyBlock density="compact" title="No registry matches">
                   Try a broader server name or capability.
                 </EmptyBlock>
               ) : null}
@@ -696,7 +696,7 @@ export function McpControlPanel({ active }: { active: boolean }) {
                 </Notice>
               ) : null}
               {!search.loading && !search.error && !visibleTools.length ? (
-                <EmptyBlock title="No cached MCP tools">
+                <EmptyBlock density="compact" title="No cached MCP tools">
                   {toolQuery
                     ? "Try a broader search."
                     : "Probe a configured MCP connection to populate this registry."}

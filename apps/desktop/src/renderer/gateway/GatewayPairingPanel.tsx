@@ -94,7 +94,10 @@ export function GatewayPairingPanel({
                 </Badge>
               </div>
               {!pending.length ? (
-                <EmptyBlock title="No pending pairing requests">
+                <EmptyBlock
+                  density="compact"
+                  title="No pending pairing requests"
+                >
                   New sender requests will appear here after Eliza receives
                   them.
                 </EmptyBlock>
@@ -167,7 +170,7 @@ export function GatewayPairingPanel({
                 <Badge tone="good">{approved.length}</Badge>
               </div>
               {!approved.length ? (
-                <EmptyBlock title="No approved senders">
+                <EmptyBlock density="compact" title="No approved senders">
                   Approvals remain in Eliza’s own allowlist and appear here when
                   the service exposes them.
                 </EmptyBlock>

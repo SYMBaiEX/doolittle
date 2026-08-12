@@ -58,6 +58,29 @@ export function acpBridgeStatusLabel(
   return status.enabled ? "Configured" : "Not configured";
 }
 
+export function acpBridgeSummary(
+  bridge: AcpBridgeStatus | undefined,
+  sessions: AcpBridgeSessionSummary | undefined,
+  unavailable = false,
+) {
+  return {
+    command: unavailable
+      ? "Unavailable"
+      : bridge?.enabled
+        ? "Configured locally"
+        : "Not configured",
+    detail:
+      bridge?.detail ||
+      (unavailable
+        ? "Bridge status could not be read."
+        : "No bridge status returned."),
+    toolCount: bridge?.toolCount ?? 0,
+    sessionCount: sessions?.totalSessions ?? 0,
+    lastProbe: displayTimestamp(bridge?.lastProbeAt),
+    lastError: bridge?.lastError || "No bridge error recorded.",
+  };
+}
+
 export function AcpBridgePanel({ active }: { active: boolean }) {
   const status = useApiResource<AcpStatusResponse>(
     active ? "/acp/status" : null,
@@ -88,6 +111,11 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
   const configured = bridge?.enabled === true;
   const loading = status.loading || editor.loading || sessions.loading;
   const staticError = status.error || editor.error || sessions.error;
+  const summary = acpBridgeSummary(
+    bridge,
+    sessionSummary,
+    Boolean(staticError),
+  );
 
   const refresh = () => {
     status.reload();
@@ -138,8 +166,8 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
           </p>
         </div>
         <div className="acp-bridge-actions">
-          <Badge tone={configured ? "good" : "warn"}>
-            {acpBridgeStatusLabel(bridge)}
+          <Badge tone={staticError ? "bad" : configured ? "good" : "warn"}>
+            {staticError ? "Unavailable" : acpBridgeStatusLabel(bridge)}
           </Badge>
           <button className="secondary-button" onClick={refresh} type="button">
             Refresh
@@ -153,30 +181,27 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
           Could not read the local ACP bridge: {staticError}
         </Notice>
       ) : null}
+      {!loading ? (
+        <div className="acp-bridge-summary">
+          <div>
+            <span>Command</span>
+            <strong>{summary.command}</strong>
+            <small>{summary.detail}</small>
+          </div>
+          <div>
+            <span>Registered tools</span>
+            <strong>{summary.toolCount}</strong>
+            <small>{summary.sessionCount} local sessions observed</small>
+          </div>
+          <div>
+            <span>Last probe</span>
+            <strong>{summary.lastProbe}</strong>
+            <small>{summary.lastError}</small>
+          </div>
+        </div>
+      ) : null}
       {!loading && !staticError ? (
         <>
-          <div className="acp-bridge-summary">
-            <div>
-              <span>Command</span>
-              <strong>
-                {configured ? "Configured locally" : "Not configured"}
-              </strong>
-              <small>{bridge?.detail || "No bridge status returned."}</small>
-            </div>
-            <div>
-              <span>Registered tools</span>
-              <strong>{bridge?.toolCount ?? 0}</strong>
-              <small>
-                {sessionSummary?.totalSessions ?? 0} local sessions observed
-              </small>
-            </div>
-            <div>
-              <span>Last probe</span>
-              <strong>{displayTimestamp(bridge?.lastProbeAt)}</strong>
-              <small>{bridge?.lastError || "No bridge error recorded."}</small>
-            </div>
-          </div>
-
           {!configured ? (
             <Notice tone="warn">
               Set <code>ACP_SERVER_COMMAND</code> and restart the local runtime
@@ -295,7 +320,7 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
             !tools.error &&
             toolQuery &&
             !searchedTools.length ? (
-              <EmptyBlock title="No bridge tools match">
+              <EmptyBlock density="compact" title="No bridge tools match">
                 Try a broader local tool search.
               </EmptyBlock>
             ) : null}

@@ -166,6 +166,8 @@ describe("orchestration presentational panels", () => {
     expect(markup).not.toContain("Objective 0");
     expect(markup).toContain("Showing 20 of 25");
     expect(markup).toContain("Show 5 more");
+    expect(markup).toContain('placeholder="Filter tasks"');
+    expect(markup).toContain('aria-label="Task lifecycle"');
   });
 
   it("keeps primary task controls visible and secondary diagnostics disclosed", () => {

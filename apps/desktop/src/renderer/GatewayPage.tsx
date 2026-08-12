@@ -309,7 +309,7 @@ export function GatewayPage({ active }: { active: boolean }) {
               ) : sessions.error ? (
                 <ErrorBlock error={sessions.error} retry={sessions.reload} />
               ) : !localSessions.length ? (
-                <EmptyBlock title="No local routes yet">
+                <EmptyBlock density="compact" title="No local routes yet">
                   Routes appear after Doolittle accepts an inbound gateway
                   message.
                 </EmptyBlock>

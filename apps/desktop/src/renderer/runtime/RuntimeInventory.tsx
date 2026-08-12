@@ -75,7 +75,7 @@ export function RuntimeInventory({
               ))}
             </div>
           ) : (
-            <EmptyBlock title="No plugin entries">
+            <EmptyBlock density="compact" title="No plugin entries">
               Runtime is available but has no catalog payload.
             </EmptyBlock>
           )}
