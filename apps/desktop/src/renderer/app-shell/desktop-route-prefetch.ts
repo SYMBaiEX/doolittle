@@ -1,6 +1,13 @@
 import type { View } from "../desktop-navigation";
 import { prefetchApiResource } from "../lib";
 
+/**
+ * Keep exploratory data prefetch behind a short, stable intent dwell. Route
+ * module chunks still preload immediately, but API resources wait long enough
+ * to filter out pointer sweeps across the sidebar.
+ */
+export const DESKTOP_ROUTE_PREFETCH_DWELL_MS = 180;
+
 export interface DesktopRouteResourcePrefetch {
   path: string;
   dependencies: readonly unknown[];
@@ -59,6 +66,41 @@ export const DESKTOP_ROUTE_RESOURCE_PREFETCHES: Readonly<
   skills: [{ path: "/skills", dependencies: [true] }],
   tools: [{ path: "/tools?profile=full", dependencies: [true, "full"] }],
 };
+
+interface DesktopRoutePrefetchIntent {
+  view: View;
+  timer?: ReturnType<typeof setTimeout>;
+}
+
+let pendingDesktopRoutePrefetchIntent: DesktopRoutePrefetchIntent | null = null;
+
+/** Cancel the currently pending exploratory resource prefetch, if any. */
+export function cancelDesktopRouteResourcePrefetchIntent(): void {
+  const intent = pendingDesktopRoutePrefetchIntent;
+  if (intent?.timer !== undefined) clearTimeout(intent.timer);
+  pendingDesktopRoutePrefetchIntent = null;
+}
+
+/**
+ * Queue resource prefetch for a sustained route intent. Only the latest route
+ * owns the dwell timer, so sweeping across many routes cannot fan out API
+ * requests. Committed navigation uses `prefetchDesktopRouteResources`
+ * directly and remains immediate.
+ */
+export function scheduleDesktopRouteResourcePrefetch(view: View): void {
+  if (pendingDesktopRoutePrefetchIntent?.view === view) return;
+
+  cancelDesktopRouteResourcePrefetchIntent();
+  if (!(DESKTOP_ROUTE_RESOURCE_PREFETCHES[view]?.length ?? 0)) return;
+
+  const intent: DesktopRoutePrefetchIntent = { view };
+  intent.timer = setTimeout(() => {
+    if (pendingDesktopRoutePrefetchIntent !== intent) return;
+    pendingDesktopRoutePrefetchIntent = null;
+    void prefetchDesktopRouteResources(view).catch(() => undefined);
+  }, DESKTOP_ROUTE_PREFETCH_DWELL_MS);
+  pendingDesktopRoutePrefetchIntent = intent;
+}
 
 export async function prefetchDesktopRouteResources(view: View): Promise<void> {
   const resources = DESKTOP_ROUTE_RESOURCE_PREFETCHES[view] ?? [];

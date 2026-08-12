@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { views } from "../desktop-navigation";
-import { DESKTOP_ROUTE_RESOURCE_PREFETCHES } from "./desktop-route-prefetch";
+import {
+  cancelDesktopRouteResourcePrefetchIntent,
+  DESKTOP_ROUTE_RESOURCE_PREFETCHES,
+} from "./desktop-route-prefetch";
 import {
   DESKTOP_ROUTE_PRELOADERS,
   preloadDesktopRoute,
@@ -48,13 +51,17 @@ describe("desktop route preloaders", () => {
     }
   });
 
-  test("keeps exploratory route preloads free of runtime data requests", () => {
+  test("keeps exploratory route preloads intent-gated for runtime data", () => {
     expect(routeRegistrySource).toContain(
       "void DESKTOP_ROUTE_PRELOADERS[view]().catch(() => undefined)",
+    );
+    expect(routeRegistrySource).toContain(
+      "scheduleDesktopRouteResourcePrefetch(view)",
     );
     expect(routeRegistrySource).not.toMatch(
       /function preloadDesktopRoute[\s\S]*?warmDesktopRoute\(view\)/u,
     );
     expect(() => preloadDesktopRoute("dashboard")).not.toThrow();
+    cancelDesktopRouteResourcePrefetchIntent();
   });
 });

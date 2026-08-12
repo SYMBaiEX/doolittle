@@ -1,6 +1,10 @@
 import { type ComponentType, type LazyExoticComponent, lazy } from "react";
 import { type View, views } from "../desktop-navigation";
-import { prefetchDesktopRouteResources } from "./desktop-route-prefetch";
+import {
+  cancelDesktopRouteResourcePrefetchIntent,
+  prefetchDesktopRouteResources,
+  scheduleDesktopRouteResourcePrefetch,
+} from "./desktop-route-prefetch";
 
 type RouteLoader = () => Promise<unknown>;
 type ComponentExportKey<Module> = {
@@ -176,6 +180,7 @@ export const DESKTOP_ROUTE_PRELOADERS = completeRouteLoaderRegistry();
 
 /** Warm the route module and its first-view resources once navigation commits. */
 export async function warmDesktopRoute(view: View): Promise<void> {
+  cancelDesktopRouteResourcePrefetchIntent();
   await Promise.all([
     DESKTOP_ROUTE_PRELOADERS[view](),
     prefetchDesktopRouteResources(view),
@@ -183,9 +188,10 @@ export async function warmDesktopRoute(view: View): Promise<void> {
 }
 
 /**
- * Preload only the route module for exploratory focus and hover intent.
- * Runtime data waits for committed navigation, preventing incidental API bursts.
+ * Preload the route module immediately for exploratory focus and hover intent.
+ * Resource data waits for a sustained dwell, preventing incidental API bursts.
  */
 export function preloadDesktopRoute(view: View): void {
   void DESKTOP_ROUTE_PRELOADERS[view]().catch(() => undefined);
+  scheduleDesktopRouteResourcePrefetch(view);
 }
