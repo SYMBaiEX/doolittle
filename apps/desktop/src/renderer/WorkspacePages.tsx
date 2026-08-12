@@ -11,6 +11,7 @@ import {
   LoadingBlock,
   PageHeader,
   useApiResource,
+  useDebouncedValue,
 } from "./lib";
 import { SessionDetail } from "./sessions/SessionDetail";
 
@@ -62,14 +63,15 @@ export function SessionsPage({
   projectId?: string | null;
 }) {
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query.trim());
   const [selectedId, setSelectedId] = useState(sessions[0]?.sessionId ?? "");
   const [mutationError, setMutationError] = useState("");
   const [transferStatus, setTransferStatus] = useState("");
   const [transferring, setTransferring] = useState(false);
   const archiveInputRef = useRef<HTMLInputElement>(null);
   const searchPath =
-    active && query.trim() && projectId !== null
-      ? `/sessions/search?query=${encodeURIComponent(query.trim())}&limit=25${
+    active && debouncedQuery && projectId !== null
+      ? `/sessions/search?query=${encodeURIComponent(debouncedQuery)}&limit=25${
           projectId ? `&projectId=${encodeURIComponent(projectId)}` : ""
         }`
       : null;

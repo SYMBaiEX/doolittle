@@ -14,6 +14,7 @@ import {
   RawDataDisclosure,
   type UnknownRecord,
   useApiResource,
+  useDebouncedValue,
 } from "./lib";
 import "./registry-page.css";
 
@@ -67,25 +68,29 @@ export function normalizeRegistryEntries(value: unknown): RegistryEntry[] {
 
 export function RegistryPage({ active }: { active: boolean }) {
   const [query, setQuery] = useState("");
-  const [refreshRequested, setRefreshRequested] = useState(false);
+  const debouncedQuery = useDebouncedValue(query.trim());
+  const [refreshRequest, setRefreshRequest] = useState<{
+    nonce: number;
+    query: string;
+  } | null>(null);
   const [pendingInstall, setPendingInstall] = useState("");
   const [installing, setInstalling] = useState(false);
   const [installNotice, setInstallNotice] = useState("");
   const params = useMemo(() => {
     const next = new URLSearchParams();
-    const normalized = query.trim();
-    if (normalized) {
-      next.set("query", normalized);
+    if (debouncedQuery) {
+      next.set("query", debouncedQuery);
     }
-    if (refreshRequested) {
+    if (refreshRequest?.query === debouncedQuery) {
       next.set("refresh", "true");
     }
     return next.toString();
-  }, [query, refreshRequested]);
+  }, [debouncedQuery, refreshRequest]);
   const path = params ? `/runtime/registry?${params}` : "/runtime/registry";
   const registry = useApiResource<UnknownRecord>(active ? path : null, [
     active,
     params,
+    refreshRequest?.nonce,
   ]);
   const entries = normalizeRegistryEntries(registry.data);
 
@@ -140,10 +145,15 @@ export function RegistryPage({ active }: { active: boolean }) {
         actions={
           <button
             className="text-button"
-            onClick={registry.reload}
+            onClick={() =>
+              setRefreshRequest((current) => ({
+                nonce: (current?.nonce ?? 0) + 1,
+                query: query.trim(),
+              }))
+            }
             type="button"
           >
-            Refresh
+            Refresh registry
           </button>
         }
       />
@@ -158,13 +168,6 @@ export function RegistryPage({ active }: { active: boolean }) {
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
-          <button
-            className="secondary-button"
-            onClick={() => setRefreshRequested((current) => !current)}
-            type="button"
-          >
-            {refreshRequested ? "Hard refresh" : "Cached lookup"}
-          </button>
         </div>
       ) : null}
       {!active ? (

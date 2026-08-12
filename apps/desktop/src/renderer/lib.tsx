@@ -1,7 +1,12 @@
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Badge as ElizaBadge } from "@elizaos/ui/components/ui/badge";
 import { useCachedResource } from "@elizaos/ui/hooks/useCachedResource";
-import { type DependencyList, type ReactNode, useState } from "react";
+import {
+  type DependencyList,
+  type ReactNode,
+  useEffect,
+  useState,
+} from "react";
 import { desktopRequest } from "./eliza-client";
 
 export { desktopRequest } from "./eliza-client";
@@ -94,6 +99,17 @@ export function useApiResource<T>(
     loading: Boolean(path) && resource.status === "loading",
     reload: resource.refetch,
   };
+}
+
+export function useDebouncedValue<T>(value: T, delayMs = 250): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedValue(value), delayMs);
+    return () => window.clearTimeout(timeout);
+  }, [delayMs, value]);
+
+  return debouncedValue;
 }
 
 export function PageHeader({

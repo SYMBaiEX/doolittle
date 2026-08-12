@@ -3,7 +3,14 @@ import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
-import { asArray, asRecord, asString, PageHeader, useApiResource } from "./lib";
+import {
+  asArray,
+  asRecord,
+  asString,
+  PageHeader,
+  useApiResource,
+  useDebouncedValue,
+} from "./lib";
 import { toLogViewerEntries } from "./log-viewer-mapping";
 import { OperationsTracePanel } from "./logs/OperationsTracePanel";
 
@@ -22,13 +29,14 @@ interface TerminalHistoryResponse {
 export function LogsPage({ active }: { active: boolean }) {
   const [level, setLevel] = useState("all");
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query.trim());
   const [historyOpen, setHistoryOpen] = useState(false);
   const params = new URLSearchParams({ limit: "500" });
   if (level !== "all") params.set("level", level);
-  if (query.trim()) params.set("query", query.trim());
+  if (debouncedQuery) params.set("query", debouncedQuery);
   const resource = useApiResource<LogsResponse>(
     active ? `/logs?${params.toString()}` : null,
-    [active, level, query],
+    [active, level, debouncedQuery],
   );
   const deliveries = useApiResource<DeliveriesResponse>(
     active && historyOpen ? "/deliveries" : null,
