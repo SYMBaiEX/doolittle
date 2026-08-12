@@ -36,15 +36,7 @@ const routes = [
   ["docs", "About"],
 ] as const;
 
-const visualAuditRoutes = new Set([
-  "automations",
-  "dashboard",
-  "media",
-  "operatorSetup",
-  "docs",
-  "settings",
-  "tools",
-]);
+const visualAuditRoutes = new Set(routes.map(([route]) => route));
 
 test.describe("Doolittle desktop navigation", () => {
   test("boots the real Electron shell and renders every application route", async ({
