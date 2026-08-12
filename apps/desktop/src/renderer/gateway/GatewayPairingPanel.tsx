@@ -53,8 +53,8 @@ export function GatewayPairingPanel({
     >
       <summary className="panel-heading gateway-heading">
         <div>
-          <span className="eyebrow">Secure device access</span>
-          <h2 id="pairing-title">Paired sender approvals</h2>
+          <span className="eyebrow">Pairing</span>
+          <h2 id="pairing-title">Sender approvals</h2>
         </div>
         <span className="pairing-summary-counts">
           {open && loading
@@ -70,12 +70,10 @@ export function GatewayPairingPanel({
         <ErrorBlock error={error} retry={onRetry} />
       ) : open ? (
         <div className="pairing-panel-body">
-          <Notice announce="off" tone="neutral">
-            <span>
-              Messaging senders only—not remote desktop access. Requests expire
-              under the Eliza runtime policy.
-            </span>
-          </Notice>
+          <p className="pairing-scope">
+            Messaging allowlist only · no remote desktop access · expiry follows
+            runtime policy
+          </p>
           {truncated ? (
             <Notice announce="off" tone="warn">
               Showing the newest 200 pairing records. Filter by platform through

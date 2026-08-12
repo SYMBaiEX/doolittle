@@ -62,7 +62,6 @@ export function ImageTab({ active }: { active: boolean }) {
       <form className="content-card media-form" onSubmit={runGenerate}>
         <div className="card-heading">
           <div>
-            <span className="eyebrow">Image</span>
             <h2>Generate an image from text</h2>
           </div>
         </div>

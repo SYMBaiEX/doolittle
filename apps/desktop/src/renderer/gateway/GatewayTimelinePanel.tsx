@@ -52,10 +52,13 @@ export function GatewayTimelinePanel({
     >
       <div className="panel-heading gateway-heading">
         <div>
-          <span className="eyebrow">Recorded timeline</span>
-          <h2 id="gateway-timeline-title">Inbound and outbound history</h2>
+          <h2 id="gateway-timeline-title">Message history</h2>
         </div>
-        <span className="muted-copy">Newest first · local journal only</span>
+        <span className="muted-copy">
+          {entries.length
+            ? `${visibleEntries.length} of ${entries.length}`
+            : "No records"}
+        </span>
       </div>
       <fieldset className="gateway-filters">
         <legend className="sr-only">Gateway record filters</legend>

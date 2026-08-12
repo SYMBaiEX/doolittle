@@ -52,6 +52,9 @@ describe("GatewayTimelinePanel", () => {
 
     expect(markup).toContain("Please investigate this.");
     expect(markup).toContain("I am on it.");
+    expect(markup).toContain("Message history");
+    expect(markup).toContain("2 of 2");
+    expect(markup).not.toContain("Recorded timeline");
     expect(markup).toContain(">Replay</button>");
     expect(markup).toContain('aria-label="Replay inbound Discord message"');
     expect(markup.match(/>Replay<\/button>/g)).toHaveLength(1);

@@ -314,7 +314,7 @@ export function GatewayPage({ active }: { active: boolean }) {
           <summary>
             <span>
               <strong>Thread routes</strong>
-              <small>Gateway rooms, threads, and attached agent sessions</small>
+              <small>Room and attached-agent routes</small>
             </span>
             <span>
               {routesOpen

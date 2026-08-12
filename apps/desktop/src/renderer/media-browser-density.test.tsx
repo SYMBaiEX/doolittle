@@ -11,6 +11,8 @@ describe("media and browser workspace density", () => {
     expect(html.match(/hidden=""/g)).toHaveLength(3);
     expect(html).toContain("Inspect or analyze a file");
     expect(html).toContain("Analysis settings");
+    expect(html).toContain('class="media-file-field"');
+    expect(html).not.toContain("Local media");
     expect(html).toContain('aria-labelledby="media-tab-inspect-analyze"');
     expect(html).not.toContain("Run model analysis");
   });

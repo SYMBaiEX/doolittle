@@ -51,5 +51,7 @@ describe("GatewayPairingPanel", () => {
     expect(html).toContain("pending-user");
     expect(html).toContain("approved-user");
     expect(html).toContain("ABCDEFGH");
+    expect(html).toContain("Messaging allowlist only");
+    expect(html).not.toContain("Secure device access");
   });
 });

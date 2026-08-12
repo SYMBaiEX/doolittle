@@ -62,7 +62,6 @@ export function SpeechTab({ active }: { active: boolean }) {
       <form className="content-card media-form" onSubmit={runSpeak}>
         <div className="card-heading">
           <div>
-            <span className="eyebrow">Speech</span>
             <h2>Generate text-to-speech output</h2>
           </div>
         </div>

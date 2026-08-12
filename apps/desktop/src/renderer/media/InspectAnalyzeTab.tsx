@@ -86,19 +86,27 @@ export function InspectAnalyzeTab({ active }: { active: boolean }) {
       <form className="content-card media-form" onSubmit={runInspect}>
         <div className="card-heading">
           <div>
-            <span className="eyebrow">Local media</span>
             <h2>Inspect or analyze a file</h2>
           </div>
         </div>
-        <label>
-          <span>File</span>
-          <input
-            aria-label="Media path for inspection"
-            onChange={(event) => setPath(event.target.value)}
-            placeholder="/tmp/example.wav"
-            value={path}
-          />
-        </label>
+        <div className="media-file-field">
+          <label>
+            <span>File</span>
+            <input
+              aria-label="Media path for inspection"
+              onChange={(event) => setPath(event.target.value)}
+              placeholder="/tmp/example.wav"
+              value={path}
+            />
+          </label>
+          <button
+            className="secondary-button"
+            onClick={() => void chooseLocalMediaFile(setPath, setInspectError)}
+            type="button"
+          >
+            Browse…
+          </button>
+        </div>
         <details className="media-options">
           <summary>
             Analysis settings <span>{focus || "Auto"}</span>
@@ -119,13 +127,6 @@ export function InspectAnalyzeTab({ active }: { active: boolean }) {
           </div>
         </details>
         <div className="form-actions">
-          <button
-            className="secondary-button"
-            onClick={() => void chooseLocalMediaFile(setPath, setInspectError)}
-            type="button"
-          >
-            Browse…
-          </button>
           <button
             className="secondary-button"
             disabled={analyzeBusy}

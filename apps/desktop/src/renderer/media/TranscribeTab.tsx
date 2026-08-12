@@ -61,18 +61,26 @@ export function TranscribeTab({ active }: { active: boolean }) {
       <form className="content-card media-form" onSubmit={runTranscribe}>
         <div className="card-heading">
           <div>
-            <span className="eyebrow">Transcribe</span>
             <h2>Convert local media to text</h2>
           </div>
         </div>
-        <label>
-          <span>Audio or video file</span>
-          <input
-            onChange={(event) => setPath(event.target.value)}
-            placeholder="/tmp/meeting.webm"
-            value={path}
-          />
-        </label>
+        <div className="media-file-field">
+          <label>
+            <span>Audio or video file</span>
+            <input
+              onChange={(event) => setPath(event.target.value)}
+              placeholder="/tmp/meeting.webm"
+              value={path}
+            />
+          </label>
+          <button
+            className="secondary-button"
+            onClick={() => void chooseLocalMediaFile(setPath, setError)}
+            type="button"
+          >
+            Browse…
+          </button>
+        </div>
         <details className="media-options">
           <summary>
             Transcription settings <span>{language || "Automatic"}</span>
@@ -105,13 +113,6 @@ export function TranscribeTab({ active }: { active: boolean }) {
           </div>
         </details>
         <div className="form-actions">
-          <button
-            className="secondary-button"
-            onClick={() => void chooseLocalMediaFile(setPath, setError)}
-            type="button"
-          >
-            Browse…
-          </button>
           <button className="primary-button" disabled={busy} type="submit">
             {busy ? "Transcribing…" : "Transcribe"}
           </button>

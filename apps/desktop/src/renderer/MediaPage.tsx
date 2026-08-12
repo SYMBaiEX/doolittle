@@ -5,6 +5,7 @@ import { ImageTab } from "./media/ImageTab";
 import { InspectAnalyzeTab } from "./media/InspectAnalyzeTab";
 import { SpeechTab } from "./media/SpeechTab";
 import { TranscribeTab } from "./media/TranscribeTab";
+import "./media-page.css";
 
 const MEDIA_TABS = [
   { id: "inspect-analyze", label: "Inspect / Analyze" },
