@@ -15,14 +15,11 @@
 
 .mcp-control-header,
 .mcp-control-actions,
-.mcp-control-probe,
-.mcp-control-summary > div,
 .mcp-control-browser-header {
   display: flex;
 }
 
 .mcp-control-header,
-.mcp-control-probe,
 .mcp-control-browser-header {
   align-items: flex-start;
   justify-content: space-between;
@@ -50,17 +47,12 @@
 }
 
 .mcp-control-actions {
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
 }
 
-.mcp-control-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.mcp-control-summary > div,
 .mcp-control-browser,
 .mcp-control-marketplace {
   min-width: 0;
@@ -212,12 +204,6 @@
   color: var(--danger);
 }
 
-.mcp-control-summary > div {
-  flex-direction: column;
-  gap: 5px;
-}
-
-.mcp-control-summary span,
 .mcp-control-detail > small {
   color: var(--muted);
   font-family: var(--font-mono);
@@ -226,32 +212,10 @@
   text-transform: uppercase;
 }
 
-.mcp-control-summary strong {
-  font-size: 15px;
-}
-
-.mcp-control-summary small {
-  color: var(--text-soft);
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.mcp-control-probe {
-  align-items: center;
-  padding: 12px 13px;
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
-  border: 1px solid var(--border);
+.mcp-control-panel > .compact-stat-strip {
+  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
   border-radius: 4px;
-}
-
-.mcp-control-probe > div {
-  display: grid;
-  gap: 4px;
-}
-
-.mcp-control-probe span {
-  color: var(--text-soft);
-  font-size: 12px;
 }
 
 .mcp-control-browser {
@@ -362,12 +326,10 @@
 }
 
 @media (max-width: 760px) {
-  .mcp-control-header,
-  .mcp-control-probe {
+  .mcp-control-header {
     flex-direction: column;
   }
 
-  .mcp-control-summary,
   .mcp-control-tool-grid,
   .mcp-control-marketplace-grid {
     grid-template-columns: 1fr;

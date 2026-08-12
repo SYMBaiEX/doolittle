@@ -13,6 +13,7 @@ import {
   Notice,
   useApiResource,
 } from "../lib";
+import { CompactStatStrip } from "./CompactStatStrip";
 import "./mcp-control-panel.css";
 
 export interface McpToolSummary {
@@ -396,6 +397,16 @@ export function McpControlPanel({ active }: { active: boolean }) {
           <Badge tone={healthy ? "good" : "warn"}>
             {mcpStatusLabel(bridge)}
           </Badge>
+          {configured ? (
+            <button
+              className="secondary-button"
+              disabled={probing}
+              onClick={() => void probe()}
+              type="button"
+            >
+              {probing ? "Probing…" : "Probe"}
+            </button>
+          ) : null}
           <button className="secondary-button" onClick={refresh} type="button">
             Refresh
           </button>
@@ -411,30 +422,28 @@ export function McpControlPanel({ active }: { active: boolean }) {
 
       {!loading && !staticError ? (
         <>
-          <div className="mcp-control-summary">
-            <div>
-              <span>Eliza servers</span>
-              <strong>
-                {asNumber(bridge?.connectedServers, 0)} /{" "}
-                {asNumber(bridge?.serverCount, 0)} connected
-              </strong>
-              <small>{bridge?.detail || "No MCP status returned."}</small>
-            </div>
-            <div>
-              <span>Cached tools</span>
-              <strong>
-                {asNumber(bridge?.discoveredTools, allTools.length)}
-              </strong>
-              <small>
-                Last discovery {displayTimestamp(bridge?.lastDiscoveryAt)}
-              </small>
-            </div>
-            <div>
-              <span>Last probe</span>
-              <strong>{displayTimestamp(bridge?.lastProbeAt)}</strong>
-              <small>{bridge?.lastError || "No bridge error recorded."}</small>
-            </div>
-          </div>
+          <CompactStatStrip
+            label="MCP connection summary"
+            stats={[
+              {
+                detail: bridge?.detail || "No MCP status returned.",
+                label: "Eliza servers",
+                tone: healthy ? "good" : "warn",
+                value: `${asNumber(bridge?.connectedServers, 0)} / ${asNumber(bridge?.serverCount, 0)}`,
+              },
+              {
+                detail: `Discovered ${displayTimestamp(bridge?.lastDiscoveryAt)}`,
+                label: "Cached tools",
+                value: asNumber(bridge?.discoveredTools, allTools.length),
+              },
+              {
+                detail: bridge?.lastError || "No bridge error recorded.",
+                label: "Last probe",
+                tone: bridge?.lastError ? "warn" : "neutral",
+                value: displayTimestamp(bridge?.lastProbeAt),
+              },
+            ]}
+          />
 
           {!configured ? (
             <Notice tone="warn">
@@ -442,25 +451,7 @@ export function McpControlPanel({ active }: { active: boolean }) {
               the runtime. Eliza validates the configuration and owns the
               connection lifecycle.
             </Notice>
-          ) : (
-            <div className="mcp-control-probe">
-              <div>
-                <strong>Connection diagnostics</strong>
-                <span>
-                  Probe the official Eliza service and refresh its tool
-                  projection.
-                </span>
-              </div>
-              <button
-                className="secondary-button"
-                disabled={probing}
-                onClick={() => void probe()}
-                type="button"
-              >
-                {probing ? "Probing…" : "Probe connection"}
-              </button>
-            </div>
-          )}
+          ) : null}
           {probeNotice ? (
             <Notice
               tone={probeNotice.startsWith("Probe passed") ? "good" : "bad"}
@@ -658,7 +649,7 @@ export function McpControlPanel({ active }: { active: boolean }) {
             </div>
           </details>
 
-          <details className="mcp-control-disclosure mcp-control-browser" open>
+          <details className="mcp-control-disclosure mcp-control-browser">
             <summary className="mcp-control-browser-header">
               <div>
                 <span className="eyebrow">Read-only registry</span>
