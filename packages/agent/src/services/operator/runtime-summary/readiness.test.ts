@@ -93,6 +93,44 @@ describe("buildSetupReadinessSummary", () => {
     );
   });
 
+  it("keeps optional gateway transports from downgrading local readiness", () => {
+    const summary = buildSetupReadinessSummary({
+      directories: [
+        { label: "workspace", path: "/tmp/workspace", exists: true },
+        { label: "data", path: "/tmp/data", exists: true },
+      ],
+      providers: [
+        { id: "openai", ready: true, detail: "Configured for gpt-5.4." },
+      ],
+      transports: [
+        {
+          id: "discord",
+          ready: false,
+          detail: "Discord transport is not available.",
+        },
+      ],
+      condensed: {
+        ownership: undefined,
+        ecosystem: {
+          registryAvailable: true,
+          registryPlugins: 4,
+          skillCatalogAvailable: true,
+          skillCatalogSkills: 12,
+          compatibilityFailures: 0,
+        },
+        pluginManager: emptyPluginManager,
+        pipeline: undefined,
+      },
+    });
+
+    expect(summary.level).toBe("ready");
+    expect(summary.headline).toContain("look ready");
+    expect(summary.nextSteps).toEqual([
+      "If you want gateway continuity, enable at least one transport and confirm `/gateway status`.",
+      "Keep `/doctor` and `nub run check` as the standard validation loop after configuration changes.",
+    ]);
+  });
+
   it("reports setup as ready when providers, transports, and ecosystem are healthy", () => {
     const summary = buildSetupReadinessSummary({
       directories: [

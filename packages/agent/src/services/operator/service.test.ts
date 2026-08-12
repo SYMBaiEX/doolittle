@@ -225,7 +225,7 @@ describe("OperatorService", () => {
     const update = await service.updatePreview();
 
     expect(setup.version.name).toBe("doolittle");
-    expect(setup.readiness.level).toBe("needs-attention");
+    expect(setup.readiness.level).toBe("ready");
     expect(setup.readiness.headline.length).toBeGreaterThan(0);
     expect(setup.readiness.nextSteps.length).toBeGreaterThan(0);
     expect(

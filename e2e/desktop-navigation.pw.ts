@@ -373,11 +373,25 @@ test.describe("Doolittle desktop navigation", () => {
           if (route === "operatorSetup") {
             await expect(viewContainer).not.toContainText("[object Object]");
             await expect(
+              viewContainer.locator(".setup-readiness"),
+            ).toBeVisible();
+            await expect(
               viewContainer.locator(".compact-stat-strip"),
             ).toBeVisible();
+            await expect(
+              viewContainer.locator(".compact-stat-strip__item"),
+            ).toHaveCount(3);
+            await expect(
+              viewContainer.getByLabel("Core readiness"),
+            ).not.toContainText("Readiness");
             await expect(viewContainer.locator(".two-column-grid")).toHaveCount(
               0,
             );
+            await expect(
+              viewContainer.getByText("Subscription account pools", {
+                exact: true,
+              }),
+            ).toBeVisible();
             await expect(
               viewContainer.getByText("Configuration guidance", {
                 exact: true,

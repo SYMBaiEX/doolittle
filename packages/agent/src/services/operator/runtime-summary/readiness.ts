@@ -20,9 +20,7 @@ export function buildSetupReadinessSummary(input: {
   const level =
     missingDirectories.length > 0 || readyProviders.length === 0
       ? "blocked"
-      : compatibilityFailures > 0 ||
-          failedWorkflows > 0 ||
-          readyTransports.length === 0
+      : compatibilityFailures > 0 || failedWorkflows > 0
         ? "needs-attention"
         : "ready";
 
@@ -53,7 +51,7 @@ export function buildSetupReadinessSummary(input: {
       readyProviders.length === 0
         ? "Link a primary provider in `doolittle setup` or supply OPENAI/Anthropic credentials before starting agent turns."
         : undefined,
-      readyTransports.length === 0
+      readyTransports.length === 0 && input.transports.length > 0
         ? "If you want gateway continuity, enable at least one transport and confirm `/gateway status`."
         : undefined,
       compatibilityFailures > 0

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   normalizeSetupChecklist,
+  normalizeSetupReadiness,
   normalizeSetupSnapshot,
   selectPrimarySetupSnapshot,
 } from "./SetupPage";
@@ -14,11 +15,32 @@ describe("SetupPage projections", () => {
     );
 
     expect(styles).toMatch(
-      /\.setup-account-bar\s*\{[^}]*min-height:\s*48px;/su,
+      /\.setup-account-bar\s*\{[^}]*min-height:\s*44px;/su,
     );
     expect(styles).toMatch(
-      /\.setup-guidance > summary\s*\{[^}]*min-height:\s*52px;/su,
+      /\.setup-guidance > summary\s*\{[^}]*min-height:\s*46px;/su,
     );
+    expect(styles).toContain(".setup-readiness__heading");
+  });
+
+  it("projects one concise local readiness statement", () => {
+    expect(
+      normalizeSetupReadiness({
+        summary: {
+          readiness: {
+            level: "ready",
+            headline: "The shell and providers look ready.",
+            detail: "providers 3/6 ready · transports 0/11 ready",
+          },
+        },
+      }),
+    ).toEqual({
+      detail: "The shell and providers look ready.",
+      label: "Ready",
+      level: "ready",
+      title: "Ready for local work",
+      tone: "good",
+    });
   });
 
   it("preserves the native string checklist as guidance", () => {
@@ -72,16 +94,16 @@ describe("SetupPage projections", () => {
         }),
         expect.objectContaining({
           id: "providers",
-          value: "1/2 ready",
+          value: "1/2 routes",
+          tone: "good",
         }),
         expect.objectContaining({ id: "services", value: "4 available" }),
       ]),
     );
     expect(JSON.stringify(rows)).not.toContain("[object Object]");
     expect(selectPrimarySetupSnapshot(rows).map((row) => row.id)).toEqual([
-      "readiness",
       "providers",
-      "transports",
+      "directories",
       "services",
     ]);
   });
@@ -90,7 +112,6 @@ describe("SetupPage projections", () => {
     const rows = normalizeSetupSnapshot({
       summary: {
         version: { version: "2.0.3-beta.7" },
-        directories: [{ exists: true }],
       },
     });
 

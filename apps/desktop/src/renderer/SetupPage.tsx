@@ -2,9 +2,6 @@ import { useState } from "react";
 import type { AccountPoolResponse } from "../shared/contracts";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import {
-  asArray,
-  asRecord,
-  asString,
   Badge,
   EmptyBlock,
   ErrorBlock,
@@ -15,167 +12,21 @@ import {
   useApiResource,
 } from "./lib";
 import { setupRequests } from "./resource-request-policy";
+import { SetupReadinessPanel } from "./setup/SetupReadinessPanel";
+import {
+  normalizeSetupChecklist,
+  normalizeSetupReadiness,
+  normalizeSetupSnapshot,
+  selectPrimarySetupSnapshot,
+} from "./setup/setup-model";
 import "./diagnostics-pages.css";
 
-export interface SetupChecklistItemView {
-  id: string;
-  label: string;
-  detail: string;
-  status: string;
-}
-
-export interface SetupSnapshotRow {
-  id: string;
-  label: string;
-  value: string;
-  detail: string;
-  tone: "neutral" | "good" | "warn" | "bad";
-}
-
-export function normalizeSetupChecklist(
-  value: unknown,
-): SetupChecklistItemView[] {
-  return asArray(asRecord(value).checklist)
-    .map((item, index): SetupChecklistItemView | null => {
-      if (typeof item === "string") {
-        const label = item.trim();
-        return label
-          ? { id: `guidance-${index}`, label, detail: "", status: "" }
-          : null;
-      }
-      const record = asRecord(item);
-      const label = asString(
-        record.summary,
-        asString(record.label, asString(record.name)),
-      ).trim();
-      if (!label) return null;
-      return {
-        id: asString(record.id, `guidance-${index}`),
-        label,
-        detail: asString(record.detail, asString(record.description)).trim(),
-        status: asString(record.status).trim().toLowerCase(),
-      };
-    })
-    .filter((item): item is SetupChecklistItemView => item !== null);
-}
-
-function readinessTone(value: string): SetupSnapshotRow["tone"] {
-  if (value === "ready") return "good";
-  if (value === "blocked") return "bad";
-  return value ? "warn" : "neutral";
-}
-
-function readinessLabel(value: string): string {
-  if (value === "ready") return "Ready";
-  if (value === "blocked") return "Blocked";
-  return value ? "Needs attention" : "Unknown";
-}
-
-export function normalizeSetupSnapshot(value: unknown): SetupSnapshotRow[] {
-  const summary = asRecord(asRecord(value).summary);
-  const rows: SetupSnapshotRow[] = [];
-  const readiness = asRecord(summary.readiness);
-  const readinessLevel = asString(readiness.level).toLowerCase();
-  const readinessHeadline = asString(readiness.headline).trim();
-  if (readinessHeadline) {
-    rows.push({
-      id: "readiness",
-      label: "Readiness",
-      value: readinessLabel(readinessLevel),
-      detail: [readinessHeadline, asString(readiness.detail).trim()]
-        .filter(Boolean)
-        .join(" · "),
-      tone: readinessTone(readinessLevel),
-    });
-  }
-
-  const version = asRecord(summary.version);
-  const versionNumber = asString(version.version).trim();
-  if (versionNumber) {
-    const environment = [
-      asString(version.node).trim()
-        ? `Node ${asString(version.node).trim()}`
-        : "",
-      asString(version.nub).trim() ? `Nub ${asString(version.nub).trim()}` : "",
-    ].filter(Boolean);
-    rows.push({
-      id: "version",
-      label: "Runtime version",
-      value: versionNumber,
-      detail: environment.join(" · "),
-      tone: "neutral",
-    });
-  }
-
-  const addReadinessRow = (id: string, label: string, source: unknown) => {
-    const items = asArray(source).map(asRecord);
-    if (!items.length) return;
-    const ready = items.filter((item) => item.ready === true).length;
-    rows.push({
-      id,
-      label,
-      value: `${ready}/${items.length} ready`,
-      detail:
-        ready === items.length
-          ? "All checks passed"
-          : "Review unavailable entries",
-      tone: ready === items.length ? "good" : "warn",
-    });
-  };
-  addReadinessRow("providers", "Providers", summary.providers);
-  addReadinessRow("transports", "Transports", summary.transports);
-
-  const directories = asArray(summary.directories).map(asRecord);
-  if (directories.length) {
-    const existing = directories.filter(
-      (entry) => entry.exists === true,
-    ).length;
-    rows.push({
-      id: "directories",
-      label: "Directories",
-      value: `${existing}/${directories.length} available`,
-      detail:
-        existing === directories.length
-          ? "Local paths are ready"
-          : "Some local paths are missing",
-      tone: existing === directories.length ? "good" : "warn",
-    });
-  }
-
-  const serviceGroups = asArray(summary.nativeServices).map(asRecord);
-  if (serviceGroups.length) {
-    const services = serviceGroups.reduce((total, group) => {
-      const count = group.count;
-      return (
-        total +
-        (typeof count === "number" && Number.isFinite(count)
-          ? count
-          : asArray(group.services).length)
-      );
-    }, 0);
-    rows.push({
-      id: "services",
-      label: "Native services",
-      value: `${services} available`,
-      detail: `${serviceGroups.length} service groups`,
-      tone: services ? "good" : "neutral",
-    });
-  }
-  return rows;
-}
-
-export function selectPrimarySetupSnapshot(
-  rows: SetupSnapshotRow[],
-): SetupSnapshotRow[] {
-  const primaryIds = new Set([
-    "readiness",
-    "providers",
-    "transports",
-    "services",
-  ]);
-  const primary = rows.filter((row) => primaryIds.has(row.id));
-  return primary.length ? primary : rows.slice(0, 4);
-}
+export {
+  normalizeSetupChecklist,
+  normalizeSetupReadiness,
+  normalizeSetupSnapshot,
+  selectPrimarySetupSnapshot,
+} from "./setup/setup-model";
 
 export function SetupPage({
   active,
@@ -202,6 +53,7 @@ export function SetupPage({
     .flatMap((provider) => provider.accounts)
     .filter((account) => account.enabled).length;
   const checklistItems = normalizeSetupChecklist(checklist.data);
+  const readiness = normalizeSetupReadiness(summary.data);
   const summaryEntries = normalizeSetupSnapshot(summary.data);
   const primarySummaryEntries = selectPrimarySetupSnapshot(summaryEntries);
 
@@ -225,7 +77,7 @@ export function SetupPage({
         }
         eyebrow="Operator"
         title="Setup"
-        description="Track local setup health and onboarding checklist status."
+        description="Confirm local readiness, then configure optional extensions."
       />
       {!active ? (
         <EmptyBlock title="Setup checks are offline">
@@ -233,14 +85,35 @@ export function SetupPage({
         </EmptyBlock>
       ) : (
         <>
+          {summary.loading ? (
+            <LoadingBlock />
+          ) : summary.error ? (
+            <ErrorBlock error={summary.error} retry={summary.reload} />
+          ) : readiness ? (
+            <>
+              <SetupReadinessPanel readiness={readiness} />
+              {primarySummaryEntries.length ? (
+                <CompactStatStrip
+                  label="Core readiness"
+                  stats={primarySummaryEntries.map((entry) => ({
+                    detail: entry.detail,
+                    label: entry.label,
+                    tone: entry.tone,
+                    value: entry.value,
+                  }))}
+                />
+              ) : null}
+            </>
+          ) : (
+            <EmptyBlock title="No summary payload">
+              No setup summary is available.
+            </EmptyBlock>
+          )}
           <section className="setup-account-bar">
             <div className="setup-account-bar__copy">
-              <span className="eyebrow">Optional for delegated work</span>
-              <strong>Spawned-agent accounts</strong>
-              <small>
-                Rotate Codex or Claude subscriptions across build and research
-                sessions.
-              </small>
+              <span className="eyebrow">Optional extension</span>
+              <strong>Subscription account pools</strong>
+              <small>Route delegated coding work across linked accounts.</small>
             </div>
             <div className="setup-account-bar__actions">
               {accountPool.loading ? (
@@ -249,7 +122,9 @@ export function SetupPage({
                 <Badge tone="warn">Unavailable</Badge>
               ) : (
                 <Badge tone={pooledEnabled ? "good" : "neutral"}>
-                  {pooledEnabled ? `${pooledEnabled} enabled` : "Optional"}
+                  {pooledEnabled
+                    ? `${pooledEnabled} enabled`
+                    : "Not configured"}
                 </Badge>
               )}
               <button
@@ -258,32 +133,13 @@ export function SetupPage({
                 onClick={onOpenProviders}
                 type="button"
               >
-                Providers &amp; accounts
+                Manage accounts
               </button>
             </div>
           </section>
           {accountPool.error ? (
             <ErrorBlock error={accountPool.error} retry={accountPool.reload} />
           ) : null}
-          {summary.loading ? (
-            <LoadingBlock />
-          ) : summary.error ? (
-            <ErrorBlock error={summary.error} retry={summary.reload} />
-          ) : primarySummaryEntries.length ? (
-            <CompactStatStrip
-              label="Setup snapshot"
-              stats={primarySummaryEntries.map((entry) => ({
-                detail: entry.detail,
-                label: entry.label,
-                tone: entry.tone,
-                value: entry.value,
-              }))}
-            />
-          ) : (
-            <EmptyBlock title="No summary payload">
-              No setup summary is available.
-            </EmptyBlock>
-          )}
           {summary.data ? (
             <RawDataDisclosure
               label="Inspect raw setup response"
