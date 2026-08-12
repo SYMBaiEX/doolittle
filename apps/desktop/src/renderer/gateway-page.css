@@ -206,9 +206,14 @@
 }
 
 .pairing-panel > summary {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   min-height: 46px;
   margin: 0;
-  padding: 8px 12px;
+  padding: 8px 34px 8px 12px;
   cursor: pointer;
   list-style: none;
 }
@@ -218,9 +223,28 @@
 }
 
 .pairing-panel > summary::after {
+  position: absolute;
+  right: 12px;
   color: var(--muted);
   content: "+";
   font-family: var(--font-mono);
+}
+
+.pairing-panel > summary > span:first-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pairing-panel > summary strong {
+  font-size: 16px;
+}
+
+.pairing-panel > summary small {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
 }
 
 .pairing-panel[open] > summary {
@@ -330,12 +354,13 @@
 }
 
 .gateway-session-panel > summary {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   min-height: 46px;
-  padding: 8px 12px;
+  padding: 8px 34px 8px 12px;
   cursor: pointer;
   list-style: none;
 }
@@ -358,6 +383,8 @@
 }
 
 .gateway-session-panel > summary::after {
+  position: absolute;
+  right: 12px;
   color: var(--accent);
   content: "+";
   font-family: var(--font-mono);

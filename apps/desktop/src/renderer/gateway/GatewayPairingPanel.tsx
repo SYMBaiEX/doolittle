@@ -51,11 +51,11 @@ export function GatewayPairingPanel({
       aria-labelledby="pairing-title"
       onToggle={(event) => onOpenChange(event.currentTarget.open)}
     >
-      <summary className="panel-heading gateway-heading">
-        <div>
-          <span className="eyebrow">Pairing</span>
-          <h2 id="pairing-title">Sender approvals</h2>
-        </div>
+      <summary>
+        <span>
+          <strong id="pairing-title">Sender approvals</strong>
+          <small>Messaging allowlist</small>
+        </span>
         <span className="pairing-summary-counts">
           {open && loading
             ? "Loading…"

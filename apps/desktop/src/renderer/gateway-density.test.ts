@@ -22,6 +22,7 @@ describe("GatewayPage density", () => {
   it("keeps sender approvals in a concise status disclosure", () => {
     expect(source).toContain("<GatewayPairingPanel");
     expect(pairingSource).toContain('className="panel pairing-panel"');
+    expect(pairingSource).toContain("Messaging allowlist");
     expect(pairingSource).toContain("Load approvals");
     expect(pairingSource).toContain("pending.length} pending");
     expect(pairingSource).toContain("approved.length} approved");
