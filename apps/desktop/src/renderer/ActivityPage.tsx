@@ -55,25 +55,66 @@ interface GroupableActivityEvent {
   title: string;
 }
 
+interface ActivityEventGroup<T> {
+  count: number;
+  event: T;
+  summary: string;
+}
+
+const COMPLETED_CHAT_RUN_SUMMARY =
+  /^Chat run completed with (?<actions>\d+) recorded actions?\.$/u;
+
+function completedChatRunActions(event: GroupableActivityEvent): number | null {
+  if (
+    event.kind !== "chat-run" ||
+    event.status !== "succeeded" ||
+    event.title !== "Chat run completed"
+  ) {
+    return null;
+  }
+  const actions = COMPLETED_CHAT_RUN_SUMMARY.exec(event.safeSummary)?.groups
+    ?.actions;
+  return actions === undefined ? null : Number.parseInt(actions, 10);
+}
+
 export function groupConsecutiveActivityEvents<
   T extends GroupableActivityEvent,
->(events: readonly T[]): Array<{ count: number; event: T }> {
-  const groups: Array<{ count: number; event: T }> = [];
+>(events: readonly T[]): Array<ActivityEventGroup<T>> {
+  const groups: Array<ActivityEventGroup<T> & { recordedActions?: number }> =
+    [];
   for (const event of events) {
     const previous = groups.at(-1);
-    const matchesPrevious =
+    const exactMatch =
       previous?.event.kind === event.kind &&
       previous.event.safeSummary === event.safeSummary &&
       previous.event.status === event.status &&
       previous.event.target === event.target &&
       previous.event.title === event.title;
-    if (previous && matchesPrevious) {
+    const eventActions = completedChatRunActions(event);
+    const aggregatesCompletedChatRuns =
+      previous?.recordedActions !== undefined &&
+      eventActions !== null &&
+      previous.event.kind === event.kind &&
+      previous.event.status === event.status &&
+      previous.event.target === event.target &&
+      previous.event.title === event.title;
+    if (previous && (exactMatch || aggregatesCompletedChatRuns)) {
       previous.count += 1;
+      if (aggregatesCompletedChatRuns) {
+        previous.recordedActions =
+          (previous.recordedActions ?? 0) + eventActions;
+        previous.summary = `${previous.count} chat runs completed with ${previous.recordedActions} recorded ${previous.recordedActions === 1 ? "action" : "actions"}.`;
+      }
     } else {
-      groups.push({ count: 1, event });
+      groups.push({
+        count: 1,
+        event,
+        summary: event.safeSummary,
+        ...(eventActions === null ? {} : { recordedActions: eventActions }),
+      });
     }
   }
-  return groups;
+  return groups.map(({ count, event, summary }) => ({ count, event, summary }));
 }
 
 const SOURCE_LABELS: Record<ActivityEventKind, string> = {
@@ -322,7 +363,7 @@ export function ActivityPage({ active }: { active: boolean }) {
             </div>
 
             <ol className="activity-event-list">
-              {visibleGroups.map(({ count, event: row }) => {
+              {visibleGroups.map(({ count, event: row, summary }) => {
                 const tone = activityTone(row);
                 const state = activityState(row);
                 return (
@@ -352,11 +393,8 @@ export function ActivityPage({ active }: { active: boolean }) {
                         <p className="activity-sentence">
                           <strong>{row.title}</strong>
                         </p>
-                        {activitySummaryIsDistinct(
-                          row.title,
-                          row.safeSummary,
-                        ) ? (
-                          <p className="activity-outcome">{row.safeSummary}</p>
+                        {activitySummaryIsDistinct(row.title, summary) ? (
+                          <p className="activity-outcome">{summary}</p>
                         ) : null}
                       </div>
                     </article>
