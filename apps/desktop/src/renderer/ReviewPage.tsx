@@ -562,6 +562,7 @@ export function ReviewPage({
         branchScope={branchScope}
         changedFileCount={changedFileCount}
         checksPassing={checkSummary.passing}
+        empty={workState.tone === "neutral"}
         openCommentCount={openCommentCount}
         reviewBranch={review?.local.branch ?? review?.branch}
         reviewHead={review?.local.head}

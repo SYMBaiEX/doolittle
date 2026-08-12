@@ -54,6 +54,7 @@ export function ReviewHeader({
 
 export interface ReviewOverviewProps {
   workState: ReviewWorkState;
+  empty?: boolean;
   agentRunCount: number;
   changedFileCount: number;
   checksPassing: number;
@@ -65,6 +66,7 @@ export interface ReviewOverviewProps {
 
 export function ReviewOverview({
   workState,
+  empty = false,
   agentRunCount,
   changedFileCount,
   checksPassing,
@@ -76,7 +78,7 @@ export function ReviewOverview({
   return (
     <section
       aria-label="Current agent work outcome"
-      className={`review-work-overview ${workState.tone}`}
+      className={`review-work-overview ${workState.tone}${empty ? " is-empty" : ""}`}
     >
       <div className="review-work-outcome">
         <i aria-hidden="true">{workState.icon}</i>
@@ -86,31 +88,37 @@ export function ReviewOverview({
           <p>{workState.detail}</p>
         </span>
       </div>
-      <dl className="review-work-metrics">
-        <div>
-          <dt>Agent runs</dt>
-          <dd>{agentRunCount}</dd>
-        </div>
-        <div>
-          <dt>Files changed</dt>
-          <dd>{changedFileCount}</dd>
-        </div>
-        <div>
-          <dt>Checks passed</dt>
-          <dd>{checksPassing}</dd>
-        </div>
-        <div className={openCommentCount ? "warn" : ""}>
-          <dt>Open notes</dt>
-          <dd>{openCommentCount}</dd>
-        </div>
-      </dl>
-      <div className="review-work-revision">
-        <small>Revision</small>
-        <strong>{branchScope?.branch ?? reviewBranch ?? "workspace"}</strong>
-        <code>
-          {(branchScope?.head ?? reviewHead ?? "working-tree").slice(0, 12)}
-        </code>
-      </div>
+      {!empty ? (
+        <>
+          <dl className="review-work-metrics">
+            <div>
+              <dt>Agent runs</dt>
+              <dd>{agentRunCount}</dd>
+            </div>
+            <div>
+              <dt>Files changed</dt>
+              <dd>{changedFileCount}</dd>
+            </div>
+            <div>
+              <dt>Checks passed</dt>
+              <dd>{checksPassing}</dd>
+            </div>
+            <div className={openCommentCount ? "warn" : ""}>
+              <dt>Open notes</dt>
+              <dd>{openCommentCount}</dd>
+            </div>
+          </dl>
+          <div className="review-work-revision">
+            <small>Revision</small>
+            <strong>
+              {branchScope?.branch ?? reviewBranch ?? "workspace"}
+            </strong>
+            <code>
+              {(branchScope?.head ?? reviewHead ?? "working-tree").slice(0, 12)}
+            </code>
+          </div>
+        </>
+      ) : null}
     </section>
   );
 }

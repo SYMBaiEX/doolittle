@@ -1623,6 +1623,16 @@
   padding: 8px 12px;
 }
 
+.review-work-overview.is-empty {
+  width: min(100%, 760px);
+  min-height: 54px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.review-work-overview.is-empty .review-work-outcome {
+  padding-block: 9px;
+}
+
 .review-evidence-drawer {
   border: 0;
   border-top: 1px solid var(--border);
