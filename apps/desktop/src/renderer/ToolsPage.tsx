@@ -1,15 +1,12 @@
 import { lazy, Suspense, useState } from "react";
-import { buildToolCatalogEntries } from "./catalog-entry-models";
 import { AcpBridgePanel } from "./components/AcpBridgePanel";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
-import { CompactCatalogList } from "./components/CompactCatalogList";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   asArray,
   asNumber,
   asRecord,
-  asString,
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
@@ -17,6 +14,10 @@ import {
   titleCase,
   useApiResource,
 } from "./lib";
+import {
+  filterToolEntries,
+  toolEntryCategories,
+} from "./tools/tool-catalog-filter";
 import "./agent-pages.css";
 import "./catalog-pages.css";
 
@@ -49,6 +50,10 @@ export function preloadMcpControlPanel(): Promise<McpControlPanelModule> {
 
 const LazyMcpControlPanel = lazy(async () => ({
   default: (await preloadMcpControlPanel()).McpControlPanel,
+}));
+
+const LazyToolCatalogWorkspace = lazy(async () => ({
+  default: (await import("./tools/ToolCatalogWorkspace")).ToolCatalogWorkspace,
 }));
 
 export function McpControlPanelFallback() {
@@ -108,25 +113,8 @@ export function ToolsPage({ active }: { active: boolean }) {
     );
   }
   const entries = asArray(tools.data?.tools).map(asRecord);
-  const categories = [
-    "all",
-    ...new Set(
-      entries.map((entry) => asString(entry.category)).filter(Boolean),
-    ),
-  ];
-  const filtered = entries.filter((entry) => {
-    const matchesCategory =
-      category === "all" || asString(entry.category) === category;
-    const normalized = query.trim().toLowerCase();
-    const matchesQuery =
-      !normalized ||
-      [entry.id, entry.name, entry.description, entry.category, entry.transport]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalized);
-    return matchesCategory && matchesQuery;
-  });
-  const catalogEntries = buildToolCatalogEntries(filtered);
+  const categories = toolEntryCategories(entries);
+  const filtered = filterToolEntries(entries, query, category);
   const totals = tools.data?.summary ?? {};
 
   return (
@@ -234,11 +222,12 @@ export function ToolsPage({ active }: { active: boolean }) {
       ) : tools.error ? (
         <ErrorBlock error={tools.error} retry={tools.reload} />
       ) : filtered.length ? (
-        <CompactCatalogList
-          ariaLabel="Runtime tool catalog"
-          entries={catalogEntries}
-          resetKey={`${profile}:${category}:${query.trim().toLowerCase()}`}
-        />
+        <Suspense fallback={<LoadingBlock label="Opening tool index…" />}>
+          <LazyToolCatalogWorkspace
+            entries={filtered}
+            resetKey={`${profile}:${category}:${query.trim().toLowerCase()}`}
+          />
+        </Suspense>
       ) : (
         <EmptyBlock density="compact" title="No tools match">
           Change the search or category filter.

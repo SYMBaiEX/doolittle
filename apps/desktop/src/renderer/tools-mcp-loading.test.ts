@@ -20,4 +20,17 @@ describe("ToolsPage MCP loading boundary", () => {
       /integrationsOpen \? \([\s\S]*<LazyMcpControlPanel active=\{active\} \/>/u,
     );
   });
+
+  it("keeps the rich catalog workspace out of the initial Tools route", () => {
+    expect(source).not.toContain(
+      'import { ToolCatalogWorkspace } from "./tools/ToolCatalogWorkspace"',
+    );
+    expect(source).toContain('import("./tools/ToolCatalogWorkspace")');
+    expect(source).toContain(
+      "const LazyToolCatalogWorkspace = lazy(async () =>",
+    );
+    expect(source).toContain(
+      '<Suspense fallback={<LoadingBlock label="Opening tool index…" />}>',
+    );
+  });
 });
