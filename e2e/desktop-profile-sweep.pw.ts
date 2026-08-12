@@ -134,6 +134,17 @@ test.describe("Doolittle cloned-profile control sweep", () => {
         const initialControls = await view
           .locator(visibleControlSelector)
           .count();
+        if (route === "sessions") {
+          const sessionRows = view.locator(".session-list-scroll .row-card");
+          const sessionCount = await sessionRows.count();
+          expect(sessionCount).toBeLessThanOrEqual(20);
+          if (sessionCount === 20) {
+            await expect(
+              view.getByRole("button", { name: "Show 20 more" }),
+            ).toBeVisible();
+            expect(initialControls).toBeLessThanOrEqual(32);
+          }
+        }
         if (screenshotDir) {
           await page.screenshot({
             animations: "disabled",

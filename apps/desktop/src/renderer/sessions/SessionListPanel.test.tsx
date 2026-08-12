@@ -19,6 +19,19 @@ vi.mock("../lib", async () => {
 
 import { SessionListPanel } from "./SessionListPanel";
 
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
+const sessions = Array.from({ length: 55 }, (_, index) => ({
+  endedAt: `2026-08-12T10:${String(index).padStart(2, "0")}:00Z`,
+  messageCount: index + 1,
+  participants: [],
+  preview: [`Preview ${index}`],
+  sessionId: `session-${index}`,
+  title: `Session ${index}`,
+}));
+
 describe("SessionListPanel", () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
@@ -130,5 +143,67 @@ describe("SessionListPanel", () => {
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
     expect(container.querySelectorAll(".row-card")).toHaveLength(1);
+  });
+
+  it("progressively reveals a large local session archive", () => {
+    useApiResourceMock.mockReturnValue({
+      data: null,
+      error: "",
+      loading: false,
+      reload: vi.fn(),
+    });
+
+    act(() => {
+      root.render(
+        <SessionListPanel
+          active
+          onSelect={vi.fn()}
+          selectedId="session-0"
+          sessions={sessions}
+        />,
+      );
+    });
+
+    expect(container.querySelectorAll(".row-card")).toHaveLength(20);
+    expect(container.textContent).toContain("Showing 20 of 55");
+
+    let showMore = container.querySelector<HTMLButtonElement>(
+      ".session-list-footer button",
+    );
+    act(() => showMore?.click());
+    expect(container.querySelectorAll(".row-card")).toHaveLength(40);
+    expect(container.textContent).toContain("Showing 40 of 55");
+
+    showMore = container.querySelector<HTMLButtonElement>(
+      ".session-list-footer button",
+    );
+    expect(showMore?.textContent).toContain("Show 15 more");
+    act(() => showMore?.click());
+    expect(container.querySelectorAll(".row-card")).toHaveLength(55);
+    expect(container.textContent).not.toContain("Showing 40 of 55");
+  });
+
+  it("keeps a selected session outside the first page available", () => {
+    useApiResourceMock.mockReturnValue({
+      data: null,
+      error: "",
+      loading: false,
+      reload: vi.fn(),
+    });
+
+    act(() => {
+      root.render(
+        <SessionListPanel
+          active
+          onSelect={vi.fn()}
+          selectedId="session-42"
+          sessions={sessions}
+        />,
+      );
+    });
+
+    expect(container.querySelectorAll(".row-card")).toHaveLength(43);
+    expect(container.textContent).toContain("Session 42");
+    expect(container.textContent).toContain("Showing 43 of 55");
   });
 });

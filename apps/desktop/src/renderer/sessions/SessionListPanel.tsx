@@ -3,6 +3,7 @@ import type {
   SessionSearchResponse,
   SessionSummary,
 } from "../../shared/contracts";
+import { progressiveWindow } from "../components/progressive-window";
 import {
   displayTimestamp,
   EmptyBlock,
@@ -11,6 +12,8 @@ import {
   useApiResource,
   useDebouncedValue,
 } from "../lib";
+
+export const SESSION_LIST_PAGE_SIZE = 20;
 
 export function SessionListPanel({
   active,
@@ -28,6 +31,7 @@ export function SessionListPanel({
   onSelect: (session: SessionSummary) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState({ key: "", limit: SESSION_LIST_PAGE_SIZE });
   const debouncedQuery = useDebouncedValue(query.trim());
   const searchPath =
     active && debouncedQuery && projectId !== null
@@ -65,6 +69,17 @@ export function SessionListPanel({
           },
       );
   }, [active, query, search.data, sessions]);
+  const filterKey = `${projectId ?? "all"}:${query.trim().toLocaleLowerCase()}`;
+  const requested =
+    page.key === filterKey ? page.limit : SESSION_LIST_PAGE_SIZE;
+  const selectedIndex = filtered.findIndex(
+    (session) => session.sessionId === selectedId,
+  );
+  const sessionWindow = progressiveWindow(filtered, {
+    pageSize: SESSION_LIST_PAGE_SIZE,
+    requested,
+    selectedIndex,
+  });
   return (
     <section className="list-panel">
       <label className="search-field">
@@ -99,7 +114,7 @@ export function SessionListPanel({
         aria-label="Conversations"
         className="list-scroll session-list-scroll"
       >
-        {filtered.map((session) => (
+        {sessionWindow.visible.map((session) => (
           <button
             className={`row-card ${selectedId === session.sessionId ? "selected" : ""}`}
             key={session.sessionId}
@@ -124,6 +139,26 @@ export function SessionListPanel({
           <EmptyBlock title="No matching sessions">
             Try another search, or begin a conversation from Chat.
           </EmptyBlock>
+        ) : null}
+        {sessionWindow.remaining ? (
+          <footer className="session-list-footer">
+            <span>
+              Showing {sessionWindow.visible.length} of {filtered.length}
+            </span>
+            <button
+              className="secondary-button"
+              onClick={() =>
+                setPage({
+                  key: filterKey,
+                  limit: sessionWindow.limit + SESSION_LIST_PAGE_SIZE,
+                })
+              }
+              type="button"
+            >
+              Show {Math.min(SESSION_LIST_PAGE_SIZE, sessionWindow.remaining)}
+              {" more"}
+            </button>
+          </footer>
         ) : null}
       </section>
     </section>

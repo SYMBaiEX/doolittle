@@ -97,6 +97,30 @@
   padding: 8px;
 }
 
+.page-sessions .session-list-footer {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 5px 4px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.page-sessions .session-list-footer > span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.page-sessions .session-list-footer .secondary-button {
+  min-height: 28px;
+  padding-inline: 9px;
+}
+
 .page-sessions .detail-panel {
   padding: 14px 16px 0;
 }

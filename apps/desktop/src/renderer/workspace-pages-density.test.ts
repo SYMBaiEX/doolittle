@@ -15,6 +15,7 @@ describe("workspace route density", () => {
 
   it("keeps secondary session context closed until requested", () => {
     const page = read("./sessions/SessionsPage.tsx");
+    const list = read("./sessions/SessionListPanel.tsx");
     const detail = read("./sessions/SessionDetail.tsx");
     const css = read("./sessions/sessions.css");
 
@@ -45,5 +46,8 @@ describe("workspace route density", () => {
     expect(css).toContain("width: min(100%, 1080px)");
     expect(css).toContain("session-transcript-panel__header");
     expect(css).toContain("width: min(100%, 720px)");
+    expect(list).toContain("export const SESSION_LIST_PAGE_SIZE = 20");
+    expect(list).toContain('className="session-list-footer"');
+    expect(css).toContain(".page-sessions .session-list-footer");
   });
 });
