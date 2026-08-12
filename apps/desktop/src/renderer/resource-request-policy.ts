@@ -95,3 +95,16 @@ export function sessionDetailRequests({
     continuity: active && continuityOpen,
   };
 }
+
+export function setupRequests({
+  active,
+  checklistOpen,
+}: {
+  active: boolean;
+  checklistOpen: boolean;
+}) {
+  return {
+    primary: active,
+    checklist: active && checklistOpen,
+  };
+}

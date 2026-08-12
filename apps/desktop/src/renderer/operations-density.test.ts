@@ -73,6 +73,14 @@ describe("operational route density", () => {
     expect(tools).not.toContain('"/tools/summary');
   });
 
+  it("defers setup guidance until the checklist disclosure is opened", () => {
+    const setup = read("./SetupPage.tsx");
+
+    expect(setup).toContain("requestPolicy.checklist");
+    expect(setup).toContain("checklistOpen ? (");
+    expect(setup).toContain("Open to load");
+  });
+
   it("keeps the primary model readiness visible and capability detail optional", () => {
     const models = read("./ModelsPage.tsx");
     expect(

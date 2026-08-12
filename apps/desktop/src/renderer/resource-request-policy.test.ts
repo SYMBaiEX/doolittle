@@ -4,6 +4,7 @@ import {
   orchestrationRequests,
   reviewRequests,
   sessionDetailRequests,
+  setupRequests,
 } from "./resource-request-policy";
 
 describe("coding workspace request policy", () => {
@@ -150,5 +151,22 @@ describe("session detail request policy", () => {
     expect(
       sessionDetailRequests({ active: false, continuityOpen: true }),
     ).toEqual({ primary: false, continuity: false });
+  });
+});
+
+describe("setup request policy", () => {
+  it("defers the optional checklist until its disclosure is opened", () => {
+    expect(setupRequests({ active: true, checklistOpen: false })).toEqual({
+      primary: true,
+      checklist: false,
+    });
+    expect(setupRequests({ active: true, checklistOpen: true })).toEqual({
+      primary: true,
+      checklist: true,
+    });
+    expect(setupRequests({ active: false, checklistOpen: true })).toEqual({
+      primary: false,
+      checklist: false,
+    });
   });
 });

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { AccountPoolResponse } from "../shared/contracts";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import {
@@ -13,6 +14,7 @@ import {
   type UnknownRecord,
   useApiResource,
 } from "./lib";
+import { setupRequests } from "./resource-request-policy";
 import "./diagnostics-pages.css";
 
 export interface SetupChecklistItemView {
@@ -174,17 +176,19 @@ export function SetupPage({
   active: boolean;
   onOpenProviders?: () => void;
 }) {
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const requestPolicy = setupRequests({ active, checklistOpen });
   const checklist = useApiResource<UnknownRecord>(
-    active ? "/setup/checklist" : null,
-    [active],
+    requestPolicy.checklist ? "/setup/checklist" : null,
+    [requestPolicy.checklist],
   );
   const summary = useApiResource<UnknownRecord>(
-    active ? "/setup/summary" : null,
-    [active],
+    requestPolicy.primary ? "/setup/summary" : null,
+    [requestPolicy.primary],
   );
   const accountPool = useApiResource<AccountPoolResponse>(
-    active ? "/runtime/account-pool" : null,
-    [active],
+    requestPolicy.primary ? "/runtime/account-pool" : null,
+    [requestPolicy.primary],
   );
   const pooledEnabled = Object.values(accountPool.data?.providers ?? {})
     .flatMap((provider) => provider.accounts)
@@ -202,8 +206,8 @@ export function SetupPage({
               className="text-button"
               onClick={() => {
                 accountPool.reload();
-                checklist.reload();
                 summary.reload();
+                if (requestPolicy.checklist) checklist.reload();
               }}
               type="button"
             >
@@ -278,62 +282,72 @@ export function SetupPage({
               value={summary.data}
             />
           ) : null}
-          <details className="content-card setup-guidance">
+          <details
+            className="content-card setup-guidance"
+            onToggle={(event) => setChecklistOpen(event.currentTarget.open)}
+          >
             <summary>
               <span>
                 <span className="eyebrow">Checklist</span>
                 <strong>Configuration guidance</strong>
               </span>
               <span className="setup-guidance__meta">
-                {checklist.loading
-                  ? "Loading…"
-                  : `${checklistItems.length} items`}
+                {!checklistOpen
+                  ? "Open to load"
+                  : checklist.loading
+                    ? "Loading…"
+                    : `${checklistItems.length} items`}
               </span>
             </summary>
-            <div className="setup-guidance__body">
-              <div className="setup-guidance__toolbar">
-                <p>
-                  Reference steps for optional providers, transports, and remote
-                  execution.
-                </p>
-                <button
-                  className="text-button"
-                  onClick={checklist.reload}
-                  type="button"
-                >
-                  Refresh
-                </button>
+            {checklistOpen ? (
+              <div className="setup-guidance__body">
+                <div className="setup-guidance__toolbar">
+                  <p>
+                    Reference steps for optional providers, transports, and
+                    remote execution.
+                  </p>
+                  <button
+                    className="text-button"
+                    onClick={checklist.reload}
+                    type="button"
+                  >
+                    Refresh
+                  </button>
+                </div>
+                {checklist.error ? (
+                  <ErrorBlock
+                    error={checklist.error}
+                    retry={checklist.reload}
+                  />
+                ) : checklistItems.length ? (
+                  <ol className="setup-guidance__list">
+                    {checklistItems.map((entry) => (
+                      <li key={entry.id}>
+                        <span>{entry.label}</span>
+                        {entry.detail ? <small>{entry.detail}</small> : null}
+                        {entry.status ? (
+                          <Badge
+                            tone={
+                              entry.status === "done" || entry.status === "pass"
+                                ? "good"
+                                : "warn"
+                            }
+                          >
+                            {entry.status}
+                          </Badge>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ol>
+                ) : checklist.loading ? (
+                  <LoadingBlock />
+                ) : (
+                  <EmptyBlock title="No checklist items">
+                    No setup guidance was returned.
+                  </EmptyBlock>
+                )}
               </div>
-              {checklist.error ? (
-                <ErrorBlock error={checklist.error} retry={checklist.reload} />
-              ) : checklistItems.length ? (
-                <ol className="setup-guidance__list">
-                  {checklistItems.map((entry) => (
-                    <li key={entry.id}>
-                      <span>{entry.label}</span>
-                      {entry.detail ? <small>{entry.detail}</small> : null}
-                      {entry.status ? (
-                        <Badge
-                          tone={
-                            entry.status === "done" || entry.status === "pass"
-                              ? "good"
-                              : "warn"
-                          }
-                        >
-                          {entry.status}
-                        </Badge>
-                      ) : null}
-                    </li>
-                  ))}
-                </ol>
-              ) : checklist.loading ? (
-                <LoadingBlock />
-              ) : (
-                <EmptyBlock title="No checklist items">
-                  No setup guidance was returned.
-                </EmptyBlock>
-              )}
-            </div>
+            ) : null}
           </details>
         </>
       )}
