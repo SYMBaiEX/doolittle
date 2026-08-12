@@ -16,11 +16,14 @@ const PLUGIN_LABEL_WORDS: Record<string, string> = {
 };
 
 export function pluginDisplayTitle(id: string, category: string): string {
-  const categoryPrefix = `${category.trim().toLowerCase()}-`;
-  const ungroupedId = id.toLowerCase().startsWith(categoryPrefix)
-    ? id.slice(categoryPrefix.length)
-    : id;
-  const words = ungroupedId.split(/[-_\s]+/u).filter(Boolean);
+  const normalizedCategory = category.trim().toLowerCase();
+  const suffix = id.slice(normalizedCategory.length);
+  const ungroupedId =
+    id.slice(0, normalizedCategory.length).toLowerCase() ===
+      normalizedCategory && /^[-_:./\s]+/u.test(suffix)
+      ? suffix.replace(/^[-_:./\s]+/u, "")
+      : id;
+  const words = ungroupedId.split(/[-_:./\s]+/u).filter(Boolean);
   return words
     .map((word) => PLUGIN_LABEL_WORDS[word.toLowerCase()] ?? titleCase(word))
     .join(" ");

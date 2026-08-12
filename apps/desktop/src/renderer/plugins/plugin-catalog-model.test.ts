@@ -35,12 +35,12 @@ describe("buildPluginCatalogEntries", () => {
 
   it("removes the repeated group prefix and preserves product acronyms", () => {
     expect(pluginDisplayTitle("providers-sql", "providers")).toBe("SQL");
-    expect(pluginDisplayTitle("providers-pdf", "providers")).toBe("PDF");
-    expect(pluginDisplayTitle("providers-elizacloud", "providers")).toBe(
+    expect(pluginDisplayTitle("providers:pdf", "providers")).toBe("PDF");
+    expect(pluginDisplayTitle("providers.elizacloud", "providers")).toBe(
       "Eliza Cloud",
     );
-    expect(pluginDisplayTitle("providers-openai", "providers")).toBe("OpenAI");
-    expect(pluginDisplayTitle("foundation-agent", "foundation")).toBe("Agent");
+    expect(pluginDisplayTitle("providers/openai", "providers")).toBe("OpenAI");
+    expect(pluginDisplayTitle("foundation_agent", "foundation")).toBe("Agent");
   });
 
   it("does not invent unknown metadata", () => {
