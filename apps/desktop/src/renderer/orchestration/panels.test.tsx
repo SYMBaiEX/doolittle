@@ -149,13 +149,13 @@ describe("orchestration presentational panels", () => {
         onSubmitSpawn: vi.fn(),
         onTaskNoteChange: vi.fn(),
         onSubmitNote: vi.fn(),
-        onNewCodingTask: vi.fn(),
       }),
     );
 
     expect(markup.match(/No tasks yet/g)).toHaveLength(1);
-    expect(markup).toContain("empty-block--compact");
-    expect(markup).toContain("New coding task");
+    expect(markup).toContain("orchestration-queue-starter");
+    expect(markup).toContain("Queue ready");
+    expect(markup).not.toContain("New coding task");
     expect(markup).not.toContain("Choose a task");
     expect(markup).not.toContain("orchestration-master-detail");
   });

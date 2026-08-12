@@ -68,7 +68,6 @@ export function TaskQueuePanel({
   onSubmitSpawn,
   onTaskNoteChange,
   onSubmitNote,
-  onNewCodingTask,
 }: {
   active: boolean;
   projectScope: string;
@@ -103,7 +102,6 @@ export function TaskQueuePanel({
   onSubmitSpawn: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
   onTaskNoteChange: (value: string, taskId: string) => void;
   onSubmitNote: (event: FormEvent<HTMLFormElement>) => void;
-  onNewCodingTask?: () => void;
 }) {
   const pageKey = `${projectScope}:${tasks.length}:${tasks[0]?.id ?? "empty"}`;
   const [page, setPage] = useState({
@@ -231,28 +229,22 @@ export function TaskQueuePanel({
   }
   if (tasks.length === 0) {
     return (
-      <EmptyBlock
-        actions={
-          onNewCodingTask ? (
-            <button
-              className="primary-button"
-              disabled={!active}
-              onClick={onNewCodingTask}
-              type="button"
-            >
-              New coding task
-            </button>
-          ) : undefined
-        }
-        density="compact"
-        title={
-          projectScope === "all"
-            ? "No tasks yet"
-            : `No tasks for ${workspaceLabel || "this project"}`
-        }
+      <section
+        aria-labelledby="orchestration-empty-queue-title"
+        className="orchestration-queue-starter"
       >
-        Create a focused task to start an operator workflow in this workspace.
-      </EmptyBlock>
+        <span className="eyebrow">Queue ready</span>
+        <div>
+          <strong id="orchestration-empty-queue-title">
+            {projectScope === "all"
+              ? "No tasks yet"
+              : `No tasks for ${workspaceLabel || "this project"}`}
+          </strong>
+          <small>
+            Use the task controls above to start a coding or research workflow.
+          </small>
+        </div>
+      </section>
     );
   }
 

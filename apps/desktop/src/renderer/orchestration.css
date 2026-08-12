@@ -228,6 +228,42 @@
   padding: 5px 10px;
 }
 
+.orchestration-queue-starter {
+  display: flex;
+  min-height: 64px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 14px;
+  margin: 10px 12px;
+  padding: 11px 14px;
+  background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--orchestration-accent);
+  border-radius: var(--radius-sm);
+}
+
+.orchestration-queue-starter > .eyebrow {
+  flex: 0 0 auto;
+  color: var(--orchestration-accent);
+  font-size: 9px;
+}
+
+.orchestration-queue-starter > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.orchestration-queue-starter strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.orchestration-queue-starter small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
 .orchestration-quick-create {
   display: grid;
   grid-template-columns:

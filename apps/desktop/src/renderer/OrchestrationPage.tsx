@@ -1140,7 +1140,6 @@ export function OrchestrationPage({
               setConfirmedAction(null);
               setShowChildCreate(false);
             }}
-            onNewCodingTask={() => openTaskCreate("coding")}
             onRunTaskAction={runTaskAction}
             onRequestDestructiveAction={requestDestructiveTaskAction}
             onCloseConfirmation={closeTaskConfirmation}
