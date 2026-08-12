@@ -62,13 +62,11 @@ export function RuntimeOverview({
           },
           { label: "Model", value: asString(runtime.data?.model, "Unknown") },
           {
-            detail: "Coding and research sessions",
-            label: "Enabled accounts",
+            label: "Agent accounts",
             tone: enabledAccounts.length ? "good" : "warn",
             value: enabledAccounts.length,
           },
           {
-            detail: "Official Eliza service",
             label: "Autonomy",
             tone: autonomyPayload.running === true ? "good" : "neutral",
             value: autonomyPayload.running === true ? "Running" : "Manual",
@@ -113,33 +111,13 @@ export function RuntimeOverview({
           )}
         </section>
 
-        <section className="content-card">
-          <div className="card-heading">
-            <div>
-              <span className="eyebrow">Conversation binding</span>
-              <h2>Conversation model</h2>
-            </div>
-            <Badge>{asString(runtime.data?.provider, "Not set")}</Badge>
-          </div>
-          <div className="status-row">
-            <div>
-              <strong>{asString(runtime.data?.model, "Unknown model")}</strong>
-              <small>
-                {runtime.data?.fallback?.offlineBootstrapMode
-                  ? "Offline bootstrap enabled"
-                  : "Connected runtime route"}
-              </small>
-            </div>
-            <Badge tone="good">Running</Badge>
-          </div>
-          <RawDataDisclosure
-            label="Startup receipt"
-            value={runtime.data?.startup}
-          />
-        </section>
-
         <NativeAutonomyPanel autonomy={autonomy} />
       </div>
+
+      <RawDataDisclosure
+        label="Startup receipt"
+        value={runtime.data?.startup}
+      />
     </div>
   );
 }

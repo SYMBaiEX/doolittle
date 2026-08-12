@@ -413,7 +413,7 @@ test.describe("Doolittle desktop navigation", () => {
           }
           if (route === "automations") {
             const createAutomation = viewContainer.getByRole("button", {
-              name: /^(?:New automation|Open builder)$/u,
+              name: /^(?:Blank workflow|New automation|Open builder)$/u,
             });
             await expect(createAutomation).toBeVisible();
             await createAutomation.click();
@@ -992,6 +992,27 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         page.getByRole("heading", { name: "Account routing" }),
       ).toBeVisible();
+      const runtimeOverview = page.locator(".runtime-overview-grid");
+      await expect(runtimeOverview.locator(":scope > section")).toHaveCount(2);
+      await expect(page.locator(".runtime-autonomy-controls")).toBeVisible();
+      expect(
+        await runtimeOverview.evaluate(
+          (element) => element.scrollWidth <= element.clientWidth,
+        ),
+      ).toBe(true);
+      expect(
+        await page.locator(".runtime-autonomy-panel").evaluate((element) => {
+          const panel = element.getBoundingClientRect();
+          const controls = element
+            .querySelector(".runtime-autonomy-controls")
+            ?.getBoundingClientRect();
+          return Boolean(
+            controls &&
+              controls.left >= panel.left &&
+              controls.right <= panel.right + 1,
+          );
+        }),
+      ).toBe(true);
 
       await page.evaluate(() => {
         window.location.hash = "#/memory";

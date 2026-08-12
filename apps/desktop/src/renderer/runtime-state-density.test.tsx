@@ -181,7 +181,15 @@ describe("runtime-state route density", () => {
   it("loads only the selected compact runtime section", () => {
     act(() => root.render(<RuntimePage active />));
 
-    expect(container.textContent).toContain("Conversation model");
+    expect(container.textContent).toContain("Account routing");
+    expect(container.textContent).toContain("Autonomy loop");
+    expect(container.textContent).not.toContain("Conversation model");
+    expect(
+      container.querySelectorAll(".runtime-overview-grid > section"),
+    ).toHaveLength(2);
+    expect(
+      container.querySelector(".runtime-autonomy-controls"),
+    ).not.toBeNull();
     const gateway = container.querySelector<HTMLButtonElement>(
       '[aria-label="Gateway: Transports and deliveries"]',
     );

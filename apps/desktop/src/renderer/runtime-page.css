@@ -34,7 +34,7 @@
 
 .runtime-overview-grid,
 .runtime-inventory-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .runtime-detail-grid {
@@ -64,35 +64,57 @@
 
 .runtime-page .runtime-autonomy-panel {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) auto;
-  gap: 8px 10px;
-  align-items: end;
+  gap: 8px;
 }
 
 .runtime-page .runtime-autonomy-panel > .card-heading,
 .runtime-page .runtime-autonomy-panel > .status-row,
 .runtime-page .runtime-autonomy-panel > .notice,
 .runtime-page .runtime-autonomy-panel > .loading-block {
-  grid-column: 1 / -1;
+  min-width: 0;
 }
 
-.runtime-page .runtime-autonomy-panel > .field-grid {
-  grid-template-columns: minmax(150px, 1fr);
+.runtime-autonomy-controls {
+  display: grid;
+  grid-template-columns: minmax(148px, 0.65fr) minmax(190px, auto);
+  gap: 8px;
+  align-items: end;
 }
 
-.runtime-page .runtime-autonomy-panel > .button-row {
-  justify-content: flex-end;
+.runtime-autonomy-cadence {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.runtime-autonomy-cadence > span {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.runtime-autonomy-cadence select,
+.runtime-autonomy-controls > button {
+  width: 100%;
+  min-width: 0;
 }
 
 @media (max-width: 1080px) {
-  .runtime-overview-grid,
   .runtime-inventory-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .runtime-page .runtime-autonomy-panel,
   .runtime-page .runtime-inventory-grid > :last-child {
     grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 920px) {
+  .runtime-autonomy-controls {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -103,21 +125,17 @@
     grid-template-columns: 1fr;
   }
 
-  .runtime-page .runtime-autonomy-panel,
   .runtime-page .runtime-inventory-grid > :last-child {
     grid-column: auto;
   }
 
-  .runtime-page .runtime-autonomy-panel {
+  .runtime-autonomy-controls {
+    grid-template-columns: minmax(140px, 0.7fr) minmax(180px, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .runtime-autonomy-controls {
     grid-template-columns: 1fr;
-  }
-
-  .runtime-page .runtime-autonomy-panel > .field-grid,
-  .runtime-page .runtime-autonomy-panel > .button-row {
-    grid-column: 1;
-  }
-
-  .runtime-page .runtime-autonomy-panel > .button-row {
-    justify-content: flex-start;
   }
 }

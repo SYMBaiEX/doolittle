@@ -82,15 +82,14 @@ export function NativeAutonomyPanel({
             <div>
               <strong>{character} autonomous reasoning</strong>
               <small>
-                Official Eliza prompt batching and action execution. Disabled by
-                default; enabling it can consume provider tokens in the
-                background.
+                Official Eliza prompt batching and action execution. Enabling it
+                can consume provider tokens in the background.
               </small>
             </div>
           </div>
-          <div className="field-grid">
-            <label>
-              <span>Reasoning cadence</span>
+          <div className="runtime-autonomy-controls">
+            <label className="runtime-autonomy-cadence">
+              <span>Cadence</span>
               <select
                 aria-label="Native autonomy reasoning cadence"
                 disabled={busy}
@@ -117,8 +116,6 @@ export function NativeAutonomyPanel({
                 ))}
               </select>
             </label>
-          </div>
-          <div className="button-row">
             <Button
               className={enabled ? "secondary-button" : "primary-button"}
               disabled={busy}
