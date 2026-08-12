@@ -1,0 +1,63 @@
+.logs-filter-bar {
+  grid-template-columns: minmax(0, 1fr) minmax(9rem, 12rem);
+}
+
+.log-console {
+  padding: 0;
+  background: var(--surface);
+}
+
+.log-console > :not(:last-child) {
+  display: none;
+}
+
+.log-console > :last-child {
+  display: grid;
+  gap: 0;
+}
+
+.log-console > :last-child > :first-child {
+  min-height: 38px;
+  align-items: center;
+  padding: 7px 10px;
+  border-color: var(--border);
+}
+
+.log-console > :last-child > :first-child > :last-child:empty {
+  display: none;
+}
+
+.log-console h2 {
+  color: var(--text);
+  font-size: var(--text-control);
+  font-weight: 650;
+}
+
+.log-console__viewport {
+  height: clamp(19rem, 50vh, 32rem);
+  border: 0;
+  border-radius: 0;
+}
+
+.log-console__viewport [data-slot="scroll-area-viewport"] > div > div {
+  padding: 7px 9px;
+  font-size: var(--text-meta);
+}
+
+.log-console__viewport [data-slot="badge"] {
+  min-width: 3.2rem;
+  height: 18px;
+  justify-content: center;
+  padding: 0 5px;
+  font-size: 9px;
+}
+
+@media (max-width: 700px) {
+  .logs-filter-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .log-console__viewport {
+    height: clamp(18rem, 54svh, 26rem);
+  }
+}

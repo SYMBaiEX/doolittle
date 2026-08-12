@@ -11,13 +11,15 @@ export function toLogViewerEntries(
     const detail = asString(entry.detail);
     const message = asString(entry.message, "Event");
     const at = asString(entry.at);
+    const renderedMessage = [scope, message, detail]
+      .filter(Boolean)
+      .join(" · ");
 
     return {
       id: `${at}:${scope}:${message}:${index}`,
       timestamp: at || undefined,
       level: asString(entry.level, "info"),
-      message,
-      metadata: detail ? { scope, detail } : { scope },
+      message: renderedMessage,
     };
   });
 }

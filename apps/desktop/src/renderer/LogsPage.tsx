@@ -14,6 +14,7 @@ import {
 } from "./lib";
 import { toLogViewerEntries } from "./log-viewer-mapping";
 import { OperationsTracePanel } from "./logs/OperationsTracePanel";
+import "./logs.css";
 
 interface LogsResponse {
   logs?: unknown[];
@@ -124,8 +125,31 @@ export function LogsPage({ active }: { active: boolean }) {
           },
         ]}
       />
+      <div className="filter-bar logs-filter-bar">
+        <label className="search-field grow">
+          <span className="sr-only">Search runtime logs</span>
+          <input
+            placeholder="Search messages, scopes, and details"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </label>
+        <select
+          aria-label="Log level"
+          value={level}
+          onChange={(event) => setLevel(event.target.value)}
+        >
+          <option value="all">All levels</option>
+          <option value="trace">Trace</option>
+          <option value="debug">Debug</option>
+          <option value="info">Info</option>
+          <option value="warn">Warnings</option>
+          <option value="error">Errors</option>
+          <option value="fatal">Fatal</option>
+        </select>
+      </div>
       <LogViewer
-        badges={[{ label: `${entries.length} records`, variant: "outline" }]}
         className="log-console"
         emptyState={{
           title: "No matching log events",
@@ -134,29 +158,11 @@ export function LogsPage({ active }: { active: boolean }) {
         entries={logEntries}
         error={resource.error || undefined}
         errorTitle="Could not load runtime logs"
+        heightClassName="log-console__viewport"
         isFilteredEmpty={Boolean(query.trim() || level !== "all")}
-        levelFilter={{
-          value: level,
-          onChange: setLevel,
-          options: [
-            { value: "all", label: "All levels" },
-            { value: "trace", label: "Trace" },
-            { value: "debug", label: "Debug" },
-            { value: "info", label: "Info" },
-            { value: "warn", label: "Warnings" },
-            { value: "error", label: "Errors" },
-            { value: "fatal", label: "Fatal" },
-          ],
-        }}
         loading={resource.loading}
-        onRefresh={refresh}
         onRetry={resource.reload}
-        search={{
-          value: query,
-          onChange: setQuery,
-          placeholder: "Search messages, scopes, and details",
-        }}
-        title="Runtime logs"
+        title="Event stream"
       />
       <details
         className="operations-trace-details"
