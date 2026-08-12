@@ -6,7 +6,7 @@ const read = (path: string) =>
 
 describe("MCP control density", () => {
   it("keeps deep registries optional and uses the shared compact summary", () => {
-    const source = read("./McpControlPanel.tsx");
+    const source = `${read("./McpControlPanel.tsx")}\n${read("./mcp-control/McpMarketplacePanel.tsx")}\n${read("./mcp-control/McpCachedToolsPanel.tsx")}`;
 
     expect(source).toContain(
       '<details className="mcp-control-disclosure mcp-control-servers">',
