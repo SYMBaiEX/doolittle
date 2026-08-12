@@ -59,6 +59,27 @@ export interface DashboardNextAction {
   target: "review" | "tasks" | "setup" | "chat" | "providers";
 }
 
+function compactSessionPreview(value: string): string {
+  const normalized = value.replace(/\s+/gu, " ").trim();
+  if (!normalized) return "";
+
+  const embeddedResource = normalized.match(
+    /\[Embedded resource:\s*(?<path>[^\]]+)\]/iu,
+  );
+  if (!embeddedResource?.groups?.path) return normalized;
+
+  const resourcePath = embeddedResource.groups.path.trim();
+  const resourceName = resourcePath.split(/[\\/]/u).pop() || "resource";
+  const withoutPath = normalized
+    .replace(embeddedResource[0], "")
+    .replace(/\s{2,}/gu, " ")
+    .trim();
+
+  return withoutPath
+    ? `${withoutPath} · ${resourceName}`
+    : `Referenced ${resourceName}`;
+}
+
 function compactListSummary(values: unknown[]): string {
   const ready = values.filter((value) => asRecord(value).ready === true).length;
   if (values.length === 0) return "None reported";
@@ -215,8 +236,11 @@ export function normalizeSessions(
     .map((session) => ({
       id: session.sessionId,
       title:
-        session.title?.trim() || session.preview[0]?.trim() || "Conversation",
-      preview: session.preview[0]?.trim() || session.sessionId,
+        compactSessionPreview(session.title ?? "") ||
+        compactSessionPreview(session.preview[0] ?? "") ||
+        "Conversation",
+      preview:
+        compactSessionPreview(session.preview[0] ?? "") || session.sessionId,
       messageCount: session.messageCount,
       lastActivityLabel: session.endedAt ?? session.startedAt ?? "",
     }));

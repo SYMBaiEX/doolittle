@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildNextActions,
+  normalizeSessions,
   summarizeAccountPool,
   summarizeDashboardValue,
   summarizeRepoStatus,
@@ -8,6 +9,37 @@ import {
 } from "./dashboard-helpers";
 
 describe("dashboard helpers", () => {
+  it("keeps embedded-resource previews compact and path-safe", () => {
+    const cards = normalizeSessions([
+      {
+        sessionId: "session-resource",
+        messageCount: 2,
+        participants: ["user"],
+        preview: [
+          "[user] What is this? [Embedded resource: file:///Users/symbiex/dev/austin/test/src/app/settings/page.tsx]",
+        ],
+        startedAt: "2026-08-12T12:00:00.000Z",
+      },
+      {
+        sessionId: "session-only-resource",
+        messageCount: 1,
+        participants: ["user"],
+        preview: [
+          "[Embedded resource: /Users/symbiex/dev/austin/test/package.json]",
+        ],
+        startedAt: "2026-08-12T11:00:00.000Z",
+      },
+    ]);
+
+    expect(cards[0]).toMatchObject({
+      preview: "[user] What is this? · page.tsx",
+    });
+    expect(cards[1]).toMatchObject({
+      preview: "Referenced package.json",
+    });
+    expect(cards[0]?.preview).not.toContain("/Users/");
+  });
+
   it("parses git status branch, sync, and dirty lines", () => {
     const summary = summarizeRepoStatus(
       "## feat/desktop...origin/feat/desktop [ahead 2, behind 1]\n M apps/desktop/src/renderer/App.tsx\n?? apps/desktop/src/renderer/DashboardPage.tsx",
