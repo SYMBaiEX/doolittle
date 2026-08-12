@@ -5,7 +5,7 @@ import {
 } from "./plugin-catalog-model";
 
 describe("buildPluginCatalogEntries", () => {
-  it("groups plugins while keeping the useful row facts visible", () => {
+  it("normalizes the runtime plugin facts used by the focused catalog", () => {
     expect(
       buildPluginCatalogEntries([
         {
@@ -21,14 +21,15 @@ describe("buildPluginCatalogEntries", () => {
     ).toEqual([
       {
         id: "openai-model",
-        group: "Providers",
         title: "OpenAI Model",
         description: "Adds OpenAI model support.",
-        descriptionMode: "inline",
-        status: undefined,
-        tone: undefined,
-        code: "@elizaos/plugin-openai",
-        meta: "Official · Stable",
+        packageName: "@elizaos/plugin-openai",
+        category: "providers",
+        source: "official",
+        kind: "unknown",
+        maturity: "stable",
+        persistence: "none",
+        enabled: true,
       },
     ]);
   });
@@ -43,16 +44,18 @@ describe("buildPluginCatalogEntries", () => {
     expect(pluginDisplayTitle("foundation_agent", "foundation")).toBe("Agent");
   });
 
-  it("does not invent unknown metadata", () => {
+  it("uses explicit neutral fallbacks instead of inventing plugin metadata", () => {
     expect(
       buildPluginCatalogEntries([
         { id: "local-extension", category: "custom", enabled: false },
       ])[0],
     ).toMatchObject({
-      group: "Custom",
-      meta: undefined,
-      status: "Inactive",
-      tone: "warn",
+      category: "custom",
+      source: "unknown",
+      kind: "unknown",
+      maturity: "unknown",
+      persistence: "none",
+      enabled: false,
     });
   });
 });

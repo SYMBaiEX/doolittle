@@ -1,5 +1,3 @@
-import type { CompactCatalogEntry } from "../components/CompactCatalogList";
-import { catalogExceptionStatus } from "../components/CompactCatalogList";
 import { asString, titleCase, type UnknownRecord } from "../lib";
 
 const PLUGIN_LABEL_WORDS: Record<string, string> = {
@@ -29,28 +27,36 @@ export function pluginDisplayTitle(id: string, category: string): string {
     .join(" ");
 }
 
-function pluginMeta(entry: UnknownRecord): string | undefined {
-  const values = [asString(entry.source), asString(entry.maturity)]
-    .filter(Boolean)
-    .map(titleCase);
-  return values.length ? values.join(" · ") : undefined;
+export interface PluginCatalogItem {
+  id: string;
+  title: string;
+  description: string;
+  packageName: string;
+  category: string;
+  source: string;
+  kind: string;
+  maturity: string;
+  persistence: string;
+  enabled: boolean;
 }
 
 export function buildPluginCatalogEntries(
   entries: UnknownRecord[],
-): CompactCatalogEntry[] {
+): PluginCatalogItem[] {
   return entries.map((entry, index) => {
     const id = asString(entry.id, `plugin-${index}`);
     const category = asString(entry.category, "plugin");
     return {
       id,
-      group: titleCase(category),
       title: pluginDisplayTitle(id || "unnamed-plugin", category),
       description: asString(entry.notes, "No plugin notes available."),
-      descriptionMode: "inline",
-      ...catalogExceptionStatus(Boolean(entry.enabled), "Inactive"),
-      code: asString(entry.packageName, id),
-      meta: pluginMeta(entry),
+      packageName: asString(entry.packageName, id),
+      category,
+      source: asString(entry.source, "unknown"),
+      kind: asString(entry.kind, "unknown"),
+      maturity: asString(entry.maturity, "unknown"),
+      persistence: asString(entry.persistence, "none"),
+      enabled: Boolean(entry.enabled),
     };
   });
 }

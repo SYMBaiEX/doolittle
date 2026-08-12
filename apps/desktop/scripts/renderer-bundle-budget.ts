@@ -54,6 +54,12 @@ export const RENDERER_BUNDLE_BUDGETS: readonly BundleBudget[] = [
     required: true,
   },
   {
+    label: "plugins route",
+    pattern: /^PluginsPage-[^.]+\.js$/u,
+    maxBytes: 8_000,
+    required: true,
+  },
+  {
     label: "registry route",
     pattern: /^RegistryPage-[^.]+\.js$/u,
     maxBytes: 6_000,

@@ -10,13 +10,11 @@ import {
 } from "@elizaos/ui/components/ui/select";
 import { useState } from "react";
 import type { PluginsResponse } from "../shared/contracts";
-import { CompactCatalogList } from "./components/CompactCatalogList";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
   asArray,
   asRecord,
-  asString,
   EmptyBlock,
   ErrorBlock,
   LoadingBlock,
@@ -24,6 +22,7 @@ import {
   titleCase,
   useApiResource,
 } from "./lib";
+import { PluginCatalogWorkspace } from "./plugins/PluginCatalogWorkspace";
 import { buildPluginCatalogEntries } from "./plugins/plugin-catalog-model";
 import "./agent-pages.css";
 import "./plugins.css";
@@ -35,26 +34,34 @@ export function PluginsPage({ active }: { active: boolean }) {
   );
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
-  const entries = asArray(resource.data?.catalog).map(asRecord);
+  const entries = buildPluginCatalogEntries(
+    asArray(resource.data?.catalog).map(asRecord),
+  );
   const categories = [
     "all",
-    ...new Set(
-      entries.map((entry) => asString(entry.category)).filter(Boolean),
-    ),
+    ...new Set(entries.map((entry) => entry.category).filter(Boolean)),
   ];
   const filtered = entries.filter((entry) => {
     const normalized = query.trim().toLowerCase();
     return (
       (category === "all" || entry.category === category) &&
       (!normalized ||
-        [entry.id, entry.packageName, entry.category, entry.notes, entry.source]
+        [
+          entry.id,
+          entry.title,
+          entry.packageName,
+          entry.category,
+          entry.description,
+          entry.source,
+          entry.kind,
+          entry.maturity,
+        ]
           .join(" ")
           .toLowerCase()
           .includes(normalized))
     );
   });
-  const catalogEntries = buildPluginCatalogEntries(filtered);
-  const enabled = entries.filter((entry) => Boolean(entry.enabled)).length;
+  const enabled = entries.filter((entry) => entry.enabled).length;
 
   return (
     <PagePanel className="page plugins-page" variant="workspace">
@@ -137,9 +144,8 @@ export function PluginsPage({ active }: { active: boolean }) {
         ) : resource.error ? (
           <ErrorBlock error={resource.error} retry={resource.reload} />
         ) : filtered.length ? (
-          <CompactCatalogList
-            ariaLabel="Plugin catalog"
-            entries={catalogEntries}
+          <PluginCatalogWorkspace
+            entries={filtered}
             resetKey={`${category}:${query.trim().toLowerCase()}`}
           />
         ) : (

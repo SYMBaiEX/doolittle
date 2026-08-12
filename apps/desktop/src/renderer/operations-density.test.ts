@@ -87,8 +87,12 @@ describe("operational route density", () => {
     expect(toolCatalog).not.toContain(
       'item.enabled ? <Badge tone="good">Available</Badge>',
     );
-    expect(read("./plugins/plugin-catalog-model.ts")).toContain(
-      'catalogExceptionStatus(Boolean(entry.enabled), "Inactive")',
+    const pluginCatalog = read("./plugins/PluginCatalogWorkspace.tsx");
+    expect(pluginCatalog).toContain(
+      '!item.enabled ? <Badge tone="warn">Inactive</Badge> : null',
+    );
+    expect(pluginCatalog).not.toContain(
+      'item.enabled ? <Badge tone="good">Enabled</Badge>',
     );
   });
 

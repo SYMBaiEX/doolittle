@@ -10,6 +10,14 @@ const model = readFileSync(
   new URL("./plugins/plugin-catalog-model.ts", import.meta.url),
   "utf8",
 );
+const workspace = readFileSync(
+  new URL("./plugins/PluginCatalogWorkspace.tsx", import.meta.url),
+  "utf8",
+);
+const catalogBrowserStyles = readFileSync(
+  new URL("./components/catalog-browser.css", import.meta.url),
+  "utf8",
+);
 
 describe("PluginsPage density", () => {
   it("keeps the plugin search as the primary desktop control with a bounded category rail", () => {
@@ -32,16 +40,27 @@ describe("PluginsPage density", () => {
     expect(styles).toContain("width: 100%;");
     expect(styles).toContain("@media (max-width: 1180px)");
     expect(styles).toContain("@media (max-width: 680px)");
+    expect(styles).toContain(".plugins-page .catalog-browser");
+    expect(catalogBrowserStyles).toContain("@media (max-width: 820px)");
+    expect(catalogBrowserStyles).toContain(
+      "grid-template-columns: minmax(0, 1fr)",
+    );
   });
 
-  it("groups the catalog once and keeps plugin purpose visible", () => {
-    expect(source).toContain("buildPluginCatalogEntries(filtered)");
-    expect(model).toContain("group: titleCase(category)");
+  it("normalizes the catalog once and keeps purpose in a focused detail pane", () => {
+    expect(source).toContain("buildPluginCatalogEntries(");
+    expect(source).toContain("<PluginCatalogWorkspace");
     expect(model).toContain(
       'title: pluginDisplayTitle(id || "unnamed-plugin", category)',
     );
-    expect(model).toContain('descriptionMode: "inline"');
-    expect(model).not.toContain("facts:");
-    expect(model).not.toContain('descriptionMode: "details"');
+    expect(workspace).toContain(
+      'className="catalog-browser plugin-catalog-workspace"',
+    );
+    expect(workspace).toContain(
+      '<span className="eyebrow">Plugin detail</span>',
+    );
+    expect(workspace).toContain("selected.description");
+    expect(workspace).toContain("selected.packageName");
+    expect(workspace).not.toContain("CompactCatalogList");
   });
 });
