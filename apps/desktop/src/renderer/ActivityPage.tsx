@@ -41,6 +41,36 @@ export function activitySummaryIsDistinct(
   return Boolean(summary.trim()) && normalize(summary) !== normalize(title);
 }
 
+interface GroupableActivityEvent {
+  id: string;
+  kind: string;
+  safeSummary: string;
+  status: string;
+  target: string;
+  title: string;
+}
+
+export function groupConsecutiveActivityEvents<
+  T extends GroupableActivityEvent,
+>(events: readonly T[]): Array<{ count: number; event: T }> {
+  const groups: Array<{ count: number; event: T }> = [];
+  for (const event of events) {
+    const previous = groups.at(-1);
+    const matchesPrevious =
+      previous?.event.kind === event.kind &&
+      previous.event.safeSummary === event.safeSummary &&
+      previous.event.status === event.status &&
+      previous.event.target === event.target &&
+      previous.event.title === event.title;
+    if (previous && matchesPrevious) {
+      previous.count += 1;
+    } else {
+      groups.push({ count: 1, event });
+    }
+  }
+  return groups;
+}
+
 const SOURCE_LABELS: Record<ActivityEventKind, string> = {
   "chat-run": "Chat",
   automation: "Automation",
@@ -123,8 +153,12 @@ export function ActivityPage({ active }: { active: boolean }) {
 
   const loading = timeline.loading;
   const errors = timeline.error ? [timeline.error] : [];
-  const visibleRows = visibleActivityWindow(filtered, visibleCount);
-  const remainingRows = Math.max(0, filtered.length - visibleRows.length);
+  const grouped = useMemo(
+    () => groupConsecutiveActivityEvents(filtered),
+    [filtered],
+  );
+  const visibleGroups = visibleActivityWindow(grouped, visibleCount);
+  const remainingGroups = Math.max(0, grouped.length - visibleGroups.length);
 
   const exportTimeline = async () => {
     if (exporting) return;
@@ -265,13 +299,17 @@ export function ActivityPage({ active }: { active: boolean }) {
                 <h2>What happened</h2>
               </div>
               <small>
-                {visibleRows.length} visible
-                {rows.length !== filtered.length ? ` of ${rows.length}` : ""}
+                {visibleGroups.length} visible
+                {grouped.length !== filtered.length
+                  ? ` · ${filtered.length} events`
+                  : rows.length !== filtered.length
+                    ? ` of ${rows.length}`
+                    : ""}
               </small>
             </div>
 
             <ol className="activity-event-list">
-              {visibleRows.map((row) => {
+              {visibleGroups.map(({ count, event: row }) => {
                 const tone = activityTone(row);
                 const state = activityState(row);
                 return (
@@ -290,6 +328,7 @@ export function ActivityPage({ active }: { active: boolean }) {
                             </span>
                             <span className="activity-event-context">
                               {row.status} · {row.target}
+                              {count > 1 ? ` · ${count} events` : ""}
                             </span>
                           </div>
                           <time dateTime={row.occurredAt}>
@@ -312,9 +351,9 @@ export function ActivityPage({ active }: { active: boolean }) {
                 );
               })}
             </ol>
-            {remainingRows ? (
+            {remainingGroups ? (
               <footer className="activity-feed-more">
-                <span>{remainingRows} older events</span>
+                <span>{remainingGroups} older groups</span>
                 <button
                   className="secondary-button"
                   onClick={() =>
@@ -322,7 +361,7 @@ export function ActivityPage({ active }: { active: boolean }) {
                   }
                   type="button"
                 >
-                  Show next {Math.min(ACTIVITY_PAGE_SIZE, remainingRows)}
+                  Show next {Math.min(ACTIVITY_PAGE_SIZE, remainingGroups)}
                 </button>
               </footer>
             ) : null}

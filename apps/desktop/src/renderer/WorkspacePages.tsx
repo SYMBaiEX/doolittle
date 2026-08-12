@@ -64,6 +64,13 @@ interface SessionArchiveImportResponse {
   };
 }
 
+export function shouldShowSessionEmptyLanding(
+  sessionCount: number,
+  query: string,
+): boolean {
+  return sessionCount === 0 && !query.trim();
+}
+
 export function SessionsPage({
   active,
   sessions,
@@ -330,7 +337,20 @@ export function SessionsPage({
           {transferStatus}
         </div>
       ) : null}
-      <div className="split-workspace">
+      <div
+        className={`split-workspace ${
+          shouldShowSessionEmptyLanding(sessions.length, query)
+            ? "is-empty"
+            : ""
+        }`}
+      >
+        {shouldShowSessionEmptyLanding(sessions.length, query) ? (
+          <section className="session-empty-landing">
+            <EmptyBlock title="No sessions yet">
+              Start a conversation from Chat, or import a portable archive.
+            </EmptyBlock>
+          </section>
+        ) : null}
         <section className="list-panel">
           <label className="search-field">
             <span className="sr-only">Search sessions</span>

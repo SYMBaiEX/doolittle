@@ -1544,6 +1544,21 @@ th {
   flex: 1 1 0;
 }
 
+.page-sessions > .split-workspace.is-empty {
+  grid-template-columns: 1fr;
+}
+
+.page-sessions > .split-workspace.is-empty > .list-panel,
+.page-sessions > .split-workspace.is-empty > .detail-panel {
+  display: none;
+}
+
+.session-empty-landing {
+  display: grid;
+  min-height: 0;
+  place-items: center;
+}
+
 .list-panel {
   padding: 9px;
 }
@@ -1776,7 +1791,6 @@ th {
 }
 
 .view-dashboard .dashboard-hero {
-  gap: 18px;
   padding: 16px;
 }
 
@@ -1788,15 +1802,6 @@ th {
 .view-dashboard .dashboard-hero p {
   font-size: 12px;
   line-height: 1.5;
-}
-
-.view-dashboard .dashboard-inline-metrics {
-  margin-top: 15px;
-}
-
-.view-dashboard .dashboard-side-column > div {
-  min-height: 54px;
-  padding: 12px 3px;
 }
 
 .view-dashboard .dashboard-action-card {
