@@ -288,6 +288,7 @@ export function App() {
 
   const setView = useCallback(
     (next: View) => {
+      preloadDesktopRoute(next);
       setViewState(next);
       setMobileSidebarOpen(false);
       if (next !== "chat") closeChatTerminal();
@@ -1142,7 +1143,11 @@ export function App() {
   }, [isMobileSidebarMode, mobileSidebarOpen]);
 
   useEffect(() => {
-    const onHashChange = () => setViewState(viewFromHash());
+    const onHashChange = () => {
+      const nextView = viewFromHash();
+      preloadDesktopRoute(nextView);
+      setViewState(nextView);
+    };
     window.addEventListener("hashchange", onHashChange);
     if (!window.location.hash) window.location.hash = "/chat";
     return () => window.removeEventListener("hashchange", onHashChange);

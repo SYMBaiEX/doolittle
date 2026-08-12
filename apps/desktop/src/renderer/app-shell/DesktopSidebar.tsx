@@ -203,6 +203,7 @@ export function DesktopSidebar({
                 key={item.id}
                 onClick={() => onSetView(item.id)}
                 onFocus={() => onPreloadView(item.id)}
+                onPointerDown={() => onPreloadView(item.id)}
                 onPointerEnter={() => onPreloadView(item.id)}
                 title={item.description}
                 type="button"
@@ -238,6 +239,7 @@ export function DesktopSidebar({
               className={`sidebar-account${view === "settings" ? " selected" : ""}`}
               onClick={() => onSetView("settings")}
               onFocus={() => onPreloadView("settings")}
+              onPointerDown={() => onPreloadView("settings")}
               onPointerEnter={() => onPreloadView("settings")}
               title="Settings"
               type="button"

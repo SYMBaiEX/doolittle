@@ -1,4 +1,9 @@
-import { lazy, type ReactNode } from "react";
+import {
+  type ComponentType,
+  type LazyExoticComponent,
+  lazy,
+  type ReactNode,
+} from "react";
 import type {
   BackendState,
   RuntimeStatus,
@@ -9,174 +14,250 @@ import type {
   ChatContextHandoff,
   ChatContextRequest,
 } from "../chat-context-handoff";
-import type { View } from "../desktop-navigation";
+import { type View, views } from "../desktop-navigation";
 import type { DesktopNavigationIntent } from "../desktop-navigation-intent";
-import type { ApiResource } from "../lib";
+import { type ApiResource, prefetchApiResource } from "../lib";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
 
-const loadDashboardPage = () => import("../DashboardPage");
-const loadChatPage = () => import("../ChatPage");
-const loadCodingWorkspacePage = () => import("../CodingWorkspacePage");
-const loadBrowserPage = () => import("../BrowserPage");
-const loadGatewayPage = () => import("../GatewayPage");
-const loadOrchestrationPage = () => import("../OrchestrationPage");
+type RouteLoader = () => Promise<unknown>;
+type ComponentExportKey<Module> = {
+  [Key in keyof Module]-?: Module[Key] extends ComponentType<infer _Props>
+    ? Key
+    : never;
+}[keyof Module];
+type RouteComponent<Module, Key extends keyof Module> =
+  Module[Key] extends ComponentType<infer Props> ? ComponentType<Props> : never;
+
+const registeredRouteLoaders: Partial<Record<View, RouteLoader>> = {};
+
+/** Register lazy rendering and preloading from one loader declaration. */
+function lazyNamedRoute<Module extends object, Key extends keyof Module>(
+  routeViews: readonly View[],
+  load: () => Promise<Module>,
+  exportName: Key & ComponentExportKey<Module>,
+): LazyExoticComponent<RouteComponent<Module, Key>> {
+  for (const view of routeViews) registeredRouteLoaders[view] = load;
+  return lazy(async () => {
+    const module = await load();
+    const component = module[exportName];
+    if (typeof component !== "function") {
+      throw new Error(`Missing route component export: ${String(exportName)}`);
+    }
+    return { default: component } as {
+      default: RouteComponent<Module, Key>;
+    };
+  });
+}
+
 const loadWorkspacePages = () => import("../WorkspacePages");
-const loadActivityPage = () => import("../ActivityPage");
-const loadMediaPage = () => import("../MediaPage");
-const loadMemoryPage = () => import("../MemoryPage");
-const loadModelsPage = () => import("../ModelsPage");
-const loadConnectionsPage = () => import("../ConnectionsPage");
-const loadToolsPage = () => import("../ToolsPage");
-const loadSkillsPage = () => import("../SkillsPage");
-const loadPluginsPage = () => import("../PluginsPage");
-const loadProfilesPage = () => import("../ProfilesPage");
-const loadAutomationsPage = () => import("../AutomationsPage");
-const loadLogsPage = () => import("../LogsPage");
-const loadSettingsPage = () => import("../SettingsPage");
-const loadKeysPage = () => import("../KeysPage");
-const loadDocsPage = () => import("../DocsPage");
-const loadRuntimePage = () => import("../RuntimePage");
-const loadCompatibilityPage = () => import("../CompatibilityPage");
-const loadRegistryPage = () => import("../RegistryPage");
-const loadSetupPage = () => import("../SetupPage");
+const DashboardPage = lazyNamedRoute(
+  ["dashboard"],
+  () => import("../DashboardPage"),
+  "DashboardPage",
+);
+const ChatPage = lazyNamedRoute(
+  ["chat"],
+  () => import("../ChatPage"),
+  "ChatPage",
+);
+const CodingWorkspacePage = lazyNamedRoute(
+  ["code"],
+  () => import("../CodingWorkspacePage"),
+  "CodingWorkspacePage",
+);
+const BrowserPage = lazyNamedRoute(
+  ["browser"],
+  () => import("../BrowserPage"),
+  "BrowserPage",
+);
+const GatewayPage = lazyNamedRoute(
+  ["gateway"],
+  () => import("../GatewayPage"),
+  "GatewayPage",
+);
+const OrchestrationPage = lazyNamedRoute(
+  ["review", "orchestration"],
+  () => import("../OrchestrationPage"),
+  "OrchestrationPage",
+);
+const SessionsPage = lazyNamedRoute(
+  ["sessions"],
+  loadWorkspacePages,
+  "SessionsPage",
+);
+const AnalyticsPage = lazyNamedRoute(
+  ["analytics"],
+  loadWorkspacePages,
+  "AnalyticsPage",
+);
+const ActivityPage = lazyNamedRoute(
+  ["activity"],
+  () => import("../ActivityPage"),
+  "ActivityPage",
+);
+const MediaPage = lazyNamedRoute(
+  ["media"],
+  () => import("../MediaPage"),
+  "MediaPage",
+);
+const MemoryPage = lazyNamedRoute(
+  ["memory"],
+  () => import("../MemoryPage"),
+  "MemoryPage",
+);
+const ModelsPage = lazyNamedRoute(
+  ["models"],
+  () => import("../ModelsPage"),
+  "ModelsPage",
+);
+const ConnectionsPage = lazyNamedRoute(
+  ["connections"],
+  () => import("../ConnectionsPage"),
+  "ConnectionsPage",
+);
+const ToolsPage = lazyNamedRoute(
+  ["tools"],
+  () => import("../ToolsPage"),
+  "ToolsPage",
+);
+const SkillsPage = lazyNamedRoute(
+  ["skills"],
+  () => import("../SkillsPage"),
+  "SkillsPage",
+);
+const PluginsPage = lazyNamedRoute(
+  ["plugins"],
+  () => import("../PluginsPage"),
+  "PluginsPage",
+);
+const ProfilesPage = lazyNamedRoute(
+  ["profiles"],
+  () => import("../ProfilesPage"),
+  "ProfilesPage",
+);
+const AutomationsPage = lazyNamedRoute(
+  ["automations"],
+  () => import("../AutomationsPage"),
+  "AutomationsPage",
+);
+const LogsPage = lazyNamedRoute(
+  ["logs"],
+  () => import("../LogsPage"),
+  "LogsPage",
+);
+const SettingsPage = lazyNamedRoute(
+  ["settings"],
+  () => import("../SettingsPage"),
+  "SettingsPage",
+);
+const KeysPage = lazyNamedRoute(
+  ["keys"],
+  () => import("../KeysPage"),
+  "KeysPage",
+);
+const DocsPage = lazyNamedRoute(
+  ["docs"],
+  () => import("../DocsPage"),
+  "DocsPage",
+);
+const RuntimePage = lazyNamedRoute(
+  ["runtime"],
+  () => import("../RuntimePage"),
+  "RuntimePage",
+);
+const CompatibilityPage = lazyNamedRoute(
+  ["compatibility"],
+  () => import("../CompatibilityPage"),
+  "CompatibilityPage",
+);
+const RegistryPage = lazyNamedRoute(
+  ["registry"],
+  () => import("../RegistryPage"),
+  "RegistryPage",
+);
+const SetupPage = lazyNamedRoute(
+  ["operatorSetup"],
+  () => import("../SetupPage"),
+  "SetupPage",
+);
 
-const DashboardPage = lazy(() =>
-  loadDashboardPage().then((module) => ({
-    default: module.DashboardPage,
-  })),
-);
-const ChatPage = lazy(() =>
-  loadChatPage().then((module) => ({ default: module.ChatPage })),
-);
-const CodingWorkspacePage = lazy(() =>
-  loadCodingWorkspacePage().then((module) => ({
-    default: module.CodingWorkspacePage,
-  })),
-);
-const BrowserPage = lazy(() =>
-  loadBrowserPage().then((module) => ({ default: module.BrowserPage })),
-);
-const GatewayPage = lazy(() =>
-  loadGatewayPage().then((module) => ({ default: module.GatewayPage })),
-);
-const OrchestrationPage = lazy(() =>
-  loadOrchestrationPage().then((module) => ({
-    default: module.OrchestrationPage,
-  })),
-);
-const SessionsPage = lazy(() =>
-  loadWorkspacePages().then((module) => ({
-    default: module.SessionsPage,
-  })),
-);
-const AnalyticsPage = lazy(() =>
-  loadWorkspacePages().then((module) => ({
-    default: module.AnalyticsPage,
-  })),
-);
-const ActivityPage = lazy(() =>
-  loadActivityPage().then((module) => ({
-    default: module.ActivityPage,
-  })),
-);
-const MediaPage = lazy(() =>
-  loadMediaPage().then((module) => ({ default: module.MediaPage })),
-);
-const MemoryPage = lazy(() =>
-  loadMemoryPage().then((module) => ({ default: module.MemoryPage })),
-);
-const ModelsPage = lazy(() =>
-  loadModelsPage().then((module) => ({ default: module.ModelsPage })),
-);
-const ConnectionsPage = lazy(() =>
-  loadConnectionsPage().then((module) => ({
-    default: module.ConnectionsPage,
-  })),
-);
-const ToolsPage = lazy(() =>
-  loadToolsPage().then((module) => ({ default: module.ToolsPage })),
-);
-const SkillsPage = lazy(() =>
-  loadSkillsPage().then((module) => ({ default: module.SkillsPage })),
-);
-const PluginsPage = lazy(() =>
-  loadPluginsPage().then((module) => ({ default: module.PluginsPage })),
-);
-const ProfilesPage = lazy(() =>
-  loadProfilesPage().then((module) => ({
-    default: module.ProfilesPage,
-  })),
-);
-const AutomationsPage = lazy(() =>
-  loadAutomationsPage().then((module) => ({
-    default: module.AutomationsPage,
-  })),
-);
-const LogsPage = lazy(() =>
-  loadLogsPage().then((module) => ({ default: module.LogsPage })),
-);
-const SettingsPage = lazy(() =>
-  loadSettingsPage().then((module) => ({
-    default: module.SettingsPage,
-  })),
-);
-const KeysPage = lazy(() =>
-  loadKeysPage().then((module) => ({ default: module.KeysPage })),
-);
-const DocsPage = lazy(() =>
-  loadDocsPage().then((module) => ({ default: module.DocsPage })),
-);
-const RuntimePage = lazy(() =>
-  loadRuntimePage().then((module) => ({ default: module.RuntimePage })),
-);
-const CompatibilityPage = lazy(() =>
-  loadCompatibilityPage().then((module) => ({
-    default: module.CompatibilityPage,
-  })),
-);
-const RegistryPage = lazy(() =>
-  loadRegistryPage().then((module) => ({
-    default: module.RegistryPage,
-  })),
-);
-const SetupPage = lazy(() =>
-  loadSetupPage().then((module) => ({ default: module.SetupPage })),
-);
+function completeRouteLoaderRegistry(): Readonly<Record<View, RouteLoader>> {
+  for (const view of views) {
+    if (!registeredRouteLoaders[view]) {
+      throw new Error(`Missing desktop route loader: ${view}`);
+    }
+  }
+  return registeredRouteLoaders as Record<View, RouteLoader>;
+}
 
-export const DESKTOP_ROUTE_PRELOADERS: Readonly<
-  Record<View, () => Promise<unknown>>
+export const DESKTOP_ROUTE_PRELOADERS = completeRouteLoaderRegistry();
+
+export interface DesktopRouteResourcePrefetch {
+  path: string;
+  dependencies: readonly unknown[];
+}
+
+/** Default-view resources that are safe and useful to warm before navigation. */
+export const DESKTOP_ROUTE_RESOURCE_PREFETCHES: Readonly<
+  Partial<Record<View, readonly DesktopRouteResourcePrefetch[]>>
 > = {
-  dashboard: loadDashboardPage,
-  chat: loadChatPage,
-  code: loadCodingWorkspacePage,
-  browser: loadBrowserPage,
-  gateway: loadGatewayPage,
-  review: loadOrchestrationPage,
-  orchestration: loadOrchestrationPage,
-  sessions: loadWorkspacePages,
-  activity: loadActivityPage,
-  analytics: loadWorkspacePages,
-  media: loadMediaPage,
-  models: loadModelsPage,
-  connections: loadConnectionsPage,
-  tools: loadToolsPage,
-  skills: loadSkillsPage,
-  plugins: loadPluginsPage,
-  memory: loadMemoryPage,
-  automations: loadAutomationsPage,
-  profiles: loadProfilesPage,
-  logs: loadLogsPage,
-  keys: loadKeysPage,
-  settings: loadSettingsPage,
-  docs: loadDocsPage,
-  runtime: loadRuntimePage,
-  compatibility: loadCompatibilityPage,
-  registry: loadRegistryPage,
-  operatorSetup: loadSetupPage,
+  activity: [{ path: "/activity?limit=200", dependencies: [true] }],
+  automations: [{ path: "/cron/jobs", dependencies: [true] }],
+  browser: [{ path: "/browser/status", dependencies: [true] }],
+  compatibility: [{ path: "/runtime/compatibility", dependencies: [true] }],
+  connections: [{ path: "/runtime/accounts", dependencies: [true] }],
+  gateway: [
+    { path: "/gateway/state", dependencies: [true] },
+    { path: "/gateway/inbox?limit=25", dependencies: [true] },
+    { path: "/gateway/outbox?limit=25", dependencies: [true] },
+  ],
+  keys: [{ path: "/secrets", dependencies: [true] }],
+  logs: [{ path: "/logs?limit=500", dependencies: [true, "all", ""] }],
+  memory: [{ path: "/memory?target=memory", dependencies: [true] }],
+  models: [
+    { path: "/settings", dependencies: [true] },
+    {
+      path: "/runtime/models?refresh=false",
+      dependencies: [true, false],
+    },
+  ],
+  operatorSetup: [
+    { path: "/setup/summary", dependencies: [true] },
+    { path: "/runtime/account-pool", dependencies: [true] },
+  ],
+  plugins: [{ path: "/runtime/plugins?view=catalog", dependencies: [true] }],
+  profiles: [{ path: "/personality", dependencies: [true] }],
+  registry: [
+    {
+      path: "/runtime/registry",
+      dependencies: [true, "", undefined],
+    },
+  ],
+  runtime: [
+    { path: "/runtime/status", dependencies: [true] },
+    { path: "/runtime/account-pool", dependencies: [true] },
+    { path: "/autonomy/status", dependencies: [true] },
+  ],
+  settings: [
+    { path: "/settings", dependencies: [true] },
+    { path: "/runtime/accounts", dependencies: [true] },
+  ],
+  skills: [{ path: "/skills", dependencies: [true] }],
+  tools: [{ path: "/tools?profile=full", dependencies: [true, "full"] }],
 };
 
+export async function warmDesktopRoute(view: View): Promise<void> {
+  const resources = DESKTOP_ROUTE_RESOURCE_PREFETCHES[view] ?? [];
+  await Promise.all([
+    DESKTOP_ROUTE_PRELOADERS[view](),
+    ...resources.map(({ dependencies, path }) =>
+      prefetchApiResource(path, dependencies),
+    ),
+  ]);
+}
+
 export function preloadDesktopRoute(view: View): void {
-  void DESKTOP_ROUTE_PRELOADERS[view]().catch(() => undefined);
+  void warmDesktopRoute(view).catch(() => undefined);
 }
 
 export interface DesktopRouteNavigation {

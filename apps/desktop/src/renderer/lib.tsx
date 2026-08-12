@@ -1,5 +1,6 @@
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Badge as ElizaBadge } from "@elizaos/ui/components/ui/badge";
+import { getCached, revalidate } from "@elizaos/ui/hooks/resource-cache";
 import { useCachedResource } from "@elizaos/ui/hooks/useCachedResource";
 import {
   type DependencyList,
@@ -43,6 +44,26 @@ export function apiResourceCacheKey(
   if (!path) return null;
   const dependencyKey = dependencies.map(cacheDependency).join("\u001f");
   return `doolittle:api:${path}\u001e${dependencyKey}`;
+}
+
+const API_RESOURCE_STALE_TIME_MS = 30_000;
+
+/**
+ * Warm the same Eliza resource-cache slot consumed by useApiResource.
+ * Navigation can start data I/O alongside a lazy route import, so the first
+ * render no longer has to wait for the JavaScript chunk before issuing GET.
+ */
+export async function prefetchApiResource<T>(
+  path: string | null,
+  dependencies: DependencyList = [],
+): Promise<T | null> {
+  const key = apiResourceCacheKey(path, dependencies);
+  if (!key || !path) return null;
+  const cached = getCached<T | null>(key);
+  if (cached && Date.now() - cached.updatedAt < API_RESOURCE_STALE_TIME_MS) {
+    return cached.data;
+  }
+  return revalidate(key, () => desktopRequest<T>(path, "GET"));
 }
 
 export function errorMessage(error: unknown): string {
@@ -91,6 +112,7 @@ export function useApiResource<T>(
       path
         ? desktopRequest<T>(path, "GET", undefined, signal)
         : Promise.resolve(null),
+    { staleTime: API_RESOURCE_STALE_TIME_MS },
   );
 
   return {

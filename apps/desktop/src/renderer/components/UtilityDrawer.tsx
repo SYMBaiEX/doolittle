@@ -163,6 +163,7 @@ export function UtilityDrawer<TView extends string>({
                           key={item.id}
                           onClick={() => onSelect(item.id)}
                           onFocus={() => onPreload?.(item.id)}
+                          onPointerDown={() => onPreload?.(item.id)}
                           onPointerEnter={() => onPreload?.(item.id)}
                           type="button"
                         >
