@@ -123,6 +123,7 @@ export function OrchestrationPage({
     workflows,
     runs,
     codegenSelection,
+    selectedTaskDetail,
     refreshAll,
     refreshCodegen,
     refreshDelegation,
@@ -131,13 +132,18 @@ export function OrchestrationPage({
     activeTab,
     selectedWorkflowId,
     selectedRunId,
+    selectedTaskId,
     projectScope,
     workspacePath,
     platform: window.doolittle.platform,
   });
 
-  const selectedTask =
+  const selectedTaskSummary =
     tasks.find((entry) => asString(entry.id) === selectedTaskId) ?? tasks[0];
+  const selectedTask =
+    selectedTaskDetail?.id === selectedTaskSummary?.id
+      ? selectedTaskDetail
+      : selectedTaskSummary;
   const selectedWorker =
     workers.find((entry) => asString(entry.id) === selectedWorkerId) ??
     workers[0];
@@ -626,6 +632,7 @@ export function OrchestrationPage({
             workspaceLabel={workspaceLabel}
             effectiveOverview={effectiveOverview}
             tasksResource={tasksResource}
+            taskDetailReady={selectedTaskDetail?.id === selectedTask?.id}
             tasks={tasks}
             selectedTask={selectedTask}
             busyKeys={busyKeys}

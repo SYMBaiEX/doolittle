@@ -10,7 +10,7 @@ import {
 describe("orchestration resource paths", () => {
   it("uses bounded collection endpoints and safely encodes selected resource IDs", () => {
     expect(orchestrationResourcePaths.tasks).toBe(
-      "/delegation/tasks?limit=100",
+      "/delegation/task-summaries?limit=100",
     );
     expect(orchestrationResourcePaths.workers).toBe(
       "/delegation/workers?limit=100",
@@ -20,6 +20,9 @@ describe("orchestration resource paths", () => {
     );
     expect(orchestrationResourcePaths.run("run/a ?")).toBe(
       "/codegen/runs/run%2Fa%20%3F",
+    );
+    expect(orchestrationResourcePaths.task("task/a ?")).toBe(
+      "/delegation/tasks/task%2Fa%20%3F",
     );
     expect(orchestrationResourceId("task/a ?")).toBe("task%2Fa%20%3F");
   });

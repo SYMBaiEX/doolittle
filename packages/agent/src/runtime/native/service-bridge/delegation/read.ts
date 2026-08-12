@@ -5,6 +5,11 @@ import {
 } from "@/services/delegation/reporting";
 import type { DelegationTaskRecord } from "@/types";
 import type { RuntimeLike } from "../runtime";
+import type {
+  NativeAgentOrchestratorService,
+  NativeOrchestratorTaskDetail,
+  NativeOrchestratorTaskThread,
+} from "../runtime-contracts";
 import {
   projectOfficialTask,
   projectOfficialTaskList,
@@ -15,6 +20,74 @@ import {
   isSessionlessResearchTask,
   researchRunReceipt,
 } from "./research-run";
+
+async function reconcileOfficialTaskDetail(
+  service: NativeAgentOrchestratorService,
+  task: NativeOrchestratorTaskDetail,
+) {
+  const receipt = researchRunReceipt(task.metadata);
+  if (
+    !(
+      isSessionlessResearchTask(task) &&
+      receipt?.status === "active" &&
+      typeof receipt.runId === "string" &&
+      !isLiveResearchRun(task.id, receipt.runId)
+    )
+  ) {
+    return task;
+  }
+  const interruptedAt = new Date().toISOString();
+  const updated = await service.updateTask(task.id, {
+    status: "interrupted",
+    closedAt: interruptedAt,
+    metadata: {
+      ...task.metadata,
+      researchRun: {
+        ...receipt,
+        status: "interrupted",
+        interruptedAt,
+        interruption: "reconciled-after-restart",
+      },
+    },
+  });
+  // A failed reconciliation write must not invent a state that the official
+  // service did not persist. Keep the original detail for this refresh.
+  return updated ?? task;
+}
+
+type OfficialTaskDetailRead = Promise<NativeOrchestratorTaskDetail | null>;
+const officialTaskReads = new WeakMap<
+  object,
+  Map<string, OfficialTaskDetailRead>
+>();
+
+async function readAndReconcileOfficialTaskDetail(
+  runtime: RuntimeLike,
+  id: string,
+) {
+  const runtimeKey = runtime as object;
+  let cache = officialTaskReads.get(runtimeKey);
+  if (!cache) {
+    cache = new Map<string, OfficialTaskDetailRead>();
+    officialTaskReads.set(runtimeKey, cache);
+  }
+  const current = cache.get(id);
+  if (current) return current;
+
+  const service = requireOfficialOrchestrator(runtime);
+  const pending = service
+    .getTask(id)
+    .then((task) => (task ? reconcileOfficialTaskDetail(service, task) : null));
+  cache.set(id, pending);
+  try {
+    return await pending;
+  } finally {
+    if (cache.get(id) === pending) cache.delete(id);
+    if (cache.size === 0 && officialTaskReads.get(runtimeKey) === cache) {
+      officialTaskReads.delete(runtimeKey);
+    }
+  }
+}
 
 async function listAndReconcileOfficialTaskDetails(
   runtime: RuntimeLike,
@@ -29,37 +102,9 @@ async function listAndReconcileOfficialTaskDetails(
     summaries.map((task) => service.getTask(task.id)),
   );
   const reconciled = await Promise.all(
-    details.map(async (task) => {
-      const receipt = task && researchRunReceipt(task.metadata);
-      if (
-        !task ||
-        !(
-          isSessionlessResearchTask(task) &&
-          receipt?.status === "active" &&
-          typeof receipt.runId === "string" &&
-          !isLiveResearchRun(task.id, receipt.runId)
-        )
-      ) {
-        return task;
-      }
-      const interruptedAt = new Date().toISOString();
-      const updated = await service.updateTask(task.id, {
-        status: "interrupted",
-        closedAt: interruptedAt,
-        metadata: {
-          ...task.metadata,
-          researchRun: {
-            ...receipt,
-            status: "interrupted",
-            interruptedAt,
-            interruption: "reconciled-after-restart",
-          },
-        },
-      });
-      // A failed reconciliation write must not invent a state that the official
-      // service did not persist. Keep the original detail for this refresh.
-      return updated ?? task;
-    }),
+    details.map((task) =>
+      task ? reconcileOfficialTaskDetail(service, task) : task,
+    ),
   );
   return reconciled.filter(
     (task): task is NonNullable<typeof task> => task !== null,
@@ -74,6 +119,25 @@ async function listOfficialTaskSummaries(
     includeArchived: true,
     limit: options?.limit ?? 500,
   });
+}
+
+async function listAndReconcileOfficialTaskSummaries(
+  runtime: RuntimeLike,
+  options?: { limit?: number },
+): Promise<Array<NativeOrchestratorTaskThread | NativeOrchestratorTaskDetail>> {
+  const summaries = await listOfficialTaskSummaries(runtime, options);
+  return Promise.all(
+    summaries.map(async (summary) => {
+      // Doolittle's canonical sessionless research tasks use kind=research.
+      // They are the only summary rows that need metadata inspection to retain
+      // restart reconciliation. Coding rows remain one cheap listTasks read.
+      if (summary.kind !== "research") return summary;
+      return (
+        (await readAndReconcileOfficialTaskDetail(runtime, summary.id)) ??
+        summary
+      );
+    }),
+  );
 }
 
 type OfficialTaskDetails = Awaited<
@@ -128,6 +192,15 @@ export async function getEffectiveDelegationTasks(
   );
 }
 
+export async function getEffectiveDelegationTaskSummaries(
+  runtime: RuntimeLike,
+  options?: { limit?: number },
+) {
+  return projectOfficialTaskList(
+    await listAndReconcileOfficialTaskSummaries(runtime, options),
+  );
+}
+
 export async function getEffectiveDelegationQueue(runtime: RuntimeLike) {
   const service = requireOfficialOrchestrator(runtime);
   const [status, tasks] = await Promise.all([
@@ -171,25 +244,30 @@ export async function getEffectiveDelegationOverviews(runtime: RuntimeLike) {
 export async function getEffectiveDelegationOverviewsSnapshot(
   runtime: RuntimeLike,
 ) {
-  // The desktop startup surface consumes aggregate counts only. Keep richer
-  // group, label, worker, parent, and reconciliation reads on the detail-backed
-  // projections below instead of expanding every task during route entry.
+  // The desktop startup surface consumes aggregate counts only. Do not return
+  // full-looking group, label, worker, parent, or retry projections from task
+  // summaries: those fields require detail reads and would otherwise be
+  // misleading zero/default values. Canonical research rows still reconcile
+  // restart receipts through the bounded summary bridge above.
   const service = requireOfficialOrchestrator(runtime);
   const [status, tasks] = await Promise.all([
     service.getStatus(),
-    listOfficialTaskSummaries(runtime),
+    listAndReconcileOfficialTaskSummaries(runtime),
   ]);
   const projected = projectOfficialTaskList(tasks);
+  const counts = {
+    total: projected.length,
+    pending: projected.filter((task) => task.status === "pending").length,
+    running: projected.filter((task) => task.status === "running").length,
+    completed: projected.filter((task) => task.status === "completed").length,
+    failed: projected.filter((task) => task.status === "failed").length,
+    cancelled: projected.filter((task) => task.status === "cancelled").length,
+  };
   return {
-    local: buildDelegationProjectionOverview(
-      projected,
-      projected.filter((task) => task.status === "running").length,
-    ),
+    local: { ...counts, concurrency: counts.running },
     native: {
-      ...buildDelegationProjectionOverview(
-        projected,
-        status.activeSessionCount,
-      ),
+      ...counts,
+      concurrency: status.activeSessionCount,
       service: "ORCHESTRATOR_TASK_SERVICE",
       available: true,
     },
@@ -200,7 +278,7 @@ export async function getEffectiveDelegationTask(
   runtime: RuntimeLike,
   id: string,
 ) {
-  const task = await requireOfficialOrchestrator(runtime).getTask(id);
+  const task = await readAndReconcileOfficialTaskDetail(runtime, id);
   return task ? projectOfficialTask(task) : null;
 }
 

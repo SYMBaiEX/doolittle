@@ -181,7 +181,7 @@ describe("handleDelegationReadRoutes", () => {
     });
   });
 
-  it("keeps overview startup reads from expanding every task detail", async () => {
+  it("keeps overview and queue startup reads from expanding coding task details", async () => {
     const details = Array.from({ length: 500 }, (_, index) =>
       detail(`task-${index + 1}`),
     );
@@ -230,8 +230,8 @@ describe("handleDelegationReadRoutes", () => {
       ),
       handleDelegationReadRoutes(
         context,
-        new Request("http://localhost/delegation/tasks?limit=100"),
-        new URL("http://localhost/delegation/tasks?limit=100"),
+        new Request("http://localhost/delegation/task-summaries?limit=100"),
+        new URL("http://localhost/delegation/task-summaries?limit=100"),
       ),
     ]);
 
@@ -254,6 +254,72 @@ describe("handleDelegationReadRoutes", () => {
       includeArchived: true,
       limit: 100,
     });
-    expect(getTaskSpy).toHaveBeenCalledTimes(100);
+    expect(getTaskSpy).not.toHaveBeenCalled();
+  });
+
+  it("reconciles canonical sessionless research rows on the summary queue path", async () => {
+    const stale = {
+      ...detail("research-stale", {
+        researchRun: {
+          runId: "stale-run",
+          status: "active",
+          startedAt: "2026-08-09T00:00:00.000Z",
+        },
+      }),
+      kind: "research",
+      status: "active",
+    };
+    const summary = thread(stale.id);
+    summary.kind = "research";
+    summary.status = "active";
+    const updateTask = vi.fn(
+      async (_id: string, patch: Record<string, unknown>) => ({
+        ...stale,
+        ...patch,
+      }),
+    );
+    const service = {
+      listTasks: vi.fn(async () => [summary]),
+      getTask: vi.fn(async () => stale),
+      updateTask,
+      getStatus: async () => ({
+        taskCount: 1,
+        activeTaskCount: 1,
+        pausedTaskCount: 0,
+        blockedTaskCount: 0,
+        validatingTaskCount: 0,
+        sessionCount: 0,
+        activeSessionCount: 0,
+        byStatus: {},
+      }),
+    };
+
+    const response = await handleDelegationReadRoutes(
+      contextWithService(service),
+      new Request("http://localhost/delegation/task-summaries?limit=100"),
+      new URL("http://localhost/delegation/task-summaries?limit=100"),
+    );
+
+    await expect(response?.json()).resolves.toEqual({
+      tasks: [
+        expect.objectContaining({
+          id: stale.id,
+          status: "cancelled",
+        }),
+      ],
+    });
+    expect(service.getTask).toHaveBeenCalledOnce();
+    expect(updateTask).toHaveBeenCalledWith(
+      stale.id,
+      expect.objectContaining({
+        status: "interrupted",
+        metadata: expect.objectContaining({
+          researchRun: expect.objectContaining({
+            status: "interrupted",
+            interruption: "reconciled-after-restart",
+          }),
+        }),
+      }),
+    );
   });
 });

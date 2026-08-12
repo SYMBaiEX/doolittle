@@ -454,6 +454,12 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
       allowedQueries: DELEGATION_FILTER_QUERIES,
       validateQuery: validateDelegationFilters,
     },
+    {
+      exact: "/delegation/task-summaries",
+      allowedQueries: ["limit"],
+      validateQuery: (query) =>
+        validateIntegerQuery(query, "limit", { min: 1, max: 200 }),
+    },
     { exact: "/delegation/overview" },
     { exact: "/delegation/groups" },
     {

@@ -4,6 +4,7 @@ export interface ReloadableResource {
 
 export interface DelegationRefreshResources {
   overview: ReloadableResource;
+  taskDetail: ReloadableResource;
   tasks: ReloadableResource;
   workers: ReloadableResource;
 }
@@ -28,10 +29,12 @@ export interface OrchestrationRefreshResources
 
 export function refreshDelegationResources({
   overview,
+  taskDetail,
   tasks,
   workers,
 }: DelegationRefreshResources): void {
   tasks.reload();
+  taskDetail.reload();
   workers.reload();
   overview.reload();
 }

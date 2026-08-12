@@ -679,6 +679,9 @@ describe("parseApiPath", () => {
     expect(parseApiPath("/delegation/overview", "GET")).toBe(
       "/delegation/overview",
     );
+    expect(parseApiPath("/delegation/task-summaries?limit=100", "GET")).toBe(
+      "/delegation/task-summaries?limit=100",
+    );
     expect(parseApiPath("/delegation/groups", "GET")).toBe(
       "/delegation/groups",
     );

@@ -43,6 +43,7 @@ export type TaskQueueDetailProps = {
   onTaskNoteChange: (value: string, taskId: string) => void;
   onToggleChildCreate: (task: DelegationTaskRecord) => void;
   selectedTask: DelegationTaskRecord;
+  taskDetailReady: boolean;
   selectedTaskNote: string;
   showChildCreate: boolean;
   worktrees: readonly RepositoryWorktreeRecord[];
@@ -69,6 +70,7 @@ export function TaskQueueDetail({
   onTaskNoteChange,
   onToggleChildCreate,
   selectedTask,
+  taskDetailReady,
   selectedTaskNote,
   showChildCreate,
   worktrees,
@@ -161,7 +163,12 @@ export function TaskQueueDetail({
             type="button"
             onClick={() => onToggleChildCreate(selectedTask)}
             aria-expanded={showChildCreate}
-            disabled={!active}
+            disabled={!active || !taskDetailReady}
+            title={
+              !taskDetailReady
+                ? "Loading task details before creating a child"
+                : undefined
+            }
           >
             Add child
           </button>

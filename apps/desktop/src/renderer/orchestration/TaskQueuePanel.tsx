@@ -29,6 +29,7 @@ export function TaskQueuePanel({
   workspaceLabel,
   effectiveOverview,
   tasksResource,
+  taskDetailReady = false,
   tasks,
   selectedTask,
   busyKeys,
@@ -59,6 +60,7 @@ export function TaskQueuePanel({
   workspaceLabel?: string;
   effectiveOverview: UnknownRecord;
   tasksResource: ResourceState;
+  taskDetailReady?: boolean;
   tasks: readonly DelegationTaskRecord[];
   selectedTask?: DelegationTaskRecord;
   busyKeys: Readonly<Record<string, boolean>>;
@@ -229,6 +231,7 @@ export function TaskQueuePanel({
             onTaskNoteChange={onTaskNoteChange}
             onToggleChildCreate={onToggleChildCreate}
             selectedTask={selectedTask}
+            taskDetailReady={taskDetailReady}
             selectedTaskNote={selectedTaskNote}
             showChildCreate={showChildCreate}
             worktrees={worktrees}

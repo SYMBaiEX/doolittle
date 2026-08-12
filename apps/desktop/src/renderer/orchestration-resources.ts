@@ -64,6 +64,7 @@ export type DelegationTaskRecord = {
 };
 
 type DelegationTaskResponse = { tasks?: unknown[] };
+type DelegationTaskDetailResponse = { task?: DelegationTaskRecord | null };
 
 export type WorkerRecord = {
   id: string;
@@ -232,7 +233,7 @@ export type CodegenCancellationResponse = {
 
 export const orchestrationResourcePaths = {
   overview: "/delegation/overview",
-  tasks: "/delegation/tasks?limit=100",
+  tasks: "/delegation/task-summaries?limit=100",
   workers: "/delegation/workers?limit=100",
   worktrees: "/repo/worktrees",
   plans: "/plans",
@@ -242,6 +243,7 @@ export const orchestrationResourcePaths = {
   codegenRuns: "/codegen/runs",
   workflow: (id: string) => `/codegen/workflows/${encodeURIComponent(id)}`,
   run: (id: string) => `/codegen/runs/${encodeURIComponent(id)}`,
+  task: (id: string) => `/delegation/tasks/${encodeURIComponent(id)}`,
 } as const;
 
 export function orchestrationResourceId(id: string): string {
@@ -314,6 +316,7 @@ export function useOrchestrationResources(input: {
   activeTab: OrchestrationTab;
   selectedWorkflowId: string;
   selectedRunId: string;
+  selectedTaskId: string;
   projectScope: string;
   workspacePath?: string;
   platform: DesktopPlatform;
@@ -331,6 +334,12 @@ export function useOrchestrationResources(input: {
   const tasksResource = useApiResource<DelegationTaskResponse>(
     requestPolicy.tasks ? orchestrationResourcePaths.tasks : null,
     [requestPolicy.tasks],
+  );
+  const taskDetailResource = useApiResource<DelegationTaskDetailResponse>(
+    requestPolicy.tasks && input.selectedTaskId
+      ? orchestrationResourcePaths.task(input.selectedTaskId)
+      : null,
+    [requestPolicy.tasks, input.selectedTaskId],
   );
   const workersResource = useApiResource<WorkersResponse>(
     requestPolicy.workers ? orchestrationResourcePaths.workers : null,
@@ -390,6 +399,10 @@ export function useOrchestrationResources(input: {
     workspacePath: input.workspacePath,
     platform: input.platform,
   });
+  const selectedTaskDetail =
+    taskDetailResource.data?.task?.id === input.selectedTaskId
+      ? taskDetailResource.data.task
+      : undefined;
   const detailWorkflowId = asString(workflowDetailResource.data?.workflow?.id);
   const codegenSelection = projectOrchestrationCodegenSelection({
     workflows: normalized.workflows,
@@ -404,6 +417,7 @@ export function useOrchestrationResources(input: {
   const refreshDelegation = () =>
     refreshDelegationResources({
       overview: overviewResource,
+      taskDetail: taskDetailResource,
       tasks: tasksResource,
       workers: workersResource,
     });
@@ -427,6 +441,7 @@ export function useOrchestrationResources(input: {
       runs: codegenRunsResource,
       runtime: codegenRuntimeResource,
       selectedRunId: input.selectedRunId,
+      taskDetail: taskDetailResource,
       selectedWorkflowId: input.selectedWorkflowId,
       tasks: tasksResource,
       workers: workersResource,
@@ -440,6 +455,7 @@ export function useOrchestrationResources(input: {
     requestPolicy,
     overviewResource,
     tasksResource,
+    taskDetailResource,
     workersResource,
     worktreesResource,
     plansResource,
@@ -451,6 +467,7 @@ export function useOrchestrationResources(input: {
     runDetailResource,
     ...normalized,
     tasks,
+    selectedTaskDetail,
     codegenSelection,
     refreshAll,
     refreshCodegen,

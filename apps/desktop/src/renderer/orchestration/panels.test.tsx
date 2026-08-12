@@ -240,6 +240,7 @@ describe("orchestration presentational panels", () => {
         tasksResource: resource(),
         tasks: [selectedTask],
         selectedTask,
+        taskDetailReady: true,
         busyKeys: {},
         selectedTaskNote: "",
         showChildCreate: false,

@@ -40,6 +40,7 @@ describe("orchestration refresh ownership", () => {
       runtime: resource(),
       selectedRunId: "run-1",
       selectedWorkflowId: "workflow-1",
+      taskDetail: resource(),
       tasks: resource(),
       workers: resource(),
       workflowDetail: resource(),

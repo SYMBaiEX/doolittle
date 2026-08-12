@@ -4,6 +4,7 @@ import {
   getEffectiveDelegationOverview,
   getEffectiveDelegationOverviewsSnapshot,
   getEffectiveDelegationTask,
+  getEffectiveDelegationTaskSummaries,
   getEffectiveDelegationTasks,
   getEffectiveDelegationTree,
   getOfficialOrchestrator,
@@ -115,6 +116,18 @@ export async function handleDelegationReadRoutes(
               task.executionMode === filters.executionMode),
         )
         .slice(0, filters.limit),
+    });
+  }
+
+  if (
+    request.method === "GET" &&
+    url.pathname === "/delegation/task-summaries"
+  ) {
+    const filters = parseDelegationFilters(url);
+    return json({
+      tasks: await getEffectiveDelegationTaskSummaries(context.runtime, {
+        limit: filters.limit,
+      }),
     });
   }
 

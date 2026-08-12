@@ -14,6 +14,7 @@ export {
   getEffectiveDelegationOverviewsSnapshot,
   getEffectiveDelegationQueue,
   getEffectiveDelegationTask,
+  getEffectiveDelegationTaskSummaries,
   getEffectiveDelegationTasks,
   getEffectiveDelegationTree,
 } from "./read";
