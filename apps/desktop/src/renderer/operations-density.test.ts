@@ -144,16 +144,16 @@ describe("operational route density", () => {
   it("defers automation trace receipts behind a compact disclosure", () => {
     const automations = read("./AutomationsPage.tsx");
     const workspace = read("./automations/AutomationWorkspace.tsx");
+    const history = read("./automations/AutomationRunHistory.tsx");
 
     expect(automations).toContain("resourcePolicy.runs");
     expect(automations).toContain(
       'detail: runsOpen ? "Durable trace receipts" : "Open to load"',
     );
-    expect(workspace).toContain(
-      'className="content-card automation-runs-panel"',
-    );
-    expect(workspace).toMatch(
-      /runsOpen \? `\$\{runs\.length\} loaded` : "Open to load"/u,
+    expect(workspace).toContain("<AutomationRunHistory");
+    expect(history).toContain('className="content-card automation-runs-panel"');
+    expect(history).toMatch(
+      /open \? `\$\{runs\.length\} loaded` : "Open to load"/u,
     );
   });
 
