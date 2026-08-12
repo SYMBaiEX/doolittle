@@ -7,9 +7,11 @@ describe("media and browser workspace density", () => {
   it("keeps one primary media workflow visible and defers optional settings", () => {
     const html = renderToStaticMarkup(<MediaPage active />);
 
-    expect(html.match(/<form/g)).toHaveLength(1);
+    expect(html.match(/role="tabpanel"/g)).toHaveLength(4);
+    expect(html.match(/hidden=""/g)).toHaveLength(3);
     expect(html).toContain("Inspect or analyze a file");
     expect(html).toContain("Analysis settings");
+    expect(html).toContain('aria-labelledby="media-tab-inspect-analyze"');
     expect(html).not.toContain("Run model analysis");
   });
 
