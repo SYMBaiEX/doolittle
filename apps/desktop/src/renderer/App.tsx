@@ -12,9 +12,7 @@ import {
   useState,
 } from "react";
 import type {
-  ActivityEvent,
   ActivityFeedResponse,
-  SessionSummary,
   ThemeResponse,
   WorkspaceState,
 } from "../shared/contracts";
@@ -31,13 +29,8 @@ import {
   preloadDesktopRoute,
   warmDesktopRoute,
 } from "./app-shell/desktop-route-registry";
-import {
-  type ChatContextHandoff,
-  type ChatContextRequest,
-  resolveChatContextProjectScope,
-} from "./chat-context-handoff";
 import { ActivityCenter } from "./components/ActivityCenter";
-import { type CommandGroup, CommandPalette } from "./components/CommandPalette";
+import { CommandPalette } from "./components/CommandPalette";
 import { ProjectManager } from "./components/ProjectManager";
 import { ToastRegion, useToasts } from "./components/ToastRegion";
 import { newConversationId } from "./conversation-id";
@@ -55,12 +48,6 @@ import {
   viewFromHash,
 } from "./desktop-navigation";
 import {
-  acknowledgeNavigationIntent,
-  createOrchestrationTaskNavigationIntent,
-  createWorkspaceFileNavigationIntent,
-  type DesktopNavigationIntent,
-} from "./desktop-navigation-intent";
-import {
   applyDesktopAppearance,
   applyDesktopDensity,
   applyDesktopTheme,
@@ -73,11 +60,6 @@ import {
   resolveAppearance,
   subscribeToDesktopThemeChanges,
 } from "./desktop-theme";
-import {
-  type GlobalSearchTarget,
-  globalSearchGroups,
-  useGlobalSearch,
-} from "./global-search";
 import { asArray, desktopRequest, useApiResource } from "./lib";
 import {
   APP_SIDEBAR_WIDTH,
@@ -98,6 +80,7 @@ import {
   isCommandPaletteShortcut,
   shouldIgnoreShellShortcut,
 } from "./shell-shortcuts";
+import { useDesktopContentNavigation } from "./use-desktop-content-navigation";
 import { useProjectManagement } from "./use-project-management";
 import { useRuntimeWorkspaceData } from "./use-runtime-workspace-data";
 import { useWorkspaceProjectNavigation } from "./use-workspace-project-navigation";
@@ -105,6 +88,10 @@ import { workspacePathsEqual } from "./workspace-path";
 
 function pathsEqual(left: string | undefined, right: string): boolean {
   return workspacePathsEqual(left, right, window.doolittle.platform);
+}
+
+function createNavigationId(): string {
+  return crypto.randomUUID();
 }
 
 type ApprovalListResponse = { approvals?: unknown[] };
@@ -152,10 +139,6 @@ export function App() {
     recentPaths: [],
   });
   const [selectedSession, setSelectedSession] = useState(initialConversation);
-  const [pendingChatContext, setPendingChatContext] =
-    useState<ChatContextHandoff | null>(null);
-  const [pendingNavigationIntent, setPendingNavigationIntent] =
-    useState<DesktopNavigationIntent | null>(null);
   const [appearance, setAppearance] = useState<DesktopAppearance>(
     loadAppearancePreference,
   );
@@ -486,6 +469,36 @@ export function App() {
     workspace,
   });
 
+  const {
+    consumeChatContext,
+    consumeNavigationIntent,
+    openActivityTarget,
+    openChatWithContext,
+    openSession,
+    pendingChatContext,
+    pendingNavigationIntent,
+    searchCommandGroups,
+  } = useDesktopContentNavigation({
+    backendReady: backend.phase === "ready",
+    closeUtilities,
+    createId: createNavigationId,
+    createSessionId: newConversationId,
+    paletteOpen,
+    paletteQuery,
+    pathsEqual,
+    projects,
+    projectScope,
+    pushToast,
+    selectedSession,
+    selectProjectScope,
+    sessions,
+    setProjectManagerOpen,
+    setView,
+    switchToRecentWorkspace,
+    transitionToProjectScope,
+    workspacePath: workspace.currentPath,
+  });
+
   useEffect(() => {
     applyDesktopAppearance(appearance, systemPrefersDark);
   }, [appearance, systemPrefersDark]);
@@ -735,192 +748,6 @@ export function App() {
     15_000,
     backend.phase === "ready",
   );
-
-  const openSession = useCallback(
-    (sessionId: string) => {
-      const session = sessions.find((entry) => entry.sessionId === sessionId);
-      transitionToProjectScope(
-        session ? (session.projectId ?? "unscoped") : projectScope,
-        sessionId,
-        projectNavigationTarget("open-conversation"),
-      );
-    },
-    [projectScope, sessions, transitionToProjectScope],
-  );
-
-  const openActivityTarget = useCallback(
-    (event: ActivityEvent) => {
-      closeUtilities();
-      if (event.target === "chat") {
-        if (event.sessionId) openSession(event.sessionId);
-        else setView("chat");
-        return;
-      }
-      if (event.target === "terminal" || event.target === "workspace") {
-        setView("code");
-        return;
-      }
-      if (event.target === "codegen") {
-        setView("orchestration");
-        return;
-      }
-      if (event.target === "operations") {
-        setView("logs");
-        return;
-      }
-      setView(event.target);
-    },
-    [closeUtilities, openSession, setView],
-  );
-
-  const openChatWithContext = useCallback(
-    (request: ChatContextRequest) => {
-      const text = request.text.trim();
-      if (!text) return;
-      const scope = resolveChatContextProjectScope(
-        { ...request, text },
-        projects,
-        pathsEqual,
-      );
-      if (!scope) {
-        pushToast({
-          tone: "warning",
-          title: "Context was not sent",
-          message:
-            "Select or create a project for this workspace before sending its context to Chat.",
-        });
-        return;
-      }
-      const belongsToScope = (session: SessionSummary) =>
-        scope === "unscoped" ? !session.projectId : session.projectId === scope;
-      const targetSession =
-        sessions.find(
-          (session) =>
-            session.sessionId === selectedSession && belongsToScope(session),
-        ) ??
-        sessions
-          .filter(belongsToScope)
-          .sort((left, right) =>
-            (right.endedAt ?? right.startedAt ?? "").localeCompare(
-              left.endedAt ?? left.startedAt ?? "",
-            ),
-          )[0];
-      const sessionId = targetSession?.sessionId ?? newConversationId();
-      const handoff: ChatContextHandoff = {
-        id: crypto.randomUUID(),
-        text,
-        workspacePath: request.workspacePath,
-        projectScope: scope,
-        sessionId,
-      };
-      transitionToProjectScope(scope, sessionId, "chat", () => {
-        setPendingChatContext(handoff);
-      });
-    },
-    [projects, pushToast, selectedSession, sessions, transitionToProjectScope],
-  );
-
-  const consumeChatContext = useCallback((id: string) => {
-    setPendingChatContext((current) => (current?.id === id ? null : current));
-  }, []);
-
-  const consumeNavigationIntent = useCallback((id: string) => {
-    setPendingNavigationIntent((current) =>
-      acknowledgeNavigationIntent(current, id),
-    );
-  }, []);
-
-  const globalSearch = useGlobalSearch(
-    paletteQuery,
-    paletteOpen && backend.phase === "ready",
-  );
-  const selectGlobalSearchResult = useCallback(
-    (target: GlobalSearchTarget) => {
-      switch (target.kind) {
-        case "conversation":
-          openSession(target.sessionId);
-          break;
-        case "project":
-          selectProjectScope(target.projectId);
-          break;
-        case "projectSource":
-          selectProjectScope(target.projectId);
-          setProjectManagerOpen(true);
-          break;
-        case "workspace":
-          setView("code");
-          setPendingNavigationIntent(
-            createWorkspaceFileNavigationIntent(target.path),
-          );
-          break;
-        case "task":
-          if (
-            target.workspacePath &&
-            !pathsEqual(target.workspacePath, workspace.currentPath)
-          ) {
-            void switchToRecentWorkspace(target.workspacePath, {
-              announce: false,
-            }).then((switched) => {
-              if (!switched) return;
-              setView("orchestration");
-              setPendingNavigationIntent(
-                createOrchestrationTaskNavigationIntent(target.taskId),
-              );
-            });
-          } else {
-            setView("orchestration");
-            setPendingNavigationIntent(
-              createOrchestrationTaskNavigationIntent(target.taskId),
-            );
-          }
-          break;
-        case "log":
-          setView("logs");
-          break;
-      }
-    },
-    [
-      openSession,
-      selectProjectScope,
-      setView,
-      switchToRecentWorkspace,
-      workspace.currentPath,
-    ],
-  );
-
-  const searchCommandGroups = useMemo<CommandGroup[]>(() => {
-    const groups = globalSearchGroups(
-      globalSearch.results,
-      selectGlobalSearchResult,
-    );
-    if (paletteQuery.trim().length < 2) return groups;
-    if (globalSearch.loading || globalSearch.error) {
-      groups.unshift({
-        id: "search-state",
-        label: "Local search",
-        items: [
-          {
-            id: globalSearch.loading ? "searching" : "partial-error",
-            label: globalSearch.loading
-              ? "Searching local workspace…"
-              : "Some search sources are unavailable",
-            description:
-              globalSearch.error ||
-              "Searching projects, sources, conversations, code, tasks, and logs.",
-            keywords: [paletteQuery],
-            disabled: true,
-          },
-        ],
-      });
-    }
-    return groups;
-  }, [
-    globalSearch.error,
-    globalSearch.loading,
-    globalSearch.results,
-    paletteQuery,
-    selectGlobalSearchResult,
-  ]);
 
   const navigationView = view === "review" ? "orchestration" : view;
   const activeSection = navigation.find((section) =>
