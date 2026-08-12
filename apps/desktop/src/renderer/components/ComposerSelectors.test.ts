@@ -65,6 +65,39 @@ describe("composer selectors", () => {
     expect(markup).not.toContain("Conversation project");
   });
 
+  it("keeps the general/no-repository state accessible", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ComposerProjectSelector, {
+        onChooseRepository: vi.fn(),
+        onManageProjects: vi.fn(),
+        onSelectProject: vi.fn(),
+        projects: [],
+      }),
+    );
+    expect(markup).toContain("General");
+    expect(markup).toContain("General conversation without project context");
+    expect(markup).toContain("Choose project. Current project General.");
+    expect(markup).toContain('aria-expanded="false"');
+  });
+
+  it("preserves project trigger keyboard/dialog affordances", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ComposerProjectSelector, {
+        activeProjectId: "project-1",
+        onChooseRepository: vi.fn(),
+        onManageProjects: vi.fn(),
+        onSelectProject: vi.fn(),
+        projects: [
+          { id: "project-1", name: "Doolittle", color: "#ff6a00" },
+          { id: "project-2", name: "Archive", color: "#00aacc" },
+        ],
+      }),
+    );
+    expect(markup).toContain('aria-haspopup="dialog"');
+    expect(markup).toContain("Choose project. Current project Doolittle.");
+    expect(markup).not.toContain("No matching projects.");
+  });
+
   it("filters models across provider names, display labels, and ids", () => {
     expect(filteredProviders(providers, "granite")).toEqual([
       {
