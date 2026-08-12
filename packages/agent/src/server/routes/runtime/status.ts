@@ -83,6 +83,15 @@ export async function handleRuntimeStatusRoutes(
 
   if (request.method === "GET" && url.pathname === "/runtime/plugins") {
     const catalog = getNativePluginCatalog(context.config);
+    const views = url.searchParams.getAll("view");
+    if (
+      [...url.searchParams.keys()].some((key) => key !== "view") ||
+      views.length > 1 ||
+      (views.length === 1 && views[0] !== "catalog")
+    ) {
+      return json({ error: "Unsupported plugin catalog query." }, 400);
+    }
+    if (views[0] === "catalog") return json({ catalog });
     const ownership = resolveOwnership(context);
     return json({
       catalog,

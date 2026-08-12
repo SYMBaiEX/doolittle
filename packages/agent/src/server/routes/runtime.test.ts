@@ -152,6 +152,25 @@ describe("handleRuntimeRoutes", () => {
     });
   });
 
+  it("returns the plugin catalog without resolving unrelated ownership state", async () => {
+    const context = createContext();
+    const controlPlane = vi.spyOn(
+      context.services.nativeOwnership,
+      "controlPlane",
+    );
+    const response = await handleRuntimeRoutes(
+      context,
+      new Request("http://localhost/runtime/plugins?view=catalog"),
+      new URL("http://localhost/runtime/plugins?view=catalog"),
+    );
+
+    expect(response?.status).toBe(200);
+    await expect(response?.json()).resolves.toEqual({
+      catalog: expect.any(Array),
+    });
+    expect(controlPlane).not.toHaveBeenCalled();
+  });
+
   it("returns the shared slash-command catalog for desktop completion", async () => {
     const response = await handleRuntimeRoutes(
       createContext(),

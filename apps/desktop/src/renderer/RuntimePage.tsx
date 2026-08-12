@@ -65,7 +65,7 @@ export function RuntimePage({
     [policy.gatewayRuntime],
   );
   const plugins = useApiResource<PluginsResponse>(
-    policy.plugins ? "/runtime/plugins" : null,
+    policy.plugins ? "/runtime/plugins?view=catalog" : null,
     [policy.plugins],
   );
   const ecosystem = useApiResource<UnknownRecord>(

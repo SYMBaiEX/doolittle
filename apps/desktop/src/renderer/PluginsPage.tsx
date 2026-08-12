@@ -34,7 +34,7 @@ interface PluginsResponse {
 
 export function PluginsPage({ active }: { active: boolean }) {
   const resource = useApiResource<PluginsResponse>(
-    active ? "/runtime/plugins" : null,
+    active ? "/runtime/plugins?view=catalog" : null,
     [active],
   );
   const [query, setQuery] = useState("");

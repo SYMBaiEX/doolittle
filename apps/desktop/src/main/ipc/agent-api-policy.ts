@@ -161,7 +161,11 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
       validateQuery: (query) =>
         validateEnumQuery(query, "refresh", ["true", "false", "1", "0"]),
     },
-    { exact: "/runtime/plugins" },
+    {
+      exact: "/runtime/plugins",
+      allowedQueries: ["view"],
+      validateQuery: (query) => validateEnumQuery(query, "view", ["catalog"]),
+    },
     { exact: "/runtime/accounts" },
     { exact: "/runtime/account-pool" },
     {

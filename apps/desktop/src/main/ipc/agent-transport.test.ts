@@ -96,6 +96,12 @@ describe("parseApiPath", () => {
     expect(parseApiPath("/runtime/models?refresh=true", "GET")).toBe(
       "/runtime/models?refresh=true",
     );
+    expect(parseApiPath("/runtime/plugins?view=catalog", "GET")).toBe(
+      "/runtime/plugins?view=catalog",
+    );
+    expect(() =>
+      parseApiPath("/runtime/plugins?view=ownership", "GET"),
+    ).toThrow(/Unsupported query/);
     expect(parseApiPath("/activity?limit=50", "GET")).toBe(
       "/activity?limit=50",
     );

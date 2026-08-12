@@ -67,6 +67,15 @@ describe("operational route density", () => {
     expect(skills).not.toContain('"/skills/installed"');
   });
 
+  it("requests only the native plugin catalog on inventory screens", () => {
+    expect(read("./PluginsPage.tsx")).toContain(
+      '"/runtime/plugins?view=catalog"',
+    );
+    expect(read("./RuntimePage.tsx")).toContain(
+      '"/runtime/plugins?view=catalog"',
+    );
+  });
+
   it("reuses the native tool inventory summary instead of computing it twice", () => {
     const tools = read("./ToolsPage.tsx");
 
