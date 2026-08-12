@@ -51,18 +51,16 @@ export function ProfilesPage({ active }: { active: boolean }) {
     const isActive = id === activeProfileId;
     return {
       id,
-      eyebrow: isActive ? "Active identity" : "Available identity",
+      eyebrow: isActive ? "Active identity" : undefined,
       title: asString(profile.name, titleCase(id)),
       description: asString(
         profile.description,
         asString(profile.summary, "A local Doolittle personality profile."),
       ),
-      status: isActive ? "Active" : "Available",
-      tone: isActive ? ("good" as const) : ("neutral" as const),
       code: id,
       action: (
         <button
-          className={isActive ? "secondary-button" : "primary-button"}
+          className="secondary-button"
           disabled={isActive || Boolean(busy)}
           onClick={() => void activate(id)}
           type="button"
