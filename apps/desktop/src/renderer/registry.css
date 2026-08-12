@@ -1,13 +1,54 @@
-.page-registry .compact-catalog__row {
-  padding-block: 5px;
+.registry-install-review {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 16px;
+  padding: 11px 12px;
+  background: color-mix(in srgb, var(--surface-soft) 72%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
 }
 
-.page-registry .compact-catalog__summary > p {
-  flex-basis: 18rem;
+.registry-install-review > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
 }
 
-.page-registry .compact-catalog__actions .badge.neutral {
+.registry-install-review strong {
+  color: var(--text);
+  font-size: var(--text-control);
+}
+
+.registry-install-review p {
+  max-width: 700px;
+  margin: 0;
   color: var(--muted);
-  background: transparent;
-  border-color: var(--border-subtle);
+  font-size: var(--text-meta);
+  line-height: 1.45;
+}
+
+.registry-install-review__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.registry-install-review__actions > button {
+  min-height: 30px;
+  padding: 4px 9px;
+}
+
+@media (max-width: 620px) {
+  .registry-install-review {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .registry-install-review__actions {
+    justify-content: flex-start;
+  }
 }

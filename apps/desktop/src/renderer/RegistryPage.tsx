@@ -1,10 +1,7 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
-import { CompactCatalogList } from "./components/CompactCatalogList";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
-  asArray,
-  asRecord,
   asString,
   desktopRequest,
   EmptyBlock,
@@ -18,92 +15,26 @@ import {
   useApiResource,
   useDebouncedValue,
 } from "./lib";
+import {
+  normalizeRegistryEntries,
+  type RegistryEntry,
+  registryResultLabel,
+} from "./registry/registry-model";
 import "./registry.css";
 import "./catalog-pages.css";
 
-export interface RegistryEntry {
-  name: string;
-  packageName: string;
-  description: string;
-  version: string;
-  repository: string;
-  support: string;
-  trust: string;
-  installed: boolean;
-  installable: boolean;
-  reasons: string[];
-  integrityVerified: boolean;
-}
+export type { RegistryEntry } from "./registry/registry-model";
+export {
+  normalizeRegistryEntries,
+  REGISTRY_INSTALL_CAVEAT,
+  registryCatalogPresentation,
+  registryResultLabel,
+} from "./registry/registry-model";
 
-export const REGISTRY_INSTALL_CAVEAT =
-  "Eliza installer · integrity and fallback source unreported by this SDK.";
-
-export function registryResultLabel({
-  count,
-  error,
-  loading,
-}: {
-  count: number;
-  error: string;
-  loading: boolean;
-}): string {
-  if (loading) return "Searching…";
-  if (error) return "Unavailable";
-  return `${count} results`;
-}
-
-export function registryCatalogPresentation(entry: RegistryEntry) {
-  return {
-    eyebrow: entry.support === "community" ? undefined : entry.support,
-    status: entry.installed
-      ? "Installed"
-      : entry.installable
-        ? undefined
-        : "Restricted",
-    tone: entry.installed
-      ? ("good" as const)
-      : entry.installable
-        ? undefined
-        : ("neutral" as const),
-    code: entry.packageName === entry.name ? undefined : entry.packageName,
-    meta: `${entry.version} · ${entry.trust}`,
-    detailsLabel: "Policy",
-  };
-}
-
-export function normalizeRegistryEntries(value: unknown): RegistryEntry[] {
-  const response = asRecord(value);
-  const rows = asArray(
-    response.results ?? response.entries ?? response.registries,
-  );
-  return rows
-    .map((value): RegistryEntry | null => {
-      const entry = asRecord(value);
-      const policy = asRecord(entry.policy);
-      const provenance = asRecord(policy.provenance);
-      const name = asString(entry.name).trim();
-      if (!name) return null;
-      return {
-        name,
-        packageName: asString(provenance.packageName, name).trim(),
-        description: asString(entry.description, "No description provided."),
-        version: asString(
-          provenance.version,
-          asString(entry.latestVersion, "No v2 release"),
-        ),
-        repository: asString(provenance.repository, asString(entry.repository)),
-        support: asString(provenance.support, "community"),
-        trust: asString(policy.trust, "community"),
-        installed: policy.installed === true,
-        installable: policy.installable === true,
-        reasons: asArray(policy.reasons)
-          .map((reason) => asString(reason).trim())
-          .filter(Boolean),
-        integrityVerified: provenance.integrityVerified === true,
-      };
-    })
-    .filter((entry): entry is RegistryEntry => entry !== null);
-}
+const LazyRegistryCatalogWorkspace = lazy(async () => ({
+  default: (await import("./registry/RegistryCatalogWorkspace"))
+    .RegistryCatalogWorkspace,
+}));
 
 export function RegistryPage({ active }: { active: boolean }) {
   const [query, setQuery] = useState("");
@@ -182,62 +113,6 @@ export function RegistryPage({ active }: { active: boolean }) {
       setInstalling(false);
     }
   };
-  const catalogEntries = entries.map((entry) => ({
-    id: entry.name,
-    ...registryCatalogPresentation(entry),
-    title: entry.name,
-    description: entry.description,
-    detailsNote: entry.reasons.join(" "),
-    facts: [
-      { label: "Package", value: entry.packageName },
-      {
-        label: "Integrity",
-        value: entry.integrityVerified
-          ? "Verified digest"
-          : "Registry metadata only; no verified digest",
-      },
-      ...(entry.repository
-        ? [{ label: "Repository", value: entry.repository }]
-        : []),
-    ],
-    action: entry.installable ? (
-      pendingInstall === entry.name ? (
-        <div className="registry-install-review">
-          <span>{REGISTRY_INSTALL_CAVEAT}</span>
-          <div className="registry-install-review__actions">
-            <button
-              className="primary-button"
-              disabled={installing}
-              onClick={() => void install(entry)}
-              type="button"
-            >
-              {installing ? "Installing…" : `Approve ${entry.version}`}
-            </button>
-            <button
-              className="text-button"
-              disabled={installing}
-              onClick={() => setPendingInstall("")}
-              type="button"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          className="secondary-button"
-          onClick={() => {
-            setPendingInstall(entry.name);
-            setInstallNotice("");
-          }}
-          type="button"
-        >
-          Review install
-        </button>
-      )
-    ) : undefined,
-  }));
-
   return (
     <div className="page page-registry">
       <PageHeader
@@ -279,11 +154,20 @@ export function RegistryPage({ active }: { active: boolean }) {
         <ErrorBlock error={registry.error} retry={registry.reload} />
       ) : entries.length ? (
         <>
-          <CompactCatalogList
-            ariaLabel="Eliza plugin registry"
-            entries={catalogEntries}
-            resetKey={`${debouncedQuery}:${refreshRequest?.nonce ?? 0}`}
-          />
+          <Suspense fallback={<LoadingBlock label="Opening registry…" />}>
+            <LazyRegistryCatalogWorkspace
+              entries={entries}
+              installing={installing}
+              onApproveInstall={(entry) => void install(entry)}
+              onCancelInstall={() => setPendingInstall("")}
+              onReviewInstall={(entry) => {
+                setPendingInstall(entry.name);
+                setInstallNotice("");
+              }}
+              pendingInstall={pendingInstall}
+              resetKey={`${debouncedQuery}:${refreshRequest?.nonce ?? 0}`}
+            />
+          </Suspense>
           {registry.data ? (
             <RawDataDisclosure
               label="Inspect registry response"

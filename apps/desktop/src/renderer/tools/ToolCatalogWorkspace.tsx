@@ -1,8 +1,7 @@
-import { type KeyboardEvent, useId, useRef, useState } from "react";
-import { progressiveWindow } from "../components/progressive-window";
+import "../components/catalog-browser.css";
+import { useCatalogBrowser } from "../components/useCatalogBrowser";
 import { Badge, titleCase, type UnknownRecord } from "../lib";
 import { buildToolCatalogItems } from "./tool-catalog-model";
-import "./tool-catalog-workspace.css";
 
 export const TOOL_CATALOG_PAGE_SIZE = 12;
 
@@ -21,75 +20,32 @@ export function ToolCatalogWorkspace({
   resetKey: string;
 }) {
   const items = buildToolCatalogItems([...entries]);
-  const instanceId = useId().replaceAll(":", "");
-  const listRef = useRef<HTMLDivElement>(null);
-  const [selection, setSelection] = useState({
-    key: resetKey,
-    id: items[0]?.id ?? "",
-  });
-  const [page, setPage] = useState({
-    key: resetKey,
-    limit: TOOL_CATALOG_PAGE_SIZE,
-  });
-  const selectedId =
-    selection.key === resetKey && items.some((item) => item.id === selection.id)
-      ? selection.id
-      : (items[0]?.id ?? "");
-  const selectedIndex = Math.max(
-    0,
-    items.findIndex((item) => item.id === selectedId),
-  );
-  const requested = page.key === resetKey ? page.limit : TOOL_CATALOG_PAGE_SIZE;
-  const toolWindow = progressiveWindow(items, {
-    pageSize: TOOL_CATALOG_PAGE_SIZE,
-    requested,
+  const {
+    handleKeyDown,
+    itemId,
+    listRef,
+    panelId,
+    selected,
     selectedIndex,
+    selectAt,
+    showMore,
+    window: toolWindow,
+  } = useCatalogBrowser({
+    idPrefix: "tool",
+    items,
+    pageSize: TOOL_CATALOG_PAGE_SIZE,
+    resetKey,
   });
-  const selected = items[selectedIndex];
-  const panelId = `${instanceId}-tool-detail`;
-
-  const selectAt = (index: number, focus: boolean) => {
-    const item = toolWindow.visible[index];
-    if (!item) return;
-    setSelection({ key: resetKey, id: item.id });
-    if (focus) {
-      requestAnimationFrame(() => {
-        listRef.current
-          ?.querySelector<HTMLButtonElement>(`[data-tool-index="${index}"]`)
-          ?.focus();
-      });
-    }
-  };
-
-  const handleKeyDown = (
-    event: KeyboardEvent<HTMLButtonElement>,
-    index: number,
-  ) => {
-    let nextIndex = index;
-    if (event.key === "ArrowDown") {
-      nextIndex = Math.min(toolWindow.visible.length - 1, index + 1);
-    } else if (event.key === "ArrowUp") {
-      nextIndex = Math.max(0, index - 1);
-    } else if (event.key === "Home") {
-      nextIndex = 0;
-    } else if (event.key === "End") {
-      nextIndex = toolWindow.visible.length - 1;
-    } else {
-      return;
-    }
-    event.preventDefault();
-    selectAt(nextIndex, true);
-  };
 
   if (!selected) return null;
 
   return (
     <section
       aria-label="Runtime tool catalog"
-      className="tool-catalog-workspace"
+      className="catalog-browser tool-catalog-workspace"
     >
-      <aside className="tool-catalog-index">
-        <header className="tool-catalog-index__header">
+      <aside className="catalog-browser__index">
+        <header className="catalog-browser__index-header">
           <div>
             <span className="eyebrow">Tool index</span>
             <strong>Browse capabilities</strong>
@@ -99,20 +55,19 @@ export function ToolCatalogWorkspace({
         <div
           aria-label="Tools"
           aria-orientation="vertical"
-          className="tool-catalog-index__list"
+          className="catalog-browser__index-list"
           ref={listRef}
           role="tablist"
         >
           {toolWindow.visible.map((item, index) => {
             const active = item.id === selected.id;
-            const tabId = `${instanceId}-tool-${index}`;
+            const tabId = itemId(index);
             return (
               <button
                 key={item.id}
                 aria-controls={panelId}
                 aria-selected={active}
-                className={`tool-catalog-index__item${active ? " is-selected" : ""}`}
-                data-tool-index={index}
+                className={`catalog-browser__index-item${active ? " is-selected" : ""}`}
                 id={tabId}
                 onClick={() => selectAt(index, false)}
                 onKeyDown={(event) => handleKeyDown(event, index)}
@@ -120,11 +75,11 @@ export function ToolCatalogWorkspace({
                 tabIndex={active ? 0 : -1}
                 type="button"
               >
-                <span className="tool-catalog-index__title">
+                <span className="catalog-browser__index-title">
                   <strong>{item.title}</strong>
                   {!item.enabled ? <Badge tone="warn">Disabled</Badge> : null}
                 </span>
-                <span className="tool-catalog-index__meta">
+                <span className="catalog-browser__index-meta">
                   <code>{item.id}</code>
                   <span>{titleCase(item.category)}</span>
                   {item.transport.toLowerCase() !== "native" ? (
@@ -136,18 +91,13 @@ export function ToolCatalogWorkspace({
           })}
         </div>
         {toolWindow.remaining ? (
-          <footer className="tool-catalog-index__footer">
+          <footer className="catalog-browser__index-footer">
             <span>
               {toolWindow.visible.length} of {items.length}
             </span>
             <button
               className="secondary-button"
-              onClick={() =>
-                setPage({
-                  key: resetKey,
-                  limit: toolWindow.limit + TOOL_CATALOG_PAGE_SIZE,
-                })
-              }
+              onClick={showMore}
               type="button"
             >
               Show {Math.min(TOOL_CATALOG_PAGE_SIZE, toolWindow.remaining)} more
@@ -156,12 +106,12 @@ export function ToolCatalogWorkspace({
         ) : null}
       </aside>
       <article
-        aria-labelledby={`${instanceId}-tool-${selectedIndex}`}
-        className="tool-catalog-detail"
+        aria-labelledby={itemId(selectedIndex)}
+        className="catalog-browser__detail"
         id={panelId}
         role="tabpanel"
       >
-        <header className="tool-catalog-detail__header">
+        <header className="catalog-browser__detail-header">
           <div>
             <span className="eyebrow">Tool detail</span>
             <h2>{selected.title}</h2>
@@ -172,12 +122,12 @@ export function ToolCatalogWorkspace({
           </Badge>
         </header>
         {!selected.enabled && selected.policyReason ? (
-          <div className="tool-catalog-detail__policy" role="note">
+          <div className="catalog-browser__callout" role="note">
             <strong>Profile policy</strong>
             <span>{selected.policyReason}</span>
           </div>
         ) : null}
-        <dl className="tool-catalog-detail__facts">
+        <dl className="catalog-browser__facts">
           <div>
             <dt>Tool ID</dt>
             <dd>
@@ -207,10 +157,10 @@ export function ToolCatalogWorkspace({
         </dl>
         {selected.aliases.length ? (
           <section
-            aria-labelledby={`${instanceId}-tool-aliases`}
-            className="tool-catalog-detail__aliases"
+            aria-labelledby={`${panelId}-aliases`}
+            className="catalog-browser__tokens"
           >
-            <span className="eyebrow" id={`${instanceId}-tool-aliases`}>
+            <span className="eyebrow" id={`${panelId}-aliases`}>
               Invoked as
             </span>
             <div>

@@ -54,6 +54,18 @@ export const RENDERER_BUNDLE_BUDGETS: readonly BundleBudget[] = [
     required: true,
   },
   {
+    label: "registry route",
+    pattern: /^RegistryPage-[^.]+\.js$/u,
+    maxBytes: 6_000,
+    required: true,
+  },
+  {
+    label: "lazy registry catalog",
+    pattern: /^RegistryCatalogWorkspace-[^.]+\.js$/u,
+    maxBytes: 10_000,
+    required: true,
+  },
+  {
     label: "lazy MCP controls",
     pattern: /^McpControlPanel-[^.]+\.js$/u,
     maxBytes: 20_000,
