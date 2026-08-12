@@ -1,0 +1,17 @@
+.page-registry .filter-bar input {
+  min-height: 36px;
+}
+
+.page-registry .compact-catalog__row {
+  padding-block: 5px;
+}
+
+.page-registry .compact-catalog__summary > p {
+  flex-basis: 18rem;
+}
+
+.page-registry .compact-catalog__actions .badge.neutral {
+  color: var(--muted);
+  background: transparent;
+  border-color: var(--border-subtle);
+}

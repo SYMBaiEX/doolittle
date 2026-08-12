@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { normalizeRegistryEntries } from "./RegistryPage";
+import {
+  normalizeRegistryEntries,
+  registryCatalogPresentation,
+} from "./RegistryPage";
 
 describe("normalizeRegistryEntries", () => {
   it("reads Eliza registry search results and preserves trust truth", () => {
@@ -45,5 +48,29 @@ describe("normalizeRegistryEntries", () => {
         entries: [{ name: "" }, { name: "plugin-a", policy: {} }],
       }),
     ).toHaveLength(1);
+  });
+
+  it("keeps ordinary policy restrictions truthful but visually quiet", () => {
+    expect(
+      registryCatalogPresentation({
+        name: "@example/plugin-one",
+        packageName: "@example/plugin-one",
+        description: "Example",
+        version: "1.0.0",
+        repository: "",
+        support: "community",
+        trust: "community",
+        installed: false,
+        installable: false,
+        reasons: ["Explicit allowlist required"],
+        integrityVerified: false,
+      }),
+    ).toMatchObject({
+      code: undefined,
+      detailsLabel: "Policy",
+      eyebrow: undefined,
+      status: "Restricted",
+      tone: "neutral",
+    });
   });
 });

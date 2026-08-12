@@ -88,4 +88,17 @@ describe("CompactCatalogList", () => {
     expect(markup).toContain("<summary>Policy &amp; provenance</summary>");
     expect(markup).toContain("Approval requires an explicit allowlist entry.");
   });
+
+  it("omits an empty eyebrow without leaving decorative markup", () => {
+    const markup = renderToStaticMarkup(
+      <CompactCatalogList
+        ariaLabel="Registry"
+        entries={[{ ...entry(1), eyebrow: undefined }]}
+        resetKey="registry"
+      />,
+    );
+
+    expect(markup).toContain("Entry 1");
+    expect(markup).not.toContain('class="eyebrow"');
+  });
 });

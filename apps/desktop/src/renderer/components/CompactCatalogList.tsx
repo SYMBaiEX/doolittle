@@ -12,7 +12,7 @@ export interface CompactCatalogFact {
 
 export interface CompactCatalogEntry {
   id: string;
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   description: string;
   status: string;
@@ -51,7 +51,9 @@ export function CompactCatalogList({
             <div className="compact-catalog__main">
               <div className="compact-catalog__copy">
                 <div className="compact-catalog__title">
-                  <span className="eyebrow">{entry.eyebrow}</span>
+                  {entry.eyebrow ? (
+                    <span className="eyebrow">{entry.eyebrow}</span>
+                  ) : null}
                   <strong>{entry.title}</strong>
                 </div>
                 <div className="compact-catalog__summary">

@@ -17,8 +17,9 @@ import {
   useApiResource,
   useDebouncedValue,
 } from "./lib";
+import "./registry.css";
 
-interface RegistryEntry {
+export interface RegistryEntry {
   name: string;
   packageName: string;
   description: string;
@@ -30,6 +31,25 @@ interface RegistryEntry {
   installable: boolean;
   reasons: string[];
   integrityVerified: boolean;
+}
+
+export function registryCatalogPresentation(entry: RegistryEntry) {
+  return {
+    eyebrow: entry.support === "community" ? undefined : entry.support,
+    status: entry.installed
+      ? "Installed"
+      : entry.installable
+        ? "Eligible"
+        : "Restricted",
+    tone: entry.installed
+      ? ("good" as const)
+      : entry.installable
+        ? ("neutral" as const)
+        : ("neutral" as const),
+    code: entry.packageName === entry.name ? undefined : entry.packageName,
+    meta: `${entry.version} · ${entry.trust}`,
+    detailsLabel: "Policy",
+  };
 }
 
 export function normalizeRegistryEntries(value: unknown): RegistryEntry[] {
@@ -145,22 +165,9 @@ export function RegistryPage({ active }: { active: boolean }) {
   };
   const catalogEntries = entries.map((entry) => ({
     id: entry.name,
-    eyebrow: entry.support,
+    ...registryCatalogPresentation(entry),
     title: entry.name,
     description: entry.description,
-    status: entry.installed
-      ? "Installed"
-      : entry.installable
-        ? "Eligible"
-        : "Blocked",
-    tone: entry.installed
-      ? ("good" as const)
-      : entry.installable
-        ? ("neutral" as const)
-        : ("warn" as const),
-    code: entry.packageName,
-    meta: `${entry.version} · ${entry.trust}`,
-    detailsLabel: "Policy & provenance",
     detailsNote: entry.reasons.join(" "),
     facts: [
       { label: "Package", value: entry.packageName },
@@ -210,7 +217,7 @@ export function RegistryPage({ active }: { active: boolean }) {
   }));
 
   return (
-    <div className="page">
+    <div className="page page-registry">
       <PageHeader
         eyebrow="Runtime"
         title="Plugin registry"
