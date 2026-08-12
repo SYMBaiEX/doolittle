@@ -24,6 +24,7 @@ export interface CompactCatalogEntry {
   eyebrow?: string;
   title: string;
   description: string;
+  descriptionMode?: "inline" | "details";
   status?: string;
   tone?: "neutral" | "good" | "warn" | "bad";
   code?: string;
@@ -66,24 +67,34 @@ export function CompactCatalogList({
                   <strong>{entry.title}</strong>
                 </div>
                 <div className="compact-catalog__summary">
-                  <p title={entry.description}>{entry.description}</p>
+                  {entry.descriptionMode !== "details" ? (
+                    <p title={entry.description}>{entry.description}</p>
+                  ) : null}
                   {entry.code || entry.meta ? (
                     <span className="compact-catalog__meta">
                       {entry.code ? <code>{entry.code}</code> : null}
                       {entry.meta ? <span>{entry.meta}</span> : null}
                     </span>
                   ) : null}
-                  {entry.facts?.length ? (
+                  {entry.descriptionMode === "details" ||
+                  entry.facts?.length ? (
                     <details className="compact-catalog__details">
                       <summary>{entry.detailsLabel ?? "Details"}</summary>
-                      <dl>
-                        {entry.facts.map((fact) => (
-                          <div key={`${entry.id}:${fact.label}`}>
-                            <dt>{fact.label}</dt>
-                            <dd>{fact.value}</dd>
-                          </div>
-                        ))}
-                      </dl>
+                      {entry.descriptionMode === "details" ? (
+                        <p className="compact-catalog__details-description">
+                          {entry.description}
+                        </p>
+                      ) : null}
+                      {entry.facts?.length ? (
+                        <dl>
+                          {entry.facts.map((fact) => (
+                            <div key={`${entry.id}:${fact.label}`}>
+                              <dt>{fact.label}</dt>
+                              <dd>{fact.value}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      ) : null}
                       {entry.detailsNote ? <p>{entry.detailsNote}</p> : null}
                     </details>
                   ) : null}

@@ -142,6 +142,21 @@
   border-radius: var(--radius-sm);
 }
 
+.compact-catalog__details-description {
+  margin: 7px 0 0;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--surface-soft) 76%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  font-size: var(--text-meta);
+  line-height: 1.45;
+}
+
+.compact-catalog__details-description + dl {
+  margin-top: 4px;
+}
+
 .compact-catalog__details dl > div {
   display: grid;
   grid-template-columns: 86px minmax(0, 1fr);
@@ -163,7 +178,7 @@
   font-size: var(--text-meta);
 }
 
-.compact-catalog__details > p {
+.compact-catalog__details > p:not(.compact-catalog__details-description) {
   margin: 7px 0 0;
   color: var(--muted);
   font-size: var(--text-meta);

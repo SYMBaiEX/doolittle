@@ -105,6 +105,7 @@ export function ToolsPage({ active }: { active: boolean }) {
       eyebrow: titleCase(asString(entry.category, "uncategorized")),
       title: asString(entry.name, id || "Unnamed tool"),
       description: asString(entry.description, "No description provided."),
+      descriptionMode: "details" as const,
       ...catalogExceptionStatus(entry.enabled !== false, "Disabled"),
       code: id,
       meta: profiles || titleCase(asString(entry.transport, "native")),

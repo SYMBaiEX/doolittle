@@ -101,6 +101,29 @@ describe("CompactCatalogList", () => {
     expect(markup).toContain("Approval requires an explicit allowlist entry.");
   });
 
+  it("moves verbose catalog descriptions behind an explicit disclosure", () => {
+    const markup = renderToStaticMarkup(
+      <CompactCatalogList
+        ariaLabel="Tools"
+        entries={[
+          {
+            ...entry(1),
+            descriptionMode: "details",
+            facts: undefined,
+          },
+        ]}
+        resetKey="tools"
+      />,
+    );
+
+    expect(markup).toContain("<summary>Details</summary>");
+    expect(markup).toContain(
+      '<p class="compact-catalog__details-description">Description 1</p>',
+    );
+    expect(markup).not.toContain('title="Description 1"');
+    expect(markup).not.toContain("<dl>");
+  });
+
   it("omits an empty eyebrow without leaving decorative markup", () => {
     const markup = renderToStaticMarkup(
       <CompactCatalogList

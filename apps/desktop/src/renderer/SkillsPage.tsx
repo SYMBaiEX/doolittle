@@ -80,6 +80,7 @@ export function SkillsPage({ active }: { active: boolean }) {
         entry.description,
         "A locally available Doolittle skill.",
       ),
+      descriptionMode: "details" as const,
       code: slug,
     };
   });

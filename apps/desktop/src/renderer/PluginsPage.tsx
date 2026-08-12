@@ -67,6 +67,7 @@ export function PluginsPage({ active }: { active: boolean }) {
       eyebrow: titleCase(asString(entry.category, "plugin")),
       title: titleCase(id || "Unnamed plugin"),
       description: asString(entry.notes, "No plugin notes available."),
+      descriptionMode: "details" as const,
       ...catalogExceptionStatus(Boolean(entry.enabled), "Inactive"),
       code: asString(entry.packageName, id),
       meta: titleCase(asString(entry.source, "unknown")),
