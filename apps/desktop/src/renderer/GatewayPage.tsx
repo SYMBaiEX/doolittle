@@ -2,11 +2,14 @@ import { useMemo, useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { InlineActionConfirmation } from "./components/InlineActionConfirmation";
 import {
+  type GatewayTimelineDirection,
+  GatewayTimelinePanel,
+} from "./gateway/GatewayTimelinePanel";
+import {
   approvedPairingSenders,
   buildGatewayTimeline,
   filterGatewayTimeline,
   gatewayActionFeedback,
-  gatewayStatusTone,
   pairingRequests,
 } from "./gateway-page-model";
 import {
@@ -20,7 +23,6 @@ import {
   displayTimestamp,
   EmptyBlock,
   errorMessage,
-  LoadingBlock,
   Notice,
   PageHeader,
   titleCase,
@@ -50,8 +52,6 @@ interface PairingApprovedResponse {
   approved?: unknown[];
   truncated?: boolean;
 }
-
-type TimelineDirection = "all" | "inbox" | "outbox";
 
 function stateSummary(state: unknown) {
   const record = asRecord(state);
@@ -104,11 +104,10 @@ export function GatewayPage({ active }: { active: boolean }) {
     active ? "/pairing/approved?limit=200" : null,
     [active],
   );
-  const [direction, setDirection] = useState<TimelineDirection>("all");
+  const [direction, setDirection] = useState<GatewayTimelineDirection>("all");
   const [platform, setPlatform] = useState("all");
   const [query, setQuery] = useState("");
   const [replayingId, setReplayingId] = useState("");
-  const [confirmReplayId, setConfirmReplayId] = useState("");
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const [pairingAction, setPairingAction] = useState("");
   const [confirmPairingAction, setConfirmPairingAction] = useState("");
@@ -187,7 +186,6 @@ export function GatewayPage({ active }: { active: boolean }) {
 
   const replay = async (recordId: string) => {
     setReplayingId(recordId);
-    setConfirmReplayId("");
     setFeedback(null);
     try {
       await desktopRequest("/gateway/replay", "POST", { recordId });
@@ -266,161 +264,20 @@ export function GatewayPage({ active }: { active: boolean }) {
       />
 
       <div className="gateway-layout">
-        <section
-          className="panel gateway-timeline-panel"
-          aria-labelledby="gateway-timeline-title"
-        >
-          <div className="panel-heading gateway-heading">
-            <div>
-              <span className="eyebrow">Recorded timeline</span>
-              <h2 id="gateway-timeline-title">Inbound and outbound history</h2>
-            </div>
-            <span className="muted-copy">
-              Newest first · local journal only
-            </span>
-          </div>
-          <fieldset className="gateway-filters">
-            <legend className="sr-only">Gateway record filters</legend>
-            <label>
-              Direction
-              <select
-                onChange={(event) =>
-                  setDirection(event.target.value as TimelineDirection)
-                }
-                value={direction}
-              >
-                <option value="all">All directions</option>
-                <option value="inbox">Inbox only</option>
-                <option value="outbox">Outbox only</option>
-              </select>
-            </label>
-            <label>
-              Platform
-              <select
-                onChange={(event) => setPlatform(event.target.value)}
-                value={platform}
-              >
-                <option value="all">All platforms</option>
-                {platforms.map((entry) => (
-                  <option key={entry} value={entry}>
-                    {titleCase(entry)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="gateway-search">
-              Find record
-              <input
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Message, room, thread, or route"
-                type="search"
-                value={query}
-              />
-            </label>
-          </fieldset>
-
-          {loading && !entries.length ? (
-            <LoadingBlock label="Reading local gateway records…" />
-          ) : null}
-          {!loading && !entries.length ? (
-            <EmptyBlock title="No gateway messages recorded yet">
-              No inbound or outbound messages are available in the local
-              journal. Configure a transport and wait for real traffic; this
-              page does not create test sends.
-            </EmptyBlock>
-          ) : null}
-          {entries.length > 0 && !visibleEntries.length ? (
-            <EmptyBlock title="No records match these filters">
-              Adjust the direction, platform, or text filter to see recorded
-              traffic.
-            </EmptyBlock>
-          ) : null}
-          <ol className="gateway-timeline">
-            {visibleEntries.map((entry) => (
-              <li
-                className={`gateway-entry ${entry.direction}`}
-                key={`${entry.direction}:${entry.id}`}
-              >
-                <div className="gateway-entry-meta">
-                  <Badge
-                    tone={entry.direction === "inbox" ? "warn" : "neutral"}
-                  >
-                    {entry.direction === "inbox" ? "Inbound" : "Outbound"}
-                  </Badge>
-                  <Badge tone={gatewayStatusTone(entry.status)}>
-                    {titleCase(entry.status)}
-                  </Badge>
-                  <span>{titleCase(entry.platform)}</span>
-                  <time dateTime={entry.at}>{displayTimestamp(entry.at)}</time>
-                </div>
-                <p>{entry.preview}</p>
-                <details className="gateway-entry-details">
-                  <summary>Route details</summary>
-                  <div>
-                    <span>Route: {entry.sessionId || "Not recorded"}</span>
-                    <span>Room: {entry.roomId || "Not recorded"}</span>
-                    {entry.threadId ? (
-                      <span>Thread: {entry.threadId}</span>
-                    ) : null}
-                    {entry.author ? <span>From: {entry.author}</span> : null}
-                    {entry.attachmentCount ? (
-                      <span>
-                        {entry.attachmentCount} attachment
-                        {entry.attachmentCount === 1 ? "" : "s"}
-                      </span>
-                    ) : null}
-                  </div>
-                </details>
-                {entry.direction === "inbox" ? (
-                  <div className="gateway-replay-row">
-                    {confirmReplayId === entry.id ? (
-                      <span>
-                        Reprocesses this inbound record on its original route
-                        and may produce a new external reply.
-                      </span>
-                    ) : (
-                      <span>Replay this recorded inbound message.</span>
-                    )}
-                    <div className="gateway-replay-actions">
-                      {confirmReplayId === entry.id ? (
-                        <button
-                          className="text-button"
-                          disabled={Boolean(replayingId)}
-                          onClick={() => setConfirmReplayId("")}
-                          type="button"
-                        >
-                          Cancel
-                        </button>
-                      ) : null}
-                      <button
-                        className={
-                          confirmReplayId === entry.id
-                            ? "primary-button"
-                            : "secondary-button"
-                        }
-                        disabled={Boolean(replayingId)}
-                        onClick={() => {
-                          if (confirmReplayId === entry.id) {
-                            void replay(entry.id);
-                            return;
-                          }
-                          setConfirmReplayId(entry.id);
-                        }}
-                        type="button"
-                      >
-                        {replayingId === entry.id
-                          ? "Replaying…"
-                          : confirmReplayId === entry.id
-                            ? "Confirm replay"
-                            : "Replay inbound"}
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-              </li>
-            ))}
-          </ol>
-        </section>
+        <GatewayTimelinePanel
+          direction={direction}
+          entries={entries}
+          loading={loading}
+          onDirectionChange={setDirection}
+          onPlatformChange={setPlatform}
+          onQueryChange={setQuery}
+          onReplay={replay}
+          platform={platform}
+          platforms={platforms}
+          query={query}
+          replayingId={replayingId}
+          visibleEntries={visibleEntries}
+        />
 
         <aside
           className="panel gateway-session-panel"

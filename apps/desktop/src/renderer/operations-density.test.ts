@@ -45,7 +45,7 @@ describe("operational route density", () => {
     expect(read("./LogsPage.tsx")).toContain(
       '<details className="operations-trace-details">',
     );
-    expect(read("./GatewayPage.tsx")).toContain(
+    expect(read("./gateway/GatewayTimelinePanel.tsx")).toContain(
       '<details className="gateway-entry-details">',
     );
     expect(read("./CompatibilityPage.tsx")).not.toContain(
