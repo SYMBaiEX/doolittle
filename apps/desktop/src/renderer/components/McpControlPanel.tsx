@@ -420,7 +420,7 @@ export function McpControlPanel({ active }: { active: boolean }) {
         </Notice>
       ) : null}
 
-      {!loading && !staticError ? (
+      {!loading ? (
         <>
           <CompactStatStrip
             label="MCP connection summary"
@@ -445,7 +445,7 @@ export function McpControlPanel({ active }: { active: boolean }) {
             ]}
           />
 
-          {!configured ? (
+          {!staticError && !configured ? (
             <Notice tone="warn">
               Add a server under <code>settings.mcp.servers</code> and restart
               the runtime. Eliza validates the configuration and owns the

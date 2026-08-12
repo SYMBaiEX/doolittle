@@ -21,4 +21,12 @@ describe("MCP control density", () => {
     expect(source).not.toContain('className="mcp-control-summary"');
     expect(source).not.toContain('className="mcp-control-probe"');
   });
+
+  it("keeps independent registry and search controls available when status reads fail", () => {
+    const source = read("./McpControlPanel.tsx");
+
+    expect(source).toContain("{!loading ? (");
+    expect(source).not.toContain("{!loading && !staticError ? (");
+    expect(source).toContain("{!staticError && !configured ? (");
+  });
 });
