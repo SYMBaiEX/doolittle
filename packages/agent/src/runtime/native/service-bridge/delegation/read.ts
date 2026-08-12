@@ -63,11 +63,35 @@ async function listAndReconcileOfficialTaskDetails(runtime: RuntimeLike) {
   );
 }
 
+type OfficialTaskDetails = Awaited<
+  ReturnType<typeof listAndReconcileOfficialTaskDetails>
+>;
+
+const officialTaskDetailReads = new WeakMap<
+  object,
+  Promise<OfficialTaskDetails>
+>();
+
 async function listOfficialTaskDetails(runtime: RuntimeLike) {
   // Projection refresh is the first durable delegation seam during startup.
   // Only non-live sessionless runs are reconciled, so in-process RESEARCH work
   // is never mistaken for a post-restart orphan.
-  return listAndReconcileOfficialTaskDetails(runtime);
+  // The desktop requests tasks and both overview variants together. Share that
+  // native expansion so one navigation does not fan out into three list +
+  // getTask passes over the same durable records.
+  const runtimeKey = runtime as object;
+  const current = officialTaskDetailReads.get(runtimeKey);
+  if (current) return current;
+
+  const pending = listAndReconcileOfficialTaskDetails(runtime);
+  officialTaskDetailReads.set(runtimeKey, pending);
+  try {
+    return await pending;
+  } finally {
+    if (officialTaskDetailReads.get(runtimeKey) === pending) {
+      officialTaskDetailReads.delete(runtimeKey);
+    }
+  }
 }
 
 export async function getEffectiveDelegationTasks(runtime: RuntimeLike) {
@@ -93,6 +117,25 @@ export async function getEffectiveDelegationOverview(runtime: RuntimeLike) {
     tasks,
     tasks.filter((task) => task.status === "running").length,
   );
+}
+
+export async function getEffectiveDelegationOverviews(runtime: RuntimeLike) {
+  const service = requireOfficialOrchestrator(runtime);
+  const [status, tasks] = await Promise.all([
+    service.getStatus(),
+    getEffectiveDelegationTasks(runtime),
+  ]);
+  return {
+    local: buildDelegationProjectionOverview(
+      tasks,
+      tasks.filter((task) => task.status === "running").length,
+    ),
+    native: {
+      ...buildDelegationProjectionOverview(tasks, status.activeSessionCount),
+      service: "ORCHESTRATOR_TASK_SERVICE",
+      available: true,
+    },
+  };
 }
 
 export async function getEffectiveDelegationTask(

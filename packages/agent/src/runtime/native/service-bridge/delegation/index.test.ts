@@ -5,6 +5,7 @@ import {
   cancelEffectiveDelegationTask,
   createEffectiveDelegationTask,
   executeEffectiveDelegationTask,
+  getEffectiveDelegationOverviews,
   getEffectiveDelegationTask,
   getEffectiveDelegationTasks,
   OrchestratorTaskServiceUnavailableError,
@@ -79,6 +80,33 @@ describe("official delegation service bridge", () => {
     await expect(
       getEffectiveDelegationTask(runtimeWith(service) as never, "task-1"),
     ).resolves.toMatchObject({ id: "task-1", status: "running" });
+  });
+
+  it("shares one official detail expansion across concurrent overview and task reads", async () => {
+    const service = {
+      listTasks: vi.fn(async () => [detail()]),
+      getTask: vi.fn(async () => detail()),
+      getStatus: vi.fn(async () => ({ activeSessionCount: 1 })),
+    };
+    const runtime = runtimeWith(service) as never;
+
+    const [tasks, overview] = await Promise.all([
+      getEffectiveDelegationTasks(runtime),
+      getEffectiveDelegationOverviews(runtime),
+    ]);
+
+    expect(tasks).toHaveLength(1);
+    expect(overview).toMatchObject({
+      local: { total: 1 },
+      native: {
+        available: true,
+        concurrency: 1,
+        service: "ORCHESTRATOR_TASK_SERVICE",
+      },
+    });
+    expect(service.listTasks).toHaveBeenCalledOnce();
+    expect(service.getTask).toHaveBeenCalledOnce();
+    expect(service.getStatus).toHaveBeenCalledOnce();
   });
 
   it("keeps capability profile separate from an explicitly selected framework", async () => {

@@ -99,4 +99,23 @@ describe("handleDelegationReadRoutes", () => {
       task: expect.objectContaining({ id: "one", status: "pending" }),
     });
   });
+
+  it("serves paired local and native overviews from one projection contract", async () => {
+    const response = await handleDelegationReadRoutes(
+      contextWith(),
+      new Request("http://localhost/delegation/overview"),
+      new URL("http://localhost/delegation/overview"),
+    );
+
+    await expect(response?.json()).resolves.toMatchObject({
+      overview: {
+        local: { total: 2 },
+        native: {
+          available: true,
+          service: "ORCHESTRATOR_TASK_SERVICE",
+          total: 2,
+        },
+      },
+    });
+  });
 });

@@ -10,6 +10,7 @@ export {
   getEffectiveDelegationAggregation,
   getEffectiveDelegationChildren,
   getEffectiveDelegationOverview,
+  getEffectiveDelegationOverviews,
   getEffectiveDelegationQueue,
   getEffectiveDelegationTask,
   getEffectiveDelegationTasks,

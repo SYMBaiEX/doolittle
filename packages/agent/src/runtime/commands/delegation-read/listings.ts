@@ -1,5 +1,5 @@
 import {
-  getEffectiveDelegationOverview,
+  getEffectiveDelegationOverviews,
   getEffectiveDelegationQueue,
   getEffectiveDelegationTasks,
 } from "@/runtime/native/service-bridge/delegation";
@@ -58,10 +58,7 @@ export const handleDelegationListingsRead: DelegationReadHandler = async (
 
   if (trimmed === "/delegate overview") {
     return JSON.stringify(
-      {
-        local: await getEffectiveDelegationOverview(context.runtime),
-        native: await getEffectiveDelegationQueue(context.runtime),
-      },
+      await getEffectiveDelegationOverviews(context.runtime),
       null,
       2,
     );
