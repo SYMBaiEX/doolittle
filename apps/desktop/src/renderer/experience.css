@@ -539,7 +539,14 @@ button.chat-session-meta-pill:hover {
   opacity: 0.45;
 }
 
-.chat-message:hover .chat-message-actions,
+.chat-message.user .chat-message-actions,
+.chat-message.assistant .chat-message-actions {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chat-message.user:hover .chat-message-actions,
+.chat-message.assistant:hover .chat-message-actions,
 .chat-message:has(.chat-message-actions button:focus-visible)
   .chat-message-actions {
   opacity: 1;
