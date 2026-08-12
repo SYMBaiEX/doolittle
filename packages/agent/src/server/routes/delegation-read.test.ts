@@ -171,9 +171,19 @@ describe("handleDelegationReadRoutes", () => {
 
     await expect(response?.json()).resolves.toMatchObject({
       overview: {
-        local: { total: 2 },
+        local: {
+          total: 2,
+          byGroup: [
+            { group: "default", count: 1 },
+            { group: "ops", count: 1 },
+          ],
+        },
         native: {
           available: true,
+          byGroup: [
+            { group: "default", count: 1 },
+            { group: "ops", count: 1 },
+          ],
           service: "ORCHESTRATOR_TASK_SERVICE",
           total: 2,
         },
@@ -225,8 +235,8 @@ describe("handleDelegationReadRoutes", () => {
     const [overviewResponse, tasksResponse] = await Promise.all([
       handleDelegationReadRoutes(
         context,
-        new Request("http://localhost/delegation/overview"),
-        new URL("http://localhost/delegation/overview"),
+        new Request("http://localhost/delegation/overview-snapshot"),
+        new URL("http://localhost/delegation/overview-snapshot"),
       ),
       handleDelegationReadRoutes(
         context,
@@ -235,12 +245,15 @@ describe("handleDelegationReadRoutes", () => {
       ),
     ]);
 
-    await expect(overviewResponse?.json()).resolves.toMatchObject({
+    const overviewBody = await overviewResponse?.json();
+    expect(overviewBody).toMatchObject({
       overview: {
         local: { total: 500, pending: 500 },
         native: { total: 500, available: true },
       },
     });
+    expect(overviewBody.overview.local).not.toHaveProperty("byGroup");
+    expect(overviewBody.overview.native).not.toHaveProperty("byLabel");
     await expect(tasksResponse?.json()).resolves.toMatchObject({
       tasks: expect.arrayContaining([
         expect.objectContaining({ id: "task-1" }),

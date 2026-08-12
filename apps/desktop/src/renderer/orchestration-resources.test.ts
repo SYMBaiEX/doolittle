@@ -9,6 +9,9 @@ import {
 
 describe("orchestration resource paths", () => {
   it("uses bounded collection endpoints and safely encodes selected resource IDs", () => {
+    expect(orchestrationResourcePaths.overview).toBe(
+      "/delegation/overview-snapshot",
+    );
     expect(orchestrationResourcePaths.tasks).toBe(
       "/delegation/task-summaries?limit=100",
     );

@@ -2,6 +2,7 @@ import type { AppContext } from "@/runtime/bootstrap";
 import {
   getEffectiveDelegationChildren,
   getEffectiveDelegationOverview,
+  getEffectiveDelegationOverviews,
   getEffectiveDelegationOverviewsSnapshot,
   getEffectiveDelegationTask,
   getEffectiveDelegationTaskSummaries,
@@ -159,6 +160,15 @@ export async function handleDelegationReadRoutes(
   }
 
   if (request.method === "GET" && url.pathname === "/delegation/overview") {
+    return json({
+      overview: await getEffectiveDelegationOverviews(context.runtime),
+    });
+  }
+
+  if (
+    request.method === "GET" &&
+    url.pathname === "/delegation/overview-snapshot"
+  ) {
     return json({
       overview: await getEffectiveDelegationOverviewsSnapshot(context.runtime),
     });

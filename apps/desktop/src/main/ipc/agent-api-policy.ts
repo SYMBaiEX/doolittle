@@ -461,6 +461,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
         validateIntegerQuery(query, "limit", { min: 1, max: 200 }),
     },
     { exact: "/delegation/overview" },
+    { exact: "/delegation/overview-snapshot" },
     { exact: "/delegation/groups" },
     {
       exact: "/delegation/workers",

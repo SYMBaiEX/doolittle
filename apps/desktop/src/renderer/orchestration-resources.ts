@@ -232,7 +232,7 @@ export type CodegenCancellationResponse = {
 };
 
 export const orchestrationResourcePaths = {
-  overview: "/delegation/overview",
+  overview: "/delegation/overview-snapshot",
   tasks: "/delegation/task-summaries?limit=100",
   workers: "/delegation/workers?limit=100",
   worktrees: "/repo/worktrees",
