@@ -93,7 +93,7 @@ export const handleRuntimeWorkspaceIoCommand: RuntimeWorkspaceCommandHandler =
     }
 
     if (trimmed === "/workspace" || trimmed === "/workspace tree") {
-      return getNativeWorkspaceSummary(context.runtime, 40);
+      return await getNativeWorkspaceSummary(context.runtime, 40);
     }
 
     if (trimmed.startsWith("/workspace read ")) {

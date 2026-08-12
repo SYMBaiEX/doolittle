@@ -228,7 +228,7 @@ export interface NativeAgentOrchestratorService {
 
 export interface NativeCodingAgentService {
   workspaceRoot(): string;
-  workspaceSummary(limit?: number): string;
+  workspaceSummary(limit?: number): string | Promise<string>;
   read(path: string): unknown;
   write(path: string, content: string): unknown;
   readLines(

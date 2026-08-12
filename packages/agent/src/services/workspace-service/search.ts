@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { runTextProcess } from "@/services/process-execution";
 import type { WorkspaceEntry } from "@/types";
 import { resolveWorkspacePath } from "./path";
-import { listWorkspaceTree, listWorkspaceTreeAsync } from "./tree";
+import { listCompleteWorkspaceTreeAsync, listWorkspaceTree } from "./tree";
 
 export interface WorkspaceSearchResult {
   path: string;
@@ -19,7 +19,7 @@ export async function searchWorkspace(
     return [];
   }
 
-  const files = (await listWorkspaceTreeAsync(workspaceDir, 8)).entries
+  const files = (await listCompleteWorkspaceTreeAsync(workspaceDir, 8)).entries
     .filter((entry) => entry.type === "file")
     .map((entry) => entry.path);
   const ripgrepResults = await searchWorkspaceWithRipgrepFiles(

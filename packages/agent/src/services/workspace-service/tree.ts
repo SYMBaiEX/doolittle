@@ -51,6 +51,17 @@ export async function listWorkspaceTreeAsync(
   return { entries, truncated: state.truncated };
 }
 
+export function listCompleteWorkspaceTreeAsync(
+  workspaceDir: string,
+  maxDepth: number,
+): Promise<WorkspaceTreeSnapshot> {
+  return listWorkspaceTreeAsync(
+    workspaceDir,
+    maxDepth,
+    Number.POSITIVE_INFINITY,
+  );
+}
+
 async function walkWorkspaceTreeAsync(
   workspaceDir: string,
   currentDir: string,

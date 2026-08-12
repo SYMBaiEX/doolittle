@@ -80,7 +80,7 @@ describe("coding agent service", () => {
       {} as never,
     )) as unknown as {
       workspaceRoot(): string;
-      workspaceSummary(limit?: number): string;
+      workspaceSummary(limit?: number): Promise<string>;
       readLines(path: string): { path: string };
       writeFile(path: string, content: string): Promise<{ bytes: number }>;
       createDirectory(path: string): { path: string };
@@ -103,7 +103,7 @@ describe("coding agent service", () => {
 
     expect(CodingAgentService.serviceType).toBe(DOOLITTLE_CODING_AGENT_SERVICE);
     expect(service.workspaceRoot()).toBe("/workspace");
-    expect(service.workspaceSummary(12)).toBe("tree:12");
+    await expect(service.workspaceSummary(12)).resolves.toBe("tree:12");
     expect(service.readLines("README.md").path).toBe("/workspace/README.md");
     await expect(service.writeFile("notes.md", "hello")).resolves.toMatchObject(
       { bytes: 5 },

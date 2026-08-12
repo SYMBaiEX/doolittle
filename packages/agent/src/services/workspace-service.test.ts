@@ -18,6 +18,7 @@ import {
   searchWorkspaceWithoutRipgrep,
   searchWorkspaceWithRipgrep,
 } from "./workspace-service/search";
+import { summarizeWorkspaceTree } from "./workspace-service/summary";
 
 describe("WorkspaceService", () => {
   it("creates a Git checkpoint without changing the worktree and restores only after an explicit service call", async () => {
@@ -359,6 +360,9 @@ describe("WorkspaceService", () => {
         entries: complete.entries.slice(0, 3),
         truncated: true,
       });
+      await expect(service.summaryAsync(2)).resolves.toBe(
+        summarizeWorkspaceTree(complete.entries, 2),
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -407,6 +411,35 @@ describe("WorkspaceService", () => {
       expect(fallback.map((result) => result.path).sort()).toEqual([
         ".env.example",
         "src/app.ts",
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("searches beyond the bounded desktop tree view", async () => {
+    const root = mkdtempSync(
+      join(tmpdir(), "doolittle-workspace-deep-search-"),
+    );
+    const service = new WorkspaceService(root);
+
+    try {
+      for (let index = 0; index < 5_001; index += 1) {
+        writeFileSync(
+          join(root, `file-${String(index).padStart(4, "0")}.txt`),
+          index === 5_000 ? "after-tree-bound\n" : "ordinary\n",
+          "utf8",
+        );
+      }
+
+      const tree = await service.treeAsync(2);
+      expect(tree).toMatchObject({ truncated: true });
+      expect(tree.entries).toHaveLength(5_000);
+      await expect(service.search("after-tree-bound", 1)).resolves.toEqual([
+        {
+          path: "file-5000.txt",
+          matches: ["after-tree-bound"],
+        },
       ]);
     } finally {
       rmSync(root, { recursive: true, force: true });

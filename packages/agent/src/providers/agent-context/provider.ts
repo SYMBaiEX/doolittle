@@ -201,7 +201,9 @@ async function workspaceContextResult(
       ...renderWorkspaceSections({
         contextFiles: services.contextFiles.render(),
         skillEntries,
-        workspaceSummary: services.workspace.summary(16),
+        workspaceSummary:
+          (await services.workspace.summaryAsync?.(16)) ??
+          services.workspace.summary(16),
         recentTerminal,
         repoSummary,
       }),

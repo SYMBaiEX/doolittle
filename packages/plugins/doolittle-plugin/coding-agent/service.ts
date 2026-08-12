@@ -34,8 +34,10 @@ export function createCodingAgentServiceClass(
       return this.workspace.root();
     }
 
-    workspaceSummary(limit = 40) {
-      return this.workspace.summary(limit);
+    async workspaceSummary(limit = 40) {
+      return this.workspace.summaryAsync
+        ? await this.workspace.summaryAsync(limit)
+        : this.workspace.summary(limit);
     }
 
     read(path: string) {

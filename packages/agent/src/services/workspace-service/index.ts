@@ -131,6 +131,15 @@ export class WorkspaceService {
     return summarizeWorkspaceTree(entries, maxEntries);
   }
 
+  async summaryAsync(maxEntries = 20): Promise<string> {
+    const snapshot = await listWorkspaceTreeAsync(
+      this.root(),
+      2,
+      Math.max(1, maxEntries),
+    );
+    return summarizeWorkspaceTree(snapshot.entries, maxEntries);
+  }
+
   checkpointSupport(): Promise<WorkspaceCheckpointSupport> {
     return this.checkpointsFor(this.root()).support();
   }

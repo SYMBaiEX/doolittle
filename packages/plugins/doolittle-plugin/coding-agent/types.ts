@@ -29,6 +29,7 @@ export type {
 export interface WorkspaceServiceLike {
   root(): string;
   summary(limit?: number): string;
+  summaryAsync?(limit?: number): Promise<string>;
   read(path: string): string;
   write(path: string, content: string): string | Promise<string>;
   readLines(
@@ -112,6 +113,7 @@ export interface CodingAgentPluginOptions {
     WorkspaceServiceLike,
     | "root"
     | "summary"
+    | "summaryAsync"
     | "read"
     | "write"
     | "readLines"

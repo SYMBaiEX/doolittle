@@ -5,11 +5,11 @@ export function getNativeWorkspaceRoot(runtime: RuntimeLike): string {
   return requireNativeCodingAgent(runtime).workspaceRoot();
 }
 
-export function getNativeWorkspaceSummary(
+export async function getNativeWorkspaceSummary(
   runtime: RuntimeLike,
   limit = 40,
-): string {
-  return requireNativeCodingAgent(runtime).workspaceSummary(limit);
+): Promise<string> {
+  return await requireNativeCodingAgent(runtime).workspaceSummary(limit);
 }
 
 export function readNativeWorkspaceFile(runtime: RuntimeLike, path: string) {
