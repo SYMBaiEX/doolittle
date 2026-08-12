@@ -105,22 +105,8 @@ export function DocsPage({ active }: { active: boolean }) {
       <PageHeader
         eyebrow="Help"
         title="About Doolittle"
-        description="A private desktop workspace for the Doolittle ElizaOS agent runtime."
+        description="Private ElizaOS workspace, local runtime status, and operator diagnostics."
       />
-      <div className="about-hero">
-        <div className="about-mark" aria-hidden="true">
-          D
-        </div>
-        <div>
-          <span className="eyebrow">Doolittle Desktop</span>
-          <h2>Local agent. Native workspace.</h2>
-          <p>
-            The Electron shell communicates with a private loopback runtime.
-            Conversations, settings, automations, logs, and profiles remain in
-            the application data directory on this computer.
-          </p>
-        </div>
-      </div>
       <CompactStatStrip
         label="Application summary"
         stats={[

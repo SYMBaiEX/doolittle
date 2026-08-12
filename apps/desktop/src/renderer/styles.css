@@ -1622,59 +1622,6 @@ td {
   gap: 16px;
 }
 
-.about-hero {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 18px 22px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--accent) 4%, var(--surface-raised));
-  border: 1px solid var(--border);
-  border-radius: 4px;
-}
-
-.about-hero::before {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 3px;
-  content: "";
-  background: var(--accent);
-}
-
-.about-mark {
-  display: grid;
-  flex: 0 0 auto;
-  width: 58px;
-  height: 58px;
-  place-items: center;
-  color: #160b03;
-  background: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  font-family: var(--font-display);
-  font-size: 27px;
-  font-weight: 750;
-}
-
-.about-hero h2 {
-  margin: 7px 0 6px;
-  font-family: var(--font-display);
-  font-size: clamp(23px, 2.4vw, 31px);
-  font-weight: 650;
-  letter-spacing: -0.035em;
-}
-
-.about-hero p {
-  max-width: 730px;
-  margin: 0;
-  color: var(--text-soft);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
 .command-list {
   display: flex;
   flex-direction: column;

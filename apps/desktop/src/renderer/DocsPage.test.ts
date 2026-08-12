@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   doctorResourcePath,
@@ -5,7 +6,18 @@ import {
   prioritizeDoctorChecks,
 } from "./DocsPage";
 
+const docsPageSource = readFileSync(
+  new URL("./DocsPage.tsx", import.meta.url),
+  "utf8",
+);
+
 describe("DocsPage diagnostics projection", () => {
+  it("keeps the page focused on operator facts instead of a duplicate hero", () => {
+    expect(docsPageSource).not.toContain("about-hero");
+    expect(docsPageSource).toContain('label="Application summary"');
+    expect(docsPageSource).toContain("Desktop security boundary");
+  });
+
   it("keeps the runtime doctor deferred until the operator requests it", () => {
     expect(doctorResourcePath(true, false)).toBeNull();
     expect(doctorResourcePath(false, true)).toBeNull();
