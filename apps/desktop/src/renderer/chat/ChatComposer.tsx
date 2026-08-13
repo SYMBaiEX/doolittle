@@ -141,6 +141,15 @@ export function ChatComposer({
   pendingApprovals,
   runningTasks,
 }: ChatComposerProps) {
+  const commandMenuOpen = commandSuggestions.length > 0;
+  const activeCommandIndex = commandMenuOpen
+    ? Math.min(commandSelection, commandSuggestions.length - 1)
+    : -1;
+  const activeCommandId =
+    activeCommandIndex >= 0
+      ? `chat-command-option-${activeCommandIndex}`
+      : undefined;
+
   return (
     <form className="chat-composer" onSubmit={onSubmit}>
       {isNewConversation &&
@@ -289,6 +298,7 @@ export function ChatComposer({
         <div
           aria-label="Chat commands"
           className="chat-command-completions"
+          id="chat-command-completions"
           role="listbox"
         >
           {commandSuggestions.map((command, index) => (
@@ -296,6 +306,7 @@ export function ChatComposer({
               aria-selected={index === commandSelection}
               className={index === commandSelection ? "selected" : ""}
               disabled={Boolean(command.disabledReason)}
+              id={`chat-command-option-${index}`}
               key={command.command}
               onClick={() => selectCommandSuggestion(command)}
               role="option"
@@ -352,6 +363,10 @@ export function ChatComposer({
         />
       </div>
       <textarea
+        aria-activedescendant={activeCommandId}
+        aria-autocomplete="list"
+        aria-controls={commandMenuOpen ? "chat-command-completions" : undefined}
+        aria-haspopup="listbox"
         aria-label="Message Doolittle"
         disabled={backend.phase !== "ready"}
         onChange={(event) => {

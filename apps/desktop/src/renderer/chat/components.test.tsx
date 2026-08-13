@@ -32,61 +32,94 @@ function runUpdate(
   };
 }
 
+function composerProps(
+  overrides: Partial<ChatComposerProps> = {},
+): ChatComposerProps {
+  return {
+    activeProject: null,
+    projects: [],
+    isNewConversation: false,
+    backend: { phase: "stopped", message: "" },
+    runtime: { provider: "test", model: "test-model", plugins: {} },
+    refreshRuntime: () => undefined,
+    onOpenModelsPage: () => undefined,
+    onOpenProvidersPage: () => undefined,
+    activeRequest: null,
+    canSubmit: true,
+    draft: "hello",
+    setDraft: () => undefined,
+    onSubmit: () => undefined,
+    composerRef: { current: null },
+    queueRef: { current: null },
+    queuedMessages: [],
+    queuePaused: false,
+    setQueuePaused: () => undefined,
+    setQueueAnnouncement: () => undefined,
+    clearQueuedMessages: () => undefined,
+    removeQueuedMessage: () => undefined,
+    attachedFiles: [],
+    attachmentTotalBytes: 0,
+    removeContextFile: () => undefined,
+    composerValidationError: "",
+    memoryMatches: { query: "", matches: [], status: "idle" },
+    commandSuggestions: [],
+    commandSelection: 0,
+    setCommandSelection: () => undefined,
+    setCommandMenuDismissed: () => undefined,
+    selectCommandSuggestion: () => undefined,
+    commandCatalog: { commands: [], error: "" },
+    pickContextFiles: () => undefined,
+    importAndTranscribeRecording: async () => ({ transcriptText: "" }),
+    insertDictationTranscript: () => undefined,
+    selectedContext: undefined,
+    selectedContextPercent: 0,
+    selectedContextTone: "neutral",
+    selectedUsageError: undefined,
+    usageLoading: "",
+    selectedId: "session-1",
+    modelRouteLabel: "test · test-model",
+    workspacePath: "/workspace",
+    pendingApprovals: 0,
+    runningTasks: 0,
+    ...overrides,
+  } as unknown as ChatComposerProps;
+}
+
 describe("chat presentation components", () => {
   it("keeps composer controls, attachment affordance, and context meter together", () => {
-    const props = {
-      activeProject: null,
-      projects: [],
-      isNewConversation: false,
-      backend: { phase: "stopped", message: "" },
-      runtime: { provider: "test", model: "test-model", plugins: {} },
-      refreshRuntime: () => undefined,
-      onOpenModelsPage: () => undefined,
-      onOpenProvidersPage: () => undefined,
-      activeRequest: null,
-      canSubmit: true,
-      draft: "hello",
-      setDraft: () => undefined,
-      onSubmit: () => undefined,
-      composerRef: { current: null },
-      queueRef: { current: null },
-      queuedMessages: [],
-      queuePaused: false,
-      setQueuePaused: () => undefined,
-      setQueueAnnouncement: () => undefined,
-      clearQueuedMessages: () => undefined,
-      removeQueuedMessage: () => undefined,
-      attachedFiles: [],
-      attachmentTotalBytes: 0,
-      removeContextFile: () => undefined,
-      composerValidationError: "",
-      memoryMatches: { query: "", matches: [], status: "idle" },
-      commandSuggestions: [],
-      commandSelection: 0,
-      setCommandSelection: () => undefined,
-      setCommandMenuDismissed: () => undefined,
-      selectCommandSuggestion: () => undefined,
-      commandCatalog: { commands: [], error: "" },
-      pickContextFiles: () => undefined,
-      importAndTranscribeRecording: async () => ({ transcriptText: "" }),
-      insertDictationTranscript: () => undefined,
-      selectedContext: undefined,
-      selectedContextPercent: 0,
-      selectedContextTone: "neutral",
-      selectedUsageError: undefined,
-      usageLoading: "",
-      selectedId: "session-1",
-      modelRouteLabel: "test · test-model",
-      workspacePath: "/workspace",
-      pendingApprovals: 0,
-      runningTasks: 0,
-    } as unknown as ChatComposerProps;
+    const props = composerProps();
     const html = renderToStaticMarkup(<ChatComposer {...props} />);
     expect(html).toContain('class="chat-composer"');
     expect(html).toContain('aria-label="Attach file context"');
     expect(html).toContain('aria-label="Message Doolittle"');
     expect(html).toContain('class="chat-context-meter neutral"');
     expect(html).toContain('aria-label="Send message"');
+  });
+
+  it("connects slash-command selection to the composer for assistive technology", () => {
+    const props = composerProps({
+      backend: { phase: "ready", message: "" },
+      draft: "/rev",
+      commandSuggestions: [
+        {
+          command: "/review",
+          description: "Review the current workspace",
+          category: "Workspace",
+        },
+        {
+          command: "/runtime",
+          description: "Inspect runtime health",
+          category: "Runtime",
+        },
+      ],
+      commandSelection: 1,
+    });
+    const html = renderToStaticMarkup(<ChatComposer {...props} />);
+    expect(html).toContain('id="chat-command-completions"');
+    expect(html).toContain('id="chat-command-option-1"');
+    expect(html).toContain('aria-activedescendant="chat-command-option-1"');
+    expect(html).toContain('aria-controls="chat-command-completions"');
+    expect(html).toContain('aria-haspopup="listbox"');
   });
 
   it("keeps the welcome prompts and project-specific copy intact", () => {
