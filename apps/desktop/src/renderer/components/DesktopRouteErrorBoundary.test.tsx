@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -34,7 +34,8 @@ describe("DesktopRouteErrorBoundary", () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
+      true;
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -77,7 +78,7 @@ describe("DesktopRouteErrorBoundary", () => {
   });
 
   it("catches a route render failure without requiring the root boundary", () => {
-    function BrokenRoute() {
+    function BrokenRoute(): ReactNode {
       throw new Error("route exploded");
     }
 
@@ -86,11 +87,11 @@ describe("DesktopRouteErrorBoundary", () => {
         createElement(
           DesktopRouteErrorBoundary,
           {
+            children: createElement(BrokenRoute),
             label: "Connections",
             onReturnToChat: vi.fn(),
             resetKey: "connections",
           },
-          createElement(BrokenRoute),
         ),
       );
     });
