@@ -23,6 +23,7 @@ import type {
 import { ChatComposer } from "./chat/ChatComposer";
 import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
 import { ChatTranscript } from "./chat/ChatTranscript";
+import { isChatNearBottom, scheduleChatScroll } from "./chat/chat-scroll";
 import {
   type BranchMode,
   type DisplayMessage,
@@ -236,6 +237,10 @@ export function ChatPage({
   const [commandSelection, setCommandSelection] = useState(0);
   const [commandMenuDismissed, setCommandMenuDismissed] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const transcriptFollowRef = useRef(true);
+  const forceTranscriptFollowRef = useRef(false);
+  const scheduledForceTranscriptFollowRef = useRef(false);
+  const scheduleTranscriptScrollRef = useRef<(() => void) | null>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const mobileConversationsButtonRef = useRef<HTMLButtonElement>(null);
   const workbenchToggleRef = useRef<HTMLButtonElement>(null);
@@ -305,8 +310,43 @@ export function ChatPage({
   );
 
   useEffect(() => {
+    const container = endRef.current?.parentElement;
+    if (!container) return;
+    transcriptFollowRef.current = isChatNearBottom(container);
+    const handleScroll = () => {
+      transcriptFollowRef.current = isChatNearBottom(container);
+    };
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!latestSelectedMessage) return;
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (forceTranscriptFollowRef.current) {
+      scheduledForceTranscriptFollowRef.current = true;
+    }
+    const shouldFollow =
+      scheduledForceTranscriptFollowRef.current || transcriptFollowRef.current;
+    forceTranscriptFollowRef.current = false;
+    if (!shouldFollow) return;
+    const end = endRef.current;
+    if (!end) return;
+    if (!scheduleTranscriptScrollRef.current) {
+      scheduleTranscriptScrollRef.current = scheduleChatScroll(
+        (callback) => requestAnimationFrame(callback),
+        () => {
+          const forceFollow = scheduledForceTranscriptFollowRef.current;
+          scheduledForceTranscriptFollowRef.current = false;
+          if (!transcriptFollowRef.current && !forceFollow) {
+            return;
+          }
+          endRef.current?.scrollIntoView({ behavior: "smooth" });
+        },
+      );
+    }
+    scheduleTranscriptScrollRef.current();
   }, [latestSelectedMessage]);
 
   useEffect(() => {
@@ -518,6 +558,7 @@ export function ChatPage({
     const requestId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     requestSession.current[requestId] = sessionId;
+    forceTranscriptFollowRef.current = true;
 
     setMessages((current) => ({
       ...current,

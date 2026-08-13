@@ -1,7 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { DesktopRunUpdate } from "../../shared/contracts";
-import { ChatComposer, type ChatComposerProps } from "./ChatComposer";
+import {
+  CHAT_COMPOSER_MAX_HEIGHT,
+  CHAT_COMPOSER_MIN_HEIGHT,
+  ChatComposer,
+  type ChatComposerProps,
+  chatComposerHeight,
+} from "./ChatComposer";
 import { ChatMessage } from "./ChatMessage";
 import { ChatTranscript } from "./ChatTranscript";
 import { RunReceiptView } from "./RunReceiptView";
@@ -86,6 +92,14 @@ function composerProps(
 }
 
 describe("chat presentation components", () => {
+  it("grows multiline drafts up to the capped composer height and resets", () => {
+    expect(chatComposerHeight(96)).toBe(96);
+    expect(chatComposerHeight(CHAT_COMPOSER_MAX_HEIGHT + 80)).toBe(
+      CHAT_COMPOSER_MAX_HEIGHT,
+    );
+    expect(chatComposerHeight(0)).toBe(CHAT_COMPOSER_MIN_HEIGHT);
+  });
+
   it("keeps composer controls, attachment affordance, and context meter together", () => {
     const props = composerProps();
     const html = renderToStaticMarkup(<ChatComposer {...props} />);

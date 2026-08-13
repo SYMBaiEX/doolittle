@@ -5,6 +5,7 @@ import type {
   RefObject,
   SetStateAction,
 } from "react";
+import { useLayoutEffect } from "react";
 import type {
   BackendState,
   CommandCatalogItem,
@@ -30,6 +31,18 @@ import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import type { ChatMemoryMatchState } from "./models";
 import { attachmentSize, fileName, MAX_MESSAGE_ATTACHMENTS } from "./models";
 import { PromptLibrary } from "./PromptLibrary";
+
+export const CHAT_COMPOSER_MIN_HEIGHT = 54;
+export const CHAT_COMPOSER_MAX_HEIGHT = 180;
+
+/** Keep the composer readable while preventing a long draft from taking over the chat view. */
+export function chatComposerHeight(scrollHeight: number): number {
+  const measuredHeight = Number.isFinite(scrollHeight) ? scrollHeight : 0;
+  return Math.min(
+    Math.max(measuredHeight, CHAT_COMPOSER_MIN_HEIGHT),
+    CHAT_COMPOSER_MAX_HEIGHT,
+  );
+}
 
 export interface ChatComposerProps {
   activeProject?: {
@@ -141,6 +154,16 @@ export function ChatComposer({
   pendingApprovals,
   runningTasks,
 }: ChatComposerProps) {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: draft changes are the measurement trigger; the ref is stable and intentionally read at effect time.
+  useLayoutEffect(() => {
+    const textarea = composerRef.current;
+    if (!textarea) return;
+
+    // Reset before measuring so deleting lines can shrink the control as well.
+    textarea.style.height = "auto";
+    textarea.style.height = `${chatComposerHeight(textarea.scrollHeight)}px`;
+  }, [composerRef, draft]);
+
   const commandMenuOpen = commandSuggestions.length > 0;
   const activeCommandIndex = commandMenuOpen
     ? Math.min(commandSelection, commandSuggestions.length - 1)
