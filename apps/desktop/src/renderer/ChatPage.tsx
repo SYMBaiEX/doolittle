@@ -619,7 +619,7 @@ export function ChatPage({
       activeRequest ||
       forkingMessageId ||
       message.pending ||
-      message.error
+      (message.error && mode !== "retry")
     ) {
       return;
     }

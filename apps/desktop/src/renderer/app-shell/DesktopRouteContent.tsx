@@ -86,6 +86,7 @@ export interface DesktopRouteContentProps {
   onConsumeContextHandoff: (id: string) => void;
   onChooseWorkspace: () => Promise<WorkspacePickResult>;
   onOpenWorkspacePath: (path: string) => Promise<WorkspacePickResult>;
+  onCodeWorkspaceDirtyChange?: (dirty: boolean) => void;
   chatChromeHost: HTMLElement | null;
   workspacePath: string;
   approvalsResource: ApiResource<{ approvals?: unknown[] }>;
@@ -104,6 +105,7 @@ export function DesktopRouteContent({
   onChooseWorkspace,
   onConsumeContextHandoff,
   onOpenWorkspacePath,
+  onCodeWorkspaceDirtyChange,
   pendingApprovals,
   pendingContextHandoff,
   pendingNavigationIntent,
@@ -180,6 +182,7 @@ export function DesktopRouteContent({
           onAcknowledgeNavigationIntent={navigation.consumeNavigationIntent}
           onChooseWorkspace={onChooseWorkspace}
           onOpenWorkspacePath={onOpenWorkspacePath}
+          onDirtyChange={onCodeWorkspaceDirtyChange}
           onSendToChat={navigation.openChatWithContext}
           projectScope={projectScope}
           workspacePath={workspacePath}

@@ -33,7 +33,7 @@ export function MessageActions({
     !backendReady ||
     Boolean(activeRequest) ||
     Boolean(message.pending) ||
-    Boolean(message.error) ||
+    (Boolean(message.error) && message.role !== "assistant") ||
     Boolean(forkingMessageId);
   return (
     <div
@@ -60,7 +60,7 @@ export function MessageActions({
         >
           Edit
         </button>
-      ) : !message.pending && !message.error ? (
+      ) : !message.pending ? (
         <button
           aria-label="Retry this response in a new branch"
           disabled={branchDisabled}

@@ -239,10 +239,20 @@ export function useChatConversationState({
     requestedHistory.current.add(historyVersion);
     setLoadingHistory(selectedId);
     setHistoryError("");
+    const controller = new AbortController();
+    let cancelled = false;
+    let settled = false;
     const path =
       `/sessions/messages?sessionId=${encodeURIComponent(selectedId)}&limit=500` as const;
-    void desktopRequest<SessionMessagesResponse>(path)
+    void desktopRequest<SessionMessagesResponse>(
+      path,
+      "GET",
+      undefined,
+      controller.signal,
+    )
       .then((response) => {
+        if (cancelled || controller.signal.aborted) return;
+        settled = true;
         const history = response.messages
           .filter(
             (message) =>
@@ -255,15 +265,35 @@ export function useChatConversationState({
             attachments: message.attachments,
             createdAt: message.createdAt,
           }));
-        setMessages((current) => ({ ...current, [selectedId]: history }));
+        setMessages((current) => {
+          const currentMessages = current[selectedId] ?? [];
+          const historyIds = new Set(history.map((message) => message.id));
+          const localOnly = currentMessages.filter(
+            (message) => !historyIds.has(message.id),
+          );
+          return {
+            ...current,
+            [selectedId]: [...history, ...localOnly].sort((left, right) =>
+              left.createdAt.localeCompare(right.createdAt),
+            ),
+          };
+        });
       })
       .catch((error) => {
+        if (cancelled || controller.signal.aborted) return;
+        settled = true;
         requestedHistory.current.delete(historyVersion);
         setHistoryError(errorMessage(error));
       })
       .finally(() =>
         setLoadingHistory((current) => (current === selectedId ? "" : current)),
       );
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (!settled) requestedHistory.current.delete(historyVersion);
+    };
   }, [
     activeRequest,
     backendReady,

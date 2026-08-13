@@ -94,6 +94,7 @@ export function CodingWorkspacePage({
   onChooseWorkspace,
   onOpenWorkspacePath,
   onSendToChat,
+  onDirtyChange,
   projectScope,
   workspacePath,
 }: {
@@ -103,6 +104,7 @@ export function CodingWorkspacePage({
   onChooseWorkspace: () => Promise<WorkspacePickResult>;
   onOpenWorkspacePath: (path: string) => Promise<WorkspacePickResult>;
   onSendToChat: (request: ChatContextRequest) => void;
+  onDirtyChange?: (dirty: boolean) => void;
   projectScope: ProjectScope;
   workspacePath: string;
 }) {
@@ -312,6 +314,12 @@ export function CodingWorkspacePage({
 
   const fileDirty = draftContent !== originalContent;
   fileDirtyRef.current = fileDirty;
+
+  useEffect(() => {
+    onDirtyChange?.(fileDirty);
+  }, [fileDirty, onDirtyChange]);
+
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   const openPath = useCallback(
     (path: string, destination: EditorPane = "file") => {

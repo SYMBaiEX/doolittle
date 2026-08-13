@@ -10,6 +10,7 @@ import {
 } from "./ChatComposer";
 import { ChatMessage } from "./ChatMessage";
 import { ChatTranscript } from "./ChatTranscript";
+import { MessageActions } from "./MessageActions";
 import { RunReceiptView } from "./RunReceiptView";
 import { Welcome } from "./Welcome";
 
@@ -190,6 +191,33 @@ describe("chat presentation components", () => {
     expect(html).toContain("Run complete");
     expect(html).toContain("run-1");
     expect(html.match(/<li>/gu)).toHaveLength(1);
+  });
+
+  it("keeps retry available for an errored assistant response", () => {
+    const html = renderToStaticMarkup(
+      <MessageActions
+        activeRequest={null}
+        backendReady
+        copyState={undefined}
+        forkingMessageId=""
+        message={{
+          id: "assistant-error",
+          role: "assistant",
+          content: "Provider unavailable",
+          createdAt: "2026-08-09T10:00:00.000Z",
+          error: true,
+        }}
+        onBranch={() => undefined}
+        onCopy={() => undefined}
+        onRead={() => undefined}
+        onStopReading={() => undefined}
+        speakingMessageId=""
+        speechSupported={false}
+      />,
+    );
+    expect(html).toContain("Retry");
+    expect(html).not.toContain('disabled=""');
+    expect(html).not.toContain("Read");
   });
 
   it("renders message attachments and delegates action controls", () => {

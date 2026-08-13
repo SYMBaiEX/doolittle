@@ -60,6 +60,7 @@ import {
   resolveAppearance,
   subscribeToDesktopThemeChanges,
 } from "./desktop-theme";
+import { confirmDirtyNavigation } from "./dirty-navigation";
 import { asArray, desktopRequest, useApiResource } from "./lib";
 import {
   APP_SIDEBAR_WIDTH,
@@ -238,6 +239,7 @@ export function App() {
     currentPath: "",
     recentPaths: [],
   });
+  const [codeWorkspaceDirty, setCodeWorkspaceDirty] = useState(false);
   const [selectedSession, setSelectedSession] = useState(initialConversation);
   const [appearance, setAppearance] = useState<DesktopAppearance>(
     loadAppearancePreference,
@@ -373,6 +375,20 @@ export function App() {
 
   const applyViewTransition = useCallback(
     (next: View) => {
+      if (
+        view === "code" &&
+        next !== "code" &&
+        !confirmDirtyNavigation({
+          dirty: codeWorkspaceDirty,
+          confirm: () =>
+            window.confirm(
+              "This coding workspace has unsaved edits. Leave and discard them?",
+            ),
+          discard: () => setCodeWorkspaceDirty(false),
+        })
+      ) {
+        return false;
+      }
       void warmDesktopRoute(next, backend.phase).catch(() => undefined);
       setViewState(next);
       setMobileSidebarOpen(false);
@@ -387,19 +403,22 @@ export function App() {
           return new Set([...current, section.id]);
         });
       }
+      return true;
     },
     [
       backend.phase,
       closeUtilities,
       closeChatTerminal,
       isMobileSidebarMode,
+      codeWorkspaceDirty,
+      view,
       setMobileSidebarOpen,
     ],
   );
 
   const setView = useCallback(
     (next: View) => {
-      applyViewTransition(next);
+      if (!applyViewTransition(next)) return;
       window.location.hash = `/${next}`;
     },
     [applyViewTransition],
@@ -520,6 +539,15 @@ export function App() {
     setView,
     setWorkspace,
     workspace,
+    confirmWorkspaceChange: () =>
+      confirmDirtyNavigation({
+        dirty: codeWorkspaceDirty,
+        confirm: () =>
+          window.confirm(
+            "This coding workspace has unsaved edits. Change workspace and discard them?",
+          ),
+        discard: () => setCodeWorkspaceDirty(false),
+      }),
   });
 
   const selectProjectScope = useCallback(
@@ -771,13 +799,16 @@ export function App() {
 
   useEffect(() => {
     const onHashChange = () => {
-      applyViewTransition(viewFromHash());
+      const next = viewFromHash();
+      if (!applyViewTransition(next) && window.location.hash !== `#/${view}`) {
+        window.location.hash = `/${view}`;
+      }
     };
     window.addEventListener("hashchange", onHashChange);
     if (!window.location.hash) window.location.hash = "/chat";
     else onHashChange();
     return () => window.removeEventListener("hashchange", onHashChange);
-  }, [applyViewTransition]);
+  }, [applyViewTransition, view]);
 
   useEffect(() => {
     const onChatTerminalKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -1096,6 +1127,7 @@ export function App() {
       onChooseWorkspace={chooseWorkspace}
       onConsumeContextHandoff={consumeChatContext}
       onOpenWorkspacePath={openWorkspacePath}
+      onCodeWorkspaceDirtyChange={setCodeWorkspaceDirty}
       pendingApprovals={pendingApprovals}
       pendingContextHandoff={pendingChatContext}
       pendingNavigationIntent={pendingNavigationIntent}

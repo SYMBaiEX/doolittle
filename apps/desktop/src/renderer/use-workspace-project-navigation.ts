@@ -117,6 +117,7 @@ interface UseWorkspaceProjectNavigationOptions {
   readonly setView: (view: View) => void;
   readonly setWorkspace: Dispatch<SetStateAction<WorkspaceState>>;
   readonly workspace: WorkspaceState;
+  readonly confirmWorkspaceChange?: () => boolean;
 }
 
 interface SwitchRecentWorkspaceOptions {
@@ -155,6 +156,7 @@ export function useWorkspaceProjectNavigation({
   setView,
   setWorkspace,
   workspace,
+  confirmWorkspaceChange,
 }: UseWorkspaceProjectNavigationOptions): WorkspaceProjectNavigation {
   const coordinatorRef = useRef<WorkspaceTransitionCoordinator | null>(null);
   coordinatorRef.current ??= createWorkspaceTransitionCoordinator();
@@ -188,6 +190,9 @@ export function useWorkspaceProjectNavigation({
 
   const chooseWorkspace =
     useCallback(async (): Promise<WorkspacePickResult> => {
+      if (confirmWorkspaceChange && !confirmWorkspaceChange()) {
+        return { canceled: true, state: workspace };
+      }
       const outcome = await runWorkspaceRequest({
         coordinator,
         operation: () => window.doolittle.pickWorkspace(),
@@ -196,10 +201,18 @@ export function useWorkspaceProjectNavigation({
         },
       });
       return outcome.result;
-    }, [applyWorkspaceSelection, coordinator]);
+    }, [
+      applyWorkspaceSelection,
+      confirmWorkspaceChange,
+      coordinator,
+      workspace,
+    ]);
 
   const openWorkspacePath = useCallback(
     async (path: string): Promise<WorkspacePickResult> => {
+      if (confirmWorkspaceChange && !confirmWorkspaceChange()) {
+        return { canceled: true, state: workspace };
+      }
       const outcome = await runWorkspaceRequest({
         coordinator,
         operation: () => window.doolittle.openWorkspace(path),
@@ -209,12 +222,13 @@ export function useWorkspaceProjectNavigation({
       });
       return outcome.result;
     },
-    [applyWorkspaceSelection, coordinator],
+    [applyWorkspaceSelection, confirmWorkspaceChange, coordinator, workspace],
   );
 
   const switchToRecentWorkspace = useCallback(
     async (path: string, options: SwitchRecentWorkspaceOptions = {}) => {
       const announce = options.announce ?? true;
+      if (confirmWorkspaceChange && !confirmWorkspaceChange()) return false;
       try {
         const outcome = await runWorkspaceRequest({
           coordinator,
@@ -249,7 +263,13 @@ export function useWorkspaceProjectNavigation({
         return false;
       }
     },
-    [applyWorkspaceSelection, coordinator, pushToast, selectedSession],
+    [
+      applyWorkspaceSelection,
+      confirmWorkspaceChange,
+      coordinator,
+      pushToast,
+      selectedSession,
+    ],
   );
 
   const activateProjectWorkspace = useCallback(
