@@ -311,7 +311,15 @@ export function ToastRegion({
               onMouseEnter={() => onPause(toast.id)}
               onMouseLeave={() => onResume(toast.id)}
               onFocus={() => onPause(toast.id)}
-              onBlur={() => onResume(toast.id)}
+              onBlur={(event) => {
+                const nextTarget = event.relatedTarget;
+                if (
+                  !(nextTarget instanceof Node) ||
+                  !event.currentTarget.contains(nextTarget)
+                ) {
+                  onResume(toast.id);
+                }
+              }}
             >
               <div className="toast-content">
                 {toast.title ? (
