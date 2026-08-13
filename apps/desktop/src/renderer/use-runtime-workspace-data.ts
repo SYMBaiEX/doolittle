@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   BackendState,
   Project,
@@ -66,9 +66,18 @@ export function useRuntimeWorkspaceData(
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [globalError, setGlobalError] = useState("");
+  const backendPhaseRef = useRef(backend.phase);
+  const previousBackendPhaseRef = useRef(backend.phase);
+  const refreshRequestRef = useRef(0);
+  if (previousBackendPhaseRef.current !== backend.phase) {
+    previousBackendPhaseRef.current = backend.phase;
+    refreshRequestRef.current += 1;
+  }
+  backendPhaseRef.current = backend.phase;
 
   const refreshRuntime = useCallback(async () => {
     if (backend.phase !== "ready") return false;
+    const requestId = ++refreshRequestRef.current;
     setGlobalError("");
     const snapshot = resolveRuntimeWorkspaceResults(
       await Promise.allSettled([
@@ -77,6 +86,12 @@ export function useRuntimeWorkspaceData(
         desktopRequest<ProjectsResponse>("/projects?includeArchived=true"),
       ]),
     );
+    if (
+      requestId !== refreshRequestRef.current ||
+      backendPhaseRef.current !== "ready"
+    ) {
+      return false;
+    }
     if (snapshot.runtime) setRuntime(snapshot.runtime);
     if (snapshot.sessions) setSessions(snapshot.sessions);
     if (snapshot.projects) setProjects(snapshot.projects);
