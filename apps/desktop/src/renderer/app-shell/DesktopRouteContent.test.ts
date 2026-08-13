@@ -48,7 +48,7 @@ describe("desktop route preloaders", () => {
       { path: "/analytics", dependencies: [true] },
     ]);
     expect(DESKTOP_ROUTE_RESOURCE_PREFETCHES.dashboard).toEqual([
-      { path: "/repo/status", dependencies: [true] },
+      { path: "/repo/status", dependencies: [true], workspaceScoped: true },
       { path: "/setup/summary", dependencies: [true] },
       { path: "/runtime/account-pool", dependencies: [true] },
     ]);
@@ -76,7 +76,7 @@ describe("desktop route preloaders", () => {
       "void DESKTOP_ROUTE_PRELOADERS[view]().catch(() => undefined)",
     );
     expect(routeRegistrySource).toContain(
-      "scheduleDesktopRouteResourcePrefetch(view, runtimeReady)",
+      "scheduleDesktopRouteResourcePrefetch(view, runtimeReady, workspacePath)",
     );
     expect(routeRegistrySource).not.toMatch(
       /function preloadDesktopRoute[\s\S]*?warmDesktopRoute\(view\)/u,

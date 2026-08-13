@@ -98,6 +98,7 @@ describe("inactive desktop routes", () => {
           runtime={null}
           sessions={[]}
           tasksResource={emptyResource}
+          workspacePath="/workspace"
         />
       ),
       "Dashboard data is unavailable",

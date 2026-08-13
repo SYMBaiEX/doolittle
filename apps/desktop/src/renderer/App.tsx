@@ -392,7 +392,9 @@ export function App() {
       ) {
         return false;
       }
-      void warmDesktopRoute(next, backend.phase).catch(() => undefined);
+      void warmDesktopRoute(next, backend.phase, workspace.currentPath).catch(
+        () => undefined,
+      );
       setViewState(next);
       setMobileSidebarOpen(false);
       if (next !== "chat") closeChatTerminal();
@@ -415,6 +417,7 @@ export function App() {
       isMobileSidebarMode,
       codeWorkspaceDirty,
       view,
+      workspace.currentPath,
       setMobileSidebarOpen,
     ],
   );
@@ -961,8 +964,10 @@ export function App() {
     }
     if (routeWarmReadyRef.current) return;
     routeWarmReadyRef.current = true;
-    void warmDesktopRoute(view, backend.phase).catch(() => undefined);
-  }, [backend.phase, view]);
+    void warmDesktopRoute(view, backend.phase, workspace.currentPath).catch(
+      () => undefined,
+    );
+  }, [backend.phase, view, workspace.currentPath]);
   useEffect(() => {
     document.title = `${activeItem?.label ?? "Desktop"} — Doolittle`;
   }, [activeItem?.label]);
@@ -1240,7 +1245,9 @@ export function App() {
         onManageProjects={openProjectManager}
         onStartConversation={startConversation}
         onOpenSession={openSession}
-        onPreloadView={(next) => preloadDesktopRoute(next, backend.phase)}
+        onPreloadView={(next) =>
+          preloadDesktopRoute(next, backend.phase, workspace.currentPath)
+        }
         onSelectScope={selectProjectScope}
         onViewAll={() => setView("sessions")}
         onSetView={setView}
@@ -1357,7 +1364,9 @@ export function App() {
           }
           onClose={closeUtilities}
           onKeyDown={handleUtilityKeyDown}
-          onPreload={(next) => preloadDesktopRoute(next, backend.phase)}
+          onPreload={(next) =>
+            preloadDesktopRoute(next, backend.phase, workspace.currentPath)
+          }
           onResize={setUtilityDrawerWidth}
           onSelect={setView}
           onToggleSection={toggleSection}

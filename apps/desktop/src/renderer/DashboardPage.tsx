@@ -42,6 +42,7 @@ interface SetupSummaryResponse {
 
 export function DashboardPage({
   active,
+  workspacePath,
   approvalsResource: approvals,
   tasksResource: tasks,
   runtime,
@@ -54,6 +55,7 @@ export function DashboardPage({
   onOpenProviders,
 }: {
   active: boolean;
+  workspacePath: string;
   approvalsResource: ApiResource<{ approvals?: unknown[] }>;
   tasksResource: ApiResource<{ tasks?: unknown[] }>;
   runtime: RuntimeStatus | null;
@@ -67,7 +69,7 @@ export function DashboardPage({
 }) {
   const repoStatus = useApiResource<RepoStatusResponse>(
     active ? "/repo/status" : null,
-    [active],
+    [active, workspacePath],
   );
   const setup = useApiResource<SetupSummaryResponse>(
     active ? "/setup/summary" : null,

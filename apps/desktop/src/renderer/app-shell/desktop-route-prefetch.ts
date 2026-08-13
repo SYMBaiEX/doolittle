@@ -16,6 +16,7 @@ export const DESKTOP_ROUTE_PREFETCH_DWELL_MS = 180;
 export interface DesktopRouteResourcePrefetch {
   path: string;
   dependencies: readonly unknown[];
+  workspaceScoped?: boolean;
 }
 
 /** Default-view resources that are safe and useful to warm before navigation. */
@@ -29,7 +30,7 @@ export const DESKTOP_ROUTE_RESOURCE_PREFETCHES: Readonly<
   compatibility: [{ path: "/runtime/compatibility", dependencies: [true] }],
   connections: [{ path: "/runtime/accounts", dependencies: [true] }],
   dashboard: [
-    { path: "/repo/status", dependencies: [true] },
+    { path: "/repo/status", dependencies: [true], workspaceScoped: true },
     { path: "/setup/summary", dependencies: [true] },
     { path: "/runtime/account-pool", dependencies: [true] },
   ],
@@ -72,6 +73,7 @@ export const DESKTOP_ROUTE_RESOURCE_PREFETCHES: Readonly<
 
 interface DesktopRoutePrefetchIntent {
   view: View;
+  workspacePath: string;
   timer?: ReturnType<typeof setTimeout>;
 }
 
@@ -106,21 +108,26 @@ export function cancelDesktopRouteResourcePrefetchIntent(): void {
 export function scheduleDesktopRouteResourcePrefetch(
   view: View,
   runtimeReady: RouteReadiness = true,
+  workspacePath = "",
 ): void {
   if (!canPrefetchRouteResources(view, runtimeReady)) {
     cancelDesktopRouteResourcePrefetchIntent();
     return;
   }
-  if (pendingDesktopRoutePrefetchIntent?.view === view) return;
+  if (
+    pendingDesktopRoutePrefetchIntent?.view === view &&
+    pendingDesktopRoutePrefetchIntent.workspacePath === workspacePath
+  )
+    return;
 
   cancelDesktopRouteResourcePrefetchIntent();
   if (!(DESKTOP_ROUTE_RESOURCE_PREFETCHES[view]?.length ?? 0)) return;
 
-  const intent: DesktopRoutePrefetchIntent = { view };
+  const intent: DesktopRoutePrefetchIntent = { view, workspacePath };
   intent.timer = setTimeout(() => {
     if (pendingDesktopRoutePrefetchIntent !== intent) return;
     pendingDesktopRoutePrefetchIntent = null;
-    void prefetchDesktopRouteResources(view, runtimeReady).catch(
+    void prefetchDesktopRouteResources(view, runtimeReady, workspacePath).catch(
       () => undefined,
     );
   }, DESKTOP_ROUTE_PREFETCH_DWELL_MS);
@@ -130,12 +137,16 @@ export function scheduleDesktopRouteResourcePrefetch(
 export async function prefetchDesktopRouteResources(
   view: View,
   runtimeReady: RouteReadiness = true,
+  workspacePath = "",
 ): Promise<void> {
   if (!canPrefetchRouteResources(view, runtimeReady)) return;
   const resources = DESKTOP_ROUTE_RESOURCE_PREFETCHES[view] ?? [];
   await Promise.all(
-    resources.map(({ dependencies, path }) =>
-      prefetchApiResource(path, dependencies),
+    resources.map(({ dependencies, path, workspaceScoped }) =>
+      prefetchApiResource(
+        path,
+        workspaceScoped ? [...dependencies, workspacePath] : dependencies,
+      ),
     ),
   );
 }

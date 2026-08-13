@@ -31,6 +31,7 @@ describe("desktop route resource prefetch", () => {
     expect(prefetchApiResource).toHaveBeenCalledTimes(3);
     expect(prefetchApiResource).toHaveBeenNthCalledWith(1, "/repo/status", [
       true,
+      "",
     ]);
     expect(prefetchApiResource).toHaveBeenNthCalledWith(2, "/setup/summary", [
       true,
@@ -58,6 +59,15 @@ describe("desktop route resource prefetch", () => {
     await vi.advanceTimersByTimeAsync(DESKTOP_ROUTE_PREFETCH_DWELL_MS);
 
     expect(prefetchApiResource).not.toHaveBeenCalled();
+  });
+
+  test("uses the active workspace identity for repository status prefetch", async () => {
+    await prefetchDesktopRouteResources("dashboard", true, "/work/alpha");
+
+    expect(prefetchApiResource).toHaveBeenNthCalledWith(1, "/repo/status", [
+      true,
+      "/work/alpha",
+    ]);
   });
 
   test("prefetches degraded diagnostic reads without enabling writes", async () => {

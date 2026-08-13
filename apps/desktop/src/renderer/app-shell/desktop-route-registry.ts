@@ -219,11 +219,12 @@ export const DESKTOP_ROUTE_PRELOADERS = completeRouteLoaderRegistry();
 export async function warmDesktopRoute(
   view: View,
   runtimeReady: RouteReadiness = true,
+  workspacePath = "",
 ): Promise<void> {
   cancelDesktopRouteResourcePrefetchIntent();
   await Promise.all([
     DESKTOP_ROUTE_PRELOADERS[view](),
-    prefetchDesktopRouteResources(view, runtimeReady),
+    prefetchDesktopRouteResources(view, runtimeReady, workspacePath),
   ]);
 }
 
@@ -234,7 +235,8 @@ export async function warmDesktopRoute(
 export function preloadDesktopRoute(
   view: View,
   runtimeReady: RouteReadiness = true,
+  workspacePath = "",
 ): void {
   void DESKTOP_ROUTE_PRELOADERS[view]().catch(() => undefined);
-  scheduleDesktopRouteResourcePrefetch(view, runtimeReady);
+  scheduleDesktopRouteResourcePrefetch(view, runtimeReady, workspacePath);
 }

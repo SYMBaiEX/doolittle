@@ -105,6 +105,7 @@ export function DesktopRouteContent({
           tasksResource={tasksResource}
           runtime={runtime}
           sessions={scopedSessions}
+          workspacePath={workspacePath}
           refreshRuntime={refreshRuntime}
           onOpenChat={(sessionId: string) => {
             if (sessionId) navigation.openSession(sessionId);
