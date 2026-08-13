@@ -92,7 +92,10 @@ test.describe("packaged Doolittle desktop", () => {
         }),
       ).toBeVisible();
       await expect(
-        page.getByText(fallbackResponse, { exact: false }),
+        page
+          .getByLabel("Conversation detail")
+          .getByText(fallbackResponse, { exact: false })
+          .first(),
       ).toBeVisible({
         timeout: 45_000,
       });
