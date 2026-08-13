@@ -1,7 +1,7 @@
 import { PassThrough } from "node:stream";
 import { syncResolvedApiPort } from "@elizaos/shared";
 import { describe, expect, it } from "vitest";
-import { writeWebResponse } from "./server";
+import { internalServerErrorResponse, writeWebResponse } from "./server";
 
 function responseOutput(): PassThrough & {
   statusCode: number;
@@ -28,6 +28,15 @@ describe("Eliza-native API environment", () => {
 });
 
 describe("writeWebResponse", () => {
+  it("keeps internal exception details out of the public error contract", async () => {
+    const response = internalServerErrorResponse();
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "Internal server error",
+    });
+  });
+
   it("resolves when a response finishes normally", async () => {
     const output = responseOutput();
     let body = "";

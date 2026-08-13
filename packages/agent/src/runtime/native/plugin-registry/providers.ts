@@ -1,4 +1,4 @@
-import type { Plugin } from "@elizaos/core";
+import type { IAgentRuntime, Plugin } from "@elizaos/core";
 import type { EnvConfig } from "../../../types/runtime";
 import { refreshLinkedClaudeCodeCredentials } from "../account-auth";
 import { getClaudeCodeAccountStatus } from "../account-auth/claude-code";
@@ -92,4 +92,18 @@ export async function loadProviderPlugins(
   );
 
   return providers;
+}
+
+/**
+ * Hot-load providers whose credentials can arrive after runtime bootstrap.
+ * Linked Anthropic is always registered; OpenAI is conditional because the
+ * SDK plugin is only useful when a direct API credential is present.
+ */
+export async function ensureDoolittleDirectApiPlugins(
+  runtime: Pick<IAgentRuntime, "plugins" | "registerPlugin">,
+): Promise<void> {
+  if (!process.env.OPENAI_API_KEY?.trim()) return;
+  if (runtime.plugins.some((plugin) => plugin.name === "openai")) return;
+  const { openaiPlugin } = await import("@elizaos/plugin-openai");
+  await runtime.registerPlugin(normalizePlugin(openaiPlugin));
 }

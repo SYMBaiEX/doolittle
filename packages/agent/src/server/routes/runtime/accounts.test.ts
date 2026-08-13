@@ -32,7 +32,12 @@ const context = {
 } as never;
 
 describe("Doolittle account-pool routes", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    accountPool.isDoolittleDirectApiProvider.mockImplementation(
+      (value: unknown) => value === "openai-api" || value === "anthropic-api",
+    );
+  });
 
   it("imports the current native login without accepting credential fields", async () => {
     accountPool.importCurrentDoolittleAccount.mockReturnValue({
@@ -188,6 +193,41 @@ describe("Doolittle account-pool routes", () => {
       deleted: true,
       credentialsRetained: false,
     });
+  });
+
+  it("reprojects direct API credentials after pool mutations", async () => {
+    accountPool.isAccountPoolProvider.mockReturnValue(true);
+    accountPool.isDoolittleDirectApiProvider.mockReturnValue(true);
+    accountPool.updateDoolittleAccount.mockResolvedValue({
+      accountId: "work",
+      providerId: "openai-api",
+      enabled: false,
+    });
+    accountPool.deleteDoolittleAccount.mockResolvedValue(true);
+
+    const updated = await handleRuntimeAccountRoutes(
+      context,
+      new Request("http://localhost/runtime/account-pool/openai-api/work", {
+        method: "PATCH",
+        body: JSON.stringify({ enabled: false }),
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/runtime/account-pool/openai-api/work"),
+    );
+    expect(updated?.status).toBe(200);
+
+    const deleted = await handleRuntimeAccountRoutes(
+      context,
+      new Request("http://localhost/runtime/account-pool/openai-api/work", {
+        method: "DELETE",
+      }),
+      new URL("http://localhost/runtime/account-pool/openai-api/work"),
+    );
+    expect(deleted?.status).toBe(200);
+    expect(accountPool.applyAccountPoolApiCredentials).toHaveBeenCalledTimes(2);
+    expect(accountPool.applyAccountPoolApiCredentials).toHaveBeenLastCalledWith(
+      { activeBackend: "openai" },
+    );
   });
 
   it("tests credentials and refreshes usage without exposing credentials", async () => {

@@ -15,6 +15,7 @@ import {
   testDoolittleAccountCredentials,
   updateDoolittleAccount,
 } from "@/runtime/native/account-pool";
+import { ensureDoolittleDirectApiPlugins } from "@/runtime/native/plugin-registry/providers";
 import { getEffectiveSecret } from "@/runtime/native/service-bridge/autocoder";
 import { json } from "@/server/responses";
 import {
@@ -106,6 +107,7 @@ export async function handleRuntimeAccountRoutes(
           await applyAccountPoolApiCredentials({
             activeBackend: context.services.settings.get().model.provider,
           });
+          await ensureDoolittleDirectApiPlugins(context.runtime);
           return account
             ? json({ account })
             : json({ error: "account import failed" }, 500);
@@ -188,6 +190,11 @@ export async function handleRuntimeAccountRoutes(
           accountId,
           body,
         );
+        if (account && isDoolittleDirectApiProvider(providerId)) {
+          await applyAccountPoolApiCredentials({
+            activeBackend: context.services.settings.get().model.provider,
+          });
+        }
         return account
           ? json({ account })
           : json({ error: "account not found" }, 404);
@@ -204,6 +211,11 @@ export async function handleRuntimeAccountRoutes(
 
     if (request.method === "DELETE" && accountId) {
       const deleted = await deleteDoolittleAccount(providerId, accountId);
+      if (deleted && isDoolittleDirectApiProvider(providerId)) {
+        await applyAccountPoolApiCredentials({
+          activeBackend: context.services.settings.get().model.provider,
+        });
+      }
       return deleted
         ? json({ deleted: true, credentialsRetained: false })
         : json({ error: "account not found" }, 404);

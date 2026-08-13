@@ -11,6 +11,7 @@ import {
   isAuthorized,
 } from "@elizaos/agent/api/server-helpers-auth";
 import { syncResolvedApiPort } from "@elizaos/shared";
+import { formatLoggerError } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
 import {
   applyDoolittleCors,
@@ -29,6 +30,10 @@ export interface ApiServerAddress {
   host: string;
   port: number;
   url: string;
+}
+
+export function internalServerErrorResponse(): Response {
+  return json({ error: "Internal server error" }, 500);
 }
 
 let activeApiServerInfo: ApiServerAddress | null = null;
@@ -195,16 +200,12 @@ export async function startApiServer(
         outgoing.destroy(error instanceof Error ? error : undefined);
         return;
       }
-      await writeWebResponse(
-        json(
-          {
-            error: "Internal server error",
-            detail: error instanceof Error ? error.message : String(error),
-          },
-          500,
-        ),
-        outgoing,
-      );
+      context.services.logger.error("api-request-failed", {
+        detail: formatLoggerError(error),
+        method: incoming.method ?? "GET",
+        path: new URL(incoming.url ?? "/", address).pathname,
+      });
+      await writeWebResponse(internalServerErrorResponse(), outgoing);
     } finally {
       requestLifecycle.dispose();
     }

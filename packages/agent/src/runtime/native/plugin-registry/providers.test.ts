@@ -1,7 +1,10 @@
 import { ModelType } from "@elizaos/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { EnvConfig } from "@/types/runtime";
-import { loadProviderPlugins } from "./providers";
+import {
+  ensureDoolittleDirectApiPlugins,
+  loadProviderPlugins,
+} from "./providers";
 
 function config(): EnvConfig {
   return {
@@ -89,6 +92,25 @@ describe("loadProviderPlugins", () => {
       expect(
         providers.find((plugin) => plugin.name === "openai"),
       ).toBeDefined();
+    } finally {
+      if (previous === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = previous;
+    }
+  });
+
+  it("hot-loads OpenAI when a direct account arrives after bootstrap", async () => {
+    const previous = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "pool-materialized-key";
+    const registerPlugin = vi.fn().mockResolvedValue(undefined);
+    try {
+      await ensureDoolittleDirectApiPlugins({
+        plugins: [],
+        registerPlugin,
+      });
+      expect(registerPlugin).toHaveBeenCalledOnce();
+      expect(registerPlugin.mock.calls[0]?.[0]).toMatchObject({
+        name: "openai",
+      });
     } finally {
       if (previous === undefined) delete process.env.OPENAI_API_KEY;
       else process.env.OPENAI_API_KEY = previous;

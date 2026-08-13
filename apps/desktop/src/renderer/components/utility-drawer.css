@@ -15,6 +15,24 @@
   border-bottom: 1px solid var(--border);
 }
 
+.utility-backdrop {
+  display: none;
+}
+
+@media (max-width: 940px) {
+  .utility-backdrop {
+    position: fixed;
+    z-index: 119;
+    inset: 0;
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    padding: 0;
+    background: color-mix(in srgb, var(--shadow) 24%, transparent);
+    border: 0;
+  }
+}
+
 .utility-drawer__lockup {
   display: flex;
   align-items: center;

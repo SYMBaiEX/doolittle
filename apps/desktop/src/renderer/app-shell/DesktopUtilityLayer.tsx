@@ -20,6 +20,7 @@ export interface DesktopUtilityLayerProps {
   openSections: ReadonlySet<NavigationSectionId>;
   utilityDrawerWidth: number;
   utilityRef: RefObject<HTMLElement | null>;
+  mobileModal: boolean;
   onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => void;
   onClose: () => void;
   onPreload: (view: View) => void;
@@ -34,6 +35,7 @@ export function DesktopUtilityLayer({
   openSections,
   utilityDrawerWidth,
   utilityRef,
+  mobileModal,
   onKeyDown,
   onClose,
   onPreload,
@@ -42,45 +44,58 @@ export function DesktopUtilityLayer({
   onResize,
 }: DesktopUtilityLayerProps) {
   return (
-    <div className="utility-layer">
-      <aside
-        aria-label="Tools and settings"
-        className="utility-drawer"
-        onKeyDown={onKeyDown}
-        ref={utilityRef}
-        tabIndex={-1}
-      >
-        <UtilityDrawer
-          activeView={activeView}
-          activity={activity}
-          onClose={onClose}
-          onPreload={onPreload}
-          onSelect={onSelect}
-          onToggleSection={(sectionId) =>
-            onToggleSection(sectionId as NavigationSectionId)
-          }
-          openSections={openSections}
-          sections={navigation.map((section) => ({
-            ...section,
-            items: section.items.map((item) => ({
-              ...item,
-              description: VIEW_DESCRIPTIONS[item.id],
-              icon: (
-                <Icon name={item.id === "gateway" ? "activity" : item.id} />
-              ),
-            })),
-          }))}
+    <>
+      {mobileModal ? (
+        <button
+          aria-label="Close tools and settings"
+          className="utility-backdrop"
+          onClick={onClose}
+          tabIndex={-1}
+          type="button"
+        />
+      ) : null}
+      <div className="utility-layer">
+        <aside
+          aria-label="Tools and settings"
+          aria-modal={mobileModal ? true : undefined}
+          className="utility-drawer"
+          onKeyDown={onKeyDown}
+          ref={utilityRef}
+          role="dialog"
+          tabIndex={-1}
         >
-          <PanelResizeHandle
-            bounds={UTILITY_DRAWER_WIDTH}
-            className="utility-drawer-resizer"
-            direction="grow-left"
-            label="Resize tools and settings panel"
-            onResize={onResize}
-            value={utilityDrawerWidth}
-          />
-        </UtilityDrawer>
-      </aside>
-    </div>
+          <UtilityDrawer
+            activeView={activeView}
+            activity={activity}
+            onClose={onClose}
+            onPreload={onPreload}
+            onSelect={onSelect}
+            onToggleSection={(sectionId) =>
+              onToggleSection(sectionId as NavigationSectionId)
+            }
+            openSections={openSections}
+            sections={navigation.map((section) => ({
+              ...section,
+              items: section.items.map((item) => ({
+                ...item,
+                description: VIEW_DESCRIPTIONS[item.id],
+                icon: (
+                  <Icon name={item.id === "gateway" ? "activity" : item.id} />
+                ),
+              })),
+            }))}
+          >
+            <PanelResizeHandle
+              bounds={UTILITY_DRAWER_WIDTH}
+              className="utility-drawer-resizer"
+              direction="grow-left"
+              label="Resize tools and settings panel"
+              onResize={onResize}
+              value={utilityDrawerWidth}
+            />
+          </UtilityDrawer>
+        </aside>
+      </div>
+    </>
   );
 }

@@ -717,6 +717,23 @@ export function App() {
   useEffect(() => {
     const sidebar = sidebarRef.current;
     const appMain = appMainRef.current;
+    if (!sidebar || !appMain || !isMobileSidebarMode || !utilityOpen) {
+      return;
+    }
+    sidebar.setAttribute("inert", "");
+    appMain.setAttribute("inert", "");
+    appMain.setAttribute("aria-hidden", "true");
+    return () => {
+      if (mobileSidebarOpen) return;
+      sidebar.removeAttribute("inert");
+      appMain.removeAttribute("inert");
+      appMain.removeAttribute("aria-hidden");
+    };
+  }, [isMobileSidebarMode, mobileSidebarOpen, utilityOpen]);
+
+  useEffect(() => {
+    const sidebar = sidebarRef.current;
+    const appMain = appMainRef.current;
     if (!sidebar || !appMain) return;
     if (!isMobileSidebarMode) {
       sidebar.removeAttribute("inert");
@@ -1299,6 +1316,7 @@ export function App() {
           openSections={openSections}
           utilityDrawerWidth={utilityDrawerWidth}
           utilityRef={utilityRef}
+          mobileModal={isMobileSidebarMode}
         />
       ) : null}
     </main>

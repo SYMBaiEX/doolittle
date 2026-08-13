@@ -1,5 +1,6 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import { syncProviderSettings } from "@/runtime/linked-provider-accounts";
+import { applyAccountPoolApiCredentials } from "@/runtime/native/account-pool";
 import { getEffectiveShellStatus } from "@/runtime/native/service-bridge/tooling";
 import {
   getTuiTheme,
@@ -174,16 +175,19 @@ export async function handleSettingsExecutionRoutes(
     const updatesModelRoute = changes.some((change) =>
       change.path.startsWith("model."),
     );
-    const applyChanges = () => {
+    const applyChanges = async () => {
       const next = context.services.settings.setMany(changes);
       if (updatesModelRoute) {
         syncProviderSettings(context, next);
+        await applyAccountPoolApiCredentials({
+          activeBackend: next.model.provider,
+        });
       }
       return next;
     };
     // Active turns read a request-local settings snapshot, so this persisted
     // route update takes effect immediately for future turns.
-    const settings = applyChanges();
+    const settings = await applyChanges();
     return json({
       settings,
     });
