@@ -8,6 +8,7 @@ import {
 } from "./desktop-route-prefetch";
 
 type RouteLoader = () => Promise<unknown>;
+type RegisteredRouteProps = Record<string, unknown>;
 type ComponentExportKey<Module> = {
   [Key in keyof Module]-?: Module[Key] extends ComponentType<infer _Props>
     ? Key
@@ -17,6 +18,10 @@ type RouteComponent<Module, Key extends keyof Module> =
   Module[Key] extends ComponentType<infer Props> ? ComponentType<Props> : never;
 
 const registeredRouteLoaders: Partial<Record<View, RouteLoader>> = {};
+const registeredRouteComponents: Partial<
+  Record<View, ComponentType<RegisteredRouteProps>>
+> = {};
+const registeredRouteResetters: Partial<Record<View, () => void>> = {};
 
 /** Register lazy rendering and module preloading from one loader declaration. */
 function lazyNamedRoute<Module extends object, Key extends keyof Module>(
@@ -24,17 +29,48 @@ function lazyNamedRoute<Module extends object, Key extends keyof Module>(
   load: () => Promise<Module>,
   exportName: Key & ComponentExportKey<Module>,
 ): LazyExoticComponent<RouteComponent<Module, Key>> {
-  for (const view of routeViews) registeredRouteLoaders[view] = load;
-  return lazy(async () => {
-    const module = await load();
-    const component = module[exportName];
-    if (typeof component !== "function") {
-      throw new Error(`Missing route component export: ${String(exportName)}`);
+  const createComponent = () =>
+    lazy(async () => {
+      const module = await load();
+      const component = module[exportName];
+      if (typeof component !== "function") {
+        throw new Error(
+          `Missing route component export: ${String(exportName)}`,
+        );
+      }
+      return { default: component } as {
+        default: RouteComponent<Module, Key>;
+      };
+    });
+  const component = createComponent();
+  const reset = () => {
+    const nextComponent =
+      createComponent() as unknown as ComponentType<RegisteredRouteProps>;
+    for (const view of routeViews) {
+      registeredRouteComponents[view] = nextComponent;
     }
-    return { default: component } as {
-      default: RouteComponent<Module, Key>;
-    };
-  });
+  };
+  for (const view of routeViews) {
+    registeredRouteLoaders[view] = load;
+    registeredRouteComponents[view] =
+      component as unknown as ComponentType<RegisteredRouteProps>;
+    registeredRouteResetters[view] = reset;
+  }
+  return component;
+}
+
+/** Return the current route component, including any post-failure reset. */
+export function getDesktopRouteComponent(
+  view: View,
+): ComponentType<RegisteredRouteProps> {
+  const component = registeredRouteComponents[view];
+  if (!component) throw new Error(`Missing desktop route component: ${view}`);
+  return component;
+}
+
+/** Replace a rejected lazy component so a user retry can request its chunk again. */
+export function resetDesktopRoute(view: View): void {
+  registeredRouteResetters[view]?.();
 }
 
 export const DashboardPage = lazyNamedRoute(

@@ -28,6 +28,7 @@ import { DesktopWindowTools } from "./app-shell/DesktopWindowTools";
 import { buildDesktopCommandGroups } from "./app-shell/desktop-command-groups";
 import {
   preloadDesktopRoute,
+  resetDesktopRoute,
   warmDesktopRoute,
 } from "./app-shell/desktop-route-registry";
 import { ActivityCenter } from "./components/ActivityCenter";
@@ -207,6 +208,7 @@ export function CommandPaletteLoadingFallback({
 export function App() {
   const initialConversation = useMemo(newConversationId, []);
   const [view, setViewState] = useState<View>(viewFromHash);
+  const [routeRetryNonce, setRouteRetryNonce] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteMounted, setPaletteMounted] = useState(false);
@@ -1302,7 +1304,11 @@ export function App() {
           <DesktopRouteErrorBoundary
             label={activeItem?.label ?? "View"}
             onReturnToChat={() => setView("chat")}
-            resetKey={`${view}\u0000${projectScope}\u0000${workspace.currentPath}`}
+            onRetry={() => {
+              resetDesktopRoute(view);
+              setRouteRetryNonce((current) => current + 1);
+            }}
+            resetKey={`${view}\u0000${projectScope}\u0000${workspace.currentPath}\u0000${routeRetryNonce}`}
           >
             <Suspense
               fallback={

@@ -34,8 +34,9 @@ describe("DesktopRouteErrorBoundary", () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
-      true;
+    (
+      globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -77,6 +78,15 @@ describe("DesktopRouteErrorBoundary", () => {
     });
   });
 
+  it("invokes the route reset hook before clearing a failed route", () => {
+    const onRetry = vi.fn();
+    const boundary = erroredBoundary({ onRetry });
+
+    act(() => (boundary as unknown as { retry: () => void }).retry());
+
+    expect(onRetry).toHaveBeenCalledOnce();
+  });
+
   it("catches a route render failure without requiring the root boundary", () => {
     function BrokenRoute(): ReactNode {
       throw new Error("route exploded");
@@ -87,11 +97,11 @@ describe("DesktopRouteErrorBoundary", () => {
         createElement(
           DesktopRouteErrorBoundary,
           {
-            children: createElement(BrokenRoute),
             label: "Connections",
             onReturnToChat: vi.fn(),
             resetKey: "connections",
-          },
+          } as unknown as DesktopRouteErrorBoundaryProps,
+          createElement(BrokenRoute),
         ),
       );
     });

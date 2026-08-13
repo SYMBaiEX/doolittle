@@ -11,6 +11,7 @@ export interface DesktopRouteErrorBoundaryProps {
   children: ReactNode;
   label: string;
   onReturnToChat: () => void;
+  onRetry?: () => void;
   resetKey: string;
 }
 
@@ -66,6 +67,7 @@ export class DesktopRouteErrorBoundary extends Component<
   }
 
   private retry = (): void => {
+    this.props.onRetry?.();
     this.setState({ componentStack: "", copied: false, error: null });
   };
 

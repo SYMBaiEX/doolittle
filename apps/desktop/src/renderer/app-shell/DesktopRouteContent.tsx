@@ -17,34 +17,7 @@ import {
   canRenderDesktopRoute,
   desktopRouteCapabilities,
 } from "./desktop-route-capabilities";
-import {
-  ActivityPage,
-  AnalyticsPage,
-  AutomationsPage,
-  BrowserPage,
-  ChatPage,
-  CodingWorkspacePage,
-  CompatibilityPage,
-  ConnectionsPage,
-  DashboardPage,
-  DocsPage,
-  GatewayPage,
-  KeysPage,
-  LogsPage,
-  MediaPage,
-  MemoryPage,
-  ModelsPage,
-  OrchestrationPage,
-  PluginsPage,
-  ProfilesPage,
-  RegistryPage,
-  RuntimePage,
-  SessionsPage,
-  SettingsPage,
-  SetupPage,
-  SkillsPage,
-  ToolsPage,
-} from "./desktop-route-registry";
+import { getDesktopRouteComponent } from "./desktop-route-registry";
 
 export interface DesktopRouteNavigation {
   setView: (view: View) => void;
@@ -121,18 +94,19 @@ export function DesktopRouteContent({
   workspacePath,
 }: DesktopRouteContentProps): ReactNode {
   const active = canRenderDesktopRoute(view, backend.phase);
+  const Route = getDesktopRouteComponent(view);
 
   switch (view) {
     case "dashboard":
       return (
-        <DashboardPage
+        <Route
           active={active}
           approvalsResource={approvalsResource}
           tasksResource={tasksResource}
           runtime={runtime}
           sessions={scopedSessions}
           refreshRuntime={refreshRuntime}
-          onOpenChat={(sessionId) => {
+          onOpenChat={(sessionId: string) => {
             if (sessionId) navigation.openSession(sessionId);
             else navigation.setView("chat");
           }}
@@ -144,7 +118,7 @@ export function DesktopRouteContent({
       );
     case "chat":
       return (
-        <ChatPage
+        <Route
           activeProject={activeProject}
           backend={backend}
           onChooseRepository={() =>
@@ -152,7 +126,7 @@ export function DesktopRouteContent({
           }
           onOpenProjectManager={navigation.openProjectManager}
           onRequestNewConversation={navigation.createConversation}
-          onSelectProjectForNewChat={(scope) =>
+          onSelectProjectForNewChat={(scope: ProjectScope) =>
             navigation.transitionToProjectScope(scope, selectedSession, "chat")
           }
           onSelect={navigation.selectSession}
@@ -175,7 +149,7 @@ export function DesktopRouteContent({
       );
     case "code":
       return (
-        <CodingWorkspacePage
+        <Route
           active={active}
           key={workspacePath || "local-workspace"}
           navigationIntent={pendingNavigationIntent}
@@ -190,9 +164,9 @@ export function DesktopRouteContent({
       );
     case "browser":
       return (
-        <BrowserPage
+        <Route
           active={active}
-          onSendToChat={(text) =>
+          onSendToChat={(text: string) =>
             navigation.openChatWithContext({
               text,
               workspacePath,
@@ -202,16 +176,16 @@ export function DesktopRouteContent({
         />
       );
     case "gateway":
-      return <GatewayPage active={active} />;
+      return <Route active={active} />;
     case "review":
     case "orchestration":
       return (
-        <OrchestrationPage
+        <Route
           active={active}
           key={`${workspacePath}\u0000${projectScope}`}
           navigationIntent={pendingNavigationIntent}
           onAcknowledgeNavigationIntent={navigation.consumeNavigationIntent}
-          onSectionChange={(section) => {
+          onSectionChange={(section: string) => {
             if (section === "review" && view !== "review") {
               navigation.setView("review");
             } else if (section !== "review" && view === "review") {
@@ -231,7 +205,7 @@ export function DesktopRouteContent({
       );
     case "sessions":
       return (
-        <SessionsPage
+        <Route
           active={active}
           openChat={navigation.openSession}
           onNewConversation={navigation.createConversation}
@@ -244,49 +218,49 @@ export function DesktopRouteContent({
         />
       );
     case "activity":
-      return <ActivityPage active={active} />;
+      return <Route active={active} />;
     case "analytics":
       return (
-        <AnalyticsPage
+        <Route
           active={active}
           onNewConversation={navigation.createConversation}
         />
       );
     case "media":
-      return <MediaPage active={active} />;
+      return <Route active={active} />;
     case "models":
       return (
-        <ModelsPage
+        <Route
           active={active}
           refreshRuntime={refreshRuntime}
           runtime={runtime}
         />
       );
     case "connections":
-      return <ConnectionsPage active={active} />;
+      return <Route active={active} />;
     case "tools":
-      return <ToolsPage active={active} />;
+      return <Route active={active} />;
     case "skills":
-      return <SkillsPage active={active} />;
+      return <Route active={active} />;
     case "plugins":
-      return <PluginsPage active={active} />;
+      return <Route active={active} />;
     case "memory":
-      return <MemoryPage active={active} />;
+      return <Route active={active} />;
     case "automations":
-      return <AutomationsPage active={active} />;
+      return <Route active={active} />;
     case "profiles":
-      return <ProfilesPage active={active} />;
+      return <Route active={active} />;
     case "logs":
-      return <LogsPage active={active} />;
+      return <Route active={active} />;
     case "settings":
-      return <SettingsPage active={active} />;
+      return <Route active={active} />;
     case "keys":
-      return <KeysPage active={active} />;
+      return <Route active={active} />;
     case "docs":
-      return <DocsPage active={active} />;
+      return <Route active={active} />;
     case "runtime":
       return (
-        <RuntimePage
+        <Route
           active={backend.phase === "ready" || backend.phase === "degraded"}
           readOnly={!desktopRouteCapabilities("runtime", backend.phase).writes}
           onOpenProviders={() => navigation.setView("connections")}
@@ -294,15 +268,15 @@ export function DesktopRouteContent({
       );
     case "compatibility":
       return (
-        <CompatibilityPage
+        <Route
           active={backend.phase === "ready" || backend.phase === "degraded"}
         />
       );
     case "registry":
-      return <RegistryPage active={active} />;
+      return <Route active={active} />;
     case "operatorSetup":
       return (
-        <SetupPage
+        <Route
           active={active}
           onOpenProviders={() => navigation.setView("connections")}
         />

@@ -7,7 +7,9 @@ import {
 } from "./desktop-route-prefetch";
 import {
   DESKTOP_ROUTE_PRELOADERS,
+  getDesktopRouteComponent,
   preloadDesktopRoute,
+  resetDesktopRoute,
 } from "./desktop-route-registry";
 
 const routeRegistrySource = readFileSync(
@@ -25,6 +27,14 @@ describe("desktop route preloaders", () => {
     for (const preloader of Object.values(DESKTOP_ROUTE_PRELOADERS)) {
       expect(preloader).toBeTypeOf("function");
     }
+  });
+
+  test("replaces a rejected lazy component so route retry can re-request it", () => {
+    const before = getDesktopRouteComponent("connections");
+
+    resetDesktopRoute("connections");
+
+    expect(getDesktopRouteComponent("connections")).not.toBe(before);
   });
 
   test("warms the default resource keys for latency-sensitive routes", () => {
