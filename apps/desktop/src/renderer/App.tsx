@@ -1230,7 +1230,13 @@ export function App() {
           data-view={view}
           key={view}
         >
-          <Suspense fallback={<DesktopRouteLoadingFallback />}>
+          <Suspense
+            fallback={
+              <DesktopRouteLoadingFallback
+                label={activeItem?.label ?? "view"}
+              />
+            }
+          >
             {content}
           </Suspense>
         </div>

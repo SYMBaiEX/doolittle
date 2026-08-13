@@ -16,7 +16,8 @@ describe("desktop view transitions", () => {
   });
 
   it("uses route-neutral lazy loading copy", () => {
-    expect(fallbackSource).toContain("Opening view…");
+    expect(fallbackSource).toContain('label = "view"');
+    expect(fallbackSource).toContain("Opening {label.toLowerCase()}…");
     expect(fallbackSource).not.toContain("Opening workspace");
   });
 });

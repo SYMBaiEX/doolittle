@@ -1,8 +1,12 @@
-export function DesktopRouteLoadingFallback() {
+export function DesktopRouteLoadingFallback({
+  label = "view",
+}: {
+  label?: string;
+}) {
   return (
     <div aria-live="polite" className="loading-block" role="status">
       <i aria-hidden="true" />
-      <span>Opening view…</span>
+      <span>Opening {label.toLowerCase()}…</span>
     </div>
   );
 }
