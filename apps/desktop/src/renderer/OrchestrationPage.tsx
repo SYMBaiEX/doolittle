@@ -69,6 +69,7 @@ export function OrchestrationPage({
   onAcknowledgeNavigationIntent,
   onSectionChange,
   onSendToChat,
+  onOpenWorkspaceFile,
   projectScope = "all",
   reviewMode = false,
   workspaceLabel,
@@ -79,6 +80,7 @@ export function OrchestrationPage({
   onAcknowledgeNavigationIntent: (id: string) => void;
   onSectionChange?: (section: WorkTabId) => void;
   onSendToChat: (request: ChatContextRequest) => void;
+  onOpenWorkspaceFile?: (path: string) => void;
   projectScope?: string;
   reviewMode?: boolean;
   workspaceLabel?: string;
@@ -714,6 +716,7 @@ export function OrchestrationPage({
             <ReviewPage
               active={active}
               embedded
+              onOpenWorkspaceFile={onOpenWorkspaceFile}
               onSendToChat={onSendToChat}
               projectScope={projectScope}
               workspacePath={workspacePath ?? ""}

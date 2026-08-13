@@ -63,6 +63,7 @@ export interface DesktopRouteNavigation {
   consumeNavigationIntent: (id: string) => void;
   openChatWithContext: (request: ChatContextRequest) => void;
   openProjectManager: () => void;
+  openWorkspaceFile: (path: string) => void;
 }
 
 export interface DesktopRouteContentProps {
@@ -215,6 +216,7 @@ export function DesktopRouteContent({
             }
           }}
           onSendToChat={navigation.openChatWithContext}
+          onOpenWorkspaceFile={navigation.openWorkspaceFile}
           projectScope={projectScope}
           reviewMode={view === "review"}
           workspaceLabel={

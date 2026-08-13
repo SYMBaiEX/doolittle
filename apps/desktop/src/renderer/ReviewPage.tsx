@@ -73,12 +73,14 @@ export function shouldShowReviewWorkspace(itemCount: number): boolean {
 export function ReviewPage({
   active,
   embedded = false,
+  onOpenWorkspaceFile,
   onSendToChat,
   projectScope,
   workspacePath,
 }: {
   active: boolean;
   embedded?: boolean;
+  onOpenWorkspaceFile?: (path: string) => void;
   onSendToChat: (request: ChatContextRequest) => void;
   projectScope: string;
   workspacePath: string;
@@ -685,7 +687,9 @@ export function ReviewPage({
             onDelete={(commentId) => void deleteComment(commentId)}
             onDraftChange={setCommentDraft}
             onOpenWorkspace={() => {
-              window.location.hash = "/code";
+              if (selected?.path) {
+                onOpenWorkspaceFile?.(selected.path);
+              }
             }}
             onSaveComment={() => void saveComment()}
             onSendFeedback={() => void sendReviewFeedback()}

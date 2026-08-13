@@ -83,6 +83,25 @@ describe("desktop content navigation", () => {
       }),
     );
   });
+
+  it("routes workspace search targets with the selected file path intact", async () => {
+    const coordinator = createNavigationTransitionCoordinator();
+    const actions = navigationActions();
+
+    await navigateGlobalSearchTarget(
+      { kind: "workspace", path: "src/renderer/App.tsx" },
+      coordinator,
+      actions,
+    );
+
+    expect(actions.setView).toHaveBeenCalledWith("code");
+    expect(actions.setNavigationIntent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "workspace-file",
+        target: { path: "src/renderer/App.tsx" },
+      }),
+    );
+  });
 });
 
 const projects = [

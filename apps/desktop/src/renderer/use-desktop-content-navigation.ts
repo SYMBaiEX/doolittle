@@ -315,6 +315,19 @@ export function useDesktopContentNavigation({
     );
   }, []);
 
+  const openWorkspaceFile = useCallback(
+    (path: string) => {
+      const normalizedPath = path.trim();
+      if (!normalizedPath) return;
+      closeUtilities();
+      setPendingNavigationIntent(
+        createWorkspaceFileNavigationIntent(normalizedPath),
+      );
+      setView("code");
+    },
+    [closeUtilities, setView],
+  );
+
   const globalSearch = useGlobalSearch(
     paletteQuery,
     paletteOpen && backendReady,
@@ -384,6 +397,7 @@ export function useDesktopContentNavigation({
     openActivityTarget,
     openChatWithContext,
     openSession,
+    openWorkspaceFile,
     pendingChatContext,
     pendingNavigationIntent,
     searchCommandGroups,
