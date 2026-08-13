@@ -397,7 +397,6 @@ export function App() {
       );
       setViewState(next);
       setMobileSidebarOpen(false);
-      if (next !== "chat") closeChatTerminal();
       if (isMobileSidebarMode) closeUtilities();
       const section = navigation.find((entry) =>
         entry.items.some((item) => item.id === next),
@@ -413,7 +412,6 @@ export function App() {
     [
       backend.phase,
       closeUtilities,
-      closeChatTerminal,
       isMobileSidebarMode,
       codeWorkspaceDirty,
       view,
@@ -818,7 +816,7 @@ export function App() {
 
   useEffect(() => {
     const onChatTerminalKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (view !== "chat" || !isChatTerminalShortcut(event)) return;
+      if (!isChatTerminalShortcut(event)) return;
       event.preventDefault();
       event.stopPropagation();
       toggleChatTerminal();
@@ -826,7 +824,7 @@ export function App() {
     window.addEventListener("keydown", onChatTerminalKeyDown, true);
     return () =>
       window.removeEventListener("keydown", onChatTerminalKeyDown, true);
-  }, [toggleChatTerminal, view]);
+  }, [toggleChatTerminal]);
 
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -906,7 +904,7 @@ export function App() {
             toggleNavigation();
             break;
           case "toggle-terminal":
-            if (view === "chat") toggleChatTerminal();
+            toggleChatTerminal();
             break;
           case "toggle-inspector":
             toggleInspector();
@@ -920,7 +918,6 @@ export function App() {
       toggleChatTerminal,
       toggleInspector,
       toggleNavigation,
-      view,
     ],
   );
 
@@ -1064,11 +1061,6 @@ export function App() {
         onSwitchRecentWorkspace: switchToRecentWorkspace,
         onToggleAppearance: toggleAppearance,
         onToggleTerminal: () => {
-          if (view !== "chat") {
-            setView("chat");
-            openChatTerminal();
-            return;
-          }
           toggleChatTerminal();
         },
         onToggleNavigation: toggleNavigation,
@@ -1081,7 +1073,7 @@ export function App() {
         searchCommandGroups,
         sessionsCount: sessions.length,
         sidebarSessions,
-        terminalOpen: view === "chat" && chatTerminalOpen,
+        terminalOpen: chatTerminalOpen,
         workspacePath: workspace.currentPath,
       }),
     [
@@ -1090,7 +1082,6 @@ export function App() {
       createConversation,
       navCollapsed,
       openProjectManager,
-      openChatTerminal,
       openSession,
       paletteQuery,
       projectCards,
@@ -1107,7 +1098,6 @@ export function App() {
       toggleChatTerminal,
       toggleNavigation,
       chatTerminalOpen,
-      view,
       workspace.currentPath,
       workspace.recentPaths,
     ],
@@ -1125,6 +1115,7 @@ export function App() {
         consumeNavigationIntent,
         createConversation,
         openChatWithContext,
+        openChatTerminal,
         openProjectManager,
         openSession,
         openWorkspaceFile,
@@ -1328,7 +1319,7 @@ export function App() {
             </Suspense>
           </DesktopRouteErrorBoundary>
         </div>
-        {view === "chat" && chatTerminalMounted ? (
+        {chatTerminalMounted ? (
           <Suspense fallback={null}>
             <ChatTerminalPanel
               active={backend.phase === "ready"}

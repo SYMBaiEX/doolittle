@@ -7,7 +7,6 @@ import type {
 import type { WorkspacePickResult } from "../../shared/contracts";
 import { ExecutionEnvironmentPanel } from "../components/ExecutionEnvironmentPanel";
 import { GitControlPanel } from "../components/GitControlPanel";
-import { InteractiveTerminal } from "../components/InteractiveTerminal";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
 import {
   type ApiResource,
@@ -34,9 +33,7 @@ import { PaneTabs } from "./PaneTabs";
 
 export function CodingWorkspaceUtility({
   active,
-  workspacePath,
   summary,
-  summaryLoading,
   utilityPane,
   onUtilityPaneChange,
   width,
@@ -50,14 +47,12 @@ export function CodingWorkspaceUtility({
   conflictsResource,
   worktreeResource,
   onRefresh,
-  onSendToChat,
   onChooseWorkspace,
   onOpenWorkspacePath,
+  onOpenTerminal,
 }: {
   active: boolean;
-  workspacePath: string;
   summary: RepositorySummary;
-  summaryLoading: boolean;
   utilityPane: UtilityPane;
   onUtilityPaneChange: (value: UtilityPane) => void;
   width: number;
@@ -71,9 +66,9 @@ export function CodingWorkspaceUtility({
   conflictsResource: ApiResource<RepositoryConflictsResponse>;
   worktreeResource: ApiResource<RepositoryWorktreesResponse>;
   onRefresh: () => void;
-  onSendToChat: (text: string) => void;
   onChooseWorkspace: () => Promise<WorkspacePickResult>;
   onOpenWorkspacePath: (path: string) => Promise<WorkspacePickResult>;
+  onOpenTerminal: () => void;
 }) {
   return (
     <aside className="coding-pane coding-utility">
@@ -102,15 +97,22 @@ export function CodingWorkspaceUtility({
       />
       <div className="coding-pane-body" role="tabpanel">
         {utilityPane === "terminal" ? (
-          summaryLoading && !summary.root ? (
-            <LoadingBlock label="Connecting terminal to workspace…" />
-          ) : (
-            <InteractiveTerminal
-              active={active}
-              onSendToChat={onSendToChat}
-              workspacePath={summary.root || workspacePath || ""}
-            />
-          )
+          <EmptyBlock
+            actions={
+              <button
+                className="primary-button"
+                onClick={onOpenTerminal}
+                type="button"
+              >
+                Open persistent terminal
+              </button>
+            }
+            density="compact"
+            title="Terminal lives with Chat"
+          >
+            Use the shared Chat terminal for this workspace. It stays open while
+            you switch between Chat, Code, and Work.
+          </EmptyBlock>
         ) : null}
 
         {utilityPane === "commits" ? (

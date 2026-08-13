@@ -63,6 +63,7 @@ describe("configuration routes when the local runtime is inactive", () => {
           navigationIntent={null}
           onAcknowledgeNavigationIntent={() => undefined}
           onChooseWorkspace={pickWorkspace}
+          onOpenChatTerminal={() => undefined}
           onOpenWorkspacePath={pickWorkspace}
           onSendToChat={() => undefined}
           projectScope="all"
@@ -97,6 +98,7 @@ describe("configuration routes when the local runtime is inactive", () => {
         navigationIntent={null}
         onAcknowledgeNavigationIntent={() => undefined}
         onChooseWorkspace={pickWorkspace}
+        onOpenChatTerminal={() => undefined}
         onOpenWorkspacePath={pickWorkspace}
         onSendToChat={() => undefined}
         projectScope="all"

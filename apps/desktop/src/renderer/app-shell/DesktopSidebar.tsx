@@ -178,7 +178,6 @@ export function DesktopSidebar({
         </div>
         <ProjectHistorySidebar
           activeScope={projectScope}
-          isChatView={view === "chat"}
           onChooseRepository={onChooseRepository}
           onManageProjects={onManageProjects}
           onOpenSession={onOpenSession}

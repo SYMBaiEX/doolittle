@@ -36,7 +36,6 @@ export interface ProjectHistorySidebarProps {
   sessions: readonly SessionSummary[];
   activeScope: ProjectScope;
   selectedSessionId: string;
-  isChatView: boolean;
   onSelectScope: (scope: ProjectScope) => void;
   onOpenSession: (sessionId: string) => void;
   onStartConversation: (scope: ProjectScope) => void;
@@ -50,7 +49,6 @@ export function ProjectHistorySidebar({
   sessions,
   activeScope,
   selectedSessionId,
-  isChatView,
   onSelectScope,
   onOpenSession,
   onStartConversation,
@@ -116,7 +114,6 @@ export function ProjectHistorySidebar({
     chatCount: number,
   ) => {
     const hasCurrentDraft =
-      isChatView &&
       activeScope === scope &&
       Boolean(selectedSessionId) &&
       !sessions.some((session) => session.sessionId === selectedSessionId);
@@ -147,8 +144,7 @@ export function ProjectHistorySidebar({
       <>
         {draft}
         {entries.map((session) => {
-          const selected =
-            isChatView && selectedSessionId === session.sessionId;
+          const selected = selectedSessionId === session.sessionId;
           const pinned = Boolean(pinnedSessions[session.sessionId]);
           return (
             <div
@@ -247,7 +243,7 @@ export function ProjectHistorySidebar({
           </button>
           <small className="project-rail-count">{chatCount}</small>
         </div>
-        {isChatView && isExpanded ? (
+        {isExpanded ? (
           <div className="project-rail-chats">
             {renderSessions(chats, project.id, chatCount)}
           </div>
@@ -257,10 +253,7 @@ export function ProjectHistorySidebar({
   };
 
   return (
-    <section
-      aria-labelledby="sidebar-projects"
-      className={`sidebar-projects ${isChatView ? "" : "sidebar-projects--workspace"}`}
-    >
+    <section aria-labelledby="sidebar-projects" className="sidebar-projects">
       <div className="sidebar-projects__heading">
         <span id="sidebar-projects">
           Projects<small>{model.projects.length}</small>
@@ -288,19 +281,15 @@ export function ProjectHistorySidebar({
         aria-current={activeScope === "all" ? "page" : undefined}
         className={`project-rail-all ${activeScope === "all" ? "is-active" : ""}`}
         onClick={() => onSelectScope("all")}
-        title={isChatView ? "All conversations" : "All projects"}
+        title="All conversations"
         type="button"
       >
         <span aria-hidden="true">◷</span>
         <span>
-          <strong>{isChatView ? "All conversations" : "All projects"}</strong>
-          <em>
-            {isChatView
-              ? "Browse recent and pinned chats"
-              : "Change the active workspace"}
-          </em>
+          <strong>All conversations</strong>
+          <em>Browse recent and pinned chats</em>
         </span>
-        <small>{isChatView ? sessions.length : model.projects.length}</small>
+        <small>{sessions.length}</small>
       </button>
       <div className="sidebar-projects__list">
         {model.projects.map(({ project, sessions: chats, chatCount }) =>
@@ -357,7 +346,7 @@ export function ProjectHistorySidebar({
                 {model.unscopedChatCount}
               </small>
             </div>
-            {isChatView && expanded.has("unscoped") ? (
+            {expanded.has("unscoped") ? (
               <div className="project-rail-chats">
                 {renderSessions(
                   model.unscopedSessions,

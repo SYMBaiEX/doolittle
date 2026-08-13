@@ -27,6 +27,7 @@ export interface DesktopRouteNavigation {
     targetSessionId?: string,
   ) => void | Promise<void>;
   createConversation: () => void;
+  openChatTerminal: () => void;
   transitionToProjectScope: (
     scope: ProjectScope,
     sessionId: string,
@@ -157,6 +158,7 @@ export function DesktopRouteContent({
           onAcknowledgeNavigationIntent={navigation.consumeNavigationIntent}
           onChooseWorkspace={onChooseWorkspace}
           onOpenWorkspacePath={onOpenWorkspacePath}
+          onOpenChatTerminal={navigation.openChatTerminal}
           onDirtyChange={onCodeWorkspaceDirtyChange}
           onSendToChat={navigation.openChatWithContext}
           projectScope={projectScope}

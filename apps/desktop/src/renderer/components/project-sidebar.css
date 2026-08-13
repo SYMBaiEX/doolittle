@@ -400,21 +400,6 @@
   transition: transform 120ms var(--ease-out);
 }
 
-.sidebar-projects--workspace .project-rail-disclosure,
-.sidebar-projects--workspace .project-rail-new,
-.sidebar-projects--workspace .project-rail-count {
-  display: none;
-}
-
-.sidebar-projects--workspace .project-rail-row {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.sidebar-projects--workspace .project-rail-main {
-  min-height: 42px;
-  padding-inline: 8px;
-}
-
 .project-rail-disclosure[aria-expanded="true"] > span {
   transform: rotate(90deg);
 }

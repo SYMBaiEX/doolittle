@@ -51,7 +51,6 @@ describe("ProjectHistorySidebar", () => {
       root.render(
         <ProjectHistorySidebar
           activeScope="repo"
-          isChatView
           onChooseRepository={vi.fn()}
           onManageProjects={vi.fn()}
           onOpenSession={onOpenSession}
@@ -85,7 +84,6 @@ describe("ProjectHistorySidebar", () => {
       root.render(
         <ProjectHistorySidebar
           activeScope="repo"
-          isChatView
           onChooseRepository={vi.fn()}
           onManageProjects={vi.fn()}
           onOpenSession={vi.fn()}

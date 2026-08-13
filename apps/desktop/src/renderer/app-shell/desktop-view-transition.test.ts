@@ -14,7 +14,11 @@ describe("desktop view transitions", () => {
     expect(appSource).toContain(
       "if (!applyViewTransition(next) && window.location.hash",
     );
-    expect(appSource).toContain('if (next !== "chat") closeChatTerminal();');
+    expect(appSource).not.toContain(
+      'if (next !== "chat") closeChatTerminal();',
+    );
+    expect(appSource).toContain("{chatTerminalMounted ? (");
+    expect(appSource).toContain("if (!isChatTerminalShortcut(event)) return;");
     expect(appSource).toContain("if (isMobileSidebarMode) closeUtilities();");
   });
 

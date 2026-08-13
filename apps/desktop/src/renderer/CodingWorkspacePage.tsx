@@ -93,6 +93,7 @@ export function CodingWorkspacePage({
   onAcknowledgeNavigationIntent,
   onChooseWorkspace,
   onOpenWorkspacePath,
+  onOpenChatTerminal,
   onSendToChat,
   onDirtyChange,
   projectScope,
@@ -103,6 +104,7 @@ export function CodingWorkspacePage({
   onAcknowledgeNavigationIntent: (id: string) => void;
   onChooseWorkspace: () => Promise<WorkspacePickResult>;
   onOpenWorkspacePath: (path: string) => Promise<WorkspacePickResult>;
+  onOpenChatTerminal: () => void;
   onSendToChat: (request: ChatContextRequest) => void;
   onDirtyChange?: (dirty: boolean) => void;
   projectScope: ProjectScope;
@@ -125,7 +127,7 @@ export function CodingWorkspacePage({
   );
   const [leftPane, setLeftPane] = useState<LeftPane>("files");
   const [editorPane, setEditorPane] = useState<EditorPane>("file");
-  const [utilityPane, setUtilityPane] = useState<UtilityPane>("terminal");
+  const [utilityPane, setUtilityPane] = useState<UtilityPane>("source-control");
   const [selectedPath, setSelectedPath] = useState("");
   const [stagedPatch, setStagedPatch] = useState(false);
   const [searchDraft, setSearchDraft] = useState("");
@@ -538,6 +540,11 @@ export function CodingWorkspacePage({
     await submitAcpEditorTask(event, acpEditor.prompt, acpTaskDraft);
   };
 
+  const handleUtilityPaneChange = (nextPane: UtilityPane) => {
+    setUtilityPane(nextPane);
+    if (nextPane === "terminal") onOpenChatTerminal();
+  };
+
   if (!active) {
     return (
       <div className={`page coding-workspace-page ${zenMode ? "zen" : ""}`}>
@@ -683,24 +690,16 @@ export function CodingWorkspacePage({
             logResource={logResource}
             onChooseWorkspace={onChooseWorkspace}
             onOpenWorkspacePath={onOpenWorkspacePath}
+            onOpenTerminal={onOpenChatTerminal}
             onRefresh={refreshAll}
             onResize={setUtilityWidth}
-            onSendToChat={(text) =>
-              onSendToChat({
-                text,
-                workspacePath: summary.root || workspacePath || "",
-                projectScope,
-              })
-            }
             remotesResource={remotesResource}
             stashesResource={stashesResource}
             summary={summary}
-            summaryLoading={summaryResource.loading}
             utilityPane={utilityPane}
-            onUtilityPaneChange={setUtilityPane}
+            onUtilityPaneChange={handleUtilityPaneChange}
             width={utilityWidth}
             worktreeResource={worktreeResource}
-            workspacePath={workspacePath}
           />
         ) : null}
       </div>
