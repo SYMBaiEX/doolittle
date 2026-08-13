@@ -111,6 +111,56 @@ describe("provider account surfaces", () => {
     );
   });
 
+  it("does not let route selection hide an unavailable provider", () => {
+    const unavailable = renderToStaticMarkup(
+      <ProviderConnectionRow
+        busy={false}
+        descriptor={{
+          key: "codex",
+          label: "Codex",
+          shortLabel: "CX",
+          accountSignIn: true,
+        }}
+        isDefault
+        onCancelSignIn={noop}
+        onConnect={noop}
+        onSetDefault={noop}
+        onSignIn={noop}
+        onSubmitCode={noop}
+        ready={false}
+        status={{}}
+      />,
+    );
+
+    expect(unavailable).toContain("Needs sign-in");
+    expect(unavailable).not.toContain(">Default<");
+  });
+
+  it("labels a ready selected provider as in use", () => {
+    const inUse = renderToStaticMarkup(
+      <ProviderConnectionRow
+        busy={false}
+        descriptor={{
+          key: "codex",
+          label: "Codex",
+          shortLabel: "CX",
+          accountSignIn: true,
+        }}
+        isDefault
+        onCancelSignIn={noop}
+        onConnect={noop}
+        onSetDefault={noop}
+        onSignIn={noop}
+        onSubmitCode={noop}
+        ready
+        status={{ nativeReady: true }}
+      />,
+    );
+
+    expect(inUse).toContain("In use");
+    expect(inUse).not.toContain(">Default<");
+  });
+
   it("renders an explicit unavailable pool instead of an indefinite spinner", () => {
     const markup = renderToStaticMarkup(
       <AccountPoolPanel

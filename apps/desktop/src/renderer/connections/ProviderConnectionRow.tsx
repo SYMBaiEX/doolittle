@@ -52,10 +52,12 @@ export function ProviderConnectionRow({
   const fallbackReady = Boolean(status.fallbackReady) && !nativeReady;
   const needsCodeSubmission =
     Boolean(authState?.needsCodeSubmission) && !authState?.codeSubmitted;
-  const stateLabel = isDefault
-    ? "Default"
+  const stateLabel = signingIn
+    ? "Signing in"
     : nativeReady
-      ? "Ready"
+      ? isDefault
+        ? "In use"
+        : "Ready"
       : fallbackReady
         ? "CLI fallback"
         : "Needs sign-in";
@@ -127,6 +129,7 @@ export function ProviderConnectionRow({
             onClick: () => onCancelSignIn(authProvider),
           }
         : null;
+  const badgeTone = nativeReady ? (isDefault ? "good" : "neutral") : "warn";
 
   return (
     <article
@@ -142,9 +145,7 @@ export function ProviderConnectionRow({
       <div className="provider-connection-copy">
         <div className="provider-connection-title">
           <h3>{descriptor.label}</h3>
-          <Badge tone={isDefault ? "good" : nativeReady ? "neutral" : "warn"}>
-            {stateLabel}
-          </Badge>
+          <Badge tone={badgeTone}>{stateLabel}</Badge>
         </div>
         <div
           className={`provider-connection-status-line ${signingIn ? "is-pending" : fallbackReady ? "is-fallback" : ready ? "is-ready" : "is-offline"}`}
