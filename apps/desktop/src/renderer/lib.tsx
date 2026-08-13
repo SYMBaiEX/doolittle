@@ -14,6 +14,12 @@ export { desktopRequest } from "./eliza-client";
 
 export type UnknownRecord = Record<string, unknown>;
 export type NoticeTone = "neutral" | "good" | "warn" | "bad";
+export type ApiResourceStatus =
+  | "disabled"
+  | "loading"
+  | "ready"
+  | "refreshing"
+  | "error";
 export interface ActionFeedback {
   message: string;
   tone: NoticeTone;
@@ -25,6 +31,10 @@ export interface ApiResource<T> {
   error: string;
   loading: boolean;
   reload: () => void;
+  /** Rich lifecycle fields are optional so existing consumers remain source-compatible. */
+  status?: ApiResourceStatus;
+  isValidating?: boolean;
+  hasData?: boolean;
 }
 
 function cacheDependency(value: unknown, index: number): string {
@@ -120,6 +130,17 @@ export function useApiResource<T>(
     error: resource.status === "error" ? errorMessage(resource.error) : "",
     loading: Boolean(path) && resource.status === "loading",
     reload: resource.refetch,
+    status: !path
+      ? "disabled"
+      : resource.status === "loading"
+        ? "loading"
+        : resource.status === "error"
+          ? "error"
+          : resource.isValidating
+            ? "refreshing"
+            : "ready",
+    isValidating: resource.isValidating,
+    hasData: resource.status === "success" && resource.data != null,
   };
 }
 

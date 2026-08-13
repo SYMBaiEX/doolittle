@@ -1,0 +1,78 @@
+.resource-status-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-height: 32px;
+  padding: 6px 9px;
+  color: var(--text-soft);
+  font-size: 11px;
+  line-height: 1.3;
+  background: color-mix(in srgb, var(--surface-soft) 68%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.resource-status-bar__indicator {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--good);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--good) 14%, transparent);
+}
+
+.resource-status-bar__indicator--loading,
+.resource-status-bar__indicator--refreshing {
+  background: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.resource-status-bar__indicator--error {
+  background: var(--bad);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bad) 14%, transparent);
+}
+
+.resource-status-bar__indicator--disabled {
+  background: var(--faint);
+  box-shadow: none;
+}
+
+.resource-status-bar__counts {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.resource-status-bar > .text-button {
+  margin-left: auto;
+  min-height: 24px;
+  padding: 2px 5px;
+  color: var(--accent-hover);
+  font-size: 10px;
+}
+
+.resource-status-bar > .text-button + .text-button {
+  margin-left: 0;
+}
+
+@media (max-width: 640px) {
+  .resource-status-bar {
+    align-items: flex-start;
+  }
+
+  .resource-status-bar__counts {
+    flex-basis: 100%;
+    padding-left: 13px;
+  }
+
+  .resource-status-bar > .text-button {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resource-status-bar__indicator {
+    transition: none;
+  }
+}
