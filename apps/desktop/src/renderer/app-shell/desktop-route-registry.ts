@@ -179,11 +179,14 @@ function completeRouteLoaderRegistry(): Readonly<Record<View, RouteLoader>> {
 export const DESKTOP_ROUTE_PRELOADERS = completeRouteLoaderRegistry();
 
 /** Warm the route module and its first-view resources once navigation commits. */
-export async function warmDesktopRoute(view: View): Promise<void> {
+export async function warmDesktopRoute(
+  view: View,
+  runtimeReady = true,
+): Promise<void> {
   cancelDesktopRouteResourcePrefetchIntent();
   await Promise.all([
     DESKTOP_ROUTE_PRELOADERS[view](),
-    prefetchDesktopRouteResources(view),
+    prefetchDesktopRouteResources(view, runtimeReady),
   ]);
 }
 
@@ -191,7 +194,7 @@ export async function warmDesktopRoute(view: View): Promise<void> {
  * Preload the route module immediately for exploratory focus and hover intent.
  * Resource data waits for a sustained dwell, preventing incidental API bursts.
  */
-export function preloadDesktopRoute(view: View): void {
+export function preloadDesktopRoute(view: View, runtimeReady = true): void {
   void DESKTOP_ROUTE_PRELOADERS[view]().catch(() => undefined);
-  scheduleDesktopRouteResourcePrefetch(view);
+  scheduleDesktopRouteResourcePrefetch(view, runtimeReady);
 }

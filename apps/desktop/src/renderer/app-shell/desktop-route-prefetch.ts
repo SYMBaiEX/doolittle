@@ -88,7 +88,14 @@ export function cancelDesktopRouteResourcePrefetchIntent(): void {
  * requests. Committed navigation uses `prefetchDesktopRouteResources`
  * directly and remains immediate.
  */
-export function scheduleDesktopRouteResourcePrefetch(view: View): void {
+export function scheduleDesktopRouteResourcePrefetch(
+  view: View,
+  runtimeReady = true,
+): void {
+  if (!runtimeReady) {
+    cancelDesktopRouteResourcePrefetchIntent();
+    return;
+  }
   if (pendingDesktopRoutePrefetchIntent?.view === view) return;
 
   cancelDesktopRouteResourcePrefetchIntent();
@@ -103,7 +110,11 @@ export function scheduleDesktopRouteResourcePrefetch(view: View): void {
   pendingDesktopRoutePrefetchIntent = intent;
 }
 
-export async function prefetchDesktopRouteResources(view: View): Promise<void> {
+export async function prefetchDesktopRouteResources(
+  view: View,
+  runtimeReady = true,
+): Promise<void> {
+  if (!runtimeReady) return;
   const resources = DESKTOP_ROUTE_RESOURCE_PREFETCHES[view] ?? [];
   await Promise.all(
     resources.map(({ dependencies, path }) =>

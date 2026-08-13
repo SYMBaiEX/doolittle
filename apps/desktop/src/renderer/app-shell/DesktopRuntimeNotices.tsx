@@ -16,7 +16,13 @@ export function DesktopRuntimeNotices({
   return (
     <>
       {backend.phase === "degraded" ? (
-        <div className="runtime-banner">
+        <div
+          aria-atomic="true"
+          aria-label="Local runtime unavailable"
+          aria-live="polite"
+          className="runtime-banner"
+          role="status"
+        >
           <div>
             <strong>The local runtime is unavailable.</strong>
             <span>{backend.detail || backend.message}</span>
@@ -27,7 +33,12 @@ export function DesktopRuntimeNotices({
         </div>
       ) : null}
       {globalError ? (
-        <div className="global-error">
+        <div
+          aria-atomic="true"
+          aria-label="Application error"
+          className="global-error"
+          role="alert"
+        >
           <span>{globalError}</span>
           <button onClick={onRefresh} type="button">
             Retry

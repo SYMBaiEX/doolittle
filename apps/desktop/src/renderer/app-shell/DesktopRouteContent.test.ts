@@ -59,7 +59,7 @@ describe("desktop route preloaders", () => {
       "void DESKTOP_ROUTE_PRELOADERS[view]().catch(() => undefined)",
     );
     expect(routeRegistrySource).toContain(
-      "scheduleDesktopRouteResourcePrefetch(view)",
+      "scheduleDesktopRouteResourcePrefetch(view, runtimeReady)",
     );
     expect(routeRegistrySource).not.toMatch(
       /function preloadDesktopRoute[\s\S]*?warmDesktopRoute\(view\)/u,

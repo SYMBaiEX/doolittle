@@ -50,6 +50,16 @@ describe("desktop route resource prefetch", () => {
     expect(prefetchApiResource).not.toHaveBeenCalled();
   });
 
+  test("does not call runtime APIs before the runtime is ready", async () => {
+    vi.useFakeTimers();
+
+    await prefetchDesktopRouteResources("dashboard", false);
+    scheduleDesktopRouteResourcePrefetch("dashboard", false);
+    await vi.advanceTimersByTimeAsync(DESKTOP_ROUTE_PREFETCH_DWELL_MS);
+
+    expect(prefetchApiResource).not.toHaveBeenCalled();
+  });
+
   test("waits for a sustained intent before warming route data", async () => {
     vi.useFakeTimers();
 

@@ -373,7 +373,9 @@ export function App() {
 
   const applyViewTransition = useCallback(
     (next: View) => {
-      void warmDesktopRoute(next).catch(() => undefined);
+      void warmDesktopRoute(next, backend.phase === "ready").catch(
+        () => undefined,
+      );
       setViewState(next);
       setMobileSidebarOpen(false);
       if (next !== "chat") closeChatTerminal();
@@ -388,7 +390,12 @@ export function App() {
         });
       }
     },
-    [closeChatTerminal, isMobileSidebarMode, setMobileSidebarOpen],
+    [
+      backend.phase,
+      closeChatTerminal,
+      isMobileSidebarMode,
+      setMobileSidebarOpen,
+    ],
   );
 
   const setView = useCallback(
@@ -894,6 +901,17 @@ export function App() {
   const projectScopeLabel =
     activeProject?.name ??
     (projectScope === "unscoped" ? "General" : "All projects");
+  const routeWarmReadyRef = useRef(false);
+  useEffect(() => {
+    const runtimeReady = backend.phase === "ready";
+    if (!runtimeReady) {
+      routeWarmReadyRef.current = false;
+      return;
+    }
+    if (routeWarmReadyRef.current) return;
+    routeWarmReadyRef.current = true;
+    void warmDesktopRoute(view, true).catch(() => undefined);
+  }, [backend.phase, view]);
   useEffect(() => {
     document.title = `${activeItem?.label ?? "Desktop"} — Doolittle`;
   }, [activeItem?.label]);
@@ -1169,7 +1187,9 @@ export function App() {
         onManageProjects={openProjectManager}
         onStartConversation={startConversation}
         onOpenSession={openSession}
-        onPreloadView={preloadDesktopRoute}
+        onPreloadView={(next) =>
+          preloadDesktopRoute(next, backend.phase === "ready")
+        }
         onSelectScope={selectProjectScope}
         onViewAll={() => setView("sessions")}
         onSetView={setView}
@@ -1276,7 +1296,9 @@ export function App() {
           }
           onClose={closeUtilities}
           onKeyDown={handleUtilityKeyDown}
-          onPreload={preloadDesktopRoute}
+          onPreload={(next) =>
+            preloadDesktopRoute(next, backend.phase === "ready")
+          }
           onResize={setUtilityDrawerWidth}
           onSelect={setView}
           onToggleSection={toggleSection}
