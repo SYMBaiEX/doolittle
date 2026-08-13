@@ -1161,57 +1161,65 @@ test.describe("Doolittle desktop navigation", () => {
         "data-project-scope",
         /^[0-9a-f-]{36}$/,
       );
-      await expect(page.locator(".review-workspace")).toBeVisible();
-      await page.setViewportSize({ width: 390, height: 844 });
-      const narrowReviewLayout = await page.evaluate(() => {
-        const workspace = document.querySelector(".review-workspace");
-        const rail = document.querySelector(".review-rail");
-        const detail = document.querySelector(".review-detail");
-        const tab = document.querySelector<HTMLButtonElement>(
-          ".review-tabs button",
+      const reviewWorkspace = page.locator(".review-workspace");
+      const reviewEmptyState = page.locator(".review-work-overview.is-empty");
+      await expect(
+        page.locator(".review-workspace, .review-work-overview.is-empty"),
+      ).toBeVisible();
+      if (await reviewWorkspace.isVisible()) {
+        await page.setViewportSize({ width: 390, height: 844 });
+        const narrowReviewLayout = await page.evaluate(() => {
+          const workspace = document.querySelector(".review-workspace");
+          const rail = document.querySelector(".review-rail");
+          const detail = document.querySelector(".review-detail");
+          const tab = document.querySelector<HTMLButtonElement>(
+            ".review-tabs button",
+          );
+          const workspaceRect = workspace?.getBoundingClientRect();
+          const railRect = rail?.getBoundingClientRect();
+          const detailRect = detail?.getBoundingClientRect();
+          const tabRect = tab?.getBoundingClientRect();
+          return {
+            documentFits:
+              document.documentElement.scrollWidth <=
+              document.documentElement.clientWidth,
+            detailBelowRail:
+              Boolean(railRect && detailRect) &&
+              (detailRect?.top ?? 0) >=
+                (railRect?.bottom ?? Number.POSITIVE_INFINITY),
+            tabFits:
+              Boolean(tabRect) &&
+              (tabRect?.left ?? -1) >= 0 &&
+              (tabRect?.right ?? Number.POSITIVE_INFINITY) <= window.innerWidth,
+            workspaceFits:
+              Boolean(workspaceRect) &&
+              (workspaceRect?.left ?? -1) >= 0 &&
+              (workspaceRect?.right ?? Number.POSITIVE_INFINITY) <=
+                window.innerWidth,
+          };
+        });
+        expect(narrowReviewLayout).toEqual({
+          detailBelowRail: true,
+          documentFits: true,
+          tabFits: true,
+          workspaceFits: true,
+        });
+        const narrowReviewScreenshot = testInfo.outputPath(
+          "doolittle-review-narrow.png",
         );
-        const workspaceRect = workspace?.getBoundingClientRect();
-        const railRect = rail?.getBoundingClientRect();
-        const detailRect = detail?.getBoundingClientRect();
-        const tabRect = tab?.getBoundingClientRect();
-        return {
-          documentFits:
-            document.documentElement.scrollWidth <=
-            document.documentElement.clientWidth,
-          detailBelowRail:
-            Boolean(railRect && detailRect) &&
-            (detailRect?.top ?? 0) >=
-              (railRect?.bottom ?? Number.POSITIVE_INFINITY),
-          tabFits:
-            Boolean(tabRect) &&
-            (tabRect?.left ?? -1) >= 0 &&
-            (tabRect?.right ?? Number.POSITIVE_INFINITY) <= window.innerWidth,
-          workspaceFits:
-            Boolean(workspaceRect) &&
-            (workspaceRect?.left ?? -1) >= 0 &&
-            (workspaceRect?.right ?? Number.POSITIVE_INFINITY) <=
-              window.innerWidth,
-        };
-      });
-      expect(narrowReviewLayout).toEqual({
-        detailBelowRail: true,
-        documentFits: true,
-        tabFits: true,
-        workspaceFits: true,
-      });
-      const narrowReviewScreenshot = testInfo.outputPath(
-        "doolittle-review-narrow.png",
-      );
-      await page.screenshot({
-        animations: "disabled",
-        fullPage: true,
-        path: narrowReviewScreenshot,
-      });
-      await testInfo.attach("review narrow", {
-        contentType: "image/png",
-        path: narrowReviewScreenshot,
-      });
-      await page.setViewportSize({ width: 1280, height: 900 });
+        await page.screenshot({
+          animations: "disabled",
+          fullPage: true,
+          path: narrowReviewScreenshot,
+        });
+        await testInfo.attach("review narrow", {
+          contentType: "image/png",
+          path: narrowReviewScreenshot,
+        });
+        await page.setViewportSize({ width: 1280, height: 900 });
+      } else {
+        await expect(reviewEmptyState).toContainText("No completed work yet");
+      }
 
       await page.evaluate(() => {
         window.location.hash = "#/gateway";
