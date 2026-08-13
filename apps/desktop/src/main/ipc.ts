@@ -426,6 +426,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       }
 
       const controller = new AbortController();
+      let terminalEventEmitted = false;
       const emitEvent = (payload: { event: string; data: unknown }) => {
         if (!event.sender.isDestroyed()) {
           event.sender.send(eventChannels.chatEvent, {
@@ -433,6 +434,17 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             ...payload,
           });
         }
+      };
+      const emitChatEvent = (payload: { event: string; data: unknown }) => {
+        if (
+          payload.event === "response.completed" ||
+          payload.event === "error" ||
+          payload.event === "cancelled" ||
+          payload.event === "response.cancelled"
+        ) {
+          terminalEventEmitted = true;
+        }
+        emitEvent(payload);
       };
       const cleanup = () => {
         activeChats.delete(key);
@@ -478,7 +490,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           if (result.done) break;
           const chunk = decoder.decode(result.value, { stream: true });
           for (const eventMessage of parser.push(chunk)) {
-            emitEvent(eventMessage);
+            emitChatEvent(eventMessage);
             if (eventMessage.event === "response.completed") {
               notifyBackground({
                 title: "Doolittle is ready",
@@ -488,7 +500,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           }
         }
         for (const eventMessage of parser.finish()) {
-          emitEvent(eventMessage);
+          emitChatEvent(eventMessage);
           if (eventMessage.event === "response.completed") {
             notifyBackground({
               title: "Doolittle is ready",
@@ -496,7 +508,17 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             });
           }
         }
+        if (!terminalEventEmitted) {
+          throw new Error(
+            "The runtime closed the chat stream before completing the response.",
+          );
+        }
       } catch (error) {
+        // A terminal event is authoritative. A transport failure after it
+        // should not manufacture a second terminal state for the renderer.
+        if (terminalEventEmitted) {
+          return;
+        }
         if (controller.signal.aborted) {
           emitEvent({ event: "cancelled", data: null });
         } else {

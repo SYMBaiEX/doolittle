@@ -64,17 +64,31 @@ export async function emitPostProviderNotices(input: {
       : undefined;
 
   if (usageWarning) {
-    await input.options?.onNotice?.({
-      kind: "context",
-      message: usageWarning.trim(),
-    });
+    try {
+      await input.options?.onNotice?.({
+        kind: "context",
+        message: usageWarning.trim(),
+      });
+    } catch (error) {
+      input.context.runtime.logger?.warn(
+        { error, sessionId: input.turn.sessionId, kind: "context" },
+        "Post-provider notice callback failed",
+      );
+    }
   }
 
   if (skillNudge) {
-    await input.options?.onNotice?.({
-      kind: "skills",
-      message: skillNudge.trim(),
-    });
+    try {
+      await input.options?.onNotice?.({
+        kind: "skills",
+        message: skillNudge.trim(),
+      });
+    } catch (error) {
+      input.context.runtime.logger?.warn(
+        { error, sessionId: input.turn.sessionId, kind: "skills" },
+        "Post-provider notice callback failed",
+      );
+    }
   }
 }
 

@@ -86,11 +86,13 @@ function Probe({
   commandMenuDismissed = false,
   draft,
   selectedId = "session-1",
+  workspacePath,
 }: {
   backendReady?: boolean;
   commandMenuDismissed?: boolean;
   draft: string;
   selectedId?: string;
+  workspacePath?: string;
 }) {
   latest = useChatComposerSupport({
     backendReady,
@@ -101,6 +103,7 @@ function Probe({
     setCommandMenuDismissed,
     setDraft,
     setQueueAnnouncement,
+    workspacePath,
   });
   return null;
 }
@@ -212,6 +215,52 @@ describe("useChatComposerSupport", () => {
     });
     expect(latest?.selectedContextPercent).toBe(88);
     expect(latest?.selectedContextLabel).toBe("88%");
+  });
+
+  it("refreshes workspace-specific command completions after a live workspace switch", async () => {
+    const catalogA: CommandCatalogResponse = {
+      commands: [
+        {
+          command: "/workflow alpha",
+          category: "workspace",
+          description: "Alpha workflow",
+        },
+      ],
+    };
+    const catalogB: CommandCatalogResponse = {
+      commands: [
+        {
+          command: "/workflow beta",
+          category: "workspace",
+          description: "Beta workflow",
+        },
+      ],
+    };
+    let catalogCalls = 0;
+    desktopRequestMock.mockImplementation((path: string) => {
+      if (path === "/commands/catalog") {
+        catalogCalls += 1;
+        return Promise.resolve(catalogCalls === 1 ? catalogA : catalogB);
+      }
+      if (path.startsWith("/sessions/usage")) {
+        return Promise.resolve(usageResponse(25));
+      }
+      return Promise.reject(new Error(`Unexpected request: ${path}`));
+    });
+
+    await act(async () => {
+      root.render(<Probe draft="/workflow" workspacePath="/work/alpha" />);
+      await Promise.resolve();
+    });
+    expect(latest?.commandCatalog.commands).toEqual(catalogA.commands);
+
+    await act(async () => {
+      root.render(<Probe draft="/workflow" workspacePath="/work/beta" />);
+      await Promise.resolve();
+    });
+
+    expect(catalogCalls).toBe(2);
+    expect(latest?.commandCatalog.commands).toEqual(catalogB.commands);
   });
 
   it("surfaces catalog, usage, and memory errors without leaking stale state", async () => {

@@ -332,10 +332,17 @@ export async function executeProviderMessageTurn(
           },
           "ElizaOS message service turn failed",
         );
-        await input.onNotice?.({
-          kind: "status",
-          message: failureMessage,
-        });
+        try {
+          await input.onNotice?.({
+            kind: "status",
+            message: failureMessage,
+          });
+        } catch (noticeError) {
+          input.context.runtime.logger?.warn(
+            { noticeError, runId: input.runId, sessionId, messageId },
+            "Provider failure notice callback failed",
+          );
+        }
         response = failureMessage;
         runFailureMessage = failureMessage;
         input.streamState.setResponse(response);

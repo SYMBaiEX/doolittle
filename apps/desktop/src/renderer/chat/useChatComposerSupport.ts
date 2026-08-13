@@ -44,6 +44,8 @@ export interface CommandCatalogState {
 
 export interface UseChatComposerSupportOptions {
   backendReady: boolean;
+  /** Changes whenever the live runtime workspace changes. */
+  workspacePath?: string;
   commandMenuDismissed: boolean;
   composerRef: RefObject<HTMLTextAreaElement | null>;
   draft: string;
@@ -73,6 +75,7 @@ function isCommandMessage(message: string): boolean {
 
 export function useChatComposerSupport({
   backendReady,
+  workspacePath = "",
   commandMenuDismissed,
   composerRef,
   draft,
@@ -97,6 +100,8 @@ export function useChatComposerSupport({
   });
   const backendReadyRef = useRef(backendReady);
   backendReadyRef.current = backendReady;
+  const workspacePathRef = useRef(workspacePath);
+  workspacePathRef.current = workspacePath;
   const memoryRecallSequence = useRef(0);
   const usageRequestSequence = useRef<Record<string, number>>({});
 
@@ -157,14 +162,15 @@ export function useChatComposerSupport({
     }
 
     let cancelled = false;
+    const requestWorkspacePath = workspacePath;
     void desktopRequest<CommandCatalogResponse>("/commands/catalog")
       .then((response) => {
-        if (!cancelled) {
+        if (!cancelled && workspacePathRef.current === requestWorkspacePath) {
           setCommandCatalog({ commands: response.commands, error: "" });
         }
       })
       .catch((error) => {
-        if (!cancelled) {
+        if (!cancelled && workspacePathRef.current === requestWorkspacePath) {
           setCommandCatalog({
             commands: [],
             error: `Command catalog unavailable: ${errorMessage(error)}`,
@@ -175,7 +181,7 @@ export function useChatComposerSupport({
     return () => {
       cancelled = true;
     };
-  }, [backendReady]);
+  }, [backendReady, workspacePath]);
 
   useEffect(() => {
     const query = draft.trim();

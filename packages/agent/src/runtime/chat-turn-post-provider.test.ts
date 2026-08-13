@@ -93,6 +93,31 @@ describe("ElizaOS-native post-provider seam", () => {
     expect(scheduleProfileObservation).toHaveBeenCalledTimes(1);
   });
 
+  it("finalizes the turn when a post-provider notice callback rejects", async () => {
+    const harness = createHarness();
+    harness.context.services.contextCompression = {
+      isApproachingLimit: () => true,
+      measure: () => ({ usageFraction: 0.9, estimatedTokens: 900 }),
+    } as never;
+    harness.context.services.sessions.recentBySession = vi.fn(() =>
+      Array.from({ length: 4 }, () => ({}) as never),
+    );
+
+    const result = await runPostProviderTurn(
+      createInput(harness.context, {
+        options: {
+          onNotice: async () => {
+            throw new Error("notice transport closed");
+          },
+        },
+      }),
+    );
+
+    expect(result.response).toBe("This is the selected project.");
+    expect(harness.storedMessages).toContain("This is the selected project.");
+    expect(harness.finishEvents).toEqual([{ status: "complete" }]);
+  });
+
   it("publishes exactly the persisted terminal response", async () => {
     const harness = createHarness();
     const progress: Array<{ chunk: string; response: string; phase: string }> =

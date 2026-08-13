@@ -433,6 +433,114 @@ describe("sensitive desktop actions", () => {
     harness.dispose();
   });
 
+  it("reports a chat stream that closes before a terminal event", async () => {
+    const events: Array<{ requestId: string; event: string; data: unknown }> =
+      [];
+    const harness = createHarness({
+      confirmed: true,
+      fetch: async () =>
+        new Response(
+          'event: response.output_text.delta\ndata: {"delta":"partial"}\n\n',
+          { headers: { "content-type": "text/event-stream" } },
+        ),
+    });
+    const sender = {
+      id: 73,
+      isDestroyed: () => false,
+      send: (_channel: string, event: (typeof events)[number]) =>
+        events.push(event),
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+
+    await expect(
+      harness.handlers.get("chat:start")?.(
+        { sender },
+        {
+          requestId: "chat:eof",
+          message: "stream request",
+          roomId: "desktop:room-1",
+        },
+      ),
+    ).rejects.toThrow(/closed the chat stream before completing/i);
+
+    expect(events).toEqual([
+      {
+        requestId: "chat:eof",
+        event: "response.output_text.delta",
+        data: { delta: "partial" },
+      },
+      {
+        requestId: "chat:eof",
+        event: "error",
+        data: {
+          message:
+            "The runtime closed the chat stream before completing the response.",
+        },
+      },
+    ]);
+    harness.dispose();
+  });
+
+  it("does not emit a second terminal event after a completed response", async () => {
+    const events: Array<{ requestId: string; event: string; data: unknown }> =
+      [];
+    const encoder = new TextEncoder();
+    const harness = createHarness({
+      confirmed: true,
+      fetch: async () => {
+        let readCount = 0;
+        return {
+          ok: true,
+          body: {
+            getReader: () => ({
+              read: async () => {
+                if (readCount++ === 0) {
+                  return {
+                    done: false,
+                    value: encoder.encode(
+                      'event: response.completed\ndata: {"response":"done"}\n\n',
+                    ),
+                  };
+                }
+                throw new Error("late transport failure");
+              },
+            }),
+          },
+        } as unknown as Response;
+      },
+    });
+    const sender = {
+      id: 75,
+      isDestroyed: () => false,
+      send: (_channel: string, event: (typeof events)[number]) =>
+        events.push(event),
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+
+    const result = await Promise.resolve(
+      harness.handlers.get("chat:start")?.(
+        { sender },
+        {
+          requestId: "chat:late-failure",
+          message: "stream request",
+          roomId: "desktop:room-1",
+        },
+      ),
+    ).catch((error) => error);
+    expect(result).toBeUndefined();
+
+    expect(events).toEqual([
+      {
+        requestId: "chat:late-failure",
+        event: "response.completed",
+        data: { response: "done" },
+      },
+    ]);
+    harness.dispose();
+  });
+
   it("emits privacy-safe chat completion notifications", async () => {
     const notifications: Array<{ title: string; body: string }> = [];
     const harness = createHarness({

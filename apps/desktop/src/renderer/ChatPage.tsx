@@ -288,6 +288,7 @@ export function ChatPage({
     setCommandMenuDismissed,
     setDraft,
     setQueueAnnouncement,
+    workspacePath,
   });
   const {
     copyMessage,

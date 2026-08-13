@@ -530,6 +530,50 @@ describe("chat turn provider handler", () => {
     expect(streamState.getResponse()).toBe("provider unavailable");
   });
 
+  it("keeps the provider failure when the status notice callback rejects", async () => {
+    const { context } = createContext({
+      onHandleMessage: async () => {
+        throw new Error("planning failed");
+      },
+    });
+    const streamState = createProviderStreamState({
+      resolveStreamingUpdate: () => ({
+        kind: "append",
+        emittedText: "",
+        nextText: "",
+      }),
+      extractCompatTextContent: () => "",
+    });
+
+    const result = await executeProviderMessageTurn({
+      context,
+      memory: {
+        id: "memory-notice-rejection" as UUID,
+        roomId: "room-notice-rejection" as UUID,
+        entityId: "entity-notice-rejection" as UUID,
+        content: {
+          text: "run this",
+          source: "cli",
+          channelType: ChannelType.DM,
+        },
+      } as Memory,
+      streamState,
+      messagePolicy: { useMultiStep: true, maxIterations: 4 },
+      abortSignal: undefined,
+      settingsDuring: createTurnSettings(),
+      connectionSource: "cli",
+      roomId: "room-notice-rejection",
+      onNotice: async () => {
+        throw new Error("notice transport closed");
+      },
+      buildProviderFailureMessage: () => "provider unavailable",
+    });
+
+    expect(result.runFailureMessage).toBe("provider unavailable");
+    expect(result.response).toBe("provider unavailable");
+    expect(streamState.getResponse()).toBe("provider unavailable");
+  });
+
   it("propagates cancellation instead of rewriting it as a provider failure", async () => {
     const controller = new AbortController();
     const { context, notices } = createContext({
