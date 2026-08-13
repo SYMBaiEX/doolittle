@@ -34,9 +34,11 @@ const RUNTIME_SECTIONS: Array<{
 
 export function RuntimePage({
   active,
+  readOnly = false,
   onOpenProviders,
 }: {
   active: boolean;
+  readOnly?: boolean;
   onOpenProviders?: () => void;
 }) {
   const [section, setSection] = useState<RuntimeSection>("overview");
@@ -150,6 +152,7 @@ export function RuntimePage({
             autonomy={autonomy}
             onOpenProviders={onOpenProviders}
             runtime={runtime}
+            readOnly={readOnly}
           />
         </TabsContent>
         <TabsContent className="runtime-panel" value="gateway">

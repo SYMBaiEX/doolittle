@@ -26,8 +26,10 @@ const AUTONOMY_INTERVAL_OPTIONS = [
 
 export function NativeAutonomyPanel({
   autonomy,
+  readOnly = false,
 }: {
   autonomy: ApiResource<NativeAutonomyResponse>;
+  readOnly?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
@@ -92,7 +94,7 @@ export function NativeAutonomyPanel({
               <span>Cadence</span>
               <select
                 aria-label="Native autonomy reasoning cadence"
-                disabled={busy}
+                disabled={busy || readOnly}
                 onChange={(event) =>
                   void update("/autonomy/interval", {
                     interval: Number(event.target.value),
@@ -118,7 +120,7 @@ export function NativeAutonomyPanel({
             </label>
             <Button
               className={enabled ? "secondary-button" : "primary-button"}
-              disabled={busy}
+              disabled={busy || readOnly}
               onClick={() =>
                 void update(enabled ? "/autonomy/disable" : "/autonomy/enable")
               }
@@ -132,6 +134,9 @@ export function NativeAutonomyPanel({
                   : "Enable native autonomy"}
             </Button>
           </div>
+          {readOnly ? (
+            <small>Controls are disabled while the runtime is degraded.</small>
+          ) : null}
           {feedback ? (
             <Notice tone={feedback.tone}>{feedback.message}</Notice>
           ) : null}

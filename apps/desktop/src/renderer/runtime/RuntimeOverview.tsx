@@ -25,12 +25,14 @@ export function RuntimeOverview({
   autonomy,
   onOpenProviders,
   runtime,
+  readOnly = false,
 }: {
   active?: boolean;
   accountPool: ApiResource<AccountPoolResponse>;
   autonomy: ApiResource<NativeAutonomyResponse>;
   onOpenProviders?: () => void;
   runtime: ApiResource<RuntimeStatus>;
+  readOnly?: boolean;
 }) {
   if (!active) {
     return (
@@ -111,7 +113,7 @@ export function RuntimeOverview({
           )}
         </section>
 
-        <NativeAutonomyPanel autonomy={autonomy} />
+        <NativeAutonomyPanel autonomy={autonomy} readOnly={readOnly} />
       </div>
 
       <RawDataDisclosure

@@ -3,6 +3,7 @@ import { type View, views } from "../desktop-navigation";
 import {
   cancelDesktopRouteResourcePrefetchIntent,
   prefetchDesktopRouteResources,
+  type RouteReadiness,
   scheduleDesktopRouteResourcePrefetch,
 } from "./desktop-route-prefetch";
 
@@ -181,7 +182,7 @@ export const DESKTOP_ROUTE_PRELOADERS = completeRouteLoaderRegistry();
 /** Warm the route module and its first-view resources once navigation commits. */
 export async function warmDesktopRoute(
   view: View,
-  runtimeReady = true,
+  runtimeReady: RouteReadiness = true,
 ): Promise<void> {
   cancelDesktopRouteResourcePrefetchIntent();
   await Promise.all([
@@ -194,7 +195,10 @@ export async function warmDesktopRoute(
  * Preload the route module immediately for exploratory focus and hover intent.
  * Resource data waits for a sustained dwell, preventing incidental API bursts.
  */
-export function preloadDesktopRoute(view: View, runtimeReady = true): void {
+export function preloadDesktopRoute(
+  view: View,
+  runtimeReady: RouteReadiness = true,
+): void {
   void DESKTOP_ROUTE_PRELOADERS[view]().catch(() => undefined);
   scheduleDesktopRouteResourcePrefetch(view, runtimeReady);
 }

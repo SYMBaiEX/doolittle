@@ -14,6 +14,10 @@ import type { DesktopNavigationIntent } from "../desktop-navigation-intent";
 import type { ApiResource } from "../lib";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import {
+  canRenderDesktopRoute,
+  desktopRouteCapabilities,
+} from "./desktop-route-capabilities";
+import {
   ActivityPage,
   AnalyticsPage,
   AutomationsPage,
@@ -113,7 +117,7 @@ export function DesktopRouteContent({
   view,
   workspacePath,
 }: DesktopRouteContentProps): ReactNode {
-  const active = backend.phase === "ready";
+  const active = canRenderDesktopRoute(view, backend.phase);
 
   switch (view) {
     case "dashboard":
@@ -279,6 +283,7 @@ export function DesktopRouteContent({
       return (
         <RuntimePage
           active={backend.phase === "ready" || backend.phase === "degraded"}
+          readOnly={!desktopRouteCapabilities("runtime", backend.phase).writes}
           onOpenProviders={() => navigation.setView("connections")}
         />
       );

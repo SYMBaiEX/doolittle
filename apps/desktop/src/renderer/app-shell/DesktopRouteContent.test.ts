@@ -14,6 +14,10 @@ const routeRegistrySource = readFileSync(
   new URL("./desktop-route-registry.ts", import.meta.url),
   "utf8",
 );
+const routeContentSource = readFileSync(
+  new URL("./DesktopRouteContent.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("desktop route preloaders", () => {
   test("covers every application route", () => {
@@ -66,5 +70,12 @@ describe("desktop route preloaders", () => {
     );
     expect(() => preloadDesktopRoute("dashboard")).not.toThrow();
     cancelDesktopRouteResourcePrefetchIntent();
+  });
+
+  test("derives route activity from the shared backend capability policy", () => {
+    expect(routeContentSource).toContain("canRenderDesktopRoute,");
+    expect(routeContentSource).toContain(
+      "const active = canRenderDesktopRoute(view, backend.phase);",
+    );
   });
 });

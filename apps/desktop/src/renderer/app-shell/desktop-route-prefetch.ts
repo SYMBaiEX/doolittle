@@ -1,5 +1,10 @@
+import type { BackendPhase } from "../../shared/contracts";
 import type { View } from "../desktop-navigation";
 import { prefetchApiResource } from "../lib";
+import {
+  type DesktopRouteCapabilities,
+  desktopRouteCapabilities,
+} from "./desktop-route-capabilities";
 
 /**
  * Keep exploratory data prefetch behind a short, stable intent dwell. Route
@@ -75,6 +80,19 @@ interface DesktopRoutePrefetchIntent {
 
 let pendingDesktopRoutePrefetchIntent: DesktopRoutePrefetchIntent | null = null;
 
+export type RouteReadiness = boolean | BackendPhase | DesktopRouteCapabilities;
+
+function canPrefetchRouteResources(
+  view: View,
+  readiness: RouteReadiness,
+): boolean {
+  if (typeof readiness === "boolean") return readiness;
+  if (typeof readiness === "string") {
+    return desktopRouteCapabilities(view, readiness).apiRead;
+  }
+  return readiness.apiRead;
+}
+
 /** Cancel the currently pending exploratory resource prefetch, if any. */
 export function cancelDesktopRouteResourcePrefetchIntent(): void {
   const intent = pendingDesktopRoutePrefetchIntent;
@@ -90,9 +108,9 @@ export function cancelDesktopRouteResourcePrefetchIntent(): void {
  */
 export function scheduleDesktopRouteResourcePrefetch(
   view: View,
-  runtimeReady = true,
+  runtimeReady: RouteReadiness = true,
 ): void {
-  if (!runtimeReady) {
+  if (!canPrefetchRouteResources(view, runtimeReady)) {
     cancelDesktopRouteResourcePrefetchIntent();
     return;
   }
@@ -105,16 +123,18 @@ export function scheduleDesktopRouteResourcePrefetch(
   intent.timer = setTimeout(() => {
     if (pendingDesktopRoutePrefetchIntent !== intent) return;
     pendingDesktopRoutePrefetchIntent = null;
-    void prefetchDesktopRouteResources(view).catch(() => undefined);
+    void prefetchDesktopRouteResources(view, runtimeReady).catch(
+      () => undefined,
+    );
   }, DESKTOP_ROUTE_PREFETCH_DWELL_MS);
   pendingDesktopRoutePrefetchIntent = intent;
 }
 
 export async function prefetchDesktopRouteResources(
   view: View,
-  runtimeReady = true,
+  runtimeReady: RouteReadiness = true,
 ): Promise<void> {
-  if (!runtimeReady) return;
+  if (!canPrefetchRouteResources(view, runtimeReady)) return;
   const resources = DESKTOP_ROUTE_RESOURCE_PREFETCHES[view] ?? [];
   await Promise.all(
     resources.map(({ dependencies, path }) =>

@@ -373,9 +373,7 @@ export function App() {
 
   const applyViewTransition = useCallback(
     (next: View) => {
-      void warmDesktopRoute(next, backend.phase === "ready").catch(
-        () => undefined,
-      );
+      void warmDesktopRoute(next, backend.phase).catch(() => undefined);
       setViewState(next);
       setMobileSidebarOpen(false);
       if (next !== "chat") closeChatTerminal();
@@ -910,7 +908,7 @@ export function App() {
     }
     if (routeWarmReadyRef.current) return;
     routeWarmReadyRef.current = true;
-    void warmDesktopRoute(view, true).catch(() => undefined);
+    void warmDesktopRoute(view, backend.phase).catch(() => undefined);
   }, [backend.phase, view]);
   useEffect(() => {
     document.title = `${activeItem?.label ?? "Desktop"} — Doolittle`;
@@ -1187,9 +1185,7 @@ export function App() {
         onManageProjects={openProjectManager}
         onStartConversation={startConversation}
         onOpenSession={openSession}
-        onPreloadView={(next) =>
-          preloadDesktopRoute(next, backend.phase === "ready")
-        }
+        onPreloadView={(next) => preloadDesktopRoute(next, backend.phase)}
         onSelectScope={selectProjectScope}
         onViewAll={() => setView("sessions")}
         onSetView={setView}
@@ -1296,9 +1292,7 @@ export function App() {
           }
           onClose={closeUtilities}
           onKeyDown={handleUtilityKeyDown}
-          onPreload={(next) =>
-            preloadDesktopRoute(next, backend.phase === "ready")
-          }
+          onPreload={(next) => preloadDesktopRoute(next, backend.phase)}
           onResize={setUtilityDrawerWidth}
           onSelect={setView}
           onToggleSection={toggleSection}

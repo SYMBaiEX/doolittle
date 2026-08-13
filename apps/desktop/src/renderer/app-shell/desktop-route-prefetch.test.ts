@@ -60,6 +60,22 @@ describe("desktop route resource prefetch", () => {
     expect(prefetchApiResource).not.toHaveBeenCalled();
   });
 
+  test("prefetches degraded diagnostic reads without enabling writes", async () => {
+    await prefetchDesktopRouteResources("runtime", "degraded");
+    await prefetchDesktopRouteResources("compatibility", "degraded");
+
+    expect(prefetchApiResource).toHaveBeenCalled();
+  });
+
+  test("retains phase gating through the dwell timer", async () => {
+    vi.useFakeTimers();
+
+    scheduleDesktopRouteResourcePrefetch("dashboard", "degraded");
+    await vi.advanceTimersByTimeAsync(DESKTOP_ROUTE_PREFETCH_DWELL_MS);
+
+    expect(prefetchApiResource).not.toHaveBeenCalled();
+  });
+
   test("waits for a sustained intent before warming route data", async () => {
     vi.useFakeTimers();
 
