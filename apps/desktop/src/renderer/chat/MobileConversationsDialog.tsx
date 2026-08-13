@@ -75,32 +75,34 @@ export function MobileConversationsDialog({
           value={search}
         />
         <div className="chat-mobile-conversations-list">
-          {sessions.map((session) => (
-            <button
-              aria-current={
-                session.sessionId === selectedId ? "page" : undefined
-              }
-              data-mobile-conversation
-              key={session.sessionId}
-              onClick={() => {
-                onSelect(session.sessionId);
-                onClose();
-              }}
-              type="button"
-            >
-              <strong>
-                {compactSessionPreview(session.title ?? "") ||
-                  "Untitled conversation"}
-              </strong>
-              <span>
-                {session.messageCount} messages ·{" "}
-                {displayTimestamp(session.endedAt)}
-                {projectLabels
-                  ? ` · ${session.projectId ? (projectLabels[session.projectId] ?? "Project") : "Unscoped"}`
-                  : ""}
-              </span>
-            </button>
-          ))}
+          {sessions.map((session) => {
+            const conversationTitle =
+              compactSessionPreview(session.title ?? "") ||
+              "Untitled conversation";
+            return (
+              <button
+                aria-current={
+                  session.sessionId === selectedId ? "page" : undefined
+                }
+                data-mobile-conversation
+                key={session.sessionId}
+                onClick={() => {
+                  onSelect(session.sessionId);
+                  onClose();
+                }}
+                type="button"
+              >
+                <strong title={conversationTitle}>{conversationTitle}</strong>
+                <span>
+                  {session.messageCount} messages ·{" "}
+                  {displayTimestamp(session.endedAt)}
+                  {projectLabels
+                    ? ` · ${session.projectId ? (projectLabels[session.projectId] ?? "Project") : "Unscoped"}`
+                    : ""}
+                </span>
+              </button>
+            );
+          })}
         </div>
         <button
           className="new-chat-button"

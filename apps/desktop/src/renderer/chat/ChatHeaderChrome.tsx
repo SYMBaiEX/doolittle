@@ -56,16 +56,17 @@ export function ChatHeaderChrome({
   workspacePath,
 }: ChatHeaderChromeProps) {
   const showConversationState = !isNewConversation;
+  const conversationTitle = selectedSession
+    ? compactSessionPreview(selectedSession.title ?? "") ||
+      "Untitled conversation"
+    : "New conversation";
 
   return (
     <div className="chat-header-content">
       <div className="chat-header-mainline">
         <div className="chat-header-title-wrap">
-          <h2>
-            {selectedSession
-              ? compactSessionPreview(selectedSession.title ?? "") ||
-                "Untitled conversation"
-              : "New conversation"}
+          <h2 title={selectedSession ? conversationTitle : undefined}>
+            {conversationTitle}
           </h2>
         </div>
         <div className="chat-session-meta-wrap">

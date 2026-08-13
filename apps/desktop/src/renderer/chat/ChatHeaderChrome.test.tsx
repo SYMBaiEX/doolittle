@@ -132,6 +132,9 @@ describe("ChatHeaderChrome", () => {
     expect(container.querySelector("h2")?.textContent).toBe(
       "Referenced package.json",
     );
+    expect(container.querySelector("h2")?.getAttribute("title")).toBe(
+      "Referenced package.json",
+    );
     expect(container.textContent).not.toContain(
       "/Users/symbiex/dev/test/package.json",
     );

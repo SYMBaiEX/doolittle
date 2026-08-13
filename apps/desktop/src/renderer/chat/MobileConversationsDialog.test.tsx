@@ -136,5 +136,10 @@ describe("MobileConversationsDialog", () => {
     expect(container.textContent).not.toContain(
       "/Users/symbiex/dev/test/package.json",
     );
+    expect(
+      container
+        .querySelector("[data-mobile-conversation] strong")
+        ?.getAttribute("title"),
+    ).toBe("Referenced package.json");
   });
 });
