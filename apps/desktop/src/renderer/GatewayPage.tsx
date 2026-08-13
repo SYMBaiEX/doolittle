@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import { GatewayPairingPanel } from "./gateway/GatewayPairingPanel";
 import {
   type GatewayTimelineDirection,
@@ -149,6 +150,14 @@ export function GatewayPage({ active }: { active: boolean }) {
   );
   const errors = [state.error, inbox.error, outbox.error].filter(Boolean);
   const loading = state.loading || inbox.loading || outbox.loading;
+  const statusResources = [
+    { label: "gateway state", resource: state },
+    { label: "inbox", resource: inbox },
+    { label: "outbox", resource: outbox },
+    { label: "thread routes", resource: sessions, required: false },
+    { label: "pending pairings", resource: pairingPending, required: false },
+    { label: "approved pairings", resource: pairingApproved, required: false },
+  ].filter((entry) => entry.resource.status !== "disabled");
 
   const refresh = () => {
     if (!active) return;
@@ -235,6 +244,8 @@ export function GatewayPage({ active }: { active: boolean }) {
           </button>
         }
       />
+
+      <ResourceStatusBar resources={statusResources} />
 
       {errors.length ? (
         <Notice tone="warn">

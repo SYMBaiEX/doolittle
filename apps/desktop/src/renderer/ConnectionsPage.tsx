@@ -6,6 +6,7 @@ import type {
   ProviderAuthProvider,
 } from "../shared/contracts";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import { AccountPoolPanel } from "./connections/AccountPoolPanel";
 import { ProviderConnectionRow } from "./connections/ProviderConnectionRow";
 import { ProviderRouteSummary } from "./connections/ProviderRouteSummary";
@@ -272,12 +273,37 @@ export function ConnectionsPage({
       {feedback ? (
         <Notice tone={feedback.tone}>{feedback.message}</Notice>
       ) : null}
-      {resource.loading ? (
+      <ResourceStatusBar
+        resources={[
+          { label: "Accounts", resource },
+          { label: "Account pools", resource: accountPool, required: false },
+        ]}
+      >
+        {resource.error && resource.data ? (
+          <button
+            className="text-button"
+            onClick={resource.reload}
+            type="button"
+          >
+            Retry accounts
+          </button>
+        ) : null}
+        {accountPool.error ? (
+          <button
+            className="text-button"
+            onClick={accountPool.reload}
+            type="button"
+          >
+            Retry pools
+          </button>
+        ) : null}
+      </ResourceStatusBar>
+      {resource.loading && !resource.data ? (
         <LoadingBlock label="Checking the default chat provider…" />
-      ) : resource.error ? (
+      ) : resource.error && !resource.data ? (
         <ErrorBlock error={resource.error} retry={resource.reload} />
       ) : null}
-      {!resource.loading && !resource.error ? (
+      {resource.data ? (
         <div className={`provider-console ${embedded ? "is-embedded" : ""}`}>
           <section
             className="provider-surface"

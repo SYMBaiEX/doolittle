@@ -65,10 +65,7 @@ export const DESKTOP_ROUTE_RESOURCE_PREFETCHES: Readonly<
     { path: "/runtime/account-pool", dependencies: [true] },
     { path: "/autonomy/status", dependencies: [true] },
   ],
-  settings: [
-    { path: "/settings", dependencies: [true] },
-    { path: "/runtime/accounts", dependencies: [true] },
-  ],
+  settings: [{ path: "/settings", dependencies: [true] }],
   skills: [{ path: "/skills", dependencies: [true] }],
   tools: [{ path: "/tools?profile=full", dependencies: [true, "full"] }],
 };

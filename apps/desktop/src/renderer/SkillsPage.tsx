@@ -1,9 +1,17 @@
-import { type KeyboardEvent, lazy, Suspense, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { SkillsResponse } from "../shared/contracts";
 import { buildSkillCatalogEntries } from "./catalog-entry-models";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import {
   asArray,
   asNumber,
@@ -46,6 +54,11 @@ export function SkillsPage({ active }: { active: boolean }) {
   const skills = useApiResource<SkillsResponse>(active ? "/skills" : null, [
     active,
   ]);
+  const cachedCatalog = useRef<SkillsResponse | null>(null);
+  useEffect(() => {
+    if (skills.data) cachedCatalog.current = skills.data;
+  }, [skills.data]);
+  const catalogData = skills.data ?? cachedCatalog.current;
   const refresh = () => {
     if (active) skills.reload();
   };
@@ -81,7 +94,7 @@ export function SkillsPage({ active }: { active: boolean }) {
     );
   }
   const entries = buildSkillCatalogEntries(
-    asArray(skills.data?.skills).map(asRecord),
+    asArray(catalogData?.skills).map(asRecord),
   );
   const filtered = entries.filter((entry) => {
     const normalized = query.trim().toLowerCase();
@@ -100,8 +113,8 @@ export function SkillsPage({ active }: { active: boolean }) {
         .includes(normalized)
     );
   });
-  const summaryValue = skills.data?.summary ?? {};
-  const installedValues = asArray(skills.data?.installed);
+  const summaryValue = catalogData?.summary ?? {};
+  const installedValues = asArray(catalogData?.installed);
   const selectSectionWithKeyboard = (
     event: KeyboardEvent<HTMLButtonElement>,
   ) => {
@@ -144,6 +157,9 @@ export function SkillsPage({ active }: { active: boolean }) {
             tone: "good",
           },
         ]}
+      />
+      <ResourceStatusBar
+        resources={[{ label: "Skill catalog", resource: skills }]}
       />
       <div
         aria-label="Skills views"
@@ -203,9 +219,9 @@ export function SkillsPage({ active }: { active: boolean }) {
               }
               searchLabel="Search skills"
             />
-            {skills.loading ? (
+            {skills.loading && !catalogData ? (
               <LoadingBlock label="Reading workspace skills…" />
-            ) : skills.error ? (
+            ) : skills.error && !catalogData ? (
               <ErrorBlock error={skills.error} retry={skills.reload} />
             ) : filtered.length ? (
               <SkillCatalogWorkspace

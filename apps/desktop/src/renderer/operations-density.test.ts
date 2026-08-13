@@ -76,7 +76,7 @@ describe("operational route density", () => {
   it("reuses one native skill projection instead of fetching summary data twice", () => {
     const skills = read("./SkillsPage.tsx");
 
-    expect(skills).toContain("asArray(skills.data?.installed)");
+    expect(skills).toContain("asArray(catalogData?.installed)");
     expect(skills).not.toContain('"/skills/summary"');
     expect(skills).not.toContain('"/skills/installed"');
     expect(skills).not.toContain('status: "Available"');
@@ -118,7 +118,7 @@ describe("operational route density", () => {
   it("reuses the native tool inventory summary instead of computing it twice", () => {
     const tools = read("./ToolsPage.tsx");
 
-    expect(tools).toContain("tools.data?.summary");
+    expect(tools).toContain("const totals = catalogData?.summary ?? {};");
     expect(tools).not.toContain('"/tools/summary');
   });
 

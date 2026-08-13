@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import type { ChatContextRequest } from "./chat-context-handoff";
+import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import { asNumber, asRecord, asString, Notice } from "./lib";
 import { AgentRosterPanel } from "./orchestration/AgentRosterPanel";
@@ -110,9 +111,12 @@ export function OrchestrationPage({
   const {
     overviewResource,
     tasksResource,
+    taskDetailResource,
     workersResource,
     plansResource,
+    worktreesResource,
     codegenRuntimeResource,
+    codegenRunsResource,
     accountPoolResource,
     codegenWorkflowsResource,
     workflowDetailResource,
@@ -138,6 +142,70 @@ export function OrchestrationPage({
     workspacePath,
     platform: window.doolittle.platform,
   });
+
+  const statusResources = useMemo(() => {
+    const entries = [
+      { label: "orchestration overview", resource: overviewResource },
+      { label: "plans", resource: plansResource },
+      {
+        label: "account pool",
+        resource: accountPoolResource,
+        required: false,
+      },
+      {
+        label: "task queue",
+        resource: tasksResource,
+        required: activeTab === "tasks",
+      },
+      {
+        label: "agent roster",
+        resource: workersResource,
+        required: activeTab === "agents",
+      },
+      {
+        label: "worktrees",
+        resource: worktreesResource,
+        required: false,
+      },
+      {
+        label: "codegen runtime",
+        resource: codegenRuntimeResource,
+        required: activeTab === "runs",
+      },
+      {
+        label: "codegen workflows",
+        resource: codegenWorkflowsResource,
+        required: activeTab === "runs",
+      },
+      {
+        label: "codegen runs",
+        resource: codegenRunsResource,
+        required: activeTab === "runs",
+      },
+      {
+        label: "workflow detail",
+        resource: workflowDetailResource,
+        required: false,
+      },
+      { label: "task detail", resource: taskDetailResource, required: false },
+      { label: "run detail", resource: runDetailResource, required: false },
+    ];
+    return entries.filter((entry) => entry.resource.status !== "disabled");
+  }, [
+    activeTab,
+    accountPoolResource,
+    codegenRuntimeResource,
+    codegenWorkflowsResource,
+    overviewResource,
+    plansResource,
+    runDetailResource,
+    tasksResource,
+    taskDetailResource,
+    workersResource,
+    workflowDetailResource,
+    codegenRunsResource,
+    worktreesResource,
+  ]);
 
   const selectedTaskSummary =
     tasks.find((entry) => asString(entry.id) === selectedTaskId) ?? tasks[0];
@@ -439,6 +507,8 @@ export function OrchestrationPage({
           </button>
         </div>
       </header>
+
+      <ResourceStatusBar resources={statusResources} />
 
       {notices.length > 0 ? (
         <div aria-live="polite" className="orchestration-notices">

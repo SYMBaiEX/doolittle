@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { RepositoryReviewResponse } from "../shared/contracts";
 import type { ChatContextRequest } from "./chat-context-handoff";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import {
   type ActionFeedback,
   asArray,
@@ -509,6 +510,18 @@ export function ReviewPage({
     runs.error,
     repositoryReview.error,
   ].filter(Boolean);
+  const statusResources = [
+    { label: "approvals", resource: approvals },
+    { label: "changes", resource: changes },
+    { label: "agent runs", resource: runs },
+    { label: "review checks", resource: repositoryReview },
+    { label: "review record", resource: branchRecord, required: false },
+    { label: "source control", resource: branches, required: false },
+    { label: "remotes", resource: remotes, required: false },
+    { label: "stashes", resource: stashes, required: false },
+    { label: "conflicts", resource: conflicts, required: false },
+    { label: "worktrees", resource: worktrees, required: false },
+  ].filter((entry) => entry.resource.status !== "disabled");
   const blockingError =
     items.length === 0 && sourceErrors.length === 4
       ? (sourceErrors[0] ?? "")
@@ -557,6 +570,7 @@ export function ReviewPage({
         onRefresh={reload}
         pendingCount={pendingCount}
       />
+      <ResourceStatusBar resources={statusResources} />
       <ReviewOverview
         agentRunCount={agentRunCount}
         branchScope={branchScope}

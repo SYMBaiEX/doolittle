@@ -1,8 +1,9 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { AcpBridgePanel } from "./components/AcpBridgePanel";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import {
   asArray,
   asNumber,
@@ -82,6 +83,18 @@ export function ToolsPage({ active }: { active: boolean }) {
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
   const toolsPath = active ? `/tools?profile=${profile}` : null;
   const tools = useApiResource<ToolsResponse>(toolsPath, [active, profile]);
+  const cachedCatalog = useRef<{
+    profile: ToolProfile;
+    data: ToolsResponse;
+  } | null>(null);
+  useEffect(() => {
+    if (tools.data) cachedCatalog.current = { profile, data: tools.data };
+  }, [profile, tools.data]);
+  const catalogData =
+    tools.data ??
+    (cachedCatalog.current?.profile === profile
+      ? cachedCatalog.current.data
+      : null);
   const refresh = () => {
     if (active) tools.reload();
   };
@@ -112,10 +125,10 @@ export function ToolsPage({ active }: { active: boolean }) {
       </div>
     );
   }
-  const entries = asArray(tools.data?.tools).map(asRecord);
+  const entries = asArray(catalogData?.tools).map(asRecord);
   const categories = toolEntryCategories(entries);
   const filtered = filterToolEntries(entries, query, category);
-  const totals = tools.data?.summary ?? {};
+  const totals = catalogData?.summary ?? {};
 
   return (
     <div className="page page-tools">
@@ -149,17 +162,20 @@ export function ToolsPage({ active }: { active: boolean }) {
           { label: "Categories", value: asArray(totals.categories).length },
           {
             label: "Policy",
-            value: tools.data?.policyOwned
-              ? titleCase(tools.data.effectiveProfile ?? profile)
+            value: catalogData?.policyOwned
+              ? titleCase(catalogData.effectiveProfile ?? profile)
               : "Unverified",
-            detail: tools.data?.policyError
-              ? tools.data.policyError
-              : tools.data?.policyOwned
+            detail: catalogData?.policyError
+              ? catalogData.policyError
+              : catalogData?.policyOwned
                 ? `Eliza ToolPolicyService · ${asNumber(totals.pluginTools)} plugin tools`
                 : "Registered actions only",
-            tone: tools.data?.policyOwned ? "good" : "warn",
+            tone: catalogData?.policyOwned ? "good" : "warn",
           },
         ]}
+      />
+      <ResourceStatusBar
+        resources={[{ label: "Tool catalog", resource: tools }]}
       />
       <details
         className="tools-integrations"
@@ -217,9 +233,9 @@ export function ToolsPage({ active }: { active: boolean }) {
           ))}
         </select>
       </CatalogFilterBar>
-      {tools.loading ? (
+      {tools.loading && !catalogData ? (
         <LoadingBlock label="Reading tool registry…" />
-      ) : tools.error ? (
+      ) : tools.error && !catalogData ? (
         <ErrorBlock error={tools.error} retry={tools.reload} />
       ) : filtered.length ? (
         <Suspense fallback={<LoadingBlock label="Opening tool index…" />}>

@@ -5,6 +5,7 @@ import type {
   RuntimeStatus,
 } from "../shared/contracts";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import {
   type ActionFeedback,
   asRecord,
@@ -245,316 +246,372 @@ export function ModelsPage({
           Model settings and provider catalogs are unavailable until the local
           runtime is ready.
         </OfflineRouteState>
-      ) : settings.loading ? (
-        <LoadingBlock label="Loading model settings…" />
-      ) : settings.error ? (
-        <ErrorBlock error={settings.error} retry={settings.reload} />
       ) : (
-        <div className="two-column-grid models-workspace">
-          <form className="content-card form-card" onSubmit={save}>
-            <div className="card-heading">
-              <div>
-                <span className="eyebrow">Primary inference</span>
-                <h2>Active model</h2>
-              </div>
-            </div>
-            <div className="field-grid">
-              <label>
-                <span>Provider</span>
-                <select
-                  value={selectedProviderId}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      provider: event.target.value,
-                      model:
-                        models.data?.providers.find(
-                          (provider) => provider.id === event.target.value,
-                        )?.models[0]?.id ?? "",
-                      reasoningEffort: "",
-                    }))
-                  }
-                >
-                  {!models.data?.providers.some(
-                    (provider) => provider.id === selectedProviderId,
-                  ) && selectedProviderId ? (
-                    <option value={selectedProviderId}>
-                      {titleCase(selectedProviderId)}
-                    </option>
-                  ) : null}
-                  {(models.data?.providers ?? []).map((provider) => (
-                    <option key={provider.id} value={provider.id}>
-                      {provider.label}
-                      {provider.discovery === "live" ? " · Live" : ""}
-                    </option>
-                  ))}
-                </select>
-                <small>
-                  {selectedProvider?.detail ??
-                    "Provider availability is detected from this machine."}
-                </small>
-              </label>
-              <label>
-                <span>Model</span>
-                <select
-                  value={selectedModelId}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      model: event.target.value,
-                      reasoningEffort: "",
-                    }))
-                  }
-                >
-                  {selectedProvider?.models.map((entry) => (
-                    <option key={entry.id} value={entry.id}>
-                      {entry.label}
-                      {entry.source === "discovered" ? " · Discovered" : ""}
-                    </option>
-                  ))}
-                  {!selectedProvider?.models.some(
-                    (entry) => entry.id === selectedModelId,
-                  ) && selectedModelId ? (
-                    <option value={selectedModelId}>{selectedModelId}</option>
-                  ) : null}
-                </select>
-                {models.loading ? (
-                  <small>Refreshing model catalog…</small>
-                ) : null}
-                {models.error ? <small>{models.error}</small> : null}
-              </label>
-            </div>
-            <details
-              className="model-tuning"
-              onToggle={(event) => setTuningOpen(event.currentTarget.open)}
-              open={tuningOpen}
-            >
-              <summary>
-                <span>
-                  <strong>Generation controls</strong>
-                  <small>Reasoning, endpoint, temperature, and output</small>
-                </span>
-                <Badge>{tuningOpen ? "Open" : "Advanced"}</Badge>
-              </summary>
-              <div className="field-grid model-tuning__body">
-                {reasoningOptions.length ? (
+        <>
+          <ResourceStatusBar
+            resources={[
+              { label: "Model settings", resource: settings },
+              { label: "Model catalog", resource: models, required: false },
+              {
+                label: "Provider readiness",
+                resource: accounts,
+                required: false,
+              },
+            ]}
+          >
+            {settings.error && settings.data ? (
+              <button
+                className="text-button"
+                onClick={settings.reload}
+                type="button"
+              >
+                Retry settings
+              </button>
+            ) : null}
+            {models.error ? (
+              <button
+                className="text-button"
+                onClick={models.reload}
+                type="button"
+              >
+                Retry catalog
+              </button>
+            ) : null}
+            {accounts.error ? (
+              <button
+                className="text-button"
+                onClick={accounts.reload}
+                type="button"
+              >
+                Retry readiness
+              </button>
+            ) : null}
+          </ResourceStatusBar>
+          {settings.loading && !settings.data ? (
+            <LoadingBlock label="Loading model settings…" />
+          ) : settings.error && !settings.data ? (
+            <ErrorBlock error={settings.error} retry={settings.reload} />
+          ) : settings.data ? (
+            <div className="two-column-grid models-workspace">
+              <form className="content-card form-card" onSubmit={save}>
+                <div className="card-heading">
+                  <div>
+                    <span className="eyebrow">Primary inference</span>
+                    <h2>Active model</h2>
+                  </div>
+                </div>
+                <div className="field-grid">
                   <label>
-                    <span>Reasoning effort</span>
+                    <span>Provider</span>
                     <select
-                      value={fieldValue(
-                        "reasoningEffort",
-                        model?.reasoningEffort ??
-                          selectedModel?.reasoning?.default ??
-                          "",
-                      )}
+                      value={selectedProviderId}
                       onChange={(event) =>
                         setDraft((current) => ({
                           ...current,
-                          reasoningEffort: event.target.value,
+                          provider: event.target.value,
+                          model:
+                            models.data?.providers.find(
+                              (provider) => provider.id === event.target.value,
+                            )?.models[0]?.id ?? "",
+                          reasoningEffort: "",
                         }))
                       }
                     >
-                      {reasoningOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.label}
+                      {!models.data?.providers.some(
+                        (provider) => provider.id === selectedProviderId,
+                      ) && selectedProviderId ? (
+                        <option value={selectedProviderId}>
+                          {titleCase(selectedProviderId)}
+                        </option>
+                      ) : null}
+                      {(models.data?.providers ?? []).map((provider) => (
+                        <option key={provider.id} value={provider.id}>
+                          {provider.label}
+                          {provider.discovery === "live" ? " · Live" : ""}
                         </option>
                       ))}
                     </select>
                     <small>
-                      {
-                        reasoningOptions.find(
-                          (option) =>
-                            option.id ===
-                            fieldValue(
-                              "reasoningEffort",
-                              model?.reasoningEffort ??
-                                selectedModel?.reasoning?.default,
-                            ),
-                        )?.description
-                      }
+                      {selectedProvider?.detail ??
+                        "Provider availability is detected from this machine."}
                     </small>
                   </label>
-                ) : null}
-                <label className="field-span">
-                  <span>Base URL</span>
-                  <input
-                    value={fieldValue(
-                      "baseUrl",
-                      selectedProvider?.baseUrl ?? model?.baseUrl,
-                    )}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        baseUrl: event.target.value,
-                      }))
-                    }
-                    placeholder="http://127.0.0.1:11434/v1"
-                  />
-                </label>
-                <label>
-                  <span>Temperature</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="2"
-                    step="0.05"
-                    value={fieldValue("temperature", model?.temperature)}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        temperature: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Maximum tokens</span>
-                  <input
-                    type="number"
-                    min="128"
-                    step="128"
-                    value={fieldValue("maxTokens", model?.maxTokens)}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        maxTokens: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-              </div>
-            </details>
-            {feedback ? (
-              <Notice tone={feedback.tone}>{feedback.message}</Notice>
-            ) : null}
-            <div className="form-actions">
-              <button
-                className="primary-button"
-                disabled={saving}
-                type="submit"
-              >
-                {saving ? "Saving…" : "Save model"}
-              </button>
-            </div>
-          </form>
-          <aside className="models-diagnostics" aria-label="Model diagnostics">
-            <details
-              className="model-diagnostic"
-              onToggle={(event) => setReadinessOpen(event.currentTarget.open)}
-              open={readinessOpen}
-            >
-              <summary>
-                <span className="model-diagnostic__copy">
-                  <strong>Provider readiness</strong>
-                  <small>Native accounts and local fallbacks</small>
-                </span>
-                <Badge
-                  tone={
-                    readinessOpen
-                      ? usableProviderCount
-                        ? "good"
-                        : "warn"
-                      : "neutral"
-                  }
+                  <label>
+                    <span>Model</span>
+                    <select
+                      value={selectedModelId}
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          model: event.target.value,
+                          reasoningEffort: "",
+                        }))
+                      }
+                    >
+                      {selectedProvider?.models.map((entry) => (
+                        <option key={entry.id} value={entry.id}>
+                          {entry.label}
+                          {entry.source === "discovered" ? " · Discovered" : ""}
+                        </option>
+                      ))}
+                      {!selectedProvider?.models.some(
+                        (entry) => entry.id === selectedModelId,
+                      ) && selectedModelId ? (
+                        <option value={selectedModelId}>
+                          {selectedModelId}
+                        </option>
+                      ) : null}
+                    </select>
+                    {models.loading ? (
+                      <small>Refreshing model catalog…</small>
+                    ) : null}
+                    {models.error ? <small>{models.error}</small> : null}
+                  </label>
+                </div>
+                <details
+                  className="model-tuning"
+                  onToggle={(event) => setTuningOpen(event.currentTarget.open)}
+                  open={tuningOpen}
                 >
-                  {readinessOpen
-                    ? `${usableProviderCount}/${accountProviders.length} usable`
-                    : "Open to load"}
-                </Badge>
-              </summary>
-              {readinessOpen ? (
-                <div className="model-diagnostic__body">
-                  {accounts.loading ? (
-                    <LoadingBlock />
-                  ) : accounts.error ? (
-                    <ErrorBlock
-                      error={accounts.error}
-                      retry={accounts.reload}
-                    />
-                  ) : (
-                    <div className="stack-list">
-                      {accountProviders.map((provider) => {
-                        const status = asRecord(
-                          accounts.data?.accounts?.[provider.snapshot],
-                        );
-                        const access = linkedProviderAccess(status);
-                        const selected =
-                          accounts.data?.activeProvider === provider.key;
-                        return (
-                          <div className="status-row" key={provider.key}>
+                  <summary>
+                    <span>
+                      <strong>Generation controls</strong>
+                      <small>
+                        Reasoning, endpoint, temperature, and output
+                      </small>
+                    </span>
+                    <Badge>{tuningOpen ? "Open" : "Advanced"}</Badge>
+                  </summary>
+                  <div className="field-grid model-tuning__body">
+                    {reasoningOptions.length ? (
+                      <label>
+                        <span>Reasoning effort</span>
+                        <select
+                          value={fieldValue(
+                            "reasoningEffort",
+                            model?.reasoningEffort ??
+                              selectedModel?.reasoning?.default ??
+                              "",
+                          )}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              reasoningEffort: event.target.value,
+                            }))
+                          }
+                        >
+                          {reasoningOptions.map((option) => (
+                            <option key={option.id} value={option.id}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <small>
+                          {
+                            reasoningOptions.find(
+                              (option) =>
+                                option.id ===
+                                fieldValue(
+                                  "reasoningEffort",
+                                  model?.reasoningEffort ??
+                                    selectedModel?.reasoning?.default,
+                                ),
+                            )?.description
+                          }
+                        </small>
+                      </label>
+                    ) : null}
+                    <label className="field-span">
+                      <span>Base URL</span>
+                      <input
+                        value={fieldValue(
+                          "baseUrl",
+                          selectedProvider?.baseUrl ?? model?.baseUrl,
+                        )}
+                        onChange={(event) =>
+                          setDraft((current) => ({
+                            ...current,
+                            baseUrl: event.target.value,
+                          }))
+                        }
+                        placeholder="http://127.0.0.1:11434/v1"
+                      />
+                    </label>
+                    <label>
+                      <span>Temperature</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="2"
+                        step="0.05"
+                        value={fieldValue("temperature", model?.temperature)}
+                        onChange={(event) =>
+                          setDraft((current) => ({
+                            ...current,
+                            temperature: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Maximum tokens</span>
+                      <input
+                        type="number"
+                        min="128"
+                        step="128"
+                        value={fieldValue("maxTokens", model?.maxTokens)}
+                        onChange={(event) =>
+                          setDraft((current) => ({
+                            ...current,
+                            maxTokens: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                  </div>
+                </details>
+                {feedback ? (
+                  <Notice tone={feedback.tone}>{feedback.message}</Notice>
+                ) : null}
+                <div className="form-actions">
+                  <button
+                    className="primary-button"
+                    disabled={saving}
+                    type="submit"
+                  >
+                    {saving ? "Saving…" : "Save model"}
+                  </button>
+                </div>
+              </form>
+              <aside
+                className="models-diagnostics"
+                aria-label="Model diagnostics"
+              >
+                <details
+                  className="model-diagnostic"
+                  onToggle={(event) =>
+                    setReadinessOpen(event.currentTarget.open)
+                  }
+                  open={readinessOpen}
+                >
+                  <summary>
+                    <span className="model-diagnostic__copy">
+                      <strong>Provider readiness</strong>
+                      <small>Native accounts and local fallbacks</small>
+                    </span>
+                    <Badge
+                      tone={
+                        readinessOpen
+                          ? usableProviderCount
+                            ? "good"
+                            : "warn"
+                          : "neutral"
+                      }
+                    >
+                      {readinessOpen
+                        ? `${usableProviderCount}/${accountProviders.length} usable`
+                        : "Open to load"}
+                    </Badge>
+                  </summary>
+                  {readinessOpen ? (
+                    <div className="model-diagnostic__body">
+                      {accounts.loading ? (
+                        <LoadingBlock />
+                      ) : accounts.error ? (
+                        <ErrorBlock
+                          error={accounts.error}
+                          retry={accounts.reload}
+                        />
+                      ) : (
+                        <div className="stack-list">
+                          {accountProviders.map((provider) => {
+                            const status = asRecord(
+                              accounts.data?.accounts?.[provider.snapshot],
+                            );
+                            const access = linkedProviderAccess(status);
+                            const selected =
+                              accounts.data?.activeProvider === provider.key;
+                            return (
+                              <div className="status-row" key={provider.key}>
+                                <div>
+                                  <strong>{provider.label}</strong>
+                                  <small>
+                                    {asString(status.detail, "Not configured")}
+                                  </small>
+                                </div>
+                                <Badge
+                                  tone={
+                                    selected && access.usable
+                                      ? "good"
+                                      : access.tone
+                                  }
+                                >
+                                  {selected
+                                    ? access.mode === "fallback"
+                                      ? "Active · fallback"
+                                      : access.usable
+                                        ? "Active"
+                                        : "Selected · blocked"
+                                    : access.label}
+                                </Badge>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </details>
+                <details className="model-diagnostic">
+                  <summary>
+                    <span className="model-diagnostic__copy">
+                      <strong>Registered capabilities</strong>
+                      <small>Runtime handler truth</small>
+                    </span>
+                    <Badge
+                      tone={
+                        registeredCapabilityCount ===
+                        (models.data?.capabilities ?? []).length
+                          ? "good"
+                          : "warn"
+                      }
+                    >
+                      {registeredCapabilityCount}/
+                      {(models.data?.capabilities ?? []).length}
+                    </Badge>
+                  </summary>
+                  <div className="model-diagnostic__body">
+                    {models.loading ? (
+                      <LoadingBlock />
+                    ) : models.error ? (
+                      <ErrorBlock error={models.error} retry={models.reload} />
+                    ) : (
+                      <div className="stack-list">
+                        {(models.data?.capabilities ?? []).map((capability) => (
+                          <div className="status-row" key={capability.id}>
                             <div>
-                              <strong>{provider.label}</strong>
-                              <small>
-                                {asString(status.detail, "Not configured")}
-                              </small>
+                              <strong>{capability.label}</strong>
+                              <small>{capability.detail}</small>
                             </div>
                             <Badge
                               tone={
-                                selected && access.usable ? "good" : access.tone
+                                capability.handlerRegistered ? "good" : "warn"
                               }
                             >
-                              {selected
-                                ? access.mode === "fallback"
-                                  ? "Active · fallback"
-                                  : access.usable
-                                    ? "Active"
-                                    : "Selected · blocked"
-                                : access.label}
+                              {capability.handlerRegistered
+                                ? "Registered"
+                                : "Unavailable"}
                             </Badge>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </details>
-            <details className="model-diagnostic">
-              <summary>
-                <span className="model-diagnostic__copy">
-                  <strong>Registered capabilities</strong>
-                  <small>Runtime handler truth</small>
-                </span>
-                <Badge
-                  tone={
-                    registeredCapabilityCount ===
-                    (models.data?.capabilities ?? []).length
-                      ? "good"
-                      : "warn"
-                  }
-                >
-                  {registeredCapabilityCount}/
-                  {(models.data?.capabilities ?? []).length}
-                </Badge>
-              </summary>
-              <div className="model-diagnostic__body">
-                {models.loading ? (
-                  <LoadingBlock />
-                ) : models.error ? (
-                  <ErrorBlock error={models.error} retry={models.reload} />
-                ) : (
-                  <div className="stack-list">
-                    {(models.data?.capabilities ?? []).map((capability) => (
-                      <div className="status-row" key={capability.id}>
-                        <div>
-                          <strong>{capability.label}</strong>
-                          <small>{capability.detail}</small>
-                        </div>
-                        <Badge
-                          tone={capability.handlerRegistered ? "good" : "warn"}
-                        >
-                          {capability.handlerRegistered
-                            ? "Registered"
-                            : "Unavailable"}
-                        </Badge>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
-            </details>
-          </aside>
-        </div>
+                </details>
+              </aside>
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );
