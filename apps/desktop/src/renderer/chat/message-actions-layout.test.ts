@@ -34,7 +34,7 @@ describe("chat message action layout", () => {
       ".chat-message:focus-within .chat-message-actions",
     );
     expect(css).toMatch(
-      /@media \(pointer: coarse\)\s*{[^}]*\.chat-message-actions\s*{[^}]*opacity:\s*1;[^}]*pointer-events:\s*auto;[^}]*transform:\s*translateY\(0\);/s,
+      /@media \(hover: none\)\s*{[^}]*\.chat-message-actions\s*{[^}]*opacity:\s*1;[^}]*pointer-events:\s*auto;[^}]*transform:\s*translateY\(0\);/s,
     );
     expect(css).toMatch(
       /\.chat-message-actions\s*{[^}]*transition:\s*\n?\s*opacity 140ms ease,\s*\n?\s*transform 140ms ease;/s,

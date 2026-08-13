@@ -3154,7 +3154,7 @@ button.chat-session-meta-pill:hover {
   }
 }
 
-@media (pointer: coarse) {
+@media (hover: none) {
   .chat-message-actions {
     opacity: 1;
     pointer-events: auto;
