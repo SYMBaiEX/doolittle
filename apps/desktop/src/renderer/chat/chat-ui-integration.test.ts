@@ -24,4 +24,12 @@ describe("Eliza UI chat integration", () => {
     expect(composer).toContain("@elizaos/ui/components/ui/status-badge");
     expect(actions).toContain("@elizaos/ui/components/ui/button");
   });
+
+  it("keeps the textarea borderless while the rounded composer owns focus", () => {
+    const css = readRendererFile("chat-ui.css");
+    expect(css).toMatch(
+      /\.chat-composer \.chat-composer-input:focus-visible\s*{[^}]*outline:\s*none;[^}]*box-shadow:\s*none;/s,
+    );
+    expect(css).toContain(".chat-composer .chat-composer-input");
+  });
 });

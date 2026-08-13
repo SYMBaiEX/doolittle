@@ -21,9 +21,11 @@
   resize: none;
 }
 
+/* The rounded composer surface owns the focus treatment. Keep the textarea
+ * itself borderless so it does not add a square accent frame inside it. */
 .chat-composer .chat-composer-input:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 52%, transparent);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: none;
 }
 
 .chat-composer .chat-composer-submit {
