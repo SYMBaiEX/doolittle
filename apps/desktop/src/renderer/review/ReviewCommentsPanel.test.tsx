@@ -100,4 +100,48 @@ describe("ReviewCommentsPanel", () => {
     expect(container.querySelector("textarea")).not.toBeNull();
     expect(container.textContent).toContain("Comment on + line 12");
   });
+
+  it("confirms deletion and restores focus when cancelled", async () => {
+    const onDelete = vi.fn();
+    const note = {
+      id: "note-1",
+      path: "src/example.ts",
+      body: "Please keep this guard.",
+      status: "open" as const,
+      createdAt: "2026-08-12T00:00:00.000Z",
+      updatedAt: "2026-08-12T00:00:00.000Z",
+    };
+    act(() =>
+      root.render(
+        <ReviewCommentsPanel {...props({ comments: [note], onDelete })} />,
+      ),
+    );
+    const deleteButton = container.querySelector(
+      'button[aria-label="Delete review note for src/example.ts"]',
+    ) as HTMLButtonElement;
+    act(() => deleteButton.click());
+    expect(
+      container.querySelector('[role="alertdialog"]')?.textContent,
+    ).toContain("Please keep this guard.");
+    const cancel = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Cancel",
+    ) as HTMLButtonElement;
+    await act(async () => {
+      cancel.click();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(deleteButton);
+    act(() => deleteButton.click());
+    act(() =>
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })),
+    );
+    expect(container.querySelector('[role="alertdialog"]')).toBeNull();
+    act(() => deleteButton.click());
+    const confirm = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Delete note",
+    ) as HTMLButtonElement;
+    act(() => confirm.click());
+    expect(onDelete).toHaveBeenCalledWith("note-1");
+  });
 });

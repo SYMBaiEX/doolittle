@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import { Badge } from "../lib";
 import type { ReviewComment, ReviewCommentAnchor } from "../review-comments";
 
@@ -49,12 +49,38 @@ export function ReviewCommentsPanel({
   const [notesOpen, setNotesOpen] = useState(
     comments.length > 0 || Boolean(activeCommentTarget),
   );
+  const [pendingDelete, setPendingDelete] = useState<ReviewComment | null>(
+    null,
+  );
+  const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const deleteCancelRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (comments.length > 0 || activeCommentTarget) {
       setNotesOpen(true);
     }
   }, [activeCommentTarget, comments.length]);
+
+  useEffect(() => {
+    if (pendingDelete) {
+      requestAnimationFrame(() => deleteCancelRef.current?.focus());
+      return;
+    }
+    const trigger = deleteTriggerRef.current;
+    if (trigger?.isConnected) requestAnimationFrame(() => trigger.focus());
+  }, [pendingDelete]);
+
+  useEffect(() => {
+    if (!pendingDelete) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setPendingDelete(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [pendingDelete]);
 
   return (
     <details
@@ -137,7 +163,10 @@ export function ReviewCommentsPanel({
                     <button
                       aria-label={`Delete review note for ${comment.path}`}
                       className="danger"
-                      onClick={() => onDelete(comment.id)}
+                      onClick={(event) => {
+                        deleteTriggerRef.current = event.currentTarget;
+                        setPendingDelete(comment);
+                      }}
                       type="button"
                     >
                       Delete
@@ -208,6 +237,43 @@ export function ReviewCommentsPanel({
               </div>
             </div>
           ) : null}
+        </div>
+      ) : null}
+      {pendingDelete ? (
+        <div
+          aria-labelledby="review-delete-title"
+          aria-describedby="review-delete-description"
+          aria-modal="true"
+          className="review-delete-confirmation"
+          role="alertdialog"
+        >
+          <h3 id="review-delete-title">Delete review note?</h3>
+          <p id="review-delete-description">
+            This will remove the note for {pendingDelete.path}
+            {pendingDelete.anchor
+              ? ` on the ${pendingDelete.anchor.side === "new" ? "+" : "−"} line ${pendingDelete.anchor.line}`
+              : ""}
+            . “{pendingDelete.body}” This cannot be undone.
+          </p>
+          <div>
+            <button
+              ref={deleteCancelRef}
+              onClick={() => setPendingDelete(null)}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="danger"
+              onClick={() => {
+                onDelete(pendingDelete.id);
+                setPendingDelete(null);
+              }}
+              type="button"
+            >
+              Delete note
+            </button>
+          </div>
         </div>
       ) : null}
     </details>

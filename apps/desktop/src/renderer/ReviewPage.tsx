@@ -436,8 +436,6 @@ export function ReviewPage({
 
   const deleteComment = async (commentId: string) => {
     if (!active) return;
-    persistComments(comments.filter((comment) => comment.id !== commentId));
-    if (editingCommentId === commentId) cancelComment();
     try {
       applyDurableRecord(
         await desktopRequest<ReviewRecordResponse>(
@@ -445,8 +443,12 @@ export function ReviewPage({
           "DELETE",
         ),
       );
+      if (editingCommentId === commentId) cancelComment();
     } catch (error) {
-      showOfflineFallback(error);
+      setFeedback({
+        tone: "warn",
+        message: `Could not delete the review note; it was kept. Retry when the local runtime returns: ${errorMessage(error)}`,
+      });
     }
   };
 
