@@ -25,6 +25,9 @@ describe("chat message action layout", () => {
       /\.chat-message-actions button\s*{[^}]*pointer-events:\s*none;[^}]*padding:/s,
     );
     expect(css).toMatch(
+      /\.chat-message-actions\s*{[^}]*opacity:\s*0;[^}]*pointer-events:\s*none;[^}]*transform:\s*translateY\(2px\);/s,
+    );
+    expect(css).toMatch(
       /\.chat-message\.user:hover \.chat-message-actions,\s*\.chat-message\.assistant:hover \.chat-message-actions,\s*\.chat-message:has\(\.chat-message-actions button:focus-visible\)\s*\.chat-message-actions\s*{[^}]*opacity:\s*1;[^}]*pointer-events:\s*auto;/s,
     );
     expect(css).toMatch(

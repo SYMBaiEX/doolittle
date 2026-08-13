@@ -520,7 +520,7 @@ button.chat-session-meta-pill:hover {
   justify-content: flex-end;
   gap: 2px;
   opacity: 0;
-  pointer-events: auto;
+  pointer-events: none;
   transform: translateY(2px);
   transition:
     opacity 140ms ease,
