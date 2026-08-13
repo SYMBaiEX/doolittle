@@ -14,7 +14,10 @@ import type {
   SavedProfileRecallResponse,
   SessionUsageSummary,
 } from "../../shared/contracts";
-import { commandCompletions } from "../command-completion";
+import {
+  commandCompletions,
+  commandCompletionText,
+} from "../command-completion";
 import {
   type ContextPressureSnapshot,
   type ContextPressureTone,
@@ -226,7 +229,7 @@ export function useChatComposerSupport({
         setQueueAnnouncement(command.disabledReason);
         return;
       }
-      setDraft(command.command);
+      setDraft(commandCompletionText(command));
       setCommandMenuDismissed(true);
       requestAnimationFrame(() => composerRef.current?.focus());
     },

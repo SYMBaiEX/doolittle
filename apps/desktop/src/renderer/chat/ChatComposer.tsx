@@ -1,3 +1,6 @@
+import { Button as ElizaButton } from "@elizaos/ui/components/ui/button";
+import { StatusBadge } from "@elizaos/ui/components/ui/status-badge";
+import { Textarea as ElizaTextarea } from "@elizaos/ui/components/ui/textarea";
 import type {
   Dispatch,
   FormEvent,
@@ -325,7 +328,7 @@ export function ChatComposer({
           role="listbox"
         >
           {commandSuggestions.map((command, index) => (
-            <button
+            <ElizaButton
               aria-selected={index === activeCommandIndex}
               className={index === activeCommandIndex ? "selected" : ""}
               disabled={Boolean(command.disabledReason)}
@@ -333,7 +336,9 @@ export function ChatComposer({
               key={command.command}
               onClick={() => selectCommandSuggestion(command)}
               role="option"
+              size="sm"
               type="button"
+              variant="ghost"
             >
               <code>{command.command}</code>
               <span>
@@ -346,7 +351,7 @@ export function ChatComposer({
                 ) : null}
               </span>
               <kbd>{index === activeCommandIndex ? "Tab" : "↑↓"}</kbd>
-            </button>
+            </ElizaButton>
           ))}
         </div>
       ) : null}
@@ -356,15 +361,17 @@ export function ChatComposer({
         </div>
       ) : null}
       <div className="chat-composer-tools">
-        <button
+        <ElizaButton
           aria-label="Attach file context"
           className="secondary-button"
           onClick={pickContextFiles}
+          size="sm"
           type="button"
+          variant="secondary"
         >
           <span aria-hidden="true">＋</span>
           Attach
-        </button>
+        </ElizaButton>
         <VoiceComposerButton
           disabled={backend.phase !== "ready"}
           importAndTranscribe={importAndTranscribeRecording}
@@ -385,7 +392,8 @@ export function ChatComposer({
           runtime={runtime}
         />
       </div>
-      <textarea
+      <ElizaTextarea
+        className="chat-composer-input"
         aria-activedescendant={activeCommandId}
         aria-autocomplete="list"
         aria-controls={commandMenuOpen ? "chat-command-completions" : undefined}
@@ -441,12 +449,17 @@ export function ChatComposer({
         }
         ref={composerRef}
         rows={1}
+        variant="default"
+        density="compact"
         value={draft}
       />
-      <button
+      <ElizaButton
         aria-label={activeRequest ? "Queue message" : "Send message"}
+        className="chat-composer-submit"
         disabled={!canSubmit}
+        size="icon-sm"
         type="submit"
+        variant="default"
       >
         <svg
           aria-hidden="true"
@@ -456,7 +469,7 @@ export function ChatComposer({
         >
           <path d="m5 10 5-5 5 5M10 5v11" />
         </svg>
-      </button>
+      </ElizaButton>
       <small className="chat-composer-hint">
         {activeRequest ? "Enter to queue" : "Enter to send"} · Shift Enter for a
         new line
@@ -485,14 +498,29 @@ export function ChatComposer({
         }
       >
         <span className="chat-status-runtime">
-          <i className={backend.phase} aria-hidden="true" />
-          <strong>
-            {activeRequest
-              ? "Working"
-              : backend.phase === "ready"
-                ? "Ready"
-                : backend.phase}
-          </strong>
+          <StatusBadge
+            className="chat-status-badge"
+            label={
+              activeRequest
+                ? "Working"
+                : backend.phase === "ready"
+                  ? "Ready"
+                  : backend.phase
+            }
+            pulse={Boolean(activeRequest)}
+            tone={
+              activeRequest
+                ? "processing"
+                : backend.phase === "ready"
+                  ? "success"
+                  : backend.phase === "booting"
+                    ? "warning"
+                    : backend.phase === "degraded"
+                      ? "danger"
+                      : "muted"
+            }
+            withDot
+          />
           <small>{modelRouteLabel}</small>
           {runningTasks > 0 ? <small>{runningTasks} active</small> : null}
           {pendingApprovals > 0 ? (

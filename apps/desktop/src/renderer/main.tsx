@@ -11,6 +11,7 @@ import "./recovery.css";
 import "./app-polish.css";
 import "./eliza-ui.css";
 import "./action-motion.css";
+import "./chat-ui.css";
 
 document.documentElement.dataset.platform = window.doolittle.platform;
 

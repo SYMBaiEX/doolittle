@@ -1,0 +1,125 @@
+/*
+ * Final desktop integration layer for @elizaos/ui chat primitives.
+ *
+ * The chat transcript still owns Doolittle's parsed tool/activity model. This
+ * layer only normalizes the official Button/Textarea/StatusBadge surfaces so
+ * they participate in the existing responsive composer and message footer.
+ */
+.chat-composer .chat-composer-input,
+.chat-composer textarea.chat-composer-input {
+  width: 100%;
+  min-height: 54px;
+  max-height: 180px;
+  padding: 6px 4px 5px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: 14px;
+  line-height: 1.55;
+  resize: none;
+}
+
+.chat-composer .chat-composer-input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 52%, transparent);
+  outline-offset: 2px;
+}
+
+.chat-composer .chat-composer-submit {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 0;
+  border-radius: 9px;
+}
+
+.chat-composer .chat-composer-submit:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 86%, var(--text));
+}
+
+.chat-composer .chat-composer-submit:disabled {
+  color: var(--muted);
+  background: var(--surface-soft);
+  opacity: 0.62;
+}
+
+.chat-composer-tools > .secondary-button {
+  min-height: 30px;
+  padding: 5px 7px;
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.chat-command-completions > .chat-command-option,
+.chat-command-completions > button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  color: var(--text-soft);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  text-align: left;
+}
+
+.chat-command-completions > button:hover:not(:disabled),
+.chat-command-completions > button.selected {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.chat-status-runtime .chat-status-badge {
+  display: inline-flex;
+  min-height: 18px;
+  align-items: center;
+  padding: 1px 5px;
+  color: var(--text-soft);
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.chat-message-actions .chat-message-action-button {
+  min-height: 26px;
+  padding: 4px 7px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1.1;
+}
+
+.chat-message-actions .chat-message-action-button:hover:not(:disabled),
+.chat-message-actions .chat-message-action-button:focus-visible {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+@media (max-width: 720px) {
+  .chat-composer {
+    width: min(100%, calc(100% - 16px));
+  }
+
+  .chat-composer .chat-composer-input,
+  .chat-composer textarea.chat-composer-input {
+    max-height: 150px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-composer .chat-composer-submit,
+  .chat-message-actions .chat-message-action-button {
+    transition: none;
+  }
+}

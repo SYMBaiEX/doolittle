@@ -1,3 +1,4 @@
+import { Button as ElizaButton } from "@elizaos/ui/components/ui/button";
 import type { BranchMode, CopyState, DisplayMessage } from "./models";
 
 export interface MessageActionsProps {
@@ -41,38 +42,48 @@ export function MessageActions({
       className="chat-message-actions"
       role="toolbar"
     >
-      <button
+      <ElizaButton
+        className="chat-message-action-button"
         aria-label="Fork conversation from this message"
         disabled={branchDisabled}
         onClick={() => onBranch(message, "fork")}
         title="Keep this transcript unchanged and continue in a new branch"
         type="button"
+        size="sm"
+        variant="ghost"
       >
         {forkingMessageId === message.id ? "Branching…" : "Fork"}
-      </button>
+      </ElizaButton>
       {message.role === "user" ? (
-        <button
+        <ElizaButton
+          className="chat-message-action-button"
           aria-label="Edit this message in a new branch"
           disabled={branchDisabled}
           onClick={() => onBranch(message, "edit")}
           title="Create a branch before this turn and restore the prompt for editing"
           type="button"
+          size="sm"
+          variant="ghost"
         >
           Edit
-        </button>
+        </ElizaButton>
       ) : !message.pending ? (
-        <button
+        <ElizaButton
+          className="chat-message-action-button"
           aria-label="Retry this response in a new branch"
           disabled={branchDisabled}
           onClick={() => onBranch(message, "retry")}
           title="Regenerate the preceding prompt without deleting this response"
           type="button"
+          size="sm"
+          variant="ghost"
         >
           Retry
-        </button>
+        </ElizaButton>
       ) : null}
       {message.role === "assistant" && !message.pending && !message.error ? (
-        <button
+        <ElizaButton
+          className="chat-message-action-button"
           aria-label={
             speechSupported
               ? speakingMessageId === message.id
@@ -90,17 +101,22 @@ export function MessageActions({
               : "Read aloud is not supported by this system."
           }
           type="button"
+          size="sm"
+          variant="ghost"
         >
           {speakingMessageId === message.id ? "Stop" : "Read"}
-        </button>
+        </ElizaButton>
       ) : null}
-      <button
+      <ElizaButton
+        className="chat-message-action-button"
         aria-label={failed ? "Copy failed" : "Copy message"}
         onClick={() => onCopy(message)}
         type="button"
+        size="sm"
+        variant="ghost"
       >
         {failed ? "Copy failed" : label}
-      </button>
+      </ElizaButton>
     </div>
   );
 }
