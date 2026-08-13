@@ -31,6 +31,7 @@ import {
   warmDesktopRoute,
 } from "./app-shell/desktop-route-registry";
 import { ActivityCenter } from "./components/ActivityCenter";
+import { DesktopRouteErrorBoundary } from "./components/DesktopRouteErrorBoundary";
 import { ProjectManager } from "./components/ProjectManager";
 import { ToastRegion, useToasts } from "./components/ToastRegion";
 import { newConversationId } from "./conversation-id";
@@ -1298,15 +1299,21 @@ export function App() {
           data-view={view}
           key={view}
         >
-          <Suspense
-            fallback={
-              <DesktopRouteLoadingFallback
-                label={activeItem?.label ?? "view"}
-              />
-            }
+          <DesktopRouteErrorBoundary
+            label={activeItem?.label ?? "View"}
+            onReturnToChat={() => setView("chat")}
+            resetKey={`${view}\u0000${projectScope}\u0000${workspace.currentPath}`}
           >
-            {content}
-          </Suspense>
+            <Suspense
+              fallback={
+                <DesktopRouteLoadingFallback
+                  label={activeItem?.label ?? "view"}
+                />
+              }
+            >
+              {content}
+            </Suspense>
+          </DesktopRouteErrorBoundary>
         </div>
         {view === "chat" && chatTerminalMounted ? (
           <Suspense fallback={null}>

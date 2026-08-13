@@ -20,6 +20,10 @@
   box-shadow: inset 3px 0 var(--bad);
 }
 
+.route-recovery {
+  margin: clamp(20px, 5vw, 56px) auto;
+}
+
 .recovery-mark {
   display: grid;
   width: 30px;
