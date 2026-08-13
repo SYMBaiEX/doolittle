@@ -151,6 +151,7 @@ test.describe("Doolittle desktop offline chat", () => {
         .filter({ hasText: prompt })
         .last();
       const messageActions = userMessage.getByRole("toolbar", {
+        includeHidden: true,
         name: "Message actions",
       });
       await expect(messageActions).toHaveCSS("opacity", "0");
