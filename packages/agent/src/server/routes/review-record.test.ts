@@ -161,4 +161,56 @@ describe("handleReviewRecordRoutes", () => {
       error: "A valid review comment is required.",
     });
   });
+
+  it("returns a bounded client error for malformed comment identifiers", async () => {
+    const context = createContext();
+    const paths = [
+      ["PATCH", "/review-record/comments/%E0%A4"],
+      ["DELETE", "/review-record/comments/%E0%A4"],
+      ["POST", "/review-record/comments/%E0%A4/resolve"],
+    ] as const;
+
+    for (const [method, path] of paths) {
+      const response = await route(context, path, {
+        method,
+        ...(method === "PATCH"
+          ? {
+              body: JSON.stringify({ body: "updated" }),
+              headers: { "content-type": "application/json" },
+            }
+          : {}),
+      });
+
+      expect(response?.status).toBe(400);
+      await expect(response?.json()).resolves.toEqual({
+        error: "Review comment identifier is invalid.",
+      });
+    }
+  });
+
+  it("decodes valid encoded comment identifiers before mutation", async () => {
+    const context = createContext();
+    const created = await route(context, "/review-record/comments", {
+      method: "POST",
+      body: JSON.stringify({
+        comment: {
+          id: "comment/one",
+          path: "src/app.ts",
+          body: "Keep this context.",
+        },
+      }),
+    });
+    expect(created?.status).toBe(201);
+
+    const resolved = await route(
+      context,
+      "/review-record/comments/comment%2Fone/resolve",
+      { method: "POST" },
+    );
+
+    expect(resolved?.status).toBe(200);
+    await expect(resolved?.json()).resolves.toMatchObject({
+      record: { comments: [{ id: "comment/one", status: "resolved" }] },
+    });
+  });
 });

@@ -21,6 +21,16 @@ function stringValue(value: unknown, maximum: number): string | undefined {
   return trimmed && trimmed.length <= maximum ? trimmed : undefined;
 }
 
+function decodeCommentId(rawId: string | undefined): string | undefined {
+  if (!rawId) return undefined;
+  try {
+    const id = decodeURIComponent(rawId);
+    return id && id.length <= 160 ? id : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function currentScope(context: AppContext): Promise<ReviewRecordScope> {
   const repository = await context.services.repository.summary();
   return {
@@ -153,7 +163,10 @@ export async function handleReviewRecordRoutes(
       url.pathname,
     );
     if (commentMatch && request.method === "PATCH") {
-      const id = decodeURIComponent(commentMatch[1] ?? "");
+      const id = decodeCommentId(commentMatch[1]);
+      if (!id) {
+        return json({ error: "Review comment identifier is invalid." }, 400);
+      }
       const nextBody = stringValue(body.body, MAX_COMMENT_BODY_LENGTH);
       if (!nextBody)
         return json({ error: "Review comment body is required." }, 400);
@@ -166,7 +179,10 @@ export async function handleReviewRecordRoutes(
       });
     }
     if (commentMatch && request.method === "DELETE") {
-      const id = decodeURIComponent(commentMatch[1] ?? "");
+      const id = decodeCommentId(commentMatch[1]);
+      if (!id) {
+        return json({ error: "Review comment identifier is invalid." }, 400);
+      }
       return json({
         record: context.services.reviewRecords.deleteComment(scope, id),
       });
@@ -177,7 +193,10 @@ export async function handleReviewRecordRoutes(
         url.pathname,
       );
     if (statusMatch && request.method === "POST") {
-      const id = decodeURIComponent(statusMatch[1] ?? "");
+      const id = decodeCommentId(statusMatch[1]);
+      if (!id) {
+        return json({ error: "Review comment identifier is invalid." }, 400);
+      }
       const status = statusMatch[2] === "resolve" ? "resolved" : "open";
       return json({
         record: context.services.reviewRecords.setCommentStatus(
