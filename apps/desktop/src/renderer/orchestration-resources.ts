@@ -255,6 +255,29 @@ export function orchestrationResourceId(id: string): string {
   return encodeURIComponent(id);
 }
 
+export type OrchestrationResourceScope =
+  | "global"
+  | "workspace"
+  | "workspace-project";
+
+/**
+ * Keep cache identity aligned with the server resource's ownership boundary.
+ * Global resources intentionally share a cache slot, while workspace-owned
+ * records cannot be reused after switching projects or workspaces.
+ */
+export function orchestrationResourceDependencies(input: {
+  enabled: boolean;
+  scope: OrchestrationResourceScope;
+  projectScope: string;
+  workspacePath?: string;
+}): readonly unknown[] {
+  if (input.scope === "global") return [input.enabled];
+  if (input.scope === "workspace") {
+    return [input.enabled, input.workspacePath ?? ""];
+  }
+  return [input.enabled, input.projectScope, input.workspacePath ?? ""];
+}
+
 function identifiedRecords<T extends { id: string }>(value: unknown): T[] {
   return asArray(value).flatMap((entry) => {
     const record = asRecord(entry);
@@ -334,25 +357,53 @@ export function useOrchestrationResources(input: {
   });
   const overviewResource = useApiResource<DelegationOverviewResponse>(
     requestPolicy.overview ? orchestrationResourcePaths.overview : null,
-    [requestPolicy.overview],
+    orchestrationResourceDependencies({
+      enabled: requestPolicy.overview,
+      scope: "global",
+      projectScope: input.projectScope,
+      workspacePath: input.workspacePath,
+    }),
   );
   const tasksResource = useApiResource<DelegationTaskResponse>(
     requestPolicy.tasks ? orchestrationResourcePaths.tasks : null,
-    [requestPolicy.tasks],
+    orchestrationResourceDependencies({
+      enabled: requestPolicy.tasks,
+      scope: "workspace-project",
+      projectScope: input.projectScope,
+      workspacePath: input.workspacePath,
+    }),
   );
   const taskDetailResource = useApiResource<DelegationTaskDetailResponse>(
     requestPolicy.tasks && input.selectedTaskId
       ? orchestrationResourcePaths.task(input.selectedTaskId)
       : null,
-    [requestPolicy.tasks, input.selectedTaskId],
+    [
+      ...orchestrationResourceDependencies({
+        enabled: requestPolicy.tasks,
+        scope: "workspace-project",
+        projectScope: input.projectScope,
+        workspacePath: input.workspacePath,
+      }),
+      input.selectedTaskId,
+    ],
   );
   const workersResource = useApiResource<WorkersResponse>(
     requestPolicy.workers ? orchestrationResourcePaths.workers : null,
-    [requestPolicy.workers],
+    orchestrationResourceDependencies({
+      enabled: requestPolicy.workers,
+      scope: "global",
+      projectScope: input.projectScope,
+      workspacePath: input.workspacePath,
+    }),
   );
   const worktreesResource = useApiResource<RepositoryWorktreesResponse>(
     requestPolicy.worktrees ? orchestrationResourcePaths.worktrees : null,
-    [requestPolicy.worktrees],
+    orchestrationResourceDependencies({
+      enabled: requestPolicy.worktrees,
+      scope: "workspace",
+      projectScope: input.projectScope,
+      workspacePath: input.workspacePath,
+    }),
   );
   const plansResource = useApiResource<PlansResponse>(
     requestPolicy.plans ? orchestrationResourcePaths.plans : null,

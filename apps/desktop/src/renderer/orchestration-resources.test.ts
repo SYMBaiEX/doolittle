@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { apiResourceCacheKey } from "./lib";
 import {
   isolatedCodingWorktrees,
   normalizeOrchestrationResources,
   ORCHESTRATION_TASK_SUMMARY_LIMIT,
+  orchestrationResourceDependencies,
   orchestrationResourceId,
   orchestrationResourcePaths,
   projectOrchestrationCodegenSelection,
@@ -29,6 +31,50 @@ describe("orchestration resource paths", () => {
       "/delegation/tasks/task%2Fa%20%3F",
     );
     expect(orchestrationResourceId("task/a ?")).toBe("task%2Fa%20%3F");
+  });
+});
+
+describe("orchestration resource cache identity", () => {
+  const path = orchestrationResourcePaths.tasks;
+
+  it("separates task cache records when workspace or project scope changes", () => {
+    const forProjectA = orchestrationResourceDependencies({
+      enabled: true,
+      scope: "workspace-project",
+      projectScope: "project-a",
+      workspacePath: "/work/a",
+    });
+    const forProjectB = orchestrationResourceDependencies({
+      enabled: true,
+      scope: "workspace-project",
+      projectScope: "project-b",
+      workspacePath: "/work/b",
+    });
+
+    expect(apiResourceCacheKey(path, forProjectA)).not.toBe(
+      apiResourceCacheKey(path, forProjectB),
+    );
+  });
+
+  it("keeps globally scoped resources independent of workspace and project", () => {
+    const forProjectA = orchestrationResourceDependencies({
+      enabled: true,
+      scope: "global",
+      projectScope: "project-a",
+      workspacePath: "/work/a",
+    });
+    const forProjectB = orchestrationResourceDependencies({
+      enabled: true,
+      scope: "global",
+      projectScope: "project-b",
+      workspacePath: "/work/b",
+    });
+
+    expect(
+      apiResourceCacheKey(orchestrationResourcePaths.overview, forProjectA),
+    ).toBe(
+      apiResourceCacheKey(orchestrationResourcePaths.overview, forProjectB),
+    );
   });
 });
 
