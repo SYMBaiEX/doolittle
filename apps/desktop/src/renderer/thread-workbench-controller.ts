@@ -220,6 +220,15 @@ export function workbenchResourcePaths(
   };
 }
 
+/** Keep repository-backed cache entries isolated when the active workspace changes. */
+export function workbenchResourceDependencies(
+  active: boolean,
+  workspacePath: string,
+  ...dependencies: readonly unknown[]
+): readonly unknown[] {
+  return [active, workspacePath, ...dependencies];
+}
+
 export function useThreadWorkbenchRailController({
   active,
   sessionId,
@@ -372,16 +381,24 @@ export function useThreadWorkbenchRailController({
     currentFile,
     currentChange ?? "",
   );
-  const file = useApiResource<WorkspaceReadResponse>(paths.file, [
-    active,
-    model.selectedTab,
-    currentFile,
-  ]);
-  const patch = useApiResource<RepositoryPatchResponse>(paths.patch, [
-    active,
-    model.selectedTab,
-    currentChange,
-  ]);
+  const file = useApiResource<WorkspaceReadResponse>(
+    paths.file,
+    workbenchResourceDependencies(
+      active,
+      workspacePath,
+      model.selectedTab,
+      currentFile,
+    ),
+  );
+  const patch = useApiResource<RepositoryPatchResponse>(
+    paths.patch,
+    workbenchResourceDependencies(
+      active,
+      workspacePath,
+      model.selectedTab,
+      currentChange,
+    ),
+  );
   useEffect(() => {
     setModel(
       loadThreadWorkbenchState(

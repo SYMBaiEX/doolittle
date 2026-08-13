@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { apiResourceCacheKey } from "./lib";
 import {
   bounded,
   commandOutput,
@@ -6,6 +7,7 @@ import {
   flattenSettingEntries,
   normalizeChangeEntries,
   normalizeFileEntries,
+  workbenchResourceDependencies,
   workbenchResourcePaths,
 } from "./thread-workbench-controller";
 
@@ -38,6 +40,29 @@ describe("thread workbench rail controller helpers", () => {
       worktrees: "/repo/worktrees",
       checkpoints: "/workspace/checkpoints",
     });
+  });
+
+  it("keeps same-relative-path reads separate per workspace", () => {
+    const filePath = "/workspace/read?path=src%2Fmain.ts";
+    const patchPath = "/repo/patch?path=src%2Fmain.ts&staged=false";
+    const alpha = workbenchResourceDependencies(
+      true,
+      "/work/alpha",
+      "files",
+      "src/main.ts",
+    );
+    const beta = workbenchResourceDependencies(
+      true,
+      "/work/beta",
+      "files",
+      "src/main.ts",
+    );
+    expect(apiResourceCacheKey(filePath, alpha)).not.toBe(
+      apiResourceCacheKey(filePath, beta),
+    );
+    expect(apiResourceCacheKey(patchPath, alpha)).not.toBe(
+      apiResourceCacheKey(patchPath, beta),
+    );
   });
 
   it("filters invalid tree rows and bounds valid entry depth", () => {

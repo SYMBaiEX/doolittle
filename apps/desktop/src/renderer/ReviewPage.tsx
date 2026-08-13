@@ -66,6 +66,16 @@ export function reviewWorkspaceScopeKey(
   return `${workspacePath}\u0000${projectScope}`;
 }
 
+export function reviewPatchResourceDependencies(
+  active: boolean,
+  scopeKey: string,
+  selectedId?: string,
+  selectedPath?: string,
+  staged = false,
+): readonly unknown[] {
+  return [active, scopeKey, selectedId ?? "", selectedPath ?? "", staged];
+}
+
 export function shouldShowReviewWorkspace(itemCount: number): boolean {
   return itemCount > 0;
 }
@@ -172,7 +182,13 @@ export function ReviewPage({
           selected.status === "staged"
         }`
       : null,
-    [active, selected?.id],
+    reviewPatchResourceDependencies(
+      active,
+      scopeKey,
+      selected?.id,
+      selected?.path,
+      selected?.status === "staged",
+    ),
   );
   const pendingCount = items.filter(
     (item) => item.kind === "approvals" && item.status === "pending",

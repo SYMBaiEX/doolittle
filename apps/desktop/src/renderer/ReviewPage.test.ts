@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { apiResourceCacheKey } from "./lib";
 import {
+  reviewPatchResourceDependencies,
   reviewWorkspaceScopeKey,
   shouldShowReviewWorkspace,
 } from "./ReviewPage";
@@ -19,6 +21,25 @@ describe("review workspace scope", () => {
   it("keeps path and project boundaries unambiguous", () => {
     expect(reviewWorkspaceScopeKey("/work/a", "bc")).not.toBe(
       reviewWorkspaceScopeKey("/work/ab", "c"),
+    );
+  });
+
+  it("keeps same-relative-path patches separate across workspace scopes", () => {
+    const path = "/repo/patch?path=src%2Fmain.ts&staged=false";
+    const alpha = reviewPatchResourceDependencies(
+      true,
+      reviewWorkspaceScopeKey("/work/alpha", "project"),
+      "change-src-main",
+      "src/main.ts",
+    );
+    const beta = reviewPatchResourceDependencies(
+      true,
+      reviewWorkspaceScopeKey("/work/beta", "project"),
+      "change-src-main",
+      "src/main.ts",
+    );
+    expect(apiResourceCacheKey(path, alpha)).not.toBe(
+      apiResourceCacheKey(path, beta),
     );
   });
 
