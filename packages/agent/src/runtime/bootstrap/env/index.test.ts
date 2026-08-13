@@ -22,6 +22,8 @@ const originalEnv = {
   E2B_API_KEY: process.env.E2B_API_KEY,
   E2B_MODE: process.env.E2B_MODE,
   GITHUB_TOKEN: process.env.GITHUB_TOKEN,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
   LOG_LEVEL: process.env.LOG_LEVEL,
   DEFAULT_LOG_LEVEL: process.env.DEFAULT_LOG_LEVEL,
   NODE_ENV: process.env.NODE_ENV,
@@ -217,6 +219,20 @@ describe("bootstrap environment", () => {
     expect(settings.TELEGRAM_ALLOWED_CHATS).toBe("123,456");
 
     rmSync(root, { force: true, recursive: true });
+  });
+
+  it("projects an account-pool materialized API key into plugin settings", () => {
+    process.env.OPENAI_API_KEY = "materialized-openai-key";
+    process.env.ANTHROPIC_API_KEY = "materialized-anthropic-key";
+
+    const settings = buildPluginSettings(
+      { dataDir: tmpdir() } as EnvConfig,
+      { nativeRegistry: {} } as unknown as AppServices,
+      makeRuntimeSettings(),
+    );
+
+    expect(settings.OPENAI_API_KEY).toBe("materialized-openai-key");
+    expect(settings.ANTHROPIC_API_KEY).toBe("materialized-anthropic-key");
   });
 
   it("does not pass non-OpenAI reasoning values to the official OpenAI plugin", () => {

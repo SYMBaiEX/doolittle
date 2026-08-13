@@ -48,8 +48,13 @@ export async function handleRuntimeStatusRoutes(
         offlineBootstrapMode: context.config.offlineBootstrapMode,
       },
       plugins: {
-        openai: Boolean(context.config.openAiApiKey),
-        anthropic: Boolean(context.config.anthropicApiKey),
+        openai: Boolean(
+          context.config.openAiApiKey?.trim() || process.env.OPENAI_API_KEY,
+        ),
+        anthropic: Boolean(
+          context.config.anthropicApiKey?.trim() ||
+            process.env.ANTHROPIC_API_KEY,
+        ),
         pdf: true,
         browser: true,
         telegram: Boolean(context.config.telegramBotToken),

@@ -238,6 +238,10 @@ function providerDefinitions(
   activeModel: string,
   linkedReadiness: LinkedProviderReadiness,
 ): ModelProvider[] {
+  const openAiApiKey =
+    config.openAiApiKey?.trim() || process.env.OPENAI_API_KEY;
+  const anthropicApiKey =
+    config.anthropicApiKey?.trim() || process.env.ANTHROPIC_API_KEY;
   const withActive = (
     provider: string,
     models: Array<ModelCatalogEntry | string>,
@@ -316,10 +320,10 @@ function providerDefinitions(
       id: "openai",
       label: "OpenAI",
       mode: "cloud",
-      ready: Boolean(config.openAiApiKey?.trim()),
+      ready: Boolean(openAiApiKey?.trim()),
       baseUrl: config.openAiBaseUrl,
       discovery: "configured",
-      detail: config.openAiApiKey?.trim()
+      detail: openAiApiKey?.trim()
         ? "The provider did not return a live model catalog."
         : "Add an OpenAI API key to discover available models.",
       models: configuredModels(
@@ -336,10 +340,10 @@ function providerDefinitions(
       id: "anthropic",
       label: "Anthropic",
       mode: "cloud",
-      ready: Boolean(config.anthropicApiKey?.trim()),
+      ready: Boolean(anthropicApiKey?.trim()),
       baseUrl: config.anthropicBaseUrl ?? "https://api.anthropic.com/v1",
       discovery: "configured",
-      detail: config.anthropicApiKey?.trim()
+      detail: anthropicApiKey?.trim()
         ? "The provider did not return a live model catalog."
         : "Add an Anthropic API key to discover available models.",
       models: configuredModels(
@@ -609,8 +613,12 @@ function providerApiKey(
   config: EnvConfig,
   provider: string,
 ): string | undefined {
-  if (provider === "openai") return config.openAiApiKey;
-  if (provider === "anthropic") return config.anthropicApiKey;
+  if (provider === "openai") {
+    return config.openAiApiKey || process.env.OPENAI_API_KEY;
+  }
+  if (provider === "anthropic") {
+    return config.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+  }
   if (provider === "elizacloud") return config.elizaCloudApiKey;
   return undefined;
 }

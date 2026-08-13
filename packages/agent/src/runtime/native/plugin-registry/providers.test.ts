@@ -81,6 +81,20 @@ describe("loadProviderPlugins", () => {
     );
   });
 
+  it("registers OpenAI when the native account pool materializes an API key", async () => {
+    const previous = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "pool-materialized-key";
+    try {
+      const providers = await loadProviderPlugins(config());
+      expect(
+        providers.find((plugin) => plugin.name === "openai"),
+      ).toBeDefined();
+    } finally {
+      if (previous === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = previous;
+    }
+  });
+
   it("enables official cloud embeddings only when cloud embedding ownership is selected", async () => {
     const cloudConfig = config();
     cloudConfig.elizaCloudEmbeddingApiKey = "configured";

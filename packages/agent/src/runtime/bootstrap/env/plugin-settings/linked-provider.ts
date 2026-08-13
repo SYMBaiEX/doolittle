@@ -45,8 +45,9 @@ export function applyLinkedProviderSettings(
     settings.CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex";
   }
 
-  if (config.openAiApiKey) {
-    settings.OPENAI_API_KEY = config.openAiApiKey;
+  const openAiApiKey = config.openAiApiKey || process.env.OPENAI_API_KEY;
+  if (openAiApiKey) {
+    settings.OPENAI_API_KEY = openAiApiKey;
   }
 
   if (modelProvider === "claude-code") {
@@ -55,7 +56,9 @@ export function applyLinkedProviderSettings(
       : config.claudeCodeCliFallback
         ? "claude-cli"
         : "oauth";
-  } else if (config.anthropicApiKey) {
-    settings.ANTHROPIC_API_KEY = config.anthropicApiKey;
+  } else {
+    const anthropicApiKey =
+      config.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+    if (anthropicApiKey) settings.ANTHROPIC_API_KEY = anthropicApiKey;
   }
 }

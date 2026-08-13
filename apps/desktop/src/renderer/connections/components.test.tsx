@@ -292,4 +292,41 @@ describe("provider account surfaces", () => {
     expect(markup).toContain("Repair auth");
     expect(markup).toContain("Add account");
   });
+
+  it("keeps API-key pools distinct from OAuth and names the existing secret", () => {
+    const markup = renderToStaticMarkup(
+      <AccountPoolPanel
+        accountImport={{
+          accountId: "work",
+          label: "OpenAI work",
+          secretKeyName: "OPENAI_API_KEY",
+        }}
+        bridgeInstalled
+        busy=""
+        descriptor={{
+          label: "OpenAI API",
+          shortLabel: "OA",
+          provider: "openai-api",
+        }}
+        direct
+        onAccountImportChange={noop}
+        onDelete={asyncNoop}
+        onImportDirect={asyncNoop}
+        onMove={asyncNoop}
+        onPatch={asyncNoop}
+        onPreview={noop}
+        onRefreshUsage={asyncNoop}
+        onSetStrategy={noop}
+        onSignIn={noop}
+        onTest={asyncNoop}
+        snapshot={{ strategy: "priority", accounts: [] }}
+      />,
+    );
+
+    expect(markup).toContain("Eliza secret name");
+    expect(markup).toContain("OPENAI_API_KEY");
+    expect(markup).toContain("Add API account");
+    expect(markup).not.toContain("Sign in &amp; add");
+    expect(markup).toContain("provider-pool-directory is-direct");
+  });
 });

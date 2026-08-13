@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const accountPool = vi.hoisted(() => ({
+  applyAccountPoolApiCredentials: vi.fn(),
   deleteDoolittleAccount: vi.fn(),
+  importDoolittleApiAccount: vi.fn(),
   importCurrentDoolittleAccount: vi.fn(),
+  isDoolittleDirectApiProvider: vi.fn(
+    (value: unknown) => value === "openai-api" || value === "anthropic-api",
+  ),
   isAccountPoolProvider: vi.fn((value: unknown) => value === "openai-codex"),
   reconcileDoolittleAccountPoolCredentials: vi.fn(),
   refreshDoolittleAccountUsage: vi.fn(),
@@ -15,13 +20,19 @@ const accountPool = vi.hoisted(() => ({
 }));
 
 vi.mock("@/runtime/native/account-pool", () => accountPool);
+const secrets = vi.hoisted(() => ({ getEffectiveSecret: vi.fn() }));
+vi.mock("@/runtime/native/service-bridge/autocoder", () => secrets);
 
 import { handleRuntimeAccountRoutes } from "./accounts";
 
-const context = {} as never;
+const runtime = {};
+const context = {
+  runtime,
+  services: { settings: { get: () => ({ model: { provider: "openai" } }) } },
+} as never;
 
 describe("Doolittle account-pool routes", () => {
-  beforeEach(() => vi.resetAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it("imports the current native login without accepting credential fields", async () => {
     accountPool.importCurrentDoolittleAccount.mockReturnValue({
@@ -53,6 +64,95 @@ describe("Doolittle account-pool routes", () => {
       "work",
       "Work",
     );
+  });
+
+  it("resolves a named secret server-side for direct API account import", async () => {
+    accountPool.isAccountPoolProvider.mockReturnValue(true);
+    secrets.getEffectiveSecret.mockResolvedValue("sk-server-secret");
+    accountPool.importDoolittleApiAccount.mockReturnValue({
+      accountId: "api-work",
+      providerId: "openai-api",
+      label: "API Work",
+      source: "api-key",
+    });
+
+    const response = await handleRuntimeAccountRoutes(
+      context,
+      new Request("http://localhost/runtime/account-pool/openai-api/import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          accountId: "api-work",
+          label: "API Work",
+          secretKeyName: "OPENAI_API_KEY",
+        }),
+      }),
+      new URL("http://localhost/runtime/account-pool/openai-api/import"),
+    );
+
+    expect(response?.status).toBe(200);
+    const body = await response?.json();
+    expect(body).toEqual({
+      account: expect.objectContaining({ accountId: "api-work" }),
+    });
+    expect(JSON.stringify(body)).not.toContain("sk-server-secret");
+    expect(secrets.getEffectiveSecret).toHaveBeenCalledWith(
+      runtime,
+      "OPENAI_API_KEY",
+    );
+    expect(accountPool.importDoolittleApiAccount).toHaveBeenCalledWith(
+      "openai-api",
+      "api-work",
+      "API Work",
+      "sk-server-secret",
+    );
+    expect(accountPool.applyAccountPoolApiCredentials).toHaveBeenCalledOnce();
+    expect(accountPool.applyAccountPoolApiCredentials).toHaveBeenCalledWith({
+      activeBackend: "openai",
+    });
+  });
+
+  it("rejects refresh-usage for direct API accounts", async () => {
+    accountPool.isAccountPoolProvider.mockReturnValue(true);
+
+    const response = await handleRuntimeAccountRoutes(
+      context,
+      new Request(
+        "http://localhost/runtime/account-pool/openai-api/api-work/refresh-usage",
+        { method: "POST" },
+      ),
+      new URL(
+        "http://localhost/runtime/account-pool/openai-api/api-work/refresh-usage",
+      ),
+    );
+
+    expect(response?.status).toBe(409);
+    await expect(response?.json()).resolves.toEqual({
+      error: "usage refresh is unavailable for API-key accounts",
+    });
+    expect(accountPool.refreshDoolittleAccountUsage).not.toHaveBeenCalled();
+  });
+
+  it("rejects secret names that are not environment-style identifiers", async () => {
+    accountPool.isAccountPoolProvider.mockReturnValue(true);
+
+    const response = await handleRuntimeAccountRoutes(
+      context,
+      new Request("http://localhost/runtime/account-pool/openai-api/import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          accountId: "api-work",
+          label: "API Work",
+          secretKeyName: "../../secret",
+        }),
+      }),
+      new URL("http://localhost/runtime/account-pool/openai-api/import"),
+    );
+
+    expect(response?.status).toBe(400);
+    expect(secrets.getEffectiveSecret).not.toHaveBeenCalled();
+    expect(accountPool.importDoolittleApiAccount).not.toHaveBeenCalled();
   });
 
   it("persists strategy and reports credential deletion", async () => {

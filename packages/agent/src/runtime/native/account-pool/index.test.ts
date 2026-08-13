@@ -16,9 +16,11 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import { persistProviderCredentials } from "@/runtime/native/account-auth/store";
 import {
+  applyAccountPoolApiCredentials,
   deleteDoolittleAccount,
   getDoolittleAccountPool,
   importCurrentDoolittleAccount,
+  importDoolittleApiAccount,
   importLegacyDoolittleAccounts,
   initializeDoolittleAccountPool,
   reconcileDoolittleAccountPoolCredentials,
@@ -73,6 +75,45 @@ function createUnexpiredJwt(): string {
 }
 
 describe.sequential("Doolittle official account pool adapter", () => {
+  it("imports direct API credentials as secret-free API-key accounts", async () =>
+    withIsolatedAccountPool(async () => {
+      const account = importDoolittleApiAccount(
+        "openai-api",
+        "work",
+        "Work",
+        "sk-secret",
+      );
+
+      expect(account).toMatchObject({
+        accountId: "work",
+        label: "Work",
+        providerId: "openai-api",
+        source: "api-key",
+      });
+      expect(JSON.stringify(account)).not.toContain("sk-secret");
+      expect(loadAccount("openai-api", "work")?.credentials.access).toBe(
+        "sk-secret",
+      );
+    }));
+
+  it("does not retain a materialized API key after its last account is removed", async () =>
+    withIsolatedAccountPool(async () => {
+      const previous = process.env.OPENAI_API_KEY;
+      delete process.env.OPENAI_API_KEY;
+      try {
+        importDoolittleApiAccount("openai-api", "work", "Work", "sk-secret");
+        await applyAccountPoolApiCredentials({ activeBackend: "openai" });
+        expect(process.env.OPENAI_API_KEY).toBe("sk-secret");
+
+        await deleteDoolittleAccount("openai-api", "work");
+        await applyAccountPoolApiCredentials({ activeBackend: "openai" });
+        expect(process.env.OPENAI_API_KEY).toBeUndefined();
+      } finally {
+        if (previous === undefined) delete process.env.OPENAI_API_KEY;
+        else process.env.OPENAI_API_KEY = previous;
+      }
+    }));
+
   it("resolves credentials without returning them and updates official health", async () => {
     const account = {
       id: "work",

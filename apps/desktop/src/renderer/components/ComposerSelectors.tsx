@@ -321,12 +321,12 @@ export function ComposerModelSelector({
                   : `${
                       accountPool.data?.providers[
                         "openai-codex"
-                      ].accounts.filter((account) => account.enabled).length ??
+                      ]?.accounts.filter((account) => account.enabled).length ??
                       0
                     } Codex · ${
                       accountPool.data?.providers[
                         "anthropic-subscription"
-                      ].accounts.filter((account) => account.enabled).length ??
+                      ]?.accounts.filter((account) => account.enabled).length ??
                       0
                     } Claude accounts are enabled for spawned build and research sessions.`}
             </span>

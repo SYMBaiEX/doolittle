@@ -86,7 +86,11 @@ export interface AccountsResponse {
   accounts?: Record<string, unknown>;
   connect?: Record<string, unknown>;
 }
-export type AccountPoolProvider = "openai-codex" | "anthropic-subscription";
+export type AccountPoolProvider =
+  | "openai-codex"
+  | "anthropic-subscription"
+  | "openai-api"
+  | "anthropic-api";
 export type AccountPoolStrategy =
   | "priority"
   | "round-robin"
@@ -111,7 +115,7 @@ export interface AccountPoolProviderSnapshot {
 }
 export interface AccountPoolResponse {
   bridgeInstalled: boolean;
-  providers: Record<AccountPoolProvider, AccountPoolProviderSnapshot>;
+  providers: Partial<Record<AccountPoolProvider, AccountPoolProviderSnapshot>>;
 }
 export interface AccountPoolDeleteResponse {
   deleted: boolean;

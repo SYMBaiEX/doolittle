@@ -20,8 +20,10 @@ export function AccountPoolPanel({
   bridgeInstalled,
   busy,
   descriptor,
+  direct,
   onAccountImportChange,
   onDelete,
+  onImportDirect,
   onMove,
   onPatch,
   onPreview,
@@ -33,7 +35,7 @@ export function AccountPoolPanel({
   snapshot,
 }: {
   accountImport?: AccountImportDraft;
-  authProvider: ProviderAuthProvider;
+  authProvider?: ProviderAuthProvider;
   bridgeInstalled: boolean;
   busy: string;
   descriptor: {
@@ -43,6 +45,7 @@ export function AccountPoolPanel({
   };
   onAccountImportChange: (draft: AccountImportDraft) => void;
   onDelete: (account: AccountPoolAccount) => Promise<void>;
+  onImportDirect?: (draft: AccountImportDraft) => Promise<void>;
   onMove: (
     accounts: AccountWithCredentialFlag[],
     accountId: string,
@@ -61,6 +64,7 @@ export function AccountPoolPanel({
   onTest: (account: AccountWithCredentialFlag) => Promise<void>;
   selectedAccountId?: string;
   snapshot?: AccountPoolProviderSnapshot;
+  direct?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -117,9 +121,9 @@ export function AccountPoolPanel({
           <Badge tone={bridgeInstalled ? "good" : "warn"}>
             {bridgeInstalled ? "Eliza native" : "Unavailable"}
           </Badge>
-          {needsAuthRepair ? (
+          {needsAuthRepair && authProvider ? (
             <Button
-              onClick={() => onSignIn(authProvider)}
+              onClick={() => authProvider && onSignIn(authProvider)}
               disabled={Boolean(busy)}
               type="button"
               variant="secondary"
@@ -194,6 +198,7 @@ export function AccountPoolPanel({
           descriptor={descriptor}
           onAccountImportChange={onAccountImportChange}
           onDelete={onDelete}
+          onImportDirect={onImportDirect}
           onMove={onMove}
           onPatch={onPatch}
           onRefreshUsage={onRefreshUsage}
@@ -201,6 +206,7 @@ export function AccountPoolPanel({
           onTest={onTest}
           selectedAccountId={selectedAccountId}
           snapshot={snapshot}
+          direct={direct}
         />
       </div>
     </section>

@@ -76,14 +76,15 @@ Do not edit it by hand; run `nub scripts/sync-doc-truth.ts --write`.
 ## @elizaos/app-core/account-pool
 
 - Runtime ID: `orchestration.multi-account`
-- Headline: Claude and Codex sub-agents use Eliza's official multi-account selector bridge.
-- Summary: Doolittle stores distinct Claude and Codex subscription accounts with the Eliza SDK account store, exposes secret-free pool controls, and lets the official orchestrator select an eligible account for each coding-agent session.
+- Headline: Claude, Codex, and direct API accounts use Eliza's official multi-account selector bridge.
+- Summary: Doolittle stores distinct Claude and Codex subscription accounts plus OpenAI and Anthropic API-key accounts with the Eliza SDK account store, exposes secret-free pool controls, and lets the official orchestrator select an eligible account for each coding-agent session.
 - Runtime surfaces: `GET /runtime/account-pool`, `POST /runtime/account-pool/:provider/import`, `POST /runtime/account-pool/:provider/strategy`, `POST /runtime/account-pool/:provider/select`, `PATCH /runtime/account-pool/:provider/:accountId`, `DELETE /runtime/account-pool/:provider/:accountId`
 - Required status fields: `bridgeInstalled`, `providerId`, `strategy`, `accounts`, `health`
 
 ### Real Behavior
 
 - Keeps multiple official credential records per provider instead of overwriting a provider singleton.
+- Imports direct API accounts from a named Eliza secret whose resolved value stays server-side and is never returned by the account routes.
 - Injects only the selected subscription credential into the spawned Claude or Codex subprocess through Eliza's coding-account bridge.
 - Projects account health and usage without returning access or refresh tokens to the API or desktop UI.
 

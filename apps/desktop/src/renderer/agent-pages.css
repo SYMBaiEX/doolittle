@@ -145,6 +145,13 @@
   line-height: 1.55;
 }
 
+.provider-pool-directory.is-direct
+  .provider-pool-accounts
+  li
+  button:nth-of-type(4) {
+  display: none;
+}
+
 .provider-connection-facts dt,
 .provider-pool-summary dt {
   color: var(--muted);

@@ -1,9 +1,12 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import { withLinkedProviderMutationLock } from "@/runtime/linked-provider-accounts";
 import {
+  applyAccountPoolApiCredentials,
   deleteDoolittleAccount,
   importCurrentDoolittleAccount,
+  importDoolittleApiAccount,
   isAccountPoolProvider,
+  isDoolittleDirectApiProvider,
   reconcileDoolittleAccountPoolCredentials,
   refreshDoolittleAccountUsage,
   selectDoolittleAccount,
@@ -12,6 +15,7 @@ import {
   testDoolittleAccountCredentials,
   updateDoolittleAccount,
 } from "@/runtime/native/account-pool";
+import { getEffectiveSecret } from "@/runtime/native/service-bridge/autocoder";
 import { json } from "@/server/responses";
 import {
   activateAccount,
@@ -29,7 +33,7 @@ export async function handleRuntimeAccountRoutes(
   url: URL,
 ): Promise<Response | null> {
   const accountPoolRoute = url.pathname.match(
-    /^\/runtime\/account-pool\/(openai-codex|anthropic-subscription)(?:\/([^/]+)(?:\/(test|refresh-usage))?)?$/,
+    /^\/runtime\/account-pool\/(openai-codex|anthropic-subscription|openai-api|anthropic-api)(?:\/([^/]+)(?:\/(test|refresh-usage))?)?$/,
   );
   if (request.method === "GET" && url.pathname === "/runtime/account-pool") {
     return json(await synchronizeDoolittleAccountPoolFromNativeStores());
@@ -50,6 +54,12 @@ export async function handleRuntimeAccountRoutes(
     }
 
     if (request.method === "POST" && accountId && action === "refresh-usage") {
+      if (isDoolittleDirectApiProvider(providerId)) {
+        return json(
+          { error: "usage refresh is unavailable for API-key accounts" },
+          409,
+        );
+      }
       const result = await refreshDoolittleAccountUsage(providerId, accountId);
       return result ? json(result) : json({ error: "account not found" }, 404);
     }
@@ -58,7 +68,59 @@ export async function handleRuntimeAccountRoutes(
       const body = (await request.json().catch(() => ({}))) as {
         accountId?: unknown;
         label?: unknown;
+        secretKeyName?: unknown;
       };
+      if (providerId === "openai-api" || providerId === "anthropic-api") {
+        const secretKeyName =
+          typeof body.secretKeyName === "string"
+            ? body.secretKeyName.trim()
+            : "";
+        if (
+          typeof body.accountId !== "string" ||
+          typeof body.label !== "string" ||
+          !secretKeyName ||
+          !/^[A-Z][A-Z0-9_]{0,127}$/.test(secretKeyName)
+        ) {
+          return json(
+            {
+              error:
+                "accountId, label, and secretKeyName must be valid environment-style names",
+            },
+            400,
+          );
+        }
+        try {
+          const secretValue = await getEffectiveSecret(
+            context.runtime,
+            secretKeyName,
+          );
+          if (!secretValue) {
+            return json({ error: "secret key was not found" }, 404);
+          }
+          const account = importDoolittleApiAccount(
+            providerId,
+            body.accountId,
+            body.label,
+            secretValue,
+          );
+          await applyAccountPoolApiCredentials({
+            activeBackend: context.services.settings.get().model.provider,
+          });
+          return account
+            ? json({ account })
+            : json({ error: "account import failed" }, 500);
+        } catch (error) {
+          return json(
+            {
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "invalid account import",
+            },
+            400,
+          );
+        }
+      }
       if (
         typeof body.accountId !== "string" ||
         typeof body.label !== "string"

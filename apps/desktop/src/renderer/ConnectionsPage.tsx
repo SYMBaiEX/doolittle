@@ -2,6 +2,7 @@ import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { useState } from "react";
 import type {
+  AccountPoolProvider,
   AccountPoolResponse,
   ProviderAuthProvider,
 } from "../shared/contracts";
@@ -67,6 +68,15 @@ const accountProviders = [
     accountSignIn: false,
   },
 ] as const;
+
+const directAccountProviders = [
+  { provider: "openai-api", label: "OpenAI API", shortLabel: "OA" },
+  { provider: "anthropic-api", label: "Anthropic API", shortLabel: "AA" },
+] as const satisfies ReadonlyArray<{
+  provider: Extract<AccountPoolProvider, "openai-api" | "anthropic-api">;
+  label: string;
+  shortLabel: string;
+}>;
 
 export function providerRouteLabel(
   provider: string | undefined,
@@ -134,6 +144,7 @@ export function ConnectionsPage({
     cancelAccountSignIn,
     deleteAccount,
     feedback,
+    importDirectAccount,
     movePoolAccount,
     mutate,
     refreshPoolAccountUsage,
@@ -425,6 +436,52 @@ export function ConnectionsPage({
                       />
                     );
                   })}
+                  {directAccountProviders.map((entry) => (
+                    <AccountPoolPanel
+                      accountImport={accountImports[entry.provider]}
+                      bridgeInstalled={Boolean(
+                        accountPool.data?.bridgeInstalled,
+                      )}
+                      busy={busy}
+                      descriptor={entry}
+                      direct
+                      key={entry.provider}
+                      onAccountImportChange={(draft) =>
+                        setAccountImports((current) => ({
+                          ...current,
+                          [entry.provider]: draft,
+                        }))
+                      }
+                      onDelete={(account) =>
+                        deleteAccount(entry.provider, account)
+                      }
+                      onImportDirect={(draft) =>
+                        importDirectAccount(entry.provider, draft)
+                      }
+                      onMove={(accounts, accountId, direction) =>
+                        movePoolAccount(
+                          entry.provider,
+                          accounts,
+                          accountId,
+                          direction,
+                        )
+                      }
+                      onPatch={(account, changes) =>
+                        updateAccount(entry.provider, account, changes)
+                      }
+                      onPreview={() => void selectAccount(entry.provider)}
+                      onRefreshUsage={async () => undefined}
+                      onSetStrategy={(strategy) =>
+                        void setPoolStrategy(entry.provider, strategy)
+                      }
+                      onSignIn={() => undefined}
+                      onTest={(account) =>
+                        testPoolAccount(entry.provider, account)
+                      }
+                      selectedAccountId={selectedAccounts[entry.provider]}
+                      snapshot={accountPool.data?.providers[entry.provider]}
+                    />
+                  ))}
                 </div>
               )}
             </div>

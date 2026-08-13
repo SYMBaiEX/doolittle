@@ -137,6 +137,12 @@ describe("parseApiPath", () => {
       parseApiPath("/runtime/account-pool/openai-codex/import", "POST"),
     ).toBe("/runtime/account-pool/openai-codex/import");
     expect(
+      parseApiPath("/runtime/account-pool/openai-api/import", "POST"),
+    ).toBe("/runtime/account-pool/openai-api/import");
+    expect(
+      parseApiPath("/runtime/account-pool/anthropic-api/import", "POST"),
+    ).toBe("/runtime/account-pool/anthropic-api/import");
+    expect(
       parseApiPath("/runtime/account-pool/openai-codex/account-1/test", "POST"),
     ).toBe("/runtime/account-pool/openai-codex/account-1/test");
     expect(
@@ -159,6 +165,12 @@ describe("parseApiPath", () => {
     expect(() =>
       parseApiPath("/runtime/account-pool/unknown/strategy", "POST"),
     ).toThrow(/not available/);
+    expect(() =>
+      parseApiPath(
+        "/runtime/account-pool/openai-api/..%2Fsecret/import",
+        "POST",
+      ),
+    ).toThrow(/unsafe traversal/);
     expect(() =>
       parseApiPath(
         "/runtime/account-pool/openai-codex/account-1/extra",

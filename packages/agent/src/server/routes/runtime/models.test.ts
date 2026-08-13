@@ -63,6 +63,27 @@ describe("runtime model discovery", () => {
     ).toBe(false);
   });
 
+  it("recognizes an account-pool materialized API key without returning it", async () => {
+    const previous = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "materialized-openai-key";
+    try {
+      const providers = await discoverModelProviders(
+        config(),
+        "openai",
+        "gpt-5.4",
+        vi.fn<typeof fetch>(),
+        {},
+        false,
+      );
+      const openai = providers.find((provider) => provider.id === "openai");
+      expect(openai).toMatchObject({ ready: true, discovery: "configured" });
+      expect(JSON.stringify(openai)).not.toContain("materialized-openai-key");
+    } finally {
+      if (previous === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = previous;
+    }
+  });
+
   it("merges live provider models with configured fallbacks", async () => {
     const fetchImplementation = vi.fn<typeof fetch>(async (input) => {
       const url = String(input);

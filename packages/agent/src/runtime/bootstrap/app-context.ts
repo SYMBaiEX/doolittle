@@ -15,7 +15,10 @@ import type {
   AppContext,
   AppContextBuildOptions,
 } from "@/runtime/bootstrap/types";
-import { initializeDoolittleAccountPool } from "@/runtime/native/account-pool";
+import {
+  applyAccountPoolApiCredentials,
+  initializeDoolittleAccountPool,
+} from "@/runtime/native/account-pool";
 import { buildNativePluginAssembly } from "@/runtime/native/plugin-registry";
 import { createServices } from "@/services";
 
@@ -38,6 +41,11 @@ export async function buildAppContext({
   );
   const runtimeSettings = services.settings.get();
   initializeDoolittleAccountPool(config.dataDir);
+  // Materialize any SDK-owned direct API account before provider assembly so
+  // auto-enable sees the native credential and registers the official plugin.
+  await applyAccountPoolApiCredentials({
+    activeBackend: runtimeSettings.model.provider,
+  });
   appendBootstrapTrace("phase:buildNativePluginAssembly:start");
   const nativePluginAssembly = await buildNativePluginAssembly(
     services,

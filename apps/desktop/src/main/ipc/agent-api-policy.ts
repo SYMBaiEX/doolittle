@@ -763,6 +763,8 @@ function matchesResourceActionPath(
 const ACCOUNT_POOL_PROVIDER_IDS = [
   "openai-codex",
   "anthropic-subscription",
+  "openai-api",
+  "anthropic-api",
 ] as const;
 
 function matchesAccountPoolActionPath(

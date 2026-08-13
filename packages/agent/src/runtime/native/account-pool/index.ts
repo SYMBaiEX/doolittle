@@ -17,6 +17,7 @@ import type {
 } from "@elizaos/agent/auth/types";
 import {
   type AccountPool,
+  applyAccountPoolApiCredentials as applyOfficialAccountPoolApiCredentials,
   configureDefaultAccountPoolSelection,
   getDefaultAccountPool,
   type Strategy,
@@ -45,6 +46,8 @@ import {
 export const ACCOUNT_POOL_PROVIDERS = [
   "openai-codex",
   "anthropic-subscription",
+  "openai-api",
+  "anthropic-api",
 ] as const satisfies readonly AccountCredentialProvider[];
 
 export const ACCOUNT_POOL_STRATEGIES = [
@@ -56,6 +59,20 @@ export const ACCOUNT_POOL_STRATEGIES = [
 
 export type AccountPoolProvider = (typeof ACCOUNT_POOL_PROVIDERS)[number];
 export type AccountPoolStrategy = (typeof ACCOUNT_POOL_STRATEGIES)[number];
+
+const DIRECT_API_PROVIDERS = ["openai-api", "anthropic-api"] as const;
+type DirectApiProvider = (typeof DIRECT_API_PROVIDERS)[number];
+
+const MATERIALIZED_API_ENV_KEYS = [
+  "OPENAI_API_KEY",
+  "ANTHROPIC_API_KEY",
+  "OPENAI_BASE_URL",
+] as const;
+type MaterializedApiEnvKey = (typeof MATERIALIZED_API_ENV_KEYS)[number];
+const materializedApiEnv = new Map<
+  MaterializedApiEnvKey,
+  { value: string; previous?: string }
+>();
 
 const DOOLITTLE_BRIDGE_MARKER = "__doolittleAccountPoolBridge";
 
@@ -269,15 +286,44 @@ function toSnapshot(account: {
 }
 
 function linkedOfficialAccount(
-  providerId: AccountPoolProvider,
+  providerId: Exclude<AccountPoolProvider, DirectApiProvider>,
 ): AccountCredentialRecord | null {
   if (providerId === "openai-codex") getStoredCodexCredentials();
   else getStoredClaudeCodeCredentials();
   return loadAccount(providerId, LINKED_ACCOUNT_IDS[providerId]);
 }
 
+function isDirectApiProvider(value: unknown): value is DirectApiProvider {
+  return (
+    typeof value === "string" &&
+    DIRECT_API_PROVIDERS.includes(value as DirectApiProvider)
+  );
+}
+
+export function isDoolittleDirectApiProvider(
+  value: unknown,
+): value is DirectApiProvider {
+  return isDirectApiProvider(value);
+}
+
+function validateAccountImport(accountId: string, label: string) {
+  const normalizedId = accountId.trim();
+  const normalizedLabel = label.trim();
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$/.test(normalizedId)) {
+    throw new Error(
+      "accountId must contain 1 to 120 letters, numbers, dots, underscores, or hyphens",
+    );
+  }
+  if (!normalizedLabel || normalizedLabel.length > 120) {
+    throw new Error(
+      "label must be a non-empty string of at most 120 characters",
+    );
+  }
+  return { normalizedId, normalizedLabel };
+}
+
 function importLegacyAccount(
-  providerId: AccountPoolProvider,
+  providerId: Exclude<AccountPoolProvider, DirectApiProvider>,
   credentials: OAuthCredentials | undefined,
   label: string,
   accountId: string = LINKED_ACCOUNT_IDS[providerId],
@@ -314,18 +360,13 @@ export function importCurrentDoolittleAccount(
   accountId: string,
   label: string,
 ): AccountPoolAccountSnapshot | null {
-  const normalizedId = accountId.trim();
-  const normalizedLabel = label.trim();
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$/.test(normalizedId)) {
-    throw new Error(
-      "accountId must contain 1 to 120 letters, numbers, dots, underscores, or hyphens",
-    );
+  if (isDirectApiProvider(providerId)) {
+    throw new Error("provider must be a subscription account provider");
   }
-  if (!normalizedLabel || normalizedLabel.length > 120) {
-    throw new Error(
-      "label must be a non-empty string of at most 120 characters",
-    );
-  }
+  const { normalizedId, normalizedLabel } = validateAccountImport(
+    accountId,
+    label,
+  );
   const linked = linkedOfficialAccount(providerId);
   const imported = importLegacyAccount(
     providerId,
@@ -339,6 +380,41 @@ export function importCurrentDoolittleAccount(
     return null;
   }
   invalidateOfficialSubscriptionStatusCache();
+  const account = getDoolittleAccountPool().get(normalizedId, providerId);
+  return account ? toSnapshot(account as never) : null;
+}
+
+/** Import a resolved API key into the SDK-owned direct-provider account store. */
+export function importDoolittleApiAccount(
+  providerId: AccountPoolProvider,
+  accountId: string,
+  label: string,
+  secretValue: string,
+): AccountPoolAccountSnapshot | null {
+  if (!isDirectApiProvider(providerId)) {
+    throw new Error("provider must be openai-api or anthropic-api");
+  }
+  const { normalizedId, normalizedLabel } = validateAccountImport(
+    accountId,
+    label,
+  );
+  const value = secretValue.trim();
+  if (!value) throw new Error("resolved secret value must be non-empty");
+  const existing = loadAccount(providerId, normalizedId);
+  const now = Date.now();
+  saveAccount({
+    id: normalizedId,
+    providerId,
+    label: normalizedLabel,
+    source: "api-key",
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+    credentials: {
+      access: value,
+      refresh: "",
+      expires: Number.MAX_SAFE_INTEGER,
+    },
+  });
   const account = getDoolittleAccountPool().get(normalizedId, providerId);
   return account ? toSnapshot(account as never) : null;
 }
@@ -379,6 +455,30 @@ export function initializeDoolittleAccountPool(dataDir?: string): AccountPool {
   installDoolittleCodingBridge();
   startAccountPoolKeepAlive();
   return pool;
+}
+
+/** Apply the official SDK account-pool API credential bridge. */
+export function applyAccountPoolApiCredentials(
+  options: Parameters<typeof applyOfficialAccountPoolApiCredentials>[0] = {},
+): Promise<void> {
+  for (const [key, materialized] of materializedApiEnv) {
+    if (process.env[key] !== materialized.value) continue;
+    if (materialized.previous === undefined) delete process.env[key];
+    else process.env[key] = materialized.previous;
+  }
+  materializedApiEnv.clear();
+
+  const previous = Object.fromEntries(
+    MATERIALIZED_API_ENV_KEYS.map((key) => [key, process.env[key]]),
+  ) as Record<MaterializedApiEnvKey, string | undefined>;
+  return applyOfficialAccountPoolApiCredentials(options).then(() => {
+    for (const key of MATERIALIZED_API_ENV_KEYS) {
+      const value = process.env[key];
+      if (value && value !== previous[key]) {
+        materializedApiEnv.set(key, { value, previous: previous[key] });
+      }
+    }
+  });
 }
 
 export function getDoolittleAccountPool(): AccountPool {
@@ -651,7 +751,10 @@ export async function deleteDoolittleAccount(
 ): Promise<boolean> {
   if (!pool.get(accountId, providerId)) return false;
   await pool.deleteMetadata(providerId, accountId);
-  deleteCredentials(providerId, accountId);
+  deleteCredentials(
+    providerId as Parameters<typeof deleteCredentials>[0],
+    accountId,
+  );
   invalidateOfficialSubscriptionStatusCache();
   return true;
 }

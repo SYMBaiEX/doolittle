@@ -74,7 +74,11 @@ export async function loadProviderPlugins(
   }
 
   const optionalProviderImports: Promise<Plugin | null>[] = [];
-  if (config.openAiApiKey) {
+  // Direct API accounts are materialized into the process environment by the
+  // official Eliza account-pool adapter before plugin assembly. Treat that
+  // native credential path the same as an explicit config key so the OpenAI
+  // plugin is registered even when the key never came from `.env`.
+  if (config.openAiApiKey || process.env.OPENAI_API_KEY?.trim()) {
     optionalProviderImports.push(
       import("@elizaos/plugin-openai").then(({ openaiPlugin }) =>
         normalizePlugin(openaiPlugin),

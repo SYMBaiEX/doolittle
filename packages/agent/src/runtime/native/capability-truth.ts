@@ -92,9 +92,9 @@ const CAPABILITY_TRUTH: NativeCapabilityTruthRecord[] = [
     id: "orchestration.multi-account",
     packageName: "@elizaos/app-core/account-pool",
     headline:
-      "Claude and Codex sub-agents use Eliza's official multi-account selector bridge.",
+      "Claude, Codex, and direct API accounts use Eliza's official multi-account selector bridge.",
     summary:
-      "Doolittle stores distinct Claude and Codex subscription accounts with the Eliza SDK account store, exposes secret-free pool controls, and lets the official orchestrator select an eligible account for each coding-agent session.",
+      "Doolittle stores distinct Claude and Codex subscription accounts plus OpenAI and Anthropic API-key accounts with the Eliza SDK account store, exposes secret-free pool controls, and lets the official orchestrator select an eligible account for each coding-agent session.",
     runtimeSurfaces: [
       "GET /runtime/account-pool",
       "POST /runtime/account-pool/:provider/import",
@@ -112,6 +112,7 @@ const CAPABILITY_TRUTH: NativeCapabilityTruthRecord[] = [
     ],
     realBehavior: [
       "Keeps multiple official credential records per provider instead of overwriting a provider singleton.",
+      "Imports direct API accounts from a named Eliza secret whose resolved value stays server-side and is never returned by the account routes.",
       "Injects only the selected subscription credential into the spawned Claude or Codex subprocess through Eliza's coding-account bridge.",
       "Projects account health and usage without returning access or refresh tokens to the API or desktop UI.",
     ],

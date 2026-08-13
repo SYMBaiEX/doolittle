@@ -439,6 +439,33 @@ export function useConnectionsActions({
     }
   };
 
+  const importDirectAccount = async (
+    provider: Extract<AccountPoolProvider, "openai-api" | "anthropic-api">,
+    draft: AccountImportDraft,
+  ) => {
+    setBusy(`${provider}:import`);
+    setFeedback(null);
+    try {
+      await desktopRequest(`/runtime/account-pool/${provider}/import`, "POST", {
+        accountId: draft.accountId.trim(),
+        label: draft.label.trim(),
+        secretKeyName: draft.secretKeyName?.trim(),
+      });
+      setFeedback({
+        message: `${draft.label || provider} was added.`,
+        tone: "good",
+      });
+      setAccountImports((current) =>
+        clearAccountImportDraft(current, provider),
+      );
+      accountPool.reload();
+    } catch (error) {
+      setFeedback({ message: errorMessage(error), tone: "bad" });
+    } finally {
+      setBusy("");
+    }
+  };
+
   return {
     accountImports,
     authStates,
@@ -446,6 +473,7 @@ export function useConnectionsActions({
     cancelAccountSignIn,
     deleteAccount,
     feedback,
+    importDirectAccount,
     movePoolAccount,
     mutate,
     refreshPoolAccountUsage,

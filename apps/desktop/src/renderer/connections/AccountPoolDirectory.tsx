@@ -2,7 +2,7 @@ import type { AccountWithCredentialFlag } from "@elizaos/ui/api/client-agent";
 import { AccountCard } from "@elizaos/ui/components/accounts/AccountCard";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { Input } from "@elizaos/ui/components/ui/input";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   AccountPoolAccount,
   AccountPoolProvider,
@@ -28,8 +28,10 @@ export function AccountPoolDirectory({
   authProvider,
   busy,
   descriptor,
+  direct,
   onAccountImportChange,
   onDelete,
+  onImportDirect,
   onMove,
   onPatch,
   onRefreshUsage,
@@ -39,7 +41,7 @@ export function AccountPoolDirectory({
   snapshot,
 }: {
   accountImport?: AccountImportDraft;
-  authProvider: ProviderAuthProvider;
+  authProvider?: ProviderAuthProvider;
   busy: string;
   descriptor: {
     label: string;
@@ -47,6 +49,7 @@ export function AccountPoolDirectory({
   };
   onAccountImportChange: (draft: AccountImportDraft) => void;
   onDelete: (account: AccountPoolAccount) => Promise<void>;
+  onImportDirect?: (draft: AccountImportDraft) => Promise<void>;
   onMove: (
     accounts: AccountWithCredentialFlag[],
     accountId: string,
@@ -63,13 +66,21 @@ export function AccountPoolDirectory({
   onTest: (account: AccountWithCredentialFlag) => Promise<void>;
   selectedAccountId?: string;
   snapshot: AccountPoolProviderSnapshot;
+  direct?: boolean;
 }) {
   const [setupOpen, setSetupOpen] = useState(false);
+  const [secretKeyName, setSecretKeyName] = useState(
+    accountImport?.secretKeyName ?? "",
+  );
   const accounts = sortedAccounts(snapshot);
+
+  useEffect(() => {
+    setSecretKeyName(accountImport?.secretKeyName ?? "");
+  }, [accountImport?.secretKeyName]);
 
   return (
     <section
-      className="provider-pool-directory"
+      className={`provider-pool-directory${direct ? " is-direct" : ""}`}
       aria-label={`${descriptor.label} accounts`}
     >
       <div className="provider-pool-directory__header">
@@ -161,12 +172,39 @@ export function AccountPoolDirectory({
                 onAccountImportChange({
                   accountId: event.target.value,
                   label: accountImport?.label ?? "",
+                  secretKeyName: accountImport?.secretKeyName ?? secretKeyName,
                 })
               }
-              placeholder={`${authProvider}-timestamp`}
+              placeholder={
+                direct
+                  ? `${descriptor.provider}-account`
+                  : `${authProvider}-timestamp`
+              }
               value={accountImport?.accountId ?? ""}
             />
           </label>
+          {direct ? (
+            <label
+              className="form-field"
+              htmlFor={`account-pool-${descriptor.provider}-secret`}
+            >
+              <span>Eliza secret name</span>
+              <Input
+                id={`account-pool-${descriptor.provider}-secret`}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setSecretKeyName(value);
+                  onAccountImportChange({
+                    accountId: accountImport?.accountId ?? "",
+                    label: accountImport?.label ?? "",
+                    secretKeyName: value,
+                  });
+                }}
+                placeholder="OPENAI_API_KEY"
+                value={accountImport?.secretKeyName ?? secretKeyName}
+              />
+            </label>
+          ) : null}
           <label
             className="form-field"
             htmlFor={`account-pool-${descriptor.provider}-label`}
@@ -178,6 +216,7 @@ export function AccountPoolDirectory({
                 onAccountImportChange({
                   accountId: accountImport?.accountId ?? "",
                   label: event.target.value,
+                  secretKeyName: accountImport?.secretKeyName ?? secretKeyName,
                 })
               }
               placeholder={`${descriptor.label} account`}
@@ -186,15 +225,25 @@ export function AccountPoolDirectory({
           </label>
           <div className="provider-import-action">
             <p>
-              The official provider flow opens outside Doolittle. Tokens are
-              never returned to this page.
+              {direct
+                ? "Use the name of an existing Eliza secret. The raw key never enters Doolittle."
+                : "The official provider flow opens outside Doolittle. Tokens are never returned to this page."}
             </p>
             <Button
-              onClick={() => onSignIn(authProvider)}
+              onClick={() =>
+                direct
+                  ? void onImportDirect?.({
+                      accountId: accountImport?.accountId ?? "",
+                      label: accountImport?.label ?? "",
+                      secretKeyName:
+                        accountImport?.secretKeyName ?? secretKeyName,
+                    })
+                  : authProvider && onSignIn(authProvider)
+              }
               disabled={Boolean(busy)}
               type="button"
             >
-              Sign in &amp; add
+              {direct ? "Add API account" : "Sign in & add"}
             </Button>
           </div>
         </div>

@@ -6,6 +6,8 @@ import type {
 export interface AccountImportDraft {
   accountId: string;
   label: string;
+  /** Name of an existing Eliza secret; the raw key never enters renderer state. */
+  secretKeyName?: string;
 }
 
 export function clearAccountImportDraft(
