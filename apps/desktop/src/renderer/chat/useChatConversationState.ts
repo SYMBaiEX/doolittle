@@ -138,6 +138,7 @@ export function useChatConversationState({
   const [sessionSearch, setSessionSearch] = useState("");
   const [historyError, setHistoryError] = useState("");
   const [loadingHistory, setLoadingHistory] = useState("");
+  const [historyRetryVersion, setHistoryRetryVersion] = useState(0);
   const requestedHistory = useRef(new Set<string>());
 
   const draft = conversationDrafts[draftSessionId] ?? "";
@@ -212,6 +213,7 @@ export function useChatConversationState({
     );
   }, [remoteSessions, selectedId]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retry nonce intentionally re-runs the same history request after an error.
   useEffect(() => {
     const remoteSession = remoteSessions.find(
       (session) => session.sessionId === selectedId,
@@ -262,7 +264,33 @@ export function useChatConversationState({
       .finally(() =>
         setLoadingHistory((current) => (current === selectedId ? "" : current)),
       );
-  }, [activeRequest, backendReady, remoteSessions, requestSession, selectedId]);
+  }, [
+    activeRequest,
+    backendReady,
+    historyRetryVersion,
+    remoteSessions,
+    requestSession,
+    selectedId,
+  ]);
+
+  const retryHistory = useCallback(
+    (sessionId: string) => {
+      if (loadingHistory === sessionId) return;
+      const session = remoteSessions.find(
+        (entry) => entry.sessionId === sessionId,
+      );
+      if (!session) return;
+      const historyVersion = [
+        sessionId,
+        session.messageCount,
+        session.endedAt ?? "",
+      ].join(":");
+      requestedHistory.current.delete(historyVersion);
+      setHistoryError("");
+      setHistoryRetryVersion((current) => current + 1);
+    },
+    [loadingHistory, remoteSessions],
+  );
 
   const sessions = useMemo(
     () =>
@@ -279,6 +307,7 @@ export function useChatConversationState({
     draft,
     historyError,
     loadingHistory,
+    retryHistory,
     selectedMessages: messages[selectedId] ?? [],
     selectedSession: sessions.find(
       (session) => session.sessionId === selectedId,

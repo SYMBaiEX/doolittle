@@ -4,6 +4,9 @@ import type { AgentExecutionContext } from "@/runtime/chat";
 let snapshotCallCount = 0;
 
 function installActivationMocks() {
+  vi.doMock("@/runtime/native/account-pool", () => ({
+    clearMaterializedAccountPoolApiCredentials: vi.fn(),
+  }));
   vi.doMock("@/runtime/native/account-auth", () => ({
     claudeCodeAccessTokenIsExpiring: () => false,
     getLinkedClaudeCodeCredentials: () => undefined,
@@ -103,13 +106,17 @@ describe("activateLinkedProvider", () => {
       },
     } as unknown as AgentExecutionContext;
 
-    return pending.then(({ activateLinkedProvider }) => {
+    return pending.then(async ({ activateLinkedProvider }) => {
       const result = activateLinkedProvider(context, "claude-code");
 
       expect(result.provider).toBe("claude-code");
       expect(result.model).toBe("claude-sonnet-4.6");
       expect(result.baseUrl).toBe("");
       expect(snapshotCallCount).toBe(1);
+      const { clearMaterializedAccountPoolApiCredentials } = await import(
+        "@/runtime/native/account-pool"
+      );
+      expect(clearMaterializedAccountPoolApiCredentials).toHaveBeenCalledOnce();
     });
   });
 });

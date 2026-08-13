@@ -198,6 +198,7 @@ export function ChatPage({
     setDraft,
     setDraftForSession,
     setMessages,
+    retryHistory,
     setSessionSearch,
     togglePin,
   } = useChatConversationState({
@@ -991,6 +992,7 @@ export function ChatPage({
             )
           }
           onRead={readMessage}
+          onRetryHistory={() => retryHistory(selectedId)}
           onSelectPrompt={setDraft}
           onStopReading={stopSpeaking}
           progress={progress}

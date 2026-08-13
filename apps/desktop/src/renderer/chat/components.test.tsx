@@ -238,6 +238,7 @@ describe("chat presentation components", () => {
         onBranch={() => undefined}
         onCopy={() => undefined}
         onRead={() => undefined}
+        onRetryHistory={() => undefined}
         onSelectPrompt={() => undefined}
         onStopReading={() => undefined}
         progress=""
@@ -248,5 +249,32 @@ describe("chat presentation components", () => {
     );
     expect(html).toContain('class="chat-messages"');
     expect(html).toContain("Give Doolittle");
+  });
+
+  it("offers retry when conversation history is unavailable", () => {
+    const html = renderToStaticMarkup(
+      <ChatTranscript
+        activeRequest={null}
+        backendReady
+        copyStates={{}}
+        endRef={{ current: null }}
+        forkingMessageId=""
+        historyError="History offline"
+        loading={false}
+        messages={[]}
+        onBranch={() => undefined}
+        onCopy={() => undefined}
+        onRead={() => undefined}
+        onRetryHistory={() => undefined}
+        onSelectPrompt={() => undefined}
+        onStopReading={() => undefined}
+        progress=""
+        runReceipts={{}}
+        speakingMessageId=""
+        speechSupported={false}
+      />,
+    );
+    expect(html).toContain("History offline");
+    expect(html).toContain(">Retry</button>");
   });
 });

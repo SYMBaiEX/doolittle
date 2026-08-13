@@ -27,6 +27,7 @@ export interface ChatTranscriptProps {
   onBranch: (message: DisplayMessage, mode: BranchMode) => void;
   onCopy: (message: DisplayMessage) => void;
   onRead: (message: DisplayMessage) => void;
+  onRetryHistory: () => void;
   onStopReading: () => void;
   onSelectPrompt: (prompt: string) => void;
 }
@@ -48,6 +49,7 @@ export function ChatTranscript({
   onBranch,
   onCopy,
   onRead,
+  onRetryHistory,
   onStopReading,
   onSelectPrompt,
 }: ChatTranscriptProps) {
@@ -59,7 +61,20 @@ export function ChatTranscript({
           Loading conversation…
         </div>
       ) : historyError ? (
-        <EmptyBlock title="Conversation unavailable">{historyError}</EmptyBlock>
+        <EmptyBlock
+          actions={
+            <button
+              className="text-button"
+              onClick={onRetryHistory}
+              type="button"
+            >
+              Retry
+            </button>
+          }
+          title="Conversation unavailable"
+        >
+          {historyError}
+        </EmptyBlock>
       ) : messages.length ? (
         messages.map((message) => (
           <ChatMessage

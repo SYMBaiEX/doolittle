@@ -461,12 +461,7 @@ export function initializeDoolittleAccountPool(dataDir?: string): AccountPool {
 export function applyAccountPoolApiCredentials(
   options: Parameters<typeof applyOfficialAccountPoolApiCredentials>[0] = {},
 ): Promise<void> {
-  for (const [key, materialized] of materializedApiEnv) {
-    if (process.env[key] !== materialized.value) continue;
-    if (materialized.previous === undefined) delete process.env[key];
-    else process.env[key] = materialized.previous;
-  }
-  materializedApiEnv.clear();
+  clearMaterializedAccountPoolApiCredentials();
 
   const previous = Object.fromEntries(
     MATERIALIZED_API_ENV_KEYS.map((key) => [key, process.env[key]]),
@@ -479,6 +474,21 @@ export function applyAccountPoolApiCredentials(
       }
     }
   });
+}
+
+/**
+ * Restore operator-owned environment values before a linked provider takes
+ * over. The official bridge applies all direct API accounts, so activation of
+ * an OAuth/cloud provider must clear Doolittle's tracked projection without
+ * immediately re-materializing another direct token.
+ */
+export function clearMaterializedAccountPoolApiCredentials(): void {
+  for (const [key, materialized] of materializedApiEnv) {
+    if (process.env[key] !== materialized.value) continue;
+    if (materialized.previous === undefined) delete process.env[key];
+    else process.env[key] = materialized.previous;
+  }
+  materializedApiEnv.clear();
 }
 
 export function getDoolittleAccountPool(): AccountPool {

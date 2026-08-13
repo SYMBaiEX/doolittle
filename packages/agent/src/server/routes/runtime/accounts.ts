@@ -32,6 +32,7 @@ export async function handleRuntimeAccountRoutes(
   context: AppContext,
   request: Request,
   url: URL,
+  options: { skipAccountPoolMutationLock?: boolean } = {},
 ): Promise<Response | null> {
   const accountPoolRoute = url.pathname.match(
     /^\/runtime\/account-pool\/(openai-codex|anthropic-subscription|openai-api|anthropic-api)(?:\/([^/]+)(?:\/(test|refresh-usage))?)?$/,
@@ -41,6 +42,13 @@ export async function handleRuntimeAccountRoutes(
   }
 
   if (accountPoolRoute) {
+    if (request.method !== "GET" && !options.skipAccountPoolMutationLock) {
+      return withLinkedProviderMutationLock(context.runtime, () =>
+        handleRuntimeAccountRoutes(context, request, url, {
+          skipAccountPoolMutationLock: true,
+        }),
+      );
+    }
     const providerId = accountPoolRoute[1];
     const accountId = accountPoolRoute[2];
     const action = accountPoolRoute[3];

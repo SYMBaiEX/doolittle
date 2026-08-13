@@ -1,3 +1,4 @@
+import { clearMaterializedAccountPoolApiCredentials } from "@/runtime/native/account-pool";
 import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
 import type { AgentExecutionContext } from "../chat";
 import { normalizeElizaCloudBaseUrl } from "./messages";
@@ -31,6 +32,7 @@ export function activateLinkedProvider(
       ? normalizeElizaCloudBaseUrl(nextBaseUrl)
       : nextBaseUrl;
 
+  clearMaterializedAccountPoolApiCredentials();
   context.services.settings.set("model.provider", provider);
   context.services.settings.set("model.model", nextModel);
   context.services.settings.set("model.baseUrl", normalizedBaseUrl);

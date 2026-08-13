@@ -1,5 +1,8 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import { syncProviderSettings } from "@/runtime/linked-provider-accounts";
+import {
+  syncProviderSettings,
+  withLinkedProviderMutationLock,
+} from "@/runtime/linked-provider-accounts";
 import { applyAccountPoolApiCredentials } from "@/runtime/native/account-pool";
 import { getEffectiveShellStatus } from "@/runtime/native/service-bridge/tooling";
 import {
@@ -187,7 +190,9 @@ export async function handleSettingsExecutionRoutes(
     };
     // Active turns read a request-local settings snapshot, so this persisted
     // route update takes effect immediately for future turns.
-    const settings = await applyChanges();
+    const settings = updatesModelRoute
+      ? await withLinkedProviderMutationLock(context.runtime, applyChanges)
+      : await applyChanges();
     return json({
       settings,
     });

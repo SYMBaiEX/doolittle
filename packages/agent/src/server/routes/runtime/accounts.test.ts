@@ -230,6 +230,54 @@ describe("Doolittle account-pool routes", () => {
     );
   });
 
+  it("serializes account-pool mutations that project process credentials", async () => {
+    accountPool.isAccountPoolProvider.mockReturnValue(true);
+    accountPool.isDoolittleDirectApiProvider.mockReturnValue(true);
+    let active = 0;
+    let maximumActive = 0;
+    const releases: Array<() => void> = [];
+    accountPool.updateDoolittleAccount.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          active += 1;
+          maximumActive = Math.max(maximumActive, active);
+          releases.push(() => {
+            active -= 1;
+            resolve({
+              accountId: `account-${releases.length}`,
+              providerId: "openai-api",
+              enabled: true,
+            });
+          });
+        }),
+    );
+
+    const request = () =>
+      handleRuntimeAccountRoutes(
+        context,
+        new Request("http://localhost/runtime/account-pool/openai-api/work", {
+          method: "PATCH",
+          body: JSON.stringify({ enabled: true }),
+          headers: { "content-type": "application/json" },
+        }),
+        new URL("http://localhost/runtime/account-pool/openai-api/work"),
+      );
+
+    const first = request();
+    const second = request();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(maximumActive).toBe(1);
+    expect(accountPool.updateDoolittleAccount).toHaveBeenCalledOnce();
+
+    releases.shift()?.();
+    await first;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(accountPool.updateDoolittleAccount).toHaveBeenCalledTimes(2);
+    releases.shift()?.();
+    await second;
+    expect(maximumActive).toBe(1);
+  });
+
   it("tests credentials and refreshes usage without exposing credentials", async () => {
     accountPool.isAccountPoolProvider.mockReturnValue(true);
     accountPool.testDoolittleAccountCredentials.mockResolvedValue({
