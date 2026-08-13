@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { providerRouteLabel } from "../ConnectionsPage";
+import { providerRouteLabel, providerSelectionLabel } from "../ConnectionsPage";
 import { AccountPoolPanel } from "./AccountPoolPanel";
 import { ProviderConnectionRow } from "./ProviderConnectionRow";
 import { ProviderRouteSummary } from "./ProviderRouteSummary";
@@ -75,6 +75,29 @@ describe("provider account surfaces", () => {
     expect(providerRouteLabel("openai-codex")).toBe("OpenAI Codex");
     expect(providerRouteLabel("codex")).toBe("Codex");
     expect(providerRouteLabel(undefined)).toBeUndefined();
+  });
+
+  it("does not advertise an unavailable selected provider for new chats", () => {
+    expect(
+      providerSelectionLabel({
+        configuredProvider: "codex",
+        selectedProviderLabel: "Codex",
+        selectedProviderReady: false,
+      }),
+    ).toBe("Needs sign-in");
+    expect(
+      providerSelectionLabel({
+        configuredProvider: "codex",
+        selectedProviderLabel: "Codex",
+        selectedProviderReady: true,
+      }),
+    ).toBe("Codex");
+    expect(
+      providerSelectionLabel({
+        configuredProvider: "ollama",
+        selectedProviderReady: false,
+      }),
+    ).toBe("Ollama");
   });
 
   it("does not present CLI fallback as an authenticated subscription", () => {

@@ -88,6 +88,21 @@ export function providerRouteLabel(
   );
 }
 
+export function providerSelectionLabel({
+  configuredProvider,
+  selectedProviderLabel,
+  selectedProviderReady,
+}: {
+  configuredProvider?: string;
+  selectedProviderLabel?: string;
+  selectedProviderReady: boolean;
+}): string | undefined {
+  if (selectedProviderLabel) {
+    return selectedProviderReady ? selectedProviderLabel : "Needs sign-in";
+  }
+  return providerRouteLabel(configuredProvider);
+}
+
 export function ConnectionsPage({
   active,
   embedded = false,
@@ -207,6 +222,7 @@ export function ConnectionsPage({
     };
   });
   const activeDefault = providerViews.find((provider) => provider.isDefault);
+  const configuredProvider = asString(resource.data?.activeProvider);
   const readyProviderCount = providerViews.filter(
     (provider) => provider.ready,
   ).length;
@@ -273,10 +289,11 @@ export function ConnectionsPage({
                 <h2 id="provider-connections-title">Provider connections</h2>
               </div>
               <ProviderRouteSummary
-                activeProvider={
-                  activeDefault?.provider.label ??
-                  providerRouteLabel(asString(resource.data?.activeProvider))
-                }
+                activeProvider={providerSelectionLabel({
+                  configuredProvider,
+                  selectedProviderLabel: activeDefault?.provider.label,
+                  selectedProviderReady: Boolean(activeDefault?.ready),
+                })}
                 ready={readyProviderCount}
                 total={providerViews.length}
               />
