@@ -519,7 +519,10 @@ button.chat-session-meta-pill:hover {
   gap: 2px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 120ms ease;
+  transform: translateY(2px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
 }
 
 .chat-message-actions button {
@@ -553,6 +556,7 @@ button.chat-session-meta-pill:hover {
   .chat-message-actions {
   opacity: 1;
   pointer-events: auto;
+  transform: translateY(0);
 }
 
 .message-content {
@@ -3150,10 +3154,11 @@ button.chat-session-meta-pill:hover {
   }
 }
 
-@media (hover: none) {
+@media (pointer: coarse) {
   .chat-message-actions {
     opacity: 1;
     pointer-events: auto;
+    transform: translateY(0);
   }
 }
 
@@ -3165,5 +3170,6 @@ button.chat-session-meta-pill:hover {
 
   .chat-message-actions {
     transition: none;
+    transform: none;
   }
 }
