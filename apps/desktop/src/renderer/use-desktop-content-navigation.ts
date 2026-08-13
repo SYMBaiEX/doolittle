@@ -331,6 +331,7 @@ export function useDesktopContentNavigation({
   const globalSearch = useGlobalSearch(
     paletteQuery,
     paletteOpen && backendReady,
+    workspacePath,
   );
   const selectGlobalSearchResult = useCallback(
     (target: GlobalSearchTarget) => {

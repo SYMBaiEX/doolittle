@@ -273,13 +273,23 @@ export function globalSearchGroups(
   })).filter((group) => group.items.length > 0);
 }
 
-export function useGlobalSearch(query: string, active: boolean) {
+/**
+ * The workspace path is an effect identity, not a request parameter: the
+ * backend resolves `/workspace/search` against the active workspace. Changing
+ * it must abort the previous query and start the same search in the new root.
+ */
+export function useGlobalSearch(
+  query: string,
+  active: boolean,
+  workspacePath = "",
+) {
   const [results, setResults] = useState<GlobalSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const sequence = useRef(0);
   const trimmedQuery = query.trim();
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: workspace changes intentionally restart current-workspace search requests.
   useEffect(() => {
     const requestSequence = ++sequence.current;
     if (!active || trimmedQuery.length < 2) {
@@ -359,7 +369,7 @@ export function useGlobalSearch(query: string, active: boolean) {
       controller.abort();
       if (sequence.current === requestSequence) sequence.current += 1;
     };
-  }, [active, trimmedQuery]);
+  }, [active, trimmedQuery, workspacePath]);
 
   return useMemo(
     () => ({ results, loading, error }),

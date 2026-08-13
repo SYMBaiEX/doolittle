@@ -194,3 +194,36 @@ test("aborts all in-flight requests after the debounce when global search unmoun
     hook.setters.flatMap((setter) => setter.mock.calls).flat(),
   ).not.toContain("Some local search sources are unavailable (5/5).");
 });
+
+test("restarts workspace search when the active workspace changes", async () => {
+  vi.useFakeTimers();
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { setTimeout, clearTimeout },
+  });
+  const signals: AbortSignal[] = [];
+  hook.desktopRequest.mockImplementation(
+    (_path: string, _method: string, _body: unknown, signal?: AbortSignal) =>
+      new Promise(() => {
+        if (signal) signals.push(signal);
+      }),
+  );
+
+  useGlobalSearch("runtime", true, "/work/alpha");
+  await vi.advanceTimersByTimeAsync(180);
+  expect(hook.desktopRequest).toHaveBeenCalledTimes(5);
+
+  hook.cleanup?.();
+  useGlobalSearch("runtime", true, "/work/beta");
+  await vi.advanceTimersByTimeAsync(180);
+
+  expect(hook.desktopRequest).toHaveBeenCalledTimes(10);
+  expect(signals.slice(0, 5).every((signal) => signal.aborted)).toBe(true);
+  expect(hook.desktopRequest).toHaveBeenNthCalledWith(
+    6,
+    "/projects?includeArchived=true",
+    "GET",
+    undefined,
+    expect.any(AbortSignal),
+  );
+});
