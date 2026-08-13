@@ -503,11 +503,10 @@ export function resolveEditorProjectContext(
         esModuleInterop: true,
         jsx: ts.JsxEmit.ReactJSX,
         module: ts.ModuleKind.ESNext,
-        moduleResolution: ts.ModuleResolutionKind.NodeNext,
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
         resolveJsonModule: true,
         skipLibCheck: true,
         target: ts.ScriptTarget.ES2022,
-        types: ["node"],
       };
 
   const entryContent =

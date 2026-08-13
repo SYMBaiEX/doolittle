@@ -160,6 +160,9 @@ describe("resolveEditorProjectContext", () => {
       });
       const paths = context.supportFiles.map((file) => file.path);
 
+      expect(context.compilerOptions.module).toBe("esnext");
+      expect(context.compilerOptions.moduleResolution).toBe("bundler");
+      expect(context.compilerOptions.types).toBeUndefined();
       expect(paths).toEqual(
         expect.arrayContaining([
           resolve(packageRoot, "package.json"),
