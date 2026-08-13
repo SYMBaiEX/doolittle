@@ -514,6 +514,8 @@ button.chat-session-meta-pill:hover {
   position: static;
   display: flex;
   align-items: center;
+  max-width: 100%;
+  flex-wrap: wrap;
   gap: 2px;
   opacity: 0;
   pointer-events: none;

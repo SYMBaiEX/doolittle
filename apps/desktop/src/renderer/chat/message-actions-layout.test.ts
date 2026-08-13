@@ -10,7 +10,7 @@ const messageActions = readFileSync(
 describe("chat message action layout", () => {
   it("keeps actions in a dedicated footer instead of overlaying message metadata", () => {
     expect(css).toMatch(
-      /\.chat-message-actions\s*{[^}]*position:\s*static;[^}]*display:\s*flex;/s,
+      /\.chat-message-actions\s*{[^}]*position:\s*static;[^}]*display:\s*flex;[^}]*max-width:\s*100%;[^}]*flex-wrap:\s*wrap;/s,
     );
     expect(css).not.toMatch(
       /\.chat-message-actions\s*{[^}]*(?:top|right|bottom|left):/s,
