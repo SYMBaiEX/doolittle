@@ -9,7 +9,7 @@ import type {
   EditorProjectContextResult,
 } from "../shared/contracts";
 
-const MAX_SUPPORT_FILES = 400;
+const MAX_SUPPORT_FILES = 1_200;
 const MAX_SUPPORT_BYTES = 6_000_000;
 const PROJECT_CONFIG_PATTERN = /^(?:tsconfig(?:\.[^.]+)?|jsconfig)\.json$/u;
 const TYPE_REFERENCE_HOST: ts.ModuleResolutionHost = {
@@ -282,6 +282,7 @@ function collectSupportFiles(
   const inMemoryContent = new Map<string, string>([
     [entryAbsolutePath, entryContent],
   ]);
+  let pendingCursor = 0;
   let totalBytes = 0;
   let truncated = false;
 
@@ -323,6 +324,13 @@ function collectSupportFiles(
       return;
     }
 
+    const packagePathSegments = packageId.subModuleName
+      .split("/")
+      .filter(Boolean);
+    const diskPackageRoot = resolve(
+      diskPath,
+      ...Array(packagePathSegments.length).fill(".."),
+    );
     const virtualPackageRoot =
       findVisiblePackageRoot(packageId.name) ??
       (importer?.virtualPackageRoot
@@ -331,11 +339,21 @@ function collectSupportFiles(
       (resolved.originalPath
         ? resolve(
             resolved.originalPath,
-            ...Array(
-              packageId.subModuleName.split("/").filter(Boolean).length,
-            ).fill(".."),
+            ...Array(packagePathSegments.length).fill(".."),
           )
         : undefined);
+    // Monaco's TypeScript worker only sees files registered as extra libs; it
+    // cannot read the host workspace's package.json files. Modern packages use
+    // `exports` (often with a `types` condition) to map public subpaths to their
+    // declarations, so registering only the resolved .d.ts file still leaves
+    // imports such as `@scope/ui/Button` unresolved inside the editor.
+    if (virtualPackageRoot) {
+      enqueue(
+        resolve(diskPackageRoot, "package.json"),
+        resolve(virtualPackageRoot, "package.json"),
+        virtualPackageRoot,
+      );
+    }
     enqueue(
       diskPath,
       virtualPackageRoot
@@ -346,8 +364,11 @@ function collectSupportFiles(
   };
 
   const drainPending = () => {
-    while (pending.length > 0) {
-      const current = pending.pop();
+    // Walk breadth-first so every direct import is registered before a large
+    // barrel (for example Heroicons) can spend the bounded transitive budget.
+    while (pendingCursor < pending.length) {
+      const current = pending[pendingCursor];
+      pendingCursor += 1;
       if (!current) continue;
       const diskPath = normalizePath(current.diskPath);
       const virtualPath = normalizePath(current.virtualPath);

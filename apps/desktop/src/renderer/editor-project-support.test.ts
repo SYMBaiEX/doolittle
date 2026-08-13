@@ -71,6 +71,11 @@ describe("acquireMonacoProjectSupport", () => {
           path: "/workspace/node_modules/@types/react/index.d.ts",
           content: "export type FC = () => unknown;",
         },
+        {
+          path: "/workspace/node_modules/@example/ui/package.json",
+          content:
+            '{"exports":{"./Button":{"types":"./dist/Button/index.d.ts"}}}',
+        },
       ],
       truncated: false,
     });
@@ -88,6 +93,10 @@ describe("acquireMonacoProjectSupport", () => {
     expect(languageDefaults.typescript.addExtraLib).toHaveBeenCalledWith(
       "export type FC = () => unknown;",
       "file:///workspace/node_modules/@types/react/index.d.ts",
+    );
+    expect(languageDefaults.typescript.addExtraLib).toHaveBeenCalledWith(
+      '{"exports":{"./Button":{"types":"./dist/Button/index.d.ts"}}}',
+      "file:///workspace/node_modules/@example/ui/package.json",
     );
     expect(
       languageDefaults.typescript.addExtraLib.mock.invocationCallOrder[0],

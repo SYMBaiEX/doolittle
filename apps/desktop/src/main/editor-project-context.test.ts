@@ -119,6 +119,58 @@ describe("resolveEditorProjectContext", () => {
     }
   });
 
+  it("registers package manifests required for exported package subpaths", () => {
+    const workspace = mkdtempSync(
+      join(process.cwd(), ".tmp-editor-package-exports-context-"),
+    );
+    const packageRoot = join(workspace, "node_modules", "@example", "ui");
+    try {
+      mkdirSync(join(workspace, "src"), { recursive: true });
+      mkdirSync(join(packageRoot, "dist", "Button"), { recursive: true });
+      writeFileSync(
+        join(workspace, "src", "component.tsx"),
+        [
+          'import { Button } from "@example/ui/Button";',
+          'export const component = <Button label="Save" />;',
+          "",
+        ].join("\n"),
+      );
+      writeFileSync(
+        join(packageRoot, "package.json"),
+        JSON.stringify({
+          name: "@example/ui",
+          version: "1.0.0",
+          type: "module",
+          exports: {
+            "./Button": {
+              types: "./dist/Button/index.d.ts",
+              default: "./dist/Button/index.js",
+            },
+          },
+        }),
+      );
+      writeFileSync(
+        join(packageRoot, "dist", "Button", "index.d.ts"),
+        "export declare function Button(props: { label: string }): unknown;\n",
+      );
+
+      const context = resolveEditorProjectContext({
+        workspacePath: workspace,
+        entryPath: "src/component.tsx",
+      });
+      const paths = context.supportFiles.map((file) => file.path);
+
+      expect(paths).toEqual(
+        expect.arrayContaining([
+          resolve(packageRoot, "package.json"),
+          resolve(packageRoot, "dist/Button/index.d.ts"),
+        ]),
+      );
+    } finally {
+      rmSync(workspace, { force: true, recursive: true });
+    }
+  });
+
   it("registers pnpm dependencies at the logical paths Monaco resolves", () => {
     const workspace = mkdtempSync(
       join(process.cwd(), ".tmp-editor-pnpm-context-"),
