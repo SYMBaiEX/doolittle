@@ -4,6 +4,7 @@ import {
   toPublicAutocoderSummary,
 } from "@/server/routes/codegen/public-dtos";
 import type { CodegenRouteHandler } from "@/server/routes/codegen/types";
+import { parseOpaqueRouteId } from "@/server/routes/parse-opaque-id";
 import { AutocoderArtifactError } from "@/services/autocoder-pipeline";
 
 const PRIVATE_ARTIFACT_HEADERS = {
@@ -46,21 +47,6 @@ function parseArtifactRoute(
   return Number.isSafeInteger(index) ? { runId, index } : undefined;
 }
 
-function parseOpaqueRunId(rawId: string | undefined): string | undefined {
-  if (!rawId) return undefined;
-  let id: string;
-  try {
-    id = decodeURIComponent(rawId);
-  } catch {
-    return undefined;
-  }
-
-  // Pipeline IDs are generated from a kind, safe slug, and timestamp. Keep
-  // the route opaque and reject path-like or unbounded identifiers before they
-  // reach the persistence-backed service.
-  return /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(id) ? id : undefined;
-}
-
 function cancellationReceipt(input: {
   applied: boolean;
   alreadyCancelled: boolean;
@@ -88,7 +74,7 @@ export const handleCodegenRunsRoutes: CodegenRouteHandler = async (
 ) => {
   const cancelMatch = url.pathname.match(/^\/codegen\/runs\/([^/]+)\/cancel$/u);
   if (cancelMatch && request.method === "POST") {
-    const id = parseOpaqueRunId(cancelMatch[1]);
+    const id = parseOpaqueRouteId(cancelMatch[1]);
     if (!id) {
       return json({ error: "Autocoder run identifier is invalid." }, 400);
     }
@@ -172,7 +158,10 @@ export const handleCodegenRunsRoutes: CodegenRouteHandler = async (
 
   const runMatch = url.pathname.match(/^\/codegen\/runs\/([^/]+)$/u);
   if (runMatch) {
-    const id = decodeURIComponent(runMatch[1] ?? "");
+    const id = parseOpaqueRouteId(runMatch[1]);
+    if (!id) {
+      return json({ error: "Autocoder run identifier is invalid." }, 400);
+    }
     const run = context.services.autocoderPipeline.get(id);
     return json({
       run: run ? toPublicAutocoderRun(run) : undefined,

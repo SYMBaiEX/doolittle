@@ -18,6 +18,7 @@ import { PlanPanel } from "./orchestration/PlanPanel";
 import { TaskCreateForm } from "./orchestration/TaskCreateForm";
 import { TaskQueuePanel } from "./orchestration/TaskQueuePanel";
 import { TaskSupervisionControls } from "./orchestration/TaskSupervisionControls";
+import { resolveTaskNavigationIntent } from "./orchestration/task-navigation";
 import { useOrchestrationActions } from "./orchestration/useOrchestrationActions";
 import {
   orchestrationStatusTier,
@@ -403,9 +404,14 @@ export function OrchestrationPage({
       onAcknowledgeNavigationIntent(navigationIntent.id);
       return;
     }
-    const taskId = navigationIntent.target.taskId.trim();
-    if (!taskId || tasksResource.loading) return;
-    if (!tasks.some((task) => task.id === taskId)) {
+    const resolution = resolveTaskNavigationIntent({
+      taskId: navigationIntent.target.taskId,
+      loading: tasksResource.loading,
+      error: tasksResource.error,
+      tasks,
+    });
+    if (resolution.kind === "wait") return;
+    if (resolution.kind === "missing") {
       consumedNavigationIntents.current.add(navigationIntent.id);
       publishNotice({
         tone: "warn",
@@ -416,7 +422,7 @@ export function OrchestrationPage({
     }
     consumedNavigationIntents.current.add(navigationIntent.id);
     setActiveTab("tasks");
-    setSelectedTaskId(taskId);
+    setSelectedTaskId(resolution.taskId);
     onAcknowledgeNavigationIntent(navigationIntent.id);
   }, [
     active,
@@ -424,6 +430,7 @@ export function OrchestrationPage({
     onAcknowledgeNavigationIntent,
     publishNotice,
     tasks,
+    tasksResource.error,
     tasksResource.loading,
   ]);
 

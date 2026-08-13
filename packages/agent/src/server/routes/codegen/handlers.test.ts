@@ -413,6 +413,23 @@ describe("codegen route handlers", () => {
     expect(invalid?.status).toBe(400);
   });
 
+  it("returns client errors for malformed opaque run and workflow ids", async () => {
+    const context = createContext();
+    const malformedRun = await handleCodegenRunsRoutes(
+      context,
+      new Request("http://localhost/codegen/runs/%E0%A4"),
+      new URL("http://localhost/codegen/runs/%E0%A4"),
+    );
+    const malformedWorkflow = await handleCodegenWorkflowsRoutes(
+      context,
+      new Request("http://localhost/codegen/workflows/%E0%A4"),
+      new URL("http://localhost/codegen/workflows/%E0%A4"),
+    );
+
+    expect(malformedRun?.status).toBe(400);
+    expect(malformedWorkflow?.status).toBe(400);
+  });
+
   it("validates generate input and records successful execution", async () => {
     const context = createContext();
     const missing = await handleCodegenGenerateRoutes(

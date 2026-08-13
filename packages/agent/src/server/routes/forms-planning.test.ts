@@ -289,6 +289,23 @@ describe("handleFormsPlanningRoutes", () => {
     expect(calls).toBe(0);
   });
 
+  it("returns client errors for malformed form and plan ids", async () => {
+    const context = createContext();
+    const malformedForm = await handleFormsPlanningRoutes(
+      context,
+      new Request("http://localhost/forms/%E0%A4"),
+      new URL("http://localhost/forms/%E0%A4"),
+    );
+    const malformedPlan = await handleFormsPlanningRoutes(
+      context,
+      new Request("http://localhost/plans/%E0%A4"),
+      new URL("http://localhost/plans/%E0%A4"),
+    );
+
+    expect(malformedForm?.status).toBe(400);
+    expect(malformedPlan?.status).toBe(400);
+  });
+
   it("returns null for unrelated routes", async () => {
     const response = await handleFormsPlanningRoutes(
       createContext(),

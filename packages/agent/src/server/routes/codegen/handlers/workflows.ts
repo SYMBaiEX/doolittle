@@ -6,6 +6,7 @@ import {
   toPublicAutocoderWorkflowView,
 } from "@/server/routes/codegen/public-dtos";
 import type { CodegenRouteHandler } from "@/server/routes/codegen/types";
+import { parseOpaqueRouteId } from "@/server/routes/parse-opaque-id";
 
 export const handleCodegenWorkflowsRoutes: CodegenRouteHandler = async (
   context,
@@ -24,21 +25,25 @@ export const handleCodegenWorkflowsRoutes: CodegenRouteHandler = async (
   }
 
   if (url.pathname.startsWith("/codegen/workflows/")) {
-    const suffix = decodeURIComponent(
-      url.pathname.replace("/codegen/workflows/", ""),
+    const match = url.pathname.match(
+      /^\/codegen\/workflows\/([^/]+)(\/bundle)?$/u,
     );
-    if (request.method === "POST" && suffix.endsWith("/bundle")) {
-      const workflowId = suffix.replace(/\/bundle$/u, "");
+    if (!match) return null;
+    const workflowId = parseOpaqueRouteId(match[1]);
+    if (!workflowId) {
+      return json({ error: "Autocoder workflow identifier is invalid." }, 400);
+    }
+    if (request.method === "POST" && match[2] === "/bundle") {
       return json(
         toPublicAutocoderBundle(
           context.services.autocoderPipeline.bundleWorkflow(workflowId),
         ),
       );
     }
-    if (request.method === "GET" && !suffix.endsWith("/bundle")) {
+    if (request.method === "GET" && !match[2]) {
       return json(
         toPublicAutocoderWorkflowView(
-          context.services.autocoderPipeline.workflow(suffix),
+          context.services.autocoderPipeline.workflow(workflowId),
         ),
       );
     }

@@ -16,18 +16,7 @@ import {
   getNativePlanningControlPlane,
 } from "@/runtime/native/service-bridge/control-planes";
 import { json } from "@/server/responses";
-
-function parseOpaquePlanId(rawId: string | undefined): string | undefined {
-  if (!rawId) return undefined;
-  try {
-    const decoded = decodeURIComponent(rawId);
-    return /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(decoded)
-      ? decoded
-      : undefined;
-  } catch {
-    return undefined;
-  }
-}
+import { parseOpaqueRouteId } from "@/server/routes/parse-opaque-id";
 
 export async function handleFormsPlanningRoutes(
   context: AppContext,
@@ -105,7 +94,7 @@ export async function handleFormsPlanningRoutes(
 
   const planAction = url.pathname.match(/^\/plans\/([^/]+)\/(approve|steer)$/);
   if (request.method === "POST" && planAction) {
-    const planId = parseOpaquePlanId(planAction[1]);
+    const planId = parseOpaqueRouteId(planAction[1]);
     if (!planId) {
       return json({ error: "Plan identifier is invalid." }, 400);
     }
@@ -225,14 +214,20 @@ export async function handleFormsPlanningRoutes(
     url.pathname.startsWith("/forms/") &&
     !url.pathname.endsWith("/cancel")
   ) {
-    const formId = decodeURIComponent(url.pathname.replace("/forms/", ""));
+    const formId = parseOpaqueRouteId(url.pathname.replace("/forms/", ""));
+    if (!formId) {
+      return json({ error: "Form identifier is invalid." }, 400);
+    }
     return json({
       form: await getEffectiveForm(context.runtime, formId),
     });
   }
 
   if (request.method === "GET" && url.pathname.startsWith("/plans/")) {
-    const planId = decodeURIComponent(url.pathname.replace("/plans/", ""));
+    const planId = parseOpaqueRouteId(url.pathname.replace("/plans/", ""));
+    if (!planId) {
+      return json({ error: "Plan identifier is invalid." }, 400);
+    }
     return json({
       plan: await getEffectivePlan(context.runtime, planId),
     });
@@ -243,9 +238,12 @@ export async function handleFormsPlanningRoutes(
     url.pathname.startsWith("/forms/") &&
     url.pathname.endsWith("/cancel")
   ) {
-    const formId = decodeURIComponent(
+    const formId = parseOpaqueRouteId(
       url.pathname.replace("/forms/", "").replace("/cancel", ""),
     );
+    if (!formId) {
+      return json({ error: "Form identifier is invalid." }, 400);
+    }
     return json({
       cancelled: await cancelEffectiveForm(context.runtime, formId),
     });
