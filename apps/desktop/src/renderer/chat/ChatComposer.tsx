@@ -303,8 +303,8 @@ export function ChatComposer({
         >
           {commandSuggestions.map((command, index) => (
             <button
-              aria-selected={index === commandSelection}
-              className={index === commandSelection ? "selected" : ""}
+              aria-selected={index === activeCommandIndex}
+              className={index === activeCommandIndex ? "selected" : ""}
               disabled={Boolean(command.disabledReason)}
               id={`chat-command-option-${index}`}
               key={command.command}
@@ -322,7 +322,7 @@ export function ChatComposer({
                   </small>
                 ) : null}
               </span>
-              <kbd>{index === commandSelection ? "Tab" : "↑↓"}</kbd>
+              <kbd>{index === activeCommandIndex ? "Tab" : "↑↓"}</kbd>
             </button>
           ))}
         </div>

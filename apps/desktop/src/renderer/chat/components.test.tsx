@@ -122,6 +122,37 @@ describe("chat presentation components", () => {
     expect(html).toContain('aria-haspopup="listbox"');
   });
 
+  it("keeps the active command valid when suggestions shrink", () => {
+    const html = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          backend: { phase: "ready", message: "" },
+          draft: "/rev",
+          commandSuggestions: [
+            {
+              command: "/review",
+              description: "Review the current workspace",
+              category: "Workspace",
+            },
+            {
+              command: "/runtime",
+              description: "Inspect runtime health",
+              category: "Runtime",
+            },
+          ],
+          commandSelection: 99,
+        })}
+      />,
+    );
+    expect(html).toContain('aria-activedescendant="chat-command-option-1"');
+    expect(html).toMatch(
+      /aria-selected="true"[^>]*id="chat-command-option-1"/s,
+    );
+    expect(html).toMatch(
+      /aria-selected="false"[^>]*id="chat-command-option-0"/s,
+    );
+  });
+
   it("keeps the welcome prompts and project-specific copy intact", () => {
     const html = renderToStaticMarkup(
       <Welcome onSelect={() => undefined} projectName="Doolittle" />,
