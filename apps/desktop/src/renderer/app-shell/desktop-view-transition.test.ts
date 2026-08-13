@@ -13,6 +13,7 @@ describe("desktop view transitions", () => {
     expect(appSource).toContain("applyViewTransition(next);");
     expect(appSource).toContain("applyViewTransition(viewFromHash());");
     expect(appSource).toContain('if (next !== "chat") closeChatTerminal();');
+    expect(appSource).toContain("if (isMobileSidebarMode) closeUtilities();");
   });
 
   it("uses route-neutral lazy loading copy", () => {

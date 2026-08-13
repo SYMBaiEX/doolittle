@@ -78,6 +78,15 @@ function loadBooleanPreference(key: string, fallback: boolean): boolean {
   }
 }
 
+/** Keep cached coding resources isolated when the runtime workspace changes. */
+export function codingWorkspaceResourceDependencies(
+  enabled: boolean,
+  workspacePath: string,
+  ...dependencies: readonly unknown[]
+): readonly unknown[] {
+  return [enabled, workspacePath, ...dependencies];
+}
+
 export function CodingWorkspacePage({
   active,
   navigationIntent,
@@ -147,45 +156,61 @@ export function CodingWorkspacePage({
 
   const summaryResource = useApiResource<RepositorySummaryResponse>(
     requestPolicy.summary ? "/repo/summary" : null,
-    [requestPolicy.summary],
+    codingWorkspaceResourceDependencies(requestPolicy.summary, workspacePath),
   );
   const treeResource = useApiResource<WorkspaceTreeResponse>(
     requestPolicy.tree ? "/workspace/tree?depth=12" : null,
-    [requestPolicy.tree],
+    codingWorkspaceResourceDependencies(requestPolicy.tree, workspacePath),
   );
   const changesResource = useApiResource<RepositoryChangesResponse>(
     requestPolicy.changes ? "/repo/changes" : null,
-    [requestPolicy.changes],
+    codingWorkspaceResourceDependencies(requestPolicy.changes, workspacePath),
   );
   const logResource = useApiResource<RepositoryLogResponse>(
     requestPolicy.log ? "/repo/log" : null,
-    [requestPolicy.log],
+    codingWorkspaceResourceDependencies(requestPolicy.log, workspacePath),
   );
   const worktreeResource = useApiResource<RepositoryWorktreesResponse>(
     requestPolicy.worktrees ? "/repo/worktrees" : null,
-    [requestPolicy.worktrees],
+    codingWorkspaceResourceDependencies(requestPolicy.worktrees, workspacePath),
   );
   const branchesResource = useApiResource<RepositoryBranchesResponse>(
     requestPolicy.sourceControl ? "/repo/branches" : null,
-    [requestPolicy.sourceControl],
+    codingWorkspaceResourceDependencies(
+      requestPolicy.sourceControl,
+      workspacePath,
+    ),
   );
   const remotesResource = useApiResource<RepositoryRemotesResponse>(
     requestPolicy.sourceControl ? "/repo/remotes" : null,
-    [requestPolicy.sourceControl],
+    codingWorkspaceResourceDependencies(
+      requestPolicy.sourceControl,
+      workspacePath,
+    ),
   );
   const stashesResource = useApiResource<RepositoryStashesResponse>(
     requestPolicy.sourceControl ? "/repo/stashes" : null,
-    [requestPolicy.sourceControl],
+    codingWorkspaceResourceDependencies(
+      requestPolicy.sourceControl,
+      workspacePath,
+    ),
   );
   const conflictsResource = useApiResource<RepositoryConflictsResponse>(
     requestPolicy.sourceControl ? "/repo/conflicts" : null,
-    [requestPolicy.sourceControl],
+    codingWorkspaceResourceDependencies(
+      requestPolicy.sourceControl,
+      workspacePath,
+    ),
   );
   const searchResource = useApiResource<WorkspaceSearchResponse>(
     requestPolicy.search
       ? `/workspace/search?query=${encodeURIComponent(searchQuery)}`
       : null,
-    [requestPolicy.search, searchQuery],
+    codingWorkspaceResourceDependencies(
+      requestPolicy.search,
+      workspacePath,
+      searchQuery,
+    ),
   );
 
   const changes = useMemo(
@@ -226,13 +251,23 @@ export function CodingWorkspacePage({
     requestPolicy.file
       ? `/workspace/read?path=${encodeURIComponent(selectedPath)}`
       : null,
-    [requestPolicy.file, selectedPath],
+    codingWorkspaceResourceDependencies(
+      requestPolicy.file,
+      workspacePath,
+      selectedPath,
+    ),
   );
   const patchResource = useApiResource<RepositoryPatchResponse>(
     requestPolicy.patch && selectedChange
       ? `/repo/patch?path=${encodeURIComponent(selectedPath)}&staged=${stagedPatch}`
       : null,
-    [requestPolicy.patch, selectedPath, stagedPatch, selectedChange?.path],
+    codingWorkspaceResourceDependencies(
+      requestPolicy.patch,
+      workspacePath,
+      selectedPath,
+      stagedPatch,
+      selectedChange?.path,
+    ),
   );
   const summary = summaryResource.data?.summary ?? EMPTY_SUMMARY;
   const commits = commitRows(logResource.data?.log);

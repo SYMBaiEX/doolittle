@@ -377,7 +377,7 @@ export function App() {
       setViewState(next);
       setMobileSidebarOpen(false);
       if (next !== "chat") closeChatTerminal();
-      if (isMobileSidebarMode) setUtilityOpen(false);
+      if (isMobileSidebarMode) closeUtilities();
       const section = navigation.find((entry) =>
         entry.items.some((item) => item.id === next),
       );
@@ -390,6 +390,7 @@ export function App() {
     },
     [
       backend.phase,
+      closeUtilities,
       closeChatTerminal,
       isMobileSidebarMode,
       setMobileSidebarOpen,
