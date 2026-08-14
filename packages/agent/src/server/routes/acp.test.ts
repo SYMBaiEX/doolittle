@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleAcpRoutes } from "./acp";
 
@@ -192,6 +192,48 @@ describe("handleAcpRoutes", () => {
       result: { tool: "tool-1", input: { url: "x" }, mode: "tool" },
     });
   });
+
+  it.each([
+    {
+      label: "malformed JSON",
+      body: "{",
+      error: "Invalid JSON body",
+    },
+    {
+      label: "non-object JSON",
+      body: JSON.stringify(null),
+      error: "JSON body must be an object",
+    },
+    {
+      label: "missing input",
+      body: JSON.stringify({}),
+      error: "input is required",
+    },
+    {
+      label: "empty input",
+      body: JSON.stringify({ input: "   " }),
+      error: "input is required",
+    },
+  ])(
+    "rejects ACP invoke $label without invoking the service",
+    async ({ body, error }) => {
+      const context = createContext();
+      const invoke = vi.spyOn(context.services.acp, "invoke");
+      const response = await handleAcpRoutes(
+        context,
+        new Request("http://localhost/acp/invoke", {
+          method: "POST",
+          body,
+          headers: { "content-type": "application/json" },
+        }),
+        new URL("http://localhost/acp/invoke"),
+      );
+
+      expect(response?.status).toBe(400);
+      await expect(response?.json()).resolves.toEqual({ error });
+      expect(invoke).not.toHaveBeenCalled();
+    },
+  );
 
   it("returns null for unrelated routes", async () => {
     const response = await handleAcpRoutes(

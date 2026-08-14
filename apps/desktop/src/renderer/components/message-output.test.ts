@@ -170,6 +170,26 @@ describe("webSearchResults", () => {
       }),
     ).toEqual([]);
   });
+
+  it("drops HTTP(S) strings that cannot be rendered as valid web sources", () => {
+    expect(
+      webSearchResults({
+        results: [
+          { url: "http://", title: "Incomplete" },
+          { url: "https://?", title: "Missing host" },
+          {
+            url: "https://docs.elizaos.ai/projects/overview",
+            title: "Valid",
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        title: "Valid",
+        url: "https://docs.elizaos.ai/projects/overview",
+      },
+    ]);
+  });
 });
 
 describe("formatToolPayload", () => {

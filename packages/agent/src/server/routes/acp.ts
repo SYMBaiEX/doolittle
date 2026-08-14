@@ -1,4 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import type { AcpEditorContext } from "@/services/acp/types";
 
@@ -255,11 +256,24 @@ export async function handleAcpRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/acp/invoke") {
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as {
-      input?: string;
-    };
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) {
+      return json(
+        {
+          error:
+            parsed.reason === "invalid_json"
+              ? "Invalid JSON body"
+              : "JSON body must be an object",
+        },
+        400,
+      );
+    }
+    const body = parsed.value as { input?: unknown };
+    if (!isNonEmptyString(body.input)) {
+      return json({ error: "input is required" }, 400);
+    }
     return json({
-      result: await context.services.acp.invoke(body.input ?? ""),
+      result: await context.services.acp.invoke(body.input),
     });
   }
 

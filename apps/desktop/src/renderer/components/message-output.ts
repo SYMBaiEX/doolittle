@@ -97,6 +97,18 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
 
+function isValidWebSearchUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return (
+      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      Boolean(parsed.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 function readJsonObject(source: string, start: number): JsonRange | undefined {
   let depth = 0;
   let inString = false;
@@ -382,7 +394,14 @@ export function webSearchResults(value: unknown): WebSearchResult[] {
     return results.flatMap((candidate) => {
       const result = asRecordOrUndefined(candidate);
       const url = stringValue(result?.url);
-      if (!result || !url || !/^https?:\/\//iu.test(url)) return [];
+      if (
+        !result ||
+        !url ||
+        !/^https?:\/\//iu.test(url) ||
+        !isValidWebSearchUrl(url)
+      ) {
+        return [];
+      }
       const excerpts = Array.isArray(result.excerpts)
         ? result.excerpts.filter(
             (excerpt): excerpt is string => typeof excerpt === "string",
