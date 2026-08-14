@@ -4,7 +4,8 @@
       "ignoreBinaries": ["const"]
     },
     "apps/desktop": {
-      "ignoreDependencies": ["electron-builder"]
+      "ignoreDependencies": ["electron-builder"],
+      "ignoreBinaries": ["wine"]
     },
     "packages/plugins": {
       "project": ["doolittle-plugin/**/*.ts"]

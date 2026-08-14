@@ -54,6 +54,7 @@
     "desktop:package:mac": "nub run --cwd apps/desktop package:mac",
     "desktop:package:win": "nub run --cwd apps/desktop package:win",
     "desktop:package:linux": "nub run --cwd apps/desktop package:linux",
+    "desktop:package:all": "nub run --cwd apps/desktop package:all",
     "test:e2e:desktop-packaged": "nubx playwright test --config playwright.packaged.config.ts",
     "lint": "nubx biome check --write .",
     "lint:check": "nubx biome check .",
