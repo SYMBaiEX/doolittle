@@ -1,5 +1,6 @@
 import { DOOLITTLE_SCHEDULER_SERVICE } from "@doolittle/contracts";
 import type { AgentRuntime } from "@elizaos/core";
+import { installNativeDiscordInboundHandoff } from "@/gateway/platforms/native-discord-inbound";
 import { installNativeSlackInboundHandoff } from "@/gateway/platforms/native-slack-inbound";
 import {
   finalizeCoreRuntimeServices,
@@ -48,6 +49,7 @@ export async function configureBootstrapContext({
     registerPlugin: async (plugin) => {
       await runtime.registerPlugin(plugin);
       getNativeServices(runtime).toolPolicy?.updatePluginGroups?.();
+      installNativeDiscordInboundHandoff(runtime, gateway.get());
       installNativeSlackInboundHandoff(runtime, gateway.get());
     },
     ensureGateway: () => {
