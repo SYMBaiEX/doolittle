@@ -3,7 +3,7 @@ import { json } from "@/server/responses";
 import { handleHookRoutes } from "./hooks";
 import { handleInboundWebhook, readJsonBody } from "./inbound";
 import { handlePairingRoutes } from "./pairing";
-import { verifySlackSignature } from "./signature";
+import { verifySlackSignature, verifyWhatsAppSignature } from "./signature";
 
 export async function handleWebhookRoutes(
   context: AppContext,
@@ -71,8 +71,21 @@ export async function handleWebhookRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/webhooks/whatsapp") {
-    const body = await readJsonBody(request);
-    if (!body) {
+    const rawBody = await request.text();
+    if (
+      !verifyWhatsAppSignature(
+        rawBody,
+        request.headers.get("x-hub-signature-256"),
+        context.config.whatsappAppSecret,
+      )
+    ) {
+      return json({ error: "Invalid WhatsApp signature." }, 403);
+    }
+
+    let body: unknown;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
       return json({ error: "Invalid JSON body." }, 400);
     }
     return handleInboundWebhook("whatsapp", context, body);

@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { createHmac } from "node:crypto";
+import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleWebhookRoutes } from "@/server/routes/webhooks";
 
 function createContext(overrides?: {
   slackSigningSecret?: string;
   whatsappVerifyToken?: string;
+  whatsappAppSecret?: string;
+  gatewayReceive?: () => Promise<{ ok: boolean }>;
 }) {
   const pairing = {
     listPending: (platform?: string) => [{ platform: platform ?? "telegram" }],
@@ -35,9 +38,10 @@ function createContext(overrides?: {
     config: {
       slackSigningSecret: overrides?.slackSigningSecret,
       whatsappVerifyToken: overrides?.whatsappVerifyToken,
+      whatsappAppSecret: overrides?.whatsappAppSecret,
     },
     gateway: {
-      receive: async () => ({ ok: true }),
+      receive: overrides?.gatewayReceive ?? (async () => ({ ok: true })),
     },
     services: {
       pairing,
@@ -191,6 +195,72 @@ describe("handleWebhookRoutes", () => {
 
     expect(response?.status).toBe(200);
     await expect(response?.text()).resolves.toBe("ready");
+  });
+
+  it("verifies signed whatsapp webhook bodies before forwarding them", async () => {
+    const context = createContext({ whatsappAppSecret: "app-secret" });
+    const body = JSON.stringify({
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                messages: [
+                  {
+                    id: "wamid-1",
+                    from: "15555550123",
+                    timestamp: "1710000001",
+                    text: { body: "hello" },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const signature = createHmac("sha256", "app-secret")
+      .update(body)
+      .digest("hex");
+    const response = await handleWebhookRoutes(
+      context,
+      new Request("http://localhost/webhooks/whatsapp", {
+        method: "POST",
+        headers: { "x-hub-signature-256": `sha256=${signature}` },
+        body,
+      }),
+      new URL("http://localhost/webhooks/whatsapp"),
+    );
+
+    expect(response?.status).toBe(200);
+    await expect(response?.json()).resolves.toEqual({ ok: true });
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["malformed", "sha256=not-a-digest"],
+    ["incorrect", `sha256=${"0".repeat(64)}`],
+  ])("rejects %s whatsapp webhook signatures", async (_label, signature) => {
+    const receive = vi.fn(async () => ({ ok: true }));
+    const context = createContext({
+      whatsappAppSecret: "app-secret",
+      gatewayReceive: receive,
+    });
+    const response = await handleWebhookRoutes(
+      context,
+      new Request("http://localhost/webhooks/whatsapp", {
+        method: "POST",
+        headers: signature ? { "x-hub-signature-256": signature } : undefined,
+        body: JSON.stringify({ entry: [] }),
+      }),
+      new URL("http://localhost/webhooks/whatsapp"),
+    );
+
+    expect(response?.status).toBe(403);
+    await expect(response?.json()).resolves.toEqual({
+      error: "Invalid WhatsApp signature.",
+    });
+    expect(receive).not.toHaveBeenCalled();
   });
 
   it("returns a client error for unsupported managed hook events", async () => {
