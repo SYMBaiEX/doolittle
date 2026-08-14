@@ -85,12 +85,30 @@ describe("chat conversation state", () => {
       loadStoredChatMessages(
         memoryStorage(
           JSON.stringify({
-            valid: [{ id: "message-1" }],
+            valid: [
+              {
+                id: "message-1",
+                role: "user",
+                content: "valid",
+                createdAt: "2026-08-12T10:00:00.000Z",
+              },
+              { id: "message-malformed", role: "user", content: null },
+            ],
             invalid: { id: "message-2" },
           }),
         ),
       ),
-    ).toEqual({ valid: [{ id: "message-1" }] });
+    ).toEqual({
+      valid: [
+        {
+          id: "message-1",
+          role: "user",
+          content: "valid",
+          createdAt: "2026-08-12T10:00:00.000Z",
+        },
+      ],
+      invalid: [],
+    });
     expect(loadStoredChatMessages(memoryStorage("[]"))).toEqual({});
     expect(loadStoredChatMessages(memoryStorage("not json"))).toEqual({});
   });

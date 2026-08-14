@@ -25,6 +25,20 @@ import type { ConversationStore, DisplayMessage, Role } from "./models";
 
 const CHAT_STORAGE_KEY = "doolittle.desktop.conversations.v2";
 
+function isStoredDisplayMessage(value: unknown): value is DisplayMessage {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const message = value as Partial<DisplayMessage>;
+  return (
+    typeof message.id === "string" &&
+    message.id.length > 0 &&
+    (message.role === "user" || message.role === "assistant") &&
+    typeof message.content === "string" &&
+    typeof message.createdAt === "string"
+  );
+}
+
 export interface ChatSessionForRender extends SessionSummary {
   pinned: boolean;
 }
@@ -40,7 +54,10 @@ export function loadStoredChatMessages(
       return {};
     }
     return Object.fromEntries(
-      Object.entries(parsed).filter(([, messages]) => Array.isArray(messages)),
+      Object.entries(parsed).map(([sessionId, messages]) => [
+        sessionId,
+        Array.isArray(messages) ? messages.filter(isStoredDisplayMessage) : [],
+      ]),
     ) as ConversationStore;
   } catch {
     return {};

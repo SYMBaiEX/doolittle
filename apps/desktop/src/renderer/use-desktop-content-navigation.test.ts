@@ -102,6 +102,26 @@ describe("desktop content navigation", () => {
       }),
     );
   });
+
+  it("forwards a global-search conversation project scope when the session is not preloaded", async () => {
+    const coordinator = createNavigationTransitionCoordinator();
+    const actions = navigationActions();
+
+    await navigateGlobalSearchTarget(
+      {
+        kind: "conversation",
+        sessionId: "old-session",
+        projectId: "project-b",
+      },
+      coordinator,
+      actions,
+    );
+
+    expect(actions.openSession).toHaveBeenCalledWith(
+      "old-session",
+      "project-b",
+    );
+  });
 });
 
 const projects = [

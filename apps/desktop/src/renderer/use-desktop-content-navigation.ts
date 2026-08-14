@@ -47,7 +47,7 @@ export function createNavigationTransitionCoordinator(): NavigationTransitionCoo
 
 interface GlobalSearchNavigationActions {
   readonly openProjectManager: () => void;
-  readonly openSession: (sessionId: string) => void;
+  readonly openSession: (sessionId: string, projectId?: string) => void;
   readonly pathsEqual: (left: string | undefined, right: string) => boolean;
   readonly selectProjectScope: (scope: ProjectScope) => void;
   readonly setNavigationIntent: (intent: DesktopNavigationIntent) => void;
@@ -67,7 +67,7 @@ export async function navigateGlobalSearchTarget(
   const transition = coordinator.begin();
   switch (target.kind) {
     case "conversation":
-      actions.openSession(target.sessionId);
+      actions.openSession(target.sessionId, target.projectId);
       return;
     case "project":
       actions.selectProjectScope(target.projectId);
@@ -229,10 +229,11 @@ export function useDesktopContentNavigation({
   const navigationCoordinator = navigationCoordinatorRef.current;
 
   const openSession = useCallback(
-    (sessionId: string) => {
+    (sessionId: string, projectId?: string) => {
       const session = sessions.find((entry) => entry.sessionId === sessionId);
       transitionToProjectScope(
-        session ? (session.projectId ?? "unscoped") : projectScope,
+        projectId ??
+          (session ? (session.projectId ?? "unscoped") : projectScope),
         sessionId,
         projectNavigationTarget("open-conversation"),
       );

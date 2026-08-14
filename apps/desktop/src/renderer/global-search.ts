@@ -9,7 +9,7 @@ import {
 } from "./lib";
 
 export type GlobalSearchTarget =
-  | { kind: "conversation"; sessionId: string }
+  | { kind: "conversation"; sessionId: string; projectId?: string }
   | { kind: "project"; projectId: string }
   | { kind: "projectSource"; projectId: string; resourceId: string }
   | { kind: "workspace"; path: string }
@@ -162,7 +162,11 @@ export function normalizeGlobalSearchResults(
           label: concise(text, 72),
           description: `Conversation · ${displayTimestamp(asString(hit.createdAt) || undefined)}`,
           keywords: [sessionId, text, normalizedQuery],
-          target: { kind: "conversation", sessionId },
+          target: {
+            kind: "conversation",
+            sessionId,
+            projectId: asString(hit.projectId) || undefined,
+          },
         };
       })
       .filter((result): result is GlobalSearchResult => result !== null),

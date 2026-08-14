@@ -66,6 +66,9 @@ describe("handleChatRoute turn lifecycle", () => {
 
   it.each([
     [{ stream: "yes" }, "stream must be a boolean"],
+    [{ roomId: 42 }, "roomId must be a string"],
+    [{ userId: { id: "user" } }, "userId must be a string"],
+    [{ source: false }, "source must be a string"],
     [
       { attachmentIds: ["ok", 42] },
       "attachmentIds must be an array of strings",

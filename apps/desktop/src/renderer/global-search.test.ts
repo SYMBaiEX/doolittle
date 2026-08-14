@@ -62,6 +62,7 @@ test("normalizes, deduplicates, and bounds results from local search sources", (
         hits: [
           {
             sessionId: "session-1",
+            projectId: "project-1",
             text: "Find the runtime status",
             createdAt: "2026-07-27T10:00:00.000Z",
           },
@@ -112,6 +113,13 @@ test("normalizes, deduplicates, and bounds results from local search sources", (
   expect(
     results.filter((result) => result.group === "Conversations"),
   ).toHaveLength(1);
+  expect(
+    results.find((result) => result.id === "conversation:session-1")?.target,
+  ).toEqual({
+    kind: "conversation",
+    sessionId: "session-1",
+    projectId: "project-1",
+  });
   expect(
     results.filter((result) => result.group === "Workspace code"),
   ).toHaveLength(8);

@@ -45,6 +45,11 @@ export async function handleChatRoute(
   if (body.stream !== undefined && typeof body.stream !== "boolean") {
     return json({ error: "stream must be a boolean" }, 400);
   }
+  for (const field of ["userId", "roomId", "source"] as const) {
+    if (body[field] !== undefined && typeof body[field] !== "string") {
+      return json({ error: `${field} must be a string` }, 400);
+    }
+  }
   if (
     body.attachmentIds !== undefined &&
     (!Array.isArray(body.attachmentIds) ||
