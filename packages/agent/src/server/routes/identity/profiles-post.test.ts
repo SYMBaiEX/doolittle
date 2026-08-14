@@ -18,6 +18,18 @@ function createPostInput(
   };
 }
 
+function createRawPostInput(path: string, body: string) {
+  return {
+    context: createIdentityTestContext(),
+    request: new Request(`http://localhost${path}`, {
+      method: "POST",
+      body,
+      headers: { "content-type": "application/json" },
+    }),
+    url: new URL(`http://localhost${path}`),
+  };
+}
+
 describe("handleIdentityProfilePostRoute", () => {
   it("returns null for unrelated POST paths", async () => {
     const response = await handleIdentityProfilePostRoute(
@@ -210,6 +222,31 @@ describe("handleIdentityProfilePostRoute", () => {
     expect(invalidObserve?.status).toBe(400);
     await expect(invalidObserve?.json()).resolves.toEqual({
       error: "note is required",
+    });
+  });
+
+  it("returns stable 400 responses for malformed and non-object bodies", async () => {
+    const malformed = await handleIdentityProfilePostRoute(
+      createRawPostInput("/profiles/users/note", "{"),
+    );
+    const array = await handleIdentityProfilePostRoute(
+      createPostInput("/profiles/users/note", []),
+    );
+    const nullBody = await handleIdentityProfilePostRoute(
+      createPostInput("/profiles/users/note", null),
+    );
+
+    expect(malformed?.status).toBe(400);
+    await expect(malformed?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(array?.status).toBe(400);
+    await expect(array?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+    expect(nullBody?.status).toBe(400);
+    await expect(nullBody?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
     });
   });
 });

@@ -2,6 +2,7 @@ import type {
   IdentityProfileRouteHandler,
   IdentityProfileRouteInput,
 } from "../profiles-shared";
+import { badRequest, IdentityProfileBodyError } from "../profiles-shared";
 import { handleAgentObserve } from "./agent-observe";
 import { handleAgentSeed } from "./agent-seed";
 import { handleUserConclude } from "./user-conclude";
@@ -20,8 +21,20 @@ const POST_ROUTES: Record<string, IdentityProfileRouteHandler> = {
   "/profiles/agent/seed": handleAgentSeed,
 };
 
-export function handleIdentityProfilePostRoute(
+export async function handleIdentityProfilePostRoute(
   input: IdentityProfileRouteInput,
-): Promise<Response | null> | Response | null {
-  return POST_ROUTES[input.url.pathname]?.(input) ?? null;
+): Promise<Response | null> {
+  const handler = POST_ROUTES[input.url.pathname];
+  if (!handler) {
+    return null;
+  }
+
+  try {
+    return await handler(input);
+  } catch (error) {
+    if (error instanceof IdentityProfileBodyError) {
+      return badRequest(error.message);
+    }
+    throw error;
+  }
 }
