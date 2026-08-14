@@ -6,8 +6,20 @@ export interface ChatContextRequest {
   projectScope: ProjectScope;
 }
 
+export const CHAT_CONTEXT_CAPSULE_KINDS = [
+  "file",
+  "diff",
+  "review",
+  "brief",
+  "terminal",
+  "plan",
+] as const;
+
+export type ChatContextCapsuleKind =
+  (typeof CHAT_CONTEXT_CAPSULE_KINDS)[number];
+
 export interface ChatContextCapsule {
-  kind: "file" | "diff" | "review";
+  kind: ChatContextCapsuleKind;
   path: string;
   source?: string;
   /** Complete source block, kept out of the visible composer draft. */
@@ -26,17 +38,41 @@ export function splitChatContext(text: string): {
   capsule: ChatContextCapsule | null;
 } {
   const match = text.match(
-    /<(?<tag>file_context|review_context)\b(?<attrs>[^>]*)>[\s\S]*?<\/\k<tag>>/u,
+    /(?<block><(?<tag>file_context|review_context)\b(?<attrs>[^>]*)>[\s\S]*?<\/\k<tag>>|<doolittle-context\b(?<attrs2>[^>]*)>[\s\S]*?<\/doolittle-context>|<terminal_context\b(?<attrs3>[^>]*)>[\s\S]*?<\/terminal_context>)/u,
   );
   if (!match?.groups) return { prompt: text.trim(), capsule: null };
-  const attrs = match.groups.attrs ?? "";
-  const path = attrs.match(/\bpath="([^"\n]*)"/u)?.[1]?.trim();
+  const attrs =
+    match.groups.attrs ?? match.groups.attrs2 ?? match.groups.attrs3 ?? "";
+  const blockTag = match[0].startsWith("<terminal_context")
+    ? "terminal"
+    : match[0].startsWith("<doolittle-context")
+      ? "doolittle"
+      : match.groups.tag;
+  const path =
+    attrs.match(/\bpath="([^"\n]*)"/u)?.[1]?.trim() ||
+    attrs.match(/\bsource="([^"\n]*)"/u)?.[1]?.trim() ||
+    (blockTag === "terminal" ? "Terminal" : undefined);
   if (!path) return { prompt: text.trim(), capsule: null };
   const source = attrs.match(/\bsource="([^"\n]*)"/u)?.[1];
+  const rawKind = attrs.match(/\bkind="([^"\n]*)"/u)?.[1];
   const kind =
-    match.groups.tag === "file_context" ? "file" : source ? "diff" : "review";
+    blockTag === "file_context"
+      ? "file"
+      : blockTag === "review_context"
+        ? source
+          ? "diff"
+          : "review"
+        : blockTag === "terminal"
+          ? "terminal"
+          : CHAT_CONTEXT_CAPSULE_KINDS.includes(
+                rawKind as ChatContextCapsuleKind,
+              )
+            ? (rawKind as ChatContextCapsuleKind)
+            : "brief";
   return {
-    prompt: text.slice(0, match.index).trim() || `Work on ${path}.`,
+    prompt:
+      `${text.slice(0, match.index)}${text.slice((match.index ?? 0) + match[0].length)}`.trim() ||
+      `Work on ${path}.`,
     capsule: { kind, path, ...(source ? { source } : {}), content: match[0] },
   };
 }

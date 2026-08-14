@@ -80,14 +80,24 @@ export function ChatMessage({
             role="note"
           >
             <span aria-hidden="true">
-              {message.contextCapsule.kind === "file" ? "▤" : "⌁"}
+              {message.contextCapsule.kind === "terminal"
+                ? "▣"
+                : message.contextCapsule.kind === "file"
+                  ? "▤"
+                  : "⌁"}
             </span>
             <span>
               {message.contextCapsule.kind === "diff"
                 ? "Diff"
                 : message.contextCapsule.kind === "review"
                   ? "Review"
-                  : "Source"}{" "}
+                  : message.contextCapsule.kind === "brief"
+                    ? "Brief"
+                    : message.contextCapsule.kind === "plan"
+                      ? "Plan"
+                      : message.contextCapsule.kind === "terminal"
+                        ? "Terminal"
+                        : "Source"}{" "}
               · {message.contextCapsule.path}
             </span>
             {message.contextCapsule.source ? (

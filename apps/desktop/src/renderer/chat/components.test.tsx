@@ -158,6 +158,28 @@ describe("chat presentation components", () => {
     expect(html).not.toContain("<file_context");
   });
 
+  it("labels terminal context as a first-class transcript capsule", () => {
+    const html = renderToStaticMarkup(
+      <ChatMessage
+        actions={null}
+        message={{
+          id: "user-terminal-1",
+          role: "user",
+          content: "Please explain the command output.",
+          contextCapsule: {
+            kind: "terminal",
+            path: "Terminal",
+          },
+          createdAt: "2026-08-13T00:00:00.000Z",
+        }}
+      />,
+    );
+    expect(html).toContain("Terminal · Terminal");
+    expect(html).toContain(
+      'aria-label="Attached terminal context for Terminal"',
+    );
+  });
+
   it("connects slash-command selection to the composer for assistive technology", () => {
     const props = composerProps({
       backend: { phase: "ready", message: "" },

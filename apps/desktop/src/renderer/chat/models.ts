@@ -9,7 +9,7 @@ export type CopyState = "copied" | "failed";
 export type BranchMode = "edit" | "fork" | "retry";
 
 export interface ChatContextMessageCapsule {
-  kind: "file" | "diff" | "review";
+  kind: "file" | "diff" | "review" | "brief" | "terminal" | "plan";
   path: string;
   source?: string;
 }

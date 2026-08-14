@@ -139,6 +139,57 @@ describe("chat conversation state", () => {
     expect(loadStoredChatMessages(memoryStorage("not json"))).toEqual({});
   });
 
+  it("restores terminal and workbench context capsules from local history", () => {
+    expect(
+      loadStoredChatMessages(
+        memoryStorage(
+          JSON.stringify({
+            terminal: [
+              {
+                id: "terminal-message",
+                role: "user",
+                content: "What failed?",
+                createdAt: "2026-08-12T10:00:00.000Z",
+                contextCapsule: {
+                  kind: "terminal",
+                  path: "Terminal",
+                },
+              },
+            ],
+            plan: [
+              {
+                id: "plan-message",
+                role: "user",
+                content: "Explain the plan.",
+                createdAt: "2026-08-12T10:00:00.000Z",
+                contextCapsule: {
+                  kind: "plan",
+                  path: "plan-summary",
+                  source: "plan-summary",
+                },
+              },
+            ],
+          }),
+        ),
+      ),
+    ).toMatchObject({
+      terminal: [
+        {
+          contextCapsule: { kind: "terminal", path: "Terminal" },
+        },
+      ],
+      plan: [
+        {
+          contextCapsule: {
+            kind: "plan",
+            path: "plan-summary",
+            source: "plan-summary",
+          },
+        },
+      ],
+    });
+  });
+
   it("merges local drafts with remote sessions and keeps pins first", () => {
     const sessions = projectChatSessions({
       messages: {

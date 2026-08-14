@@ -47,6 +47,38 @@ describe("chat context handoff scope", () => {
     );
   });
 
+  it("turns terminal handoffs into a removable capsule", () => {
+    const result = splitChatContext(
+      "What failed?\n<terminal_context>npm test failed</terminal_context>",
+    );
+    expect(result.prompt).toBe("What failed?");
+    expect(result.capsule).toMatchObject({
+      kind: "terminal",
+      path: "Terminal",
+    });
+    expect(result.prompt).not.toContain("npm test failed");
+    expect(composeChatContextMessage(result.prompt, result.capsule)).toContain(
+      "npm test failed",
+    );
+  });
+
+  it("parses workbench context kinds and preserves the source label", () => {
+    const result = splitChatContext(
+      'Explain this change.\n<doolittle-context kind="plan" source="Release plan">step one</doolittle-context>',
+    );
+    expect(result.prompt).toBe("Explain this change.");
+    expect(result.capsule).toEqual({
+      kind: "plan",
+      path: "Release plan",
+      source: "Release plan",
+      content:
+        '<doolittle-context kind="plan" source="Release plan">step one</doolittle-context>',
+    });
+    expect(composeChatContextMessage(result.prompt, result.capsule)).toContain(
+      "step one",
+    );
+  });
+
   it("resolves an all-project source from its workspace instead of a selected chat", () => {
     expect(resolveChatContextProjectScope(request, projects, pathsEqual)).toBe(
       "project-alpha",

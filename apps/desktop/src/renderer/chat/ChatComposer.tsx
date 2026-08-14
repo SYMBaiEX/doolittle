@@ -274,11 +274,25 @@ export function ChatComposer({
       {chatContextCapsule ? (
         <div className="chat-context-capsule" role="status">
           <span className="chat-context-capsule__icon" aria-hidden="true">
-            {chatContextCapsule.kind === "file" ? "▤" : "⌁"}
+            {chatContextCapsule.kind === "terminal"
+              ? "▣"
+              : chatContextCapsule.kind === "file"
+                ? "▤"
+                : "⌁"}
           </span>
           <span className="chat-context-capsule__label">
-            {chatContextCapsule.kind === "diff" ? "Diff" : "Source"} ·{" "}
-            {chatContextCapsule.path}
+            {chatContextCapsule.kind === "diff"
+              ? "Diff"
+              : chatContextCapsule.kind === "review"
+                ? "Review"
+                : chatContextCapsule.kind === "brief"
+                  ? "Brief"
+                  : chatContextCapsule.kind === "plan"
+                    ? "Plan"
+                    : chatContextCapsule.kind === "terminal"
+                      ? "Terminal"
+                      : "Source"}{" "}
+            · {chatContextCapsule.path}
           </span>
           {chatContextCapsule.source ? (
             <small>{chatContextCapsule.source}</small>

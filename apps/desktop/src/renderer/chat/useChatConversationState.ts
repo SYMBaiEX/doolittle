@@ -116,7 +116,10 @@ function isStoredDisplayMessage(value: unknown): value is DisplayMessage {
       typeof capsule === "object" &&
       (capsule.kind === "file" ||
         capsule.kind === "diff" ||
-        capsule.kind === "review") &&
+        capsule.kind === "review" ||
+        capsule.kind === "brief" ||
+        capsule.kind === "terminal" ||
+        capsule.kind === "plan") &&
       typeof capsule.path === "string" &&
       (capsule.source === undefined || typeof capsule.source === "string"));
   return (
