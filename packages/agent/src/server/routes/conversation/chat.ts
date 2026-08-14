@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { AppContext } from "@/runtime/bootstrap";
 import { executeAgentTurnWithProgress } from "@/runtime/turn-stream";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json, streamSse } from "@/server/responses";
 import {
   ManagedAttachmentError,
@@ -19,11 +20,40 @@ function resolveRunId(value: unknown): string {
   return value;
 }
 
+function resolveRoomId(body: ChatRequestBody): string {
+  return body.roomId ?? `api:${body.userId ?? "api-user"}`;
+}
+
 export async function handleChatRoute(
   context: AppContext,
   request: Request,
 ): Promise<Response> {
-  const body = (await request.json()) as ChatRequestBody;
+  const parsed = await readJsonObjectBody(request);
+  if (!parsed.ok) {
+    return json(
+      {
+        error:
+          parsed.reason === "invalid_json"
+            ? "request body must be valid JSON"
+            : "request body must be a JSON object",
+      },
+      400,
+    );
+  }
+  const body = parsed.value as ChatRequestBody;
+
+  if (body.stream !== undefined && typeof body.stream !== "boolean") {
+    return json({ error: "stream must be a boolean" }, 400);
+  }
+  if (
+    body.attachmentIds !== undefined &&
+    (!Array.isArray(body.attachmentIds) ||
+      body.attachmentIds.some(
+        (attachmentId) => typeof attachmentId !== "string",
+      ))
+  ) {
+    return json({ error: "attachmentIds must be an array of strings" }, 400);
+  }
 
   if (
     body.projectId !== undefined &&
@@ -33,7 +63,7 @@ export async function handleChatRoute(
     return json({ error: "projectId is invalid" }, 400);
   }
 
-  if (!body.message) {
+  if (typeof body.message !== "string" || !body.message) {
     return json({ error: "message is required" }, 400);
   }
   const message = body.message.trim();
@@ -69,7 +99,7 @@ export async function handleChatRoute(
   if (body.stream) {
     const responseId = randomUUID();
     const runId = resolveRunId(body.runId);
-    const roomId = body.roomId ?? `api:${body.userId ?? "api-user"}`;
+    const roomId = resolveRoomId(body);
     const requestMessage = message;
     const sessionId = roomId;
     if (
@@ -166,7 +196,8 @@ export async function handleChatRoute(
     );
   }
 
-  const sessionId = body.roomId ?? `room:${body.userId ?? "api-user"}`;
+  const roomId = resolveRoomId(body);
+  const sessionId = roomId;
   if (
     body.projectId &&
     !context.services.sessions.assignSessionProject(sessionId, body.projectId)
@@ -186,7 +217,7 @@ export async function handleChatRoute(
       {
         message,
         userId: body.userId ?? "api-user",
-        roomId: body.roomId,
+        roomId,
         runId,
         source: body.source ?? "api",
         attachments,

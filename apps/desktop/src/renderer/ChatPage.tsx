@@ -457,6 +457,23 @@ export function ChatPage({
     }
   };
 
+  const cancelRequest = async (requestId: string) => {
+    try {
+      await window.doolittle.cancelChat(requestId);
+    } catch (error) {
+      const sessionId = requestSession.current[requestId];
+      if (!sessionId) return;
+      updateAssistant(sessionId, requestId, (message) => ({
+        ...message,
+        content: `Cancellation failed: ${errorMessage(error)} Retry the response to continue.`,
+        pending: false,
+        error: true,
+      }));
+      finishRequest(requestId);
+      setQueueAnnouncement("Cancellation failed. The response can be retried.");
+    }
+  };
+
   const handleChatEvent = useEffectEvent((event: ChatEvent) => {
     const sessionId = requestSession.current[event.requestId];
     if (!sessionId) return;
@@ -940,9 +957,7 @@ export function ChatPage({
               mobileConversationsButtonRef={mobileConversationsButtonRef}
               mobileConversationsOpen={mobileConversationsOpen}
               modelRouteLabel={modelRouteLabel}
-              onCancelRequest={(requestId) =>
-                void window.doolittle.cancelChat(requestId)
-              }
+              onCancelRequest={(requestId) => void cancelRequest(requestId)}
               onOpenMobileConversations={() => setMobileConversationsOpen(true)}
               onOpenRouteControls={() => setRouteDialogOpen(true)}
               onOpenWorkspace={() => onOpenWorkspaceView("code")}

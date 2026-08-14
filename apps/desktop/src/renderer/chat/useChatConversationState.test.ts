@@ -17,6 +17,7 @@ import type { StorageLike } from "../conversation-persistence";
 import {
   loadStoredChatMessages,
   projectChatSessions,
+  reconcileOrphanedPendingMessages,
   useChatConversationState,
 } from "./useChatConversationState";
 
@@ -248,6 +249,99 @@ describe("chat history concurrency", () => {
         content: "",
         createdAt: "2026-08-12T10:01:00.000Z",
         pending: true,
+      },
+    ]);
+  });
+
+  it("reconciles a persisted synthetic pending row when remote history has a real reply", async () => {
+    const history = deferred<SessionMessagesResponse>();
+    desktopRequestMock.mockReturnValue(history.promise);
+    const stored = {
+      remote: [
+        {
+          id: "persisted-user",
+          role: "user",
+          content: "Recover this turn",
+          createdAt: "2026-08-12T10:01:00.000Z",
+        },
+        {
+          id: "assistant:request-reloaded",
+          role: "assistant",
+          content: "",
+          createdAt: "2026-08-12T10:01:00.000Z",
+          pending: true,
+        },
+      ],
+    };
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) =>
+          key === "doolittle.desktop.conversations.v2"
+            ? JSON.stringify(stored)
+            : null,
+        setItem: vi.fn(),
+      },
+    });
+    let latest: ReturnType<typeof useChatConversationState> | undefined;
+
+    act(() =>
+      root.render(
+        createElement(ConversationProbe, {
+          onValue: (value) => (latest = value),
+        }),
+      ),
+    );
+
+    await act(async () => {
+      history.resolve({
+        messages: [
+          {
+            id: "remote-user",
+            role: "user",
+            text: "Recover this turn",
+            createdAt: "2026-08-12T10:01:00.000Z",
+          },
+          {
+            id: "remote-assistant",
+            role: "assistant",
+            text: "Recovered reply",
+            createdAt: "2026-08-12T10:01:01.000Z",
+          },
+        ],
+      });
+      await Promise.resolve();
+    });
+
+    expect(latest?.selectedMessages.map((message) => message.id)).toEqual([
+      "remote-user",
+      "persisted-user",
+      "remote-assistant",
+    ]);
+    expect(latest?.selectedMessages.at(-1)?.content).toBe("Recovered reply");
+  });
+
+  it("marks an orphaned pending row retryable when no remote assistant exists", () => {
+    expect(
+      reconcileOrphanedPendingMessages(
+        [
+          {
+            id: "assistant:request-orphan",
+            role: "assistant",
+            content: "",
+            createdAt: "2026-08-12T10:01:00.000Z",
+            pending: true,
+          },
+        ],
+        [],
+        new Set(),
+      ),
+    ).toMatchObject([
+      {
+        content:
+          "This response was interrupted before it finished. Retry it to continue.",
+        error: true,
+        pending: false,
       },
     ]);
   });

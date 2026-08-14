@@ -389,6 +389,16 @@ describe("codegen route handlers", () => {
       new Request("http://localhost/codegen/runs/run-1/artifacts/path"),
       new URL("http://localhost/codegen/runs/run-1/artifacts/path"),
     );
+    const encoded = await handleCodegenRunsRoutes(
+      context,
+      new Request("http://localhost/codegen/runs/%72un-1/artifacts/0"),
+      new URL("http://localhost/codegen/runs/%72un-1/artifacts/0"),
+    );
+    const malformed = await handleCodegenRunsRoutes(
+      context,
+      new Request("http://localhost/codegen/runs/%E0%A4/artifacts/0"),
+      new URL("http://localhost/codegen/runs/%E0%A4/artifacts/0"),
+    );
 
     expect(await artifact?.json()).toEqual({
       artifact: {
@@ -411,6 +421,10 @@ describe("codegen route handlers", () => {
     expect(missing?.status).toBe(404);
     expect(missing?.headers.get("access-control-allow-origin")).toBeNull();
     expect(invalid?.status).toBe(400);
+    expect(await encoded?.json()).toMatchObject({
+      artifact: { runId: "run-1", index: 0 },
+    });
+    expect(malformed?.status).toBe(400);
   });
 
   it("returns client errors for malformed opaque run and workflow ids", async () => {
@@ -425,9 +439,17 @@ describe("codegen route handlers", () => {
       new Request("http://localhost/codegen/workflows/%E0%A4"),
       new URL("http://localhost/codegen/workflows/%E0%A4"),
     );
+    const encodedWorkflow = await handleCodegenWorkflowsRoutes(
+      context,
+      new Request("http://localhost/codegen/workflows/%77orkflow-1"),
+      new URL("http://localhost/codegen/workflows/%77orkflow-1"),
+    );
 
     expect(malformedRun?.status).toBe(400);
     expect(malformedWorkflow?.status).toBe(400);
+    expect(await encodedWorkflow?.json()).toMatchObject({
+      workflow: { id: "workflow-1" },
+    });
   });
 
   it("validates generate input and records successful execution", async () => {

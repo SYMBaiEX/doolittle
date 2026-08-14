@@ -47,6 +47,43 @@ export function loadStoredChatMessages(
   }
 }
 
+/**
+ * Local assistant placeholders only represent an in-flight IPC request. Once
+ * history has hydrated after a reload, an unclaimed placeholder must not stay
+ * in the transcript as an empty, permanently-working response.
+ */
+export function reconcileOrphanedPendingMessages(
+  localMessages: readonly DisplayMessage[],
+  history: readonly DisplayMessage[],
+  activeRequestIds: ReadonlySet<string>,
+): DisplayMessage[] {
+  const hasRemoteAssistant = history.some(
+    (message) => message.role === "assistant",
+  );
+  return localMessages.flatMap((message) => {
+    if (
+      message.role !== "assistant" ||
+      !message.pending ||
+      !message.id.startsWith("assistant:")
+    ) {
+      return [message];
+    }
+    const requestId = message.id.slice("assistant:".length);
+    if (activeRequestIds.has(requestId)) return [message];
+    // A real remote assistant row supersedes the synthetic placeholder.
+    if (hasRemoteAssistant) return [];
+    return [
+      {
+        ...message,
+        content:
+          "This response was interrupted before it finished. Retry it to continue.",
+        pending: false,
+        error: true,
+      },
+    ];
+  });
+}
+
 export function projectChatSessions({
   messages,
   pinnedSessions,
@@ -271,9 +308,21 @@ export function useChatConversationState({
           const localOnly = currentMessages.filter(
             (message) => !historyIds.has(message.id),
           );
+          const activeRequestIds = new Set(
+            Object.entries(requestSession.current)
+              .filter(([, sessionId]) => sessionId === selectedId)
+              .map(([requestId]) => requestId),
+          );
           return {
             ...current,
-            [selectedId]: [...history, ...localOnly].sort((left, right) =>
+            [selectedId]: [
+              ...history,
+              ...reconcileOrphanedPendingMessages(
+                localOnly,
+                history,
+                activeRequestIds,
+              ),
+            ].sort((left, right) =>
               left.createdAt.localeCompare(right.createdAt),
             ),
           };

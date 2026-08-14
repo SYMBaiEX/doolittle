@@ -28,19 +28,9 @@ function parseArtifactRoute(
     /^\/codegen\/runs\/([^/]+)\/artifacts\/([^/]+)$/u,
   );
   if (!match) return undefined;
-  let runId: string;
-  try {
-    runId = decodeURIComponent(match[1] ?? "");
-  } catch {
-    return undefined;
-  }
+  const runId = parseOpaqueRouteId(match[1]);
   const rawIndex = match[2] ?? "";
-  if (
-    !runId ||
-    runId.includes("/") ||
-    runId.includes("\\") ||
-    !/^(0|[1-9]\d*)$/u.test(rawIndex)
-  ) {
+  if (!runId || !/^(0|[1-9]\d*)$/u.test(rawIndex)) {
     return undefined;
   }
   const index = Number(rawIndex);

@@ -301,9 +301,17 @@ describe("handleFormsPlanningRoutes", () => {
       new Request("http://localhost/plans/%E0%A4"),
       new URL("http://localhost/plans/%E0%A4"),
     );
+    const encodedPlan = await handleFormsPlanningRoutes(
+      context,
+      new Request("http://localhost/plans/%70lan-1"),
+      new URL("http://localhost/plans/%70lan-1"),
+    );
 
     expect(malformedForm?.status).toBe(400);
     expect(malformedPlan?.status).toBe(400);
+    expect(await encodedPlan?.json()).toEqual({
+      plan: { id: "plan-1", status: "draft" },
+    });
   });
 
   it("returns null for unrelated routes", async () => {
