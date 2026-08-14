@@ -51,21 +51,29 @@ function shouldIgnoreSlackMessage(
   event: SlackEvent,
   accountId?: string,
 ): boolean {
-  if (event.subtype === "bot_message" || event.bot_id) return true;
-  if (event.user && event.user === service.getBotUserId?.()) return true;
+  if (event.subtype === "bot_message") return true;
+  const botUserId = service.getBotUserId?.();
+  if (event.user && event.user === botUserId) return true;
+
+  const ignoreBotMessages = isTruthySetting(
+    service.runtime?.getSetting?.("SLACK_SHOULD_IGNORE_BOT_MESSAGES"),
+  );
+  if (ignoreBotMessages && event.bot_id) return true;
 
   const allowedChannels = service.getAllowedChannelIds?.(accountId) ?? [];
   if (allowedChannels.length > 0 && event.channel) {
     if (!allowedChannels.includes(event.channel)) return true;
   }
 
+  const isMentioned = Boolean(
+    botUserId && event.text?.includes(`<@${botUserId}>`),
+  );
+  if (isMentioned && event.channel_type !== "im") return true;
+
   const onlyMentions = isTruthySetting(
     service.runtime?.getSetting?.("SLACK_SHOULD_RESPOND_ONLY_TO_MENTIONS"),
   );
-  if (onlyMentions && event.channel_type !== "im") {
-    const botUserId = service.getBotUserId?.();
-    if (!botUserId || !event.text?.includes(`<@${botUserId}>`)) return true;
-  }
+  if (onlyMentions && !isMentioned) return true;
 
   return false;
 }
