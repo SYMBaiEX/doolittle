@@ -16,6 +16,19 @@ const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const releaseRoot = resolve(desktopRoot, "release");
 
 type DesktopManifest = { version: string };
+type RuntimeManifest = { nativePackages?: string[] };
+
+export const allPlatformInstallArgs = [
+  "install",
+  "--frozen-lockfile",
+  "--ignore-scripts",
+  "--os",
+  "darwin,win32,linux",
+  "--cpu",
+  "arm64,x64",
+  "--libc",
+  "glibc",
+] as const;
 
 export type ReleaseTarget = {
   id: "mac" | "win" | "linux";
@@ -67,6 +80,25 @@ export function releaseTargets(
       cleanupPaths: [`linux-${hostArch}-unpacked`, "linux-unpacked"],
     },
   ];
+}
+
+export function requiredNativeTargetPackages(hostArch: string): string[] {
+  return [
+    `@lydell/node-pty-darwin-${hostArch}`,
+    `@lydell/node-pty-linux-${hostArch}`,
+    "@lydell/node-pty-win32-x64",
+    `@snazzah/davey-darwin-${hostArch}`,
+    `@snazzah/davey-linux-${hostArch}-gnu`,
+    "@snazzah/davey-win32-x64-msvc",
+  ].sort();
+}
+
+export function missingNativeTargetPackages(
+  required: readonly string[],
+  packaged: readonly string[],
+): string[] {
+  const available = new Set(packaged);
+  return required.filter((packageName) => !available.has(packageName));
 }
 
 export function resolveSingleExistingPath(
@@ -144,14 +176,31 @@ async function main(): Promise<void> {
     readFileSync(resolve(desktopRoot, "package.json"), "utf8"),
   ) as DesktopManifest;
   const targets = releaseTargets(manifest.version, process.arch);
+  const requiredNativePackages = requiredNativeTargetPackages(process.arch);
   const nub = resolve(repoRoot, "node_modules", ".bin", "nub");
   const nubx = resolve(repoRoot, "node_modules", ".bin", "nubx");
 
   for (const target of targets) cleanTarget(target);
   rmSync(resolve(releaseRoot, "release-manifest.json"), { force: true });
 
+  run(nub, [...allPlatformInstallArgs]);
   run(nub, ["run", "build"], desktopRoot);
   run(nub, ["run", "runtime:prepare"], desktopRoot);
+  const runtimeManifest = JSON.parse(
+    readFileSync(
+      resolve(desktopRoot, "build/runtime/runtime-manifest.json"),
+      "utf8",
+    ),
+  ) as RuntimeManifest;
+  const missingNativePackages = missingNativeTargetPackages(
+    requiredNativePackages,
+    runtimeManifest.nativePackages ?? [],
+  );
+  if (missingNativePackages.length > 0) {
+    throw new Error(
+      `Bundled runtime is missing target-native packages: ${missingNativePackages.join(", ")}`,
+    );
+  }
 
   const releaseArtifacts: Array<{
     target: ReleaseTarget["id"];
@@ -201,6 +250,7 @@ async function main(): Promise<void> {
         commit: git.stdout.trim(),
         generatedAt: new Date().toISOString(),
         host: `${process.platform}-${process.arch}`,
+        nativePackages: requiredNativePackages,
         artifacts: releaseArtifacts,
       },
       null,

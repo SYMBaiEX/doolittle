@@ -1,7 +1,13 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { releaseTargets, resolveSingleExistingPath } from "./package-all";
+import {
+  allPlatformInstallArgs,
+  missingNativeTargetPackages,
+  releaseTargets,
+  requiredNativeTargetPackages,
+  resolveSingleExistingPath,
+} from "./package-all";
 
 const desktopManifest = JSON.parse(
   readFileSync(
@@ -46,6 +52,33 @@ describe("all-platform desktop release plan", () => {
     expect(() => resolveSingleExistingPath("/missing", ["one", "two"])).toThrow(
       "found 0",
     );
+  });
+
+  it("installs and requires native binaries for every packaged target", () => {
+    expect(allPlatformInstallArgs).toEqual([
+      "install",
+      "--frozen-lockfile",
+      "--ignore-scripts",
+      "--os",
+      "darwin,win32,linux",
+      "--cpu",
+      "arm64,x64",
+      "--libc",
+      "glibc",
+    ]);
+    const required = requiredNativeTargetPackages("arm64");
+    expect(required).toEqual([
+      "@lydell/node-pty-darwin-arm64",
+      "@lydell/node-pty-linux-arm64",
+      "@lydell/node-pty-win32-x64",
+      "@snazzah/davey-darwin-arm64",
+      "@snazzah/davey-linux-arm64-gnu",
+      "@snazzah/davey-win32-x64-msvc",
+    ]);
+    expect(missingNativeTargetPackages(required, required)).toEqual([]);
+    expect(missingNativeTargetPackages(required, required.slice(1))).toEqual([
+      "@lydell/node-pty-darwin-arm64",
+    ]);
   });
 
   it("declares the metadata required by Linux package targets", () => {

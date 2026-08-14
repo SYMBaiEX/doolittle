@@ -275,8 +275,9 @@ nub run desktop:package:all
 The all-platform command compiles the desktop and bundled runtime once, then
 builds and verifies the macOS ARM64 DMG/ZIP, Windows x64 NSIS installer, and
 Linux ARM64 AppImage/DEB. Wine is required for the Windows cross-build. It
-removes same-version stale outputs before starting and writes artifact sizes,
-SHA-256 hashes, and the source commit to
+installs and verifies the target-native runtime modules, removes same-version
+stale outputs before starting, and writes artifact sizes, SHA-256 hashes, the
+native-package inventory, and the source commit to
 `apps/desktop/release/release-manifest.json`.
 
 The installer is written to:
