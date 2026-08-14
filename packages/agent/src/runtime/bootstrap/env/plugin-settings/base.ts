@@ -23,6 +23,17 @@ export function buildBaseSettings(
   dependencies: BuildPluginSettingsDependencies,
 ): PluginSettings {
   const useCloudEmbeddings = shouldUseCloudEmbeddings(config, env);
+  const ollamaRouteSelected = runtimeSettings.model.provider === "ollama";
+  const selectedOllamaModel = runtimeSettings.model.model.trim();
+  const ollamaModel = ollamaRouteSelected
+    ? selectedOllamaModel || config.ollamaLargeModel
+    : config.ollamaLargeModel;
+  const ollamaSmallModel = ollamaRouteSelected
+    ? selectedOllamaModel || config.ollamaSmallModel
+    : config.ollamaSmallModel;
+  const ollamaEndpoint = ollamaRouteSelected
+    ? runtimeSettings.model.baseUrl || config.ollamaApiEndpoint
+    : config.ollamaApiEndpoint;
   const reasoningEffort = runtimeSettings.model.reasoningEffort;
   const openAiReasoningEffort =
     runtimeSettings.model.provider === "openai" &&
@@ -58,18 +69,21 @@ export function buildBaseSettings(
         runtimeSettings.model.provider === "elizacloud",
     ),
     DOOLITTLE_EMBEDDING_PROVIDER: useCloudEmbeddings ? "elizacloud" : "local",
-    OLLAMA_API_ENDPOINT: config.ollamaApiEndpoint,
-    OLLAMA_SMALL_MODEL: config.ollamaSmallModel,
-    OLLAMA_MEDIUM_MODEL: config.ollamaSmallModel,
-    OLLAMA_LARGE_MODEL: config.ollamaLargeModel,
-    OLLAMA_RESPONSE_HANDLER_MODEL: config.ollamaSmallModel,
-    OLLAMA_ACTION_PLANNER_MODEL: config.ollamaLargeModel,
+    // The persisted route is the source of truth after first-run setup. The
+    // config values remain the bootstrap defaults, but must not overwrite a
+    // model selected in Settings when the runtime is rebuilt.
+    OLLAMA_API_ENDPOINT: ollamaEndpoint,
+    OLLAMA_SMALL_MODEL: ollamaSmallModel,
+    OLLAMA_MEDIUM_MODEL: ollamaSmallModel,
+    OLLAMA_LARGE_MODEL: ollamaModel,
+    OLLAMA_RESPONSE_HANDLER_MODEL: ollamaSmallModel,
+    OLLAMA_ACTION_PLANNER_MODEL: ollamaModel,
     OLLAMA_EMBEDDING_MODEL: config.ollamaEmbeddingModel,
     DEVIN_CLI_COMMAND: config.devinCliCommand,
     DEVIN_MODEL: config.devinModel,
     DEVIN_TIMEOUT_MS: String(config.devinTimeoutMs),
-    SMALL_MODEL: config.ollamaSmallModel,
-    LARGE_MODEL: config.ollamaLargeModel,
+    SMALL_MODEL: ollamaSmallModel,
+    LARGE_MODEL: ollamaModel,
     OPENAI_BASE_URL: config.openAiBaseUrl,
     OPENAI_SMALL_MODEL: runtimeSettings.model.model,
     OPENAI_LARGE_MODEL: runtimeSettings.model.model,

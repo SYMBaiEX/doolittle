@@ -221,6 +221,45 @@ describe("bootstrap environment", () => {
     rmSync(root, { force: true, recursive: true });
   });
 
+  it("uses the persisted Ollama route instead of startup Granite defaults", () => {
+    const root = join(tmpdir(), `doolittle-bootstrap-${Date.now()}-ollama`);
+    rmSync(root, { force: true, recursive: true });
+    mkdirSync(root, { recursive: true });
+
+    const settings = buildPluginSettings(
+      {
+        dataDir: root,
+        ollamaApiEndpoint: "http://localhost:11434/api",
+        ollamaSmallModel: "granite4.1:3b",
+        ollamaLargeModel: "granite4.1:3b",
+      } as EnvConfig,
+      { nativeRegistry: {} } as unknown as AppServices,
+      {
+        ...makeRuntimeSettings(),
+        model: {
+          provider: "ollama",
+          model: "qwen3:8b",
+          baseUrl: "http://127.0.0.1:11434/v1",
+        },
+      } as ReturnType<AppServices["settings"]["get"]>,
+    );
+
+    expect(settings.OLLAMA_API_ENDPOINT).toBe("http://127.0.0.1:11434/v1");
+    for (const key of [
+      "OLLAMA_SMALL_MODEL",
+      "OLLAMA_MEDIUM_MODEL",
+      "OLLAMA_LARGE_MODEL",
+      "OLLAMA_RESPONSE_HANDLER_MODEL",
+      "OLLAMA_ACTION_PLANNER_MODEL",
+      "SMALL_MODEL",
+      "LARGE_MODEL",
+    ] as const) {
+      expect(settings[key]).toBe("qwen3:8b");
+    }
+
+    rmSync(root, { force: true, recursive: true });
+  });
+
   it("projects an account-pool materialized API key into plugin settings", () => {
     process.env.OPENAI_API_KEY = "materialized-openai-key";
     process.env.ANTHROPIC_API_KEY = "materialized-anthropic-key";
