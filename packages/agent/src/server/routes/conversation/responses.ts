@@ -6,6 +6,7 @@ import {
   nextResponseTextFrame,
   shouldRenderRunEvent,
 } from "@/runtime/run-progress";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json, streamSse } from "@/server/responses";
 import { createApiResponseId } from "@/services/api-transport-service";
 import type { RunUpdateEvent } from "@/services/run-controller-service";
@@ -79,7 +80,19 @@ export async function handleResponsesRoute(
     return null;
   }
 
-  const body = (await request.json()) as ResponsesRequestBody;
+  const parsed = await readJsonObjectBody(request);
+  if (!parsed.ok) {
+    return json(
+      {
+        error:
+          parsed.reason === "invalid_json"
+            ? "Invalid JSON body"
+            : "JSON body must be an object",
+      },
+      400,
+    );
+  }
+  const body = parsed.value as ResponsesRequestBody;
   const inputText = responseInputText(body);
 
   if (!inputText) {

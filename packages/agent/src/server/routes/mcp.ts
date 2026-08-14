@@ -12,6 +12,7 @@ import {
   searchEffectiveCachedMcpTools,
   searchEffectiveMcpMarketplace,
 } from "@/runtime/native/service-bridge/tooling";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import { hasAsciiControlCharacters } from "@/utils/text-validation";
 
@@ -163,7 +164,19 @@ export async function handleMcpRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/mcp/invoke") {
-    const body = (await request.json()) as { input?: string };
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) {
+      return json(
+        {
+          error:
+            parsed.reason === "invalid_json"
+              ? "Invalid JSON body"
+              : "JSON body must be an object",
+        },
+        400,
+      );
+    }
+    const body = parsed.value as { input?: string };
     if (!body.input) {
       return json({ error: "input is required" }, 400);
     }
@@ -173,7 +186,19 @@ export async function handleMcpRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/mcp/invoke-tool") {
-    const body = (await request.json()) as {
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) {
+      return json(
+        {
+          error:
+            parsed.reason === "invalid_json"
+              ? "Invalid JSON body"
+              : "JSON body must be an object",
+        },
+        400,
+      );
+    }
+    const body = parsed.value as {
       tool?: string;
       input?: Record<string, unknown>;
     };

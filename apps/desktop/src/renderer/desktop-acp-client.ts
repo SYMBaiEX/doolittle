@@ -479,6 +479,32 @@ export function useDesktopAcpEditorBridge({
     [workspacePath],
   );
 
+  const retryConnection = useCallback(async (): Promise<void> => {
+    if (!active || !workspacePath.trim()) return;
+    const generation = ++generationRef.current;
+    setPhase("connecting");
+    setError("");
+    setPromptError("");
+    setPromptPhase("idle");
+    setStopReason("");
+    setSessionId("");
+    cursorRef.current = 0;
+    setUpdates([]);
+    const pending = latestContextRef.current;
+    if (pending) pendingContextRef.current = pending;
+    try {
+      const nextSessionId = await desktopAcpClient.ensureSession(workspacePath);
+      if (generationRef.current !== generation) return;
+      setSessionId(nextSessionId);
+      setPhase("connected");
+      if (pending) await syncEditorContext(pending, generation);
+    } catch (reason) {
+      if (generationRef.current !== generation) return;
+      setError(reason instanceof Error ? reason.message : String(reason));
+      setPhase("degraded");
+    }
+  }, [active, syncEditorContext, workspacePath]);
+
   const publishEditorState = useCallback(
     (snapshot: CodeEditorStateSnapshot, dirty: boolean) => {
       if (!active || !workspacePath.trim()) return;
@@ -575,6 +601,8 @@ export function useDesktopAcpEditorBridge({
     setPromptError("");
     try {
       await desktopAcpClient.cancel(sessionId);
+      setStopReason("cancelled");
+      setPromptPhase("idle");
     } catch (reason) {
       setPromptError(reason instanceof Error ? reason.message : String(reason));
       setPromptPhase("running");
@@ -600,6 +628,7 @@ export function useDesktopAcpEditorBridge({
     responseText: desktopAcpResponseText(updates),
     stopReason,
     prompt,
+    retryConnection,
     cancel,
   };
 }

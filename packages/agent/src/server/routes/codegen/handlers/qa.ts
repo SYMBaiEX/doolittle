@@ -4,6 +4,7 @@ import {
   createAutocoderWorkflowContext,
   failAutocoderWorkflowContext,
 } from "@/server/autocoder-workflow-context";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import {
   executeTrackedAutocoderRun,
@@ -20,7 +21,19 @@ export const handleCodegenQA: CodegenRouteHandler = async (
     return null;
   }
 
-  const body = (await request.json()) as {
+  const parsed = await readJsonObjectBody(request);
+  if (!parsed.ok) {
+    return json(
+      {
+        error:
+          parsed.reason === "invalid_json"
+            ? "Invalid JSON body"
+            : "JSON body must be an object",
+      },
+      400,
+    );
+  }
+  const body = parsed.value as {
     projectPath?: string;
   };
   if (!body.projectPath) {

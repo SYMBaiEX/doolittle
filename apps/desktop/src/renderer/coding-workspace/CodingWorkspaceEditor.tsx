@@ -37,6 +37,7 @@ export interface CodingWorkspaceAcpViewModel {
   promptError: string;
   promptPhase: DesktopAcpPromptPhase;
   responseText: string;
+  retryConnection: () => Promise<void>;
   sessionId: string;
   stopReason: string;
   updates: readonly DesktopAcpSessionUpdate[];
@@ -427,6 +428,15 @@ export function CodingWorkspaceEditor({
             type="button"
           >
             Cancel ACP
+          </button>
+        ) : null}
+        {acpEditor.phase === "degraded" ? (
+          <button
+            className="coding-status-action coding-acp-retry"
+            onClick={() => void acpEditor.retryConnection()}
+            type="button"
+          >
+            Retry ACP
           </button>
         ) : null}
         <span className="coding-spacer" />

@@ -27,6 +27,7 @@ const acpEditor: CodingWorkspaceAcpViewModel = {
   promptError: "",
   promptPhase: "idle",
   responseText: "",
+  retryConnection: vi.fn().mockResolvedValue(undefined),
   sessionId: "session-1",
   stopReason: "",
   updates: [],
@@ -96,6 +97,55 @@ describe("Code workspace ACP task wiring", () => {
     expect(markup).toContain(">ACP task</button>");
     expect(markup).toContain(">Ask Doolittle</button>");
     expect(codeEditorModule).not.toHaveBeenCalled();
+  });
+
+  it("renders a recovery action when ACP is offline", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CodingWorkspaceEditor, {
+        acpEditor: {
+          ...acpEditor,
+          error: "runtime unavailable",
+          phase: "degraded",
+        },
+        acpTaskDraft: "",
+        acpTaskOpen: false,
+        draftContent: "",
+        editorPane: "file",
+        fileDirty: false,
+        fileNotice: null,
+        fileResource: {
+          data: null,
+          error: "",
+          loading: true,
+          reload: vi.fn(),
+        },
+        onAcpTaskDraftChange: vi.fn(),
+        onAcpTaskOpenChange: vi.fn(),
+        onDiscard: vi.fn(),
+        onDraftChange: vi.fn(),
+        onEditorPaneChange: vi.fn(),
+        onEditorStateChange: vi.fn(),
+        onMutateVisiblePatch: vi.fn(),
+        onSave: vi.fn(),
+        onSendSelectedContext: vi.fn(),
+        onSetStagedPatch: vi.fn(),
+        onSubmitAcpTask: vi.fn(),
+        patchResource: {
+          data: null,
+          error: "",
+          loading: false,
+          reload: vi.fn(),
+        },
+        savingFile: false,
+        selectedChange: undefined,
+        selectedLanguage: { id: "typescript", label: "TypeScript" },
+        selectedPath: "src/index.ts",
+        stagedPatch: false,
+        workspacePath: "/work/doolittle",
+      }),
+    );
+
+    expect(markup).toContain(">Retry ACP</button>");
   });
 
   it("loads the editor only after the selected file is ready", async () => {

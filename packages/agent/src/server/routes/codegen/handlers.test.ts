@@ -208,6 +208,35 @@ function createContext(): AppContext {
 }
 
 describe("codegen route handlers", () => {
+  it("returns 400 for malformed generate bodies before creating a workflow", async () => {
+    const malformed = await handleCodegenGenerateRoutes(
+      createContext(),
+      new Request("http://localhost/codegen/generate", {
+        method: "POST",
+        body: "{",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/codegen/generate"),
+    );
+    const primitive = await handleCodegenGenerateRoutes(
+      createContext(),
+      new Request("http://localhost/codegen/generate", {
+        method: "POST",
+        body: "[]",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/codegen/generate"),
+    );
+
+    expect(malformed?.status).toBe(400);
+    await expect(malformed?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(primitive?.status).toBe(400);
+    await expect(primitive?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
   it("handles runtime and codegen listing routes", async () => {
     const context = createContext();
     const runtime = await handleCodegenRuntimeRoutes(

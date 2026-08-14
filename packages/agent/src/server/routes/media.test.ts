@@ -142,6 +142,23 @@ describe("handleMediaRoutes", () => {
     expect(await runtime?.json()).toHaveProperty("media");
   });
 
+  it("returns 400 for malformed media mutation bodies", async () => {
+    const response = await handleMediaRoutes(
+      createContext(),
+      new Request("http://localhost/media/analyze", {
+        method: "POST",
+        body: "{",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/media/analyze"),
+    );
+
+    expect(response?.status).toBe(400);
+    await expect(response?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+  });
+
   it("returns null for unrelated routes", async () => {
     const response = await handleMediaRoutes(
       createContext(),

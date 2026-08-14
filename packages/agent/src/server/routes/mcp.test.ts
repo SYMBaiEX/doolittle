@@ -162,6 +162,36 @@ describe("handleMcpRoutes", () => {
     });
   });
 
+  it("returns a structured 400 for malformed invoke bodies", async () => {
+    const malformedInvoke = await handleMcpRoutes(
+      createContext(),
+      new Request("http://localhost/mcp/invoke", {
+        method: "POST",
+        body: "{",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/mcp/invoke"),
+    );
+    const primitiveInvokeTool = await handleMcpRoutes(
+      createContext(),
+      new Request("http://localhost/mcp/invoke-tool", {
+        method: "POST",
+        body: "null",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/mcp/invoke-tool"),
+    );
+
+    expect(malformedInvoke?.status).toBe(400);
+    await expect(malformedInvoke?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(primitiveInvokeTool?.status).toBe(400);
+    await expect(primitiveInvokeTool?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
+
   it("returns cached detail and invoke results", async () => {
     const context = createContext();
     const detail = await handleMcpRoutes(
