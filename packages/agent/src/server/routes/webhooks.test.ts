@@ -7,6 +7,8 @@ function createContext(overrides?: {
   slackSigningSecret?: string;
   whatsappVerifyToken?: string;
   whatsappAppSecret?: string;
+  whatsappAccessToken?: string;
+  whatsappPhoneNumberId?: string;
   gatewayReceive?: () => Promise<{ ok: boolean }>;
 }) {
   const pairing = {
@@ -39,6 +41,8 @@ function createContext(overrides?: {
       slackSigningSecret: overrides?.slackSigningSecret,
       whatsappVerifyToken: overrides?.whatsappVerifyToken,
       whatsappAppSecret: overrides?.whatsappAppSecret,
+      whatsappAccessToken: overrides?.whatsappAccessToken,
+      whatsappPhoneNumberId: overrides?.whatsappPhoneNumberId,
     },
     gateway: {
       receive: overrides?.gatewayReceive ?? (async () => ({ ok: true })),
@@ -234,6 +238,29 @@ describe("handleWebhookRoutes", () => {
 
     expect(response?.status).toBe(200);
     await expect(response?.json()).resolves.toEqual({ ok: true });
+  });
+
+  it("fails closed when cloud credentials omit the app secret", async () => {
+    const receive = vi.fn(async () => ({ ok: true }));
+    const response = await handleWebhookRoutes(
+      createContext({
+        whatsappAccessToken: "access-token",
+        whatsappPhoneNumberId: "phone-1",
+        whatsappVerifyToken: "verify-me",
+        gatewayReceive: receive,
+      }),
+      new Request("http://localhost/webhooks/whatsapp", {
+        method: "POST",
+        body: JSON.stringify({ entry: [] }),
+      }),
+      new URL("http://localhost/webhooks/whatsapp"),
+    );
+
+    expect(response?.status).toBe(503);
+    await expect(response?.json()).resolves.toEqual({
+      error: "WhatsApp signature verification is not configured.",
+    });
+    expect(receive).not.toHaveBeenCalled();
   });
 
   it.each([

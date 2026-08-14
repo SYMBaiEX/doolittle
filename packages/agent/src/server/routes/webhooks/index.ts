@@ -71,6 +71,18 @@ export async function handleWebhookRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/webhooks/whatsapp") {
+    const whatsappCloudConfigured = Boolean(
+      context.config.whatsappAccessToken &&
+        context.config.whatsappPhoneNumberId &&
+        context.config.whatsappVerifyToken,
+    );
+    if (whatsappCloudConfigured && !context.config.whatsappAppSecret) {
+      return json(
+        { error: "WhatsApp signature verification is not configured." },
+        503,
+      );
+    }
+
     const rawBody = await request.text();
     if (
       !verifyWhatsAppSignature(
