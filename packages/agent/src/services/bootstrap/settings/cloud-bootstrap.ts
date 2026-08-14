@@ -40,7 +40,11 @@ export function resolvePersistedProviderAvailability(
         linkedAccountIsUsable(linkedAccounts.elizaCloud)),
     persistedHasOllama:
       persistedProvider === "ollama" &&
-      Boolean(config.ollamaApiEndpoint?.trim()),
+      Boolean(
+        currentSettings.model.model.trim() ||
+          currentSettings.model.baseUrl.trim() ||
+          config.ollamaApiEndpoint?.trim(),
+      ),
     persistedHasCodex:
       persistedProvider === "codex" &&
       linkedAccountIsUsable(linkedAccounts.codex),

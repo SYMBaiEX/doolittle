@@ -344,6 +344,35 @@ describe("cloud bootstrap helpers", () => {
     expect(updates).toEqual([]);
   });
 
+  it("keeps a saved Ollama model selected when its endpoint is unavailable", () => {
+    const config = createConfig({
+      ollamaApiEndpoint: "",
+      ollamaLargeModel: "granite4.1:3b",
+      ollamaSmallModel: "granite4.1:3b",
+    });
+    const currentSettings = createCurrentSettings();
+    currentSettings.model.provider = "ollama";
+    currentSettings.model.model = "qwen3:8b";
+    currentSettings.model.baseUrl = "";
+    const updates: Array<[string, unknown]> = [];
+
+    applyProviderBootstrapFallbacks(
+      config,
+      currentSettings,
+      createLinkedAccounts(),
+      resolvePersistedProviderAvailability(
+        config,
+        currentSettings,
+        createLinkedAccounts(),
+      ),
+      ((path: string, value: unknown) => {
+        updates.push([path, value]);
+      }) as never,
+    );
+
+    expect(updates).toEqual([]);
+  });
+
   it("keeps an explicitly selected Devin route when its linked account is ready", () => {
     const config = createConfig({
       ollamaApiEndpoint: "http://localhost:11434/api",
