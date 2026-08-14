@@ -141,6 +141,34 @@ describe("handleCronRoutes", () => {
     });
   });
 
+  it("returns stable 400 responses for malformed automation bodies", async () => {
+    const malformedCreate = await handleCronRoutes(
+      createContext(),
+      new Request("http://localhost/cron/jobs", {
+        method: "POST",
+        body: "{",
+      }),
+      new URL("http://localhost/cron/jobs"),
+    );
+    const arrayUpdate = await handleCronRoutes(
+      createContext(),
+      new Request("http://localhost/cron/jobs/job-1", {
+        method: "PATCH",
+        body: JSON.stringify([]),
+      }),
+      new URL("http://localhost/cron/jobs/job-1"),
+    );
+
+    expect(malformedCreate?.status).toBe(400);
+    await expect(malformedCreate?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(arrayUpdate?.status).toBe(400);
+    await expect(arrayUpdate?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
+
   it("creates and updates cron jobs", async () => {
     const context = createContext();
     const create = await handleCronRoutes(

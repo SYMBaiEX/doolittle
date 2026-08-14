@@ -4,6 +4,7 @@ import type {
 } from "@doolittle/contracts";
 import type { AppContext } from "@/runtime/bootstrap";
 import { getNativeServices } from "@/runtime/native/service-bridge/runtime";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import type { AutomationTriggerInput } from "@/services/automation/types";
 
@@ -92,7 +93,9 @@ export async function handleCronRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/cron/jobs") {
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+    const parsed = await readMutationBody(request);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.body as {
       name?: string;
       prompt?: string;
       schedule?: string;
@@ -160,7 +163,9 @@ export async function handleCronRoutes(
     if (!id) {
       return json({ error: "cron job id is required" }, 400);
     }
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+    const parsed = await readMutationBody(request);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.body as {
       name?: string;
       prompt?: string;
       schedule?: string;
@@ -209,6 +214,26 @@ async function readRecordBody(
   return body && typeof body === "object" && !Array.isArray(body)
     ? (body as Record<string, unknown>)
     : {};
+}
+
+type ParsedMutationBody =
+  | { body: Record<string, unknown> }
+  | { response: Response };
+
+async function readMutationBody(request: Request): Promise<ParsedMutationBody> {
+  const parsed = await readJsonObjectBody(request);
+  if (parsed.ok) return { body: parsed.value };
+  return {
+    response: json(
+      {
+        error:
+          parsed.reason === "invalid_json"
+            ? "Invalid JSON body"
+            : "JSON body must be an object",
+      },
+      400,
+    ),
+  };
 }
 
 function automationErrorResponse(error: unknown): Response {

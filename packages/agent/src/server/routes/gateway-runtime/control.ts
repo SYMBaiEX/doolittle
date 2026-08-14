@@ -1,9 +1,28 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import {
   normalizeGatewayReason,
   resolveGatewayPlatformSelection,
 } from "./selection";
+
+type ParsedBody = { body: Record<string, unknown> } | { response: Response };
+
+async function readBody(request: Request): Promise<ParsedBody> {
+  const parsed = await readJsonObjectBody(request);
+  if (parsed.ok) return { body: parsed.value };
+  return {
+    response: json(
+      {
+        error:
+          parsed.reason === "invalid_json"
+            ? "Invalid JSON body"
+            : "JSON body must be an object",
+      },
+      400,
+    ),
+  };
+}
 
 export async function handleGatewayControlRoutes(
   context: AppContext,
@@ -21,7 +40,9 @@ export async function handleGatewayControlRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/gateway/watchdog") {
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.body as {
       reason?: string;
     };
     const reason = normalizeGatewayReason(body.reason);
@@ -33,7 +54,9 @@ export async function handleGatewayControlRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/gateway/watch") {
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.body as {
       platform?: string;
       reason?: string;
     };
@@ -51,7 +74,9 @@ export async function handleGatewayControlRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/gateway/restart") {
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.body as {
       platform?: string;
       reason?: string;
     };

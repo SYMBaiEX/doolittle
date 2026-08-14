@@ -267,6 +267,35 @@ describe("handleGatewayRuntimeRoutes", () => {
     expect(progressiveResponse?.status).toBe(400);
   });
 
+  it("returns stable 400 responses for malformed gateway control bodies", async () => {
+    const { context } = createContext();
+    const malformedWatch = await handleGatewayRuntimeRoutes(
+      context,
+      new Request("http://localhost/gateway/watch", {
+        method: "POST",
+        body: "{",
+      }),
+      new URL("http://localhost/gateway/watch"),
+    );
+    const arrayConfig = await handleGatewayRuntimeRoutes(
+      context,
+      new Request("http://localhost/gateway/config", {
+        method: "POST",
+        body: JSON.stringify([]),
+      }),
+      new URL("http://localhost/gateway/config"),
+    );
+
+    expect(malformedWatch?.status).toBe(400);
+    await expect(malformedWatch?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(arrayConfig?.status).toBe(400);
+    await expect(arrayConfig?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
+
   it("parses JSON for gateway message and replay endpoints", async () => {
     const { context } = createContext();
     const invalidMessage = await handleGatewayRuntimeRoutes(
