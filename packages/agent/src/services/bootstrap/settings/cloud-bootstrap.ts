@@ -12,6 +12,16 @@ export interface PersistedProviderAvailability {
   persistedHasDevin: boolean;
 }
 
+function linkedAccountIsUsable(account: {
+  nativeReady?: boolean;
+  reusable?: boolean;
+}): boolean {
+  // The persisted route is explicit user intent. Desktop environment flags
+  // gate automatic discovery, but must not erase a route whose linked account
+  // is already native-ready or reusable.
+  return Boolean(account.nativeReady || account.reusable);
+}
+
 export function resolvePersistedProviderAvailability(
   config: EnvConfig,
   currentSettings: RuntimeSettingsSnapshot,
@@ -26,30 +36,25 @@ export function resolvePersistedProviderAvailability(
       Boolean(config.anthropicApiKey?.trim()),
     persistedHasElizaCloud:
       persistedProvider === "elizacloud" &&
-      config.elizaCloudEnabled &&
-      Boolean(config.elizaCloudApiKey?.trim()),
+      (Boolean(config.elizaCloudEnabled && config.elizaCloudApiKey?.trim()) ||
+        linkedAccountIsUsable(linkedAccounts.elizaCloud)),
     persistedHasOllama:
       persistedProvider === "ollama" &&
       Boolean(config.ollamaApiEndpoint?.trim()),
     persistedHasCodex:
       persistedProvider === "codex" &&
-      config.useLinkedCodexAuth &&
-      Boolean(
-        linkedAccounts.codex.nativeReady || linkedAccounts.codex.reusable,
-      ),
+      linkedAccountIsUsable(linkedAccounts.codex),
     persistedHasClaudeCode:
       persistedProvider === "claude-code" &&
-      config.useLinkedClaudeCodeAuth &&
       Boolean(
-        linkedAccounts.claudeCode.nativeReady ||
-          linkedAccounts.claudeCode.reusable,
+        (config.useLinkedClaudeCodeAuth &&
+          linkedAccountIsUsable(linkedAccounts.claudeCode)) ||
+          (config.claudeCodeCliFallback &&
+            linkedAccounts.claudeCode.fallbackReady),
       ),
     persistedHasDevin:
       persistedProvider === "devin" &&
-      config.useLinkedDevinAuth &&
-      Boolean(
-        linkedAccounts.devin.nativeReady || linkedAccounts.devin.reusable,
-      ),
+      linkedAccountIsUsable(linkedAccounts.devin),
   };
 }
 
@@ -185,7 +190,7 @@ export function applyProviderBootstrapFallbacks(
 
   if (
     persistedProvider === "elizacloud" &&
-    (!config.elizaCloudEnabled || !config.elizaCloudApiKey?.trim())
+    !availability.persistedHasElizaCloud
   ) {
     setProviderFallback(config, linkedAccounts, set);
   }

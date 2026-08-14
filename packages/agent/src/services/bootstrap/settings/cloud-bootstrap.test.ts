@@ -277,10 +277,9 @@ describe("cloud bootstrap helpers", () => {
     const linkedAccounts = createLinkedAccounts({
       codex: {
         provider: "codex",
-        available: true,
-        reusable: true,
-        nativeReady: true,
-        detail: "codex ready",
+        available: false,
+        reusable: false,
+        detail: "codex is not bound",
       },
     });
     const updates: Array<[string, unknown]> = [];
@@ -305,5 +304,119 @@ describe("cloud bootstrap helpers", () => {
       "model.baseUrl",
       "http://localhost:11434/api",
     ]);
+  });
+
+  it("keeps an explicitly selected Codex route when its linked account is ready", () => {
+    const config = createConfig({
+      ollamaApiEndpoint: "http://localhost:11434/api",
+      ollamaLargeModel: "granite4.1:3b",
+      useLinkedCodexAuth: false,
+    });
+    const currentSettings = createCurrentSettings();
+    currentSettings.model.provider = "codex";
+    currentSettings.model.model = "gpt-5.4";
+    currentSettings.model.baseUrl = "https://chatgpt.com/backend-api/codex";
+    const linkedAccounts = createLinkedAccounts({
+      codex: {
+        provider: "codex",
+        available: true,
+        reusable: true,
+        nativeReady: true,
+        detail: "codex ready",
+      },
+    });
+    const updates: Array<[string, unknown]> = [];
+
+    applyProviderBootstrapFallbacks(
+      config,
+      currentSettings,
+      linkedAccounts,
+      resolvePersistedProviderAvailability(
+        config,
+        currentSettings,
+        linkedAccounts,
+      ),
+      ((path: string, value: unknown) => {
+        updates.push([path, value]);
+      }) as never,
+    );
+
+    expect(updates).toEqual([]);
+  });
+
+  it("keeps an explicitly selected Devin route when its linked account is ready", () => {
+    const config = createConfig({
+      ollamaApiEndpoint: "http://localhost:11434/api",
+      ollamaLargeModel: "granite4.1:3b",
+      useLinkedDevinAuth: false,
+    });
+    const currentSettings = createCurrentSettings();
+    currentSettings.model.provider = "devin";
+    currentSettings.model.model = "swe-1-6-fast";
+    const linkedAccounts = createLinkedAccounts({
+      devin: {
+        provider: "devin",
+        available: true,
+        reusable: true,
+        nativeReady: true,
+        detail: "devin ready",
+      },
+    });
+    const updates: Array<[string, unknown]> = [];
+
+    applyProviderBootstrapFallbacks(
+      config,
+      currentSettings,
+      linkedAccounts,
+      resolvePersistedProviderAvailability(
+        config,
+        currentSettings,
+        linkedAccounts,
+      ),
+      ((path: string, value: unknown) => {
+        updates.push([path, value]);
+      }) as never,
+    );
+
+    expect(updates).toEqual([]);
+  });
+
+  it("keeps Eliza Cloud selected when its linked account is ready", () => {
+    const config = createConfig({
+      elizaCloudEnabled: false,
+      elizaCloudApiKey: "",
+      ollamaApiEndpoint: "http://localhost:11434/api",
+      ollamaLargeModel: "granite4.1:3b",
+    });
+    const currentSettings = createCurrentSettings();
+    currentSettings.model.provider = "elizacloud";
+    currentSettings.model.model = "xai/grok-4.1-fast-reasoning";
+    currentSettings.model.baseUrl = "https://api.eliza.cloud";
+    const linkedAccounts = createLinkedAccounts({
+      elizaCloud: {
+        provider: "elizacloud",
+        available: true,
+        reusable: true,
+        nativeReady: true,
+        detail: "cloud ready",
+      },
+    });
+    const updates: Array<[string, unknown]> = [];
+
+    applyProviderBootstrapFallbacks(
+      config,
+      currentSettings,
+      linkedAccounts,
+      resolvePersistedProviderAvailability(
+        config,
+        currentSettings,
+        linkedAccounts,
+      ),
+      ((path: string, value: unknown) => {
+        updates.push([path, value]);
+      }) as never,
+    );
+
+    expect(updates).toEqual([]);
   });
 });
