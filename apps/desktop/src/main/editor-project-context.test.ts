@@ -162,6 +162,10 @@ describe("resolveEditorProjectContext", () => {
 
       expect(context.compilerOptions.module).toBe("esnext");
       expect(context.compilerOptions.moduleResolution).toBe("bundler");
+      expect(context.compilerOptions.baseUrl).toBe(workspace);
+      expect(context.compilerOptions.paths?.["@example/ui/Button"]).toEqual([
+        resolve(packageRoot, "dist", "Button", "index.d.ts"),
+      ]);
       expect(context.compilerOptions.types).toBeUndefined();
       expect(paths).toEqual(
         expect.arrayContaining([

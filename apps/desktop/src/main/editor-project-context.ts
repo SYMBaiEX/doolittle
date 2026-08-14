@@ -269,6 +269,7 @@ function collectSupportFiles(
   workspacePath: string,
 ): {
   supportFiles: EditorProjectContextResult["supportFiles"];
+  packagePaths: Record<string, string[]>;
   truncated: boolean;
 } {
   const seenVirtualPaths = new Set<string>();
@@ -285,6 +286,7 @@ function collectSupportFiles(
   let pendingCursor = 0;
   let totalBytes = 0;
   let truncated = false;
+  const packagePaths = new Map<string, string>();
 
   const enqueue = (
     diskCandidate: string | undefined,
@@ -315,6 +317,7 @@ function collectSupportFiles(
   const enqueueResolved = (
     resolved: ResolvedDependency | undefined,
     importer?: PendingSupportFile,
+    requestedModule?: string,
   ) => {
     if (!resolved?.resolvedFileName) return;
     const diskPath = normalizePath(resolved.resolvedFileName);
@@ -348,6 +351,13 @@ function collectSupportFiles(
     // declarations, so registering only the resolved .d.ts file still leaves
     // imports such as `@scope/ui/Button` unresolved inside the editor.
     if (virtualPackageRoot) {
+      // Monaco's worker does not consistently expose package.json files to
+      // the resolver through addExtraLib. An exact path mapping keeps package
+      // `exports` subpaths resolvable even when the package has no physical
+      // file at the import-shaped path (for example `@scope/ui/Button`).
+      if (requestedModule && !packagePaths.has(requestedModule)) {
+        packagePaths.set(requestedModule, diskPath);
+      }
       enqueue(
         resolve(diskPackageRoot, "package.json"),
         resolve(virtualPackageRoot, "package.json"),
@@ -410,7 +420,7 @@ function collectSupportFiles(
           compilerOptions,
           TYPE_REFERENCE_HOST,
         ).resolvedTypeReferenceDirective;
-        enqueueResolved(resolved, current);
+        enqueueResolved(resolved, current, directive.fileName);
       }
 
       for (const imported of preprocessed.importedFiles) {
@@ -434,7 +444,7 @@ function collectSupportFiles(
             current.virtualPackageRoot,
           );
         } else {
-          enqueueResolved(resolved, current);
+          enqueueResolved(resolved, current, imported.fileName);
         }
       }
     }
@@ -452,7 +462,7 @@ function collectSupportFiles(
       compilerOptions,
       TYPE_REFERENCE_HOST,
     ).resolvedTypeReferenceDirective;
-    enqueueResolved(resolved);
+    enqueueResolved(resolved, undefined, typeName);
   }
 
   if (
@@ -470,12 +480,20 @@ function collectSupportFiles(
         compilerOptions,
         TYPE_REFERENCE_HOST,
       ).resolvedModule,
+      undefined,
+      runtime,
     );
   }
 
   drainPending();
 
-  return { supportFiles, truncated };
+  return {
+    packagePaths: Object.fromEntries(
+      [...packagePaths].map(([specifier, path]) => [specifier, [path]]),
+    ),
+    supportFiles,
+    truncated,
+  };
 }
 
 export function resolveEditorProjectContext(
@@ -513,22 +531,33 @@ export function resolveEditorProjectContext(
     typeof request.content === "string"
       ? request.content
       : readFileSync(entryAbsolutePath, "utf8");
-  const { supportFiles, truncated } = collectSupportFiles(
+  const { packagePaths, supportFiles, truncated } = collectSupportFiles(
     entryAbsolutePath,
     entryContent,
     compilerOptions,
     workspacePath,
   );
 
+  const normalizedCompilerOptions = normalizeCompilerOptions(
+    compilerOptions,
+    projectConfig ? dirname(projectConfig.path) : workspacePath,
+  );
+  const mergedPaths = {
+    ...packagePaths,
+    ...normalizedCompilerOptions.paths,
+  };
   return {
     workspacePath,
     projectRoot: projectConfig ? dirname(projectConfig.path) : workspacePath,
     entryPath: entryAbsolutePath,
     tsconfigPath: projectConfig?.path,
-    compilerOptions: normalizeCompilerOptions(
-      compilerOptions,
-      projectConfig ? dirname(projectConfig.path) : workspacePath,
-    ),
+    compilerOptions: {
+      ...normalizedCompilerOptions,
+      baseUrl:
+        normalizedCompilerOptions.baseUrl ??
+        (Object.keys(mergedPaths).length > 0 ? workspacePath : undefined),
+      paths: Object.keys(mergedPaths).length > 0 ? mergedPaths : undefined,
+    },
     supportFiles,
     truncated,
   };
