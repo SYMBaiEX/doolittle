@@ -194,6 +194,62 @@ describe("handleConversationRoutes", () => {
     });
   });
 
+  it("rejects non-boolean response streaming before agent execution", async () => {
+    const context = createContext();
+    let received = false;
+    context.gateway.receive = async () => {
+      received = true;
+      return {
+        ok: true,
+        response: "should not run",
+      };
+    };
+
+    const response = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/v1/responses", {
+        method: "POST",
+        body: JSON.stringify({ input: "hello", stream: "false" }),
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/v1/responses"),
+    );
+
+    expect(response?.status).toBe(400);
+    await expect(response?.json()).resolves.toEqual({
+      error: "stream must be a boolean",
+    });
+    expect(received).toBe(false);
+  });
+
+  it("rejects non-string response identity and continuation fields", async () => {
+    for (const [field, value, error] of [
+      ["user", 42, "user must be a string"],
+      ["previous_response_id", 42, "previous_response_id must be a string"],
+    ] as const) {
+      const context = createContext();
+      let received = false;
+      context.gateway.receive = async () => {
+        received = true;
+        return { ok: true, response: "should not run" };
+      };
+
+      const response = await handleConversationRoutes(
+        context,
+        new Request("http://localhost/v1/responses", {
+          method: "POST",
+          body: JSON.stringify({ input: "hello", [field]: value }),
+          headers: { "content-type": "application/json" },
+        }),
+        new URL("http://localhost/v1/responses"),
+      );
+
+      expect(response?.status).toBe(400);
+      await expect(response?.json()).resolves.toEqual({ error });
+      expect(received).toBe(false);
+    }
+  });
+
   it("rejects chat requests without a message", async () => {
     const response = await handleConversationRoutes(
       createContext(),
@@ -359,6 +415,40 @@ describe("handleConversationRoutes", () => {
       ],
       room_id: "room:user-1",
     });
+  });
+
+  it("preserves non-stream gateway failures without storing a response", async () => {
+    const context = createContext();
+    let created = false;
+    context.gateway.receive = async () => ({
+      ok: false,
+      response: "Authorization required. Pairing code: pair-123",
+      pairingCode: "pair-123",
+      traceId: "trace-rejected",
+    });
+    context.services.apiTransport.create = (() => {
+      created = true;
+      throw new Error("failed turns must not be stored");
+    }) as typeof context.services.apiTransport.create;
+
+    const response = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/v1/responses", {
+        method: "POST",
+        body: JSON.stringify({ input: "hello", user: "user-1" }),
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/v1/responses"),
+    );
+
+    expect(response?.status).toBe(403);
+    await expect(response?.json()).resolves.toEqual({
+      ok: false,
+      response: "Authorization required. Pairing code: pair-123",
+      pairingCode: "pair-123",
+      traceId: "trace-rejected",
+    });
+    expect(created).toBe(false);
   });
 
   it("streams response events through the legacy responses route", async () => {

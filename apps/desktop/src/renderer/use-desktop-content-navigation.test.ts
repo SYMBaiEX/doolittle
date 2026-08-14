@@ -177,6 +177,8 @@ describe("chat context handoff navigation", () => {
       sessionId: "older",
       handoff: {
         id: "handoff",
+        prompt: "Review this.",
+        capsule: null,
         text: "Review this.",
         workspacePath: "/work/alpha",
         projectScope: "alpha",

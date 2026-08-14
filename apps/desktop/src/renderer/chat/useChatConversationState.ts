@@ -11,6 +11,7 @@ import type {
   SessionMessagesResponse,
   SessionSummary,
 } from "../../shared/contracts";
+import { splitChatContext } from "../chat-context-handoff";
 import { newConversationId } from "../conversation-id";
 import {
   CONVERSATION_PINS_EVENT,
@@ -21,7 +22,12 @@ import {
   saveConversationPins,
 } from "../conversation-persistence";
 import { desktopRequest, errorMessage } from "../lib";
-import type { ConversationStore, DisplayMessage, Role } from "./models";
+import type {
+  ChatContextMessageCapsule,
+  ConversationStore,
+  DisplayMessage,
+  Role,
+} from "./models";
 
 const CHAT_STORAGE_KEY = "doolittle.desktop.conversations.v2";
 
@@ -30,13 +36,35 @@ function isStoredDisplayMessage(value: unknown): value is DisplayMessage {
     return false;
   }
   const message = value as Partial<DisplayMessage>;
+  const capsule = message.contextCapsule;
+  const validCapsule =
+    capsule === undefined ||
+    (Boolean(capsule) &&
+      typeof capsule === "object" &&
+      (capsule.kind === "file" ||
+        capsule.kind === "diff" ||
+        capsule.kind === "review") &&
+      typeof capsule.path === "string" &&
+      (capsule.source === undefined || typeof capsule.source === "string"));
   return (
     typeof message.id === "string" &&
     message.id.length > 0 &&
     (message.role === "user" || message.role === "assistant") &&
     typeof message.content === "string" &&
-    typeof message.createdAt === "string"
+    typeof message.createdAt === "string" &&
+    validCapsule
   );
+}
+
+function toMessageCapsule(
+  capsule: ReturnType<typeof splitChatContext>["capsule"],
+): ChatContextMessageCapsule | undefined {
+  if (!capsule) return undefined;
+  return {
+    kind: capsule.kind,
+    path: capsule.path,
+    ...(capsule.source ? { source: capsule.source } : {}),
+  };
 }
 
 export interface ChatSessionForRender extends SessionSummary {
@@ -312,13 +340,20 @@ export function useChatConversationState({
             (message) =>
               message.role === "user" || message.role === "assistant",
           )
-          .map<DisplayMessage>((message) => ({
-            id: message.id,
-            role: message.role as Role,
-            content: message.text,
-            attachments: message.attachments,
-            createdAt: message.createdAt,
-          }));
+          .map<DisplayMessage>((message) => {
+            const handoff =
+              message.role === "user" ? splitChatContext(message.text) : null;
+            return {
+              id: message.id,
+              role: message.role as Role,
+              content: handoff?.prompt ?? message.text,
+              attachments: message.attachments,
+              createdAt: message.createdAt,
+              ...(handoff?.capsule
+                ? { contextCapsule: toMessageCapsule(handoff.capsule) }
+                : {}),
+            };
+          });
         setMessages((current) => {
           const currentMessages = current[selectedId] ?? [];
           const historyIds = new Set(history.map((message) => message.id));

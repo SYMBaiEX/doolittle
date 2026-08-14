@@ -93,6 +93,18 @@ export async function handleResponsesRoute(
     );
   }
   const body = parsed.value as ResponsesRequestBody;
+  if (body.stream !== undefined && typeof body.stream !== "boolean") {
+    return json({ error: "stream must be a boolean" }, 400);
+  }
+  if (body.user !== undefined && typeof body.user !== "string") {
+    return json({ error: "user must be a string" }, 400);
+  }
+  if (
+    body.previous_response_id !== undefined &&
+    typeof body.previous_response_id !== "string"
+  ) {
+    return json({ error: "previous_response_id must be a string" }, 400);
+  }
   const inputText = responseInputText(body);
 
   if (!inputText) {
@@ -332,6 +344,9 @@ export async function handleResponsesRoute(
     },
     { abortSignal: request.signal },
   );
+  if (!result.ok) {
+    return json(result, 403);
+  }
   const record = context.services.apiTransport.create({
     input: inputText,
     outputText: result.response,

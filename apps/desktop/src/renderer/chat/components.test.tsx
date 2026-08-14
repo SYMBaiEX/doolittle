@@ -65,6 +65,8 @@ function composerProps(
     clearQueuedMessages: () => undefined,
     removeQueuedMessage: () => undefined,
     attachedFiles: [],
+    chatContextCapsule: null,
+    removeChatContext: () => undefined,
     attachmentTotalBytes: 0,
     removeContextFile: () => undefined,
     composerValidationError: "",
@@ -109,6 +111,51 @@ describe("chat presentation components", () => {
     expect(html).toContain('aria-label="Message Doolittle"');
     expect(html).toContain('class="chat-context-meter neutral"');
     expect(html).toContain('aria-label="Send message"');
+  });
+
+  it("renders source handoff as a compact removable capsule", () => {
+    const html = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          chatContextCapsule: {
+            kind: "diff",
+            path: "src/app.ts",
+            source: "working-tree",
+            content:
+              '<review_context path="src/app.ts">secret</review_context>',
+          },
+        })}
+      />,
+    );
+    expect(html).toContain('class="chat-context-capsule"');
+    expect(html).toContain("Diff · src/app.ts");
+    expect(html).toContain("working-tree");
+    expect(html).toContain(
+      'aria-label="Remove src/app.ts from message context"',
+    );
+    expect(html).not.toContain("secret");
+  });
+
+  it("keeps sent source context compact in the transcript", () => {
+    const html = renderToStaticMarkup(
+      <ChatMessage
+        actions={null}
+        message={{
+          id: "user-1",
+          role: "user",
+          content: "Review src/app.ts.",
+          contextCapsule: {
+            kind: "file",
+            path: "src/app.ts",
+          },
+          createdAt: "2026-08-13T00:00:00.000Z",
+        }}
+      />,
+    );
+    expect(html).toContain("Review src/app.ts.");
+    expect(html).toContain("Source");
+    expect(html).toContain("src/app.ts");
+    expect(html).not.toContain("<file_context");
   });
 
   it("connects slash-command selection to the composer for assistive technology", () => {

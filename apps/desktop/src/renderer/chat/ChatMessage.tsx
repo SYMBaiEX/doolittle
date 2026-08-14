@@ -68,6 +68,33 @@ export function ChatMessage({
           <span className="thinking">Thinking</span>
         ) : null}
         <MessageAttachmentList attachments={message.attachments} />
+        {message.role === "user" && message.contextCapsule ? (
+          <div
+            aria-label={
+              "Attached " +
+              message.contextCapsule.kind +
+              " context for " +
+              message.contextCapsule.path
+            }
+            className="chat-message-context-capsule"
+            role="note"
+          >
+            <span aria-hidden="true">
+              {message.contextCapsule.kind === "file" ? "▤" : "⌁"}
+            </span>
+            <span>
+              {message.contextCapsule.kind === "diff"
+                ? "Diff"
+                : message.contextCapsule.kind === "review"
+                  ? "Review"
+                  : "Source"}{" "}
+              · {message.contextCapsule.path}
+            </span>
+            {message.contextCapsule.source ? (
+              <small>{message.contextCapsule.source}</small>
+            ) : null}
+          </div>
+        ) : null}
         {message.role === "user" && message.memoryMatch ? (
           <p className="chat-message-memory-source">
             {message.memoryMatch.count > 0

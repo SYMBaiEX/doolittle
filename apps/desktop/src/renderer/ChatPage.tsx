@@ -37,7 +37,11 @@ import { useChatComposerSupport } from "./chat/useChatComposerSupport";
 import { useChatConversationState } from "./chat/useChatConversationState";
 import { useChatMessageActions } from "./chat/useChatMessageActions";
 import { useModalFocusBoundary } from "./chat/useModalFocusBoundary";
-import type { ChatContextHandoff } from "./chat-context-handoff";
+import type {
+  ChatContextCapsule,
+  ChatContextHandoff,
+} from "./chat-context-handoff";
+import { composeChatContextMessage } from "./chat-context-handoff";
 import { visibleAssistantText } from "./components/message-output";
 import { RouteControlDialog } from "./components/RouteControlDialog";
 import type { ThreadWorkbenchFullView } from "./components/ThreadWorkbenchRail";
@@ -218,6 +222,8 @@ export function ChatPage({
   const [attachedFiles, setAttachedFiles] = useState<
     ManagedAttachmentDescriptor[]
   >([]);
+  const [chatContextCapsule, setChatContextCapsule] =
+    useState<ChatContextCapsule | null>(null);
   const recoveredQueue = useMemo(() => loadConversationQueue(localStorage), []);
   const [queuedMessages, setQueuedMessages] =
     useState<PersistedQueuedMessage[]>(recoveredQueue);
@@ -384,6 +390,10 @@ export function ChatPage({
   }, []);
 
   useEffect(() => {
+    if (selectedId) setChatContextCapsule(null);
+  }, [selectedId]);
+
+  useEffect(() => {
     if (
       !pendingContextHandoff ||
       pendingContextHandoff.sessionId !== selectedId
@@ -395,7 +405,8 @@ export function ChatPage({
       return;
     }
     consumedContextHandoffs.current.add(pendingContextHandoff.id);
-    insertChatContext(pendingContextHandoff.text);
+    insertChatContext(pendingContextHandoff.prompt);
+    setChatContextCapsule(pendingContextHandoff.capsule);
     onConsumeContextHandoff(pendingContextHandoff.id);
   }, [
     insertChatContext,
@@ -556,7 +567,11 @@ export function ChatPage({
     memoryMatchOverride?: MemoryMatchSnapshot,
     projectIdOverride?: string | null,
   ) => {
-    const content = input.trim();
+    const visibleContent = input.trim();
+    const content = composeChatContextMessage(
+      visibleContent,
+      chatContextCapsule,
+    );
     if (!content || !sessionId || activeRequest || backend.phase !== "ready") {
       return false;
     }
@@ -586,10 +601,21 @@ export function ChatPage({
         {
           id: crypto.randomUUID(),
           role: "user",
-          content,
+          content: visibleContent,
           attachments: messageAttachments,
           createdAt,
           memoryMatch,
+          ...(chatContextCapsule
+            ? {
+                contextCapsule: {
+                  kind: chatContextCapsule.kind,
+                  path: chatContextCapsule.path,
+                  ...(chatContextCapsule.source
+                    ? { source: chatContextCapsule.source }
+                    : {}),
+                },
+              }
+            : {}),
         },
         {
           id: `assistant:${requestId}`,
@@ -603,6 +629,7 @@ export function ChatPage({
     if (clearComposer) {
       setDraft("");
       setAttachedFiles([]);
+      setChatContextCapsule(null);
     }
     setProgress("Doolittle is considering the request…");
     setActiveRequest(requestId);
@@ -762,7 +789,7 @@ export function ChatPage({
   }, [activeRequest, backend.phase, queuePaused, queuedMessages]);
 
   const queueCurrentDraft = () => {
-    const content = draft.trim();
+    const content = composeChatContextMessage(draft, chatContextCapsule);
     if (!content || !selectedId) return;
     if (isCommandMessage(content) && attachedFiles.length > 0) {
       setAttachmentValidationError(
@@ -785,6 +812,7 @@ export function ChatPage({
     setQueueAnnouncement("Message added to the queue.");
     setDraft("");
     setAttachedFiles([]);
+    setChatContextCapsule(null);
     composerRef.current?.focus();
   };
 
@@ -1046,6 +1074,8 @@ export function ChatPage({
           clearQueuedMessages={clearQueuedMessages}
           removeQueuedMessage={removeQueuedMessage}
           attachedFiles={attachedFiles}
+          chatContextCapsule={chatContextCapsule}
+          removeChatContext={() => setChatContextCapsule(null)}
           attachmentTotalBytes={attachmentTotalBytes}
           removeContextFile={removeContextFile}
           composerValidationError={composerValidationError}

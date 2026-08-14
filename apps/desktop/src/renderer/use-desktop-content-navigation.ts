@@ -8,6 +8,7 @@ import {
   type ChatContextHandoff,
   type ChatContextRequest,
   resolveChatContextProjectScope,
+  splitChatContext,
 } from "./chat-context-handoff";
 import type { CommandGroup } from "./components/CommandPalette";
 import type { ToastInput } from "./components/ToastRegion";
@@ -134,6 +135,7 @@ export function resolveChatContextHandoff({
 }): ChatContextHandoffResolution {
   const text = request.text.trim();
   if (!text) return { status: "empty" };
+  const { prompt, capsule } = splitChatContext(text);
   const scope = resolveChatContextProjectScope(
     { ...request, text },
     projects,
@@ -163,6 +165,8 @@ export function resolveChatContextHandoff({
     handoff: {
       id: createId(),
       text,
+      prompt,
+      capsule,
       workspacePath: request.workspacePath,
       projectScope: scope,
       sessionId,

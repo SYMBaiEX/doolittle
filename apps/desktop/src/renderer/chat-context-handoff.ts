@@ -6,9 +6,47 @@ export interface ChatContextRequest {
   projectScope: ProjectScope;
 }
 
+export interface ChatContextCapsule {
+  kind: "file" | "diff" | "review";
+  path: string;
+  source?: string;
+  /** Complete source block, kept out of the visible composer draft. */
+  content: string;
+}
+
 export interface ChatContextHandoff extends ChatContextRequest {
   id: string;
   sessionId: string;
+  prompt: string;
+  capsule: ChatContextCapsule | null;
+}
+
+export function splitChatContext(text: string): {
+  prompt: string;
+  capsule: ChatContextCapsule | null;
+} {
+  const match = text.match(
+    /<(?<tag>file_context|review_context)\b(?<attrs>[^>]*)>[\s\S]*?<\/\k<tag>>/u,
+  );
+  if (!match?.groups) return { prompt: text.trim(), capsule: null };
+  const attrs = match.groups.attrs ?? "";
+  const path = attrs.match(/\bpath="([^"\n]*)"/u)?.[1]?.trim();
+  if (!path) return { prompt: text.trim(), capsule: null };
+  const source = attrs.match(/\bsource="([^"\n]*)"/u)?.[1];
+  const kind =
+    match.groups.tag === "file_context" ? "file" : source ? "diff" : "review";
+  return {
+    prompt: text.slice(0, match.index).trim() || `Work on ${path}.`,
+    capsule: { kind, path, ...(source ? { source } : {}), content: match[0] },
+  };
+}
+
+export function composeChatContextMessage(
+  prompt: string,
+  capsule: ChatContextCapsule | null,
+): string {
+  const visible = prompt.trim();
+  return capsule ? `${visible}\n\n${capsule.content}`.trim() : visible;
 }
 
 export interface ChatContextProject {

@@ -15,6 +15,7 @@ import type {
   ManagedAttachmentDescriptor,
   RuntimeStatus,
 } from "../../shared/contracts";
+import type { ChatContextCapsule } from "../chat-context-handoff";
 import {
   ComposerModelSelector,
   ComposerProjectSelector,
@@ -78,6 +79,8 @@ export interface ChatComposerProps {
   clearQueuedMessages: () => void;
   removeQueuedMessage: (id: string) => void;
   attachedFiles: ManagedAttachmentDescriptor[];
+  chatContextCapsule: ChatContextCapsule | null;
+  removeChatContext: () => void;
   attachmentTotalBytes: number;
   removeContextFile: (id: string) => void;
   composerValidationError: string;
@@ -133,6 +136,8 @@ export function ChatComposer({
   clearQueuedMessages,
   removeQueuedMessage,
   attachedFiles,
+  chatContextCapsule,
+  removeChatContext,
   attachmentTotalBytes,
   removeContextFile,
   composerValidationError,
@@ -265,6 +270,28 @@ export function ChatComposer({
             </li>
           ))}
         </ul>
+      ) : null}
+      {chatContextCapsule ? (
+        <div className="chat-context-capsule" role="status">
+          <span className="chat-context-capsule__icon" aria-hidden="true">
+            {chatContextCapsule.kind === "file" ? "▤" : "⌁"}
+          </span>
+          <span className="chat-context-capsule__label">
+            {chatContextCapsule.kind === "diff" ? "Diff" : "Source"} ·{" "}
+            {chatContextCapsule.path}
+          </span>
+          {chatContextCapsule.source ? (
+            <small>{chatContextCapsule.source}</small>
+          ) : null}
+          <button
+            aria-label={`Remove ${chatContextCapsule.path} from message context`}
+            className="chat-context-capsule__remove"
+            onClick={removeChatContext}
+            type="button"
+          >
+            ×
+          </button>
+        </div>
       ) : null}
       {attachedFiles.length > 0 ? (
         <div className="chat-attachment-summary">

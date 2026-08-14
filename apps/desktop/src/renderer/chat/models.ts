@@ -8,6 +8,12 @@ export type Role = "user" | "assistant";
 export type CopyState = "copied" | "failed";
 export type BranchMode = "edit" | "fork" | "retry";
 
+export interface ChatContextMessageCapsule {
+  kind: "file" | "diff" | "review";
+  path: string;
+  source?: string;
+}
+
 export const MAX_MESSAGE_ATTACHMENTS = 8;
 export const MAX_MESSAGE_ATTACHMENT_BYTES = 50 * 1024 * 1024;
 
@@ -26,6 +32,7 @@ export interface DisplayMessage {
   pending?: boolean;
   error?: boolean;
   memoryMatch?: MemoryMatchSnapshot;
+  contextCapsule?: ChatContextMessageCapsule;
 }
 
 export type ConversationStore = Record<string, DisplayMessage[]>;
