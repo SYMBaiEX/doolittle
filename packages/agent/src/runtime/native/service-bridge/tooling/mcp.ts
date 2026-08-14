@@ -23,6 +23,53 @@ const getMarketplaceServer = getMcpServerDetails as unknown as (
   options?: McpMarketplaceRequestOptions,
 ) => ReturnType<typeof getMcpServerDetails>;
 
+function marketplaceAbortError(signal: AbortSignal): Error {
+  const reason = signal.reason;
+  if (reason instanceof Error) return reason;
+  const error = new Error("The MCP marketplace request was aborted.");
+  error.name = "AbortError";
+  return error;
+}
+
+/**
+ * beta.7 accepts an options object at the type boundary but does not observe
+ * its signal internally. Race the upstream promise locally so a dismissed
+ * marketplace panel cannot keep a stale request alive or update its caller.
+ */
+async function withMarketplaceAbort<T>(
+  operation: Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (!signal) return operation;
+  if (signal.aborted) throw marketplaceAbortError(signal);
+
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => signal.removeEventListener("abort", onAbort);
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(marketplaceAbortError(signal));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    operation.then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(value);
+      },
+      (error) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      },
+    );
+  });
+}
+
 export function getEffectiveMcpStatus(runtime: RuntimeLike) {
   return requireNativeMcp(runtime).status();
 }
@@ -75,7 +122,11 @@ export async function searchEffectiveMcpMarketplace(
   signal?: AbortSignal,
 ) {
   try {
-    const result = await searchMarketplace(query, limit, { signal });
+    if (signal?.aborted) throw marketplaceAbortError(signal);
+    const result = await withMarketplaceAbort(
+      searchMarketplace(query, limit, { signal }),
+      signal,
+    );
     return {
       available: true,
       source: MCP_MARKETPLACE_SOURCE,
@@ -84,6 +135,7 @@ export async function searchEffectiveMcpMarketplace(
       ...result,
     };
   } catch (error) {
+    if (signal?.aborted) throw marketplaceAbortError(signal);
     return {
       available: false,
       source: MCP_MARKETPLACE_SOURCE,
@@ -100,7 +152,11 @@ export async function getEffectiveMcpMarketplaceServer(
   signal?: AbortSignal,
 ) {
   try {
-    const server = await getMarketplaceServer(name, { signal });
+    if (signal?.aborted) throw marketplaceAbortError(signal);
+    const server = await withMarketplaceAbort(
+      getMarketplaceServer(name, { signal }),
+      signal,
+    );
     return {
       available: true,
       source: MCP_MARKETPLACE_SOURCE,
@@ -109,6 +165,7 @@ export async function getEffectiveMcpMarketplaceServer(
       config: server ? generateMcpConfigFromServerDetails(server) : null,
     };
   } catch (error) {
+    if (signal?.aborted) throw marketplaceAbortError(signal);
     return {
       available: false,
       source: MCP_MARKETPLACE_SOURCE,
