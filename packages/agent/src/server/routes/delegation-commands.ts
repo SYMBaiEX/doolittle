@@ -9,6 +9,7 @@ import {
   spawnEffectiveDelegationChild,
   superviseEffectiveDelegationQueue,
 } from "@/runtime/native/service-bridge/delegation";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 
 type DelegationTaskBody = {
@@ -62,6 +63,24 @@ type DelegationCommandRouteOptions = {
   runDelegationTaskInWorker?: DelegationWorkerRunner;
   runAgentTurn?: DelegationAgentTurnRunner;
 };
+
+type ParsedBody = { body: Record<string, unknown> } | { response: Response };
+
+async function readBody(request: Request): Promise<ParsedBody> {
+  const parsed = await readJsonObjectBody(request);
+  if (parsed.ok) return { body: parsed.value };
+  return {
+    response: json(
+      {
+        error:
+          parsed.reason === "invalid_json"
+            ? "Invalid JSON body"
+            : "JSON body must be an object",
+      },
+      400,
+    ),
+  };
+}
 
 const GUIDED_CODING_FIELDS = new Set([
   "title",
@@ -471,7 +490,9 @@ export async function handleDelegationCommandRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/delegation/tasks") {
-    const body = (await request.json()) as DelegationTaskBody;
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.body as DelegationTaskBody;
     if (!body.title || !body.objective) {
       return json({ error: "title and objective are required" }, 400);
     }
@@ -506,9 +527,9 @@ export async function handleDelegationCommandRoutes(
     url.pathname === "/delegation/tasks/start-coding"
   ) {
     try {
-      const body = parseGuidedCodingLaunchBody(
-        await request.json().catch(() => undefined),
-      );
+      const parsed = await readBody(request);
+      if ("response" in parsed) return parsed.response;
+      const body = parseGuidedCodingLaunchBody(parsed.body);
       return json({
         launch: await startGuidedCodingTaskSerialized(context, body),
       });
@@ -535,7 +556,9 @@ export async function handleDelegationCommandRoutes(
       return json({ error: "task id is required" }, 400);
     }
 
-    const body = (await request.json()) as DelegationTaskBody;
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.body as DelegationTaskBody;
     if (!body.objective) {
       return json({ error: "objective is required" }, 400);
     }

@@ -15,8 +15,27 @@ import {
   getNativeFormsControlPlane,
   getNativePlanningControlPlane,
 } from "@/runtime/native/service-bridge/control-planes";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import { parseOpaqueRouteId } from "@/server/routes/parse-opaque-id";
+
+type ParsedBody = { body: Record<string, unknown> } | { response: Response };
+
+async function readBody(request: Request): Promise<ParsedBody> {
+  const parsed = await readJsonObjectBody(request);
+  if (parsed.ok) return { body: parsed.value };
+  return {
+    response: json(
+      {
+        error:
+          parsed.reason === "invalid_json"
+            ? "Invalid JSON body"
+            : "JSON body must be an object",
+      },
+      400,
+    ),
+  };
+}
 
 export async function handleFormsPlanningRoutes(
   context: AppContext,
@@ -57,7 +76,9 @@ export async function handleFormsPlanningRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/forms/create") {
-    const body = (await request.json()) as {
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.body as {
       template?: string;
       form?: Record<string, unknown>;
       metadata?: Record<string, unknown>;
@@ -75,7 +96,9 @@ export async function handleFormsPlanningRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/plans/create") {
-    const body = (await request.json()) as {
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.body as {
       title?: string;
       objective?: string;
       status?: "draft" | "active" | "completed";
@@ -131,12 +154,9 @@ export async function handleFormsPlanningRoutes(
       }
     }
 
-    let body: { instruction?: unknown };
-    try {
-      body = (await request.json()) as { instruction?: unknown };
-    } catch {
-      return json({ error: "A JSON instruction is required." }, 400);
-    }
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.body as { instruction?: unknown };
     const instruction =
       typeof body.instruction === "string" ? body.instruction.trim() : "";
     if (instruction.length < 1 || instruction.length > 4000) {

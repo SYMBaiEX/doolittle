@@ -126,6 +126,35 @@ describe("handleRuntimeRoutes", () => {
     }
   });
 
+  it("returns stable 400 responses for malformed workspace switches", async () => {
+    const context = createContext();
+    const malformed = await handleRuntimeRoutes(
+      context,
+      new Request("http://localhost/runtime/workspace", {
+        method: "POST",
+        body: "{",
+      }),
+      new URL("http://localhost/runtime/workspace"),
+    );
+    const arrayBody = await handleRuntimeRoutes(
+      context,
+      new Request("http://localhost/runtime/workspace", {
+        method: "POST",
+        body: JSON.stringify([]),
+      }),
+      new URL("http://localhost/runtime/workspace"),
+    );
+
+    expect(malformed?.status).toBe(400);
+    await expect(malformed?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(arrayBody?.status).toBe(400);
+    await expect(arrayBody?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
+
   it("returns runtime status with ownership details", async () => {
     const response = await handleRuntimeRoutes(
       createContext(),

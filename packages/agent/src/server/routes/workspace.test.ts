@@ -186,4 +186,33 @@ describe("handleWorkspaceRoutes", () => {
       runtimeRestarted: false,
     });
   });
+
+  it("returns stable 400 responses for malformed checkpoint bodies", async () => {
+    const context = createContext();
+    const malformedCreate = await handleWorkspaceRoutes(
+      context,
+      new Request("http://localhost/workspace/checkpoints", {
+        method: "POST",
+        body: "{",
+      }),
+      new URL("http://localhost/workspace/checkpoints"),
+    );
+    const arrayRestore = await handleWorkspaceRoutes(
+      context,
+      new Request("http://localhost/workspace/checkpoints/safe-1/restore", {
+        method: "POST",
+        body: JSON.stringify([]),
+      }),
+      new URL("http://localhost/workspace/checkpoints/safe-1/restore"),
+    );
+
+    expect(malformedCreate?.status).toBe(400);
+    await expect(malformedCreate?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(arrayRestore?.status).toBe(400);
+    await expect(arrayRestore?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
 });

@@ -12,8 +12,27 @@ import {
   previousTuiTheme,
   resolveTuiThemeName,
 } from "@/runtime/theme-catalog";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import { isSafeSettingPath } from "@/services/settings/path";
+
+type ParsedBody = { body: Record<string, unknown> } | { response: Response };
+
+async function readBody(request: Request): Promise<ParsedBody> {
+  const parsed = await readJsonObjectBody(request);
+  if (parsed.ok) return { body: parsed.value };
+  return {
+    response: json(
+      {
+        error:
+          parsed.reason === "invalid_json"
+            ? "Invalid JSON body"
+            : "JSON body must be an object",
+      },
+      400,
+    ),
+  };
+}
 
 const APPROVAL_STATUSES = new Set([
   "pending",
@@ -138,7 +157,9 @@ export async function handleSettingsExecutionRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/execution/preview") {
-    const body = (await request.json()) as {
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.body as {
       command?: string;
       timeoutMs?: number;
     };
@@ -151,7 +172,9 @@ export async function handleSettingsExecutionRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/settings") {
-    const body = (await request.json()) as {
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.body as {
       path?: string;
       value?: unknown;
       changes?: Array<{ path?: string; value?: unknown }>;
@@ -199,7 +222,9 @@ export async function handleSettingsExecutionRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/theme") {
-    const body = (await request.json()) as {
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.body as {
       theme?: string;
     };
     const theme = resolveTuiThemeName(body.theme);

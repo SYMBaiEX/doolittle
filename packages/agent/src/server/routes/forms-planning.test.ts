@@ -270,6 +270,47 @@ describe("handleFormsPlanningRoutes", () => {
     expect(orchestratorUnavailable?.status).toBe(503);
   });
 
+  it("returns stable 400 responses for malformed planning bodies", async () => {
+    const context = createContext();
+    const malformedForm = await handleFormsPlanningRoutes(
+      context,
+      new Request("http://localhost/forms/create", {
+        method: "POST",
+        body: "{",
+      }),
+      new URL("http://localhost/forms/create"),
+    );
+    const arrayPlan = await handleFormsPlanningRoutes(
+      context,
+      new Request("http://localhost/plans/create", {
+        method: "POST",
+        body: JSON.stringify([]),
+      }),
+      new URL("http://localhost/plans/create"),
+    );
+    const invalidSteer = await handleFormsPlanningRoutes(
+      context,
+      new Request("http://localhost/plans/plan-1/steer", {
+        method: "POST",
+        body: "not-json",
+      }),
+      new URL("http://localhost/plans/plan-1/steer"),
+    );
+
+    expect(malformedForm?.status).toBe(400);
+    await expect(malformedForm?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(arrayPlan?.status).toBe(400);
+    await expect(arrayPlan?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+    expect(invalidSteer?.status).toBe(400);
+    await expect(invalidSteer?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+  });
+
   it("rejects unsafe plan action identifiers before service dispatch", async () => {
     let calls = 0;
     const response = await handleFormsPlanningRoutes(

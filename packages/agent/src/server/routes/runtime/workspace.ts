@@ -1,6 +1,7 @@
 import { realpathSync, statSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import type { AppContext } from "@/runtime/bootstrap";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 
 const MAX_WORKSPACE_PATH_LENGTH = 4_096;
@@ -60,11 +61,23 @@ export async function handleRuntimeWorkspaceRoutes(
     return null;
   }
 
-  const body = (await request.json().catch(() => null)) as {
-    workspaceDir?: unknown;
-  } | null;
+  const parsed = await readJsonObjectBody(request);
+  if (!parsed.ok) {
+    return json(
+      {
+        error:
+          parsed.reason === "invalid_json"
+            ? "Invalid JSON body"
+            : "JSON body must be an object",
+      },
+      400,
+    );
+  }
   try {
-    const workspaceDir = switchRuntimeWorkspace(context, body?.workspaceDir);
+    const workspaceDir = switchRuntimeWorkspace(
+      context,
+      parsed.value.workspaceDir,
+    );
     return json({
       workspaceDir,
       processId: process.pid,

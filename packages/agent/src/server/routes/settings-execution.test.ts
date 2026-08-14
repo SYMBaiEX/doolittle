@@ -199,6 +199,47 @@ describe("handleSettingsExecutionRoutes", () => {
     });
   });
 
+  it("returns stable 400 responses for malformed configuration bodies", async () => {
+    const context = createContext();
+    const malformedPreview = await handleSettingsExecutionRoutes(
+      context,
+      new Request("http://localhost/execution/preview", {
+        method: "POST",
+        body: "{",
+      }),
+      new URL("http://localhost/execution/preview"),
+    );
+    const arraySettings = await handleSettingsExecutionRoutes(
+      context,
+      new Request("http://localhost/settings", {
+        method: "POST",
+        body: JSON.stringify([]),
+      }),
+      new URL("http://localhost/settings"),
+    );
+    const primitiveTheme = await handleSettingsExecutionRoutes(
+      context,
+      new Request("http://localhost/theme", {
+        method: "POST",
+        body: JSON.stringify("orange"),
+      }),
+      new URL("http://localhost/theme"),
+    );
+
+    expect(malformedPreview?.status).toBe(400);
+    await expect(malformedPreview?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(arraySettings?.status).toBe(400);
+    await expect(arraySettings?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+    expect(primitiveTheme?.status).toBe(400);
+    await expect(primitiveTheme?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
+
   it("updates settings, previews execution, and rotates themes", async () => {
     const context = createContext();
     const updated = await handleSettingsExecutionRoutes(

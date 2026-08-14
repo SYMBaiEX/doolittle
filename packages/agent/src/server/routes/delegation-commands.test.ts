@@ -159,6 +159,36 @@ describe("handleDelegationCommandRoutes", () => {
     expect(createTask).not.toHaveBeenCalled();
   });
 
+  it("returns stable 400 responses for malformed delegation bodies", async () => {
+    const { context, createTask } = createContext();
+    const malformedCreate = await handleDelegationCommandRoutes(
+      context,
+      new Request("http://localhost/delegation/tasks", {
+        method: "POST",
+        body: "{",
+      }),
+      new URL("http://localhost/delegation/tasks"),
+    );
+    const arraySpawn = await handleDelegationCommandRoutes(
+      context,
+      new Request("http://localhost/delegation/tasks/created/spawn", {
+        method: "POST",
+        body: JSON.stringify([]),
+      }),
+      new URL("http://localhost/delegation/tasks/created/spawn"),
+    );
+
+    expect(malformedCreate?.status).toBe(400);
+    await expect(malformedCreate?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(arraySpawn?.status).toBe(400);
+    await expect(arraySpawn?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+    expect(createTask).not.toHaveBeenCalled();
+  });
+
   it("passes research capability and request attribution without selecting a framework", async () => {
     const { context, createTask } = createContext();
     const response = await handleDelegationCommandRoutes(
