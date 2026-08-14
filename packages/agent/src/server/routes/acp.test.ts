@@ -193,6 +193,49 @@ describe("handleAcpRoutes", () => {
     });
   });
 
+  it("rejects malformed export, import, and tool-call bodies", async () => {
+    const malformedExport = await handleAcpRoutes(
+      createContext(),
+      new Request("http://localhost/acp/export", {
+        method: "POST",
+        body: "{",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/acp/export"),
+    );
+    const arrayImport = await handleAcpRoutes(
+      createContext(),
+      new Request("http://localhost/acp/import", {
+        method: "POST",
+        body: "[]",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/acp/import"),
+    );
+    const invalidCall = await handleAcpRoutes(
+      createContext(),
+      new Request("http://localhost/acp/call", {
+        method: "POST",
+        body: JSON.stringify({ tool: "tool-1", input: [] }),
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/acp/call"),
+    );
+
+    expect(malformedExport?.status).toBe(400);
+    await expect(malformedExport?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(arrayImport?.status).toBe(400);
+    await expect(arrayImport?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+    expect(invalidCall?.status).toBe(400);
+    await expect(invalidCall?.json()).resolves.toEqual({
+      error: "input must be an object",
+    });
+  });
+
   it.each([
     {
       label: "malformed JSON",

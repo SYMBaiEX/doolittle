@@ -208,19 +208,27 @@ export async function handleAcpRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/acp/export") {
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as {
-      label?: string;
-    };
+    const parsed = await readOptionalMutationObject(request);
+    if (parsed.error) return parsed.error;
+    const body = parsed.body;
+    if (body.label !== undefined && typeof body.label !== "string") {
+      return json({ error: "label must be a string" }, 400);
+    }
     return json({
       exported: context.services.acp.exportBundle(body.label ?? "latest"),
     });
   }
 
   if (request.method === "POST" && url.pathname === "/acp/import") {
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as {
-      path?: string;
-      payload?: string;
-    };
+    const parsed = await readOptionalMutationObject(request);
+    if (parsed.error) return parsed.error;
+    const body = parsed.body;
+    if (
+      (body.path !== undefined && typeof body.path !== "string") ||
+      (body.payload !== undefined && typeof body.payload !== "string")
+    ) {
+      return json({ error: "path and payload must be strings" }, 400);
+    }
     const input = body.payload ?? body.path ?? "";
     if (!input) {
       return json({ error: "path or payload is required" }, 400);
@@ -278,17 +286,24 @@ export async function handleAcpRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/acp/call") {
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as {
-      tool?: string;
-      input?: Record<string, unknown>;
-    };
-    if (!body.tool) {
+    const parsed = await readOptionalMutationObject(request);
+    if (parsed.error) return parsed.error;
+    const body = parsed.body;
+    if (typeof body.tool !== "string" || !body.tool.trim()) {
       return json({ error: "tool is required" }, 400);
+    }
+    if (
+      body.input !== undefined &&
+      (!body.input ||
+        typeof body.input !== "object" ||
+        Array.isArray(body.input))
+    ) {
+      return json({ error: "input must be an object" }, 400);
     }
     return json({
       result: await context.services.acp.invokeTool(
         body.tool,
-        body.input ?? {},
+        (body.input as Record<string, unknown> | undefined) ?? {},
       ),
     });
   }
@@ -303,6 +318,26 @@ async function readOptionalObject(
   return parsed && typeof parsed === "object" && !Array.isArray(parsed)
     ? (parsed as Record<string, unknown>)
     : {};
+}
+
+async function readOptionalMutationObject(
+  request: Request,
+): Promise<{ body: Record<string, unknown>; error?: Response }> {
+  if (request.body === null) return { body: {} };
+  const parsed = await readJsonObjectBody(request);
+  if (parsed.ok) return { body: parsed.value };
+  return {
+    body: {},
+    error: json(
+      {
+        error:
+          parsed.reason === "invalid_json"
+            ? "Invalid JSON body"
+            : "JSON body must be an object",
+      },
+      400,
+    ),
+  };
 }
 
 function isNonEmptyString(value: unknown): value is string {

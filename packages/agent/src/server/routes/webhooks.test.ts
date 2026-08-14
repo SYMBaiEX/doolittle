@@ -220,6 +220,36 @@ describe("handleWebhookRoutes", () => {
     });
   });
 
+  it("rejects malformed managed hook bodies before invoking the hook service", async () => {
+    const malformed = await handleWebhookRoutes(
+      createContext(),
+      new Request("http://localhost/hooks", {
+        method: "POST",
+        body: "{",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/hooks"),
+    );
+    const array = await handleWebhookRoutes(
+      createContext(),
+      new Request("http://localhost/hooks", {
+        method: "POST",
+        body: "[]",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/hooks"),
+    );
+
+    expect(malformed?.status).toBe(400);
+    await expect(malformed?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(array?.status).toBe(400);
+    await expect(array?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
+
   it("returns null for non-webhook routes", async () => {
     const response = await handleWebhookRoutes(
       createContext(),

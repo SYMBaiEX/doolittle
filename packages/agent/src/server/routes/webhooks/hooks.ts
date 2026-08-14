@@ -1,4 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 
 export async function handleHookRoutes(
@@ -14,12 +15,27 @@ export async function handleHookRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/hooks") {
-    const body = (await request.json()) as {
-      event: string;
-      name: string;
-      enabled?: boolean;
-      template: string;
-    };
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) {
+      return json(
+        {
+          error:
+            parsed.reason === "invalid_json"
+              ? "Invalid JSON body"
+              : "JSON body must be an object",
+        },
+        400,
+      );
+    }
+    const body = parsed.value;
+    if (
+      typeof body.event !== "string" ||
+      typeof body.name !== "string" ||
+      typeof body.template !== "string" ||
+      (body.enabled !== undefined && typeof body.enabled !== "boolean")
+    ) {
+      return json({ error: "event, name, and template are required" }, 400);
+    }
     try {
       return json({
         hook: context.services.hooks.add({

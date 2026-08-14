@@ -303,4 +303,34 @@ describe("handleRepositoryRoutes", () => {
       error: "branch and path are required",
     });
   });
+
+  it("returns stable errors for malformed worktree create bodies", async () => {
+    const malformed = await handleRepositoryRoutes(
+      createContext(),
+      new Request("http://localhost/repo/worktrees/create", {
+        method: "POST",
+        body: "{",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/repo/worktrees/create"),
+    );
+    const array = await handleRepositoryRoutes(
+      createContext(),
+      new Request("http://localhost/repo/worktrees/create", {
+        method: "POST",
+        body: "[]",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/repo/worktrees/create"),
+    );
+
+    expect(malformed?.status).toBe(400);
+    await expect(malformed?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(array?.status).toBe(400);
+    await expect(array?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
 });

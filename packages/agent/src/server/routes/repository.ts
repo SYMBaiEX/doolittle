@@ -1,5 +1,6 @@
 import type { RepositoryMutationRequest } from "@doolittle/contracts/repository";
 import type { AppContext } from "@/runtime/bootstrap";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 
 async function readMutationRequest(
@@ -105,18 +106,28 @@ export async function handleRepositoryRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/repo/worktrees/create") {
-    const body = ((await request.json().catch(() => ({}))) ?? {}) as {
-      branch?: unknown;
-      path?: unknown;
-    };
-    if (typeof body.branch !== "string" || typeof body.path !== "string") {
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) {
+      return json(
+        {
+          error:
+            parsed.reason === "invalid_json"
+              ? "Invalid JSON body"
+              : "JSON body must be an object",
+        },
+        400,
+      );
+    }
+    const branch = parsed.value.branch;
+    const path = parsed.value.path;
+    if (typeof branch !== "string" || typeof path !== "string") {
       return json({ error: "branch and path are required" }, 400);
     }
     return json(
       {
         worktree: await context.services.repository.createWorktree({
-          branch: body.branch,
-          path: body.path,
+          branch,
+          path,
         }),
       },
       201,
