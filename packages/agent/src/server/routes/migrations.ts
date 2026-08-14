@@ -1,4 +1,5 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 
 export async function handleMigrationRoutes(
@@ -32,16 +33,28 @@ export async function handleMigrationRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/migrate/apply") {
-    const body = (await request.json()) as {
-      path?: string;
-      overwrite?: boolean;
-    };
-    if (!body.path) {
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) {
+      return json(
+        {
+          error:
+            parsed.reason === "invalid_json"
+              ? "Invalid JSON body"
+              : "JSON body must be an object",
+        },
+        400,
+      );
+    }
+    const path = parsed.value.path;
+    if (typeof path !== "string" || !path.trim()) {
       return json({ error: "path is required" }, 400);
     }
     return json({
-      result: context.services.operator.applyMigration(body.path, {
-        overwrite: body.overwrite,
+      result: context.services.operator.applyMigration(path, {
+        overwrite:
+          typeof parsed.value.overwrite === "boolean"
+            ? parsed.value.overwrite
+            : undefined,
       }),
     });
   }

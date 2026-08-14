@@ -41,7 +41,7 @@ export async function handleGatewayConfigRoutes(
         400,
       );
     }
-    const body = parsed.value as GatewayConfig;
+    const body = parsed.value as unknown as GatewayConfig;
     saveGatewayConfig(context.config, body);
     applyGatewayConfig(context, body);
     return json({ ok: true, gateway: body });

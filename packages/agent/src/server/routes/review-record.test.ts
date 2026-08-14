@@ -162,6 +162,32 @@ describe("handleReviewRecordRoutes", () => {
     });
   });
 
+  it("rejects malformed mutation bodies before touching the record", async () => {
+    const malformed = await route(createContext(), "/review-record/comments", {
+      method: "POST",
+      body: "{",
+      headers: { "content-type": "application/json" },
+    });
+    const array = await route(
+      createContext(),
+      "/review-record/comments/migrate",
+      {
+        method: "POST",
+        body: "[]",
+        headers: { "content-type": "application/json" },
+      },
+    );
+
+    expect(malformed?.status).toBe(400);
+    await expect(malformed?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(array?.status).toBe(400);
+    await expect(array?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
+
   it("returns a bounded client error for malformed comment identifiers", async () => {
     const context = createContext();
     const paths = [

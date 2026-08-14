@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AppContext } from "@/runtime/bootstrap";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import type {
   ReviewRecordComment,
@@ -91,6 +92,24 @@ function responseError(error: unknown): Response {
   );
 }
 
+async function readMutationBody(
+  request: Request,
+): Promise<{ body?: Record<string, unknown>; error?: Response }> {
+  const parsed = await readJsonObjectBody(request);
+  if (parsed.ok) return { body: parsed.value };
+  return {
+    error: json(
+      {
+        error:
+          parsed.reason === "invalid_json"
+            ? "Invalid JSON body"
+            : "JSON body must be an object",
+      },
+      400,
+    ),
+  };
+}
+
 export async function handleReviewRecordRoutes(
   context: AppContext,
   request: Request,
@@ -113,14 +132,13 @@ export async function handleReviewRecordRoutes(
       return json(page);
     }
 
-    const body = (await request.json().catch(() => ({}))) as Record<
-      string,
-      unknown
-    >;
     if (
       request.method === "POST" &&
       url.pathname === "/review-record/comments"
     ) {
+      const parsed = await readMutationBody(request);
+      if (parsed.error) return parsed.error;
+      const body = parsed.body ?? {};
       const comment = requestComment(body.comment);
       if (!comment)
         return json({ error: "A valid review comment is required." }, 400);
@@ -136,6 +154,9 @@ export async function handleReviewRecordRoutes(
       request.method === "POST" &&
       url.pathname === "/review-record/comments/migrate"
     ) {
+      const parsed = await readMutationBody(request);
+      if (parsed.error) return parsed.error;
+      const body = parsed.body ?? {};
       const comments = Array.isArray(body.comments)
         ? body.comments.slice(-MAX_MIGRATION_COMMENTS).flatMap((value) => {
             const comment = requestComment(value);
@@ -163,6 +184,9 @@ export async function handleReviewRecordRoutes(
       url.pathname,
     );
     if (commentMatch && request.method === "PATCH") {
+      const parsed = await readMutationBody(request);
+      if (parsed.error) return parsed.error;
+      const body = parsed.body ?? {};
       const id = decodeCommentId(commentMatch[1]);
       if (!id) {
         return json({ error: "Review comment identifier is invalid." }, 400);

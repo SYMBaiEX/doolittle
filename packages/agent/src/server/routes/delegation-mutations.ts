@@ -6,6 +6,7 @@ import {
   getOfficialOrchestrator,
   retryEffectiveDelegationTask,
 } from "@/runtime/native/service-bridge/delegation";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 
 export async function handleDelegationMutationRoutes(
@@ -34,12 +35,33 @@ export async function handleDelegationMutationRoutes(
   const parts = url.pathname.split("/");
   const id = parts[3];
   const action = parts[4];
-  const body = ((await request.json().catch(() => ({}))) ?? {}) as {
+  if (!id || !action) {
+    return json({ error: "task id and action are required" }, 400);
+  }
+  const parsed = await readJsonObjectBody(request);
+  if (!parsed.ok) {
+    return json(
+      {
+        error:
+          parsed.reason === "invalid_json"
+            ? "Invalid JSON body"
+            : "JSON body must be an object",
+      },
+      400,
+    );
+  }
+  const body = parsed.value as {
     note?: string;
     cascadeChildren?: boolean;
   };
-  if (!id || !action) {
-    return json({ error: "task id and action are required" }, 400);
+  if (body.note !== undefined && typeof body.note !== "string") {
+    return json({ error: "note must be a string" }, 400);
+  }
+  if (
+    body.cascadeChildren !== undefined &&
+    typeof body.cascadeChildren !== "boolean"
+  ) {
+    return json({ error: "cascadeChildren must be a boolean" }, 400);
   }
 
   if (action === "note") {

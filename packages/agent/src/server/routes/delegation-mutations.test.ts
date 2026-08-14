@@ -91,4 +91,34 @@ describe("handleDelegationMutationRoutes", () => {
     );
     expect(response?.status).toBe(503);
   });
+
+  it("rejects malformed and invalid mutation fields before lifecycle dispatch", async () => {
+    const malformed = await handleDelegationMutationRoutes(
+      createContext(),
+      new Request("http://localhost/delegation/tasks/task-1/note", {
+        method: "POST",
+        body: "{",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/delegation/tasks/task-1/note"),
+    );
+    const invalidField = await handleDelegationMutationRoutes(
+      createContext(),
+      new Request("http://localhost/delegation/tasks/task-1/cancel", {
+        method: "POST",
+        body: JSON.stringify({ cascadeChildren: "yes" }),
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/delegation/tasks/task-1/cancel"),
+    );
+
+    expect(malformed?.status).toBe(400);
+    await expect(malformed?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(invalidField?.status).toBe(400);
+    await expect(invalidField?.json()).resolves.toEqual({
+      error: "cascadeChildren must be a boolean",
+    });
+  });
 });

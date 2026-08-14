@@ -224,4 +224,34 @@ describe("handleSkillSynthesisRoutes", () => {
       error: "slug and content are required",
     });
   });
+
+  it("returns deterministic errors for malformed mutation bodies", async () => {
+    const malformed = await handleSkillSynthesisRoutes(
+      createContext(),
+      new Request("http://localhost/skills/synthesize", {
+        method: "POST",
+        body: "{",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/skills/synthesize"),
+    );
+    const array = await handleSkillSynthesisRoutes(
+      createContext(),
+      new Request("http://localhost/skills/proposals", {
+        method: "POST",
+        body: "[]",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/skills/proposals"),
+    );
+
+    expect(malformed?.status).toBe(400);
+    await expect(malformed?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(array?.status).toBe(400);
+    await expect(array?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
 });

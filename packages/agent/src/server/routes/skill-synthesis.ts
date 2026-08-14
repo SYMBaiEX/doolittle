@@ -1,5 +1,6 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import { getEffectiveDelegationTask } from "@/runtime/native/service-bridge/delegation";
+import { type JsonObject, readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import {
   type CreateSkillProposalInput,
@@ -8,17 +9,22 @@ import {
 
 const proposalIdPattern = /^skill-proposal-[0-9a-f-]{36}$/u;
 
-async function readJson(
+async function readMutationBody(
   request: Request,
-): Promise<Record<string, unknown> | null> {
-  try {
-    const body = await request.json();
-    return body && typeof body === "object" && !Array.isArray(body)
-      ? (body as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
-  }
+): Promise<{ body?: JsonObject; error?: Response }> {
+  const parsed = await readJsonObjectBody(request);
+  if (parsed.ok) return { body: parsed.value };
+  return {
+    error: json(
+      {
+        error:
+          parsed.reason === "invalid_json"
+            ? "Invalid JSON body"
+            : "JSON body must be an object",
+      },
+      400,
+    ),
+  };
 }
 
 function stringValue(value: unknown): string | undefined {
@@ -68,8 +74,9 @@ export async function handleSkillSynthesisRoutes(
   // action. Keep its exact response contract; proposal endpoints below are
   // the reviewed path and are the only new way to activate proposal content.
   if (request.method === "POST" && url.pathname === "/skills/synthesize") {
-    const body = await readJson(request);
-    const taskId = body && stringValue(body.taskId);
+    const parsed = await readMutationBody(request);
+    if (parsed.error) return parsed.error;
+    const taskId = stringValue(parsed.body?.taskId);
     if (!taskId) return json({ error: "taskId is required" }, 400);
 
     const task = await getEffectiveDelegationTask(context.runtime, taskId);
@@ -93,8 +100,9 @@ export async function handleSkillSynthesisRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/skills/proposals") {
-    const body = await readJson(request);
-    const input = body && proposalInput(body);
+    const parsed = await readMutationBody(request);
+    if (parsed.error) return parsed.error;
+    const input = proposalInput(parsed.body ?? {});
     if (!input) {
       return json({ error: "slug and content are required" }, 400);
     }
@@ -127,13 +135,14 @@ export async function handleSkillSynthesisRoutes(
 
   const action = proposalAction(url.pathname);
   if (request.method === "POST" && action) {
-    const body = await readJson(request);
+    const parsed = await readMutationBody(request);
+    if (parsed.error) return parsed.error;
     const transition =
       action.action === "approve"
         ? context.services.skillSynthesis.approveProposal(action.id)
         : context.services.skillSynthesis.rejectProposal(
             action.id,
-            body ? stringValue(body.reason) : undefined,
+            stringValue(parsed.body?.reason),
           );
     switch (transition.kind) {
       case "approved":

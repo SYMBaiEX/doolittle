@@ -85,6 +85,36 @@ describe("handleMigrationRoutes", () => {
     });
   });
 
+  it("rejects malformed and non-object apply bodies before dispatch", async () => {
+    const malformed = await handleMigrationRoutes(
+      createContext(),
+      new Request("http://localhost/migrate/apply", {
+        method: "POST",
+        body: "{",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/migrate/apply"),
+    );
+    const array = await handleMigrationRoutes(
+      createContext(),
+      new Request("http://localhost/migrate/apply", {
+        method: "POST",
+        body: "[]",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/migrate/apply"),
+    );
+
+    expect(malformed?.status).toBe(400);
+    await expect(malformed?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(array?.status).toBe(400);
+    await expect(array?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
+
   it("returns null for unrelated routes", async () => {
     const response = await handleMigrationRoutes(
       createContext(),
