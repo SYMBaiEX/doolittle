@@ -250,6 +250,76 @@ describe("handleConversationRoutes", () => {
     }
   });
 
+  it("rejects Responses features that would otherwise be silently dropped", async () => {
+    for (const [field, value, error] of [
+      [
+        "model",
+        "gpt-5",
+        "model is not supported by this text-only Responses endpoint",
+      ],
+      [
+        "tools",
+        [{ type: "function", name: "lookup" }],
+        "tools is not supported by this text-only Responses endpoint",
+      ],
+    ] as const) {
+      const context = createContext();
+      let received = false;
+      context.gateway.receive = async () => {
+        received = true;
+        return { ok: true, response: "should not run" };
+      };
+
+      const response = await handleConversationRoutes(
+        context,
+        new Request("http://localhost/v1/responses", {
+          method: "POST",
+          body: JSON.stringify({ input: "hello", [field]: value }),
+          headers: { "content-type": "application/json" },
+        }),
+        new URL("http://localhost/v1/responses"),
+      );
+
+      expect(response?.status).toBe(400);
+      await expect(response?.json()).resolves.toEqual({ error });
+      expect(received).toBe(false);
+    }
+  });
+
+  it("rejects non-text response content before agent execution", async () => {
+    const context = createContext();
+    let received = false;
+    context.gateway.receive = async () => {
+      received = true;
+      return { ok: true, response: "should not run" };
+    };
+    const response = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/v1/responses", {
+        method: "POST",
+        body: JSON.stringify({
+          input: [
+            {
+              role: "user",
+              content: [
+                { type: "input_image", image_url: "https://example.com" },
+              ],
+            },
+          ],
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/v1/responses"),
+    );
+
+    expect(response?.status).toBe(400);
+    await expect(response?.json()).resolves.toEqual({
+      error:
+        "input content type input_image is not supported by this text-only Responses endpoint",
+    });
+    expect(received).toBe(false);
+  });
+
   it("rejects chat requests without a message", async () => {
     const response = await handleConversationRoutes(
       createContext(),

@@ -13,6 +13,22 @@ import type { RunUpdateEvent } from "@/services/run-controller-service";
 import { buildResponsePayload } from "./payload";
 import type { ResponsesRequestBody } from "./types";
 
+const UNSUPPORTED_RESPONSES_FIELDS = [
+  "model",
+  "instructions",
+  "tools",
+  "tool_choice",
+  "reasoning",
+  "max_output_tokens",
+  "temperature",
+  "top_p",
+  "truncation",
+  "store",
+  "include",
+  "parallel_tool_calls",
+  "background",
+] as const;
+
 function responseInputText(body: ResponsesRequestBody): string | undefined {
   if (typeof body.input === "string") {
     return body.input.trim() || undefined;
@@ -93,6 +109,17 @@ export async function handleResponsesRoute(
     );
   }
   const body = parsed.value as ResponsesRequestBody;
+  const unsupportedField = UNSUPPORTED_RESPONSES_FIELDS.find((field) =>
+    Object.hasOwn(parsed.value, field),
+  );
+  if (unsupportedField) {
+    return json(
+      {
+        error: `${unsupportedField} is not supported by this text-only Responses endpoint`,
+      },
+      400,
+    );
+  }
   if (body.stream !== undefined && typeof body.stream !== "boolean") {
     return json({ error: "stream must be a boolean" }, 400);
   }
@@ -104,6 +131,10 @@ export async function handleResponsesRoute(
     typeof body.previous_response_id !== "string"
   ) {
     return json({ error: "previous_response_id must be a string" }, 400);
+  }
+  const inputError = validateResponseInput(body.input);
+  if (inputError) {
+    return json({ error: inputError }, 400);
   }
   const inputText = responseInputText(body);
 
@@ -362,4 +393,38 @@ export async function handleResponsesRoute(
   const responsePayload = buildResponsePayload(record);
 
   return json(responsePayload);
+}
+
+function validateResponseInput(input: unknown): string | undefined {
+  if (input === undefined || typeof input === "string") return undefined;
+  if (!Array.isArray(input)) return "input must be a string or message array";
+
+  for (const [index, entry] of input.entries()) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return `input[${index}] must be an object`;
+    }
+    const record = entry as Record<string, unknown>;
+    const content = record.content;
+    if (content === undefined || typeof content === "string") continue;
+    if (!Array.isArray(content)) {
+      return `input[${index}].content must be a string or content-part array`;
+    }
+    for (const [partIndex, part] of content.entries()) {
+      if (!part || typeof part !== "object" || Array.isArray(part)) {
+        return `input[${index}].content[${partIndex}] must be an object`;
+      }
+      const partRecord = part as Record<string, unknown>;
+      const type = partRecord.type;
+      if (type !== undefined && type !== "input_text" && type !== "text") {
+        return `input content type ${String(type)} is not supported by this text-only Responses endpoint`;
+      }
+      if (
+        partRecord.text !== undefined &&
+        typeof partRecord.text !== "string"
+      ) {
+        return `input[${index}].content[${partIndex}].text must be a string`;
+      }
+    }
+  }
+  return undefined;
 }
