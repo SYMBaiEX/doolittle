@@ -3,6 +3,7 @@ import type { AgentRuntime } from "@elizaos/core";
 import { installNativeDiscordInboundHandoff } from "@/gateway/platforms/native-discord-inbound";
 import { installNativeSignalInboundHandoff } from "@/gateway/platforms/native-signal-inbound";
 import { installNativeSlackInboundHandoff } from "@/gateway/platforms/native-slack-inbound";
+import { installNativeWhatsAppInboundHandoff } from "@/gateway/platforms/native-whatsapp-inbound";
 import {
   finalizeCoreRuntimeServices,
   requireRuntimeService,
@@ -53,6 +54,7 @@ export async function configureBootstrapContext({
       installNativeDiscordInboundHandoff(runtime, gateway.get());
       installNativeSlackInboundHandoff(runtime, gateway.get());
       installNativeSignalInboundHandoff(runtime, gateway.get());
+      installNativeWhatsAppInboundHandoff(runtime, gateway.get());
     },
     ensureGateway: () => {
       gateway.get();
