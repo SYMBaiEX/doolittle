@@ -239,6 +239,16 @@ export function registerTerminalIpcHandlers(
             }
           }
         }
+        const tail = decoder.decode();
+        for (const eventMessage of parser.push(tail)) {
+          emitEvent(eventMessage);
+          if (eventMessage.event === "terminal.completed") {
+            notifyBackground({
+              title: "Command complete",
+              body: "Your terminal task finished in Doolittle.",
+            });
+          }
+        }
         for (const eventMessage of parser.finish()) {
           emitEvent(eventMessage);
           if (eventMessage.event === "terminal.completed") {

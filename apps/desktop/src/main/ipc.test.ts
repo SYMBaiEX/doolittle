@@ -482,6 +482,53 @@ describe("sensitive desktop actions", () => {
     harness.dispose();
   });
 
+  it("flushes a split UTF-8 tail before finishing a chat stream", async () => {
+    const events: Array<{ requestId: string; event: string; data: unknown }> =
+      [];
+    const bytes = new TextEncoder().encode(
+      "event: response.completed\ndata: 😀",
+    );
+    const harness = createHarness({
+      confirmed: true,
+      fetch: async () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(bytes.slice(0, -1));
+              controller.enqueue(bytes.slice(-1));
+              controller.close();
+            },
+          }),
+          { headers: { "content-type": "text/event-stream" } },
+        ),
+    });
+    const sender = {
+      id: 74,
+      isDestroyed: () => false,
+      send: (_channel: string, event: (typeof events)[number]) =>
+        events.push(event),
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+
+    await expect(
+      harness.handlers.get("chat:start")?.(
+        { sender },
+        {
+          requestId: "chat:utf8-tail",
+          message: "stream request",
+          roomId: "desktop:room-1",
+        },
+      ),
+    ).resolves.toBeUndefined();
+    expect(events).toContainEqual({
+      requestId: "chat:utf8-tail",
+      event: "response.completed",
+      data: "😀",
+    });
+    harness.dispose();
+  });
+
   it("does not emit a second terminal event after a completed response", async () => {
     const events: Array<{ requestId: string; event: string; data: unknown }> =
       [];

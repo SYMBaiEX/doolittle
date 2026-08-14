@@ -499,6 +499,16 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             }
           }
         }
+        const tail = decoder.decode();
+        for (const eventMessage of parser.push(tail)) {
+          emitChatEvent(eventMessage);
+          if (eventMessage.event === "response.completed") {
+            notifyBackground({
+              title: "Doolittle is ready",
+              body: "Your response is ready.",
+            });
+          }
+        }
         for (const eventMessage of parser.finish()) {
           emitChatEvent(eventMessage);
           if (eventMessage.event === "response.completed") {
