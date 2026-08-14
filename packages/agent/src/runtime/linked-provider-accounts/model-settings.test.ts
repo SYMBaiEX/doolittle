@@ -120,6 +120,51 @@ describe("syncProviderSettings", () => {
     expect(runtimeSettings.has("OPENAI_BASE_URL")).toBe(false);
   });
 
+  it("maps an Ollama route selection to every text model slot", () => {
+    const runtimeSettings = new Map<string, string>();
+    const context = {
+      runtime: {
+        setSetting: (key: string, value: string) =>
+          runtimeSettings.set(key, value),
+        getSetting: (key: string) => runtimeSettings.get(key),
+      },
+      config: {
+        elizaCloudSmallModel: "ec-small",
+        elizaCloudLargeModel: "ec-large",
+      },
+      services: {
+        settings: {
+          get: () => ({
+            model: {
+              provider: "ollama",
+              model: "qwen3:8b",
+              baseUrl: "http://127.0.0.1:11434/api",
+            },
+          }),
+        },
+      },
+    } as unknown as AgentExecutionContext;
+
+    syncProviderSettings(context, context.services.settings.get());
+
+    for (const key of [
+      "OLLAMA_NANO_MODEL",
+      "OLLAMA_SMALL_MODEL",
+      "OLLAMA_MEDIUM_MODEL",
+      "OLLAMA_LARGE_MODEL",
+      "OLLAMA_MEGA_MODEL",
+      "OLLAMA_RESPONSE_HANDLER_MODEL",
+      "OLLAMA_SHOULD_RESPOND_MODEL",
+      "OLLAMA_ACTION_PLANNER_MODEL",
+      "OLLAMA_PLANNER_MODEL",
+    ]) {
+      expect(runtimeSettings.get(key)).toBe("qwen3:8b");
+    }
+    expect(runtimeSettings.get("OLLAMA_API_ENDPOINT")).toBe(
+      "http://127.0.0.1:11434/api",
+    );
+  });
+
   it("routes linked Claude OAuth through the official Anthropic plugin mode", () => {
     const settings = {
       model: {

@@ -143,6 +143,31 @@ export function buildProviderRuntimeSettings(
     return runtimeSettings;
   }
 
+  if (provider === "ollama") {
+    // The native Ollama adapter has separate model slots for different Eliza
+    // model types. A desktop route selection is the user's source of truth,
+    // so keep every text slot aligned with the selected model instead of
+    // leaving the startup `.env` defaults (commonly Granite) active after a
+    // model change.
+    for (const key of [
+      "OLLAMA_NANO_MODEL",
+      "OLLAMA_SMALL_MODEL",
+      "OLLAMA_MEDIUM_MODEL",
+      "OLLAMA_LARGE_MODEL",
+      "OLLAMA_MEGA_MODEL",
+      "OLLAMA_RESPONSE_HANDLER_MODEL",
+      "OLLAMA_SHOULD_RESPOND_MODEL",
+      "OLLAMA_ACTION_PLANNER_MODEL",
+      "OLLAMA_PLANNER_MODEL",
+    ]) {
+      runtimeSettings.set(key, model);
+    }
+    if (baseUrl.trim()) {
+      runtimeSettings.set("OLLAMA_API_ENDPOINT", baseUrl);
+    }
+    return runtimeSettings;
+  }
+
   if (provider === "codex") {
     runtimeSettings.set("CODEX_MODEL", model);
     runtimeSettings.set(
