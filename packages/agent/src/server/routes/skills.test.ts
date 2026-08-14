@@ -109,6 +109,34 @@ describe("handleSkillRoutes", () => {
     expect(await installError?.json()).toEqual({ error: "slug is required" });
   });
 
+  it("returns stable 400 responses for malformed skill mutation bodies", async () => {
+    const malformedExport = await handleSkillRoutes(
+      createContext(),
+      new Request("http://localhost/skills/export", {
+        method: "POST",
+        body: "{",
+      }),
+      new URL("http://localhost/skills/export"),
+    );
+    const arrayInstall = await handleSkillRoutes(
+      createContext(),
+      new Request("http://localhost/skills/install", {
+        method: "POST",
+        body: JSON.stringify([]),
+      }),
+      new URL("http://localhost/skills/install"),
+    );
+
+    expect(malformedExport?.status).toBe(400);
+    await expect(malformedExport?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(arrayInstall?.status).toBe(400);
+    await expect(arrayInstall?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
+
   it("routes installs through the official service", async () => {
     const response = await handleSkillRoutes(
       createContext(),

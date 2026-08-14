@@ -160,6 +160,35 @@ describe("Doolittle account-pool routes", () => {
     expect(accountPool.importDoolittleApiAccount).not.toHaveBeenCalled();
   });
 
+  it("returns stable 400 responses for malformed account bodies", async () => {
+    accountPool.isAccountPoolProvider.mockReturnValue(true);
+    const malformedImport = await handleRuntimeAccountRoutes(
+      context,
+      new Request("http://localhost/runtime/account-pool/openai-api/import", {
+        method: "POST",
+        body: "{",
+      }),
+      new URL("http://localhost/runtime/account-pool/openai-api/import"),
+    );
+    const arrayUse = await handleRuntimeAccountRoutes(
+      context,
+      new Request("http://localhost/accounts/use", {
+        method: "POST",
+        body: JSON.stringify([]),
+      }),
+      new URL("http://localhost/accounts/use"),
+    );
+
+    expect(malformedImport?.status).toBe(400);
+    await expect(malformedImport?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(arrayUse?.status).toBe(400);
+    await expect(arrayUse?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
+
   it("persists strategy and reports credential deletion", async () => {
     accountPool.isAccountPoolProvider.mockReturnValue(true);
     accountPool.setDoolittleAccountPoolStrategy.mockReturnValue("round-robin");
