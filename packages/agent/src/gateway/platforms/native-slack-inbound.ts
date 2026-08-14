@@ -68,12 +68,12 @@ function shouldIgnoreSlackMessage(
   const isMentioned = Boolean(
     botUserId && event.text?.includes(`<@${botUserId}>`),
   );
-  if (isMentioned && event.channel_type !== "im") return true;
-
   const onlyMentions = isTruthySetting(
     service.runtime?.getSetting?.("SLACK_SHOULD_RESPOND_ONLY_TO_MENTIONS"),
   );
-  if (onlyMentions && !isMentioned) return true;
+  if (onlyMentions && event.channel_type !== "im" && !isMentioned) {
+    return true;
+  }
 
   return false;
 }

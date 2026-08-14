@@ -7,7 +7,7 @@ import {
 function createSlackService() {
   return {
     runtime: {
-      getSetting: vi.fn(() => false),
+      getSetting: vi.fn((_key?: string) => false),
     },
     handleMessage: vi.fn(async (..._args: unknown[]) => undefined),
     handleAppMention: vi.fn(async (..._args: unknown[]) => undefined),
@@ -99,6 +99,65 @@ describe("native Slack inbound handoff", () => {
     );
 
     expect(receive).not.toHaveBeenCalled();
+  });
+
+  it("routes a channel message that mentions the bot", () => {
+    const service = createSlackService();
+
+    expect(
+      normalizeNativeSlackEvent(service, {
+        type: "message",
+        channel: "C123",
+        channel_type: "channel",
+        user: "U123",
+        ts: "1700000000.000103",
+        text: "<@U-BOT> can you help?",
+      }),
+    ).toMatchObject({
+      platform: "slack",
+      roomId: "C123",
+      text: "<@U-BOT> can you help?",
+    });
+  });
+
+  it("applies mention-only mode to channel messages without changing DMs", () => {
+    const service = createSlackService();
+    service.runtime.getSetting.mockImplementation(
+      (key?: string) => key === "SLACK_SHOULD_RESPOND_ONLY_TO_MENTIONS",
+    );
+
+    expect(
+      normalizeNativeSlackEvent(service, {
+        type: "message",
+        channel: "C123",
+        channel_type: "channel",
+        user: "U123",
+        ts: "1700000000.000104",
+        text: "hello channel",
+      }),
+    ).toBeNull();
+
+    expect(
+      normalizeNativeSlackEvent(service, {
+        type: "message",
+        channel: "C123",
+        channel_type: "channel",
+        user: "U123",
+        ts: "1700000000.000105",
+        text: "<@U-BOT> hello channel",
+      }),
+    ).not.toBeNull();
+
+    expect(
+      normalizeNativeSlackEvent(service, {
+        type: "message",
+        channel: "D123",
+        channel_type: "im",
+        user: "U123",
+        ts: "1700000000.000106",
+        text: "hello directly",
+      }),
+    ).not.toBeNull();
   });
 
   it("routes app mentions through the same gateway contract", async () => {
