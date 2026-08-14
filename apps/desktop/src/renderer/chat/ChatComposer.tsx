@@ -276,9 +276,11 @@ export function ChatComposer({
           <span className="chat-context-capsule__icon" aria-hidden="true">
             {chatContextCapsule.kind === "terminal"
               ? "▣"
-              : chatContextCapsule.kind === "file"
-                ? "▤"
-                : "⌁"}
+              : chatContextCapsule.kind === "browser"
+                ? "◎"
+                : chatContextCapsule.kind === "file"
+                  ? "▤"
+                  : "⌁"}
           </span>
           <span className="chat-context-capsule__label">
             {chatContextCapsule.kind === "diff"
@@ -291,7 +293,9 @@ export function ChatComposer({
                     ? "Plan"
                     : chatContextCapsule.kind === "terminal"
                       ? "Terminal"
-                      : "Source"}{" "}
+                      : chatContextCapsule.kind === "browser"
+                        ? "Browser"
+                        : "Source"}{" "}
             · {chatContextCapsule.path}
           </span>
           {chatContextCapsule.source ? (

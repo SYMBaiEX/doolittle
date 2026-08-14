@@ -79,6 +79,22 @@ describe("chat context handoff scope", () => {
     );
   });
 
+  it("turns browser evidence into a compact removable capsule", () => {
+    const result = splitChatContext(
+      'Inspect the failing layout.\n<browser_evidence version="1" action="capture" title="Local preview" url="http://127.0.0.1:3000" viewport="desktop" capture_mode="pixel" pixel_evidence="available"><capture>Artifact-backed evidence.</capture></browser_evidence>',
+    );
+    expect(result.prompt).toBe("Inspect the failing layout.");
+    expect(result.capsule).toMatchObject({
+      kind: "browser",
+      path: "http://127.0.0.1:3000",
+      source: "capture",
+    });
+    expect(result.prompt).not.toContain("Artifact-backed evidence");
+    expect(composeChatContextMessage(result.prompt, result.capsule)).toContain(
+      "Artifact-backed evidence.",
+    );
+  });
+
   it("resolves an all-project source from its workspace instead of a selected chat", () => {
     expect(resolveChatContextProjectScope(request, projects, pathsEqual)).toBe(
       "project-alpha",

@@ -136,6 +136,28 @@ describe("chat presentation components", () => {
     expect(html).not.toContain("secret");
   });
 
+  it("renders browser evidence as a compact removable capsule", () => {
+    const html = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          chatContextCapsule: {
+            kind: "browser",
+            path: "http://127.0.0.1:3000",
+            source: "capture",
+            content:
+              '<browser_evidence action="capture" url="http://127.0.0.1:3000">large receipt</browser_evidence>',
+          },
+        })}
+      />,
+    );
+    expect(html).toContain("Browser · http://127.0.0.1:3000");
+    expect(html).toContain("capture");
+    expect(html).toContain(
+      'aria-label="Remove http://127.0.0.1:3000 from message context"',
+    );
+    expect(html).not.toContain("large receipt");
+  });
+
   it("keeps sent source context compact in the transcript", () => {
     const html = renderToStaticMarkup(
       <ChatMessage

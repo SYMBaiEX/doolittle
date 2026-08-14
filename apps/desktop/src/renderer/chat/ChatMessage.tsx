@@ -82,9 +82,11 @@ export function ChatMessage({
             <span aria-hidden="true">
               {message.contextCapsule.kind === "terminal"
                 ? "▣"
-                : message.contextCapsule.kind === "file"
-                  ? "▤"
-                  : "⌁"}
+                : message.contextCapsule.kind === "browser"
+                  ? "◎"
+                  : message.contextCapsule.kind === "file"
+                    ? "▤"
+                    : "⌁"}
             </span>
             <span>
               {message.contextCapsule.kind === "diff"
@@ -97,7 +99,9 @@ export function ChatMessage({
                       ? "Plan"
                       : message.contextCapsule.kind === "terminal"
                         ? "Terminal"
-                        : "Source"}{" "}
+                        : message.contextCapsule.kind === "browser"
+                          ? "Browser"
+                          : "Source"}{" "}
               · {message.contextCapsule.path}
             </span>
             {message.contextCapsule.source ? (

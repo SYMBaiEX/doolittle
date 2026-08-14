@@ -13,6 +13,7 @@ export const CHAT_CONTEXT_CAPSULE_KINDS = [
   "brief",
   "terminal",
   "plan",
+  "browser",
 ] as const;
 
 export type ChatContextCapsuleKind =
@@ -38,22 +39,38 @@ export function splitChatContext(text: string): {
   capsule: ChatContextCapsule | null;
 } {
   const match = text.match(
-    /(?<block><(?<tag>file_context|review_context)\b(?<attrs>[^>]*)>[\s\S]*?<\/\k<tag>>|<doolittle-context\b(?<attrs2>[^>]*)>[\s\S]*?<\/doolittle-context>|<terminal_context\b(?<attrs3>[^>]*)>[\s\S]*?<\/terminal_context>)/u,
+    /(?<block><(?<tag>file_context|review_context)\b(?<attrs>[^>]*)>[\s\S]*?<\/\k<tag>>|<doolittle-context\b(?<attrs2>[^>]*)>[\s\S]*?<\/doolittle-context>|<terminal_context\b(?<attrs3>[^>]*)>[\s\S]*?<\/terminal_context>|<browser_evidence\b(?<attrs4>[^>]*)>[\s\S]*?<\/browser_evidence>)/u,
   );
   if (!match?.groups) return { prompt: text.trim(), capsule: null };
   const attrs =
-    match.groups.attrs ?? match.groups.attrs2 ?? match.groups.attrs3 ?? "";
+    match.groups.attrs ??
+    match.groups.attrs2 ??
+    match.groups.attrs3 ??
+    match.groups.attrs4 ??
+    "";
   const blockTag = match[0].startsWith("<terminal_context")
     ? "terminal"
-    : match[0].startsWith("<doolittle-context")
-      ? "doolittle"
-      : match.groups.tag;
+    : match[0].startsWith("<browser_evidence")
+      ? "browser"
+      : match[0].startsWith("<doolittle-context")
+        ? "doolittle"
+        : match.groups.tag;
   const path =
     attrs.match(/\bpath="([^"\n]*)"/u)?.[1]?.trim() ||
+    (blockTag === "browser"
+      ? attrs.match(/\burl="([^"\n]*)"/u)?.[1]?.trim() ||
+        attrs.match(/\btitle="([^"\n]*)"/u)?.[1]?.trim() ||
+        "Browser evidence"
+      : undefined) ||
     attrs.match(/\bsource="([^"\n]*)"/u)?.[1]?.trim() ||
     (blockTag === "terminal" ? "Terminal" : undefined);
   if (!path) return { prompt: text.trim(), capsule: null };
-  const source = attrs.match(/\bsource="([^"\n]*)"/u)?.[1];
+  const source =
+    attrs.match(/\bsource="([^"\n]*)"/u)?.[1] ??
+    (blockTag === "browser"
+      ? attrs.match(/\baction="([^"\n]*)"/u)?.[1] ||
+        attrs.match(/\bcapture_mode="([^"\n]*)"/u)?.[1]
+      : undefined);
   const rawKind = attrs.match(/\bkind="([^"\n]*)"/u)?.[1];
   const kind =
     blockTag === "file_context"
@@ -64,11 +81,13 @@ export function splitChatContext(text: string): {
           : "review"
         : blockTag === "terminal"
           ? "terminal"
-          : CHAT_CONTEXT_CAPSULE_KINDS.includes(
-                rawKind as ChatContextCapsuleKind,
-              )
-            ? (rawKind as ChatContextCapsuleKind)
-            : "brief";
+          : blockTag === "browser"
+            ? "browser"
+            : CHAT_CONTEXT_CAPSULE_KINDS.includes(
+                  rawKind as ChatContextCapsuleKind,
+                )
+              ? (rawKind as ChatContextCapsuleKind)
+              : "brief";
   return {
     prompt:
       `${text.slice(0, match.index)}${text.slice((match.index ?? 0) + match[0].length)}`.trim() ||
