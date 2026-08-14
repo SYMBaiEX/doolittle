@@ -1,4 +1,7 @@
 import type {
+  NativeTelegramAccountState,
+  NativeTelegramBot,
+  NativeTelegramMessageManager,
   NativeTelegramSentMessage,
   NativeTelegramTransportService,
 } from "@/runtime/native/service-bridge/runtime-contracts";
@@ -42,15 +45,64 @@ export function requireNativeTelegramService(
   return service;
 }
 
+function accountIdFromMetadata(
+  metadata?: Record<string, string>,
+): string | undefined {
+  const accountId = metadata?.accountId?.trim();
+  return accountId || undefined;
+}
+
+function defaultTelegramAccount(
+  service: NativeTelegramTransportService,
+): NativeTelegramAccountState {
+  return {
+    bot: service.getBot?.() ?? null,
+    messageManager: service.messageManager,
+  };
+}
+
+/** Resolve the beta.7 account state without falling back across explicit IDs. */
+function resolveTelegramAccount(
+  service: NativeTelegramTransportService,
+  metadata?: Record<string, string>,
+): NativeTelegramAccountState {
+  const accountId = accountIdFromMetadata(metadata);
+  if (!accountId) return defaultTelegramAccount(service);
+  const account = service.getAccountState?.(accountId);
+  if (!account) {
+    throw new Error(
+      `The native Eliza Telegram account ${accountId} is not ready.`,
+    );
+  }
+  return account;
+}
+
+function requireTelegramBot(
+  account: NativeTelegramAccountState,
+): NativeTelegramBot {
+  if (!account.bot) {
+    throw new Error("The native Eliza Telegram bot is not ready.");
+  }
+  return account.bot;
+}
+
+function requireTelegramMessageManager(
+  account: NativeTelegramAccountState,
+): NativeTelegramMessageManager {
+  if (!account.messageManager) {
+    throw new Error("The native Eliza Telegram message manager is not ready.");
+  }
+  return account.messageManager;
+}
+
 async function sendNativeTelegramVoice(
   service: NativeTelegramTransportService,
   message: OutboundPlatformMessage,
   voicePath: string,
 ): Promise<TelegramDeliveryMetadata> {
-  const bot = service.getBot?.();
-  if (!bot) {
-    throw new Error("The native Eliza Telegram bot is not ready.");
-  }
+  const bot = requireTelegramBot(
+    resolveTelegramAccount(service, message.metadata),
+  );
 
   const messageThreadId = numericId(message.threadId);
   const replyToMessageId = numericId(message.replyToId);
@@ -79,10 +131,9 @@ export async function sendNativeTelegramMessage(
     return sendNativeTelegramVoice(service, message, voicePath);
   }
 
-  const manager = service.messageManager;
-  if (!manager) {
-    throw new Error("The native Eliza Telegram message manager is not ready.");
-  }
+  const manager = requireTelegramMessageManager(
+    resolveTelegramAccount(service, message.metadata),
+  );
   const sent = await manager.sendMessage(
     message.roomId,
     {
@@ -107,12 +158,12 @@ export async function editNativeTelegramMessage(
     messageId: string;
     text: string;
     threadId?: string;
+    metadata?: Record<string, string>;
   },
 ): Promise<TelegramDeliveryMetadata> {
-  const manager = service.messageManager;
-  if (!manager) {
-    throw new Error("The native Eliza Telegram message manager is not ready.");
-  }
+  const manager = requireTelegramMessageManager(
+    resolveTelegramAccount(service, input.metadata),
+  );
   const messageId = numericId(input.messageId);
   if (messageId === undefined) {
     throw new Error("Telegram edit requires a numeric platform message id.");

@@ -44,6 +44,7 @@ export async function executeGatewayReceiveTurn(
       userId: deps.message.userId,
       roomId: trackedSessionId,
       source: deps.message.platform,
+      attachments: deps.message.attachments,
     },
     deps.context,
     {

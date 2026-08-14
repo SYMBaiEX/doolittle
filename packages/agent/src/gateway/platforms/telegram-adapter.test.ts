@@ -213,6 +213,126 @@ describe("TelegramPlatformAdapter", () => {
     }
   });
 
+  it("routes text, voice, and edits through the inbound account's native state", async () => {
+    const { root, delivery } = createDeliveryRoot();
+    const defaultSend = vi.fn(async () => [
+      { message_id: 100, chat: { id: "room-1" } },
+    ]);
+    const workSend = vi.fn(async () => [
+      { message_id: 200, chat: { id: "room-1" } },
+    ]);
+    const defaultEdit = vi.fn(async () => undefined);
+    const workEdit = vi.fn(async () => undefined);
+    const defaultVoice = vi.fn(async () => ({
+      message_id: 101,
+      chat: { id: "room-1" },
+    }));
+    const workVoice = vi.fn(async () => ({
+      message_id: 201,
+      chat: { id: "room-1" },
+    }));
+    const nativeService: NativeTelegramTransportService = {
+      getBot: () => ({ telegram: { sendVoice: defaultVoice } }),
+      messageManager: { sendMessage: defaultSend, editMessage: defaultEdit },
+      getAccountState: (accountId) =>
+        accountId === "work"
+          ? {
+              accountId,
+              bot: { telegram: { sendVoice: workVoice } },
+              messageManager: { sendMessage: workSend, editMessage: workEdit },
+            }
+          : null,
+    };
+    const adapter = new TelegramPlatformAdapter(
+      "telegram",
+      { telegramBotToken: "token" } as EnvConfig,
+      delivery,
+      () => nativeBridge,
+      () => nativeService,
+    );
+    const accountMetadata = { accountId: "work" };
+    const voicePath = join(root, "reply.ogg");
+    writeFileSync(voicePath, "voice");
+
+    try {
+      const text = await adapter.send({
+        roomId: "room-1",
+        text: "work text",
+        metadata: accountMetadata,
+      });
+      await adapter.send({
+        roomId: "room-1",
+        text: "work voice",
+        metadata: {
+          ...accountMetadata,
+          audioAsVoice: "true",
+          attachmentUrls: voicePath,
+        },
+      });
+      await adapter.edit(text, {
+        roomId: "room-1",
+        text: "work edit",
+      });
+
+      expect(workSend).toHaveBeenCalledTimes(1);
+      expect(workVoice).toHaveBeenCalledTimes(1);
+      expect(workEdit).toHaveBeenCalledWith(
+        "room-1",
+        200,
+        "work edit",
+        undefined,
+      );
+      expect(defaultSend).not.toHaveBeenCalled();
+      expect(defaultVoice).not.toHaveBeenCalled();
+      expect(defaultEdit).not.toHaveBeenCalled();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("uses the default Telegram account when outbound metadata has no account ID", async () => {
+    const { root, delivery } = createDeliveryRoot();
+    const defaultSend = vi.fn(async () => [
+      { message_id: 100, chat: { id: "room-1" } },
+    ]);
+    const workSend = vi.fn(async () => [
+      { message_id: 200, chat: { id: "room-1" } },
+    ]);
+    const nativeService: NativeTelegramTransportService = {
+      getBot: () => ({
+        telegram: {
+          sendVoice: vi.fn(async () => ({
+            message_id: 1,
+            chat: { id: "room-1" },
+          })),
+        },
+      }),
+      messageManager: {
+        sendMessage: defaultSend,
+        editMessage: vi.fn(async () => undefined),
+      },
+      getAccountState: () => ({
+        accountId: "work",
+        messageManager: { sendMessage: workSend, editMessage: vi.fn() },
+      }),
+    };
+    const adapter = new TelegramPlatformAdapter(
+      "telegram",
+      { telegramBotToken: "token" } as EnvConfig,
+      delivery,
+      () => nativeBridge,
+      () => nativeService,
+    );
+
+    try {
+      await adapter.send({ roomId: "room-1", text: "default text" });
+      expect(defaultSend).toHaveBeenCalledTimes(1);
+      expect(workSend).not.toHaveBeenCalled();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("fails instead of bypassing the runtime when the native service is unavailable", async () => {
     const { root, delivery } = createDeliveryRoot();
     const adapter = new TelegramPlatformAdapter(

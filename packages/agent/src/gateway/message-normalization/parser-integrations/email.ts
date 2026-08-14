@@ -1,5 +1,9 @@
 import type { IncomingPlatformMessage } from "@/types/gateway";
-import { attachmentMetadata, normalizeMetadata } from "../helpers";
+import {
+  attachmentMedia,
+  attachmentMetadata,
+  normalizeMetadata,
+} from "../helpers";
 import { buildAttachmentDescriptor } from "./shared";
 
 export function parseEmailMessage(
@@ -58,5 +62,6 @@ export function parseEmailMessage(
       ["replyToMessageId", payload.in_reply_to],
       ...Object.entries(attachmentMetadata(attachments)),
     ]),
+    attachments: attachmentMedia("email", attachments),
   };
 }

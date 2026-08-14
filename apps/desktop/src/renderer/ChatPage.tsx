@@ -48,6 +48,7 @@ import type { ThreadWorkbenchFullView } from "./components/ThreadWorkbenchRail";
 import type { VoiceRecorderMime } from "./components/VoiceComposerButton";
 import { newConversationId } from "./conversation-id";
 import {
+  composeQueuedMessage,
   loadConversationQueue,
   type PersistedQueuedMessage,
   safeSetStorageItem,
@@ -194,6 +195,7 @@ export function ChatPage({
   const requestSession = useRef<Record<string, string>>({});
   const {
     draft,
+    chatContextCapsule,
     historyError,
     loadingHistory,
     selectedMessages,
@@ -202,6 +204,7 @@ export function ChatPage({
     storageWarning,
     sessions,
     setDraft,
+    setChatContextCapsule,
     setDraftForSession,
     setMessages,
     retryHistory,
@@ -224,8 +227,6 @@ export function ChatPage({
   const [attachedFiles, setAttachedFiles] = useState<
     ManagedAttachmentDescriptor[]
   >([]);
-  const [chatContextCapsule, setChatContextCapsule] =
-    useState<ChatContextCapsule | null>(null);
   const recoveredQueue = useMemo(() => loadConversationQueue(localStorage), []);
   const [queuedMessages, setQueuedMessages] =
     useState<PersistedQueuedMessage[]>(recoveredQueue);
@@ -393,10 +394,6 @@ export function ChatPage({
   }, []);
 
   useEffect(() => {
-    if (selectedId) setChatContextCapsule(null);
-  }, [selectedId]);
-
-  useEffect(() => {
     if (
       !pendingContextHandoff ||
       pendingContextHandoff.sessionId !== selectedId
@@ -416,6 +413,7 @@ export function ChatPage({
     onConsumeContextHandoff,
     pendingContextHandoff,
     selectedId,
+    setChatContextCapsule,
   ]);
 
   useEffect(() => {
@@ -569,12 +567,13 @@ export function ChatPage({
     clearComposer = true,
     memoryMatchOverride?: MemoryMatchSnapshot,
     projectIdOverride?: string | null,
+    contextCapsule: ChatContextCapsule | null = chatContextCapsule,
+    composedContentOverride?: string,
   ) => {
     const visibleContent = input.trim();
-    const content = composeChatContextMessage(
-      visibleContent,
-      chatContextCapsule,
-    );
+    const content =
+      composedContentOverride ??
+      composeChatContextMessage(visibleContent, contextCapsule);
     if (!content || !sessionId || activeRequest || backend.phase !== "ready") {
       return false;
     }
@@ -608,13 +607,13 @@ export function ChatPage({
           attachments: messageAttachments,
           createdAt,
           memoryMatch,
-          ...(chatContextCapsule
+          ...(contextCapsule
             ? {
                 contextCapsule: {
-                  kind: chatContextCapsule.kind,
-                  path: chatContextCapsule.path,
-                  ...(chatContextCapsule.source
-                    ? { source: chatContextCapsule.source }
+                  kind: contextCapsule.kind,
+                  path: contextCapsule.path,
+                  ...(contextCapsule.source
+                    ? { source: contextCapsule.source }
                     : {}),
                 },
               }
@@ -766,6 +765,7 @@ export function ChatPage({
     const [next] = queuedMessages;
     if (!next) return;
     queueDispatchRef.current = next.id;
+    const queuedContent = composeQueuedMessage(next);
     void sendMessage(
       next.content,
       next.attachments,
@@ -773,6 +773,8 @@ export function ChatPage({
       false,
       next.memoryMatch,
       next.projectId ?? null,
+      next.capsule ?? null,
+      queuedContent,
     )
       .then((accepted) => {
         if (accepted) {
@@ -792,7 +794,11 @@ export function ChatPage({
   }, [activeRequest, backend.phase, queuePaused, queuedMessages]);
 
   const queueCurrentDraft = () => {
-    const content = composeChatContextMessage(draft, chatContextCapsule);
+    const visibleContent = draft.trim();
+    const content = composeChatContextMessage(
+      visibleContent,
+      chatContextCapsule,
+    );
     if (!content || !selectedId) return;
     if (isCommandMessage(content) && attachedFiles.length > 0) {
       setAttachmentValidationError(
@@ -806,7 +812,8 @@ export function ChatPage({
         id: crypto.randomUUID(),
         sessionId: selectedId,
         ...(activeProject?.id ? { projectId: activeProject.id } : {}),
-        content,
+        content: visibleContent,
+        ...(chatContextCapsule ? { capsule: chatContextCapsule } : {}),
         attachments: attachedFiles,
         memoryMatch: freezeMemoryMatchSnapshot(content, memoryMatches),
       },

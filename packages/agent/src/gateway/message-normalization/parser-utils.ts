@@ -34,7 +34,14 @@ export function authorDisplayName(
   );
 }
 
+export function firstNonEmptyText(
+  ...values: Array<string | undefined>
+): string | undefined {
+  return values.find((value) => Boolean(value?.trim()));
+}
+
 export function buildMimeAttachment(input: {
+  id?: string;
   name?: string;
   url?: string;
   mimeType?: string;
@@ -48,6 +55,7 @@ export function buildMimeAttachment(input: {
   }
 
   return {
+    id: input.id,
     kind: input.kind ?? inferMimeAttachmentKind(input.mimeType),
     name: input.name,
     url: input.url,

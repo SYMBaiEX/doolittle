@@ -119,6 +119,10 @@ export class TelegramPlatformAdapter implements PlatformAdapter {
           messageId: telegramMessageId,
           text: message.text,
           threadId: message.threadId ?? delivery.threadId,
+          metadata: {
+            ...(delivery.metadata ?? {}),
+            ...(message.metadata ?? {}),
+          },
         });
       } catch (error) {
         return this.state.fail(

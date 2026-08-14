@@ -146,6 +146,27 @@ describe("GatewayPairingProjection", () => {
     expect(requests).toHaveLength(0);
   });
 
+  it("scopes new Telegram pairing requests by account while honoring legacy allowlists", async () => {
+    const { runtime, requests } = createPairingRuntime();
+    const projection = new GatewayPairingProjection(["telegram"]);
+    projection.bindRuntime(runtime);
+
+    await projection.checkOrRequest("telegram", "alice", { accountId: "work" });
+    await projection.checkOrRequest("telegram", "alice", {
+      accountId: "personal",
+    });
+    expect(requests.map((request) => request.senderId).sort()).toEqual([
+      "telegram-account:personal:alice",
+      "telegram-account:work:alice",
+    ]);
+
+    const legacy = await projection.checkOrRequest("telegram", "bob");
+    await projection.approve("telegram", legacy.pairingCode ?? "");
+    await expect(
+      projection.checkOrRequest("telegram", "bob", { accountId: "work" }),
+    ).resolves.toEqual({ allowed: true });
+  });
+
   it("lists and revokes only the official Eliza allowlist", async () => {
     const { runtime, allowlist } = createPairingRuntime();
     const projection = new GatewayPairingProjection(["telegram", "discord"]);

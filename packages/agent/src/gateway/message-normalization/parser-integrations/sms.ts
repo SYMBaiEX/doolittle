@@ -1,6 +1,12 @@
 import type { IncomingPlatformMessage } from "@/types/gateway";
 import type { AttachmentDescriptor } from "../helpers";
-import { attachmentMetadata, normalizeMetadata } from "../helpers";
+import {
+  attachmentFallbackText,
+  attachmentMedia,
+  attachmentMetadata,
+  normalizeMetadata,
+} from "../helpers";
+import { firstNonEmptyText } from "../parser-utils";
 import { buildAttachmentDescriptor } from "./shared";
 
 export function parseSmsMessage(body: unknown): IncomingPlatformMessage | null {
@@ -18,7 +24,7 @@ export function parseSmsMessage(body: unknown): IncomingPlatformMessage | null {
     MediaContentType0?: string;
   };
 
-  if (!payload.From || !payload.Body) {
+  if (!payload.From) {
     return null;
   }
 
@@ -32,12 +38,16 @@ export function parseSmsMessage(body: unknown): IncomingPlatformMessage | null {
       }),
     );
   }
+  const text =
+    firstNonEmptyText(payload.Body) ??
+    attachmentFallbackText("sms", attachments);
+  if (!text) return null;
 
   return {
     platform: "sms",
     userId: payload.From,
     roomId: payload.To ?? payload.From,
-    text: payload.Body,
+    text,
     channelId: payload.To ?? payload.From,
     messageId: payload.MessageSid ?? payload.SmsSid,
     replyToMessageId: payload.OriginalRepliedMessageSid,
@@ -49,5 +59,6 @@ export function parseSmsMessage(body: unknown): IncomingPlatformMessage | null {
       ["replyToMessageId", payload.OriginalRepliedMessageSid],
       ...Object.entries(attachmentMetadata(attachments)),
     ]),
+    attachments: attachmentMedia("sms", attachments),
   };
 }

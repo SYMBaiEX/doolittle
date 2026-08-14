@@ -8,6 +8,7 @@ import {
   parseMattermostMessage,
   parseSignalMessage,
   parseSlackMessage,
+  parseSmsMessage,
   parseTelegramMessage,
   parseWhatsAppMessage,
 } from "./parsers";
@@ -38,6 +39,13 @@ describe("message normalization parser seams", () => {
     expect(message?.metadata?.subject).toBe("Status update");
     expect(message?.metadata?.attachmentCount).toBe("1");
     expect(message?.metadata?.attachmentNames).toContain("report.pdf");
+    expect(message?.attachments).toEqual([
+      expect.objectContaining({
+        url: "https://example.com/report.pdf",
+        contentType: "document",
+        source: "email",
+      }),
+    ]);
   });
 
   it("normalizes mattermost payloads with file ids and props", () => {
@@ -121,6 +129,64 @@ describe("message normalization parser seams", () => {
     expect(message?.metadata?.attachmentKinds).toContain("voice");
     expect(message?.metadata?.attachmentKinds).toContain("sticker");
     expect(message?.metadata?.attachmentDurationsMs).toContain("4000");
+    expect(message?.attachments).toEqual([
+      expect.objectContaining({ contentType: "audio", duration: 4 }),
+      expect.objectContaining({ contentType: "image" }),
+    ]);
+  });
+
+  it("keeps Telegram replies in the root session and forum topics distinct", () => {
+    const reply = parseTelegramMessage({
+      message: {
+        message_id: 12,
+        text: "ordinary reply",
+        chat: { id: -1001, type: "supergroup" },
+        from: { id: 7 },
+        reply_to_message: { message_id: 11 },
+      },
+    });
+    expect(reply).toMatchObject({
+      threadId: undefined,
+      replyToMessageId: "11",
+    });
+
+    const topic = parseTelegramMessage({
+      message: {
+        message_id: 13,
+        caption: "topic attachment",
+        chat: { id: -1001, type: "supergroup" },
+        from: { id: 7 },
+        is_topic_message: true,
+        message_thread_id: 81,
+        reply_to_message: { message_id: 11 },
+        photo: [{ file_id: "photo-1" }],
+      },
+    });
+    expect(topic).toMatchObject({
+      text: "topic attachment",
+      threadId: "81",
+      replyToMessageId: "11",
+      metadata: { isTopicMessage: "true", messageThreadId: "81" },
+    });
+    expect(topic?.attachments?.[0]).toMatchObject({
+      id: "photo-1",
+      contentType: "image",
+    });
+
+    expect(
+      parseTelegramMessage({
+        message: {
+          message_id: 14,
+          text: "",
+          chat: { id: -1001, type: "supergroup" },
+          from: { id: 7 },
+          photo: [{ file_id: "photo-only" }],
+        },
+      }),
+    ).toMatchObject({
+      text: "[Telegram attachment]",
+      attachments: [expect.objectContaining({ id: "photo-only" })],
+    });
   });
 
   it("normalizes discord payloads from proxy attachments and skips bots", () => {
@@ -155,6 +221,147 @@ describe("message normalization parser seams", () => {
       "https://cdn.example.com/clip.mp4",
     );
     expect(message?.metadata?.attachmentWidths).toBe("1920");
+    expect(message?.attachments).toEqual([
+      expect.objectContaining({
+        id: "att-1",
+        contentType: "video",
+        size: 1024,
+      }),
+    ]);
+  });
+
+  it("accepts attachment-only events with concise platform fallback text", () => {
+    const discord = parseDiscordMessage({
+      content: "",
+      channel_id: "channel-1",
+      author: { id: "user-1" },
+      attachments: [
+        {
+          id: "image-1",
+          filename: "capture.png",
+          url: "https://cdn.example.com/capture.png",
+          content_type: "image/png",
+        },
+      ],
+    });
+    expect(discord).toMatchObject({ text: "Discord attachment: capture.png" });
+
+    const slack = parseSlackMessage({
+      event: {
+        type: "message",
+        text: "",
+        channel: "C123",
+        user: "U123",
+        files: [
+          {
+            id: "file-1",
+            name: "song.mp3",
+            url_private: "https://slack.example.com/song.mp3",
+            mimetype: "audio/mpeg",
+          },
+        ],
+      },
+    });
+    expect(slack).toMatchObject({ text: "Slack file: song.mp3" });
+    expect(slack?.attachments?.[0]).toMatchObject({ ephemeral: true });
+
+    const signal = parseSignalMessage({
+      from: "+15555550123",
+      text: "",
+      attachments: [
+        {
+          id: "voice-1",
+          filename: "voice.ogg",
+          data: "data:audio/ogg;base64,AAAA",
+          content_type: "audio/ogg",
+        },
+      ],
+    });
+    expect(signal).toMatchObject({ text: "Signal attachment: voice.ogg" });
+
+    const whatsApp = parseWhatsAppMessage({
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                messages: [
+                  {
+                    id: "wamid-1",
+                    from: "15555550123",
+                    text: { body: "" },
+                    image: {
+                      id: "media-1",
+                      caption: "receipt",
+                      mime_type: "image/png",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    });
+    expect(whatsApp).toMatchObject({ text: "WhatsApp attachment: receipt" });
+    expect(whatsApp?.attachments?.[0]).toMatchObject({
+      id: "media-1",
+      url: "attachment://media-1",
+      ephemeral: true,
+    });
+
+    const matrix = parseMatrixMessage({
+      sender: "@user:example.com",
+      room_id: "!room:example.com",
+      event_id: "$event",
+      body: "",
+      filename: "clip.mp4",
+      msgtype: "m.video",
+      url: "mxc://example.com/video",
+    });
+    expect(matrix).toMatchObject({ text: "Matrix attachment: clip.mp4" });
+    expect(matrix?.attachments?.[0]).toMatchObject({
+      url: "mxc://example.com/video",
+      ephemeral: true,
+    });
+
+    const sms = parseSmsMessage({
+      From: "+15555550123",
+      Body: "",
+      MessageSid: "SM123",
+      MediaUrl0: "https://sms.example.com/media.png",
+      MediaContentType0: "image/png",
+    });
+    expect(sms).toMatchObject({ text: "MMS attachment: sms-media-SM123" });
+  });
+
+  it("rejects identity-only events without text or valid attachments", () => {
+    expect(
+      parseDiscordMessage({
+        channel_id: "channel-1",
+        author: { id: "user-1" },
+      }),
+    ).toBeNull();
+    expect(
+      parseSlackMessage({
+        event: { type: "message", channel: "C123", user: "U123" },
+      }),
+    ).toBeNull();
+    expect(parseSignalMessage({ from: "+15555550123" })).toBeNull();
+    expect(
+      parseWhatsAppMessage({
+        entry: [
+          { changes: [{ value: { messages: [{ from: "15555550123" }] } }] },
+        ],
+      }),
+    ).toBeNull();
+    expect(
+      parseMatrixMessage({
+        sender: "@user:example.com",
+        room_id: "!room:example.com",
+      }),
+    ).toBeNull();
+    expect(parseSmsMessage({ From: "+15555550123" })).toBeNull();
   });
 
   it("normalizes slack and signal payloads with shared attachment helpers", () => {
@@ -190,6 +397,11 @@ describe("message normalization parser seams", () => {
     });
     expect(slackMessage?.metadata?.attachmentKinds).toBe("audio");
     expect(slackMessage?.metadata?.attachmentNames).toBe("song.mp3");
+    expect(slackMessage?.attachments?.[0]).toMatchObject({
+      id: "file-1",
+      contentType: "audio",
+      source: "slack",
+    });
 
     const signalMessage = parseSignalMessage({
       from: "+15555550123",
@@ -208,6 +420,11 @@ describe("message normalization parser seams", () => {
     expect(signalMessage?.threadId).toBe("msg-9");
     expect(signalMessage?.metadata?.attachmentKinds).toBe("audio");
     expect(signalMessage?.metadata?.attachmentUrls).toContain("data:audio/ogg");
+    expect(signalMessage?.attachments?.[0]).toMatchObject({
+      id: "attachment-1",
+      contentType: "audio",
+      size: 42,
+    });
   });
 
   it("normalizes whatsapp and matrix media payloads", () => {
@@ -238,6 +455,11 @@ describe("message normalization parser seams", () => {
     });
     expect(whatsAppMessage?.metadata?.attachmentKinds).toBe("document");
     expect(whatsAppMessage?.metadata?.attachmentNames).toBe("briefing.pdf");
+    expect(whatsAppMessage?.attachments?.[0]).toMatchObject({
+      id: "media-1",
+      contentType: "document",
+      source: "whatsapp",
+    });
 
     const matrixMessage = parseMatrixMessage({
       sender: "@user:example.com",
@@ -252,5 +474,11 @@ describe("message normalization parser seams", () => {
     expect(matrixMessage?.metadata?.attachmentKinds).toBe("video");
     expect(matrixMessage?.metadata?.attachmentWidths).toBe("1280");
     expect(matrixMessage?.metadata?.attachmentHeights).toBe("720");
+    expect(matrixMessage?.attachments?.[0]).toMatchObject({
+      id: "$event",
+      contentType: "video",
+      width: 1280,
+      height: 720,
+    });
   });
 });

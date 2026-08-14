@@ -1,10 +1,16 @@
 import type { IncomingPlatformMessage } from "@/types/gateway";
 import {
   type AttachmentDescriptor,
+  attachmentFallbackText,
+  attachmentMedia,
   attachmentMetadata,
   normalizeMetadata,
 } from "./helpers";
-import { buildMimeAttachment, optionalNumericString } from "./parser-utils";
+import {
+  buildMimeAttachment,
+  firstNonEmptyText,
+  optionalNumericString,
+} from "./parser-utils";
 
 export function parseWhatsAppMessage(
   body: unknown,
@@ -46,31 +52,36 @@ export function parseWhatsAppMessage(
   };
 
   const message = payload.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-  if (!message?.from || !message.text?.body) {
+  if (!message?.from) {
     return null;
   }
 
   const attachments: AttachmentDescriptor[] = [];
   if (message.image?.id) {
     attachments.push({
+      id: message.image.id,
       kind: "image",
       name:
         message.image.caption ?? `whatsapp-image-${message.id ?? "unknown"}`,
+      caption: message.image.caption,
       url: message.image.id,
       mimeType: message.image.mime_type,
     });
   }
   if (message.video?.id) {
     attachments.push({
+      id: message.video.id,
       kind: "video",
       name:
         message.video.caption ?? `whatsapp-video-${message.id ?? "unknown"}`,
+      caption: message.video.caption,
       url: message.video.id,
       mimeType: message.video.mime_type,
     });
   }
   if (message.audio?.id) {
     attachments.push({
+      id: message.audio.id,
       kind: "audio",
       name: `whatsapp-audio-${message.id ?? "unknown"}`,
       url: message.audio.id,
@@ -79,6 +90,7 @@ export function parseWhatsAppMessage(
   }
   if (message.document?.id) {
     attachments.push({
+      id: message.document.id,
       kind: "document",
       name:
         message.document.filename ??
@@ -89,18 +101,23 @@ export function parseWhatsAppMessage(
   }
   if (message.sticker?.id) {
     attachments.push({
+      id: message.sticker.id,
       kind: "sticker",
       name: `whatsapp-sticker-${message.id ?? "unknown"}`,
       url: message.sticker.id,
       mimeType: "image/webp",
     });
   }
+  const text =
+    firstNonEmptyText(message.text?.body) ??
+    attachmentFallbackText("whatsapp", attachments);
+  if (!text) return null;
 
   return {
     platform: "whatsapp",
     userId: message.from,
     roomId: message.from,
-    text: message.text.body,
+    text,
     channelId: message.from,
     messageId: message.id,
     replyToMessageId: message.context?.id,
@@ -111,6 +128,7 @@ export function parseWhatsAppMessage(
       ["timestamp", message.timestamp],
       ...Object.entries(attachmentMetadata(attachments)),
     ]),
+    attachments: attachmentMedia("whatsapp", attachments),
   };
 }
 
@@ -144,13 +162,13 @@ export function parseMatrixMessage(
     msgtype?: string;
   };
 
-  const text = payload.body ?? payload.content?.body;
-  if (!text || !payload.sender || !payload.room_id) {
+  if (!payload.sender || !payload.room_id) {
     return null;
   }
 
   const attachments: AttachmentDescriptor[] = [];
   const attachment = buildMimeAttachment({
+    id: payload.event_id,
     kind: matrixAttachmentKind(payload.msgtype),
     name: payload.filename ?? payload.event_id ?? "matrix-attachment",
     url: payload.url,
@@ -167,6 +185,10 @@ export function parseMatrixMessage(
       height: optionalNumericString(payload.info?.h),
     });
   }
+  const text =
+    firstNonEmptyText(payload.body, payload.content?.body) ??
+    attachmentFallbackText("matrix", attachments);
+  if (!text) return null;
 
   return {
     platform: "matrix",
@@ -183,5 +205,6 @@ export function parseMatrixMessage(
       ["replyToMessageId", payload.relates_to?.event_id],
       ...Object.entries(attachmentMetadata(attachments)),
     ]),
+    attachments: attachmentMedia("matrix", attachments),
   };
 }

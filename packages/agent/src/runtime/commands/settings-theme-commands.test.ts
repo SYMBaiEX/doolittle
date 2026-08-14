@@ -80,6 +80,6 @@ describe("settings and theme command router", () => {
     expect(modelUse).toContain("Activated Ollama");
     expect(preview).toContain('"command": "pwd"');
     expect(theme).toContain('"theme": "ember"');
-    expect(runtimeSettings.OPENAI_LARGE_MODEL).toBe("granite4.1:3b");
+    expect(runtimeSettings.OLLAMA_LARGE_MODEL).toBe("granite4.1:3b");
   });
 });

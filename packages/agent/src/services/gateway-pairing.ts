@@ -93,6 +93,16 @@ function projectApprovedSender(entry: {
   };
 }
 
+function pairingSenderId(
+  platform: PlatformName,
+  userId: string,
+  metadata?: Record<string, string>,
+): string {
+  const accountId =
+    platform === "telegram" ? metadata?.accountId?.trim() : undefined;
+  return accountId ? `telegram-account:${accountId}:${userId}` : userId;
+}
+
 /**
  * Product-facing projection over Eliza's canonical PairingService.
  *
@@ -151,10 +161,19 @@ export class GatewayPairingProjection {
     metadata?: Record<string, string>,
   ): Promise<{ allowed: boolean; pairingCode?: string }> {
     const runtime = this.requireRuntime();
-    await this.service();
+    const service = await this.service();
+    const senderId = pairingSenderId(platform, userId, metadata);
+    // Existing single-account allowlist entries predate account-scoped sender
+    // identities and intentionally continue to authorize every Telegram bot.
+    if (senderId !== userId) {
+      const legacyAllowlist = await service.getAllowlist(platform);
+      if (legacyAllowlist.some((entry) => entry.senderId === userId)) {
+        return { allowed: true };
+      }
+    }
     const result = await checkPairingAllowed(runtime, {
       channel: platform,
-      senderId: userId,
+      senderId,
       metadata,
     });
     return {

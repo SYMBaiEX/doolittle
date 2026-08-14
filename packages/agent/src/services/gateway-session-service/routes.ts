@@ -9,12 +9,24 @@ export function nowIso(): string {
 }
 
 export function createSessionKey(message: IncomingPlatformMessage): string {
-  return [
+  const threadIdentity =
+    message.platform === "telegram"
+      ? // Telegram reply IDs identify messages, not forum topics. Native inbound
+        // uses threadId only for message_thread_id topic sessions.
+        (message.threadId ?? "root")
+      : (message.threadId ?? message.replyToMessageId ?? "root");
+  const parts = [
     message.platform,
     message.roomId,
     message.userId,
-    message.threadId ?? message.replyToMessageId ?? "root",
-  ].join(":");
+    threadIdentity,
+  ];
+  const accountId =
+    message.platform === "telegram" ? message.metadata?.accountId?.trim() : "";
+  // Legacy/no-account keys remain byte-for-byte stable; only live native
+  // multi-account Telegram contexts receive an additional identity segment.
+  if (accountId) parts.push(`account=${accountId}`);
+  return parts.join(":");
 }
 
 export function createSessionRoute(

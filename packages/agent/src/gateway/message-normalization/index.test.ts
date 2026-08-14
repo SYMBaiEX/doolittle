@@ -35,6 +35,20 @@ describe("normalizeInboundMessage", () => {
     expect(message?.metadata?.attachmentKinds).toContain("photo");
     expect(message?.metadata?.attachmentKinds).toContain("document");
     expect(message?.metadata?.attachmentNames).toContain("briefing.pdf");
+    expect(message?.attachments).toEqual([
+      expect.objectContaining({
+        id: "photo-2",
+        url: "attachment://photo-2",
+        contentType: "image",
+        source: "telegram",
+      }),
+      expect.objectContaining({
+        id: "doc-1",
+        filename: "briefing.pdf",
+        size: 2048,
+        contentType: "document",
+      }),
+    ]);
   });
 
   it("normalizes discord messages", () => {
@@ -67,6 +81,14 @@ describe("normalizeInboundMessage", () => {
     expect(message?.metadata?.attachmentCount).toBe("1");
     expect(message?.metadata?.attachmentKinds).toBe("image");
     expect(message?.metadata?.attachmentNames).toBe("capture.png");
+    expect(message?.attachments).toEqual([
+      expect.objectContaining({
+        id: "att-1",
+        url: "https://cdn.example.com/capture.png",
+        width: 400,
+        height: 300,
+      }),
+    ]);
   });
 
   it("normalizes slack messages", () => {
@@ -87,6 +109,7 @@ describe("normalizeInboundMessage", () => {
     expect(message?.threadId).toBe("1710000000.000050");
     expect(message?.metadata?.eventType).toBe("message");
     expect(message?.metadata?.channelType).toBe("channel");
+    expect(message?.attachments).toBeUndefined();
   });
 
   it("normalizes whatsapp messages", () => {

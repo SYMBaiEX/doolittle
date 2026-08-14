@@ -20,6 +20,14 @@ describe("executeGatewayReceiveTurn", () => {
         userId: "user-1",
         roomId: "room-1",
         text: "hello",
+        attachments: [
+          {
+            id: "attachment-1",
+            url: "https://example.test/photo.png",
+            contentType: "image",
+            mimeType: "image/png",
+          },
+        ],
       } as never,
       session: {
         sessionKey: "session-1",
@@ -84,5 +92,58 @@ describe("executeGatewayReceiveTurn", () => {
     expect(result.runSessionId).toBe("run-1");
     expect(result.progressiveDelivery).toEqual({ id: "progressive-1" });
     expect(queueProgressFlush).toHaveBeenCalled();
+    expect(deps.executeTurn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachments: [
+          expect.objectContaining({
+            id: "attachment-1",
+            url: "https://example.test/photo.png",
+          }),
+        ],
+      }),
+      deps.context,
+      expect.any(Object),
+    );
+  });
+
+  it("keeps text-only gateway messages attachment-free", async () => {
+    const executeTurn = vi.fn(async () => ({
+      response: "done",
+      sessionId: "session-1",
+    }));
+    const deps = {
+      context: {
+        config: {} as never,
+        runtime: {} as never,
+        services: {} as never,
+      },
+      message: {
+        platform: "api",
+        userId: "user-1",
+        roomId: "room-1",
+        text: "hello",
+      },
+      session: { sessionKey: "session-1", platform: "api" },
+      adapter: undefined,
+      recordInbox: vi.fn(),
+      recordOutbox: vi.fn(),
+      pushTrace: vi.fn(),
+      observeAdapter: vi.fn(),
+      editDelivery: vi.fn(),
+      snapshotState: vi.fn(),
+      createProgressiveQueue: () => ({
+        queueProgressFlush: vi.fn(async () => undefined),
+        getProgressiveDelivery: () => undefined,
+      }),
+      executeTurn,
+    } as never;
+
+    await executeGatewayReceiveTurn(deps);
+
+    expect(executeTurn).toHaveBeenCalledWith(
+      expect.objectContaining({ attachments: undefined }),
+      expect.anything(),
+      expect.any(Object),
+    );
   });
 });

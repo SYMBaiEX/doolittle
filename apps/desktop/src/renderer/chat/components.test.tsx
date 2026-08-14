@@ -136,6 +136,33 @@ describe("chat presentation components", () => {
     expect(html).not.toContain("secret");
   });
 
+  it("renders queued prompts without their hidden capsule source", () => {
+    const html = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          queuedMessages: [
+            {
+              id: "queued-1",
+              sessionId: "session-1",
+              content: "Review the file",
+              capsule: {
+                kind: "file",
+                path: "src/app.ts",
+                content:
+                  '<file_context path="src/app.ts">hidden source</file_context>',
+              },
+              attachments: [],
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(html).toContain("Review the file");
+    expect(html).not.toContain("hidden source");
+    expect(html).not.toContain("&lt;file_context");
+  });
+
   it("renders browser evidence as a compact removable capsule", () => {
     const html = renderToStaticMarkup(
       <ChatComposer

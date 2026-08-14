@@ -57,10 +57,18 @@ export interface NativeTelegramBot {
   };
 }
 
+export interface NativeTelegramAccountState {
+  accountId?: string;
+  bot?: NativeTelegramBot | null;
+  messageManager?: NativeTelegramMessageManager | null;
+}
+
 export interface NativeTelegramTransportService {
   getBot?: () => NativeTelegramBot | null;
   getBots?: () => NativeTelegramBot[];
   messageManager?: NativeTelegramMessageManager | null;
+  /** Private in beta.7's declaration but present on its live service object. */
+  getAccountState?: (accountId?: string) => NativeTelegramAccountState | null;
   knownChats?: Map<string | number, unknown>;
 }
 

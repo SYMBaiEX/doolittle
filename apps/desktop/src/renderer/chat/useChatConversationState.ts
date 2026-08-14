@@ -11,7 +11,10 @@ import type {
   SessionMessagesResponse,
   SessionSummary,
 } from "../../shared/contracts";
-import { splitChatContext } from "../chat-context-handoff";
+import {
+  type ChatContextCapsule,
+  splitChatContext,
+} from "../chat-context-handoff";
 import { newConversationId } from "../conversation-id";
 import {
   CONVERSATION_PINS_EVENT,
@@ -296,25 +299,36 @@ export function useChatConversationState({
   );
   const [sessionSearch, setSessionSearch] = useState("");
   const [historyError, setHistoryError] = useState("");
-  const [storageWarning, setStorageWarning] = useState("");
+  const [transcriptStorageWarning, setTranscriptStorageWarning] = useState("");
+  const [draftStorageWarning, setDraftStorageWarning] = useState("");
   const [loadingHistory, setLoadingHistory] = useState("");
   const [historyRetryVersion, setHistoryRetryVersion] = useState(0);
   const requestedHistory = useRef(new Set<string>());
 
-  const draft = conversationDrafts[draftSessionId] ?? "";
+  const draftState = conversationDrafts[draftSessionId] ?? {
+    text: "",
+    capsule: null,
+  };
+  const draft = draftState.text;
+  const chatContextCapsule = draftState.capsule;
   const setDraft = useCallback(
     (nextValue: SetStateAction<string>) => {
       setConversationDrafts((current) => {
-        const previous = current[draftSessionId] ?? "";
+        const previous = current[draftSessionId] ?? { text: "", capsule: null };
         const next =
-          typeof nextValue === "function" ? nextValue(previous) : nextValue;
-        if (!next) {
+          typeof nextValue === "function"
+            ? nextValue(previous.text)
+            : nextValue;
+        if (!next && !previous.capsule) {
           if (!Object.hasOwn(current, draftSessionId)) return current;
           const updated = { ...current };
           delete updated[draftSessionId];
           return updated;
         }
-        return { ...current, [draftSessionId]: next };
+        return {
+          ...current,
+          [draftSessionId]: { ...previous, text: next },
+        };
       });
     },
     [draftSessionId],
@@ -323,9 +337,28 @@ export function useChatConversationState({
   const setDraftForSession = useCallback((sessionId: string, value: string) => {
     setConversationDrafts((current) => ({
       ...current,
-      [sessionId]: value,
+      [sessionId]: { text: value, capsule: null },
     }));
   }, []);
+
+  const setChatContextCapsule = useCallback(
+    (capsule: ChatContextCapsule | null) => {
+      setConversationDrafts((current) => {
+        const previous = current[draftSessionId] ?? { text: "", capsule: null };
+        if (!previous.text && !capsule) {
+          if (!Object.hasOwn(current, draftSessionId)) return current;
+          const updated = { ...current };
+          delete updated[draftSessionId];
+          return updated;
+        }
+        return {
+          ...current,
+          [draftSessionId]: { ...previous, capsule },
+        };
+      });
+    },
+    [draftSessionId],
+  );
 
   const togglePin = useCallback((sessionId: string) => {
     setPinnedSessions((current) => {
@@ -348,7 +381,7 @@ export function useChatConversationState({
       messages,
       selectedId,
     );
-    setStorageWarning(
+    setTranscriptStorageWarning(
       persisted
         ? ""
         : "Local transcript cache is unavailable. Your conversation remains active, and server history is unaffected.",
@@ -360,8 +393,17 @@ export function useChatConversationState({
   }, [pinnedSessions]);
 
   useEffect(() => {
-    saveConversationDrafts(localStorage, conversationDrafts);
+    const persisted = saveConversationDrafts(localStorage, conversationDrafts);
+    setDraftStorageWarning(
+      persisted
+        ? ""
+        : "Local draft cache is unavailable. Your unsent draft remains active, and server history is unaffected.",
+    );
   }, [conversationDrafts]);
+
+  const storageWarning = [transcriptStorageWarning, draftStorageWarning]
+    .filter(Boolean)
+    .join(" ");
 
   useEffect(() => {
     const syncPins = () =>
@@ -522,6 +564,7 @@ export function useChatConversationState({
   );
 
   return {
+    chatContextCapsule,
     draft,
     historyError,
     loadingHistory,
@@ -534,6 +577,7 @@ export function useChatConversationState({
     sessionSearch,
     sessions,
     setDraft,
+    setChatContextCapsule,
     setDraftForSession,
     setMessages,
     setSessionSearch,

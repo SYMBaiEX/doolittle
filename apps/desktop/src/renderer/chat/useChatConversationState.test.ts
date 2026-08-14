@@ -13,6 +13,7 @@ import type {
   SessionMessagesResponse,
   SessionSummary,
 } from "../../shared/contracts";
+import { composeChatContextMessage } from "../chat-context-handoff";
 import type { StorageLike } from "../conversation-persistence";
 import {
   loadStoredChatMessages,
@@ -58,17 +59,19 @@ function deferred<T>() {
 
 function ConversationProbe({
   activeRequest = null,
+  backendReady = true,
   onValue,
   requestSession,
 }: {
   activeRequest?: string | null;
+  backendReady?: boolean;
   onValue: (value: ReturnType<typeof useChatConversationState>) => void;
   requestSession?: MutableRefObject<Record<string, string>>;
 }) {
   const localRequestSession = useRef<Record<string, string>>({});
   const value = useChatConversationState({
     activeRequest,
-    backendReady: true,
+    backendReady,
     onSelect: vi.fn(),
     remoteSessions: [remoteSession],
     requestSession: requestSession ?? localRequestSession,
@@ -265,6 +268,79 @@ describe("chat history concurrency", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+  });
+
+  it("restores an unsent capsule alongside the visible draft after reload", () => {
+    const savedDrafts = {
+      remote: {
+        text: "Explain the failure",
+        capsule: {
+          kind: "terminal",
+          path: "Terminal",
+          content: "<terminal_context>exit 1</terminal_context>",
+        },
+      },
+    };
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) =>
+          key === "doolittle.desktop.conversation.drafts.v1"
+            ? JSON.stringify(savedDrafts)
+            : null,
+        setItem: vi.fn(),
+      },
+    });
+    let latest: ReturnType<typeof useChatConversationState> | undefined;
+
+    act(() =>
+      root.render(
+        createElement(ConversationProbe, {
+          backendReady: false,
+          onValue: (value) => (latest = value),
+        }),
+      ),
+    );
+
+    expect(latest?.draft).toBe("Explain the failure");
+    expect(latest?.chatContextCapsule).toEqual(savedDrafts.remote.capsule);
+    expect(
+      composeChatContextMessage(
+        latest?.draft ?? "",
+        latest?.chatContextCapsule ?? null,
+      ),
+    ).toBe(
+      "Explain the failure\n\n<terminal_context>exit 1</terminal_context>",
+    );
+
+    act(() => latest?.setChatContextCapsule(null));
+    expect(latest?.chatContextCapsule).toBeNull();
+    expect(latest?.draft).toBe("Explain the failure");
+  });
+
+  it("reports draft cache failures without hiding transcript cache failures", () => {
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: () => null,
+        setItem: () => {
+          throw new DOMException("quota exceeded", "QuotaExceededError");
+        },
+      },
+    });
+    let latest: ReturnType<typeof useChatConversationState> | undefined;
+
+    act(() =>
+      root.render(
+        createElement(ConversationProbe, {
+          backendReady: false,
+          onValue: (value) => (latest = value),
+        }),
+      ),
+    );
+
+    expect(latest?.storageWarning).toContain("Local transcript cache");
+    expect(latest?.storageWarning).toContain("Local draft cache");
   });
 
   it("does not let an in-flight history response erase a newly sent turn", async () => {

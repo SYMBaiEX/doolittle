@@ -1,3 +1,5 @@
+import type { Media } from "@elizaos/core";
+
 export type PlatformName =
   | "api"
   | "cli"
@@ -67,6 +69,8 @@ export interface IncomingPlatformMessage {
   authorName?: string;
   timestamp?: string;
   metadata?: Record<string, string>;
+  /** Structured connector media for the Eliza model turn. */
+  attachments?: Media[];
 }
 
 export interface SessionRoute {

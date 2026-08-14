@@ -105,6 +105,75 @@ describe("GatewaySessionService", () => {
     }
   });
 
+  it("keeps native Telegram accounts in distinct sessions without changing legacy keys", () => {
+    const root = mkdtempSync(
+      join(tmpdir(), "doolittle-gateway-sessions-telegram-accounts-"),
+    );
+    const service = new GatewaySessionService(root);
+
+    try {
+      const base = {
+        platform: "telegram" as const,
+        userId: "user-1",
+        roomId: "room-1",
+        text: "hello",
+      };
+      const first = service.resolve({
+        ...base,
+        metadata: { accountId: "first" },
+      });
+      const second = service.resolve({
+        ...base,
+        metadata: { accountId: "second" },
+      });
+      const legacy = service.resolve(base);
+
+      expect(first.sessionKey).toBe(
+        "telegram:room-1:user-1:root:account=first",
+      );
+      expect(second.sessionKey).toBe(
+        "telegram:room-1:user-1:root:account=second",
+      );
+      expect(legacy.sessionKey).toBe("telegram:room-1:user-1:root");
+      expect(service.list()).toHaveLength(3);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps ordinary Telegram replies in the root session but isolates forum topics", () => {
+    const root = mkdtempSync(
+      join(tmpdir(), "doolittle-gateway-sessions-telegram-topics-"),
+    );
+    const service = new GatewaySessionService(root);
+
+    try {
+      const message = {
+        platform: "telegram" as const,
+        userId: "user-1",
+        roomId: "room-1",
+        text: "hello",
+        metadata: { accountId: "work" },
+      };
+      const rootSession = service.resolve(message);
+      const ordinaryReply = service.resolve({
+        ...message,
+        replyToMessageId: "11",
+      });
+      const topic = service.resolve({
+        ...message,
+        threadId: "81",
+        replyToMessageId: "11",
+      });
+
+      expect(ordinaryReply.sessionKey).toBe(rootSession.sessionKey);
+      expect(topic.sessionKey).toBe("telegram:room-1:user-1:81:account=work");
+      expect(service.list()).toHaveLength(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("throws on updates to non-existent sessions and does not create files unexpectedly", () => {
     const root = mkdtempSync(
       join(tmpdir(), "doolittle-gateway-sessions-missing-"),

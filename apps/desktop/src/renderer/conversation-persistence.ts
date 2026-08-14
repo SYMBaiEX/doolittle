@@ -1,4 +1,10 @@
 import type { ManagedAttachmentDescriptor } from "../shared/contracts";
+import {
+  CHAT_CONTEXT_CAPSULE_KINDS,
+  type ChatContextCapsule,
+  composeChatContextMessage,
+  splitChatContext,
+} from "./chat-context-handoff";
 import type { MemoryMatchSnapshot } from "./memory-matches";
 
 export const CONVERSATION_PINS_STORAGE_KEY =
@@ -12,6 +18,9 @@ export const PROMPT_LIBRARY_STORAGE_KEY = "doolittle.desktop.prompt-library.v1";
 
 const MAX_PERSISTED_SESSIONS = 250;
 const MAX_DRAFT_LENGTH = 50_000;
+const MAX_CAPSULE_PATH_LENGTH = 4_096;
+const MAX_CAPSULE_SOURCE_LENGTH = 4_096;
+const MAX_CAPSULE_CONTENT_LENGTH = 120_000;
 const MAX_QUEUE_ITEMS = 50;
 const MAX_ATTACHMENT_COUNT = 8;
 export const MAX_PROMPT_LIBRARY_ITEMS = 50;
@@ -41,15 +50,27 @@ export function safeSetStorageItem(
 }
 
 export type ConversationPins = Record<string, boolean>;
-export type ConversationDrafts = Record<string, string>;
+export interface ConversationDraft {
+  text: string;
+  capsule: ChatContextCapsule | null;
+}
+
+export type ConversationDrafts = Record<string, ConversationDraft>;
 
 export interface PersistedQueuedMessage {
   id: string;
   sessionId: string;
   projectId?: string;
   content: string;
+  /** Hidden source context, kept separate from the queue's visible prompt. */
+  capsule?: ChatContextCapsule;
   attachments: ManagedAttachmentDescriptor[];
   memoryMatch?: MemoryMatchSnapshot;
+}
+
+/** Queue delivery must use the entry's capsule, not the selected chat's. */
+export function composeQueuedMessage(message: PersistedQueuedMessage): string {
+  return composeChatContextMessage(message.content, message.capsule ?? null);
 }
 
 export interface PromptLibraryEntry {
@@ -117,6 +138,57 @@ function validMemoryMatch(value: unknown): value is MemoryMatchSnapshot {
       record.count >= 0 &&
       record.count <= 100,
   );
+}
+
+function sanitizeChatContextCapsule(value: unknown): ChatContextCapsule | null {
+  const record = objectValue(value);
+  if (
+    !record ||
+    !CHAT_CONTEXT_CAPSULE_KINDS.includes(
+      record.kind as ChatContextCapsule["kind"],
+    ) ||
+    typeof record.path !== "string" ||
+    !record.path.trim() ||
+    record.path.length > MAX_CAPSULE_PATH_LENGTH ||
+    typeof record.content !== "string" ||
+    !record.content.trim() ||
+    record.content.length > MAX_CAPSULE_CONTENT_LENGTH ||
+    (record.source !== undefined &&
+      (typeof record.source !== "string" ||
+        record.source.length > MAX_CAPSULE_SOURCE_LENGTH))
+  ) {
+    return null;
+  }
+  return {
+    kind: record.kind as ChatContextCapsule["kind"],
+    path: record.path,
+    ...(typeof record.source === "string" ? { source: record.source } : {}),
+    content: record.content,
+  };
+}
+
+function sanitizeConversationDraft(value: unknown): ConversationDraft | null {
+  // Draft strings are the v1 storage shape. Keep accepting them so existing
+  // unsent prompts survive the capsule-aware upgrade.
+  if (typeof value === "string") {
+    return value.length > 0 && value.length <= MAX_DRAFT_LENGTH
+      ? { text: value, capsule: null }
+      : null;
+  }
+  const record = objectValue(value);
+  if (!record || typeof record.text !== "string") return null;
+  const capsule =
+    record.capsule === undefined || record.capsule === null
+      ? null
+      : sanitizeChatContextCapsule(record.capsule);
+  if (
+    record.text.length > MAX_DRAFT_LENGTH ||
+    (record.capsule !== undefined && record.capsule !== null && !capsule) ||
+    (!record.text && !capsule)
+  ) {
+    return null;
+  }
+  return { text: record.text, capsule };
 }
 
 function sanitizePromptLibraryEntry(value: unknown): PromptLibraryEntry | null {
@@ -193,13 +265,12 @@ export function loadConversationDrafts(
   if (!record) return {};
   return Object.fromEntries(
     Object.entries(record)
-      .filter(
-        (entry): entry is [string, string] =>
-          validSessionId(entry[0]) &&
-          typeof entry[1] === "string" &&
-          entry[1].length > 0 &&
-          entry[1].length <= MAX_DRAFT_LENGTH,
-      )
+      .flatMap(([sessionId, draft]) => {
+        const sanitized = sanitizeConversationDraft(draft);
+        return validSessionId(sessionId) && sanitized
+          ? [[sessionId, sanitized]]
+          : [];
+      })
       .slice(-MAX_PERSISTED_SESSIONS),
   );
 }
@@ -210,12 +281,19 @@ export function saveConversationDrafts(
 ): boolean {
   const bounded = Object.fromEntries(
     Object.entries(drafts)
-      .filter(
-        ([sessionId, draft]) =>
-          validSessionId(sessionId) &&
-          typeof draft === "string" &&
-          draft.length > 0 &&
-          draft.length <= MAX_DRAFT_LENGTH,
+      .map(([sessionId, draft]) => {
+        const sanitized = sanitizeConversationDraft(draft);
+        if (!validSessionId(sessionId) || !sanitized) return null;
+        return [
+          sessionId,
+          sanitized.capsule
+            ? sanitized
+            : // Preserve the compact legacy representation when no capsule is present.
+              sanitized.text,
+        ];
+      })
+      .filter((entry): entry is [string, ConversationDraft | string] =>
+        Boolean(entry),
       )
       .slice(-MAX_PERSISTED_SESSIONS),
   );
@@ -234,14 +312,26 @@ export function loadConversationQueue(
   const queued: PersistedQueuedMessage[] = [];
   for (const candidate of value.slice(-MAX_QUEUE_ITEMS)) {
     const record = objectValue(candidate);
+    const legacyContext =
+      record &&
+      record.capsule === undefined &&
+      typeof record.content === "string"
+        ? splitChatContext(record.content)
+        : null;
+    const capsule =
+      record?.capsule === undefined
+        ? legacyContext?.capsule
+        : sanitizeChatContextCapsule(record.capsule);
+    const content = legacyContext?.prompt ?? record?.content;
     if (
       !record ||
       !validSessionId(record.id) ||
       !validSessionId(record.sessionId) ||
       (record.projectId !== undefined && !validSessionId(record.projectId)) ||
-      typeof record.content !== "string" ||
-      !record.content.trim() ||
-      record.content.length > MAX_DRAFT_LENGTH ||
+      typeof content !== "string" ||
+      !content.trim() ||
+      content.length > MAX_DRAFT_LENGTH ||
+      (record.capsule !== undefined && record.capsule !== null && !capsule) ||
       !Array.isArray(record.attachments) ||
       record.attachments.length > MAX_ATTACHMENT_COUNT ||
       !record.attachments.every(validAttachment) ||
@@ -254,7 +344,8 @@ export function loadConversationQueue(
       id: record.id,
       sessionId: record.sessionId,
       ...(record.projectId ? { projectId: record.projectId } : {}),
-      content: record.content,
+      content,
+      ...(capsule ? { capsule } : {}),
       attachments: record.attachments,
       ...(record.memoryMatch
         ? { memoryMatch: record.memoryMatch as MemoryMatchSnapshot }

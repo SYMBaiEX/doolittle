@@ -1,6 +1,11 @@
 import type { IncomingPlatformMessage } from "@/types/gateway";
-import { attachmentMetadata, normalizeMetadata } from "./helpers";
-import { buildMimeAttachment } from "./parser-utils";
+import {
+  attachmentFallbackText,
+  attachmentMedia,
+  attachmentMetadata,
+  normalizeMetadata,
+} from "./helpers";
+import { buildMimeAttachment, firstNonEmptyText } from "./parser-utils";
 
 export function parseDiscordMessage(
   body: unknown,
@@ -26,17 +31,13 @@ export function parseDiscordMessage(
     }>;
   };
 
-  if (
-    !payload.content ||
-    !payload.channel_id ||
-    !payload.author?.id ||
-    payload.author.bot
-  ) {
+  if (!payload.channel_id || !payload.author?.id || payload.author.bot) {
     return null;
   }
 
   const attachments = (payload.attachments ?? []).flatMap((attachment) => {
     const descriptor = buildMimeAttachment({
+      id: attachment.id,
       name: attachment.filename ?? attachment.id,
       url: attachment.url ?? attachment.proxy_url,
       mimeType: attachment.content_type,
@@ -46,12 +47,15 @@ export function parseDiscordMessage(
     });
     return descriptor ? [descriptor] : [];
   });
+  const text =
+    payload.content || attachmentFallbackText("discord", attachments);
+  if (!text) return null;
 
   return {
     platform: "discord",
     userId: payload.author.id,
     roomId: payload.channel_id,
-    text: payload.content,
+    text,
     channelId: payload.channel_id,
     messageId: payload.id,
     threadId: payload.thread_id ?? payload.message_reference?.message_id,
@@ -67,6 +71,7 @@ export function parseDiscordMessage(
       ["replyToMessageId", payload.message_reference?.message_id],
       ...Object.entries(attachmentMetadata(attachments)),
     ]),
+    attachments: attachmentMedia("discord", attachments),
   };
 }
 
@@ -97,7 +102,6 @@ export function parseSlackMessage(
   if (
     payload.event?.type !== "message" ||
     payload.event.subtype === "bot_message" ||
-    !payload.event.text ||
     !payload.event.channel ||
     !payload.event.user
   ) {
@@ -106,6 +110,7 @@ export function parseSlackMessage(
 
   const attachments = (payload.event.files ?? []).flatMap((file) => {
     const descriptor = buildMimeAttachment({
+      id: file.id,
       name: file.name ?? file.id,
       url: file.url_private,
       mimeType: file.mimetype,
@@ -113,12 +118,15 @@ export function parseSlackMessage(
     });
     return descriptor ? [descriptor] : [];
   });
+  const text =
+    payload.event.text || attachmentFallbackText("slack", attachments);
+  if (!text) return null;
 
   return {
     platform: "slack",
     userId: payload.event.user,
     roomId: payload.event.channel,
-    text: payload.event.text,
+    text,
     channelId: payload.event.channel,
     messageId: payload.event.ts,
     threadId: payload.event.thread_ts,
@@ -131,6 +139,7 @@ export function parseSlackMessage(
       ["messageId", payload.event.ts],
       ...Object.entries(attachmentMetadata(attachments)),
     ]),
+    attachments: attachmentMedia("slack", attachments),
   };
 }
 
@@ -158,15 +167,15 @@ export function parseSignalMessage(
     }>;
   };
 
-  const text = payload.text ?? payload.message ?? payload.body;
   const userId = payload.sender ?? payload.from;
   const roomId = payload.conversation_id ?? payload.sender ?? payload.from;
-  if (!text || !userId || !roomId) {
+  if (!userId || !roomId) {
     return null;
   }
 
   const attachments = (payload.attachments ?? []).flatMap((attachment) => {
     const descriptor = buildMimeAttachment({
+      id: attachment.id,
       name: attachment.filename ?? attachment.id,
       url: attachment.url ?? attachment.data,
       mimeType: attachment.content_type,
@@ -174,6 +183,10 @@ export function parseSignalMessage(
     });
     return descriptor ? [descriptor] : [];
   });
+  const text =
+    firstNonEmptyText(payload.text, payload.message, payload.body) ??
+    attachmentFallbackText("signal", attachments);
+  if (!text) return null;
 
   return {
     platform: "signal",
@@ -192,5 +205,6 @@ export function parseSignalMessage(
       ["messageId", payload.message_id],
       ...Object.entries(attachmentMetadata(attachments)),
     ]),
+    attachments: attachmentMedia("signal", attachments),
   };
 }

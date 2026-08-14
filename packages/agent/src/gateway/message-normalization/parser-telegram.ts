@@ -1,11 +1,13 @@
 import type { IncomingPlatformMessage } from "@/types/gateway";
 import {
   type AttachmentDescriptor,
+  attachmentMedia,
   attachmentMetadata,
   normalizeMetadata,
 } from "./helpers";
 import {
   authorDisplayName,
+  firstNonEmptyText,
   optionalDurationMs,
   optionalNumericString,
 } from "./parser-utils";
@@ -17,6 +19,7 @@ export function parseTelegramMessage(
     message?: {
       message_id?: number;
       text?: string;
+      caption?: string;
       chat?: { id?: number | string; type?: string; title?: string };
       from?: {
         id?: number | string;
@@ -25,6 +28,8 @@ export function parseTelegramMessage(
         last_name?: string;
       };
       reply_to_message?: { message_id?: number };
+      message_thread_id?: number;
+      is_topic_message?: boolean;
       date?: number;
       photo?: Array<{ file_id?: string; file_unique_id?: string }>;
       document?: {
@@ -63,8 +68,7 @@ export function parseTelegramMessage(
   };
 
   if (
-    !payload.message?.text ||
-    payload.message.chat?.id === undefined ||
+    payload.message?.chat?.id === undefined ||
     payload.message.from?.id === undefined
   ) {
     return null;
@@ -73,8 +77,7 @@ export function parseTelegramMessage(
   const message = payload.message;
   const chat = message.chat;
   const from = message.from;
-  const text = message.text;
-  if (!chat || !from || !text) {
+  if (!chat || !from) {
     return null;
   }
   const authorName = authorDisplayName(
@@ -87,6 +90,7 @@ export function parseTelegramMessage(
   const photo = message.photo?.at(-1);
   if (photo?.file_id) {
     attachments.push({
+      id: photo.file_id,
       kind: "photo",
       name: `telegram-photo-${message.message_id ?? "unknown"}`,
       url: photo.file_id,
@@ -95,6 +99,7 @@ export function parseTelegramMessage(
   }
   if (message.document?.file_id) {
     attachments.push({
+      id: message.document.file_id,
       kind: "document",
       name:
         message.document.file_name ??
@@ -106,6 +111,7 @@ export function parseTelegramMessage(
   }
   if (message.video?.file_id) {
     attachments.push({
+      id: message.video.file_id,
       kind: "video",
       name:
         message.video.file_name ??
@@ -117,6 +123,7 @@ export function parseTelegramMessage(
   }
   if (message.voice?.file_id) {
     attachments.push({
+      id: message.voice.file_id,
       kind: "voice",
       name: `telegram-voice-${message.message_id ?? "unknown"}`,
       url: message.voice.file_id,
@@ -127,6 +134,7 @@ export function parseTelegramMessage(
   }
   if (message.audio?.file_id) {
     attachments.push({
+      id: message.audio.file_id,
       kind: "audio",
       name:
         message.audio.file_name ??
@@ -139,6 +147,7 @@ export function parseTelegramMessage(
   }
   if (message.animation?.file_id) {
     attachments.push({
+      id: message.animation.file_id,
       kind: "animation",
       name:
         message.animation.file_name ??
@@ -150,6 +159,7 @@ export function parseTelegramMessage(
   }
   if (message.sticker?.file_id) {
     attachments.push({
+      id: message.sticker.file_id,
       kind: "sticker",
       name:
         message.sticker.emoji ??
@@ -161,15 +171,22 @@ export function parseTelegramMessage(
     });
   }
 
+  const text =
+    firstNonEmptyText(message.text, message.caption) ??
+    (attachments.length > 0 ? "[Telegram attachment]" : "");
+  if (!text) return null;
+  const topicThreadId =
+    message.is_topic_message && Number.isFinite(message.message_thread_id)
+      ? String(message.message_thread_id)
+      : undefined;
+
   return {
     platform: "telegram",
     userId: String(from.id),
     roomId: String(chat.id),
     text,
     channelId: String(chat.id),
-    threadId: message.reply_to_message?.message_id
-      ? String(message.reply_to_message.message_id)
-      : undefined,
+    threadId: topicThreadId,
     messageId: message.message_id ? String(message.message_id) : undefined,
     replyToMessageId: message.reply_to_message?.message_id
       ? String(message.reply_to_message.message_id)
@@ -193,7 +210,10 @@ export function parseTelegramMessage(
           : undefined,
       ],
       ["authorName", authorName],
+      ["isTopicMessage", topicThreadId ? "true" : undefined],
+      ["messageThreadId", topicThreadId],
       ...Object.entries(attachmentMetadata(attachments)),
     ]),
+    attachments: attachmentMedia("telegram", attachments),
   };
 }
