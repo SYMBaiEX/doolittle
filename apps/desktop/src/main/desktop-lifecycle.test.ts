@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { handleWindowClose, shouldHideOnClose } from "./desktop-lifecycle";
+import {
+  handleWindowClose,
+  shouldHideOnClose,
+  shouldStayOnDirtyClosePrompt,
+} from "./desktop-lifecycle";
 
 describe("desktop background lifecycle", () => {
   it("only hides a window after the user opted into background mode", () => {
@@ -24,5 +28,10 @@ describe("desktop background lifecycle", () => {
     ).toBe(false);
     expect(hide).not.toHaveBeenCalled();
     expect(preventDefault).not.toHaveBeenCalled();
+  });
+
+  it("keeps the window open only for Stay in the dirty-close prompt", () => {
+    expect(shouldStayOnDirtyClosePrompt(0)).toBe(true);
+    expect(shouldStayOnDirtyClosePrompt(1)).toBe(false);
   });
 });

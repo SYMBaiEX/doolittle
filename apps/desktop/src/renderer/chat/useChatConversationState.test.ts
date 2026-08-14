@@ -18,6 +18,7 @@ import {
   loadStoredChatMessages,
   projectChatSessions,
   reconcileOrphanedPendingMessages,
+  saveStoredChatMessages,
   useChatConversationState,
 } from "./useChatConversationState";
 
@@ -80,6 +81,31 @@ function ConversationProbe({
 }
 
 describe("chat conversation state", () => {
+  it("keeps transcript persistence best-effort when storage rejects writes", () => {
+    const storage: StorageLike = {
+      getItem: () => null,
+      setItem: () => {
+        throw new DOMException("quota exceeded", "QuotaExceededError");
+      },
+    };
+    expect(
+      saveStoredChatMessages(
+        storage,
+        {
+          remote: [
+            {
+              content: "Keep the in-memory transcript usable",
+              createdAt: "2026-08-12T10:00:00.000Z",
+              id: "message-1",
+              role: "user",
+            },
+          ],
+        },
+        "remote",
+      ),
+    ).toBe(false);
+  });
+
   it("restores only object entries that contain message arrays", () => {
     expect(
       loadStoredChatMessages(

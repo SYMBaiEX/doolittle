@@ -41,7 +41,43 @@ describe("NativeMessageConnectorAdapter", () => {
     expect(adapter.edit).toBeUndefined();
   });
 
-  it("only exposes edits when the connector advertises edit_message", () => {
+  it("routes sends to a nonblank connector account from message metadata", async () => {
+    const sendMessageToTarget = vi.fn().mockResolvedValue(undefined);
+    const adapter = new NativeMessageConnectorAdapter(
+      "discord",
+      {
+        getMessageConnectors: () => [
+          {
+            source: "discord",
+            label: "Discord",
+            capabilities: ["send_message"],
+            supportedTargetKinds: [],
+            contexts: [],
+          },
+        ],
+        sendMessageToTarget,
+      } as never,
+      new DeliveryService("/tmp/doolittle-native-connector-account-test"),
+    );
+
+    await adapter.send({
+      roomId: "channel-1",
+      text: "hello",
+      metadata: { accountId: "  work-account  " },
+    });
+
+    expect(sendMessageToTarget).toHaveBeenCalledWith(
+      {
+        source: "discord",
+        channelId: "channel-1",
+        threadId: undefined,
+        accountId: "work-account",
+      },
+      expect.anything(),
+    );
+  });
+
+  it("only exposes edits when the connector advertises edit_message", async () => {
     const editMessageOnTarget = vi.fn().mockResolvedValue({
       metadata: { platformMessageId: "native-42" },
     });
@@ -73,8 +109,54 @@ describe("NativeMessageConnectorAdapter", () => {
       "before",
       { metadata: { platformMessageId: "native-42" } },
     );
-    return expect(
-      adapter.edit?.(record, { roomId: "channel-1", text: "after" }),
+    await expect(
+      adapter.edit?.(record, {
+        roomId: "channel-1",
+        text: "after",
+        metadata: { accountId: "work-account" },
+      }),
     ).resolves.toMatchObject({ text: "after" });
+
+    expect(editMessageOnTarget).toHaveBeenCalledWith(
+      {
+        source: "discord",
+        channelId: "channel-1",
+        threadId: undefined,
+        accountId: "work-account",
+      },
+      "native-42",
+      expect.anything(),
+    );
+  });
+
+  it("keeps source-only targets when the account metadata is blank", async () => {
+    const sendMessageToTarget = vi.fn().mockResolvedValue(undefined);
+    const adapter = new NativeMessageConnectorAdapter(
+      "discord",
+      {
+        getMessageConnectors: () => [
+          {
+            source: "discord",
+            label: "Discord",
+            capabilities: ["send_message"],
+            supportedTargetKinds: [],
+            contexts: [],
+          },
+        ],
+        sendMessageToTarget,
+      } as never,
+      new DeliveryService("/tmp/doolittle-native-connector-blank-account-test"),
+    );
+
+    await adapter.send({
+      roomId: "channel-1",
+      text: "hello",
+      metadata: { accountId: "   " },
+    });
+
+    expect(sendMessageToTarget).toHaveBeenCalledWith(
+      { source: "discord", channelId: "channel-1", threadId: undefined },
+      expect.anything(),
+    );
   });
 });

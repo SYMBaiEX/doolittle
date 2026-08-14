@@ -32,10 +32,12 @@ function nativeTarget(
   platform: PlatformName,
   message: OutboundPlatformMessage,
 ): TargetInfo {
+  const accountId = message.metadata?.accountId?.trim();
   return {
     source: platform,
     channelId: message.roomId,
     threadId: message.threadId,
+    ...(accountId ? { accountId } : {}),
   };
 }
 

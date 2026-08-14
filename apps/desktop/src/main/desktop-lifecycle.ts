@@ -27,3 +27,8 @@ export function handleWindowClose(
   window.hide();
   return true;
 }
+
+/** The native prompt keeps the window open only for the explicit Stay choice. */
+export function shouldStayOnDirtyClosePrompt(response: number): boolean {
+  return response === 0;
+}

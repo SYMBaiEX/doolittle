@@ -2220,6 +2220,18 @@ td {
   border-bottom: 1px solid color-mix(in srgb, var(--bad) 25%, var(--border));
 }
 
+.chat-storage-warning {
+  width: min(100%, 760px);
+  margin: -10px auto 12px;
+  padding: 5px 8px;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warn) 28%, var(--border));
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+}
+
 .chat-mobile-conversations-button,
 .chat-mobile-conversations-backdrop {
   display: none;

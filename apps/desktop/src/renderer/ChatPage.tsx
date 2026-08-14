@@ -50,6 +50,7 @@ import { newConversationId } from "./conversation-id";
 import {
   loadConversationQueue,
   type PersistedQueuedMessage,
+  safeSetStorageItem,
   saveConversationQueue,
 } from "./conversation-persistence";
 import { desktopRequest, errorMessage } from "./lib";
@@ -198,6 +199,7 @@ export function ChatPage({
     selectedMessages,
     selectedSession,
     sessionSearch,
+    storageWarning,
     sessions,
     setDraft,
     setDraftForSession,
@@ -362,7 +364,8 @@ export function ChatPage({
   }, [queuedMessages]);
 
   useEffect(() => {
-    localStorage.setItem(
+    safeSetStorageItem(
+      localStorage,
       INSPECTOR_STORAGE_KEY,
       JSON.stringify(inspectorVisible),
     );
@@ -1045,6 +1048,15 @@ export function ChatPage({
           speakingMessageId={speakingMessageId}
           speechSupported={speechSupported}
         />
+        {storageWarning ? (
+          <div
+            aria-live="polite"
+            className="chat-storage-warning"
+            role="status"
+          >
+            {storageWarning}
+          </div>
+        ) : null}
         <div aria-live="polite" className="sr-only" role="status">
           {accessibilityStatus}
         </div>

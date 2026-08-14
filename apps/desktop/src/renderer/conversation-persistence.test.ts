@@ -9,6 +9,7 @@ import {
   loadPromptLibrary,
   PROMPT_LIBRARY_STORAGE_KEY,
   type StorageLike,
+  safeSetStorageItem,
   saveConversationDrafts,
   saveConversationPins,
   saveConversationQueue,
@@ -26,6 +27,21 @@ function memoryStorage(seed: Record<string, string> = {}): StorageLike {
 }
 
 describe("conversation persistence", () => {
+  it("treats storage quota failures as a cache miss instead of throwing", () => {
+    const storage: StorageLike = {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("quota exceeded");
+      },
+    };
+    expect(safeSetStorageItem(storage, "cache", "value")).toBe(false);
+    expect(saveConversationPins(storage, { "desktop:one": true })).toBe(false);
+    expect(saveConversationDrafts(storage, { "desktop:one": "draft" })).toBe(
+      false,
+    );
+    expect(saveConversationQueue(storage, [])).toBe(false);
+  });
+
   it("round trips bounded pins and per-session drafts", () => {
     const storage = memoryStorage();
     saveConversationPins(storage, { "desktop:one": true, ignored: false });

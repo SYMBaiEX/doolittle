@@ -22,7 +22,10 @@ import {
   findRepoRoot,
   sourceRuntimeTarget,
 } from "./backend";
-import { handleWindowClose } from "./desktop-lifecycle";
+import {
+  handleWindowClose,
+  shouldStayOnDirtyClosePrompt,
+} from "./desktop-lifecycle";
 import { DesktopPreferences } from "./desktop-preferences";
 import { type DesktopBackgroundNotification, registerIpc } from "./ipc";
 import { ProviderAuthController } from "./provider-auth";
@@ -508,6 +511,20 @@ function createWindow(): BrowserWindow {
   );
   window.webContents.on("will-navigate", (event, url) => {
     if (!isTrustedRendererNavigation(url, rendererUrl)) event.preventDefault();
+  });
+  window.webContents.on("will-prevent-unload", (event) => {
+    const result = dialog.showMessageBoxSync(window, {
+      type: "warning",
+      title: "Unsaved coding changes",
+      message: "This coding workspace has unsaved edits.",
+      detail:
+        "Stay to keep the draft, or leave to discard it and close Doolittle.",
+      buttons: ["Stay", "Leave"],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+    });
+    if (shouldStayOnDirtyClosePrompt(result)) event.preventDefault();
   });
 
   void loadDesktopWindow(window, {

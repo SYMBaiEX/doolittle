@@ -87,6 +87,7 @@ import { useDesktopContentNavigation } from "./use-desktop-content-navigation";
 import { useProjectManagement } from "./use-project-management";
 import { useRuntimeWorkspaceData } from "./use-runtime-workspace-data";
 import { useWorkspaceProjectNavigation } from "./use-workspace-project-navigation";
+import { guardDirtyCodeWorkspaceClose } from "./window-close-guard";
 import { workspacePathsEqual } from "./workspace-path";
 
 function pathsEqual(left: string | undefined, right: string): boolean {
@@ -250,6 +251,14 @@ export function App() {
   const [density, setDensity] = useState<DesktopDensity>(loadDensityPreference);
   const systemPrefersDark = useMediaQuery("(prefers-color-scheme: dark)");
   const resolvedAppearance = resolveAppearance(appearance, systemPrefersDark);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      guardDirtyCodeWorkspaceClose(event, codeWorkspaceDirty);
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [codeWorkspaceDirty]);
   const {
     toasts,
     push: pushToast,

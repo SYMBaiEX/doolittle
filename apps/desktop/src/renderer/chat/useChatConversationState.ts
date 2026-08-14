@@ -18,6 +18,7 @@ import {
   loadConversationDrafts,
   loadConversationPins,
   type StorageLike,
+  safeSetStorageItem,
   saveConversationDrafts,
   saveConversationPins,
 } from "../conversation-persistence";
@@ -30,6 +31,78 @@ import type {
 } from "./models";
 
 const CHAT_STORAGE_KEY = "doolittle.desktop.conversations.v2";
+const MAX_CHAT_STORAGE_CHARS = 3_500_000;
+const MAX_PERSISTED_MESSAGES_PER_SESSION = 500;
+const MAX_PERSISTED_MESSAGE_CONTENT = 120_000;
+
+function boundedStoredMessages(
+  messages: readonly DisplayMessage[],
+  maxMessages: number,
+  maxContent: number,
+): DisplayMessage[] {
+  return messages.slice(-maxMessages).map((message) =>
+    message.content.length <= maxContent
+      ? message
+      : {
+          ...message,
+          content: `${message.content.slice(0, maxContent)}\n\n[Local transcript cache truncated]`,
+        },
+  );
+}
+
+/** Persist chat history as a bounded, best-effort cache; the server remains canonical. */
+export function saveStoredChatMessages(
+  storage: StorageLike,
+  messages: ConversationStore,
+  protectedSessionId?: string,
+): boolean {
+  try {
+    const entries = Object.entries(messages).sort(([, left], [, right]) =>
+      (right.at(-1)?.createdAt ?? "").localeCompare(
+        left.at(-1)?.createdAt ?? "",
+      ),
+    );
+    const ordered = protectedSessionId
+      ? [
+          ...entries.filter(([sessionId]) => sessionId === protectedSessionId),
+          ...entries.filter(([sessionId]) => sessionId !== protectedSessionId),
+        ]
+      : entries;
+    const persisted: ConversationStore = {};
+    for (const [sessionId, sessionMessages] of ordered) {
+      const bounded = boundedStoredMessages(
+        sessionMessages,
+        MAX_PERSISTED_MESSAGES_PER_SESSION,
+        MAX_PERSISTED_MESSAGE_CONTENT,
+      );
+      const candidate = JSON.stringify({
+        ...persisted,
+        [sessionId]: bounded,
+      });
+      if (candidate.length <= MAX_CHAT_STORAGE_CHARS) {
+        persisted[sessionId] = bounded;
+        continue;
+      }
+      if (sessionId === protectedSessionId) {
+        const compact = boundedStoredMessages(sessionMessages, 50, 32_000);
+        const compactCandidate = JSON.stringify({
+          ...persisted,
+          [sessionId]: compact,
+        });
+        if (compactCandidate.length <= MAX_CHAT_STORAGE_CHARS) {
+          persisted[sessionId] = compact;
+        }
+      }
+    }
+    return safeSetStorageItem(
+      storage,
+      CHAT_STORAGE_KEY,
+      JSON.stringify(persisted),
+    );
+  } catch {
+    return false;
+  }
+}
 
 function isStoredDisplayMessage(value: unknown): value is DisplayMessage {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -219,6 +292,7 @@ export function useChatConversationState({
   );
   const [sessionSearch, setSessionSearch] = useState("");
   const [historyError, setHistoryError] = useState("");
+  const [storageWarning, setStorageWarning] = useState("");
   const [loadingHistory, setLoadingHistory] = useState("");
   const [historyRetryVersion, setHistoryRetryVersion] = useState(0);
   const requestedHistory = useRef(new Set<string>());
@@ -265,8 +339,17 @@ export function useChatConversationState({
   }, [initialId, onSelect, selectedId]);
 
   useEffect(() => {
-    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
-  }, [messages]);
+    const persisted = saveStoredChatMessages(
+      localStorage,
+      messages,
+      selectedId,
+    );
+    setStorageWarning(
+      persisted
+        ? ""
+        : "Local transcript cache is unavailable. Your conversation remains active, and server history is unaffected.",
+    );
+  }, [messages, selectedId]);
 
   useEffect(() => {
     saveConversationPins(localStorage, pinnedSessions);
@@ -438,6 +521,7 @@ export function useChatConversationState({
     draft,
     historyError,
     loadingHistory,
+    storageWarning,
     retryHistory,
     selectedMessages: messages[selectedId] ?? [],
     selectedSession: sessions.find(

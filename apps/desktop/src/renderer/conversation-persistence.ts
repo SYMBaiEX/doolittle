@@ -22,6 +22,24 @@ export interface StorageLike {
   setItem(key: string, value: string): void;
 }
 
+/**
+ * Browser storage is an optional cache in the desktop app. Private browsing,
+ * quota exhaustion, and managed profiles can all make writes throw; callers
+ * should keep the in-memory state authoritative when that happens.
+ */
+export function safeSetStorageItem(
+  storage: StorageLike,
+  key: string,
+  value: string,
+): boolean {
+  try {
+    storage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export type ConversationPins = Record<string, boolean>;
 export type ConversationDrafts = Record<string, string>;
 
@@ -153,13 +171,17 @@ export function loadConversationPins(storage: StorageLike): ConversationPins {
 export function saveConversationPins(
   storage: StorageLike,
   pins: ConversationPins,
-): void {
+): boolean {
   const bounded = Object.fromEntries(
     Object.entries(pins)
       .filter(([sessionId, pinned]) => validSessionId(sessionId) && pinned)
       .slice(0, MAX_PERSISTED_SESSIONS),
   );
-  storage.setItem(CONVERSATION_PINS_STORAGE_KEY, JSON.stringify(bounded));
+  return safeSetStorageItem(
+    storage,
+    CONVERSATION_PINS_STORAGE_KEY,
+    JSON.stringify(bounded),
+  );
 }
 
 export function loadConversationDrafts(
@@ -185,7 +207,7 @@ export function loadConversationDrafts(
 export function saveConversationDrafts(
   storage: StorageLike,
   drafts: ConversationDrafts,
-): void {
+): boolean {
   const bounded = Object.fromEntries(
     Object.entries(drafts)
       .filter(
@@ -197,7 +219,11 @@ export function saveConversationDrafts(
       )
       .slice(-MAX_PERSISTED_SESSIONS),
   );
-  storage.setItem(CONVERSATION_DRAFTS_STORAGE_KEY, JSON.stringify(bounded));
+  return safeSetStorageItem(
+    storage,
+    CONVERSATION_DRAFTS_STORAGE_KEY,
+    JSON.stringify(bounded),
+  );
 }
 
 export function loadConversationQueue(
@@ -241,8 +267,9 @@ export function loadConversationQueue(
 export function saveConversationQueue(
   storage: StorageLike,
   queue: readonly PersistedQueuedMessage[],
-): void {
-  storage.setItem(
+): boolean {
+  return safeSetStorageItem(
+    storage,
     CONVERSATION_QUEUE_STORAGE_KEY,
     JSON.stringify(queue.slice(-MAX_QUEUE_ITEMS)),
   );
@@ -266,7 +293,7 @@ export function loadPromptLibrary(storage: StorageLike): PromptLibraryEntry[] {
 export function savePromptLibrary(
   storage: StorageLike,
   entries: readonly PromptLibraryEntry[],
-): void {
+): boolean {
   const sanitized: PromptLibraryEntry[] = [];
   const ids = new Set<string>();
   for (const candidate of entries) {
@@ -276,5 +303,9 @@ export function savePromptLibrary(
     sanitized.push(entry);
     if (sanitized.length >= MAX_PROMPT_LIBRARY_ITEMS) break;
   }
-  storage.setItem(PROMPT_LIBRARY_STORAGE_KEY, JSON.stringify(sanitized));
+  return safeSetStorageItem(
+    storage,
+    PROMPT_LIBRARY_STORAGE_KEY,
+    JSON.stringify(sanitized),
+  );
 }
