@@ -62,4 +62,20 @@ describe("SSE parsing", () => {
       data: update,
     });
   });
+
+  it("rejects an oversized unterminated event before retaining it", () => {
+    const parser = new SseParser({ maxBufferChars: 16 });
+
+    expect(() => parser.push(`data: ${"x".repeat(32)}`)).toThrow(
+      "SSE stream buffer exceeds the 16 character limit.",
+    );
+  });
+
+  it("rejects an oversized completed event", () => {
+    const parser = new SseParser({ maxEventChars: 16 });
+
+    expect(() => parser.push(`data: ${"x".repeat(32)}\n\n`)).toThrow(
+      "SSE stream event exceeds the 16 character limit.",
+    );
+  });
 });
