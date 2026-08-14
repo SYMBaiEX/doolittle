@@ -129,4 +129,21 @@ describe("handleProjectRoutes", () => {
     );
     expect(file?.status).toBe(400);
   });
+
+  it("returns a stable 400 for malformed project mutations", async () => {
+    const response = await handleProjectRoutes(
+      context(),
+      new Request("http://localhost/projects", {
+        method: "POST",
+        body: "{",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/projects"),
+    );
+
+    expect(response?.status).toBe(400);
+    await expect(response?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+  });
 });

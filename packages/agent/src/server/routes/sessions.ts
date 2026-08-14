@@ -1,8 +1,21 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import { SessionForkError } from "@/services/session/service";
 
 const ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
+
+function bodyError(reason: "invalid_json" | "not_object"): Response {
+  return json(
+    {
+      error:
+        reason === "invalid_json"
+          ? "Invalid JSON body"
+          : "JSON body must be an object",
+    },
+    400,
+  );
+}
 
 function optionalProjectId(url: URL): string | Response | undefined {
   const value = url.searchParams.get("projectId");
@@ -46,7 +59,9 @@ export async function handleSessionRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/sessions/title") {
-    const body = (await request.json()) as {
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) return bodyError(parsed.reason);
+    const body = parsed.value as {
       sessionId?: string;
       title?: string;
     };
@@ -59,19 +74,13 @@ export async function handleSessionRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/sessions/fork") {
-    let body: {
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) return bodyError(parsed.reason);
+    const body = parsed.value as {
       sourceSessionId?: unknown;
       throughMessageId?: unknown;
       beforeMessageId?: unknown;
     };
-    try {
-      body = (await request.json()) as typeof body;
-    } catch {
-      return json({ error: "request body must be valid JSON" }, 400);
-    }
-    if (!body || typeof body !== "object") {
-      return json({ error: "request body must be a JSON object" }, 400);
-    }
     if (
       typeof body.sourceSessionId !== "string" ||
       !ID_PATTERN.test(body.sourceSessionId)
@@ -121,7 +130,9 @@ export async function handleSessionRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/sessions/project") {
-    const body = (await request.json()) as {
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) return bodyError(parsed.reason);
+    const body = parsed.value as {
       sessionId?: unknown;
       projectId?: unknown;
     };

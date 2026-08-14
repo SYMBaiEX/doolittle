@@ -1,11 +1,24 @@
 import { existsSync, statSync } from "node:fs";
 import { isAbsolute, normalize } from "node:path";
 import type { AppContext } from "@/runtime/bootstrap";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 
 const ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
 const MAX_NAME_LENGTH = 120;
 const MAX_DESCRIPTION_LENGTH = 2_000;
+
+function bodyError(reason: "invalid_json" | "not_object"): Response {
+  return json(
+    {
+      error:
+        reason === "invalid_json"
+          ? "Invalid JSON body"
+          : "JSON body must be an object",
+    },
+    400,
+  );
+}
 
 function text(value: unknown, max: number): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -84,7 +97,9 @@ export async function handleProjectRoutes(
     });
   }
   if (request.method === "POST" && url.pathname === "/projects") {
-    const body = (await request.json()) as {
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) return bodyError(parsed.reason);
+    const body = parsed.value as {
       id?: unknown;
       name?: unknown;
       description?: unknown;
@@ -141,7 +156,9 @@ export async function handleProjectRoutes(
 
   const archive = match(url.pathname, /^\/projects\/([^/]{1,768})\/archive$/);
   if (request.method === "POST" && archive?.[0]) {
-    const body = (await request.json().catch(() => ({}))) as {
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) return bodyError(parsed.reason);
+    const body = parsed.value as {
       archived?: unknown;
     };
     if (body.archived !== undefined && typeof body.archived !== "boolean")
@@ -170,7 +187,9 @@ export async function handleProjectRoutes(
       });
     }
     if (request.method === "POST" && !resourceId) {
-      const body = (await request.json()) as {
+      const parsed = await readJsonObjectBody(request);
+      if (!parsed.ok) return bodyError(parsed.reason);
+      const body = parsed.value as {
         id?: unknown;
         kind?: unknown;
         label?: unknown;
@@ -226,7 +245,9 @@ export async function handleProjectRoutes(
       : json({ error: "project not found" }, 404);
   }
   if (request.method === "PATCH") {
-    const body = (await request.json()) as {
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) return bodyError(parsed.reason);
+    const body = parsed.value as {
       name?: unknown;
       description?: unknown;
       instructions?: unknown;

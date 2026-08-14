@@ -1,6 +1,19 @@
 import type { AppContext } from "@/runtime/bootstrap";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
 import type { PlatformName } from "@/types";
+
+function bodyError(reason: "invalid_json" | "not_object"): Response {
+  return json(
+    {
+      error:
+        reason === "invalid_json"
+          ? "Invalid JSON body"
+          : "JSON body must be an object",
+    },
+    400,
+  );
+}
 
 export async function handleGatewaySessionRoutes(
   context: AppContext,
@@ -25,7 +38,9 @@ export async function handleGatewaySessionRoutes(
     request.method === "POST" &&
     url.pathname === "/sessions/gateway/expire"
   ) {
-    const body = (await request.json()) as {
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) return bodyError(parsed.reason);
+    const body = parsed.value as {
       minutes?: number;
     };
     const minutes = Number(body.minutes ?? 0);
@@ -60,7 +75,9 @@ export async function handleGatewaySessionRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/sessions/gateway/voice") {
-    const body = (await request.json()) as {
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) return bodyError(parsed.reason);
+    const body = parsed.value as {
       sessionKey?: string;
       mode?: "off" | "voice_only" | "all";
       voiceChannelId?: string;
@@ -88,7 +105,9 @@ export async function handleGatewaySessionRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/sessions/gateway/home") {
-    const body = (await request.json()) as {
+    const parsed = await readJsonObjectBody(request);
+    if (!parsed.ok) return bodyError(parsed.reason);
+    const body = parsed.value as {
       sessionKey?: string;
       isHome?: boolean;
       label?: string;

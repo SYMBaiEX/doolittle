@@ -133,6 +133,23 @@ describe("handleSessionRoutes", () => {
     });
   });
 
+  it("returns a stable 400 for malformed mutation bodies", async () => {
+    const response = await handleSessionRoutes(
+      createContext(),
+      new Request("http://localhost/sessions/title", {
+        method: "POST",
+        body: "{",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/sessions/title"),
+    );
+
+    expect(response?.status).toBe(400);
+    await expect(response?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+  });
+
   it("requires a session id when loading messages", async () => {
     const response = await handleSessionRoutes(
       createContext(),

@@ -115,6 +115,23 @@ describe("handleGatewaySessionRoutes", () => {
     });
   });
 
+  it("returns a stable 400 for malformed gateway mutations", async () => {
+    const response = await handleGatewaySessionRoutes(
+      createContext(),
+      new Request("http://localhost/sessions/gateway/expire", {
+        method: "POST",
+        body: "{",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/sessions/gateway/expire"),
+    );
+
+    expect(response?.status).toBe(400);
+    await expect(response?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+  });
+
   it("validates and updates voice or home session state", async () => {
     const voiceBad = await handleGatewaySessionRoutes(
       createContext(),
