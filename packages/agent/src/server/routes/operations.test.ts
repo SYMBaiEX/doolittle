@@ -125,6 +125,36 @@ describe("handleOperationsRoutes", () => {
     });
   });
 
+  it("returns a stable 400 for malformed workspace and terminal bodies", async () => {
+    const invalidWrite = await handleOperationsRoutes(
+      createContext(),
+      new Request("http://localhost/workspace/write", {
+        method: "POST",
+        body: "{",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/workspace/write"),
+    );
+    const invalidSession = await handleOperationsRoutes(
+      createContext(),
+      new Request("http://localhost/terminal/session/input", {
+        method: "POST",
+        body: "[]",
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/terminal/session/input"),
+    );
+
+    expect(invalidWrite?.status).toBe(400);
+    await expect(invalidWrite?.json()).resolves.toEqual({
+      error: "Invalid JSON body",
+    });
+    expect(invalidSession?.status).toBe(400);
+    await expect(invalidSession?.json()).resolves.toEqual({
+      error: "JSON body must be an object",
+    });
+  });
+
   it("writes workspace files and runs commands", async () => {
     const context = createContext();
     const write = await handleOperationsRoutes(

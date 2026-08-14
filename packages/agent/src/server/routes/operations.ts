@@ -6,6 +6,7 @@ import {
   runEffectiveShellCommand,
 } from "@/runtime/native/service-bridge/tooling";
 import { sdkTerminalRunTokenError } from "@/server/auth";
+import { readJsonObjectBody } from "@/server/request-body";
 import { json, streamSse } from "@/server/responses";
 
 const MAX_WORKSPACE_FILE_BYTES = 1_000_000;
@@ -34,6 +35,24 @@ type TerminalCommandInput =
       error: string;
       status: number;
     };
+
+type ParsedBody = { body: Record<string, unknown> } | { response: Response };
+
+async function readBody(request: Request): Promise<ParsedBody> {
+  const parsed = await readJsonObjectBody(request);
+  if (parsed.ok) return { body: parsed.value };
+  return {
+    response: json(
+      {
+        error:
+          parsed.reason === "invalid_json"
+            ? "Invalid JSON body"
+            : "JSON body must be an object",
+      },
+      400,
+    ),
+  };
+}
 
 function parseTerminalCommandInput(
   body: Record<string, unknown>,
@@ -168,7 +187,9 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/workspace/write") {
-    const body = (await request.json()) as Record<string, unknown>;
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const { body } = parsed;
     const path = typeof body.path === "string" ? body.path : "";
     if (
       !path ||
@@ -254,7 +275,9 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/terminal/run") {
-    const body = (await request.json()) as Record<string, unknown>;
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const { body } = parsed;
     const input = parseTerminalCommandInput(body);
     if ("error" in input) {
       return json({ error: input.error }, input.status);
@@ -269,7 +292,9 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/api/terminal/run") {
-    const body = (await request.json()) as Record<string, unknown>;
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const { body } = parsed;
     const tokenError = sdkTerminalRunTokenError(request, body);
     if (tokenError) {
       return json({ error: tokenError.reason }, tokenError.status);
@@ -304,7 +329,9 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/terminal/run/stream") {
-    const body = (await request.json()) as Record<string, unknown>;
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const { body } = parsed;
     const input = parseTerminalCommandInput(body);
     if ("error" in input) {
       return json({ error: input.error }, input.status);
@@ -370,7 +397,9 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/terminal/session/start") {
-    const body = (await request.json()) as Record<string, unknown>;
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const { body } = parsed;
     try {
       return json({
         session: context.services.terminal.startInteractiveSession({
@@ -384,7 +413,9 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/terminal/session/input") {
-    const body = (await request.json()) as Record<string, unknown>;
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const { body } = parsed;
     try {
       return json({
         session: context.services.terminal.writeInteractiveSession(
@@ -401,7 +432,9 @@ export async function handleOperationsRoutes(
     request.method === "POST" &&
     url.pathname === "/terminal/session/resize"
   ) {
-    const body = (await request.json()) as Record<string, unknown>;
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const { body } = parsed;
     try {
       return json({
         session: context.services.terminal.resizeInteractiveSession(
@@ -419,7 +452,9 @@ export async function handleOperationsRoutes(
     request.method === "POST" &&
     url.pathname === "/terminal/session/interrupt"
   ) {
-    const body = (await request.json()) as Record<string, unknown>;
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const { body } = parsed;
     try {
       return json({
         session: context.services.terminal.interruptInteractiveSession(
@@ -432,7 +467,9 @@ export async function handleOperationsRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/terminal/session/close") {
-    const body = (await request.json()) as Record<string, unknown>;
+    const parsed = await readBody(request);
+    if ("response" in parsed) return parsed.response;
+    const { body } = parsed;
     try {
       return json({
         session: context.services.terminal.closeInteractiveSession(
