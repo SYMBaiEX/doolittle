@@ -8,6 +8,7 @@ import {
   releaseTargets,
   requiredNativeTargetPackages,
   resolveSingleExistingPath,
+  supersededReleaseOutputNames,
   validatePackageHost,
 } from "./package-all";
 
@@ -121,6 +122,33 @@ describe("all-platform desktop release plan", () => {
     ).toBe(
       `${"a".repeat(64)}  Doolittle-0.1.0-mac-arm64.dmg\n${"b".repeat(64)}  Doolittle-0.1.0-win-x64.exe\n`,
     );
+  });
+
+  it("removes superseded bundles without touching current or operator files", () => {
+    const targets = releaseTargets("0.1.0", "arm64");
+    expect(
+      supersededReleaseOutputNames(
+        [
+          ".DS_Store",
+          "Doolittle-0.1.0-mac-arm64.dmg",
+          "Doolittle-0.1.0-win-x64.exe.blockmap",
+          "Doolittle-2.0.3-beta.7-mac-arm64.dmg",
+          "Doolittle-0.1.0-linux-arm64.AppImage",
+          "latest-linux-arm64.yml",
+          "linux-arm64-unpacked",
+          "linux-unpacked",
+          "mac-arm64",
+          "operator-notes.txt",
+        ],
+        targets,
+      ),
+    ).toEqual([
+      ".DS_Store",
+      "Doolittle-2.0.3-beta.7-mac-arm64.dmg",
+      "Doolittle-0.1.0-linux-arm64.AppImage",
+      "latest-linux-arm64.yml",
+      "linux-arm64-unpacked",
+    ]);
   });
 
   it("supports darwin/arm64 packaging hosts", () => {

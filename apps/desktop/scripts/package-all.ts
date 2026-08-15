@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import {
   createReadStream,
   existsSync,
+  readdirSync,
   readFileSync,
   rmSync,
   statSync,
@@ -115,6 +116,33 @@ export function missingNativeTargetPackages(
   return required.filter((packageName) => !available.has(packageName));
 }
 
+export function supersededReleaseOutputNames(
+  entries: readonly string[],
+  targets: readonly ReleaseTarget[],
+): string[] {
+  const activeArtifacts = new Set(
+    targets.flatMap((target) => [
+      ...target.artifacts,
+      ...target.artifacts.map((artifact) => `${artifact}.blockmap`),
+    ]),
+  );
+  const activeDirectories = new Set(
+    targets.flatMap((target) => target.cleanupPaths),
+  );
+
+  return entries.filter((entry) => {
+    if (entry.startsWith("Doolittle-")) return !activeArtifacts.has(entry);
+    if (/^latest-.+-(?:arm64|x64|ia32)\.yml$/u.test(entry)) return true;
+    if (/^mac-(?:arm64|x64)$/u.test(entry)) {
+      return !activeDirectories.has(entry);
+    }
+    if (/^(?:win|linux)-(?:arm64|x64|ia32)-unpacked$/u.test(entry)) {
+      return !activeDirectories.has(entry);
+    }
+    return entry === ".DS_Store";
+  });
+}
+
 export function resolveSingleExistingPath(
   root: string,
   candidates: string[],
@@ -187,6 +215,16 @@ function cleanTarget(target: ReleaseTarget): void {
   }
 }
 
+function cleanSupersededReleaseOutputs(targets: ReleaseTarget[]): void {
+  if (!existsSync(releaseRoot)) return;
+  for (const entry of supersededReleaseOutputNames(
+    readdirSync(releaseRoot),
+    targets,
+  )) {
+    rmSync(resolve(releaseRoot, entry), { force: true, recursive: true });
+  }
+}
+
 function requireArtifact(path: string): void {
   if (
     !existsSync(path) ||
@@ -213,6 +251,7 @@ async function main(): Promise<void> {
   const nub = resolve(repoRoot, "node_modules", ".bin", "nub");
   const nubx = resolve(repoRoot, "node_modules", ".bin", "nubx");
 
+  cleanSupersededReleaseOutputs(targets);
   for (const target of targets) cleanTarget(target);
   rmSync(resolve(releaseRoot, "release-manifest.json"), { force: true });
   rmSync(resolve(releaseRoot, "SHA256SUMS.txt"), { force: true });
