@@ -36,7 +36,7 @@ jobs:
         run: nub run check
 
       - name: Playwright smoke tests
-        run: nub run test:e2e
+        run: xvfb-run -a nub run test:e2e
 
       - name: Acceptance gates
         run: nub run check:acceptance
