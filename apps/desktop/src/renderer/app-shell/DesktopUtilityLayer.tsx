@@ -43,6 +43,10 @@ export function DesktopUtilityLayer({
   onToggleSection,
   onResize,
 }: DesktopUtilityLayerProps) {
+  const accessibility = mobileModal
+    ? { "aria-modal": true, role: "dialog" as const }
+    : { role: "complementary" as const };
+
   return (
     <>
       {mobileModal ? (
@@ -57,12 +61,11 @@ export function DesktopUtilityLayer({
       <div className="utility-layer">
         <aside
           aria-label="Tools and settings"
-          aria-modal={mobileModal ? true : undefined}
           className="utility-drawer"
           onKeyDown={onKeyDown}
           ref={utilityRef}
-          role="dialog"
           tabIndex={-1}
+          {...accessibility}
         >
           <UtilityDrawer
             activeView={activeView}

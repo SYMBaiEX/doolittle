@@ -38,6 +38,8 @@ describe("DesktopUtilityLayer", () => {
 
     expect(markup).not.toContain('class="utility-backdrop"');
     expect(markup).not.toContain('aria-modal="true"');
-    expect(markup).toContain('role="dialog"');
+    expect(markup).not.toContain('role="dialog"');
+    expect(markup).toContain('role="complementary"');
+    expect(markup).toContain('aria-label="Tools and settings"');
   });
 });

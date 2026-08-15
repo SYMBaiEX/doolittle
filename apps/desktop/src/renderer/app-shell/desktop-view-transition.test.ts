@@ -22,6 +22,13 @@ describe("desktop view transitions", () => {
     expect(appSource).toContain("if (isMobileSidebarMode) closeUtilities();");
   });
 
+  it("only dismisses the terminal after an accepted context handoff", () => {
+    expect(appSource).toContain("void openChatWithContext({");
+    expect(appSource).toContain(".then((accepted) => {");
+    expect(appSource).toContain("if (accepted) closeChatTerminal(false);");
+    expect(appSource).toContain(".catch(() => undefined);");
+  });
+
   it("uses route-neutral lazy loading copy", () => {
     expect(fallbackSource).toContain('label = "view"');
     expect(fallbackSource).toContain("Opening {label.toLowerCase()}…");

@@ -138,8 +138,8 @@ export interface WorkspaceProjectNavigation {
     scope: ProjectScope,
     sessionId: string,
     nextView?: View,
-    onActivated?: () => void,
-  ) => void;
+    onActivated?: () => boolean | undefined,
+  ) => Promise<boolean>;
 }
 
 export function useWorkspaceProjectNavigation({
@@ -322,8 +322,8 @@ export function useWorkspaceProjectNavigation({
       scope: ProjectScope,
       sessionId: string,
       nextView?: View,
-      onActivated?: () => void,
-    ) => {
+      onActivated?: () => boolean | undefined,
+    ): Promise<boolean> => {
       const transition = coordinator.begin(scope);
       const project =
         scope === "all" || scope === "unscoped"
@@ -332,25 +332,44 @@ export function useWorkspaceProjectNavigation({
       const needsWorkspaceSwitch =
         Boolean(project?.primaryPath) &&
         !pathsEqual(project?.primaryPath, workspace.currentPath);
-      const activate = () => {
-        if (!coordinator.isCurrent(transition)) return;
-        void activateProjectWorkspace(scope, transition, sessionId).then(
-          (activated) => {
-            if (!coordinator.isCurrent(transition)) return;
+      return new Promise((resolve) => {
+        const activate = async () => {
+          if (!coordinator.isCurrent(transition)) {
+            resolve(false);
+            return;
+          }
+          try {
+            const activated = await activateProjectWorkspace(
+              scope,
+              transition,
+              sessionId,
+            );
+            if (!coordinator.isCurrent(transition)) {
+              resolve(false);
+              return;
+            }
             coordinator.clearPending(transition);
-            if (!activated) return;
+            if (!activated) {
+              resolve(false);
+              return;
+            }
             setProjectScope(scope);
             setSelectedSession(sessionId);
             if (nextView) setView(nextView);
-            onActivated?.();
-          },
-        );
-      };
-      if (needsWorkspaceSwitch) {
-        window.setTimeout(activate, PROJECT_SWITCH_DEBOUNCE_MS);
-      } else {
-        activate();
-      }
+            resolve(onActivated?.() !== false);
+          } catch {
+            if (coordinator.isCurrent(transition)) {
+              coordinator.clearPending(transition);
+            }
+            resolve(false);
+          }
+        };
+        if (needsWorkspaceSwitch) {
+          window.setTimeout(() => void activate(), PROJECT_SWITCH_DEBOUNCE_MS);
+        } else {
+          void activate();
+        }
+      });
     },
     [
       activateProjectWorkspace,

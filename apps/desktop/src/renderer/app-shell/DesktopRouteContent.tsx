@@ -32,8 +32,8 @@ export interface DesktopRouteNavigation {
     scope: ProjectScope,
     sessionId: string,
     nextView?: View,
-    onActivated?: () => void,
-  ) => void;
+    onActivated?: () => boolean | undefined,
+  ) => Promise<boolean>;
   consumeNavigationIntent: (id: string) => void;
   openChatWithContext: (request: ChatContextRequest) => void;
   openProjectManager: () => void;

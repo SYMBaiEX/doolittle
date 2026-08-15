@@ -271,10 +271,11 @@ test.describe("Doolittle desktop navigation", () => {
       await expect
         .poll(() => page.evaluate(() => window.location.hash))
         .toBe("#/code");
-      await page
-        .locator(".project-rail-main")
-        .filter({ hasText: "E2E repository" })
-        .click();
+      const e2eProject = page
+        .locator(".project-rail-group")
+        .filter({ hasText: "E2E repository" });
+      await e2eProject.locator(".project-rail-main").click();
+      await expect(e2eProject).toHaveClass(/is-active/);
       await expect
         .poll(() => page.evaluate(() => window.location.hash))
         .toBe("#/code");
@@ -354,6 +355,58 @@ test.describe("Doolittle desktop navigation", () => {
           ),
         )
         .not.toBe("280");
+
+      await page
+        .getByRole("button", { exact: true, name: "New conversation" })
+        .click();
+      const newConversationMenu = page.getByRole("dialog", {
+        name: "Start a new conversation",
+      });
+      await newConversationMenu
+        .getByRole("button", { name: /General chat/ })
+        .click();
+      await expect(page.locator(".window-context strong")).toHaveText("Chat");
+      await page.evaluate(() => {
+        window.location.hash = "#/code";
+      });
+      await expect(page.locator(".window-context strong")).toHaveText("Code");
+      await expect
+        .poll(() =>
+          page.evaluate(() =>
+            localStorage.getItem("doolittle.desktop.project-scope.v1"),
+          ),
+        )
+        .toBe("unscoped");
+
+      await chatTerminal.getByRole("tabpanel").click();
+      await page.keyboard.type("printf 'DOOLITTLE_TERMINAL_HANDOFF\\n'");
+      await page.keyboard.press("Enter");
+      await expect
+        .poll(() => chatTerminal.locator(".xterm-rows").textContent())
+        .toContain("DOOLITTLE_TERMINAL_HANDOFF");
+      await chatTerminal.getByRole("button", { name: "Add to chat" }).click();
+      await expect(chatTerminal).toHaveAttribute("data-open", "false");
+      await expect(chatTerminal).toHaveCount(0);
+      const terminalContextCapsule = page.locator(".chat-context-capsule");
+      await expect(terminalContextCapsule).toContainText("Terminal · Terminal");
+      await expect(
+        terminalContextCapsule.getByRole("button", {
+          name: "Remove Terminal from message context",
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("textbox", { name: "Message Doolittle" }),
+      ).toBeFocused();
+
+      // The terminal handoff deliberately proves that a General chat keeps an
+      // unscoped conversation while moving between Chat and Code. The
+      // orchestration receipt below instead verifies a repository-scoped task,
+      // so restore the E2E project before starting that independent flow.
+      const restoredE2eProject = page
+        .locator(".project-rail-group")
+        .filter({ hasText: "E2E repository" });
+      await restoredE2eProject.locator(".project-rail-main").click();
+      await expect(restoredE2eProject).toHaveClass(/is-active/);
 
       const verifyAllRoutes = async () => {
         for (const [route, label] of routes) {
@@ -1138,6 +1191,14 @@ test.describe("Doolittle desktop navigation", () => {
       await page.evaluate(() => {
         window.location.hash = "#/code";
       });
+      await expect(page.locator(".window-context strong")).toHaveText("Code");
+      // The prior Add to chat flow closes the global terminal by design. Open
+      // it again before exercising its tab-management controls.
+      await page.keyboard.press(
+        process.platform === "darwin" ? "Meta+J" : "Control+J",
+      );
+      await expect(chatTerminal).toHaveAttribute("data-open", "true");
+      await expect(chatTerminal).toBeVisible();
       const terminalTabs = page.getByRole("tablist", {
         name: "Interactive terminal tabs",
       });
@@ -1592,7 +1653,7 @@ test.describe("Doolittle desktop navigation", () => {
         .getByRole("button", { name: "Open tools and settings" })
         .click();
       await expect(
-        page.getByRole("dialog", { name: "Tools and settings" }),
+        page.getByRole("complementary", { name: "Tools and settings" }),
       ).toBeVisible();
       await expect(
         page.getByRole("heading", { name: "Tools & settings" }),

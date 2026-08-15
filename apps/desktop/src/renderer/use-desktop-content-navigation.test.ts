@@ -1,11 +1,83 @@
-import { describe, expect, it, vi } from "vitest";
+// @vitest-environment jsdom
+
+import { act, createElement, useEffect } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, SessionSummary } from "../shared/contracts";
 import type { GlobalSearchTarget } from "./global-search";
 import {
   createNavigationTransitionCoordinator,
   navigateGlobalSearchTarget,
   resolveChatContextHandoff,
+  useDesktopContentNavigation,
 } from "./use-desktop-content-navigation";
+
+let handoffRoot: Root;
+let handoffContainer: HTMLDivElement;
+let latestHandoffNavigation: ReturnType<
+  typeof useDesktopContentNavigation
+> | null = null;
+
+function HandoffProbe({
+  transitionToProjectScope,
+}: {
+  transitionToProjectScope: Parameters<
+    typeof useDesktopContentNavigation
+  >[0]["transitionToProjectScope"];
+}) {
+  const value = useDesktopContentNavigation({
+    backendReady: true,
+    closeUtilities: vi.fn(),
+    createId: () => "handoff",
+    createSessionId: () => "draft",
+    paletteOpen: false,
+    paletteQuery: "",
+    pathsEqual: (left, right) => left === right,
+    projects: [],
+    projectScope: "unscoped",
+    pushToast: vi.fn(),
+    selectedSession: "session-1",
+    selectProjectScope: vi.fn(),
+    sessions: [],
+    setProjectManagerOpen: vi.fn(),
+    setView: vi.fn(),
+    switchToRecentWorkspace: vi.fn(async () => true),
+    transitionToProjectScope,
+    workspacePath: "",
+  });
+  useEffect(() => {
+    latestHandoffNavigation = value;
+  }, [value]);
+  return null;
+}
+
+beforeEach(() => {
+  handoffContainer = document.createElement("div");
+  document.body.append(handoffContainer);
+  handoffRoot = createRoot(handoffContainer);
+  latestHandoffNavigation = null;
+});
+
+afterEach(() => {
+  act(() => handoffRoot.unmount());
+  handoffContainer.remove();
+  latestHandoffNavigation = null;
+});
+
+async function renderHandoffProbe(
+  transitionToProjectScope: Parameters<
+    typeof useDesktopContentNavigation
+  >[0]["transitionToProjectScope"],
+) {
+  await act(async () => {
+    handoffRoot.render(
+      createElement(HandoffProbe, { transitionToProjectScope }),
+    );
+  });
+  if (!latestHandoffNavigation)
+    throw new Error("Navigation probe did not mount.");
+  return latestHandoffNavigation;
+}
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -156,6 +228,40 @@ const sessions = [
 ] satisfies SessionSummary[];
 
 describe("chat context handoff navigation", () => {
+  it("waits for successful project activation before accepting a handoff", async () => {
+    const transitionToProjectScope = vi.fn(
+      async (
+        _scope,
+        _sessionId,
+        _view,
+        onActivated?: () => boolean | undefined,
+      ) => onActivated?.() !== false,
+    );
+    const navigation = await renderHandoffProbe(transitionToProjectScope);
+
+    await expect(
+      navigation.openChatWithContext({
+        text: "Use this terminal output.\n<terminal_context>ok</terminal_context>",
+        workspacePath: "",
+        projectScope: "unscoped",
+      }),
+    ).resolves.toBe(true);
+    expect(transitionToProjectScope).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a handoff when project activation fails", async () => {
+    const transitionToProjectScope = vi.fn(async () => false);
+    const navigation = await renderHandoffProbe(transitionToProjectScope);
+
+    await expect(
+      navigation.openChatWithContext({
+        text: "Use this terminal output.\n<terminal_context>failed</terminal_context>",
+        workspacePath: "",
+        projectScope: "unscoped",
+      }),
+    ).resolves.toBe(false);
+  });
+
   it("keeps the selected session when it belongs to the resolved scope", () => {
     expect(
       resolveChatContextHandoff({

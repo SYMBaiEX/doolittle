@@ -355,11 +355,11 @@ export function App() {
     else openUtilities();
   }, [closeUtilities, openUtilities, utilityOpen]);
 
-  const closeChatTerminal = useCallback(() => {
+  const closeChatTerminal = useCallback((restoreFocus = true) => {
     setChatTerminalOpen(false);
     const restoreTarget = chatTerminalReturnFocusRef.current;
     chatTerminalReturnFocusRef.current = null;
-    if (restoreTarget?.isConnected) {
+    if (restoreFocus && restoreTarget?.isConnected) {
       requestAnimationFrame(() => restoreTarget.focus());
     }
   }, []);
@@ -1336,13 +1336,17 @@ export function App() {
               open={chatTerminalOpen}
               onClose={closeChatTerminal}
               onResize={setChatTerminalHeight}
-              onSendToChat={(text) =>
-                openChatWithContext({
+              onSendToChat={(text) => {
+                void openChatWithContext({
                   text,
                   workspacePath: workspace.currentPath,
                   projectScope,
                 })
-              }
+                  .then((accepted) => {
+                    if (accepted) closeChatTerminal(false);
+                  })
+                  .catch(() => undefined);
+              }}
               platform={window.doolittle.platform}
               workspacePath={workspace.currentPath}
             />

@@ -198,8 +198,8 @@ interface UseDesktopContentNavigationOptions {
     scope: ProjectScope,
     sessionId: string,
     nextView?: View,
-    onActivated?: () => void,
-  ) => void;
+    onActivated?: () => boolean | undefined,
+  ) => Promise<boolean>;
   readonly workspacePath: string;
 }
 
@@ -271,7 +271,7 @@ export function useDesktopContentNavigation({
   );
 
   const openChatWithContext = useCallback(
-    (request: ChatContextRequest) => {
+    async (request: ChatContextRequest): Promise<boolean> => {
       const resolution = resolveChatContextHandoff({
         createId,
         createSessionId,
@@ -281,7 +281,7 @@ export function useDesktopContentNavigation({
         selectedSession,
         sessions,
       });
-      if (resolution.status === "empty") return;
+      if (resolution.status === "empty") return false;
       if (resolution.status === "unresolved") {
         pushToast({
           tone: "warning",
@@ -289,14 +289,21 @@ export function useDesktopContentNavigation({
           message:
             "Select or create a project for this workspace before sending its context to Chat.",
         });
-        return;
+        return false;
       }
-      transitionToProjectScope(
-        resolution.scope,
-        resolution.sessionId,
-        "chat",
-        () => setPendingChatContext(resolution.handoff),
-      );
+      try {
+        return await transitionToProjectScope(
+          resolution.scope,
+          resolution.sessionId,
+          "chat",
+          () => {
+            setPendingChatContext(resolution.handoff);
+            return true;
+          },
+        );
+      } catch {
+        return false;
+      }
     },
     [
       createId,
