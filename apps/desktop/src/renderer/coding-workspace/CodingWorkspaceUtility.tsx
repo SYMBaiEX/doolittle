@@ -37,7 +37,9 @@ import type {
   UtilityPane,
 } from "./models";
 import { controlChanges, records } from "./models";
-import { PaneTabs } from "./PaneTabs";
+import { PaneTabs, paneTabId } from "./PaneTabs";
+
+const UTILITY_PANEL_ID = "coding-utility-panel";
 
 export function CodingWorkspaceUtility({
   active,
@@ -100,10 +102,16 @@ export function CodingWorkspaceUtility({
             count: asArray(worktreeResource.data?.worktrees).length,
           },
         ]}
+        panelId={UTILITY_PANEL_ID}
         value={utilityPane}
         onChange={onUtilityPaneChange}
       />
-      <div className={CODING_PANE_BODY_CLASS} role="tabpanel">
+      <div
+        aria-labelledby={paneTabId(UTILITY_PANEL_ID, utilityPane)}
+        className={CODING_PANE_BODY_CLASS}
+        id={UTILITY_PANEL_ID}
+        role="tabpanel"
+      >
         {utilityPane === "terminal" ? (
           <EmptyBlock
             actions={

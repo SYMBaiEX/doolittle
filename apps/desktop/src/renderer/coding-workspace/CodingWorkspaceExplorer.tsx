@@ -32,7 +32,9 @@ import type {
   WorkspaceTreeResponse,
 } from "./models";
 import { fileName, statusLabel } from "./models";
-import { PaneTabs } from "./PaneTabs";
+import { PaneTabs, paneTabId } from "./PaneTabs";
+
+const EXPLORER_PANEL_ID = "coding-explorer-panel";
 
 export function CodingWorkspaceExplorer({
   width,
@@ -86,11 +88,17 @@ export function CodingWorkspaceExplorer({
           { id: "changes", label: "Changes", count: changes.length },
           { id: "search", label: "Search" },
         ]}
+        panelId={EXPLORER_PANEL_ID}
         value={leftPane}
         onChange={onLeftPaneChange}
       />
 
-      <div className={CODING_PANE_BODY_CLASS} role="tabpanel">
+      <div
+        aria-labelledby={paneTabId(EXPLORER_PANEL_ID, leftPane)}
+        className={CODING_PANE_BODY_CLASS}
+        id={EXPLORER_PANEL_ID}
+        role="tabpanel"
+      >
         {leftPane === "files" ? (
           treeResource.loading ? (
             <LoadingBlock label="Reading workspace tree…" />

@@ -34,6 +34,7 @@ export function ReviewCiPanel({ selected, review }: ReviewCiPanelProps) {
 }
 
 function PullRequestReview({ selected, review }: ReviewCiPanelProps) {
+  const pullRequestUrl = asString(selected.raw.url);
   return (
     <>
       <div className={REVIEW_CI_HERO_CLASS}>
@@ -44,9 +45,11 @@ function PullRequestReview({ selected, review }: ReviewCiPanelProps) {
             {asString(selected.raw.baseRefName, "base")}
           </strong>
         </div>
-        <a href={asString(selected.raw.url)} rel="noreferrer" target="_blank">
-          Open on GitHub ↗
-        </a>
+        {pullRequestUrl ? (
+          <a href={pullRequestUrl} rel="noreferrer" target="_blank">
+            Open on GitHub ↗
+          </a>
+        ) : null}
       </div>
       <dl className={REVIEW_FACTS_CLASS}>
         <div>

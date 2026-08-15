@@ -290,12 +290,16 @@ desktop and narrow widths:
 nub run test:e2e:desktop-visual
 ```
 
-The launcher prefers the installed app, falls back to the current unpacked
-package, and writes ignored PNGs plus `visual-manifest.json` under
+The launcher requires a clean worktree and prefers the current unpacked
+repository package, using an installed app only when it hashes identically. It
+writes ignored PNGs plus `visual-manifest.json` under
 `var/playwright/route-screenshots/`. Pass `-- --executable <path>` or
 `-- --output <directory>` to override either location. The default sweep uses a
 fresh scrubbed profile; `-- --profile <directory>` is available for an explicit
 operator-approved profile and is marked as potentially private in the manifest.
+The manifest records HEAD, the exact executable path and SHA-256, actual desktop
+and compact viewports, and the canonical route count; stale packages fail before
+Electron launches.
 
 Before creating a release tag, run the release-quality gate:
 

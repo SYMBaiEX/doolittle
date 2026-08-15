@@ -1,5 +1,5 @@
 export const BROWSER_PAGE_CLASS =
-  "page h-full gap-2 overflow-hidden px-2.5 pt-2 pb-2.5 max-[780px]:h-auto max-[780px]:min-h-full max-[780px]:overflow-auto";
+  "page h-full gap-2 overflow-hidden px-2.5 pt-2 pb-2.5 max-[1080px]:h-auto max-[1080px]:min-h-full max-[1080px]:overflow-auto";
 
 export const BROWSER_HEADER_CLASS =
   "flex min-h-12 shrink-0 items-center justify-between gap-5 [&_h1]:mt-0.75 [&_h1]:mb-0.5 [&_h1]:font-[var(--font-display)] [&_h1]:text-xl [&_h1]:tracking-[-0.035em] [&_p]:m-0 [&_p]:text-[10px] [&_p]:text-[var(--muted)] max-[780px]:[&_p]:hidden";
@@ -17,16 +17,16 @@ export const BROWSER_ADDRESS_INPUT_CLASS =
   "h-8 min-w-0 border-0 bg-transparent p-0 font-mono text-[11px] text-[var(--text)] outline-0 placeholder:text-[var(--muted)] focus-visible:ring-0";
 
 export const BROWSER_WORKSPACE_CLASS =
-  "grid min-h-0 flex-1 grid-cols-[minmax(520px,1fr)_minmax(300px,360px)] overflow-hidden rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface)] shadow-none max-[1040px]:grid-cols-[minmax(430px,1fr)_300px] max-[780px]:min-h-0 max-[780px]:flex-none max-[780px]:grid-cols-1 max-[780px]:overflow-visible";
+  "grid min-h-0 flex-1 grid-cols-[minmax(520px,1fr)_minmax(300px,360px)] overflow-hidden rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface)] shadow-none max-[1080px]:min-h-0 max-[1080px]:flex-none max-[1080px]:grid-cols-1 max-[1080px]:overflow-visible";
 
 export const BROWSER_CANVAS_CLASS =
-  "flex min-h-0 min-w-0 flex-col border-[var(--border)] border-r bg-[var(--bg)] max-[780px]:min-h-[clamp(15rem,48svh,22rem)] max-[780px]:border-r-0 max-[780px]:border-b";
+  "flex min-h-0 min-w-0 flex-col border-[var(--border)] border-r bg-[var(--bg)] max-[1080px]:min-h-[clamp(15rem,48svh,22rem)] max-[1080px]:border-r-0 max-[1080px]:border-b";
 
 export const BROWSER_CANVAS_TOOLBAR_CLASS =
   "grid min-h-9.75 grid-cols-[58px_minmax(0,1fr)_auto_auto] items-center gap-2.5 border-[var(--border)] border-b bg-[var(--surface-raised)] px-2.5 [&>div]:flex [&>div]:gap-1.25 [&>span:not(.badge)]:truncate [&>span:not(.badge)]:text-center [&>span:not(.badge)]:font-mono [&>span:not(.badge)]:text-[10px] [&>span:not(.badge)]:text-[var(--muted)]";
 
 export const BROWSER_FRAME_STAGE_CLASS =
-  "flex min-h-0 min-w-0 flex-1 justify-center overflow-auto bg-[#100e0c] [&>iframe]:h-full [&>iframe]:w-full [&>iframe]:shrink-0 [&>iframe]:border-0 [&>iframe]:bg-white [&>iframe]:shadow-[0_0_0_1px_var(--border-strong)]";
+  "flex min-h-0 min-w-0 flex-1 justify-center overflow-auto bg-[var(--canvas-bg)] [&>iframe]:h-full [&>iframe]:w-full [&>iframe]:shrink-0 [&>iframe]:border-0 [&>iframe]:bg-white [&>iframe]:shadow-[0_0_0_1px_var(--canvas-border)]";
 
 export const BROWSER_PREVIEW_WIDTH_CLASS = {
   responsive: "[&>iframe]:w-full",
@@ -62,7 +62,7 @@ export const BROWSER_FIELD_CLASS =
   "grid gap-1.25 font-mono text-[10px] text-[var(--text-soft)]";
 
 export const BROWSER_FIELD_CONTROL_CLASS =
-  "box-border w-full rounded-[var(--radius-xs)] border border-[var(--border)] bg-[#080706] font-mono text-[10px] text-[var(--text)] focus:border-[var(--accent)] focus:outline-0";
+  "box-border w-full rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-raised)] font-mono text-[10px] text-[var(--text)] focus:border-[var(--accent)] focus:outline-0";
 
 export const BROWSER_CODE_PREVIEW_CLASS =
-  "m-0 max-h-60 overflow-auto whitespace-pre-wrap rounded-[var(--radius-xs)] border border-[var(--border)] bg-[#080706] p-3 text-[10px] leading-normal text-[var(--text-soft)]";
+  "m-0 max-h-60 overflow-auto whitespace-pre-wrap rounded-[var(--radius-xs)] border border-[var(--canvas-border)] bg-[var(--canvas-bg)] p-3 text-[10px] leading-normal text-[var(--canvas-text-soft)]";

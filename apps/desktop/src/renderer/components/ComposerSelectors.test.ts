@@ -1,8 +1,12 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import type { RuntimeModelProvider } from "../../shared/contracts";
+import type {
+  RuntimeModelProvider,
+  RuntimeStatus,
+} from "../../shared/contracts";
 import {
+  ComposerModelSelector,
   ComposerProjectSelector,
   filteredProviders,
 } from "./ComposerSelectors";
@@ -41,6 +45,31 @@ const providers: RuntimeModelProvider[] = [
 ];
 
 describe("composer selectors", () => {
+  it("keeps the selected reasoning effort visible outside the truncating model label", () => {
+    const runtime: RuntimeStatus = {
+      model: "gpt-5.6-terra",
+      plugins: {},
+      provider: "codex",
+      reasoningEffort: "xhigh",
+    };
+    const markup = renderToStaticMarkup(
+      createElement(ComposerModelSelector, {
+        active: true,
+        onOpenModelsPage: vi.fn(),
+        onOpenProvidersPage: vi.fn(),
+        refreshRuntime: vi.fn(),
+        runtime,
+      }),
+    );
+
+    expect(markup).toContain("composer-model-trigger");
+    expect(markup).toContain("min-w-0 truncate");
+    expect(markup).toContain("shrink-0 rounded-[4px]");
+    expect(markup).toContain(">gpt-5.6-terra</span>");
+    expect(markup).toContain(">xhigh</span>");
+    expect(markup).not.toContain("gpt-5.6-terra · xhigh");
+  });
+
   it("renders the active project as a tabbed composer control", () => {
     const markup = renderToStaticMarkup(
       createElement(ComposerProjectSelector, {

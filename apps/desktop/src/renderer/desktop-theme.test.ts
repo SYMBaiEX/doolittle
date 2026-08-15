@@ -166,6 +166,26 @@ describe("desktop theme", () => {
     expect(storage.get("style:--accent")).toBe("#D7263D");
   });
 
+  it("uses density tokens for route headers, titles, cards, and controls", () => {
+    applyDesktopDensity("comfortable");
+    expect(storage.get("style:--page-pad-block")).toBe("26px 36px");
+    expect(storage.get("style:--page-header-min-height")).toBe("70px");
+    expect(storage.get("style:--page-title-size")).toBe(
+      "clamp(24px, 2.2vw, 32px)",
+    );
+    expect(storage.get("style:--card-pad")).toBe("15px");
+    expect(storage.get("style:--control-height")).toBe("32px");
+
+    applyDesktopDensity("compact");
+    expect(storage.get("style:--page-pad-block")).toBe("18px 26px");
+    expect(storage.get("style:--page-header-min-height")).toBe("58px");
+    expect(storage.get("style:--page-title-size")).toBe(
+      "clamp(21px, 2vw, 27px)",
+    );
+    expect(storage.get("style:--card-pad")).toBe("11px");
+    expect(storage.get("style:--control-height")).toBe("28px");
+  });
+
   it("forwards valid changes once and removes its window subscriptions", () => {
     const changes: string[] = [];
     const unsubscribe = subscribeToDesktopThemeChanges({

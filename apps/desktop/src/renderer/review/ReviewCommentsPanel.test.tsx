@@ -37,9 +37,13 @@ function props(
 
 describe("ReviewCommentsPanel", () => {
   let container: HTMLDivElement;
+  let backgroundButton: HTMLButtonElement;
   let root: Root;
 
   beforeEach(() => {
+    backgroundButton = document.createElement("button");
+    backgroundButton.textContent = "Outside review panel";
+    document.body.append(backgroundButton);
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -48,6 +52,7 @@ describe("ReviewCommentsPanel", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    backgroundButton.remove();
   });
 
   it("collapses an empty notes surface and keeps note creation available", async () => {
@@ -123,25 +128,47 @@ describe("ReviewCommentsPanel", () => {
     expect(
       container.querySelector('[role="alertdialog"]')?.textContent,
     ).toContain("Please keep this guard.");
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
     const cancel = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent === "Cancel",
     ) as HTMLButtonElement;
+    const confirm = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Delete note",
+    ) as HTMLButtonElement;
+    expect(document.activeElement).toBe(cancel);
+    expect(backgroundButton.inert).toBe(true);
+    expect(backgroundButton.getAttribute("aria-hidden")).toBe("true");
+    act(() => confirm.focus());
+    act(() =>
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" })),
+    );
+    expect(document.activeElement).toBe(cancel);
+    act(() =>
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Tab", shiftKey: true }),
+      ),
+    );
+    expect(document.activeElement).toBe(confirm);
     await act(async () => {
       cancel.click();
       await new Promise((resolve) => requestAnimationFrame(resolve));
     });
     expect(onDelete).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(deleteButton);
+    expect(Boolean(backgroundButton.inert)).toBe(false);
+    expect(backgroundButton.hasAttribute("aria-hidden")).toBe(false);
     act(() => deleteButton.click());
     act(() =>
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })),
     );
     expect(container.querySelector('[role="alertdialog"]')).toBeNull();
     act(() => deleteButton.click());
-    const confirm = Array.from(container.querySelectorAll("button")).find(
+    const finalConfirm = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent === "Delete note",
     ) as HTMLButtonElement;
-    act(() => confirm.click());
+    act(() => finalConfirm.click());
     expect(onDelete).toHaveBeenCalledWith("note-1");
   });
 });

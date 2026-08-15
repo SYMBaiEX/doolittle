@@ -1,11 +1,26 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { VIEW_PRIMITIVES_CLASS } from "./app-shell/view-layout";
+import { CHAT_WORKSPACE_CLASS } from "./chat/layout";
 
 function source(path: string) {
   return readFileSync(new URL(path, import.meta.url), "utf8");
 }
 
 describe("wide route viewport density", () => {
+  it("uses compact shared route geometry and restores focused chat line lengths", () => {
+    expect(VIEW_PRIMITIVES_CLASS).toContain(
+      "[padding-block:var(--page-pad-block)]",
+    );
+    expect(VIEW_PRIMITIVES_CLASS).toContain(
+      "min-h-[var(--page-header-min-height)]",
+    );
+    expect(VIEW_PRIMITIVES_CLASS).toContain("text-[var(--page-title-size)]");
+    expect(CHAT_WORKSPACE_CLASS).toContain("w-[min(100%,700px)]");
+    expect(CHAT_WORKSPACE_CLASS).toContain("w-[min(100%,880px)]");
+    expect(CHAT_WORKSPACE_CLASS).toContain("w-[min(calc(100%_-_36px),820px)]");
+  });
+
   it("bounds dashboard and observability content while preserving responsive stacks", () => {
     const dashboardPage = source("./DashboardPage.tsx");
     const dashboardLayout = source("./dashboard/dashboard-layout.ts");

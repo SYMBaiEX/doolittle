@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { BrowserPage } from "./BrowserPage";
+import { BROWSER_WORKSPACE_CLASS } from "./browser/browser-layout";
 import { MediaPage } from "./MediaPage";
 
 describe("media and browser workspace density", () => {
@@ -27,5 +28,6 @@ describe("media and browser workspace density", () => {
     expect(html).toContain('data-browser-action="analyze"');
     expect(html).toContain("Compare versions");
     expect(html).not.toContain(">DOM and page metadata<");
+    expect(BROWSER_WORKSPACE_CLASS).toContain("max-[1080px]:grid-cols-1");
   });
 });

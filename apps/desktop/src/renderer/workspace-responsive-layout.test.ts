@@ -30,17 +30,17 @@ describe("workspace responsive layout contracts", () => {
   it("lets the browser workspace flow naturally on narrow screens", () => {
     expect(browserLayout).not.toContain("min-h-[880px]");
     expect(browserLayout).not.toContain("min-h-[480px]");
-    expect(browserLayout).toContain("max-[780px]:flex-none");
-    expect(browserLayout).toContain("max-[780px]:grid-cols-1");
-    expect(browserLayout).toContain("max-[780px]:overflow-visible");
+    expect(browserLayout).toContain("max-[1080px]:flex-none");
+    expect(browserLayout).toContain("max-[1080px]:grid-cols-1");
+    expect(browserLayout).toContain("max-[1080px]:overflow-visible");
     expect(browserLayout).toContain(
-      "max-[780px]:min-h-[clamp(15rem,48svh,22rem)]",
+      "max-[1080px]:min-h-[clamp(15rem,48svh,22rem)]",
     );
   });
 
   it("keeps browser evidence actions paired while the side panel remains visible", () => {
     expect(browserLayout).toContain("grid-cols-2");
-    expect(browserLayout).not.toContain("max-[1040px]:grid-cols-1");
+    expect(browserLayout).toContain("max-[1080px]:grid-cols-1");
     expect(
       readFileSync(new URL("./BrowserPage.tsx", import.meta.url), "utf8"),
     ).toContain(

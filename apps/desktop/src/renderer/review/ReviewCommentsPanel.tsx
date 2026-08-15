@@ -1,4 +1,5 @@
 import { type RefObject, useEffect, useRef, useState } from "react";
+import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
 import { Badge } from "../lib";
 import type { ReviewComment, ReviewCommentAnchor } from "../review-comments";
 import {
@@ -8,6 +9,7 @@ import {
   REVIEW_COMMENT_LIST_CLASS,
   REVIEW_COMMENT_LOCATION_CLASS,
   REVIEW_COMMENT_RESOLVED_CLASS,
+  REVIEW_DELETE_BACKDROP_CLASS,
   REVIEW_DELETE_CONFIRMATION_CLASS,
   REVIEW_FEEDBACK_ACTIONS_CLASS,
   REVIEW_FEEDBACK_BODY_CLASS,
@@ -67,34 +69,22 @@ export function ReviewCommentsPanel({
     null,
   );
   const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const deleteCancelRef = useRef<HTMLButtonElement | null>(null);
+  const deleteBackdropRef = useRef<HTMLDivElement | null>(null);
+  const deleteDialogRef = useModalFocusBoundary({
+    active: Boolean(pendingDelete),
+    initialFocusSelector: "[data-review-delete-cancel]",
+    isolationBoundaryRef: deleteBackdropRef,
+    isolateBackground: true,
+    onClose: () => setPendingDelete(null),
+    restoreFocus: true,
+    restoreFocusRef: deleteTriggerRef,
+  });
 
   useEffect(() => {
     if (comments.length > 0 || activeCommentTarget) {
       setNotesOpen(true);
     }
   }, [activeCommentTarget, comments.length]);
-
-  useEffect(() => {
-    if (pendingDelete) {
-      requestAnimationFrame(() => deleteCancelRef.current?.focus());
-      return;
-    }
-    const trigger = deleteTriggerRef.current;
-    if (trigger?.isConnected) requestAnimationFrame(() => trigger.focus());
-  }, [pendingDelete]);
-
-  useEffect(() => {
-    if (!pendingDelete) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setPendingDelete(null);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [pendingDelete]);
 
   return (
     <details
@@ -262,38 +252,46 @@ export function ReviewCommentsPanel({
       ) : null}
       {pendingDelete ? (
         <div
-          aria-labelledby="review-delete-title"
-          aria-describedby="review-delete-description"
-          aria-modal="true"
-          className={REVIEW_DELETE_CONFIRMATION_CLASS}
-          role="alertdialog"
+          className={REVIEW_DELETE_BACKDROP_CLASS}
+          ref={deleteBackdropRef}
+          role="presentation"
         >
-          <h3 id="review-delete-title">Delete review note?</h3>
-          <p id="review-delete-description">
-            This will remove the note for {pendingDelete.path}
-            {pendingDelete.anchor
-              ? ` on the ${pendingDelete.anchor.side === "new" ? "+" : "−"} line ${pendingDelete.anchor.line}`
-              : ""}
-            . “{pendingDelete.body}” This cannot be undone.
-          </p>
-          <div>
-            <button
-              ref={deleteCancelRef}
-              onClick={() => setPendingDelete(null)}
-              type="button"
-            >
-              Cancel
-            </button>
-            <button
-              className="danger"
-              onClick={() => {
-                onDelete(pendingDelete.id);
-                setPendingDelete(null);
-              }}
-              type="button"
-            >
-              Delete note
-            </button>
+          <div
+            aria-labelledby="review-delete-title"
+            aria-describedby="review-delete-description"
+            aria-modal="true"
+            className={REVIEW_DELETE_CONFIRMATION_CLASS}
+            ref={deleteDialogRef}
+            role="alertdialog"
+            tabIndex={-1}
+          >
+            <h3 id="review-delete-title">Delete review note?</h3>
+            <p id="review-delete-description">
+              This will remove the note for {pendingDelete.path}
+              {pendingDelete.anchor
+                ? ` on the ${pendingDelete.anchor.side === "new" ? "+" : "−"} line ${pendingDelete.anchor.line}`
+                : ""}
+              . “{pendingDelete.body}” This cannot be undone.
+            </p>
+            <div>
+              <button
+                data-review-delete-cancel
+                onClick={() => setPendingDelete(null)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="danger"
+                onClick={() => {
+                  onDelete(pendingDelete.id);
+                  setPendingDelete(null);
+                }}
+                type="button"
+              >
+                Delete note
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

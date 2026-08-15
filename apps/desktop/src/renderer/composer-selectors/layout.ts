@@ -22,7 +22,13 @@ export const COMPOSER_ACTIONS_CLASS =
   "flex items-center justify-between gap-2 border-[var(--border)] border-t bg-[color-mix(in_srgb,var(--surface-soft)_72%,transparent)] p-2 [&_button]:inline-flex [&_button]:min-h-7.5 [&_button]:items-center [&_button]:gap-1.5 [&_button]:rounded-[7px] [&_button]:border [&_button]:border-transparent [&_button]:bg-transparent [&_button]:px-2 [&_button]:py-1.25 [&_button]:text-[9px] [&_button]:text-[var(--muted)] hover:[&_button]:border-[var(--border)] hover:[&_button]:bg-[var(--surface-hover)] hover:[&_button]:text-[var(--text)]";
 
 export const COMPOSER_MODEL_TRIGGER_CLASS =
-  "composer-model-trigger flex h-7.5 max-w-[min(290px,34vw)] items-center gap-1.5 overflow-hidden rounded-[7px] border border-transparent bg-transparent px-2 py-1.25 text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] aria-expanded:border-[var(--border)] aria-expanded:bg-[var(--surface-soft)] aria-expanded:text-[var(--text)] max-[760px]:max-w-45 [&>i]:not-italic [&>i]:text-[var(--faint)] [&>small]:font-mono [&>small]:text-[8px] [&>small]:text-[var(--faint)] [&>small]:uppercase max-[760px]:[&>small]:hidden [&>span]:truncate [&>span]:text-[10px] [&>span]:font-semibold";
+  "composer-model-trigger flex h-7.5 min-w-0 max-w-[min(310px,38vw)] items-center gap-1.5 overflow-hidden rounded-[7px] border border-transparent bg-transparent px-2 py-1.25 text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] aria-expanded:border-[var(--border)] aria-expanded:bg-[var(--surface-soft)] aria-expanded:text-[var(--text)] max-[760px]:max-w-49 [&>i]:shrink-0 [&>i]:not-italic [&>i]:text-[var(--faint)] [&>small]:shrink-0 [&>small]:font-mono [&>small]:text-[8px] [&>small]:text-[var(--faint)] [&>small]:uppercase max-[760px]:[&>small]:hidden";
+
+export const COMPOSER_MODEL_NAME_CLASS =
+  "min-w-0 truncate text-[10px] font-semibold";
+
+export const COMPOSER_MODEL_EFFORT_BADGE_CLASS =
+  "shrink-0 rounded-[4px] border border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] px-1.25 py-0.5 font-mono text-[8px] leading-none font-bold text-[var(--accent)] uppercase";
 
 export const COMPOSER_MODEL_GROUPS_CLASS =
   "grid max-h-[min(470px,56vh)] gap-0.5 overflow-y-auto px-1.75 pb-1.75 [&>section]:grid";

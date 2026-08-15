@@ -43,7 +43,9 @@ import type {
   WorkspaceReadResponse,
 } from "./models";
 import { fileName, patchLines, statusLabel } from "./models";
-import { PaneTabs } from "./PaneTabs";
+import { PaneTabs, paneTabId } from "./PaneTabs";
+
+const EDITOR_PANEL_ID = "coding-editor-panel";
 
 const CodeEditor = lazy(async () => {
   const module = await import("../components/CodeEditor");
@@ -134,6 +136,7 @@ export function CodingWorkspaceEditor({
             { id: "file", label: "File" },
             { id: "diff", label: "Diff" },
           ]}
+          panelId={EDITOR_PANEL_ID}
           value={editorPane}
           onChange={onEditorPaneChange}
         />
@@ -238,7 +241,9 @@ export function CodingWorkspaceEditor({
             ? `${editorPane === "file" ? "File editor" : "Git diff"}: ${selectedPath}`
             : "File editor"
         }
+        aria-labelledby={paneTabId(EDITOR_PANEL_ID, editorPane)}
         className={CODING_EDITOR_SURFACE_CLASS}
+        id={EDITOR_PANEL_ID}
         role="tabpanel"
       >
         {!selectedPath ? (

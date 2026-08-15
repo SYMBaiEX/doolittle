@@ -50,12 +50,15 @@ describe("coding workspace presentational sections", () => {
           { id: "files", label: "Files" },
           { id: "changes", label: "Changes", count: 2 },
         ],
+        panelId: "coding-explorer-panel",
         value: "changes",
       }),
     );
 
     expect(markup).toContain('role="tablist"');
     expect(markup).toContain('aria-selected="true"');
+    expect(markup).toContain('aria-controls="coding-explorer-panel"');
+    expect(markup).toContain('id="coding-explorer-panel-tab-changes"');
     expect(markup).toContain('tabindex="0"');
     expect(markup).toContain("Changes<span>2</span>");
   });

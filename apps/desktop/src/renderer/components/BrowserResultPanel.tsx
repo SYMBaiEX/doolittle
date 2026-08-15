@@ -18,6 +18,9 @@ import {
 } from "../browser-result-model";
 import { Badge, errorMessage } from "../lib";
 
+export const BROWSER_RESULT_IMAGE_CANVAS_CLASS =
+  "aspect-4/3 w-full rounded-[var(--radius-xs)] border border-[var(--canvas-border)] bg-[var(--canvas-bg)] object-cover";
+
 interface BrowserResultPanelProps {
   address: string;
   currentUrl: string;
@@ -104,7 +107,7 @@ export function BrowserResultPanel({
               >
                 <img
                   alt={preview.label}
-                  className="aspect-4/3 w-full rounded-[var(--radius-xs)] border border-[var(--border)] bg-[#080706] object-cover"
+                  className={BROWSER_RESULT_IMAGE_CANVAS_CLASS}
                   loading="lazy"
                   src={preview.src}
                 />

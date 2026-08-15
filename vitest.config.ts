@@ -26,6 +26,12 @@ export default defineConfig({
         find: /^dotenv$/,
         replacement: fromRoot("./node_modules/dotenv/lib/main.js"),
       },
+      {
+        find: /^@elizaos\/ui\/components\/ui\/(button|input|textarea|select)$/,
+        replacement: fromRoot(
+          "./apps/desktop/src/renderer/components/ElizaControls.tsx",
+        ),
+      },
       { find: "@", replacement: fromRoot("./packages/agent/src") },
       {
         find: "@doolittle/acp",

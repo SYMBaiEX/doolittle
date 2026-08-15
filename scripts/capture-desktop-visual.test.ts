@@ -1,16 +1,56 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertVisualSweepProvenance,
   legacyVisualEvidencePaths,
   selectVisualSweepExecutable,
   visualSweepCandidates,
 } from "./capture-desktop-visual";
 
 describe("desktop visual sweep launcher", () => {
-  it("prefers the installed macOS app and retains the packaged fallback", () => {
+  it("prefers the repository package and retains the installed fallback", () => {
     expect(visualSweepCandidates("darwin", "/repo")).toEqual([
-      "/Applications/Doolittle.app/Contents/MacOS/Doolittle",
       "/repo/apps/desktop/release/mac-arm64/Doolittle.app/Contents/MacOS/Doolittle",
+      "/Applications/Doolittle.app/Contents/MacOS/Doolittle",
     ]);
+  });
+
+  it("accepts only clean evidence from the exact packaged revision", () => {
+    expect(() =>
+      assertVisualSweepProvenance({
+        executableSha256: "a".repeat(64),
+        releaseRevision: "head",
+        repositoryExecutableSha256: "a".repeat(64),
+        sourceRevision: "head",
+        worktreeClean: true,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertVisualSweepProvenance({
+        executableSha256: "a".repeat(64),
+        releaseRevision: "old",
+        repositoryExecutableSha256: "a".repeat(64),
+        sourceRevision: "head",
+        worktreeClean: true,
+      }),
+    ).toThrow("does not match HEAD");
+    expect(() =>
+      assertVisualSweepProvenance({
+        executableSha256: "b".repeat(64),
+        releaseRevision: "head",
+        repositoryExecutableSha256: "a".repeat(64),
+        sourceRevision: "head",
+        worktreeClean: true,
+      }),
+    ).toThrow("does not match the repository package");
+    expect(() =>
+      assertVisualSweepProvenance({
+        executableSha256: "a".repeat(64),
+        releaseRevision: "head",
+        repositoryExecutableSha256: "a".repeat(64),
+        sourceRevision: "head",
+        worktreeClean: false,
+      }),
+    ).toThrow("clean worktree");
   });
 
   it("uses target-native unpacked executables on Windows and Linux", () => {

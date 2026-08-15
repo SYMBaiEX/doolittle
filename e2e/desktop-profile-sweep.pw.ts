@@ -7,7 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import {
   type ElectronApplication,
   _electron as electron,
@@ -15,10 +15,18 @@ import {
   type Page,
   test,
 } from "@playwright/test";
+import {
+  type View,
+  views,
+} from "../apps/desktop/src/renderer/desktop-navigation";
 
 const executablePath = process.env.DOOLITTLE_DESKTOP_EXECUTABLE;
 const profileDir = process.env.DOOLITTLE_DESKTOP_PROFILE_DIR;
 const screenshotDir = process.env.DOOLITTLE_SWEEP_SCREENSHOTS_DIR?.trim();
+const sweepExecutablePath = process.env.DOOLITTLE_SWEEP_EXECUTABLE_PATH?.trim();
+const sweepExecutableSha256 =
+  process.env.DOOLITTLE_SWEEP_EXECUTABLE_SHA256?.trim();
+const sweepSourceRevision = process.env.DOOLITTLE_SWEEP_SOURCE_REVISION?.trim();
 
 const desktopViewport = { width: 1440, height: 1000 } as const;
 // Match the desktop window's supported compact width. Testing below minWidth
@@ -26,42 +34,19 @@ const desktopViewport = { width: 1440, height: 1000 } as const;
 // requested size, which produces misleading geometry and screenshots.
 const narrowViewport = { width: 920, height: 1000 } as const;
 
-const routes = [
-  "dashboard",
-  "chat",
-  "code",
-  "browser",
-  "review",
-  "orchestration",
-  "media",
-  "automations",
-  "sessions",
-  "gateway",
-  "activity",
-  "analytics",
-  "models",
-  "connections",
-  "tools",
-  "skills",
-  "plugins",
-  "memory",
-  "profiles",
-  "logs",
-  "settings",
-  "keys",
-  "runtime",
-  "compatibility",
-  "registry",
-  "operatorSetup",
-  "docs",
-] as const;
+const routes = Array.from(views);
 
-type RouteName = (typeof routes)[number];
+type RouteName = View;
 
 type ScreenshotManifest = {
   schemaVersion: number;
   generatedAt: string;
-  executable: string;
+  sourceRevision: string;
+  routeCount: number;
+  executable: {
+    path: string;
+    sha256: string;
+  };
   profile: {
     source: "scrubbed" | "explicit";
     warning?: string;
@@ -105,12 +90,95 @@ type RouteAudit = {
   apiFailures?: Array<{ path: string; status: number; body: string }>;
 };
 
-function getExecutableId(rawExecutablePath: string | undefined): string {
-  if (!rawExecutablePath?.trim()) {
-    return "doolittle-desktop";
-  }
+const interfaceModes = [
+  { appearance: "dark", density: "comfortable", controlHeight: 32 },
+  { appearance: "dark", density: "compact", controlHeight: 28 },
+  { appearance: "light", density: "comfortable", controlHeight: 32 },
+  { appearance: "light", density: "compact", controlHeight: 28 },
+] as const;
 
-  return basename(rawExecutablePath);
+async function applyInterfaceMode(
+  page: Page,
+  mode: (typeof interfaceModes)[number],
+): Promise<void> {
+  await page.evaluate(({ appearance, density }) => {
+    window.dispatchEvent(
+      new CustomEvent("doolittle:appearance-change", {
+        detail: appearance,
+      }),
+    );
+    window.dispatchEvent(
+      new CustomEvent("doolittle:density-change", {
+        detail: density,
+      }),
+    );
+  }, mode);
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-appearance",
+    mode.appearance,
+  );
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-density",
+    mode.density,
+  );
+  await waitForViewportLayout(page);
+}
+
+async function auditInterfaceModes(page: Page): Promise<void> {
+  let auditedControls = 0;
+  for (const mode of interfaceModes) {
+    await applyInterfaceMode(page, mode);
+    for (const route of routes) {
+      await page.evaluate((nextRoute) => {
+        window.location.hash = `#/${nextRoute}`;
+      }, route);
+      const view = page.locator(`.view-container[data-view="${route}"]`);
+      await expect(view).toBeVisible();
+      await expect(page.locator(".recovery-shell")).toHaveCount(0);
+      await expect(
+        view.getByText("Opening view…", { exact: true }),
+      ).toHaveCount(0, { timeout: 15_000 });
+
+      const controls = view.locator(
+        '[class*="!h-[var(--control-height)]"]:visible',
+      );
+      const measurements = await controls.evaluateAll((elements) =>
+        elements.map((element) => ({
+          height: element.getBoundingClientRect().height,
+          tag: element.tagName.toLowerCase(),
+          label:
+            element.getAttribute("aria-label") ??
+            element.textContent?.trim().slice(0, 80) ??
+            "",
+        })),
+      );
+      auditedControls += measurements.length;
+      for (const measurement of measurements) {
+        expect(
+          measurement.height,
+          `${mode.appearance}/${mode.density} ${route} ${measurement.tag} ${measurement.label}`,
+        ).toBeCloseTo(mode.controlHeight, 1);
+      }
+
+      const overflow = {
+        document: await page.evaluate(
+          () => document.documentElement.scrollWidth - window.innerWidth,
+        ),
+        view: await view.evaluate(
+          (element) => element.scrollWidth - element.clientWidth,
+        ),
+      };
+      expect(
+        overflow.document,
+        `${mode.appearance}/${mode.density} ${route} document overflow`,
+      ).toBeLessThanOrEqual(0);
+      expect(
+        overflow.view,
+        `${mode.appearance}/${mode.density} ${route} view overflow`,
+      ).toBeLessThanOrEqual(1);
+    }
+  }
+  expect(auditedControls).toBeGreaterThan(0);
 }
 
 function normalizeScreenshotDir(
@@ -155,10 +223,20 @@ function writeManifest(
   }>,
   explicitProfileUsed: boolean,
 ): void {
+  if (!sweepSourceRevision || !sweepExecutablePath || !sweepExecutableSha256) {
+    throw new Error(
+      "Visual evidence provenance is missing. Use scripts/capture-desktop-visual.ts.",
+    );
+  }
   const manifest: ScreenshotManifest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAt: new Date().toISOString(),
-    executable: getExecutableId(executablePath),
+    sourceRevision: sweepSourceRevision,
+    routeCount: audit.length,
+    executable: {
+      path: sweepExecutablePath,
+      sha256: sweepExecutableSha256,
+    },
     profile: {
       source: explicitProfileUsed ? "explicit" : "scrubbed",
       ...(explicitProfileUsed
@@ -367,7 +445,7 @@ test.describe("Doolittle packaged-profile control sweep", () => {
   test.skip(!executablePath, "Packaged app required.");
 
   test("opens safe controls across every route without renderer failures", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(360_000);
     const screenshotEvidence = normalizeScreenshotDir(screenshotDir);
     if (screenshotEvidence) {
       cleanEvidenceDirectory(screenshotEvidence);
@@ -455,6 +533,13 @@ test.describe("Doolittle packaged-profile control sweep", () => {
           if (await tab.isVisible()) {
             await tab.click();
             await page.waitForTimeout(40);
+            await expect(tab).toHaveAttribute("aria-selected", "true");
+            const panelId = await tab.getAttribute("aria-controls");
+            if (panelId) {
+              await expect(
+                page.locator(".view-container:visible").locator(`#${panelId}`),
+              ).toBeVisible();
+            }
             await expect(page.locator(".recovery-shell")).toHaveCount(0);
           }
         }
@@ -542,6 +627,11 @@ test.describe("Doolittle packaged-profile control sweep", () => {
           ),
         ),
       ).toEqual([]);
+      expect(pageErrors, pageErrors.join("\n\n")).toEqual([]);
+      expect(consoleErrors, consoleErrors.join("\n\n")).toEqual([]);
+
+      await resizeElectronWindow(app, desktopViewport);
+      await auditInterfaceModes(page);
       expect(pageErrors, pageErrors.join("\n\n")).toEqual([]);
       expect(consoleErrors, consoleErrors.join("\n\n")).toEqual([]);
 

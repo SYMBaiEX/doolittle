@@ -24,6 +24,12 @@ interface ArtifactPayload {
   content: string;
 }
 
+export const ARTIFACT_IMAGE_CANVAS_CLASS =
+  "mx-auto block max-h-[560px] w-[min(100%,960px)] border border-[var(--canvas-border)] bg-[var(--canvas-bg)] object-contain";
+
+export const ARTIFACT_TEXT_CANVAS_CLASS =
+  "m-0 max-h-[420px] overflow-auto rounded-[2px] border border-[var(--canvas-border)] bg-[var(--canvas-bg)] p-[11px] text-[10px] leading-[1.55] whitespace-pre-wrap text-[var(--canvas-text-soft)]";
+
 function compactBytes(value: number): string {
   if (value < 1024) return `${value} B`;
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
@@ -69,7 +75,7 @@ function ArtifactBody({ payload }: { payload: ArtifactPayload }) {
     return (
       <img
         alt={`Generated artifact ${payload.artifact.name}`}
-        className="mx-auto block max-h-[560px] w-[min(100%,960px)] border border-[var(--border)] bg-[#080706] object-contain"
+        className={ARTIFACT_IMAGE_CANVAS_CLASS}
         src={artifactUrl(payload)}
       />
     );
@@ -100,7 +106,7 @@ function ArtifactBody({ payload }: { payload: ArtifactPayload }) {
   }
   return (
     <pre
-      className={`m-0 max-h-[420px] overflow-auto rounded-[2px] border border-[var(--border)] bg-[#080706] p-[11px] text-[10px] leading-[1.55] whitespace-pre-wrap text-[var(--text-soft)] ${
+      className={`${ARTIFACT_TEXT_CANVAS_CLASS} ${
         payload.artifact.kind === "diff" ? "border-l-[var(--accent)]" : ""
       }`}
     >

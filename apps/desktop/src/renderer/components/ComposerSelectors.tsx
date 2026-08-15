@@ -11,8 +11,10 @@ import {
   COMPOSER_ACTIONS_CLASS,
   COMPOSER_EFFORT_CLASS,
   COMPOSER_MODEL_BUTTON_CLASS,
+  COMPOSER_MODEL_EFFORT_BADGE_CLASS,
   COMPOSER_MODEL_GROUPS_CLASS,
   COMPOSER_MODEL_LIST_CLASS,
+  COMPOSER_MODEL_NAME_CLASS,
   COMPOSER_MODEL_OPTION_CLASS,
   COMPOSER_MODEL_TRIGGER_CLASS,
   COMPOSER_POPOVER_CLASS,
@@ -180,10 +182,14 @@ export function ComposerModelSelector({
         title="Choose provider and model"
         type="button"
       >
-        <span>
+        <span className={COMPOSER_MODEL_NAME_CLASS}>
           {runtime?.model ?? "Choose model"}
-          {activeEffort ? ` · ${activeEffort}` : ""}
         </span>
+        {activeEffort ? (
+          <span className={COMPOSER_MODEL_EFFORT_BADGE_CLASS}>
+            {activeEffort}
+          </span>
+        ) : null}
         <small>{runtime?.provider ?? "provider"}</small>
         <i aria-hidden="true">⌃</i>
       </button>

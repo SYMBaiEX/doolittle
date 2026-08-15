@@ -8,11 +8,13 @@ import {
 export function PaneTabs<T extends string>({
   label,
   options,
+  panelId,
   value,
   onChange,
 }: {
   label: string;
   options: ReadonlyArray<{ id: T; label: string; count?: number }>;
+  panelId: string;
   value: T;
   onChange: (value: T) => void;
 }) {
@@ -33,8 +35,10 @@ export function PaneTabs<T extends string>({
     <div aria-label={label} className={CODING_TABS_CLASS} role="tablist">
       {options.map((option, index) => (
         <button
+          aria-controls={panelId}
           aria-selected={value === option.id}
           className={`${CODING_TAB_BUTTON_CLASS} ${value === option.id ? CODING_TAB_SELECTED_CLASS : ""}`}
+          id={paneTabId(panelId, option.id)}
           key={option.id}
           onClick={() => onChange(option.id)}
           onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
@@ -62,4 +66,8 @@ export function PaneTabs<T extends string>({
       ))}
     </div>
   );
+}
+
+export function paneTabId(panelId: string, tabId: string): string {
+  return `${panelId}-tab-${tabId}`;
 }
