@@ -154,9 +154,9 @@ export class SessionMessageStore {
       .query(
         `
           SELECT messages_fts.session_id as sessionId, messages_fts.created_at as createdAt,
-            messages_fts.role, messages_fts.text${projectId ? ", session_projects.project_id as projectId" : ""}
+            messages_fts.role, messages_fts.text, session_projects.project_id as projectId
           FROM messages_fts
-          ${projectId ? "INNER JOIN session_projects ON session_projects.session_id = messages_fts.session_id" : ""}
+          LEFT JOIN session_projects ON session_projects.session_id = messages_fts.session_id
           WHERE messages_fts MATCH ?1
           ${projectId ? "AND session_projects.project_id = ?3" : ""}
           ORDER BY rank

@@ -6,6 +6,7 @@ import {
   splitChatContext,
 } from "./chat-context-handoff";
 import type { MemoryMatchSnapshot } from "./memory-matches";
+import { type DesktopPlatform, workspacePathsEqual } from "./workspace-path";
 
 export const CONVERSATION_PINS_STORAGE_KEY =
   "doolittle.desktop.conversation.pins.v1";
@@ -60,12 +61,31 @@ export type ConversationDrafts = Record<string, ConversationDraft>;
 export interface PersistedQueuedMessage {
   id: string;
   sessionId: string;
+  /** Missing only for legacy queue entries, which must be explicitly rebound. */
+  workspacePath?: string;
   projectId?: string;
   content: string;
   /** Hidden source context, kept separate from the queue's visible prompt. */
   capsule?: ChatContextCapsule;
   attachments: ManagedAttachmentDescriptor[];
   memoryMatch?: MemoryMatchSnapshot;
+}
+
+export type QueuedMessageWorkspaceStatus =
+  | "ready"
+  | "legacy-unbound"
+  | "different-workspace";
+
+/** A queue item is dispatchable only in the workspace captured when it was queued. */
+export function queuedMessageWorkspaceStatus(
+  message: PersistedQueuedMessage,
+  workspacePath: string,
+  platform: DesktopPlatform,
+): QueuedMessageWorkspaceStatus {
+  if (!message.workspacePath) return "legacy-unbound";
+  return workspacePathsEqual(message.workspacePath, workspacePath, platform)
+    ? "ready"
+    : "different-workspace";
 }
 
 /** Queue delivery must use the entry's capsule, not the selected chat's. */
@@ -327,6 +347,11 @@ export function loadConversationQueue(
       !record ||
       !validSessionId(record.id) ||
       !validSessionId(record.sessionId) ||
+      (record.workspacePath !== undefined &&
+        (typeof record.workspacePath !== "string" ||
+          !record.workspacePath.trim() ||
+          record.workspacePath !== record.workspacePath.trim() ||
+          record.workspacePath.length > MAX_CAPSULE_PATH_LENGTH)) ||
       (record.projectId !== undefined && !validSessionId(record.projectId)) ||
       typeof content !== "string" ||
       !content.trim() ||
@@ -343,6 +368,9 @@ export function loadConversationQueue(
     queued.push({
       id: record.id,
       sessionId: record.sessionId,
+      ...(typeof record.workspacePath === "string"
+        ? { workspacePath: record.workspacePath }
+        : {}),
       ...(record.projectId ? { projectId: record.projectId } : {}),
       content,
       ...(capsule ? { capsule } : {}),

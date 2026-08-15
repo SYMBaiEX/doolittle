@@ -6,6 +6,7 @@ import {
   type SessionStatement,
 } from "@/services/session/database";
 import { migrateSessionDatabase } from "@/services/session/schema";
+import { ProjectStore } from "../projects/store";
 import { SessionMessageStore } from "./store";
 
 function createDb(): Database {
@@ -91,6 +92,30 @@ describe("session/messages/store", () => {
     expect(store.recentBySession("room:1", 1)[0]?.role).toBe("assistant");
     expect(store.countBySessionRole("room:1", "assistant")).toBe(1);
     expect(store.latest(1)[0]?.text).toBe("Replying to the session search");
+  });
+
+  it("returns the assigned project for global search results", () => {
+    const db = createDb();
+    const store = new SessionMessageStore(db, new EventEmitter());
+    const projects = new ProjectStore(db);
+    const project = projects.create({ id: "project-search", name: "Search" });
+    projects.assignSession("room:project-search", project.id);
+    store.storeMessage({
+      id: "project-search-message",
+      sessionId: "room:project-search",
+      roomId: "room:project-search",
+      entityId: "user:1",
+      role: "user",
+      text: "Find the archived deployment",
+      createdAt: "2026-03-20T00:00:00.000Z",
+    });
+
+    expect(store.search("archived", 10)).toEqual([
+      expect.objectContaining({
+        sessionId: "room:project-search",
+        projectId: "project-search",
+      }),
+    ]);
   });
 
   it("round-trips safe attachment descriptors without path or inline data", () => {

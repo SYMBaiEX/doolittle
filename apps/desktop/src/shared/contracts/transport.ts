@@ -20,6 +20,7 @@ export interface ChatRequest {
   requestId: string;
   message: string;
   roomId: string;
+  workspacePath: string;
   projectId?: string;
   attachmentIds?: string[];
 }

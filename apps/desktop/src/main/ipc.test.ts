@@ -89,6 +89,7 @@ describe("sensitive desktop actions", () => {
         url: "http://127.0.0.1:4555",
         message: "ready",
       }),
+      getWorkspaceDirectory: () => "/workspace",
       subscribe: () => () => undefined,
     } as unknown as BackendManager;
     const dispose = registerIpc({
@@ -388,6 +389,7 @@ describe("sensitive desktop actions", () => {
           requestId: "chat:attachment-1",
           message: "Review this file",
           roomId: "desktop:room-1",
+          workspacePath: "/workspace",
           projectId: "project-1",
           attachmentIds: [attachmentId],
         },
@@ -404,9 +406,31 @@ describe("sensitive desktop actions", () => {
       userId: "desktop-user",
       source: "desktop",
       stream: true,
+      workspaceDir: "/workspace",
       projectId: "project-1",
       attachmentIds: [attachmentId],
     });
+    await expect(
+      handler?.(
+        { sender: { ...sender, id: 75 } },
+        {
+          requestId: "chat:stale-workspace",
+          message: "Run this in the old workspace",
+          roomId: "desktop:room-1",
+          workspacePath: "/previous-workspace",
+        },
+      ),
+    ).rejects.toThrow(/workspace changed/i);
+    await expect(
+      handler?.(
+        { sender: { ...sender, id: 76 } },
+        {
+          requestId: "chat:missing-workspace",
+          message: "Run without an identity",
+          roomId: "desktop:room-1",
+        },
+      ),
+    ).rejects.toThrow(/workspace path/i);
     await expect(
       handler?.(
         { sender: { ...sender, id: 73 } },
@@ -414,6 +438,7 @@ describe("sensitive desktop actions", () => {
           requestId: "chat:attachment-command",
           message: "/status",
           roomId: "desktop:room-1",
+          workspacePath: "/workspace",
           attachmentIds: [attachmentId],
         },
       ),
@@ -425,6 +450,7 @@ describe("sensitive desktop actions", () => {
           requestId: "chat:invalid-project",
           message: "Review this file",
           roomId: "desktop:room-1",
+          workspacePath: "/workspace",
           projectId: "../outside",
         },
       ),
@@ -460,6 +486,7 @@ describe("sensitive desktop actions", () => {
           requestId: "chat:eof",
           message: "stream request",
           roomId: "desktop:room-1",
+          workspacePath: "/workspace",
         },
       ),
     ).rejects.toThrow(/closed the chat stream before completing/i);
@@ -518,6 +545,7 @@ describe("sensitive desktop actions", () => {
           requestId: "chat:utf8-tail",
           message: "stream request",
           roomId: "desktop:room-1",
+          workspacePath: "/workspace",
         },
       ),
     ).resolves.toBeUndefined();
@@ -573,6 +601,7 @@ describe("sensitive desktop actions", () => {
           requestId: "chat:late-failure",
           message: "stream request",
           roomId: "desktop:room-1",
+          workspacePath: "/workspace",
         },
       ),
     ).catch((error) => error);
@@ -618,6 +647,7 @@ describe("sensitive desktop actions", () => {
           requestId: "chat:notification",
           message: "private request text",
           roomId: "desktop:room-1",
+          workspacePath: "/workspace",
         },
       ),
     ).resolves.toBeUndefined();
@@ -673,6 +703,7 @@ describe("sensitive desktop actions", () => {
         requestId: "chat:server-stop",
         message: "Stop the provider turn",
         roomId: "desktop:room-1",
+        workspacePath: "/workspace",
       },
     );
     await Promise.resolve();
@@ -729,6 +760,7 @@ describe("sensitive desktop actions", () => {
           requestId: "chat:notification-unavailable",
           message: "Finish this task",
           roomId: "desktop:room-1",
+          workspacePath: "/workspace",
         },
       ),
     ).resolves.toBeUndefined();

@@ -60,7 +60,7 @@ function composerProps(
     queueRef: { current: null },
     queuedMessages: [],
     queuePaused: false,
-    setQueuePaused: () => undefined,
+    resumeQueuedMessages: () => undefined,
     setQueueAnnouncement: () => undefined,
     clearQueuedMessages: () => undefined,
     removeQueuedMessage: () => undefined,

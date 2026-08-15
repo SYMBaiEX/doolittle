@@ -453,6 +453,7 @@ export function assertChatRequest(
   requestId: string;
   message: string;
   roomId: string;
+  workspacePath: string;
 } {
   const message = request.message?.trim();
   if (!request.requestId) {
@@ -463,6 +464,15 @@ export function assertChatRequest(
   }
   if (!request.roomId) {
     throw new Error("A conversation id is required.");
+  }
+  if (
+    typeof request.workspacePath !== "string" ||
+    !request.workspacePath ||
+    request.workspacePath !== request.workspacePath.trim() ||
+    request.workspacePath.length > MAX_WORKSPACE_PATH_LENGTH ||
+    hasControlCharacters(request.workspacePath)
+  ) {
+    throw new Error("A valid workspace path is required.");
   }
   if (
     request.projectId !== undefined &&

@@ -3,7 +3,9 @@ import {
   type LinkedProviderName,
   resolveLinkedProviderName,
   syncProviderSettings,
+  withLinkedProviderMutationLock,
 } from "@/runtime/linked-provider-accounts";
+import { applyAccountPoolApiCredentials } from "@/runtime/native/account-pool";
 import { getEffectiveShellStatus } from "@/runtime/native/service-bridge/tooling";
 import {
   DEFAULT_TUI_THEME,
@@ -33,6 +35,26 @@ function coerceSettingValue(raw: string): boolean | number | string {
     return false;
   }
   return Number.isNaN(Number(raw)) ? raw : Number(raw);
+}
+
+async function updateModelSettings(
+  context: AgentExecutionContext,
+  update: () => void,
+) {
+  return withLinkedProviderMutationLock(context.runtime, async () => {
+    update();
+    const settings = context.services.settings.get();
+    syncProviderSettings(context, settings);
+    await applyAccountPoolApiCredentials({
+      activeBackend: settings.model.provider,
+    });
+    return settings;
+  });
+}
+
+function formatModelUpdateError(error: unknown): string {
+  const detail = error instanceof Error ? error.message : String(error);
+  return `Unable to apply model settings: ${detail}`;
 }
 
 function modelRoutes(context: AgentExecutionContext): ModelRoute[] {
@@ -119,19 +141,23 @@ function renderModelList(context: AgentExecutionContext): string {
     .join("\n");
 }
 
-function activateOllamaRoute(
+async function activateOllamaRoute(
   context: AgentExecutionContext,
   modelOverride?: string,
-): string {
+): Promise<string> {
   const model = modelOverride || context.config.ollamaLargeModel;
-  context.services.settings.set("model.provider", "ollama");
-  context.services.settings.set("model.model", model);
-  context.services.settings.set(
-    "model.baseUrl",
-    context.config.ollamaApiEndpoint,
-  );
-  const settings = context.services.settings.get();
-  syncProviderSettings(context, settings);
+  try {
+    await updateModelSettings(context, () => {
+      context.services.settings.set("model.provider", "ollama");
+      context.services.settings.set("model.model", model);
+      context.services.settings.set(
+        "model.baseUrl",
+        context.config.ollamaApiEndpoint,
+      );
+    });
+  } catch (error) {
+    return formatModelUpdateError(error);
+  }
   return [
     "Activated Ollama local inference.",
     `model: ${model}`,
@@ -140,22 +166,27 @@ function activateOllamaRoute(
   ].join("\n");
 }
 
-function activateLinkedRoute(
+async function activateLinkedRoute(
   context: AgentExecutionContext,
   provider: LinkedProviderName,
   modelOverride?: string,
-): string {
-  const activated = activateLinkedProvider(context, provider);
-  if (modelOverride) {
-    context.services.settings.set("model.model", modelOverride);
-    syncProviderSettings(context, context.services.settings.get());
+): Promise<string> {
+  try {
+    await updateModelSettings(context, () => {
+      activateLinkedProvider(context, provider);
+      if (modelOverride) {
+        context.services.settings.set("model.model", modelOverride);
+      }
+    });
+  } catch (error) {
+    return formatModelUpdateError(error);
   }
   const settings = context.services.settings.get().model;
   return [
     provider === "elizacloud"
       ? "Activated Eliza Cloud managed inference."
       : `Activated ${provider} specialist inference.`,
-    `model: ${settings.model || activated.model}`,
+    `model: ${settings.model}`,
     settings.baseUrl
       ? `baseUrl: ${settings.baseUrl}`
       : "baseUrl: provider default",
@@ -182,13 +213,13 @@ export async function handleSettingsThemeCommand(
       return "Usage: /model use <ollama|devin|codex|claude-code|elizacloud> [model]";
     }
     if (providerRaw === "ollama" || providerRaw === "local") {
-      return activateOllamaRoute(context, modelOverride);
+      return await activateOllamaRoute(context, modelOverride);
     }
     const linked = resolveLinkedProviderName(providerRaw);
     if (!linked) {
       return `Unknown provider route: ${providerRaw}\nUsage: /model use <ollama|devin|codex|claude-code|elizacloud> [model]`;
     }
-    return activateLinkedRoute(context, linked, modelOverride);
+    return await activateLinkedRoute(context, linked, modelOverride);
   }
 
   if (trimmed === "/execution" || trimmed === "/execution status") {
@@ -262,12 +293,14 @@ export async function handleSettingsThemeCommand(
       return "Usage: /model set <field> <value>";
     }
     const path = field.startsWith("model.") ? field : `model.${field}`;
-    const settings = context.services.settings.set(
-      path,
-      coerceSettingValue(valueRaw),
-    );
-    syncProviderSettings(context, settings);
-    return JSON.stringify(settings.model, null, 2);
+    try {
+      const settings = await updateModelSettings(context, () => {
+        context.services.settings.set(path, coerceSettingValue(valueRaw));
+      });
+      return JSON.stringify(settings.model, null, 2);
+    } catch (error) {
+      return formatModelUpdateError(error);
+    }
   }
 
   if (trimmed === "/config" || trimmed === "/config show") {

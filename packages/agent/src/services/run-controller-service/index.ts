@@ -38,6 +38,7 @@ export class RunControllerService {
   private readonly events = new RunUpdateEventBus();
   private readonly store: RunControllerStore;
   private readonly abortControllers = new Map<string, AbortController>();
+  private readonly workspaceRuns = new Map<string, string>();
   private runtimeBridgeAttached = false;
   private agentEventBridgeAttached = false;
 
@@ -131,6 +132,36 @@ export class RunControllerService {
         this.abortControllers.delete(runId);
       }
     };
+  }
+
+  /**
+   * Freezes the workspace identity for a chat before its turn begins. Runtime
+   * workspace switches consult these leases so a later tool call cannot be
+   * silently retargeted while the shared AppContext is still serving the run.
+   */
+  registerWorkspaceRun(runId: string, workspaceDir: string): () => void {
+    if (this.workspaceRuns.has(runId)) {
+      throw new Error(
+        `Workspace identity is already registered for run ${runId}.`,
+      );
+    }
+    this.workspaceRuns.set(runId, workspaceDir);
+    return () => {
+      if (this.workspaceRuns.get(runId) === workspaceDir) {
+        this.workspaceRuns.delete(runId);
+      }
+    };
+  }
+
+  workspaceSwitchConflict(
+    workspaceDir: string,
+  ): { runId: string; workspaceDir: string } | undefined {
+    for (const [runId, activeWorkspaceDir] of this.workspaceRuns) {
+      if (activeWorkspaceDir !== workspaceDir) {
+        return { runId, workspaceDir: activeWorkspaceDir };
+      }
+    }
+    return undefined;
   }
 
   cancelRun(runId: string): { accepted: boolean; run?: RunSnapshot } {

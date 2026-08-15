@@ -42,6 +42,10 @@ export function switchRuntimeWorkspace(
     return workspaceDir;
   }
 
+  if (context.services.runController.workspaceSwitchConflict(workspaceDir)) {
+    throw new RuntimeWorkspaceConflictError();
+  }
+
   const repository = context.services.repository;
   const terminal = context.services.terminal;
   const skills = context.services.skills;
@@ -50,6 +54,17 @@ export function switchRuntimeWorkspace(
   terminal.invalidateWorkspace();
   skills.invalidateWorkspace();
   return workspaceDir;
+}
+
+export class RuntimeWorkspaceConflictError extends Error {
+  readonly code = "workspace_busy";
+
+  constructor() {
+    super(
+      "Wait for the active agent run to finish or cancel it before changing workspaces.",
+    );
+    this.name = "RuntimeWorkspaceConflictError";
+  }
 }
 
 export async function handleRuntimeWorkspaceRoutes(
@@ -89,8 +104,11 @@ export async function handleRuntimeWorkspaceRoutes(
           error instanceof Error
             ? error.message
             : "The workspace could not be changed.",
+        ...(error instanceof RuntimeWorkspaceConflictError
+          ? { code: error.code }
+          : {}),
       },
-      400,
+      error instanceof RuntimeWorkspaceConflictError ? 409 : 400,
     );
   }
 }

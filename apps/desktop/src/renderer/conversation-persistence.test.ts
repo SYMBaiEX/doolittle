@@ -9,6 +9,7 @@ import {
   loadConversationQueue,
   loadPromptLibrary,
   PROMPT_LIBRARY_STORAGE_KEY,
+  queuedMessageWorkspaceStatus,
   type StorageLike,
   safeSetStorageItem,
   saveConversationDrafts,
@@ -171,6 +172,7 @@ describe("conversation persistence", () => {
       {
         id: "queue-1",
         sessionId: "desktop:one",
+        workspacePath: "/workspace/one",
         projectId: "project-one",
         content: "Run the focused tests",
         capsule: {
@@ -187,6 +189,32 @@ describe("conversation persistence", () => {
     ];
     saveConversationQueue(storage, queue);
     expect(loadConversationQueue(storage)).toEqual(queue);
+  });
+
+  it("fails safe for legacy and cross-workspace queue entries", () => {
+    const legacy = {
+      id: "legacy",
+      sessionId: "desktop:one",
+      content: "Review before dispatch",
+      attachments: [],
+    };
+    expect(
+      queuedMessageWorkspaceStatus(legacy, "/workspace/one", "darwin"),
+    ).toBe("legacy-unbound");
+    expect(
+      queuedMessageWorkspaceStatus(
+        { ...legacy, workspacePath: "/workspace/two" },
+        "/workspace/one",
+        "darwin",
+      ),
+    ).toBe("different-workspace");
+    expect(
+      queuedMessageWorkspaceStatus(
+        { ...legacy, workspacePath: "/workspace/one" },
+        "/workspace/one",
+        "darwin",
+      ),
+    ).toBe("ready");
   });
 
   it("migrates legacy composed queue content into a hidden capsule", () => {

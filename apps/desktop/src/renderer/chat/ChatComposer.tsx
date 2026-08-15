@@ -74,7 +74,7 @@ export interface ChatComposerProps {
   queueRef: RefObject<HTMLDivElement | null>;
   queuedMessages: PersistedQueuedMessage[];
   queuePaused: boolean;
-  setQueuePaused: Dispatch<SetStateAction<boolean>>;
+  resumeQueuedMessages: () => void;
   setQueueAnnouncement: Dispatch<SetStateAction<string>>;
   clearQueuedMessages: () => void;
   removeQueuedMessage: (id: string) => void;
@@ -131,7 +131,7 @@ export function ChatComposer({
   queueRef,
   queuedMessages,
   queuePaused,
-  setQueuePaused,
+  resumeQueuedMessages,
   setQueueAnnouncement,
   clearQueuedMessages,
   removeQueuedMessage,
@@ -208,15 +208,7 @@ export function ChatComposer({
             </strong>
             <span>
               {queuePaused ? (
-                <button
-                  onClick={() => {
-                    setQueuePaused(false);
-                    setQueueAnnouncement(
-                      "Recovered queue resumed. The next message will send when Doolittle is ready.",
-                    );
-                  }}
-                  type="button"
-                >
+                <button onClick={resumeQueuedMessages} type="button">
                   Resume queue
                 </button>
               ) : null}

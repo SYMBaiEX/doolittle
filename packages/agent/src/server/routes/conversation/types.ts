@@ -11,6 +11,7 @@ export interface ChatRequestBody {
   userId?: string;
   roomId?: string;
   projectId?: string;
+  workspaceDir?: string;
   runId?: string;
   source?: string;
   stream?: boolean;

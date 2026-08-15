@@ -307,6 +307,31 @@ describe("handleSessionRoutes", () => {
     });
   });
 
+  it("returns project identity from an unfiltered session search", async () => {
+    const search = (query: string, limit: number, projectId?: string) => [
+      { query, limit, projectId, sessionId: "session-outside-page" },
+    ];
+    const context = createContext();
+    context.services.sessions.search = search as never;
+
+    const response = await handleSessionRoutes(
+      context,
+      new Request("http://localhost/sessions/search?query=deploy&limit=7"),
+      new URL("http://localhost/sessions/search?query=deploy&limit=7"),
+    );
+
+    await expect(response?.json()).resolves.toEqual({
+      hits: [
+        {
+          query: "deploy",
+          limit: 7,
+          projectId: undefined,
+          sessionId: "session-outside-page",
+        },
+      ],
+    });
+  });
+
   it("returns null for unrelated routes", async () => {
     const response = await handleSessionRoutes(
       createContext(),

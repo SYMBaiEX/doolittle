@@ -103,14 +103,14 @@ describe("desktop content navigation", () => {
     );
   });
 
-  it("forwards a global-search conversation project scope when the session is not preloaded", async () => {
+  it("opens a global-search result beyond the 200 hydrated sessions in its true project", async () => {
     const coordinator = createNavigationTransitionCoordinator();
     const actions = navigationActions();
 
     await navigateGlobalSearchTarget(
       {
         kind: "conversation",
-        sessionId: "old-session",
+        sessionId: "session-201",
         projectId: "project-b",
       },
       coordinator,
@@ -118,7 +118,7 @@ describe("desktop content navigation", () => {
     );
 
     expect(actions.openSession).toHaveBeenCalledWith(
-      "old-session",
+      "session-201",
       "project-b",
     );
   });

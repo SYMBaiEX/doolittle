@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleRuntimeRoutes } from "@/server/routes/runtime/index";
+import { RunControllerService } from "@/services/run-controller-service";
 
 function createContext() {
   const config = {
@@ -23,6 +24,7 @@ function createContext() {
     config,
     runtime: {},
     services: {
+      runController: new RunControllerService(),
       workspace: {
         root: () => config.workspaceDir,
       },
@@ -123,6 +125,57 @@ describe("handleRuntimeRoutes", () => {
       expect(context.runtime).toBe(runtime);
     } finally {
       rmSync(workspaceDir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a direct workspace switch while an agent run is bound elsewhere", async () => {
+    const firstWorkspace = mkdtempSync(
+      join(tmpdir(), "doolittle-workspace-a-"),
+    );
+    const secondWorkspace = mkdtempSync(
+      join(tmpdir(), "doolittle-workspace-b-"),
+    );
+    const context = createContext();
+    context.config.workspaceDir = realpathSync(firstWorkspace);
+    const release = context.services.runController.registerWorkspaceRun(
+      "run-active",
+      context.config.workspaceDir,
+    );
+    try {
+      const response = await handleRuntimeRoutes(
+        context,
+        new Request("http://localhost/runtime/workspace", {
+          method: "POST",
+          body: JSON.stringify({ workspaceDir: secondWorkspace }),
+          headers: { "content-type": "application/json" },
+        }),
+        new URL("http://localhost/runtime/workspace"),
+      );
+
+      expect(response?.status).toBe(409);
+      await expect(response?.json()).resolves.toEqual({
+        error:
+          "Wait for the active agent run to finish or cancel it before changing workspaces.",
+        code: "workspace_busy",
+      });
+      expect(context.config.workspaceDir).toBe(realpathSync(firstWorkspace));
+
+      release();
+      const retry = await handleRuntimeRoutes(
+        context,
+        new Request("http://localhost/runtime/workspace", {
+          method: "POST",
+          body: JSON.stringify({ workspaceDir: secondWorkspace }),
+          headers: { "content-type": "application/json" },
+        }),
+        new URL("http://localhost/runtime/workspace"),
+      );
+      expect(retry?.status).toBe(200);
+      expect(context.config.workspaceDir).toBe(realpathSync(secondWorkspace));
+    } finally {
+      release();
+      rmSync(firstWorkspace, { recursive: true, force: true });
+      rmSync(secondWorkspace, { recursive: true, force: true });
     }
   });
 

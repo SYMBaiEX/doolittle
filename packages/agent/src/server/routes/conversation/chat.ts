@@ -3,6 +3,7 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { executeAgentTurnWithProgress } from "@/runtime/turn-stream";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json, streamSse } from "@/server/responses";
+import { resolveRuntimeWorkspacePath } from "@/server/routes/runtime/workspace";
 import {
   ManagedAttachmentError,
   resolveManagedChatAttachments,
@@ -22,6 +23,75 @@ function resolveRunId(value: unknown): string {
 
 function resolveRoomId(body: ChatRequestBody): string {
   return body.roomId ?? `api:${body.userId ?? "api-user"}`;
+}
+
+function assignProjectForNewSession(
+  context: AppContext,
+  sessionId: string,
+  projectId: string | undefined,
+): boolean {
+  if (!projectId) return true;
+  if (context.services.sessions.countBySessionRole(sessionId) > 0) return true;
+  return context.services.sessions.assignSessionProject(sessionId, projectId);
+}
+
+function resolveChatWorkspace(
+  context: AppContext,
+  requestedWorkspaceDir: string | undefined,
+): string | Response {
+  const activeWorkspaceDir = resolveRuntimeWorkspacePath(
+    context.config.workspaceDir,
+  );
+  if (!requestedWorkspaceDir) return activeWorkspaceDir;
+
+  let canonicalRequestedWorkspaceDir: string;
+  try {
+    canonicalRequestedWorkspaceDir = resolveRuntimeWorkspacePath(
+      requestedWorkspaceDir,
+    );
+  } catch (error) {
+    return json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "workspaceDir must be a valid absolute directory path.",
+      },
+      400,
+    );
+  }
+  if (canonicalRequestedWorkspaceDir !== activeWorkspaceDir) {
+    return json(
+      {
+        error:
+          "The requested chat workspace is no longer active. Switch back to it before sending this message.",
+        code: "workspace_mismatch",
+      },
+      409,
+    );
+  }
+  return activeWorkspaceDir;
+}
+
+function registerWorkspaceRun(
+  context: AppContext,
+  runId: string,
+  workspaceDir: string,
+): (() => void) | Response {
+  try {
+    return context.services.runController.registerWorkspaceRun(
+      runId,
+      workspaceDir,
+    );
+  } catch {
+    return json(
+      {
+        error: "This chat run is already active.",
+        code: "run_already_active",
+      },
+      409,
+    );
+  }
 }
 
 export async function handleChatRoute(
@@ -45,7 +115,7 @@ export async function handleChatRoute(
   if (body.stream !== undefined && typeof body.stream !== "boolean") {
     return json({ error: "stream must be a boolean" }, 400);
   }
-  for (const field of ["userId", "roomId", "source"] as const) {
+  for (const field of ["userId", "roomId", "source", "workspaceDir"] as const) {
     if (body[field] !== undefined && typeof body[field] !== "string") {
       return json({ error: `${field} must be a string` }, 400);
     }
@@ -100,6 +170,8 @@ export async function handleChatRoute(
   const attachmentDescriptors = resolvedAttachments.map(
     (entry) => entry.descriptor,
   );
+  const workspaceDir = resolveChatWorkspace(context, body.workspaceDir);
+  if (workspaceDir instanceof Response) return workspaceDir;
 
   if (body.stream) {
     const responseId = randomUUID();
@@ -107,12 +179,11 @@ export async function handleChatRoute(
     const roomId = resolveRoomId(body);
     const requestMessage = message;
     const sessionId = roomId;
-    if (
-      body.projectId &&
-      !context.services.sessions.assignSessionProject(sessionId, body.projectId)
-    ) {
+    if (!assignProjectForNewSession(context, sessionId, body.projectId)) {
       return json({ error: "project not found or archived" }, 404);
     }
+    const releaseWorkspace = registerWorkspaceRun(context, runId, workspaceDir);
+    if (releaseWorkspace instanceof Response) return releaseWorkspace;
 
     const controller = new AbortController();
     const stopFollowingRequest = followAbortSignal(request.signal, controller);
@@ -192,6 +263,7 @@ export async function handleChatRoute(
           throw error;
         } finally {
           unregister();
+          releaseWorkspace();
           stopFollowingRequest();
         }
       },
@@ -203,13 +275,12 @@ export async function handleChatRoute(
 
   const roomId = resolveRoomId(body);
   const sessionId = roomId;
-  if (
-    body.projectId &&
-    !context.services.sessions.assignSessionProject(sessionId, body.projectId)
-  ) {
+  if (!assignProjectForNewSession(context, sessionId, body.projectId)) {
     return json({ error: "project not found or archived" }, 404);
   }
   const runId = resolveRunId(body.runId);
+  const releaseWorkspace = registerWorkspaceRun(context, runId, workspaceDir);
+  if (releaseWorkspace instanceof Response) return releaseWorkspace;
   const controller = new AbortController();
   const stopFollowingRequest = followAbortSignal(request.signal, controller);
   const unregister = context.services.runController.registerAbortController(
@@ -233,6 +304,7 @@ export async function handleChatRoute(
     ));
   } finally {
     unregister();
+    releaseWorkspace();
     stopFollowingRequest();
   }
 

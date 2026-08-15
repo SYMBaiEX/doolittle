@@ -419,6 +419,11 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       if (state.phase !== "ready" || !state.url) {
         throw new Error("The local runtime is not ready.");
       }
+      if (request.workspacePath !== backend.getWorkspaceDirectory()) {
+        throw new Error(
+          "The selected workspace changed before this chat started. Switch back before sending it.",
+        );
+      }
 
       const key = chatKey(event, request.requestId);
       if (activeChats.has(key)) {
@@ -469,6 +474,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             userId: "desktop-user",
             source: "desktop",
             stream: true,
+            workspaceDir: request.workspacePath,
             projectId: request.projectId,
             attachmentIds: validateChatAttachmentIds(request.attachmentIds),
           }),

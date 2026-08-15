@@ -2,6 +2,33 @@ import { describe, expect, it } from "vitest";
 import { RunControllerService } from "./run-controller-service";
 
 describe("RunControllerService", () => {
+  it("blocks a different workspace until the registered run releases its identity", () => {
+    const service = new RunControllerService();
+    const release = service.registerWorkspaceRun("run-a", "/workspace/a");
+
+    expect(service.workspaceSwitchConflict("/workspace/a")).toBeUndefined();
+    expect(service.workspaceSwitchConflict("/workspace/b")).toEqual({
+      runId: "run-a",
+      workspaceDir: "/workspace/a",
+    });
+
+    release();
+    expect(service.workspaceSwitchConflict("/workspace/b")).toBeUndefined();
+  });
+
+  it("rejects duplicate workspace registration without releasing the first run", () => {
+    const service = new RunControllerService();
+    service.registerWorkspaceRun("run-a", "/workspace/a");
+
+    expect(() => service.registerWorkspaceRun("run-a", "/workspace/b")).toThrow(
+      "Workspace identity is already registered for run run-a.",
+    );
+    expect(service.workspaceSwitchConflict("/workspace/b")).toEqual({
+      runId: "run-a",
+      workspaceDir: "/workspace/a",
+    });
+  });
+
   it("tracks observed action steps for a single turn", () => {
     const service = new RunControllerService();
     service.startTurn({

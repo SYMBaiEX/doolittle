@@ -51,6 +51,7 @@ import {
   composeQueuedMessage,
   loadConversationQueue,
   type PersistedQueuedMessage,
+  queuedMessageWorkspaceStatus,
   safeSetStorageItem,
   saveConversationQueue,
 } from "./conversation-persistence";
@@ -640,6 +641,7 @@ export function ChatPage({
         requestId,
         message: content,
         roomId: sessionId,
+        workspacePath,
         attachmentIds: messageAttachments.map((attachment) => attachment.id),
         ...(requestProjectId ? { projectId: requestProjectId } : {}),
       } as Parameters<typeof window.doolittle.startChat>[0]);
@@ -764,6 +766,20 @@ export function ChatPage({
     }
     const [next] = queuedMessages;
     if (!next) return;
+    const workspaceStatus = queuedMessageWorkspaceStatus(
+      next,
+      workspacePath,
+      window.doolittle.platform,
+    );
+    if (workspaceStatus !== "ready") {
+      setQueuePaused(true);
+      setQueueAnnouncement(
+        workspaceStatus === "different-workspace"
+          ? "Queued delivery is paused because this message belongs to a different workspace. Switch back to that workspace before resuming."
+          : "Queued delivery is paused because this recovered message is not bound to a workspace. Resume to bind it to the current workspace.",
+      );
+      return;
+    }
     queueDispatchRef.current = next.id;
     const queuedContent = composeQueuedMessage(next);
     void sendMessage(
@@ -791,7 +807,13 @@ export function ChatPage({
       .finally(() => {
         queueDispatchRef.current = null;
       });
-  }, [activeRequest, backend.phase, queuePaused, queuedMessages]);
+  }, [
+    activeRequest,
+    backend.phase,
+    queuePaused,
+    queuedMessages,
+    workspacePath,
+  ]);
 
   const queueCurrentDraft = () => {
     const visibleContent = draft.trim();
@@ -811,6 +833,7 @@ export function ChatPage({
       {
         id: crypto.randomUUID(),
         sessionId: selectedId,
+        workspacePath,
         ...(activeProject?.id ? { projectId: activeProject.id } : {}),
         content: visibleContent,
         ...(chatContextCapsule ? { capsule: chatContextCapsule } : {}),
@@ -824,6 +847,38 @@ export function ChatPage({
     setAttachedFiles([]);
     setChatContextCapsule(null);
     composerRef.current?.focus();
+  };
+
+  const resumeQueuedMessages = () => {
+    const [next] = queuedMessages;
+    if (!next) return;
+    const workspaceStatus = queuedMessageWorkspaceStatus(
+      next,
+      workspacePath,
+      window.doolittle.platform,
+    );
+    if (workspaceStatus === "different-workspace") {
+      setQueuePaused(true);
+      setQueueAnnouncement(
+        "This queued message belongs to a different workspace. Switch back to that workspace before resuming.",
+      );
+      return;
+    }
+    if (workspaceStatus === "legacy-unbound") {
+      setQueuedMessages((current) =>
+        current.map((message) =>
+          message.id === next.id ? { ...message, workspacePath } : message,
+        ),
+      );
+      setQueueAnnouncement(
+        "Recovered message bound to this workspace. It will send when Doolittle is ready.",
+      );
+    } else {
+      setQueueAnnouncement(
+        "Recovered queue resumed. The next message will send when Doolittle is ready.",
+      );
+    }
+    setQueuePaused(false);
   };
 
   const submit = async (event?: FormEvent) => {
@@ -1088,7 +1143,7 @@ export function ChatPage({
           queueRef={queueRef}
           queuedMessages={queuedMessages}
           queuePaused={queuePaused}
-          setQueuePaused={setQueuePaused}
+          resumeQueuedMessages={resumeQueuedMessages}
           setQueueAnnouncement={setQueueAnnouncement}
           clearQueuedMessages={clearQueuedMessages}
           removeQueuedMessage={removeQueuedMessage}
