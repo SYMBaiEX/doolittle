@@ -522,19 +522,24 @@ test.describe("Doolittle packaged-profile control sweep", () => {
             expect(initialControls).toBeLessThanOrEqual(32);
           }
         }
-        const tabLabels = (await view.getByRole("tab").allTextContents()).map(
-          (label) => label.trim(),
-        );
-        const tabCount = tabLabels.length;
-        for (const label of tabLabels) {
+        const tabCount = await view.getByRole("tab").count();
+        for (let index = 0; index < tabCount; index += 1) {
           const tab = page
             .locator(".view-container:visible")
-            .getByRole("tab", { exact: true, name: label });
+            .getByRole("tab")
+            .nth(index);
           if (await tab.isVisible()) {
+            const tabId = await tab.getAttribute("id");
+            const panelId = await tab.getAttribute("aria-controls");
             await tab.click();
             await page.waitForTimeout(40);
-            await expect(tab).toHaveAttribute("aria-selected", "true");
-            const panelId = await tab.getAttribute("aria-controls");
+            const selectedTab = tabId
+              ? page.locator(`.view-container:visible #${tabId}`)
+              : page
+                  .locator(".view-container:visible")
+                  .getByRole("tab")
+                  .nth(index);
+            await expect(selectedTab).toHaveAttribute("aria-selected", "true");
             if (panelId) {
               await expect(
                 page.locator(".view-container:visible").locator(`#${panelId}`),
