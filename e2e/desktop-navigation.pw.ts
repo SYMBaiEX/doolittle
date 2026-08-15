@@ -315,14 +315,20 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(page.locator(".coding-acp-status")).toContainText(
         "ACP live",
       );
-      await expect(
-        page.locator(".interactive-terminal-launchpad"),
-      ).toBeVisible();
-      await expect(page.locator(".interactive-terminal-mode")).toHaveText(
-        /(?:PTY|PIPE) · \d+×\d+/,
+      await page.keyboard.press(
+        process.platform === "darwin" ? "Meta+J" : "Control+J",
       );
+      const chatTerminal = page.getByLabel("Chat terminal panel");
+      await expect(chatTerminal).toHaveAttribute("data-open", "true");
+      await expect(chatTerminal).toBeVisible();
       await expect(
-        page.locator(".interactive-terminal-mode"),
+        chatTerminal.getByRole("button", { name: "Ctrl+C" }),
+      ).toBeVisible({ timeout: 15_000 });
+      await expect(
+        chatTerminal.locator(".interactive-terminal-mode"),
+      ).toHaveText(/(?:PTY|PIPE) · \d+×\d+/);
+      await expect(
+        chatTerminal.locator(".interactive-terminal-mode"),
       ).not.toContainText("100×30");
       const codeWorkspaceScreenshot = testInfo.outputPath(
         "doolittle-code-workspace.png",
@@ -717,11 +723,21 @@ test.describe("Doolittle desktop navigation", () => {
         }),
       ).toContainText("Accounts", { timeout: 30_000 });
       await expect(
+        page.getByRole("region", {
+          name: "OpenAI API spawned-agent account pool",
+        }),
+      ).toContainText("Accounts", { timeout: 30_000 });
+      await expect(
+        page.getByRole("region", {
+          name: "Anthropic API spawned-agent account pool",
+        }),
+      ).toContainText("Accounts", { timeout: 30_000 });
+      await expect(
         page.locator(".provider-pool-header-actions .badge"),
-      ).toHaveCount(2, {
+      ).toHaveCount(4, {
         timeout: 30_000,
       });
-      await expect(page.locator(".provider-pool-directory")).toHaveCount(2);
+      await expect(page.locator(".provider-pool-directory")).toHaveCount(4);
       await expect(page.locator("body")).not.toContainText(/access[_-]?token/i);
       await expect(page.locator("body")).not.toContainText(
         /refresh[_-]?token/i,
@@ -751,7 +767,7 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         routingStrategy.getByText("Always prefer the top healthy account."),
       ).toBeHidden();
-      await expect(page.locator(".provider-import-disclosure")).toHaveCount(2);
+      await expect(page.locator(".provider-import-disclosure")).toHaveCount(4);
       await expect(
         page.getByText("Checking the default chat provider…"),
       ).toHaveCount(0, { timeout: 30_000 });
@@ -761,8 +777,8 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(providerStatus).toContainText("Ready");
       await expect(providerStatus).toContainText("New chats");
       await expect(page.locator(".provider-connection-row")).toHaveCount(4);
-      await expect(page.locator(".provider-pool-panel")).toHaveCount(2);
-      await expect(page.locator(".provider-pool-toolbar")).toHaveCount(2);
+      await expect(page.locator(".provider-pool-panel")).toHaveCount(4);
+      await expect(page.locator(".provider-pool-toolbar")).toHaveCount(4);
       const providerPoolColumns = await page
         .locator(".provider-pool-stack")
         .evaluate(
@@ -1576,7 +1592,7 @@ test.describe("Doolittle desktop navigation", () => {
         .getByRole("button", { name: "Open tools and settings" })
         .click();
       await expect(
-        page.getByRole("complementary", { name: "Tools and settings" }),
+        page.getByRole("dialog", { name: "Tools and settings" }),
       ).toBeVisible();
       await expect(
         page.getByRole("heading", { name: "Tools & settings" }),

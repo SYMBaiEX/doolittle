@@ -13,6 +13,10 @@ const desktopRoot = resolve(repoRoot, "apps/desktop");
 type Session = { sessionId: string; preview?: string[]; messageCount: number };
 type StoredMessage = { role: string; text: string };
 
+function normalizeTranscriptText(value: string): string {
+  return value.replace(/\s+/gu, " ").trim();
+}
+
 async function launchDesktop(profileDir: string, workspaceDir: string) {
   return electron.launch({
     args: [desktopRoot, `--user-data-dir=${profileDir}`],
@@ -146,6 +150,14 @@ test.describe("Doolittle desktop offline chat", () => {
           exact: true,
         }),
       ).toBeVisible();
+      const assistantMessage = page.locator(".chat-message.assistant").last();
+      await expect(assistantMessage).toBeVisible({ timeout: 45_000 });
+      await expect(
+        page.getByLabel("Conversation detail").getByRole("status"),
+      ).toContainText("Doolittle replied.", { timeout: 45_000 });
+      await expect(assistantMessage.locator(".thinking")).toHaveCount(0, {
+        timeout: 45_000,
+      });
       const userMessage = page
         .locator(".chat-message.user")
         .filter({ hasText: prompt })
@@ -185,14 +197,6 @@ test.describe("Doolittle desktop offline chat", () => {
       await page.keyboard.press("Tab");
       await expect(copyMessage).toBeFocused();
       await expect(messageActions).toHaveCSS("opacity", "1");
-      const assistantMessage = page.locator(".chat-message.assistant").last();
-      await expect(assistantMessage).toBeVisible({ timeout: 45_000 });
-      await expect(
-        page.getByLabel("Conversation detail").getByRole("status"),
-      ).toContainText("Doolittle replied.", { timeout: 45_000 });
-      await expect(assistantMessage.locator(".thinking")).toHaveCount(0, {
-        timeout: 45_000,
-      });
       const assistantText = (
         (await assistantMessage.locator(".chat-message-body").textContent()) ??
         ""
@@ -219,12 +223,14 @@ test.describe("Doolittle desktop offline chat", () => {
       expect(persisted.messages).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ role: "user", text: prompt }),
-          expect.objectContaining({
-            role: "assistant",
-            text: expect.stringContaining(assistantText),
-          }),
         ]),
       );
+      expect(
+        normalizeTranscriptText(
+          persisted.messages.find((message) => message.role === "assistant")
+            ?.text ?? "",
+        ),
+      ).toContain(normalizeTranscriptText(assistantText));
       await app.close();
       app = undefined;
 
@@ -240,12 +246,14 @@ test.describe("Doolittle desktop offline chat", () => {
       expect(restored.messages).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ role: "user", text: prompt }),
-          expect.objectContaining({
-            role: "assistant",
-            text: expect.stringContaining(assistantText),
-          }),
         ]),
       );
+      expect(
+        normalizeTranscriptText(
+          restored.messages.find((message) => message.role === "assistant")
+            ?.text ?? "",
+        ),
+      ).toContain(normalizeTranscriptText(assistantText));
       await expect(restartedPage.locator(".recovery-shell")).toHaveCount(0);
       expect(restartedPageErrors).toEqual([]);
     } finally {
