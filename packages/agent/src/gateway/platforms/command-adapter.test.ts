@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -8,22 +8,17 @@ import { CommandPlatformAdapter } from "./command-adapter";
 describe("CommandPlatformAdapter", () => {
   it("executes the configured shell command and records delivery metadata", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-command-adapter-"));
-    const scriptPath = join(root, "send.sh");
+    const scriptPath = join(root, "send.cjs");
     writeFileSync(
       scriptPath,
-      [
-        "#!/bin/sh",
-        "set -eu",
-        'printf \'sent:%s:%s\' "$DOOLITTLE_PLATFORM" "$DOOLITTLE_ROOM_ID"',
-      ].join("\n"),
+      'process.stdout.write("sent:" + process.env.DOOLITTLE_PLATFORM + ":" + process.env.DOOLITTLE_ROOM_ID);\n',
       "utf8",
     );
-    chmodSync(scriptPath, 0o755);
     const delivery = new DeliveryService(join(root, "delivery"));
     const adapter = new CommandPlatformAdapter(
       "signal",
       delivery,
-      scriptPath,
+      `${JSON.stringify(process.execPath)} ${JSON.stringify(scriptPath)}`,
       "missing",
       "configured",
     );

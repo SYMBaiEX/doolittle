@@ -1,5 +1,5 @@
 import { runCommand } from "./run";
-import { shellQuote } from "./shell";
+import { localShellInvocation, shellQuote } from "./shell";
 import type { TerminalRunResult } from "./types";
 
 export function normalizeBackendError(
@@ -31,12 +31,14 @@ export async function commandExists(
   binary: string,
   timeoutMs = 5_000,
 ): Promise<boolean> {
-  const result = await runCommand(
-    ["/bin/zsh", "-lc", `command -v ${shellQuote(binary)}`],
-    {
-      timeoutMs,
-    },
-  ).catch(() => ({
+  const lookup =
+    process.platform === "win32"
+      ? `where "${binary.replaceAll('"', '""')}"`
+      : `command -v ${shellQuote(binary)}`;
+  const shell = localShellInvocation(lookup);
+  const result = await runCommand([shell.executable, ...shell.args], {
+    timeoutMs,
+  }).catch(() => ({
     exitCode: 1,
     stdout: "",
     stderr: "",

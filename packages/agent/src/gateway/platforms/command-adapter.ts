@@ -1,5 +1,6 @@
 import type { DeliveryService } from "@/services/delivery-service";
 import { runTextProcess } from "@/services/process-execution";
+import { localShellInvocation } from "@/services/terminal/execution/subprocess";
 import type { OutboundPlatformMessage, PlatformName } from "@/types/gateway";
 import {
   buildConfiguredTransportHealth,
@@ -17,7 +18,8 @@ async function runShellCommand(
   command: string,
   env: Record<string, string>,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-  const result = await runTextProcess("/bin/zsh", ["-lc", command], {
+  const shell = localShellInvocation(command);
+  const result = await runTextProcess(shell.executable, shell.args, {
     env,
     toolName: "doolittle.gateway.command-adapter",
   });

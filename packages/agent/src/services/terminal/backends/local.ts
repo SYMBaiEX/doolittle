@@ -12,7 +12,7 @@ import {
   renderChecks,
 } from "../execution/diagnostics";
 import {
-  LOCAL_SHELL,
+  localShellInvocation,
   normalizeBackendError,
   runCommand,
   type TerminalRunResult,
@@ -25,12 +25,15 @@ class LocalExecutionBackend implements ExecutionBackend {
     command: string,
     options: { cwd: string; timeoutMs: number; settings: RuntimeSettings },
   ): ExecutionBackendPreview {
+    const shell = localShellInvocation(command);
+    const shellAvailable =
+      process.platform === "win32" || existsSync(shell.executable);
     const checks = [
       createCheck(
         "local.shell",
-        existsSync(LOCAL_SHELL) ? "pass" : "warn",
+        shellAvailable ? "pass" : "warn",
         "Local shell",
-        `Local commands execute through ${LOCAL_SHELL} -lc on the host.`,
+        `Local commands execute through ${shell.executable} on the host.`,
       ),
       createCheck(
         "local.workspace",
@@ -55,7 +58,7 @@ class LocalExecutionBackend implements ExecutionBackend {
       cwd: options.cwd,
       timeoutMs: options.timeoutMs,
       command,
-      argv: [LOCAL_SHELL, "-lc", command],
+      argv: [shell.executable, ...shell.args],
       diagnostics: renderChecks(checks),
       checks,
       bootstrap: buildBootstrapHints(checks, [
@@ -65,12 +68,15 @@ class LocalExecutionBackend implements ExecutionBackend {
   }
 
   async health(settings: RuntimeSettings): Promise<ExecutionBackendHealth> {
+    const shell = localShellInvocation("");
+    const shellAvailable =
+      process.platform === "win32" || existsSync(shell.executable);
     const checks = [
       createCheck(
         "local.shell",
-        existsSync(LOCAL_SHELL) ? "pass" : "warn",
+        shellAvailable ? "pass" : "warn",
         "Local shell",
-        `Local shell execution is available through ${LOCAL_SHELL}.`,
+        `Local shell execution is available through ${shell.executable}.`,
       ),
       createCheck(
         "local.workspace",
@@ -101,8 +107,9 @@ class LocalExecutionBackend implements ExecutionBackend {
     command: string,
     options: { cwd: string; timeoutMs: number; abortSignal?: AbortSignal },
   ): Promise<TerminalRunResult> {
+    const shell = localShellInvocation(command);
     return normalizeBackendError(
-      await runCommand([LOCAL_SHELL, "-lc", command], options),
+      await runCommand([shell.executable, ...shell.args], options),
     );
   }
 }

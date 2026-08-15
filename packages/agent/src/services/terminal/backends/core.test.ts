@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LOCAL_SHELL } from "../execution/subprocess";
+import { localShellInvocation } from "../execution/subprocess";
 import { buildSingularityCommand } from "../planning";
 import { createCoreExecutionBackends } from "./core";
 import { makeSettings } from "./testing";
@@ -32,7 +32,8 @@ describe("core execution backends", () => {
     expect(preview.backend).toBe("local");
     expect(preview.mode).toBe("local");
     expect(preview.ready).toBe(true);
-    expect(preview.argv).toEqual([LOCAL_SHELL, "-lc", "printf ok"]);
+    const shell = localShellInvocation("printf ok");
+    expect(preview.argv).toEqual([shell.executable, ...shell.args]);
   });
 
   it("returns the existing ssh configuration error unchanged", async () => {

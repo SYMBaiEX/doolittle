@@ -9,6 +9,7 @@ import type {
 } from "@/types/execution";
 import type { RuntimeSettings } from "../../settings/runtime-settings";
 import type { ExecutionBackend } from "../contracts/backend";
+import { localShellInvocation } from "../execution/subprocess";
 import { TerminalCommandHistoryStore } from "../records/history";
 import {
   type TerminalCommandUpdateEvent,
@@ -365,9 +366,10 @@ describe("command orchestrator", () => {
         controller.signal,
       );
 
+      const shell = localShellInvocation("printf router-ok");
       expect(runTextProcess).toHaveBeenCalledWith(
-        "/bin/zsh",
-        ["-lc", "printf router-ok"],
+        shell.executable,
+        shell.args,
         {
           cwd: root,
           timeoutMs: 1_234,

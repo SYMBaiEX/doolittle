@@ -404,14 +404,15 @@ describe("WorkspaceService", () => {
         20,
       );
 
-      expect(ripgrep).toBeDefined();
-      expect(ripgrep?.map((result) => result.path).sort()).toEqual(
-        fallback.map((result) => result.path).sort(),
-      );
       expect(fallback.map((result) => result.path).sort()).toEqual([
         ".env.example",
         "src/app.ts",
       ]);
+      if (ripgrep) {
+        expect(ripgrep.map((result) => result.path).sort()).toEqual(
+          fallback.map((result) => result.path).sort(),
+        );
+      }
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -12,3 +12,20 @@ function resolveLocalShell(): string {
 }
 
 export const LOCAL_SHELL = resolveLocalShell();
+
+export function localShellInvocation(
+  command: string,
+  platform: NodeJS.Platform = process.platform,
+  environment: NodeJS.ProcessEnv = process.env,
+): {
+  args: string[];
+  executable: string;
+} {
+  if (platform === "win32") {
+    return {
+      executable: environment.ComSpec?.trim() || "cmd.exe",
+      args: ["/D", "/S", "/C", command],
+    };
+  }
+  return { executable: LOCAL_SHELL, args: ["-lc", command] };
+}

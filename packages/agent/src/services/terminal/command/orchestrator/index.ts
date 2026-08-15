@@ -1,6 +1,9 @@
 import * as processExecution from "@/services/process-execution";
 import type { TerminalCommandRecord } from "@/types/execution";
-import { LOCAL_SHELL, normalizeBackendError } from "../../execution/subprocess";
+import {
+  localShellInvocation,
+  normalizeBackendError,
+} from "../../execution/subprocess";
 import {
   previewWithBackend,
   resolveConfiguredBackend,
@@ -94,9 +97,10 @@ export class TerminalServiceCommandOrchestrator {
       workspaceDir,
     });
     const startedAt = new Date().toISOString();
+    const shell = localShellInvocation(safeCommand);
     const processResult = await processExecution.runTextProcess(
-      LOCAL_SHELL,
-      ["-lc", safeCommand],
+      shell.executable,
+      shell.args,
       {
         cwd: workspaceDir,
         timeoutMs: effectiveTimeoutMs,
