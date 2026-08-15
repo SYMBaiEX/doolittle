@@ -1,4 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import { GatewayReceiveIdempotencyCoordinator } from "@/gateway/receive/idempotency";
+import {
+  GATEWAY_PAIRING_RETRY_RESPONSE,
+  type GatewayReceiveOutcome,
+} from "@/gateway/receive/outcome-types";
 import {
   installNativeTelegramInboundHandoff,
   normalizeNativeTelegramMessage,
@@ -210,5 +215,96 @@ describe("native Telegram inbound handoff", () => {
       42,
       81,
     );
+  });
+
+  it("delivers a live pairing code only once across concurrent duplicate updates", async () => {
+    const sendMessage = vi.fn(async (..._args: unknown[]) => []);
+    const service = {
+      accountId: "default",
+      messageManager: {
+        handleMessage: vi.fn(async (..._args: unknown[]) => undefined),
+        sendMessage,
+      },
+    };
+    const outcomes = new Map<string, GatewayReceiveOutcome>();
+    const coordinator = new GatewayReceiveIdempotencyCoordinator({
+      findOutcome: (key) => outcomes.get(key),
+      recordOutcome: (_message, key, outcome) => outcomes.set(key, outcome),
+    });
+    let releasePairing!: () => void;
+    const pairingBarrier = new Promise<void>((resolve) => {
+      releasePairing = resolve;
+    });
+    const execute = vi.fn(async () => {
+      await pairingBarrier;
+      return {
+        ok: false,
+        response: "Authorization required. Pairing code: PAIR-42",
+        pairingCode: "PAIR-42",
+        idempotencyDisposition: "terminal" as const,
+      };
+    });
+    const receive = vi.fn((inbound) => coordinator.receive(inbound, execute));
+
+    installNativeTelegramInboundHandoff(
+      { getService: vi.fn(() => service) },
+      { receive },
+    );
+    const first = service.messageManager.handleMessage({ message: message() });
+    const duplicate = service.messageManager.handleMessage({
+      message: message(),
+    });
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    releasePairing();
+    await Promise.all([first, duplicate]);
+
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    const contents = sendMessage.mock.calls.map(
+      (call) =>
+        call[1] as {
+          text?: string;
+          metadata?: Record<string, string>;
+        },
+    );
+    expect(
+      contents.filter(
+        (content) =>
+          content.text === "Authorization required. Pairing code: PAIR-42",
+      ),
+    ).toHaveLength(1);
+    expect(
+      contents.filter(
+        (content) => content.text === GATEWAY_PAIRING_RETRY_RESPONSE,
+      ),
+    ).toHaveLength(1);
+    expect(
+      contents.filter((content) => content.metadata?.pairingCode === "PAIR-42"),
+    ).toHaveLength(1);
+  });
+
+  it("does not resend an agent-completed delivery failure outside the retry path", async () => {
+    const sendMessage = vi.fn(async (..._args: unknown[]) => []);
+    const service = {
+      accountId: "default",
+      messageManager: {
+        handleMessage: vi.fn(async (..._args: unknown[]) => undefined),
+        sendMessage,
+      },
+    };
+    const receive = vi.fn(async () => ({
+      ok: false,
+      response: "computed response",
+      agentCompleted: true,
+      deliveryStatus: "rejected" as const,
+    }));
+
+    installNativeTelegramInboundHandoff(
+      { getService: vi.fn(() => service) },
+      { receive },
+    );
+    await service.messageManager.handleMessage({ message: message() });
+
+    expect(receive).toHaveBeenCalledTimes(1);
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 });

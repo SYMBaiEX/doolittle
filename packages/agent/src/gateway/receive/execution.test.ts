@@ -60,6 +60,7 @@ describe("executeGatewayReceiveTurn", () => {
             text: "partial",
             createdAt: "2026-04-01T00:00:00.000Z",
           }) as never,
+        getProgressiveFailure: () => undefined,
       }),
       executeTurn: vi.fn(async (_input, _context, hooks) => {
         await hooks.onProgress?.({
@@ -134,6 +135,7 @@ describe("executeGatewayReceiveTurn", () => {
       createProgressiveQueue: () => ({
         queueProgressFlush: vi.fn(async () => undefined),
         getProgressiveDelivery: () => undefined,
+        getProgressiveFailure: () => undefined,
       }),
       executeTurn,
     } as never;

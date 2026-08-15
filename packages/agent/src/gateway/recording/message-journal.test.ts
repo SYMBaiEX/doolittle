@@ -130,6 +130,7 @@ describe("gateway message journal helpers", () => {
       });
 
       expect(result.record.deliveryId).toBe("delivery-1");
+      expect(result.record.outbound).toBeUndefined();
       expect(result.record.replyToMessageId).toBe("reply-1");
       expect(result.record.attachmentNames).toEqual(["voice.mp3"]);
       expect(result.attachments).toHaveLength(1);
@@ -141,9 +142,90 @@ describe("gateway message journal helpers", () => {
         loadGatewayJournal<GatewayOutboxRecord>(outboxPath)[0]?.deliveryId,
       ).toBe("delivery-1");
       expect(
+        loadGatewayJournal<GatewayOutboxRecord>(outboxPath)[0]?.outbound,
+      ).toBeUndefined();
+      expect(
         loadGatewayJournal<GatewayAttachmentRecord>(attachmentsPath)[0]
           ?.deliveryId,
       ).toBe("delivery-1");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("durably records a rejected intended payload without marking it sent", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-gateway-rejected-"));
+    const outboxPath = join(root, "gateway-outbox.jsonl");
+    const attachmentsPath = join(root, "gateway-attachments.jsonl");
+    ensureGatewayJournalFile(outboxPath);
+    ensureGatewayJournalFile(attachmentsPath);
+
+    try {
+      const rejected = recordGatewayOutboxJournalEntry({
+        platform: "slack",
+        traceId: "trace-rejected",
+        sessionId: "session-rejected",
+        message: {
+          roomId: "room-rejected",
+          userId: "user-rejected",
+          text: "full intended payload",
+          metadata: { accountId: "work", correlation: "abc" },
+        },
+        status: "rejected",
+        notes: ["Authorization: [redacted]"],
+        recordLog: [],
+        recordPath: outboxPath,
+        attachmentLog: [],
+        attachmentsPath,
+      });
+      const retryPayload = rejected.record.outbound;
+      if (!retryPayload) {
+        throw new Error(
+          "Rejected journal record must retain its retry payload.",
+        );
+      }
+      recordGatewayOutboxJournalEntry({
+        platform: "slack",
+        traceId: "trace-retry",
+        sessionId: "session-rejected",
+        delivery: {
+          id: "delivery-retried",
+          target: {
+            platform: "slack",
+            channelId: "room-rejected",
+            userId: "user-rejected",
+            mode: "explicit",
+          },
+          text: "full intended payload",
+          createdAt: "2026-08-15T00:00:00.000Z",
+        },
+        message: retryPayload,
+        status: "sent",
+        retryOfRecordId: rejected.record.recordId,
+        recordLog: [],
+        recordPath: outboxPath,
+        attachmentLog: [],
+        attachmentsPath,
+      });
+
+      const [record, retried] =
+        loadGatewayJournal<GatewayOutboxRecord>(outboxPath);
+      expect(record).toMatchObject({
+        status: "rejected",
+        outbound: {
+          roomId: "room-rejected",
+          text: "full intended payload",
+          metadata: { accountId: "work", correlation: "abc" },
+        },
+        notes: ["Authorization: [redacted]"],
+      });
+      expect(record?.deliveryId).toBeUndefined();
+      expect(retried).toMatchObject({
+        status: "sent",
+        deliveryId: "delivery-retried",
+        retryOfRecordId: record?.recordId,
+      });
+      expect(retried?.outbound).toBeUndefined();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

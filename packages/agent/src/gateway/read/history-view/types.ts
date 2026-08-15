@@ -1,8 +1,10 @@
 import type {
   DeliveredMessageRecord,
+  OutboundPlatformMessage,
   PlatformName,
   SessionRoute,
 } from "@/types/gateway";
+import type { GatewayReceiveOutcome } from "../../receive/outcome-types";
 
 export type { DeliveredMessageRecord, SessionRoute };
 
@@ -40,7 +42,9 @@ export interface GatewayInboxRecord {
   platform: PlatformName;
   sessionId?: string;
   traceId: string;
-  status: "received" | "accepted" | "rejected";
+  status: "received" | "accepted" | "rejected" | "completed";
+  idempotencyKey?: string;
+  outcome?: GatewayReceiveOutcome;
   userId: string;
   roomId: string;
   channelId?: string;
@@ -80,6 +84,10 @@ export interface GatewayOutboxRecord {
   attachmentMimeTypes: string[];
   metadataKeys: string[];
   metadata: Record<string, string>;
+  /** Complete intended payload, retained so rejected delivery can be retried. */
+  outbound?: OutboundPlatformMessage;
+  /** Links an append-only retry result to its original rejected record. */
+  retryOfRecordId?: string;
   notes?: string[];
 }
 

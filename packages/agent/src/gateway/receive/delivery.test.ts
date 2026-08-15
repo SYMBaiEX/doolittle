@@ -60,9 +60,9 @@ describe("deliverGatewayReceiveResponse", () => {
       progressiveDelivery?: { id: string };
     };
 
-    const deliveryId = await deliverGatewayReceiveResponse(deps);
+    const delivery = await deliverGatewayReceiveResponse(deps);
 
-    expect(deliveryId).toBe("delivery-1");
+    expect(delivery).toEqual({ status: "sent", deliveryId: "delivery-1" });
     expect(deps.pushTrace).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "respond",
@@ -72,6 +72,126 @@ describe("deliverGatewayReceiveResponse", () => {
     expect(deps.recordOutbox).toHaveBeenCalled();
     expect(deps.pushTrace).toHaveBeenCalled();
     expect(deps.observeAdapter).toHaveBeenCalled();
+  });
+
+  it("records one durable rejected outbox outcome when adapter send fails", async () => {
+    const recordOutbox = vi.fn(
+      () => ({ recordId: "outbox-rejected" }) as GatewayOutboxRecord,
+    );
+    const send = vi.fn(async () => {
+      throw new Error("Authorization: Bearer super-secret-token");
+    });
+    const deps = {
+      context: {
+        config: {} as AppContext["config"],
+        runtime: {} as never,
+        services: { media: {} } as never,
+      } as unknown as AppContext,
+      message: {
+        platform: "api",
+        userId: "user-1",
+        roomId: "room-1",
+        text: "hello",
+        metadata: { accountId: "work" },
+      } as never,
+      adapter: { name: "mock-adapter", send } as never,
+      recordInbox: vi.fn(),
+      recordOutbox,
+      pushTrace: vi.fn(),
+      observeAdapter: vi.fn(async () => undefined),
+      editDelivery: vi.fn(),
+      snapshotState: vi.fn(),
+      session: { sessionKey: "session-1", platform: "api" } as never,
+      response: "full computed response",
+      traceId: "trace-rejected",
+    } satisfies GatewayReceiveDependencies & {
+      session: { sessionKey: string; platform: string };
+      response: string;
+      traceId: string;
+    };
+
+    const outcome = await deliverGatewayReceiveResponse(deps);
+
+    expect(outcome).toMatchObject({
+      status: "rejected",
+      outboxRecordId: "outbox-rejected",
+    });
+    expect(outcome.failureNote).toContain("[redacted]");
+    expect(outcome.failureNote).not.toContain("super-secret-token");
+    expect(recordOutbox).toHaveBeenCalledTimes(1);
+    expect(recordOutbox).toHaveBeenCalledWith(
+      "api",
+      "trace-rejected",
+      "session-1",
+      undefined,
+      expect.objectContaining({
+        text: "full computed response",
+        metadata: { accountId: "work" },
+      }),
+      "rejected",
+      [expect.stringContaining("[redacted]")],
+      undefined,
+    );
+  });
+
+  it("records one rejected outbox outcome when final progressive edit fails", async () => {
+    const recordOutbox = vi.fn(
+      () => ({ recordId: "outbox-edit-rejected" }) as GatewayOutboxRecord,
+    );
+    const send = vi.fn();
+    const editDelivery = vi.fn(async () => {
+      throw new Error("progressive edit unavailable");
+    });
+    const deps = {
+      context: {
+        config: {} as AppContext["config"],
+        runtime: {} as never,
+        services: { media: {} } as never,
+      } as unknown as AppContext,
+      message: {
+        platform: "api",
+        userId: "user-1",
+        roomId: "room-1",
+        text: "hello",
+      } as never,
+      adapter: { name: "mock-adapter", send } as never,
+      recordInbox: vi.fn(),
+      recordOutbox,
+      pushTrace: vi.fn(),
+      observeAdapter: vi.fn(async () => undefined),
+      editDelivery,
+      snapshotState: vi.fn(),
+      session: { sessionKey: "session-1", platform: "api" } as never,
+      response: "final progressive response",
+      traceId: "trace-edit-rejected",
+      progressiveDelivery: { id: "delivery-progressive" },
+    } satisfies GatewayReceiveDependencies & {
+      session: { sessionKey: string; platform: string };
+      response: string;
+      traceId: string;
+      progressiveDelivery: { id: string };
+    };
+
+    const outcome = await deliverGatewayReceiveResponse(deps);
+
+    expect(outcome).toMatchObject({
+      status: "rejected",
+      deliveryId: "delivery-progressive",
+      outboxRecordId: "outbox-edit-rejected",
+    });
+    expect(editDelivery).toHaveBeenCalledTimes(1);
+    expect(send).not.toHaveBeenCalled();
+    expect(recordOutbox).toHaveBeenCalledTimes(1);
+    expect(recordOutbox).toHaveBeenCalledWith(
+      "api",
+      "trace-edit-rejected",
+      "session-1",
+      undefined,
+      expect.objectContaining({ text: "final progressive response" }),
+      "rejected",
+      ["progressive edit unavailable"],
+      "delivery-progressive",
+    );
   });
 
   it("falls back to the product delivery service when no adapter is available", async () => {
@@ -117,9 +237,12 @@ describe("deliverGatewayReceiveResponse", () => {
       progressiveDelivery?: { id: string };
     };
 
-    const deliveryId = await deliverGatewayReceiveResponse(deps);
+    const delivery = await deliverGatewayReceiveResponse(deps);
 
-    expect(deliveryId).toBe("fallback-delivery");
+    expect(delivery).toEqual({
+      status: "fallback",
+      deliveryId: "fallback-delivery",
+    });
     expect(deliver).toHaveBeenCalled();
     expect(deps.pushTrace).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -82,6 +82,7 @@ describe("setupGatewayReceive", () => {
     expect(result.response).toMatchObject({
       ok: false,
       traceId: "trace-1",
+      idempotencyDisposition: "transient",
     });
     expect(deps.recordInbox).toHaveBeenCalledWith(
       deps.message,

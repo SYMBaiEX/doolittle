@@ -179,6 +179,11 @@ describe("gateway state snapshot helpers", () => {
         attachmentMimeTypes: [],
         metadataKeys: [],
         metadata: {},
+        outbound: {
+          roomId: "room-1",
+          userId: "user-1",
+          text: "private state retry payload",
+        },
       },
     ];
     const attachments = [
@@ -289,6 +294,12 @@ describe("gateway state snapshot helpers", () => {
     expect(snapshot.transportOverview.mismatchCount).toBe(1);
     expect(snapshot.transportOverview.details[0]?.traceCount).toBe(2);
     expect(snapshot.transportOverview.details[0]?.recentTraces).toHaveLength(2);
+    expect(
+      snapshot.transportOverview.details[0]?.recentOutbox[0]?.outbound,
+    ).toBeUndefined();
+    expect(JSON.stringify(snapshot)).not.toContain(
+      "private state retry payload",
+    );
     expect(snapshot.platforms[0]?.lastInboundAt).toBe(
       "2026-03-29T10:02:00.000Z",
     );

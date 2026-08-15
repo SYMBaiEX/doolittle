@@ -10,6 +10,7 @@ import type {
   GatewayInboxRecord,
   GatewayOutboxRecord,
 } from "../read/history-view";
+import type { GatewayReceiveOutcome } from "../receive/outcome-types";
 import {
   buildGatewayJournalAttachments,
   splitGatewayAttachmentList,
@@ -31,6 +32,9 @@ interface GatewayInboxJournalArgs
   message: IncomingPlatformMessage;
   status?: GatewayInboxRecord["status"];
   notes?: string[];
+  idempotencyKey?: string;
+  outcome?: GatewayReceiveOutcome;
+  recordAttachments?: boolean;
 }
 
 interface GatewayOutboxJournalArgs
@@ -39,9 +43,12 @@ interface GatewayOutboxJournalArgs
   platform: PlatformName;
   traceId: string;
   sessionId?: string;
-  delivery: DeliveredMessageRecord;
+  delivery?: DeliveredMessageRecord;
   message: OutboundPlatformMessage;
   status: GatewayOutboxRecord["status"];
+  notes?: string[];
+  attemptedDeliveryId?: string;
+  retryOfRecordId?: string;
 }
 
 interface GatewayJournalResult<TRecord extends { at: string }> {
@@ -90,6 +97,8 @@ export function recordGatewayInboxJournalEntry(
     sessionId: args.sessionId,
     traceId: args.traceId,
     status: args.status ?? "received",
+    idempotencyKey: args.idempotencyKey,
+    outcome: args.outcome,
     userId: args.message.userId,
     roomId: args.message.roomId,
     channelId: args.message.channelId,
@@ -105,22 +114,25 @@ export function recordGatewayInboxJournalEntry(
   args.recordLog.push(record);
   appendGatewayJournalRecord(args.recordPath, record);
 
-  const attachments = buildGatewayJournalAttachments({
-    direction: "inbox",
-    platform: args.message.platform,
-    recordId: record.recordId,
-    traceId: args.traceId,
-    at: record.at,
-    source: {
-      sessionId: args.sessionId,
-      messageId: args.message.messageId,
-      userId: args.message.userId,
-      roomId: args.message.roomId,
-      threadId: args.message.threadId,
-      replyToMessageId: args.message.replyToMessageId,
-      metadata: record.metadata,
-    },
-  });
+  const attachments =
+    args.recordAttachments === false
+      ? []
+      : buildGatewayJournalAttachments({
+          direction: "inbox",
+          platform: args.message.platform,
+          recordId: record.recordId,
+          traceId: args.traceId,
+          at: record.at,
+          source: {
+            sessionId: args.sessionId,
+            messageId: args.message.messageId,
+            userId: args.message.userId,
+            roomId: args.message.roomId,
+            threadId: args.message.threadId,
+            replyToMessageId: args.message.replyToMessageId,
+            metadata: record.metadata,
+          },
+        });
   appendGatewayAttachments({
     attachments,
     attachmentLog: args.attachmentLog,
@@ -141,13 +153,16 @@ export function recordGatewayOutboxJournalEntry(
     sessionId: args.sessionId,
     traceId: args.traceId,
     status: args.status,
-    deliveryId: args.delivery.id,
+    deliveryId: args.delivery?.id ?? args.attemptedDeliveryId,
     userId: args.message.userId,
     roomId: args.message.roomId,
     threadId: args.message.threadId,
     replyToMessageId: args.message.replyToId,
     textPreview: args.message.text.slice(0, 280),
     ...buildGatewayAttachmentSummary(args.message.metadata),
+    outbound: args.status === "rejected" ? args.message : undefined,
+    retryOfRecordId: args.retryOfRecordId,
+    notes: args.notes?.length ? args.notes : undefined,
   };
   args.recordLog.push(record);
   appendGatewayJournalRecord(args.recordPath, record);
@@ -160,7 +175,7 @@ export function recordGatewayOutboxJournalEntry(
     at: record.at,
     source: {
       sessionId: args.sessionId,
-      deliveryId: args.delivery.id,
+      deliveryId: args.delivery?.id ?? args.attemptedDeliveryId,
       userId: args.message.userId,
       roomId: args.message.roomId,
       threadId: args.message.threadId,

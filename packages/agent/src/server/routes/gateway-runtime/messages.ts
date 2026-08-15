@@ -1,3 +1,4 @@
+import { GatewayDeliveryRetryError } from "@/gateway/runner/operations";
 import type { AppContext } from "@/runtime/bootstrap";
 import { json } from "@/server/responses";
 import type { IncomingPlatformMessage, PlatformName } from "@/types";
@@ -19,7 +20,39 @@ export async function handleGatewayMessageRoutes(
       return parsed.response;
     }
     const result = await context.gateway.receive(parsed.value);
-    return json(result, result.ok ? 200 : 403);
+    const status = result.ok
+      ? 200
+      : result.agentCompleted && result.deliveryStatus === "rejected"
+        ? 502
+        : 403;
+    return json(result, status);
+  }
+
+  if (request.method === "POST" && url.pathname === "/gateway/delivery/retry") {
+    const parsed = await readJsonBody<{ recordId?: string }>(request);
+    if (!parsed.ok) {
+      return parsed.response;
+    }
+    const recordId = parsed.value.recordId?.trim();
+    if (!recordId) {
+      return json({ error: "recordId is required" }, 400);
+    }
+    try {
+      return json({
+        delivery: await context.gateway.retryDelivery(recordId),
+      });
+    } catch (error) {
+      if (!(error instanceof GatewayDeliveryRetryError)) throw error;
+      const status =
+        error.code === "not_found"
+          ? 404
+          : error.code === "adapter_unavailable"
+            ? 503
+            : error.code === "already_completed"
+              ? 409
+              : 502;
+      return json({ error: error.message, code: error.code }, status);
+    }
   }
 
   if (request.method === "POST" && url.pathname === "/gateway/replay") {

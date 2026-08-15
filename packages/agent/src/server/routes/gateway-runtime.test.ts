@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { GatewayDeliveryRetryError } from "@/gateway/runner/operations";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleGatewayRuntimeRoutes } from "@/server/routes/gateway-runtime/index";
 
@@ -102,6 +103,16 @@ function createContext() {
     receive: async (message: Record<string, unknown>) => ({
       ok: true,
       message,
+    }),
+    retryDelivery: async (recordId: string) => ({
+      id: `delivery:${recordId}`,
+      target: {
+        platform: "api",
+        channelId: "room-1",
+        mode: "explicit",
+      },
+      text: "retried",
+      createdAt: "2026-08-15T00:00:00.000Z",
     }),
     replayInbox: async (recordId: string) => ({ recordId, ok: true }),
     supervise: async () => [{ id: "supervision-run" }],
@@ -338,6 +349,106 @@ describe("handleGatewayRuntimeRoutes", () => {
     };
     expect(runtimeBody.summary.headline).toContain("Gateway runtime");
     expect(runtimeBody.runtime.daemon.watchdog.running).toBe(true);
+  });
+
+  it("distinguishes delivery failure from authorization rejection", async () => {
+    const { context } = createContext();
+    context.gateway.receive = async () => ({
+      ok: false,
+      response: "computed",
+      agentCompleted: true,
+      deliveryStatus: "rejected",
+      outboxRecordId: "outbox-rejected",
+    });
+    const deliveryFailure = await handleGatewayRuntimeRoutes(
+      context,
+      new Request("http://localhost/gateway/message", {
+        method: "POST",
+        body: JSON.stringify({
+          platform: "api",
+          userId: "user-1",
+          roomId: "room-1",
+          text: "hello",
+        }),
+      }),
+      new URL("http://localhost/gateway/message"),
+    );
+    context.gateway.receive = async () => ({
+      ok: false,
+      response: "Authorization required",
+    });
+    const authorization = await handleGatewayRuntimeRoutes(
+      context,
+      new Request("http://localhost/gateway/message", {
+        method: "POST",
+        body: JSON.stringify({
+          platform: "api",
+          userId: "user-1",
+          roomId: "room-1",
+          text: "hello",
+        }),
+      }),
+      new URL("http://localhost/gateway/message"),
+    );
+
+    expect(deliveryFailure?.status).toBe(502);
+    expect(authorization?.status).toBe(403);
+  });
+
+  it("retries a rejected delivery through the authenticated gateway surface", async () => {
+    const { context } = createContext();
+    const retry = await handleGatewayRuntimeRoutes(
+      context,
+      new Request("http://localhost/gateway/delivery/retry", {
+        method: "POST",
+        body: JSON.stringify({ recordId: "outbox-rejected" }),
+      }),
+      new URL("http://localhost/gateway/delivery/retry"),
+    );
+    const missing = await handleGatewayRuntimeRoutes(
+      context,
+      new Request("http://localhost/gateway/delivery/retry", {
+        method: "POST",
+        body: JSON.stringify({}),
+      }),
+      new URL("http://localhost/gateway/delivery/retry"),
+    );
+
+    expect(retry?.status).toBe(200);
+    await expect(retry?.json()).resolves.toMatchObject({
+      delivery: { id: "delivery:outbox-rejected", text: "retried" },
+    });
+    expect(missing?.status).toBe(400);
+  });
+
+  it("maps typed delivery retry failures without exposing an internal error", async () => {
+    const expected = [
+      ["not_found", 404],
+      ["adapter_unavailable", 503],
+      ["already_completed", 409],
+      ["delivery_failed", 502],
+    ] as const;
+
+    for (const [code, status] of expected) {
+      const { context } = createContext();
+      context.gateway.retryDelivery = async () => {
+        throw new GatewayDeliveryRetryError(code, `retry ${code}`);
+      };
+      const response = await handleGatewayRuntimeRoutes(
+        context,
+        new Request("http://localhost/gateway/delivery/retry", {
+          method: "POST",
+          body: JSON.stringify({ recordId: "outbox-rejected" }),
+        }),
+        new URL("http://localhost/gateway/delivery/retry"),
+      );
+
+      expect(response?.status).toBe(status);
+      await expect(response?.json()).resolves.toEqual({
+        error: `retry ${code}`,
+        code,
+      });
+    }
   });
 
   it("returns null for unrelated routes", async () => {

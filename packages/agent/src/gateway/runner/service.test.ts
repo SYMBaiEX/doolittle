@@ -103,6 +103,9 @@ describe("GatewayRunner", () => {
       },
       delivery: {
         receive: vi.fn(async () => ({ ok: true }) as GatewayReceiveResult),
+        retryDelivery: vi.fn(
+          async () => ({ id: "d-retry" }) as DeliveredMessageRecord,
+        ),
         sendToHomes: vi.fn(async () => [] as DeliveredMessageRecord[]),
         editDelivery: vi.fn(
           async () => ({ id: "d-1" }) as DeliveredMessageRecord,
@@ -171,6 +174,7 @@ describe("GatewayRunner", () => {
       await runner.watch("api", "manual");
       await runner.restart("api", "manual");
       await runner.receive(message, {});
+      await runner.retryDelivery("outbox-rejected");
       await runner.sendToHomes("hello");
       await runner.editDelivery("d-1", "edited");
       await runner.sendProgressive(
@@ -199,6 +203,9 @@ describe("GatewayRunner", () => {
       expect(runtime.read.runtimeStatus).toHaveBeenCalledTimes(1);
       expect(runtime.read.transport).toHaveBeenCalledWith("api");
       expect(runtime.delivery.receive).toHaveBeenCalledWith(message, {});
+      expect(runtime.delivery.retryDelivery).toHaveBeenCalledWith(
+        "outbox-rejected",
+      );
       expect(runtime.delivery.sendToHomes).toHaveBeenCalledWith(
         "hello",
         undefined,
@@ -283,6 +290,9 @@ describe("GatewayRunner", () => {
         receive: vi.fn(async () => {
           throw new Error("gateway receive failed");
         }),
+        retryDelivery: vi.fn(
+          async () => ({ id: "d-retry" }) as DeliveredMessageRecord,
+        ),
         sendToHomes: vi.fn(async () => [] as DeliveredMessageRecord[]),
         editDelivery: vi.fn(
           async () => ({ id: "d-1" }) as DeliveredMessageRecord,

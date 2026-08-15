@@ -77,6 +77,8 @@ export interface NativeTelegramInboundGateway {
     ok: boolean;
     response?: string;
     pairingCode?: string;
+    agentCompleted?: boolean;
+    deliveryStatus?: "sent" | "fallback" | "rejected";
   }>;
 }
 
@@ -153,10 +155,22 @@ export function normalizeNativeTelegramMessage(
 async function deliverGatewayRejection(
   manager: TelegramMessageManager,
   inbound: IncomingPlatformMessage,
-  result: { ok: boolean; response?: string; pairingCode?: string },
+  result: {
+    ok: boolean;
+    response?: string;
+    pairingCode?: string;
+    agentCompleted?: boolean;
+  },
   accountId?: string,
 ): Promise<void> {
-  if (result.ok || !result.response?.trim() || !manager.sendMessage) return;
+  if (
+    result.ok ||
+    result.agentCompleted ||
+    !result.response?.trim() ||
+    !manager.sendMessage
+  ) {
+    return;
+  }
   await manager.sendMessage(
     inbound.roomId,
     {

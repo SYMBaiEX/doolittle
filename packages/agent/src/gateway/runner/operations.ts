@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   buildGatewayOutboundForSession,
   buildGatewayOutboundMessageFromDelivery,
@@ -10,6 +11,8 @@ import {
   sendProgressiveOutbound,
   sendToHomesOutbound,
 } from "@/gateway/outbound/dispatch";
+import { sanitizeGatewayDeliveryFailure } from "@/gateway/receive/delivery";
+import { GatewayReceiveIdempotencyCoordinator } from "@/gateway/receive/idempotency";
 import type {
   GatewayReceiveOptions,
   GatewayReceiveResult,
@@ -39,6 +42,22 @@ export interface GatewayRunnerOperationDependencies {
   getOutboxSessionIdByDeliveryId: (deliveryId: string) => string | undefined;
 }
 
+export type GatewayDeliveryRetryErrorCode =
+  | "adapter_unavailable"
+  | "already_completed"
+  | "delivery_failed"
+  | "not_found";
+
+export class GatewayDeliveryRetryError extends Error {
+  constructor(
+    public readonly code: GatewayDeliveryRetryErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "GatewayDeliveryRetryError";
+  }
+}
+
 export interface GatewayRunnerOperations {
   observeAdapter(
     platform: PlatformName,
@@ -48,6 +67,7 @@ export interface GatewayRunnerOperations {
     message: IncomingPlatformMessage,
     options?: GatewayReceiveOptions,
   ): Promise<GatewayReceiveResult>;
+  retryDelivery(recordId: string): Promise<DeliveredMessageRecord>;
   sendToHomes(
     text: string,
     options?: {
@@ -118,24 +138,168 @@ export function createGatewayRunnerOperations(
     return editDeliveryOutbound(deliveryId, text, options, editDependencies);
   };
 
+  const receiveIdempotency = new GatewayReceiveIdempotencyCoordinator({
+    findOutcome: (idempotencyKey) =>
+      deps.recording.findReceiveOutcome(idempotencyKey),
+    recordOutcome: (message, idempotencyKey, outcome) => {
+      deps.recording.recordReceiveOutcome(message, idempotencyKey, outcome);
+    },
+  });
+
+  const inFlightDeliveryRetries = new Map<
+    string,
+    Promise<DeliveredMessageRecord>
+  >();
+
+  const executeDeliveryRetry = async (
+    recordId: string,
+  ): Promise<DeliveredMessageRecord> => {
+    const successfulRetry = deps.recording.getSuccessfulOutboxRetry(recordId);
+    if (successfulRetry?.deliveryId) {
+      const delivery = await deps.context.services.delivery.get(
+        successfulRetry.deliveryId,
+      );
+      if (delivery) return delivery;
+      throw new GatewayDeliveryRetryError(
+        "already_completed",
+        `Rejected outbox record ${recordId} was already retried as delivery ${successfulRetry.deliveryId}.`,
+      );
+    }
+    const record = deps.recording.getOutboxRecord(recordId);
+    if (record?.status !== "rejected" || !record.outbound) {
+      throw new GatewayDeliveryRetryError(
+        "not_found",
+        `Rejected outbox record ${recordId} was not found.`,
+      );
+    }
+    const adapter = deps.adapters.get(record.platform);
+    if (!adapter) {
+      throw new GatewayDeliveryRetryError(
+        "adapter_unavailable",
+        `No live ${record.platform} adapter is available.`,
+      );
+    }
+    const traceId = randomUUID();
+    let delivery: DeliveredMessageRecord;
+    try {
+      delivery = await adapter.send(record.outbound);
+    } catch (error) {
+      const failureNote = sanitizeGatewayDeliveryFailure(error);
+      deps.recording.recordOutbox(
+        record.platform,
+        traceId,
+        record.sessionId,
+        undefined,
+        record.outbound,
+        "rejected",
+        [failureNote],
+        undefined,
+        recordId,
+      );
+      const [snapshotResult] = await Promise.allSettled([
+        Promise.resolve().then(() =>
+          deps.snapshotState("retry-delivery-rejected", 20),
+        ),
+      ]);
+      if (snapshotResult?.status === "rejected") {
+        deps.context.runtime.logger?.warn(
+          {
+            traceId,
+            recordId,
+            phase: "retry-delivery-rejected:snapshot",
+            error: sanitizeGatewayDeliveryFailure(snapshotResult.reason),
+          },
+          "Gateway delivery retry side effect failed",
+        );
+      }
+      throw new GatewayDeliveryRetryError("delivery_failed", failureNote);
+    }
+
+    deps.recording.recordOutbox(
+      record.platform,
+      traceId,
+      record.sessionId,
+      delivery,
+      record.outbound,
+      "sent",
+      [],
+      undefined,
+      recordId,
+    );
+    deps.recording.pushTrace({
+      traceId,
+      at: new Date().toISOString(),
+      kind: "deliver",
+      platform: record.platform,
+      detail: `Retried rejected outbox record ${recordId} as delivery ${delivery.id}.`,
+      sessionId: record.sessionId,
+      userId: record.outbound.userId,
+      roomId: record.outbound.roomId,
+      threadId: record.outbound.threadId,
+      replyToMessageId: record.outbound.replyToId,
+      deliveryId: delivery.id,
+      metadataKeys: Object.keys(delivery.metadata ?? {}),
+    });
+    const sideEffects = await Promise.allSettled([
+      Promise.resolve().then(() =>
+        deps.observeAdapter(record.platform, {
+          at: new Date().toISOString(),
+          kind: "deliver",
+          detail: `Retried rejected outbox record ${recordId} as delivery ${delivery.id}.`,
+        }),
+      ),
+      Promise.resolve().then(() => deps.snapshotState("retry-delivery", 20)),
+    ]);
+    for (const [index, result] of sideEffects.entries()) {
+      if (result.status !== "rejected") continue;
+      deps.context.runtime.logger?.warn(
+        {
+          traceId,
+          recordId,
+          deliveryId: delivery.id,
+          phase:
+            index === 0 ? "retry-delivery:observe" : "retry-delivery:snapshot",
+          error: sanitizeGatewayDeliveryFailure(result.reason),
+        },
+        "Gateway delivery retry side effect failed",
+      );
+    }
+    return delivery;
+  };
+
+  const retryDelivery = (recordId: string): Promise<DeliveredMessageRecord> => {
+    const active = inFlightDeliveryRetries.get(recordId);
+    if (active) return active;
+    const execution = executeDeliveryRetry(recordId).finally(() => {
+      if (inFlightDeliveryRetries.get(recordId) === execution) {
+        inFlightDeliveryRetries.delete(recordId);
+      }
+    });
+    inFlightDeliveryRetries.set(recordId, execution);
+    return execution;
+  };
+
   return {
     observeAdapter: deps.observeAdapter,
     receive: (message, options) =>
-      processGatewayReceive(
-        {
-          context: deps.context,
-          message,
-          adapter: deps.adapters.get(message.platform),
-          recordInbox: deps.recording.recordInbox.bind(deps.recording),
-          recordOutbox: deps.recording.recordOutbox.bind(deps.recording),
-          pushTrace: deps.recording.pushTrace.bind(deps.recording),
-          observeAdapter: deps.observeAdapter,
-          editDelivery,
-          snapshotState: (reason, limit) =>
-            deps.snapshotState(reason, limit) as Promise<unknown>,
-        },
-        options,
+      receiveIdempotency.receive(message, () =>
+        processGatewayReceive(
+          {
+            context: deps.context,
+            message,
+            adapter: deps.adapters.get(message.platform),
+            recordInbox: deps.recording.recordInbox.bind(deps.recording),
+            recordOutbox: deps.recording.recordOutbox.bind(deps.recording),
+            pushTrace: deps.recording.pushTrace.bind(deps.recording),
+            observeAdapter: deps.observeAdapter,
+            editDelivery,
+            snapshotState: (reason, limit) =>
+              deps.snapshotState(reason, limit) as Promise<unknown>,
+          },
+          options,
+        ),
       ),
+    retryDelivery,
     sendToHomes: (text, options) => {
       const sendDeps: GatewaySendToHomesDependencies = {
         listHomeSessions: (platformFilters) =>

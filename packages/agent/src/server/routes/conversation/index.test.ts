@@ -521,6 +521,71 @@ describe("handleConversationRoutes", () => {
     expect(created).toBe(false);
   });
 
+  it("returns 502 for a completed response whose delivery failed", async () => {
+    const context = createContext();
+    context.gateway.receive = async () => ({
+      ok: false,
+      response: "computed response",
+      agentCompleted: true,
+      deliveryStatus: "rejected",
+      deliveryFailure: "adapter unavailable",
+      outboxRecordId: "outbox-rejected",
+    });
+
+    const response = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/v1/responses", {
+        method: "POST",
+        body: JSON.stringify({ input: "hello", user: "user-1" }),
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/v1/responses"),
+    );
+
+    expect(response?.status).toBe(502);
+    await expect(response?.json()).resolves.toMatchObject({
+      agentCompleted: true,
+      deliveryStatus: "rejected",
+      deliveryFailure: "adapter unavailable",
+    });
+  });
+
+  it("streams delivery_failed after a completed response cannot be delivered", async () => {
+    const context = createContext();
+    context.gateway.receive = async (_payload, hooks) => {
+      await hooks?.onResponseProgress?.({
+        chunk: "computed response",
+        response: "computed response",
+        phase: "model",
+      });
+      return {
+        ok: false,
+        response: "computed response",
+        agentCompleted: true,
+        deliveryStatus: "rejected",
+        deliveryFailure: "adapter unavailable",
+        outboxRecordId: "outbox-rejected",
+      };
+    };
+
+    const response = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/v1/responses", {
+        method: "POST",
+        body: JSON.stringify({ input: "hello", stream: true }),
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/v1/responses"),
+    );
+    const body = await response?.text();
+
+    expect(response?.status).toBe(200);
+    expect(body).toContain("event: response.failed");
+    expect(body).toContain('"code":"delivery_failed"');
+    expect(body).toContain('"message":"adapter unavailable"');
+    expect(body).not.toContain("event: response.completed");
+  });
+
   it("streams response events through the legacy responses route", async () => {
     const context = createContext();
     context.gateway = {

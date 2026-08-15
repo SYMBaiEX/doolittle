@@ -61,13 +61,16 @@ export async function replayGatewayInboxRecord(params: {
     text: record.textPreview,
     channelId: record.channelId,
     threadId: record.threadId,
-    messageId: record.messageId,
+    // An operator replay is an explicit new execution, not an upstream retry.
+    // Preserve the original identity as metadata without reusing its dedupe key.
+    messageId: undefined,
     replyToMessageId: record.replyToMessageId,
     channelType: record.channelType,
     authorName: record.authorName,
     timestamp: record.at,
     metadata: {
       ...(record.metadata ?? {}),
+      ...(record.messageId ? { replayedFromMessageId: record.messageId } : {}),
       replayedFromRecordId: record.recordId,
       replayedAt: new Date().toISOString(),
     },

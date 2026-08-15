@@ -216,6 +216,7 @@ describe("composeGatewayRunnerRuntime", () => {
               runSessionId: "run-session",
             } as never;
           },
+          retryDelivery: async () => ({}) as never,
           sendToHomes: async () => [],
           editDelivery: async () => ({}) as never,
           sendProgressive: async () => ({}) as never,

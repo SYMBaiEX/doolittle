@@ -11,16 +11,9 @@ import type {
   GatewayInboxRecord,
   GatewayOutboxRecord,
 } from "../read/history-view";
+import type { GatewayReceiveOutcome } from "./outcome-types";
 
-export interface GatewayReceiveResult {
-  ok: boolean;
-  response: string;
-  pairingCode?: string;
-  traceId?: string;
-  sessionId?: string;
-  deliveryId?: string;
-  runSessionId?: string;
-}
+export interface GatewayReceiveResult extends GatewayReceiveOutcome {}
 
 export interface GatewayRuntimeContext {
   config: AppContext["config"];
@@ -54,9 +47,11 @@ export interface GatewayReceiveDependencies {
     platform: PlatformName,
     traceId: string,
     sessionId: string | undefined,
-    delivery: DeliveredMessageRecord,
+    delivery: DeliveredMessageRecord | undefined,
     message: OutboundPlatformMessage,
     status: GatewayOutboxRecord["status"],
+    notes?: string[],
+    attemptedDeliveryId?: string,
   ) => GatewayOutboxRecord;
   pushTrace: (entry: {
     traceId: string;

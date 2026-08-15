@@ -1,15 +1,19 @@
 import {
   appendFileSync,
+  chmodSync,
   existsSync,
   readFileSync,
   writeFileSync,
 } from "node:fs";
+import { dirname } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 
 export function ensureGatewayJournalFile(pathname: string): void {
+  chmodSync(dirname(pathname), 0o700);
   if (!existsSync(pathname)) {
-    writeFileSync(pathname, "", "utf8");
+    writeFileSync(pathname, "", { encoding: "utf8", mode: 0o600 });
   }
+  chmodSync(pathname, 0o600);
 }
 
 export function loadGatewayJournal<T>(pathname: string): T[] {
@@ -39,6 +43,7 @@ export function appendGatewayJournalRecord<T extends { at: string }>(
   record: T,
 ): T {
   appendFileSync(pathname, `${JSON.stringify(record)}\n`, "utf8");
+  chmodSync(pathname, 0o600);
   return record;
 }
 
@@ -65,5 +70,8 @@ export function persistGatewaySnapshotFiles<
     })}\n`,
     "utf8",
   );
+  chmodSync(dirname(options.snapshotPath), 0o700);
+  chmodSync(options.snapshotPath, 0o600);
+  chmodSync(options.historyPath, 0o600);
   return persistedAt;
 }

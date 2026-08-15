@@ -62,6 +62,7 @@ export async function setupGatewayReceive(
         ok: false,
         response: `${deps.message.platform} transport is not ready for inbound traffic.`,
         traceId: deps.traceId,
+        idempotencyDisposition: "transient",
       },
     };
   }
@@ -102,6 +103,7 @@ export async function setupGatewayReceive(
         response,
         pairingCode: auth.pairingCode,
         traceId: deps.traceId,
+        idempotencyDisposition: "terminal",
       },
     };
   }

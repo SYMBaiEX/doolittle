@@ -2,8 +2,23 @@ import {
   buildGatewayOutboundResponse,
   shouldUseFreshDelivery,
 } from "@/gateway/outbound/builders";
+import { redactTrajectoryText } from "@/services/trajectory/event-journal";
 import type { SessionRoute } from "@/types/gateway";
+import type { GatewayDeliveryStatus } from "./outcome-types";
 import type { GatewayReceiveDependencies } from "./types";
+
+export interface GatewayReceiveDeliveryOutcome {
+  status: GatewayDeliveryStatus;
+  deliveryId?: string;
+  failureNote?: string;
+  outboxRecordId?: string;
+}
+
+export function sanitizeGatewayDeliveryFailure(error: unknown): string {
+  const raw =
+    error instanceof Error ? error.message : "The outbound adapter failed.";
+  return redactTrajectoryText(raw).slice(0, 500);
+}
 
 export async function deliverGatewayReceiveResponse(
   deps: GatewayReceiveDependencies & {
@@ -11,8 +26,9 @@ export async function deliverGatewayReceiveResponse(
     response: string;
     traceId: string;
     progressiveDelivery?: { id: string };
+    progressiveFailure?: { error: unknown; deliveryId?: string };
   },
-): Promise<string | undefined> {
+): Promise<GatewayReceiveDeliveryOutcome> {
   const at = () => new Date().toISOString();
   deps.pushTrace({
     traceId: deps.traceId,
@@ -47,6 +63,43 @@ export async function deliverGatewayReceiveResponse(
         metadata: deps.message.metadata,
       },
     );
+    if (deps.progressiveFailure) {
+      const failureNote = sanitizeGatewayDeliveryFailure(
+        deps.progressiveFailure.error,
+      );
+      const rejected = deps.recordOutbox(
+        deps.message.platform,
+        deps.traceId,
+        deps.session.sessionKey,
+        undefined,
+        outbound,
+        "rejected",
+        [failureNote],
+        deps.progressiveFailure.deliveryId,
+      );
+      deps.pushTrace({
+        traceId: deps.traceId,
+        at: at(),
+        kind: "reject",
+        platform: deps.message.platform,
+        detail: failureNote,
+        sessionId: deps.session.sessionKey,
+        userId: deps.message.userId,
+        roomId: deps.message.roomId,
+        deliveryId: deps.progressiveFailure.deliveryId,
+      });
+      await deps.observeAdapter(deps.message.platform, {
+        at: at(),
+        kind: "reject",
+        detail: failureNote,
+      });
+      return {
+        status: "rejected",
+        deliveryId: deps.progressiveFailure.deliveryId,
+        failureNote,
+        outboxRecordId: rejected?.recordId,
+      };
+    }
     try {
       const requiresFreshDelivery = shouldUseFreshDelivery(outbound.metadata);
       const delivery =
@@ -90,12 +143,19 @@ export async function deliverGatewayReceiveResponse(
         kind: "deliver",
         detail: `Delivered via ${deps.adapter.name} to ${outbound.roomId} with record ${delivery.id}.`,
       });
-      return delivery.id;
+      return { status: "sent", deliveryId: delivery.id };
     } catch (error) {
-      const detail =
-        error instanceof Error
-          ? error.message
-          : `Delivery via ${deps.adapter.name} failed.`;
+      const detail = sanitizeGatewayDeliveryFailure(error);
+      const rejected = deps.recordOutbox(
+        deps.message.platform,
+        deps.traceId,
+        deps.session.sessionKey,
+        undefined,
+        outbound,
+        "rejected",
+        [detail],
+        deps.progressiveDelivery?.id,
+      );
       deps.pushTrace({
         traceId: deps.traceId,
         at: at(),
@@ -111,7 +171,12 @@ export async function deliverGatewayReceiveResponse(
         kind: "reject",
         detail,
       });
-      throw error;
+      return {
+        status: "rejected",
+        deliveryId: deps.progressiveDelivery?.id,
+        failureNote: detail,
+        outboxRecordId: rejected?.recordId,
+      };
     }
   }
 
@@ -169,5 +234,5 @@ export async function deliverGatewayReceiveResponse(
     kind: "deliver",
     detail: `Delivered via fallback history with record ${delivery.id}.`,
   });
-  return delivery.id;
+  return { status: "fallback", deliveryId: delivery.id };
 }

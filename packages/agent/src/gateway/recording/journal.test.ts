@@ -1,4 +1,10 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -16,6 +22,10 @@ describe("gateway journal helpers", () => {
 
     ensureGatewayJournalFile(journalPath);
     expect(existsSync(journalPath)).toBe(true);
+    if (process.platform !== "win32") {
+      expect(statSync(root).mode & 0o777).toBe(0o700);
+      expect(statSync(journalPath).mode & 0o777).toBe(0o600);
+    }
 
     appendGatewayJournalRecord(journalPath, {
       at: "2026-03-29T12:00:00.000Z",
@@ -79,5 +89,10 @@ describe("gateway journal helpers", () => {
     expect(readFileSync(historyPath, "utf8").trim()).toBe(
       '{"persistedAt":"2026-03-29T12:34:56.000Z","reason":"manual","state":{"running":true}}',
     );
+    if (process.platform !== "win32") {
+      expect(statSync(root).mode & 0o777).toBe(0o700);
+      expect(statSync(snapshotPath).mode & 0o777).toBe(0o600);
+      expect(statSync(historyPath).mode & 0o777).toBe(0o600);
+    }
   });
 });

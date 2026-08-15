@@ -16,6 +16,12 @@ export interface GatewayReceiveExecutionResult {
         id: string;
       }
     | undefined;
+  progressiveFailure:
+    | {
+        error: unknown;
+        deliveryId?: string;
+      }
+    | undefined;
   queueProgressFlush: (text: string, force?: boolean) => Promise<void>;
 }
 
@@ -76,11 +82,18 @@ export async function executeGatewayReceiveTurn(
 
   await progressiveQueue.queueProgressFlush(result.response, true);
   const progressiveDelivery = progressiveQueue.getProgressiveDelivery();
+  const progressiveFailure = progressiveQueue.getProgressiveFailure();
   return {
     response: result.response,
     runSessionId: trackedSessionId,
     progressiveDelivery: progressiveDelivery
       ? { id: progressiveDelivery.id }
+      : undefined,
+    progressiveFailure: progressiveFailure
+      ? {
+          error: progressiveFailure.error,
+          deliveryId: progressiveFailure.deliveryId,
+        }
       : undefined,
     queueProgressFlush: progressiveQueue.queueProgressFlush,
   };

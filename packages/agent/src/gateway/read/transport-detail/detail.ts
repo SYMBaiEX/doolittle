@@ -13,6 +13,7 @@ import type {
   GatewayOutboxRecord,
   GatewayTraceRecord,
 } from "../history-view";
+import { sanitizeGatewayOutboxRecord } from "../history-view";
 import { createGatewayPlatformStateView } from "../platform-state-view";
 import { getTransportLastActivityAt } from "./activity";
 import { getTransportCounts } from "./counts";
@@ -111,7 +112,7 @@ export function buildGatewayTransportDetail(
     attachmentCount,
     recentTraces: platformTraces.recent,
     recentInbox: platformInbox.recent,
-    recentOutbox: platformOutbox.recent,
+    recentOutbox: platformOutbox.recent.map(sanitizeGatewayOutboxRecord),
     recentAttachments: platformAttachments.recent,
     mismatchFlags,
     lastActivityAt,

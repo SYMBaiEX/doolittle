@@ -25,6 +25,13 @@ export type {
   GatewayTraceRecord,
 } from "./types";
 
+export function sanitizeGatewayOutboxRecord(
+  record: GatewayOutboxRecord,
+): GatewayOutboxRecord {
+  const { outbound: _, ...publicRecord } = record;
+  return publicRecord;
+}
+
 type GatewayHistoryRecord =
   | GatewayTraceRecord
   | GatewayInboxRecord
@@ -43,7 +50,10 @@ export class GatewayHistoryView {
   }
 
   outbox(limit = 20, filters?: GatewayHistoryFilter): GatewayOutboxRecord[] {
-    return this.buildLimitedRecent(this.outboxes(filters), limit);
+    return this.buildLimitedRecent<GatewayOutboxRecord>(
+      this.outboxes(filters),
+      limit,
+    ).map(sanitizeGatewayOutboxRecord);
   }
 
   attachments(
@@ -60,7 +70,7 @@ export class GatewayHistoryView {
     return buildHistoryWindow(
       this.traces(filters),
       this.inboxes(filters),
-      this.outboxes(filters),
+      this.outboxes(filters).map(sanitizeGatewayOutboxRecord),
       this.attachmentsList(filters),
       this.data.recentDeliveries,
       this.data.listSessions(),

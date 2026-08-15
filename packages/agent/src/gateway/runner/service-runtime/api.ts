@@ -66,6 +66,7 @@ export interface GatewayRunnerRuntimeApi {
       message: IncomingPlatformMessage,
       options?: GatewayReceiveOptions,
     ): Promise<GatewayReceiveResult>;
+    retryDelivery(recordId: string): Promise<DeliveredMessageRecord>;
     sendToHomes(
       text: string,
       options?: GatewayRunnerSendToHomesOptions,
@@ -141,6 +142,7 @@ export function createGatewayRunnerRuntimeApi({
     },
     delivery: {
       receive: (message, options) => operations.receive(message, options),
+      retryDelivery: (recordId) => operations.retryDelivery(recordId),
       sendToHomes: (text, options) => operations.sendToHomes(text, options),
       editDelivery: (deliveryId, text, options) =>
         operations.editDelivery(deliveryId, text, options),

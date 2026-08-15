@@ -99,6 +99,10 @@ export class GatewayRunner {
     return this.api.delivery.receive(message, options);
   }
 
+  retryDelivery(recordId: string): Promise<DeliveredMessageRecord> {
+    return this.api.delivery.retryDelivery(recordId);
+  }
+
   sendToHomes(
     text: string,
     options?: GatewayRunnerSendToHomesOptions,

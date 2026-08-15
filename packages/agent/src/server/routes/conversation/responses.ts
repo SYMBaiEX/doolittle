@@ -300,13 +300,18 @@ export async function handleResponsesRoute(
         });
         const responsePayload = buildResponsePayload(record);
         if (!result.ok) {
+          const deliveryFailed =
+            result.agentCompleted && result.deliveryStatus === "rejected";
           await emitResponseEvent("response.failed", {
             response: {
               ...responsePayload,
               status: "failed",
               error: {
-                code: "agent_turn_failed",
-                message: outputText || "The agent turn failed.",
+                code: deliveryFailed ? "delivery_failed" : "agent_turn_failed",
+                message: deliveryFailed
+                  ? result.deliveryFailure ||
+                    "The response could not be delivered."
+                  : outputText || "The agent turn failed.",
               },
             },
           });
@@ -376,7 +381,9 @@ export async function handleResponsesRoute(
     { abortSignal: request.signal },
   );
   if (!result.ok) {
-    return json(result, 403);
+    const status =
+      result.agentCompleted && result.deliveryStatus === "rejected" ? 502 : 403;
+    return json(result, status);
   }
   const record = context.services.apiTransport.create({
     input: inputText,

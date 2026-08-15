@@ -114,6 +114,13 @@ export function shouldUseFreshDelivery(
 export interface ProgressiveDeliveryQueue {
   queueProgressFlush(text: string, force?: boolean): Promise<void>;
   getProgressiveDelivery(): DeliveredMessageRecord | undefined;
+  getProgressiveFailure():
+    | {
+        error: unknown;
+        outbound: OutboundPlatformMessage;
+        deliveryId?: string;
+      }
+    | undefined;
 }
 
 export function createProgressiveDeliveryQueue(params: {
@@ -134,10 +141,17 @@ export function createProgressiveDeliveryQueue(params: {
   let progressiveText = "";
   let lastProgressFlushAt = 0;
   let progressChain = Promise.resolve();
+  let progressiveFailure:
+    | {
+        error: unknown;
+        outbound: OutboundPlatformMessage;
+        deliveryId?: string;
+      }
+    | undefined;
 
   const queueProgressFlush = (text: string, force = false): Promise<void> => {
     const adapter = params.adapter;
-    if (!adapter || !text.trim()) {
+    if (!adapter || !text.trim() || progressiveFailure) {
       return progressChain;
     }
 
@@ -182,12 +196,30 @@ export function createProgressiveDeliveryQueue(params: {
         progressiveText = text;
         lastProgressFlushAt = now;
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        progressiveFailure = {
+          error,
+          outbound: {
+            roomId: params.message.channelId ?? params.message.roomId,
+            userId: params.message.userId,
+            text,
+            threadId: params.message.threadId ?? params.session.threadId,
+            replyToId:
+              params.message.messageId ?? params.message.replyToMessageId,
+            metadata: {
+              ...(params.message.metadata ?? {}),
+              progressive: "true",
+            },
+          },
+          deliveryId: progressiveDelivery?.id,
+        };
+      });
     return progressChain;
   };
 
   return {
     queueProgressFlush,
     getProgressiveDelivery: () => progressiveDelivery,
+    getProgressiveFailure: () => progressiveFailure,
   };
 }

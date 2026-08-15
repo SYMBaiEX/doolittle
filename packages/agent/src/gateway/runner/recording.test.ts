@@ -177,6 +177,30 @@ describe("GatewayRunnerRecording", () => {
       },
       "sent",
     );
+    const outcomeRecord = recording.recordReceiveOutcome(
+      {
+        platform: "api",
+        userId: "user-1",
+        roomId: "room-1",
+        text: "hello world",
+        messageId: "msg-1",
+        metadata: {
+          attachmentCount: "1",
+          attachmentKinds: "image",
+          attachmentNames: "snapshot.png",
+          attachmentUrls: "https://example.com/snapshot.png",
+          attachmentMimeTypes: "image/png",
+        },
+      },
+      '["api","default","user-1","room-1","","","msg-1"]',
+      {
+        ok: true,
+        response: "sent message",
+        traceId: "trace-inbox",
+        deliveryId: "delivery-1",
+        deliveryStatus: "sent",
+      },
+    );
     recording.pushTrace({
       traceId: "trace-deliver",
       at: "2026-03-30T00:00:01.000Z",
@@ -196,9 +220,13 @@ describe("GatewayRunnerRecording", () => {
 
     expect(inboxRecord.status).toBe("accepted");
     expect(outboxRecord.status).toBe("sent");
+    expect(outcomeRecord.status).toBe("completed");
+    expect(
+      recording.findReceiveOutcome(outcomeRecord.idempotencyKey ?? ""),
+    ).toMatchObject({ deliveryId: "delivery-1", deliveryStatus: "sent" });
     expect(supervisionRecord.action).toBe("watch");
     expect(traceLog.length).toBe(1);
-    expect(inboxLog.length).toBe(1);
+    expect(inboxLog.length).toBe(2);
     expect(outboxLog.length).toBe(1);
     expect(attachmentLog.length).toBe(2);
     expect(supervisionLog.length).toBe(1);

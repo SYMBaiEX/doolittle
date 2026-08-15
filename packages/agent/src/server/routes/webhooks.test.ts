@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleWebhookRoutes } from "@/server/routes/webhooks";
+import { handleInboundWebhook } from "@/server/routes/webhooks/inbound";
 
 function createContext(overrides?: {
   slackSigningSecret?: string;
@@ -55,6 +56,51 @@ function createContext(overrides?: {
 }
 
 describe("handleWebhookRoutes", () => {
+  it("acknowledges a completed turn whose outbound delivery is durably rejected", async () => {
+    const context = createContext({
+      gatewayReceive: async () => ({
+        ok: false,
+        agentCompleted: true,
+        deliveryStatus: "rejected",
+        outboxRecordId: "outbox-rejected",
+      }),
+    });
+
+    const response = await handleInboundWebhook("telegram", context, {
+      message: {
+        message_id: 42,
+        text: "hello",
+        chat: { id: 100 },
+        from: { id: 200 },
+      },
+    });
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      agentCompleted: true,
+      deliveryStatus: "rejected",
+      outboxRecordId: "outbox-rejected",
+    });
+  });
+
+  it("keeps pre-agent authorization rejection forbidden", async () => {
+    const context = createContext({
+      gatewayReceive: async () => ({ ok: false }),
+    });
+
+    const response = await handleInboundWebhook("telegram", context, {
+      message: {
+        message_id: 43,
+        text: "hello",
+        chat: { id: 100 },
+        from: { id: 200 },
+      },
+    });
+
+    expect(response.status).toBe(403);
+  });
+
   it("returns pending pairing requests", async () => {
     const response = await handleWebhookRoutes(
       createContext(),

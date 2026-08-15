@@ -155,8 +155,7 @@ describe("gateway transport detail", () => {
           at: "2026-04-01T10:00:30.000Z",
           platform: "api",
           traceId: "t3",
-          status: "sent",
-          deliveryId: "d2",
+          status: "rejected",
           userId: "u",
           roomId: "r",
           textPreview: "follow-up",
@@ -167,6 +166,11 @@ describe("gateway transport detail", () => {
           attachmentMimeTypes: [],
           metadataKeys: [],
           metadata: {},
+          outbound: {
+            roomId: "r",
+            userId: "u",
+            text: "private retry payload",
+          },
         },
       ],
       attachments: [
@@ -205,6 +209,9 @@ describe("gateway transport detail", () => {
     expect(detail.inboxCount).toBe(2);
     expect(detail.outboxCount).toBe(2);
     expect(detail.attachmentCount).toBe(1);
+    expect(detail.recentOutbox[0]?.recordId).toBe("o2");
+    expect(detail.recentOutbox[0]?.outbound).toBeUndefined();
+    expect(JSON.stringify(detail)).not.toContain("private retry payload");
     expect(detail.mismatchFlags).toEqual([
       "gateway-enabled-without-ready-platform",
       "plugin-enabled-without-runtime-service",

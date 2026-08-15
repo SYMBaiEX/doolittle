@@ -97,6 +97,29 @@ describe("gateway history view", () => {
           metadataKeys: [],
           metadata: {},
         },
+        {
+          recordId: "o2",
+          at: "2026-03-29T10:12:00.000Z",
+          platform: "api",
+          sessionId: "s3",
+          traceId: "a3",
+          status: "rejected",
+          roomId: "r3",
+          textPreview: "intended reply",
+          attachmentCount: 0,
+          attachmentKinds: [],
+          attachmentNames: [],
+          attachmentUrls: [],
+          attachmentMimeTypes: [],
+          metadataKeys: ["correlation"],
+          metadata: { correlation: "retry-1" },
+          outbound: {
+            roomId: "r3",
+            text: "intended reply",
+            metadata: { correlation: "retry-1" },
+          },
+          notes: ["adapter unavailable"],
+        },
       ],
       attachmentLog: [
         {
@@ -182,7 +205,16 @@ describe("gateway history view", () => {
     expect(snapshot.allTraces.map((entry) => entry.traceId)).toEqual(["a1"]);
     expect(snapshot.traces.map((entry) => entry.traceId)).toEqual(["a1"]);
     expect(snapshot.inbox.map((entry) => entry.recordId)).toEqual(["i2", "i1"]);
-    expect(snapshot.outbox.map((entry) => entry.recordId)).toEqual(["o1"]);
+    expect(snapshot.outbox.map((entry) => entry.recordId)).toEqual([
+      "o2",
+      "o1",
+    ]);
+    expect(snapshot.outbox[0]).toMatchObject({
+      status: "rejected",
+      notes: ["adapter unavailable"],
+    });
+    expect(snapshot.outbox[0]?.outbound).toBeUndefined();
+    expect(view.outbox(2)[0]?.outbound).toBeUndefined();
     expect(snapshot.deliveries).toHaveLength(2);
     expect(
       snapshot.deliveries.every(

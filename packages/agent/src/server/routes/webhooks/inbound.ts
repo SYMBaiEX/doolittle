@@ -16,5 +16,10 @@ export async function handleInboundWebhook(
     return json({ ok: true, ignored: true });
   }
   const result = await context.gateway.receive(inbound);
-  return json(result, result.ok ? 200 : 403);
+  const status = result.ok
+    ? 200
+    : result.agentCompleted && result.deliveryStatus === "rejected"
+      ? 202
+      : 403;
+  return json(result, status);
 }

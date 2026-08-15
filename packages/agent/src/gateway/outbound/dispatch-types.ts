@@ -19,9 +19,11 @@ export type GatewayOutboxWriter = (
   platform: PlatformName,
   traceId: string,
   sessionId: string | undefined,
-  delivery: DeliveredMessageRecord,
+  delivery: DeliveredMessageRecord | undefined,
   message: OutboundPlatformMessage,
   status: GatewayOutboxRecord["status"],
+  notes?: string[],
+  attemptedDeliveryId?: string,
 ) => void;
 
 export type GatewayOutboxLifecycleWriter = (

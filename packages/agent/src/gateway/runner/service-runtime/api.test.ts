@@ -132,6 +132,7 @@ function createDependencies(): GatewayRunnerRuntimeApiDependencies {
         _message: IncomingPlatformMessage,
         _options?: GatewayReceiveOptions,
       ) => receiveResult,
+      retryDelivery: async (_recordId: string) => editDelivery,
       sendToHomes: async (
         _text: string,
         _options?: GatewayRunnerSendToHomesOptions,
@@ -231,6 +232,9 @@ describe("gateway runner runtime api", () => {
     );
     expect(await api.delivery.sendToHomes("hello")).toEqual(
       await expected.operations.sendToHomes("hello"),
+    );
+    expect(await api.delivery.retryDelivery("outbox-rejected")).toEqual(
+      await expected.operations.retryDelivery("outbox-rejected"),
     );
     expect(
       await api.delivery.editDelivery("delivery-1", "updated", {

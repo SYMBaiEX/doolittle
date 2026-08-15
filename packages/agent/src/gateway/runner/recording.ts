@@ -20,6 +20,7 @@ import type {
   GatewayOutboxRecord,
   GatewayTraceRecord,
 } from "../read/history-view";
+import type { GatewayReceiveOutcome } from "../receive/outcome-types";
 
 export interface GatewayRunnerUpdateEvent {
   kind: GatewayTraceRecord["kind"];
@@ -91,9 +92,12 @@ export class GatewayRunnerRecording {
     platform: PlatformName,
     traceId: string,
     sessionId: string | undefined,
-    delivery: DeliveredMessageRecord,
+    delivery: DeliveredMessageRecord | undefined,
     message: OutboundPlatformMessage,
     status: GatewayOutboxRecord["status"],
+    notes: string[] = [],
+    attemptedDeliveryId?: string,
+    retryOfRecordId?: string,
   ): GatewayOutboxRecord {
     const { record, attachments } = recordGatewayOutboxJournalEntry({
       platform,
@@ -102,6 +106,9 @@ export class GatewayRunnerRecording {
       delivery,
       message,
       status,
+      notes,
+      attemptedDeliveryId,
+      retryOfRecordId,
       recordLog: this.deps.outboxLog,
       recordPath: this.deps.outboxPath,
       attachmentLog: this.deps.attachmentLog,
@@ -120,10 +127,57 @@ export class GatewayRunnerRecording {
       state.lastAttachmentKind = attachments.at(-1)?.kind;
     }
     state.lastOutboundAt = record.at;
-    state.lastDeliveryAt = record.at;
-    state.lastDeliveryId = delivery.id;
-    state.transportState = state.ready ? "live" : "degraded";
+    if (delivery) {
+      state.lastDeliveryAt = record.at;
+      state.lastDeliveryId = delivery.id;
+    }
+    state.transportState =
+      status === "rejected" ? "degraded" : state.ready ? "live" : "degraded";
     return record;
+  }
+
+  recordReceiveOutcome(
+    message: IncomingPlatformMessage,
+    idempotencyKey: string,
+    outcome: GatewayReceiveOutcome,
+  ): GatewayInboxRecord {
+    return recordGatewayInboxJournalEntry({
+      traceId: outcome.traceId ?? "unknown",
+      sessionId: outcome.sessionId,
+      message,
+      status: "completed",
+      idempotencyKey,
+      outcome,
+      recordAttachments: false,
+      recordLog: this.deps.inboxLog,
+      recordPath: this.deps.inboxPath,
+      attachmentLog: this.deps.attachmentLog,
+      attachmentsPath: this.deps.attachmentsPath,
+    }).record;
+  }
+
+  findReceiveOutcome(
+    idempotencyKey: string,
+  ): GatewayReceiveOutcome | undefined {
+    return this.deps.inboxLog
+      .slice()
+      .reverse()
+      .find(
+        (record) =>
+          record.idempotencyKey === idempotencyKey &&
+          record.outcome !== undefined,
+      )?.outcome;
+  }
+
+  getOutboxRecord(recordId: string): GatewayOutboxRecord | undefined {
+    return this.deps.outboxLog.find((record) => record.recordId === recordId);
+  }
+
+  getSuccessfulOutboxRetry(recordId: string): GatewayOutboxRecord | undefined {
+    return this.deps.outboxLog.find(
+      (record) =>
+        record.retryOfRecordId === recordId && record.status === "sent",
+    );
   }
 
   pushTrace(entry: GatewayTraceRecord): void {

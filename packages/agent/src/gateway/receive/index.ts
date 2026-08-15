@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { redactTrajectoryText } from "@/services/trajectory/event-journal";
 import type { SessionRoute } from "@/types/gateway";
 import { deliverGatewayReceiveResponse } from "./delivery";
 import { executeGatewayReceiveTurn } from "./execution";
@@ -10,6 +11,10 @@ import type {
   GatewayReceiveResult,
 } from "./types";
 
+export type {
+  GatewayDeliveryStatus,
+  GatewayReceiveOutcome,
+} from "./outcome-types";
 export type {
   GatewayReceiveDependencies,
   GatewayReceiveOptions,
@@ -38,6 +43,7 @@ export async function processGatewayReceive(
       ok: false,
       response: "Unable to initialize gateway receive session.",
       traceId,
+      idempotencyDisposition: "transient",
     };
   }
 
@@ -50,29 +56,53 @@ export async function processGatewayReceive(
     options,
   );
 
-  const deliveryId = await deliverGatewayReceiveResponse({
+  const delivery = await deliverGatewayReceiveResponse({
     ...deps,
     session,
     response: execution.response,
     traceId,
     progressiveDelivery: execution.progressiveDelivery,
+    progressiveFailure: execution.progressiveFailure,
   });
 
-  await deps.context.services.hooks.emit("agent:end", {
-    platform: deps.message.platform,
-    userId: deps.message.userId,
-    sessionId: setup.session.sessionKey,
-    response: execution.response,
-  });
-
-  await deps.snapshotState("receive", 20);
+  const postDeliveryResults = await Promise.allSettled([
+    Promise.resolve().then(() =>
+      deps.context.services.hooks.emit("agent:end", {
+        platform: deps.message.platform,
+        userId: deps.message.userId,
+        sessionId: session.sessionKey,
+        response: execution.response,
+      }),
+    ),
+    Promise.resolve().then(() => deps.snapshotState("receive", 20)),
+  ]);
+  for (const [index, result] of postDeliveryResults.entries()) {
+    if (result.status !== "rejected") continue;
+    deps.context.runtime.logger?.warn(
+      {
+        traceId,
+        sessionId: session.sessionKey,
+        phase: index === 0 ? "agent:end" : "snapshot",
+        error: redactTrajectoryText(
+          result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason),
+        ).slice(0, 500),
+      },
+      "Gateway post-delivery side effect failed",
+    );
+  }
 
   return {
-    ok: true,
+    ok: delivery.status !== "rejected",
     response: execution.response,
     traceId,
     sessionId: setup.session.sessionKey,
-    deliveryId,
+    deliveryId: delivery.deliveryId,
     runSessionId: execution.runSessionId,
+    agentCompleted: true,
+    deliveryStatus: delivery.status,
+    deliveryFailure: delivery.failureNote,
+    outboxRecordId: delivery.outboxRecordId,
   };
 }

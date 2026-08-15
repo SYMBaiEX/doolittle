@@ -77,6 +77,11 @@ function buildReadModel() {
       attachmentMimeTypes: [],
       metadataKeys: [],
       metadata: {},
+      outbound: {
+        roomId: "room-1",
+        userId: "user-1",
+        text: "private runtime retry payload",
+      },
     },
   ];
   const attachmentLog = [
@@ -406,9 +411,17 @@ describe("GatewayRunnerReadModel", () => {
     expect(transport.attachmentCount).toBe(1);
     expect(transport.mismatchFlags).toContain("inventory-operational-mismatch");
     expect(transport.mismatchFlags).toContain("health-ready-mismatch");
+    expect(transport.recentOutbox[0]?.outbound).toBeUndefined();
+    expect(JSON.stringify(transport)).not.toContain(
+      "private runtime retry payload",
+    );
     expect(overview.operationalCount).toBe(1);
     expect(overview.mismatchCount).toBe(1);
     expect(overview.details[0]?.platform).toBe("api");
+    expect(overview.details[0]?.recentOutbox[0]?.outbound).toBeUndefined();
+    expect(JSON.stringify(overview)).not.toContain(
+      "private runtime retry payload",
+    );
     expect(stateSnapshot.platforms[0]?.platform).toBe("api");
     expect(historySnapshot.state.reason).toBe("history");
     expect(traces[0]?.traceId).toBe("trace-2");

@@ -173,4 +173,40 @@ describe("gateway outbound builders", () => {
     expect(editCount).toBe(2);
     expect(queue.getProgressiveDelivery()?.text).toBe("forced final");
   });
+
+  it("retains progressive send failure for the durable receive outcome", async () => {
+    const queue = createProgressiveDeliveryQueue({
+      adapter: {
+        send: async () => {
+          throw new Error("adapter unavailable");
+        },
+      },
+      message: {
+        platform: "api",
+        userId: "user-1",
+        roomId: "room-1",
+        text: "request",
+      },
+      session: {
+        sessionKey: "session-1",
+        roomId: "room-1",
+        userId: "user-1",
+        platform: "api",
+        createdAt: "2026-03-29T00:00:00.000Z",
+        updatedAt: "2026-03-29T00:00:00.000Z",
+      },
+      editDelivery: async () => {
+        throw new Error("edit must not run");
+      },
+    });
+
+    await queue.queueProgressFlush("partial response");
+    await queue.queueProgressFlush("final response", true);
+
+    expect(queue.getProgressiveDelivery()).toBeUndefined();
+    expect(queue.getProgressiveFailure()).toMatchObject({
+      error: expect.objectContaining({ message: "adapter unavailable" }),
+      outbound: expect.objectContaining({ text: "partial response" }),
+    });
+  });
 });
