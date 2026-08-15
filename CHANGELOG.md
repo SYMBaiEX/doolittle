@@ -6,6 +6,8 @@ ElizaOS 2.0 beta line.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-14
+
 ### Platform
 
 - Removed benchmark, distribution, and modeling placeholder workspaces with
@@ -15,8 +17,9 @@ ElizaOS 2.0 beta line.
 - **Aligned the complete ElizaOS runtime train on `2.0.3-beta.7`**:
   `@elizaos/core`, `@elizaos/agent`, `@elizaos/skills`, `elizaos`, shared, and
   published official plugins now resolve to one exact beta through root
-  overrides and an acceptance check. Doolittle's SQL compatibility wrapper is
-  `2.0.3-beta.7-patched.0` and wraps the same official beta.
+  overrides and an acceptance check. Doolittle's private
+  `@doolittle/plugin-sql-relationships@0.1.0` compatibility wrapper remains
+  layered over the same official `@elizaos/plugin-sql@2.0.3-beta.7` package.
 - **Completed the native message-lifecycle migration**: normal chat turns now
   enter `DefaultMessageService` directly. Removed the parallel regex
   classifier, direct informational/profile/soul model bypasses, local-intent
@@ -116,3 +119,6 @@ ElizaOS 2.0 beta line.
 - Added a documentation index, separated generated runtime truth from dated
   maintainer records, corrected workspace and Eliza ownership maps, and removed
   stale migration-era wording and checkout-specific verification claims.
+
+[Unreleased]: https://github.com/SYMBaiEX/doolittle/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/SYMBaiEX/doolittle/releases/tag/v0.1.0

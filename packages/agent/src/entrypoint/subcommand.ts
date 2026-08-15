@@ -1,5 +1,6 @@
 export type EntrypointSubcommand =
   | "help"
+  | "version"
   | "commands"
   | "status"
   | "progress"
@@ -51,6 +52,12 @@ export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
       rest: userArgs.filter((value) => value !== "--help" && value !== "-h"),
     };
   }
+  if (userArgs.includes("--version") || userArgs.includes("-v")) {
+    return {
+      command: "version",
+      rest: userArgs.filter((value) => value !== "--version" && value !== "-v"),
+    };
+  }
   if (userArgs.includes("--cockpit")) {
     return {
       command: "cockpit",
@@ -82,6 +89,7 @@ export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
   const aliases: Record<string, EntrypointSubcommand> = {
     start: "start",
     help: "help",
+    version: "version",
     commands: "commands",
     status: "status",
     progress: "progress",

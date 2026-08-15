@@ -1,6 +1,6 @@
 {
   "name": "@doolittle/plugin-claude-code",
-  "version": "2.0.3-beta.7",
+  "version": "0.1.0",
   "description": "Structured local Claude CLI fallback behind the official Eliza Anthropic provider.",
   "license": "MIT",
   "type": "module",
@@ -31,6 +31,6 @@
   "dependencies": {
     "@elizaos/agent": "2.0.3-beta.7",
     "@elizaos/core": "2.0.3-beta.7",
-    "@doolittle/provider-transport": "2.0.3-beta.7"
+    "@doolittle/provider-transport": "0.1.0"
   }
 }

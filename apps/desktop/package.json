@@ -1,6 +1,6 @@
 {
   "name": "@doolittle/desktop",
-  "version": "2.0.3-beta.7",
+  "version": "0.1.0",
   "description": "Native desktop application for the Doolittle ElizaOS agent runtime",
   "homepage": "https://github.com/SYMBaiEX/doolittle",
   "author": {
@@ -21,7 +21,7 @@
     "package:dir": "nub run build && nub run runtime:prepare && nub scripts/package.ts --dir && nub scripts/verify-package.ts",
     "package:mac": "nub run build && nub run runtime:prepare && nubx electron-builder --mac dmg zip && nub scripts/verify-package.ts",
     "package:win": "nub run build && nub run runtime:prepare && nubx electron-builder --win nsis --x64 && nub scripts/verify-package.ts",
-    "package:linux": "nub run build && nub run runtime:prepare && nubx electron-builder --linux AppImage deb && nub scripts/verify-package.ts",
+    "package:linux": "nub run build && nub run runtime:prepare && nubx electron-builder --linux AppImage deb --x64 && nub scripts/verify-package.ts",
     "package:all": "nub scripts/package-all.ts",
     "typecheck": "tsc -b tsconfig.main.json tsconfig.renderer.json",
     "test": "nubx vitest run"
@@ -82,6 +82,10 @@
       "package.json"
     ],
     "extraResources": [
+      {
+        "from": "../../LICENSE",
+        "to": "LICENSE"
+      },
       {
         "from": "build/runtime",
         "to": "runtime/bin",

@@ -1,13 +1,11 @@
 name: desktop-windows
 
 on:
+  workflow_call:
   workflow_dispatch:
-  push:
-    tags:
-      - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   installer:
@@ -184,6 +182,43 @@ jobs:
             Write-Warning "WIN_CSC_LINK is not configured; producing an unsigned development artifact."
           }
 
+      - name: Install, launch, and uninstall the NSIS artifact
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem apps/desktop/release/Doolittle-*-win-x64.exe | Select-Object -First 1
+          $installDirectory = Join-Path $env:RUNNER_TEMP "Doolittle-installed"
+          $install = Start-Process `
+            -FilePath $installer.FullName `
+            -ArgumentList @("/S", "/D=$installDirectory") `
+            -Wait `
+            -PassThru
+          if ($install.ExitCode -ne 0) {
+            throw "NSIS installer exited with code $($install.ExitCode)."
+          }
+
+          $installedApp = Join-Path $installDirectory "Doolittle.exe"
+          if (-not (Test-Path $installedApp -PathType Leaf)) {
+            throw "Installed application is missing: $installedApp"
+          }
+          $env:DOOLITTLE_DESKTOP_EXECUTABLE = $installedApp
+          nub run test:e2e:desktop-packaged
+
+          $uninstaller = Get-ChildItem $installDirectory -Filter "Uninstall*.exe" | Select-Object -First 1
+          if (-not $uninstaller) {
+            throw "NSIS uninstaller was not installed."
+          }
+          $uninstall = Start-Process `
+            -FilePath $uninstaller.FullName `
+            -ArgumentList "/S" `
+            -Wait `
+            -PassThru
+          if ($uninstall.ExitCode -ne 0) {
+            throw "NSIS uninstaller exited with code $($uninstall.ExitCode)."
+          }
+          if (Test-Path $installedApp) {
+            throw "NSIS uninstall left the application executable behind."
+          }
+
       - name: Upload Windows installer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -193,12 +228,3 @@ jobs:
             apps/desktop/release/Doolittle-*-win-x64.exe.blockmap
             apps/desktop/release/latest.yml
           if-no-files-found: error
-
-      - name: Attach installer and update metadata to tagged release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
-        with:
-          files: |
-            apps/desktop/release/Doolittle-*-win-x64.exe
-            apps/desktop/release/Doolittle-*-win-x64.exe.blockmap
-            apps/desktop/release/latest.yml

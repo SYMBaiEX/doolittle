@@ -1,6 +1,6 @@
 {
   "name": "@doolittle/plugin-sql-relationships",
-  "version": "2.0.3-beta.7",
+  "version": "0.1.0",
   "private": true,
   "description": "Doolittle relationship merge projection over the official ElizaOS SQL plugin.",
   "license": "MIT",

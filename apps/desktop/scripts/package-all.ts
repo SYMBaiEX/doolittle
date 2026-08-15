@@ -68,16 +68,16 @@ export function releaseTargets(
     },
     {
       id: "linux",
-      builderArgs: ["--linux", "AppImage", "deb", `--${hostArch}`],
+      builderArgs: ["--linux", "AppImage", "deb", "--x64"],
       artifacts: [
-        `Doolittle-${version}-linux-${hostArch}.AppImage`,
-        `Doolittle-${version}-linux-${hostArch}.deb`,
+        `Doolittle-${version}-linux-x64.AppImage`,
+        `Doolittle-${version}-linux-x64.deb`,
       ],
       appAsarCandidates: [
-        `linux-${hostArch}-unpacked/resources/app.asar`,
+        "linux-x64-unpacked/resources/app.asar",
         "linux-unpacked/resources/app.asar",
       ],
-      cleanupPaths: [`linux-${hostArch}-unpacked`, "linux-unpacked"],
+      cleanupPaths: ["linux-x64-unpacked", "linux-unpacked"],
     },
   ];
 }
@@ -85,10 +85,10 @@ export function releaseTargets(
 export function requiredNativeTargetPackages(hostArch: string): string[] {
   return [
     `@lydell/node-pty-darwin-${hostArch}`,
-    `@lydell/node-pty-linux-${hostArch}`,
+    "@lydell/node-pty-linux-x64",
     "@lydell/node-pty-win32-x64",
     `@snazzah/davey-darwin-${hostArch}`,
-    `@snazzah/davey-linux-${hostArch}-gnu`,
+    "@snazzah/davey-linux-x64-gnu",
     "@snazzah/davey-win32-x64-msvc",
   ].sort();
 }

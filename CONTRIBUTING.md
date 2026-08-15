@@ -92,7 +92,9 @@ prompt caching, make it consume `params.promptSegments` (see
 - Do not hand-edit `docs/plugin-inventory.md` or `docs/capability-truth.md`;
   update their code-backed sources and run
   `nub scripts/sync-doc-truth.ts --write`.
-- Keep package versions tied to the root `elizaSdk` contract and overrides.
+- Keep every `@doolittle/*` workspace on the root product version. Keep official
+  `@elizaos/*` packages and compatibility workspaces pinned independently to the
+  exact root `elizaSdk.version`.
 - Keep audit and planning notes dated. Do not present them as runtime proof.
 - Run `nub run check:docs-truth` and `nub run check:local-links` for every
   documentation change.

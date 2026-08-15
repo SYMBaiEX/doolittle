@@ -55,15 +55,16 @@ function packageJsonPaths(directory: string): string[] {
 const rootPackagePath = join(ROOT, "package.json");
 const rootPackage = readPackageJson(rootPackagePath);
 const expectedVersion = rootPackage.elizaSdk?.version;
+const productVersion = rootPackage.version;
 const channel = rootPackage.elizaSdk?.channel;
 if (!expectedVersion || channel !== "beta") {
   throw new Error(
     "package.json must declare elizaSdk.channel=beta and an exact elizaSdk.version.",
   );
 }
-if (rootPackage.version !== expectedVersion) {
+if (!productVersion) {
   throw new Error(
-    `package.json version=${rootPackage.version ?? "unknown"}; expected ${expectedVersion} from elizaSdk.version.`,
+    "package.json must declare a Doolittle product version independently of elizaSdk.version.",
   );
 }
 
@@ -93,7 +94,7 @@ for (const path of packagePaths) {
   const compatibility = compatibilityByPath.get(relativePath);
   const workspaceVersionMismatch = findDoolittleWorkspaceVersionMismatch(
     manifest,
-    expectedVersion,
+    productVersion,
   );
   if (workspaceVersionMismatch) {
     mismatches.push(

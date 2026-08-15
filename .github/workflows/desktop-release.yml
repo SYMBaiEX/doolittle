@@ -1,0 +1,127 @@
+name: desktop-release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Require the tagged commit to be on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: Set up Nub and Node
+        uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
+        with:
+          nub-version: 0.7.4
+          node-version-file: .node-version
+
+      - name: Block releases with high-severity production advisories
+        run: nub audit --production --audit-level high
+
+  macos:
+    needs: preflight
+    uses: ./.github/workflows/desktop-macos.yml
+    secrets: inherit
+
+  windows:
+    needs: preflight
+    uses: ./.github/workflows/desktop-windows.yml
+    secrets: inherit
+
+  linux:
+    needs: preflight
+    uses: ./.github/workflows/desktop-linux.yml
+    secrets: inherit
+
+  assemble:
+    needs: [macos, windows, linux]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Nub and Node
+        uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
+        with:
+          nub-version: 0.7.4
+          node-version-file: .node-version
+
+      - name: Download all native release artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Validate and inventory release
+        id: release
+        run: |
+          version="$(node --input-type=module --eval 'import manifest from "./apps/desktop/package.json" with { type: "json" }; console.log(manifest.version)')"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -f "docs/releases/v${version}.md"
+          cp LICENSE release/LICENSE
+          nub scripts/create-desktop-release.ts \
+            --directory release \
+            --version "$version" \
+            --tag "$GITHUB_REF_NAME" \
+            --commit "$GITHUB_SHA"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Upload validated release bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Doolittle-release-${{ steps.release.outputs.version }}
+          path: release/*
+          if-no-files-found: error
+
+  publish:
+    needs: assemble
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out release notes
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Download validated release bundle
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: Doolittle-release-${{ needs.assemble.outputs.version }}
+          path: release
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Doolittle v${{ needs.assemble.outputs.version }}
+          body_path: docs/releases/v${{ needs.assemble.outputs.version }}.md
+          files: release/*
+          fail_on_unmatched_files: true
+          generate_release_notes: false

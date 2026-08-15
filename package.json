@@ -1,6 +1,6 @@
 {
   "name": "doolittle",
-  "version": "2.0.3-beta.7",
+  "version": "0.1.0",
   "private": true,
   "elizaSdk": {
     "channel": "beta",
@@ -60,6 +60,7 @@
     "lint:check": "nubx biome check .",
     "knip:deps": "nubx knip --config knip.json --dependencies --no-progress --no-config-hints --no-tag-hints --workspace packages/agent --workspace apps/desktop --workspace packages/plugins --workspace packages/plugins/plugin-sql --workspace packages/plugins/provider-transport --workspace packages/plugins/plugin-claude-code --workspace packages/plugins/plugin-devin",
     "audit:production:critical": "nub audit --production --audit-level critical",
+    "audit:production:high": "nub audit --production --audit-level high",
     "typecheck": "nubx tsc --noEmit",
     "test": "nubx vitest run",
     "test:coding-harness": "nubx vitest run scripts/acceptance/coding-loop-harness.test.ts",
@@ -75,6 +76,7 @@
     "check:local-links": "nub scripts/check-local-links.ts",
     "check:acceptance": "nub run check:repo-hygiene && nub run check:workflow-security && nub run check:plugin-boundaries && nub run check:eliza-sdk && nub run check:docs-truth && nub run check:local-links && nub run knip:deps && nub run audit:production:critical",
     "check": "nub run lint:check && nub run typecheck && nub run desktop:typecheck && nub run test && nub run build",
+    "check:release": "nub run check && nub run desktop:test && nub run check:acceptance && nub run audit:production:high",
     "publish:claude-code:dry-run": "nub run publish:providers -- --provider claude-code",
     "publish:devin:dry-run": "nub run publish:providers -- --provider devin",
     "publish:provider-transport:dry-run": "nub run publish:providers -- --provider provider-transport",

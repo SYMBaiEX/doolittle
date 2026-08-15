@@ -41,6 +41,14 @@ describe("resolveSubcommand", () => {
       command: "desktop",
       rest: ["--help"],
     });
+    expect(resolveSubcommand(["--version"])).toEqual({
+      command: "version",
+      rest: [],
+    });
+    expect(resolveSubcommand(["version"])).toEqual({
+      command: "version",
+      rest: [],
+    });
     expect(resolveSubcommand(["tools", "search", "browser"])).toEqual({
       command: "tools",
       rest: ["search", "browser"],

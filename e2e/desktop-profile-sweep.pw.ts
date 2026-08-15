@@ -1,4 +1,11 @@
-import { existsSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { _electron as electron, expect, test } from "@playwright/test";
 
@@ -15,6 +22,22 @@ function sanitizeClonedRuntimeProfile(root: string): void {
   for (const target of transientPaths) {
     if (existsSync(target)) rmSync(target, { force: true });
   }
+}
+
+function createScrubbedProfile(): { profileDir: string; workspaceDir: string } {
+  const profileDir = mkdtempSync(join(tmpdir(), "doolittle-packaged-profile-"));
+  const workspaceDir = realpathSync(
+    mkdtempSync(join(tmpdir(), "doolittle-packaged-workspace-")),
+  );
+  writeFileSync(
+    join(profileDir, "workspace-state.json"),
+    `${JSON.stringify({
+      currentPath: workspaceDir,
+      recentPaths: [workspaceDir],
+    })}\n`,
+    "utf8",
+  );
+  return { profileDir, workspaceDir };
 }
 
 const routes = [
@@ -75,21 +98,29 @@ const apiProbePaths: Partial<
   compatibility: ["/runtime/compatibility"],
 };
 
-test.describe("Doolittle cloned-profile control sweep", () => {
-  test.skip(
-    !executablePath || !profileDir,
-    "Packaged app and cloned profile required.",
-  );
+test.describe("Doolittle packaged-profile control sweep", () => {
+  test.skip(!executablePath, "Packaged app required.");
 
   test("opens safe controls across every route without renderer failures", async () => {
     test.setTimeout(180_000);
-    sanitizeClonedRuntimeProfile(profileDir as string);
-    const app = await electron.launch({
-      executablePath: resolve(executablePath as string),
-      args: [`--user-data-dir=${resolve(profileDir as string)}`],
-    });
+    const generatedProfile = profileDir ? null : createScrubbedProfile();
+    const activeProfileDir = generatedProfile
+      ? generatedProfile.profileDir
+      : resolve(profileDir ?? "");
+    if (!generatedProfile) sanitizeClonedRuntimeProfile(activeProfileDir);
+    let app: Awaited<ReturnType<typeof electron.launch>> | undefined;
 
     try {
+      app = await electron.launch({
+        executablePath: resolve(executablePath as string),
+        args: [`--user-data-dir=${activeProfileDir}`],
+        env: {
+          ...process.env,
+          DOOLITTLE_DESKTOP_CWD:
+            generatedProfile?.workspaceDir ?? process.env.DOOLITTLE_DESKTOP_CWD,
+          DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
+        },
+      });
       const page = await app.firstWindow();
       const pageErrors: string[] = [];
       const consoleErrors: string[] = [];
@@ -239,7 +270,11 @@ test.describe("Doolittle cloned-profile control sweep", () => {
       expect(pageErrors, pageErrors.join("\n\n")).toEqual([]);
       expect(consoleErrors, consoleErrors.join("\n\n")).toEqual([]);
     } finally {
-      await app.close();
+      await app?.close();
+      if (generatedProfile) {
+        rmSync(generatedProfile.profileDir, { force: true, recursive: true });
+        rmSync(generatedProfile.workspaceDir, { force: true, recursive: true });
+      }
     }
   });
 });

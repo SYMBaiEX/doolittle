@@ -39,6 +39,7 @@ export function renderTopLevelHelp(): string {
     "  doolittle jobs list                   Inspect background jobs",
     "",
     "Setup and recovery:",
+    "  doolittle --version       Print the Doolittle product version",
     "  doolittle desktop         Build and open the native desktop app",
     "  doolittle acp             Run the ACP stdio server for editors",
     "  doolittle setup           Run onboarding",

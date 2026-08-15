@@ -18,31 +18,34 @@ const desktopManifest = JSON.parse(
   author?: { email?: string };
   desktopName?: string;
   homepage?: string;
-  build?: { linux?: { maintainer?: string; syncDesktopName?: boolean } };
+  build?: {
+    extraResources?: Array<{ from?: string; to?: string }>;
+    linux?: { maintainer?: string; syncDesktopName?: boolean };
+  };
 };
 
 describe("all-platform desktop release plan", () => {
   it("builds the supported macOS, Windows, and Linux artifacts", () => {
-    expect(releaseTargets("2.0.3-beta.7", "arm64")).toEqual([
+    expect(releaseTargets("0.1.0", "arm64")).toEqual([
       expect.objectContaining({
         id: "mac",
         builderArgs: ["--mac", "dmg", "zip", "--arm64"],
         artifacts: [
-          "Doolittle-2.0.3-beta.7-mac-arm64.dmg",
-          "Doolittle-2.0.3-beta.7-mac-arm64.zip",
+          "Doolittle-0.1.0-mac-arm64.dmg",
+          "Doolittle-0.1.0-mac-arm64.zip",
         ],
       }),
       expect.objectContaining({
         id: "win",
         builderArgs: ["--win", "nsis", "--x64"],
-        artifacts: ["Doolittle-2.0.3-beta.7-win-x64.exe"],
+        artifacts: ["Doolittle-0.1.0-win-x64.exe"],
       }),
       expect.objectContaining({
         id: "linux",
-        builderArgs: ["--linux", "AppImage", "deb", "--arm64"],
+        builderArgs: ["--linux", "AppImage", "deb", "--x64"],
         artifacts: [
-          "Doolittle-2.0.3-beta.7-linux-arm64.AppImage",
-          "Doolittle-2.0.3-beta.7-linux-arm64.deb",
+          "Doolittle-0.1.0-linux-x64.AppImage",
+          "Doolittle-0.1.0-linux-x64.deb",
         ],
       }),
     ]);
@@ -69,10 +72,10 @@ describe("all-platform desktop release plan", () => {
     const required = requiredNativeTargetPackages("arm64");
     expect(required).toEqual([
       "@lydell/node-pty-darwin-arm64",
-      "@lydell/node-pty-linux-arm64",
+      "@lydell/node-pty-linux-x64",
       "@lydell/node-pty-win32-x64",
       "@snazzah/davey-darwin-arm64",
-      "@snazzah/davey-linux-arm64-gnu",
+      "@snazzah/davey-linux-x64-gnu",
       "@snazzah/davey-win32-x64-msvc",
     ]);
     expect(missingNativeTargetPackages(required, required)).toEqual([]);
@@ -92,6 +95,13 @@ describe("all-platform desktop release plan", () => {
           syncDesktopName: true,
         },
       },
+    });
+  });
+
+  it("includes Doolittle's license in every desktop distribution", () => {
+    expect(desktopManifest.build?.extraResources).toContainEqual({
+      from: "../../LICENSE",
+      to: "LICENSE",
     });
   });
 });

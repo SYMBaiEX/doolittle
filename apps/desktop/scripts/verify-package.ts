@@ -139,6 +139,17 @@ function verifyPackagedNativeRuntime(appAsarPath: string): string[] {
   return nativePackages;
 }
 
+function verifyPackagedLicense(appAsarPath: string): void {
+  const licensePath = resolve(dirname(appAsarPath), "LICENSE");
+  if (!existsSync(licensePath) || !statSync(licensePath).isFile()) {
+    throw new Error(`Packaged Doolittle license is missing: ${licensePath}`);
+  }
+  const license = readFileSync(licensePath, "utf8");
+  if (!license.includes("MIT License") || !license.includes("SYMBaiEX")) {
+    throw new Error(`Packaged Doolittle license is invalid: ${licensePath}`);
+  }
+}
+
 function main(): void {
   const appAsarPath =
     argumentValue("--app-asar") ??
@@ -153,6 +164,7 @@ function main(): void {
   const allowedModules = installedProductionClosure(rootManifest);
   const asarBytes = statSync(appAsarPath).size;
   assertPackageComposition({ asarBytes, packagedModules, allowedModules });
+  verifyPackagedLicense(appAsarPath);
   const nativePackages = verifyPackagedNativeRuntime(appAsarPath);
   console.log(
     `Desktop package verified: ${(asarBytes / 1024 / 1024).toFixed(1)} MiB app.asar, ${packagedModules.length} packaged modules, ${allowedModules.length} allowed production modules, ${nativePackages.length} native runtime packages (limit ${(MAX_APP_ASAR_BYTES / 1024 / 1024).toFixed(0)} MiB).`,

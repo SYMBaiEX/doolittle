@@ -432,7 +432,7 @@ importers:
   packages/plugins/plugin-claude-code:
     dependencies:
       '@doolittle/provider-transport':
-        specifier: 2.0.3-beta.7
+        specifier: 0.1.0
         version: link:../provider-transport
       '@elizaos/agent':
         specifier: 2.0.3-beta.7
@@ -444,7 +444,7 @@ importers:
   packages/plugins/plugin-devin:
     dependencies:
       '@doolittle/provider-transport':
-        specifier: 2.0.3-beta.7
+        specifier: 0.1.0
         version: link:../provider-transport
       '@elizaos/agent':
         specifier: 2.0.3-beta.7

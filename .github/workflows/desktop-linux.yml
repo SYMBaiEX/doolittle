@@ -1,13 +1,11 @@
 name: desktop-linux
 
 on:
+  workflow_call:
   workflow_dispatch:
-  push:
-    tags:
-      - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   installer:
@@ -49,7 +47,11 @@ jobs:
         run: nub run desktop:test
 
       - name: Build Linux packages
-        run: nub run --cwd apps/desktop package:linux
+        run: |
+          nub run desktop:build
+          nub run --cwd apps/desktop runtime:prepare
+          (cd apps/desktop && nubx electron-builder --linux AppImage deb --x64)
+          nub apps/desktop/scripts/verify-package.ts
 
       - name: Smoke-test bundled Linux runtime
         run: |
@@ -105,12 +107,29 @@ jobs:
           test -x "$executable"
           DOOLITTLE_DESKTOP_EXECUTABLE="$executable" xvfb-run -a nub run test:e2e:desktop-packaged
 
+      - name: Exercise the AppImage and installed DEB
+        run: |
+          appimage="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-linux-x64.AppImage' -print -quit)"
+          deb="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-linux-x64.deb' -print -quit)"
+          test -n "$appimage"
+          test -n "$deb"
+          chmod +x "$appimage"
+          APPIMAGE_EXTRACT_AND_RUN=1 DOOLITTLE_DESKTOP_EXECUTABLE="$PWD/$appimage" xvfb-run -a nub run test:e2e:desktop-packaged
+
+          sudo apt-get update
+          sudo apt-get install -y "$PWD/$deb"
+          installed="$(find /opt -maxdepth 4 -type f -name Doolittle -perm -111 -print -quit)"
+          test -n "$installed"
+          DOOLITTLE_DESKTOP_EXECUTABLE="$installed" xvfb-run -a nub run test:e2e:desktop-packaged
+          package_name="$(dpkg-deb -f "$deb" Package)"
+          sudo apt-get remove -y "$package_name"
+          test ! -e "$installed"
+
       - name: Verify release artifacts
         run: |
           test -n "$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-linux-*.AppImage' -print -quit)"
           test -n "$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-linux-*.deb' -print -quit)"
           test -f apps/desktop/release/latest-linux.yml
-          test -n "$(find apps/desktop/release -maxdepth 1 -name '*.blockmap' -print -quit)"
 
       - name: Upload Linux release bundle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -119,16 +138,5 @@ jobs:
           path: |
             apps/desktop/release/Doolittle-*-linux-*.AppImage
             apps/desktop/release/Doolittle-*-linux-*.deb
-            apps/desktop/release/*.blockmap
             apps/desktop/release/latest-linux.yml
           if-no-files-found: error
-
-      - name: Attach Linux packages and update metadata to tagged release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
-        with:
-          files: |
-            apps/desktop/release/Doolittle-*-linux-*.AppImage
-            apps/desktop/release/Doolittle-*-linux-*.deb
-            apps/desktop/release/*.blockmap
-            apps/desktop/release/latest-linux.yml

@@ -1,13 +1,11 @@
 name: desktop-macos
 
 on:
+  workflow_call:
   workflow_dispatch:
-  push:
-    tags:
-      - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   installer:
@@ -76,10 +74,10 @@ jobs:
           nub run desktop:build
           nub run --cwd apps/desktop runtime:prepare
           if [[ -n "$CSC_LINK" && -n "$CSC_KEY_PASSWORD" && -n "$APPLE_ID" && -n "$APPLE_APP_SPECIFIC_PASSWORD" && -n "$APPLE_TEAM_ID" ]]; then
-            (cd apps/desktop && nubx electron-builder --mac dmg zip --config.mac.notarize=true)
+            (cd apps/desktop && nubx electron-builder --mac dmg zip --arm64 --config.mac.notarize=true)
           else
             echo "Signing credentials are not configured; producing an unsigned development artifact."
-            (cd apps/desktop && CSC_IDENTITY_AUTO_DISCOVERY=false nubx electron-builder --mac dmg zip)
+            (cd apps/desktop && CSC_IDENTITY_AUTO_DISCOVERY=false nubx electron-builder --mac dmg zip --arm64)
           fi
           nub apps/desktop/scripts/verify-package.ts
 
@@ -145,6 +143,29 @@ jobs:
           app_path="$(find apps/desktop/release -path '*/Doolittle.app' -type d -print -quit)"
           codesign --verify --deep --strict --verbose=2 "$app_path"
           xcrun stapler validate "$app_path"
+          spctl --assess --type execute --verbose=2 "$app_path"
+
+          dmg_path="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-mac-arm64.dmg' -print -quit)"
+          zip_path="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-mac-arm64.zip' -print -quit)"
+          mount_path="$(mktemp -d)"
+          zip_path_root="$(mktemp -d)"
+          cleanup_release_mounts() {
+            hdiutil detach "$mount_path" -quiet 2>/dev/null || true
+            rm -rf "$mount_path" "$zip_path_root"
+          }
+          trap cleanup_release_mounts EXIT
+
+          hdiutil attach "$dmg_path" -nobrowse -readonly -mountpoint "$mount_path" -quiet
+          codesign --verify --deep --strict --verbose=2 "$mount_path/Doolittle.app"
+          xcrun stapler validate "$mount_path/Doolittle.app"
+          spctl --assess --type execute --verbose=2 "$mount_path/Doolittle.app"
+          DOOLITTLE_DESKTOP_EXECUTABLE="$mount_path/Doolittle.app/Contents/MacOS/Doolittle" nub run test:e2e:desktop-packaged
+
+          ditto -x -k "$zip_path" "$zip_path_root"
+          codesign --verify --deep --strict --verbose=2 "$zip_path_root/Doolittle.app"
+          xcrun stapler validate "$zip_path_root/Doolittle.app"
+          spctl --assess --type execute --verbose=2 "$zip_path_root/Doolittle.app"
+          DOOLITTLE_DESKTOP_EXECUTABLE="$zip_path_root/Doolittle.app/Contents/MacOS/Doolittle" nub run test:e2e:desktop-packaged
 
       - name: Verify release artifacts
         run: |
@@ -163,13 +184,3 @@ jobs:
             apps/desktop/release/*.blockmap
             apps/desktop/release/latest-mac.yml
           if-no-files-found: error
-
-      - name: Attach macOS release and update metadata to tagged release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
-        with:
-          files: |
-            apps/desktop/release/Doolittle-*-mac-*.dmg
-            apps/desktop/release/Doolittle-*-mac-*.zip
-            apps/desktop/release/*.blockmap
-            apps/desktop/release/latest-mac.yml

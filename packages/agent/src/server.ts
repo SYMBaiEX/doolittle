@@ -15,9 +15,16 @@ import { formatLoggerError } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
 import {
   applyDoolittleCors,
-  isSdkTerminalRequestAuthorized,
+  remoteTerminalMutationTokenError,
 } from "@/server/auth";
 import { dispatchRuntimePluginRoute } from "@/server/plugin-routes";
+import {
+  assertDeclaredRequestBodyLimit,
+  RequestBodyTimeoutError,
+  RequestBodyTooLargeError,
+  readBoundedRequestBody,
+  requestBodyFraming,
+} from "@/server/request-body";
 import { createRequestAbortController } from "@/server/request-lifecycle";
 import { json } from "@/server/responses";
 import { dispatchRouteHandlers } from "@/server/router";
@@ -32,8 +39,29 @@ export interface ApiServerAddress {
   url: string;
 }
 
+export interface ApiServerSecurityOptions {
+  headersTimeoutMs?: number;
+  maxRequestBodyBytes?: number;
+  requestTimeoutMs?: number;
+}
+
 export function internalServerErrorResponse(): Response {
   return json({ error: "Internal server error" }, 500);
+}
+
+async function writeEarlyResponse(
+  response: Response,
+  incoming: IncomingMessage,
+  outgoing: ServerResponse,
+  forceClose = false,
+): Promise<void> {
+  const shouldClose = forceClose || requestBodyFraming(incoming).hasBody;
+  if (shouldClose) {
+    outgoing.shouldKeepAlive = false;
+    outgoing.setHeader("connection", "close");
+  }
+  await writeWebResponse(response, outgoing);
+  if (shouldClose && !incoming.complete) incoming.destroy();
 }
 
 let activeApiServerInfo: ApiServerAddress | null = null;
@@ -42,6 +70,7 @@ function toWebRequest(
   incoming: IncomingMessage,
   fallbackHost: string,
   signal: AbortSignal,
+  body: Uint8Array | undefined,
 ): Request {
   const host = incoming.headers.host ?? fallbackHost;
   const url = new URL(incoming.url ?? "/", `http://${host}`);
@@ -50,11 +79,8 @@ function toWebRequest(
   return new Request(url, {
     method,
     headers: incoming.headers as HeadersInit,
-    body: hasBody
-      ? (Readable.toWeb(incoming) as ReadableStream<Uint8Array>)
-      : undefined,
+    body: hasBody ? body : undefined,
     signal,
-    ...(hasBody ? { duplex: "half" } : {}),
   } as RequestInit);
 }
 
@@ -109,7 +135,7 @@ export async function writeWebResponse(
   });
 }
 
-async function closeActiveServer(): Promise<void> {
+export async function stopApiServer(): Promise<void> {
   const server = activeApiServer;
   if (!server) return;
   activeApiServer = null;
@@ -121,6 +147,7 @@ async function closeActiveServer(): Promise<void> {
 
 export async function startApiServer(
   context: AppContext,
+  security: ApiServerSecurityOptions = {},
 ): Promise<ApiServerAddress> {
   const address = `${context.config.host}:${context.config.port}`;
   if (
@@ -131,7 +158,7 @@ export async function startApiServer(
     return activeApiServerInfo;
   }
 
-  await closeActiveServer();
+  await stopApiServer();
 
   // The actual listener configuration is authoritative for Eliza's native
   // host, auth, and CORS helpers even when a caller constructs AppContext
@@ -139,77 +166,142 @@ export async function startApiServer(
   process.env.ELIZA_API_BIND = context.config.host;
   ensureApiTokenForBindHost(context.config.host);
 
-  const server = createServer(async (incoming, outgoing) => {
-    const requestLifecycle = createRequestAbortController(incoming, outgoing);
-    try {
-      const requestPath = new URL(incoming.url ?? "/", "http://localhost")
-        .pathname;
-      if (!isAllowedHost(incoming)) {
-        await writeWebResponse(
-          json({ error: "Forbidden host" }, 403),
-          outgoing,
-        );
-        return;
-      }
-      if (!applyDoolittleCors(incoming, outgoing, requestPath)) {
-        await writeWebResponse(
-          json({ error: "Forbidden origin" }, 403),
-          outgoing,
-        );
-        return;
-      }
+  const server = createServer(
+    {
+      headersTimeout: security.headersTimeoutMs ?? 60_000,
+      requestTimeout: security.requestTimeoutMs ?? 120_000,
+    },
+    async (incoming, outgoing) => {
+      const requestLifecycle = createRequestAbortController(incoming, outgoing);
+      try {
+        const requestPath = new URL(incoming.url ?? "/", "http://localhost")
+          .pathname;
+        assertDeclaredRequestBodyLimit(incoming, security.maxRequestBodyBytes);
+        if (!isAllowedHost(incoming)) {
+          await writeEarlyResponse(
+            json({ error: "Forbidden host" }, 403),
+            incoming,
+            outgoing,
+          );
+          return;
+        }
+        if (!applyDoolittleCors(incoming, outgoing, requestPath)) {
+          await writeEarlyResponse(
+            json({ error: "Forbidden origin" }, 403),
+            incoming,
+            outgoing,
+          );
+          return;
+        }
 
-      const request = toWebRequest(
-        incoming,
-        address,
-        requestLifecycle.controller.signal,
-      );
-      const url = new URL(request.url);
-      if (url.pathname === "/chat" || url.pathname === "/v1/responses") {
-        incoming.setTimeout(0);
-        outgoing.setTimeout(0);
+        let response: Response;
+        const authorized = isAuthorized(incoming);
+        const method = incoming.method ?? "GET";
+        const bodyFraming = requestBodyFraming(incoming);
+        if (
+          bodyFraming.hasBody &&
+          (method === "GET" || method === "HEAD" || method === "OPTIONS")
+        ) {
+          await writeEarlyResponse(
+            json({ error: `${method} requests must not include a body.` }, 400),
+            incoming,
+            outgoing,
+            true,
+          );
+          return;
+        }
+        if (method === "OPTIONS") {
+          response = json({ ok: true });
+        } else if (!authorized) {
+          await writeEarlyResponse(
+            json({ error: "Unauthorized" }, 401),
+            incoming,
+            outgoing,
+          );
+          return;
+        } else {
+          const terminalTokenError = remoteTerminalMutationTokenError(
+            incoming,
+            requestPath,
+            method,
+          );
+          if (terminalTokenError) {
+            await writeEarlyResponse(
+              json(
+                { error: terminalTokenError.reason },
+                terminalTokenError.status,
+              ),
+              incoming,
+              outgoing,
+            );
+            return;
+          }
+          const body = await readBoundedRequestBody(
+            incoming,
+            security.maxRequestBodyBytes,
+            security.requestTimeoutMs,
+          );
+          if (requestPath === "/chat" || requestPath === "/v1/responses") {
+            incoming.setTimeout(0);
+            outgoing.setTimeout(0);
+          }
+          const request = toWebRequest(
+            incoming,
+            address,
+            requestLifecycle.controller.signal,
+            body,
+          );
+          const url = new URL(request.url);
+          response =
+            (await dispatchRuntimePluginRoute({
+              runtime: context.runtime,
+              request,
+              url,
+              isAuthorized: () => authorized,
+            })) ??
+            (await dispatchRouteHandlers(
+              context,
+              request,
+              url,
+              apiRouteHandlers,
+            )) ??
+            json({ error: "Not found" }, 404);
+        }
+        await writeWebResponse(response, outgoing);
+      } catch (error) {
+        if (error instanceof RequestBodyTooLargeError) {
+          await writeEarlyResponse(
+            json({ error: error.message }, 413),
+            incoming,
+            outgoing,
+            true,
+          );
+          return;
+        }
+        if (error instanceof RequestBodyTimeoutError) {
+          await writeEarlyResponse(
+            json({ error: error.message }, 408),
+            incoming,
+            outgoing,
+            true,
+          );
+          return;
+        }
+        if (outgoing.headersSent) {
+          outgoing.destroy(error instanceof Error ? error : undefined);
+          return;
+        }
+        context.services.logger.error("api-request-failed", {
+          detail: formatLoggerError(error),
+          method: incoming.method ?? "GET",
+          path: new URL(incoming.url ?? "/", `http://${address}`).pathname,
+        });
+        await writeWebResponse(internalServerErrorResponse(), outgoing);
+      } finally {
+        requestLifecycle.dispose();
       }
-
-      let response: Response;
-      const authorized =
-        isAuthorized(incoming) ||
-        isSdkTerminalRequestAuthorized(incoming, url.pathname);
-      if (request.method === "OPTIONS") {
-        response = json({ ok: true });
-      } else if (!authorized) {
-        response = json({ error: "Unauthorized" }, 401);
-      } else {
-        response =
-          (await dispatchRuntimePluginRoute({
-            runtime: context.runtime,
-            request,
-            url,
-            isAuthorized: () => authorized,
-          })) ??
-          (await dispatchRouteHandlers(
-            context,
-            request,
-            url,
-            apiRouteHandlers,
-          )) ??
-          json({ error: "Not found" }, 404);
-      }
-      await writeWebResponse(response, outgoing);
-    } catch (error) {
-      if (outgoing.headersSent) {
-        outgoing.destroy(error instanceof Error ? error : undefined);
-        return;
-      }
-      context.services.logger.error("api-request-failed", {
-        detail: formatLoggerError(error),
-        method: incoming.method ?? "GET",
-        path: new URL(incoming.url ?? "/", address).pathname,
-      });
-      await writeWebResponse(internalServerErrorResponse(), outgoing);
-    } finally {
-      requestLifecycle.dispose();
-    }
-  });
+    },
+  );
 
   await new Promise<void>((resolve, reject) => {
     const onError = (error: Error) => reject(error);

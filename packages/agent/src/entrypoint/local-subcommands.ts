@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import type { AppLogger } from "@/logging/logger";
 import { renderCommandCatalog } from "@/runtime/command-catalog";
 import { runInheritedTextProcess } from "@/services/process-execution";
+import { DOOLITTLE_VERSION } from "@/version";
 import { runDesktopCommand } from "./desktop-command";
 import type { EntrypointSubcommand } from "./subcommand";
 
@@ -46,6 +47,11 @@ export async function handleLocalEntrypointSubcommand(
 
   if (input.command === "help") {
     printLine(input.renderTopLevelHelp());
+    return true;
+  }
+
+  if (input.command === "version") {
+    printLine(`Doolittle ${DOOLITTLE_VERSION}`);
     return true;
   }
 

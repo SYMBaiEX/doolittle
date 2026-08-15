@@ -1,11 +1,21 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   applyCors,
+  isTrustedLocalRequest,
   resolveTerminalRunRejection,
   type TerminalRunRejection,
 } from "@elizaos/agent/api/server-helpers-auth";
 
 const DOOLITTLE_CORS_METHODS = "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS";
+const TERMINAL_MUTATION_PATHS = new Set([
+  "/terminal/run",
+  "/terminal/run/stream",
+  "/terminal/session/start",
+  "/terminal/session/input",
+  "/terminal/session/resize",
+  "/terminal/session/interrupt",
+  "/terminal/session/close",
+]);
 
 /**
  * Apply Eliza's canonical origin policy and security headers.
@@ -27,16 +37,37 @@ export function applyDoolittleCors(
   return allowed;
 }
 
-/** Accept the dedicated SDK terminal credential only on its canonical route. */
-export function isSdkTerminalRequestAuthorized(
+/**
+ * Preserve the trusted loopback desktop while requiring remote Doolittle
+ * terminal mutations to cross Eliza's dedicated terminal-token boundary. The
+ * canonical `/api/terminal/run` route enforces the SDK's header-or-body token
+ * contract inside its bounded route handler.
+ */
+export function remoteTerminalMutationTokenError(
   request: IncomingMessage,
   pathname: string,
-): boolean {
-  return (
-    pathname === "/api/terminal/run" &&
-    Boolean(process.env.ELIZA_TERMINAL_RUN_TOKEN?.trim()) &&
-    resolveTerminalRunRejection(request, {}) === null
-  );
+  method = request.method ?? "GET",
+): TerminalRunRejection | null {
+  if (
+    method !== "POST" ||
+    !TERMINAL_MUTATION_PATHS.has(pathname) ||
+    isTrustedLocalRequest(request)
+  ) {
+    return null;
+  }
+
+  const rejection = resolveTerminalRunRejection(request, {});
+  if (
+    rejection?.status === 401 &&
+    rejection.reason.startsWith("Missing terminal token.")
+  ) {
+    return {
+      status: 401,
+      reason:
+        "Missing terminal token. Provide X-Eliza-Terminal-Token for remote terminal mutations.",
+    };
+  }
+  return rejection;
 }
 
 /** Adapt a Web Request route to Eliza's canonical Node terminal policy. */

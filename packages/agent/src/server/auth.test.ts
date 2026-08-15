@@ -1,13 +1,21 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { isAuthorized } from "@elizaos/agent/api/server-helpers-auth";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   applyDoolittleCors,
-  isSdkTerminalRequestAuthorized,
+  remoteTerminalMutationTokenError,
   sdkTerminalRunTokenError,
 } from "./auth";
 
-function nodeRequest(headers: Record<string, string> = {}): IncomingMessage {
-  return { headers } as IncomingMessage;
+function nodeRequest(
+  headers: Record<string, string> = {},
+  remoteAddress = "203.0.113.8",
+): IncomingMessage {
+  return {
+    headers,
+    method: "POST",
+    socket: { remoteAddress },
+  } as IncomingMessage;
 }
 
 function nodeResponse(): {
@@ -64,16 +72,22 @@ describe("Eliza-native API security adapters", () => {
     ).toBe(false);
   });
 
-  it("accepts the dedicated terminal token only on the official route", () => {
+  it("does not let the dedicated terminal token replace API authorization", () => {
+    vi.stubEnv("ELIZA_API_BIND", "0.0.0.0");
+    vi.stubEnv("ELIZA_API_TOKEN", "operator-secret");
     vi.stubEnv("ELIZA_TERMINAL_RUN_TOKEN", "terminal-secret");
-    const request = nodeRequest({
+    const terminalOnly = nodeRequest({
+      host: "api.example.test",
+      "x-eliza-terminal-token": "terminal-secret",
+    });
+    const bothCredentials = nodeRequest({
+      authorization: "Bearer operator-secret",
+      host: "api.example.test",
       "x-eliza-terminal-token": "terminal-secret",
     });
 
-    expect(isSdkTerminalRequestAuthorized(request, "/api/terminal/run")).toBe(
-      true,
-    );
-    expect(isSdkTerminalRequestAuthorized(request, "/secrets")).toBe(false);
+    expect(isAuthorized(terminalOnly)).toBe(false);
+    expect(isAuthorized(bothCredentials)).toBe(true);
   });
 
   it("adapts Web Request bodies to Eliza's terminal rejection contract", () => {
@@ -105,5 +119,61 @@ describe("Eliza-native API security adapters", () => {
       reason:
         "Terminal run is disabled for token-authenticated API sessions. Set ELIZA_TERMINAL_RUN_TOKEN to enable command execution.",
     });
+  });
+
+  it.each([
+    "/terminal/run",
+    "/terminal/run/stream",
+    "/terminal/session/start",
+    "/terminal/session/input",
+    "/terminal/session/resize",
+    "/terminal/session/interrupt",
+    "/terminal/session/close",
+  ])("blocks remote API sessions from %s without a terminal token", (path) => {
+    vi.stubEnv("ELIZA_API_TOKEN", "operator-secret");
+    vi.stubEnv("ELIZA_TERMINAL_RUN_TOKEN", "");
+
+    expect(remoteTerminalMutationTokenError(nodeRequest(), path)).toEqual({
+      status: 403,
+      reason:
+        "Terminal run is disabled for token-authenticated API sessions. Set ELIZA_TERMINAL_RUN_TOKEN to enable command execution.",
+    });
+  });
+
+  it("accepts a dedicated terminal header for remote API terminal mutations", () => {
+    vi.stubEnv("ELIZA_API_TOKEN", "operator-secret");
+    vi.stubEnv("ELIZA_TERMINAL_RUN_TOKEN", "terminal-secret");
+
+    expect(
+      remoteTerminalMutationTokenError(
+        nodeRequest({ "x-eliza-terminal-token": "terminal-secret" }),
+        "/terminal/run/stream",
+      ),
+    ).toBeNull();
+  });
+
+  it("preserves trusted loopback desktop terminal mutations", () => {
+    vi.stubEnv("ELIZA_API_TOKEN", "operator-secret");
+    vi.stubEnv("ELIZA_TERMINAL_RUN_TOKEN", "");
+
+    expect(
+      remoteTerminalMutationTokenError(
+        nodeRequest({ host: "127.0.0.1:3000" }, "127.0.0.1"),
+        "/terminal/session/input",
+      ),
+    ).toBeNull();
+  });
+
+  it("does not apply the terminal token to read-only terminal routes", () => {
+    vi.stubEnv("ELIZA_API_TOKEN", "operator-secret");
+    vi.stubEnv("ELIZA_TERMINAL_RUN_TOKEN", "");
+
+    expect(
+      remoteTerminalMutationTokenError(
+        nodeRequest(),
+        "/terminal/session/output",
+        "GET",
+      ),
+    ).toBeNull();
   });
 });

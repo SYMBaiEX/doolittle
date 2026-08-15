@@ -35,6 +35,33 @@ describe("handleLocalEntrypointSubcommand", () => {
     expect(printLine).toHaveBeenCalledWith("help text");
   });
 
+  it("prints the product version without booting the runtime", async () => {
+    const printLine = vi.fn(() => {});
+
+    const handled = await handleLocalEntrypointSubcommand(
+      {
+        command: "version",
+        rest: [],
+        repoRoot: "/repo",
+        renderTopLevelHelp: () => "help text",
+        entryLogger: createLogger() as never,
+        runOnboardingWizard: async () => {},
+        printLine,
+      },
+      {
+        existsSync: vi.fn(() => true) as never,
+        resolve: ((...parts: string[]) => parts.join("/")) as never,
+        runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
+        renderCommandCatalog: vi.fn(() => "catalog"),
+        runDesktopCommand: vi.fn(async () => ({ exitCode: 0 })),
+        runAcpServer: vi.fn(async () => {}),
+      },
+    );
+
+    expect(handled).toBe(true);
+    expect(printLine).toHaveBeenCalledWith("Doolittle 0.1.0");
+  });
+
   it("routes doctor through onboarding with the check flag", async () => {
     const runOnboardingWizard = vi.fn(async () => {});
 
