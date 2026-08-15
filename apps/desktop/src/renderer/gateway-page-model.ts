@@ -15,6 +15,8 @@ export interface GatewayTimelineItem {
   author: string;
   preview: string;
   attachmentCount: number;
+  retryable: boolean;
+  retryCompleted: boolean;
 }
 
 export interface GatewayPairingRequest {
@@ -32,7 +34,12 @@ export interface GatewayApprovedSender {
   approvedAt: string;
 }
 
-export type GatewayAction = "approve" | "deny" | "revoke" | "replay";
+export type GatewayAction =
+  | "approve"
+  | "deny"
+  | "revoke"
+  | "replay"
+  | "retry-delivery";
 
 export function gatewayResourcePolicy(
   active: boolean,
@@ -52,7 +59,7 @@ export function gatewayActionFeedback(
 ): ActionFeedback {
   if (error) {
     return {
-      message: `${action === "replay" ? "Replay" : "Pairing update"} could not be completed: ${error}`,
+      message: `${action === "replay" ? "Replay" : action === "retry-delivery" ? "Delivery retry" : "Pairing update"} could not be completed: ${error}`,
       tone: "bad",
     };
   }
@@ -80,6 +87,12 @@ export function gatewayActionFeedback(
           "Replay submitted. Doolittle is reprocessing the recorded inbound preview on its original thread route.",
         tone: "good",
       };
+    case "retry-delivery":
+      return {
+        message:
+          "Delivery retried from the stored outbound payload. The agent and its tools were not run again.",
+        tone: "good",
+      };
   }
 }
 
@@ -87,6 +100,16 @@ export function buildGatewayTimeline(
   inbox: unknown[],
   outbox: unknown[],
 ): GatewayTimelineItem[] {
+  const completedRetryIds = new Set(
+    outbox.flatMap((value) => {
+      const record = asRecord(value);
+      const status = asString(record.status).toLowerCase();
+      const retryOfRecordId = asString(record.retryOfRecordId);
+      return retryOfRecordId && ["sent", "fallback", "edited"].includes(status)
+        ? [retryOfRecordId]
+        : [];
+    }),
+  );
   const records = [
     ...inbox.map((value) => ({ direction: "inbox" as const, value })),
     ...outbox.map((value) => ({ direction: "outbox" as const, value })),
@@ -96,18 +119,26 @@ export function buildGatewayTimeline(
       const record = asRecord(value);
       const at = asString(record.at);
       const recordId = asString(record.recordId, `${direction}-${index}`);
+      const status = asString(record.status, "recorded");
+      const retryCompleted =
+        direction === "outbox" && completedRetryIds.has(recordId);
       return {
         id: recordId,
         direction,
         at,
         platform: asString(record.platform, "unknown"),
-        status: asString(record.status, "recorded"),
+        status,
         sessionId: asString(record.sessionId),
         roomId: asString(record.roomId),
         threadId: asString(record.threadId),
         author: asString(record.authorName),
         preview: asString(record.textPreview, "No message preview recorded."),
         attachmentCount: asNumber(record.attachmentCount),
+        retryable:
+          direction === "outbox" &&
+          status.toLowerCase() === "rejected" &&
+          !retryCompleted,
+        retryCompleted,
       };
     })
     .sort((left, right) => right.at.localeCompare(left.at));

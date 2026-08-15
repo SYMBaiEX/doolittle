@@ -458,7 +458,7 @@ describe("parseApiPath", () => {
     );
   });
 
-  it("allows only the read and replay gateway surface", () => {
+  it("allows only the read, replay, and delivery retry gateway surface", () => {
     expect(parseApiPath("/gateway/state", "GET")).toBe("/gateway/state");
     expect(
       parseApiPath(
@@ -471,6 +471,9 @@ describe("parseApiPath", () => {
     );
     expect(parseApiPath("/sessions/gateway", "GET")).toBe("/sessions/gateway");
     expect(parseApiPath("/gateway/replay", "POST")).toBe("/gateway/replay");
+    expect(parseApiPath("/gateway/delivery/retry", "POST")).toBe(
+      "/gateway/delivery/retry",
+    );
     expect(() => parseApiPath("/gateway/inbox?limit=101", "GET")).toThrow(
       /Unsupported query/,
     );

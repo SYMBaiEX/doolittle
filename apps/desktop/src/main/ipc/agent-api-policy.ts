@@ -522,6 +522,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     { exact: "/acp/probe" },
     { exact: "/mcp/probe" },
     { exact: "/gateway/replay" },
+    { exact: "/gateway/delivery/retry" },
     { exact: "/pairing/approve" },
     { exact: "/pairing/deny" },
     { exact: "/pairing/revoke" },

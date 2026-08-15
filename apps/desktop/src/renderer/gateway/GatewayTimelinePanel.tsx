@@ -16,10 +16,12 @@ export interface GatewayTimelinePanelProps {
   onPlatformChange: (platform: string) => void;
   onQueryChange: (query: string) => void;
   onReplay: (recordId: string) => void | Promise<void>;
+  onRetryDelivery: (recordId: string) => void | Promise<void>;
   platform: string;
   platforms: string[];
   query: string;
   replayingId: string;
+  retryingDeliveryId: string;
   visibleEntries: GatewayTimelineItem[];
 }
 
@@ -31,13 +33,16 @@ export function GatewayTimelinePanel({
   onPlatformChange,
   onQueryChange,
   onReplay,
+  onRetryDelivery,
   platform,
   platforms,
   query,
   replayingId,
+  retryingDeliveryId,
   visibleEntries,
 }: GatewayTimelinePanelProps) {
   const [confirmReplayId, setConfirmReplayId] = useState("");
+  const [confirmRetryId, setConfirmRetryId] = useState("");
 
   return (
     <section
@@ -163,6 +168,21 @@ export function GatewayTimelinePanel({
                   {replayingId === entry.id ? "Replaying…" : "Replay"}
                 </button>
               ) : null}
+              {entry.retryable ? (
+                <button
+                  aria-label={`Retry rejected ${titleCase(entry.platform)} delivery`}
+                  className="text-button gateway-entry-replay"
+                  disabled={Boolean(retryingDeliveryId)}
+                  onClick={() => setConfirmRetryId(entry.id)}
+                  type="button"
+                >
+                  {retryingDeliveryId === entry.id
+                    ? "Retrying…"
+                    : "Retry delivery"}
+                </button>
+              ) : entry.retryCompleted ? (
+                <span>Retry delivered</span>
+              ) : null}
             </div>
             <p>{entry.preview}</p>
             <details className="gateway-entry-details">
@@ -192,6 +212,21 @@ export function GatewayTimelinePanel({
                   void onReplay(entry.id);
                 }}
                 title="Replay this inbound message?"
+                tone="primary"
+              />
+            ) : null}
+            {confirmRetryId === entry.id ? (
+              <InlineActionConfirmation
+                busy={retryingDeliveryId === entry.id}
+                busyLabel="Retrying…"
+                confirmLabel="Confirm delivery retry"
+                detail="Resends the stored outbound payload on its original route without rerunning the agent or its tools."
+                onCancel={() => setConfirmRetryId("")}
+                onConfirm={() => {
+                  setConfirmRetryId("");
+                  void onRetryDelivery(entry.id);
+                }}
+                title="Retry this rejected delivery?"
                 tone="primary"
               />
             ) : null}

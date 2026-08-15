@@ -38,6 +38,43 @@ describe("gateway page timeline model", () => {
     expect(entries[1]).toMatchObject({ direction: "inbox", roomId: "support" });
   });
 
+  it("marks rejected outbound records retryable until a sent retry is recorded", () => {
+    const entries = buildGatewayTimeline(
+      [],
+      [
+        {
+          recordId: "outbox-rejected",
+          at: "2026-07-27T10:00:00.000Z",
+          platform: "discord",
+          status: "rejected",
+          textPreview: "Stored response",
+        },
+        {
+          recordId: "outbox-retry-sent",
+          at: "2026-07-27T10:01:00.000Z",
+          platform: "discord",
+          status: "sent",
+          retryOfRecordId: "outbox-rejected",
+          textPreview: "Stored response",
+        },
+        {
+          recordId: "outbox-still-rejected",
+          at: "2026-07-27T10:02:00.000Z",
+          platform: "slack",
+          status: "rejected",
+          textPreview: "Pending retry",
+        },
+      ],
+    );
+
+    expect(
+      entries.find((entry) => entry.id === "outbox-rejected"),
+    ).toMatchObject({ retryable: false, retryCompleted: true });
+    expect(
+      entries.find((entry) => entry.id === "outbox-still-rejected"),
+    ).toMatchObject({ retryable: true, retryCompleted: false });
+  });
+
   it("filters by direction, platform, and recorded thread metadata", () => {
     const entries = buildGatewayTimeline(
       [
@@ -112,6 +149,12 @@ describe("gateway page timeline model", () => {
     expect(gatewayActionFeedback("replay", "record expired")).toEqual({
       message: "Replay could not be completed: record expired",
       tone: "bad",
+    });
+    expect(gatewayActionFeedback("retry-delivery")).toMatchObject({
+      message: expect.stringContaining(
+        "agent and its tools were not run again",
+      ),
+      tone: "good",
     });
   });
 

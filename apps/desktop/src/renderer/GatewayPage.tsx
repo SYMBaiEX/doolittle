@@ -116,6 +116,7 @@ export function GatewayPage({ active }: { active: boolean }) {
   const [platform, setPlatform] = useState("all");
   const [query, setQuery] = useState("");
   const [replayingId, setReplayingId] = useState("");
+  const [retryingDeliveryId, setRetryingDeliveryId] = useState("");
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
   const [pairingAction, setPairingAction] = useState("");
   const [confirmPairingAction, setConfirmPairingAction] = useState("");
@@ -203,6 +204,21 @@ export function GatewayPage({ active }: { active: boolean }) {
       setFeedback(gatewayActionFeedback("replay", errorMessage(error)));
     } finally {
       setReplayingId("");
+    }
+  };
+
+  const retryDelivery = async (recordId: string) => {
+    if (!active) return;
+    setRetryingDeliveryId(recordId);
+    setFeedback(null);
+    try {
+      await desktopRequest("/gateway/delivery/retry", "POST", { recordId });
+      setFeedback(gatewayActionFeedback("retry-delivery"));
+      refresh();
+    } catch (error) {
+      setFeedback(gatewayActionFeedback("retry-delivery", errorMessage(error)));
+    } finally {
+      setRetryingDeliveryId("");
     }
   };
 
@@ -310,10 +326,12 @@ export function GatewayPage({ active }: { active: boolean }) {
           onPlatformChange={setPlatform}
           onQueryChange={setQuery}
           onReplay={replay}
+          onRetryDelivery={retryDelivery}
           platform={platform}
           platforms={platforms}
           query={query}
           replayingId={replayingId}
+          retryingDeliveryId={retryingDeliveryId}
           visibleEntries={visibleEntries}
         />
 

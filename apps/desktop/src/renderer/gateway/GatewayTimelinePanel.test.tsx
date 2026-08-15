@@ -15,6 +15,8 @@ const entries = [
     author: "Alex",
     preview: "Please investigate this.",
     attachmentCount: 0,
+    retryable: false,
+    retryCompleted: false,
   },
   {
     id: "outbox-1",
@@ -28,6 +30,8 @@ const entries = [
     author: "",
     preview: "I am on it.",
     attachmentCount: 0,
+    retryable: false,
+    retryCompleted: false,
   },
 ];
 
@@ -42,10 +46,12 @@ describe("GatewayTimelinePanel", () => {
         onPlatformChange={vi.fn()}
         onQueryChange={vi.fn()}
         onReplay={vi.fn()}
+        onRetryDelivery={vi.fn()}
         platform="all"
         platforms={["discord"]}
         query=""
         replayingId=""
+        retryingDeliveryId=""
         visibleEntries={entries}
       />,
     );
@@ -72,10 +78,12 @@ describe("GatewayTimelinePanel", () => {
         onPlatformChange={vi.fn()}
         onQueryChange={vi.fn()}
         onReplay={vi.fn()}
+        onRetryDelivery={vi.fn()}
         platform="all"
         platforms={[]}
         query=""
         replayingId=""
+        retryingDeliveryId=""
         visibleEntries={[]}
       />,
     );
@@ -99,10 +107,12 @@ describe("GatewayTimelinePanel", () => {
         onPlatformChange={vi.fn()}
         onQueryChange={vi.fn()}
         onReplay={vi.fn()}
+        onRetryDelivery={vi.fn()}
         platform="all"
         platforms={[]}
         query=""
         replayingId=""
+        retryingDeliveryId=""
         visibleEntries={[]}
       />,
     );
@@ -123,15 +133,48 @@ describe("GatewayTimelinePanel", () => {
         onPlatformChange={vi.fn()}
         onQueryChange={vi.fn()}
         onReplay={vi.fn()}
+        onRetryDelivery={vi.fn()}
         platform="discord"
         platforms={["discord"]}
         query="missing"
         replayingId=""
+        retryingDeliveryId=""
         visibleEntries={[]}
       />,
     );
 
     expect(markup).toContain("Gateway record filters");
     expect(markup).toContain("No records match these filters");
+  });
+
+  it("offers a guarded retry only for rejected outbound delivery", () => {
+    const rejected = {
+      ...entries[1],
+      id: "outbox-rejected",
+      status: "rejected",
+      retryable: true,
+    };
+    const markup = renderToStaticMarkup(
+      <GatewayTimelinePanel
+        direction="all"
+        entries={[rejected]}
+        loading={false}
+        onDirectionChange={vi.fn()}
+        onPlatformChange={vi.fn()}
+        onQueryChange={vi.fn()}
+        onReplay={vi.fn()}
+        onRetryDelivery={vi.fn()}
+        platform="all"
+        platforms={["discord"]}
+        query=""
+        replayingId=""
+        retryingDeliveryId=""
+        visibleEntries={[rejected]}
+      />,
+    );
+
+    expect(markup).toContain("Retry delivery");
+    expect(markup).toContain('aria-label="Retry rejected Discord delivery"');
+    expect(markup).not.toContain("Replay inbound");
   });
 });
