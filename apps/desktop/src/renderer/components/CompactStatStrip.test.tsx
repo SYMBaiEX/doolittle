@@ -28,4 +28,19 @@ describe("CompactStatStrip", () => {
     expect(html).toContain('title="Needs attention"');
     expect(html).not.toContain("metric-card");
   });
+
+  it("uses two columns through the 920px narrow viewport before collapsing at 540px", () => {
+    const html = renderToStaticMarkup(
+      <CompactStatStrip
+        label="Workspace summary"
+        stats={[{ label: "Workspace branch", value: "main" }]}
+      />,
+    );
+
+    expect(html).toContain("max-[960px]:grid-cols-2");
+    expect(html).toContain("max-[960px]:even:border-r-0");
+    expect(html).toContain("max-[960px]:[&amp;:nth-child(n+3)]:border-t");
+    expect(html).toContain("max-[540px]:grid-cols-1");
+    expect(html).not.toContain("max-[920px]:");
+  });
 });

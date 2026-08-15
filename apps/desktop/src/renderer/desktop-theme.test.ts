@@ -12,6 +12,52 @@ import {
   themeCssTokens,
 } from "./desktop-theme";
 
+function contrastRatio(foreground: string, background: string): number {
+  const luminance = (color: string) => {
+    const channels = [1, 3, 5].map(
+      (offset) => Number.parseInt(color.slice(offset, offset + 2), 16) / 255,
+    );
+    return channels
+      .map((channel) =>
+        channel <= 0.04045
+          ? channel / 12.92
+          : ((channel + 0.055) / 1.055) ** 2.4,
+      )
+      .reduce(
+        (total, channel, index) =>
+          total + channel * ([0.2126, 0.7152, 0.0722][index] ?? 0),
+        0,
+      );
+  };
+  const foregroundLuminance = luminance(foreground);
+  const backgroundLuminance = luminance(background);
+  return (
+    (Math.max(foregroundLuminance, backgroundLuminance) + 0.05) /
+    (Math.min(foregroundLuminance, backgroundLuminance) + 0.05)
+  );
+}
+
+function mixSrgb(
+  foreground: string,
+  background: string,
+  amount: number,
+): string {
+  const channels = [1, 3, 5].map((offset) =>
+    Math.round(
+      Number.parseInt(foreground.slice(offset, offset + 2), 16) * amount +
+        Number.parseInt(background.slice(offset, offset + 2), 16) *
+          (1 - amount),
+    ),
+  );
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function token(storage: ReadonlyMap<string, string>, name: string): string {
+  const value = storage.get(`style:${name}`);
+  if (!value) throw new Error(`Expected ${name} to be applied`);
+  return value;
+}
+
 describe("desktop theme", () => {
   let storage: Map<string, string>;
   let root: {
@@ -184,6 +230,58 @@ describe("desktop theme", () => {
     );
     expect(storage.get("style:--card-pad")).toBe("11px");
     expect(storage.get("style:--control-height")).toBe("28px");
+  });
+
+  it("keeps representative small semantic text above 4.5:1 on its surfaces", () => {
+    applyDesktopAppearance("dark");
+    const dark = {
+      faint: token(storage, "--faint"),
+      muted: token(storage, "--muted"),
+      accentText: token(storage, "--accent-text"),
+      surfaceSoft: token(storage, "--surface-soft"),
+      surfaceHover: token(storage, "--surface-hover"),
+      accent: token(storage, "--accent"),
+    };
+    const darkSurfaces = [
+      dark.surfaceSoft,
+      dark.surfaceHover,
+      mixSrgb(dark.accent, dark.surfaceHover, 0.07),
+      mixSrgb(dark.accent, dark.surfaceSoft, 0.08),
+    ];
+    for (const surface of darkSurfaces) {
+      expect(contrastRatio(dark.faint, surface)).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(dark.accentText, surface)).toBeGreaterThanOrEqual(
+        4.5,
+      );
+    }
+    expect(contrastRatio(dark.muted, dark.surfaceHover)).toBeGreaterThan(
+      contrastRatio(dark.faint, dark.surfaceHover),
+    );
+
+    applyDesktopAppearance("light");
+    const light = {
+      faint: token(storage, "--faint"),
+      muted: token(storage, "--muted"),
+      accentText: token(storage, "--accent-text"),
+      surfaceSoft: token(storage, "--surface-soft"),
+      surfaceHover: token(storage, "--surface-hover"),
+      accent: token(storage, "--accent"),
+    };
+    const lightSurfaces = [
+      light.surfaceSoft,
+      light.surfaceHover,
+      mixSrgb(light.accent, light.surfaceHover, 0.07),
+      mixSrgb(light.accent, light.surfaceSoft, 0.08),
+    ];
+    for (const surface of lightSurfaces) {
+      expect(contrastRatio(light.faint, surface)).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(light.accentText, surface)).toBeGreaterThanOrEqual(
+        4.5,
+      );
+    }
+    expect(contrastRatio(light.muted, light.surfaceHover)).toBeGreaterThan(
+      contrastRatio(light.faint, light.surfaceHover),
+    );
   });
 
   it("forwards valid changes once and removes its window subscriptions", () => {

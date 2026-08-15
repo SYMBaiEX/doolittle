@@ -1,15 +1,76 @@
-import { createElement } from "react";
+// @vitest-environment jsdom
+
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   RuntimeModelProvider,
   RuntimeStatus,
 } from "../../shared/contracts";
+
+const { desktopRequestMock } = vi.hoisted(() => ({
+  desktopRequestMock: vi.fn(),
+}));
+
+vi.mock("../lib", async () => {
+  const actual = await vi.importActual<typeof import("../lib")>("../lib");
+  return {
+    ...actual,
+    desktopRequest: desktopRequestMock,
+    useApiResource: (path: string | null) => ({
+      data:
+        path === "/runtime/models?refresh=false"
+          ? {
+              activeModel: "gpt-5.6-terra",
+              activeProvider: "codex",
+              activeReasoningEffort: "xhigh",
+              capabilities: [],
+              providers: [
+                {
+                  detail: "Configured models",
+                  discovery: "configured",
+                  id: "codex",
+                  label: "Codex",
+                  mode: "cloud",
+                  models: [
+                    {
+                      id: "gpt-5.6-terra",
+                      label: "GPT-5.6 Terra",
+                      reasoning: {
+                        default: "medium",
+                        options: [
+                          { id: "medium", label: "Medium" },
+                          { id: "xhigh", label: "XHigh" },
+                        ],
+                      },
+                      source: "configured",
+                    },
+                  ],
+                  ready: true,
+                },
+              ],
+              refreshedAt: "2026-08-15T00:00:00.000Z",
+            }
+          : path === "/runtime/account-pool"
+            ? { providers: {} }
+            : null,
+      error: "",
+      loading: false,
+      reload: vi.fn(),
+    }),
+  };
+});
+
 import {
   ComposerModelSelector,
   ComposerProjectSelector,
   filteredProviders,
 } from "./ComposerSelectors";
+
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 const providers: RuntimeModelProvider[] = [
   {
@@ -136,5 +197,192 @@ describe("composer selectors", () => {
     ]);
     expect(filteredProviders(providers, "anthropic")).toEqual([providers[1]]);
     expect(filteredProviders(providers, "missing")).toEqual([]);
+  });
+});
+
+describe("ComposerModelSelector loaded catalog", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    desktopRequestMock.mockReset();
+    desktopRequestMock.mockResolvedValue({});
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: vi.fn(),
+    });
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    vi.unstubAllGlobals();
+    delete (HTMLElement.prototype as { scrollIntoView?: unknown })
+      .scrollIntoView;
+  });
+
+  it("shows the loaded current effort and marks the actionable model button current", () => {
+    act(() =>
+      root.render(
+        createElement(ComposerModelSelector, {
+          active: true,
+          onOpenModelsPage: vi.fn(),
+          onOpenProvidersPage: vi.fn(),
+          refreshRuntime: vi.fn(),
+          runtime: {
+            model: "gpt-5.6-terra",
+            plugins: {},
+            provider: "codex",
+            reasoningEffort: "xhigh",
+          },
+        }),
+      ),
+    );
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>(
+          '[aria-label^="Choose model. Current route"]',
+        )
+        ?.click(),
+    );
+
+    const model = container.querySelector<HTMLButtonElement>(
+      '[title="gpt-5.6-terra"]',
+    );
+    const effort = container.querySelector<HTMLButtonElement>(
+      '[aria-label="GPT-5.6 Terra reasoning effort"]',
+    );
+
+    expect(model?.getAttribute("aria-current")).toBe("true");
+    expect(model?.parentElement?.getAttribute("aria-current")).toBeNull();
+    expect(model?.className).toContain("aria-current:bg-");
+    expect(effort?.textContent).toContain("XHigh");
+    expect(effort?.tagName).toBe("BUTTON");
+  });
+
+  it("closes the nested effort list before the model dialog on Escape", async () => {
+    act(() =>
+      root.render(
+        createElement(ComposerModelSelector, {
+          active: true,
+          onOpenModelsPage: vi.fn(),
+          onOpenProvidersPage: vi.fn(),
+          refreshRuntime: vi.fn(),
+          runtime: {
+            model: "gpt-5.6-terra",
+            plugins: {},
+            provider: "codex",
+            reasoningEffort: "xhigh",
+          },
+        }),
+      ),
+    );
+    const trigger = container.querySelector<HTMLButtonElement>(
+      '[aria-label^="Choose model. Current route"]',
+    );
+    act(() => trigger?.click());
+    const effort = container.querySelector<HTMLButtonElement>(
+      '[aria-label="GPT-5.6 Terra reasoning effort"]',
+    );
+
+    await act(async () => {
+      effort?.focus();
+      effort?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }),
+      );
+      await Promise.resolve();
+    });
+    expect(document.querySelector('[role="listbox"]')).not.toBeNull();
+
+    act(() =>
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "Escape",
+        }),
+      ),
+    );
+    expect(document.querySelector('[role="listbox"]')).toBeNull();
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+
+    act(() =>
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "Escape",
+        }),
+      ),
+    );
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("applies an effort option and returns focus to the model trigger", async () => {
+    const refreshRuntime = vi.fn().mockResolvedValue(undefined);
+    act(() =>
+      root.render(
+        createElement(ComposerModelSelector, {
+          active: true,
+          onOpenModelsPage: vi.fn(),
+          onOpenProvidersPage: vi.fn(),
+          refreshRuntime,
+          runtime: {
+            model: "gpt-5.6-terra",
+            plugins: {},
+            provider: "codex",
+            reasoningEffort: "xhigh",
+          },
+        }),
+      ),
+    );
+    const trigger = container.querySelector<HTMLButtonElement>(
+      '[aria-label^="Choose model. Current route"]',
+    );
+    act(() => trigger?.click());
+    const effort = container.querySelector<HTMLButtonElement>(
+      '[aria-label="GPT-5.6 Terra reasoning effort"]',
+    );
+
+    await act(async () => {
+      effort?.focus();
+      effort?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }),
+      );
+      await Promise.resolve();
+    });
+    const effortOption = document.querySelector<HTMLElement>(
+      '[role="option"][data-state="unchecked"]',
+    );
+    expect(effortOption).not.toBeNull();
+
+    await act(async () => {
+      effortOption?.click();
+      await Promise.resolve();
+    });
+
+    expect(desktopRequestMock).toHaveBeenCalledWith(
+      "/settings",
+      "POST",
+      expect.objectContaining({
+        changes: expect.arrayContaining([
+          expect.objectContaining({
+            path: "model.reasoningEffort",
+            value: "medium",
+          }),
+        ]),
+      }),
+    );
+    expect(refreshRuntime).toHaveBeenCalledOnce();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 });

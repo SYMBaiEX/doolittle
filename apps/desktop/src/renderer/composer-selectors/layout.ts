@@ -16,7 +16,7 @@ export const COMPOSER_SEARCH_CLASS =
   "grid grid-cols-[20px_minmax(0,1fr)] items-center rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-2 text-[var(--faint)] [&_input]:h-8.5 [&_input]:border-0 [&_input]:bg-transparent [&_input]:p-0 [&_input]:text-[11px] [&_input]:text-[var(--text)] [&_input]:outline-0";
 
 export const COMPOSER_PROJECT_LIST_CLASS =
-  "composer-project-list grid max-h-[min(330px,46vh)] gap-0.5 overflow-y-auto px-1.75 pb-1.75 [&>button]:grid [&>button]:min-h-10.75 [&>button]:grid-cols-[22px_minmax(0,1fr)_18px] [&>button]:items-center [&>button]:gap-2.25 [&>button]:rounded-lg [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-1.75 [&>button]:py-1.25 [&>button]:text-left [&>button]:text-[var(--text-soft)] hover:[&>button]:bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-hover))] aria-current:[&>button]:bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-hover))] [&>button>i]:text-right [&>button>i]:text-[10px] [&>button>i]:not-italic [&>button>i]:text-[var(--accent)] [&>button>span:nth-child(2)]:grid [&>button>span:nth-child(2)]:min-w-0 [&>button>span:nth-child(2)]:gap-0.5 [&_small]:truncate [&_small]:text-[9px] [&_small]:text-[var(--faint)] [&_strong]:truncate [&_strong]:text-[11px] [&_strong]:font-semibold";
+  "composer-project-list grid max-h-[min(330px,46vh)] gap-0.5 overflow-y-auto px-1.75 pb-1.75 [&>button]:grid [&>button]:min-h-10.75 [&>button]:grid-cols-[22px_minmax(0,1fr)_18px] [&>button]:items-center [&>button]:gap-2.25 [&>button]:rounded-lg [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-1.75 [&>button]:py-1.25 [&>button]:text-left [&>button]:text-[var(--text-soft)] hover:[&>button]:bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-hover))] aria-current:[&>button]:bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-hover))] [&>button>i]:text-right [&>button>i]:text-[10px] [&>button>i]:not-italic [&>button>i]:text-[var(--accent-text)] [&>button>span:nth-child(2)]:grid [&>button>span:nth-child(2)]:min-w-0 [&>button>span:nth-child(2)]:gap-0.5 [&_small]:truncate [&_small]:text-[9px] [&_small]:text-[var(--faint)] [&_strong]:truncate [&_strong]:text-[11px] [&_strong]:font-semibold";
 
 export const COMPOSER_ACTIONS_CLASS =
   "flex items-center justify-between gap-2 border-[var(--border)] border-t bg-[color-mix(in_srgb,var(--surface-soft)_72%,transparent)] p-2 [&_button]:inline-flex [&_button]:min-h-7.5 [&_button]:items-center [&_button]:gap-1.5 [&_button]:rounded-[7px] [&_button]:border [&_button]:border-transparent [&_button]:bg-transparent [&_button]:px-2 [&_button]:py-1.25 [&_button]:text-[9px] [&_button]:text-[var(--muted)] hover:[&_button]:border-[var(--border)] hover:[&_button]:bg-[var(--surface-hover)] hover:[&_button]:text-[var(--text)]";
@@ -28,7 +28,7 @@ export const COMPOSER_MODEL_NAME_CLASS =
   "min-w-0 truncate text-[10px] font-semibold";
 
 export const COMPOSER_MODEL_EFFORT_BADGE_CLASS =
-  "shrink-0 rounded-[4px] border border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] px-1.25 py-0.5 font-mono text-[8px] leading-none font-bold text-[var(--accent)] uppercase";
+  "shrink-0 rounded-[4px] border border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] px-1.25 py-0.5 font-mono text-[8px] leading-none font-bold text-[var(--accent-text)] uppercase";
 
 export const COMPOSER_MODEL_GROUPS_CLASS =
   "grid max-h-[min(470px,56vh)] gap-0.5 overflow-y-auto px-1.75 pb-1.75 [&>section]:grid";
@@ -40,10 +40,10 @@ export const COMPOSER_MODEL_LIST_CLASS =
   "grid gap-px pl-4 [&>p]:p-3 [&>p]:text-[10px] [&>p]:text-[var(--faint)]";
 
 export const COMPOSER_MODEL_OPTION_CLASS =
-  "grid min-h-9 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[7px] px-1 py-0.75 hover:bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-hover))] aria-current:bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-hover))]";
+  "grid min-h-9 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[7px] px-1 py-0.75 hover:bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-hover))]";
 
 export const COMPOSER_MODEL_BUTTON_CLASS =
-  "grid min-h-7.5 grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 rounded-[7px] border-0 bg-transparent px-2 py-1.25 text-left text-[var(--text-soft)] [&>i]:min-w-6 [&>i]:text-right [&>i]:text-[8px] [&>i]:not-italic [&>i]:text-[var(--accent)] [&>i]:uppercase [&>span]:grid [&>span]:min-w-0 [&>span]:gap-px [&_small]:truncate [&_small]:font-mono [&_small]:text-[8px] [&_small]:text-[var(--faint)] [&_strong]:truncate [&_strong]:text-[11px] [&_strong]:font-medium";
+  "grid min-h-7.5 grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 rounded-[7px] border-0 bg-transparent px-2 py-1.25 text-left text-[var(--text-soft)] aria-current:bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-hover))] [&>i]:min-w-6 [&>i]:text-right [&>i]:text-[8px] [&>i]:not-italic [&>i]:text-[var(--accent-text)] [&>i]:uppercase [&>span]:grid [&>span]:min-w-0 [&>span]:gap-px [&_small]:truncate [&_small]:font-mono [&_small]:text-[8px] [&_small]:text-[var(--faint)] [&_strong]:truncate [&_strong]:text-[11px] [&_strong]:font-medium";
 
 export const COMPOSER_EFFORT_CLASS =
   "flex items-center gap-1.25 font-mono text-[7px] tracking-[0.04em] text-[var(--faint)] uppercase [&_select]:h-6 [&_select]:min-w-17 [&_select]:rounded-[5px] [&_select]:border [&_select]:border-[var(--border)] [&_select]:bg-[var(--surface-soft)] [&_select]:pr-4.5 [&_select]:pl-1.5 [&_select]:font-mono [&_select]:text-[8px] [&_select]:text-[var(--muted)] [&_select]:lowercase hover:[&_select]:border-[var(--border-strong)] hover:[&_select]:text-[var(--text)]";

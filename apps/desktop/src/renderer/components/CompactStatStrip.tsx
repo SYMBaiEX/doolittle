@@ -24,11 +24,11 @@ export function CompactStatStrip({
   return (
     <section
       aria-label={label}
-      className="compact-stat-strip grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] overflow-hidden border-y border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_78%,transparent)] max-[920px]:grid-cols-2 max-[540px]:grid-cols-1"
+      className="compact-stat-strip grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] overflow-hidden border-y border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_78%,transparent)] max-[960px]:grid-cols-2 max-[540px]:grid-cols-1"
     >
       {stats.map((stat) => (
         <div
-          className="compact-stat-strip__item relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 border-r border-[var(--border)] px-[13px] py-2.5 last:border-r-0 max-[920px]:even:border-r-0 max-[920px]:[&:nth-child(n+3)]:border-t max-[540px]:border-r-0 max-[540px]:border-t max-[540px]:first:border-t-0"
+          className="compact-stat-strip__item relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 border-r border-[var(--border)] px-[13px] py-2.5 last:border-r-0 max-[960px]:even:border-r-0 max-[960px]:[&:nth-child(n+3)]:border-t max-[540px]:border-r-0 max-[540px]:border-t max-[540px]:first:border-t-0"
           key={stat.label}
         >
           <i

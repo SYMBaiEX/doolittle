@@ -28,6 +28,13 @@ import {
   defaultBaseUrlForProvider,
   routeProviderOption,
 } from "../model-routing";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ElizaControls";
 
 export { ComposerProjectSelector } from "../composer-selectors/ComposerProjectSelector";
 
@@ -100,6 +107,7 @@ export function ComposerModelSelector({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
+  const restoreTriggerFocusRef = useRef(false);
   const models = useApiResource<RuntimeModelsResponse>(
     active && open ? "/runtime/models?refresh=false" : null,
     [active, open],
@@ -114,6 +122,10 @@ export function ComposerModelSelector({
     if (!open) {
       setQuery("");
       setFeedback("");
+      if (restoreTriggerFocusRef.current) {
+        restoreTriggerFocusRef.current = false;
+        requestAnimationFrame(() => triggerRef.current?.focus());
+      }
       return;
     }
     requestAnimationFrame(() => searchRef.current?.focus());
@@ -158,6 +170,7 @@ export function ComposerModelSelector({
         ],
       });
       await Promise.resolve(refreshRuntime());
+      restoreTriggerFocusRef.current = true;
       setOpen(false);
     } catch (error) {
       setFeedback(errorMessage(error));
@@ -267,11 +280,11 @@ export function ComposerModelSelector({
                           );
                           return (
                             <div
-                              aria-current={selected ? "true" : undefined}
                               className={COMPOSER_MODEL_OPTION_CLASS}
                               key={model.id}
                             >
                               <button
+                                aria-current={selected ? "true" : undefined}
                                 className={COMPOSER_MODEL_BUTTON_CLASS}
                                 disabled={Boolean(saving) || !provider.ready}
                                 onClick={() => void applyModel(provider, model)}
@@ -295,30 +308,45 @@ export function ComposerModelSelector({
                                 </i>
                               </button>
                               {model.reasoning ? (
-                                <label className={COMPOSER_EFFORT_CLASS}>
+                                <div className={COMPOSER_EFFORT_CLASS}>
                                   <span>Effort</span>
-                                  <select
-                                    aria-label={`${model.label} reasoning effort`}
-                                    disabled={
-                                      Boolean(saving) || !provider.ready
-                                    }
-                                    onChange={(event) =>
+                                  <Select
+                                    onValueChange={(value) =>
                                       void applyModel(
                                         provider,
                                         model,
-                                        event.target
-                                          .value as RuntimeReasoningEffort,
+                                        value as RuntimeReasoningEffort,
                                       )
                                     }
-                                    value={effort ?? ""}
+                                    value={effort}
                                   >
-                                    {model.reasoning.options.map((option) => (
-                                      <option key={option.id} value={option.id}>
-                                        {formatReasoningEffort(option.label)}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
+                                    <SelectTrigger
+                                      aria-label={`${model.label} reasoning effort`}
+                                      className="!h-6 !min-h-6 min-w-20 border-[var(--border)] bg-[var(--surface)] px-1.5 py-0 font-mono text-[8px] text-[var(--text)] lowercase hover:border-[var(--border-strong)]"
+                                      disabled={
+                                        Boolean(saving) || !provider.ready
+                                      }
+                                    >
+                                      <SelectValue placeholder="Default" />
+                                    </SelectTrigger>
+                                    <SelectContent
+                                      className="border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text)]"
+                                      onPointerDown={(event) =>
+                                        event.stopPropagation()
+                                      }
+                                    >
+                                      {model.reasoning.options.map((option) => (
+                                        <SelectItem
+                                          className="font-mono text-[10px] text-[var(--text)] lowercase focus:bg-[var(--surface-hover)] focus:text-[var(--text)]"
+                                          key={option.id}
+                                          value={option.id}
+                                        >
+                                          {formatReasoningEffort(option.label)}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                               ) : null}
                             </div>
                           );

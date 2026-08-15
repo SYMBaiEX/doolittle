@@ -71,5 +71,7 @@ describe("desktop theme token contract", () => {
     expect(themeSource).toContain('"--canvas-text": "#f4f1eb"');
     expect(themeSource).toContain('"--canvas-text-soft": "#c9c3b9"');
     expect(themeSource).toContain('"--canvas-border": "#3a3630"');
+    expect(themeSource).toContain('"--accent-text": "#ff9b5c"');
+    expect(themeSource).toContain('"--accent-text": "#8a3500"');
   });
 });
