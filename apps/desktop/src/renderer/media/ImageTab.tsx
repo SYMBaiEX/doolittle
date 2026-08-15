@@ -74,7 +74,7 @@ export function ImageTab({ active }: { active: boolean }) {
       <form className={MEDIA_FORM_CLASS} onSubmit={runGenerate}>
         <div className={MEDIA_HEADING_CLASS}>
           <div>
-            <h2>Generate an image from text</h2>
+            <h2>Generate image</h2>
           </div>
         </div>
         <label className={MEDIA_FIELD_WIDE_CLASS} htmlFor="media-image-prompt">

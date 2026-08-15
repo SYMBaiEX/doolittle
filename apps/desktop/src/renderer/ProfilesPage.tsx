@@ -104,7 +104,7 @@ export function ProfilesPage({ active }: { active: boolean }) {
         <PageHeader
           eyebrow="Identity"
           title="Profiles"
-          description="Choose the local personality that shapes Doolittle’s voice, priorities, and working style."
+          description="Choose Doolittle’s voice and working style."
         />
         {error ? <Notice tone="bad">{error}</Notice> : null}
         {resource.loading ? (

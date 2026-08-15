@@ -3,6 +3,7 @@ export interface DesktopWindowContextProps {
   itemLabel: string;
   projectScopeLabel: string;
   onOpenProjectManager: () => void;
+  showRouteContext: boolean;
 }
 
 export function DesktopWindowContext({
@@ -10,11 +11,16 @@ export function DesktopWindowContext({
   itemLabel,
   projectScopeLabel,
   onOpenProjectManager,
+  showRouteContext,
 }: DesktopWindowContextProps) {
   return (
     <>
-      <span>{sectionLabel}</span>
-      <strong>{itemLabel}</strong>
+      {showRouteContext ? (
+        <>
+          <span>{sectionLabel}</span>
+          <strong>{itemLabel}</strong>
+        </>
+      ) : null}
       <button
         className={WINDOW_PROJECT_SCOPE_CLASS}
         onClick={onOpenProjectManager}

@@ -291,7 +291,7 @@ describe("chat presentation components", () => {
       <Welcome onSelect={() => undefined} projectName="Doolittle" />,
     );
     expect(html).toContain('class="chat-welcome"');
-    expect(html).toContain("Start a focused conversation for Doolittle.");
+    expect(html).toContain("A focused conversation for Doolittle.");
     expect(html.match(/class="starter-grid"/gu)).toHaveLength(1);
     expect(html.match(/type="button"/gu)).toHaveLength(3);
   });
@@ -394,7 +394,7 @@ describe("chat presentation components", () => {
       />,
     );
     expect(html).toContain('class="chat-messages"');
-    expect(html).toContain("Give Doolittle");
+    expect(html).toContain("What are you");
   });
 
   it("offers retry when conversation history is unavailable", () => {

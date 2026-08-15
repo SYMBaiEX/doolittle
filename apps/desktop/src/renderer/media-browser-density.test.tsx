@@ -10,7 +10,7 @@ describe("media and browser workspace density", () => {
 
     expect(html.match(/role="tabpanel"/g)).toHaveLength(4);
     expect(html.match(/hidden=""/g)).toHaveLength(3);
-    expect(html).toContain("Inspect or analyze a file");
+    expect(html).toContain("Inspect file");
     expect(html).toContain("Analysis settings");
     expect(html).toContain(
       'class="col-span-full mb-[11px] grid grid-cols-[minmax(0,1fr)_auto]',

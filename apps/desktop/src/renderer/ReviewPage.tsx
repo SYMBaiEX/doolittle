@@ -565,7 +565,7 @@ export function ReviewPage({
                 Refresh
               </button>
             }
-            description="Inspect completed work, changed files, verification, and decisions from the local runtime."
+            description="Inspect work, changes, verification, and decisions."
             eyebrow="Agent work"
             title="Review"
           />

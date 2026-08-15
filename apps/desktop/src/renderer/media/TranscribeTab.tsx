@@ -73,7 +73,7 @@ export function TranscribeTab({ active }: { active: boolean }) {
       <form className={MEDIA_FORM_CLASS} onSubmit={runTranscribe}>
         <div className={MEDIA_HEADING_CLASS}>
           <div>
-            <h2>Convert local media to text</h2>
+            <h2>Transcribe media</h2>
           </div>
         </div>
         <div className={MEDIA_FILE_FIELD_CLASS}>

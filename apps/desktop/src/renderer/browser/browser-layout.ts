@@ -36,7 +36,7 @@ export const BROWSER_PREVIEW_WIDTH_CLASS = {
 } as const;
 
 export const BROWSER_PLACEHOLDER_CLASS =
-  "grid max-w-[470px] place-items-center self-center justify-self-center gap-2.5 p-10 text-center [&>h2]:mt-1.25 [&>h2]:mb-0 [&>h2]:font-[var(--font-display)] [&>h2]:text-2xl [&>p]:mt-0 [&>p]:mb-1.75 [&>p]:text-xs [&>p]:leading-[1.55] [&>p]:text-[var(--muted)]";
+  "grid max-w-[470px] place-items-center self-center justify-self-center gap-2.5 p-10 text-center [&>h2]:mt-1.25 [&>h2]:mb-0 [&>h2]:font-[var(--font-display)] [&>h2]:text-xl [&>p]:mt-0 [&>p]:mb-1.75 [&>p]:text-xs [&>p]:leading-[1.55] [&>p]:text-[var(--muted)]";
 
 export const BROWSER_TOOLS_CLASS =
   "flex min-h-0 min-w-0 flex-col overflow-auto";

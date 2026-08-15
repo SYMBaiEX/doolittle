@@ -21,16 +21,16 @@ export function Welcome({
   ];
   return (
     <div className="chat-welcome">
-      <span className="eyebrow">{"ElizaOS // private local runtime"}</span>
+      <span className="eyebrow">{"PRIVATE LOCAL RUNTIME"}</span>
       <h1>
-        Give Doolittle
+        What are you
         <br />
-        <em>something difficult.</em>
+        <em>working through?</em>
       </h1>
       <p>
         {projectName
-          ? `Start a focused conversation for ${projectName}. Its project context stays attached as you work.`
-          : "Think through a decision, investigate a system, or turn an unfinished idea into working software."}
+          ? `A focused conversation for ${projectName}. Project context stays attached.`
+          : "Think clearly, investigate deeply, and turn ideas into working software."}
       </p>
       <div className="starter-grid">
         {prompts.map(({ prompt, detail }, index) => (

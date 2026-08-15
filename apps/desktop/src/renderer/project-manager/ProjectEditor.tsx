@@ -58,7 +58,7 @@ export function ProjectEditor({
               {project ? "Project settings" : "New project"}
             </span>
             <h3
-              className="mt-1 mb-0 font-[var(--font-display)] text-xl tracking-[-0.025em]"
+              className="mt-1 mb-0 font-[var(--font-display)] text-lg tracking-[-0.025em]"
               id={titleId}
             >
               {project ? `Edit ${project.name}` : "Create a project"}
@@ -66,7 +66,7 @@ export function ProjectEditor({
           </div>
           <Button
             type="button"
-            className="text-xl"
+            className="text-lg"
             size="icon-sm"
             variant="ghost"
             aria-label="Close project editor"

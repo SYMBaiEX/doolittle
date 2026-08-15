@@ -5,6 +5,16 @@ const read = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8");
 
 describe("runtime overview layout", () => {
+  it("uses the shared page spacing contract for the outer shell", () => {
+    const layout = read("./runtime/runtime-layout.ts");
+
+    expect(layout).toContain('RUNTIME_PAGE_CLASS = "page"');
+    expect(layout).not.toContain("clamp(24px,4vw,58px)");
+    expect(layout).not.toContain("pt-[34px]");
+    expect(layout).not.toContain("pb-[54px]");
+    expect(layout).not.toContain("min-h-[74px]");
+  });
+
   it("keeps one summary source and two action-oriented cards", () => {
     const overview = read("./runtime/RuntimeOverview.tsx");
 

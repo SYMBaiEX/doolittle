@@ -94,7 +94,7 @@ export function RuntimePage({
         <PageHeader
           eyebrow="Runtime"
           title="Runtime"
-          description="Inspect model binding, Eliza services, gateway health, and capability inventory."
+          description="Inspect the model, services, gateway, and capabilities."
           actions={
             <Button
               className="text-button"
@@ -120,7 +120,7 @@ export function RuntimePage({
       <PageHeader
         eyebrow="Runtime"
         title="Runtime"
-        description="Inspect model binding, Eliza services, gateway health, and capability inventory."
+        description="Inspect the model, services, gateway, and capabilities."
         actions={
           <Button
             className="text-button"

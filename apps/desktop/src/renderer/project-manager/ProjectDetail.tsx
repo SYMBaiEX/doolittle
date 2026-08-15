@@ -50,7 +50,7 @@ export function ProjectDetail({
         <ProjectAvatar project={project} />
         <div className="min-w-0">
           <div className="project-manager__title-line flex items-center gap-2.25">
-            <h3 className="m-0 font-[var(--font-display)] text-[22px] leading-[1.05] tracking-[-0.035em]">
+            <h3 className="m-0 font-[var(--font-display)] text-lg leading-[1.1] tracking-[-0.035em]">
               {project.name}
             </h3>
             {project.pinned ? (
@@ -289,10 +289,10 @@ export function ProjectDetail({
 export function EmptyDetail({ onCreate }: { onCreate?: () => void }) {
   return (
     <div className="project-manager__empty-detail mx-auto flex min-h-full max-w-90 flex-col items-center justify-center text-center text-[var(--text-soft)]">
-      <span className="text-[42px] text-[var(--accent)]" aria-hidden="true">
+      <span className="text-[32px] text-[var(--accent)]" aria-hidden="true">
         ◇
       </span>
-      <h3 className="mt-3.75 mb-1.5 font-[var(--font-display)] text-xl text-[var(--text)]">
+      <h3 className="mt-3.75 mb-1.5 font-[var(--font-display)] text-lg text-[var(--text)]">
         Make space for the work
       </h3>
       <p className="mt-0 mb-4.5 text-[13px] leading-[1.55]">

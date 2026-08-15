@@ -210,7 +210,7 @@ export function ConnectionsPage({
                 Refresh all
               </Button>
             }
-            description="Connect chat providers and route spawned agents across local account pools."
+            description="Use Codex or Claude subscriptions. Credentials stay outside the UI."
             eyebrow="Agent"
             title="Providers & accounts"
           />
@@ -275,7 +275,7 @@ export function ConnectionsPage({
         <PageHeader
           eyebrow="Agent"
           title="Providers & accounts"
-          description="Connect chat providers and route spawned agents across local account pools."
+          description="Use Codex or Claude subscriptions. Credentials stay outside the UI."
           actions={
             <Button
               className="secondary-button"

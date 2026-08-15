@@ -245,11 +245,8 @@ export function RouteControlDialog({
         <div className={ROUTE_DIALOG_HEADER_CLASS}>
           <div>
             <span className="eyebrow">Conversation route</span>
-            <h2 id="route-control-title">Switch the model path fast</h2>
-            <p>
-              This changes the desktop runtime route for new turns. It does not
-              rewrite existing messages.
-            </p>
+            <h2 id="route-control-title">Model route</h2>
+            <p>Applies to new turns; existing messages stay unchanged.</p>
           </div>
           <button
             aria-label="Close route controls"

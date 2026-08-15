@@ -36,7 +36,7 @@ import type { ChatMemoryMatchState } from "./models";
 import { attachmentSize, fileName, MAX_MESSAGE_ATTACHMENTS } from "./models";
 import { PromptLibrary } from "./PromptLibrary";
 
-export const CHAT_COMPOSER_MIN_HEIGHT = 54;
+export const CHAT_COMPOSER_MIN_HEIGHT = 46;
 export const CHAT_COMPOSER_MAX_HEIGHT = 180;
 
 /** Keep the composer readable while preventing a long draft from taking over the chat view. */
@@ -438,7 +438,7 @@ export function ChatComposer({
         />
       </div>
       <ElizaTextarea
-        className="chat-composer-input !max-h-[180px] !min-h-[54px] !w-full !resize-none !rounded-none !border-0 !bg-transparent px-1 pt-1.5 pb-[5px] text-sm leading-[1.55] [box-shadow:none]! focus-visible:!outline-none max-[720px]:!max-h-[150px]"
+        className="chat-composer-input !max-h-[180px] !min-h-[46px] !w-full !resize-none !rounded-none !border-0 !bg-transparent px-1 pt-1 pb-1 text-sm leading-[1.55] [box-shadow:none]! focus-visible:!outline-none max-[720px]:!max-h-[150px]"
         aria-activedescendant={activeCommandId}
         aria-autocomplete="list"
         aria-controls={commandMenuOpen ? "chat-command-completions" : undefined}

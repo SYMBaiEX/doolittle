@@ -1325,6 +1325,12 @@ export function App() {
                 onOpenProjectManager={openProjectManager}
                 projectScopeLabel={projectScopeLabel}
                 sectionLabel={activeSection?.label ?? "Doolittle"}
+                showRouteContext={
+                  view === "chat" ||
+                  view === "code" ||
+                  view === "review" ||
+                  view === "orchestration"
+                }
               />
             </div>
             <span aria-live="polite" className="sr-only">

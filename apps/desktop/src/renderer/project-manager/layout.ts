@@ -5,7 +5,7 @@ export const PROJECT_MANAGER_CLASS =
   "project-manager flex h-[min(780px,calc(100vh-56px))] w-[min(100%,1060px)] max-w-[1060px] flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface)] shadow-[0_28px_90px_color-mix(in_srgb,var(--shadow)_76%,transparent)] outline-none max-[740px]:h-[min(90vh,820px)] max-[740px]:w-full max-[740px]:rounded-b-none max-[740px]:rounded-t-[14px] max-[740px]:border-b-0";
 
 export const PROJECT_MANAGER_HEADER_CLASS =
-  "project-manager__header flex items-start justify-between border-[var(--border)] border-b px-6 pt-5.5 pb-4.25 max-[740px]:px-4.5 max-[740px]:pt-4.75 max-[740px]:pb-3.5 [&_h2]:mt-1.25 [&_h2]:mb-1.75 [&_h2]:font-[var(--font-display)] [&_h2]:text-[25px] [&_h2]:leading-none [&_h2]:tracking-[-0.035em] [&_p]:m-0 [&_p]:text-[13px] [&_p]:text-[var(--text-soft)] max-[420px]:[&_p]:hidden";
+  "project-manager__header flex items-start justify-between border-[var(--border)] border-b px-6 pt-5.5 pb-4.25 max-[740px]:px-4.5 max-[740px]:pt-4.75 max-[740px]:pb-3.5 [&_h2]:mt-1.25 [&_h2]:mb-1.75 [&_h2]:font-[var(--font-display)] [&_h2]:text-[22px] [&_h2]:leading-none [&_h2]:tracking-[-0.035em] [&_p]:m-0 [&_p]:text-[13px] [&_p]:text-[var(--text-soft)] max-[420px]:[&_p]:hidden";
 
 export const PROJECT_MANAGER_TOOLBAR_CLASS =
   "project-manager__toolbar flex items-center gap-2.5 border-[var(--border)] border-b px-3 py-2.5";

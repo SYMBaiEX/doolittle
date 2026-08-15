@@ -98,7 +98,7 @@ export function InspectAnalyzeTab({ active }: { active: boolean }) {
       <form className={MEDIA_FORM_CLASS} onSubmit={runInspect}>
         <div className={MEDIA_HEADING_CLASS}>
           <div>
-            <h2>Inspect or analyze a file</h2>
+            <h2>Inspect file</h2>
           </div>
         </div>
         <div className={MEDIA_FILE_FIELD_CLASS}>

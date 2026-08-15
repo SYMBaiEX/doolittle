@@ -75,7 +75,7 @@ export function SpeechTab({ active }: { active: boolean }) {
       <form className={MEDIA_FORM_CLASS} onSubmit={runSpeak}>
         <div className={MEDIA_HEADING_CLASS}>
           <div>
-            <h2>Generate text-to-speech output</h2>
+            <h2>Text to speech</h2>
           </div>
         </div>
         <label className={MEDIA_FIELD_WIDE_CLASS} htmlFor="media-speech-text">

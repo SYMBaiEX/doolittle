@@ -214,19 +214,19 @@ describe("desktop theme", () => {
 
   it("uses density tokens for route headers, titles, cards, and controls", () => {
     applyDesktopDensity("comfortable");
-    expect(storage.get("style:--page-pad-block")).toBe("26px 36px");
-    expect(storage.get("style:--page-header-min-height")).toBe("70px");
+    expect(storage.get("style:--page-pad-block")).toBe("22px 30px");
+    expect(storage.get("style:--page-header-min-height")).toBe("64px");
     expect(storage.get("style:--page-title-size")).toBe(
-      "clamp(24px, 2.2vw, 32px)",
+      "clamp(22px, 2vw, 29px)",
     );
     expect(storage.get("style:--card-pad")).toBe("15px");
     expect(storage.get("style:--control-height")).toBe("32px");
 
     applyDesktopDensity("compact");
-    expect(storage.get("style:--page-pad-block")).toBe("18px 26px");
-    expect(storage.get("style:--page-header-min-height")).toBe("58px");
+    expect(storage.get("style:--page-pad-block")).toBe("16px 22px");
+    expect(storage.get("style:--page-header-min-height")).toBe("54px");
     expect(storage.get("style:--page-title-size")).toBe(
-      "clamp(21px, 2vw, 27px)",
+      "clamp(20px, 1.8vw, 25px)",
     );
     expect(storage.get("style:--card-pad")).toBe("11px");
     expect(storage.get("style:--control-height")).toBe("28px");

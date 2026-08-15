@@ -5,7 +5,7 @@ export const AUTOMATION_BUILDER_CLASS =
   "automation-builder overflow-hidden rounded-[var(--radius-md)] border border-[var(--automation-line)] bg-[var(--surface)]";
 
 export const AUTOMATION_BUILDER_HEADER_CLASS =
-  "automation-builder__header grid grid-cols-[minmax(0,1fr)_minmax(220px,0.55fr)] items-end gap-5 border-[var(--automation-line)] border-b px-5 py-4 max-[720px]:grid-cols-1 [&_h2]:mt-1 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-xl [&_h2]:tracking-[-0.025em]";
+  "automation-builder__header grid grid-cols-[minmax(0,1fr)_minmax(220px,0.55fr)] items-end gap-5 border-[var(--automation-line)] border-b px-5 py-4 max-[720px]:grid-cols-1 [&_h2]:mt-1 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-lg [&_h2]:tracking-[-0.025em]";
 
 export const AUTOMATION_FIELD_LABEL_CLASS =
   "grid min-w-0 gap-1.5 text-[11px] font-semibold tracking-[0.06em] text-[var(--muted)] uppercase";

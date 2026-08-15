@@ -88,7 +88,7 @@ export function MemoryPage({ active }: { active: boolean }) {
               Refresh memory
             </Button>
           }
-          description="Inspect bounded memory targets and operator profile recall."
+          description="Inspect memory and profile recall."
           eyebrow="Operator Workspace"
           title="Memory"
         />
@@ -118,7 +118,7 @@ export function MemoryPage({ active }: { active: boolean }) {
             }
           </Button>
         }
-        description="Inspect shared knowledge, saved operator details, and bounded profile recall."
+        description="Inspect shared knowledge, saved details, and profile recall."
         eyebrow="Operator Workspace"
         title="Memory"
       />

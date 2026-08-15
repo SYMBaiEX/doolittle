@@ -137,7 +137,7 @@ export function ProjectManager(props: ProjectManagerProps) {
           <Button
             ref={closeButtonRef}
             type="button"
-            className="text-xl"
+            className="text-lg"
             size="icon-sm"
             variant="ghost"
             aria-label="Close projects"
