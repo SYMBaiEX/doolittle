@@ -4,7 +4,18 @@ import {
   resourceStatusLabel,
   summarizeResourceStatuses,
 } from "../resource-status";
-import "./resource-status.css";
+
+const STATUS_INDICATOR_CLASS_NAMES = {
+  disabled: "bg-[var(--faint)] shadow-none",
+  error:
+    "bg-[var(--bad)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--bad)_14%,transparent)]",
+  loading:
+    "bg-[var(--accent)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent)_14%,transparent)]",
+  ready:
+    "bg-[var(--good)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--good)_14%,transparent)]",
+  refreshing:
+    "bg-[var(--accent)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent)_14%,transparent)]",
+} as const;
 
 export function ResourceStatusBar({
   resources,
@@ -32,11 +43,11 @@ export function ResourceStatusBar({
       aria-atomic="true"
       aria-busy={pending || summary.isValidating}
       aria-live={requiredUnavailable ? "assertive" : "polite"}
-      className="resource-status-bar"
+      className="resource-status-bar flex min-h-8 flex-wrap items-center gap-[7px] rounded-[5px] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_68%,transparent)] px-[9px] py-1.5 text-[11px] leading-[1.3] text-[var(--text-soft)] max-[640px]:items-start"
       role={requiredUnavailable ? "alert" : "status"}
     >
       <span
-        className={`resource-status-bar__indicator resource-status-bar__indicator--${summary.status}`}
+        className={`resource-status-bar__indicator size-1.5 flex-none rounded-full ${STATUS_INDICATOR_CLASS_NAMES[summary.status]}`}
         aria-hidden="true"
       />
       <span>
@@ -44,18 +55,26 @@ export function ResourceStatusBar({
           ? "Partially available"
           : resourceStatusLabel(summary.status)}
       </span>
-      <span className="resource-status-bar__counts">
+      <span className="resource-status-bar__counts font-[var(--font-mono)] text-[10px] text-[var(--muted)] max-[640px]:basis-full max-[640px]:pl-[13px]">
         {summary.required.ready}/{summary.required.total} required
         {summary.optional.total
           ? ` · ${summary.optional.ready}/${summary.optional.total} optional`
           : ""}
       </span>
-      {failed && !hasCustomRetry ? (
-        <button className="text-button" onClick={retry} type="button">
-          Retry failed
-        </button>
+      {failed || children ? (
+        <div className="ml-auto flex flex-wrap items-center gap-1 max-[640px]:ml-0">
+          {failed && !hasCustomRetry ? (
+            <button
+              className="text-button min-h-6 px-[5px] py-0.5 text-[10px] text-[var(--accent-hover)]"
+              onClick={retry}
+              type="button"
+            >
+              Retry failed
+            </button>
+          ) : null}
+          {children}
+        </div>
       ) : null}
-      {children}
     </div>
   );
 }

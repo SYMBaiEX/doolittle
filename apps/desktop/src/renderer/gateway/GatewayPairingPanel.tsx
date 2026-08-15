@@ -1,3 +1,4 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import { InlineActionConfirmation } from "../components/InlineActionConfirmation";
 import type {
   GatewayApprovedSender,
@@ -12,6 +13,11 @@ import {
   Notice,
   titleCase,
 } from "../lib";
+import {
+  GATEWAY_DISCLOSURE_SUMMARY_CLASS,
+  GATEWAY_LIST_CLASS,
+  GATEWAY_META_CLASS,
+} from "./gateway-layout";
 
 type PairingMutation = (
   action: "approve" | "deny" | "revoke",
@@ -47,16 +53,22 @@ export function GatewayPairingPanel({
 }) {
   return (
     <details
-      className="panel pairing-panel"
       aria-labelledby="pairing-title"
+      className="pairing-panel group panel grid gap-2.5"
       onToggle={(event) => onOpenChange(event.currentTarget.open)}
     >
-      <summary>
-        <span>
-          <strong id="pairing-title">Sender approvals</strong>
-          <small>Messaging allowlist</small>
+      <summary
+        className={`${GATEWAY_DISCLOSURE_SUMMARY_CLASS} group-open:border-[var(--border)] group-open:border-b`}
+      >
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <strong className="text-base" id="pairing-title">
+            Sender approvals
+          </strong>
+          <small className={GATEWAY_META_CLASS}>Messaging allowlist</small>
         </span>
-        <span className="pairing-summary-counts">
+        <span
+          className={`${GATEWAY_META_CLASS} ml-auto uppercase after:absolute after:right-3 after:content-['+'] group-open:after:content-['−']`}
+        >
           {open && loading
             ? "Loading…"
             : open
@@ -69,8 +81,8 @@ export function GatewayPairingPanel({
       ) : open && error ? (
         <ErrorBlock error={error} retry={onRetry} />
       ) : open ? (
-        <div className="pairing-panel-body">
-          <p className="pairing-scope">
+        <div className="grid gap-2.25 px-3 pb-3">
+          <p className={`m-0 ${GATEWAY_META_CLASS}`}>
             Messaging allowlist only · no remote desktop access · expiry follows
             runtime policy
           </p>
@@ -80,12 +92,17 @@ export function GatewayPairingPanel({
               the API to inspect a narrower allowlist safely.
             </Notice>
           ) : null}
-          <div className="pairing-columns">
+          <div className="grid grid-cols-2 gap-3.5 max-[1060px]:grid-cols-1">
             <section aria-labelledby="pairing-pending-title">
-              <div className="pairing-section-heading">
+              <div className="flex items-start justify-between gap-3 border-[var(--border)] border-b pb-1.75">
                 <div>
                   <span className="eyebrow">Pending</span>
-                  <h3 id="pairing-pending-title">Awaiting approval</h3>
+                  <h3
+                    className="mt-0.75 mb-0 text-sm"
+                    id="pairing-pending-title"
+                  >
+                    Awaiting approval
+                  </h3>
                 </div>
                 <Badge tone={pending.length ? "warn" : "neutral"}>
                   {pending.length}
@@ -100,12 +117,15 @@ export function GatewayPairingPanel({
                   them.
                 </EmptyBlock>
               ) : (
-                <ul className="pairing-list">
+                <ul className={GATEWAY_LIST_CLASS}>
                   {pending.map((request) => {
                     const approveId = `approve:${request.platform}:${request.code}`;
                     const denyId = `deny:${request.platform}:${request.code}`;
                     return (
-                      <li key={request.id}>
+                      <li
+                        className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.25 gap-y-1.25 border-[var(--border)] border-b py-2.25 [&>span]:col-span-full [&>span]:font-mono [&>span]:text-[10px] [&>span]:text-[var(--muted)] [&>time]:col-span-full [&>time]:font-mono [&>time]:text-[10px] [&>time]:text-[var(--muted)]"
+                        key={request.id}
+                      >
                         <Badge tone="warn">{titleCase(request.platform)}</Badge>
                         <strong>{request.userId}</strong>
                         <span>Code: {request.code}</span>
@@ -134,23 +154,25 @@ export function GatewayPairingPanel({
                             title={`Deny ${request.userId}?`}
                           />
                         ) : (
-                          <div className="pairing-actions">
-                            <button
-                              className="secondary-button"
+                          <div className="col-span-full flex flex-wrap gap-1.75 pt-0.75">
+                            <Button
                               disabled={Boolean(actionId)}
                               onClick={() => onConfirmationChange(approveId)}
+                              size="sm"
                               type="button"
+                              variant="secondary"
                             >
                               Approve
-                            </button>
-                            <button
-                              className="secondary-button"
+                            </Button>
+                            <Button
                               disabled={Boolean(actionId)}
                               onClick={() => onConfirmationChange(denyId)}
+                              size="sm"
                               type="button"
+                              variant="secondary"
                             >
                               Deny
-                            </button>
+                            </Button>
                           </div>
                         )}
                       </li>
@@ -160,10 +182,15 @@ export function GatewayPairingPanel({
               )}
             </section>
             <section aria-labelledby="pairing-approved-title">
-              <div className="pairing-section-heading">
+              <div className="flex items-start justify-between gap-3 border-[var(--border)] border-b pb-1.75">
                 <div>
                   <span className="eyebrow">Approved</span>
-                  <h3 id="pairing-approved-title">Current allowlist</h3>
+                  <h3
+                    className="mt-0.75 mb-0 text-sm"
+                    id="pairing-approved-title"
+                  >
+                    Current allowlist
+                  </h3>
                 </div>
                 <Badge tone="good">{approved.length}</Badge>
               </div>
@@ -173,11 +200,14 @@ export function GatewayPairingPanel({
                   the service exposes them.
                 </EmptyBlock>
               ) : (
-                <ul className="pairing-list">
+                <ul className={GATEWAY_LIST_CLASS}>
                   {approved.map((sender) => {
                     const revokeId = `revoke:${sender.platform}:${sender.userId}`;
                     return (
-                      <li key={sender.id}>
+                      <li
+                        className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.25 gap-y-1.25 border-[var(--border)] border-b py-2.25 [&>time]:col-span-full [&>time]:font-mono [&>time]:text-[10px] [&>time]:text-[var(--muted)]"
+                        key={sender.id}
+                      >
                         <Badge tone="good">{titleCase(sender.platform)}</Badge>
                         <strong>{sender.userId}</strong>
                         <time dateTime={sender.approvedAt}>
@@ -194,15 +224,16 @@ export function GatewayPairingPanel({
                             title={`Revoke ${sender.userId}?`}
                           />
                         ) : (
-                          <div className="pairing-actions">
-                            <button
-                              className="secondary-button"
+                          <div className="col-span-full flex flex-wrap gap-1.75 pt-0.75">
+                            <Button
                               disabled={Boolean(actionId)}
                               onClick={() => onConfirmationChange(revokeId)}
+                              size="sm"
                               type="button"
+                              variant="secondary"
                             >
                               Revoke
-                            </button>
+                            </Button>
                           </div>
                         )}
                       </li>

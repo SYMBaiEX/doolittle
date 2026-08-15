@@ -25,6 +25,12 @@ import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
 import { ChatTranscript } from "./chat/ChatTranscript";
 import { isChatNearBottom, scheduleChatScroll } from "./chat/chat-scroll";
 import {
+  CHAT_WORKSPACE_CLASS,
+  MOBILE_CONVERSATIONS_BACKDROP_CLASS,
+  MOBILE_CONVERSATIONS_DIALOG_CLASS,
+  MOBILE_CONVERSATIONS_DISMISS_CLASS,
+} from "./chat/layout";
+import {
   type BranchMode,
   type DisplayMessage,
   isDesktopRunUpdate,
@@ -81,17 +87,17 @@ function MobileConversationsDialogFallback({
   onClose: () => void;
 }) {
   return (
-    <div className="chat-mobile-conversations-backdrop">
+    <div className={MOBILE_CONVERSATIONS_BACKDROP_CLASS}>
       <button
         aria-label="Close conversations"
-        className="chat-mobile-conversations-dismiss"
+        className={MOBILE_CONVERSATIONS_DISMISS_CLASS}
         onClick={onClose}
         type="button"
       />
       <div
         aria-label="Conversations"
         aria-modal="true"
-        className="chat-mobile-conversations-dialog"
+        className={MOBILE_CONVERSATIONS_DIALOG_CLASS}
         id="mobile-conversations"
         ref={dialogRef}
         role="dialog"
@@ -99,12 +105,12 @@ function MobileConversationsDialogFallback({
       >
         <div
           aria-live="polite"
-          className="chat-mobile-conversations-loading"
+          className="grid min-h-32 place-items-center gap-2 text-[var(--muted)]"
           role="status"
         >
           <button
             aria-label="Close conversations"
-            className="chat-mobile-conversations-close"
+            className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] px-2.5 py-1.5 text-[var(--text-soft)]"
             data-mobile-conversation
             onClick={onClose}
             type="button"
@@ -1037,7 +1043,7 @@ export function ChatPage({
 
   return (
     <div
-      className={`chat-workspace ${
+      className={`${CHAT_WORKSPACE_CLASS} ${
         inspectorVisible ? "inspector-open" : "inspector-closed"
       }`}
     >
@@ -1205,7 +1211,7 @@ export function ChatPage({
       {inspectorVisible ? (
         <div
           {...workbenchAccessibilityProps}
-          className="chat-workbench-pane"
+          className="chat-workbench-pane max-[720px]:fixed max-[720px]:inset-0 max-[720px]:z-120 max-[720px]:w-full"
           id="thread-workbench"
           ref={workbenchDialogRef}
         >
@@ -1213,7 +1219,7 @@ export function ChatPage({
             fallback={
               <div
                 aria-label="Loading thread workbench"
-                className="thread-workbench"
+                className="grid h-full min-h-0 w-[var(--thread-workbench-width,420px)] max-w-[48vw] place-items-center overflow-hidden border-[var(--border)] border-l bg-[var(--surface)] text-[var(--muted)] max-[720px]:w-full max-[720px]:max-w-none"
                 role="status"
               />
             }

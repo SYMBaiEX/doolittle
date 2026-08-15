@@ -13,8 +13,13 @@ import {
   PageHeader,
   useApiResource,
 } from "../lib";
+import {
+  OBSERVABILITY_CARD_CLASS,
+  OBSERVABILITY_CARD_HEADING_CLASS,
+  OBSERVABILITY_EYEBROW_CLASS,
+  OBSERVABILITY_PAGE_CLASS,
+} from "../observability-layout";
 import { compactSessionPreview } from "../session-preview";
-import "../observability.css";
 
 interface AnalyticsResponse {
   totals?: {
@@ -94,20 +99,20 @@ export function AnalyticsPage({
   );
 
   return (
-    <div className="page page-analytics">
+    <div className={OBSERVABILITY_PAGE_CLASS} data-analytics-page="true">
       <PageHeader
         eyebrow="Workspace"
         title="Analytics"
         description="Local session and context estimates. No remote telemetry."
         actions={
-          <button
-            className="secondary-button"
+          <Button
             disabled={!active}
             onClick={resource.reload}
             type="button"
+            variant="outline"
           >
             Refresh
-          </button>
+          </Button>
         }
       />
       {!active ? (
@@ -121,23 +126,31 @@ export function AnalyticsPage({
       ) : !hasActivity ? (
         <section
           aria-labelledby="analytics-empty-title"
-          className="content-card analytics-empty-landing"
+          className={`analytics-empty-landing ${OBSERVABILITY_CARD_CLASS} flex items-center justify-between gap-6 bg-[linear-gradient(105deg,color-mix(in_srgb,var(--accent)_6%,transparent),transparent_42%)] px-5 py-[18px] max-[700px]:flex-col max-[700px]:items-stretch max-[700px]:gap-3.5`}
+          data-analytics-empty="true"
         >
-          <div className="analytics-empty-landing__copy">
-            <span className="eyebrow">Private by design</span>
-            <h2 id="analytics-empty-title">No local activity yet</h2>
-            <p>
+          <div className="grid min-w-0 gap-[3px]">
+            <span className={OBSERVABILITY_EYEBROW_CLASS}>
+              Private by design
+            </span>
+            <h2
+              className="text-[17px] font-bold text-[var(--text-strong)]"
+              id="analytics-empty-title"
+            >
+              No local activity yet
+            </h2>
+            <p className="text-[var(--text-control)] text-[var(--text-muted)]">
               Start a conversation. Session counts and context estimates stay on
               this device.
             </p>
           </div>
-          <button
-            className="primary-button"
+          <Button
+            className="shrink-0 max-[700px]:w-fit"
             onClick={onNewConversation}
             type="button"
           >
             Start conversation
-          </button>
+          </Button>
         </section>
       ) : (
         <>
@@ -162,18 +175,23 @@ export function AnalyticsPage({
               },
             ]}
           />
-          <div className="analytics-grid">
-            <section className="content-card analytics-chart-card">
-              <div className="card-heading">
+          <div
+            className="analytics-grid grid grid-cols-[minmax(250px,0.62fr)_minmax(32rem,1.38fr)] items-start gap-[9px] max-[1120px]:grid-cols-1"
+            data-analytics-grid="true"
+          >
+            <section className={OBSERVABILITY_CARD_CLASS}>
+              <div className={OBSERVABILITY_CARD_HEADING_CLASS}>
                 <div>
-                  <span className="eyebrow">Recent activity</span>
+                  <span className={OBSERVABILITY_EYEBROW_CLASS}>
+                    Recent activity
+                  </span>
                   <h2>Messages by day</h2>
                 </div>
               </div>
               {activity.length ? (
                 <div
                   aria-label="Messages by day"
-                  className="bar-chart"
+                  className="flex min-h-[170px] items-end gap-2 px-2.5 pt-2 pb-2.5 max-[1120px]:min-h-[150px]"
                   role="img"
                 >
                   {activity.map((entry) => {
@@ -187,18 +205,23 @@ export function AnalyticsPage({
                     );
                     return (
                       <div
-                        className="bar-column"
+                        className="flex min-w-5 flex-1 flex-col items-center gap-[5px]"
                         key={`${label}:${JSON.stringify(entry)}`}
                       >
-                        <span className="bar-value">{messages}</span>
-                        <div className="bar-track">
+                        <span className="text-[var(--text-meta)] text-[var(--muted)]">
+                          {messages}
+                        </span>
+                        <div className="relative h-[108px] w-full max-w-8 overflow-hidden rounded-[var(--radius-xs)] bg-[var(--surface-soft)] max-[1120px]:h-[92px]">
                           <i
+                            className="absolute inset-x-0 bottom-0 rounded-t-[2px] bg-[var(--accent)]"
                             style={{
                               height: `${Math.max(4, (messages / maxMessages) * 100)}%`,
                             }}
                           />
                         </div>
-                        <small>{label.slice(5) || label}</small>
+                        <small className="text-[var(--text-meta)] text-[var(--muted)]">
+                          {label.slice(5) || label}
+                        </small>
                       </div>
                     );
                   })}
@@ -210,27 +233,41 @@ export function AnalyticsPage({
                 </EmptyBlock>
               )}
             </section>
-            <section className="content-card analytics-sessions-card">
-              <div className="card-heading">
+            <section className={OBSERVABILITY_CARD_CLASS}>
+              <div className={OBSERVABILITY_CARD_HEADING_CLASS}>
                 <div>
-                  <span className="eyebrow">Conversations</span>
+                  <span className={OBSERVABILITY_EYEBROW_CLASS}>
+                    Conversations
+                  </span>
                   <h2>Recent sessions</h2>
                 </div>
               </div>
-              <div className="table-wrap">
-                <table>
+              <div className="max-h-[236px] overflow-auto">
+                <table className="w-full border-collapse">
                   <thead>
                     <tr>
-                      <th>Session</th>
-                      <th>Messages</th>
-                      <th>Est. tokens</th>
-                      <th>Last activity</th>
+                      {[
+                        "Session",
+                        "Messages",
+                        "Est. tokens",
+                        "Last activity",
+                      ].map((label) => (
+                        <th
+                          className="border-b border-[var(--border)] px-[9px] py-[7px] text-left text-[var(--text-meta)] uppercase tracking-[0.1em] text-[var(--muted)]"
+                          key={label}
+                        >
+                          {label}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
                     {recentSessions.length === 0 ? (
                       <tr>
-                        <td className="analytics-empty-cell" colSpan={4}>
+                        <td
+                          className="h-[58px] border-b border-[var(--border)] px-[9px] py-[7px] text-center text-[var(--text-meta)] text-[var(--muted)]"
+                          colSpan={4}
+                        >
                           No session usage yet
                         </td>
                       </tr>
@@ -239,11 +276,13 @@ export function AnalyticsPage({
                       const usage = asRecord(entry.usage);
                       return (
                         <tr key={asString(entry.sessionId, String(index))}>
-                          <td className="analytics-session-label">
+                          <td className="max-w-[30rem] overflow-hidden text-ellipsis whitespace-nowrap border-b border-[var(--border)] px-[9px] py-[7px] text-[var(--text-meta)] text-[var(--text-soft)]">
                             {analyticsSessionLabel(entry)}
                           </td>
-                          <td>{asNumber(entry.messageCount)}</td>
-                          <td>
+                          <td className="border-b border-[var(--border)] px-[9px] py-[7px] text-[var(--text-meta)] text-[var(--text-soft)]">
+                            {asNumber(entry.messageCount)}
+                          </td>
+                          <td className="border-b border-[var(--border)] px-[9px] py-[7px] text-[var(--text-meta)] text-[var(--text-soft)]">
                             {compactNumber(
                               asNumber(
                                 usage.estimatedTokens,
@@ -251,7 +290,7 @@ export function AnalyticsPage({
                               ),
                             )}
                           </td>
-                          <td>
+                          <td className="border-b border-[var(--border)] px-[9px] py-[7px] text-[var(--text-meta)] text-[var(--text-soft)]">
                             {displayTimestamp(
                               asString(entry.endedAt) || undefined,
                             )}
@@ -269,3 +308,5 @@ export function AnalyticsPage({
     </div>
   );
 }
+
+import { Button } from "@elizaos/ui/components/ui/button";

@@ -17,9 +17,17 @@ import {
   requestLabel,
 } from "../repository-control";
 import { GitAdvancedControls } from "./git/GitAdvancedControls";
+import {
+  GIT_CODE_CLASS,
+  GIT_LIST_CLASS,
+  GIT_ROW_CLASS,
+  GIT_SECTION_CLASS,
+  GIT_SECTION_HEADER_CLASS,
+  GitButton,
+  GitTextarea,
+} from "./git/GitControlPrimitives";
 import type { GitWorktree } from "./git/models";
 import { shortGitPath } from "./git/models";
-import "./git-control-panel.css";
 
 type DesktopMutationResult =
   | { status: "cancelled" }
@@ -81,21 +89,20 @@ function ChangeSection({
   const action = group === "staged" ? "unstage" : "stage";
   const destructive = group !== "staged";
   return (
-    <section className="git-control-section git-change-section">
-      <header>
+    <section className={GIT_SECTION_CLASS} data-git-change-section="">
+      <header className={GIT_SECTION_HEADER_CLASS}>
         <strong>{group}</strong>
         <span>{changes.length}</span>
-        <div>
-          <button
+        <div className="ml-auto flex flex-wrap items-center gap-1.25">
+          <GitButton
             disabled={busy}
             onClick={() => onRun({ type: action, paths })}
             type="button"
           >
             {group === "staged" ? "Unstage all" : "Stage all"}
-          </button>
+          </GitButton>
           {destructive ? (
-            <button
-              className="danger"
+            <GitButton
               disabled={busy}
               onClick={() =>
                 onRun(
@@ -104,38 +111,51 @@ function ChangeSection({
                     : { type: "discard", paths },
                 )
               }
+              tone="danger"
               type="button"
             >
               Discard all
-            </button>
+            </GitButton>
           ) : null}
         </div>
       </header>
-      <ul className="git-change-list">
+      <ul className={GIT_LIST_CLASS}>
         {changes.map((change) => (
-          <li key={`${group}:${change.path}`}>
-            <label title={change.path}>
+          <li
+            className={`${GIT_ROW_CLASS} justify-between`}
+            key={`${group}:${change.path}`}
+          >
+            <label
+              className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 overflow-hidden"
+              title={change.path}
+            >
               <input
                 checked={selected[change.path] === true}
+                className="accent-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[color-mix(in_srgb,var(--accent)_72%,transparent)] focus-visible:outline-offset-3"
                 disabled={busy}
                 onChange={() => onToggle(change.path)}
                 type="checkbox"
               />
-              <span className="git-change-state">{gitChangeLabel(change)}</span>
-              <code>{shortGitPath(change.path)}</code>
+              <span className="w-14 text-[9px] text-[var(--muted)]">
+                {gitChangeLabel(change)}
+              </span>
+              <code
+                className={`${GIT_CODE_CLASS} text-[10px] text-[var(--text)]`}
+              >
+                {shortGitPath(change.path)}
+              </code>
             </label>
-            <div className="git-inline-actions">
-              <button
+            <div className="flex shrink-0 flex-wrap gap-1.25">
+              <GitButton
                 disabled={busy}
                 onClick={() => onRun({ type: action, paths: [change.path] })}
                 type="button"
               >
                 {group === "staged" ? "Unstage" : "Stage"}
-              </button>
+              </GitButton>
               {destructive ? (
-                <button
+                <GitButton
                   aria-label={`Discard ${change.path}`}
-                  className="danger"
                   disabled={busy}
                   onClick={() =>
                     onRun(
@@ -144,10 +164,11 @@ function ChangeSection({
                         : { type: "discard", paths: [change.path] },
                     )
                   }
+                  tone="danger"
                   type="button"
                 >
                   Discard
-                </button>
+                </GitButton>
               ) : null}
             </div>
           </li>
@@ -210,66 +231,78 @@ export function GitControlPanel({
 
   return (
     <section
-      className={`git-control-panel ${variant}`}
       aria-label="Git controls"
+      className="flex min-h-0 flex-col gap-2 text-[var(--text)]"
+      data-density={variant}
     >
-      <header className="git-control-heading">
-        <div>
+      <header className="flex items-center justify-between gap-2.5 max-[700px]:flex-col max-[700px]:items-start">
+        <div className="flex min-w-0 flex-col items-start gap-0.5">
           <span className="eyebrow">Source control</span>
-          <strong>{currentBranch?.name || "Git workspace"}</strong>
+          <strong className="max-w-55 truncate font-mono text-xs max-[700px]:max-w-full">
+            {currentBranch?.name || "Git workspace"}
+          </strong>
         </div>
-        <div className="git-sync-actions">
-          <button
+        <div className="flex flex-wrap gap-1.25 max-[700px]:w-full [&>button]:max-[700px]:flex-1">
+          <GitButton
             disabled={busy || !active}
             onClick={() => void run({ type: "fetch" })}
             type="button"
           >
             Fetch
-          </button>
-          <button
+          </GitButton>
+          <GitButton
             disabled={busy || !active}
             onClick={() => void run({ type: "pull" })}
             type="button"
           >
             Pull
-          </button>
-          <button
-            className="primary"
+          </GitButton>
+          <GitButton
             disabled={busy || !active}
             onClick={() => void run({ type: "push" })}
+            tone="primary"
             type="button"
           >
             Push
-          </button>
+          </GitButton>
         </div>
       </header>
       {notice ? (
-        <p className={`git-control-notice ${notice.tone}`} role="status">
+        <p
+          className={`m-0 rounded-[var(--radius-xs,5px)] border border-[var(--border)] px-2 py-1.75 text-[10px] leading-[1.45] ${
+            notice.tone === "good"
+              ? "bg-[var(--good-soft)] text-[var(--good)]"
+              : notice.tone === "bad"
+                ? "bg-[var(--bad-soft)] text-[var(--bad)]"
+                : "bg-[var(--surface-raised)] text-[var(--text-soft)]"
+          }`}
+          role="status"
+        >
           {notice.message}
         </p>
       ) : null}
 
-      <div className="git-control-scroll">
-        <section className="git-control-section git-selection-actions">
-          <header>
+      <div className="flex min-h-0 flex-col gap-2 overflow-auto pr-0.5">
+        <section className={GIT_SECTION_CLASS} data-git-selection-actions="">
+          <header className={GIT_SECTION_HEADER_CLASS}>
             <strong>Selected changes</strong>
             <span>{selected.length}</span>
           </header>
-          <div>
-            <button
+          <div className="flex flex-wrap items-center gap-1.25">
+            <GitButton
               disabled={busy || !selected.length}
               onClick={() => void run({ type: "stage", paths: selected })}
               type="button"
             >
               Stage
-            </button>
-            <button
+            </GitButton>
+            <GitButton
               disabled={busy || !selected.length}
               onClick={() => void run({ type: "unstage", paths: selected })}
               type="button"
             >
               Unstage
-            </button>
+            </GitButton>
           </div>
         </section>
         <ChangeSection
@@ -298,47 +331,56 @@ export function GitControlPanel({
         />
 
         <form
-          className="git-control-section git-commit-form"
+          className={GIT_SECTION_CLASS}
+          data-git-commit-form=""
           onSubmit={submitCommit}
         >
-          <header>
+          <header className={GIT_SECTION_HEADER_CLASS}>
             <strong>Commit</strong>
             {grouped.staged.length ? (
               <span>{grouped.staged.length} staged</span>
             ) : null}
           </header>
-          <textarea
+          <GitTextarea
             disabled={busy}
             onChange={(event) => setCommitMessage(event.target.value)}
             placeholder="Describe the change"
             value={commitMessage}
           />
-          <label>
+          <label className="text-[10px] text-[var(--muted)]">
             <input
               checked={amend}
+              className="mr-1.25 accent-[var(--accent)]"
               disabled={busy}
               onChange={(event) => setAmend(event.target.checked)}
               type="checkbox"
             />{" "}
             Amend previous commit
           </label>
-          <button
-            className="primary"
+          <GitButton
             disabled={busy || !commitMessage.trim()}
+            tone="primary"
             type="submit"
           >
             {amend ? "Amend commit" : "Commit staged"}
-          </button>
+          </GitButton>
         </form>
 
         {variant === "full" ? (
-          <details className="git-advanced-disclosure">
-            <summary>
-              <span>
-                <strong>Advanced repository operations</strong>
-                <small>Branches, stashes, remotes, and worktrees</small>
+          <details
+            className="group overflow-hidden rounded-[var(--radius-xs,5px)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-raised)_72%,transparent)]"
+            data-git-advanced-disclosure=""
+          >
+            <summary className="flex min-h-10.5 cursor-pointer list-none items-center justify-between gap-3 px-2.25 py-1.75 focus-visible:outline-2 focus-visible:outline-[color-mix(in_srgb,var(--accent)_72%,transparent)] focus-visible:outline-offset-2 group-open:border-[var(--border)] group-open:border-b [&::-webkit-details-marker]:hidden">
+              <span className="grid min-w-0 gap-0.5">
+                <strong className="font-mono text-[10px] text-[var(--text-soft)] uppercase tracking-[0.06em]">
+                  Advanced repository operations
+                </strong>
+                <small className="text-[9px] text-[var(--muted)]">
+                  Branches, stashes, remotes, and worktrees
+                </small>
               </span>
-              <span>
+              <span className="flex items-center gap-2 text-[9px] text-[var(--muted)] after:font-mono after:text-[var(--muted)] after:content-['+'] group-open:after:content-['−']">
                 {branches.length} branches · {stashes.length} stashes
               </span>
             </summary>

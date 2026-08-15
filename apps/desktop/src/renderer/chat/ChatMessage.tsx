@@ -39,7 +39,7 @@ export function ChatMessage({
 
   return (
     <article
-      className={`chat-message ${message.role} ${message.error ? "error" : ""}`}
+      className={`chat-message group ${message.role} ${message.error ? "error" : ""}`}
     >
       <div className="chat-message-label">
         <strong>

@@ -7,13 +7,25 @@ import type {
   RuntimeReasoningEffort,
   RuntimeStatus,
 } from "../../shared/contracts";
+import {
+  COMPOSER_ACTIONS_CLASS,
+  COMPOSER_EFFORT_CLASS,
+  COMPOSER_MODEL_BUTTON_CLASS,
+  COMPOSER_MODEL_GROUPS_CLASS,
+  COMPOSER_MODEL_LIST_CLASS,
+  COMPOSER_MODEL_OPTION_CLASS,
+  COMPOSER_MODEL_TRIGGER_CLASS,
+  COMPOSER_POPOVER_CLASS,
+  COMPOSER_PROVIDER_HEADING_CLASS,
+  COMPOSER_SEARCH_CLASS,
+  COMPOSER_SELECTOR_ROOT_CLASS,
+} from "../composer-selectors/layout";
 import { useDismissPopover } from "../composer-selectors/useDismissPopover";
 import { desktopRequest, errorMessage, useApiResource } from "../lib";
 import {
   defaultBaseUrlForProvider,
   routeProviderOption,
 } from "../model-routing";
-import "./composer-selectors.css";
 
 export { ComposerProjectSelector } from "../composer-selectors/ComposerProjectSelector";
 
@@ -153,12 +165,15 @@ export function ComposerModelSelector({
   };
 
   return (
-    <div className="composer-model-selector" ref={rootRef}>
+    <div
+      className={`${COMPOSER_SELECTOR_ROOT_CLASS} ml-auto min-w-0`}
+      ref={rootRef}
+    >
       <button
         aria-label={`Choose model. Current route ${runtime?.provider ?? "unknown provider"} ${runtime?.model ?? "unknown model"}${activeEffort ? `, ${activeEffort} reasoning effort` : ""}.`}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="composer-model-trigger"
+        className={COMPOSER_MODEL_TRIGGER_CLASS}
         disabled={!active}
         onClick={() => setOpen((current) => !current)}
         ref={triggerRef}
@@ -175,10 +190,10 @@ export function ComposerModelSelector({
       {open ? (
         <section
           aria-label="Choose provider and model"
-          className="composer-popover composer-model-popover"
+          className={`${COMPOSER_POPOVER_CLASS} max-h-[min(620px,72vh)] w-[min(420px,calc(100vw-44px))]`}
           role="dialog"
         >
-          <label className="composer-popover-search composer-model-search">
+          <label className={`${COMPOSER_SEARCH_CLASS} m-2 mb-1.25`}>
             <span aria-hidden="true">⌕</span>
             <input
               aria-label="Search models"
@@ -188,11 +203,15 @@ export function ComposerModelSelector({
               value={query}
             />
           </label>
-          <div className="composer-model-groups">
+          <div className={COMPOSER_MODEL_GROUPS_CLASS}>
             {models.loading ? (
-              <p className="composer-popover-state">Discovering models…</p>
+              <p className="p-4.5 text-[10px] text-[var(--faint)]">
+                Discovering models…
+              </p>
             ) : models.error ? (
-              <p className="composer-popover-state bad">{models.error}</p>
+              <p className="p-4.5 text-[10px] text-[var(--bad)]">
+                {models.error}
+              </p>
             ) : (
               providers.map((provider) => {
                 const isCollapsed = collapsed.has(provider.id) && !query;
@@ -200,7 +219,7 @@ export function ComposerModelSelector({
                   <section key={provider.id}>
                     <button
                       aria-expanded={!isCollapsed}
-                      className="composer-provider-heading"
+                      className={COMPOSER_PROVIDER_HEADING_CLASS}
                       onClick={() =>
                         setCollapsed((current) => {
                           const next = new Set(current);
@@ -214,7 +233,11 @@ export function ComposerModelSelector({
                       <span aria-hidden="true">{isCollapsed ? "›" : "⌄"}</span>
                       <strong>{provider.label}</strong>
                       <small
-                        className={`composer-discovery-state ${provider.discovery}`}
+                        className={`rounded-full border px-1.25 py-0.5 font-mono text-[7px] tracking-[0.04em] uppercase ${
+                          provider.discovery === "live"
+                            ? "border-[color-mix(in_srgb,var(--good)_32%,var(--border))] text-[var(--good)]"
+                            : "border-[var(--border)] text-[var(--faint)]"
+                        }`}
                       >
                         {provider.discovery === "live"
                           ? "Live"
@@ -224,7 +247,7 @@ export function ComposerModelSelector({
                       </small>
                     </button>
                     {!isCollapsed ? (
-                      <div className="composer-model-list">
+                      <div className={COMPOSER_MODEL_LIST_CLASS}>
                         {provider.models.map((model) => {
                           const selected =
                             runtime?.provider === provider.id &&
@@ -239,10 +262,11 @@ export function ComposerModelSelector({
                           return (
                             <div
                               aria-current={selected ? "true" : undefined}
-                              className="composer-model-option"
+                              className={COMPOSER_MODEL_OPTION_CLASS}
                               key={model.id}
                             >
                               <button
+                                className={COMPOSER_MODEL_BUTTON_CLASS}
                                 disabled={Boolean(saving) || !provider.ready}
                                 onClick={() => void applyModel(provider, model)}
                                 title={model.id}
@@ -265,7 +289,7 @@ export function ComposerModelSelector({
                                 </i>
                               </button>
                               {model.reasoning ? (
-                                <label className="composer-model-effort">
+                                <label className={COMPOSER_EFFORT_CLASS}>
                                   <span>Effort</span>
                                   <select
                                     aria-label={`${model.label} reasoning effort`}
@@ -303,15 +327,20 @@ export function ComposerModelSelector({
               })
             )}
             {!models.loading && !models.error && !providers.length ? (
-              <p className="composer-popover-state">No matching models.</p>
+              <p className="p-4.5 text-[10px] text-[var(--faint)]">
+                No matching models.
+              </p>
             ) : null}
           </div>
           {feedback ? (
-            <p className="composer-model-feedback" role="alert">
+            <p
+              className="border-[var(--border)] border-t px-3 py-1.75 text-[9px] text-[var(--bad)]"
+              role="alert"
+            >
               {feedback}
             </p>
           ) : null}
-          <div className="composer-agent-pool-note">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-[var(--border)] border-t bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] px-3 py-2.25 text-[9px] text-[var(--muted)] max-[560px]:grid-cols-[1fr_auto] [&>button]:whitespace-nowrap [&>button]:border-0 [&>button]:bg-transparent [&>button]:text-[9px] [&>button]:text-[var(--accent)] [&>span]:min-w-0 max-[560px]:[&>span]:col-span-full [&>strong]:text-[var(--text)]">
             <strong>Spawned-agent pool</strong>
             <span>
               {accountPool.loading
@@ -340,7 +369,7 @@ export function ComposerModelSelector({
               Providers &amp; accounts
             </button>
           </div>
-          <footer className="composer-popover-actions">
+          <footer className={COMPOSER_ACTIONS_CLASS}>
             <button onClick={models.reload} type="button">
               <span aria-hidden="true">↻</span>
               Refresh models

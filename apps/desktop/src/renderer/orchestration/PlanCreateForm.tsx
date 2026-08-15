@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { orchestrationClass as oc } from "./layout";
 import type { PlanStatus } from "./models";
 
 export function PlanCreateForm({
@@ -35,7 +36,7 @@ export function PlanCreateForm({
   onClose: () => void;
 }) {
   return (
-    <form className="orchestration-quick-create" onSubmit={onSubmit}>
+    <form className={oc("orchestration-quick-create")} onSubmit={onSubmit}>
       <label className="quick-title">
         <span>Title</span>
         <input
@@ -82,7 +83,7 @@ export function PlanCreateForm({
           disabled={!active || busy}
         />
       </label>
-      <div className="quick-create-actions">
+      <div className={oc("quick-create-actions")}>
         <button
           className="primary-button"
           type="submit"

@@ -8,7 +8,7 @@ export function DesktopMobileMenuButton({
   return (
     <button
       aria-label="Open navigation"
-      className="menu-button"
+      className={MENU_BUTTON_CLASS}
       onClick={onOpen}
       type="button"
     >
@@ -23,3 +23,5 @@ export function DesktopMobileMenuButton({
     </button>
   );
 }
+
+import { MENU_BUTTON_CLASS } from "./shell-layout";

@@ -23,6 +23,7 @@ import {
   SmallEmpty,
   statusTone,
 } from "./detail-primitives";
+import { orchestrationClass as oc } from "./layout";
 import type { ResourceState } from "./models";
 import { compactDetailValue, normalizeText } from "./models";
 
@@ -56,13 +57,13 @@ export function PlanPanel({
   onPlanSteerInstructionChange: (value: string) => void;
 }) {
   return (
-    <div className="orchestration-master-detail">
-      <aside className="orchestration-master">
-        <div className="orchestration-pane-heading">
+    <div className={oc("orchestration-master-detail")}>
+      <aside className={oc("orchestration-master")}>
+        <div className={oc("orchestration-pane-heading")}>
           <span>Plans</span>
           <small>{plans.length} records</small>
         </div>
-        <div className="orchestration-scroll">
+        <div className={oc("orchestration-scroll")}>
           {plansResource.error ? (
             <ErrorBlock
               error={plansResource.error}
@@ -75,7 +76,7 @@ export function PlanPanel({
               Create a plan to connect tasks and workflows.
             </EmptyBlock>
           ) : (
-            <ul className="orchestration-master-list">
+            <ul className={oc("orchestration-master-list")}>
               {plans.map((plan) => {
                 const status = asString(plan.status, "draft");
                 const tier = orchestrationStatusTier(status);
@@ -84,27 +85,30 @@ export function PlanPanel({
                   <li key={plan.id}>
                     <button
                       type="button"
-                      className={
-                        plan.id === selectedPlan?.id
-                          ? `orchestration-master-item selected tier-${tier}`
-                          : `orchestration-master-item tier-${tier}`
-                      }
+                      className={oc(
+                        "orchestration-master-item",
+                        plan.id === selectedPlan?.id && "selected",
+                        `tier-${tier}`,
+                      )}
                       aria-pressed={plan.id === selectedPlan?.id}
                       onClick={() => onSelectPlan(plan)}
                     >
-                      <span className="master-row master-row-top">
-                        <span className="master-title-line">
-                          <i className="master-status-dot" aria-hidden="true" />
+                      <span className={oc("master-row", "master-row-top")}>
+                        <span className={oc("master-title-line")}>
+                          <i
+                            className={oc("master-status-dot")}
+                            aria-hidden="true"
+                          />
                           <strong>
                             {asString(plan.title, "Untitled plan")}
                           </strong>
                         </span>
                         <Badge tone={statusTone(status)}>{status}</Badge>
                       </span>
-                      <span className="master-summary">
+                      <span className={oc("master-summary")}>
                         {normalizeText(asString(plan.objective), 92)}
                       </span>
-                      <span className="master-row master-row-bottom">
+                      <span className={oc("master-row", "master-row-bottom")}>
                         <small>
                           {orchestrationTimingLabel({
                             status,
@@ -124,7 +128,7 @@ export function PlanPanel({
           )}
         </div>
       </aside>
-      <article className="orchestration-detail">
+      <article className={oc("orchestration-detail")}>
         {!selectedPlan ? (
           <EmptyBlock title="Choose a plan">
             Plan links and steps appear here.
@@ -174,15 +178,15 @@ function PlanDetail({
   const status = asString(selectedPlan.status, "draft");
   return (
     <>
-      <div className="orchestration-detail-header">
+      <div className={oc("orchestration-detail-header")}>
         <div>
-          <span className="detail-kicker">Execution plan</span>
+          <span className={oc("detail-kicker")}>Execution plan</span>
           <h2>{asString(selectedPlan.title, "Untitled plan")}</h2>
           <p>{asString(selectedPlan.objective)}</p>
         </div>
         <Badge tone={statusTone(status)}>{status}</Badge>
       </div>
-      <div className="orchestration-detail-tags">
+      <div className={oc("orchestration-detail-tags")}>
         <DetailTag tone={statusTone(status)}>
           {orchestrationTimingLabel({
             status,
@@ -199,7 +203,7 @@ function PlanDetail({
         <DetailTag>{asArray(selectedPlan.steps).length} steps</DetailTag>
       </div>
       {status === "draft" ? (
-        <div className="orchestration-plan-control">
+        <div className={oc("orchestration-plan-control")}>
           <div>
             <strong>Ready for operator review</strong>
             <span>
@@ -220,7 +224,7 @@ function PlanDetail({
         </div>
       ) : null}
       {status === "active" ? (
-        <form className="orchestration-plan-steer" onSubmit={onSteerPlan}>
+        <form className={oc("orchestration-plan-steer")} onSubmit={onSteerPlan}>
           <div>
             <strong>Steer the next run</strong>
             <span>
@@ -267,7 +271,7 @@ function PlanDetail({
           </button>
         </form>
       ) : null}
-      <div className="orchestration-detail-grid">
+      <div className={oc("orchestration-detail-grid")}>
         <dl>
           <DetailRow label="Plan ID" value={selectedPlan.id} />
           <DetailRow
@@ -287,10 +291,10 @@ function PlanDetail({
             value={displayTimestamp(asString(selectedPlan.updatedAt))}
           />
         </dl>
-        <div className="orchestration-evidence">
-          <span className="detail-kicker">Steps</span>
+        <div className={oc("orchestration-evidence")}>
+          <span className={oc("detail-kicker")}>Steps</span>
           {asArray(selectedPlan.steps).length > 0 ? (
-            <ol className="orchestration-steps">
+            <ol className={oc("orchestration-steps")}>
               {asArray(selectedPlan.steps).map((step) => (
                 <li key={`${selectedPlan.id}:step:${asString(step)}`}>
                   {asString(step)}
@@ -300,9 +304,9 @@ function PlanDetail({
           ) : (
             <SmallEmpty>No steps recorded.</SmallEmpty>
           )}
-          <span className="detail-kicker">Metadata</span>
+          <span className={oc("detail-kicker")}>Metadata</span>
           {Object.keys(asRecord(selectedPlan.metadata)).length > 0 ? (
-            <dl className="orchestration-mini-dl">
+            <dl className={oc("orchestration-mini-dl")}>
               {Object.entries(asRecord(selectedPlan.metadata)).map(
                 ([key, value]) => (
                   <DetailRow
@@ -319,7 +323,7 @@ function PlanDetail({
         </div>
       </div>
       {planMetaLines.length > 0 ? (
-        <div className="orchestration-control-footnote">
+        <div className={oc("orchestration-control-footnote")}>
           <strong>Control plane</strong>
           <span>{planMetaLines.join(" · ")}</span>
         </div>

@@ -2,6 +2,9 @@ import type {
   RepositoryMutationRequest,
   RepositoryMutationResult,
 } from "@doolittle/contracts/repository";
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
+import { Textarea } from "@elizaos/ui/components/ui/textarea";
 import { type FormEvent, useEffect, useState } from "react";
 import type { RepositoryReview } from "../../shared/contracts";
 import { errorMessage, Notice } from "../lib";
@@ -10,7 +13,17 @@ import {
   mutationNotice,
   requestLabel,
 } from "../repository-control";
-import "./github-pull-request-panel.css";
+
+const FORM_CLASS = "grid gap-[9px]";
+const LABEL_CLASS =
+  "grid gap-[5px] text-[11px] font-bold text-[var(--text-soft)]";
+const OPTIONAL_CLASS = "font-[var(--font-mono)] text-[9px] text-[var(--muted)]";
+const CHECKBOX_CLASS =
+  "flex min-h-[31px] items-center gap-[7px] text-[10px] font-bold text-[var(--muted)] [&_input]:accent-[var(--accent)]";
+const ACTIONS_CLASS =
+  "flex items-center justify-end gap-2.5 max-[760px]:flex-col max-[760px]:items-start [&_button]:whitespace-nowrap";
+const SELECT_CLASS =
+  "w-full resize-y rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] px-2 py-[7px] font-[var(--font-sans)] text-xs text-[var(--text)] focus:border-[var(--border)] focus:ring-0 focus:outline-none";
 
 type DesktopMutationResult =
   | { status: "cancelled" }
@@ -166,22 +179,30 @@ export function GitHubPullRequestPanel({
   if (!review?.local.isRepository) return null;
 
   return (
-    <section aria-label="GitHub pull request" className="github-pr-panel">
-      <header className="github-pr-panel-header">
-        <div>
+    <section
+      aria-label="GitHub pull request"
+      className="grid shrink-0 gap-2.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-raised)_90%,transparent)] p-3 shadow-[inset_2px_0_var(--accent)]"
+    >
+      <header className="flex items-center justify-between gap-2.5 max-[760px]:flex-col max-[760px]:items-start">
+        <div className="grid min-w-0 gap-[3px]">
           <span className="eyebrow">GitHub pull request</span>
-          <strong>
+          <strong className="overflow-hidden text-[13px] text-ellipsis whitespace-nowrap text-[var(--text)]">
             {pullRequest
               ? `#${pullRequest.number} ${pullRequest.title}`
               : "Open a pull request"}
           </strong>
-          <small>
+          <small className="font-[var(--font-mono)] text-[9px] text-[var(--muted)]">
             {review.repository?.slug ?? "GitHub unavailable"} ·{" "}
             {prStateLabel(review)}
           </small>
         </div>
         {pullRequest?.url ? (
-          <a href={pullRequest.url} rel="noreferrer" target="_blank">
+          <a
+            className="shrink-0 font-[var(--font-mono)] text-[10px] font-bold text-[var(--accent)] uppercase no-underline hover:underline hover:underline-offset-3"
+            href={pullRequest.url}
+            rel="noreferrer"
+            target="_blank"
+          >
             View on GitHub ↗
           </a>
         ) : null}
@@ -193,27 +214,31 @@ export function GitHubPullRequestPanel({
             "Connect GitHub CLI authentication and a GitHub remote to manage pull requests here."}
         </Notice>
       ) : !pullRequest ? (
-        <form className="github-pr-form" onSubmit={createPullRequest}>
-          <label>
+        <form className={FORM_CLASS} onSubmit={createPullRequest}>
+          <label className={LABEL_CLASS} htmlFor="github-pr-create-title">
             Title
-            <input
+            <Input
+              density="compact"
               disabled={busy}
+              id="github-pr-create-title"
               onChange={(event) => setTitle(event.target.value)}
               placeholder="Describe this change"
               value={title}
             />
           </label>
-          <div className="github-pr-form-row">
-            <label>
-              Base branch <span>optional</span>
-              <input
+          <div className="grid grid-cols-[minmax(140px,0.35fr)_1fr] items-end gap-2.5 max-[760px]:grid-cols-1">
+            <label className={LABEL_CLASS} htmlFor="github-pr-create-base">
+              Base branch <span className={OPTIONAL_CLASS}>optional</span>
+              <Input
+                density="compact"
                 disabled={busy}
+                id="github-pr-create-base"
                 onChange={(event) => setBase(event.target.value)}
                 placeholder="main"
                 value={base}
               />
             </label>
-            <label className="github-pr-checkbox">
+            <label className={CHECKBOX_CLASS}>
               <input
                 checked={draft}
                 disabled={busy}
@@ -223,122 +248,144 @@ export function GitHubPullRequestPanel({
               Create as draft
             </label>
           </div>
-          <label>
-            Description <span>optional</span>
-            <textarea
+          <label className={LABEL_CLASS} htmlFor="github-pr-create-body">
+            Description <span className={OPTIONAL_CLASS}>optional</span>
+            <Textarea
+              density="compact"
               disabled={busy}
+              id="github-pr-create-body"
               onChange={(event) => setBody(event.target.value)}
               placeholder="What changed, why, and how it was tested."
               rows={3}
               value={body}
             />
           </label>
-          <div className="github-pr-actions">
-            <button className="primary-button" disabled={busy} type="submit">
+          <div className={ACTIONS_CLASS}>
+            <Button disabled={busy} type="submit">
               {busy ? "Creating…" : "Create pull request"}
-            </button>
+            </Button>
           </div>
         </form>
       ) : (
-        <div className="github-pr-existing">
+        <div className="grid gap-2.5">
           {pullRequest.state === "open" ? (
             <>
-              <div className="github-pr-quick-actions">
+              <div className="flex items-center justify-start gap-2.5 [&>button]:whitespace-nowrap">
                 {pullRequest.isDraft ? (
-                  <button
-                    className="secondary-button"
+                  <Button
                     disabled={busy}
                     onClick={() => void run({ type: "pr-ready" })}
                     type="button"
+                    variant="secondary"
                   >
                     Mark ready for review
-                  </button>
+                  </Button>
                 ) : null}
-                <details>
-                  <summary>Edit pull request</summary>
-                  <form className="github-pr-form" onSubmit={updatePullRequest}>
-                    <label>
+                <details className="min-w-0 open:grid open:w-[min(100%,560px)] open:gap-[9px]">
+                  <summary className="cursor-pointer font-[var(--font-mono)] text-[10px] font-bold text-[var(--muted)] uppercase">
+                    Edit pull request
+                  </summary>
+                  <form className={FORM_CLASS} onSubmit={updatePullRequest}>
+                    <label
+                      className={LABEL_CLASS}
+                      htmlFor="github-pr-edit-title"
+                    >
                       Title
-                      <input
+                      <Input
+                        density="compact"
                         disabled={busy}
+                        id="github-pr-edit-title"
                         onChange={(event) => setTitle(event.target.value)}
                         value={title}
                       />
                     </label>
-                    <label>
-                      Base branch <span>optional</span>
-                      <input
+                    <label
+                      className={LABEL_CLASS}
+                      htmlFor="github-pr-edit-base"
+                    >
+                      Base branch{" "}
+                      <span className={OPTIONAL_CLASS}>optional</span>
+                      <Input
+                        density="compact"
                         disabled={busy}
+                        id="github-pr-edit-base"
                         onChange={(event) => setBase(event.target.value)}
                         value={base}
                       />
                     </label>
-                    <label>
-                      Append or replace description <span>optional</span>
-                      <textarea
+                    <label
+                      className={LABEL_CLASS}
+                      htmlFor="github-pr-edit-body"
+                    >
+                      Append or replace description{" "}
+                      <span className={OPTIONAL_CLASS}>optional</span>
+                      <Textarea
+                        density="compact"
                         disabled={busy}
+                        id="github-pr-edit-body"
                         onChange={(event) => setBody(event.target.value)}
                         placeholder="Leave empty to keep the existing description."
                         rows={3}
                         value={body}
                       />
                     </label>
-                    <button
-                      className="secondary-button"
-                      disabled={busy}
-                      type="submit"
-                    >
+                    <Button disabled={busy} type="submit" variant="secondary">
                       Save pull request
-                    </button>
+                    </Button>
                   </form>
                 </details>
               </div>
 
-              <form className="github-pr-review-form">
-                <label>
+              <form
+                className={`${FORM_CLASS} border-t border-[var(--border)] pt-2.5`}
+              >
+                <label className={LABEL_CLASS} htmlFor="github-pr-review-body">
                   Review feedback
-                  <textarea
+                  <Textarea
+                    density="compact"
                     disabled={busy}
+                    id="github-pr-review-body"
                     onChange={(event) => setReviewBody(event.target.value)}
                     placeholder="Leave a concise review for this pull request."
                     rows={2}
                     value={reviewBody}
                   />
                 </label>
-                <div className="github-pr-actions">
-                  <button
-                    className="secondary-button"
+                <div className={ACTIONS_CLASS}>
+                  <Button
                     disabled={busy}
                     onClick={(event) => void submitReview(event, "comment")}
                     type="button"
+                    variant="secondary"
                   >
                     Comment
-                  </button>
-                  <button
-                    className="secondary-button"
+                  </Button>
+                  <Button
                     disabled={busy}
                     onClick={(event) => void submitReview(event, "approve")}
                     type="button"
+                    variant="secondary"
                   >
                     Approve
-                  </button>
-                  <button
-                    className="danger-button"
+                  </Button>
+                  <Button
                     disabled={busy}
                     onClick={(event) =>
                       void submitReview(event, "request-changes")
                     }
                     type="button"
+                    variant="destructive"
                   >
                     Request changes
-                  </button>
+                  </Button>
                 </div>
               </form>
 
-              <div className="github-pr-resolution">
-                <label>
+              <div className="flex flex-wrap items-center justify-start gap-2.5 border-t border-[var(--border)] pt-2.5">
+                <label className={`${LABEL_CLASS} min-w-[175px]`}>
                   Merge method
                   <select
+                    className={SELECT_CLASS}
                     disabled={busy}
                     onChange={(event) =>
                       setMergeMethod(event.target.value as typeof mergeMethod)
@@ -350,7 +397,7 @@ export function GitHubPullRequestPanel({
                     <option value="rebase">Rebase and merge</option>
                   </select>
                 </label>
-                <label className="github-pr-checkbox">
+                <label className={CHECKBOX_CLASS}>
                   <input
                     checked={deleteBranch}
                     disabled={busy}
@@ -359,9 +406,8 @@ export function GitHubPullRequestPanel({
                   />
                   Delete branch after merge
                 </label>
-                <div className="github-pr-actions">
-                  <button
-                    className="danger-button"
+                <div className={ACTIONS_CLASS}>
+                  <Button
                     disabled={busy}
                     onClick={() =>
                       void run({
@@ -370,11 +416,11 @@ export function GitHubPullRequestPanel({
                       })
                     }
                     type="button"
+                    variant="destructive"
                   >
                     Close pull request
-                  </button>
-                  <button
-                    className="primary-button"
+                  </Button>
+                  <Button
                     disabled={busy}
                     onClick={() =>
                       void run({
@@ -386,23 +432,23 @@ export function GitHubPullRequestPanel({
                     type="button"
                   >
                     Merge pull request
-                  </button>
+                  </Button>
                 </div>
               </div>
             </>
           ) : pullRequest.state === "closed" ? (
-            <div className="github-pr-actions">
-              <button
-                className="secondary-button"
+            <div className={ACTIONS_CLASS}>
+              <Button
                 disabled={busy}
                 onClick={() => void run({ type: "pr-reopen" })}
                 type="button"
+                variant="secondary"
               >
                 Reopen pull request
-              </button>
+              </Button>
             </div>
           ) : (
-            <p className="github-pr-complete">
+            <p className="m-0 text-xs text-[var(--muted)]">
               This pull request has been merged.
             </p>
           )}

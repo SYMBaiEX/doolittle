@@ -4,6 +4,25 @@ import { WorkspaceFileTree } from "../components/WorkspaceFileTree";
 import { type ApiResource, EmptyBlock, ErrorBlock, LoadingBlock } from "../lib";
 import { CODE_EXPLORER_WIDTH } from "../panel-layout";
 import type { WorkspaceTreeEntry } from "../workspace-file-tree";
+import {
+  CODING_CHANGE_BADGES_CLASS,
+  CODING_CHANGE_BUTTON_CLASS,
+  CODING_CHANGE_BUTTON_SELECTED_CLASS,
+  CODING_CHANGE_CODE_CLASS,
+  CODING_CHANGE_LIST_CLASS,
+  CODING_CHANGE_NAME_CLASS,
+  CODING_CHANGE_PATH_CLASS,
+  CODING_EXPLORER_CLASS,
+  CODING_EXPLORER_RESIZER_CLASS,
+  CODING_PANE_BODY_CLASS,
+  CODING_PANE_CLASS,
+  CODING_SEARCH_CLASS,
+  CODING_SEARCH_MATCH_CLASS,
+  CODING_SEARCH_PATH_CLASS,
+  CODING_SEARCH_RESULTS_CLASS,
+  CODING_WORKTREE_FIELD_CLASS,
+  CODING_WORKTREE_INPUT_CLASS,
+} from "./layout";
 import type {
   LeftPane,
   RepositoryChange,
@@ -51,10 +70,10 @@ export function CodingWorkspaceExplorer({
   onSubmitSearch: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <aside className="coding-pane coding-explorer">
+    <aside className={`${CODING_PANE_CLASS} ${CODING_EXPLORER_CLASS}`}>
       <PanelResizeHandle
         bounds={CODE_EXPLORER_WIDTH}
-        className="coding-explorer-resizer"
+        className={CODING_EXPLORER_RESIZER_CLASS}
         direction="grow-right"
         label="Resize code explorer"
         onResize={onResize}
@@ -71,7 +90,7 @@ export function CodingWorkspaceExplorer({
         onChange={onLeftPaneChange}
       />
 
-      <div className="coding-pane-body" role="tabpanel">
+      <div className={CODING_PANE_BODY_CLASS} role="tabpanel">
         {leftPane === "files" ? (
           treeResource.loading ? (
             <LoadingBlock label="Reading workspace tree…" />
@@ -103,25 +122,27 @@ export function CodingWorkspaceExplorer({
               retry={changesResource.reload}
             />
           ) : changes.length ? (
-            <div className="coding-change-list">
+            <div className={CODING_CHANGE_LIST_CLASS}>
               {changes.map((change) => (
                 <button
-                  className={selectedPath === change.path ? "selected" : ""}
+                  className={`${CODING_CHANGE_BUTTON_CLASS} ${selectedPath === change.path ? CODING_CHANGE_BUTTON_SELECTED_CLASS : ""}`}
                   key={change.path}
                   onClick={() => onOpenPath(change.path, "diff")}
                   title={change.path}
                   type="button"
                 >
-                  <span className="coding-change-code">
+                  <span className={CODING_CHANGE_CODE_CLASS}>
                     {statusLabel(change)}
                   </span>
                   <span>
-                    <strong className="coding-change-name">
+                    <strong className={CODING_CHANGE_NAME_CLASS}>
                       {fileName(change.path)}
                     </strong>
-                    <small className="coding-change-path">{change.path}</small>
+                    <small className={CODING_CHANGE_PATH_CLASS}>
+                      {change.path}
+                    </small>
                   </span>
-                  <span className="coding-change-badges">
+                  <span className={CODING_CHANGE_BADGES_CLASS}>
                     {change.staged ? <i>staged</i> : null}
                     {change.unstaged ? <i>working</i> : null}
                   </span>
@@ -136,12 +157,12 @@ export function CodingWorkspaceExplorer({
         ) : null}
 
         {leftPane === "search" ? (
-          <div className="coding-search">
+          <div className={CODING_SEARCH_CLASS}>
             <form onSubmit={onSubmitSearch}>
-              <label className="coding-worktree-field">
+              <label className={CODING_WORKTREE_FIELD_CLASS}>
                 <span className="sr-only">Search workspace files</span>
                 <input
-                  className="coding-worktree-input"
+                  className={CODING_WORKTREE_INPUT_CLASS}
                   onChange={(event) => onSearchDraftChange(event.target.value)}
                   placeholder="Search workspace"
                   value={searchDraft}
@@ -163,7 +184,7 @@ export function CodingWorkspaceExplorer({
                 retry={searchResource.reload}
               />
             ) : searchResults.length ? (
-              <div className="coding-search-results">
+              <div className={CODING_SEARCH_RESULTS_CLASS}>
                 {searchResults.map((result) => (
                   <button
                     key={result.path}
@@ -171,12 +192,12 @@ export function CodingWorkspaceExplorer({
                     title={result.path}
                     type="button"
                   >
-                    <strong className="coding-search-path">
+                    <strong className={CODING_SEARCH_PATH_CLASS}>
                       {result.path}
                     </strong>
                     {result.matches.map((match) => (
                       <small
-                        className="coding-search-match"
+                        className={CODING_SEARCH_MATCH_CLASS}
                         key={`${result.path}:${match}`}
                       >
                         {match}

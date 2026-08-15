@@ -57,13 +57,13 @@ describe("provider account surfaces", () => {
       />,
     );
 
-    expect(markup).toContain('class="provider-connection-row"');
-    expect(markup).toContain('class="provider-identity-mark"');
+    expect(markup).toContain('data-provider-connection="true"');
+    expect(markup).toContain("provider-identity-mark");
     expect(markup).toContain("Codex app");
     expect(markup).toContain("Work");
     expect(markup).toContain("Native");
     expect(markup).toContain("Use for chats");
-    expect(markup).toContain("provider-connection-status-line is-ready");
+    expect(markup).toContain('data-provider-status="ready"');
     expect(markup).toContain("provider-connection-more");
     expect(markup).toContain('aria-label="More actions for Codex"');
     expect(markup).toContain("bg-bg-accent");
@@ -242,10 +242,10 @@ describe("provider account surfaces", () => {
     expect(markup).toContain("Connect account");
     expect(markup).toContain("Sign in &amp; add");
     expect(markup).toContain("Credentials stay local in Eliza");
-    expect(markup).toContain('class="provider-pool-toolbar"');
+    expect(markup).toContain('data-provider-pool-toolbar="true"');
     expect(markup).toContain('aria-label="Pool readiness"');
     expect(markup).toContain('aria-expanded="false"');
-    expect(markup).toContain('class="provider-pool-body" hidden=""');
+    expect(markup).toContain('data-provider-pool-body="true" hidden=""');
     expect(markup).toContain("automatic fallback");
     expect(markup).not.toContain("Pool setup progress");
     expect(markup).not.toContain("Add a backup account");
@@ -327,6 +327,6 @@ describe("provider account surfaces", () => {
     expect(markup).toContain("OPENAI_API_KEY");
     expect(markup).toContain("Add API account");
     expect(markup).not.toContain("Sign in &amp; add");
-    expect(markup).toContain("provider-pool-directory is-direct");
+    expect(markup).toContain('data-direct-account-pool="true"');
   });
 });

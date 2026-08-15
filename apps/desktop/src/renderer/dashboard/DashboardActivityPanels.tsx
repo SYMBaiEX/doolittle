@@ -1,9 +1,16 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import type {
   DashboardApprovalCard,
   DashboardSessionCard,
   DashboardTaskCard,
 } from "../dashboard-helpers";
 import { Badge, displayTimestamp, ErrorBlock, LoadingBlock } from "../lib";
+import {
+  DASHBOARD_CARD_CLASS,
+  DASHBOARD_CARD_HEADING_CLASS,
+  DASHBOARD_MINI_GRID_CLASS,
+  DASHBOARD_STATUS_ROW_CLASS,
+} from "./dashboard-layout";
 
 export function DashboardActivityPanels({
   approvals,
@@ -41,11 +48,13 @@ export function DashboardActivityPanels({
     Boolean(tasksError);
 
   return (
-    <div className="dashboard-mini-grid">
+    <div className={DASHBOARD_MINI_GRID_CLASS}>
       <section
-        className={`content-card${sessions.length ? "" : " dashboard-quiet-card"}`}
+        className={`${DASHBOARD_CARD_CLASS} ${sessions.length ? "" : "flex min-h-[72px] items-center max-[620px]:min-h-[88px]"}`}
       >
-        <div className="card-heading">
+        <div
+          className={`${DASHBOARD_CARD_HEADING_CLASS} ${sessions.length ? "" : "mb-0 w-full"}`}
+        >
           <div>
             <span className="eyebrow">Recent conversations</span>
             <h2>{sessions.length ? "Sessions" : "No saved sessions"}</h2>
@@ -53,29 +62,31 @@ export function DashboardActivityPanels({
               <small>Start a conversation to build local history.</small>
             )}
           </div>
-          <button
-            className="text-button"
+          <Button
             disabled={!onOpenChat}
             onClick={() => onOpenChat?.()}
+            size="sm"
             type="button"
+            variant="ghost"
           >
             Open chat
-          </button>
+          </Button>
         </div>
         {sessions.length ? (
-          <div className="stack-list">
+          <div className="grid">
             {sessions.map((session) => (
               <button
-                className="row-card dashboard-session-button"
+                className="grid min-h-[46px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[var(--radius-xs)] p-2 text-left hover:bg-[var(--surface-hover)]"
+                data-dashboard-session="true"
                 key={session.id}
                 onClick={() => onOpenChat?.(session.id)}
                 type="button"
               >
-                <span className="row-card-main">
+                <span className="grid min-w-0 gap-0.5 [&>*]:overflow-hidden [&>*]:text-ellipsis [&>*]:whitespace-nowrap">
                   <strong>{session.title}</strong>
                   <small>{session.preview}</small>
                 </span>
-                <span className="row-card-meta">
+                <span className="grid justify-items-end gap-0.5 [&_small]:font-[var(--font-mono)] [&_small]:text-[9px] [&_small]:text-[var(--muted)]">
                   <small>{session.messageCount} messages</small>
                   <small>{displayTimestamp(session.lastActivityLabel)}</small>
                 </span>
@@ -86,9 +97,11 @@ export function DashboardActivityPanels({
       </section>
 
       <section
-        className={`content-card${executionHasContent ? "" : " dashboard-quiet-card"}`}
+        className={`${DASHBOARD_CARD_CLASS} ${executionHasContent ? "" : "flex min-h-[72px] items-center max-[620px]:min-h-[88px]"}`}
       >
-        <div className="card-heading">
+        <div
+          className={`${DASHBOARD_CARD_HEADING_CLASS} ${executionHasContent ? "" : "mb-0 w-full"}`}
+        >
           <div>
             <span className="eyebrow">Execution queue</span>
             <h2>
@@ -98,30 +111,32 @@ export function DashboardActivityPanels({
               <small>No approvals or delegated tasks need attention.</small>
             )}
           </div>
-          <div className="page-actions">
-            <button
-              className="text-button"
+          <div className="flex items-center gap-1.5">
+            <Button
               disabled={!onOpenReview}
               onClick={onOpenReview}
+              size="sm"
               type="button"
+              variant="ghost"
             >
               Review
-            </button>
-            <button
-              className="text-button"
+            </Button>
+            <Button
               disabled={!onOpenTasks}
               onClick={onOpenTasks}
+              size="sm"
               type="button"
+              variant="ghost"
             >
               Tasks
-            </button>
+            </Button>
           </div>
         </div>
         {executionHasContent ? (
           <>
-            <div className="stack-list">
+            <div className="grid">
               {approvals.slice(0, 3).map((approval) => (
-                <div className="status-row" key={approval.id}>
+                <div className={DASHBOARD_STATUS_ROW_CLASS} key={approval.id}>
                   <div>
                     <strong>{approval.command}</strong>
                     <small>
@@ -133,7 +148,7 @@ export function DashboardActivityPanels({
                 </div>
               ))}
               {tasks.slice(0, 4).map((task) => (
-                <div className="status-row" key={task.id}>
+                <div className={DASHBOARD_STATUS_ROW_CLASS} key={task.id}>
                   <div>
                     <strong>{task.title}</strong>
                     <small>

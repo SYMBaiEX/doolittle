@@ -13,6 +13,11 @@ import {
   LoadingBlock,
   Notice,
 } from "../lib";
+import {
+  RUNTIME_CARD_CLASS,
+  RUNTIME_CARD_HEADING_CLASS,
+  RUNTIME_STATUS_ROW_CLASS,
+} from "../runtime/runtime-layout";
 
 export interface NativeAutonomyResponse {
   data?: unknown;
@@ -64,8 +69,11 @@ export function NativeAutonomyPanel({
   }
 
   return (
-    <section className="content-card runtime-autonomy-panel">
-      <div className="card-heading">
+    <section
+      className={`runtime-autonomy-panel ${RUNTIME_CARD_CLASS} grid gap-2`}
+      data-runtime-autonomy="true"
+    >
+      <div className={`${RUNTIME_CARD_HEADING_CLASS} min-w-0`}>
         <div>
           <span className="eyebrow">Eliza native</span>
           <h2>Autonomy loop</h2>
@@ -80,7 +88,7 @@ export function NativeAutonomyPanel({
         <ErrorBlock error={autonomy.error} retry={autonomy.reload} />
       ) : (
         <>
-          <div className="status-row">
+          <div className={RUNTIME_STATUS_ROW_CLASS}>
             <div>
               <strong>{character} autonomous reasoning</strong>
               <small>
@@ -89,11 +97,17 @@ export function NativeAutonomyPanel({
               </small>
             </div>
           </div>
-          <div className="runtime-autonomy-controls">
-            <label className="runtime-autonomy-cadence">
-              <span>Cadence</span>
+          <div
+            className="runtime-autonomy-controls grid grid-cols-1 items-end gap-2 min-[521px]:max-[760px]:grid-cols-[minmax(140px,0.7fr)_minmax(180px,1fr)] min-[921px]:grid-cols-[minmax(148px,0.65fr)_minmax(190px,auto)]"
+            data-runtime-controls="autonomy"
+          >
+            <label className="grid min-w-0 gap-1">
+              <span className="font-[var(--font-mono)] text-[var(--text-meta)] font-bold tracking-[0.055em] text-[var(--muted)] uppercase">
+                Cadence
+              </span>
               <select
                 aria-label="Native autonomy reasoning cadence"
+                className="w-full min-w-0 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] px-2 py-[7px] text-[var(--text)] focus:border-[var(--accent-border)] focus:outline-none"
                 disabled={busy || readOnly}
                 onChange={(event) =>
                   void update("/autonomy/interval", {
@@ -119,7 +133,7 @@ export function NativeAutonomyPanel({
               </select>
             </label>
             <Button
-              className={enabled ? "secondary-button" : "primary-button"}
+              className="w-full min-w-0"
               disabled={busy || readOnly}
               onClick={() =>
                 void update(enabled ? "/autonomy/disable" : "/autonomy/enable")
@@ -135,7 +149,9 @@ export function NativeAutonomyPanel({
             </Button>
           </div>
           {readOnly ? (
-            <small>Controls are disabled while the runtime is degraded.</small>
+            <small className="text-[var(--muted)]">
+              Controls are disabled while the runtime is degraded.
+            </small>
           ) : null}
           {feedback ? (
             <Notice tone={feedback.tone}>{feedback.message}</Notice>

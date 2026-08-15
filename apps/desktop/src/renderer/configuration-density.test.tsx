@@ -112,7 +112,9 @@ describe("configuration route density", () => {
 
     act(() => root.render(<KeysPage active />));
 
-    expect(container.querySelector(".split-workspace.is-empty")).not.toBeNull();
+    expect(
+      container.querySelector('[data-inventory-empty="true"]'),
+    ).not.toBeNull();
     expect(container.querySelector(".keys-editor-form")).not.toBeNull();
     expect(container.textContent).toContain(
       "No stored keys. Save the first credential here.",

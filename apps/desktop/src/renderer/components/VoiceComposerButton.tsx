@@ -1,3 +1,4 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import {
   type KeyboardEvent,
   useCallback,
@@ -7,7 +8,6 @@ import {
   useRef,
   useState,
 } from "react";
-import "./voice-composer-button.css";
 
 export const VOICE_RECORDING_MAX_BYTES = 20 * 1024 * 1024;
 export const VOICE_RECORDING_MAX_DURATION_MS = 2 * 60 * 1_000;
@@ -439,12 +439,12 @@ export function VoiceComposerButton({
     phase === "transcribing";
 
   return (
-    <div className="voice-composer">
-      <button
+    <div className="relative inline-flex shrink-0">
+      <Button
         aria-controls={panelId}
         aria-expanded={open}
         aria-label="Open voice dictation"
-        className="voice-composer__trigger"
+        className="grid size-8 rounded-[3px] border border-transparent bg-transparent p-0 text-[var(--text-soft)] shadow-none hover:border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] aria-expanded:border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] aria-expanded:bg-[var(--accent-soft)] aria-expanded:text-[var(--accent)] [&_svg]:size-4 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:stroke-[1.7] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round]"
         disabled={disabled}
         onClick={() => {
           if (open) {
@@ -456,72 +456,91 @@ export function VoiceComposerButton({
           terminalErrorRef.current = "";
           dispatch("reset");
         }}
+        size="icon"
         title="Voice dictation"
         type="button"
+        variant="ghost"
       >
         <svg aria-hidden="true" viewBox="0 0 24 24">
           <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" />
           <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M9 21h6" />
         </svg>
-      </button>
+      </Button>
 
       {open ? (
         <fieldset
           aria-label="Voice dictation controls"
-          className="voice-composer__panel"
+          className="absolute right-0 bottom-[calc(100%+9px)] z-80 m-0 grid w-[min(292px,calc(100vw-32px))] min-w-0 gap-[11px] rounded-[5px] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_97%,transparent)] p-[13px] shadow-[0_18px_46px_var(--shadow)] transition-[opacity,transform] duration-200 starting:translate-y-1 starting:scale-[0.995] starting:opacity-0 motion-reduce:transition-none"
           id={panelId}
           onKeyDown={handlePanelKeyDown}
         >
-          <div className="voice-composer__heading">
+          <span
+            aria-hidden="true"
+            className="absolute right-[11px] -bottom-[5px] size-2 rotate-45 border-r border-b border-[var(--border-strong)] bg-[var(--surface-raised)]"
+          />
+          <div className="grid grid-cols-[8px_minmax(0,1fr)_auto] items-center gap-2">
             <span
               aria-hidden="true"
-              className={phase === "recording" ? "is-recording" : ""}
+              className={`size-[7px] rounded-full ${
+                phase === "recording"
+                  ? "animate-pulse bg-[var(--accent)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--accent)_14%,transparent)] motion-reduce:animate-none"
+                  : "bg-[var(--faint)]"
+              }`}
             />
-            <strong>Voice dictation</strong>
-            <small>Review before sending</small>
+            <strong className="min-w-0 text-xs tracking-[0.01em]">
+              Voice dictation
+            </strong>
+            <small className="font-[var(--font-mono)] text-[9px] tracking-[0.035em] text-[var(--faint)] uppercase">
+              Review before sending
+            </small>
           </div>
 
           <p
             aria-live="polite"
-            className="voice-composer__status"
+            className="m-0 min-h-[34px] text-[11px] leading-normal text-[var(--text-soft)]"
             role="status"
           >
             {errorDetail || statusText(phase, elapsedMs)}
           </p>
 
-          <div className="voice-composer__actions">
+          <div className="flex items-center gap-[7px]">
             {phase === "recording" ? (
-              <button
+              <Button
                 aria-label="Stop voice recording and transcribe"
-                className="voice-composer__primary is-stop"
+                className="min-h-[29px] rounded-[3px] px-[11px] text-[11px] font-semibold"
                 onClick={stopRecording}
+                size="sm"
                 type="button"
+                variant="surfaceDestructive"
               >
                 Stop
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
                 aria-label={
                   phase === "complete"
                     ? "Start another voice recording"
                     : "Start voice recording"
                 }
-                className="voice-composer__primary"
+                className="min-h-[29px] rounded-[3px] px-[11px] text-[11px] font-semibold"
                 disabled={busy || phase === "unsupported"}
                 onClick={() => void startRecording()}
+                size="sm"
                 type="button"
               >
                 {phase === "complete" ? "Record again" : "Start"}
-              </button>
+              </Button>
             )}
-            <button
+            <Button
               aria-label="Cancel voice dictation"
-              className="voice-composer__cancel"
+              className="min-h-[29px] rounded-[3px] px-[11px] text-[11px] font-semibold"
               onClick={cancel}
+              size="sm"
               type="button"
+              variant="outline"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </fieldset>
       ) : null}

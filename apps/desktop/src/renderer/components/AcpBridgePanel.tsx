@@ -1,3 +1,5 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
 import { type FormEvent, useState } from "react";
 import type {
   AcpBridgeSessionSummary,
@@ -17,7 +19,27 @@ import {
   Notice,
   useApiResource,
 } from "../lib";
-import "./acp-bridge-panel.css";
+
+const PANEL_CLASS =
+  "grid gap-3.5 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--accent)_42%,var(--border))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--accent-soft)_48%,var(--surface-raised)),var(--surface-raised)_58%)] p-[18px]";
+const HEADER_CLASS =
+  "flex items-start justify-between gap-4 max-[760px]:flex-col";
+const HEADING_CLASS = "mt-1 text-xl font-bold";
+const DESCRIPTION_CLASS =
+  "mt-[7px] max-w-2xl text-[13px] leading-[1.55] text-[var(--text-soft)]";
+const ACTIONS_CLASS = "flex items-center gap-2";
+const SUMMARY_CLASS = "grid grid-cols-3 gap-2.5 max-[760px]:grid-cols-1";
+const CARD_CLASS =
+  "min-w-0 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-raised)_88%,transparent)] p-[13px]";
+const SUMMARY_CARD_CLASS = `${CARD_CLASS} flex flex-col gap-[5px]`;
+const SUMMARY_LABEL_CLASS =
+  "font-[var(--font-mono)] text-[10px] uppercase tracking-[0.05em] text-[var(--muted)]";
+const MUTED_CLASS = "m-0 text-[11px] leading-[1.45] text-[var(--text-soft)]";
+const PROBE_CLASS =
+  "flex items-center justify-between gap-4 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-raised)_90%,transparent)] px-[13px] py-3 max-[760px]:flex-col max-[760px]:items-start";
+const CARD_HEADING_CLASS = "mb-2.5 flex items-start justify-between gap-3";
+const EYEBROW_CLASS =
+  "font-[var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]";
 
 interface AcpStatusResponse {
   acp?: AcpBridgeStatus;
@@ -155,23 +177,25 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
   };
 
   return (
-    <section aria-labelledby="acp-bridge-heading" className="acp-bridge-panel">
-      <header className="acp-bridge-header">
+    <section aria-labelledby="acp-bridge-heading" className={PANEL_CLASS}>
+      <header className={HEADER_CLASS}>
         <div>
-          <span className="eyebrow">Experimental</span>
-          <h2 id="acp-bridge-heading">ACP bridge</h2>
-          <p>
+          <span className={EYEBROW_CLASS}>Experimental</span>
+          <h2 className={HEADING_CLASS} id="acp-bridge-heading">
+            ACP bridge
+          </h2>
+          <p className={DESCRIPTION_CLASS}>
             A configured-command bridge for local discovery and diagnostics. It
             is not a verified Agent Client Protocol editor integration.
           </p>
         </div>
-        <div className="acp-bridge-actions">
+        <div className={ACTIONS_CLASS}>
           <Badge tone={staticError ? "bad" : configured ? "good" : "warn"}>
             {staticError ? "Unavailable" : acpBridgeStatusLabel(bridge)}
           </Badge>
-          <button className="secondary-button" onClick={refresh} type="button">
+          <Button onClick={refresh} size="sm" type="button" variant="outline">
             Refresh
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -182,21 +206,23 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
         </Notice>
       ) : null}
       {!loading ? (
-        <div className="acp-bridge-summary">
-          <div>
-            <span>Command</span>
-            <strong>{summary.command}</strong>
-            <small>{summary.detail}</small>
+        <div className={`acp-bridge-summary ${SUMMARY_CLASS}`}>
+          <div className={SUMMARY_CARD_CLASS}>
+            <span className={SUMMARY_LABEL_CLASS}>Command</span>
+            <strong className="text-[15px]">{summary.command}</strong>
+            <small className={MUTED_CLASS}>{summary.detail}</small>
           </div>
-          <div>
-            <span>Registered tools</span>
-            <strong>{summary.toolCount}</strong>
-            <small>{summary.sessionCount} local sessions observed</small>
+          <div className={SUMMARY_CARD_CLASS}>
+            <span className={SUMMARY_LABEL_CLASS}>Registered tools</span>
+            <strong className="text-[15px]">{summary.toolCount}</strong>
+            <small className={MUTED_CLASS}>
+              {summary.sessionCount} local sessions observed
+            </small>
           </div>
-          <div>
-            <span>Last probe</span>
-            <strong>{summary.lastProbe}</strong>
-            <small>{summary.lastError}</small>
+          <div className={SUMMARY_CARD_CLASS}>
+            <span className={SUMMARY_LABEL_CLASS}>Last probe</span>
+            <strong className="text-[15px]">{summary.lastProbe}</strong>
+            <small className={MUTED_CLASS}>{summary.lastError}</small>
           </div>
         </div>
       ) : null}
@@ -209,22 +235,23 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
               invoke an ACP command.
             </Notice>
           ) : (
-            <div className="acp-bridge-probe-row">
-              <div>
+            <div className={PROBE_CLASS}>
+              <div className="flex flex-col gap-1">
                 <strong>Connection probe</strong>
-                <span>
+                <span className="text-xs text-[var(--text-soft)]">
                   Runs the configured command with a safe <code>--help</code>{" "}
                   probe.
                 </span>
               </div>
-              <button
-                className="secondary-button"
+              <Button
                 disabled={probing}
                 onClick={() => void probe()}
+                size="sm"
                 type="button"
+                variant="outline"
               >
                 {probing ? "Probing…" : "Probe bridge"}
-              </button>
+              </Button>
             </div>
           )}
           {probeNotice ? (
@@ -235,35 +262,39 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
             </Notice>
           ) : null}
 
-          <div className="acp-bridge-lower-grid">
-            <article className="acp-bridge-card">
-              <div className="card-heading">
+          <div className="grid grid-cols-2 gap-2.5 max-[760px]:grid-cols-1">
+            <article className={CARD_CLASS}>
+              <div className={CARD_HEADING_CLASS}>
                 <div>
-                  <span className="eyebrow">Observed locally</span>
-                  <h3>Recent sessions</h3>
+                  <span className={EYEBROW_CLASS}>Observed locally</span>
+                  <h3 className="mt-[3px] text-[15px] font-bold">
+                    Recent sessions
+                  </h3>
                 </div>
                 <Badge tone="neutral">
                   {sessionSummary?.titledSessions ?? 0} titled
                 </Badge>
               </div>
               {sessionSummary?.recentTitles?.length ? (
-                <ul className="acp-bridge-session-list">
+                <ul className="m-0 grid gap-1.5 pl-[18px] text-xs text-[var(--text-soft)]">
                   {[...new Set(sessionSummary.recentTitles)].map((title) => (
                     <li key={title}>{title}</li>
                   ))}
                 </ul>
               ) : (
-                <p className="acp-bridge-muted">
+                <p className={MUTED_CLASS}>
                   No titled local sessions are available yet.
                 </p>
               )}
             </article>
 
-            <article className="acp-bridge-card">
-              <div className="card-heading">
+            <article className={CARD_CLASS}>
+              <div className={CARD_HEADING_CLASS}>
                 <div>
-                  <span className="eyebrow">Bridge metadata</span>
-                  <h3>Editor-facing record</h3>
+                  <span className={EYEBROW_CLASS}>Bridge metadata</span>
+                  <h3 className="mt-[3px] text-[15px] font-bold">
+                    Editor-facing record
+                  </h3>
                 </div>
                 <Badge
                   tone={
@@ -275,38 +306,41 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
                     : "Command missing"}
                 </Badge>
               </div>
-              <p className="acp-bridge-muted">
+              <p className={MUTED_CLASS}>
                 {editor.data?.editor?.registryPath
                   ? "A local registry path is available to the configured command."
                   : "No local editor-facing record is available yet."}
               </p>
-              <code className="acp-bridge-path">
+              <code className="mt-2.5 block overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[var(--muted)]">
                 {editor.data?.editor?.registryPath || "Not available"}
               </code>
             </article>
           </div>
 
-          <article className="acp-bridge-card acp-bridge-tools">
-            <div className="card-heading">
+          <article className={`${CARD_CLASS} grid gap-2.5`}>
+            <div className={CARD_HEADING_CLASS}>
               <div>
-                <span className="eyebrow">Read-only discovery</span>
-                <h3>Search bridge tools</h3>
+                <span className={EYEBROW_CLASS}>Read-only discovery</span>
+                <h3 className="mt-[3px] text-[15px] font-bold">
+                  Search bridge tools
+                </h3>
               </div>
               {toolQuery ? (
                 <Badge tone="neutral">{searchedTools.length} matches</Badge>
               ) : null}
             </div>
-            <form className="acp-bridge-search" onSubmit={search}>
-              <input
+            <form className="flex gap-2" onSubmit={search}>
+              <Input
                 aria-label="Search ACP bridge tools"
+                className="min-w-0 flex-1"
                 maxLength={256}
                 onChange={(event) => setDraftQuery(event.target.value)}
                 placeholder="Search by tool name, description, kind, or source"
                 value={draftQuery}
               />
-              <button className="secondary-button" type="submit">
+              <Button size="sm" type="submit" variant="outline">
                 Search
-              </button>
+              </Button>
             </form>
             {tools.loading ? (
               <LoadingBlock label="Searching bridge tools…" />
@@ -325,14 +359,21 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
               </EmptyBlock>
             ) : null}
             {searchedTools.length ? (
-              <div className="acp-bridge-tool-list">
+              <div className="acp-bridge-tool-list grid gap-[7px]">
                 {searchedTools.map((tool) => (
-                  <article key={`${tool.source}:${tool.name}`}>
-                    <div>
-                      <code>{tool.name}</code>
-                      <span>{tool.description}</span>
+                  <article
+                    className="flex items-start justify-between gap-3 border-t border-[var(--border)] py-[9px]"
+                    key={`${tool.source}:${tool.name}`}
+                  >
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <code className="text-[11px] text-[var(--accent)]">
+                        {tool.name}
+                      </code>
+                      <span className="text-xs leading-[1.4] text-[var(--text-soft)]">
+                        {tool.description}
+                      </span>
                     </div>
-                    <small>
+                    <small className="shrink-0 text-[10px] text-[var(--muted)]">
                       {tool.kind} · {tool.source}
                     </small>
                   </article>

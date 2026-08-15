@@ -28,7 +28,7 @@ describe("CompatibilityEmptyState", () => {
     const onRetry = vi.fn();
     act(() => root.render(<CompatibilityEmptyState onRetry={onRetry} />));
 
-    const state = container.querySelector(".compatibility-empty");
+    const state = container.querySelector('[data-compatibility-empty="true"]');
     expect(state?.getAttribute("aria-labelledby")).toBe(
       "compatibility-empty-title",
     );

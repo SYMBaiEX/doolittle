@@ -14,13 +14,13 @@ export function TaskSupervisionControls({
   onSupervise,
 }: TaskSupervisionControlsProps) {
   return (
-    <details className="orchestration-supervision">
+    <details className={oc("orchestration-supervision")}>
       <summary>
         <span>Supervise</span>
         <small>Parallel {concurrency}</small>
         <i aria-hidden="true">⌄</i>
       </summary>
-      <div className="orchestration-supervision__body">
+      <div className={oc("orchestration-supervision__body")}>
         <label>
           <span>Parallel</span>
           <input
@@ -43,3 +43,5 @@ export function TaskSupervisionControls({
     </details>
   );
 }
+
+import { orchestrationClass as oc } from "./layout";

@@ -52,7 +52,7 @@ describe("DesktopRouteErrorBoundary", () => {
   it("keeps route recovery local and exposes accessible escape actions", () => {
     const markup = renderToStaticMarkup(erroredBoundary().render());
 
-    expect(markup).toContain('class="route-recovery recovery-card"');
+    expect(markup).toContain('data-recovery-scope="route"');
     expect(markup).toContain('role="alert"');
     expect(markup).toContain("Connections view encountered a rendering error");
     expect(markup).toContain("Retry Connections");
@@ -106,7 +106,9 @@ describe("DesktopRouteErrorBoundary", () => {
       );
     });
 
-    expect(container.querySelector(".route-recovery")).not.toBeNull();
+    expect(
+      container.querySelector('[data-recovery-scope="route"]'),
+    ).not.toBeNull();
     expect(container.textContent).toContain("Retry Connections");
     expect(consoleError).toHaveBeenCalled();
   });

@@ -1,3 +1,6 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
+import { Textarea } from "@elizaos/ui/components/ui/textarea";
 import { type FormEvent, useState } from "react";
 import { MediaResult } from "../components/MediaResult";
 import {
@@ -6,6 +9,15 @@ import {
   Notice,
   type UnknownRecord,
 } from "../lib";
+import { MediaOptions } from "./MediaOptions";
+import {
+  MEDIA_ACTIONS_CLASS,
+  MEDIA_FIELD_CLASS,
+  MEDIA_FIELD_WIDE_CLASS,
+  MEDIA_FORM_CLASS,
+  MEDIA_HEADING_CLASS,
+  MEDIA_TAB_PANEL_CLASS,
+} from "./media-layout";
 
 interface GenerateResponse {
   generation?: UnknownRecord;
@@ -54,69 +66,69 @@ export function ImageTab({ active }: { active: boolean }) {
   return (
     <section
       aria-labelledby="media-tab-image"
-      className="media-tab-panel"
+      className={MEDIA_TAB_PANEL_CLASS}
       hidden={!active}
       id="media-panel-image"
       role="tabpanel"
     >
-      <form className="content-card media-form" onSubmit={runGenerate}>
-        <div className="card-heading">
+      <form className={MEDIA_FORM_CLASS} onSubmit={runGenerate}>
+        <div className={MEDIA_HEADING_CLASS}>
           <div>
             <h2>Generate an image from text</h2>
           </div>
         </div>
-        <label>
+        <label className={MEDIA_FIELD_WIDE_CLASS} htmlFor="media-image-prompt">
           <span>Prompt</span>
-          <textarea
+          <Textarea
+            id="media-image-prompt"
             onChange={(event) => setPrompt(event.target.value)}
             placeholder="Design a clean operator dashboard"
             rows={5}
             value={prompt}
           />
         </label>
-        <details className="media-options">
-          <summary>
-            Image settings <span>{size || "Provider default"}</span>
-          </summary>
-          <div className="media-options-grid">
-            <label>
-              <span>Name</span>
-              <input
-                onChange={(event) => setName(event.target.value)}
-                placeholder="dashboard-art"
-                value={name}
-              />
-            </label>
-            <label>
-              <span>Size</span>
-              <input
-                onChange={(event) => setSize(event.target.value)}
-                placeholder="1024x1024"
-                value={size}
-              />
-            </label>
-            <label>
-              <span>Style</span>
-              <input
-                onChange={(event) => setStyle(event.target.value)}
-                placeholder="cinematic"
-                value={style}
-              />
-            </label>
-            <label>
-              <span>Focus</span>
-              <input
-                onChange={(event) => setFocus(event.target.value)}
-                placeholder="UI layout"
-                value={focus}
-              />
-            </label>
-          </div>
-        </details>
-        <div className="form-actions">
-          <button className="primary-button" disabled={busy} type="submit">
+        <MediaOptions label="Image settings" value={size || "Provider default"}>
+          <label className={MEDIA_FIELD_CLASS} htmlFor="media-image-name">
+            <span>Name</span>
+            <Input
+              id="media-image-name"
+              onChange={(event) => setName(event.target.value)}
+              placeholder="dashboard-art"
+              value={name}
+            />
+          </label>
+          <label className={MEDIA_FIELD_CLASS} htmlFor="media-image-size">
+            <span>Size</span>
+            <Input
+              id="media-image-size"
+              onChange={(event) => setSize(event.target.value)}
+              placeholder="1024x1024"
+              value={size}
+            />
+          </label>
+          <label className={MEDIA_FIELD_CLASS} htmlFor="media-image-style">
+            <span>Style</span>
+            <Input
+              id="media-image-style"
+              onChange={(event) => setStyle(event.target.value)}
+              placeholder="cinematic"
+              value={style}
+            />
+          </label>
+          <label className={MEDIA_FIELD_CLASS} htmlFor="media-image-focus">
+            <span>Focus</span>
+            <Input
+              id="media-image-focus"
+              onChange={(event) => setFocus(event.target.value)}
+              placeholder="UI layout"
+              value={focus}
+            />
+          </label>
+        </MediaOptions>
+        <div className={MEDIA_ACTIONS_CLASS}>
+          <Button disabled={busy} type="submit">
             {busy ? "Generating…" : "Generate"}
-          </button>
+          </Button>
         </div>
       </form>
       {error ? <Notice tone="bad">{error}</Notice> : null}

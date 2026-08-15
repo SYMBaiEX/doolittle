@@ -13,6 +13,18 @@ import type { AccountImportDraft } from "../agent-pages-helpers";
 import { accountPoolProgress } from "../agent-pages-helpers";
 import { Badge, EmptyBlock } from "../lib";
 import { AccountPoolDirectory } from "./AccountPoolDirectory";
+import {
+  PROVIDER_IDENTITY_MARK_CLASS,
+  PROVIDER_POOL_BODY_CLASS,
+  PROVIDER_POOL_HEADER_ACTIONS_CLASS,
+  PROVIDER_POOL_HEADER_CLASS,
+  PROVIDER_POOL_PANEL_CLASS,
+  PROVIDER_POOL_ROUTING_CLASS,
+  PROVIDER_POOL_ROUTING_LABEL_CLASS,
+  PROVIDER_POOL_SUMMARY_CLASS,
+  PROVIDER_POOL_TITLE_CLASS,
+  PROVIDER_POOL_TOOLBAR_CLASS,
+} from "./layout";
 
 export function AccountPoolPanel({
   accountImport,
@@ -72,17 +84,19 @@ export function AccountPoolPanel({
     return (
       <section
         aria-label={`${descriptor.label} spawned-agent account pool`}
-        className="provider-pool-panel is-unavailable"
+        className={`${PROVIDER_POOL_PANEL_CLASS} is-unavailable [&>.empty-block]:m-4.5`}
       >
-        <div className="provider-pool-panel__header">
-          <div className="provider-identity-mark" aria-hidden="true">
+        <div
+          className={`${PROVIDER_POOL_HEADER_CLASS} border-[var(--line-subtle)] border-b`}
+        >
+          <div className={PROVIDER_IDENTITY_MARK_CLASS} aria-hidden="true">
             {descriptor.shortLabel}
           </div>
           <div>
             <span className="eyebrow">Spawned-agent routing</span>
             <h3>{descriptor.label}</h3>
           </div>
-          <div className="provider-pool-bridge-badge">
+          <div className="provider-pool-bridge-badge max-[620px]:col-start-2 max-[620px]:justify-self-start">
             <Badge tone="warn">Pool unavailable</Badge>
           </div>
         </div>
@@ -103,21 +117,21 @@ export function AccountPoolPanel({
   return (
     <section
       aria-label={`${descriptor.label} spawned-agent account pool`}
-      className={
-        expanded ? "provider-pool-panel is-expanded" : "provider-pool-panel"
-      }
+      className={`${PROVIDER_POOL_PANEL_CLASS} ${expanded ? "is-expanded" : ""}`}
     >
-      <header className="provider-pool-panel__header">
-        <div className="provider-identity-mark" aria-hidden="true">
+      <header
+        className={`${PROVIDER_POOL_HEADER_CLASS} ${expanded ? "border-[var(--line-subtle)] border-b" : ""}`}
+      >
+        <div className={PROVIDER_IDENTITY_MARK_CLASS} aria-hidden="true">
           {descriptor.shortLabel}
         </div>
-        <div className="provider-pool-panel__title">
+        <div className={PROVIDER_POOL_TITLE_CLASS}>
           <h3>{descriptor.label}</h3>
           <p>
             {progress.enabled} active · {progress.healthy} ready
           </p>
         </div>
-        <div className="provider-pool-header-actions">
+        <div className={PROVIDER_POOL_HEADER_ACTIONS_CLASS}>
           <Badge tone={bridgeInstalled ? "good" : "warn"}>
             {bridgeInstalled ? "Eliza native" : "Unavailable"}
           </Badge>
@@ -144,12 +158,19 @@ export function AccountPoolPanel({
       </header>
 
       <div
-        className="provider-pool-body"
+        className={PROVIDER_POOL_BODY_CLASS}
+        data-provider-pool-body="true"
         hidden={!expanded}
         id={`provider-pool-${descriptor.provider}`}
       >
-        <div className="provider-pool-toolbar">
-          <dl className="provider-pool-summary" aria-label="Pool readiness">
+        <div
+          className={PROVIDER_POOL_TOOLBAR_CLASS}
+          data-provider-pool-toolbar="true"
+        >
+          <dl
+            className={PROVIDER_POOL_SUMMARY_CLASS}
+            aria-label="Pool readiness"
+          >
             <div>
               <dt>Active</dt>
               <dd>
@@ -158,15 +179,21 @@ export function AccountPoolPanel({
             </div>
             <div>
               <dt>Ready</dt>
-              <dd className={progress.healthy > 0 ? "is-good" : "is-warn"}>
+              <dd
+                className={
+                  progress.healthy > 0
+                    ? "is-good !text-[var(--good)]"
+                    : "is-warn !text-[var(--warn)]"
+                }
+              >
                 {progress.healthy}
               </dd>
             </div>
           </dl>
 
-          <div className="provider-pool-routing">
+          <div className={PROVIDER_POOL_ROUTING_CLASS}>
             <label
-              className="provider-pool-routing__label"
+              className={PROVIDER_POOL_ROUTING_LABEL_CLASS}
               htmlFor={`rotation-strategy-${descriptor.provider}`}
             >
               Strategy
@@ -180,7 +207,7 @@ export function AccountPoolPanel({
               value={snapshot.strategy}
             />
             <Button
-              className="secondary-button provider-pool-preview"
+              className="secondary-button shrink-0"
               onClick={onPreview}
               disabled={Boolean(busy) || progress.enabled === 0}
               type="button"

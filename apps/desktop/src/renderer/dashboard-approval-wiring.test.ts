@@ -56,8 +56,16 @@ describe("dashboard approval resource wiring", () => {
     const route = DesktopRouteContent(createRouteProps(approvalsResource));
 
     expect(isValidElement(route)).toBe(true);
-    if (!isValidElement<{ approvalsResource: typeof approvalsResource }>(route))
+    if (!isValidElement<{ children: unknown }>(route))
+      throw new Error("Expected the route contract wrapper.");
+    const dashboard = route.props.children;
+    if (
+      !isValidElement<{ approvalsResource: typeof approvalsResource }>(
+        dashboard,
+      )
+    ) {
       throw new Error("Expected the dashboard route element.");
-    expect(route.props.approvalsResource).toBe(approvalsResource);
+    }
+    expect(dashboard.props.approvalsResource).toBe(approvalsResource);
   });
 });

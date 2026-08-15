@@ -29,6 +29,7 @@ import {
   SmallEmpty,
   statusTone,
 } from "./detail-primitives";
+import { orchestrationClass as oc } from "./layout";
 import type { CodegenMode } from "./orchestration-runs-model";
 import { runArtifacts } from "./orchestration-runs-model";
 import { OrchestrationLauncher } from "./runs-panel/OrchestrationLauncher";
@@ -133,7 +134,7 @@ export function OrchestrationRunsPanel({
   onCancelRun,
 }: OrchestrationRunsPanelProps) {
   return (
-    <div className="orchestration-runs-layout">
+    <div className={oc("orchestration-runs-layout")}>
       <OrchestrationLauncher
         active={active}
         workspaceLabel={workspaceLabel}
@@ -157,12 +158,12 @@ export function OrchestrationRunsPanel({
         onSubmitCodegen={onSubmitCodegen}
       />
 
-      <aside className="orchestration-run-browser">
-        <div className="orchestration-pane-heading">
+      <aside className={oc("orchestration-run-browser")}>
+        <div className={oc("orchestration-pane-heading")}>
           <span>Workflows</span>
           <small>{workflows.length}</small>
         </div>
-        <div className="orchestration-workflow-list">
+        <div className={oc("orchestration-workflow-list")}>
           {codegenWorkflowsResource.error ? (
             <ErrorBlock
               error={codegenWorkflowsResource.error}
@@ -180,17 +181,19 @@ export function OrchestrationRunsPanel({
                 <button
                   key={workflow.id}
                   type="button"
-                  className={
-                    selectedWorkflow?.id === workflow.id
-                      ? `selected tier-${tier}`
-                      : `tier-${tier}`
-                  }
+                  className={oc(
+                    selectedWorkflow?.id === workflow.id && "selected",
+                    `tier-${tier}`,
+                  )}
                   aria-pressed={selectedWorkflow?.id === workflow.id}
                   onClick={() => onSelectWorkflow(workflow.id)}
                 >
-                  <span className="master-row master-row-top">
-                    <span className="master-title-line">
-                      <i className="master-status-dot" aria-hidden="true" />
+                  <span className={oc("master-row", "master-row-top")}>
+                    <span className={oc("master-title-line")}>
+                      <i
+                        className={oc("master-status-dot")}
+                        aria-hidden="true"
+                      />
                       <strong>{asString(workflow.title, workflow.id)}</strong>
                     </span>
                     <Badge tone={statusTone(status)}>{status}</Badge>
@@ -208,11 +211,16 @@ export function OrchestrationRunsPanel({
             })
           )}
         </div>
-        <div className="orchestration-pane-heading runs-heading">
+        <div className={oc("orchestration-pane-heading", "runs-heading")}>
           <span>Runs</span>
           <small>{visibleRuns.length}</small>
         </div>
-        <div className="orchestration-workflow-list orchestration-run-list">
+        <div
+          className={oc(
+            "orchestration-workflow-list",
+            "orchestration-run-list",
+          )}
+        >
           {workflowDetailResource.error ? (
             <ErrorBlock
               error={workflowDetailResource.error}
@@ -230,17 +238,19 @@ export function OrchestrationRunsPanel({
                 <button
                   key={run.id}
                   type="button"
-                  className={
-                    selectedRun?.id === run.id
-                      ? `selected tier-${tier}`
-                      : `tier-${tier}`
-                  }
+                  className={oc(
+                    selectedRun?.id === run.id && "selected",
+                    `tier-${tier}`,
+                  )}
                   aria-pressed={selectedRun?.id === run.id}
                   onClick={() => onSelectRun(run.id)}
                 >
-                  <span className="master-row master-row-top">
-                    <span className="master-title-line">
-                      <i className="master-status-dot" aria-hidden="true" />
+                  <span className={oc("master-row", "master-row-top")}>
+                    <span className={oc("master-title-line")}>
+                      <i
+                        className={oc("master-status-dot")}
+                        aria-hidden="true"
+                      />
                       <strong>{asString(run.phase, run.kind)}</strong>
                     </span>
                     <Badge tone={statusTone(status)}>{status}</Badge>
@@ -260,16 +270,18 @@ export function OrchestrationRunsPanel({
         </div>
       </aside>
 
-      <article className="orchestration-detail orchestration-run-detail">
+      <article
+        className={oc("orchestration-detail", "orchestration-run-detail")}
+      >
         {!selectedWorkflow ? (
           <EmptyBlock title="Choose a workflow">
             Workflow and run evidence appear here.
           </EmptyBlock>
         ) : (
           <>
-            <div className="orchestration-detail-header">
+            <div className={oc("orchestration-detail-header")}>
               <div>
-                <span className="detail-kicker">
+                <span className={oc("detail-kicker")}>
                   {asString(selectedWorkflow.kind, "generate")} workflow
                 </span>
                 <h2>
@@ -294,7 +306,7 @@ export function OrchestrationRunsPanel({
                 {asString(selectedWorkflow.status, "pending")}
               </Badge>
             </div>
-            <div className="orchestration-detail-tags">
+            <div className={oc("orchestration-detail-tags")}>
               <DetailTag
                 tone={statusTone(asString(selectedWorkflow.status, "pending"))}
               >
@@ -313,12 +325,12 @@ export function OrchestrationRunsPanel({
                 {asArray(workflowDetailResource.data?.tree).length} root phases
               </DetailTag>
             </div>
-            <div className="orchestration-run-toolbar">
+            <div className={oc("orchestration-run-toolbar")}>
               <span>
                 {asArray(workflowDetailResource.data?.tree).length} root phases
                 · {visibleRuns.length} runs
               </span>
-              <div className="orchestration-run-actions">
+              <div className={oc("orchestration-run-actions")}>
                 {selectedRun &&
                 ["pending", "running"].includes(
                   asString(selectedRun.status),
@@ -352,7 +364,10 @@ export function OrchestrationRunsPanel({
 
             {selectedRun && confirmedRunCancellation === selectedRun.id ? (
               <div
-                className="orchestration-confirm orchestration-run-confirm"
+                className={oc(
+                  "orchestration-confirm",
+                  "orchestration-run-confirm",
+                )}
                 aria-live="polite"
               >
                 <div>
@@ -392,7 +407,7 @@ export function OrchestrationRunsPanel({
               />
             ) : null}
             {bundleResult && bundleWorkflowId === selectedWorkflow.id ? (
-              <div className="orchestration-bundle-receipt">
+              <div className={oc("orchestration-bundle-receipt")}>
                 <strong>Bundle ready</strong>
                 <code>
                   {asString(bundleResult.manifestPath) ||
@@ -417,10 +432,10 @@ export function OrchestrationRunsPanel({
             ) : runDetailResource.loading ? (
               <LoadingBlock />
             ) : (
-              <div className="orchestration-run-inspector">
-                <div className="orchestration-subheading">
+              <div className={oc("orchestration-run-inspector")}>
+                <div className={oc("orchestration-subheading")}>
                   <div>
-                    <span className="detail-kicker">Selected run</span>
+                    <span className={oc("detail-kicker")}>Selected run</span>
                     <h3>
                       {asString(
                         selectedRun.phase,
@@ -434,7 +449,7 @@ export function OrchestrationRunsPanel({
                     {asString(selectedRun.status, "pending")}
                   </Badge>
                 </div>
-                <div className="orchestration-detail-tags">
+                <div className={oc("orchestration-detail-tags")}>
                   <DetailTag
                     tone={statusTone(asString(selectedRun.status, "pending"))}
                   >
@@ -460,7 +475,7 @@ export function OrchestrationRunsPanel({
                       : "account not recorded"}
                   </DetailTag>
                 </div>
-                <dl className="orchestration-run-facts">
+                <dl className={oc("orchestration-run-facts")}>
                   <DetailRow label="Run ID" value={selectedRun.id} />
                   <DetailRow
                     label="Task"
@@ -506,9 +521,9 @@ export function OrchestrationRunsPanel({
                     <span>{selectedRun.error}</span>
                   </Notice>
                 ) : null}
-                <div className="orchestration-output-grid">
+                <div className={oc("orchestration-output-grid")}>
                   <section>
-                    <span className="detail-kicker">Output preview</span>
+                    <span className={oc("detail-kicker")}>Output preview</span>
                     <pre>
                       {asString(
                         selectedRun.outputPreview,
@@ -517,14 +532,14 @@ export function OrchestrationRunsPanel({
                     </pre>
                   </section>
                   <section>
-                    <span className="detail-kicker">Request</span>
+                    <span className={oc("detail-kicker")}>Request</span>
                     <pre>
                       {JSON.stringify(asRecord(selectedRun.input), null, 2)}
                     </pre>
                   </section>
                 </div>
-                <div className="orchestration-artifacts">
-                  <span className="detail-kicker">Artifacts</span>
+                <div className={oc("orchestration-artifacts")}>
+                  <span className={oc("detail-kicker")}>Artifacts</span>
                   {runArtifacts(selectedRun).length > 0 ? (
                     <ArtifactViewer
                       artifacts={runArtifacts(selectedRun)}

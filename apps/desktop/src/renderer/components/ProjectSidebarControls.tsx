@@ -6,6 +6,15 @@ import {
   useState,
 } from "react";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
+import {
+  NEW_CHAT_CHOICE_CLASS,
+  NEW_CHAT_MENU_CLASS,
+  NEW_CHAT_MENU_HEADER_CLASS,
+  NEW_CHAT_SEARCH_CLASS,
+  NEW_CHAT_SHELL_CLASS,
+  NEW_CHAT_TRIGGER_CLASS,
+  PROJECT_MARK_CLASS,
+} from "./project-sidebar-layout";
 import { repositoryLabel } from "./project-sidebar-model";
 
 export function projectLocationLabel(project: ProjectLike): string {
@@ -21,7 +30,7 @@ export function ProjectMark({ project }: { project: ProjectLike }) {
   return (
     <span
       aria-hidden="true"
-      className="project-rail-mark"
+      className={PROJECT_MARK_CLASS}
       style={
         {
           "--project-color": project.color ?? "var(--accent)",
@@ -121,11 +130,12 @@ export function NewConversationControl({
   };
 
   return (
-    <div className="sidebar-new-chat-shell" ref={shellRef}>
+    <div className={NEW_CHAT_SHELL_CLASS} ref={shellRef}>
       <button
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label="New conversation"
+        className={NEW_CHAT_TRIGGER_CLASS}
         onClick={() => onOpenChange(!isOpen)}
         ref={triggerRef}
         title="New conversation"
@@ -138,18 +148,18 @@ export function NewConversationControl({
       {isOpen ? (
         <div
           aria-label="Start a new conversation"
-          className="new-chat-project-menu"
+          className={NEW_CHAT_MENU_CLASS}
           ref={menuRef}
           role="dialog"
         >
-          <header>
+          <header className={NEW_CHAT_MENU_HEADER_CLASS}>
             <div>
               <strong>Start in a project</strong>
               <small>Choose the repository Doolittle should work in.</small>
             </div>
             <button
               aria-label="Close new conversation menu"
-              className="new-chat-project-menu__close"
+              className="new-chat-project-menu__close grid size-6 place-items-center rounded-[var(--radius-xs)] border border-transparent p-0 text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
               onClick={() => onOpenChange(false)}
               type="button"
             >
@@ -157,10 +167,11 @@ export function NewConversationControl({
             </button>
           </header>
           {projects.filter((project) => !project.archived).length > 5 ? (
-            <label className="new-chat-project-menu__search">
+            <label className={NEW_CHAT_SEARCH_CLASS}>
               <span aria-hidden="true">⌕</span>
               <input
                 aria-label="Search projects"
+                className="min-h-7.75 w-full border-0 bg-transparent p-0 text-xs text-[var(--text)] outline-0"
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Find a project"
                 ref={searchRef}
@@ -168,13 +179,11 @@ export function NewConversationControl({
               />
             </label>
           ) : null}
-          <div className="new-chat-project-menu__list">
+          <div className="new-chat-project-menu__list grid max-h-59 gap-0.5 overflow-y-auto p-1.75">
             {visibleProjects.map((project) => (
               <button
                 aria-current={activeScope === project.id ? "true" : undefined}
-                className={
-                  activeScope === project.id ? "is-current" : undefined
-                }
+                className={`${NEW_CHAT_CHOICE_CLASS} ${activeScope === project.id ? "is-current [&>i]:text-[var(--accent)]" : ""}`}
                 data-new-chat-choice
                 key={project.id}
                 onClick={() => choose(project.id)}
@@ -191,11 +200,14 @@ export function NewConversationControl({
               </button>
             ))}
             {visibleProjects.length === 0 && query ? (
-              <p>No matching projects.</p>
+              <p className="m-1.75 text-[11px] text-[var(--muted)]">
+                No matching projects.
+              </p>
             ) : null}
           </div>
-          <div className="new-chat-project-menu__actions">
+          <div className="new-chat-project-menu__actions grid gap-0.5 border-[var(--border)] border-t p-1.75">
             <button
+              className={NEW_CHAT_CHOICE_CLASS}
               data-new-chat-choice
               onClick={() => {
                 onOpenChange(false);
@@ -203,7 +215,12 @@ export function NewConversationControl({
               }}
               type="button"
             >
-              <span aria-hidden="true">▱</span>
+              <span
+                aria-hidden="true"
+                className="grid size-6.75 place-items-center rounded-[var(--radius-xs)] border border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] text-[var(--accent)]"
+              >
+                ▱
+              </span>
               <span>
                 <strong>Choose repository…</strong>
                 <small>Create or reopen a local project</small>
@@ -214,10 +231,16 @@ export function NewConversationControl({
             </button>
             <button
               aria-current={activeScope === "unscoped" ? "true" : undefined}
+              className={NEW_CHAT_CHOICE_CLASS}
               onClick={() => choose("unscoped")}
               type="button"
             >
-              <span aria-hidden="true">○</span>
+              <span
+                aria-hidden="true"
+                className="grid size-6.75 place-items-center rounded-[var(--radius-xs)] border border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] text-[var(--accent)]"
+              >
+                ○
+              </span>
               <span>
                 <strong>General chat</strong>
                 <small>Start without repository context</small>
@@ -225,8 +248,9 @@ export function NewConversationControl({
               {activeScope === "unscoped" ? <i aria-hidden="true">✓</i> : null}
             </button>
           </div>
-          <footer>
+          <footer className="border-[var(--border)] border-t px-3 pt-2 pb-2.5">
             <button
+              className="flex min-h-6 w-full justify-between p-0.5 font-[var(--font-mono)] text-[10px] text-[var(--muted)] hover:text-[var(--accent)]"
               onClick={() => {
                 onOpenChange(false);
                 onManageProjects();

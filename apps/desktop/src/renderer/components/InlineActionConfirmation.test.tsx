@@ -40,6 +40,7 @@ describe("InlineActionConfirmation", () => {
     expect(markup).toContain("Approving…");
     expect(markup).toContain('aria-busy="true"');
     expect(markup.match(/disabled=""/gu)).toHaveLength(2);
-    expect(markup).toContain("inline-action-confirmation primary");
+    expect(markup).toContain("inline-action-confirmation mt-2.5 grid");
+    expect(markup).toContain("var(--accent)_26%");
   });
 });

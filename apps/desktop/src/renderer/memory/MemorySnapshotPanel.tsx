@@ -13,6 +13,12 @@ import {
   LoadingBlock,
   Notice,
 } from "../lib";
+import {
+  MEMORY_CARD_CLASS,
+  MEMORY_GRID_CLASS,
+  MEMORY_HEADING_CLASS,
+  MEMORY_PREVIEW_CLASS,
+} from "./memory-layout";
 import type { MemoryResponse, MemorySummary } from "./models";
 
 const SNAPSHOT_CHARACTER_LIMIT = 1_400;
@@ -77,11 +83,22 @@ export function MemorySnapshotPanel({
   }
 
   return (
-    <div className="memory-content memory-snapshot-grid">
+    <div className={MEMORY_GRID_CLASS}>
       <section
-        className={`content-card memory-summary-card${empty ? " memory-empty-card" : ""}`}
+        className={`${MEMORY_CARD_CLASS} ${
+          empty
+            ? "col-span-full grid grid-cols-[minmax(180px,0.5fr)_minmax(0,1.5fr)] items-stretch gap-x-3 gap-y-2 max-[760px]:grid-cols-1 [&>.compact-stat-strip]:self-stretch [&>.compact-stat-strip]:border-0 [&>.compact-stat-strip_.compact-stat-strip__item]:min-h-[46px] [&>.compact-stat-strip_.compact-stat-strip__item]:py-[7px]"
+            : ""
+        }`}
+        data-memory-empty={empty ? "true" : undefined}
       >
-        <div className="card-heading">
+        <div
+          className={`${MEMORY_HEADING_CLASS} ${
+            empty
+              ? "m-0 min-h-0 border-r border-[var(--line-subtle)] pr-3 max-[760px]:border-r-0 max-[760px]:pr-0"
+              : ""
+          }`}
+        >
           <div>
             <span className="eyebrow">Summary</span>
             <h2>{targetLabel}</h2>
@@ -103,7 +120,7 @@ export function MemorySnapshotPanel({
           ]}
         />
         {empty ? (
-          <div className="memory-empty-state">
+          <div className="col-span-full mt-0 grid min-h-[30px] gap-x-3.5 gap-y-2 border-t border-[var(--line-subtle)] pt-2 text-[var(--muted)] max-[760px]:col-auto [&_span]:text-[11px] [&_strong]:flex-none [&_strong]:text-xs [&_strong]:text-[var(--text)]">
             <strong>No stored entries yet</strong>
             <span>
               Memory appears here after a conversation or saved operator detail.
@@ -113,8 +130,8 @@ export function MemorySnapshotPanel({
       </section>
 
       {preview.length ? (
-        <section className="content-card memory-summary-card">
-          <div className="card-heading">
+        <section className={MEMORY_CARD_CLASS}>
+          <div className={MEMORY_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Recent entries</span>
               <h2>Preview</h2>
@@ -129,8 +146,10 @@ export function MemorySnapshotPanel({
       ) : null}
 
       {!empty ? (
-        <section className="content-card memory-summary-card memory-snapshot-card">
-          <div className="card-heading">
+        <section
+          className={`${MEMORY_CARD_CLASS} col-span-full max-[760px]:col-auto`}
+        >
+          <div className={MEMORY_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Readable snapshot</span>
               <h2>Latest bounded snapshot</h2>
@@ -140,7 +159,7 @@ export function MemorySnapshotPanel({
             </Notice>
           </div>
           {snapshotAvailable ? (
-            <pre className="json-preview">
+            <pre className={MEMORY_PREVIEW_CLASS}>
               {formatBoundedPreview(snapshot, SNAPSHOT_CHARACTER_LIMIT)}
             </pre>
           ) : (

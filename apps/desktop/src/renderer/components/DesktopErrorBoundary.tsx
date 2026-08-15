@@ -1,6 +1,19 @@
 import { createLogger } from "@elizaos/logger";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
+export const RECOVERY_CARD_CLASS =
+  "max-w-lg border border-[var(--border-strong)] bg-[var(--surface)] p-6";
+export const RECOVERY_EYEBROW_CLASS = "text-xs font-bold text-[var(--bad)]";
+export const RECOVERY_TITLE_CLASS = "text-2xl font-bold";
+export const RECOVERY_COPY_CLASS = "mt-2 text-sm text-[var(--text-soft)]";
+export const RECOVERY_ACTIONS_CLASS = "mt-4 flex gap-2 border-t pt-4";
+export const RECOVERY_BUTTON_CLASS =
+  "border bg-[var(--surface-soft)] px-3 py-2 text-xs font-bold focus-visible:ring";
+export const RECOVERY_PRIMARY_BUTTON_CLASS = `${RECOVERY_BUTTON_CLASS} bg-[var(--accent)] text-[var(--accent-ink)]`;
+export const RECOVERY_DETAILS_CLASS = "mt-4 border-t pt-3";
+export const RECOVERY_DIAGNOSTIC_CLASS =
+  "my-2 max-h-44 overflow-auto whitespace-pre-wrap";
+
 const rendererLogger = createLogger({
   namespace: "doolittle.desktop.renderer",
   __forceType: "browser",
@@ -92,38 +105,47 @@ export class DesktopErrorBoundary extends Component<
     if (!error) return children;
 
     return (
-      <main className="recovery-shell">
+      <main
+        className="recovery-shell grid min-h-screen place-items-center bg-[var(--bg)] p-6 text-[var(--text)]"
+        data-recovery-scope="desktop"
+      >
         <p className="sr-only" role="alert">
           Doolittle encountered a rendering error. Recovery actions are
           available.
         </p>
-        <div className="recovery-glow" aria-hidden="true" />
-        <section className="recovery-card">
-          <div className="recovery-mark" aria-hidden="true">
-            D
-          </div>
-          <p className="recovery-eyebrow">DESKTOP RECOVERY</p>
-          <h1>Doolittle hit a snag.</h1>
-          <p className="recovery-copy">
+        <section className={RECOVERY_CARD_CLASS}>
+          <p className={RECOVERY_EYEBROW_CLASS}>DESKTOP RECOVERY</p>
+          <h1 className={RECOVERY_TITLE_CLASS}>Doolittle hit a snag.</h1>
+          <p className={RECOVERY_COPY_CLASS}>
             Your workspace and conversations are safe. Reload the desktop or
             return home to continue.
           </p>
-          <div className="recovery-actions">
+          <div className={RECOVERY_ACTIONS_CLASS}>
             <button
-              type="button"
-              className="recovery-primary"
+              className={RECOVERY_PRIMARY_BUTTON_CLASS}
               onClick={this.reload}
+              type="button"
             >
               Reload Doolittle
             </button>
-            <button type="button" onClick={this.returnHome}>
+            <button
+              className={RECOVERY_BUTTON_CLASS}
+              onClick={this.returnHome}
+              type="button"
+            >
               Return home
             </button>
           </div>
-          <details className="recovery-details">
+          <details className={`recovery-details ${RECOVERY_DETAILS_CLASS}`}>
             <summary>Technical details</summary>
-            <pre>{error.message || error.name}</pre>
-            <button type="button" onClick={this.copyDiagnostic}>
+            <pre className={RECOVERY_DIAGNOSTIC_CLASS}>
+              {error.message || error.name}
+            </pre>
+            <button
+              className={RECOVERY_BUTTON_CLASS}
+              onClick={this.copyDiagnostic}
+              type="button"
+            >
               {copied ? "Diagnostic copied" : "Copy diagnostic"}
             </button>
           </details>

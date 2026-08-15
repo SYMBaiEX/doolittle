@@ -16,7 +16,7 @@ describe("skill workshop helpers", () => {
     );
 
     expect(markup.match(/aria-pressed=/gu)).toHaveLength(4);
-    expect(markup).toContain("skill-workshop-filter-chip is-selected");
+    expect(markup).toContain('aria-pressed="true"');
     expect(markup.match(/aria-pressed="true"/gu)).toHaveLength(1);
     expect(markup).not.toContain("Review before activation</h2>");
   });

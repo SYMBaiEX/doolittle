@@ -2,6 +2,7 @@ import type { FormEvent } from "react";
 import type { TaskCapability } from "../orchestration-helpers";
 import type { RepositoryWorktreeRecord } from "../orchestration-resources";
 import { compactWorkspacePath } from "../workspace-path";
+import { orchestrationClass as oc } from "./layout";
 import type { ResourceState, TaskCreatePriority } from "./models";
 
 export function TaskCreateForm({
@@ -48,7 +49,7 @@ export function TaskCreateForm({
   onClose: () => void;
 }) {
   return (
-    <form className="orchestration-quick-create" onSubmit={onSubmit}>
+    <form className={oc("orchestration-quick-create")} onSubmit={onSubmit}>
       <label className="quick-title">
         <span>Title</span>
         <input
@@ -135,7 +136,7 @@ export function TaskCreateForm({
           ))}
         </select>
       </label>
-      <div className="quick-create-actions">
+      <div className={oc("quick-create-actions")}>
         <button
           className="primary-button"
           type="submit"
@@ -151,14 +152,14 @@ export function TaskCreateForm({
           Close
         </button>
       </div>
-      <p className="orchestration-task-routing-note">
+      <p className={oc("orchestration-task-routing-note")}>
         Coding starts only in the selected active Git worktree, then hands its
         session receipt to Queue and its branch context to Review. Codex and
         Claude choose an eligible account from their provider pool when the
         delegated session starts.
       </p>
       {accountPoolResource.error ? (
-        <p className="orchestration-task-routing-note" role="status">
+        <p className={oc("orchestration-task-routing-note")} role="status">
           Account options could not be refreshed. You can still use automatic
           routing.
           <button

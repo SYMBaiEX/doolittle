@@ -14,11 +14,13 @@ export function SettingsNavigation({
   onSelect: (id: string) => void;
 }) {
   return (
-    <aside className="settings-nav" aria-label="Settings categories">
+    <aside className={SETTINGS_NAV_CLASS} aria-label="Settings categories">
       {categories.map((entry) => (
         <button
           aria-label={`${entry.label}: ${entry.description}`}
-          className={category === entry.id ? "selected" : ""}
+          className={`${SETTINGS_NAV_BUTTON_CLASS} ${
+            category === entry.id ? "selected" : ""
+          }`}
           key={entry.id}
           onClick={() => onSelect(entry.id)}
           title={entry.description}
@@ -31,3 +33,8 @@ export function SettingsNavigation({
     </aside>
   );
 }
+
+import {
+  SETTINGS_NAV_BUTTON_CLASS,
+  SETTINGS_NAV_CLASS,
+} from "./settings-layout";

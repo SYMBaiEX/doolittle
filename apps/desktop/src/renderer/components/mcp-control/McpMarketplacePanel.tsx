@@ -1,4 +1,17 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
 import { Badge, EmptyBlock, LoadingBlock, Notice } from "../../lib";
+import {
+  MCP_DETAIL_CLASS,
+  MCP_DISCLOSURE_BODY_CLASS,
+  MCP_DISCLOSURE_CLASS,
+  MCP_SEARCH_CLASS,
+  MCP_SUMMARY_CLASS,
+  MCP_TOOL_BUTTON_CLASS,
+  MCP_TOOL_BUTTON_SELECTED_CLASS,
+  MCP_TOOL_LIST_CLASS,
+  MCP_TWO_COLUMN_CLASS,
+} from "./layout";
 import type {
   McpMarketplaceDetail,
   McpMarketplaceRequirement,
@@ -35,23 +48,38 @@ export function McpMarketplacePanel({
   onSelect,
 }: McpMarketplacePanelProps) {
   return (
-    <details className="mcp-control-disclosure mcp-control-marketplace">
-      <summary className="mcp-control-browser-header">
+    <details
+      className={`mcp-control-marketplace ${MCP_DISCLOSURE_CLASS}`}
+      data-mcp-section="marketplace"
+    >
+      <summary className={MCP_SUMMARY_CLASS}>
         <div>
           <span className="eyebrow">Official MCP Registry via Eliza</span>
           <h3>Discover MCP servers</h3>
         </div>
         <Badge tone="neutral">Preview only</Badge>
+        <span
+          aria-hidden="true"
+          className="font-[var(--font-mono)] text-[var(--muted)] group-open:hidden"
+        >
+          +
+        </span>
+        <span
+          aria-hidden="true"
+          className="hidden font-[var(--font-mono)] text-[var(--muted)] group-open:inline"
+        >
+          −
+        </span>
       </summary>
-      <div className="mcp-control-disclosure-body">
-        <p className="mcp-control-marketplace-copy">
+      <div className={MCP_DISCLOSURE_BODY_CLASS}>
+        <p className="m-0 max-w-[760px] text-xs leading-[1.5] text-[var(--text-soft)]">
           Results and configuration previews come only from Eliza&apos;s MCP
           marketplace service. Doolittle does not install packages, execute
           commands, save credentials, or persist registry configurations from
           this screen.
         </p>
-        <form className="mcp-control-search" onSubmit={onSubmit}>
-          <input
+        <form className={MCP_SEARCH_CLASS} onSubmit={onSubmit}>
+          <Input
             aria-label="Search official MCP marketplace"
             maxLength={128}
             onChange={(event) => onDraftChange(event.target.value)}
@@ -59,9 +87,9 @@ export function McpMarketplacePanel({
             type="search"
             value={draft}
           />
-          <button className="secondary-button" type="submit">
+          <Button size="sm" type="submit" variant="secondary">
             Search registry
-          </button>
+          </Button>
         </form>
         {loading ? (
           <LoadingBlock label="Searching the official MCP registry…" />
@@ -77,18 +105,16 @@ export function McpMarketplacePanel({
           </EmptyBlock>
         ) : null}
         {servers.length ? (
-          <div className="mcp-control-marketplace-grid">
+          <div className={MCP_TWO_COLUMN_CLASS}>
             <ul
               aria-label="Official MCP marketplace servers"
-              className="mcp-control-tool-list"
+              className={MCP_TOOL_LIST_CLASS}
             >
               {servers.map((server) => (
                 <li key={server.name}>
                   <button
                     aria-pressed={selectedName === server.name}
-                    className={
-                      selectedName === server.name ? "selected" : undefined
-                    }
+                    className={`${MCP_TOOL_BUTTON_CLASS} ${selectedName === server.name ? MCP_TOOL_BUTTON_SELECTED_CLASS : ""}`}
                     onClick={() => onSelect(server.name)}
                     type="button"
                   >
@@ -102,7 +128,7 @@ export function McpMarketplacePanel({
                 </li>
               ))}
             </ul>
-            <aside className="mcp-control-detail">
+            <aside className={MCP_DETAIL_CLASS}>
               {detailLoading ? (
                 <LoadingBlock label="Reading registry definition…" />
               ) : null}
@@ -137,16 +163,16 @@ function MarketplaceDetail({ detail }: { detail: McpMarketplaceDetail }) {
           Repository
         </a>
       ) : null}
-      <dl className="mcp-control-requirements">
-        <div>
+      <dl className="my-3 grid gap-[7px] [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:break-words [&_dd]:text-[var(--text-soft)] [&_dt]:font-[var(--font-mono)] [&_dt]:text-[var(--muted)] [&_dt]:uppercase">
+        <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2 text-[11px] leading-[1.45]">
           <dt>Transport</dt>
           <dd>{detail.transports.join(", ") || "Not declared"}</dd>
         </div>
-        <div>
+        <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2 text-[11px] leading-[1.45]">
           <dt>Environment</dt>
           <dd>{formatMarketplaceRequirements(detail.environment)}</dd>
         </div>
-        <div>
+        <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2 text-[11px] leading-[1.45]">
           <dt>Headers</dt>
           <dd>{formatMarketplaceRequirements(detail.headers)}</dd>
         </div>

@@ -7,6 +7,7 @@ import {
 } from "../orchestration-helpers";
 import type { DelegationTaskRecord } from "../orchestration-resources";
 import { statusTone } from "./detail-primitives";
+import { orchestrationClass as oc } from "./layout";
 
 export function TaskQueueRail({
   filteredTasks,
@@ -46,7 +47,7 @@ export function TaskQueueRail({
   }
 
   return (
-    <ul className="orchestration-master-list">
+    <ul className={oc("orchestration-master-list")}>
       {taskWindow.visible.map((task) => {
         const status = asString(task.status, "pending");
         const tier = orchestrationStatusTier(status);
@@ -66,35 +67,37 @@ export function TaskQueueRail({
           <li key={task.id}>
             <button
               type="button"
-              className={
-                task.id === selectedTaskId
-                  ? `orchestration-master-item selected tier-${tier}`
-                  : `orchestration-master-item tier-${tier}`
-              }
+              className={oc(
+                "orchestration-master-item",
+                task.id === selectedTaskId && "selected",
+                `tier-${tier}`,
+              )}
               aria-pressed={task.id === selectedTaskId}
               onClick={() => onSelectTask(task)}
               title={asString(task.title, "Untitled task")}
             >
-              <span className="master-row master-row-top">
-                <span className="master-title-line">
-                  <i className="master-status-dot" aria-hidden="true" />
+              <span className={oc("master-row", "master-row-top")}>
+                <span className={oc("master-title-line")}>
+                  <i className={oc("master-status-dot")} aria-hidden="true" />
                   <strong>{asString(task.title, "Untitled task")}</strong>
                 </span>
                 <Badge tone={statusTone(status)}>{status}</Badge>
               </span>
-              <span className="master-row master-row-bottom">
-                <span className="master-meta-pills">
+              <span className={oc("master-row", "master-row-bottom")}>
+                <span className={oc("master-meta-pills")}>
                   <span>{capability}</span>
                   {priority !== "normal" ? <span>{priority}</span> : null}
                 </span>
-                <small className="orchestration-task-rail-meta">{timing}</small>
+                <small className={oc("orchestration-task-rail-meta")}>
+                  {timing}
+                </small>
               </span>
             </button>
           </li>
         );
       })}
       {taskWindow.remaining ? (
-        <li className="orchestration-master-footer">
+        <li className={oc("orchestration-master-footer")}>
           <span>
             Showing {taskWindow.visible.length} of {filteredTasks.length}
           </span>

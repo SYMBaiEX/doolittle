@@ -1,3 +1,5 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
 import { type FormEvent, useState } from "react";
 import type {
   SessionMessagesResponse,
@@ -18,6 +20,17 @@ import {
 } from "../lib";
 import { sessionDetailRequests } from "../resource-request-policy";
 import { compactSessionPreview } from "../session-preview";
+import {
+  SESSION_DETAIL_CLASS,
+  SESSION_DETAIL_TOOLBAR_CLASS,
+  SESSION_DISCLOSURE_CLASS,
+  SESSION_DISCLOSURE_SUMMARY_CLASS,
+  SESSION_INSIGHT_GRID_CLASS,
+  SESSION_STATUS_ROW_CLASS,
+  SESSION_TRANSCRIPT_HEADER_CLASS,
+  SESSION_TRANSCRIPT_MESSAGE_CLASS,
+  SESSION_TRANSCRIPT_PANEL_CLASS,
+} from "./sessions-layout";
 
 interface SessionUsageResponse {
   usage?: SessionUsageSummary;
@@ -33,8 +46,11 @@ export function SessionTranscriptMessage({
   message: StoredMessage;
 }) {
   return (
-    <article className={`transcript-message ${message.role}`}>
-      <div className="transcript-message__header">
+    <article
+      className={SESSION_TRANSCRIPT_MESSAGE_CLASS}
+      data-message-role={message.role}
+    >
+      <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[var(--text-meta)] [&_time]:text-[var(--text-muted)]">
         <strong>
           {message.role === "assistant"
             ? "Doolittle"
@@ -121,8 +137,8 @@ export function SessionDetail({
   };
 
   return (
-    <div className="session-detail-stack">
-      <div className="detail-toolbar">
+    <div className={SESSION_DETAIL_CLASS} data-session-detail="true">
+      <div className={SESSION_DETAIL_TOOLBAR_CLASS}>
         <div>
           <span className="eyebrow">Transcript</span>
           <h2>
@@ -131,51 +147,57 @@ export function SessionDetail({
               "Untitled conversation"}
           </h2>
         </div>
-        <div className="button-row">
-          <button
-            className="secondary-button"
+        <div className="flex flex-wrap items-center justify-end gap-1.5 max-[860px]:justify-start">
+          <Button
             onClick={() => {
               setTitle(selected.title ?? "");
               setEditing(true);
             }}
+            size="sm"
             type="button"
+            variant="secondary"
           >
             Rename
-          </button>
-          <button
-            className="secondary-button"
+          </Button>
+          <Button
             disabled={transferring}
             onClick={onExport}
+            size="sm"
             type="button"
+            variant="secondary"
           >
             {transferring ? "Working…" : "Export"}
-          </button>
-          <button
-            className="primary-button"
+          </Button>
+          <Button
             onClick={() => onOpenChat(selected.sessionId)}
+            size="sm"
             type="button"
           >
             Open in chat
-          </button>
+          </Button>
         </div>
       </div>
       {editing ? (
-        <form className="inline-form" onSubmit={rename}>
-          <input
+        <form
+          className="flex items-center gap-2 pt-3 max-[640px]:flex-wrap"
+          onSubmit={rename}
+        >
+          <Input
             aria-label="Session title"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
           />
-          <button className="primary-button" type="submit">
+          <Button size="sm" type="submit">
             Save
-          </button>
-          <button
-            className="text-button"
+          </Button>
+          <Button
             onClick={() => setEditing(false)}
+            size="sm"
             type="button"
+            variant="ghost"
           >
             Cancel
-          </button>
+          </Button>
         </form>
       ) : null}
       {mutationError ? (
@@ -220,24 +242,24 @@ export function SessionDetail({
           },
         ]}
       />
-      <div className="session-insight-grid">
-        <details className="session-insight-disclosure">
-          <summary>
-            <span>
+      <div className={SESSION_INSIGHT_GRID_CLASS}>
+        <details className={SESSION_DISCLOSURE_CLASS}>
+          <summary className={SESSION_DISCLOSURE_SUMMARY_CLASS}>
+            <span className="grid min-w-0 gap-px [&_small]:text-[8px] [&_small]:text-[var(--text-muted)] [&_strong]:text-[10px] [&_strong]:text-[var(--text-strong)]">
               <strong>Session metadata</strong>
               <small>Identifiers, branch lineage, and timestamps</small>
             </span>
-            <span>Inspect</span>
+            <span className="text-[8px] text-[var(--text-muted)]">Inspect</span>
           </summary>
-          <div className="stack-list">
-            <div className="status-row">
+          <div className="grid p-2">
+            <div className={SESSION_STATUS_ROW_CLASS}>
               <div>
                 <strong>Session id</strong>
                 <small>{selected.sessionId}</small>
               </div>
             </div>
             {selected.parentSessionId ? (
-              <div className="status-row">
+              <div className={SESSION_STATUS_ROW_CLASS}>
                 <div>
                   <strong>Parent branch</strong>
                   <small>{selected.parentSessionId}</small>
@@ -245,7 +267,7 @@ export function SessionDetail({
               </div>
             ) : null}
             {selected.rootSessionId ? (
-              <div className="status-row">
+              <div className={SESSION_STATUS_ROW_CLASS}>
                 <div>
                   <strong>Branch root</strong>
                   <small>{selected.rootSessionId}</small>
@@ -253,20 +275,20 @@ export function SessionDetail({
               </div>
             ) : null}
             {selected.forkedFromMessageId ? (
-              <div className="status-row">
+              <div className={SESSION_STATUS_ROW_CLASS}>
                 <div>
                   <strong>Fork anchor</strong>
                   <small>{selected.forkedFromMessageId}</small>
                 </div>
               </div>
             ) : null}
-            <div className="status-row">
+            <div className={SESSION_STATUS_ROW_CLASS}>
               <div>
                 <strong>Started</strong>
                 <small>{displayTimestamp(selected.startedAt)}</small>
               </div>
             </div>
-            <div className="status-row">
+            <div className={SESSION_STATUS_ROW_CLASS}>
               <div>
                 <strong>Latest preview</strong>
                 <small>
@@ -278,15 +300,15 @@ export function SessionDetail({
           </div>
         </details>
         <details
-          className="session-insight-disclosure"
+          className={SESSION_DISCLOSURE_CLASS}
           onToggle={(event) => setContinuityOpen(event.currentTarget.open)}
         >
-          <summary>
-            <span>
+          <summary className={SESSION_DISCLOSURE_SUMMARY_CLASS}>
+            <span className="grid min-w-0 gap-px [&_small]:text-[8px] [&_small]:text-[var(--text-muted)] [&_strong]:text-[10px] [&_strong]:text-[var(--text-strong)]">
               <strong>Related sessions</strong>
               <small>Branches sharing this continuity key</small>
             </span>
-            <span>
+            <span className="text-[8px] text-[var(--text-muted)]">
               {continuityOpen
                 ? continuity.loading
                   ? "…"
@@ -299,10 +321,10 @@ export function SessionDetail({
           ) : continuityOpen && continuity.error ? (
             <ErrorBlock error={continuity.error} retry={continuity.reload} />
           ) : continuityOpen && continuity.data?.sessions?.length ? (
-            <div className="stack-list">
+            <div className="grid p-2">
               {continuity.data.sessions.map((session) => (
                 <button
-                  className="status-row"
+                  className={SESSION_STATUS_ROW_CLASS}
                   key={session.sessionId}
                   onClick={() => onSelectSession(session.sessionId)}
                   type="button"
@@ -329,14 +351,14 @@ export function SessionDetail({
           ) : null}
         </details>
       </div>
-      <section className="session-transcript-panel">
-        <header className="session-transcript-panel__header">
+      <section className={SESSION_TRANSCRIPT_PANEL_CLASS}>
+        <header className={SESSION_TRANSCRIPT_HEADER_CLASS}>
           <span>
             <strong>Persisted messages</strong>
           </span>
           <small>{transcriptStatusLabel}</small>
         </header>
-        <div className="transcript">
+        <div className="grid gap-2 px-3 pt-2.5 pb-3">
           {transcript.loading ? (
             <LoadingBlock label="Loading transcript…" />
           ) : transcript.error ? (

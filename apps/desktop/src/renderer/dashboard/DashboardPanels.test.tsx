@@ -57,7 +57,7 @@ describe("dashboard panels", () => {
 
     act(() =>
       container
-        .querySelector<HTMLButtonElement>(".dashboard-session-button")
+        .querySelector<HTMLButtonElement>('[data-dashboard-session="true"]')
         ?.click(),
     );
     act(() =>

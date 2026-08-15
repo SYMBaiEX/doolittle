@@ -33,6 +33,7 @@ import {
   useApiResource,
 } from "./lib";
 import { DesktopSettingsPanel } from "./settings/DesktopSettingsPanel";
+import { LazyModelsPage } from "./settings/lazy-panels";
 import { SettingsAppearancePanel } from "./settings/SettingsAppearancePanel";
 import { SettingsExecutionStatusPanel } from "./settings/SettingsExecutionStatusPanel";
 import {
@@ -40,9 +41,14 @@ import {
   flattenSettings,
   SettingsFieldCollection,
 } from "./settings/SettingsFields";
-import "./configuration-pages.css";
-import { LazyModelsPage } from "./settings/lazy-panels";
 import { SettingsNavigation } from "./settings/SettingsNavigation";
+import {
+  SETTINGS_CONTENT_CLASS,
+  SETTINGS_CONTENT_HEADER_CLASS,
+  SETTINGS_GROUP_CLASS,
+  SETTINGS_LAYOUT_CLASS,
+  SETTINGS_PAGE_CLASS,
+} from "./settings/settings-layout";
 
 interface SettingsResponse {
   settings?: UnknownRecord;
@@ -265,7 +271,7 @@ export function SettingsPage({ active }: { active: boolean }) {
   const runtimeCategoryOffline = settingsCategoryOffline(category, active);
 
   return (
-    <div className="page page-settings">
+    <div className={SETTINGS_PAGE_CLASS}>
       <PageHeader
         eyebrow="Doolittle"
         title="Settings"
@@ -287,7 +293,7 @@ export function SettingsPage({ active }: { active: boolean }) {
       ) : active && settings.error ? (
         <ErrorBlock error={settings.error} retry={reloadSettings} />
       ) : (
-        <div className="settings-layout">
+        <div className={SETTINGS_LAYOUT_CLASS}>
           <SettingsNavigation
             categories={categories}
             category={category}
@@ -296,7 +302,7 @@ export function SettingsPage({ active }: { active: boolean }) {
               setQuery("");
             }}
           />
-          <section className="settings-content">
+          <section className={SETTINGS_CONTENT_CLASS}>
             {runtimeCategoryOffline ? (
               <OfflineRouteState>
                 Runtime configuration and execution controls are unavailable
@@ -304,14 +310,14 @@ export function SettingsPage({ active }: { active: boolean }) {
               </OfflineRouteState>
             ) : null}
             {!runtimeCategoryOffline ? (
-              <header className="settings-content-header">
+              <header className={SETTINGS_CONTENT_HEADER_CLASS}>
                 <div>
                   <span className="eyebrow">Configuration</span>
                   <h2>{activeCategory?.label ?? "Settings"}</h2>
                   <p>{activeCategory?.description}</p>
                 </div>
                 {categorySupportsSearch ? (
-                  <label className="search-field settings-search">
+                  <label className="search-field settings-search max-w-80">
                     <span className="sr-only">Search settings</span>
                     <input
                       placeholder={`Search ${activeCategory?.label.toLowerCase()}`}
@@ -363,7 +369,7 @@ export function SettingsPage({ active }: { active: boolean }) {
             ) : null}
             {!["desktop", "appearance", "model"].includes(category) &&
             !runtimeCategoryOffline ? (
-              <section className="settings-group">
+              <section className={SETTINGS_GROUP_CLASS}>
                 <div className="settings-group-heading">
                   <div>
                     <span className="eyebrow">{activeCategory?.label}</span>

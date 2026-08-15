@@ -32,7 +32,7 @@ describe("SettingsAppearancePanel", () => {
     expect(markup).toContain('aria-label="Interface density"');
     expect(markup).toContain("Operator signal");
     expect(markup).toContain("Warm operator signal");
-    expect(markup).toContain('class="selected"');
+    expect(markup).toContain("selected");
   });
 
   it("keeps local controls available while runtime themes are offline", () => {
@@ -50,6 +50,7 @@ describe("SettingsAppearancePanel", () => {
 
     expect(markup).toContain("Unavailable");
     expect(markup).toContain("Appearance and density remain available locally");
-    expect(markup).toContain('class="theme-grid" hidden=""');
+    expect(markup).toContain("theme-grid");
+    expect(markup).toContain('hidden=""');
   });
 });

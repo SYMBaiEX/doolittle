@@ -5,6 +5,19 @@ import { useMemo, useState } from "react";
 import { Streamdown, type UrlTransform } from "streamdown";
 import "streamdown/styles.css";
 import {
+  MESSAGE_AGENT_STEPS_CLASS,
+  MESSAGE_RESPONSE_CLASS,
+  MESSAGE_TOOL_BODY_CLASS,
+  MESSAGE_TOOL_CARD_CLASS,
+  MESSAGE_TOOL_CARD_SUMMARY_CLASS,
+  MESSAGE_TOOL_GROUP_CLASS,
+  MESSAGE_TOOL_PAYLOAD_CLASS,
+  MESSAGE_TOOL_SECTION_CLASS,
+  MESSAGE_TOOL_SECTION_HEADING_CLASS,
+  MESSAGE_TOOL_STATE_CLASS,
+  MESSAGE_TOOL_SUMMARY_CLASS,
+} from "./message-content-layout";
+import {
   formatToolPayload,
   type ParsedAgentMessage,
   parseAgentMessage,
@@ -12,7 +25,6 @@ import {
   type ToolActivityStatus,
   webSearchResults,
 } from "./message-output";
-import "./message-content.css";
 
 interface MessageContentProps {
   content: string;
@@ -105,12 +117,12 @@ function ToolPayload({ label, value }: { label: string; value: unknown }) {
   const payload = clippedPayload(value);
   if (!payload.text) return null;
   return (
-    <section className="message-tool-section">
-      <div className="message-tool-section__heading">
+    <section className={MESSAGE_TOOL_SECTION_CLASS}>
+      <div className={MESSAGE_TOOL_SECTION_HEADING_CLASS}>
         <span>{label}</span>
         {payload.clipped ? <small>First 40k characters</small> : null}
       </div>
-      <pre>
+      <pre className={MESSAGE_TOOL_PAYLOAD_CLASS}>
         <code>{payload.text}</code>
       </pre>
     </section>
@@ -121,19 +133,33 @@ function WebSearchSources({ activity }: { activity: ToolActivity }) {
   const results = webSearchResults(activity.output);
   if (!results.length) return null;
   return (
-    <section className="message-tool-section message-tool-sources">
-      <div className="message-tool-section__heading">
+    <section className={MESSAGE_TOOL_SECTION_CLASS}>
+      <div className={MESSAGE_TOOL_SECTION_HEADING_CLASS}>
         <span>Sources</span>
         <small>{results.length} found</small>
       </div>
-      <ol>
+      <ol className="m-0 grid list-none gap-1.5 p-0">
         {results.slice(0, 10).map((result) => (
-          <li key={result.url}>
-            <a href={result.url} rel="noreferrer" target="_blank">
+          <li
+            className="rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_76%,transparent)] px-2.25 py-2"
+            key={result.url}
+          >
+            <a
+              className="flex items-baseline justify-between gap-3 text-[var(--text-soft)] no-underline hover:[&>strong]:text-[var(--accent)]"
+              href={result.url}
+              rel="noreferrer"
+              target="_blank"
+            >
               <strong>{result.title}</strong>
-              <span>{new URL(result.url).hostname}</span>
+              <span className="shrink-0 font-mono text-[8px] text-[var(--faint)]">
+                {new URL(result.url).hostname}
+              </span>
             </a>
-            {result.excerpt ? <p>{result.excerpt.slice(0, 360)}</p> : null}
+            {result.excerpt ? (
+              <p className="mt-1.25 mb-0 line-clamp-3 overflow-hidden text-[9px] leading-normal text-[var(--muted)]">
+                {result.excerpt.slice(0, 360)}
+              </p>
+            ) : null}
           </li>
         ))}
       </ol>
@@ -157,40 +183,64 @@ function ToolActivityCard({ activity }: { activity: ToolActivity }) {
   };
 
   return (
-    <details className={`message-tool-card is-${activity.status}`}>
-      <summary>
-        <span className="message-tool-card__icon" aria-hidden="true">
+    <details
+      className={MESSAGE_TOOL_CARD_CLASS}
+      data-tool-card="true"
+      data-tool-status={activity.status}
+    >
+      <summary className={MESSAGE_TOOL_CARD_SUMMARY_CLASS}>
+        <span
+          className="grid size-3 place-items-center rounded-[3px] font-mono text-[9px] text-[var(--accent)]"
+          aria-hidden="true"
+        >
           ↗
         </span>
-        <span className="message-tool-card__summary">
-          <strong>{toolLabel(activity)}</strong>
+        <span className="flex min-w-0 items-baseline gap-1.25">
+          <strong className="truncate text-[9px] font-semibold text-[var(--text-soft)]">
+            {toolLabel(activity)}
+          </strong>
           {summary ? (
             <>
-              <i aria-hidden="true">·</i>
-              <small title={summary}>{summary}</small>
+              <i
+                aria-hidden="true"
+                className="shrink-0 font-mono text-[7px] not-italic text-[var(--faint)]"
+              >
+                ·
+              </i>
+              <small
+                className="min-w-0 flex-1 truncate font-mono text-[7px] text-[var(--faint)]"
+                title={summary}
+              >
+                {summary}
+              </small>
             </>
           ) : null}
         </span>
         <StatusBadge
-          className={`message-tool-card__status is-${activity.status}`}
+          className={`${MESSAGE_TOOL_STATE_CLASS} max-[760px]:text-[0]`}
           label={statusLabel(activity.status)}
           status={statusVariant(activity.status)}
           pulse={activity.status === "running"}
           withDot
         />
-        <span className="message-tool-card__chevron" aria-hidden="true">
+        <span
+          className="font-mono text-[15px] text-[var(--faint)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
+          aria-hidden="true"
+        >
           ›
         </span>
       </summary>
-      <div className="message-tool-card__body">
+      <div className={MESSAGE_TOOL_BODY_CLASS}>
         {activity.error ? (
-          <p className="message-tool-card__error">{activity.error}</p>
+          <p className="my-2.25 border-[var(--danger)] border-l-2 bg-[color-mix(in_srgb,var(--danger)_7%,transparent)] px-2.5 py-2 text-[11px] text-[color-mix(in_srgb,var(--danger)_82%,var(--text))]">
+            {activity.error}
+          </p>
         ) : null}
         <ToolPayload label="Input" value={activity.input} />
         <WebSearchSources activity={activity} />
         <ToolPayload label="Raw output" value={activity.output} />
         {activity.output !== undefined ? (
-          <footer>
+          <footer className="flex justify-end pt-2.25">
             <Button
               onClick={() => void copyOutput()}
               size="sm"
@@ -234,23 +284,45 @@ function ToolActivityGroup({
           : "Completed";
 
   return (
-    <details className={`message-tool-group is-${status}`}>
-      <summary>
-        <span className={`message-tool-group__state is-${status}`}>
-          <i aria-hidden="true" />
+    <details
+      className={MESSAGE_TOOL_GROUP_CLASS}
+      data-tool-group="true"
+      data-tool-status={status}
+    >
+      <summary className={MESSAGE_TOOL_SUMMARY_CLASS}>
+        <span
+          className={`${MESSAGE_TOOL_STATE_CLASS} ${
+            status === "error"
+              ? "text-[var(--danger)]"
+              : status === "running"
+                ? "text-[var(--accent)]"
+                : "text-[var(--success)]"
+          }`}
+        >
+          <i
+            aria-hidden="true"
+            className={`size-1.25 rounded-full bg-current ${
+              status === "running"
+                ? "animate-pulse motion-reduce:animate-none"
+                : ""
+            }`}
+          />
           Activity
         </span>
-        <span className="message-tool-group__preview">
+        <span className="truncate text-[8px] text-[var(--text-soft)]">
           {tools.map(toolLabel).join(" · ")}
         </span>
-        <span className="message-tool-group__count">
+        <span className="whitespace-nowrap font-mono text-[7px] text-[var(--faint)] max-[760px]:hidden">
           {state} · {tools.length}
         </span>
-        <span className="message-tool-group__chevron" aria-hidden="true">
+        <span
+          className="font-mono text-xs text-[var(--faint)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
+          aria-hidden="true"
+        >
           ›
         </span>
       </summary>
-      <div className="message-tool-group__body">
+      <div className="grid max-h-45 gap-0.5 overflow-auto border-[var(--border)] border-t p-0.75 [scrollbar-gutter:stable]">
         {tools.map((activity) => (
           <ToolActivityCard activity={activity} key={activity.id} />
         ))}
@@ -270,16 +342,23 @@ function AgentSteps({
 }) {
   if (!failed) return null;
   return (
-    <details className="message-agent-steps">
-      <summary>
+    <details className={MESSAGE_AGENT_STEPS_CLASS}>
+      <summary className="grid min-h-6 cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.25 px-0.75 py-0.5 font-mono text-[8px] [&::-webkit-details-marker]:hidden">
         <span aria-hidden="true">⌁</span>
-        <strong>Run diagnostics</strong>
-        <small>
+        <strong className="font-medium text-[var(--muted)]">
+          Run diagnostics
+        </strong>
+        <small className="text-[var(--faint)]">
           {failed} {failed === 1 ? "issue" : "issues"}
         </small>
-        <i aria-hidden="true">›</i>
+        <i
+          aria-hidden="true"
+          className="font-mono text-[15px] not-italic text-[var(--faint)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
+        >
+          ›
+        </i>
       </summary>
-      <div>
+      <div className="max-h-42.5 overflow-auto pt-0.25 pr-1.5 pb-2.25 pl-5.75 text-[10px] leading-[1.55] text-[var(--muted)] [&>p]:my-1 [&>small]:mt-1.75 [&>small]:block [&>small]:text-[var(--faint)]">
         {continued > 0 ? (
           <p>
             The evaluator requested another step before a final response was
@@ -320,12 +399,12 @@ export function MessageContent({
     parsed.steps.continued + parsed.steps.failed + parsed.steps.finished > 0;
 
   return (
-    <PagePanel className="message-content">
+    <PagePanel className="min-w-0" data-message-content="true">
       {parsed.text ? (
         <Streamdown
           animated={pending ? { animation: "fadeIn", duration: 120 } : false}
           caret="block"
-          className="message-content__response"
+          className={MESSAGE_RESPONSE_CLASS}
           controls={{
             code: { copy: true, download: false },
             table: { copy: true, download: false, fullscreen: false },
@@ -341,15 +420,12 @@ export function MessageContent({
           {parsed.text}
         </Streamdown>
       ) : !hasActivity ? (
-        <p className="message-content__empty">
+        <p data-message-content-state="empty">
           <span className="thinking">Empty</span>
         </p>
       ) : null}
       {parsed.tools.length > 0 ? (
-        <section
-          aria-label="Agent tool activity"
-          className="message-tool-activity"
-        >
+        <section aria-label="Agent tool activity" className="mt-0.5 grid">
           {parsed.tools.length === 1 ? (
             <ToolActivityCard activity={parsed.tools[0]} />
           ) : (

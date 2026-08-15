@@ -1,4 +1,5 @@
 import type { KeyboardEvent, ReactNode } from "react";
+import { COMMAND_SHORTCUT_KEY_CLASS } from "../app-shell/overlay-layout";
 
 export interface ShortcutHintProps {
   keys: readonly string[];
@@ -28,7 +29,7 @@ export function ShortcutHint({
             {index > 0 ? (
               <span className="command-shortcut__separator"> </span>
             ) : null}
-            <kbd className="command-shortcut__key">{key}</kbd>
+            <kbd className={COMMAND_SHORTCUT_KEY_CLASS}>{key}</kbd>
           </span>
         );
       })}

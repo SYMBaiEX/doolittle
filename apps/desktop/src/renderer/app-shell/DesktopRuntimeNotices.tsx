@@ -20,14 +20,20 @@ export function DesktopRuntimeNotices({
           aria-atomic="true"
           aria-label="Local runtime unavailable"
           aria-live="polite"
-          className="runtime-banner"
+          className="flex min-h-9 shrink-0 items-center justify-between gap-2.5 border-b border-[color-mix(in_srgb,var(--warn)_22%,var(--border))] bg-[color-mix(in_srgb,var(--warn-soft)_72%,var(--surface))] px-2.5 py-1.5 text-[9px] text-[var(--warn)]"
           role="status"
         >
-          <div>
+          <div className="flex min-w-0 items-baseline gap-1.75">
             <strong>The local runtime is unavailable.</strong>
-            <span>{backend.detail || backend.message}</span>
+            <span className="truncate text-[var(--muted)]">
+              {backend.detail || backend.message}
+            </span>
           </div>
-          <button className="primary-button" onClick={onRestart} type="button">
+          <button
+            className="min-h-6.25 shrink-0 rounded-[var(--radius-xs)] border border-[color-mix(in_srgb,var(--warn)_35%,var(--border))] bg-transparent px-1.75 py-1 font-bold text-[var(--warn)]"
+            onClick={onRestart}
+            type="button"
+          >
             Restart runtime
           </button>
         </div>
@@ -36,11 +42,15 @@ export function DesktopRuntimeNotices({
         <div
           aria-atomic="true"
           aria-label="Application error"
-          className="global-error"
+          className="flex min-h-9 shrink-0 items-center justify-between gap-2.5 border-b border-[color-mix(in_srgb,var(--bad)_30%,var(--border))] bg-[color-mix(in_srgb,var(--bad-soft)_72%,var(--surface))] px-2.5 py-1.5 text-[9px] text-[var(--bad)]"
           role="alert"
         >
           <span>{globalError}</span>
-          <button onClick={onRefresh} type="button">
+          <button
+            className="shrink-0 border-0 bg-transparent font-bold text-[var(--bad)]"
+            onClick={onRefresh}
+            type="button"
+          >
             Retry
           </button>
         </div>

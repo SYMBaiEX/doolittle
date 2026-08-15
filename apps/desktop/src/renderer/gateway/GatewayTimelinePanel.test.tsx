@@ -90,7 +90,7 @@ describe("GatewayTimelinePanel", () => {
 
     expect(markup).toContain("Waiting for gateway traffic");
     expect(markup).toContain("0 records");
-    expect(markup).toContain('class="gateway-history-state is-empty"');
+    expect(markup).toContain('data-gateway-history-state="empty"');
     expect(markup).toContain('role="status"');
     expect(markup).not.toContain('class="empty-block');
     expect(markup).not.toContain("Gateway record filters");
@@ -118,7 +118,7 @@ describe("GatewayTimelinePanel", () => {
     );
 
     expect(markup).toContain("Reading message history");
-    expect(markup).toContain('class="gateway-history-state is-loading"');
+    expect(markup).toContain('data-gateway-history-state="loading"');
     expect(markup).toContain('aria-busy="true"');
     expect(markup).not.toContain('class="loading-block');
   });

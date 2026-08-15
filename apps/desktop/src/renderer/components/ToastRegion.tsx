@@ -1,4 +1,3 @@
-import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
 import {
   type ReactNode,
   useCallback,
@@ -274,73 +273,4 @@ export function useToasts({
   );
 
   return { toasts, push, dismiss, clear, pause, resume, clearQueue: clear };
-}
-
-export interface ToastRegionProps {
-  readonly toasts: readonly Toast[];
-  readonly onDismiss: (id: string) => void;
-  readonly onPause: (id: string) => void;
-  readonly onResume: (id: string) => void;
-  readonly className?: string;
-}
-
-export function ToastRegion({
-  toasts,
-  onDismiss,
-  onPause,
-  onResume,
-  className = "toast-region",
-}: ToastRegionProps) {
-  const isReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
-
-  return (
-    <section
-      className={`${className} ${isReducedMotion ? "toast-region--reduced-motion" : ""}`.trim()}
-      aria-live="polite"
-      aria-relevant="additions removals"
-    >
-      <ul className="toast-list">
-        {toasts.map((toast) => {
-          const isError = toast.tone === "error";
-          return (
-            <li
-              key={toast.id}
-              className={`toast-item toast-item--${toast.tone}`}
-              role={isError ? "alert" : "status"}
-              tabIndex={0}
-              onMouseEnter={() => onPause(toast.id)}
-              onMouseLeave={() => onResume(toast.id)}
-              onFocus={() => onPause(toast.id)}
-              onBlur={(event) => {
-                const nextTarget = event.relatedTarget;
-                if (
-                  !(nextTarget instanceof Node) ||
-                  !event.currentTarget.contains(nextTarget)
-                ) {
-                  onResume(toast.id);
-                }
-              }}
-            >
-              <div className="toast-content">
-                {toast.title ? (
-                  <div className="toast-title">{toast.title}</div>
-                ) : null}
-                {toast.message ? (
-                  <div className="toast-message">{toast.message}</div>
-                ) : null}
-              </div>
-              <button
-                className="toast-close"
-                type="button"
-                onClick={() => onDismiss(toast.id)}
-                aria-label={`Dismiss ${toast.tone} toast`}
-              >
-                ×
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
 }

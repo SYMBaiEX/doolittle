@@ -9,6 +9,27 @@ import {
   type ThreadWorkbenchTab,
 } from "../thread-workbench";
 import {
+  WORKBENCH_CONTEXT_COPY_CLASS,
+  WORKBENCH_CONTEXT_META_CLASS,
+  WORKBENCH_CONTEXT_PRIMARY_CLASS,
+  WORKBENCH_CONTEXT_ROW_CLASS,
+  WORKBENCH_FOOTER_CLASS,
+  WORKBENCH_HEADER_CLASS,
+  WORKBENCH_HEADING_CLASS,
+  WORKBENCH_ICON_BUTTON_CLASS,
+  WORKBENCH_KICKER_CLASS,
+  WORKBENCH_LOCKUP_CLASS,
+  WORKBENCH_MARK_CLASS,
+  WORKBENCH_RAIL_CLASS,
+  WORKBENCH_REPO_MARK_CLASS,
+  WORKBENCH_RESIZER_CLASS,
+  WORKBENCH_TAB_CLASS,
+  WORKBENCH_TAB_MARK_CLASS,
+  WORKBENCH_TAB_SELECTED_CLASS,
+  WORKBENCH_TAB_SIGNAL_CLASS,
+  WORKBENCH_TABS_CLASS,
+} from "../thread-workbench/layout";
+import {
   branchHeadLabel,
   compactRailLabel,
   TAB_LABELS,
@@ -18,7 +39,6 @@ import {
 import { WorkbenchPanels } from "../thread-workbench/WorkbenchPanels";
 import { useThreadWorkbenchRailController } from "../thread-workbench-controller";
 import { PanelResizeHandle } from "./PanelResizeHandle";
-import "../thread-workbench.css";
 
 export type { ThreadWorkbenchFullView } from "../thread-workbench/models";
 
@@ -91,7 +111,8 @@ export function ThreadWorkbenchRail({
   return (
     <aside
       aria-label="Thread workbench"
-      className="thread-workbench"
+      className={WORKBENCH_RAIL_CLASS}
+      data-thread-workbench="rail"
       style={
         { "--thread-workbench-width": `${model.railWidth}px` } as CSSProperties
       }
@@ -102,7 +123,7 @@ export function ThreadWorkbenchRail({
           min: THREAD_WORKBENCH_MIN_WIDTH,
           max: THREAD_WORKBENCH_MAX_WIDTH,
         }}
-        className="thread-workbench-resizer"
+        className={WORKBENCH_RESIZER_CLASS}
         direction="grow-left"
         label="Resize thread workbench"
         onResize={(railWidth) =>
@@ -114,22 +135,22 @@ export function ThreadWorkbenchRail({
         value={model.railWidth}
       />
 
-      <header className="thread-workbench-header">
-        <div className="thread-workbench-heading">
-          <div className="thread-workbench-lockup">
-            <span aria-hidden="true" className="thread-workbench-mark">
+      <header className={WORKBENCH_HEADER_CLASS}>
+        <div className={WORKBENCH_HEADING_CLASS}>
+          <div className={WORKBENCH_LOCKUP_CLASS}>
+            <span aria-hidden="true" className={WORKBENCH_MARK_CLASS}>
               <i />
               <span>WB</span>
             </span>
             <div>
-              <span className="thread-workbench-kicker">Workbench {"//"}</span>
+              <span className={WORKBENCH_KICKER_CLASS}>Workbench {"//"}</span>
               <strong>{model.workspaceName}</strong>
               <small>Thread-bound operator surface</small>
             </div>
           </div>
           <button
             aria-label="Close thread workbench"
-            className="thread-workbench-icon-button"
+            className={WORKBENCH_ICON_BUTTON_CLASS}
             onClick={onRequestClose}
             title="Close workbench"
             type="button"
@@ -137,12 +158,15 @@ export function ThreadWorkbenchRail({
             ×
           </button>
         </div>
-        <div className="thread-workbench-context-row">
-          <div className="thread-workbench-context-primary">
-            <span className="thread-workbench-repo-mark" aria-hidden="true">
+        <div
+          className={WORKBENCH_CONTEXT_ROW_CLASS}
+          data-thread-workbench="context"
+        >
+          <div className={WORKBENCH_CONTEXT_PRIMARY_CLASS}>
+            <span className={WORKBENCH_REPO_MARK_CLASS} aria-hidden="true">
               ⎇
             </span>
-            <div className="thread-workbench-context-copy">
+            <div className={WORKBENCH_CONTEXT_COPY_CLASS}>
               <strong>{branchHeadLabel(model.branch, model.head)}</strong>
               <small title={model.worktreePath || model.workspacePath}>
                 {model.worktreePath
@@ -152,7 +176,8 @@ export function ThreadWorkbenchRail({
             </div>
           </div>
           <div
-            className="thread-workbench-context-meta"
+            className={WORKBENCH_CONTEXT_META_CLASS}
+            data-thread-workbench="status"
             aria-label="Workbench status"
             role="status"
           >
@@ -182,7 +207,7 @@ export function ThreadWorkbenchRail({
 
       <div
         aria-label="Thread workbench views"
-        className="thread-workbench-tabs"
+        className={WORKBENCH_TABS_CLASS}
         role="tablist"
       >
         {THREAD_WORKBENCH_TABS.map((tab, index) => (
@@ -191,6 +216,9 @@ export function ThreadWorkbenchRail({
             aria-selected={model.selectedTab === tab}
             id={`thread-workbench-${tab}-tab`}
             key={tab}
+            className={`${WORKBENCH_TAB_CLASS} group ${
+              model.selectedTab === tab ? WORKBENCH_TAB_SELECTED_CLASS : ""
+            }`}
             onClick={() => selectTab(tab)}
             onKeyDown={(event) => navigateTabs(event, index)}
             ref={(node) => {
@@ -201,11 +229,11 @@ export function ThreadWorkbenchRail({
             title={TAB_LABELS[tab]}
             type="button"
           >
-            <span className="thread-workbench-tab-mark" aria-hidden="true">
+            <span className={WORKBENCH_TAB_MARK_CLASS} aria-hidden="true">
               {TAB_MARKS[tab]}
             </span>
             <small>{TAB_LABELS[tab]}</small>
-            <i aria-hidden="true" className="thread-workbench-tab-signal" />
+            <i aria-hidden="true" className={WORKBENCH_TAB_SIGNAL_CLASS} />
           </button>
         ))}
       </div>
@@ -216,13 +244,13 @@ export function ThreadWorkbenchRail({
         workspacePath={workspacePath}
       />
 
-      <footer className="thread-workbench-footer">
+      <footer className={WORKBENCH_FOOTER_CLASS}>
         <span aria-live="polite">
           {copiedLabel || `${model.environment} · ${model.lifecycle}`}
         </span>
         <button
           aria-label="Refresh current workbench view"
-          className="thread-workbench-icon-button"
+          className={WORKBENCH_ICON_BUTTON_CLASS}
           onClick={refreshCurrent}
           title="Refresh"
           type="button"

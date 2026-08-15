@@ -1,4 +1,10 @@
 import type { KeyboardEvent, RefObject } from "react";
+import {
+  INTERACTIVE_TERMINAL_BUTTON_CLASS,
+  INTERACTIVE_TERMINAL_CHROME_CLASS,
+  INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS,
+  INTERACTIVE_TERMINAL_PRIMARY_BUTTON_CLASS,
+} from "./interactive-terminal-layout";
 import { terminalTabLabelId } from "./interactive-terminal-state";
 import type { InteractiveTerminalTabState } from "./interactive-terminal-store";
 
@@ -69,27 +75,52 @@ export function InteractiveTerminalHeader({
   maxTabs,
 }: InteractiveTerminalHeaderProps) {
   return (
-    <header className="interactive-terminal-header">
-      <div className="interactive-terminal-session-bar">
-        <div className="interactive-terminal-identity">
-          <i className={running ? "running" : ""} />
-          <span>{activeShell}</span>
-          <strong title={activeCwdTitle}>{activeCwdLabel}</strong>
+    <header
+      className={`${INTERACTIVE_TERMINAL_CHROME_CLASS} flex flex-col border-b p-0 shadow-[inset_0_1px_color-mix(in_srgb,var(--accent)_16%,transparent)]`}
+    >
+      <div className="flex min-h-9.5 min-w-0 items-center justify-between gap-2 px-2 pt-1.5 pb-1.25 pl-2.5">
+        <div className="flex min-w-0 flex-1 items-center gap-1.75">
+          <i
+            className={`size-1.75 shrink-0 rounded-full ${
+              running
+                ? "bg-[var(--accent)] shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_55%,transparent)]"
+                : "bg-[color-mix(in_srgb,var(--muted)_65%,transparent)]"
+            }`}
+          />
+          <span className="shrink-0 text-[9px] text-[var(--accent)] uppercase font-extrabold tracking-[0.09em]">
+            {activeShell}
+          </span>
+          <strong
+            className="min-w-0 truncate text-[10px] text-[var(--text)] tracking-[0.04em]"
+            title={activeCwdTitle}
+          >
+            {activeCwdLabel}
+          </strong>
         </div>
-        <div className="interactive-terminal-controls">
-          <span className="interactive-terminal-mode">{currentStatus}</span>
+        <div className="flex shrink-0 items-center justify-end gap-1.25">
+          <span className="interactive-terminal-mode whitespace-nowrap text-[9px] text-[var(--faint)] tracking-[0.06em]">
+            {currentStatus}
+          </span>
           {running ? (
             <>
-              <button onClick={onInterrupt} type="button">
+              <button
+                className={INTERACTIVE_TERMINAL_BUTTON_CLASS}
+                onClick={onInterrupt}
+                type="button"
+              >
                 Ctrl+C
               </button>
-              <button onClick={onCloseActiveSession} type="button">
+              <button
+                className={INTERACTIVE_TERMINAL_BUTTON_CLASS}
+                onClick={onCloseActiveSession}
+                type="button"
+              >
                 Close
               </button>
             </>
           ) : (
             <button
-              className="interactive-terminal-open"
+              className={INTERACTIVE_TERMINAL_PRIMARY_BUTTON_CLASS}
               disabled={!active || starting}
               onClick={onStart}
               type="button"
@@ -104,33 +135,41 @@ export function InteractiveTerminalHeader({
           {onDismiss ? (
             <button
               aria-label={`Hide terminal${dismissShortcut ? ` (${dismissShortcut})` : ""}`}
-              className="interactive-terminal-dismiss"
+              className={`${INTERACTIVE_TERMINAL_BUTTON_CLASS} inline-flex items-center gap-1.25`}
               onClick={onDismiss}
               type="button"
             >
-              Hide{dismissShortcut ? <kbd>{dismissShortcut}</kbd> : null}
+              Hide
+              {dismissShortcut ? (
+                <kbd className="font-inherit text-[var(--faint)] tracking-normal">
+                  {dismissShortcut}
+                </kbd>
+              ) : null}
             </button>
           ) : null}
         </div>
       </div>
-      <div className="interactive-terminal-tab-row">
+      <div className="flex min-h-8.75 min-w-0 items-center gap-1 overflow-hidden border-[color-mix(in_srgb,var(--border)_70%,transparent)] border-t bg-[color-mix(in_srgb,#0d0b0a_44%,transparent)] px-1.5 pt-1 pb-1.25">
         <div
           aria-label="Interactive terminal tabs"
-          className="interactive-terminal-tabs"
+          className="flex min-w-0 flex-1 flex-nowrap items-stretch gap-0.75 overflow-x-auto overscroll-x-contain [scrollbar-color:var(--accent-border)_transparent] [scrollbar-width:thin]"
           role="tablist"
         >
           {tabs.map((tab, index) => {
             const isActive = tab.id === activeTabId;
             const tabLabelId = terminalTabLabelId(tab.id);
             return (
-              <div className="interactive-terminal-tab-cell" key={tab.id}>
+              <div
+                className="group relative inline-flex shrink-0 items-stretch"
+                key={tab.id}
+              >
                 <span className="sr-only" id={tabLabelId}>
                   {tab.name} terminal tab
                 </span>
                 {renamingTabId === tab.id ? (
                   <input
                     aria-label={`Rename terminal ${tab.name}`}
-                    className="interactive-terminal-tab-name-input"
+                    className="min-h-6.5 min-w-30 max-w-47.5 rounded-[var(--radius-xs)] border border-[var(--accent-border)] bg-[var(--surface-soft)] px-1.75 py-0.5 text-[var(--text)]"
                     onBlur={onSaveRename}
                     onChange={(event) => onRenameChange(event.target.value)}
                     onKeyDown={(event) => {
@@ -151,7 +190,11 @@ export function InteractiveTerminalHeader({
                     aria-controls={`interactive-terminal-${tab.id}-panel`}
                     aria-labelledby={tabLabelId}
                     aria-selected={isActive}
-                    className={`interactive-terminal-tab ${isActive ? "interactive-terminal-tab-active" : ""}`}
+                    className={`inline-flex h-6.25 min-w-31.5 items-center gap-1.5 rounded-[var(--radius-xs)] border py-0.5 pr-11.25 pl-2 text-[var(--text-soft)] hover:border-[color-mix(in_srgb,var(--accent)_30%,var(--border))] ${
+                      isActive
+                        ? "border-[color-mix(in_srgb,var(--accent)_55%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_6%,var(--surface-raised))] text-[var(--text)] shadow-[inset_0_-2px_var(--accent)]"
+                        : "border-[color-mix(in_srgb,var(--border)_60%,transparent)] bg-[color-mix(in_srgb,var(--surface-raised)_72%,transparent)]"
+                    }`}
                     id={`interactive-terminal-${tab.id}-tab`}
                     onClick={() => onSelectTab(tab.id)}
                     onDoubleClick={() => onBeginRename(tab.id)}
@@ -164,11 +207,15 @@ export function InteractiveTerminalHeader({
                     title={`${tab.name} (${tab.state})`}
                     type="button"
                   >
-                    <span className="interactive-terminal-tab-label">
+                    <span className="max-w-40 truncate tracking-[0.01em]">
                       {tab.name}
                     </span>
                     <small
-                      className={`interactive-terminal-tab-state-${tab.state}`}
+                      className={`ml-auto inline-flex shrink-0 text-[9px] ${
+                        tab.state === "running"
+                          ? "text-[var(--accent)]"
+                          : "text-[color-mix(in_srgb,var(--muted)_56%,transparent)]"
+                      }`}
                     >
                       {tab.state}
                     </small>
@@ -176,7 +223,7 @@ export function InteractiveTerminalHeader({
                 )}
                 <button
                   aria-label={`Rename terminal ${tab.name}`}
-                  className="interactive-terminal-tab-rename"
+                  className={`${INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS} absolute top-0.5 right-5.75 z-2 size-5.25 min-h-5.25 min-w-5.25 opacity-0 group-hover:opacity-100 focus-visible:opacity-100`}
                   onClick={() => onBeginRename(tab.id)}
                   type="button"
                 >
@@ -184,7 +231,7 @@ export function InteractiveTerminalHeader({
                 </button>
                 <button
                   aria-label={`Close terminal ${tab.name}`}
-                  className="interactive-terminal-tab-close"
+                  className={`${INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS} absolute top-0.5 right-0.5 z-2 size-5.25 min-h-5.25 min-w-5.25 opacity-0 group-hover:opacity-100 focus-visible:opacity-100`}
                   disabled={isClosingTab[tab.id]}
                   onClick={() => void onCloseTab(tab.id)}
                   type="button"
@@ -197,7 +244,7 @@ export function InteractiveTerminalHeader({
         </div>
         <button
           aria-label="Create terminal tab"
-          className="interactive-terminal-tab-add"
+          className={INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS}
           disabled={tabs.length >= maxTabs}
           onClick={onCreateTab}
           type="button"

@@ -8,10 +8,20 @@ import {
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import { ProjectMark, projectLocationLabel } from "./ProjectSidebarControls";
 import {
+  PROJECT_RAIL_ACTIVE_CLASS,
+  PROJECT_RAIL_ALL_CLASS,
+  PROJECT_RAIL_CHAT_CLASS,
+  PROJECT_RAIL_CHAT_SELECTED_CLASS,
+  PROJECT_RAIL_GROUP_CLASS,
+  PROJECT_RAIL_MAIN_CLASS,
+  PROJECT_RAIL_ROW_CLASS,
+  SIDEBAR_PROJECTS_CLASS,
+  SIDEBAR_PROJECTS_HEADING_CLASS,
+} from "./project-sidebar-layout";
+import {
   buildProjectSidebarModel,
   conversationLabel,
 } from "./project-sidebar-model";
-import "./project-sidebar.css";
 
 function sessionActivityLabel(session: SessionSummary): string {
   const value = session.endedAt ?? session.startedAt;
@@ -120,7 +130,7 @@ export function ProjectHistorySidebar({
     const draft = hasCurrentDraft ? (
       <button
         aria-current="true"
-        className="project-rail-chat is-selected"
+        className={`${PROJECT_RAIL_CHAT_CLASS} ${PROJECT_RAIL_CHAT_SELECTED_CLASS}`}
         onClick={() => onOpenSession(selectedSessionId)}
         type="button"
       >
@@ -132,7 +142,7 @@ export function ProjectHistorySidebar({
       return (
         draft ?? (
           <button
-            className="project-rail-empty"
+            className="project-rail-empty min-h-6.25 rounded-[var(--radius-xs)] py-0.75 pr-1.75 pl-5.5 text-left font-[var(--font-mono)] text-[9px] text-[var(--faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent)] [.desktop-shell.nav-collapsed_&]:hidden"
             onClick={() => onStartConversation(scope)}
             type="button"
           >
@@ -148,12 +158,12 @@ export function ProjectHistorySidebar({
           const pinned = Boolean(pinnedSessions[session.sessionId]);
           return (
             <div
-              className={`project-rail-chat-row ${selected ? "is-selected" : ""} ${pinned ? "is-pinned" : ""}`}
+              className={`project-rail-chat-row group/chat grid grid-cols-[minmax(0,1fr)_23px] items-center ${selected ? "is-selected" : ""} ${pinned ? "is-pinned" : ""}`}
               key={session.sessionId}
             >
               <button
                 aria-current={selected ? "true" : undefined}
-                className={`project-rail-chat ${selected ? "is-selected" : ""}`}
+                className={`${PROJECT_RAIL_CHAT_CLASS} ${selected ? PROJECT_RAIL_CHAT_SELECTED_CLASS : ""}`}
                 onClick={() => onOpenSession(session.sessionId)}
                 title={conversationLabel(session)}
                 type="button"
@@ -169,7 +179,7 @@ export function ProjectHistorySidebar({
               <button
                 aria-label={`${pinned ? "Unpin" : "Pin"} ${conversationLabel(session)}`}
                 aria-pressed={pinned}
-                className="project-rail-chat-pin"
+                className={`project-rail-chat-pin grid size-5.5 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--faint)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 group-hover/chat:opacity-100 ${pinned ? "text-[var(--accent)] opacity-100" : ""}`}
                 onClick={() => togglePinnedSession(session.sessionId)}
                 title={pinned ? "Unpin conversation" : "Pin conversation"}
                 type="button"
@@ -181,7 +191,7 @@ export function ProjectHistorySidebar({
         })}
         {chatCount > entries.length ? (
           <button
-            className="project-rail-more"
+            className="project-rail-more min-h-6.25 rounded-[var(--radius-xs)] py-0.75 pr-1.75 pl-5.5 text-left font-[var(--font-mono)] text-[9px] text-[var(--faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent)] [.desktop-shell.nav-collapsed_&]:hidden"
             onClick={() => {
               onSelectScope(scope);
               onViewAll();
@@ -204,21 +214,23 @@ export function ProjectHistorySidebar({
     const isActive = activeScope === project.id;
     return (
       <div
-        className={`project-rail-group ${isActive ? "is-active" : ""}`}
+        className={`${PROJECT_RAIL_GROUP_CLASS} ${isActive ? PROJECT_RAIL_ACTIVE_CLASS : ""}`}
         key={project.id}
       >
-        <div className="project-rail-row">
+        <div
+          className={`${PROJECT_RAIL_ROW_CLASS} ${isActive ? "bg-[color-mix(in_srgb,var(--surface-hover)_76%,transparent)] text-[var(--text)]" : ""}`}
+        >
           <button
             aria-expanded={isExpanded}
             aria-label={`${isExpanded ? "Collapse" : "Expand"} ${project.name} chats`}
-            className="project-rail-disclosure"
+            className="project-rail-disclosure grid h-6 w-4.25 place-items-center p-0 text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden [&>span]:transition-transform [&>span]:duration-120 motion-reduce:[&>span]:transition-none aria-expanded:[&>span]:rotate-90"
             onClick={() => toggleExpanded(project.id)}
             type="button"
           >
             <span aria-hidden="true">›</span>
           </button>
           <button
-            className="project-rail-main"
+            className={PROJECT_RAIL_MAIN_CLASS}
             onClick={() => {
               onSelectScope(project.id);
               setExpanded((current) => new Set([...current, project.id]));
@@ -234,17 +246,19 @@ export function ProjectHistorySidebar({
           </button>
           <button
             aria-label={`New chat in ${project.name}`}
-            className="project-rail-new"
+            className="project-rail-new grid size-5.5 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--muted)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 [.project-rail-row:hover_&]:opacity-100 [.desktop-shell.nav-collapsed_&]:hidden"
             onClick={() => onStartConversation(project.id)}
             title={`New chat in ${project.name}`}
             type="button"
           >
             +
           </button>
-          <small className="project-rail-count">{chatCount}</small>
+          <small className="project-rail-count font-[var(--font-mono)] text-[9px] text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden">
+            {chatCount}
+          </small>
         </div>
         {isExpanded ? (
-          <div className="project-rail-chats">
+          <div className="project-rail-chats grid gap-px pt-0.75 pb-1.5 pl-8 [.desktop-shell.nav-collapsed_&]:hidden">
             {renderSessions(chats, project.id, chatCount)}
           </div>
         ) : null}
@@ -253,13 +267,17 @@ export function ProjectHistorySidebar({
   };
 
   return (
-    <section aria-labelledby="sidebar-projects" className="sidebar-projects">
-      <div className="sidebar-projects__heading">
+    <section
+      aria-labelledby="sidebar-projects"
+      className={SIDEBAR_PROJECTS_CLASS}
+    >
+      <div className={SIDEBAR_PROJECTS_HEADING_CLASS}>
         <span id="sidebar-projects">
           Projects<small>{model.projects.length}</small>
         </span>
         <div>
           <button
+            className="grid size-6.5 place-items-center rounded-[var(--radius-xs)] border border-transparent p-0 text-sm text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
             aria-label="Choose a repository"
             onClick={() => void onChooseRepository()}
             title="Choose a repository"
@@ -268,6 +286,7 @@ export function ProjectHistorySidebar({
             <span aria-hidden="true">＋</span>
           </button>
           <button
+            className="grid size-6.5 place-items-center rounded-[var(--radius-xs)] border border-transparent p-0 text-sm text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&>span]:text-[8px] [&>span]:tracking-[-0.16em]"
             aria-label="Manage projects"
             onClick={onManageProjects}
             title="Manage projects"
@@ -279,7 +298,7 @@ export function ProjectHistorySidebar({
       </div>
       <button
         aria-current={activeScope === "all" ? "page" : undefined}
-        className={`project-rail-all ${activeScope === "all" ? "is-active" : ""}`}
+        className={`${PROJECT_RAIL_ALL_CLASS} ${activeScope === "all" ? PROJECT_RAIL_ACTIVE_CLASS : ""}`}
         onClick={() => onSelectScope("all")}
         title="All conversations"
         type="button"
@@ -291,13 +310,13 @@ export function ProjectHistorySidebar({
         </span>
         <small>{sessions.length}</small>
       </button>
-      <div className="sidebar-projects__list">
+      <div className="sidebar-projects__list grid min-h-0 flex-1 content-start gap-0.5 overflow-y-auto pr-0.5 [overscroll-behavior:contain] [scrollbar-gutter:stable] [.desktop-shell.nav-collapsed_&]:pr-0 [.desktop-shell.nav-collapsed_&]:[scrollbar-width:none]">
         {model.projects.map(({ project, sessions: chats, chatCount }) =>
           group(project, chats, chatCount),
         )}
         {!model.projects.length ? (
           <button
-            className="project-rail-onboarding"
+            className="project-rail-onboarding mt-0.75 grid grid-cols-[28px_minmax(0,1fr)] gap-x-2 gap-y-px rounded-[var(--radius-sm)] border border-dashed border-[color-mix(in_srgb,var(--accent)_28%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] px-2 py-2.25 text-left text-[var(--text-soft)] [.desktop-shell.nav-collapsed_&]:min-h-10.5 [.desktop-shell.nav-collapsed_&]:grid-cols-1 [.desktop-shell.nav-collapsed_&]:justify-items-center [.desktop-shell.nav-collapsed_&]:gap-0 [.desktop-shell.nav-collapsed_&]:px-1 [&>span]:row-span-2 [&>span]:text-base [&>span]:text-[var(--accent)] [&>strong]:text-[11px] [.desktop-shell.nav-collapsed_&]:[&>strong]:hidden [&>small]:text-[9px] [&>small]:text-[var(--muted)] [.desktop-shell.nav-collapsed_&]:[&>small]:hidden"
             onClick={() => void onChooseRepository()}
             type="button"
           >
@@ -308,24 +327,29 @@ export function ProjectHistorySidebar({
         ) : null}
         {model.unscopedChatCount > 0 || activeScope === "unscoped" ? (
           <div
-            className={`project-rail-group project-rail-group--general ${activeScope === "unscoped" ? "is-active" : ""}`}
+            className={`${PROJECT_RAIL_GROUP_CLASS} project-rail-group--general ${activeScope === "unscoped" ? PROJECT_RAIL_ACTIVE_CLASS : ""}`}
           >
-            <div className="project-rail-row">
+            <div
+              className={`${PROJECT_RAIL_ROW_CLASS} ${activeScope === "unscoped" ? "bg-[color-mix(in_srgb,var(--surface-hover)_76%,transparent)] text-[var(--text)]" : ""}`}
+            >
               <button
                 aria-expanded={expanded.has("unscoped")}
                 aria-label={`${expanded.has("unscoped") ? "Collapse" : "Expand"} general chats`}
-                className="project-rail-disclosure"
+                className="project-rail-disclosure grid h-6 w-4.25 place-items-center p-0 text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden [&>span]:transition-transform [&>span]:duration-120 motion-reduce:[&>span]:transition-none aria-expanded:[&>span]:rotate-90"
                 onClick={() => toggleExpanded("unscoped")}
                 type="button"
               >
                 <span aria-hidden="true">›</span>
               </button>
               <button
-                className="project-rail-main"
+                className={PROJECT_RAIL_MAIN_CLASS}
                 onClick={() => onSelectScope("unscoped")}
                 type="button"
               >
-                <span aria-hidden="true" className="project-rail-general-mark">
+                <span
+                  aria-hidden="true"
+                  className="project-rail-general-mark grid size-7 shrink-0 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] font-[var(--font-mono)] text-[10px] font-bold text-[var(--muted)] [.desktop-shell.nav-collapsed_&]:size-6.5 [.desktop-shell.nav-collapsed_&]:rounded-[7px]"
+                >
                   ○
                 </span>
                 <span>
@@ -335,19 +359,19 @@ export function ProjectHistorySidebar({
               </button>
               <button
                 aria-label="New general chat"
-                className="project-rail-new"
+                className="project-rail-new grid size-5.5 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--muted)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 [.project-rail-row:hover_&]:opacity-100 [.desktop-shell.nav-collapsed_&]:hidden"
                 onClick={() => onStartConversation("unscoped")}
                 title="New general chat"
                 type="button"
               >
                 +
               </button>
-              <small className="project-rail-count">
+              <small className="project-rail-count font-[var(--font-mono)] text-[9px] text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden">
                 {model.unscopedChatCount}
               </small>
             </div>
             {expanded.has("unscoped") ? (
-              <div className="project-rail-chats">
+              <div className="project-rail-chats grid gap-px pt-0.75 pb-1.5 pl-8 [.desktop-shell.nav-collapsed_&]:hidden">
                 {renderSessions(
                   model.unscopedSessions,
                   "unscoped",

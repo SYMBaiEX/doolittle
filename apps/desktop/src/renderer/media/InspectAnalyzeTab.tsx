@@ -1,3 +1,5 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
 import { type FormEvent, useState } from "react";
 import { MediaResult } from "../components/MediaResult";
 import {
@@ -7,6 +9,16 @@ import {
   type UnknownRecord,
 } from "../lib";
 import { chooseLocalMediaFile } from "./choose-local-media-file";
+import { MediaOptions } from "./MediaOptions";
+import {
+  MEDIA_ACTIONS_CLASS,
+  MEDIA_FIELD_CLASS,
+  MEDIA_FILE_FIELD_CLASS,
+  MEDIA_FORM_CLASS,
+  MEDIA_HEADING_CLASS,
+  MEDIA_SELECT_CLASS,
+  MEDIA_TAB_PANEL_CLASS,
+} from "./media-layout";
 
 interface AnalyzeResponse {
   analysis?: UnknownRecord;
@@ -78,75 +90,68 @@ export function InspectAnalyzeTab({ active }: { active: boolean }) {
   return (
     <section
       aria-labelledby="media-tab-inspect-analyze"
-      className="media-tab-panel"
+      className={MEDIA_TAB_PANEL_CLASS}
       hidden={!active}
       id="media-panel-inspect-analyze"
       role="tabpanel"
     >
-      <form className="content-card media-form" onSubmit={runInspect}>
-        <div className="card-heading">
+      <form className={MEDIA_FORM_CLASS} onSubmit={runInspect}>
+        <div className={MEDIA_HEADING_CLASS}>
           <div>
             <h2>Inspect or analyze a file</h2>
           </div>
         </div>
-        <div className="media-file-field">
-          <label>
+        <div className={MEDIA_FILE_FIELD_CLASS}>
+          <label className={MEDIA_FIELD_CLASS} htmlFor="media-inspect-path">
             <span>File</span>
-            <input
+            <Input
               aria-label="Media path for inspection"
+              id="media-inspect-path"
               onChange={(event) => setPath(event.target.value)}
               placeholder="/tmp/example.wav"
               value={path}
             />
           </label>
-          <button
-            className="secondary-button"
+          <Button
             onClick={() => void chooseLocalMediaFile(setPath, setInspectError)}
             type="button"
+            variant="secondary"
           >
             Browse…
-          </button>
+          </Button>
         </div>
-        <details className="media-options">
-          <summary>
-            Analysis settings <span>{focus || "Auto"}</span>
-          </summary>
-          <div className="media-options-grid">
-            <label>
-              <span>Focus</span>
-              <select
-                onChange={(event) => setFocus(event.target.value)}
-                value={focus}
-              >
-                <option value="">auto</option>
-                <option value="voice">voice</option>
-                <option value="vision">vision</option>
-                <option value="research">research</option>
-              </select>
-            </label>
-          </div>
-        </details>
-        <div className="form-actions">
-          <button
-            className="secondary-button"
+        <MediaOptions label="Analysis settings" value={focus || "Auto"}>
+          <label className={MEDIA_FIELD_CLASS}>
+            <span>Focus</span>
+            <select
+              className={MEDIA_SELECT_CLASS}
+              onChange={(event) => setFocus(event.target.value)}
+              value={focus}
+            >
+              <option value="">auto</option>
+              <option value="voice">voice</option>
+              <option value="vision">vision</option>
+              <option value="research">research</option>
+            </select>
+          </label>
+        </MediaOptions>
+        <div className={MEDIA_ACTIONS_CLASS}>
+          <Button
             disabled={analyzeBusy}
             onClick={() => void runAnalyze()}
             type="button"
+            variant="secondary"
           >
             {analyzeBusy ? "Analyzing…" : "Analyze"}
-          </button>
-          <button
-            className="primary-button"
-            disabled={inspectBusy}
-            type="submit"
-          >
+          </Button>
+          <Button disabled={inspectBusy} type="submit">
             {inspectBusy ? "Inspecting…" : "Inspect"}
-          </button>
+          </Button>
         </div>
       </form>
 
       {inspectError || analyzeError || inspectResult || analyzeResult ? (
-        <div className="media-result-stack">
+        <div className="grid min-w-0 gap-2.5">
           {inspectError ? <Notice tone="bad">{inspectError}</Notice> : null}
           {analyzeError ? <Notice tone="bad">{analyzeError}</Notice> : null}
           {inspectResult ? (

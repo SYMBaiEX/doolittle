@@ -1,8 +1,10 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import {
   type CompactCatalogEntry,
   CompactCatalogList,
 } from "./components/CompactCatalogList";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { COMPATIBILITY_EMPTY_CLASS } from "./diagnostics-layout";
 import {
   asArray,
   asRecord,
@@ -15,7 +17,6 @@ import {
   type UnknownRecord,
   useApiResource,
 } from "./lib";
-import "./diagnostics-pages.css";
 
 export function compatibilityCatalogEntries(
   value: unknown,
@@ -46,18 +47,35 @@ export function CompatibilityEmptyState({ onRetry }: { onRetry: () => void }) {
   return (
     <section
       aria-labelledby="compatibility-empty-title"
-      className="compatibility-empty"
+      className={COMPATIBILITY_EMPTY_CLASS}
+      data-compatibility-empty="true"
     >
-      <span aria-hidden="true">○</span>
-      <div>
-        <strong id="compatibility-empty-title">
+      <span
+        aria-hidden="true"
+        className="font-[var(--font-mono)] text-[var(--accent)]"
+      >
+        ○
+      </span>
+      <div className="grid gap-px">
+        <strong
+          className="text-[var(--text-control)] text-[var(--text)]"
+          id="compatibility-empty-title"
+        >
           No compatibility checks reported
         </strong>
-        <small>The runtime returned no checks payload.</small>
+        <small className="text-[var(--text-meta)] text-[var(--muted)]">
+          The runtime returned no checks payload.
+        </small>
       </div>
-      <button className="secondary-button" onClick={onRetry} type="button">
+      <Button
+        className="min-h-7 max-[700px]:col-start-2 max-[700px]:justify-self-start"
+        onClick={onRetry}
+        size="sm"
+        type="button"
+        variant="secondary"
+      >
         Run checks again
-      </button>
+      </Button>
     </section>
   );
 }
@@ -79,14 +97,15 @@ export function CompatibilityPage({ active }: { active: boolean }) {
         title="Compatibility"
         description="Review compatibility diagnostics for provider and runtime readiness."
         actions={
-          <button
-            className="text-button"
+          <Button
             disabled={!active}
             onClick={refresh}
+            size="sm"
             type="button"
+            variant="ghost"
           >
             Refresh
-          </button>
+          </Button>
         }
       />
       {!active ? (

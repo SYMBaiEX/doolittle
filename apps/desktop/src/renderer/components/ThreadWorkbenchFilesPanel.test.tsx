@@ -71,9 +71,7 @@ describe("ThreadWorkbenchFilesPanel", () => {
       },
     });
 
-    expect(markup).toContain(
-      "thread-workbench-panel-body thread-workbench-panel-body--files",
-    );
+    expect(markup).toContain('data-thread-workbench-panel="files"');
     expect(markup).toContain("Loading workbench…");
     expect(markup).toContain('role="status"');
   });

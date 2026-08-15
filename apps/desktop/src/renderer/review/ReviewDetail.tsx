@@ -3,6 +3,7 @@ import type { RepositoryReview } from "../../shared/contracts";
 import type { ApiResource } from "../lib";
 import { Badge, EmptyBlock } from "../lib";
 import type { ReviewComment, ReviewCommentAnchor } from "../review-comments";
+import { REVIEW_DETAIL_CLASS, REVIEW_DETAIL_HEADER_CLASS } from "./layout";
 import { type PatchResponse, type ReviewItem, statusTone } from "./models";
 import { ReviewApprovalPanel } from "./ReviewApprovalPanel";
 import { ReviewChangesPanel } from "./ReviewChangesPanel";
@@ -61,7 +62,7 @@ export function ReviewDetail({
   onSendFeedback,
 }: ReviewDetailProps) {
   return (
-    <section className="review-detail">
+    <section className={REVIEW_DETAIL_CLASS} data-review="detail">
       {!selected ? (
         <EmptyBlock title="No review items yet">
           Decisions, changed files, and verification results appear here.
@@ -69,7 +70,7 @@ export function ReviewDetail({
         </EmptyBlock>
       ) : (
         <>
-          <header className="review-detail-header">
+          <header className={REVIEW_DETAIL_HEADER_CLASS}>
             <div>
               <span>
                 {selected.kind === "approvals"

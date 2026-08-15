@@ -1,3 +1,5 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
 import { useMemo, useState } from "react";
 import type {
   ActivityEventKind,
@@ -23,7 +25,11 @@ import {
   PageHeader,
   useApiResource,
 } from "./lib";
-import "./observability.css";
+import {
+  OBSERVABILITY_CONTROL_CLASS,
+  OBSERVABILITY_FILTER_CLASS,
+  OBSERVABILITY_PAGE_CLASS,
+} from "./observability-layout";
 
 type ActivitySource = "all" | ActivityEventKind;
 
@@ -120,39 +126,40 @@ export function ActivityPage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className="page studio-page activity-page">
+    <div className={OBSERVABILITY_PAGE_CLASS}>
       <PageHeader
         eyebrow="Operator"
         title="Activity"
         description="Agent work, outcomes, and runtime events."
         actions={
-          <div className="row-actions">
-            <button
-              className="secondary-button"
+          <div className="flex items-center gap-2">
+            <Button
               onClick={() => void exportTimeline()}
               type="button"
               disabled={!active || exporting}
+              variant="outline"
             >
               {exporting ? "Exporting…" : "Export JSON"}
-            </button>
-            <button
-              className="secondary-button"
+            </Button>
+            <Button
               onClick={() => {
                 timeline.reload();
               }}
               type="button"
               disabled={!active}
+              variant="outline"
             >
               Refresh
-            </button>
+            </Button>
           </div>
         }
       />
 
-      <div className="filter-bar activity-filter-bar">
-        <label className="search-field" htmlFor="activity-query">
+      <div className={OBSERVABILITY_FILTER_CLASS}>
+        <label htmlFor="activity-query">
           <span className="sr-only">Search operator activity</span>
-          <input
+          <Input
+            className="h-[34px]"
             id="activity-query"
             type="search"
             value={query}
@@ -164,10 +171,11 @@ export function ActivityPage({ active }: { active: boolean }) {
             disabled={!active}
           />
         </label>
-        <label htmlFor="activity-source" className="activity-filter">
+        <label htmlFor="activity-source">
           <span className="sr-only">Activity source</span>
           <select
             id="activity-source"
+            className={OBSERVABILITY_CONTROL_CLASS}
             value={source}
             onChange={(event) => {
               setSource(event.target.value as ActivitySource);

@@ -1,8 +1,7 @@
 /*
  * Compile the official Eliza UI primitives that Doolittle mounts directly.
  * Tailwind does not scan precompiled dependencies unless the host declares
- * them as sources, so keep this next to the Tailwind entry rather than in the
- * later Doolittle token-alias layer.
+ * them as sources, so this entry explicitly includes the official package.
  */
 @import "tailwindcss";
 @import "@elizaos/ui/styles/base.css";

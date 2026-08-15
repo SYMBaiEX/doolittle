@@ -1,4 +1,20 @@
-import "../components/catalog-browser.css";
+import { Button } from "@elizaos/ui/components/ui/button";
+import {
+  CATALOG_BROWSER_CLASS,
+  CATALOG_CALLOUT_CLASS,
+  CATALOG_DETAIL_CLASS,
+  CATALOG_DETAIL_HEADER_CLASS,
+  CATALOG_EYEBROW_CLASS,
+  CATALOG_FACTS_CLASS,
+  CATALOG_INDEX_CLASS,
+  CATALOG_INDEX_FOOTER_CLASS,
+  CATALOG_INDEX_HEADER_CLASS,
+  CATALOG_INDEX_LIST_CLASS,
+  CATALOG_INDEX_META_CLASS,
+  CATALOG_INDEX_TITLE_CLASS,
+  CATALOG_TOKENS_CLASS,
+  catalogIndexItemClass,
+} from "../components/catalog-browser-layout";
 import { useCatalogBrowser } from "../components/useCatalogBrowser";
 import { Badge, titleCase, type UnknownRecord } from "../lib";
 import { buildToolCatalogItems } from "./tool-catalog-model";
@@ -42,12 +58,12 @@ export function ToolCatalogWorkspace({
   return (
     <section
       aria-label="Runtime tool catalog"
-      className="catalog-browser tool-catalog-workspace"
+      className={CATALOG_BROWSER_CLASS}
     >
-      <aside className="catalog-browser__index">
-        <header className="catalog-browser__index-header">
+      <aside className={CATALOG_INDEX_CLASS}>
+        <header className={CATALOG_INDEX_HEADER_CLASS}>
           <div>
-            <span className="eyebrow">Tool index</span>
+            <span className={CATALOG_EYEBROW_CLASS}>Tool index</span>
             <strong>Browse capabilities</strong>
           </div>
           <small>{items.length} matches</small>
@@ -55,7 +71,7 @@ export function ToolCatalogWorkspace({
         <div
           aria-label="Tools"
           aria-orientation="vertical"
-          className="catalog-browser__index-list"
+          className={CATALOG_INDEX_LIST_CLASS}
           ref={listRef}
           role="tablist"
         >
@@ -67,7 +83,7 @@ export function ToolCatalogWorkspace({
                 key={item.id}
                 aria-controls={panelId}
                 aria-selected={active}
-                className={`catalog-browser__index-item${active ? " is-selected" : ""}`}
+                className={catalogIndexItemClass(active)}
                 id={tabId}
                 onClick={() => selectAt(index, false)}
                 onKeyDown={(event) => handleKeyDown(event, index)}
@@ -75,11 +91,11 @@ export function ToolCatalogWorkspace({
                 tabIndex={active ? 0 : -1}
                 type="button"
               >
-                <span className="catalog-browser__index-title">
+                <span className={CATALOG_INDEX_TITLE_CLASS}>
                   <strong>{item.title}</strong>
                   {!item.enabled ? <Badge tone="warn">Disabled</Badge> : null}
                 </span>
-                <span className="catalog-browser__index-meta">
+                <span className={CATALOG_INDEX_META_CLASS}>
                   <code>{item.id}</code>
                   <span>{titleCase(item.category)}</span>
                   {item.transport.toLowerCase() !== "native" ? (
@@ -91,29 +107,30 @@ export function ToolCatalogWorkspace({
           })}
         </div>
         {toolWindow.remaining ? (
-          <footer className="catalog-browser__index-footer">
+          <footer className={CATALOG_INDEX_FOOTER_CLASS}>
             <span>
               {toolWindow.visible.length} of {items.length}
             </span>
-            <button
-              className="secondary-button"
+            <Button
               onClick={showMore}
+              size="sm"
               type="button"
+              variant="outline"
             >
               Show {Math.min(TOOL_CATALOG_PAGE_SIZE, toolWindow.remaining)} more
-            </button>
+            </Button>
           </footer>
         ) : null}
       </aside>
       <article
         aria-labelledby={itemId(selectedIndex)}
-        className="catalog-browser__detail"
+        className={CATALOG_DETAIL_CLASS}
         id={panelId}
         role="tabpanel"
       >
-        <header className="catalog-browser__detail-header">
+        <header className={CATALOG_DETAIL_HEADER_CLASS}>
           <div>
-            <span className="eyebrow">Tool detail</span>
+            <span className={CATALOG_EYEBROW_CLASS}>Tool detail</span>
             <h2>{selected.title}</h2>
             <p>{selected.description}</p>
           </div>
@@ -122,12 +139,12 @@ export function ToolCatalogWorkspace({
           </Badge>
         </header>
         {!selected.enabled && selected.policyReason ? (
-          <div className="catalog-browser__callout" role="note">
+          <div className={CATALOG_CALLOUT_CLASS} role="note">
             <strong>Profile policy</strong>
             <span>{selected.policyReason}</span>
           </div>
         ) : null}
-        <dl className="catalog-browser__facts">
+        <dl className={CATALOG_FACTS_CLASS}>
           <div>
             <dt>Tool ID</dt>
             <dd>
@@ -158,9 +175,9 @@ export function ToolCatalogWorkspace({
         {selected.aliases.length ? (
           <section
             aria-labelledby={`${panelId}-aliases`}
-            className="catalog-browser__tokens"
+            className={CATALOG_TOKENS_CLASS}
           >
-            <span className="eyebrow" id={`${panelId}-aliases`}>
+            <span className={CATALOG_EYEBROW_CLASS} id={`${panelId}-aliases`}>
               Invoked as
             </span>
             <div>

@@ -13,8 +13,8 @@ describe("DesktopErrorBoundary recovery semantics", () => {
 
     const markup = renderToStaticMarkup(boundary.render());
 
-    expect(markup).toContain('<main class="recovery-shell">');
-    expect(markup).not.toContain('<main class="recovery-shell" role="alert">');
+    expect(markup).toContain('data-recovery-scope="desktop"');
+    expect(markup).not.toContain('data-recovery-scope="desktop" role="alert"');
     expect(markup.match(/role="alert"/gu)).toHaveLength(1);
     expect(markup).toContain(
       "Doolittle encountered a rendering error. Recovery actions are available.",

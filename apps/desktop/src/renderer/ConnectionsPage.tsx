@@ -9,6 +9,15 @@ import type {
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import { AccountPoolPanel } from "./connections/AccountPoolPanel";
+import {
+  PROVIDER_CONSOLE_CLASS,
+  PROVIDER_POOL_STACK_CLASS,
+  PROVIDER_ROSTER_CLASS,
+  PROVIDER_ROUTING_CONTENT_CLASS,
+  PROVIDER_ROUTING_DISCLOSURE_CLASS,
+  PROVIDER_SECTION_HEADING_CLASS,
+  PROVIDER_SURFACE_CLASS,
+} from "./connections/layout";
 import { ProviderConnectionRow } from "./connections/ProviderConnectionRow";
 import { ProviderRouteSummary } from "./connections/ProviderRouteSummary";
 import {
@@ -25,7 +34,6 @@ import {
   titleCase,
   useApiResource,
 } from "./lib";
-import "./agent-pages.css";
 
 export function connectionsResourcePolicy(active: boolean, poolOpen: boolean) {
   return {
@@ -315,12 +323,14 @@ export function ConnectionsPage({
         <ErrorBlock error={resource.error} retry={resource.reload} />
       ) : null}
       {resource.data ? (
-        <div className={`provider-console ${embedded ? "is-embedded" : ""}`}>
+        <div
+          className={`${PROVIDER_CONSOLE_CLASS} ${embedded ? "is-embedded" : ""}`}
+        >
           <section
-            className="provider-surface"
+            className={PROVIDER_SURFACE_CLASS}
             aria-labelledby="provider-connections-title"
           >
-            <header className="provider-section-heading is-route-summary">
+            <header className={PROVIDER_SECTION_HEADING_CLASS}>
               <div>
                 <span className="eyebrow">Chat routing</span>
                 <h2 id="provider-connections-title">Provider connections</h2>
@@ -335,7 +345,7 @@ export function ConnectionsPage({
                 total={providerViews.length}
               />
             </header>
-            <div className="provider-roster">
+            <div className={PROVIDER_ROSTER_CLASS}>
               {providerViews.map((entry) => (
                 <ProviderConnectionRow
                   authState={entry.authState}
@@ -360,7 +370,7 @@ export function ConnectionsPage({
           </section>
 
           <details
-            className="provider-surface provider-routing-disclosure"
+            className={`${PROVIDER_SURFACE_CLASS} ${PROVIDER_ROUTING_DISCLOSURE_CLASS}`}
             onToggle={(event) => setPoolOpen(event.currentTarget.open)}
           >
             <summary>
@@ -371,7 +381,7 @@ export function ConnectionsPage({
               </span>
               <span>{poolOpen ? "Hide" : "Manage"}</span>
             </summary>
-            <div className="provider-routing-content">
+            <div className={PROVIDER_ROUTING_CONTENT_CLASS}>
               {accountPool.error ? (
                 <ErrorBlock
                   error={accountPool.error}
@@ -380,7 +390,7 @@ export function ConnectionsPage({
               ) : accountPool.loading ? (
                 <LoadingBlock label="Loading Eliza account pools…" />
               ) : (
-                <div className="provider-pool-stack">
+                <div className={PROVIDER_POOL_STACK_CLASS}>
                   {providerViews.map((entry) => {
                     const poolProvider = entry.provider.poolProvider;
                     if (!poolProvider || !entry.authProvider) return null;

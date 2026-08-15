@@ -17,6 +17,11 @@ import { CodingWorkspaceExplorer } from "./coding-workspace/CodingWorkspaceExplo
 import { CodingWorkspaceHeader } from "./coding-workspace/CodingWorkspaceHeader";
 import { CodingWorkspaceUtility } from "./coding-workspace/CodingWorkspaceUtility";
 import {
+  CODING_WORKSPACE_PAGE_CLASS,
+  CODING_WORKSPACE_ZEN_CLASS,
+  codingGridClass,
+} from "./coding-workspace/layout";
+import {
   type ActionNotice,
   boundedContext,
   commitRows,
@@ -63,7 +68,6 @@ import {
 } from "./panel-layout";
 import type { ProjectScope } from "./project-manager/models";
 import { codingWorkspaceRequests } from "./resource-request-policy";
-import "./coding-workspace.css";
 
 const EXPLORER_VISIBLE_KEY = "doolittle.desktop.code.explorer-visible.v1";
 const UTILITY_VISIBLE_KEY = "doolittle.desktop.code.utility-visible.v1";
@@ -547,7 +551,9 @@ export function CodingWorkspacePage({
 
   if (!active) {
     return (
-      <div className={`page coding-workspace-page ${zenMode ? "zen" : ""}`}>
+      <div
+        className={`${CODING_WORKSPACE_PAGE_CLASS} ${zenMode ? CODING_WORKSPACE_ZEN_CLASS : ""}`}
+      >
         <PageHeader
           actions={
             <button
@@ -573,7 +579,9 @@ export function CodingWorkspacePage({
 
   if (!hasWorkspace) {
     return (
-      <div className={`page coding-workspace-page ${zenMode ? "zen" : ""}`}>
+      <div
+        className={`${CODING_WORKSPACE_PAGE_CLASS} ${zenMode ? CODING_WORKSPACE_ZEN_CLASS : ""}`}
+      >
         <PageHeader
           description="Inspect files, changes, and workspace operations without leaving the desktop."
           eyebrow="Agentic workspace"
@@ -600,24 +608,28 @@ export function CodingWorkspacePage({
   }
 
   return (
-    <div className={`page coding-workspace-page ${zenMode ? "zen" : ""}`}>
-      <CodingWorkspaceHeader
-        active={active}
-        explorerVisible={explorerVisible}
-        onRefresh={refreshAll}
-        onRetrySummary={summaryResource.reload}
-        onToggleExplorer={() => setExplorerVisible((current) => !current)}
-        onToggleUtility={() => setUtilityVisible((current) => !current)}
-        onToggleZen={() => setZenMode((current) => !current)}
-        hasSummary={Boolean(summaryResource.data)}
-        summary={summary}
-        summaryError={summaryResource.error}
-        summaryLoading={summaryResource.loading}
-        utilityVisible={utilityVisible}
-        zenMode={zenMode}
-      />
+    <div
+      className={`${CODING_WORKSPACE_PAGE_CLASS} ${zenMode ? CODING_WORKSPACE_ZEN_CLASS : ""}`}
+    >
+      {!zenMode ? (
+        <CodingWorkspaceHeader
+          active={active}
+          explorerVisible={explorerVisible}
+          onRefresh={refreshAll}
+          onRetrySummary={summaryResource.reload}
+          onToggleExplorer={() => setExplorerVisible((current) => !current)}
+          onToggleUtility={() => setUtilityVisible((current) => !current)}
+          onToggleZen={() => setZenMode((current) => !current)}
+          hasSummary={Boolean(summaryResource.data)}
+          summary={summary}
+          summaryError={summaryResource.error}
+          summaryLoading={summaryResource.loading}
+          utilityVisible={utilityVisible}
+          zenMode={zenMode}
+        />
+      ) : null}
       <div
-        className={`coding-grid ${explorerVisible ? "" : "explorer-hidden"} ${utilityVisible ? "" : "utility-hidden"}`.trim()}
+        className={codingGridClass(explorerVisible, utilityVisible, zenMode)}
         style={
           {
             "--coding-explorer-width": `${explorerWidth}px`,

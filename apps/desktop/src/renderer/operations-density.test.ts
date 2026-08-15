@@ -31,34 +31,25 @@ describe("operational route density", () => {
     }
 
     expect(read("./lib.tsx")).not.toContain("export function MetricCard");
-    for (const path of [
-      "./styles.css",
-      "./experience.css",
-      "./app-polish.css",
-    ]) {
-      expect(read(path), path).not.toContain(".metric-card");
-      expect(read(path), path).not.toContain(".metric-grid");
-    }
+    expect(read("./app-shell/view-layout.ts")).not.toContain("metric-card");
+    expect(read("./app-shell/view-layout.ts")).not.toContain("metric-grid");
   });
 
-  it("keeps observability density overrides route-scoped and responsive", () => {
-    const css = read("./observability.css");
+  it("keeps observability density route-scoped and responsive without route CSS", () => {
+    const layout = read("./observability-layout.ts");
+    const activity = read("./activity/ActivityTimeline.tsx");
+    const analytics = read("./analytics/AnalyticsPage.tsx");
+    const logs = read("./LogsPage.tsx");
 
-    expect(css).toContain(".activity-page .activity-entry");
-    expect(css).toContain(".page-analytics .analytics-grid");
-    expect(css).toContain(".page-logs .log-console__viewport");
-    expect(css).toMatch(
-      /@media \(max-width: 700px\)[\s\S]*\.activity-page \.activity-filter-bar[\s\S]*grid-template-columns: 1fr/u,
-    );
-    expect(css).toMatch(
-      /@media \(max-width: 700px\)[\s\S]*\.page-analytics \.analytics-empty-landing[\s\S]*flex-direction: column/u,
-    );
+    expect(layout).toContain("max-[700px]:grid-cols-1");
+    expect(activity).toContain('data-activity-entry="true"');
+    expect(analytics).toContain("max-[1120px]:grid-cols-1");
+    expect(analytics).toContain("max-[700px]:flex-col");
+    expect(logs).toContain("h-[clamp(18rem,56vh,35rem)]");
   });
 
   it("keeps secondary operational diagnostics closed until requested", () => {
-    expect(read("./LogsPage.tsx")).toContain(
-      'className="operations-trace-details"',
-    );
+    expect(read("./LogsPage.tsx")).toContain('data-operations-traces="true"');
     expect(read("./LogsPage.tsx")).toContain(
       'active && historyOpen ? "/deliveries" : null',
     );
@@ -66,7 +57,7 @@ describe("operational route density", () => {
       'active && historyOpen ? "/terminal/history" : null',
     );
     expect(read("./gateway/GatewayTimelinePanel.tsx")).toContain(
-      '<details className="gateway-entry-details">',
+      '<details className="group block pt-px',
     );
     expect(read("./CompatibilityPage.tsx")).not.toContain(
       '<section className="content-card" style=',
@@ -177,25 +168,19 @@ describe("operational route density", () => {
 
   it("uses compact empty states for zero-data inventory panes", () => {
     const analytics = read("./analytics/AnalyticsPage.tsx");
-    expect(analytics).toContain(
-      'className="content-card analytics-empty-landing"',
-    );
+    expect(analytics).toContain('data-analytics-empty="true"');
     expect(analytics).toContain("Start conversation");
     expect(analytics).toContain("!hasActivity ? (");
     const automationWorkspace = read("./automations/AutomationWorkspace.tsx");
-    expect(automationWorkspace).toContain(
-      'className="automation-empty-starter"',
-    );
+    expect(automationWorkspace).toContain("automation-empty-starter flex");
     expect(automationWorkspace).toContain("Build your first workflow");
     expect(automationWorkspace).toContain("Blank workflow");
     expect(automationWorkspace).toContain("Weekday brief");
     expect(automationWorkspace).toContain("Webhook triage");
     expect(automationWorkspace).not.toContain('title="No automations yet"');
-    expect(read("./automations.css")).toContain(
-      ".automation-workspace.is-empty",
-    );
+    expect(automationWorkspace).toContain("is-empty max-w-225 grid-cols-1");
     const memory = read("./memory/MemorySnapshotPanel.tsx");
-    expect(memory).toContain("memory-empty-card");
+    expect(memory).toContain("data-memory-empty");
     expect(memory).toContain("No stored entries yet");
     expect(memory).toContain("{preview.length ? (");
   });
@@ -213,10 +198,10 @@ describe("operational route density", () => {
 
   it("keeps the primary model readiness visible and capability detail optional", () => {
     const models = read("./ModelsPage.tsx");
-    expect(models.match(/className="model-diagnostic"/gu)).toHaveLength(2);
+    expect(models.match(/data-model-diagnostic="true"/gu)).toHaveLength(2);
     expect(models).toContain("resourcePolicy.accounts");
     expect(models).toMatch(/readinessOpen\s+\?\s+`\$\{usableProviderCount\}/u);
-    expect(models).toContain('className="model-diagnostic"');
+    expect(models).toContain("MODEL_DIAGNOSTIC_CLASS");
     expect(models).not.toContain('<details className="model-diagnostic" open>');
   });
 });

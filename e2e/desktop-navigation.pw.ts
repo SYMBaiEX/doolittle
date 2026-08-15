@@ -1088,6 +1088,17 @@ test.describe("Doolittle desktop navigation", () => {
           name: "Providers & accounts",
         }),
       ).toBeVisible();
+      const scrollFixture = connectionsViewport.locator(
+        ".provider-routing-disclosure",
+      );
+      if (
+        !(await scrollFixture.evaluate((element) =>
+          element.hasAttribute("open"),
+        ))
+      ) {
+        await scrollFixture.locator("summary").click();
+      }
+      await expect(scrollFixture).toHaveAttribute("open", "");
       await expect
         .poll(() =>
           connectionsViewport.evaluate(

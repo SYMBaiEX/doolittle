@@ -2,7 +2,8 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type Toast, ToastRegion } from "./ToastRegion";
+import type { Toast } from "./ToastRegion";
+import { ToastViewport } from "./ToastViewport";
 
 describe("ToastRegion", () => {
   let container: HTMLDivElement;
@@ -31,7 +32,7 @@ describe("ToastRegion", () => {
 
     act(() =>
       root.render(
-        <ToastRegion
+        <ToastViewport
           onDismiss={vi.fn()}
           onPause={onPause}
           onResume={onResume}

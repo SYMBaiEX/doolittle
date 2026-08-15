@@ -10,6 +10,15 @@ import {
   remoteNameIsValid,
   remoteUrlIsValid,
 } from "../../repository-control";
+import {
+  GIT_CODE_CLASS,
+  GIT_LIST_CLASS,
+  GIT_ROW_CLASS,
+  GIT_SECTION_CLASS,
+  GIT_SECTION_HEADER_CLASS,
+  GitButton,
+  GitInput,
+} from "./GitControlPrimitives";
 import type { GitMutationRunner, GitWorktree } from "./models";
 import { shortGitPath } from "./models";
 
@@ -89,20 +98,18 @@ export function GitAdvancedControls({
   };
 
   return (
-    <div className="git-advanced-controls">
-      <form
-        className="git-control-section git-branch-form"
-        onSubmit={submitBranch}
-      >
-        <header>
+    <div className="grid grid-cols-2 gap-2 p-2 max-[700px]:grid-cols-1">
+      <form className={GIT_SECTION_CLASS} onSubmit={submitBranch}>
+        <header className={GIT_SECTION_HEADER_CLASS}>
           <strong>Branches</strong>
           <span>{branches.length}</span>
         </header>
-        <div className="git-branch-list">
+        <div className={GIT_LIST_CLASS}>
           {branches.map((branch) => (
-            <div key={branch.name}>
-              <button
-                className={branch.current ? "current" : ""}
+            <div className={GIT_ROW_CLASS} key={branch.name}>
+              <GitButton
+                className="min-w-0 truncate text-left"
+                current={branch.current}
                 disabled={busy || branch.current}
                 onClick={() =>
                   void run({ type: "branch-switch", branch: branch.name })
@@ -111,10 +118,10 @@ export function GitAdvancedControls({
               >
                 {branch.name}
                 {branch.current ? " · current" : ""}
-              </button>
+              </GitButton>
               {!branch.current ? (
                 <>
-                  <button
+                  <GitButton
                     disabled={busy}
                     onClick={() =>
                       void run({ type: "merge", branch: branch.name })
@@ -122,8 +129,8 @@ export function GitAdvancedControls({
                     type="button"
                   >
                     Merge
-                  </button>
-                  <button
+                  </GitButton>
+                  <GitButton
                     disabled={busy}
                     onClick={() =>
                       void run({ type: "rebase", branch: branch.name })
@@ -131,45 +138,51 @@ export function GitAdvancedControls({
                     type="button"
                   >
                     Rebase
-                  </button>
-                  <button
+                  </GitButton>
+                  <GitButton
                     aria-label={`Delete branch ${branch.name}`}
-                    className="danger icon-button"
+                    className="ml-auto"
                     disabled={busy}
                     onClick={() =>
                       void run({ type: "branch-delete", branch: branch.name })
                     }
+                    tone="danger"
                     type="button"
                   >
                     ×
-                  </button>
+                  </GitButton>
                 </>
               ) : null}
             </div>
           ))}
         </div>
-        <input
+        <GitInput
           disabled={busy}
           onChange={(event) => setBranchName(event.target.value)}
           placeholder="feature/short-name"
           value={branchName}
         />
-        <button disabled={busy || !branchNameIsValid(branchName)} type="submit">
+        <GitButton
+          disabled={busy || !branchNameIsValid(branchName)}
+          type="submit"
+        >
           Create and switch
-        </button>
+        </GitButton>
       </form>
 
-      <form className="git-control-section" onSubmit={submitStash}>
-        <header>
+      <form className={GIT_SECTION_CLASS} onSubmit={submitStash}>
+        <header className={GIT_SECTION_HEADER_CLASS}>
           <strong>Stashes</strong>
           <span>{stashes.length}</span>
         </header>
-        <div className="git-stash-list">
+        <div className={GIT_LIST_CLASS}>
           {stashes.map((stash) => (
-            <div key={stash.reference}>
-              <code>{stash.reference}</code>
-              <span>{stash.message || "Unlabelled stash"}</span>
-              <button
+            <div className={GIT_ROW_CLASS} key={stash.reference}>
+              <code className={GIT_CODE_CLASS}>{stash.reference}</code>
+              <span className="min-w-0 flex-1 truncate text-[10px] text-[var(--muted)]">
+                {stash.message || "Unlabelled stash"}
+              </span>
+              <GitButton
                 disabled={busy}
                 onClick={() =>
                   void run({
@@ -180,8 +193,8 @@ export function GitAdvancedControls({
                 type="button"
               >
                 Apply
-              </button>
-              <button
+              </GitButton>
+              <GitButton
                 disabled={busy}
                 onClick={() =>
                   void run({ type: "stash-pop", reference: stash.reference })
@@ -189,42 +202,44 @@ export function GitAdvancedControls({
                 type="button"
               >
                 Pop
-              </button>
-              <button
-                className="danger"
+              </GitButton>
+              <GitButton
                 disabled={busy}
                 onClick={() =>
                   void run({ type: "stash-drop", reference: stash.reference })
                 }
+                tone="danger"
                 type="button"
               >
                 Drop
-              </button>
+              </GitButton>
             </div>
           ))}
         </div>
-        <input
+        <GitInput
           disabled={busy}
           onChange={(event) => setStashMessage(event.target.value)}
           placeholder="Optional stash message"
           value={stashMessage}
         />
-        <button disabled={busy} type="submit">
+        <GitButton disabled={busy} type="submit">
           Stash including untracked
-        </button>
+        </GitButton>
       </form>
 
       {conflicts.length ? (
-        <section className="git-control-section">
-          <header>
+        <section className={GIT_SECTION_CLASS}>
+          <header className={GIT_SECTION_HEADER_CLASS}>
             <strong>Conflicts</strong>
             <span>{conflicts.length}</span>
           </header>
-          <div className="git-conflict-list">
+          <div className={GIT_LIST_CLASS}>
             {conflicts.map((conflict) => (
-              <div key={conflict.path}>
-                <code>{conflict.path}</code>
-                <button
+              <div className={GIT_ROW_CLASS} key={conflict.path}>
+                <code className={`${GIT_CODE_CLASS} flex-1`}>
+                  {conflict.path}
+                </code>
+                <GitButton
                   disabled={busy}
                   onClick={() =>
                     void run({
@@ -235,81 +250,84 @@ export function GitAdvancedControls({
                   type="button"
                 >
                   Mark resolved
-                </button>
+                </GitButton>
               </div>
             ))}
           </div>
-          <div>
-            <button
-              className="danger"
+          <div className="flex flex-wrap items-center gap-1.25">
+            <GitButton
               disabled={busy}
               onClick={() => void run({ type: "merge-abort" })}
+              tone="danger"
               type="button"
             >
               Abort merge
-            </button>
-            <button
-              className="danger"
+            </GitButton>
+            <GitButton
               disabled={busy}
               onClick={() => void run({ type: "rebase-abort" })}
+              tone="danger"
               type="button"
             >
               Abort rebase
-            </button>
-            <button
+            </GitButton>
+            <GitButton
               disabled={busy}
               onClick={() => void run({ type: "rebase-continue" })}
               type="button"
             >
               Continue rebase
-            </button>
-            <button
-              className="danger"
+            </GitButton>
+            <GitButton
               disabled={busy}
               onClick={() => void run({ type: "cherry-pick-abort" })}
+              tone="danger"
               type="button"
             >
               Abort cherry-pick
-            </button>
-            <button
+            </GitButton>
+            <GitButton
               disabled={busy}
               onClick={() => void run({ type: "cherry-pick-continue" })}
               type="button"
             >
               Continue cherry-pick
-            </button>
+            </GitButton>
           </div>
         </section>
       ) : null}
 
-      <form className="git-control-section" onSubmit={submitCherryPick}>
-        <header>
+      <form className={GIT_SECTION_CLASS} onSubmit={submitCherryPick}>
+        <header className={GIT_SECTION_HEADER_CLASS}>
           <strong>Cherry-pick</strong>
         </header>
-        <input
+        <GitInput
           disabled={busy}
           onChange={(event) => setCherryPickCommit(event.target.value)}
           placeholder="Commit SHA or ref"
           value={cherryPickCommit}
         />
-        <button disabled={busy || !cherryPickCommit.trim()} type="submit">
+        <GitButton disabled={busy || !cherryPickCommit.trim()} type="submit">
           Apply commit
-        </button>
+        </GitButton>
       </form>
 
-      <form className="git-control-section" onSubmit={submitRemote}>
-        <header>
+      <form className={GIT_SECTION_CLASS} onSubmit={submitRemote}>
+        <header className={GIT_SECTION_HEADER_CLASS}>
           <strong>Remotes</strong>
           <span>{remotes.length}</span>
         </header>
-        <div className="git-remote-list">
+        <div className={GIT_LIST_CLASS}>
           {remotes.map((remote) => (
-            <div key={remote.name}>
-              <code>{remote.name}</code>
-              <span title={remote.fetchUrl || remote.pushUrl}>
+            <div className={GIT_ROW_CLASS} key={remote.name}>
+              <code className={GIT_CODE_CLASS}>{remote.name}</code>
+              <span
+                className="min-w-0 flex-1 truncate text-[10px] text-[var(--muted)]"
+                title={remote.fetchUrl || remote.pushUrl}
+              >
                 {remote.fetchUrl || remote.pushUrl || "No URL"}
               </span>
-              <button
+              <GitButton
                 disabled={busy}
                 onClick={() => {
                   setEditingRemote(remote.name);
@@ -319,33 +337,33 @@ export function GitAdvancedControls({
                 type="button"
               >
                 Edit
-              </button>
-              <button
-                className="danger"
+              </GitButton>
+              <GitButton
                 disabled={busy}
                 onClick={() =>
                   void run({ type: "remote-remove", name: remote.name })
                 }
+                tone="danger"
                 type="button"
               >
                 Remove
-              </button>
+              </GitButton>
             </div>
           ))}
         </div>
-        <input
+        <GitInput
           disabled={busy || Boolean(editingRemote)}
           onChange={(event) => setRemoteName(event.target.value)}
           placeholder="Remote name"
           value={remoteName}
         />
-        <input
+        <GitInput
           disabled={busy}
           onChange={(event) => setRemoteUrl(event.target.value)}
           placeholder="https://github.com/org/repo.git"
           value={remoteUrl}
         />
-        <button
+        <GitButton
           disabled={
             busy ||
             !remoteNameIsValid(remoteName) ||
@@ -354,9 +372,9 @@ export function GitAdvancedControls({
           type="submit"
         >
           {editingRemote ? "Update remote" : "Add remote"}
-        </button>
+        </GitButton>
         {editingRemote ? (
-          <button
+          <GitButton
             disabled={busy}
             onClick={() => {
               setEditingRemote("");
@@ -366,23 +384,27 @@ export function GitAdvancedControls({
             type="button"
           >
             Cancel edit
-          </button>
+          </GitButton>
         ) : null}
       </form>
 
-      <section className="git-control-section">
-        <header>
+      <section className={GIT_SECTION_CLASS}>
+        <header className={GIT_SECTION_HEADER_CLASS}>
           <strong>Worktrees</strong>
           <span>{worktrees.length}</span>
         </header>
-        <div className="git-worktree-list">
+        <div className={GIT_LIST_CLASS}>
           {worktrees.map((worktree) => (
-            <div key={worktree.path}>
-              <code title={worktree.path}>{shortGitPath(worktree.path)}</code>
-              <span>{worktree.branch || "Detached"}</span>
+            <div className={GIT_ROW_CLASS} key={worktree.path}>
+              <code className={GIT_CODE_CLASS} title={worktree.path}>
+                {shortGitPath(worktree.path)}
+              </code>
+              <span className="text-[10px] text-[var(--muted)]">
+                {worktree.branch || "Detached"}
+              </span>
               {!worktree.current ? (
-                <button
-                  className="danger"
+                <GitButton
+                  className="ml-auto"
                   disabled={busy}
                   onClick={() =>
                     void run({
@@ -390,21 +412,22 @@ export function GitAdvancedControls({
                       path: worktree.path,
                     })
                   }
+                  tone="danger"
                   type="button"
                 >
                   Remove
-                </button>
+                </GitButton>
               ) : null}
             </div>
           ))}
         </div>
-        <button
+        <GitButton
           disabled={busy}
           onClick={() => void run({ type: "worktree-prune" })}
           type="button"
         >
           Prune unavailable worktrees
-        </button>
+        </GitButton>
       </section>
     </div>
   );

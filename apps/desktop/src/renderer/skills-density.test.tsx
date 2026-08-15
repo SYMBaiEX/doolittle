@@ -11,7 +11,7 @@ describe("SkillsPage density", () => {
     expect(markup.match(/role="tabpanel"/gu)).toHaveLength(2);
     expect(markup).toContain('id="skills-workshop-panel"');
     expect(markup).toContain('hidden="" id="skills-workshop-panel"');
-    expect(markup).toContain('class="catalog-filter-bar"');
+    expect(markup).toContain('class="catalog-filter-bar flex');
     expect(markup).toContain("Loading…");
     expect(markup).not.toContain("29 available");
     expect(markup).not.toContain("Review before activation</small>");

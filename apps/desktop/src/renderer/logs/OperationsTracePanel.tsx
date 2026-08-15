@@ -8,6 +8,15 @@ import {
   LoadingBlock,
   type UnknownRecord,
 } from "../lib";
+import {
+  OBSERVABILITY_CARD_CLASS,
+  OBSERVABILITY_CARD_HEADING_CLASS,
+  OBSERVABILITY_EYEBROW_CLASS,
+} from "../observability-layout";
+
+const TRACE_LIST_CLASS = "grid";
+const TRACE_ROW_CLASS =
+  "flex items-start justify-between gap-3 border-b border-[var(--border)] py-2 last:border-b-0 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-1 [&_strong]:truncate [&_small]:truncate [&_small]:text-[var(--muted)]";
 
 interface DeliveriesResponse {
   deliveries?: unknown[];
@@ -29,19 +38,14 @@ export function OperationsTracePanel({
   terminalHistory: ApiResource<TerminalHistoryResponse>;
 }) {
   return (
-    <div className="two-column-grid operations-trace-grid">
-      <section className="content-card">
-        <div className="card-heading">
+    <div className="grid grid-cols-2 gap-2 p-2 max-[920px]:grid-cols-1">
+      <section className={`${OBSERVABILITY_CARD_CLASS} p-3`}>
+        <div className={OBSERVABILITY_CARD_HEADING_CLASS}>
           <div>
-            <span className="eyebrow">Delivery state</span>
+            <span className={OBSERVABILITY_EYEBROW_CLASS}>Delivery state</span>
             <h2>Recent deliveries</h2>
           </div>
-          <Button
-            className="text-button"
-            onClick={deliveries.reload}
-            type="button"
-            variant="ghost"
-          >
+          <Button onClick={deliveries.reload} type="button" variant="ghost">
             Refresh
           </Button>
         </div>
@@ -50,10 +54,10 @@ export function OperationsTracePanel({
         ) : deliveries.error ? (
           <ErrorBlock error={deliveries.error} retry={deliveries.reload} />
         ) : deliveryEntries.length ? (
-          <div className="stack-list">
+          <div className={TRACE_LIST_CLASS}>
             {deliveryEntries.slice(0, 12).map((entry, index) => (
               <div
-                className="status-row"
+                className={TRACE_ROW_CLASS}
                 key={`${asString(entry.id, "delivery")}:${String(index)}`}
               >
                 <div>
@@ -85,14 +89,13 @@ export function OperationsTracePanel({
           </EmptyBlock>
         )}
       </section>
-      <section className="content-card">
-        <div className="card-heading">
+      <section className={`${OBSERVABILITY_CARD_CLASS} p-3`}>
+        <div className={OBSERVABILITY_CARD_HEADING_CLASS}>
           <div>
-            <span className="eyebrow">Command trail</span>
+            <span className={OBSERVABILITY_EYEBROW_CLASS}>Command trail</span>
             <h2>Terminal history</h2>
           </div>
           <Button
-            className="text-button"
             onClick={terminalHistory.reload}
             type="button"
             variant="ghost"
@@ -108,10 +111,10 @@ export function OperationsTracePanel({
             retry={terminalHistory.reload}
           />
         ) : commandEntries.length ? (
-          <div className="stack-list">
+          <div className={TRACE_LIST_CLASS}>
             {commandEntries.slice(0, 12).map((entry, index) => (
               <div
-                className="status-row"
+                className={TRACE_ROW_CLASS}
                 key={`${asString(entry.command, "command")}:${String(index)}`}
               >
                 <div>

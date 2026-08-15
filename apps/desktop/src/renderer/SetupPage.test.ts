@@ -9,18 +9,14 @@ import {
 
 describe("SetupPage projections", () => {
   it("keeps optional account and checklist disclosures compact", () => {
-    const styles = readFileSync(
-      new URL("./diagnostics-pages.css", import.meta.url),
+    const layout = readFileSync(
+      new URL("./diagnostics-layout.ts", import.meta.url),
       "utf8",
     );
 
-    expect(styles).toMatch(
-      /\.setup-account-bar\s*\{[^}]*min-height:\s*44px;/su,
-    );
-    expect(styles).toMatch(
-      /\.setup-guidance > summary\s*\{[^}]*min-height:\s*46px;/su,
-    );
-    expect(styles).toContain(".setup-readiness__heading");
+    expect(layout).toContain("min-h-11");
+    expect(layout).toContain("min-h-[46px]");
+    expect(layout).toContain("SETUP_READINESS_HEADING_CLASS");
   });
 
   it("projects one concise local readiness statement", () => {

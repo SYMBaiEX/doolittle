@@ -1,4 +1,17 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
 import { Badge, EmptyBlock, LoadingBlock, Notice } from "../../lib";
+import {
+  MCP_DETAIL_CLASS,
+  MCP_DISCLOSURE_BODY_CLASS,
+  MCP_DISCLOSURE_CLASS,
+  MCP_SEARCH_CLASS,
+  MCP_SUMMARY_CLASS,
+  MCP_TOOL_BUTTON_CLASS,
+  MCP_TOOL_BUTTON_SELECTED_CLASS,
+  MCP_TOOL_LIST_CLASS,
+  MCP_TWO_COLUMN_CLASS,
+} from "./layout";
 import type { McpToolSummary } from "./model";
 
 export interface McpCachedToolsPanelProps {
@@ -35,17 +48,32 @@ export function McpCachedToolsPanel({
   onSelect,
 }: McpCachedToolsPanelProps) {
   return (
-    <details className="mcp-control-disclosure mcp-control-browser">
-      <summary className="mcp-control-browser-header">
+    <details
+      className={`mcp-control-browser ${MCP_DISCLOSURE_CLASS}`}
+      data-mcp-section="tools"
+    >
+      <summary className={MCP_SUMMARY_CLASS}>
         <div>
           <span className="eyebrow">Read-only registry</span>
           <h3>Available MCP tools</h3>
         </div>
         <Badge tone="neutral">{tools.length} shown</Badge>
+        <span
+          aria-hidden="true"
+          className="font-[var(--font-mono)] text-[var(--muted)] group-open:hidden"
+        >
+          +
+        </span>
+        <span
+          aria-hidden="true"
+          className="hidden font-[var(--font-mono)] text-[var(--muted)] group-open:inline"
+        >
+          −
+        </span>
       </summary>
-      <div className="mcp-control-disclosure-body">
-        <form className="mcp-control-search" onSubmit={onSubmit}>
-          <input
+      <div className={MCP_DISCLOSURE_BODY_CLASS}>
+        <form className={MCP_SEARCH_CLASS} onSubmit={onSubmit}>
+          <Input
             aria-label="Search MCP tools"
             maxLength={256}
             onChange={(event) => onDraftChange(event.target.value)}
@@ -53,17 +81,18 @@ export function McpCachedToolsPanel({
             type="search"
             value={draft}
           />
-          <button
+          <Button
             aria-label="Search MCP tools"
-            className="secondary-button"
+            size="sm"
             type="submit"
+            variant="secondary"
           >
             Search
-          </button>
+          </Button>
           {query ? (
-            <button className="text-button" onClick={onClear} type="button">
+            <Button onClick={onClear} size="sm" type="button" variant="ghost">
               Clear
-            </button>
+            </Button>
           ) : null}
         </form>
         {loading ? <LoadingBlock label="Searching cached MCP tools…" /> : null}
@@ -78,15 +107,13 @@ export function McpCachedToolsPanel({
           </EmptyBlock>
         ) : null}
         {tools.length ? (
-          <div className="mcp-control-tool-grid">
-            <ul aria-label="MCP tools" className="mcp-control-tool-list">
+          <div className={MCP_TWO_COLUMN_CLASS}>
+            <ul aria-label="MCP tools" className={MCP_TOOL_LIST_CLASS}>
               {tools.map((tool) => (
                 <li key={tool.name}>
                   <button
                     aria-pressed={selectedName === tool.name}
-                    className={
-                      selectedName === tool.name ? "selected" : undefined
-                    }
+                    className={`${MCP_TOOL_BUTTON_CLASS} ${selectedName === tool.name ? MCP_TOOL_BUTTON_SELECTED_CLASS : ""}`}
                     onClick={() => onSelect(tool.name)}
                     type="button"
                   >
@@ -99,7 +126,7 @@ export function McpCachedToolsPanel({
                 </li>
               ))}
             </ul>
-            <aside className="mcp-control-detail">
+            <aside className={MCP_DETAIL_CLASS}>
               {detailLoading ? (
                 <LoadingBlock label="Reading tool schema…" />
               ) : null}

@@ -6,14 +6,24 @@ import {
   useState,
 } from "react";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
-import "../components/composer-selectors.css";
+import {
+  COMPOSER_ACTIONS_CLASS,
+  COMPOSER_POPOVER_CLASS,
+  COMPOSER_POPOVER_HEADER_CLASS,
+  COMPOSER_PROJECT_GLYPH_CLASS,
+  COMPOSER_PROJECT_LIST_CLASS,
+  COMPOSER_PROJECT_TRIGGER_CLASS,
+  COMPOSER_SEARCH_CLASS,
+  COMPOSER_SELECTOR_ROOT_CLASS,
+} from "./layout";
 import { useDismissPopover } from "./useDismissPopover";
 
 function ProjectGlyph({ project }: { project?: ProjectLike }) {
   return (
     <span
       aria-hidden="true"
-      className="composer-project-glyph"
+      className={COMPOSER_PROJECT_GLYPH_CLASS}
+      data-project-glyph="true"
       style={
         {
           "--composer-project-color": project?.color ?? "var(--accent)",
@@ -81,12 +91,12 @@ export function ComposerProjectSelector({
   };
 
   return (
-    <div className="composer-project-selector" ref={rootRef}>
+    <div className={COMPOSER_SELECTOR_ROOT_CLASS} ref={rootRef}>
       <button
         aria-label={`Choose project. Current project ${activeProject?.name ?? "General"}.`}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="composer-project-trigger"
+        className={COMPOSER_PROJECT_TRIGGER_CLASS}
         onClick={() => setOpen((current) => !current)}
         ref={triggerRef}
         title={
@@ -102,16 +112,16 @@ export function ComposerProjectSelector({
       {open ? (
         <section
           aria-label="Choose a project for this new conversation"
-          className="composer-popover composer-project-popover"
+          className={`${COMPOSER_POPOVER_CLASS} w-[min(340px,calc(100vw-44px))]`}
           role="dialog"
         >
-          <header className="composer-popover-header">
+          <header className={COMPOSER_POPOVER_HEADER_CLASS}>
             <span>
               <strong>Conversation project</strong>
               <small>Choose what Doolittle can see and work in.</small>
             </span>
           </header>
-          <label className="composer-popover-search">
+          <label className={`${COMPOSER_SEARCH_CLASS} m-2`}>
             <span aria-hidden="true">⌕</span>
             <input
               aria-label="Search projects"
@@ -121,7 +131,7 @@ export function ComposerProjectSelector({
               value={query}
             />
           </label>
-          <div className="composer-project-list">
+          <div className={COMPOSER_PROJECT_LIST_CLASS}>
             <button
               aria-current={!activeProject ? "true" : undefined}
               onClick={() => select("unscoped")}
@@ -158,10 +168,12 @@ export function ComposerProjectSelector({
               </button>
             ))}
             {!visibleProjects.length && query ? (
-              <p>No matching projects.</p>
+              <p className="p-3 text-[10px] text-[var(--faint)]">
+                No matching projects.
+              </p>
             ) : null}
           </div>
-          <footer className="composer-popover-actions">
+          <footer className={COMPOSER_ACTIONS_CLASS}>
             <button
               onClick={() => {
                 setOpen(false);

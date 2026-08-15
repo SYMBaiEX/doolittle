@@ -11,6 +11,32 @@ import { commandOutput, contextBlock } from "../thread-workbench-controller";
 import { ChangesPanel, TerminalPanel } from "./ChangesAndTerminalPanels";
 import { FilesPanel } from "./FilesPanel";
 import {
+  WORKBENCH_BRIEF_CLASS,
+  WORKBENCH_BRIEF_EMPTY_CLASS,
+  WORKBENCH_BRIEF_LIST_CLASS,
+  WORKBENCH_BRIEF_STACK_CLASS,
+  WORKBENCH_BRIEF_STAT_CLASS,
+  WORKBENCH_EMPTY_CLASS,
+  WORKBENCH_LIST_BUTTON_CLASS,
+  WORKBENCH_LIST_CLASS,
+  WORKBENCH_ORBIT_MARK_CLASS,
+  WORKBENCH_PANEL_CLASS,
+  WORKBENCH_PANEL_HEADING_CLASS,
+  WORKBENCH_PANEL_TITLE_CLASS,
+  WORKBENCH_PLAN_CARD_CLASS,
+  WORKBENCH_PLAN_LIST_CLASS,
+  WORKBENCH_PREVIEW_COPY_CLASS,
+  WORKBENCH_PREVIEW_ORBIT_CLASS,
+  WORKBENCH_PREVIEW_STATUS_CLASS,
+  WORKBENCH_QUICK_NAV_CLASS,
+  WORKBENCH_SCROLL_BODY_CLASS,
+  WORKBENCH_SETTINGS_CLASS,
+  WORKBENCH_SETTINGS_GRID_CLASS,
+  WORKBENCH_SETTINGS_ITEM_CLASS,
+  WORKBENCH_SETTINGS_NAV_CLASS,
+  WORKBENCH_TEXT_BUTTON_CLASS,
+} from "./layout";
+import {
   branchHeadLabel,
   compactRailLabel,
   FULL_VIEW,
@@ -56,20 +82,27 @@ type SettingsPanelController = Pick<
 type PreviewPanelController = Pick<WorkbenchController, "preview">;
 
 function BriefEmpty({ children }: { children: ReactNode }) {
-  return <p className="thread-workbench-brief-empty">{children}</p>;
+  return (
+    <p className={WORKBENCH_BRIEF_EMPTY_CLASS} data-thread-workbench="empty">
+      {children}
+    </p>
+  );
 }
 
 function PlansPanel({ controller }: { controller: PlansPanelController }) {
   const { plans, planEntries } = controller;
   return (
-    <div className="thread-workbench-panel-body thread-workbench-panel-body--plans">
+    <div
+      className={WORKBENCH_SCROLL_BODY_CLASS}
+      data-thread-workbench-panel="plans"
+    >
       <ResourceState
         error={plans.error}
         loading={plans.loading}
         retry={plans.reload}
       />
       {!plans.loading && !plans.error ? (
-        <div className="thread-workbench-plan-list">
+        <div className={WORKBENCH_PLAN_LIST_CLASS}>
           {planEntries.map((plan, index) => {
             const id = asString(plan.id, `plan-${index}`);
             const status = asString(plan.status, "draft");
@@ -77,7 +110,7 @@ function PlansPanel({ controller }: { controller: PlansPanelController }) {
               .map((step) => asString(step))
               .filter(Boolean);
             return (
-              <article className="thread-workbench-plan-card" key={id}>
+              <article className={WORKBENCH_PLAN_CARD_CLASS} key={id}>
                 <div>
                   <strong>{asString(plan.title, "Untitled plan")}</strong>
                   <Badge tone={statusTone(status)}>{status}</Badge>
@@ -93,7 +126,7 @@ function PlansPanel({ controller }: { controller: PlansPanelController }) {
             );
           })}
           {!planEntries.length ? (
-            <p className="thread-workbench-empty">
+            <p className={WORKBENCH_EMPTY_CLASS}>
               No plans are attached to the local runtime.
             </p>
           ) : null}
@@ -126,7 +159,10 @@ function BriefPanel({
     insert,
   } = controller;
   return (
-    <div className="thread-workbench-panel-body thread-workbench-panel-body--brief">
+    <div
+      className={WORKBENCH_SCROLL_BODY_CLASS}
+      data-thread-workbench-panel="brief"
+    >
       <ResourceState
         error={
           plans.error ||
@@ -157,8 +193,8 @@ function BriefPanel({
         approvals.loading ||
         terminal.loading
       ) ? (
-        <div className="thread-workbench-brief">
-          <section className="thread-workbench-brief-stack">
+        <div className={WORKBENCH_BRIEF_CLASS}>
+          <section className={WORKBENCH_BRIEF_STACK_CLASS}>
             <article>
               <h3>Current plan</h3>
               {briefPlanSummary.activePlan ? (
@@ -225,10 +261,10 @@ function BriefPanel({
             </article>
           </section>
 
-          <section className="thread-workbench-brief-list">
+          <section className={WORKBENCH_BRIEF_LIST_CLASS}>
             <h3>Task and approval pressure</h3>
             {delegatedTaskEntries.length ? (
-              <div className="thread-workbench-list">
+              <div className={WORKBENCH_LIST_CLASS}>
                 {delegatedTaskEntries.slice(0, 6).map((entry, index) => {
                   const id = asString(entry.id, `task-${index}`);
                   const title = asString(
@@ -238,6 +274,7 @@ function BriefPanel({
                   const status = asString(entry.status, "pending");
                   return (
                     <button
+                      className={WORKBENCH_LIST_BUTTON_CLASS}
                       key={id}
                       onClick={() =>
                         insert(
@@ -267,7 +304,7 @@ function BriefPanel({
               <BriefEmpty>No queued delegation tasks.</BriefEmpty>
             )}
             {approvalEntries.length ? (
-              <div className="thread-workbench-list">
+              <div className={WORKBENCH_LIST_CLASS}>
                 {approvalEntries.slice(0, 6).map((approval, index) => {
                   const id = asString(approval.id, `approval-${index}`);
                   const command = asString(
@@ -276,6 +313,7 @@ function BriefPanel({
                   );
                   return (
                     <button
+                      className={WORKBENCH_LIST_BUTTON_CLASS}
                       key={id}
                       onClick={() =>
                         insert(
@@ -304,10 +342,10 @@ function BriefPanel({
             ) : null}
           </section>
 
-          <section className="thread-workbench-brief-list">
+          <section className={WORKBENCH_BRIEF_LIST_CLASS}>
             <h3>Automation + terminal pressure</h3>
-            <div className="thread-workbench-list">
-              <article className="thread-workbench-brief-stat">
+            <div className={WORKBENCH_LIST_CLASS}>
+              <article className={WORKBENCH_BRIEF_STAT_CLASS}>
                 <span>Codegen</span>
                 <strong>{`${activeRunCount} active · ${failedRunCount} failed`}</strong>
                 <small>
@@ -320,6 +358,7 @@ function BriefPanel({
                   const id = asString(entry.id, `terminal-${index}`);
                   return (
                     <button
+                      className={WORKBENCH_LIST_BUTTON_CLASS}
                       key={id}
                       onClick={() =>
                         insert(
@@ -344,13 +383,12 @@ function BriefPanel({
             </div>
           </section>
 
-          <section className="thread-workbench-brief-list">
+          <section className={WORKBENCH_BRIEF_LIST_CLASS}>
             <h3>Quick navigation</h3>
-            <div className="thread-workbench-quick-nav">
+            <div className={WORKBENCH_QUICK_NAV_CLASS}>
               {QUICK_NAVIGATION.map((item) => (
                 <button
                   key={item.label}
-                  className="thread-workbench-text-button"
                   onClick={() => onOpenFullView(item.view)}
                   title={item.blurb}
                   type="button"
@@ -375,14 +413,17 @@ function SettingsPanel({
 }) {
   const { settings, model, repositorySummary, settingEntries } = controller;
   return (
-    <div className="thread-workbench-panel-body thread-workbench-panel-body--settings">
+    <div
+      className={WORKBENCH_SCROLL_BODY_CLASS}
+      data-thread-workbench-panel="settings"
+    >
       <ResourceState
         error={settings.error}
         loading={settings.loading}
         retry={settings.reload}
       />
       {!settings.loading && !settings.error ? (
-        <div className="thread-workbench-settings">
+        <div className={WORKBENCH_SETTINGS_CLASS}>
           <section>
             <h3>Runtime snapshot</h3>
             <article>
@@ -402,25 +443,28 @@ function SettingsPanel({
           </section>
           <section>
             <h3>Runtime settings snapshot</h3>
-            <div className="thread-workbench-settings-grid">
+            <div className={WORKBENCH_SETTINGS_GRID_CLASS}>
               {settingEntries.length ? (
                 settingEntries.map((setting) => (
                   <article
                     key={setting.key}
-                    className="thread-workbench-settings-item"
+                    className={WORKBENCH_SETTINGS_ITEM_CLASS}
                   >
                     <small>{setting.key}</small>
                     <strong>{setting.value}</strong>
                   </article>
                 ))
               ) : (
-                <p className="thread-workbench-empty">
+                <p className={WORKBENCH_EMPTY_CLASS}>
                   No settings values returned from runtime.
                 </p>
               )}
             </div>
           </section>
-          <details className="thread-workbench-settings-nav">
+          <details
+            className={WORKBENCH_SETTINGS_NAV_CLASS}
+            data-thread-workbench="settings-navigation"
+          >
             <summary>Open a full page</summary>
             <div>
               {QUICK_NAVIGATION.map((item) => (
@@ -450,21 +494,24 @@ function PreviewPanel({ controller }: { controller: PreviewPanelController }) {
     asString(previewRecord.captureMode) ||
     "Available";
   return (
-    <div className="thread-workbench-panel-body thread-workbench-panel-body--preview">
+    <div
+      className={WORKBENCH_SCROLL_BODY_CLASS}
+      data-thread-workbench-panel="preview"
+    >
       <ResourceState
         error={preview.error}
         loading={preview.loading}
         retry={preview.reload}
       />
       {!preview.loading && !preview.error ? (
-        <div className="thread-workbench-preview-status">
-          <div className="thread-workbench-preview-orbit" aria-hidden="true">
+        <div className={WORKBENCH_PREVIEW_STATUS_CLASS}>
+          <div className={WORKBENCH_PREVIEW_ORBIT_CLASS} aria-hidden="true">
             <i />
-            <span className="thread-workbench-orbit-mark">◎</span>
+            <span className={WORKBENCH_ORBIT_MARK_CLASS}>◎</span>
           </div>
           <Badge tone="good">{previewMode}</Badge>
           <strong>Local preview tools are connected</strong>
-          <p className="thread-workbench-preview-copy">
+          <p className={WORKBENCH_PREVIEW_COPY_CLASS}>
             Inspect, capture, compare, and analyze your running app without
             leaving the thread.
           </p>
@@ -517,20 +564,21 @@ export function WorkbenchPanels({
   return (
     <section
       aria-labelledby={tabId}
-      className="thread-workbench-panel"
+      className={WORKBENCH_PANEL_CLASS}
+      data-thread-workbench="panel"
       id={panelId}
       role="tabpanel"
     >
-      <div className="thread-workbench-panel-heading">
+      <div className={WORKBENCH_PANEL_HEADING_CLASS}>
         <div>
-          <span className="thread-workbench-panel-title">
+          <span className={WORKBENCH_PANEL_TITLE_CLASS}>
             {TAB_LABELS[model.selectedTab]}
           </span>
           <small>{panelMeta}</small>
         </div>
         {selectedFullView ? (
           <button
-            className="thread-workbench-text-button"
+            className={WORKBENCH_TEXT_BUTTON_CLASS}
             onClick={() => onOpenFullView(selectedFullView)}
             type="button"
           >

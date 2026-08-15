@@ -1,3 +1,4 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import { type FormEvent, useMemo, useState } from "react";
 import {
   asNumber,
@@ -11,6 +12,13 @@ import {
   useApiResource,
 } from "../lib";
 import { CompactStatStrip } from "./CompactStatStrip";
+import {
+  MCP_DISCLOSURE_BODY_CLASS,
+  MCP_DISCLOSURE_CLASS,
+  MCP_HEADER_CLASS,
+  MCP_PANEL_CLASS,
+  MCP_SUMMARY_CLASS,
+} from "./mcp-control/layout";
 import { McpCachedToolsPanel } from "./mcp-control/McpCachedToolsPanel";
 import { McpMarketplacePanel } from "./mcp-control/McpMarketplacePanel";
 import {
@@ -22,7 +30,6 @@ import {
   normalizeMcpServers,
   normalizeMcpTools,
 } from "./mcp-control/model";
-import "./mcp-control-panel.css";
 
 export type {
   McpMarketplaceDetail,
@@ -169,14 +176,11 @@ export function McpControlPanel({ active }: { active: boolean }) {
     }
   };
   return (
-    <section
-      aria-labelledby="mcp-control-heading"
-      className="mcp-control-panel"
-    >
+    <section aria-labelledby="mcp-control-heading" className={MCP_PANEL_CLASS}>
       <p aria-atomic="true" aria-live="polite" className="sr-only">
         {liveStatus}
       </p>
-      <header className="mcp-control-header">
+      <header className={MCP_HEADER_CLASS}>
         <div>
           <span className="eyebrow">Model Context Protocol</span>
           <h2 id="mcp-control-heading">MCP connections</h2>
@@ -185,23 +189,24 @@ export function McpControlPanel({ active }: { active: boolean }) {
             discovered tools without invoking them.
           </p>
         </div>
-        <div className="mcp-control-actions">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <Badge tone={healthy ? "good" : "warn"}>
             {mcpStatusLabel(bridge)}
           </Badge>
           {configured ? (
-            <button
-              className="secondary-button"
+            <Button
               disabled={probing}
               onClick={() => void probe()}
+              size="sm"
               type="button"
+              variant="secondary"
             >
               {probing ? "Probing…" : "Probe"}
-            </button>
+            </Button>
           ) : null}
-          <button className="secondary-button" onClick={refresh} type="button">
+          <Button onClick={refresh} size="sm" type="button" variant="secondary">
             Refresh
-          </button>
+          </Button>
         </div>
       </header>
       {loading ? <LoadingBlock label="Reading MCP connections…" /> : null}
@@ -249,31 +254,55 @@ export function McpControlPanel({ active }: { active: boolean }) {
             </Notice>
           ) : null}
           {servers.length ? (
-            <details className="mcp-control-disclosure mcp-control-servers">
-              <summary className="mcp-control-browser-header">
+            <details
+              className={MCP_DISCLOSURE_CLASS}
+              data-mcp-section="servers"
+            >
+              <summary className={MCP_SUMMARY_CLASS}>
                 <div>
                   <span className="eyebrow">Eliza connection registry</span>
                   <h3>Configured servers</h3>
                 </div>
                 <Badge tone="neutral">{servers.length} active</Badge>
+                <span
+                  aria-hidden="true"
+                  className="font-[var(--font-mono)] text-[var(--muted)] group-open:hidden"
+                >
+                  +
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="hidden font-[var(--font-mono)] text-[var(--muted)] group-open:inline"
+                >
+                  −
+                </span>
               </summary>
-              <div className="mcp-control-disclosure-body">
-                <div className="mcp-control-server-grid">
+              <div className={MCP_DISCLOSURE_BODY_CLASS}>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2">
                   {servers.map((server) => (
-                    <article key={server.name}>
-                      <div>
-                        <code>{server.name}</code>
+                    <article
+                      className="grid min-w-0 gap-[7px] rounded border border-[var(--border)] bg-[var(--surface-raised)] p-2.5"
+                      key={server.name}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <code className="overflow-hidden text-ellipsis text-[11px] text-[var(--accent)]">
+                          {server.name}
+                        </code>
                         <Badge
                           tone={server.status === "connected" ? "good" : "warn"}
                         >
                           {server.status}
                         </Badge>
                       </div>
-                      <span>
+                      <span className="text-[11px] leading-[1.45] text-[var(--text-soft)]">
                         {server.toolCount} tools · {server.resourceCount}{" "}
                         resources · {server.resourceTemplateCount} templates
                       </span>
-                      {server.error ? <small>{server.error}</small> : null}
+                      {server.error ? (
+                        <small className="text-[11px] leading-[1.45] text-[var(--danger)]">
+                          {server.error}
+                        </small>
+                      ) : null}
                     </article>
                   ))}
                 </div>

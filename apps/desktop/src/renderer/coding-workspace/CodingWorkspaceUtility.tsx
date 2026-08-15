@@ -16,6 +16,14 @@ import {
   LoadingBlock,
 } from "../lib";
 import { CODE_UTILITY_WIDTH } from "../panel-layout";
+import {
+  CODING_COMMIT_LIST_CLASS,
+  CODING_COMMIT_SUBJECT_CLASS,
+  CODING_PANE_BODY_CLASS,
+  CODING_PANE_CLASS,
+  CODING_UTILITY_CLASS,
+  CODING_UTILITY_RESIZER_CLASS,
+} from "./layout";
 import type {
   CommitRow,
   RepositoryBranchesResponse,
@@ -71,10 +79,10 @@ export function CodingWorkspaceUtility({
   onOpenTerminal: () => void;
 }) {
   return (
-    <aside className="coding-pane coding-utility">
+    <aside className={`${CODING_PANE_CLASS} ${CODING_UTILITY_CLASS}`}>
       <PanelResizeHandle
         bounds={CODE_UTILITY_WIDTH}
-        className="coding-utility-resizer"
+        className={CODING_UTILITY_RESIZER_CLASS}
         direction="grow-left"
         label="Resize code utility panel"
         onResize={onResize}
@@ -95,7 +103,7 @@ export function CodingWorkspaceUtility({
         value={utilityPane}
         onChange={onUtilityPaneChange}
       />
-      <div className="coding-pane-body" role="tabpanel">
+      <div className={CODING_PANE_BODY_CLASS} role="tabpanel">
         {utilityPane === "terminal" ? (
           <EmptyBlock
             actions={
@@ -121,12 +129,12 @@ export function CodingWorkspaceUtility({
           ) : logResource.error ? (
             <ErrorBlock error={logResource.error} retry={logResource.reload} />
           ) : commits.length ? (
-            <div className="coding-commit-list">
+            <div className={CODING_COMMIT_LIST_CLASS}>
               {commits.map((commit) => (
                 <article key={commit.id}>
                   <span aria-hidden="true" />
                   <div>
-                    <strong className="coding-commit-subject">
+                    <strong className={CODING_COMMIT_SUBJECT_CLASS}>
                       {commit.subject}
                     </strong>
                     <code>{commit.hash}</code>

@@ -19,7 +19,7 @@ describe("SettingsExecutionStatusPanel", () => {
     );
 
     expect(markup).toContain("1/2 ready");
-    expect(markup).toContain('class="settings-execution-backends"');
+    expect(markup).toContain('data-settings-execution-backends="true"');
     expect(markup).toContain("Native shell");
     expect(markup).toContain("Unavailable");
     expect(markup).toContain(">Recheck</button>");

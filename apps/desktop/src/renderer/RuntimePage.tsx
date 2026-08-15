@@ -19,8 +19,8 @@ import {
 import { RuntimeGateway } from "./runtime/RuntimeGateway";
 import { RuntimeInventory } from "./runtime/RuntimeInventory";
 import { RuntimeOverview } from "./runtime/RuntimeOverview";
+import { RUNTIME_PAGE_CLASS } from "./runtime/runtime-layout";
 import { RuntimeSectionNav } from "./runtime-state/RuntimeSectionNav";
-import "./runtime-page.css";
 
 const RUNTIME_SECTIONS: Array<{
   id: RuntimeSection;
@@ -90,7 +90,7 @@ export function RuntimePage({
 
   if (!active) {
     return (
-      <PagePanel className="page studio-page runtime-page" variant="workspace">
+      <PagePanel className={RUNTIME_PAGE_CLASS} variant="workspace">
         <PageHeader
           eyebrow="Runtime"
           title="Runtime"
@@ -116,7 +116,7 @@ export function RuntimePage({
   }
 
   return (
-    <PagePanel className="page studio-page runtime-page" variant="workspace">
+    <PagePanel className={RUNTIME_PAGE_CLASS} variant="workspace">
       <PageHeader
         eyebrow="Runtime"
         title="Runtime"
@@ -136,7 +136,7 @@ export function RuntimePage({
       />
 
       <Tabs
-        className="runtime-tabs"
+        className="grid min-h-0 gap-3"
         onValueChange={(value) => setSection(value as RuntimeSection)}
         value={section}
       >
@@ -145,7 +145,7 @@ export function RuntimePage({
           sections={RUNTIME_SECTIONS}
         />
 
-        <TabsContent className="runtime-panel" value="overview">
+        <TabsContent className="min-h-0" value="overview">
           <RuntimeOverview
             active={active}
             accountPool={accountPool}
@@ -155,14 +155,14 @@ export function RuntimePage({
             readOnly={readOnly}
           />
         </TabsContent>
-        <TabsContent className="runtime-panel" value="gateway">
+        <TabsContent className="min-h-0" value="gateway">
           <RuntimeGateway
             active={active}
             gatewayHealth={gatewayHealth}
             gatewayRuntime={gatewayRuntime}
           />
         </TabsContent>
-        <TabsContent className="runtime-panel" value="inventory">
+        <TabsContent className="min-h-0" value="inventory">
           <RuntimeInventory
             active={active}
             ecosystem={ecosystem}

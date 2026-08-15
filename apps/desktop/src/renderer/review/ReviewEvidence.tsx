@@ -13,6 +13,12 @@ import type {
   ReviewRecordEvent,
   ReviewRecordSnapshot,
 } from "../review-comments";
+import {
+  REVIEW_DISCLOSURE_ICON_CLASS,
+  REVIEW_EVIDENCE_BODY_CLASS,
+  REVIEW_EVIDENCE_DRAWER_CLASS,
+  REVIEW_GIT_CONTROLS_CLASS,
+} from "./layout";
 import { ReviewBranchRecord } from "./ReviewOverview";
 
 export interface ReviewEvidenceProps {
@@ -75,7 +81,8 @@ export function ReviewEvidence({
 }: ReviewEvidenceProps) {
   return (
     <details
-      className="review-evidence-drawer"
+      className={REVIEW_EVIDENCE_DRAWER_CLASS}
+      data-review="evidence"
       onToggle={(event) => onEvidenceOpenChange(event.currentTarget.open)}
     >
       <summary>
@@ -87,10 +94,12 @@ export function ReviewEvidence({
             {review?.pullRequest ? ` · PR #${review.pullRequest.number}` : ""}
           </small>
         </span>
-        <i aria-hidden="true">›</i>
+        <i aria-hidden="true" className={REVIEW_DISCLOSURE_ICON_CLASS}>
+          ›
+        </i>
       </summary>
       {evidenceOpen ? (
-        <div className="review-evidence-body">
+        <div className={REVIEW_EVIDENCE_BODY_CLASS}>
           {repositoryReviewError ? (
             <Notice tone="warn">
               GitHub review is unavailable. Local evidence remains reviewable.
@@ -114,7 +123,7 @@ export function ReviewEvidence({
             reviewHead={review?.local.head}
           />
           <details
-            className="review-git-controls"
+            className={REVIEW_GIT_CONTROLS_CLASS}
             onToggle={(event) =>
               onSourceControlOpenChange(event.currentTarget.open)
             }

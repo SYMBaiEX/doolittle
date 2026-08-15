@@ -1,3 +1,5 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
 import { type FormEvent, useMemo, useState } from "react";
 import type { WorkspacePickResult } from "../../shared/contracts";
 import {
@@ -9,7 +11,15 @@ import {
   errorMessage,
 } from "../lib";
 import { compactWorkspacePath } from "../workspace-path";
-import "./execution-environments.css";
+import {
+  EXECUTION_CARD_CLASS,
+  EXECUTION_DESCRIPTION_CLASS,
+  EXECUTION_EYEBROW_CLASS,
+  EXECUTION_FIELD_CLASS,
+  EXECUTION_HEADER_CLASS,
+  EXECUTION_NOTICE_CLASS,
+  EXECUTION_PANEL_CLASS,
+} from "./execution-environment-layout";
 import { SandboxControlPanel } from "./SandboxControlPanel";
 
 type ActionNotice = {
@@ -183,71 +193,76 @@ export function ExecutionEnvironmentPanel({
   return (
     <section
       aria-label="Local execution environments"
-      className="execution-environments"
+      className={EXECUTION_PANEL_CLASS}
     >
-      <header className="execution-environments-header">
+      <header className={EXECUTION_HEADER_CLASS}>
         <div>
-          <span className="eyebrow">Execution environment</span>
-          <strong title={workspaceRoot || undefined}>
+          <span className={EXECUTION_EYEBROW_CLASS}>Execution environment</span>
+          <strong
+            className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[11px]"
+            title={workspaceRoot || undefined}
+          >
             {compactWorkspacePath(workspaceRoot || "Local workspace")}
           </strong>
         </div>
         <Badge tone="good">Local</Badge>
       </header>
-      <p className="execution-environments-description">
+      <p className={EXECUTION_DESCRIPTION_CLASS}>
         Commands and agents run in the selected local workspace. No remote shell
         or cloud environment is configured here.
       </p>
-      <button
-        className="secondary-button execution-environments-open"
+      <Button
+        className="w-full"
         disabled={!active || opening}
         onClick={() => void chooseWorkspace()}
+        size="sm"
         type="button"
+        variant="outline"
       >
         {opening ? "Opening…" : "Open workspace…"}
-      </button>
+      </Button>
 
-      <form className="execution-environments-create" onSubmit={createWorktree}>
-        <span className="execution-environments-section-label">
-          Isolated Git worktree
-        </span>
-        <label className="coding-worktree-field">
+      <form className={EXECUTION_CARD_CLASS} onSubmit={createWorktree}>
+        <span className={EXECUTION_EYEBROW_CLASS}>Isolated Git worktree</span>
+        <label className={EXECUTION_FIELD_CLASS} htmlFor="worktree-branch">
           <span>New branch</span>
-          <input
-            className="coding-worktree-input"
+          <Input
             autoCapitalize="none"
             autoComplete="off"
             disabled={creating || !isRepository}
+            id="worktree-branch"
             onChange={(event) => setBranch(event.target.value)}
             placeholder="feature/short-name"
             spellCheck={false}
             value={branch}
           />
         </label>
-        <label className="coding-worktree-field">
+        <label className={EXECUTION_FIELD_CLASS} htmlFor="worktree-path">
           <span>Workspace-relative path</span>
-          <input
-            className="coding-worktree-input"
+          <Input
             autoCapitalize="none"
             autoComplete="off"
             disabled={creating || !isRepository}
+            id="worktree-path"
             onChange={(event) => setPath(event.target.value)}
             placeholder=".doolittle/worktrees/short-name"
             spellCheck={false}
             value={path}
           />
         </label>
-        <button
-          className="primary-button"
+        <Button
           disabled={!isRepository || !branch.trim() || !path.trim() || creating}
+          size="sm"
           type="submit"
         >
           {creating ? "Waiting…" : "Review & create"}
-        </button>
+        </Button>
         {!isRepository ? (
-          <small>This selected workspace is not a Git repository.</small>
+          <small className={EXECUTION_DESCRIPTION_CLASS}>
+            This selected workspace is not a Git repository.
+          </small>
         ) : (
-          <small>
+          <small className={EXECUTION_DESCRIPTION_CLASS}>
             Creation is local and requires native confirmation. It creates a
             branch and contained worktree only.
           </small>
@@ -257,59 +272,79 @@ export function ExecutionEnvironmentPanel({
       {notice ? (
         <div
           aria-live="polite"
-          className={`execution-environments-notice ${notice.tone}`}
+          className={`${EXECUTION_NOTICE_CLASS} ${
+            notice.tone === "good"
+              ? "bg-[var(--good-soft)] text-[var(--good)]"
+              : notice.tone === "bad"
+                ? "text-[var(--bad)]"
+                : ""
+          }`}
           role="status"
         >
           {notice.message}
         </div>
       ) : null}
 
-      <div className="execution-environments-list-heading">
-        <span>Available worktrees</span>
-        <button
-          className="coding-status-action"
+      <div className="mt-0.5 flex items-center justify-between gap-2">
+        <span className={EXECUTION_EYEBROW_CLASS}>Available worktrees</span>
+        <Button
           disabled={loading}
           onClick={onRefresh}
+          size="sm"
           type="button"
+          variant="ghost"
         >
           Refresh
-        </button>
+        </Button>
       </div>
       {loading ? (
-        <p className="execution-environments-muted">Reading local worktrees…</p>
+        <p className={EXECUTION_DESCRIPTION_CLASS}>Reading local worktrees…</p>
       ) : error ? (
-        <p className="execution-environments-error">{error}</p>
+        <p className={`${EXECUTION_DESCRIPTION_CLASS} text-[var(--bad)]`}>
+          {error}
+        </p>
       ) : normalizedWorktrees.length ? (
-        <div className="execution-environments-list">
+        <div className="flex flex-col gap-[7px]">
           {normalizedWorktrees.map((worktree) => (
             <article
-              className={
+              className={`flex min-w-0 flex-col gap-[5px] rounded-[var(--radius-xs)] border bg-[var(--surface-raised)] p-[9px] ${
                 isCurrentWorkspace(worktree.path, workspaceRoot)
-                  ? "current"
-                  : ""
-              }
+                  ? "border-[color-mix(in_srgb,var(--accent)_55%,var(--border))] shadow-[inset_2px_0_var(--accent)]"
+                  : "border-[var(--border)]"
+              }`}
               key={worktree.path}
             >
-              <div>
-                <strong>{worktreeLabel(worktree)}</strong>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px]">
+                  {worktreeLabel(worktree)}
+                </strong>
                 {isCurrentWorkspace(worktree.path, workspaceRoot) ? (
                   <Badge tone="good">Current</Badge>
                 ) : null}
                 {worktree.prunable ? <Badge tone="warn">Prunable</Badge> : null}
               </div>
-              <code title={worktree.path}>
+              <code
+                className="overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[var(--muted)]"
+                title={worktree.path}
+              >
                 {compactWorkspacePath(worktree.path)}
               </code>
-              {worktree.head ? <small>{worktree.head}</small> : null}
+              {worktree.head ? (
+                <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[var(--muted)]">
+                  {worktree.head}
+                </small>
+              ) : null}
               {!isCurrentWorkspace(worktree.path, workspaceRoot) ? (
-                <button
-                  className="coding-status-action execution-environments-choose"
+                <Button
+                  className="mt-0.5 self-start"
                   disabled={opening}
                   onClick={() => void openWorktree(worktree.path)}
+                  size="sm"
                   type="button"
+                  variant="ghost"
                 >
                   Open worktree
-                </button>
+                </Button>
               ) : null}
             </article>
           ))}

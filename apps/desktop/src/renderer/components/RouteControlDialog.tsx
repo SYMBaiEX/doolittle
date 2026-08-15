@@ -1,6 +1,21 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import type { RuntimeStatus } from "../../shared/contracts";
 import {
+  ROUTE_DIALOG_ACTIONS_CLASS,
+  ROUTE_DIALOG_BACKDROP_CLASS,
+  ROUTE_DIALOG_CLASS,
+  ROUTE_DIALOG_FORM_CLASS,
+  ROUTE_DIALOG_HEADER_CLASS,
+  ROUTE_DIALOG_STATUS_CLASS,
+  ROUTE_FIELD_GRID_CLASS,
+  ROUTE_FIELD_SPAN_CLASS,
+  ROUTE_PROVIDER_CARD_CLASS,
+  ROUTE_PROVIDER_CARD_SELECTED_CLASS,
+  ROUTE_PROVIDER_GRID_CLASS,
+  ROUTE_PROVIDER_READINESS_CLASS,
+  ROUTE_PROVIDER_READINESS_TONE,
+} from "../app-shell/overlay-layout";
+import {
   type ActionFeedback,
   asRecord,
   asString,
@@ -211,7 +226,7 @@ export function RouteControlDialog({
 
   return (
     <div
-      className="dialog-backdrop"
+      className={ROUTE_DIALOG_BACKDROP_CLASS}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -226,12 +241,8 @@ export function RouteControlDialog({
       aria-modal="true"
       aria-labelledby="route-control-title"
     >
-      <div
-        className="route-control-dialog content-card"
-        ref={dialogRef}
-        tabIndex={-1}
-      >
-        <div className="route-control-header">
+      <div className={ROUTE_DIALOG_CLASS} ref={dialogRef} tabIndex={-1}>
+        <div className={ROUTE_DIALOG_HEADER_CLASS}>
           <div>
             <span className="eyebrow">Conversation route</span>
             <h2 id="route-control-title">Switch the model path fast</h2>
@@ -257,8 +268,8 @@ export function RouteControlDialog({
         ) : accounts.error ? (
           <ErrorBlock error={accounts.error} retry={accounts.reload} />
         ) : (
-          <form className="route-control-form" onSubmit={save}>
-            <div className="route-control-status">
+          <form className={ROUTE_DIALOG_FORM_CLASS} onSubmit={save}>
+            <div className={ROUTE_DIALOG_STATUS_CLASS}>
               <Badge tone={readiness.tone}>
                 {readiness.ready ? "Ready now" : "Needs setup"}
               </Badge>
@@ -269,14 +280,14 @@ export function RouteControlDialog({
               <small>{readiness.detail}</small>
             </div>
 
-            <div className="route-provider-grid">
+            <div className={ROUTE_PROVIDER_GRID_CLASS}>
               {ROUTE_PROVIDER_OPTIONS.map((option) => {
                 const summary = providerReadiness(option.id, linkedAccounts);
                 const selected = draft.provider === option.id;
                 return (
                   <button
                     aria-pressed={selected}
-                    className={`route-provider-card ${selected ? "selected" : ""}`}
+                    className={`${ROUTE_PROVIDER_CARD_CLASS} ${selected ? ROUTE_PROVIDER_CARD_SELECTED_CLASS : ""}`}
                     key={option.id}
                     onClick={() => chooseProvider(option.id)}
                     type="button"
@@ -284,7 +295,9 @@ export function RouteControlDialog({
                     <span>{option.eyebrow}</span>
                     <strong>{option.label}</strong>
                     <small>{option.description}</small>
-                    <i className={`route-provider-readiness ${summary.tone}`}>
+                    <i
+                      className={`${ROUTE_PROVIDER_READINESS_CLASS} ${ROUTE_PROVIDER_READINESS_TONE[summary.tone]}`}
+                    >
                       {summary.ready ? "Ready" : "Manual"}
                     </i>
                   </button>
@@ -292,7 +305,7 @@ export function RouteControlDialog({
               })}
             </div>
 
-            <div className="field-grid">
+            <div className={ROUTE_FIELD_GRID_CLASS}>
               <label>
                 <span>Provider</span>
                 <input readOnly value={draft.provider} />
@@ -311,7 +324,7 @@ export function RouteControlDialog({
                   value={draft.model}
                 />
               </label>
-              <label className="field-span">
+              <label className={ROUTE_FIELD_SPAN_CLASS}>
                 <span>Base URL</span>
                 <input
                   onChange={(event) =>
@@ -361,7 +374,7 @@ export function RouteControlDialog({
               <Notice tone={feedback.tone}>{feedback.message}</Notice>
             ) : null}
 
-            <div className="route-control-actions">
+            <div className={ROUTE_DIALOG_ACTIONS_CLASS}>
               <button
                 className="secondary-button"
                 onClick={onOpenModelsPage}

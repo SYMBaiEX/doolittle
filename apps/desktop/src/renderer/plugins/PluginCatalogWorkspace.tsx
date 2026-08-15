@@ -1,4 +1,19 @@
-import "../components/catalog-browser.css";
+import { Button } from "@elizaos/ui/components/ui/button";
+import {
+  CATALOG_BROWSER_CLASS,
+  CATALOG_CALLOUT_CLASS,
+  CATALOG_DETAIL_CLASS,
+  CATALOG_DETAIL_HEADER_CLASS,
+  CATALOG_EYEBROW_CLASS,
+  CATALOG_FACTS_CLASS,
+  CATALOG_INDEX_CLASS,
+  CATALOG_INDEX_FOOTER_CLASS,
+  CATALOG_INDEX_HEADER_CLASS,
+  CATALOG_INDEX_LIST_CLASS,
+  CATALOG_INDEX_META_CLASS,
+  CATALOG_INDEX_TITLE_CLASS,
+  catalogIndexItemClass,
+} from "../components/catalog-browser-layout";
 import { useCatalogBrowser } from "../components/useCatalogBrowser";
 import { Badge, titleCase } from "../lib";
 import type { PluginCatalogItem } from "./plugin-catalog-model";
@@ -34,12 +49,12 @@ export function PluginCatalogWorkspace({
   return (
     <section
       aria-label="Runtime plugin catalog"
-      className="catalog-browser plugin-catalog-workspace"
+      className={`plugin-catalog-workspace min-[821px]:h-[clamp(380px,42vh,500px)] ${CATALOG_BROWSER_CLASS}`}
     >
-      <aside className="catalog-browser__index">
-        <header className="catalog-browser__index-header">
+      <aside className={CATALOG_INDEX_CLASS}>
+        <header className={CATALOG_INDEX_HEADER_CLASS}>
           <div>
-            <span className="eyebrow">Plugin index</span>
+            <span className={CATALOG_EYEBROW_CLASS}>Plugin index</span>
             <strong>Browse runtime</strong>
           </div>
           <small>{entries.length} matches</small>
@@ -47,7 +62,7 @@ export function PluginCatalogWorkspace({
         <div
           aria-label="Plugins"
           aria-orientation="vertical"
-          className="catalog-browser__index-list"
+          className={CATALOG_INDEX_LIST_CLASS}
           ref={listRef}
           role="tablist"
         >
@@ -58,7 +73,7 @@ export function PluginCatalogWorkspace({
                 key={item.id}
                 aria-controls={panelId}
                 aria-selected={active}
-                className={`catalog-browser__index-item${active ? " is-selected" : ""}`}
+                className={catalogIndexItemClass(active)}
                 id={itemId(index)}
                 onClick={() => selectAt(index, false)}
                 onKeyDown={(event) => handleKeyDown(event, index)}
@@ -66,11 +81,11 @@ export function PluginCatalogWorkspace({
                 tabIndex={active ? 0 : -1}
                 type="button"
               >
-                <span className="catalog-browser__index-title">
+                <span className={CATALOG_INDEX_TITLE_CLASS}>
                   <strong>{item.title}</strong>
                   {!item.enabled ? <Badge tone="warn">Inactive</Badge> : null}
                 </span>
-                <span className="catalog-browser__index-meta">
+                <span className={CATALOG_INDEX_META_CLASS}>
                   <span>{titleCase(item.category)}</span>
                   <span>{titleCase(item.maturity)}</span>
                 </span>
@@ -79,29 +94,30 @@ export function PluginCatalogWorkspace({
           })}
         </div>
         {window.remaining ? (
-          <footer className="catalog-browser__index-footer">
+          <footer className={CATALOG_INDEX_FOOTER_CLASS}>
             <span>
               {window.visible.length} of {entries.length}
             </span>
-            <button
-              className="secondary-button"
+            <Button
               onClick={showMore}
+              size="sm"
               type="button"
+              variant="outline"
             >
               Show {Math.min(PLUGIN_CATALOG_PAGE_SIZE, window.remaining)} more
-            </button>
+            </Button>
           </footer>
         ) : null}
       </aside>
       <article
         aria-labelledby={itemId(selectedIndex)}
-        className="catalog-browser__detail"
+        className={CATALOG_DETAIL_CLASS}
         id={panelId}
         role="tabpanel"
       >
-        <header className="catalog-browser__detail-header">
+        <header className={CATALOG_DETAIL_HEADER_CLASS}>
           <div>
-            <span className="eyebrow">Plugin detail</span>
+            <span className={CATALOG_EYEBROW_CLASS}>Plugin detail</span>
             <h2>{selected.title}</h2>
             <p>{selected.description}</p>
           </div>
@@ -110,7 +126,7 @@ export function PluginCatalogWorkspace({
           </Badge>
         </header>
         {!selected.enabled ? (
-          <div className="catalog-browser__callout" role="note">
+          <div className={CATALOG_CALLOUT_CLASS} role="note">
             <strong>Runtime configuration</strong>
             <span>
               This package is part of the native catalog but is not loaded by
@@ -118,7 +134,9 @@ export function PluginCatalogWorkspace({
             </span>
           </div>
         ) : null}
-        <dl className="catalog-browser__facts">
+        <dl
+          className={`catalog-browser__facts ${CATALOG_FACTS_CLASS} grid-cols-2 gap-x-[22px] max-[1180px]:grid-cols-1`}
+        >
           <div>
             <dt>Package</dt>
             <dd>

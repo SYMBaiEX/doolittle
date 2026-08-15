@@ -142,7 +142,9 @@ describe("SessionListPanel", () => {
       setter?.call(input, "first");
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(container.querySelectorAll(".row-card")).toHaveLength(1);
+    expect(
+      container.querySelectorAll('[data-session-row="true"]'),
+    ).toHaveLength(1);
   });
 
   it("progressively reveals a large local session archive", () => {
@@ -164,22 +166,28 @@ describe("SessionListPanel", () => {
       );
     });
 
-    expect(container.querySelectorAll(".row-card")).toHaveLength(20);
+    expect(
+      container.querySelectorAll('[data-session-row="true"]'),
+    ).toHaveLength(20);
     expect(container.textContent).toContain("Showing 20 of 55");
 
     let showMore = container.querySelector<HTMLButtonElement>(
-      ".session-list-footer button",
+      '[data-session-list-footer="true"] button',
     );
     act(() => showMore?.click());
-    expect(container.querySelectorAll(".row-card")).toHaveLength(40);
+    expect(
+      container.querySelectorAll('[data-session-row="true"]'),
+    ).toHaveLength(40);
     expect(container.textContent).toContain("Showing 40 of 55");
 
     showMore = container.querySelector<HTMLButtonElement>(
-      ".session-list-footer button",
+      '[data-session-list-footer="true"] button',
     );
     expect(showMore?.textContent).toContain("Show 15 more");
     act(() => showMore?.click());
-    expect(container.querySelectorAll(".row-card")).toHaveLength(55);
+    expect(
+      container.querySelectorAll('[data-session-row="true"]'),
+    ).toHaveLength(55);
     expect(container.textContent).not.toContain("Showing 40 of 55");
   });
 
@@ -202,7 +210,9 @@ describe("SessionListPanel", () => {
       );
     });
 
-    expect(container.querySelectorAll(".row-card")).toHaveLength(43);
+    expect(
+      container.querySelectorAll('[data-session-row="true"]'),
+    ).toHaveLength(43);
     expect(container.textContent).toContain("Session 42");
     expect(container.textContent).toContain("Showing 43 of 55");
   });
@@ -232,7 +242,7 @@ describe("SessionListPanel", () => {
         />,
       );
     });
-    const row = container.querySelector(".row-card");
+    const row = container.querySelector('[data-session-row="true"]');
     expect(row?.textContent).toContain("page.tsx");
     expect(row?.textContent).not.toContain("/Users/");
   });

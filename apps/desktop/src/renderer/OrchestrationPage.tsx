@@ -12,6 +12,7 @@ import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import { asNumber, asRecord, asString, Notice } from "./lib";
 import { AgentRosterPanel } from "./orchestration/AgentRosterPanel";
+import { orchestrationClass as oc } from "./orchestration/layout";
 import { compactControlValue } from "./orchestration/models";
 import { PlanCreateForm } from "./orchestration/PlanCreateForm";
 import { PlanPanel } from "./orchestration/PlanPanel";
@@ -26,7 +27,6 @@ import {
   shouldShowOrchestrationSummary,
 } from "./orchestration-helpers";
 import { useOrchestrationResources } from "./orchestration-resources";
-import "./orchestration.css";
 
 const OrchestrationRunsPanel = lazy(() =>
   import("./orchestration/OrchestrationRunsPanel").then((module) => ({
@@ -56,7 +56,7 @@ function SummaryChip({
   tone?: "neutral" | "good" | "warn" | "bad";
 }) {
   return (
-    <span className={`orchestration-summary-chip ${tone}`}>
+    <span className={oc("orchestration-summary-chip", tone)}>
       <strong>{value}</strong>
       <small>{label}</small>
     </span>
@@ -480,8 +480,8 @@ export function OrchestrationPage({
   };
 
   return (
-    <div className="page orchestration-page">
-      <header className="orchestration-header">
+    <div className={oc("orchestration-page")}>
+      <header className={oc("orchestration-header")}>
         <div>
           <h1>Agent work</h1>
           <p>
@@ -491,7 +491,7 @@ export function OrchestrationPage({
               : ` for ${workspaceLabel || "the selected project"}.`}
           </p>
         </div>
-        <div className="orchestration-header-metrics">
+        <div className={oc("orchestration-header-metrics")}>
           {showHeaderSummary ? (
             <>
               <SummaryChip label="Queued" value={queuedCount} tone="neutral" />
@@ -505,7 +505,7 @@ export function OrchestrationPage({
             </>
           ) : null}
           <button
-            className="icon-button orchestration-refresh"
+            className={oc("icon-button", "orchestration-refresh")}
             type="button"
             onClick={refreshAll}
             disabled={!active}
@@ -520,7 +520,7 @@ export function OrchestrationPage({
       <ResourceStatusBar resources={statusResources} />
 
       {notices.length > 0 ? (
-        <div aria-live="polite" className="orchestration-notices">
+        <div aria-live="polite" className={oc("orchestration-notices")}>
           {notices.slice(-1).map((entry) => (
             <Notice key={entry.id} tone={entry.tone}>
               <strong>{entry.message}</strong>
@@ -530,11 +530,11 @@ export function OrchestrationPage({
         </div>
       ) : null}
 
-      <div className="orchestration-nav-row">
+      <div className={oc("orchestration-nav-row")}>
         <div
           role="tablist"
           aria-label="Orchestration sections"
-          className="orchestration-tabs"
+          className={oc("orchestration-tabs")}
         >
           {WORK_TABS.map((entry) => (
             <button
@@ -549,7 +549,7 @@ export function OrchestrationPage({
               aria-selected={entry.id === activeTab}
               disabled={!active}
               tabIndex={entry.id === activeTab ? 0 : -1}
-              className={entry.id === activeTab ? "selected" : ""}
+              className={oc(entry.id === activeTab && "selected")}
               onClick={() => selectTab(entry.id)}
               onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
                 if (event.key === "ArrowLeft") {
@@ -589,7 +589,7 @@ export function OrchestrationPage({
             </button>
           ))}
         </div>
-        <div className="orchestration-command-bar">
+        <div className={oc("orchestration-command-bar")}>
           {activeTab === "tasks" ? (
             <>
               {tasks.length > 0 ? (
@@ -699,14 +699,14 @@ export function OrchestrationPage({
         id={`orchestration-panel-${activeTab}`}
         role="tabpanel"
         aria-labelledby={`orchestration-tab-${activeTab}`}
-        className="orchestration-panel"
+        className={oc("orchestration-panel")}
       >
         {activeTab === "review" ? (
           <Suspense
             fallback={
               <div
                 aria-live="polite"
-                className="orchestration-review-loading"
+                className={oc("orchestration-loading")}
                 role="status"
               >
                 Loading review tools…
@@ -803,7 +803,7 @@ export function OrchestrationPage({
             fallback={
               <div
                 aria-live="polite"
-                className="orchestration-runs-loading"
+                className={oc("orchestration-loading")}
                 role="status"
               >
                 Loading workflow tools…

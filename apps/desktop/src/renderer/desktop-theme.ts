@@ -18,6 +18,170 @@ export const APPEARANCE_CHANGE_EVENT = "doolittle:appearance-change";
 export const DENSITY_CHANGE_EVENT = "doolittle:density-change";
 export const THEME_CHANGE_EVENT = "doolittle:theme-change";
 
+const BASE_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
+  "--font-display":
+    '"Avenir Next", "Segoe UI Variable Display", "Segoe UI", ui-sans-serif, sans-serif',
+  "--font-sans":
+    '"Avenir Next", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif',
+  "--font-mono":
+    '"SFMono-Regular", "Cascadia Code", "Cascadia Mono", Consolas, "Liberation Mono", ui-monospace, monospace',
+  "--radius-xs": "5px",
+  "--radius-sm": "8px",
+  "--radius-md": "11px",
+  "--radius-lg": "14px",
+  "--radius-xl": "18px",
+  "--text-meta": "10px",
+  "--text-control": "12px",
+  "--text-caption": "12px",
+  "--text-body": "14px",
+  "--ease-out": "cubic-bezier(0.23, 1, 0.32, 1)",
+  "--sidebar-width": "280px",
+  "--sidebar-compact-width": "68px",
+  "--page-gap": "16px",
+  "--page-pad-block": "32px 52px",
+  "--page-pad-inline": "clamp(22px, 3.5vw, 52px)",
+  "--card-pad": "18px",
+  "--row-pad": "11px",
+  "--control-height": "34px",
+  "--page-readable-meta": "9px",
+  "--space-1": "4px",
+  "--space-2": "8px",
+  "--space-3": "12px",
+  "--space-4": "16px",
+  "--space-5": "24px",
+  "--operator-line": "color-mix(in srgb, var(--accent) 36%, var(--border))",
+  "--operator-glow": "color-mix(in srgb, var(--accent) 8%, transparent)",
+  "--surface-selected":
+    "color-mix(in srgb, var(--accent) 7%, var(--surface-hover))",
+  "--line-subtle": "color-mix(in srgb, var(--border) 72%, transparent)",
+  "--shell-shadow-md":
+    "0 10px 28px color-mix(in srgb, var(--shadow) 12%, transparent)",
+  "--shell-shadow-lg":
+    "0 18px 48px color-mix(in srgb, var(--shadow) 18%, transparent)",
+  "--background": "var(--bg)",
+  "--foreground": "var(--text)",
+  "--card": "var(--surface-raised)",
+  "--card-foreground": "var(--text)",
+  "--popover": "var(--surface-raised)",
+  "--popover-foreground": "var(--text)",
+  "--bg-accent": "var(--surface-soft)",
+  "--bg-elevated": "var(--surface-raised)",
+  "--bg-hover": "var(--surface-hover)",
+  "--bg-muted": "var(--surface-soft)",
+  "--text-strong": "var(--text)",
+  "--chat-text": "var(--text)",
+  "--txt": "var(--text)",
+  "--primary": "var(--accent)",
+  "--primary-foreground": "var(--accent-ink)",
+  "--secondary": "var(--surface-soft)",
+  "--secondary-foreground": "var(--text)",
+  "--muted-foreground": "var(--muted)",
+  "--muted-strong": "var(--text-soft)",
+  "--accent-foreground": "var(--accent-ink)",
+  "--destructive": "var(--bad)",
+  "--destructive-foreground": "var(--text)",
+  "--destructive-subtle": "var(--bad-soft)",
+  "--danger": "var(--bad)",
+  "--input": "var(--surface-raised)",
+  "--ring": "var(--accent)",
+  "--radius": "var(--radius-sm)",
+  "--ok": "var(--good)",
+  "--ok-muted": "color-mix(in srgb, var(--good) 72%, transparent)",
+  "--ok-subtle": "var(--good-soft)",
+  "--warn-muted": "color-mix(in srgb, var(--warn) 72%, transparent)",
+  "--warn-subtle": "var(--warn-soft)",
+  "--status-success": "var(--good)",
+  "--status-success-bg": "var(--good-soft)",
+  "--status-danger": "var(--bad)",
+  "--status-danger-bg": "var(--bad-soft)",
+  "--status-warning": "var(--warn)",
+  "--status-warning-bg": "var(--warn-soft)",
+  "--status-info": "var(--text-soft)",
+  "--status-info-bg": "var(--surface-soft)",
+  "--mono": "var(--font-mono)",
+  "--font-body": "var(--font-sans)",
+  "--font-heading": "var(--font-display)",
+  "--font-chat": "var(--font-sans)",
+};
+
+const DARK_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
+  "--bg": "#0b0b0a",
+  "--surface": "#10100f",
+  "--surface-raised": "#161614",
+  "--surface-soft": "#1b1a18",
+  "--surface-hover": "#22211e",
+  "--border": "#282622",
+  "--border-strong": "#3a3630",
+  "--text": "#f4f1eb",
+  "--text-soft": "#c9c3b9",
+  "--muted": "#938b80",
+  "--faint": "#6f685f",
+  "--accent": "#ff6b16",
+  "--accent-ink": "#1b0b02",
+  "--accent-text": "var(--text)",
+  "--accent-hover": "#ff833f",
+  "--accent-soft": "#26170d",
+  "--accent-border": "#653715",
+  "--good": "#86b875",
+  "--good-soft": "#182417",
+  "--warn": "#e7a84d",
+  "--warn-soft": "#2c210f",
+  "--bad": "#e47763",
+  "--bad-soft": "#2e1713",
+  "--shadow": "rgba(0, 0, 0, 0.4)",
+};
+
+const LIGHT_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
+  "--bg": "#eeeae4",
+  "--surface": "#f7f4ef",
+  "--surface-raised": "#fdfbf8",
+  "--surface-soft": "#e9e3dc",
+  "--surface-hover": "#e1d9d0",
+  "--border": "#d1c8be",
+  "--border-strong": "#b6aa9e",
+  "--text": "#211d19",
+  "--text-soft": "#564e47",
+  "--muted": "#6f655d",
+  "--faint": "#81766d",
+  "--accent": "#df5700",
+  "--accent-ink": "#1b0b02",
+  "--accent-text": "var(--text)",
+  "--accent-hover": "#c94e00",
+  "--accent-soft": "#f5dfce",
+  "--accent-border": "#d48b57",
+  "--good": "#557c4a",
+  "--good-soft": "#dfeada",
+  "--warn": "#8e6b2f",
+  "--warn-soft": "#efe5ce",
+  "--bad": "#a44f43",
+  "--bad-soft": "#f0dad5",
+  "--shadow": "rgba(75, 58, 43, 0.12)",
+};
+
+const COMPACT_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
+  "--page-gap": "11px",
+  "--page-pad-block": "22px 36px",
+  "--page-pad-inline": "clamp(18px, 2.7vw, 38px)",
+  "--card-pad": "13px",
+  "--row-pad": "8px",
+  "--control-height": "30px",
+};
+
+function setCssTokens(tokens: Readonly<Record<string, string>>): void {
+  const style = document.documentElement.style;
+  for (const [property, value] of Object.entries(tokens)) {
+    style.setProperty(property, value);
+  }
+}
+
+export function applyDesktopFoundationTokens(): void {
+  const root = document.documentElement;
+  setCssTokens(BASE_DESKTOP_TOKENS);
+  root.style.fontFamily = "var(--font-sans)";
+  root.style.fontSynthesis = "none";
+  root.style.textRendering = "optimizeLegibility";
+}
+
 const CSS_COLOR =
   /^(#[\da-f]{3,8}|[a-z]+|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%deg]+\))$/i;
 
@@ -90,6 +254,12 @@ export function applyDesktopAppearance(
 ): void {
   const root = document.documentElement;
   const resolved = resolveAppearance(preference, systemPrefersDark);
+  setCssTokens(
+    resolved === "dark" ? DARK_DESKTOP_TOKENS : LIGHT_DESKTOP_TOKENS,
+  );
+  const selectedTheme = loadStoredDesktopTheme();
+  if (selectedTheme) setCssTokens(themeCssTokens(selectedTheme));
+  root.style.colorScheme = resolved;
   root.dataset.appearance = resolved;
   root.classList.toggle("dark", resolved === "dark");
   root.dataset.appearancePreference = preference;
@@ -97,6 +267,9 @@ export function applyDesktopAppearance(
 }
 
 export function applyDesktopDensity(density: DesktopDensity): void {
+  setCssTokens(
+    density === "compact" ? COMPACT_DESKTOP_TOKENS : BASE_DESKTOP_TOKENS,
+  );
   document.documentElement.dataset.density = density;
   localStorage.setItem(DENSITY_STORAGE_KEY, density);
 }

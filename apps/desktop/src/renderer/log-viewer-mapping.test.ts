@@ -37,19 +37,19 @@ describe("toLogViewerEntries", () => {
 
   it("keeps routine entries quiet and reserves strong treatment for failures", () => {
     expect(logEntryClassName({ level: "info", message: "ready" })).toBe(
-      "log-console-entry is-info",
+      "text-[var(--text-soft)] [&_[data-slot=badge]]:border-[var(--line-subtle)] [&_[data-slot=badge]]:bg-[color-mix(in_srgb,var(--surface-raised)_82%,transparent)] [&_[data-slot=badge]]:text-[var(--muted)]",
     );
     expect(logEntryLevelVariant("info")).toBe("secondary");
     expect(logEntryBorderColor("info")).toBe("var(--line-subtle)");
 
     expect(logEntryClassName({ level: "warning", message: "retry" })).toBe(
-      "log-console-entry is-warn",
+      "text-[var(--text-soft)] [&_[data-slot=badge]]:border-[color-mix(in_srgb,var(--warning)_48%,var(--border))] [&_[data-slot=badge]]:text-[var(--warning)]",
     );
     expect(logEntryLevelVariant("warning")).toBe("outline");
     expect(logEntryBorderColor("warning")).toBe("var(--warning)");
 
     expect(logEntryClassName({ level: "fatal", message: "stopped" })).toBe(
-      "log-console-entry is-error",
+      "text-[var(--text-soft)]",
     );
     expect(logEntryLevelVariant("fatal")).toBe("destructive");
     expect(logEntryBorderColor("fatal")).toBe("var(--danger)");

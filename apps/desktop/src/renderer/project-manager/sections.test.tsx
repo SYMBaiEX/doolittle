@@ -39,7 +39,7 @@ describe("project manager presentational sections", () => {
     expect(markup).toContain('aria-label="Project list"');
     expect(markup).toContain("All chats");
     expect(markup).toContain("Pinned");
-    expect(markup).toContain('class="project-manager__archive-toggle"');
+    expect(markup).toContain('data-project-action="toggle-archive"');
     expect(markup).toContain("Archived (1)");
   });
 

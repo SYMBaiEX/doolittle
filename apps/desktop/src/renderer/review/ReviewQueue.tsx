@@ -1,6 +1,18 @@
 import type { KeyboardEvent, RefObject } from "react";
 import { Badge, displayTimestamp, EmptyBlock } from "../lib";
 import {
+  REVIEW_LIST_BUTTON_CLASS,
+  REVIEW_LIST_BUTTON_SELECTED_CLASS,
+  REVIEW_LIST_CLASS,
+  REVIEW_LIST_COPY_CLASS,
+  REVIEW_RAIL_CLASS,
+  REVIEW_SEARCH_CLASS,
+  REVIEW_TAB_CLASS,
+  REVIEW_TAB_SELECTED_CLASS,
+  REVIEW_TABS_CLASS,
+  reviewKindMarkClass,
+} from "./layout";
+import {
   REVIEW_FILTERS,
   type ReviewFilter,
   type ReviewItem,
@@ -48,13 +60,19 @@ export function ReviewQueue({
   };
 
   return (
-    <aside className="review-rail">
-      <div aria-label="Review filters" className="review-tabs" role="tablist">
+    <aside className={REVIEW_RAIL_CLASS} data-review="queue">
+      <div
+        aria-label="Review filters"
+        className={REVIEW_TABS_CLASS}
+        role="tablist"
+      >
         {REVIEW_FILTERS.map(({ id, label }, index) => (
           <button
             aria-controls="review-filter-panel"
             aria-selected={filter === id}
-            className={filter === id ? "selected" : ""}
+            className={`${REVIEW_TAB_CLASS} ${
+              filter === id ? REVIEW_TAB_SELECTED_CLASS : ""
+            }`}
             id={`review-filter-${id}`}
             key={id}
             onClick={() => onFilterChange(id)}
@@ -89,7 +107,7 @@ export function ReviewQueue({
           </button>
         ))}
       </div>
-      <label className="review-search">
+      <label className={REVIEW_SEARCH_CLASS}>
         <span aria-hidden="true">⌕</span>
         <input
           aria-label="Search review queue"
@@ -113,7 +131,7 @@ export function ReviewQueue({
       </label>
       <div
         aria-labelledby={`review-filter-${filter}`}
-        className="review-list"
+        className={REVIEW_LIST_CLASS}
         id="review-filter-panel"
         role="tabpanel"
       >
@@ -125,15 +143,18 @@ export function ReviewQueue({
           visibleItems.map((item) => (
             <button
               aria-current={selectedId === item.id}
-              className={selectedId === item.id ? "selected" : ""}
+              className={`${REVIEW_LIST_BUTTON_CLASS} ${
+                selectedId === item.id ? REVIEW_LIST_BUTTON_SELECTED_CLASS : ""
+              }`}
               key={item.id}
               onClick={() => onSelect(item.id)}
               type="button"
             >
               <span
-                className={`review-kind-mark ${item.kind} ${
-                  item.kind === "ci" ? statusTone(item.status) : ""
-                }`.trim()}
+                className={reviewKindMarkClass(
+                  item.kind,
+                  item.kind === "ci" ? statusTone(item.status) : "",
+                )}
               >
                 {item.kind === "approvals"
                   ? "!"
@@ -143,7 +164,7 @@ export function ReviewQueue({
                       ? "±"
                       : "↗"}
               </span>
-              <span className="review-list-copy">
+              <span className={REVIEW_LIST_COPY_CLASS}>
                 <strong>{item.title}</strong>
                 <small>{item.description}</small>
                 {item.timestamp ? (

@@ -8,7 +8,10 @@ export function ProviderRouteSummary({
   total: number;
 }) {
   return (
-    <dl className="provider-route-summary" aria-label="Chat provider status">
+    <dl
+      className={PROVIDER_ROUTE_SUMMARY_CLASS}
+      aria-label="Chat provider status"
+    >
       <div>
         <dt>Ready</dt>
         <dd>
@@ -22,3 +25,5 @@ export function ProviderRouteSummary({
     </dl>
   );
 }
+
+import { PROVIDER_ROUTE_SUMMARY_CLASS } from "./layout";

@@ -23,7 +23,7 @@ describe("SessionTranscriptMessage", () => {
     expect(html).toContain('data-streamdown="strong">Repository summary');
     expect(html).toContain('data-streamdown="inline-code">src/</code>');
     expect(html).not.toContain("**Repository summary**");
-    expect(html).toContain("message-content__response");
+    expect(html).toContain('data-message-content="true"');
   });
 
   it("labels user transcript rows without parsing agent activity", () => {
@@ -35,6 +35,6 @@ describe("SessionTranscriptMessage", () => {
 
     expect(html).toContain("<strong>You</strong>");
     expect(html).toContain('data-streamdown="strong">README');
-    expect(html).toContain("transcript-message user");
+    expect(html).toContain('data-message-role="user"');
   });
 });

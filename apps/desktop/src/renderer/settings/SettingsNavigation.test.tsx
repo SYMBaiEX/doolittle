@@ -17,7 +17,7 @@ describe("SettingsNavigation", () => {
         onSelect={vi.fn()}
       />,
     );
-    expect(markup).toContain('class="selected"');
+    expect(markup).toContain("selected");
     expect(markup).toContain('aria-label="Appearance: Theme and display"');
     expect(markup).toContain('aria-current="page"');
   });

@@ -1,7 +1,15 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import type { RuntimeStatus } from "../../shared/contracts";
 import type { DashboardAccountPoolSummary } from "../dashboard-helpers";
 import { summarizeDashboardValue } from "../dashboard-helpers";
 import { asRecord, Badge, ErrorBlock, LoadingBlock } from "../lib";
+import {
+  DASHBOARD_CARD_CLASS,
+  DASHBOARD_CARD_HEADING_CLASS,
+  DASHBOARD_DISCLOSURE_CLASS,
+  DASHBOARD_STATUS_ROW_CLASS,
+  DASHBOARD_SUMMARY_CLASS,
+} from "./dashboard-layout";
 
 export function DashboardRuntimeDetails({
   accountPool,
@@ -23,23 +31,37 @@ export function DashboardRuntimeDetails({
   runtimePluginCount: number;
 }) {
   return (
-    <details className="dashboard-runtime-details">
-      <summary>
-        <span>
+    <details
+      className={`dashboard-workspace-details ${DASHBOARD_DISCLOSURE_CLASS}`}
+    >
+      <summary className={DASHBOARD_SUMMARY_CLASS}>
+        <span className="grid min-w-0 gap-0.5">
           <strong>Runtime &amp; agent accounts</strong>
           <small>
             {runtime?.provider || "Unknown provider"} ·{" "}
             {runtime?.model || "Unknown model"}
           </small>
         </span>
-        <span className="dashboard-runtime-summary-meta">
+        <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-meta)] text-[var(--muted)] max-[620px]:hidden">
           {runtimePluginCount} plugins · {ownershipCount} signals ·{" "}
           {accountPool.enabled} accounts
         </span>
+        <span
+          aria-hidden="true"
+          className="font-[var(--font-mono)] text-[var(--muted)] group-open:hidden"
+        >
+          +
+        </span>
+        <span
+          aria-hidden="true"
+          className="hidden font-[var(--font-mono)] text-[var(--muted)] group-open:inline"
+        >
+          −
+        </span>
       </summary>
-      <div className="dashboard-runtime-grid">
-        <section className="content-card">
-          <div className="card-heading">
+      <div className="grid grid-cols-2 gap-2.5 p-2.5 max-[980px]:grid-cols-1">
+        <section className={DASHBOARD_CARD_CLASS}>
+          <div className={DASHBOARD_CARD_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Runtime detail</span>
               <h2>Provider assembly</h2>
@@ -53,8 +75,8 @@ export function DashboardRuntimeDetails({
             </Badge>
           </div>
           {runtime ? (
-            <div className="stack-list">
-              <div className="status-row">
+            <div className="grid">
+              <div className={DASHBOARD_STATUS_ROW_CLASS}>
                 <div>
                   <strong>{runtime.provider || "Unknown provider"}</strong>
                   <small>{runtime.model || "Unknown model"}</small>
@@ -64,7 +86,7 @@ export function DashboardRuntimeDetails({
               {Object.entries(asRecord(runtime.ownership))
                 .slice(0, 4)
                 .map(([key, value]) => (
-                  <div className="status-row" key={key}>
+                  <div className={DASHBOARD_STATUS_ROW_CLASS} key={key}>
                     <div>
                       <strong>{key}</strong>
                       <small>{summarizeDashboardValue(value)}</small>
@@ -77,27 +99,28 @@ export function DashboardRuntimeDetails({
           )}
         </section>
 
-        <section className="content-card">
-          <div className="card-heading">
+        <section className={DASHBOARD_CARD_CLASS}>
+          <div className={DASHBOARD_CARD_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Spawned agents</span>
               <h2>Codex &amp; Claude account pool</h2>
             </div>
-            <button
-              className="text-button"
+            <Button
               disabled={!onOpenProviders}
               onClick={onOpenProviders}
+              size="sm"
               type="button"
+              variant="ghost"
             >
               Manage
-            </button>
+            </Button>
           </div>
           {accountPoolLoading ? (
             <LoadingBlock />
           ) : accountPoolError ? (
             <ErrorBlock error={accountPoolError} retry={reloadAccountPool} />
           ) : (
-            <div className="status-row">
+            <div className={DASHBOARD_STATUS_ROW_CLASS}>
               <div>
                 <strong>
                   {accountPool.enabled} enabled account

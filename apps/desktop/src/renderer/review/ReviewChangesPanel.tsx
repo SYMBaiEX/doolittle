@@ -6,6 +6,12 @@ import {
   type ReviewComment,
   type ReviewCommentAnchor,
 } from "../review-comments";
+import {
+  REVIEW_DETAIL_TOOLBAR_CLASS,
+  REVIEW_PATCH_CLASS,
+  REVIEW_PATCH_GUTTER_CLASS,
+  reviewPatchLineClass,
+} from "./layout";
 import type { PatchResponse, ReviewItem } from "./models";
 import {
   ReviewCommentsPanel,
@@ -59,8 +65,8 @@ export function ReviewChangesPanel({
 }: ReviewChangesPanelProps) {
   const path = selected.path ?? "changed file";
   return (
-    <div className="review-patch">
-      <div className="review-detail-toolbar">
+    <div className={REVIEW_PATCH_CLASS}>
+      <div className={REVIEW_DETAIL_TOOLBAR_CLASS}>
         <span>{selected.path}</span>
         <div>
           <button
@@ -105,7 +111,7 @@ export function ReviewChangesPanel({
         <pre>
           <code>
             {parseReviewPatchLines(patch.data.patch.patch).map((line) => (
-              <span className={`review-patch-line ${line.kind}`} key={line.key}>
+              <span className={reviewPatchLineClass(line.kind)} key={line.key}>
                 {line.anchor ? (
                   <button
                     aria-label={`Add review note on ${line.anchor.side === "new" ? "new" : "old"} line ${line.anchor.line}`}
@@ -125,7 +131,7 @@ export function ReviewChangesPanel({
                     +
                   </button>
                 ) : (
-                  <i aria-hidden="true" className="review-patch-gutter" />
+                  <i aria-hidden="true" className={REVIEW_PATCH_GUTTER_CLASS} />
                 )}
                 {line.line || " "}
               </span>

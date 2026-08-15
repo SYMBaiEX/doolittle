@@ -13,7 +13,6 @@ import {
   THEME_CHANGE_EVENT,
 } from "../desktop-theme";
 import { acquireMonacoProjectSupport } from "../editor-project-support";
-import "./code-editor.css";
 
 const DOOLITTLE_EDITOR_THEME = "doolittle-ember";
 const editorLogger = createLogger({
@@ -404,5 +403,10 @@ export function CodeEditor({
     [],
   );
 
-  return <div className="doolittle-code-editor" ref={hostRef} />;
+  return (
+    <div
+      className="doolittle-code-editor absolute inset-0 min-h-0 min-w-0 overflow-hidden bg-[#0c0b0a] [&_.margin]:!bg-[#0c0b0a] [&_.monaco-editor-background]:!bg-[#0c0b0a] [&_.monaco-editor]:!bg-[#0c0b0a] [&_.sticky-widget]:!border-b [&_.sticky-widget]:!border-[#2d2824] [&_.sticky-widget]:!shadow-[0_8px_18px_rgba(0,0,0,0.26)] [&_.monaco-hover]:!rounded-[var(--radius-xs)] [&_.monaco-hover]:!shadow-[0_14px_36px_rgba(0,0,0,0.4)] [&_.suggest-widget]:!rounded-[var(--radius-xs)] [&_.suggest-widget]:!shadow-[0_14px_36px_rgba(0,0,0,0.4)]"
+      ref={hostRef}
+    />
+  );
 }

@@ -6,8 +6,8 @@ import type {
 import { describe, expect, it } from "vitest";
 import { GitControlPanel } from "./GitControlPanel";
 
-const gitControlCss = readFileSync(
-  new URL("./git-control-panel.css", import.meta.url),
+const gitControlPrimitives = readFileSync(
+  new URL("./git/GitControlPrimitives.tsx", import.meta.url),
   "utf8",
 );
 const gitControlSource = readFileSync(
@@ -35,32 +35,27 @@ describe("GitControlPanel input model", () => {
 
 describe("GitControlPanel keyboard focus contract", () => {
   it("keeps compact controls visibly focusable without styling unfocused fields", () => {
-    expect(gitControlCss).toContain(
-      ".git-control-panel :is(button, input, textarea, summary):focus-visible",
-    );
-    expect(gitControlCss).toContain(
-      '.git-control-panel input[type="checkbox"]:focus-visible',
-    );
-    expect(gitControlCss).toContain("outline-offset: 2px;");
-    expect(gitControlCss).not.toContain(".git-control-panel input:focus,");
+    expect(gitControlPrimitives).toContain("focus-visible:outline-2");
+    expect(gitControlPrimitives).toContain("focus-visible:outline-offset-2");
+    expect(gitControlPrimitives).not.toContain("focus:outline-");
   });
 });
 
 describe("GitControlPanel density", () => {
   it("keeps everyday change and commit controls outside advanced operations", () => {
     const advancedIndex = gitControlSource.indexOf(
-      '<details className="git-advanced-disclosure">',
+      'data-git-advanced-disclosure=""',
     );
 
     expect(advancedIndex).toBeGreaterThan(0);
-    expect(gitControlSource.indexOf("git-change-section")).toBeLessThan(
+    expect(gitControlSource.indexOf("data-git-change-section")).toBeLessThan(
       advancedIndex,
     );
-    expect(gitControlSource.indexOf("git-commit-form")).toBeLessThan(
+    expect(gitControlSource.indexOf("data-git-commit-form")).toBeLessThan(
       advancedIndex,
     );
     expect(gitControlSource).not.toContain(
-      '<details className="git-advanced-disclosure" open>',
+      'data-git-advanced-disclosure="" open',
     );
   });
 });

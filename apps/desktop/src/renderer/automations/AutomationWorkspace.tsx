@@ -1,3 +1,4 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import { useState } from "react";
 import {
   type AutomationStarterChoice,
@@ -14,6 +15,12 @@ import {
   type UnknownRecord,
 } from "../lib";
 import { AutomationRunHistory } from "./AutomationRunHistory";
+import {
+  AUTOMATION_DETAILS_SUMMARY_CLASS,
+  AUTOMATION_JOB_CARD_CLASS,
+  AUTOMATION_JOB_SUMMARY_CLASS,
+  AUTOMATION_WORKSPACE_CLASS,
+} from "./layout";
 
 export type AutomationAction = "pause" | "resume" | "trigger" | "delete";
 
@@ -74,11 +81,11 @@ function AutomationJobCard({
   };
 
   return (
-    <article className="automation-job-card">
-      <header>
-        <div className="automation-job-card__heading">
-          <strong>{name}</strong>
-          <small>
+    <article className={AUTOMATION_JOB_CARD_CLASS}>
+      <header className="flex items-center justify-between gap-2.5">
+        <div className="automation-job-card__heading flex min-w-0 flex-col gap-1">
+          <strong className="truncate text-xs">{name}</strong>
+          <small className="text-[10px] text-[var(--muted)]">
             {displayTimestamp(asString(entry.nextRunAt) || undefined)}
           </small>
         </div>
@@ -86,37 +93,67 @@ function AutomationJobCard({
           {titleCase(status)}
         </Badge>
       </header>
-      <div className="automation-job-summary">
-        <span className="automation-job-summary__segment">
-          <i>Trigger</i>
-          <span>{summary.triggerLabel}</span>
+      <div className={AUTOMATION_JOB_SUMMARY_CLASS}>
+        <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
+          <i className="font-[var(--font-mono)] text-[10px] not-italic text-[var(--accent)] uppercase">
+            Trigger
+          </i>
+          <span className="truncate text-[11px] text-[var(--text-soft)]">
+            {summary.triggerLabel}
+          </span>
         </span>
-        <b aria-hidden="true">›</b>
-        <span className="automation-job-summary__segment">
-          <i>Condition</i>
-          <span>{summary.conditionLabel}</span>
+        <b
+          className="text-center text-sm text-[var(--accent)] opacity-60 max-[620px]:hidden"
+          aria-hidden="true"
+        >
+          ›
+        </b>
+        <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
+          <i className="font-[var(--font-mono)] text-[10px] not-italic text-[var(--accent)] uppercase">
+            Condition
+          </i>
+          <span className="truncate text-[11px] text-[var(--text-soft)]">
+            {summary.conditionLabel}
+          </span>
         </span>
-        <b aria-hidden="true">›</b>
-        <span className="automation-job-summary__segment">
-          <i>Action</i>
-          <span>{summary.actionLabel}</span>
+        <b
+          className="text-center text-sm text-[var(--accent)] opacity-60 max-[620px]:hidden"
+          aria-hidden="true"
+        >
+          ›
+        </b>
+        <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
+          <i className="font-[var(--font-mono)] text-[10px] not-italic text-[var(--accent)] uppercase">
+            Action
+          </i>
+          <span className="truncate text-[11px] text-[var(--text-soft)]">
+            {summary.actionLabel}
+          </span>
         </span>
       </div>
-      <details className="automation-job-details">
-        <summary>Details</summary>
+      <details className="automation-job-details my-2">
+        <summary className={AUTOMATION_DETAILS_SUMMARY_CLASS}>Details</summary>
         {summary.webhookPath ? (
           <button
-            className="automation-webhook-path"
+            className="automation-webhook-path mt-2 grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] bg-[color-mix(in_srgb,var(--accent-soft)_35%,transparent)] px-2.25 py-1.75 text-left text-[var(--muted)]"
             onClick={() => void copyWebhookPath()}
             title="Copy local webhook path"
             type="button"
           >
-            <span className="automation-webhook-path__label">Webhook</span>
-            <code>{summary.webhookPath}</code>
-            <small className="automation-webhook-path__action">Copy</small>
+            <span className="automation-webhook-path__label text-[10px] font-extrabold tracking-[0.06em] text-[var(--accent)] uppercase">
+              Webhook
+            </span>
+            <code className="truncate text-[10px] text-[var(--text-soft)]">
+              {summary.webhookPath}
+            </code>
+            <small className="automation-webhook-path__action text-[10px] font-extrabold tracking-[0.06em] text-[var(--accent)] uppercase">
+              Copy
+            </small>
           </button>
         ) : null}
-        <p>{asString(entry.prompt, "No prompt configured.")}</p>
+        <p className="mt-0.5 mb-2 text-xs leading-[1.5] text-[var(--text-soft)]">
+          {asString(entry.prompt, "No prompt configured.")}
+        </p>
       </details>
       {confirmDelete ? (
         <AutomationDeleteConfirmation
@@ -126,33 +163,33 @@ function AutomationJobCard({
           onConfirm={() => void deleteAutomation()}
         />
       ) : (
-        <footer>
-          <button
-            className="secondary-button"
+        <footer className="flex items-center gap-2.5 max-[620px]:items-stretch max-[620px]:flex-col">
+          <Button
             disabled={Boolean(busy) || status === "paused"}
             onClick={() => void onAction(id, "trigger")}
             type="button"
+            variant="secondary"
           >
             Run now
-          </button>
-          <button
-            className="secondary-button"
+          </Button>
+          <Button
             disabled={Boolean(busy)}
             onClick={() =>
               void onAction(id, status === "paused" ? "resume" : "pause")
             }
             type="button"
+            variant="secondary"
           >
             {status === "paused" ? "Resume" : "Pause"}
-          </button>
-          <button
-            className="danger-button"
+          </Button>
+          <Button
             disabled={Boolean(busy)}
             onClick={() => setConfirmDelete(true)}
             type="button"
+            variant="destructive"
           >
             Delete
-          </button>
+          </Button>
         </footer>
       )}
     </article>
@@ -197,9 +234,11 @@ export function AutomationWorkspace({
   selectedRun?: UnknownRecord;
 }) {
   return (
-    <div className={`automation-workspace${jobs.length ? "" : " is-empty"}`}>
+    <div
+      className={`${AUTOMATION_WORKSPACE_CLASS}${jobs.length ? "" : " is-empty max-w-225 grid-cols-1"}`}
+    >
       {jobsLoading || jobsError || jobs.length ? (
-        <section className="content-card automation-jobs-panel">
+        <section className="content-card automation-jobs-panel min-w-0">
           <div className="card-heading">
             <div>
               <span className="eyebrow">Workflows</span>
@@ -212,7 +251,7 @@ export function AutomationWorkspace({
           ) : jobsError ? (
             <ErrorBlock error={jobsError} retry={onReloadJobs} />
           ) : (
-            <div className="automation-job-list">
+            <div className="automation-job-list flex flex-col gap-2.5">
               {jobs.map((entry, index) => (
                 <AutomationJobCard
                   busy={busy}
@@ -231,25 +270,30 @@ export function AutomationWorkspace({
           aria-labelledby="automation-starter-title"
           className="content-card automation-empty-panel"
         >
-          <div className="automation-empty-starter">
-            <div>
+          <div className="automation-empty-starter flex items-center justify-between gap-6 px-0.5 py-0.75 text-[var(--muted)] max-[720px]:items-stretch max-[720px]:flex-col">
+            <div className="flex min-w-0 flex-col gap-1">
               <span className="eyebrow">Start here</span>
-              <strong id="automation-starter-title">
+              <strong
+                className="text-[13px] text-[var(--text-strong)]"
+                id="automation-starter-title"
+              >
                 Build your first workflow
               </strong>
-              <p>Start blank or adapt a practical local preset.</p>
+              <p className="m-0 text-[10px] leading-[1.45]">
+                Start blank or adapt a practical local preset.
+              </p>
             </div>
+            <Button onClick={() => onCreate("blank")} type="button">
+              Blank workflow
+            </Button>
+          </div>
+          <fieldset className="automation-starters mt-3 grid min-w-0 grid-cols-2 border-0 border-[var(--border)] border-t p-0 max-[720px]:grid-cols-1">
+            <legend className="sr-only">Automation starters</legend>
             <button
-              className="primary-button"
-              onClick={() => onCreate("blank")}
+              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 px-0.5 py-2.75 text-left text-[var(--text-soft)] hover:bg-[color-mix(in_srgb,var(--accent)_4%,transparent)] [&>span:first-child]:font-[var(--font-mono)] [&>span:first-child]:text-[10px] [&>span:first-child]:text-[var(--accent)] [&>span:nth-child(2)]:flex [&>span:nth-child(2)]:min-w-0 [&>span:nth-child(2)]:flex-col [&>span:nth-child(2)]:gap-0.5 [&_strong]:truncate [&_strong]:text-xs [&_small]:truncate [&_small]:text-[10px] [&_small]:text-[var(--muted)] [&>i]:font-[var(--font-mono)] [&>i]:text-[10px] [&>i]:not-italic [&>i]:text-[var(--accent)]"
+              onClick={() => onCreate("weekday-brief")}
               type="button"
             >
-              Blank workflow
-            </button>
-          </div>
-          <fieldset className="automation-starters">
-            <legend className="sr-only">Automation starters</legend>
-            <button onClick={() => onCreate("weekday-brief")} type="button">
               <span aria-hidden="true">01</span>
               <span>
                 <strong>Weekday brief</strong>
@@ -257,7 +301,11 @@ export function AutomationWorkspace({
               </span>
               <i>Use starter</i>
             </button>
-            <button onClick={() => onCreate("webhook-triage")} type="button">
+            <button
+              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 border-[var(--border)] border-l px-3.5 py-2.75 text-left text-[var(--text-soft)] hover:bg-[color-mix(in_srgb,var(--accent)_4%,transparent)] max-[720px]:border-t max-[720px]:border-l-0 max-[720px]:px-0.5 [&>span:first-child]:font-[var(--font-mono)] [&>span:first-child]:text-[10px] [&>span:first-child]:text-[var(--accent)] [&>span:nth-child(2)]:flex [&>span:nth-child(2)]:min-w-0 [&>span:nth-child(2)]:flex-col [&>span:nth-child(2)]:gap-0.5 [&_strong]:truncate [&_strong]:text-xs [&_small]:truncate [&_small]:text-[10px] [&_small]:text-[var(--muted)] [&>i]:font-[var(--font-mono)] [&>i]:text-[10px] [&>i]:not-italic [&>i]:text-[var(--accent)]"
+              onClick={() => onCreate("webhook-triage")}
+              type="button"
+            >
               <span aria-hidden="true">02</span>
               <span>
                 <strong>Webhook triage</strong>

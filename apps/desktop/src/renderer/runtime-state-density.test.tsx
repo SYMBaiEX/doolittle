@@ -140,13 +140,17 @@ describe("runtime-state route density", () => {
       ),
     );
 
-    const tuning = container.querySelector<HTMLDetailsElement>(".model-tuning");
+    const tuning = container.querySelector<HTMLDetailsElement>(
+      '[data-model-tuning="true"]',
+    );
     expect(
       container.querySelectorAll(".form-card > .field-grid select"),
     ).toHaveLength(2);
     expect(tuning?.open).toBe(false);
     expect(tuning?.textContent).toContain("Generation controls");
-    expect(container.querySelectorAll(".model-diagnostic")).toHaveLength(2);
+    expect(
+      container.querySelectorAll('[data-model-diagnostic="true"]'),
+    ).toHaveLength(2);
 
     act(() => tuning?.querySelector("summary")?.click());
 
@@ -185,10 +189,12 @@ describe("runtime-state route density", () => {
     expect(container.textContent).toContain("Autonomy loop");
     expect(container.textContent).not.toContain("Conversation model");
     expect(
-      container.querySelectorAll(".runtime-overview-grid > section"),
+      container.querySelectorAll(
+        '[data-runtime-layout="overview-grid"] > section',
+      ),
     ).toHaveLength(2);
     expect(
-      container.querySelector(".runtime-autonomy-controls"),
+      container.querySelector('[data-runtime-controls="autonomy"]'),
     ).not.toBeNull();
     const gateway = container.querySelector<HTMLButtonElement>(
       '[aria-label="Gateway: Transports and deliveries"]',

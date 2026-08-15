@@ -1,4 +1,10 @@
 import { asString, displayTimestamp } from "../lib";
+import {
+  REVIEW_ACTIONS_CLASS,
+  REVIEW_COMMAND_CLASS,
+  REVIEW_DETAIL_BODY_CLASS,
+  REVIEW_FACTS_CLASS,
+} from "./layout";
 import type { ReviewItem } from "./models";
 
 export interface ReviewApprovalPanelProps {
@@ -13,12 +19,12 @@ export function ReviewApprovalPanel({
   onDecision,
 }: ReviewApprovalPanelProps) {
   return (
-    <div className="review-decision">
-      <div className="review-command">
+    <div className={`${REVIEW_DETAIL_BODY_CLASS} review-decision`}>
+      <div className={REVIEW_COMMAND_CLASS}>
         <span>Requested command</span>
         <code>{asString(selected.raw.command)}</code>
       </div>
-      <dl className="review-facts">
+      <dl className={REVIEW_FACTS_CLASS}>
         <div>
           <dt>Reason</dt>
           <dd>{asString(selected.raw.reason, "Not provided")}</dd>
@@ -40,7 +46,7 @@ export function ReviewApprovalPanel({
         </div>
       </dl>
       {selected.status === "pending" ? (
-        <div className="review-actions">
+        <div className={REVIEW_ACTIONS_CLASS}>
           <button
             className="primary-button"
             disabled={Boolean(busy)}

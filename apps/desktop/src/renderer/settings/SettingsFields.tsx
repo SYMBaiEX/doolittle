@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
 import { desktopRequest, EmptyBlock, errorMessage, titleCase } from "../lib";
+import {
+  SETTINGS_ROW_LAYOUT_CLASS,
+  SETTINGS_SWITCH_CLASS,
+  SETTINGS_SWITCH_INPUT_CLASS,
+  SETTINGS_SWITCH_LABEL_CLASS,
+  SETTINGS_SWITCH_TRACK_CLASS,
+} from "./settings-layout";
 
 export interface FlatSetting {
   path: string;
@@ -171,7 +178,7 @@ export function SettingControl({
   };
 
   return (
-    <div className="setting-row">
+    <div className={SETTINGS_ROW_LAYOUT_CLASS}>
       <div className="setting-copy">
         <strong>{settingFieldLabel(field.path)}</strong>
         <small>{settingDescription(field)}</small>
@@ -179,14 +186,17 @@ export function SettingControl({
       </div>
       <div className="setting-control">
         {typeof field.value === "boolean" ? (
-          <label className="switch">
+          <label className={SETTINGS_SWITCH_CLASS}>
             <input
               checked={Boolean(value)}
+              className={SETTINGS_SWITCH_INPUT_CLASS}
               type="checkbox"
               onChange={(event) => setValue(event.target.checked)}
             />
-            <i />
-            <span>{value ? "On" : "Off"}</span>
+            <i className={SETTINGS_SWITCH_TRACK_CLASS} />
+            <span className={SETTINGS_SWITCH_LABEL_CLASS}>
+              {value ? "On" : "Off"}
+            </span>
           </label>
         ) : Array.isArray(field.value) ? (
           <textarea

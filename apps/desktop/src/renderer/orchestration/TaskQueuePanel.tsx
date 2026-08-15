@@ -12,6 +12,7 @@ import type {
   DelegationTaskRecord,
   RepositoryWorktreeRecord,
 } from "../orchestration-resources";
+import { orchestrationClass as oc } from "./layout";
 import type { ConfirmedAction, ResourceState, TaskAction } from "./models";
 import { TaskQueueDetail } from "./TaskQueueDetail";
 import { TaskQueueRail } from "./TaskQueueRail";
@@ -129,7 +130,7 @@ export function TaskQueuePanel({
     return (
       <section
         aria-labelledby="orchestration-empty-queue-title"
-        className="orchestration-queue-starter"
+        className={oc("orchestration-queue-starter")}
       >
         <span className="eyebrow">Queue ready</span>
         <div>
@@ -147,9 +148,9 @@ export function TaskQueuePanel({
   }
 
   return (
-    <div className="orchestration-master-detail">
-      <aside className="orchestration-master">
-        <div className="orchestration-pane-heading">
+    <div className={oc("orchestration-master-detail")}>
+      <aside className={oc("orchestration-master")}>
+        <div className={oc("orchestration-pane-heading")}>
           <span>Queue</span>
           <small>
             {asNumber(effectiveOverview.total)} total
@@ -158,7 +159,7 @@ export function TaskQueuePanel({
               : ` · ${workspaceLabel || "selected project"}`}
           </small>
         </div>
-        <div className="orchestration-queue-controls">
+        <div className={oc("orchestration-queue-controls")}>
           <label>
             <span className="sr-only">Search task queue</span>
             <input
@@ -183,7 +184,7 @@ export function TaskQueuePanel({
             </select>
           </label>
         </div>
-        <div className="orchestration-scroll">
+        <div className={oc("orchestration-scroll")}>
           <TaskQueueRail
             filteredTasks={filteredTasks}
             onClearFilters={() => {
@@ -204,7 +205,7 @@ export function TaskQueuePanel({
         </div>
       </aside>
 
-      <article className="orchestration-detail">
+      <article className={oc("orchestration-detail")}>
         {!selectedTask ? (
           <EmptyBlock title="Choose a task">
             Task controls and evidence appear here.

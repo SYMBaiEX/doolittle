@@ -19,7 +19,7 @@ describe("isLocalPreviewUrl", () => {
   it("uses a compact receipt hint before evidence exists", () => {
     const markup = renderToStaticMarkup(createElement(BrowserEmptyEvidence));
 
-    expect(markup).toContain('class="browser-result-empty"');
+    expect(markup).toContain('data-browser-result-state="empty"');
     expect(markup).toContain(
       "Evidence appears here after an inspect, capture, or analysis.",
     );

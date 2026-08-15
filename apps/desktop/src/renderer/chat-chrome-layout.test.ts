@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import {
+  CHAT_CHROME_HOST_CLASS,
+  WINDOW_DRAGBAR_CHAT_CLASS,
+  WINDOW_DRAGBAR_PRIMARY_CLASS,
+} from "./app-shell/shell-layout";
+import { CHAT_HEADER_CONTENT_CLASS } from "./chat/layout";
 
-const css = readFileSync(new URL("./app-polish.css", import.meta.url), "utf8");
-const legacyChromeCss = [
-  readFileSync(new URL("./styles.css", import.meta.url), "utf8"),
-  readFileSync(new URL("./experience.css", import.meta.url), "utf8"),
-  css,
-].join("\n");
 const app = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 const chatPage = readFileSync(
   new URL("./ChatPage.tsx", import.meta.url),
@@ -19,16 +19,14 @@ const chatHeader = readFileSync(
 
 describe("chat chrome density contract", () => {
   it("does not retain unreachable legacy chat shell selectors", () => {
-    expect(legacyChromeCss).not.toMatch(/\.chat-header(?![-\w])(?=[^{}]*\{)/);
-    expect(legacyChromeCss).not.toMatch(
-      /\.chat-header-toolbar(?![-\w])(?=[^{}]*\{)/,
-    );
+    expect(CHAT_HEADER_CONTENT_CLASS).not.toContain("chat-header-toolbar");
   });
 
   it("combines desktop workspace and conversation controls into one 44px row", () => {
-    expect(app).toMatch(
-      /className="window-dragbar-primary"[\s\S]*?className="window-context"[\s\S]*?className="chat-chrome-host"[\s\S]*?className="window-tools"/,
-    );
+    expect(app).toContain("WINDOW_DRAGBAR_PRIMARY_CLASS");
+    expect(app).toContain("WINDOW_CONTEXT_CLASS");
+    expect(app).toContain("CHAT_CHROME_HOST_CLASS");
+    expect(app).toContain("WINDOW_TOOLS_CLASS");
     expect(chatPage).toContain("createPortal(");
     expect(chatPage).not.toContain('className="chat-header"');
     expect(chatHeader).toMatch(
@@ -40,42 +38,30 @@ describe("chat chrome density contract", () => {
     expect(chatHeader).toMatch(
       /chat-mobile-conversations-button[\s\S]*?History[\s\S]*?chat-workbench-toggle[\s\S]*?Workbench/,
     );
-    expect(css).toMatch(
-      /\.app-main--chat > \.window-dragbar--chat\s*{[^}]*display:\s*flex;[^}]*flex:\s*0 0 44px;[^}]*min-height:\s*44px;/s,
+    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain("basis-11");
+    expect(WINDOW_DRAGBAR_PRIMARY_CLASS).toContain("min-h-11");
+    expect(CHAT_CHROME_HOST_CLASS).toContain("min-w-0");
+    expect(CHAT_CHROME_HOST_CLASS).toContain("flex-[1_1_420px]");
+    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
+      "grid-cols-[minmax(132px,0.7fr)_minmax(0,1fr)_auto]",
     );
-    expect(css).toMatch(
-      /\.window-dragbar--chat \.window-dragbar-primary\s*{[^}]*min-width:\s*0;[^}]*min-height:\s*44px;/s,
-    );
-    expect(css).toMatch(
-      /\.chat-chrome-host\s*{[^}]*min-width:\s*0;[^}]*flex:\s*1 1 420px;/s,
-    );
-    expect(css).toMatch(
-      /\.chat-header-mainline\s*{[^}]*grid-template-columns:\s*minmax\(132px,\s*0\.7fr\)\s*minmax\(0,\s*1fr\)\s*auto;[^}]*grid-template-rows:\s*44px;/s,
-    );
-    expect(css).toMatch(
-      /\.chat-header-top-actions\s*{[^}]*-webkit-app-region:\s*no-drag;/s,
-    );
-    expect(css).toMatch(
-      /\.chat-model-route\s*{[^}]*align-self:\s*center;[^}]*align-items:\s*center;[^}]*line-height:\s*1;/s,
-    );
-    expect(css).toMatch(
-      /\.chat-session-meta\s*{[^}]*-webkit-app-region:\s*no-drag;/s,
-    );
+    expect(CHAT_HEADER_CONTENT_CLASS).toContain("grid-rows-[44px]");
+    expect(CHAT_HEADER_CONTENT_CLASS).toContain("[-webkit-app-region:no-drag]");
   });
 
   it("progressively hides secondary controls and only falls back to two rows on mobile", () => {
-    expect(css).toMatch(
-      /@media \(max-width: 1420px\)\s*{[^}]*\.chat-meta-updated,[^}]*\.chat-meta-workspace\s*{[^}]*display:\s*none;/s,
+    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
+      "max-[1440px]:[&_.chat-session-meta-wrap]:hidden",
     );
-    expect(css).toMatch(
-      /@media \(max-width: 1180px\)\s*{[^}]*\.chat-session-meta-wrap\s*{[^}]*display:\s*none;/s,
+    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
+      "max-[980px]:[&_.chat-header-title-wrap]:hidden",
     );
-    expect(css).toMatch(
-      /@media \(max-width: 760px\)[\s\S]*?\.window-dragbar--chat \.window-dragbar-primary\s*{[^}]*display:\s*grid;[^}]*grid-template-rows:\s*34px 34px;[\s\S]*?\.app-main--chat > \.window-dragbar--chat\s*{[^}]*flex-basis:\s*68px;[^}]*min-height:\s*68px;/,
+    expect(app).toContain('compactCommand={view === "chat"}');
+    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain("max-[760px]:basis-17");
+    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain(
+      "max-[760px]:[&_.window-dragbar-primary]:grid-rows-[34px_34px]",
     );
-    expect(css).toMatch(
-      /\.chat-context-compact\s*{[^}]*white-space:\s*nowrap;/s,
-    );
+    expect(CHAT_HEADER_CONTENT_CLASS).toContain("whitespace-nowrap");
   });
 
   it("passes durable context handoffs into the lazy Chat surface instead of timing a window event", () => {

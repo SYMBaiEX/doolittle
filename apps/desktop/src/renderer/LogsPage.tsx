@@ -1,6 +1,7 @@
 import { LogViewer } from "@elizaos/ui/cloud-ui/components/log-viewer";
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
 import { useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
@@ -19,8 +20,11 @@ import {
   toLogViewerEntries,
 } from "./log-viewer-mapping";
 import { OperationsTracePanel } from "./logs/OperationsTracePanel";
-import "./logs.css";
-import "./observability.css";
+import {
+  OBSERVABILITY_CONTROL_CLASS,
+  OBSERVABILITY_FILTER_CLASS,
+  OBSERVABILITY_PAGE_CLASS,
+} from "./observability-layout";
 
 interface LogsResponse {
   logs?: unknown[];
@@ -76,14 +80,13 @@ export function LogsPage({ active }: { active: boolean }) {
 
   if (!active) {
     return (
-      <PagePanel className="page page-logs" variant="workspace">
+      <PagePanel className={OBSERVABILITY_PAGE_CLASS} variant="workspace">
         <PageHeader
           eyebrow="Operations"
           title="Logs"
           description="Redacted runtime events and local operational traces."
           actions={
             <Button
-              className="secondary-button"
               disabled
               onClick={refresh}
               type="button"
@@ -102,18 +105,13 @@ export function LogsPage({ active }: { active: boolean }) {
   }
 
   return (
-    <PagePanel className="page page-logs" variant="workspace">
+    <PagePanel className={OBSERVABILITY_PAGE_CLASS} variant="workspace">
       <PageHeader
         eyebrow="Operations"
         title="Logs"
         description="Redacted runtime events and local operational traces."
         actions={
-          <Button
-            className="secondary-button"
-            onClick={refresh}
-            type="button"
-            variant="secondary"
-          >
+          <Button onClick={refresh} type="button" variant="secondary">
             Refresh
           </Button>
         }
@@ -126,10 +124,12 @@ export function LogsPage({ active }: { active: boolean }) {
           { label: "Errors", value: errorCount, tone: "bad" },
         ]}
       />
-      <div className="filter-bar logs-filter-bar">
-        <label className="search-field grow">
+      <div className={OBSERVABILITY_FILTER_CLASS}>
+        <label htmlFor="runtime-log-search">
           <span className="sr-only">Search runtime logs</span>
-          <input
+          <Input
+            className="h-[34px]"
+            id="runtime-log-search"
             placeholder="Search logs"
             type="search"
             value={query}
@@ -138,6 +138,7 @@ export function LogsPage({ active }: { active: boolean }) {
         </label>
         <select
           aria-label="Log level"
+          className={OBSERVABILITY_CONTROL_CLASS}
           value={level}
           onChange={(event) => setLevel(event.target.value)}
         >
@@ -151,7 +152,7 @@ export function LogsPage({ active }: { active: boolean }) {
         </select>
       </div>
       <LogViewer
-        className="log-console"
+        className="overflow-hidden rounded-[var(--radius-xs)] border border-[var(--border)] bg-[#0e0d0c] p-0 [html[data-appearance=light]_&]:bg-[#f5f1eb] [&>:not(:last-child)]:hidden [&>:last-child]:grid [&>:last-child]:gap-0 [&>:last-child>:first-child]:min-h-[38px] [&>:last-child>:first-child]:items-center [&>:last-child>:first-child]:border-[var(--border)] [&>:last-child>:first-child]:px-2.5 [&>:last-child>:first-child]:py-[7px] [&_h2]:text-[var(--text)] [&_h2]:text-[var(--text-control)] [&_h2]:font-semibold"
         emptyState={{
           title: "No matching log events",
           description: "The current filters did not match any recent records.",
@@ -162,25 +163,34 @@ export function LogsPage({ active }: { active: boolean }) {
         entryLevelVariant={logEntryLevelVariant}
         error={resource.error || undefined}
         errorTitle="Could not load runtime logs"
-        heightClassName="log-console__viewport"
+        heightClassName="h-[clamp(18rem,56vh,35rem)] rounded-none border-0 max-[700px]:h-[clamp(18rem,54svh,26rem)] [&_[data-slot=badge]]:h-[18px] [&_[data-slot=badge]]:min-w-[3.2rem] [&_[data-slot=badge]]:justify-center [&_[data-slot=badge]]:px-[5px] [&_[data-slot=badge]]:text-[9px] [&_[data-slot=scroll-area-viewport]>div>div]:px-[9px] [&_[data-slot=scroll-area-viewport]>div>div]:py-[7px] [&_[data-slot=scroll-area-viewport]>div>div]:text-[var(--text-meta)]"
         isFilteredEmpty={Boolean(query.trim() || level !== "all")}
         loading={resource.loading}
         onRetry={resource.reload}
         title="Event stream"
       />
       <details
-        className="operations-trace-details"
+        className="operations-trace-details overflow-hidden rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] open:[&>summary]:border-b open:[&>summary]:border-[var(--border)]"
+        data-operations-traces="true"
         onToggle={(event) => setHistoryOpen(event.currentTarget.open)}
       >
-        <summary>
-          <span>
+        <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-[18px] px-2.5 py-[7px] [&::-webkit-details-marker]:hidden">
+          <span className="grid min-w-0 gap-px">
             <strong>Delivery and terminal history</strong>
-            <small>Secondary operational traces</small>
+            <small className="font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)]">
+              Secondary operational traces
+            </small>
           </span>
-          <span>
+          <span className="ml-auto font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)]">
             {historyOpen
               ? `${deliveryEntries.length} deliveries · ${commandEntries.length} commands`
               : "Open to load"}
+          </span>
+          <span
+            aria-hidden="true"
+            className="font-[var(--font-mono)] text-[var(--muted)]"
+          >
+            {historyOpen ? "−" : "+"}
           </span>
         </summary>
         {historyOpen ? (

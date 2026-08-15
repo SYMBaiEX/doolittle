@@ -17,37 +17,26 @@ describe("workspace route density", () => {
     const page = read("./sessions/SessionsPage.tsx");
     const list = read("./sessions/SessionListPanel.tsx");
     const detail = read("./sessions/SessionDetail.tsx");
-    const css = read("./sessions/sessions.css");
+    const layout = read("./sessions/sessions-layout.ts");
 
     expect(page).toContain("<SessionDetail");
     expect(page).toContain("active={active}");
     expect(
-      detail.match(/className="session-insight-disclosure"/gu),
+      detail.match(/className=\{SESSION_DISCLOSURE_CLASS\}/gu),
     ).toHaveLength(2);
-    expect(detail).not.toContain(
-      '<details className="session-insight-disclosure" open>',
-    );
+    expect(detail).not.toContain("<details open");
     expect(detail).not.toContain('"/sessions/summary?');
     expect(detail).toContain("requestPolicy.continuity");
     expect(detail).toContain("continuityOpen && continuity.loading");
-    expect(detail).toContain('className="session-detail-stack"');
-    expect(detail).toContain('className="session-transcript-panel"');
+    expect(detail).toContain("data-session-detail");
+    expect(detail).toContain("SESSION_TRANSCRIPT_PANEL_CLASS");
     expect(detail).toContain(">Persisted messages<");
     expect(detail).not.toContain("Session highlights");
-    expect(page).toContain('import "./sessions.css"');
-    expect(css).toContain(
-      "grid-template-columns: clamp(250px, 24vw, 320px) minmax(0, 1fr)",
-    );
-    expect(css).toMatch(
-      /\.page-sessions > \.split-workspace\.is-empty\s*\{[^}]*flex:\s*0 0 auto;/su,
-    );
-    expect(css).toContain(".session-empty-landing__actions");
-    expect(css).toContain("grid-template-columns: minmax(0, 1fr) auto");
-    expect(css).toContain("width: min(100%, 1080px)");
-    expect(css).toContain("session-transcript-panel__header");
-    expect(css).toContain("width: min(100%, 720px)");
+    expect(page).not.toContain('import "./sessions.css"');
+    expect(layout).toContain("clamp(250px,24vw,320px)");
+    expect(layout).toContain("w-[min(100%,1080px)]");
+    expect(layout).toContain("w-[min(100%,720px)]");
     expect(list).toContain("export const SESSION_LIST_PAGE_SIZE = 20");
-    expect(list).toContain('className="session-list-footer"');
-    expect(css).toContain(".page-sessions .session-list-footer");
+    expect(list).toContain("min-h-[38px]");
   });
 });

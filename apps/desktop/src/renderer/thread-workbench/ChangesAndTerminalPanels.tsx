@@ -21,6 +21,27 @@ import {
   contextBlock,
 } from "../thread-workbench-controller";
 import {
+  WORKBENCH_CHANGES_BODY_CLASS,
+  WORKBENCH_CHECKPOINT_DETAILS_CLASS,
+  WORKBENCH_CHECKPOINT_LIST_CLASS,
+  WORKBENCH_CHECKPOINTS_BODY_CLASS,
+  WORKBENCH_CHECKPOINTS_CLASS,
+  WORKBENCH_COMMAND_BUTTON_CLASS,
+  WORKBENCH_COMMAND_LIST_CLASS,
+  WORKBENCH_DIFF_PREVIEW_CLASS,
+  WORKBENCH_EMPTY_CLASS,
+  WORKBENCH_LIST_BUTTON_CLASS,
+  WORKBENCH_LIST_BUTTON_SELECTED_CLASS,
+  WORKBENCH_LIST_CLASS,
+  WORKBENCH_PANE_STACK_CLASS,
+  WORKBENCH_SPLIT_CLASS,
+  WORKBENCH_TERMINAL_BODY_CLASS,
+  WORKBENCH_TERMINAL_CLASS,
+  WORKBENCH_TERMINAL_PREVIEW_CLASS,
+  WORKBENCH_TEXT_BUTTON_CLASS,
+  workbenchChangeTone,
+} from "./layout";
+import {
   compactRailLabel,
   statusTone,
   type WorkbenchController,
@@ -84,8 +105,11 @@ export function ChangesPanel({
     insert,
   } = controller;
   return (
-    <div className="thread-workbench-panel-body thread-workbench-panel-body--changes">
-      <div className="thread-workbench-pane-stack">
+    <div
+      className={WORKBENCH_CHANGES_BODY_CLASS}
+      data-thread-workbench-panel="changes"
+    >
+      <div className={WORKBENCH_PANE_STACK_CLASS}>
         <GitControlPanel
           active={Boolean(repositorySummary?.isRepository)}
           branches={asArray(branches.data?.branches) as RepositoryBranch[]}
@@ -104,7 +128,10 @@ export function ChangesPanel({
             }>
           }
         />
-        <details className="thread-workbench-checkpoints">
+        <details
+          className={WORKBENCH_CHECKPOINTS_CLASS}
+          data-thread-workbench="checkpoints"
+        >
           <summary>
             <span>
               <strong>Checkpoints</strong>
@@ -114,13 +141,13 @@ export function ChangesPanel({
               {asArray(checkpoints.data?.checkpoints).length || "None"}
             </Badge>
           </summary>
-          <div className="thread-workbench-checkpoints-body">
+          <div className={WORKBENCH_CHECKPOINTS_BODY_CLASS}>
             <small>
               Restore requires confirmation and never restarts Doolittle.
             </small>
             {checkpoints.data?.support?.supported ? (
               <button
-                className="thread-workbench-text-button"
+                className={WORKBENCH_TEXT_BUTTON_CLASS}
                 disabled={checkpointBusy}
                 onClick={() => void createCheckpoint()}
                 type="button"
@@ -139,7 +166,7 @@ export function ChangesPanel({
               <p role="status">{checkpointMessage}</p>
             ) : null}
             {checkpoints.data?.support?.supported ? (
-              <div className="thread-workbench-checkpoint-list">
+              <div className={WORKBENCH_CHECKPOINT_LIST_CLASS}>
                 {asArray(checkpoints.data?.checkpoints)
                   .slice(0, 8)
                   .map((value) => {
@@ -148,7 +175,7 @@ export function ChangesPanel({
                     if (!id) return null;
                     return (
                       <div key={id}>
-                        <span className="thread-workbench-checkpoint-details">
+                        <span className={WORKBENCH_CHECKPOINT_DETAILS_CLASS}>
                           <strong>
                             {asString(checkpoint.label, "Checkpoint")}
                           </strong>
@@ -178,14 +205,16 @@ export function ChangesPanel({
         retry={changes.reload}
       />
       {!changes.loading && !changes.error ? (
-        <div className="thread-workbench-split">
-          <div className="thread-workbench-list">
+        <div className={WORKBENCH_SPLIT_CLASS}>
+          <div className={WORKBENCH_LIST_CLASS}>
             {changeEntries.map((entry) => (
               <button
                 aria-current={currentChange === entry.path}
-                className={
-                  currentChange === entry.path ? "selected" : undefined
-                }
+                className={`${WORKBENCH_LIST_BUTTON_CLASS} ${
+                  currentChange === entry.path
+                    ? WORKBENCH_LIST_BUTTON_SELECTED_CLASS
+                    : ""
+                }`}
                 key={entry.path}
                 onClick={() => setSelectedChange(entry.path)}
                 title={entry.path}
@@ -193,13 +222,13 @@ export function ChangesPanel({
               >
                 <span
                   aria-hidden="true"
-                  className={
+                  className={workbenchChangeTone(
                     entry.untracked
                       ? "untracked"
                       : entry.staged
                         ? "staged"
-                        : "modified"
-                  }
+                        : "modified",
+                  )}
                 >
                   {entry.untracked ? "U" : entry.staged ? "S" : "M"}
                 </span>
@@ -208,11 +237,11 @@ export function ChangesPanel({
               </button>
             ))}
             {!changeEntries.length ? (
-              <p className="thread-workbench-empty">Working tree is clean.</p>
+              <p className={WORKBENCH_EMPTY_CLASS}>Working tree is clean.</p>
             ) : null}
           </div>
           {currentChange ? (
-            <div className="thread-workbench-preview diff">
+            <div className={WORKBENCH_DIFF_PREVIEW_CLASS}>
               <div>
                 <code title={currentChange}>
                   {compactRailLabel(currentChange)}
@@ -265,22 +294,27 @@ export function TerminalPanel({
     ? commandOutput(currentCommand)
     : "";
   return (
-    <div className="thread-workbench-panel-body thread-workbench-panel-body--terminal">
+    <div
+      className={WORKBENCH_TERMINAL_BODY_CLASS}
+      data-thread-workbench-panel="terminal"
+    >
       <ResourceState
         error={terminal.error}
         loading={terminal.loading}
         retry={terminal.reload}
       />
       {!terminal.loading && !terminal.error ? (
-        <div className="thread-workbench-terminal">
-          <div className="thread-workbench-command-list">
+        <div className={WORKBENCH_TERMINAL_CLASS}>
+          <div className={WORKBENCH_COMMAND_LIST_CLASS}>
             {commandEntries.map((entry, index) => {
               const id = asString(entry.id, `terminal-${index}`);
               const selected = currentCommand === entry;
               return (
                 <button
                   aria-current={selected}
-                  className={selected ? "selected" : undefined}
+                  className={`${WORKBENCH_COMMAND_BUTTON_CLASS} ${
+                    selected ? WORKBENCH_LIST_BUTTON_SELECTED_CLASS : ""
+                  }`}
                   key={id}
                   onClick={() => setSelectedCommand(id)}
                   type="button"
@@ -297,7 +331,7 @@ export function TerminalPanel({
             })}
           </div>
           {currentCommand ? (
-            <div className="thread-workbench-preview terminal">
+            <div className={WORKBENCH_TERMINAL_PREVIEW_CLASS}>
               <div>
                 <Badge tone={statusTone(asString(currentCommand.status))}>
                   {asString(currentCommand.status, "recorded")}
@@ -322,7 +356,7 @@ export function TerminalPanel({
               <pre>{bounded(selectedCommandOutput, 5_000)}</pre>
             </div>
           ) : (
-            <p className="thread-workbench-empty">No terminal history yet.</p>
+            <p className={WORKBENCH_EMPTY_CLASS}>No terminal history yet.</p>
           )}
         </div>
       ) : null}

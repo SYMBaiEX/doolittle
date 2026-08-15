@@ -1,3 +1,5 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Textarea } from "@elizaos/ui/components/ui/textarea";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { desktopRequest } from "../eliza-client";
 import {
@@ -8,6 +10,16 @@ import {
   EmptyBlock,
   errorMessage,
 } from "../lib";
+import {
+  EXECUTION_ACTIONS_CLASS,
+  EXECUTION_CARD_CLASS,
+  EXECUTION_CONTROL_CLASS,
+  EXECUTION_DESCRIPTION_CLASS,
+  EXECUTION_EYEBROW_CLASS,
+  EXECUTION_FIELD_CLASS,
+  EXECUTION_NOTICE_CLASS,
+  EXECUTION_RESULT_PRE_CLASS,
+} from "./execution-environment-layout";
 
 export type LocalSandbox = {
   id: string;
@@ -209,63 +221,63 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
   return (
     <section
       aria-label="Local sandbox environments"
-      className="sandbox-control"
+      className={EXECUTION_CARD_CLASS}
     >
-      <div className="sandbox-control-heading">
-        <div>
-          <span className="execution-environments-section-label">
-            Sandbox isolation
-          </span>
-          <strong>Eliza SandboxManager</strong>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col items-start gap-[3px]">
+          <span className={EXECUTION_EYEBROW_CLASS}>Sandbox isolation</span>
+          <strong className="text-[11px]">Eliza SandboxManager</strong>
         </div>
         <Badge tone={available ? "good" : "warn"}>
           {loading ? "Checking" : available ? "Available" : "Unavailable"}
         </Badge>
       </div>
-      <p className="execution-environments-description">
+      <p className={EXECUTION_DESCRIPTION_CLASS}>
         Local container isolation managed by Eliza SandboxManager. It is not a
         cloud E2B service; creation, execution, and cleanup remain under this
         desktop operator’s control.
       </p>
 
-      <div className="sandbox-control-actions">
-        <button
-          className="secondary-button"
+      <div className={EXECUTION_ACTIONS_CLASS}>
+        <Button
           disabled={!active || loading || mutating || !available}
           onClick={() => void createSandbox("node-js")}
+          size="sm"
           type="button"
+          variant="outline"
         >
           New Node.js
-        </button>
-        <button
-          className="secondary-button"
+        </Button>
+        <Button
           disabled={!active || loading || mutating || !available}
           onClick={() => void createSandbox("python")}
+          size="sm"
           type="button"
+          variant="outline"
         >
           New Python
-        </button>
-        <button
-          className="coding-status-action"
+        </Button>
+        <Button
           disabled={!active || loading || mutating}
           onClick={() => void refresh()}
+          size="sm"
           type="button"
+          variant="ghost"
         >
           Refresh
-        </button>
+        </Button>
       </div>
 
       {error ? (
-        <div className="execution-environments-notice bad" role="alert">
+        <div
+          className={`${EXECUTION_NOTICE_CLASS} text-[var(--bad)]`}
+          role="alert"
+        >
           {error}
           {retry ? (
-            <button
-              className="coding-status-action"
-              onClick={retry}
-              type="button"
-            >
+            <Button onClick={retry} size="sm" type="button" variant="ghost">
               Refresh state
-            </button>
+            </Button>
           ) : null}
         </div>
       ) : null}
@@ -279,10 +291,10 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
 
       {available ? (
         <>
-          <label className="coding-worktree-field">
+          <label className={EXECUTION_FIELD_CLASS}>
             <span>Execution target</span>
             <select
-              className="coding-worktree-input"
+              className={EXECUTION_CONTROL_CLASS}
               disabled={!active || mutating || !snapshot?.sandboxes.length}
               onChange={(event) => setSelectedId(event.target.value)}
               value={selectedId}
@@ -298,13 +310,13 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
             </select>
           </label>
           {selected ? (
-            <small className="sandbox-control-target">
+            <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[var(--muted)]">
               Target: <code>{selected.id}</code>
               {selected.path ? ` · ${selected.path}` : ""}
             </small>
           ) : null}
           {snapshot?.control.activeSandboxId ? (
-            <small className="sandbox-control-target">
+            <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[var(--muted)]">
               Active runtime sandbox:{" "}
               <code>{snapshot.control.activeSandboxId}</code>
             </small>
@@ -315,11 +327,15 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
             </EmptyBlock>
           ) : (
             <>
-              <label className="coding-worktree-field">
+              <label
+                className={EXECUTION_FIELD_CLASS}
+                htmlFor="sandbox-language"
+              >
                 <span>Language</span>
                 <select
-                  className="coding-worktree-input"
+                  className={EXECUTION_CONTROL_CLASS}
                   disabled={!canExecute || mutating}
+                  id="sandbox-language"
                   onChange={(event) => setLanguage(event.target.value)}
                   value={language}
                 >
@@ -329,35 +345,37 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
                   <option value="bash">Bash</option>
                 </select>
               </label>
-              <label className="coding-worktree-field">
+              <label className={EXECUTION_FIELD_CLASS} htmlFor="sandbox-code">
                 <span>{language} code</span>
-                <textarea
-                  className="coding-worktree-input sandbox-control-code"
+                <Textarea
+                  className="min-h-[86px] resize-y font-[var(--font-mono)]"
                   disabled={!canExecute || mutating}
+                  id="sandbox-code"
                   onChange={(event) => setCode(event.target.value)}
                   spellCheck={false}
                   value={code}
                 />
               </label>
-              <div className="sandbox-control-actions">
-                <button
-                  className="primary-button"
+              <div className={EXECUTION_ACTIONS_CLASS}>
+                <Button
                   disabled={
                     !canExecute || !selectedId || !code.trim() || mutating
                   }
                   onClick={() => void execute()}
+                  size="sm"
                   type="button"
                 >
                   {mutating ? "Working…" : "Run in selected sandbox"}
-                </button>
-                <button
-                  className="secondary-button"
+                </Button>
+                <Button
                   disabled={!active || !selectedId || mutating}
                   onClick={() => void kill()}
+                  size="sm"
                   type="button"
+                  variant="outline"
                 >
                   Kill selected
-                </button>
+                </Button>
               </div>
             </>
           )}
@@ -365,27 +383,34 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
       ) : null}
 
       {result ? (
-        <div className="sandbox-control-result" data-success={result.success}>
+        <div
+          className={`grid gap-1.5 rounded-[var(--radius-xs)] border p-2 ${
+            result.success ? "border-[var(--border)]" : "border-[var(--bad)]"
+          }`}
+          data-success={result.success}
+        >
           <strong>
             {result.success ? "Execution completed" : "Execution failed"}
           </strong>
-          {result.text ? <pre>{result.text}</pre> : null}
+          {result.text ? (
+            <pre className={EXECUTION_RESULT_PRE_CLASS}>{result.text}</pre>
+          ) : null}
           {result.stdout ? (
             <div>
               <span>stdout</span>
-              <pre>{result.stdout}</pre>
+              <pre className={EXECUTION_RESULT_PRE_CLASS}>{result.stdout}</pre>
             </div>
           ) : null}
           {result.stderr ? (
             <div>
               <span>stderr</span>
-              <pre>{result.stderr}</pre>
+              <pre className={EXECUTION_RESULT_PRE_CLASS}>{result.stderr}</pre>
             </div>
           ) : null}
           {result.error ? (
             <div>
               <span>error</span>
-              <pre>{result.error}</pre>
+              <pre className={EXECUTION_RESULT_PRE_CLASS}>{result.error}</pre>
             </div>
           ) : null}
         </div>

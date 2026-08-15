@@ -56,8 +56,8 @@ describe("ThreadWorkbenchRail", () => {
       />,
     );
 
-    expect(markup).toContain('class="thread-workbench-context-row"');
-    expect(markup).toContain('class="thread-workbench-context-meta"');
+    expect(markup).toContain('data-thread-workbench="context"');
+    expect(markup).toContain('data-thread-workbench="status"');
     expect(markup).toContain("main · 12345678");
     expect(markup).toContain("Worktree · /work/doolittle");
     expect(markup).toContain("2 changed");

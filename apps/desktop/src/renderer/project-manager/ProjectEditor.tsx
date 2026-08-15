@@ -1,5 +1,13 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
+import { Textarea } from "@elizaos/ui/components/ui/textarea";
 import { type FormEvent, useId, useRef, useState } from "react";
 import { useDialogFocus } from "./dialog-focus";
+import {
+  PROJECT_EDITOR_BACKDROP_CLASS,
+  PROJECT_EDITOR_CLASS,
+  PROJECT_EDITOR_LABEL_CLASS,
+} from "./layout";
 import {
   COLORS,
   defaultDraft,
@@ -34,9 +42,9 @@ export function ProjectEditor({
     });
   };
   return (
-    <div className="project-editor-backdrop" role="presentation">
+    <div className={PROJECT_EDITOR_BACKDROP_CLASS} role="presentation">
       <form
-        className="project-editor"
+        className={PROJECT_EDITOR_CLASS}
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
@@ -44,28 +52,37 @@ export function ProjectEditor({
         onSubmit={submit}
         tabIndex={-1}
       >
-        <header>
+        <header className="flex items-start justify-between">
           <div>
             <span className="eyebrow">
               {project ? "Project settings" : "New project"}
             </span>
-            <h3 id={titleId}>
+            <h3
+              className="mt-1 mb-0 font-[var(--font-display)] text-xl tracking-[-0.025em]"
+              id={titleId}
+            >
               {project ? `Edit ${project.name}` : "Create a project"}
             </h3>
           </div>
-          <button
+          <Button
             type="button"
-            className="icon-button"
+            className="text-xl"
+            size="icon-sm"
+            variant="ghost"
             aria-label="Close project editor"
             onClick={onClose}
             disabled={saving}
           >
             ×
-          </button>
+          </Button>
         </header>
-        <label>
+        <label
+          className={PROJECT_EDITOR_LABEL_CLASS}
+          htmlFor={`${titleId}-name`}
+        >
           Name
-          <input
+          <Input
+            id={`${titleId}-name`}
             ref={firstInput}
             value={draft.name}
             onChange={(event) =>
@@ -76,9 +93,13 @@ export function ProjectEditor({
             maxLength={100}
           />
         </label>
-        <label>
+        <label
+          className={PROJECT_EDITOR_LABEL_CLASS}
+          htmlFor={`${titleId}-description`}
+        >
           Description <small>Optional, shown in the project switcher.</small>
-          <input
+          <Input
+            id={`${titleId}-description`}
             value={draft.description}
             onChange={(event) =>
               setDraft((value) => ({
@@ -90,10 +111,14 @@ export function ProjectEditor({
             maxLength={280}
           />
         </label>
-        <label>
+        <label
+          className={PROJECT_EDITOR_LABEL_CLASS}
+          htmlFor={`${titleId}-instructions`}
+        >
           Project instructions{" "}
           <small>Shared context for every new chat in this project.</small>
-          <textarea
+          <Textarea
+            id={`${titleId}-instructions`}
             rows={5}
             value={draft.instructions}
             onChange={(event) =>
@@ -106,14 +131,16 @@ export function ProjectEditor({
             maxLength={4000}
           />
         </label>
-        <fieldset>
-          <legend>Accent</legend>
-          <div className="project-editor__colors">
+        <fieldset className="m-0 border-0 p-0">
+          <legend className="mb-1.75 text-xs text-[var(--text-soft)]">
+            Accent
+          </legend>
+          <div className="project-editor__colors flex flex-wrap gap-1.75">
             {COLORS.map((color) => (
               <button
                 key={color}
                 type="button"
-                className={draft.color === color ? "is-selected" : ""}
+                className={`size-6 rounded-full border-2 border-transparent p-0 outline-offset-2 ${draft.color === color ? "is-selected border-[var(--text)] shadow-[0_0_0_2px_var(--surface-raised),0_0_0_3px_var(--accent)]" : ""}`}
                 style={{ background: color }}
                 aria-label={`Use ${color} accent`}
                 aria-pressed={draft.color === color}
@@ -122,22 +149,18 @@ export function ProjectEditor({
             ))}
           </div>
         </fieldset>
-        <footer>
-          <button
+        <footer className="flex items-start justify-end gap-2 border-[var(--border)] border-t pt-3.75">
+          <Button
             type="button"
-            className="button button--quiet"
+            variant="ghost"
             onClick={onClose}
             disabled={saving}
           >
             Cancel
-          </button>
-          <button
-            type="submit"
-            className="button button--primary"
-            disabled={saving || !draft.name.trim()}
-          >
+          </Button>
+          <Button type="submit" disabled={saving || !draft.name.trim()}>
             {saving ? "Saving…" : project ? "Save changes" : "Create project"}
-          </button>
+          </Button>
         </footer>
       </form>
     </div>

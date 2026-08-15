@@ -83,7 +83,7 @@ function render(
 describe("WorkbenchPanels", () => {
   it("keeps the plans tab heading and empty state in the extracted panel", () => {
     const markup = render("plans");
-    expect(markup).toContain('class="thread-workbench-panel"');
+    expect(markup).toContain('data-thread-workbench="panel"');
     expect(markup).toContain("Plans");
     expect(markup).toContain("0 plans");
     expect(markup).not.toContain("Module 04");
@@ -102,7 +102,7 @@ describe("WorkbenchPanels", () => {
     expect(markup).toContain("No active plan.");
     expect(markup).toContain("No queued delegation tasks.");
     expect(markup).toContain("No terminal history yet.");
-    expect(markup).toContain('class="thread-workbench-brief-empty"');
+    expect(markup).toContain('data-thread-workbench="empty"');
     expect(markup).toContain(">Add plan context</button>");
     expect(markup).not.toContain("Workspace pulse");
     expect(markup).not.toContain("Dirty files");
@@ -112,11 +112,11 @@ describe("WorkbenchPanels", () => {
   it("defers secondary checkpoint and full-page navigation controls", () => {
     const changes = render("changes");
     const settings = render("settings");
-    expect(changes).toContain('class="thread-workbench-checkpoints"');
+    expect(changes).toContain('data-thread-workbench="checkpoints"');
     expect(changes).not.toContain(
-      '<details class="thread-workbench-checkpoints" open=""',
+      '<details data-thread-workbench="checkpoints" open=""',
     );
-    expect(settings).toContain('class="thread-workbench-settings-nav"');
+    expect(settings).toContain('data-thread-workbench="settings-navigation"');
     expect(settings).toContain("Open a full page");
     expect(settings).not.toContain("Open full-screen navigation");
   });

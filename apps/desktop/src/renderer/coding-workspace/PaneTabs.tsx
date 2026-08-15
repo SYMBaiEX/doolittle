@@ -1,4 +1,9 @@
 import type { KeyboardEvent } from "react";
+import {
+  CODING_TAB_BUTTON_CLASS,
+  CODING_TAB_SELECTED_CLASS,
+  CODING_TABS_CLASS,
+} from "./layout";
 
 export function PaneTabs<T extends string>({
   label,
@@ -25,11 +30,11 @@ export function PaneTabs<T extends string>({
   };
 
   return (
-    <div aria-label={label} className="coding-tabs" role="tablist">
+    <div aria-label={label} className={CODING_TABS_CLASS} role="tablist">
       {options.map((option, index) => (
         <button
           aria-selected={value === option.id}
-          className={value === option.id ? "selected" : ""}
+          className={`${CODING_TAB_BUTTON_CLASS} ${value === option.id ? CODING_TAB_SELECTED_CLASS : ""}`}
           key={option.id}
           onClick={() => onChange(option.id)}
           onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {

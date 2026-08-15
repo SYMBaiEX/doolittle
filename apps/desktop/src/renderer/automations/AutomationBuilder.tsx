@@ -1,3 +1,6 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
+import { Textarea } from "@elizaos/ui/components/ui/textarea";
 import type { FormEvent } from "react";
 import type {
   AutomationActionChoice,
@@ -5,6 +8,19 @@ import type {
   AutomationDraft,
   AutomationTriggerChoice,
 } from "../automation-model";
+import {
+  AUTOMATION_BUILDER_CLASS,
+  AUTOMATION_BUILDER_FOOTER_CLASS,
+  AUTOMATION_BUILDER_GRID_CLASS,
+  AUTOMATION_BUILDER_HEADER_CLASS,
+  AUTOMATION_BUILDER_SECTION_CLASS,
+  AUTOMATION_CHOICE_BUTTON_CLASS,
+  AUTOMATION_CHOICE_GRID_CLASS,
+  AUTOMATION_CHOICE_SELECTED_CLASS,
+  AUTOMATION_FIELD_CONTROL_CLASS,
+  AUTOMATION_FIELD_LABEL_CLASS,
+  AUTOMATION_SECTION_HEADING_CLASS,
+} from "./layout";
 
 function ChoiceButtons({
   choices,
@@ -18,13 +34,13 @@ function ChoiceButtons({
   label: string;
 }) {
   return (
-    <fieldset className="automation-choice-fieldset">
+    <fieldset className="automation-choice-fieldset m-0 border-0 p-0">
       <legend className="sr-only">{label}</legend>
-      <div className="automation-choice-grid">
+      <div className={AUTOMATION_CHOICE_GRID_CLASS}>
         {choices.map(([value, label]) => (
           <button
             aria-pressed={selected === value}
-            className={selected === value ? "selected" : ""}
+            className={`${AUTOMATION_CHOICE_BUTTON_CLASS} ${selected === value ? AUTOMATION_CHOICE_SELECTED_CLASS : ""}`}
             key={value}
             onClick={() => onSelect(value)}
             type="button"
@@ -69,15 +85,19 @@ export function AutomationBuilder({
       : "The prompt is stored with the workflow and added to each run trace.";
 
   return (
-    <form className="automation-builder" onSubmit={onSubmit}>
-      <div className="automation-builder__header">
+    <form className={AUTOMATION_BUILDER_CLASS} onSubmit={onSubmit}>
+      <div className={AUTOMATION_BUILDER_HEADER_CLASS}>
         <div>
           <span className="eyebrow">Workflow builder</span>
           <h2>When this happens, decide, then act</h2>
         </div>
-        <label className="automation-name-field">
+        <label
+          className={`automation-name-field ${AUTOMATION_FIELD_LABEL_CLASS}`}
+          htmlFor="automation-name"
+        >
           <span>Name</span>
-          <input
+          <Input
+            id="automation-name"
             value={draft.name}
             onChange={(event) => onUpdate("name", event.target.value)}
             placeholder="Release readiness"
@@ -85,16 +105,18 @@ export function AutomationBuilder({
         </label>
       </div>
 
-      <fieldset className="automation-builder__fieldset">
-        <legend>Automation definition</legend>
-        <div className="automation-builder__grid">
-          <section className="automation-builder__section">
-            <div className="automation-builder__section-heading">
+      <fieldset className="automation-builder__fieldset m-0 border-0 p-0">
+        <legend className="sr-only">Automation definition</legend>
+        <div className={AUTOMATION_BUILDER_GRID_CLASS}>
+          <section className={AUTOMATION_BUILDER_SECTION_CLASS}>
+            <div className={AUTOMATION_SECTION_HEADING_CLASS}>
               <strong>Trigger</strong>
               <small>Starts the workflow</small>
             </div>
-            <div className="automation-builder__field">
-              <span>Start when</span>
+            <div className="automation-builder__field grid gap-1.5">
+              <span className="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted)] uppercase">
+                Start when
+              </span>
               <ChoiceButtons
                 choices={[
                   ["schedule", "Schedule"],
@@ -109,9 +131,13 @@ export function AutomationBuilder({
               />
             </div>
             {draft.triggerType === "schedule" ? (
-              <label>
+              <label
+                className={AUTOMATION_FIELD_LABEL_CLASS}
+                htmlFor="automation-schedule"
+              >
                 <span>Schedule</span>
-                <input
+                <Input
+                  id="automation-schedule"
                   required
                   value={draft.schedule}
                   onChange={(event) => onUpdate("schedule", event.target.value)}
@@ -119,18 +145,23 @@ export function AutomationBuilder({
                 />
               </label>
             ) : null}
-            <p className="automation-builder__hint">{triggerHelp}</p>
+            <p className="automation-builder__hint m-0 text-[11px] leading-[1.5] text-[var(--muted)]">
+              {triggerHelp}
+            </p>
           </section>
 
-          <section className="automation-builder__section automation-builder__section--condition">
-            <div className="automation-builder__section-heading">
+          <section
+            className={`${AUTOMATION_BUILDER_SECTION_CLASS} automation-builder__section--condition`}
+          >
+            <div className={AUTOMATION_SECTION_HEADING_CLASS}>
               <strong>Condition</strong>
               <small>Guards the action</small>
             </div>
-            <div className="automation-builder__inline-grid">
-              <label>
+            <div className="automation-builder__inline-grid grid gap-3">
+              <label className={AUTOMATION_FIELD_LABEL_CLASS}>
                 <span>Continue when</span>
                 <select
+                  className={AUTOMATION_FIELD_CONTROL_CLASS}
                   value={draft.conditionType}
                   onChange={(event) =>
                     onUpdate(
@@ -146,9 +177,13 @@ export function AutomationBuilder({
                 </select>
               </label>
               {draft.conditionType !== "always" ? (
-                <label>
+                <label
+                  className={AUTOMATION_FIELD_LABEL_CLASS}
+                  htmlFor="automation-condition-path"
+                >
                   <span>Payload field</span>
-                  <input
+                  <Input
+                    id="automation-condition-path"
                     value={draft.conditionPath}
                     onChange={(event) =>
                       onUpdate("conditionPath", event.target.value)
@@ -159,9 +194,13 @@ export function AutomationBuilder({
               ) : null}
               {draft.conditionType !== "always" &&
               draft.conditionType !== "exists" ? (
-                <label>
+                <label
+                  className={AUTOMATION_FIELD_LABEL_CLASS}
+                  htmlFor="automation-condition-value"
+                >
                   <span>Value</span>
-                  <input
+                  <Input
+                    id="automation-condition-value"
                     value={draft.conditionValue}
                     onChange={(event) =>
                       onUpdate("conditionValue", event.target.value)
@@ -171,16 +210,22 @@ export function AutomationBuilder({
                 </label>
               ) : null}
             </div>
-            <p className="automation-builder__hint">{conditionHelp}</p>
+            <p className="automation-builder__hint m-0 text-[11px] leading-[1.5] text-[var(--muted)]">
+              {conditionHelp}
+            </p>
           </section>
 
-          <section className="automation-builder__section automation-builder__section--action">
-            <div className="automation-builder__section-heading">
+          <section
+            className={`${AUTOMATION_BUILDER_SECTION_CLASS} automation-builder__section--action`}
+          >
+            <div className={AUTOMATION_SECTION_HEADING_CLASS}>
               <strong>Action</strong>
               <small>Performs the work</small>
             </div>
-            <div className="automation-builder__field">
-              <span>Then do</span>
+            <div className="automation-builder__field grid gap-1.5">
+              <span className="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted)] uppercase">
+                Then do
+              </span>
               <ChoiceButtons
                 choices={[
                   ["run-agent", "Run agent"],
@@ -195,9 +240,13 @@ export function AutomationBuilder({
               />
             </div>
             {draft.actionType === "webhook" ? (
-              <label>
+              <label
+                className={AUTOMATION_FIELD_LABEL_CLASS}
+                htmlFor="automation-webhook-url"
+              >
                 <span>Destination URL</span>
-                <input
+                <Input
+                  id="automation-webhook-url"
                   type="url"
                   value={draft.webhookUrl}
                   onChange={(event) =>
@@ -207,9 +256,13 @@ export function AutomationBuilder({
                 />
               </label>
             ) : (
-              <label>
+              <label
+                className={AUTOMATION_FIELD_LABEL_CLASS}
+                htmlFor="automation-prompt"
+              >
                 <span>Prompt</span>
-                <textarea
+                <Textarea
+                  id="automation-prompt"
                   rows={4}
                   value={draft.prompt}
                   onChange={(event) => onUpdate("prompt", event.target.value)}
@@ -217,18 +270,20 @@ export function AutomationBuilder({
                 />
               </label>
             )}
-            <p className="automation-builder__hint">{actionHelp}</p>
+            <p className="automation-builder__hint m-0 text-[11px] leading-[1.5] text-[var(--muted)]">
+              {actionHelp}
+            </p>
           </section>
         </div>
       </fieldset>
 
-      <div className="automation-builder__footer">
+      <div className={AUTOMATION_BUILDER_FOOTER_CLASS}>
         <span>
           Output and each phase result stay in the local trace archive.
         </span>
-        <button className="primary-button" disabled={busy} type="submit">
+        <Button disabled={busy} type="submit">
           {busy ? "Creating…" : "Create automation"}
-        </button>
+        </Button>
       </div>
     </form>
   );

@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import "./inline-action-confirmation.css";
 
 export interface InlineActionConfirmationProps {
   title: string;
@@ -29,10 +28,21 @@ export function InlineActionConfirmation({
   }, []);
 
   return (
-    <fieldset aria-busy={busy} className={`inline-action-confirmation ${tone}`}>
-      <legend className="inline-action-confirmation__title">{title}</legend>
-      <small className="inline-action-confirmation__detail">{detail}</small>
-      <div className="inline-action-confirmation__actions">
+    <fieldset
+      aria-busy={busy}
+      className={`inline-action-confirmation mt-2.5 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-[var(--radius-sm)] border p-2.5 max-[720px]:grid-cols-1 ${
+        tone === "primary"
+          ? "border-[color-mix(in_srgb,var(--accent)_26%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_6%,var(--surface))]"
+          : "border-[color-mix(in_srgb,var(--bad)_26%,var(--border))] bg-[color-mix(in_srgb,var(--bad)_6%,var(--surface))]"
+      }`}
+    >
+      <legend className="inline-action-confirmation__title col-start-1 m-0 p-0 text-[var(--text-caption)] font-bold">
+        {title}
+      </legend>
+      <small className="inline-action-confirmation__detail col-start-1 text-[var(--text-meta)] leading-[1.45] text-[var(--muted)]">
+        {detail}
+      </small>
+      <div className="inline-action-confirmation__actions col-start-2 row-start-1 row-span-2 flex items-center gap-2 max-[720px]:col-start-1 max-[720px]:row-auto">
         <button
           aria-busy={busy}
           className={tone === "primary" ? "primary-button" : "danger-button"}

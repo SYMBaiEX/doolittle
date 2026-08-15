@@ -10,6 +10,18 @@ import type {
   ProviderAuthState,
 } from "../../shared/contracts";
 import { asString, Badge } from "../lib";
+import {
+  PROVIDER_CONNECTION_ACTIONS_CLASS,
+  PROVIDER_CONNECTION_COPY_CLASS,
+  PROVIDER_CONNECTION_DEFAULT_CLASS,
+  PROVIDER_CONNECTION_MENU_CLASS,
+  PROVIDER_CONNECTION_MORE_CLASS,
+  PROVIDER_CONNECTION_ROW_CLASS,
+  PROVIDER_CONNECTION_TITLE_CLASS,
+  PROVIDER_FACTS_CLASS,
+  PROVIDER_IDENTITY_MARK_CLASS,
+  PROVIDER_STATUS_LINE_CLASS,
+} from "./layout";
 
 export interface ProviderConnectionDescriptor {
   key: string;
@@ -130,31 +142,44 @@ export function ProviderConnectionRow({
           }
         : null;
   const badgeTone = nativeReady ? (isDefault ? "good" : "neutral") : "warn";
+  const statusClass = signingIn
+    ? "is-pending [&>span]:animate-pulse [&>span]:bg-[var(--accent)] motion-reduce:[&>span]:animate-none"
+    : fallbackReady
+      ? "is-fallback [&>span]:bg-[var(--warn)]"
+      : ready
+        ? "is-ready [&>span]:bg-[var(--good)]"
+        : "is-offline [&>span]:bg-[var(--muted)]";
 
   return (
     <article
-      className={
-        isDefault
-          ? "provider-connection-row is-default"
-          : "provider-connection-row"
-      }
+      className={`${PROVIDER_CONNECTION_ROW_CLASS} ${isDefault ? PROVIDER_CONNECTION_DEFAULT_CLASS : ""}`}
+      data-provider-connection="true"
     >
-      <div className="provider-identity-mark" aria-hidden="true">
+      <div className={PROVIDER_IDENTITY_MARK_CLASS} aria-hidden="true">
         {descriptor.shortLabel}
       </div>
-      <div className="provider-connection-copy">
-        <div className="provider-connection-title">
+      <div className={PROVIDER_CONNECTION_COPY_CLASS}>
+        <div className={PROVIDER_CONNECTION_TITLE_CLASS}>
           <h3>{descriptor.label}</h3>
           <Badge tone={badgeTone}>{stateLabel}</Badge>
         </div>
         <div
-          className={`provider-connection-status-line ${signingIn ? "is-pending" : fallbackReady ? "is-fallback" : ready ? "is-ready" : "is-offline"}`}
+          className={`${PROVIDER_STATUS_LINE_CLASS} ${statusClass}`}
+          data-provider-status={
+            signingIn
+              ? "pending"
+              : fallbackReady
+                ? "fallback"
+                : ready
+                  ? "ready"
+                  : "offline"
+          }
           aria-live="polite"
         >
           <span aria-hidden="true" />
           <p title={detail}>{detail}</p>
         </div>
-        <dl className="provider-connection-facts">
+        <dl className={PROVIDER_FACTS_CLASS}>
           {facts.map((fact) => (
             <div key={fact.label} title={`${fact.label}: ${fact.value}`}>
               <dt className="sr-only">{fact.label}</dt>
@@ -163,7 +188,7 @@ export function ProviderConnectionRow({
           ))}
         </dl>
       </div>
-      <div className="provider-connection-actions">
+      <div className={PROVIDER_CONNECTION_ACTIONS_CLASS}>
         {primaryAction ? (
           <Button
             onClick={primaryAction.onClick}
@@ -180,7 +205,7 @@ export function ProviderConnectionRow({
             <DropdownMenuTrigger asChild>
               <Button
                 aria-label={`More actions for ${descriptor.label}`}
-                className="provider-connection-more"
+                className={PROVIDER_CONNECTION_MORE_CLASS}
                 disabled={busy}
                 size="icon-sm"
                 title={`More actions for ${descriptor.label}`}
@@ -192,7 +217,7 @@ export function ProviderConnectionRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="provider-connection-menu"
+              className={PROVIDER_CONNECTION_MENU_CLASS}
             >
               <DropdownMenuItem
                 onSelect={secondaryAction.onClick}

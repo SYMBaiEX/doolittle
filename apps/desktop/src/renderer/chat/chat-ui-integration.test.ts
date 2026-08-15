@@ -8,12 +8,9 @@ function readRendererFile(name: string): string {
 }
 
 describe("Eliza UI chat integration", () => {
-  it("keeps the official primitives in the final renderer style order", () => {
+  it("does not add a handwritten integration stylesheet after Tailwind", () => {
     const main = readRendererFile("main.tsx");
-    expect(main.indexOf("./app-polish.css")).toBeGreaterThan(-1);
-    expect(main.indexOf("./chat-ui.css")).toBeGreaterThan(
-      main.indexOf("./app-polish.css"),
-    );
+    expect(main).not.toContain("./chat-ui.css");
   });
 
   it("uses the UI package for composer, status, and message actions", () => {
@@ -26,10 +23,10 @@ describe("Eliza UI chat integration", () => {
   });
 
   it("keeps the textarea borderless while the rounded composer owns focus", () => {
-    const css = readRendererFile("chat-ui.css");
-    expect(css).toMatch(
-      /\.chat-composer \.chat-composer-input:focus-visible\s*{[^}]*outline:\s*none;[^}]*box-shadow:\s*none;/s,
-    );
-    expect(css).toContain(".chat-composer .chat-composer-input");
+    const composer = readRendererFile("chat/ChatComposer.tsx");
+    expect(composer).toContain("!border-0");
+    expect(composer).toContain("focus-visible:!outline-none");
+    expect(composer).toContain("[box-shadow:none]!");
+    expect(composer).not.toContain("focus-visible:!ring-0");
   });
 });

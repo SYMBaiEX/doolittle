@@ -13,7 +13,17 @@ function logLevelTone(level: unknown): LogLevelTone {
 }
 
 export function logEntryClassName(entry: LogViewerStructuredEntry): string {
-  return `log-console-entry is-${logLevelTone(entry.level)}`;
+  const tone = logLevelTone(entry.level);
+  if (tone === "debug" || tone === "trace") {
+    return "text-[var(--text-soft)] opacity-75";
+  }
+  if (tone === "warn") {
+    return "text-[var(--text-soft)] [&_[data-slot=badge]]:border-[color-mix(in_srgb,var(--warning)_48%,var(--border))] [&_[data-slot=badge]]:text-[var(--warning)]";
+  }
+  if (tone === "info") {
+    return "text-[var(--text-soft)] [&_[data-slot=badge]]:border-[var(--line-subtle)] [&_[data-slot=badge]]:bg-[color-mix(in_srgb,var(--surface-raised)_82%,transparent)] [&_[data-slot=badge]]:text-[var(--muted)]";
+  }
+  return "text-[var(--text-soft)]";
 }
 
 export function logEntryLevelVariant(

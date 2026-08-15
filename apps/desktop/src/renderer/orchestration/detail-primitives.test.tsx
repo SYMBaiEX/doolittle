@@ -17,10 +17,11 @@ describe("orchestration detail primitives", () => {
       </div>,
     );
 
-    expect(markup).toContain('class="orchestration-detail-row"');
+    expect(markup).toContain("orchestration-detail-row");
     expect(markup).toContain("<dt>Status</dt><dd>running</dd>");
-    expect(markup).toContain('class="orchestration-detail-tag good"');
-    expect(markup).toContain('class="orchestration-empty-line"');
+    expect(markup).toContain("orchestration-detail-tag");
+    expect(markup).toContain("good");
+    expect(markup).toContain("orchestration-empty-line");
   });
 
   it("maps shared orchestration statuses consistently", () => {

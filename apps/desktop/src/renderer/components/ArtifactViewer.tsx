@@ -1,6 +1,6 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import { useState } from "react";
 import { desktopRequest, errorMessage, Notice } from "../lib";
-import "../artifact-viewer.css";
 
 type ArtifactKind =
   | "diff"
@@ -69,7 +69,7 @@ function ArtifactBody({ payload }: { payload: ArtifactPayload }) {
     return (
       <img
         alt={`Generated artifact ${payload.artifact.name}`}
-        className="artifact-viewer-image"
+        className="mx-auto block max-h-[560px] w-[min(100%,960px)] border border-[var(--border)] bg-[#080706] object-contain"
         src={artifactUrl(payload)}
       />
     );
@@ -81,7 +81,7 @@ function ArtifactBody({ payload }: { payload: ArtifactPayload }) {
       // biome-ignore lint/a11y/useMediaCaption: no caption payload exists
       <audio
         aria-label={`Generated artifact ${payload.artifact.name}`}
-        className="artifact-viewer-audio"
+        className="w-full"
         controls
         src={artifactUrl(payload)}
       />
@@ -91,7 +91,7 @@ function ArtifactBody({ payload }: { payload: ArtifactPayload }) {
     const lockedDocument = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:"><meta name="referrer" content="no-referrer">${payload.content}`;
     return (
       <iframe
-        className="artifact-viewer-frame"
+        className="min-h-[420px] w-full border border-[var(--border)] bg-white"
         sandbox=""
         srcDoc={lockedDocument}
         title={`Generated HTML artifact ${payload.artifact.name}`}
@@ -99,7 +99,11 @@ function ArtifactBody({ payload }: { payload: ArtifactPayload }) {
     );
   }
   return (
-    <pre className={`artifact-viewer-text ${payload.artifact.kind}`}>
+    <pre
+      className={`m-0 max-h-[420px] overflow-auto rounded-[2px] border border-[var(--border)] bg-[#080706] p-[11px] text-[10px] leading-[1.55] whitespace-pre-wrap text-[var(--text-soft)] ${
+        payload.artifact.kind === "diff" ? "border-l-[var(--accent)]" : ""
+      }`}
+    >
       <code>{payload.content}</code>
     </pre>
   );
@@ -142,17 +146,31 @@ function ArtifactItem({
   };
 
   return (
-    <article className={`artifact-viewer-item ${expanded ? "open" : ""}`}>
-      <button
+    <article
+      className={`overflow-hidden rounded-[var(--radius-xs,3px)] border bg-[var(--surface-soft)] ${
+        expanded
+          ? "border-[color-mix(in_srgb,var(--accent)_30%,var(--border))]"
+          : "border-[var(--border)]"
+      }`}
+    >
+      <Button
         aria-expanded={expanded}
-        className="artifact-viewer-trigger"
+        className="grid min-h-[46px] w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[9px] rounded-none border-0 bg-transparent px-[9px] py-[7px] text-left text-[var(--text-soft)] shadow-none hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
         onClick={() => void toggle()}
         type="button"
+        variant="ghost"
       >
-        <span aria-hidden="true">{expanded ? "−" : "+"}</span>
-        <span>
-          <strong>{payload?.artifact.name ?? label}</strong>
-          <small>
+        <span
+          aria-hidden="true"
+          className="grid size-5 place-items-center rounded-[2px] border border-[var(--accent-border)] bg-[var(--accent-soft)] font-[var(--font-mono)] text-xs text-[var(--accent)]"
+        >
+          {expanded ? "−" : "+"}
+        </span>
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px]">
+            {payload?.artifact.name ?? label}
+          </strong>
+          <small className="overflow-hidden font-[var(--font-mono)] text-[var(--text-meta,10px)] text-ellipsis whitespace-nowrap text-[var(--muted)]">
             {payload
               ? `${payload.artifact.kind} · ${compactBytes(
                   payload.artifact.sizeBytes,
@@ -160,14 +178,16 @@ function ArtifactItem({
               : `Artifact ${index + 1}`}
           </small>
         </span>
-        <i>{expanded ? "Close" : "Open"}</i>
-      </button>
+        <span className="font-[var(--font-mono)] text-[var(--text-meta,10px)] not-italic tracking-[0.06em] text-[var(--accent)] uppercase">
+          {expanded ? "Close" : "Open"}
+        </span>
+      </Button>
       {expanded ? (
-        <div className="artifact-viewer-content">
+        <div className="grid gap-2 border-t border-[var(--border)] p-[9px]">
           {loading ? (
             <div
               aria-live="polite"
-              className="artifact-viewer-loading"
+              className="p-[18px] text-center text-[11px] text-[var(--muted)]"
               role="status"
             >
               Loading secure artifact…
@@ -176,9 +196,9 @@ function ArtifactItem({
             <Notice tone="bad">{error}</Notice>
           ) : payload ? (
             <>
-              <div className="artifact-viewer-meta">
+              <div className="flex min-w-0 items-center justify-between gap-2.5 font-[var(--font-mono)] text-[var(--text-meta,10px)] text-[var(--muted)]">
                 <span>{payload.artifact.mimeType}</span>
-                <code>
+                <code className="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--faint)]">
                   {payload.artifact.runId} · {payload.artifact.index}
                 </code>
               </div>
@@ -200,7 +220,7 @@ export function ArtifactViewer({
 }) {
   if (!runId || artifacts.length === 0) return null;
   return (
-    <div className="artifact-viewer">
+    <div className="grid gap-1.5">
       {artifacts.map((artifact, index) => (
         <ArtifactItem
           index={artifactIndex(artifact, index)}

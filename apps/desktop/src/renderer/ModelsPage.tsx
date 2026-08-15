@@ -21,8 +21,20 @@ import {
   useApiResource,
 } from "./lib";
 import { linkedProviderAccess } from "./model-routing";
+import {
+  MODEL_DIAGNOSTIC_BODY_CLASS,
+  MODEL_DIAGNOSTIC_CLASS,
+  MODEL_DIAGNOSTIC_COPY_CLASS,
+  MODEL_FORM_ACTIONS_CLASS,
+  MODEL_TUNING_BODY_CLASS,
+  MODEL_TUNING_CLASS,
+  MODELS_DIAGNOSTICS_CLASS,
+  MODELS_FORM_CLASS,
+  MODELS_PAGE_CLASS,
+  MODELS_ROW_ACTIONS_CLASS,
+  MODELS_WORKSPACE_CLASS,
+} from "./models/models-layout";
 import { modelRequests } from "./resource-request-policy";
-import "./agent-pages.css";
 
 interface SettingsResponse {
   settings?: {
@@ -193,7 +205,9 @@ export function ModelsPage({
   };
 
   return (
-    <div className={embedded ? "settings-model-section" : "page"}>
+    <div
+      className={`${embedded ? "settings-model-section" : "page"} ${MODELS_PAGE_CLASS}`}
+    >
       {embedded ? (
         <header className="settings-section-header">
           <div>
@@ -201,7 +215,7 @@ export function ModelsPage({
             <h2>Provider & model</h2>
             <p>Choose the provider and model used by the next turn.</p>
           </div>
-          <div className="row-actions">
+          <div className={MODELS_ROW_ACTIONS_CLASS}>
             {active && runtime ? (
               <Badge tone="good">
                 {runtime.provider} · {runtime.model}
@@ -223,7 +237,7 @@ export function ModelsPage({
           title="Models"
           description="Choose the provider and model used by the next turn."
           actions={
-            <div className="row-actions">
+            <div className={MODELS_ROW_ACTIONS_CLASS}>
               {active && runtime ? (
                 <Badge tone="good">
                   {runtime.provider} · {runtime.model}
@@ -292,8 +306,8 @@ export function ModelsPage({
           ) : settings.error && !settings.data ? (
             <ErrorBlock error={settings.error} retry={settings.reload} />
           ) : settings.data ? (
-            <div className="two-column-grid models-workspace">
-              <form className="content-card form-card" onSubmit={save}>
+            <div className={MODELS_WORKSPACE_CLASS}>
+              <form className={MODELS_FORM_CLASS} onSubmit={save}>
                 <div className="card-heading">
                   <div>
                     <span className="eyebrow">Primary inference</span>
@@ -369,7 +383,8 @@ export function ModelsPage({
                   </label>
                 </div>
                 <details
-                  className="model-tuning"
+                  className={MODEL_TUNING_CLASS}
+                  data-model-tuning="true"
                   onToggle={(event) => setTuningOpen(event.currentTarget.open)}
                   open={tuningOpen}
                 >
@@ -382,7 +397,7 @@ export function ModelsPage({
                     </span>
                     <Badge>{tuningOpen ? "Open" : "Advanced"}</Badge>
                   </summary>
-                  <div className="field-grid model-tuning__body">
+                  <div className={MODEL_TUNING_BODY_CLASS}>
                     {reasoningOptions.length ? (
                       <label>
                         <span>Reasoning effort</span>
@@ -473,7 +488,7 @@ export function ModelsPage({
                 {feedback ? (
                   <Notice tone={feedback.tone}>{feedback.message}</Notice>
                 ) : null}
-                <div className="form-actions">
+                <div className={MODEL_FORM_ACTIONS_CLASS}>
                   <button
                     className="primary-button"
                     disabled={saving}
@@ -484,18 +499,19 @@ export function ModelsPage({
                 </div>
               </form>
               <aside
-                className="models-diagnostics"
+                className={MODELS_DIAGNOSTICS_CLASS}
                 aria-label="Model diagnostics"
               >
                 <details
-                  className="model-diagnostic"
+                  className={MODEL_DIAGNOSTIC_CLASS}
+                  data-model-diagnostic="true"
                   onToggle={(event) =>
                     setReadinessOpen(event.currentTarget.open)
                   }
                   open={readinessOpen}
                 >
                   <summary>
-                    <span className="model-diagnostic__copy">
+                    <span className={MODEL_DIAGNOSTIC_COPY_CLASS}>
                       <strong>Provider readiness</strong>
                       <small>Native accounts and local fallbacks</small>
                     </span>
@@ -514,7 +530,7 @@ export function ModelsPage({
                     </Badge>
                   </summary>
                   {readinessOpen ? (
-                    <div className="model-diagnostic__body">
+                    <div className={MODEL_DIAGNOSTIC_BODY_CLASS}>
                       {accounts.loading ? (
                         <LoadingBlock />
                       ) : accounts.error ? (
@@ -562,9 +578,12 @@ export function ModelsPage({
                     </div>
                   ) : null}
                 </details>
-                <details className="model-diagnostic">
+                <details
+                  className={MODEL_DIAGNOSTIC_CLASS}
+                  data-model-diagnostic="true"
+                >
                   <summary>
-                    <span className="model-diagnostic__copy">
+                    <span className={MODEL_DIAGNOSTIC_COPY_CLASS}>
                       <strong>Registered capabilities</strong>
                       <small>Runtime handler truth</small>
                     </span>
@@ -580,7 +599,7 @@ export function ModelsPage({
                       {(models.data?.capabilities ?? []).length}
                     </Badge>
                   </summary>
-                  <div className="model-diagnostic__body">
+                  <div className={MODEL_DIAGNOSTIC_BODY_CLASS}>
                     {models.loading ? (
                       <LoadingBlock />
                     ) : models.error ? (

@@ -20,8 +20,6 @@ import {
   type RegistryEntry,
   registryResultLabel,
 } from "./registry/registry-model";
-import "./registry.css";
-import "./catalog-pages.css";
 
 export type { RegistryEntry } from "./registry/registry-model";
 export {
@@ -114,7 +112,7 @@ export function RegistryPage({ active }: { active: boolean }) {
     }
   };
   return (
-    <div className="page page-registry">
+    <div className="page page-registry gap-3">
       <PageHeader
         eyebrow="Runtime"
         title="Plugin registry"

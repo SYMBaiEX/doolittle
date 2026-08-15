@@ -4,6 +4,18 @@ import type {
   ReviewRecordSnapshot,
 } from "../review-comments";
 import type { ReviewWorkState } from "../review-work-state";
+import {
+  REVIEW_BRANCH_EVENTS_CLASS,
+  REVIEW_BRANCH_EVIDENCE_CLASS,
+  REVIEW_BRANCH_HEADING_CLASS,
+  REVIEW_BRANCH_RECORD_CLASS,
+  REVIEW_HEADER_CLASS,
+  REVIEW_HEADER_STATUS_CLASS,
+  REVIEW_WORK_METRICS_CLASS,
+  REVIEW_WORK_OUTCOME_CLASS,
+  REVIEW_WORK_REVISION_CLASS,
+  reviewOverviewClass,
+} from "./layout";
 import { recordEventLabel } from "./models";
 
 export interface ReviewHeaderProps {
@@ -23,7 +35,7 @@ export function ReviewHeader({
 }: ReviewHeaderProps) {
   if (embedded) return null;
   return (
-    <header className="review-header">
+    <header className={REVIEW_HEADER_CLASS}>
       <div>
         <span className="eyebrow">Agent work</span>
         <h1>Review what Doolittle did</h1>
@@ -32,7 +44,7 @@ export function ReviewHeader({
           completed work without reconstructing the agent’s entire chat.
         </p>
       </div>
-      <div className="review-header-status">
+      <div className={REVIEW_HEADER_STATUS_CLASS}>
         <span>
           <strong>{pendingCount}</strong> needs you
         </span>
@@ -78,9 +90,10 @@ export function ReviewOverview({
   return (
     <section
       aria-label="Current agent work outcome"
-      className={`review-work-overview ${workState.tone}${empty ? " is-empty" : ""}`}
+      className={reviewOverviewClass(workState.tone, empty)}
+      data-review-empty={empty || undefined}
     >
-      <div className="review-work-outcome">
+      <div className={REVIEW_WORK_OUTCOME_CLASS}>
         <i aria-hidden="true">{workState.icon}</i>
         <span>
           <small>{empty ? "Review ready" : "Current workset"}</small>
@@ -90,7 +103,7 @@ export function ReviewOverview({
       </div>
       {!empty ? (
         <>
-          <dl className="review-work-metrics">
+          <dl className={REVIEW_WORK_METRICS_CLASS}>
             <div>
               <dt>Agent runs</dt>
               <dd>{agentRunCount}</dd>
@@ -108,7 +121,7 @@ export function ReviewOverview({
               <dd>{openCommentCount}</dd>
             </div>
           </dl>
-          <div className="review-work-revision">
+          <div className={REVIEW_WORK_REVISION_CLASS}>
             <small>Revision</small>
             <strong>
               {branchScope?.branch ?? reviewBranch ?? "workspace"}
@@ -147,8 +160,8 @@ export function ReviewBranchRecord({
   events,
 }: ReviewBranchRecordProps) {
   return (
-    <section aria-label="Branch record" className="review-branch-record">
-      <div className="review-branch-record-heading">
+    <section aria-label="Branch record" className={REVIEW_BRANCH_RECORD_CLASS}>
+      <div className={REVIEW_BRANCH_HEADING_CLASS}>
         <span className="eyebrow">Branch record</span>
         <strong>{branchScope?.branch ?? reviewBranch ?? "detached"}</strong>
         <code>
@@ -158,7 +171,7 @@ export function ReviewBranchRecord({
           {branchRecordError ? "local-only fallback" : "durable local"}
         </Badge>
       </div>
-      <div className="review-branch-evidence">
+      <div className={REVIEW_BRANCH_EVIDENCE_CLASS}>
         <span>
           <strong>{checkSummary.passing}</strong> checks passing
         </span>
@@ -175,7 +188,7 @@ export function ReviewBranchRecord({
           <strong>{openCommentCount}</strong> open notes
         </span>
       </div>
-      <ol className="review-branch-events">
+      <ol className={REVIEW_BRANCH_EVENTS_CLASS}>
         {events.length > 0 ? (
           events.map((event) => (
             <li key={event.id}>

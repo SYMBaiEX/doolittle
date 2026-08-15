@@ -18,6 +18,7 @@ import { errorMessage } from "../lib";
 import { compactWorkspacePath } from "../workspace-path";
 import { InteractiveTerminalHeader } from "./InteractiveTerminalHeader";
 import { InteractiveTerminalSurface } from "./InteractiveTerminalSurface";
+import { INTERACTIVE_TERMINAL_ROOT_CLASS } from "./interactive-terminal-layout";
 import {
   appendTerminalBytes as appendTerminalOutputBytes,
   closeTerminalTabState,
@@ -33,7 +34,6 @@ import {
   resolveInteractiveTerminalWorkspaceState,
   saveInteractiveTerminalState,
 } from "./interactive-terminal-store";
-import "./interactive-terminal.css";
 
 export function appendTerminalBytes(
   output: string,
@@ -698,7 +698,11 @@ export function InteractiveTerminal({
     : "No terminal";
 
   return (
-    <section className="interactive-terminal" aria-label="Interactive terminal">
+    <section
+      aria-label="Interactive terminal"
+      className={INTERACTIVE_TERMINAL_ROOT_CLASS}
+      data-interactive-terminal=""
+    >
       <InteractiveTerminalHeader
         active={active}
         activeCwdLabel={

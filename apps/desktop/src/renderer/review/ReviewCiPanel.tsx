@@ -6,6 +6,14 @@ import {
   displayTimestamp,
   EmptyBlock,
 } from "../lib";
+import {
+  REVIEW_ADDITIONS_CLASS,
+  REVIEW_CI_CHECKS_CLASS,
+  REVIEW_CI_HERO_CLASS,
+  REVIEW_DELETIONS_CLASS,
+  REVIEW_DETAIL_BODY_CLASS,
+  REVIEW_FACTS_CLASS,
+} from "./layout";
 import { checkDisplayStatus, type ReviewItem, statusTone } from "./models";
 
 export interface ReviewCiPanelProps {
@@ -15,7 +23,7 @@ export interface ReviewCiPanelProps {
 
 export function ReviewCiPanel({ selected, review }: ReviewCiPanelProps) {
   return (
-    <div className="review-ci-detail">
+    <div className={`${REVIEW_DETAIL_BODY_CLASS} review-ci-detail`}>
       {asString(selected.raw.category) === "pull-request" ? (
         <PullRequestReview selected={selected} review={review} />
       ) : (
@@ -28,7 +36,7 @@ export function ReviewCiPanel({ selected, review }: ReviewCiPanelProps) {
 function PullRequestReview({ selected, review }: ReviewCiPanelProps) {
   return (
     <>
-      <div className="review-ci-hero">
+      <div className={REVIEW_CI_HERO_CLASS}>
         <div>
           <span>Pull request</span>
           <strong>
@@ -40,7 +48,7 @@ function PullRequestReview({ selected, review }: ReviewCiPanelProps) {
           Open on GitHub ↗
         </a>
       </div>
-      <dl className="review-facts">
+      <dl className={REVIEW_FACTS_CLASS}>
         <div>
           <dt>Review</dt>
           <dd>
@@ -58,10 +66,10 @@ function PullRequestReview({ selected, review }: ReviewCiPanelProps) {
         <div>
           <dt>Changes</dt>
           <dd>
-            <span className="review-additions">
+            <span className={REVIEW_ADDITIONS_CLASS}>
               +{asNumber(selected.raw.additions)}
             </span>{" "}
-            <span className="review-deletions">
+            <span className={REVIEW_DELETIONS_CLASS}>
               −{asNumber(selected.raw.deletions)}
             </span>{" "}
             across {asNumber(selected.raw.changedFiles)} files
@@ -75,7 +83,7 @@ function PullRequestReview({ selected, review }: ReviewCiPanelProps) {
           </dd>
         </div>
       </dl>
-      <div className="review-ci-checks">
+      <div className={REVIEW_CI_CHECKS_CLASS}>
         <div>
           <span>Checks</span>
           <small>{review?.checks.length ?? 0}</small>
@@ -127,7 +135,7 @@ function PullRequestReview({ selected, review }: ReviewCiPanelProps) {
 function CheckOrWorkflowReview({ selected, review }: ReviewCiPanelProps) {
   return (
     <>
-      <div className="review-ci-hero">
+      <div className={REVIEW_CI_HERO_CLASS}>
         <div>
           <span>
             {asString(selected.raw.category) === "check"
@@ -142,7 +150,7 @@ function CheckOrWorkflowReview({ selected, review }: ReviewCiPanelProps) {
           </a>
         ) : null}
       </div>
-      <dl className="review-facts">
+      <dl className={REVIEW_FACTS_CLASS}>
         <div>
           <dt>Status</dt>
           <dd>{selected.status}</dd>

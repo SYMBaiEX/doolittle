@@ -38,7 +38,9 @@ describe("ChatTerminalPanel", () => {
     expect(markup).toContain('aria-label="Chat terminal panel"');
     expect(markup).toContain('data-open="true"');
     expect(markup).not.toContain("inert");
-    expect(markup).toContain("--chat-terminal-height:320px");
+    expect(markup).toContain("height:320px");
+    expect(markup).toContain("max-h-[58vh]");
+    expect(markup).toContain("motion-reduce:duration-[0.01ms]");
     expect(markup).toContain('aria-orientation="horizontal"');
     expect(markup).toContain('data-auto-start="true"');
     expect(markup).toContain('data-shortcut="⌘J"');
@@ -60,5 +62,7 @@ describe("ChatTerminalPanel", () => {
 
     expect(markup).toContain('data-open="false"');
     expect(markup).toContain("inert");
+    expect(markup).toContain("height:0px");
+    expect(markup).toContain("pointer-events-none");
   });
 });

@@ -1,60 +1,27 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import {
+  COMMAND_PALETTE_LOADING_BACKDROP_CLASS,
+  COMMAND_PALETTE_LOADING_STATUS_CLASS,
+} from "./app-shell/command-palette-loading-layout";
+import {
+  COMMAND_PALETTE_CLASS,
+  COMMAND_PALETTE_ITEM_CLASS,
+  ROUTE_DIALOG_BACKDROP_CLASS,
+  ROUTE_DIALOG_CLASS,
+  ROUTE_PROVIDER_CARD_CLASS,
+} from "./app-shell/overlay-layout";
 
 const readSource = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8");
 
-const experienceCss = readSource("./experience.css");
-const elizaUiCss = readSource("./eliza-ui.css");
-const shellOverlaysCss = readSource("./shell-overlays.css");
 const mainSource = readSource("./main.tsx");
 const appSource = readSource("./App.tsx");
 const commandPaletteSource = readSource("./components/CommandPalette.tsx");
 const routeDialogSource = readSource("./components/RouteControlDialog.tsx");
 const shortcutHintSource = readSource("./components/ShortcutHint.tsx");
 
-const exactClassSelector = (name: string) =>
-  new RegExp(`\\.${name}(?![-\\w])`, "u");
-
-const commandPaletteSelectors = [
-  "command-palette",
-  "command-palette__header",
-  "command-palette__heading",
-  "command-palette__mark",
-  "command-palette__title",
-  "command-palette__close",
-  "command-palette__label",
-  "command-palette__sr-only",
-  "command-palette__search-shell",
-  "command-palette__search-icon",
-  "command-palette__search",
-  "command-palette__scroll",
-  "command-palette__list",
-  "command-palette__group",
-  "command-palette__group-label",
-  "command-palette__item",
-  "command-palette__item-label",
-  "command-palette__item-description",
-  "command-palette__item-shortcut",
-  "command-palette__footer",
-  "command-palette__key-guide",
-  "command-palette__empty",
-  "command-shortcut__key",
-] as const;
-
-const routeDialogSelectors = [
-  "dialog-backdrop",
-  "route-control-dialog",
-  "route-control-header",
-  "route-control-form",
-  "route-control-status",
-  "route-provider-grid",
-  "route-provider-card",
-  "route-provider-readiness",
-  "route-control-actions",
-] as const;
-
-describe("desktop shell overlay CSS ownership", () => {
+describe("desktop shell overlay Tailwind ownership", () => {
   it("keeps the command palette out of the initial renderer entry", () => {
     expect(appSource).not.toContain(
       'import { CommandPalette } from "./components/CommandPalette"',
@@ -73,85 +40,46 @@ describe("desktop shell overlay CSS ownership", () => {
     );
   });
 
-  it("keeps the first-load fallback modal, centered, and motion-safe", () => {
-    for (const selector of [
-      "command-palette-loading-backdrop",
-      "command-palette-loading",
-      "command-palette-loading__header",
-      "command-palette-loading__status",
-    ]) {
-      expect(shellOverlaysCss).toMatch(exactClassSelector(selector));
-      expect(appSource).toContain(selector);
-    }
-    expect(shellOverlaysCss).toMatch(
-      /\.command-palette-loading-backdrop\s*\{[\s\S]*position: fixed;[\s\S]*place-items: center;/u,
+  it("uses Tailwind contracts for the loading fallback", () => {
+    expect(COMMAND_PALETTE_LOADING_BACKDROP_CLASS).toContain("fixed inset-0");
+    expect(COMMAND_PALETTE_LOADING_BACKDROP_CLASS).toContain(
+      "place-items-center",
     );
-    expect(shellOverlaysCss).toMatch(
-      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.command-palette-loading/u,
-    );
+    expect(COMMAND_PALETTE_LOADING_STATUS_CLASS).toContain("animate-pulse");
+    expect(COMMAND_PALETTE_LOADING_STATUS_CLASS).toContain("motion-reduce:");
+    expect(appSource).toContain("COMMAND_PALETTE_LOADING_BACKDROP_CLASS");
     expect(appSource).toContain('aria-modal="true"');
     expect(appSource).toContain('role="dialog"');
     expect(appSource).toContain('role="status"');
     expect(appSource).toContain('event.key === "Escape"');
   });
 
-  it("loads overlays immediately after the experience layer", () => {
-    expect(mainSource).toContain(
-      'import "./experience.css";\nimport "./shell-overlays.css";\nimport "./recovery.css";',
-    );
+  it("owns palette and route dialog layout without a stylesheet", () => {
+    expect(mainSource).not.toContain('import "./shell-overlays.css"');
+    expect(COMMAND_PALETTE_CLASS).toContain("w-[min(620px,calc(100vw-32px))]");
+    expect(COMMAND_PALETTE_ITEM_CLASS).toContain("aria-selected:");
+    expect(ROUTE_DIALOG_BACKDROP_CLASS).toContain("max-[760px]:items-end");
+    expect(ROUTE_DIALOG_CLASS).toContain("max-[760px]:max-h-");
+    expect(ROUTE_PROVIDER_CARD_CLASS).toContain("hover:-translate-y-px");
   });
 
-  it("keeps command and route dialog selectors out of experience.css", () => {
-    for (const selector of [
-      ...commandPaletteSelectors,
-      ...routeDialogSelectors,
-    ]) {
-      expect(shellOverlaysCss).toMatch(exactClassSelector(selector));
-      expect(experienceCss).not.toMatch(exactClassSelector(selector));
-    }
-
-    expect(experienceCss).not.toMatch(/command-menu-(?:in|out)/u);
-    expect(experienceCss).not.toMatch(/(?:dialog-backdrop|route-control)-in/u);
-    expect(shellOverlaysCss).not.toMatch(/\.chat[-_]/u);
-  });
-
-  it("owns the command palette portal structure without cascade dependencies", () => {
+  it("keeps semantic selectors reachable from renderer markup", () => {
     for (const contract of [
-      '.command-palette[role="dialog"]',
-      'body > [data-state]:has(+ .command-palette[role="dialog"])',
-      "@keyframes command-overlay-in",
-      "@keyframes command-overlay-out",
+      "COMMAND_PALETTE_CLASS",
+      "COMMAND_PALETTE_HEADER_CLASS",
+      "COMMAND_PALETTE_ITEM_CLASS",
+      "COMMAND_PALETTE_FOOTER_CLASS",
     ]) {
-      expect(shellOverlaysCss).toContain(contract);
-      expect(elizaUiCss).not.toContain(contract);
+      expect(commandPaletteSource).toContain(contract);
     }
-  });
-
-  it("keeps every moved selector reachable from its renderer", () => {
-    for (const selector of commandPaletteSelectors) {
-      const source =
-        selector === "command-shortcut__key"
-          ? shortcutHintSource
-          : commandPaletteSource;
-      expect(source).toContain(selector);
+    expect(shortcutHintSource).toContain("COMMAND_SHORTCUT_KEY_CLASS");
+    for (const contract of [
+      "ROUTE_DIALOG_BACKDROP_CLASS",
+      "ROUTE_DIALOG_CLASS",
+      "ROUTE_PROVIDER_CARD_CLASS",
+      "ROUTE_DIALOG_ACTIONS_CLASS",
+    ]) {
+      expect(routeDialogSource).toContain(contract);
     }
-
-    for (const selector of routeDialogSelectors) {
-      expect(routeDialogSource).toContain(selector);
-    }
-  });
-
-  it("retains the overlay-specific animation and responsive contracts", () => {
-    expect(shellOverlaysCss).toContain("@keyframes command-menu-in");
-    expect(shellOverlaysCss).toContain("@keyframes command-menu-out");
-    expect(shellOverlaysCss).toContain("@keyframes command-overlay-in");
-    expect(shellOverlaysCss).toContain("@keyframes command-overlay-out");
-    expect(shellOverlaysCss).toContain("@keyframes dialog-backdrop-in");
-    expect(shellOverlaysCss).toContain("@keyframes route-control-in");
-    expect(shellOverlaysCss).toContain("@media (max-width: 760px)");
-    expect(shellOverlaysCss).toContain(
-      "@media (prefers-reduced-motion: reduce)",
-    );
-    expect(shellOverlaysCss).toContain('.command-palette[data-state="closed"]');
   });
 });

@@ -16,6 +16,45 @@ import {
 import { Icon } from "../lib";
 import { APP_SIDEBAR_WIDTH } from "../panel-layout";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
+import {
+  APP_BRAND_CLASS,
+  APP_BRAND_COLLAPSED_CLASS,
+  APP_BRAND_COPY_CLASS,
+  APP_BRAND_MARK_CLASS,
+  APP_SIDEBAR_CLASS,
+  APP_SIDEBAR_COLLAPSED_CLASS,
+  APP_SIDEBAR_DARWIN_CLASS,
+  APP_SIDEBAR_MOBILE_CLASS,
+  APP_SIDEBAR_MOBILE_CLOSED_CLASS,
+  APP_SIDEBAR_MOBILE_OPEN_CLASS,
+  ICON_BUTTON_CLASS,
+  SIDEBAR_ACCOUNT_ARROW_CLASS,
+  SIDEBAR_ACCOUNT_CLASS,
+  SIDEBAR_ACCOUNT_SELECTED_CLASS,
+  SIDEBAR_APPEARANCE_CLASS,
+  SIDEBAR_COLLAPSE_CLASS,
+  SIDEBAR_COLLAPSE_COLLAPSED_CLASS,
+  SIDEBAR_DOCK_HEADING_CLASS,
+  SIDEBAR_FOCUS_NAV_CLASS,
+  SIDEBAR_FOOTER_ACTIONS_CLASS,
+  SIDEBAR_FOOTER_CLASS,
+  SIDEBAR_MODE_BUTTON_CLASS,
+  SIDEBAR_MODE_BUTTON_SELECTED_CLASS,
+  SIDEBAR_MODE_SIGNAL_CLASS,
+  SIDEBAR_MODE_SIGNAL_SELECTED_CLASS,
+  SIDEBAR_MODE_SWITCH_CLASS,
+  SIDEBAR_QUICK_ACTIONS_CLASS,
+  SIDEBAR_QUICK_ACTIONS_COLLAPSED_CLASS,
+  SIDEBAR_SCRIM_CLASS,
+  SIDEBAR_SCRIM_HIDDEN_CLASS,
+  SIDEBAR_SCRIM_VISIBLE_CLASS,
+  SIDEBAR_UTILITY_BUTTON_CLASS,
+  SIDEBAR_UTILITY_BUTTON_OPEN_CLASS,
+  SIDEBAR_UTILITY_COPY_CLASS,
+  SIDEBAR_UTILITY_MARK_CLASS,
+  SIDEBAR_UTILITY_MARK_OPEN_CLASS,
+  SIDEBAR_UTILITY_SHORTCUT_CLASS,
+} from "./shell-layout";
 
 type DesktopPlatform = DoolittleDesktopBridge["platform"];
 
@@ -90,6 +129,7 @@ export function DesktopSidebar({
   utilityOpen,
   onToggleAppearance,
 }: DesktopSidebarProps) {
+  const compact = navCollapsed && !isMobileSidebarMode;
   const mobileSidebarDialogProps = mobileSidebarOpen
     ? ({ "aria-modal": true, role: "dialog" } as const)
     : {};
@@ -98,7 +138,11 @@ export function DesktopSidebar({
     <>
       <button
         aria-label="Close navigation"
-        className={`sidebar-scrim ${sidebarOpen ? "visible" : ""}`}
+        className={`${SIDEBAR_SCRIM_CLASS} ${
+          mobileSidebarOpen
+            ? SIDEBAR_SCRIM_VISIBLE_CLASS
+            : SIDEBAR_SCRIM_HIDDEN_CLASS
+        }`}
         onClick={onClose}
         tabIndex={sidebarOpen ? 0 : -1}
         type="button"
@@ -109,7 +153,17 @@ export function DesktopSidebar({
           isMobileSidebarMode && !mobileSidebarOpen ? true : undefined
         }
         aria-label={mobileSidebarOpen ? "Application navigation" : undefined}
-        className={`app-sidebar ${sidebarOpen ? "open" : ""}`}
+        className={`${APP_SIDEBAR_CLASS}${
+          platform === "darwin" ? ` ${APP_SIDEBAR_DARWIN_CLASS}` : ""
+        }${
+          isMobileSidebarMode
+            ? ` ${APP_SIDEBAR_MOBILE_CLASS} ${
+                mobileSidebarOpen
+                  ? APP_SIDEBAR_MOBILE_OPEN_CLASS
+                  : APP_SIDEBAR_MOBILE_CLOSED_CLASS
+              }`
+            : ""
+        }${compact ? ` ${APP_SIDEBAR_COLLAPSED_CLASS}` : ""}`}
         onKeyDown={onSidebarKeyDown}
         ref={sidebarRef}
       >
@@ -123,12 +177,16 @@ export function DesktopSidebar({
             value={sidebarWidth}
           />
         ) : null}
-        <div className="app-brand">
-          <div className="app-brand-mark" aria-hidden="true">
+        <div
+          className={`${APP_BRAND_CLASS}${
+            compact ? ` ${APP_BRAND_COLLAPSED_CLASS}` : ""
+          }`}
+        >
+          <div className={APP_BRAND_MARK_CLASS} aria-hidden="true">
             <span>D</span>
             <i />
           </div>
-          <div className="app-brand-copy">
+          <div className={APP_BRAND_COPY_CLASS}>
             <strong>Doolittle</strong>
             <span>{"ElizaOS // desktop"}</span>
           </div>
@@ -136,7 +194,9 @@ export function DesktopSidebar({
             aria-label={
               navCollapsed ? "Expand navigation" : "Collapse navigation"
             }
-            className="sidebar-collapse"
+            className={`${SIDEBAR_COLLAPSE_CLASS}${
+              compact ? ` ${SIDEBAR_COLLAPSE_COLLAPSED_CLASS}` : ""
+            }`}
             onClick={onToggleNavigation}
             title={navCollapsed ? "Expand navigation" : "Collapse navigation"}
             type="button"
@@ -144,7 +204,11 @@ export function DesktopSidebar({
             {navCollapsed ? "›" : "‹"}
           </button>
         </div>
-        <div className="sidebar-quick-actions">
+        <div
+          className={`${SIDEBAR_QUICK_ACTIONS_CLASS}${
+            compact ? ` ${SIDEBAR_QUICK_ACTIONS_COLLAPSED_CLASS}` : ""
+          }`}
+        >
           <NewConversationControl
             activeScope={projectScope}
             isOpen={newConversationMenuOpen}
@@ -188,17 +252,21 @@ export function DesktopSidebar({
           selectedSessionId={selectedSession}
           sessions={sessions}
         />
-        <nav className="sidebar-focus-nav" aria-label="Primary workspace">
-          <div aria-hidden="true" className="sidebar-dock-heading">
+        <nav className={SIDEBAR_FOCUS_NAV_CLASS} aria-label="Primary workspace">
+          <div aria-hidden="true" className={SIDEBAR_DOCK_HEADING_CLASS}>
             <span>Operator deck</span>
             <i>{"//"}</i>
           </div>
-          <fieldset className="sidebar-mode-switch">
+          <fieldset className={SIDEBAR_MODE_SWITCH_CLASS}>
             <legend className="sr-only">Workspace modes</legend>
             {PRIMARY_NAV_ITEMS.map((item) => (
               <button
                 aria-current={navigationView === item.id ? "page" : undefined}
-                className={navigationView === item.id ? "selected" : ""}
+                className={`${SIDEBAR_MODE_BUTTON_CLASS}${
+                  navigationView === item.id
+                    ? ` ${SIDEBAR_MODE_BUTTON_SELECTED_CLASS}`
+                    : ""
+                }`}
                 key={item.id}
                 onClick={() => onSetView(item.id)}
                 onFocus={() => onPreloadView(item.id)}
@@ -209,33 +277,49 @@ export function DesktopSidebar({
               >
                 <Icon name={item.id} />
                 <span>{item.label}</span>
-                <i aria-hidden="true" className="sidebar-mode-signal" />
+                <i
+                  aria-hidden="true"
+                  className={`${SIDEBAR_MODE_SIGNAL_CLASS}${
+                    navigationView === item.id
+                      ? ` ${SIDEBAR_MODE_SIGNAL_SELECTED_CLASS}`
+                      : ""
+                  }`}
+                />
               </button>
             ))}
           </fieldset>
           <button
             aria-expanded={utilityOpen}
-            className={`sidebar-utility-button${utilityOpen ? " is-open" : ""}`}
+            className={`${SIDEBAR_UTILITY_BUTTON_CLASS}${
+              utilityOpen ? ` ${SIDEBAR_UTILITY_BUTTON_OPEN_CLASS}` : ""
+            }`}
             onClick={onToggleUtilities}
             title="Open every Doolittle tool and setting"
             type="button"
           >
-            <span aria-hidden="true" className="sidebar-utility-mark">
+            <span
+              aria-hidden="true"
+              className={`${SIDEBAR_UTILITY_MARK_CLASS}${
+                utilityOpen ? ` ${SIDEBAR_UTILITY_MARK_OPEN_CLASS}` : ""
+              }`}
+            >
               <Icon name="tools" />
             </span>
-            <span className="sidebar-utility-copy">
+            <span className={SIDEBAR_UTILITY_COPY_CLASS}>
               <strong>Tools & settings</strong>
               <small>Models · runtime · skills</small>
             </span>
-            <kbd className="sidebar-utility-shortcut">⌘</kbd>
+            <kbd className={SIDEBAR_UTILITY_SHORTCUT_CLASS}>⌘</kbd>
           </button>
         </nav>
-        <div className="sidebar-footer">
-          <div className="sidebar-footer-actions">
+        <div className={SIDEBAR_FOOTER_CLASS}>
+          <div className={SIDEBAR_FOOTER_ACTIONS_CLASS}>
             <button
               aria-current={view === "settings" ? "page" : undefined}
               aria-label="Open settings"
-              className={`sidebar-account${view === "settings" ? " selected" : ""}`}
+              className={`${SIDEBAR_ACCOUNT_CLASS}${
+                view === "settings" ? ` ${SIDEBAR_ACCOUNT_SELECTED_CLASS}` : ""
+              }`}
               onClick={() => onSetView("settings")}
               onFocus={() => onPreloadView("settings")}
               onPointerDown={() => onPreloadView("settings")}
@@ -250,7 +334,7 @@ export function DesktopSidebar({
                   {workspaceName(workspacePath)}
                 </small>
               </div>
-              <i aria-hidden="true" className="sidebar-account-arrow">
+              <i aria-hidden="true" className={SIDEBAR_ACCOUNT_ARROW_CLASS}>
                 ›
               </i>
             </button>
@@ -258,7 +342,7 @@ export function DesktopSidebar({
               aria-label={`Use ${
                 resolvedAppearance === "dark" ? "light" : "dark"
               } appearance`}
-              className="icon-button sidebar-appearance-toggle"
+              className={`${ICON_BUTTON_CLASS} ${SIDEBAR_APPEARANCE_CLASS}`}
               onClick={onToggleAppearance}
               title="Toggle appearance"
               type="button"

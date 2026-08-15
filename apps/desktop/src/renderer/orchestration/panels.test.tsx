@@ -271,12 +271,8 @@ describe("orchestration presentational panels", () => {
     expect(markup).toContain("More actions");
     expect(markup).toContain("Task controls");
     expect(markup).toContain("orchestration-task-workspace");
-    expect(markup).toContain(
-      '<details class="orchestration-task-diagnostics">',
-    );
-    expect(markup).not.toContain(
-      '<details class="orchestration-task-diagnostics" open="">',
-    );
+    expect(markup).toContain("orchestration-task-diagnostics");
+    expect(markup).not.toContain('open=""');
     expect(markup).toContain("IDs, session, account, and runtime diagnostics");
     expect(markup).toContain("/workspace/project");
     expect(markup).toContain("research.md");

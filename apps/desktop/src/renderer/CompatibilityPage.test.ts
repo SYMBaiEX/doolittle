@@ -51,15 +51,14 @@ describe("compatibilityCatalogEntries", () => {
       new URL("./CompatibilityPage.tsx", import.meta.url),
       "utf8",
     );
-    const styles = readFileSync(
-      new URL("./diagnostics-pages.css", import.meta.url),
+    const layout = readFileSync(
+      new URL("./diagnostics-layout.ts", import.meta.url),
       "utf8",
     );
 
     expect(source).toContain("<CompatibilityEmptyState");
     expect(source).toContain('className="page compatibility-page"');
-    expect(styles).toMatch(
-      /\.compatibility-empty\s*\{[^}]*min-height:\s*52px;[^}]*grid-template-columns:\s*auto minmax\(0, 1fr\) auto;/su,
-    );
+    expect(layout).toContain("min-h-[52px]");
+    expect(layout).toContain("grid-cols-[auto_minmax(0,1fr)_auto]");
   });
 });

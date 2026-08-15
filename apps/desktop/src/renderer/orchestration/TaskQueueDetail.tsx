@@ -16,6 +16,7 @@ import {
   SmallEmpty,
   statusTone,
 } from "./detail-primitives";
+import { orchestrationClass as oc } from "./layout";
 import type { ConfirmedAction, TaskAction } from "./models";
 
 export type TaskQueueDetailProps = {
@@ -79,9 +80,9 @@ export function TaskQueueDetail({
   const notes = asArray(selectedTask.notes);
   return (
     <>
-      <div className="orchestration-detail-header">
+      <div className={oc("orchestration-detail-header")}>
         <div>
-          <span className="detail-kicker">
+          <span className={oc("detail-kicker")}>
             {asString(selectedTask.group, "ungrouped")} /{" "}
             {taskCapabilityLabel(
               selectedTask.capabilityProfile,
@@ -99,7 +100,12 @@ export function TaskQueueDetail({
         <Badge tone={statusTone(status)}>{status}</Badge>
       </div>
 
-      <div className="orchestration-detail-tags orchestration-detail-facts">
+      <div
+        className={oc(
+          "orchestration-detail-tags",
+          "orchestration-detail-facts",
+        )}
+      >
         <DetailTag tone={statusTone(status)}>
           {orchestrationTimingLabel({
             status,
@@ -128,10 +134,10 @@ export function TaskQueueDetail({
         </DetailTag>
       </div>
 
-      <section className="orchestration-action-card">
-        <span className="detail-kicker">Task controls</span>
-        <div className="orchestration-action-deck">
-          <div className="orchestration-action-main">
+      <section className={oc("orchestration-action-card")}>
+        <span className={oc("detail-kicker")}>Task controls</span>
+        <div className={oc("orchestration-action-deck")}>
+          <div className={oc("orchestration-action-main")}>
             {(["execute", "run", "complete"] as const).map((action) => (
               <button
                 className={
@@ -152,7 +158,7 @@ export function TaskQueueDetail({
               </button>
             ))}
           </div>
-          <div className="orchestration-action-secondary">
+          <div className={oc("orchestration-action-secondary")}>
             <button
               className="text-button"
               type="button"
@@ -175,9 +181,9 @@ export function TaskQueueDetail({
             >
               Add child
             </button>
-            <details className="orchestration-action-overflow">
+            <details className={oc("orchestration-action-overflow")}>
               <summary>More actions</summary>
-              <div className="orchestration-action-overflow__body">
+              <div className={oc("orchestration-action-overflow__body")}>
                 <button
                   className="text-button danger-text-button"
                   type="button"
@@ -216,7 +222,7 @@ export function TaskQueueDetail({
 
       {confirmedAction?.taskId === selectedTask.id ? (
         <div
-          className="orchestration-confirm"
+          className={oc("orchestration-confirm")}
           aria-live="polite"
           ref={confirmDialogRef}
           tabIndex={-1}
@@ -263,7 +269,10 @@ export function TaskQueueDetail({
       ) : null}
 
       {showChildCreate ? (
-        <form className="orchestration-inline-form" onSubmit={onSubmitSpawn}>
+        <form
+          className={oc("orchestration-inline-form")}
+          onSubmit={onSubmitSpawn}
+        >
           <label>
             <span>Child title</span>
             <input
@@ -317,17 +326,27 @@ export function TaskQueueDetail({
         </form>
       ) : null}
 
-      <div className="orchestration-task-workspace">
-        <section className="orchestration-evidence orchestration-workspace-card">
-          <span className="detail-kicker">Evidence</span>
+      <div className={oc("orchestration-task-workspace")}>
+        <section
+          className={oc(
+            "orchestration-evidence",
+            "orchestration-workspace-card",
+          )}
+        >
+          <span className={oc("detail-kicker")}>Evidence</span>
           {selectedTask.lastOutputPath ? (
             <code>{selectedTask.lastOutputPath}</code>
           ) : (
             <SmallEmpty>No artifact path reported.</SmallEmpty>
           )}
         </section>
-        <section className="orchestration-evidence orchestration-workspace-card">
-          <span className="detail-kicker">Task notes</span>
+        <section
+          className={oc(
+            "orchestration-evidence",
+            "orchestration-workspace-card",
+          )}
+        >
+          <span className={oc("detail-kicker")}>Task notes</span>
           {notes.length > 0 ? (
             <ul>
               {notes.slice(-5).map((note) => (
@@ -339,7 +358,10 @@ export function TaskQueueDetail({
           ) : (
             <SmallEmpty>No notes recorded.</SmallEmpty>
           )}
-          <form className="orchestration-note-composer" onSubmit={onSubmitNote}>
+          <form
+            className={oc("orchestration-note-composer")}
+            onSubmit={onSubmitNote}
+          >
             <label>
               <span>Operator note</span>
               <textarea
@@ -369,7 +391,7 @@ export function TaskQueueDetail({
         </section>
       </div>
 
-      <details className="orchestration-task-diagnostics">
+      <details className={oc("orchestration-task-diagnostics")}>
         <summary>
           <span>
             <strong>Execution details</strong>

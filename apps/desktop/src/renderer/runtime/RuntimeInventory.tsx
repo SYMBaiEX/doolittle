@@ -14,6 +14,14 @@ import {
   titleCase,
   type UnknownRecord,
 } from "../lib";
+import {
+  RUNTIME_CARD_CLASS,
+  RUNTIME_CARD_HEADING_CLASS,
+  RUNTIME_COMPACT_LIST_CLASS,
+  RUNTIME_INVENTORY_GRID_CLASS,
+  RUNTIME_SECTION_STACK_CLASS,
+  RUNTIME_STATUS_ROW_CLASS,
+} from "./runtime-layout";
 
 export function RuntimeInventory({
   active = true,
@@ -41,7 +49,7 @@ export function RuntimeInventory({
   const ownershipPayload = asRecord(insightPayload.ownership);
 
   return (
-    <div className="runtime-section-stack">
+    <div className={RUNTIME_SECTION_STACK_CLASS}>
       <CompactStatStrip
         label="Runtime inventory summary"
         stats={[
@@ -57,9 +65,9 @@ export function RuntimeInventory({
         ]}
       />
 
-      <div className="runtime-inventory-grid">
-        <section className="content-card">
-          <div className="card-heading">
+      <div className={RUNTIME_INVENTORY_GRID_CLASS}>
+        <section className={RUNTIME_CARD_CLASS}>
+          <div className={RUNTIME_CARD_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Plugins</span>
               <h2>Capability catalog</h2>
@@ -71,10 +79,10 @@ export function RuntimeInventory({
           ) : plugins.error ? (
             <ErrorBlock error={plugins.error} retry={plugins.reload} />
           ) : catalog.length ? (
-            <div className="runtime-compact-list">
+            <div className={RUNTIME_COMPACT_LIST_CLASS}>
               {catalog.slice(0, 12).map((entry, index) => (
                 <div
-                  className="status-row"
+                  className={RUNTIME_STATUS_ROW_CLASS}
                   key={asString(entry.id, String(index))}
                 >
                   <div>
@@ -93,8 +101,8 @@ export function RuntimeInventory({
           )}
         </section>
 
-        <section className="content-card">
-          <div className="card-heading">
+        <section className={RUNTIME_CARD_CLASS}>
+          <div className={RUNTIME_CARD_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Ecosystem</span>
               <h2>Runtime snapshot</h2>
@@ -107,11 +115,11 @@ export function RuntimeInventory({
             <ErrorBlock error={ecosystem.error} retry={ecosystem.reload} />
           ) : (
             <>
-              <div className="runtime-compact-list">
+              <div className={RUNTIME_COMPACT_LIST_CLASS}>
                 {Object.entries(ecosystemPayload)
                   .slice(0, 8)
                   .map(([key, value]) => (
-                    <div className="status-row" key={key}>
+                    <div className={RUNTIME_STATUS_ROW_CLASS} key={key}>
                       <div>
                         <strong>{titleCase(key)}</strong>
                         <small>{describeInventoryValue(value)}</small>
@@ -127,8 +135,8 @@ export function RuntimeInventory({
           )}
         </section>
 
-        <section className="content-card">
-          <div className="card-heading">
+        <section className={RUNTIME_CARD_CLASS}>
+          <div className={RUNTIME_CARD_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Operator</span>
               <h2>Ownership insight</h2>
@@ -141,11 +149,11 @@ export function RuntimeInventory({
             <ErrorBlock error={insights.error} retry={insights.reload} />
           ) : (
             <>
-              <div className="runtime-compact-list">
+              <div className={RUNTIME_COMPACT_LIST_CLASS}>
                 {Object.entries(ownershipPayload)
                   .slice(0, 8)
                   .map(([key, value]) => (
-                    <div className="status-row" key={key}>
+                    <div className={RUNTIME_STATUS_ROW_CLASS} key={key}>
                       <div>
                         <strong>{titleCase(key)}</strong>
                         <small>{describeInventoryValue(value)}</small>

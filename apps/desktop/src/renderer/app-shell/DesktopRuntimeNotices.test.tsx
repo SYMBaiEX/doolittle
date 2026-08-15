@@ -26,13 +26,12 @@ describe("DesktopRuntimeNotices", () => {
       />,
     );
 
-    expect(markup).toContain(
-      '<div aria-atomic="true" aria-label="Local runtime unavailable" aria-live="polite" class="runtime-banner" role="status">',
-    );
-    expect(markup).toContain(
-      '<div aria-atomic="true" aria-label="Application error" class="global-error" role="alert">',
-    );
-    expect(markup).not.toContain('class="global-error" aria-live=');
+    expect(markup).toContain('aria-label="Local runtime unavailable"');
+    expect(markup).toContain('aria-live="polite"');
+    expect(markup).toContain('role="status"');
+    expect(markup).toContain('aria-label="Application error"');
+    expect(markup).toContain('role="alert"');
+    expect(markup).not.toMatch(/aria-label="Application error"[^>]*aria-live/u);
   });
 
   it("keeps notices hidden when healthy and preserves action labels", () => {

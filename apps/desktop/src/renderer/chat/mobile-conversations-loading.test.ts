@@ -22,7 +22,7 @@ describe("mobile conversations loading boundary", () => {
     expect(source).toContain("dialogRef={mobileConversationsDialogRef}");
     expect(source).toContain("Loading conversations…");
     expect(source).toContain("data-mobile-conversation");
-    expect(source).toContain("chat-mobile-conversations-dismiss");
+    expect(source).toContain("MOBILE_CONVERSATIONS_DISMISS_CLASS");
     expect(source).toContain(
       "onClose={() => setMobileConversationsOpen(false)}",
     );

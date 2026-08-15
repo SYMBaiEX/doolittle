@@ -2,6 +2,14 @@ import type {
   DesktopLifecycleState,
   DesktopUpdateState,
 } from "../../shared/contracts";
+import {
+  SETTINGS_GROUP_CLASS,
+  SETTINGS_ROW_LAYOUT_CLASS,
+  SETTINGS_SWITCH_CLASS,
+  SETTINGS_SWITCH_INPUT_CLASS,
+  SETTINGS_SWITCH_LABEL_CLASS,
+  SETTINGS_SWITCH_TRACK_CLASS,
+} from "./settings-layout";
 
 export interface DesktopSettingsPanelProps {
   lifecycle: DesktopLifecycleState | null;
@@ -23,7 +31,7 @@ export function DesktopSettingsPanel({
   onInstallUpdate,
 }: DesktopSettingsPanelProps) {
   return (
-    <section className="settings-group">
+    <section className={SETTINGS_GROUP_CLASS}>
       <div className="settings-group-heading">
         <div>
           <span className="eyebrow">Desktop</span>
@@ -31,7 +39,7 @@ export function DesktopSettingsPanel({
         </div>
       </div>
       <div className="settings-rows">
-        <div className="setting-row">
+        <div className={SETTINGS_ROW_LAYOUT_CLASS}>
           <div className="setting-copy">
             <strong>Keep running in the background</strong>
             <small>
@@ -40,19 +48,22 @@ export function DesktopSettingsPanel({
             </small>
           </div>
           <div className="setting-control">
-            <label className="switch">
+            <label className={SETTINGS_SWITCH_CLASS}>
               <input
                 checked={lifecycle?.keepRunningInBackground ?? false}
+                className={SETTINGS_SWITCH_INPUT_CLASS}
                 disabled={!lifecycle}
                 type="checkbox"
                 onChange={(event) => onBackgroundChange(event.target.checked)}
               />
-              <i />
-              <span>{lifecycle?.keepRunningInBackground ? "On" : "Off"}</span>
+              <i className={SETTINGS_SWITCH_TRACK_CLASS} />
+              <span className={SETTINGS_SWITCH_LABEL_CLASS}>
+                {lifecycle?.keepRunningInBackground ? "On" : "Off"}
+              </span>
             </label>
           </div>
         </div>
-        <div className="setting-row">
+        <div className={SETTINGS_ROW_LAYOUT_CLASS}>
           <div className="setting-copy">
             <strong>Application updates</strong>
             <small>{update?.message ?? "Loading update status…"}</small>

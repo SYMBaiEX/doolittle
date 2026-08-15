@@ -19,6 +19,29 @@ import {
   useState,
 } from "react";
 import {
+  COMMAND_PALETTE_CLASS,
+  COMMAND_PALETTE_CLOSE_CLASS,
+  COMMAND_PALETTE_EMPTY_CLASS,
+  COMMAND_PALETTE_FOOTER_CLASS,
+  COMMAND_PALETTE_GROUP_CLASS,
+  COMMAND_PALETTE_GROUP_LABEL_CLASS,
+  COMMAND_PALETTE_HEADER_CLASS,
+  COMMAND_PALETTE_HEADING_CLASS,
+  COMMAND_PALETTE_ITEM_CLASS,
+  COMMAND_PALETTE_ITEM_DESCRIPTION_CLASS,
+  COMMAND_PALETTE_ITEM_LABEL_CLASS,
+  COMMAND_PALETTE_ITEM_SHORTCUT_CLASS,
+  COMMAND_PALETTE_KEY_GUIDE_CLASS,
+  COMMAND_PALETTE_LABEL_CLASS,
+  COMMAND_PALETTE_LIST_CLASS,
+  COMMAND_PALETTE_MARK_CLASS,
+  COMMAND_PALETTE_SCROLL_CLASS,
+  COMMAND_PALETTE_SEARCH_CLASS,
+  COMMAND_PALETTE_SEARCH_ICON_CLASS,
+  COMMAND_PALETTE_SEARCH_SHELL_CLASS,
+  COMMAND_PALETTE_TITLE_CLASS,
+} from "../app-shell/overlay-layout";
+import {
   buildCommandPaletteMatches,
   type CommandGroup,
   type CommandItem,
@@ -240,7 +263,7 @@ export function CommandPalette<TData = unknown>({
       }}
     >
       <DialogContent
-        className="command-palette"
+        className={COMMAND_PALETTE_CLASS}
         aria-labelledby={titleId}
         showCloseButton={false}
         onOpenAutoFocus={(event) => {
@@ -253,19 +276,19 @@ export function CommandPalette<TData = unknown>({
           returnFocusTarget.focus();
         }}
       >
-        <header className="command-palette__header">
-          <div className="command-palette__heading">
-            <span aria-hidden="true" className="command-palette__mark">
+        <header className={COMMAND_PALETTE_HEADER_CLASS}>
+          <div className={COMMAND_PALETTE_HEADING_CLASS}>
+            <span aria-hidden="true" className={COMMAND_PALETTE_MARK_CLASS}>
               &gt;
             </span>
-            <DialogTitle id={titleId} className="command-palette__title">
+            <DialogTitle id={titleId} className={COMMAND_PALETTE_TITLE_CLASS}>
               {title}
             </DialogTitle>
           </div>
           <DialogClose asChild>
             <Button
               type="button"
-              className="command-palette__close"
+              className={COMMAND_PALETTE_CLOSE_CLASS}
               variant="ghost"
               size="sm"
               aria-label="Close command palette"
@@ -275,14 +298,19 @@ export function CommandPalette<TData = unknown>({
           </DialogClose>
         </header>
 
-        <label htmlFor={inputId} className="command-palette__label">
-          <span className="command-palette__sr-only">Search</span>
-          <span className="command-palette__search-shell">
-            <span aria-hidden="true" className="command-palette__search-icon" />
+        <label htmlFor={inputId} className={COMMAND_PALETTE_LABEL_CLASS}>
+          <span className="sr-only">Search</span>
+          <span className={COMMAND_PALETTE_SEARCH_SHELL_CLASS}>
+            <span
+              aria-hidden="true"
+              className={COMMAND_PALETTE_SEARCH_ICON_CLASS}
+            >
+              ⌕
+            </span>
             <Input
               ref={searchRef}
               id={inputId}
-              className="command-palette__search"
+              className={COMMAND_PALETTE_SEARCH_CLASS}
               type="search"
               value={query}
               onChange={onSearchChange}
@@ -297,11 +325,11 @@ export function CommandPalette<TData = unknown>({
           </span>
         </label>
 
-        <ScrollArea className="command-palette__scroll">
+        <ScrollArea className={COMMAND_PALETTE_SCROLL_CLASS}>
           <div
             ref={listboxRef}
             id={listId}
-            className="command-palette__list"
+            className={COMMAND_PALETTE_LIST_CLASS}
             role="listbox"
             aria-label="Command list"
             aria-activedescendant={activeOptionId}
@@ -309,18 +337,18 @@ export function CommandPalette<TData = unknown>({
             tabIndex={-1}
           >
             {groupedMatches.length === 0 ? (
-              <p className="command-palette__empty" role="status">
+              <p className={COMMAND_PALETTE_EMPTY_CLASS} role="status">
                 {noResultsText}
               </p>
             ) : (
               groupedMatches.map((group) => (
                 <fieldset
                   aria-labelledby={`${listId}-${group.groupId}-label`}
-                  className="command-palette__group"
+                  className={COMMAND_PALETTE_GROUP_CLASS}
                   key={group.groupId}
                 >
                   <legend
-                    className="command-palette__group-label"
+                    className={COMMAND_PALETTE_GROUP_LABEL_CLASS}
                     id={`${listId}-${group.groupId}-label`}
                   >
                     {group.groupLabel}
@@ -333,7 +361,7 @@ export function CommandPalette<TData = unknown>({
                       <div
                         aria-disabled={item.disabled}
                         aria-selected={isActive}
-                        className="command-palette__item"
+                        className={COMMAND_PALETTE_ITEM_CLASS}
                         id={optionId}
                         key={optionId}
                         onClick={() => onItemClick(item)}
@@ -349,18 +377,20 @@ export function CommandPalette<TData = unknown>({
                         role="option"
                         tabIndex={-1}
                       >
-                        <span className="command-palette__item-label">
+                        <span className={COMMAND_PALETTE_ITEM_LABEL_CLASS}>
                           {item.label}
                         </span>
                         {item.description ? (
-                          <span className="command-palette__item-description">
+                          <span
+                            className={COMMAND_PALETTE_ITEM_DESCRIPTION_CLASS}
+                          >
                             {item.description}
                           </span>
                         ) : null}
                         {item.shortcuts ? (
                           <ShortcutHint
                             keys={item.shortcuts}
-                            className="command-palette__item-shortcut"
+                            className={COMMAND_PALETTE_ITEM_SHORTCUT_CLASS}
                           />
                         ) : null}
                       </div>
@@ -371,11 +401,11 @@ export function CommandPalette<TData = unknown>({
             )}
           </div>
         </ScrollArea>
-        <footer className="command-palette__footer">
+        <footer className={COMMAND_PALETTE_FOOTER_CLASS}>
           <span aria-live="polite">
             {resultCount} {resultCount === 1 ? "result" : "results"}
           </span>
-          <span aria-hidden="true" className="command-palette__key-guide">
+          <span aria-hidden="true" className={COMMAND_PALETTE_KEY_GUIDE_CLASS}>
             <kbd>↑↓</kbd> move <kbd>↵</kbd> open
           </span>
         </footer>

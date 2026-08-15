@@ -17,24 +17,39 @@ import type {
   ThemeResponse,
   WorkspaceState,
 } from "../shared/contracts";
+import {
+  COMMAND_PALETTE_LOADING_BACKDROP_CLASS,
+  COMMAND_PALETTE_LOADING_CLASS,
+  COMMAND_PALETTE_LOADING_CLOSE_CLASS,
+  COMMAND_PALETTE_LOADING_DISMISS_CLASS,
+  COMMAND_PALETTE_LOADING_HEADER_CLASS,
+  COMMAND_PALETTE_LOADING_MARK_CLASS,
+  COMMAND_PALETTE_LOADING_STATUS_CLASS,
+} from "./app-shell/command-palette-loading-layout";
 import { DesktopMobileMenuButton } from "./app-shell/DesktopMobileMenuButton";
-import { DesktopRouteContent } from "./app-shell/DesktopRouteContent";
 import { DesktopRouteLoadingFallback } from "./app-shell/DesktopRouteLoadingFallback";
-import { DesktopRuntimeNotices } from "./app-shell/DesktopRuntimeNotices";
 import { DesktopSidebar } from "./app-shell/DesktopSidebar";
-import { DesktopUtilityLayer } from "./app-shell/DesktopUtilityLayer";
 import { DesktopWindowContext } from "./app-shell/DesktopWindowContext";
-import { DesktopWindowTools } from "./app-shell/DesktopWindowTools";
 import { buildDesktopCommandGroups } from "./app-shell/desktop-command-groups";
 import {
   preloadDesktopRoute,
   resetDesktopRoute,
   warmDesktopRoute,
 } from "./app-shell/desktop-route-registry";
-import { ActivityCenter } from "./components/ActivityCenter";
+import {
+  APP_MAIN_CLASS,
+  CHAT_CHROME_HOST_CLASS,
+  DESKTOP_SHELL_CLASS,
+  VIEW_CONTAINER_CLASS,
+  VIEW_CONTAINER_WORKSPACE_CLASS,
+  WINDOW_CONTEXT_CLASS,
+  WINDOW_DRAGBAR_CHAT_CLASS,
+  WINDOW_DRAGBAR_CLASS,
+  WINDOW_DRAGBAR_PRIMARY_CLASS,
+  WINDOW_TOOLS_CLASS,
+} from "./app-shell/shell-layout";
 import { DesktopRouteErrorBoundary } from "./components/DesktopRouteErrorBoundary";
-import { ProjectManager } from "./components/ProjectManager";
-import { ToastRegion, useToasts } from "./components/ToastRegion";
+import { useToasts } from "./components/ToastRegion";
 import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
 import { newConversationId } from "./conversation-id";
 import {
@@ -108,6 +123,48 @@ const ChatTerminalPanel = lazy(() =>
   })),
 );
 
+const ActivityCenter = lazy(() =>
+  import("./components/ActivityCenter").then((module) => ({
+    default: module.ActivityCenter,
+  })),
+);
+
+const DesktopUtilityLayer = lazy(() =>
+  import("./app-shell/DesktopUtilityLayer").then((module) => ({
+    default: module.DesktopUtilityLayer,
+  })),
+);
+
+const DesktopRouteContent = lazy(() =>
+  import("./app-shell/DesktopRouteContent").then((module) => ({
+    default: module.DesktopRouteContent,
+  })),
+);
+
+const DesktopRuntimeNotices = lazy(() =>
+  import("./app-shell/DesktopRuntimeNotices").then((module) => ({
+    default: module.DesktopRuntimeNotices,
+  })),
+);
+
+const DesktopWindowTools = lazy(() =>
+  import("./app-shell/DesktopWindowTools").then((module) => ({
+    default: module.DesktopWindowTools,
+  })),
+);
+
+const ToastViewport = lazy(() =>
+  import("./components/ToastViewport").then((module) => ({
+    default: module.ToastViewport,
+  })),
+);
+
+const ProjectManager = lazy(() =>
+  import("./components/ProjectManager").then((module) => ({
+    default: module.ProjectManager,
+  })),
+);
+
 type CommandPaletteModule = typeof import("./components/CommandPalette");
 
 let commandPaletteModule: Promise<CommandPaletteModule> | null = null;
@@ -148,13 +205,13 @@ export function CommandPaletteLoadingFallback({
 
   return (
     <div
-      className="command-palette-loading-backdrop"
+      className={COMMAND_PALETTE_LOADING_BACKDROP_CLASS}
       ref={backdropRef}
       role="presentation"
     >
       <button
         aria-label="Close command palette"
-        className="command-palette-loading-dismiss"
+        className={COMMAND_PALETTE_LOADING_DISMISS_CLASS}
         onClick={onClose}
         tabIndex={-1}
         type="button"
@@ -163,19 +220,22 @@ export function CommandPaletteLoadingFallback({
         aria-describedby={descriptionId}
         aria-labelledby={titleId}
         aria-modal="true"
-        className="command-palette-loading"
+        className={COMMAND_PALETTE_LOADING_CLASS}
         ref={dialogRef}
         role="dialog"
         tabIndex={-1}
       >
-        <header className="command-palette-loading__header">
-          <span aria-hidden="true" className="command-palette__mark">
+        <header className={COMMAND_PALETTE_LOADING_HEADER_CLASS}>
+          <span
+            aria-hidden="true"
+            className={COMMAND_PALETTE_LOADING_MARK_CLASS}
+          >
             &gt;
           </span>
           <h2 id={titleId}>Command menu</h2>
           <button
             aria-label="Close command palette"
-            className="command-palette__close"
+            className={COMMAND_PALETTE_LOADING_CLOSE_CLASS}
             onClick={onClose}
             type="button"
           >
@@ -185,7 +245,7 @@ export function CommandPaletteLoadingFallback({
         <div
           aria-busy="true"
           aria-live="polite"
-          className="command-palette-loading__status"
+          className={COMMAND_PALETTE_LOADING_STATUS_CLASS}
           id={descriptionId}
           role="status"
         >
@@ -1145,13 +1205,18 @@ export function App() {
 
   return (
     <main
-      className={`desktop-shell ${navCollapsed ? "nav-collapsed" : ""}${
-        utilityOpen ? " utility-open" : ""
-      }`}
+      className={`${DESKTOP_SHELL_CLASS}${navCollapsed ? " nav-collapsed" : ""}`}
       style={
         {
           "--sidebar-width": `${sidebarWidth}px`,
           "--utility-drawer-width": `${utilityDrawerWidth}px`,
+          gridTemplateColumns: isMobileSidebarMode
+            ? "minmax(0, 1fr)"
+            : `${navCollapsed ? "var(--sidebar-compact-width)" : "var(--sidebar-width)"} minmax(0, 1fr) ${
+                utilityOpen
+                  ? "minmax(292px, min(var(--utility-drawer-width), 44vw))"
+                  : "0"
+              }`,
         } as CSSProperties
       }
     >
@@ -1183,32 +1248,38 @@ export function App() {
           />
         </Suspense>
       ) : null}
-      <ProjectManager
-        activeScope={projectScope}
-        allChatCount={sessions.length}
-        currentChatId={selectedSession}
-        currentChatProjectId={selectedSessionProjectId}
-        isOpen={projectManagerOpen}
-        onAddFiles={(project) => addProjectResources(project, "file")}
-        onAddFolders={(project) => addProjectResources(project, "folder")}
-        onArchiveProject={archiveProject}
-        onClose={() => setProjectManagerOpen(false)}
-        onCreateProject={createProject}
-        onMoveCurrentChat={moveCurrentChat}
-        onPinProject={pinProject}
-        onRemoveResource={removeProjectResource}
-        onSetPrimaryPath={setProjectPrimaryPath}
-        onScopeChange={selectProjectScope}
-        onUpdateProject={updateProject}
-        projects={projectCards}
-        unscopedChatCount={unscopedChatCount}
-      />
-      <ToastRegion
-        onDismiss={dismissToast}
-        onPause={pauseToast}
-        onResume={resumeToast}
-        toasts={toasts}
-      />
+      {projectManagerOpen ? (
+        <Suspense fallback={null}>
+          <ProjectManager
+            activeScope={projectScope}
+            allChatCount={sessions.length}
+            currentChatId={selectedSession}
+            currentChatProjectId={selectedSessionProjectId}
+            isOpen
+            onAddFiles={(project) => addProjectResources(project, "file")}
+            onAddFolders={(project) => addProjectResources(project, "folder")}
+            onArchiveProject={archiveProject}
+            onClose={() => setProjectManagerOpen(false)}
+            onCreateProject={createProject}
+            onMoveCurrentChat={moveCurrentChat}
+            onPinProject={pinProject}
+            onRemoveResource={removeProjectResource}
+            onSetPrimaryPath={setProjectPrimaryPath}
+            onScopeChange={selectProjectScope}
+            onUpdateProject={updateProject}
+            projects={projectCards}
+            unscopedChatCount={unscopedChatCount}
+          />
+        </Suspense>
+      ) : null}
+      <Suspense fallback={null}>
+        <ToastViewport
+          onDismiss={dismissToast}
+          onPause={pauseToast}
+          onResume={resumeToast}
+          toasts={toasts}
+        />
+      </Suspense>
       <DesktopSidebar
         isMobileSidebarMode={isMobileSidebarMode}
         mobileSidebarOpen={mobileSidebarOpen}
@@ -1247,17 +1318,21 @@ export function App() {
         onToggleAppearance={toggleAppearance}
       />
       <section
-        className={`app-main${view === "chat" ? " app-main--chat" : ""}`}
+        className={`${APP_MAIN_CLASS}${view === "chat" ? " app-main--chat" : ""}`}
         ref={appMainRef}
       >
         <div
-          className={`window-dragbar${
-            view === "chat" ? " window-dragbar--chat" : ""
+          className={`${WINDOW_DRAGBAR_CLASS}${
+            view === "chat" ? ` ${WINDOW_DRAGBAR_CHAT_CLASS}` : ""
           }`}
         >
-          <div className="window-dragbar-primary">
+          <div className={WINDOW_DRAGBAR_PRIMARY_CLASS}>
             <DesktopMobileMenuButton onOpen={openSidebarForMobile} />
-            <div className="window-context">
+            <div
+              className={`${WINDOW_CONTEXT_CLASS}${
+                navCollapsed ? " min-[941px]:hidden" : ""
+              }`}
+            >
               <DesktopWindowContext
                 itemLabel={activeItem?.label ?? "Desktop"}
                 onOpenProjectManager={openProjectManager}
@@ -1271,31 +1346,40 @@ export function App() {
             {view === "chat" ? (
               <div
                 aria-label="Conversation controls"
-                className="chat-chrome-host"
+                className={CHAT_CHROME_HOST_CLASS}
                 ref={setChatChromeHost}
                 role="toolbar"
               />
             ) : null}
-            <div className="window-tools">
-              <DesktopWindowTools
-                backend={backend}
-                onOpenPalette={openCommandPalette}
-                onRefresh={() => void refreshWithFeedback()}
-                onToggleUtilities={toggleUtilities}
-                platform={window.doolittle.platform}
-                utilityOpen={utilityOpen}
-              />
+            <div className={WINDOW_TOOLS_CLASS}>
+              <Suspense fallback={null}>
+                <DesktopWindowTools
+                  backend={backend}
+                  compactCommand={view === "chat"}
+                  onOpenPalette={openCommandPalette}
+                  onRefresh={() => void refreshWithFeedback()}
+                  onToggleUtilities={toggleUtilities}
+                  platform={window.doolittle.platform}
+                  utilityOpen={utilityOpen}
+                />
+              </Suspense>
             </div>
           </div>
         </div>
-        <DesktopRuntimeNotices
-          backend={backend}
-          globalError={globalError}
-          onRefresh={() => void refreshWithFeedback()}
-          onRestart={() => void restartRuntime()}
-        />
+        <Suspense fallback={null}>
+          <DesktopRuntimeNotices
+            backend={backend}
+            globalError={globalError}
+            onRefresh={() => void refreshWithFeedback()}
+            onRestart={() => void restartRuntime()}
+          />
+        </Suspense>
         <div
-          className={`view-container view-${view}`}
+          className={`${VIEW_CONTAINER_CLASS} view-${view}${
+            ["chat", "code", "orchestration", "review"].includes(view)
+              ? ` ${VIEW_CONTAINER_WORKSPACE_CLASS}`
+              : ""
+          }`}
           data-view={view}
           key={view}
         >
@@ -1345,31 +1429,35 @@ export function App() {
         ) : null}
       </section>
       {utilityOpen ? (
-        <DesktopUtilityLayer
-          activeView={view}
-          activity={
-            <ActivityCenter
-              active={backend.phase === "ready"}
-              error={activityResource.error}
-              events={activityResource.data?.events ?? []}
-              loading={activityResource.loading}
-              onOpenTarget={openActivityTarget}
-              reload={activityResource.reload}
-            />
-          }
-          onClose={closeUtilities}
-          onKeyDown={handleUtilityKeyDown}
-          onPreload={(next) =>
-            preloadDesktopRoute(next, backend.phase, workspace.currentPath)
-          }
-          onResize={setUtilityDrawerWidth}
-          onSelect={setView}
-          onToggleSection={toggleSection}
-          openSections={openSections}
-          utilityDrawerWidth={utilityDrawerWidth}
-          utilityRef={utilityRef}
-          mobileModal={isMobileSidebarMode}
-        />
+        <Suspense fallback={null}>
+          <DesktopUtilityLayer
+            activeView={view}
+            activity={
+              <Suspense fallback={null}>
+                <ActivityCenter
+                  active={backend.phase === "ready"}
+                  error={activityResource.error}
+                  events={activityResource.data?.events ?? []}
+                  loading={activityResource.loading}
+                  onOpenTarget={openActivityTarget}
+                  reload={activityResource.reload}
+                />
+              </Suspense>
+            }
+            onClose={closeUtilities}
+            onKeyDown={handleUtilityKeyDown}
+            onPreload={(next) =>
+              preloadDesktopRoute(next, backend.phase, workspace.currentPath)
+            }
+            onResize={setUtilityDrawerWidth}
+            onSelect={setView}
+            onToggleSection={toggleSection}
+            openSections={openSections}
+            utilityDrawerWidth={utilityDrawerWidth}
+            utilityRef={utilityRef}
+            mobileModal={isMobileSidebarMode}
+          />
+        </Suspense>
       ) : null}
     </main>
   );

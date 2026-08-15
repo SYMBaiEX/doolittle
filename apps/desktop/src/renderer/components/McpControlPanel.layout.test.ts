@@ -8,15 +8,9 @@ describe("MCP control density", () => {
   it("keeps deep registries optional and uses the shared compact summary", () => {
     const source = `${read("./McpControlPanel.tsx")}\n${read("./mcp-control/McpMarketplacePanel.tsx")}\n${read("./mcp-control/McpCachedToolsPanel.tsx")}`;
 
-    expect(source).toContain(
-      '<details className="mcp-control-disclosure mcp-control-servers">',
-    );
-    expect(source).toContain(
-      '<details className="mcp-control-disclosure mcp-control-marketplace">',
-    );
-    expect(source).toContain(
-      '<details className="mcp-control-disclosure mcp-control-browser">',
-    );
+    expect(source).toContain('data-mcp-section="servers"');
+    expect(source).toContain('data-mcp-section="marketplace"');
+    expect(source).toContain('data-mcp-section="tools"');
     expect(source).toContain("<CompactStatStrip");
     expect(source).not.toContain('className="mcp-control-summary"');
     expect(source).not.toContain('className="mcp-control-probe"');

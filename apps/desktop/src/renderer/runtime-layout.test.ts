@@ -19,16 +19,18 @@ describe("runtime overview layout", () => {
   });
 
   it("bounds autonomy controls across desktop and compact widths", () => {
-    const css = read("./runtime-page.css");
+    const layout = read("./runtime/runtime-layout.ts");
+    const autonomy = read("./components/NativeAutonomyPanel.tsx");
 
-    expect(css).toMatch(
-      /\.runtime-overview-grid,[\s\S]*\.runtime-inventory-grid\s*\{\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/u,
+    expect(layout).toContain(
+      '"grid grid-cols-2 items-start gap-2.5 max-[760px]:grid-cols-1"',
     );
-    expect(css).toMatch(
-      /\.runtime-autonomy-controls\s*\{[\s\S]*grid-template-columns: minmax\(148px, 0\.65fr\) minmax\(190px, auto\)/u,
+    expect(layout).toContain(
+      "min-[761px]:max-[1080px]:[&>:last-child]:col-span-full",
     );
-    expect(css).toMatch(
-      /@media \(max-width: 520px\)[\s\S]*\.runtime-autonomy-controls\s*\{\s*grid-template-columns: 1fr/u,
+    expect(autonomy).toContain(
+      "min-[921px]:grid-cols-[minmax(148px,0.65fr)_minmax(190px,auto)]",
     );
+    expect(autonomy).toContain("grid grid-cols-1 items-end gap-2");
   });
 });

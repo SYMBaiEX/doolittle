@@ -1,6 +1,17 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import { useState } from "react";
 import type { AccountPoolResponse } from "../shared/contracts";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import {
+  DIAGNOSTICS_CHEVRON_CLASS,
+  DIAGNOSTICS_DETAILS_CLASS,
+  DIAGNOSTICS_SUMMARY_CLASS,
+  SETUP_ACCOUNT_BAR_CLASS,
+  SETUP_GUIDANCE_BODY_CLASS,
+  SETUP_GUIDANCE_ITEM_CLASS,
+  SETUP_GUIDANCE_LIST_CLASS,
+  SETUP_GUIDANCE_TOOLBAR_CLASS,
+} from "./diagnostics-layout";
 import {
   Badge,
   EmptyBlock,
@@ -19,7 +30,6 @@ import {
   normalizeSetupSnapshot,
   selectPrimarySetupSnapshot,
 } from "./setup/setup-model";
-import "./diagnostics-pages.css";
 
 export {
   normalizeSetupChecklist,
@@ -62,17 +72,18 @@ export function SetupPage({
       <PageHeader
         actions={
           active ? (
-            <button
-              className="text-button"
+            <Button
               onClick={() => {
                 accountPool.reload();
                 summary.reload();
                 if (requestPolicy.checklist) checklist.reload();
               }}
+              size="sm"
               type="button"
+              variant="ghost"
             >
               Refresh
-            </button>
+            </Button>
           ) : null
         }
         eyebrow="Operator"
@@ -109,15 +120,21 @@ export function SetupPage({
               No setup summary is available.
             </EmptyBlock>
           )}
-          <section className="setup-account-bar">
-            <div className="setup-account-bar__copy">
+          <section className={SETUP_ACCOUNT_BAR_CLASS}>
+            <div className="grid min-w-0 gap-0.5">
               <span className="eyebrow">Optional extension</span>
-              <strong>Subscription account pools</strong>
-              <small>Route delegated coding work across linked accounts.</small>
+              <strong className="font-[var(--font-display)] text-[15px] text-[var(--text)]">
+                Subscription account pools
+              </strong>
+              <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-meta)] text-[var(--muted)]">
+                Route delegated coding work across linked accounts.
+              </small>
             </div>
-            <div className="setup-account-bar__actions">
+            <div className="flex shrink-0 items-center gap-2.5 max-[700px]:justify-between">
               {accountPool.loading ? (
-                <span className="setup-account-bar__state">Checking…</span>
+                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-meta)] text-[var(--muted)]">
+                  Checking…
+                </span>
               ) : accountPool.error ? (
                 <Badge tone="warn">Unavailable</Badge>
               ) : (
@@ -127,14 +144,15 @@ export function SetupPage({
                     : "Not configured"}
                 </Badge>
               )}
-              <button
-                className="text-button"
+              <Button
                 disabled={!onOpenProviders}
                 onClick={onOpenProviders}
+                size="sm"
                 type="button"
+                variant="ghost"
               >
                 Manage accounts
-              </button>
+              </Button>
             </div>
           </section>
           {accountPool.error ? (
@@ -147,15 +165,18 @@ export function SetupPage({
             />
           ) : null}
           <details
-            className="content-card setup-guidance"
+            className={`setup-guidance ${DIAGNOSTICS_DETAILS_CLASS}`}
             onToggle={(event) => setChecklistOpen(event.currentTarget.open)}
           >
-            <summary>
-              <span>
+            <summary className={DIAGNOSTICS_SUMMARY_CLASS}>
+              <span aria-hidden="true" className={DIAGNOSTICS_CHEVRON_CLASS}>
+                ›
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="eyebrow">Checklist</span>
                 <strong>Configuration guidance</strong>
               </span>
-              <span className="setup-guidance__meta">
+              <span className="font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)]">
                 {!checklistOpen
                   ? "Open to load"
                   : checklist.loading
@@ -164,19 +185,20 @@ export function SetupPage({
               </span>
             </summary>
             {checklistOpen ? (
-              <div className="setup-guidance__body">
-                <div className="setup-guidance__toolbar">
+              <div className={SETUP_GUIDANCE_BODY_CLASS}>
+                <div className={SETUP_GUIDANCE_TOOLBAR_CLASS}>
                   <p>
                     Reference steps for optional providers, transports, and
                     remote execution.
                   </p>
-                  <button
-                    className="text-button"
+                  <Button
                     onClick={checklist.reload}
+                    size="sm"
                     type="button"
+                    variant="ghost"
                   >
                     Refresh
-                  </button>
+                  </Button>
                 </div>
                 {checklist.error ? (
                   <ErrorBlock
@@ -184,11 +206,18 @@ export function SetupPage({
                     retry={checklist.reload}
                   />
                 ) : checklistItems.length ? (
-                  <ol className="setup-guidance__list">
-                    {checklistItems.map((entry) => (
-                      <li key={entry.id}>
+                  <ol className={SETUP_GUIDANCE_LIST_CLASS}>
+                    {checklistItems.map((entry, index) => (
+                      <li className={SETUP_GUIDANCE_ITEM_CLASS} key={entry.id}>
+                        <span className="font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--accent)]">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
                         <span>{entry.label}</span>
-                        {entry.detail ? <small>{entry.detail}</small> : null}
+                        {entry.detail ? (
+                          <small className="col-start-2 text-[var(--muted)]">
+                            {entry.detail}
+                          </small>
+                        ) : null}
                         {entry.status ? (
                           <Badge
                             tone={

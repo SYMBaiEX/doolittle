@@ -71,7 +71,7 @@ describe("observability route density", () => {
     expect(
       container.querySelectorAll(".compact-stat-strip__item"),
     ).toHaveLength(3);
-    expect(container.querySelector(".activity-entry")).not.toBeNull();
+    expect(container.querySelector("[data-activity-entry]")).not.toBeNull();
     expect(container.textContent).toContain("2 recorded actions");
     expect(container.textContent).toContain("Export JSON");
     expect(container.querySelector("#activity-source")).not.toBeNull();
@@ -108,7 +108,7 @@ describe("observability route density", () => {
     expect(requestedPaths).not.toContain("/terminal/history");
 
     const details = container.querySelector<HTMLDetailsElement>(
-      ".operations-trace-details",
+      "[data-operations-traces]",
     );
     act(() => {
       if (!details) return;
@@ -140,7 +140,7 @@ describe("observability route density", () => {
       root.render(<AnalyticsPage active onNewConversation={vi.fn()} />),
     );
 
-    expect(container.querySelector(".page-analytics")).not.toBeNull();
+    expect(container.querySelector("[data-analytics-page]")).not.toBeNull();
     expect(
       container.querySelectorAll(".compact-stat-strip__item"),
     ).toHaveLength(4);
@@ -166,9 +166,9 @@ describe("observability route density", () => {
       ),
     );
 
-    expect(container.querySelector(".analytics-empty-landing")).not.toBeNull();
+    expect(container.querySelector("[data-analytics-empty]")).not.toBeNull();
     expect(container.querySelector(".compact-stat-strip")).toBeNull();
-    expect(container.querySelector(".analytics-grid")).toBeNull();
+    expect(container.querySelector("[data-analytics-grid]")).toBeNull();
     const action = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent?.trim() === "Start conversation",
     );

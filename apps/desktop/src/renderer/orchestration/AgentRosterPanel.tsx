@@ -19,6 +19,7 @@ import {
   SmallEmpty,
   statusTone,
 } from "./detail-primitives";
+import { orchestrationClass as oc } from "./layout";
 import type { ResourceState } from "./models";
 import { normalizeText } from "./models";
 
@@ -36,13 +37,13 @@ export function AgentRosterPanel({
   onSelectWorker: (worker: WorkerRecord) => void;
 }) {
   return (
-    <div className="orchestration-master-detail">
-      <aside className="orchestration-master">
-        <div className="orchestration-pane-heading">
+    <div className={oc("orchestration-master-detail")}>
+      <aside className={oc("orchestration-master")}>
+        <div className={oc("orchestration-pane-heading")}>
           <span>Agent roster</span>
           <small>{workers.length} workers</small>
         </div>
-        <div className="orchestration-health-strip">
+        <div className={oc("orchestration-health-strip")}>
           <span>
             <strong>{asNumber(workerOverview.activeWorkers)}</strong> active
           </span>
@@ -53,7 +54,7 @@ export function AgentRosterPanel({
             <strong>{asNumber(workerOverview.stalledWorkers)}</strong> stalled
           </span>
         </div>
-        <div className="orchestration-scroll">
+        <div className={oc("orchestration-scroll")}>
           {workersResource.error ? (
             <ErrorBlock
               error={workersResource.error}
@@ -66,7 +67,7 @@ export function AgentRosterPanel({
               Workers appear as delegated tasks execute.
             </EmptyBlock>
           ) : (
-            <ul className="orchestration-master-list">
+            <ul className={oc("orchestration-master-list")}>
               {workers.map((worker) => {
                 const status = asString(worker.status, "idle");
                 const tier = orchestrationStatusTier(status);
@@ -74,28 +75,31 @@ export function AgentRosterPanel({
                   <li key={worker.id}>
                     <button
                       type="button"
-                      className={
-                        worker.id === selectedWorker?.id
-                          ? `orchestration-master-item selected tier-${tier}`
-                          : `orchestration-master-item tier-${tier}`
-                      }
+                      className={oc(
+                        "orchestration-master-item",
+                        worker.id === selectedWorker?.id && "selected",
+                        `tier-${tier}`,
+                      )}
                       aria-pressed={worker.id === selectedWorker?.id}
                       onClick={() => onSelectWorker(worker)}
                     >
-                      <span className="master-row master-row-top">
-                        <span className="master-title-line">
-                          <i className="master-status-dot" aria-hidden="true" />
+                      <span className={oc("master-row", "master-row-top")}>
+                        <span className={oc("master-title-line")}>
+                          <i
+                            className={oc("master-status-dot")}
+                            aria-hidden="true"
+                          />
                           <strong>{asString(worker.title, worker.id)}</strong>
                         </span>
                         <Badge tone={statusTone(status)}>{status}</Badge>
                       </span>
-                      <span className="master-summary">
+                      <span className={oc("master-summary")}>
                         {normalizeText(
                           asString(worker.objective, "No objective"),
                           92,
                         )}
                       </span>
-                      <span className="master-row master-row-bottom">
+                      <span className={oc("master-row", "master-row-bottom")}>
                         <small>
                           {orchestrationTimingLabel({
                             status,
@@ -119,7 +123,7 @@ export function AgentRosterPanel({
           )}
         </div>
       </aside>
-      <article className="orchestration-detail">
+      <article className={oc("orchestration-detail")}>
         {!selectedWorker ? (
           <EmptyBlock title="Choose an agent">
             Worker health and evidence appear here.
@@ -140,9 +144,9 @@ function AgentDetail({ selectedWorker }: { selectedWorker: WorkerRecord }) {
   );
   return (
     <>
-      <div className="orchestration-detail-header">
+      <div className={oc("orchestration-detail-header")}>
         <div>
-          <span className="detail-kicker">
+          <span className={oc("detail-kicker")}>
             {asString(selectedWorker.group, "ungrouped")} /{" "}
             {taskCapabilityLabel(
               selectedWorker.capabilityProfile,
@@ -159,7 +163,7 @@ function AgentDetail({ selectedWorker }: { selectedWorker: WorkerRecord }) {
         </div>
         <Badge tone={statusTone(status)}>{status}</Badge>
       </div>
-      <div className="orchestration-detail-tags">
+      <div className={oc("orchestration-detail-tags")}>
         <DetailTag tone={statusTone(status)}>
           {orchestrationTimingLabel({
             status,
@@ -175,7 +179,7 @@ function AgentDetail({ selectedWorker }: { selectedWorker: WorkerRecord }) {
           {selectedWorker.stalled ? "stalled" : "progressing"}
         </DetailTag>
       </div>
-      <div className="orchestration-detail-grid">
+      <div className={oc("orchestration-detail-grid")}>
         <dl>
           <DetailRow label="Worker ID" value={selectedWorker.id} />
           <DetailRow
@@ -216,17 +220,17 @@ function AgentDetail({ selectedWorker }: { selectedWorker: WorkerRecord }) {
           />
           <DetailRow label="Parent task" value={selectedWorker.parentTaskId} />
         </dl>
-        <div className="orchestration-evidence">
-          <span className="detail-kicker">Runtime health</span>
-          <div className="orchestration-signal-grid">
-            <span className={selectedWorker.alive ? "good" : "bad"}>
+        <div className={oc("orchestration-evidence")}>
+          <span className={oc("detail-kicker")}>Runtime health</span>
+          <div className={oc("orchestration-signal-grid")}>
+            <span className={oc(selectedWorker.alive ? "good" : "bad")}>
               {selectedWorker.alive ? "Alive" : "Not alive"}
             </span>
-            <span className={selectedWorker.stalled ? "bad" : "good"}>
+            <span className={oc(selectedWorker.stalled ? "bad" : "good")}>
               {selectedWorker.stalled ? "Stalled" : "Progressing"}
             </span>
           </div>
-          <span className="detail-kicker">Latest artifact</span>
+          <span className={oc("detail-kicker")}>Latest artifact</span>
           {selectedWorker.lastOutputPath ? (
             <code>{selectedWorker.lastOutputPath}</code>
           ) : (

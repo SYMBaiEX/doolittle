@@ -42,10 +42,10 @@ describe("CompactCatalogList", () => {
     );
 
     expect(DEFAULT_CATALOG_PAGE_SIZE).toBe(12);
-    expect(markup.match(/<li class="compact-catalog__row"/g)).toHaveLength(12);
+    expect(markup.match(/data-catalog-row="true"/g)).toHaveLength(12);
     expect(markup).toContain("Showing 12 of 30");
     expect(markup).toContain("Show 12 more");
-    expect(markup).toContain('class="compact-catalog__summary"');
+    expect(markup).toContain('data-catalog-summary="true"');
   });
 
   it("bounds the initial catalog while keeping expansion explicit", () => {
@@ -58,10 +58,10 @@ describe("CompactCatalogList", () => {
       />,
     );
 
-    expect(markup.match(/<li class="compact-catalog__row"/g)).toHaveLength(24);
+    expect(markup.match(/data-catalog-row="true"/g)).toHaveLength(24);
     expect(markup).toContain("Showing 24 of 30");
     expect(markup).toContain("Show 6 more");
-    expect(markup).toContain("<summary>Details</summary>");
+    expect(markup).toContain("Details</summary>");
   });
 
   it("keeps a row action adjacent to its status", () => {
@@ -78,7 +78,7 @@ describe("CompactCatalogList", () => {
       />,
     );
 
-    expect(markup).toContain('class="compact-catalog__actions"');
+    expect(markup).toContain('data-catalog-actions="true"');
     expect(markup).toContain("Use profile");
   });
 
@@ -97,7 +97,7 @@ describe("CompactCatalogList", () => {
       />,
     );
 
-    expect(markup).toContain("<summary>Policy &amp; provenance</summary>");
+    expect(markup).toContain("Policy &amp; provenance</summary>");
     expect(markup).toContain("Approval requires an explicit allowlist entry.");
   });
 
@@ -116,9 +116,9 @@ describe("CompactCatalogList", () => {
       />,
     );
 
-    expect(markup).toContain("<summary>Details</summary>");
+    expect(markup).toContain("Details</summary>");
     expect(markup).toContain(
-      '<p class="compact-catalog__details-description">Description 1</p>',
+      'data-catalog-details-description="true">Description 1</p>',
     );
     expect(markup).not.toContain('title="Description 1"');
     expect(markup).not.toContain("<dl>");
@@ -163,9 +163,9 @@ describe("CompactCatalogList", () => {
       />,
     );
 
-    expect(markup.match(/class="compact-catalog__group"/g)).toHaveLength(2);
-    expect(markup.match(/<h3>Foundation<\/h3>/g)).toHaveLength(1);
-    expect(markup).toContain("<h3>Providers</h3>");
+    expect(markup.match(/data-catalog-group="true"/g)).toHaveLength(2);
+    expect(markup.match(/>Foundation<\/h3>/g)).toHaveLength(1);
+    expect(markup).toContain(">Providers</h3>");
     expect(markup).not.toContain('class="eyebrow"');
   });
 });

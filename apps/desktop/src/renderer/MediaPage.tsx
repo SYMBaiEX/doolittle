@@ -1,3 +1,4 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import { type KeyboardEvent, useRef, useState } from "react";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { PageHeader } from "./lib";
@@ -5,7 +6,6 @@ import { ImageTab } from "./media/ImageTab";
 import { InspectAnalyzeTab } from "./media/InspectAnalyzeTab";
 import { SpeechTab } from "./media/SpeechTab";
 import { TranscribeTab } from "./media/TranscribeTab";
-import "./media-page.css";
 
 const MEDIA_TABS = [
   { id: "inspect-analyze", label: "Inspect / Analyze" },
@@ -34,7 +34,7 @@ export function MediaPage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className="page studio-page media-page">
+    <div className="page w-[min(100%,1260px)] max-w-[1380px] gap-3.5">
       <PageHeader
         description="Inspect, transcribe, and generate with Eliza media services."
         eyebrow="Operator"
@@ -49,14 +49,18 @@ export function MediaPage({ active }: { active: boolean }) {
         <>
           <div
             aria-label="Media action tabs"
-            className="media-tabs"
+            className="flex w-full gap-4 overflow-x-auto border-0 border-b border-[var(--border)] bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             role="tablist"
           >
             {MEDIA_TABS.map((entry) => (
-              <button
+              <Button
                 aria-controls={`media-panel-${entry.id}`}
                 aria-selected={entry.id === activeTab}
-                className={`text-button ${entry.id === activeTab ? "selected" : ""}`}
+                className={`relative min-h-[34px] flex-none rounded-none border-0 border-b-2 bg-transparent px-0 pt-1.5 pb-2 font-[var(--font-mono)] text-[9px] font-bold tracking-[0.055em] whitespace-nowrap uppercase shadow-none hover:bg-transparent ${
+                  entry.id === activeTab
+                    ? "border-[var(--accent)] text-[var(--text)]"
+                    : "border-transparent text-[var(--muted)] hover:text-[var(--text-soft)]"
+                }`}
                 disabled={!active}
                 id={`media-tab-${entry.id}`}
                 key={entry.id}
@@ -75,15 +79,17 @@ export function MediaPage({ active }: { active: boolean }) {
                   tabRefs.current[entry.id] = node;
                 }}
                 role="tab"
+                size="sm"
                 tabIndex={entry.id === activeTab ? 0 : -1}
                 type="button"
+                variant="ghost"
               >
                 {entry.label}
-              </button>
+              </Button>
             ))}
           </div>
 
-          <div className="media-panel">
+          <div className="min-h-0 min-w-0">
             <InspectAnalyzeTab active={activeTab === "inspect-analyze"} />
             <TranscribeTab active={activeTab === "transcribe"} />
             <SpeechTab active={activeTab === "speech"} />

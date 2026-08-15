@@ -47,7 +47,9 @@ describe("SessionsPage", () => {
       );
     });
 
-    const landing = container.querySelector(".session-empty-landing");
+    const landing = container.querySelector(
+      '[data-session-empty-landing="true"]',
+    );
     expect(landing?.textContent).toContain("No saved conversations");
     const actions = Array.from(landing?.querySelectorAll("button") ?? []);
     expect(actions.map((button) => button.textContent?.trim())).toEqual([

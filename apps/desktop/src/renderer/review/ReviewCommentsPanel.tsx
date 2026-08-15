@@ -1,6 +1,20 @@
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { Badge } from "../lib";
 import type { ReviewComment, ReviewCommentAnchor } from "../review-comments";
+import {
+  REVIEW_COMMENT_ACTIONS_CLASS,
+  REVIEW_COMMENT_CLASS,
+  REVIEW_COMMENT_EDITOR_CLASS,
+  REVIEW_COMMENT_LIST_CLASS,
+  REVIEW_COMMENT_LOCATION_CLASS,
+  REVIEW_COMMENT_RESOLVED_CLASS,
+  REVIEW_DELETE_CONFIRMATION_CLASS,
+  REVIEW_FEEDBACK_ACTIONS_CLASS,
+  REVIEW_FEEDBACK_BODY_CLASS,
+  REVIEW_FEEDBACK_CLASS,
+  REVIEW_FEEDBACK_EMPTY_CLASS,
+  REVIEW_FEEDBACK_ICON_CLASS,
+} from "./layout";
 
 export interface ReviewCommentTarget {
   path: string;
@@ -85,7 +99,8 @@ export function ReviewCommentsPanel({
   return (
     <details
       aria-label={`Review comments for ${path}`}
-      className="review-feedback"
+      className={REVIEW_FEEDBACK_CLASS}
+      data-review="feedback"
       onToggle={(event) => setNotesOpen(event.currentTarget.open)}
       open={notesOpen}
     >
@@ -97,12 +112,14 @@ export function ReviewCommentsPanel({
             open on this file
           </small>
         </span>
-        <i aria-hidden="true">⌄</i>
+        <i aria-hidden="true" className={REVIEW_FEEDBACK_ICON_CLASS}>
+          ⌄
+        </i>
       </summary>
 
       {notesOpen ? (
-        <div className="review-feedback__body">
-          <div className="review-feedback__actions">
+        <div className={REVIEW_FEEDBACK_BODY_CLASS}>
+          <div className={REVIEW_FEEDBACK_ACTIONS_CLASS}>
             <button
               className="text-button"
               onClick={() => onStartComment(path)}
@@ -123,13 +140,17 @@ export function ReviewCommentsPanel({
           </div>
 
           {comments.length > 0 ? (
-            <ol className="review-comment-list">
+            <ol className={REVIEW_COMMENT_LIST_CLASS}>
               {comments.map((comment) => (
                 <li
-                  className={comment.status === "resolved" ? "resolved" : ""}
+                  className={`${REVIEW_COMMENT_CLASS} ${
+                    comment.status === "resolved"
+                      ? REVIEW_COMMENT_RESOLVED_CLASS
+                      : ""
+                  }`}
                   key={comment.id}
                 >
-                  <div className="review-comment-location">
+                  <div className={REVIEW_COMMENT_LOCATION_CLASS}>
                     <span>
                       {comment.anchor
                         ? `${comment.anchor.side === "new" ? "+" : "−"} line ${comment.anchor.line}`
@@ -145,7 +166,7 @@ export function ReviewCommentsPanel({
                     <code>{comment.anchor.preview}</code>
                   ) : null}
                   <p>{comment.body}</p>
-                  <div className="review-comment-actions">
+                  <div className={REVIEW_COMMENT_ACTIONS_CLASS}>
                     <button
                       onClick={() => onToggleResolved(comment.id)}
                       type="button"
@@ -176,14 +197,14 @@ export function ReviewCommentsPanel({
               ))}
             </ol>
           ) : (
-            <p className="review-feedback-empty">
+            <p className={REVIEW_FEEDBACK_EMPTY_CLASS}>
               Add a file note or use <strong>+</strong> beside a diff line.
               Drafts stay with this workspace revision.
             </p>
           )}
 
           {activeCommentTarget ? (
-            <div className="review-comment-editor">
+            <div className={REVIEW_COMMENT_EDITOR_CLASS}>
               <label htmlFor="review-comment-draft">
                 {editingCommentId
                   ? "Edit review note"
@@ -244,7 +265,7 @@ export function ReviewCommentsPanel({
           aria-labelledby="review-delete-title"
           aria-describedby="review-delete-description"
           aria-modal="true"
-          className="review-delete-confirmation"
+          className={REVIEW_DELETE_CONFIRMATION_CLASS}
           role="alertdialog"
         >
           <h3 id="review-delete-title">Delete review note?</h3>

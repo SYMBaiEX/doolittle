@@ -1,6 +1,17 @@
 import { createLogger } from "@elizaos/logger";
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { formatRendererDiagnostic } from "./DesktopErrorBoundary";
+import {
+  formatRendererDiagnostic,
+  RECOVERY_ACTIONS_CLASS,
+  RECOVERY_BUTTON_CLASS,
+  RECOVERY_CARD_CLASS,
+  RECOVERY_COPY_CLASS,
+  RECOVERY_DETAILS_CLASS,
+  RECOVERY_DIAGNOSTIC_CLASS,
+  RECOVERY_EYEBROW_CLASS,
+  RECOVERY_PRIMARY_BUTTON_CLASS,
+  RECOVERY_TITLE_CLASS,
+} from "./DesktopErrorBoundary";
 
 const rendererLogger = createLogger({
   namespace: "doolittle.desktop.renderer.route",
@@ -96,37 +107,47 @@ export class DesktopRouteErrorBoundary extends Component<
     return (
       <section
         aria-labelledby="route-recovery-title"
-        className="route-recovery recovery-card"
+        className={`recovery-shell ${RECOVERY_CARD_CLASS} mx-auto my-[clamp(20px,5vw,56px)]`}
+        data-recovery-scope="route"
       >
         <p className="sr-only" role="alert">
           The {label} view encountered a rendering error. Recovery actions are
           available.
         </p>
-        <div aria-hidden="true" className="recovery-mark">
-          D
-        </div>
-        <p className="recovery-eyebrow">ROUTE RECOVERY</p>
-        <h1 id="route-recovery-title">{label} needs a restart.</h1>
-        <p className="recovery-copy">
+        <p className={RECOVERY_EYEBROW_CLASS}>ROUTE RECOVERY</p>
+        <h1 className={RECOVERY_TITLE_CLASS} id="route-recovery-title">
+          {label} needs a restart.
+        </h1>
+        <p className={RECOVERY_COPY_CLASS}>
           The rest of Doolittle is still available. Retry this view or return to
           Chat without reloading the desktop.
         </p>
-        <div className="recovery-actions">
+        <div className={RECOVERY_ACTIONS_CLASS}>
           <button
-            className="recovery-primary"
+            className={RECOVERY_PRIMARY_BUTTON_CLASS}
             onClick={this.retry}
             type="button"
           >
             Retry {label}
           </button>
-          <button onClick={this.returnToChat} type="button">
+          <button
+            className={RECOVERY_BUTTON_CLASS}
+            onClick={this.returnToChat}
+            type="button"
+          >
             Return to Chat
           </button>
         </div>
-        <details className="recovery-details">
+        <details className={`recovery-details ${RECOVERY_DETAILS_CLASS}`}>
           <summary>Technical details</summary>
-          <pre>{error.message || error.name}</pre>
-          <button onClick={this.copyDiagnostic} type="button">
+          <pre className={RECOVERY_DIAGNOSTIC_CLASS}>
+            {error.message || error.name}
+          </pre>
+          <button
+            className={RECOVERY_BUTTON_CLASS}
+            onClick={this.copyDiagnostic}
+            type="button"
+          >
             {copied ? "Diagnostic copied" : "Copy diagnostic"}
           </button>
         </details>

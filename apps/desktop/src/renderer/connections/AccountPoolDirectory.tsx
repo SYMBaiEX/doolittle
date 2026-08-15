@@ -12,6 +12,19 @@ import type {
 import { toElizaAccount } from "../account-pool-ui";
 import type { AccountImportDraft } from "../agent-pages-helpers";
 import { Badge } from "../lib";
+import {
+  PROVIDER_ACCOUNT_PREVIEWED_CLASS,
+  PROVIDER_IMPORT_ACTION_CLASS,
+  PROVIDER_IMPORT_DISCLOSURE_CLASS,
+  PROVIDER_IMPORT_FORM_CLASS,
+  PROVIDER_POOL_ACCOUNT_CLASS,
+  PROVIDER_POOL_ACCOUNTS_CLASS,
+  PROVIDER_POOL_COUNT_CLASS,
+  PROVIDER_POOL_DIRECT_ACCOUNT_CLASS,
+  PROVIDER_POOL_DIRECTORY_CLASS,
+  PROVIDER_POOL_DIRECTORY_HEADER_CLASS,
+  PROVIDER_POOL_EMPTY_CLASS,
+} from "./layout";
 
 function sortedAccounts(snapshot: AccountPoolProviderSnapshot) {
   return snapshot.accounts
@@ -80,13 +93,14 @@ export function AccountPoolDirectory({
 
   return (
     <section
-      className={`provider-pool-directory${direct ? " is-direct" : ""}`}
+      className={`${PROVIDER_POOL_DIRECTORY_CLASS} ${direct ? "is-direct" : ""}`}
+      data-direct-account-pool={direct ? "true" : undefined}
       aria-label={`${descriptor.label} accounts`}
     >
-      <div className="provider-pool-directory__header">
+      <div className={PROVIDER_POOL_DIRECTORY_HEADER_CLASS}>
         <div>
           <h4>Accounts</h4>
-          <span className="provider-pool-count">
+          <span className={PROVIDER_POOL_COUNT_CLASS}>
             {accounts.length || "None"}
           </span>
         </div>
@@ -94,23 +108,19 @@ export function AccountPoolDirectory({
       </div>
 
       {accounts.length === 0 ? (
-        <p className="provider-pool-empty-copy">
+        <p className={PROVIDER_POOL_EMPTY_CLASS}>
           Connect one account to start agent sessions. Add a second for
           automatic fallback.
         </p>
       ) : (
-        <ul className="provider-pool-accounts">
+        <ul className={PROVIDER_POOL_ACCOUNTS_CLASS}>
           {accounts.map((account, index) => {
             const sourceAccount = snapshot.accounts.find(
               (candidate) => candidate.accountId === account.id,
             );
             return (
               <li
-                className={
-                  selectedAccountId === account.id
-                    ? "provider-pool-account provider-account-previewed"
-                    : "provider-pool-account"
-                }
+                className={`${PROVIDER_POOL_ACCOUNT_CLASS} ${direct ? PROVIDER_POOL_DIRECT_ACCOUNT_CLASS : ""} ${selectedAccountId === account.id ? PROVIDER_ACCOUNT_PREVIEWED_CLASS : ""}`}
                 key={account.id}
               >
                 {selectedAccountId === account.id ? (
@@ -148,7 +158,7 @@ export function AccountPoolDirectory({
       )}
 
       <details
-        className="provider-import-disclosure"
+        className={PROVIDER_IMPORT_DISCLOSURE_CLASS}
         onToggle={(event) => setSetupOpen(event.currentTarget.open)}
         open={setupOpen}
       >
@@ -160,7 +170,7 @@ export function AccountPoolDirectory({
           </span>
           <span aria-hidden="true">+</span>
         </summary>
-        <div className="provider-import-form">
+        <div className={PROVIDER_IMPORT_FORM_CLASS}>
           <label
             className="form-field"
             htmlFor={`account-pool-${descriptor.provider}-id`}
@@ -223,7 +233,7 @@ export function AccountPoolDirectory({
               value={accountImport?.label ?? ""}
             />
           </label>
-          <div className="provider-import-action">
+          <div className={PROVIDER_IMPORT_ACTION_CLASS}>
             <p>
               {direct
                 ? "Use the name of an existing Eliza secret. The raw key never enters Doolittle."

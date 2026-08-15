@@ -22,6 +22,7 @@ import {
   useApiResource,
 } from "./lib";
 import { reviewRequests } from "./resource-request-policy";
+import { REVIEW_WORKSPACE_CLASS, reviewPageClass } from "./review/layout";
 import {
   type ApprovalResponse,
   type ChangesResponse,
@@ -57,7 +58,6 @@ import {
   saveReviewComments,
 } from "./review-comments";
 import { reviewWorkState } from "./review-work-state";
-import "./review.css";
 
 export function reviewWorkspaceScopeKey(
   workspacePath: string,
@@ -549,7 +549,7 @@ export function ReviewPage({
   if (!active) {
     return (
       <div
-        className={`page review-page${embedded ? " review-page--embedded" : ""}`}
+        className={reviewPageClass(embedded)}
         data-project-scope={projectScope}
         data-workspace-path={workspacePath}
       >
@@ -579,7 +579,7 @@ export function ReviewPage({
   }
   return (
     <div
-      className={`page review-page${embedded ? " review-page--embedded" : ""}`}
+      className={reviewPageClass(embedded)}
       data-project-scope={projectScope}
       data-workspace-path={workspacePath}
     >
@@ -666,7 +666,7 @@ export function ReviewPage({
       ) : loading && items.length === 0 ? (
         <LoadingBlock label="Assembling completed work…" />
       ) : !shouldShowReviewWorkspace(items.length) ? null : (
-        <div className="review-workspace">
+        <div className={REVIEW_WORKSPACE_CLASS}>
           <ReviewQueue
             filter={filter}
             items={items}

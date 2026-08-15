@@ -1,6 +1,15 @@
 import { OfflineRouteState } from "../components/OfflineRouteState";
 import type { DesktopAppearance, DesktopDensity } from "../desktop-theme";
 import { asRecord, asString, Badge, titleCase } from "../lib";
+import {
+  SETTINGS_APPEARANCE_BUTTON_CLASS,
+  SETTINGS_APPEARANCE_CLASS,
+  SETTINGS_GROUP_CLASS,
+  SETTINGS_INLINE_CHOICE_CLASS,
+  SETTINGS_THEME_BUTTON_CLASS,
+  SETTINGS_THEME_GRID_CLASS,
+  SETTINGS_THEME_SIGNAL_CLASS,
+} from "./settings-layout";
 
 export function SettingsAppearancePanel({
   active,
@@ -22,10 +31,10 @@ export function SettingsAppearancePanel({
   themes: unknown[];
 }) {
   return (
-    <section className="settings-group">
+    <section className={SETTINGS_GROUP_CLASS}>
       <fieldset
         aria-label="Application appearance"
-        className="appearance-segmented"
+        className={SETTINGS_APPEARANCE_CLASS}
       >
         <legend className="sr-only">Application appearance</legend>
         {(["dark", "light", "system"] as const).map((option) => (
@@ -36,7 +45,9 @@ export function SettingsAppearancePanel({
                 : `${titleCase(option)} surfaces`
             }`}
             aria-pressed={appearance === option}
-            className={appearance === option ? "selected" : ""}
+            className={`${SETTINGS_APPEARANCE_BUTTON_CLASS} ${
+              appearance === option ? "selected" : ""
+            }`}
             key={option}
             onClick={() => onAppearanceChange(option)}
             title={
@@ -53,7 +64,7 @@ export function SettingsAppearancePanel({
           </button>
         ))}
       </fieldset>
-      <div className="settings-inline-choice">
+      <div className={SETTINGS_INLINE_CHOICE_CLASS}>
         <div>
           <strong>Interface density</strong>
           <small>Spacing across pages, tables, and panels.</small>
@@ -73,7 +84,7 @@ export function SettingsAppearancePanel({
           ))}
         </fieldset>
       </div>
-      <div className="settings-group-heading theme-heading">
+      <div className="settings-group-heading mt-1.75 mb-0 min-h-9.5 border-[var(--border)] border-b pb-1.75 [&_p]:mt-0.5 [&_p]:text-[8px]">
         <div>
           <span className="eyebrow">Color system</span>
           <h2>Operator signal</h2>
@@ -89,7 +100,7 @@ export function SettingsAppearancePanel({
           Appearance and density remain available locally.
         </OfflineRouteState>
       ) : null}
-      <div className="theme-grid" hidden={!active}>
+      <div className={SETTINGS_THEME_GRID_CLASS} hidden={!active}>
         {themes.map((value, index) => {
           const entry = asRecord(value);
           const name = asString(entry.name, String(index));
@@ -100,14 +111,16 @@ export function SettingsAppearancePanel({
           return (
             <button
               aria-label={`${label}: ${tagline}`}
-              className={activeTheme === name ? "selected" : ""}
+              className={`${SETTINGS_THEME_BUTTON_CLASS} ${
+                activeTheme === name ? "selected" : ""
+              }`}
               key={name}
               onClick={() => onThemeChange(name)}
               title={tagline}
               type="button"
             >
               <span
-                className="theme-card-signal"
+                className={SETTINGS_THEME_SIGNAL_CLASS}
                 style={{
                   background: `linear-gradient(135deg, ${primary}, ${secondary})`,
                 }}

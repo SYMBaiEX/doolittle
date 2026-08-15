@@ -16,7 +16,7 @@ export function DesktopWindowContext({
       <span>{sectionLabel}</span>
       <strong>{itemLabel}</strong>
       <button
-        className="window-project-scope"
+        className={WINDOW_PROJECT_SCOPE_CLASS}
         onClick={onOpenProjectManager}
         title={`Current project scope: ${projectScopeLabel}. Change project.`}
         type="button"
@@ -26,3 +26,5 @@ export function DesktopWindowContext({
     </>
   );
 }
+
+import { WINDOW_PROJECT_SCOPE_CLASS } from "./shell-layout";

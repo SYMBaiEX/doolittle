@@ -1,3 +1,4 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import { useMemo } from "react";
 import type {
   AccountPoolResponse,
@@ -8,6 +9,7 @@ import { OfflineRouteState } from "./components/OfflineRouteState";
 import { DashboardActivityPanels } from "./dashboard/DashboardActivityPanels";
 import { DashboardPriorityPanel } from "./dashboard/DashboardPriorityPanel";
 import { DashboardRuntimeDetails } from "./dashboard/DashboardRuntimeDetails";
+import { DASHBOARD_PAGE_CLASS } from "./dashboard/dashboard-layout";
 import {
   buildNextActions,
   countOwnershipSignals,
@@ -21,7 +23,6 @@ import {
   summarizeSetupEntries,
   summarizeSetupHealth,
 } from "./dashboard-helpers";
-import "./dashboard.css";
 import {
   type ApiResource,
   asArray,
@@ -151,15 +152,15 @@ export function DashboardPage({
 
   if (!active) {
     return (
-      <div className="page page-dashboard">
+      <div className={DASHBOARD_PAGE_CLASS} data-dashboard-page="true">
         <PageHeader
           eyebrow="Mission control"
           title="Dashboard"
           description="Current pressure, next actions, and workspace state."
           actions={
-            <button className="secondary-button" disabled type="button">
+            <Button disabled size="sm" type="button" variant="secondary">
               Refresh
-            </button>
+            </Button>
           }
         />
         <OfflineRouteState>
@@ -170,15 +171,15 @@ export function DashboardPage({
   }
 
   return (
-    <div className="page page-dashboard">
+    <div className={DASHBOARD_PAGE_CLASS} data-dashboard-page="true">
       <PageHeader
         eyebrow="Mission control"
         title="Dashboard"
         description="Current pressure, next actions, and workspace state."
         actions={
-          <button className="secondary-button" onClick={refresh} type="button">
+          <Button onClick={refresh} size="sm" type="button" variant="secondary">
             Refresh
-          </button>
+          </Button>
         }
       />
 

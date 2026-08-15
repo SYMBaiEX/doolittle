@@ -305,10 +305,10 @@ describe("chat presentation components", () => {
         receipt={{ latest: completed, events: [heartbeat, completed] }}
       />,
     );
-    expect(html).toContain('class="chat-run-receipt"');
+    expect(html).toContain("chat-run-receipt");
     expect(html).toContain("Run complete");
     expect(html).toContain("run-1");
-    expect(html.match(/<li>/gu)).toHaveLength(1);
+    expect(html.match(/<li(?:\s|>)/gu)).toHaveLength(1);
   });
 
   it("keeps retry available for an errored assistant response", () => {

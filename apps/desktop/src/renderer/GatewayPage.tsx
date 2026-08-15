@@ -1,3 +1,4 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import { useMemo, useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
@@ -7,6 +8,14 @@ import {
   type GatewayTimelineDirection,
   GatewayTimelinePanel,
 } from "./gateway/GatewayTimelinePanel";
+import {
+  GATEWAY_DISCLOSURE_SUMMARY_CLASS,
+  GATEWAY_LAYOUT_CLASS,
+  GATEWAY_LIST_CLASS,
+  GATEWAY_META_CLASS,
+  GATEWAY_PAGE_CLASS,
+  GATEWAY_SECONDARY_GRID_CLASS,
+} from "./gateway/gateway-layout";
 import {
   approvedPairingSenders,
   buildGatewayTimeline,
@@ -33,7 +42,6 @@ import {
   titleCase,
   useApiResource,
 } from "./lib";
-import "./gateway-page.css";
 
 interface GatewayStateResponse {
   state?: unknown;
@@ -224,20 +232,15 @@ export function GatewayPage({ active }: { active: boolean }) {
 
   if (!active) {
     return (
-      <section className="page gateway-page">
+      <section className={GATEWAY_PAGE_CLASS}>
         <PageHeader
           eyebrow="Observe / gateway"
           title="Gateway inbox"
           description="Local transport history, thread routes, and sender approvals."
           actions={
-            <button
-              className="secondary-button"
-              disabled
-              onClick={refresh}
-              type="button"
-            >
+            <Button disabled onClick={refresh} type="button">
               Refresh records
-            </button>
+            </Button>
           }
         />
         <OfflineRouteState>
@@ -249,15 +252,15 @@ export function GatewayPage({ active }: { active: boolean }) {
   }
 
   return (
-    <section className="page gateway-page">
+    <section className={GATEWAY_PAGE_CLASS}>
       <PageHeader
         eyebrow="Observe / gateway"
         title="Gateway inbox"
         description="Local transport history, thread routes, and sender approvals."
         actions={
-          <button className="secondary-button" onClick={refresh} type="button">
+          <Button onClick={refresh} type="button" variant="secondary">
             Refresh records
-          </button>
+          </Button>
         }
       />
 
@@ -267,9 +270,9 @@ export function GatewayPage({ active }: { active: boolean }) {
         <Notice tone="warn">
           <strong>Some gateway data is unavailable.</strong>
           <span>{errors[0]}</span>
-          <button className="text-button" onClick={refresh} type="button">
+          <Button onClick={refresh} size="sm" type="button" variant="ghost">
             Retry local reads
-          </button>
+          </Button>
         </Notice>
       ) : null}
       {feedback ? (
@@ -317,7 +320,7 @@ export function GatewayPage({ active }: { active: boolean }) {
         ]}
       />
 
-      <div className="gateway-layout">
+      <div className={GATEWAY_LAYOUT_CLASS}>
         <GatewayTimelinePanel
           direction={direction}
           entries={entries}
@@ -335,18 +338,22 @@ export function GatewayPage({ active }: { active: boolean }) {
           visibleEntries={visibleEntries}
         />
 
-        <div className="gateway-secondary-grid">
+        <div className={GATEWAY_SECONDARY_GRID_CLASS}>
           <details
-            className="panel gateway-session-panel"
+            className="group panel min-w-0 overflow-hidden p-0"
             onToggle={(event) => setRoutesOpen(event.currentTarget.open)}
             open={routesOpen}
           >
-            <summary>
-              <span>
+            <summary className={GATEWAY_DISCLOSURE_SUMMARY_CLASS}>
+              <span className="flex flex-col gap-0.5">
                 <strong>Thread routes</strong>
-                <small>Room and attached-agent routes</small>
+                <small className={GATEWAY_META_CLASS}>
+                  Room and attached-agent routes
+                </small>
               </span>
-              <span>
+              <span
+                className={`${GATEWAY_META_CLASS} after:absolute after:right-3 after:font-mono after:text-[var(--accent)] after:content-['+'] group-open:after:content-['−']`}
+              >
                 {routesOpen
                   ? sessions.loading
                     ? "Loading…"
@@ -355,7 +362,7 @@ export function GatewayPage({ active }: { active: boolean }) {
               </span>
             </summary>
             {routesOpen ? (
-              <div className="gateway-session-body">
+              <div className="border-[var(--border)] border-t px-3 pb-3">
                 {sessions.loading ? (
                   <LoadingBlock label="Loading gateway routes…" />
                 ) : sessions.error ? (
@@ -366,11 +373,14 @@ export function GatewayPage({ active }: { active: boolean }) {
                     message.
                   </EmptyBlock>
                 ) : (
-                  <ul className="gateway-sessions">
+                  <ul className={GATEWAY_LIST_CLASS}>
                     {localSessions.slice(0, 12).map((session) => (
-                      <li key={session.id}>
+                      <li
+                        className="grid gap-1.25 border-[var(--border)] border-b py-2.25 last:border-b-0 [&_small]:font-mono [&_small]:text-[10px] [&_small]:text-[var(--muted)] [&_span]:font-mono [&_span]:text-[10px] [&_span]:text-[var(--muted)] [&_time]:font-mono [&_time]:text-[10px] [&_time]:text-[var(--muted)]"
+                        key={session.id}
+                      >
                         <Badge>{titleCase(session.platform)}</Badge>
-                        <strong>{session.room}</strong>
+                        <strong className="truncate">{session.room}</strong>
                         <span>
                           {session.thread
                             ? `Thread ${session.thread}`

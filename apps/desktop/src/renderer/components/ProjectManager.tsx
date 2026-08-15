@@ -1,6 +1,17 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import "./project-manager.css";
 import { useDialogFocus } from "../project-manager/dialog-focus";
+import {
+  PROJECT_MANAGER_BACKDROP_CLASS,
+  PROJECT_MANAGER_BODY_CLASS,
+  PROJECT_MANAGER_CLASS,
+  PROJECT_MANAGER_DETAIL_CLASS,
+  PROJECT_MANAGER_ERROR_CLASS,
+  PROJECT_MANAGER_HEADER_CLASS,
+  PROJECT_MANAGER_SEARCH_CLASS,
+  PROJECT_MANAGER_TOOLBAR_CLASS,
+} from "../project-manager/layout";
 import type {
   ProjectDraft,
   ProjectLike,
@@ -40,6 +51,7 @@ export function ProjectManager(props: ProjectManagerProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
+  const searchId = useId();
   useDialogFocus(isOpen, dialogRef, closeButtonRef, onClose, Boolean(editing));
 
   useEffect(() => {
@@ -105,16 +117,16 @@ export function ProjectManager(props: ProjectManagerProps) {
 
   if (!isOpen) return null;
   return (
-    <div className="project-manager-backdrop" role="presentation">
+    <div className={PROJECT_MANAGER_BACKDROP_CLASS} role="presentation">
       <div
-        className={`project-manager ${className}`}
+        className={`${PROJECT_MANAGER_CLASS} ${className}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         ref={dialogRef}
         tabIndex={-1}
       >
-        <header className="project-manager__header">
+        <header className={PROJECT_MANAGER_HEADER_CLASS}>
           <div>
             <span className="eyebrow">Workspace</span>
             <h2 id={titleId}>Projects</h2>
@@ -122,42 +134,46 @@ export function ProjectManager(props: ProjectManagerProps) {
               Keep chat context, folders, and working instructions together.
             </p>
           </div>
-          <button
+          <Button
             ref={closeButtonRef}
             type="button"
-            className="icon-button"
+            className="text-xl"
+            size="icon-sm"
+            variant="ghost"
             aria-label="Close projects"
             onClick={onClose}
             disabled={working}
           >
             ×
-          </button>
+          </Button>
         </header>
-        <div className="project-manager__toolbar">
-          <label className="project-manager__search">
+        <div className={PROJECT_MANAGER_TOOLBAR_CLASS}>
+          <label className={PROJECT_MANAGER_SEARCH_CLASS} htmlFor={searchId}>
             <span aria-hidden="true">⌕</span>
-            <input
+            <Input
+              className="h-8 border-0 bg-transparent px-0 text-[13px] shadow-none"
+              id={searchId}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search projects"
               aria-label="Search projects"
             />
           </label>
-          <button
+          <Button
             type="button"
-            className="button button--primary"
+            size="sm"
             onClick={() => setEditing("new")}
             disabled={!onCreateProject || working}
           >
             + New
-          </button>
+          </Button>
         </div>
         {error ? (
-          <p className="project-manager__error" role="alert">
+          <p className={PROJECT_MANAGER_ERROR_CLASS} role="alert">
             {error}
           </p>
         ) : null}
-        <div className="project-manager__body">
+        <div className={PROJECT_MANAGER_BODY_CLASS}>
           <ProjectList
             activeScope={activeScope}
             allChatCount={props.allChatCount}
@@ -173,7 +189,7 @@ export function ProjectManager(props: ProjectManagerProps) {
             showArchived={showArchived}
             unscopedChatCount={props.unscopedChatCount}
           />
-          <section className="project-manager__detail" aria-live="polite">
+          <section className={PROJECT_MANAGER_DETAIL_CLASS} aria-live="polite">
             {selected ? (
               <ProjectDetail
                 project={selected}

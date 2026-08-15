@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { orchestrationClass as oc } from "./layout";
 
 export function DetailRow({
   label,
@@ -8,7 +9,7 @@ export function DetailRow({
   value: string | number | undefined;
 }) {
   return (
-    <div className="orchestration-detail-row">
+    <div className={oc("orchestration-detail-row")}>
       <dt>{label}</dt>
       <dd>{value ?? "—"}</dd>
     </div>
@@ -16,7 +17,7 @@ export function DetailRow({
 }
 
 export function SmallEmpty({ children }: { children: string }) {
-  return <p className="orchestration-empty-line">{children}</p>;
+  return <p className={oc("orchestration-empty-line")}>{children}</p>;
 }
 
 export function DetailTag({
@@ -26,7 +27,9 @@ export function DetailTag({
   children: ReactNode;
   tone?: "neutral" | "good" | "warn" | "bad";
 }) {
-  return <span className={`orchestration-detail-tag ${tone}`}>{children}</span>;
+  return (
+    <span className={oc("orchestration-detail-tag", tone)}>{children}</span>
+  );
 }
 
 export function statusTone(

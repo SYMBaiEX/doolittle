@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { AcpBridgePanel } from "./components/AcpBridgePanel";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
@@ -19,8 +18,13 @@ import {
   filterToolEntries,
   toolEntryCategories,
 } from "./tools/tool-catalog-filter";
-import "./agent-pages.css";
-import "./catalog-pages.css";
+import {
+  TOOLS_INTEGRATIONS_BODY_CLASS,
+  TOOLS_INTEGRATIONS_CLASS,
+  TOOLS_INTEGRATIONS_LOADING_CLASS,
+  TOOLS_INTEGRATIONS_LOADING_DETAIL_CLASS,
+  TOOLS_INTEGRATIONS_LOADING_TITLE_CLASS,
+} from "./tools/tools-layout";
 
 interface ToolsResponse {
   tools?: unknown[];
@@ -53,6 +57,10 @@ const LazyMcpControlPanel = lazy(async () => ({
   default: (await preloadMcpControlPanel()).McpControlPanel,
 }));
 
+const LazyAcpBridgePanel = lazy(async () => ({
+  default: (await import("./components/AcpBridgePanel")).AcpBridgePanel,
+}));
+
 const LazyToolCatalogWorkspace = lazy(async () => ({
   default: (await import("./tools/ToolCatalogWorkspace")).ToolCatalogWorkspace,
 }));
@@ -62,15 +70,15 @@ export function McpControlPanelFallback() {
     <div
       aria-busy="true"
       aria-live="polite"
-      className="tools-integrations__loading"
+      className={TOOLS_INTEGRATIONS_LOADING_CLASS}
       role="status"
     >
       <span aria-hidden="true">◇</span>
       <div>
-        <strong className="tools-integrations__loading-title">
+        <strong className={TOOLS_INTEGRATIONS_LOADING_TITLE_CLASS}>
           Loading MCP workspace…
         </strong>
-        <small className="tools-integrations__loading-detail">
+        <small className={TOOLS_INTEGRATIONS_LOADING_DETAIL_CLASS}>
           Server and tool reads begin when the controls are ready.
         </small>
       </div>
@@ -102,7 +110,7 @@ export function ToolsPage({ active }: { active: boolean }) {
   const [category, setCategory] = useState("all");
   if (!active) {
     return (
-      <div className="page page-tools">
+      <div className="page page-tools gap-3">
         <PageHeader
           actions={
             <button
@@ -131,7 +139,7 @@ export function ToolsPage({ active }: { active: boolean }) {
   const totals = catalogData?.summary ?? {};
 
   return (
-    <div className="page page-tools">
+    <div className="page page-tools gap-3">
       <PageHeader
         eyebrow="Agent"
         title="Tools"
@@ -178,7 +186,7 @@ export function ToolsPage({ active }: { active: boolean }) {
         resources={[{ label: "Tool catalog", resource: tools }]}
       />
       <details
-        className="tools-integrations"
+        className={TOOLS_INTEGRATIONS_CLASS}
         onToggle={(event) => setIntegrationsOpen(event.currentTarget.open)}
       >
         <summary>
@@ -189,11 +197,13 @@ export function ToolsPage({ active }: { active: boolean }) {
           <span>{integrationsOpen ? "Hide" : "Inspect"}</span>
         </summary>
         {integrationsOpen ? (
-          <div className="tools-integrations__body">
+          <div className={TOOLS_INTEGRATIONS_BODY_CLASS}>
             <Suspense fallback={<McpControlPanelFallback />}>
               <LazyMcpControlPanel active={active} />
             </Suspense>
-            <AcpBridgePanel active={active} />
+            <Suspense fallback={<LoadingBlock label="Loading ACP bridge…" />}>
+              <LazyAcpBridgePanel active={active} />
+            </Suspense>
           </div>
         ) : null}
       </details>

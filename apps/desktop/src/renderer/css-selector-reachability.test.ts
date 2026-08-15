@@ -1,26 +1,34 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const globalCss = [
-  "styles.css",
-  "experience.css",
-  "shell-overlays.css",
-  "app-polish.css",
-  "review.css",
-  "coding-workspace.css",
-]
-  .map((name) => readFileSync(new URL(`./${name}`, import.meta.url), "utf8"))
-  .join("\n");
-const codingWorkspaceCss = readFileSync(
-  new URL("./coding-workspace.css", import.meta.url),
+const rendererRoot = new URL("./", import.meta.url);
+
+function layoutSources(url: URL): string[] {
+  return readdirSync(url, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isDirectory()) {
+      return layoutSources(new URL(`${entry.name}/`, url));
+    }
+    if (
+      !entry.isFile() ||
+      (!entry.name.endsWith("layout.ts") && !entry.name.endsWith("-layout.ts"))
+    ) {
+      return [];
+    }
+    return [readFileSync(new URL(entry.name, url), "utf8")];
+  });
+}
+
+const rendererContracts = layoutSources(rendererRoot).join("\n");
+const codingWorkspaceLayout = readFileSync(
+  new URL("./coding-workspace/layout.ts", import.meta.url),
   "utf8",
 );
-const reviewCss = readFileSync(
-  new URL("./review.css", import.meta.url),
+const threadWorkbenchLayout = readFileSync(
+  new URL("./thread-workbench/layout.ts", import.meta.url),
   "utf8",
 );
-const interactiveTerminalCss = readFileSync(
-  new URL("./components/interactive-terminal.css", import.meta.url),
+const reviewLayout = readFileSync(
+  new URL("./review/layout.ts", import.meta.url),
   "utf8",
 );
 const elizaTailwindCss = readFileSync(
@@ -133,31 +141,31 @@ const unreachableWorkspaceSelectors = [
 const hasExactClassSelector = (selector: string) =>
   new RegExp(`\\.${selector}(?![-\\w])`, "u");
 
-describe("global CSS selector reachability", () => {
+describe("Tailwind contract reachability", () => {
   it("does not retain selectors with no current renderer contract", () => {
     for (const selector of unreachableLegacySelectors) {
-      expect(globalCss).not.toMatch(
+      expect(rendererContracts).not.toMatch(
         new RegExp(`\\.${selector}(?![-\\w])`, "u"),
       );
     }
   });
 
   it("removes confirmed dead coding and review workspace selectors exactly", () => {
-    const workspaceCss = `${codingWorkspaceCss}\n${reviewCss}`;
+    const workspaceCss = `${codingWorkspaceLayout}\n${reviewLayout}`;
     for (const selector of unreachableWorkspaceSelectors) {
       expect(workspaceCss).not.toMatch(hasExactClassSelector(selector));
     }
-    expect(codingWorkspaceCss).not.toContain("coding-terminal-pulse");
+    expect(codingWorkspaceLayout).not.toContain("coding-terminal-pulse");
   });
 
-  it("keeps live coding, review, and interactive terminal contracts", () => {
+  it("keeps live coding and review contracts", () => {
     for (const selector of [
       "coding-action-notice",
       "coding-commit-list",
       "coding-worktree-field",
       "coding-worktree-input",
     ]) {
-      expect(codingWorkspaceCss).toMatch(hasExactClassSelector(selector));
+      expect(codingWorkspaceLayout).toContain(selector);
     }
 
     for (const selector of [
@@ -166,27 +174,14 @@ describe("global CSS selector reachability", () => {
       "review-ci-hero",
       "review-ci-checks",
     ]) {
-      expect(reviewCss).toMatch(hasExactClassSelector(selector));
-    }
-
-    for (const selector of [
-      "interactive-terminal",
-      "interactive-terminal-output",
-      "interactive-terminal-footer",
-    ]) {
-      expect(interactiveTerminalCss).toMatch(hasExactClassSelector(selector));
+      expect(reviewLayout).toContain(selector);
     }
   });
 
-  it("keeps the current shell, chat chrome, utility, and workbench contracts", () => {
-    for (const selector of [
-      ".sidebar-focus-nav",
-      ".chat-session-meta",
-      ".utility-drawer__navigation",
-      ".thread-workbench",
-    ]) {
-      expect(globalCss).toContain(selector);
-    }
+  it("keeps the current shell, chat chrome, and workbench contracts", () => {
+    expect(rendererContracts).toContain("sidebar-focus-nav");
+    expect(rendererContracts).toContain("chat-session-meta");
+    expect(threadWorkbenchLayout).toContain("thread-workbench");
   });
 
   it("includes published Eliza component classes in the host Tailwind build", () => {

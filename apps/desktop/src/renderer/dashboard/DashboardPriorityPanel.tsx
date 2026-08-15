@@ -1,3 +1,4 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import { CompactStatStrip } from "../components/CompactStatStrip";
 import type {
   DashboardNextAction,
@@ -6,6 +7,12 @@ import type {
   DashboardSetupEntry,
 } from "../dashboard-helpers";
 import { Badge, ErrorBlock, LoadingBlock } from "../lib";
+import {
+  DASHBOARD_CARD_CLASS,
+  DASHBOARD_CARD_HEADING_CLASS,
+  DASHBOARD_STATUS_ROW_CLASS,
+  DASHBOARD_TWO_COLUMN_CLASS,
+} from "./dashboard-layout";
 
 export function DashboardPriorityPanel({
   agentAccounts,
@@ -65,9 +72,9 @@ export function DashboardPriorityPanel({
         ]}
       />
 
-      <div className="two-column-grid dashboard-command-grid">
-        <section className="content-card">
-          <div className="card-heading">
+      <div className={DASHBOARD_TWO_COLUMN_CLASS}>
+        <section className={DASHBOARD_CARD_CLASS}>
+          <div className={DASHBOARD_CARD_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Next actions</span>
               <h2>What to do now</h2>
@@ -76,7 +83,7 @@ export function DashboardPriorityPanel({
               {nextActions.length} queued
             </Badge>
           </div>
-          <div className="dashboard-action-list">
+          <div className="grid border-t border-[var(--border)]">
             {nextActions.map((action) => {
               const handler =
                 action.target === "review"
@@ -89,28 +96,35 @@ export function DashboardPriorityPanel({
                         ? onOpenProviders
                         : () => onOpenChat?.(sessions[0]?.id);
               return (
-                <article className="dashboard-action-card" key={action.id}>
-                  <header>
+                <article
+                  className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-b border-[var(--border)] py-2.5"
+                  key={action.id}
+                >
+                  <header className="col-start-1 flex justify-between gap-2.5">
                     <strong>{action.title}</strong>
                     <Badge tone={action.tone}>{action.target}</Badge>
                   </header>
-                  <p>{action.description}</p>
-                  <button
-                    className="text-button"
+                  <p className="col-start-1 m-0 text-[var(--text-body,13px)] text-[var(--text-soft)]">
+                    {action.description}
+                  </p>
+                  <Button
+                    className="col-start-2 row-span-2 row-start-1 self-center"
                     disabled={!handler}
                     onClick={() => handler?.()}
+                    size="sm"
                     type="button"
+                    variant="ghost"
                   >
                     Open
-                  </button>
+                  </Button>
                 </article>
               );
             })}
           </div>
         </section>
 
-        <section className="content-card">
-          <div className="card-heading">
+        <section className={DASHBOARD_CARD_CLASS}>
+          <div className={DASHBOARD_CARD_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Workspace pulse</span>
               <h2>Repository and setup</h2>
@@ -119,8 +133,8 @@ export function DashboardPriorityPanel({
               {repo.dirty ? "dirty" : "stable"}
             </Badge>
           </div>
-          <div className="stack-list">
-            <div className="status-row">
+          <div className="grid">
+            <div className={DASHBOARD_STATUS_ROW_CLASS}>
               <div>
                 <strong>{repo.branch}</strong>
                 <small>
@@ -134,16 +148,16 @@ export function DashboardPriorityPanel({
               </Badge>
             </div>
           </div>
-          <details className="dashboard-workspace-details">
-            <summary>
+          <details className="group mt-[9px] border-t border-[var(--border)]">
+            <summary className="flex min-h-[38px] cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
               <span>Workspace diagnostics</span>
               <Badge tone={setupWarnings ? "warn" : "good"}>
                 {setupWarnings ? `${setupWarnings} warnings` : "Ready"}
               </Badge>
             </summary>
-            <div className="stack-list">
+            <div className="grid border-t border-[var(--border)]">
               {setupEntries.slice(0, 4).map((entry) => (
-                <div className="status-row" key={entry.key}>
+                <div className={DASHBOARD_STATUS_ROW_CLASS} key={entry.key}>
                   <div>
                     <strong>{entry.label}</strong>
                     <small>{entry.value}</small>
@@ -153,9 +167,14 @@ export function DashboardPriorityPanel({
               ))}
             </div>
             {repo.lines.length > 0 ? (
-              <div className="dashboard-line-list spaced">
+              <div className="mt-3.5 grid gap-2">
                 {repo.lines.slice(0, 4).map((line) => (
-                  <code key={line}>{line}</code>
+                  <code
+                    className="block overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-soft)]"
+                    key={line}
+                  >
+                    {line}
+                  </code>
                 ))}
               </div>
             ) : null}

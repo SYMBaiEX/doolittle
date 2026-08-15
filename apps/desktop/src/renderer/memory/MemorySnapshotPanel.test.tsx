@@ -33,7 +33,7 @@ describe("MemorySnapshotPanel", () => {
       />,
     );
 
-    expect(markup).toContain("memory-empty-card");
+    expect(markup).toContain('data-memory-empty="true"');
     expect(markup).toContain("No stored entries yet");
     expect(markup).not.toContain("Recent entries");
     expect(markup).not.toContain("Readable snapshot");
@@ -57,7 +57,7 @@ describe("MemorySnapshotPanel", () => {
       />,
     );
 
-    expect(markup).not.toContain("memory-empty-card");
+    expect(markup).not.toContain('data-memory-empty="true"');
     expect(markup).toContain("Recent entries");
     expect(markup).toContain("Readable snapshot");
     expect(markup).toContain("Prefers concise updates");
@@ -97,7 +97,7 @@ describe("MemorySnapshotPanel", () => {
       />,
     );
 
-    expect(markup).toContain("memory-empty-card");
+    expect(markup).toContain('data-memory-empty="true"');
     expect(markup).not.toContain("Readable snapshot");
     expect(markup).not.toContain("MEMORY [0%");
   });

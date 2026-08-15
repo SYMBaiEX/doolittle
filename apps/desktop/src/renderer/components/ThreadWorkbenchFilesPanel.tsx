@@ -1,6 +1,16 @@
 import { lazy, Suspense } from "react";
 import type { CodeLanguage } from "../code-language";
 import { type ApiResource, asString, ErrorBlock, LoadingBlock } from "../lib";
+import {
+  WORKBENCH_CODE_PREVIEW_CLASS,
+  WORKBENCH_EMPTY_CLASS,
+  WORKBENCH_FILE_EMPTY_CLASS,
+  WORKBENCH_FILE_EMPTY_ICON_CLASS,
+  WORKBENCH_FILE_SPLIT_CLASS,
+  WORKBENCH_FILES_BODY_CLASS,
+  WORKBENCH_MONACO_CLASS,
+  WORKBENCH_TREE_CLASS,
+} from "../thread-workbench/layout";
 import type { WorkspaceTreeEntry } from "../workspace-file-tree";
 import { compactWorkspacePath } from "../workspace-path";
 import type { CodeEditorStateSnapshot } from "./CodeEditor";
@@ -44,14 +54,17 @@ export function ThreadWorkbenchFilesPanel({
   onEditorStateChange,
 }: ThreadWorkbenchFilesPanelProps) {
   return (
-    <div className="thread-workbench-panel-body thread-workbench-panel-body--files">
+    <div
+      className={WORKBENCH_FILES_BODY_CLASS}
+      data-thread-workbench-panel="files"
+    >
       {tree.loading ? <LoadingBlock label="Loading workbench…" /> : null}
       {tree.error ? (
         <ErrorBlock error={tree.error} retry={tree.reload} />
       ) : null}
       {!tree.loading && !tree.error ? (
-        <div className="thread-workbench-split thread-workbench-file-workspace">
-          <div className="thread-workbench-tree">
+        <div className={WORKBENCH_FILE_SPLIT_CLASS}>
+          <div className={WORKBENCH_TREE_CLASS}>
             {entries.length ? (
               <WorkspaceFileTree
                 entries={entries}
@@ -61,12 +74,12 @@ export function ThreadWorkbenchFilesPanel({
                 truncated={tree.data?.truncated}
               />
             ) : (
-              <p className="thread-workbench-empty">
+              <p className={WORKBENCH_EMPTY_CLASS}>
                 No files returned for this workspace.
               </p>
             )}
           </div>
-          <div className="thread-workbench-preview thread-workbench-code-preview">
+          <div className={WORKBENCH_CODE_PREVIEW_CLASS}>
             {selectedPath ? (
               <>
                 <div>
@@ -89,7 +102,7 @@ export function ThreadWorkbenchFilesPanel({
                 ) : file.error ? (
                   <ErrorBlock error={file.error} retry={file.reload} />
                 ) : (
-                  <div className="thread-workbench-monaco">
+                  <div className={WORKBENCH_MONACO_CLASS}>
                     <Suspense
                       fallback={
                         <div
@@ -117,10 +130,10 @@ export function ThreadWorkbenchFilesPanel({
                 )}
               </>
             ) : (
-              <div className="thread-workbench-file-empty">
+              <div className={WORKBENCH_FILE_EMPTY_CLASS}>
                 <span
                   aria-hidden="true"
-                  className="thread-workbench-file-empty-icon"
+                  className={WORKBENCH_FILE_EMPTY_ICON_CLASS}
                 >
                   &lt;/&gt;
                 </span>

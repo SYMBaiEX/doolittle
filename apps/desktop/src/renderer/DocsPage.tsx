@@ -1,6 +1,17 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import { useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import {
+  DIAGNOSTICS_CARD_CLASS,
+  DIAGNOSTICS_CARD_HEADING_CLASS,
+  DIAGNOSTICS_CHEVRON_CLASS,
+  DIAGNOSTICS_DETAILS_CLASS,
+  DIAGNOSTICS_IDLE_CLASS,
+  DIAGNOSTICS_PAGE_GRID_CLASS,
+  DIAGNOSTICS_STATUS_ROW_CLASS,
+  DIAGNOSTICS_SUMMARY_CLASS,
+} from "./diagnostics-layout";
 import {
   asArray,
   asRecord,
@@ -12,7 +23,6 @@ import {
   titleCase,
   useApiResource,
 } from "./lib";
-import "./diagnostics-pages.css";
 
 interface DoctorResponse {
   checks?: unknown[];
@@ -70,7 +80,7 @@ export function prioritizeDoctorChecks(
 
 function DoctorCheckRow({ check }: { check: DoctorCheckView }) {
   return (
-    <div className="status-row">
+    <div className={DIAGNOSTICS_STATUS_ROW_CLASS}>
       <div>
         <strong>{check.label}</strong>
         <small>{check.detail}</small>
@@ -129,24 +139,25 @@ export function DocsPage({ active }: { active: boolean }) {
           },
         ]}
       />
-      <div className="two-column-grid">
-        <section className="content-card">
-          <div className="card-heading">
+      <div className={DIAGNOSTICS_PAGE_GRID_CLASS}>
+        <section className={DIAGNOSTICS_CARD_CLASS}>
+          <div className={DIAGNOSTICS_CARD_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Runtime doctor</span>
               <h2>System checks</h2>
             </div>
-            <button
-              className="text-button"
+            <Button
               disabled={!active}
               onClick={() => {
                 if (doctorRequested) doctor.reload();
                 else setDoctorRequested(true);
               }}
+              size="sm"
               type="button"
+              variant="ghost"
             >
               {doctorRequested ? "Run again" : "Run diagnostics"}
-            </button>
+            </Button>
           </div>
           {!active ? (
             <OfflineRouteState>
@@ -154,7 +165,7 @@ export function DocsPage({ active }: { active: boolean }) {
               ready.
             </OfflineRouteState>
           ) : !doctorRequested ? (
-            <div className="diagnostics-idle">
+            <div className={DIAGNOSTICS_IDLE_CLASS}>
               <strong>Checks are ready when you need them.</strong>
               <small>
                 Doolittle avoids probing providers and local services just to
@@ -166,18 +177,21 @@ export function DocsPage({ active }: { active: boolean }) {
           ) : doctor.error ? (
             <ErrorBlock error={doctor.error} retry={doctor.reload} />
           ) : (
-            <div className="stack-list">
+            <div className="grid">
               {prioritizedChecks.visible.map((check) => (
                 <DoctorCheckRow check={check} key={check.id} />
               ))}
             </div>
           )}
           {active && prioritizedChecks.remaining.length ? (
-            <details className="compact-disclosure">
-              <summary>
+            <details className="group overflow-hidden">
+              <summary className="cursor-pointer list-none py-[9px] font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--text-soft)] [&::-webkit-details-marker]:hidden">
+                <span aria-hidden="true" className={DIAGNOSTICS_CHEVRON_CLASS}>
+                  ›
+                </span>{" "}
                 {prioritizedChecks.remaining.length} more checks
               </summary>
-              <div className="stack-list">
+              <div className="grid">
                 {prioritizedChecks.remaining.map((check) => (
                   <DoctorCheckRow check={check} key={check.id} />
                 ))}
@@ -185,60 +199,93 @@ export function DocsPage({ active }: { active: boolean }) {
             </details>
           ) : null}
         </section>
-        <section className="content-card">
-          <div className="card-heading">
+        <section className={DIAGNOSTICS_CARD_CLASS}>
+          <div className={DIAGNOSTICS_CARD_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Quick reference</span>
               <h2>Run Doolittle</h2>
             </div>
           </div>
-          <div className="command-list">
-            <div>
-              <code>./scripts/install.sh</code>
-              <span>Install or update the local command.</span>
+          <div className="grid gap-2">
+            <div className="grid gap-1 border-t border-[var(--border)] pt-2 first:border-t-0 first:pt-0">
+              <code className="text-[var(--text-control)] text-[var(--accent)]">
+                ./scripts/install.sh
+              </code>
+              <span className="text-[var(--text-meta)] text-[var(--muted)]">
+                Install or update the local command.
+              </span>
             </div>
-            <div>
-              <code>doolittle desktop</code>
-              <span>Open this desktop application.</span>
+            <div className="grid gap-1 border-t border-[var(--border)] pt-2">
+              <code className="text-[var(--text-control)] text-[var(--accent)]">
+                doolittle desktop
+              </code>
+              <span className="text-[var(--text-meta)] text-[var(--muted)]">
+                Open this desktop application.
+              </span>
             </div>
-            <div>
-              <code>doolittle doctor</code>
-              <span>Check runtime and provider readiness.</span>
+            <div className="grid gap-1 border-t border-[var(--border)] pt-2">
+              <code className="text-[var(--text-control)] text-[var(--accent)]">
+                doolittle doctor
+              </code>
+              <span className="text-[var(--text-meta)] text-[var(--muted)]">
+                Check runtime and provider readiness.
+              </span>
             </div>
-            <div>
-              <code>doolittle</code>
-              <span>Open the terminal interface.</span>
+            <div className="grid gap-1 border-t border-[var(--border)] pt-2">
+              <code className="text-[var(--text-control)] text-[var(--accent)]">
+                doolittle
+              </code>
+              <span className="text-[var(--text-meta)] text-[var(--muted)]">
+                Open the terminal interface.
+              </span>
             </div>
           </div>
         </section>
       </div>
-      <details className="architecture-disclosure">
-        <summary>
-          <span>
-            <strong>Desktop security boundary</strong>
-            <small>Renderer → preload → Electron → local runtime</small>
+      <details
+        className={`architecture-disclosure ${DIAGNOSTICS_DETAILS_CLASS}`}
+      >
+        <summary className={DIAGNOSTICS_SUMMARY_CLASS}>
+          <span aria-hidden="true" className={DIAGNOSTICS_CHEVRON_CLASS}>
+            ›
           </span>
-          <span>Inspect</span>
+          <span className="grid min-w-0 flex-1 gap-1">
+            <strong>Desktop security boundary</strong>
+            <small className="text-[var(--text-meta)] text-[var(--muted)]">
+              Renderer → preload → Electron → local runtime
+            </small>
+          </span>
+          <span className="font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)]">
+            Inspect
+          </span>
         </summary>
-        <div className="architecture-flow architecture-disclosure__body">
-          <div>
+        <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] items-center gap-3 border-t border-[var(--border)] p-[var(--card-pad)] max-[760px]:grid-cols-1 max-[760px]:[&_i]:rotate-90">
+          <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
             <strong>React renderer</strong>
-            <span>Sandboxed UI</span>
+            <span className="text-[var(--text-meta)] text-[var(--muted)]">
+              Sandboxed UI
+            </span>
           </div>
-          <i>→</i>
-          <div>
+          <i className="text-center not-italic text-[var(--accent)]">→</i>
+          <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
             <strong>Typed preload</strong>
-            <span>Exact endpoint allowlist</span>
+            <span className="text-[var(--text-meta)] text-[var(--muted)]">
+              Exact endpoint allowlist
+            </span>
           </div>
-          <i>→</i>
-          <div>
+          <i className="text-center not-italic text-[var(--accent)]">→</i>
+          <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
             <strong>Electron main</strong>
-            <span>Private IPC</span>
+            <span className="text-[var(--text-meta)] text-[var(--muted)]">
+              Private IPC
+            </span>
           </div>
-          <i>→</i>
-          <div>
+          <i className="text-center not-italic text-[var(--accent)]">→</i>
+          <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
             <strong>Doolittle runtime</strong>
-            <span>127.0.0.1 ephemeral port</span>
+            <span className="text-[var(--text-meta)] text-[var(--muted)]">
+              127.0.0.1 ephemeral port
+            </span>
           </div>
         </div>
       </details>

@@ -80,8 +80,8 @@ describe("SessionDetail layout", () => {
       />,
     );
 
-    expect(html).toContain('class="session-detail-stack"');
-    expect(html).toContain('class="session-transcript-panel__header"');
+    expect(html).toContain('data-session-detail="true"');
+    expect(html).toContain("Persisted messages");
     expect(html).toContain(">Persisted messages<");
     expect(html).toContain(">1 message<");
     expect(html).not.toContain("Session highlights");

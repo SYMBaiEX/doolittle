@@ -1,4 +1,7 @@
-import { type FormEvent, useMemo, useState } from "react";
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
+import { Textarea } from "@elizaos/ui/components/ui/textarea";
+import { type FormEvent, lazy, Suspense, useMemo, useState } from "react";
 import {
   asArray,
   asString,
@@ -12,13 +15,22 @@ import {
 } from "../lib";
 import { CompactStatStrip } from "./CompactStatStrip";
 import { OfflineRouteState } from "./OfflineRouteState";
-import { SkillProposalCard } from "./SkillProposalCard";
+import {
+  SKILL_FILTER_CLASS,
+  SKILL_FILTER_SELECTED_CLASS,
+  SKILL_WORKSHOP_CLASS,
+  SKILL_WORKSHOP_CREATE_CLASS,
+  SKILL_WORKSHOP_GRID_CLASS,
+  SKILL_WORKSHOP_PREVIEW_CLASS,
+  SKILL_WORKSHOP_SUMMARY_CLASS,
+} from "./skill-workshop-layout";
 import {
   normalizeProposal,
   type SkillProposalFilter,
   skillWorkshopLabelCounts,
 } from "./skill-workshop-model";
-import "./skill-workshop-panel.css";
+
+const SkillProposalCard = lazy(() => import("./SkillProposalCard"));
 
 interface SkillProposalResponse {
   proposals?: unknown[];
@@ -156,7 +168,7 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
 
   if (!active) {
     return (
-      <section className="skill-workshop">
+      <section className={SKILL_WORKSHOP_CLASS}>
         <OfflineRouteState>
           Skill proposals and activation actions are unavailable until the local
           runtime is ready.
@@ -166,7 +178,7 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
   }
 
   return (
-    <section className="skill-workshop">
+    <section className={SKILL_WORKSHOP_CLASS}>
       {creatingMessage ? <Notice tone="good">{creatingMessage}</Notice> : null}
       <CompactStatStrip
         label="Skill proposal summary"
@@ -178,18 +190,24 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
         ]}
       />
 
-      <details className="content-card skill-workshop-create">
-        <summary>
-          <span>
+      <details className={SKILL_WORKSHOP_CREATE_CLASS}>
+        <summary className={SKILL_WORKSHOP_SUMMARY_CLASS}>
+          <span className="grid gap-0.5">
             <strong>Create a skill proposal</strong>
             <small>Paste a slug and raw SKILL.md only when needed.</small>
           </span>
-          <span>New proposal</span>
+          <span className="font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)] uppercase group-open:text-[var(--accent)]">
+            New proposal
+          </span>
         </summary>
-        <form className="skill-workshop-form" onSubmit={submitProposal}>
-          <label>
+        <form
+          className="mx-3.5 mb-3.5 grid gap-3 border-t border-[var(--border)] pt-3"
+          onSubmit={submitProposal}
+        >
+          <label htmlFor="skill-proposal-slug">
             <span>Slug</span>
-            <input
+            <Input
+              id="skill-proposal-slug"
               autoCapitalize="none"
               maxLength={63}
               pattern="[a-z0-9][a-z0-9-]{0,62}"
@@ -198,9 +216,10 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
               onChange={(event) => setSlug(event.target.value)}
             />
           </label>
-          <label>
+          <label htmlFor="skill-proposal-content">
             <span>SKILL.md</span>
-            <textarea
+            <Textarea
+              id="skill-proposal-content"
               rows={8}
               value={content}
               onChange={(event) => setContent(event.target.value)}
@@ -214,29 +233,27 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
               }
             />
           </label>
-          <div className="skill-workshop-form__actions">
-            <button
-              className="primary-button"
-              type="submit"
-              disabled={submitting}
-            >
+          <div className="flex items-center justify-between gap-3 [&_span]:text-[var(--muted)]">
+            <Button type="submit" disabled={submitting}>
               {submitting ? "Creating…" : "Create proposal"}
-            </button>
+            </Button>
             <span>{`${content.length} characters`}</span>
           </div>
           {creatingError ? <Notice tone="bad">{creatingError}</Notice> : null}
         </form>
       </details>
 
-      <div className="skill-workshop-filters">
-        <label className="search-field">
-          <input
+      <div className="grid gap-2.5">
+        <label htmlFor="skill-proposal-search">
+          <span className="sr-only">Search skill proposals</span>
+          <Input
+            id="skill-proposal-search"
             placeholder="Filter by slug or author"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
-        <fieldset className="skill-workshop-filter-chips">
+        <fieldset className="m-0 flex flex-wrap gap-2 border-0 p-0">
           <legend className="sr-only">Proposal filters</legend>
           {(["all", "pending", "approved", "rejected"] as const).map(
             (value) => (
@@ -244,9 +261,7 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
                 aria-pressed={filter === value}
                 key={value}
                 type="button"
-                className={`skill-workshop-filter-chip ${
-                  filter === value ? "is-selected" : ""
-                }`}
+                className={`${SKILL_FILTER_CLASS} ${filter === value ? SKILL_FILTER_SELECTED_CLASS : ""}`}
                 onClick={() => setFilter(value)}
               >
                 {value}
@@ -261,42 +276,46 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
       ) : proposals.error ? (
         <ErrorBlock error={proposals.error} retry={proposals.reload} />
       ) : filtered.length ? (
-        <div className="skill-workshop-grid">
-          <div className="skill-workshop-list">
+        <div className={SKILL_WORKSHOP_GRID_CLASS}>
+          <div className="grid min-w-0 gap-2.5">
             <h2>Proposal queue</h2>
-            {filtered.map((proposal) => {
-              const isSelected = proposal.id === selectedId;
+            <Suspense
+              fallback={<LoadingBlock label="Loading proposal cards…" />}
+            >
+              {filtered.map((proposal) => {
+                const isSelected = proposal.id === selectedId;
 
-              return (
-                <SkillProposalCard
-                  actionBusy={Boolean(actionBusy)}
-                  isRejecting={rejectingId === proposal.id}
-                  isSelected={isSelected}
-                  key={proposal.id}
-                  onApprove={() => void applyMutation(proposal.id, "approve")}
-                  onReasonChange={(value) => updateReason(proposal.id, value)}
-                  onReject={() => void applyMutation(proposal.id, "reject")}
-                  onRejectToggle={() =>
-                    setRejectingId((current) =>
-                      current === proposal.id ? "" : proposal.id,
-                    )
-                  }
-                  onSelect={() =>
-                    setSelectedId((current) =>
-                      current === proposal.id ? "" : proposal.id,
-                    )
-                  }
-                  proposal={proposal}
-                  rejectionReason={asString(
-                    feedbackByProposal[proposal.id],
-                    "",
-                  )}
-                />
-              );
-            })}
+                return (
+                  <SkillProposalCard
+                    actionBusy={Boolean(actionBusy)}
+                    isRejecting={rejectingId === proposal.id}
+                    isSelected={isSelected}
+                    key={proposal.id}
+                    onApprove={() => void applyMutation(proposal.id, "approve")}
+                    onReasonChange={(value) => updateReason(proposal.id, value)}
+                    onReject={() => void applyMutation(proposal.id, "reject")}
+                    onRejectToggle={() =>
+                      setRejectingId((current) =>
+                        current === proposal.id ? "" : proposal.id,
+                      )
+                    }
+                    onSelect={() =>
+                      setSelectedId((current) =>
+                        current === proposal.id ? "" : proposal.id,
+                      )
+                    }
+                    proposal={proposal}
+                    rejectionReason={asString(
+                      feedbackByProposal[proposal.id],
+                      "",
+                    )}
+                  />
+                );
+              })}
+            </Suspense>
           </div>
 
-          <div className="skill-workshop-preview">
+          <div className={SKILL_WORKSHOP_PREVIEW_CLASS}>
             <h2>SKILL.md preview</h2>
             {selectedId ? (
               selectedDetail.loading ? (
@@ -307,8 +326,8 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
                   retry={selectedDetail.reload}
                 />
               ) : normalizedDetail ? (
-                <article className="content-card">
-                  <div className="card-heading">
+                <article className="m-0 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3">
+                  <div className="mb-3 flex items-center justify-between gap-4">
                     <div>
                       <span className="eyebrow">Exact content</span>
                       <h3>{normalizedDetail.slug}</h3>

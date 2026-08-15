@@ -17,7 +17,7 @@ describe("SetupReadinessPanel", () => {
     );
 
     expect(markup).toContain('aria-labelledby="setup-readiness-title"');
-    expect(markup).toContain('class="setup-readiness is-good"');
+    expect(markup).toContain('data-readiness-tone="good"');
     expect(markup).toContain("Ready for local work");
     expect(markup).toContain("The shell and providers look ready.");
     expect(markup).not.toContain("transports 0/11 ready");

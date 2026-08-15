@@ -18,6 +18,13 @@ import {
   LoadingBlock,
   RawDataDisclosure,
 } from "../lib";
+import {
+  RUNTIME_CARD_CLASS,
+  RUNTIME_CARD_HEADING_CLASS,
+  RUNTIME_SECTION_STACK_CLASS,
+  RUNTIME_STATUS_ROW_CLASS,
+  RUNTIME_TWO_COLUMN_GRID_CLASS,
+} from "./runtime-layout";
 
 export function RuntimeOverview({
   active = true,
@@ -54,7 +61,7 @@ export function RuntimeOverview({
   }
 
   return (
-    <div className="runtime-section-stack">
+    <div className={RUNTIME_SECTION_STACK_CLASS}>
       <CompactStatStrip
         label="Runtime summary"
         stats={[
@@ -76,9 +83,12 @@ export function RuntimeOverview({
         ]}
       />
 
-      <div className="runtime-overview-grid">
-        <section className="content-card">
-          <div className="card-heading">
+      <div
+        className={`runtime-overview-grid ${RUNTIME_TWO_COLUMN_GRID_CLASS}`}
+        data-runtime-layout="overview-grid"
+      >
+        <section className={RUNTIME_CARD_CLASS}>
+          <div className={RUNTIME_CARD_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Spawned agents</span>
               <h2>Account routing</h2>
@@ -98,7 +108,7 @@ export function RuntimeOverview({
           ) : accountPool.error ? (
             <ErrorBlock error={accountPool.error} retry={accountPool.reload} />
           ) : (
-            <div className="status-row">
+            <div className={RUNTIME_STATUS_ROW_CLASS}>
               <div>
                 <strong>{enabledAccounts.length} enabled account(s)</strong>
                 <small>

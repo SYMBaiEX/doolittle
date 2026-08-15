@@ -22,7 +22,8 @@ describe("CatalogFilterBar", () => {
       </CatalogFilterBar>,
     );
 
-    expect(markup).toContain('class="catalog-filter-bar"');
+    expect(markup).toContain('class="catalog-filter-bar flex');
+    expect(markup).toContain("max-[760px]:flex-wrap");
     expect(markup).toContain('type="search"');
     expect(markup).toContain('aria-label="Tool category"');
     expect(markup).toContain('aria-live="polite"');

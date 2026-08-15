@@ -12,6 +12,13 @@ import {
   RawDataDisclosure,
 } from "../lib";
 import type { GatewayHealthResponse, GatewayRuntimeResponse } from "./models";
+import {
+  RUNTIME_CARD_CLASS,
+  RUNTIME_CARD_HEADING_CLASS,
+  RUNTIME_SECTION_STACK_CLASS,
+  RUNTIME_STATUS_ROW_CLASS,
+  RUNTIME_TWO_COLUMN_GRID_CLASS,
+} from "./runtime-layout";
 
 export function RuntimeGateway({
   active = true,
@@ -41,7 +48,7 @@ export function RuntimeGateway({
   const messagingPlugins = asArray(gatewayRuntime.data?.messagingPlugins);
 
   return (
-    <div className="runtime-section-stack">
+    <div className={RUNTIME_SECTION_STACK_CLASS}>
       <CompactStatStrip
         label="Gateway runtime summary"
         stats={[
@@ -61,9 +68,9 @@ export function RuntimeGateway({
         ]}
       />
 
-      <div className="runtime-detail-grid">
-        <section className="content-card">
-          <div className="card-heading">
+      <div className={RUNTIME_TWO_COLUMN_GRID_CLASS}>
+        <section className={RUNTIME_CARD_CLASS}>
+          <div className={RUNTIME_CARD_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Gateway health</span>
               <h2>Transport control</h2>
@@ -82,7 +89,7 @@ export function RuntimeGateway({
             />
           ) : (
             <>
-              <div className="status-row">
+              <div className={RUNTIME_STATUS_ROW_CLASS}>
                 <div>
                   <strong>
                     {asString(
@@ -111,8 +118,8 @@ export function RuntimeGateway({
           )}
         </section>
 
-        <section className="content-card">
-          <div className="card-heading">
+        <section className={RUNTIME_CARD_CLASS}>
+          <div className={RUNTIME_CARD_HEADING_CLASS}>
             <div>
               <span className="eyebrow">Runtime attachment</span>
               <h2>Messaging inventory</h2>
@@ -128,7 +135,7 @@ export function RuntimeGateway({
             />
           ) : (
             <>
-              <div className="status-row">
+              <div className={RUNTIME_STATUS_ROW_CLASS}>
                 <div>
                   <strong>
                     {asString(runtimeSummary.headline, "Runtime attached")}

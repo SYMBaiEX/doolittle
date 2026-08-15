@@ -1,5 +1,6 @@
 import { asArray, asNumber, asString, Badge, ErrorBlock } from "../../lib";
 import { compactWorkspacePath } from "../../workspace-path";
+import { orchestrationClass as oc } from "../layout";
 import type { OrchestrationRunsPanelProps } from "../OrchestrationRunsPanel";
 import { CODEGEN_MODES } from "../orchestration-runs-model";
 
@@ -51,14 +52,14 @@ export function OrchestrationLauncher(props: LauncherProps) {
     onSubmitCodegen,
   } = props;
   return (
-    <aside className="orchestration-launcher">
+    <aside className={oc("orchestration-launcher")}>
       {codegenRuntimeResource.error ? (
         <ErrorBlock
           error={codegenRuntimeResource.error}
           retry={codegenRuntimeResource.reload}
         />
       ) : null}
-      <div className="orchestration-pane-heading">
+      <div className={oc("orchestration-pane-heading")}>
         <span>New workflow</span>
         <Badge tone={codegenReady ? "good" : codegenAvailable ? "warn" : "bad"}>
           {codegenReady
@@ -68,14 +69,14 @@ export function OrchestrationLauncher(props: LauncherProps) {
               : "offline"}
         </Badge>
       </div>
-      <fieldset className="orchestration-mode-grid">
+      <fieldset className={oc("orchestration-mode-grid")}>
         <legend>Code generation mode</legend>
         {CODEGEN_MODES.map((mode) => (
           <button
             key={mode.id}
             type="button"
             aria-pressed={codegenMode === mode.id}
-            className={codegenMode === mode.id ? "selected" : ""}
+            className={oc(codegenMode === mode.id && "selected")}
             onClick={() => onCodegenModeChange(mode.id)}
           >
             <strong>{mode.label}</strong>
@@ -83,7 +84,10 @@ export function OrchestrationLauncher(props: LauncherProps) {
           </button>
         ))}
       </fieldset>
-      <form className="orchestration-codegen-form" onSubmit={onSubmitCodegen}>
+      <form
+        className={oc("orchestration-codegen-form")}
+        onSubmit={onSubmitCodegen}
+      >
         {codegenMode === "qa" ? (
           <label>
             <span>Project path</span>
@@ -146,17 +150,17 @@ export function OrchestrationLauncher(props: LauncherProps) {
               }`}
         </button>
       </form>
-      <p className="orchestration-runtime-version">
+      <p className={oc("orchestration-runtime-version")}>
         {asString(codegenExecution.source, "product")} engine ·{" "}
         {asArray(codegenExecution.methods).length} methods ·{" "}
         {asNumber(workflowSummary.total)} workflows
       </p>
       {!codegenReady && asString(codegenExecution.detail) ? (
-        <p className="orchestration-runtime-detail">
+        <p className={oc("orchestration-runtime-detail")}>
           {asString(codegenExecution.detail)}
         </p>
       ) : null}
-      <p className="orchestration-task-routing-note">
+      <p className={oc("orchestration-task-routing-note")}>
         {workspacePath
           ? `Project defaults come from ${compactWorkspacePath(workspacePath)}. QA uses this path directly; other workflows retain the selected project name in their receipt.`
           : "Choose a workspace to prefill project context for build and research receipts."}

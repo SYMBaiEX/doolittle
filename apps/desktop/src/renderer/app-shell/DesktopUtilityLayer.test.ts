@@ -24,7 +24,7 @@ describe("DesktopUtilityLayer", () => {
       createElement(DesktopUtilityLayer, props),
     );
 
-    expect(markup).toContain('class="utility-backdrop"');
+    expect(markup).toContain('data-utility-backdrop=""');
     expect(markup).toContain('tabindex="-1"');
     expect(markup).toContain('aria-modal="true"');
     expect(markup).toContain('role="dialog"');
@@ -36,7 +36,7 @@ describe("DesktopUtilityLayer", () => {
       createElement(DesktopUtilityLayer, { ...props, mobileModal: false }),
     );
 
-    expect(markup).not.toContain('class="utility-backdrop"');
+    expect(markup).not.toContain('data-utility-backdrop=""');
     expect(markup).not.toContain('aria-modal="true"');
     expect(markup).not.toContain('role="dialog"');
     expect(markup).toContain('role="complementary"');

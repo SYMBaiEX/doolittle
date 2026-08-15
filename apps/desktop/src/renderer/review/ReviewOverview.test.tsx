@@ -23,7 +23,7 @@ describe("ReviewOverview", () => {
       />,
     );
 
-    expect(markup).toContain("review-work-overview neutral is-empty");
+    expect(markup).toContain('data-review-empty="true"');
     expect(markup).toContain("Review ready");
     expect(markup).toContain("No completed work yet");
     expect(markup).not.toContain("review-work-metrics");

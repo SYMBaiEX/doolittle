@@ -24,8 +24,6 @@ import {
 } from "./lib";
 import { PluginCatalogWorkspace } from "./plugins/PluginCatalogWorkspace";
 import { buildPluginCatalogEntries } from "./plugins/plugin-catalog-model";
-import "./agent-pages.css";
-import "./plugins.css";
 
 export function PluginsPage({ active }: { active: boolean }) {
   const resource = useApiResource<PluginsResponse>(
@@ -87,7 +85,7 @@ export function PluginsPage({ active }: { active: boolean }) {
         </OfflineRouteState>
       ) : null}
       {active ? (
-        <div className="plugins-catalog-controls">
+        <div className="plugins-catalog-controls grid grid-cols-[minmax(520px,1fr)_minmax(460px,0.78fr)] items-stretch gap-2 max-[1180px]:grid-cols-1 [&>.compact-stat-strip]:min-w-0 [&>.compact-stat-strip]:rounded-[var(--radius-sm)] [&>.compact-stat-strip]:border [&>.compact-stat-strip]:border-[var(--border)] [&>.compact-stat-strip]:bg-[color-mix(in_srgb,var(--surface)_78%,transparent)]">
           <CompactStatStrip
             label="Plugin catalog summary"
             stats={[
@@ -101,12 +99,14 @@ export function PluginsPage({ active }: { active: boolean }) {
               { label: "Categories", value: categories.length - 1 },
             ]}
           />
-          <div className="filter-bar plugins-filter-bar">
+          <div className="filter-bar plugins-filter-bar grid min-w-0 grid-cols-[minmax(0,1fr)_clamp(176px,22vw,240px)] items-end gap-x-2.5 gap-y-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_78%,transparent)] px-2 py-1.5 max-[680px]:grid-cols-1">
             <label
-              className="search-field grow plugins-filter-control plugins-filter-search"
+              className="search-field plugins-filter-control plugins-filter-search grid min-w-0 grow gap-1"
               htmlFor="plugin-search"
             >
-              <span className="plugins-filter-label">Search</span>
+              <span className="plugins-filter-label font-[var(--font-mono)] text-[var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase">
+                Search
+              </span>
               <Input
                 id="plugin-search"
                 placeholder="Search plugins"
@@ -115,14 +115,17 @@ export function PluginsPage({ active }: { active: boolean }) {
                 onChange={(event) => setQuery(event.target.value)}
               />
             </label>
-            <div className="plugins-filter-control plugins-filter-category">
-              <span className="plugins-filter-label" id="plugin-category-label">
+            <div className="plugins-filter-control plugins-filter-category grid min-w-0 gap-1">
+              <span
+                className="plugins-filter-label font-[var(--font-mono)] text-[var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase"
+                id="plugin-category-label"
+              >
                 Category
               </span>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger
                   aria-labelledby="plugin-category-label"
-                  className="plugins-category-trigger"
+                  className="plugins-category-trigger w-full min-w-0"
                 >
                   <SelectValue />
                 </SelectTrigger>

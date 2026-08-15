@@ -52,16 +52,29 @@ export function DesktopUtilityLayer({
       {mobileModal ? (
         <button
           aria-label="Close tools and settings"
-          className="utility-backdrop"
+          className="fixed inset-0 z-119 block h-screen w-screen border-0 bg-[color-mix(in_srgb,var(--shadow)_24%,transparent)] p-0"
+          data-utility-backdrop=""
           onClick={onClose}
           tabIndex={-1}
           type="button"
         />
       ) : null}
-      <div className="utility-layer">
+      <div
+        className={
+          mobileModal
+            ? "fixed inset-y-0 right-0 z-120 min-h-0 w-[min(var(--utility-drawer-width),calc(100vw-24px))] min-w-0 overflow-hidden"
+            : "relative z-15 min-h-0 min-w-0 overflow-hidden border-[var(--line-subtle)] border-l bg-[var(--surface)]"
+        }
+        data-utility-layer=""
+      >
         <aside
           aria-label="Tools and settings"
-          className="utility-drawer"
+          className={`relative flex h-full min-w-0 flex-col bg-[var(--surface)] text-[var(--text)] ${
+            mobileModal
+              ? "border-[var(--line-subtle)] border-l shadow-[-8px_0_28px_color-mix(in_srgb,var(--shadow)_18%,transparent)]"
+              : "border-0 shadow-none"
+          }`}
+          data-utility-drawer=""
           onKeyDown={onKeyDown}
           ref={utilityRef}
           tabIndex={-1}
@@ -90,7 +103,7 @@ export function DesktopUtilityLayer({
           >
             <PanelResizeHandle
               bounds={UTILITY_DRAWER_WIDTH}
-              className="utility-drawer-resizer"
+              className="inset-y-0 -left-1.25 z-4 max-[700px]:hidden"
               direction="grow-left"
               label="Resize tools and settings panel"
               onResize={onResize}

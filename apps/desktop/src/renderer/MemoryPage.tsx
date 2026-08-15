@@ -14,7 +14,9 @@ import {
   type ProfileSummaryResponse,
 } from "./memory/models";
 import { RuntimeSectionNav } from "./runtime-state/RuntimeSectionNav";
-import "./memory-page.css";
+
+const MEMORY_PAGE_CLASS =
+  "mx-auto flex min-h-full w-[min(100%,1420px)] flex-col gap-2.5 px-[clamp(24px,4vw,58px)] pt-[34px] pb-[54px] [&_.page-header]:min-h-[74px] [&_.page-header]:pb-3";
 
 const MEMORY_SECTIONS: Array<{
   detail: string;
@@ -74,7 +76,7 @@ export function MemoryPage({ active }: { active: boolean }) {
 
   if (!active) {
     return (
-      <PagePanel className="page studio-page memory-page" variant="workspace">
+      <PagePanel className={MEMORY_PAGE_CLASS} variant="workspace">
         <PageHeader
           actions={
             <Button
@@ -100,7 +102,7 @@ export function MemoryPage({ active }: { active: boolean }) {
   }
 
   return (
-    <PagePanel className="page studio-page memory-page" variant="workspace">
+    <PagePanel className={MEMORY_PAGE_CLASS} variant="workspace">
       <PageHeader
         actions={
           <Button
@@ -122,7 +124,7 @@ export function MemoryPage({ active }: { active: boolean }) {
         title="Memory"
       />
       <Tabs
-        className="memory-workspace"
+        className="grid min-h-0 content-start gap-2.5"
         onValueChange={(value) => setSection(value as MemorySection)}
         value={section}
       >

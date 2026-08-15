@@ -1,11 +1,15 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import { useState } from "react";
 import type { SessionSummary } from "../../shared/contracts";
 import { OfflineRouteState } from "../components/OfflineRouteState";
 import { EmptyBlock, PageHeader } from "../lib";
 import { SessionDetail } from "./SessionDetail";
 import { SessionListPanel } from "./SessionListPanel";
+import {
+  SESSIONS_PAGE_CLASS,
+  SESSIONS_WORKSPACE_CLASS,
+} from "./sessions-layout";
 import { useSessionArchiveTransfer } from "./useSessionArchiveTransfer";
-import "./sessions.css";
 
 export function shouldShowSessionEmptyLanding(
   sessionCount: number,
@@ -50,7 +54,7 @@ export function SessionsPage({
     active && shouldShowSessionEmptyLanding(sessions.length, query);
 
   return (
-    <div className="page page-sessions">
+    <div className={SESSIONS_PAGE_CLASS} data-sessions-page="true">
       <PageHeader
         eyebrow="Workspace"
         title="Sessions"
@@ -72,23 +76,25 @@ export function SessionsPage({
               type="file"
             />
             {!showEmptyLanding ? (
-              <button
-                className="secondary-button"
+              <Button
                 disabled={!active || transfer.transferring}
                 onClick={() => transfer.archiveInputRef.current?.click()}
+                size="sm"
                 type="button"
+                variant="secondary"
               >
                 Import archive
-              </button>
+              </Button>
             ) : null}
-            <button
-              className="secondary-button"
+            <Button
               disabled={!active}
               onClick={refresh}
+              size="sm"
               type="button"
+              variant="secondary"
             >
               Refresh
-            </button>
+            </Button>
           </>
         }
       />
@@ -107,70 +113,75 @@ export function SessionsPage({
         </OfflineRouteState>
       ) : (
         <div
-          className={`split-workspace ${showEmptyLanding ? "is-empty" : ""}`}
+          className={
+            showEmptyLanding
+              ? "split-workspace is-empty min-h-0 flex-none"
+              : `split-workspace ${SESSIONS_WORKSPACE_CLASS}`
+          }
         >
           {showEmptyLanding ? (
             <section
               aria-labelledby="sessions-empty-title"
-              className="session-empty-landing"
+              className="session-empty-landing flex min-h-0 items-center justify-between gap-6 bg-[linear-gradient(105deg,color-mix(in_srgb,var(--accent)_6%,transparent),transparent_42%)] px-5 py-[18px] max-[860px]:flex-col max-[860px]:items-stretch max-[860px]:gap-3.5"
+              data-session-empty-landing="true"
             >
-              <div className="session-empty-landing__copy">
+              <div className="grid min-w-0 gap-[3px] [&_h2]:m-0 [&_h2]:text-[17px] [&_h2]:text-[var(--text-strong)] [&_p]:m-0 [&_p]:text-[var(--text-control)] [&_p]:text-[var(--text-muted)]">
                 <span className="eyebrow">Conversation archive</span>
                 <h2 id="sessions-empty-title">No saved conversations</h2>
                 <p>Start fresh, or bring in a portable Doolittle archive.</p>
               </div>
-              <div className="session-empty-landing__actions">
-                <button
-                  className="primary-button"
-                  onClick={onNewConversation}
-                  type="button"
-                >
+              <div className="flex shrink-0 items-center gap-1.5 max-[860px]:justify-start">
+                <Button onClick={onNewConversation} type="button">
                   New conversation
-                </button>
-                <button
-                  className="secondary-button"
+                </Button>
+                <Button
                   disabled={transfer.transferring}
                   onClick={() => transfer.archiveInputRef.current?.click()}
                   type="button"
+                  variant="secondary"
                 >
                   Import archive
-                </button>
+                </Button>
               </div>
             </section>
           ) : null}
-          <SessionListPanel
-            active={active}
-            sessions={sessions}
-            projectId={projectId}
-            selectedId={selected?.sessionId ?? ""}
-            onQueryChange={setQuery}
-            onSelect={(session) => {
-              setSelectedId(session.sessionId);
-              setSelectedSearchSession(session);
-            }}
-          />
-          <section className="detail-panel">
-            {!selected ? (
-              <EmptyBlock title="No sessions yet">
-                Your saved conversations will appear here.
-              </EmptyBlock>
-            ) : (
-              <SessionDetail
+          {!showEmptyLanding ? (
+            <>
+              <SessionListPanel
                 active={active}
-                onExport={() => void transfer.exportArchive()}
-                onOpenChat={openChat}
-                onRefresh={refresh}
-                onSelectSession={(sessionId) => {
-                  setSelectedId(sessionId);
-                  if (sessionId !== selectedSearchSession?.sessionId) {
-                    setSelectedSearchSession(null);
-                  }
+                sessions={sessions}
+                projectId={projectId}
+                selectedId={selected?.sessionId ?? ""}
+                onQueryChange={setQuery}
+                onSelect={(session) => {
+                  setSelectedId(session.sessionId);
+                  setSelectedSearchSession(session);
                 }}
-                selected={selected}
-                transferring={transfer.transferring}
               />
-            )}
-          </section>
+              <section className="detail-panel min-h-0 overflow-auto px-4 pt-3.5 [scrollbar-gutter:stable]">
+                {!selected ? (
+                  <EmptyBlock title="No sessions yet">
+                    Your saved conversations will appear here.
+                  </EmptyBlock>
+                ) : (
+                  <SessionDetail
+                    active={active}
+                    onExport={() => void transfer.exportArchive()}
+                    onOpenChat={openChat}
+                    onRefresh={refresh}
+                    onSelectSession={(sessionId) => {
+                      setSelectedId(sessionId);
+                      if (sessionId !== selectedSearchSession?.sessionId) {
+                        setSelectedSearchSession(null);
+                      }
+                    }}
+                    selected={selected}
+                    transferring={transfer.transferring}
+                  />
+                )}
+              </section>
+            </>
+          ) : null}
         </div>
       )}
     </div>

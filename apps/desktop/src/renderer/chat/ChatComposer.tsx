@@ -188,7 +188,7 @@ export function ChatComposer({
       onChooseRepository &&
       onOpenProjectManager &&
       onSelectProjectForNewChat ? (
-        <div className="chat-composer-context-tab">
+        <div className="absolute -top-7.75 right-3 z-25 max-[760px]:right-2">
           <ComposerProjectSelector
             activeProjectId={activeProject?.id}
             onChooseRepository={onChooseRepository}
@@ -360,14 +360,14 @@ export function ChatComposer({
       {commandSuggestions.length > 0 ? (
         <div
           aria-label="Chat commands"
-          className="chat-command-completions"
+          className="chat-command-completions absolute inset-x-0 bottom-[calc(100%+8px)] z-50 grid max-h-[min(360px,46vh)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-1.5 shadow-[var(--shell-shadow-lg)]"
           id="chat-command-completions"
           role="listbox"
         >
           {commandSuggestions.map((command, index) => (
             <ElizaButton
               aria-selected={index === activeCommandIndex}
-              className={index === activeCommandIndex ? "selected" : ""}
+              className={`!grid !min-h-11 !min-w-0 grid-cols-[minmax(80px,auto)_minmax(0,1fr)_auto] items-center gap-3 !rounded-[var(--radius-sm)] !border-0 !bg-transparent px-2.5 py-2 !text-left text-[var(--text-soft)] hover:!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] hover:!text-[var(--text)] ${index === activeCommandIndex ? "!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] !text-[var(--text)]" : ""}`}
               disabled={Boolean(command.disabledReason)}
               id={`chat-command-option-${index}`}
               key={command.command}
@@ -377,17 +377,25 @@ export function ChatComposer({
               type="button"
               variant="ghost"
             >
-              <code>{command.command}</code>
-              <span>
-                <strong>{command.category}</strong>
-                <small>{command.disabledReason ?? command.description}</small>
+              <code className="font-[var(--font-mono)] text-[11px] text-[var(--accent)]">
+                {command.command}
+              </code>
+              <span className="flex min-w-0 flex-col gap-0.5 [&>*]:overflow-hidden [&>*]:text-ellipsis [&>*]:whitespace-nowrap">
+                <strong className="text-[11px] font-semibold">
+                  {command.category}
+                </strong>
+                <small className="text-[9px] text-[var(--muted)]">
+                  {command.disabledReason ?? command.description}
+                </small>
                 {command.aliases?.length ? (
-                  <small className="chat-command-completions__aliases">
+                  <small className="text-[9px] text-[var(--faint)]">
                     Aliases: {command.aliases.join(", ")}
                   </small>
                 ) : null}
               </span>
-              <kbd>{index === activeCommandIndex ? "Tab" : "↑↓"}</kbd>
+              <kbd className="text-[9px] text-[var(--muted)]">
+                {index === activeCommandIndex ? "Tab" : "↑↓"}
+              </kbd>
             </ElizaButton>
           ))}
         </div>
@@ -397,10 +405,10 @@ export function ChatComposer({
           {commandCatalog.error}
         </div>
       ) : null}
-      <div className="chat-composer-tools">
+      <div className="chat-composer-tools flex min-w-0 flex-wrap items-center gap-1.5">
         <ElizaButton
           aria-label="Attach file context"
-          className="secondary-button"
+          className="!min-h-[30px] rounded-[7px] px-[7px] py-[5px] text-[10px] font-semibold"
           onClick={pickContextFiles}
           size="sm"
           type="button"
@@ -430,7 +438,7 @@ export function ChatComposer({
         />
       </div>
       <ElizaTextarea
-        className="chat-composer-input"
+        className="chat-composer-input !max-h-[180px] !min-h-[54px] !w-full !resize-none !rounded-none !border-0 !bg-transparent px-1 pt-1.5 pb-[5px] text-sm leading-[1.55] [box-shadow:none]! focus-visible:!outline-none max-[720px]:!max-h-[150px]"
         aria-activedescendant={activeCommandId}
         aria-autocomplete="list"
         aria-controls={commandMenuOpen ? "chat-command-completions" : undefined}
@@ -492,7 +500,7 @@ export function ChatComposer({
       />
       <ElizaButton
         aria-label={activeRequest ? "Queue message" : "Send message"}
-        className="chat-composer-submit"
+        className="chat-composer-submit !size-[34px] !min-h-[34px] !min-w-[34px] !rounded-[9px] !border-0 !bg-[var(--accent)] !p-0 !text-[var(--accent-ink)] hover:!bg-[color-mix(in_srgb,var(--accent)_86%,var(--text))] disabled:!bg-[var(--surface-soft)] disabled:!text-[var(--muted)] disabled:opacity-60 motion-reduce:transition-none"
         disabled={!canSubmit}
         size="icon-sm"
         type="submit"
@@ -534,9 +542,9 @@ export function ChatComposer({
             : selectedUsageError
         }
       >
-        <span className="chat-status-runtime">
+        <span className="chat-status-runtime flex min-w-0 items-center gap-1.5 whitespace-nowrap font-[var(--font-mono)] text-[9px] text-[var(--muted)] [&_small]:max-w-[170px] [&_small]:overflow-hidden [&_small]:text-ellipsis">
           <StatusBadge
-            className="chat-status-badge"
+            className="chat-status-badge !inline-flex !min-h-[18px] items-center !border-0 !bg-transparent px-[5px] py-px !font-[inherit] !text-[9px] !tracking-normal !text-[var(--text-soft)] normal-case"
             label={
               activeRequest
                 ? "Working"

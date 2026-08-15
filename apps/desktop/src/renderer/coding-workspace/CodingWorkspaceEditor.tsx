@@ -8,6 +8,33 @@ import type {
   DesktopAcpSessionUpdate,
 } from "../desktop-acp-client";
 import { type ApiResource, EmptyBlock, ErrorBlock, LoadingBlock } from "../lib";
+import {
+  CODING_ACP_STATUS_CLASS,
+  CODING_ACP_TASK_CLASS,
+  CODING_ACP_TASK_CLOSE_CLASS,
+  CODING_ACP_TASK_LABEL_CLASS,
+  CODING_ACP_TASK_OUTPUT_CLASS,
+  CODING_ACP_TASK_ROW_CLASS,
+  CODING_ACTION_NOTICE_CLASS,
+  CODING_BREADCRUMB_CLASS,
+  CODING_DIFF_LINE_CLASS,
+  CODING_DIFF_SOURCE_CLASS,
+  CODING_DIFF_SOURCE_SELECTED_CLASS,
+  CODING_EDITOR_ACTIONS_CLASS,
+  CODING_EDITOR_CLASS,
+  CODING_EDITOR_STATUS_CLASS,
+  CODING_EDITOR_SURFACE_CLASS,
+  CODING_EDITOR_TOOLBAR_CLASS,
+  CODING_INLINE_STATE_CLASS,
+  CODING_INLINE_WARN_CLASS,
+  CODING_PANE_CLASS,
+  CODING_PATCH_CLASS,
+  CODING_SOURCE_CLASS,
+  CODING_STATUS_ACTION_CLASS,
+  CODING_UNSAVED_CLASS,
+  codingActionNoticeTone,
+  codingDiffLineTone,
+} from "./layout";
 import type {
   ActionNotice,
   EditorPane,
@@ -99,8 +126,8 @@ export function CodingWorkspaceEditor({
   onSendSelectedContext: () => void;
 }) {
   return (
-    <main className="coding-pane coding-editor">
-      <div className="coding-editor-toolbar">
+    <main className={`${CODING_PANE_CLASS} ${CODING_EDITOR_CLASS}`}>
+      <div className={CODING_EDITOR_TOOLBAR_CLASS}>
         <PaneTabs<EditorPane>
           label="Editor views"
           options={[
@@ -110,14 +137,14 @@ export function CodingWorkspaceEditor({
           value={editorPane}
           onChange={onEditorPaneChange}
         />
-        <div className="coding-breadcrumb" title={selectedPath}>
+        <div className={CODING_BREADCRUMB_CLASS} title={selectedPath}>
           <span>{selectedPath || "Select a file"}</span>
           {selectedPath ? <small>{selectedLanguage.label}</small> : null}
         </div>
         {editorPane === "file" && selectedPath ? (
-          <div className="coding-editor-actions">
+          <div className={CODING_EDITOR_ACTIONS_CLASS}>
             {fileDirty ? (
-              <span className="coding-unsaved-indicator" role="status">
+              <span className={CODING_UNSAVED_CLASS} role="status">
                 Unsaved
               </span>
             ) : null}
@@ -139,14 +166,19 @@ export function CodingWorkspaceEditor({
             </button>
           </div>
         ) : editorPane === "diff" && selectedChange ? (
-          <div className="coding-editor-actions">
+          <div className={CODING_EDITOR_ACTIONS_CLASS}>
             {selectedChange.staged ? (
-              <fieldset aria-label="Diff source" className="coding-diff-source">
+              <fieldset
+                aria-label="Diff source"
+                className={CODING_DIFF_SOURCE_CLASS}
+              >
                 <legend className="sr-only">Diff source</legend>
                 {selectedChange.unstaged ? (
                   <button
                     aria-pressed={!stagedPatch}
-                    className={!stagedPatch ? "selected" : ""}
+                    className={
+                      !stagedPatch ? CODING_DIFF_SOURCE_SELECTED_CLASS : ""
+                    }
                     onClick={() => onSetStagedPatch(false)}
                     type="button"
                   >
@@ -155,7 +187,9 @@ export function CodingWorkspaceEditor({
                 ) : null}
                 <button
                   aria-pressed={stagedPatch}
-                  className={stagedPatch ? "selected" : ""}
+                  className={
+                    stagedPatch ? CODING_DIFF_SOURCE_SELECTED_CLASS : ""
+                  }
                   onClick={() => onSetStagedPatch(true)}
                   type="button"
                 >
@@ -204,7 +238,7 @@ export function CodingWorkspaceEditor({
             ? `${editorPane === "file" ? "File editor" : "Git diff"}: ${selectedPath}`
             : "File editor"
         }
-        className="coding-editor-surface"
+        className={CODING_EDITOR_SURFACE_CLASS}
         role="tabpanel"
       >
         {!selectedPath ? (
@@ -224,7 +258,7 @@ export function CodingWorkspaceEditor({
               {fileNotice ? (
                 <div
                   aria-live="polite"
-                  className={`coding-action-notice ${fileNotice.tone}`}
+                  className={`${CODING_ACTION_NOTICE_CLASS} ${codingActionNoticeTone(fileNotice.tone)}`}
                   role="status"
                 >
                   {fileNotice.message}
@@ -268,22 +302,24 @@ export function CodingWorkspaceEditor({
             {fileNotice ? (
               <div
                 aria-live="polite"
-                className={`coding-action-notice ${fileNotice.tone}`}
+                className={`${CODING_ACTION_NOTICE_CLASS} ${codingActionNoticeTone(fileNotice.tone)}`}
                 role="status"
               >
                 {fileNotice.message}
               </div>
             ) : null}
             {patchResource.data.patch.truncated ? (
-              <div className="coding-inline-state warn">
+              <div
+                className={`${CODING_INLINE_STATE_CLASS} ${CODING_INLINE_WARN_CLASS}`}
+              >
                 This large patch was truncated by the runtime.
               </div>
             ) : null}
-            <pre className="coding-source coding-patch">
+            <pre className={`${CODING_SOURCE_CLASS} ${CODING_PATCH_CLASS}`}>
               <code>
                 {patchLines(patchResource.data.patch.patch).map((line) => (
                   <span
-                    className={`coding-diff-line ${line.tone}`}
+                    className={`${CODING_DIFF_LINE_CLASS} ${codingDiffLineTone(line.tone)}`}
                     key={line.key}
                   >
                     {line.text || " "}
@@ -303,12 +339,12 @@ export function CodingWorkspaceEditor({
       {acpTaskOpen ? (
         <form
           aria-label="ACP editor task"
-          className="coding-acp-task"
+          className={CODING_ACP_TASK_CLASS}
           onSubmit={(event) => void onSubmitAcpTask(event)}
         >
-          <div className="coding-acp-task-row">
+          <div className={CODING_ACP_TASK_ROW_CLASS}>
             <label
-              className="coding-acp-task-label"
+              className={CODING_ACP_TASK_LABEL_CLASS}
               htmlFor="coding-acp-task-input"
             >
               <span>ACP task</span>
@@ -349,7 +385,7 @@ export function CodingWorkspaceEditor({
             )}
             <button
               aria-label="Close ACP editor task"
-              className="ghost-button coding-acp-task-close"
+              className={`ghost-button ${CODING_ACP_TASK_CLOSE_CLASS}`}
               onClick={() => onAcpTaskOpenChange(false)}
               type="button"
             >
@@ -357,30 +393,41 @@ export function CodingWorkspaceEditor({
             </button>
           </div>
           {acpEditor.promptError ? (
-            <p className="coding-acp-task-error" role="alert">
+            <p
+              className={`${CODING_ACP_TASK_OUTPUT_CLASS} bg-[var(--bad-soft)] text-[var(--bad)]`}
+              role="alert"
+            >
               {acpEditor.promptError}
             </p>
           ) : acpEditor.responseText ? (
-            <output className="coding-acp-task-output">
+            <output className={CODING_ACP_TASK_OUTPUT_CLASS}>
               {acpEditor.responseText}
             </output>
           ) : acpEditor.promptBusy ? (
-            <p className="coding-acp-task-progress" role="status">
+            <p
+              className={`${CODING_ACP_TASK_OUTPUT_CLASS} font-[var(--font-mono)] text-[var(--muted)]`}
+              role="status"
+            >
               {acpEditor.lastUpdateLabel
                 ? `${acpEditor.lastUpdateLabel} · ${acpEditor.updates.length} updates`
                 : "Doolittle is working through ACP…"}
             </p>
           ) : acpEditor.stopReason ? (
-            <p className="coding-acp-task-progress" role="status">
+            <p
+              className={`${CODING_ACP_TASK_OUTPUT_CLASS} font-[var(--font-mono)] text-[var(--muted)]`}
+              role="status"
+            >
               ACP task finished · {acpEditor.stopReason}
             </p>
           ) : null}
         </form>
       ) : null}
-      <footer className="coding-editor-status">
+      <footer className={CODING_EDITOR_STATUS_CLASS}>
         <span
           className={
-            fileDirty ? "coding-modified-status" : "coding-editable-status"
+            fileDirty
+              ? "coding-modified-status text-[var(--warn)]"
+              : "coding-editable-status text-[var(--accent)]"
           }
         >
           {editorPane === "diff"
@@ -393,7 +440,15 @@ export function CodingWorkspaceEditor({
         <span>UTF-8</span>
         {editorPane === "file" ? <span>⌘/Ctrl S to save</span> : null}
         <span
-          className={`coding-acp-status ${acpEditor.phase}`}
+          className={`${CODING_ACP_STATUS_CLASS} ${acpEditor.phase} ${
+            acpEditor.phase === "connected"
+              ? "text-[var(--good)]"
+              : acpEditor.phase === "connecting"
+                ? "text-[var(--accent)]"
+                : acpEditor.phase === "degraded"
+                  ? "text-[var(--bad)]"
+                  : ""
+          }`}
           title={
             acpEditor.error ||
             (acpEditor.sessionId
@@ -413,7 +468,7 @@ export function CodingWorkspaceEditor({
         </span>
         {acpEditor.updates.length > 0 ? (
           <span
-            className="coding-acp-progress"
+            className="coding-acp-progress font-[var(--font-mono)] text-[10px] tracking-[0.04em] text-[var(--muted)] uppercase"
             title={
               acpEditor.lastUpdateLabel || "Structured ACP session updates"
             }
@@ -423,7 +478,7 @@ export function CodingWorkspaceEditor({
         ) : null}
         {acpEditor.promptBusy && !acpTaskOpen ? (
           <button
-            className="coding-status-action coding-acp-cancel"
+            className={`${CODING_STATUS_ACTION_CLASS} coding-acp-cancel`}
             onClick={() => void acpEditor.cancel()}
             type="button"
           >
@@ -432,17 +487,17 @@ export function CodingWorkspaceEditor({
         ) : null}
         {acpEditor.phase === "degraded" ? (
           <button
-            className="coding-status-action coding-acp-retry"
+            className={`${CODING_STATUS_ACTION_CLASS} coding-acp-retry`}
             onClick={() => void acpEditor.retryConnection()}
             type="button"
           >
             Retry ACP
           </button>
         ) : null}
-        <span className="coding-spacer" />
+        <span className="coding-spacer flex-1" />
         <button
           aria-expanded={acpTaskOpen}
-          className="coding-status-action coding-acp-task-toggle"
+          className={`${CODING_STATUS_ACTION_CLASS} coding-acp-task-toggle aria-expanded:shadow-[inset_0_0_0_1px_color-mix(in_srgb,#1a0d03_24%,transparent)]`}
           onClick={() => onAcpTaskOpenChange(!acpTaskOpen)}
           type="button"
         >
@@ -450,7 +505,7 @@ export function CodingWorkspaceEditor({
         </button>
         {selectedPath ? (
           <button
-            className="coding-status-action"
+            className={CODING_STATUS_ACTION_CLASS}
             onClick={onSendSelectedContext}
             type="button"
           >

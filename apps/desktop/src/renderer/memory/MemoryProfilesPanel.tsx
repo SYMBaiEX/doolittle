@@ -21,6 +21,12 @@ import {
   type MemoryMatchesResponse,
   normalizeSavedProfileMatches,
 } from "../memory-matches";
+import {
+  MEMORY_CARD_CLASS,
+  MEMORY_GRID_CLASS,
+  MEMORY_HEADING_CLASS,
+  MEMORY_PREVIEW_CLASS,
+} from "./memory-layout";
 import type { AgentProfileResponse, ProfileSummaryResponse } from "./models";
 
 const DESKTOP_PROFILE_USER_ID = "desktop-user";
@@ -66,9 +72,9 @@ export function MemoryProfilesPanel({
   };
 
   return (
-    <div className="memory-content memory-profile-grid">
-      <section className="content-card memory-summary-card memory-operator-card">
-        <div className="card-heading">
+    <div className={MEMORY_GRID_CLASS}>
+      <section className={`${MEMORY_CARD_CLASS} min-h-0`}>
+        <div className={MEMORY_HEADING_CLASS}>
           <div>
             <span className="eyebrow">Operator recall</span>
             <h2>Profile search</h2>
@@ -79,7 +85,10 @@ export function MemoryProfilesPanel({
               : "Desktop user"}
           </Badge>
         </div>
-        <form className="memory-recall-form" onSubmit={submitRecall}>
+        <form
+          className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[7px]"
+          onSubmit={submitRecall}
+        >
           <label htmlFor="memory-recall-query">
             <span className="sr-only">Recall query</span>
             <Input
@@ -111,9 +120,12 @@ export function MemoryProfilesPanel({
             retry={recallResource.reload}
           />
         ) : recallMatches.length ? (
-          <ul className="memory-match-list">
+          <ul className="m-0 grid list-none gap-0 border-t border-[var(--line-subtle)] p-0">
             {recallMatches.map((match) => (
-              <li key={`${match.kind}:${match.value}`}>
+              <li
+                className="grid gap-[5px] border-0 border-b border-[var(--line-subtle)] bg-transparent px-0 py-[7px] [&_.badge]:w-fit"
+                key={`${match.kind}:${match.value}`}
+              >
                 <Badge>{match.kind}</Badge>
                 <span>{match.value}</span>
               </li>
@@ -130,8 +142,8 @@ export function MemoryProfilesPanel({
         )}
       </section>
 
-      <section className="content-card memory-summary-card memory-operator-card">
-        <div className="card-heading">
+      <section className={`${MEMORY_CARD_CLASS} min-h-0`}>
+        <div className={MEMORY_HEADING_CLASS}>
           <div>
             <span className="eyebrow">Profile workspace</span>
             <h2>Rolodex summary</h2>
@@ -161,8 +173,10 @@ export function MemoryProfilesPanel({
         )}
       </section>
 
-      <section className="content-card memory-summary-card memory-agent-card">
-        <div className="card-heading">
+      <section
+        className={`${MEMORY_CARD_CLASS} col-span-full max-[760px]:col-auto`}
+      >
+        <div className={MEMORY_HEADING_CLASS}>
           <div>
             <span className="eyebrow">Agent profile</span>
             <h2>Operator card</h2>
@@ -182,7 +196,7 @@ export function MemoryProfilesPanel({
         ) : agentProfile.error ? (
           <ErrorBlock error={agentProfile.error} retry={agentProfile.reload} />
         ) : agentCard ? (
-          <pre className="json-preview">{agentCard}</pre>
+          <pre className={MEMORY_PREVIEW_CLASS}>{agentCard}</pre>
         ) : (
           <EmptyBlock density="compact" title="No agent card">
             The runtime did not return an agent profile card.

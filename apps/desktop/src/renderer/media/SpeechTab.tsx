@@ -1,3 +1,6 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
+import { Textarea } from "@elizaos/ui/components/ui/textarea";
 import { type FormEvent, useState } from "react";
 import { MediaResult } from "../components/MediaResult";
 import {
@@ -6,6 +9,16 @@ import {
   Notice,
   type UnknownRecord,
 } from "../lib";
+import { MediaOptions } from "./MediaOptions";
+import {
+  MEDIA_ACTIONS_CLASS,
+  MEDIA_FIELD_CLASS,
+  MEDIA_FIELD_WIDE_CLASS,
+  MEDIA_FORM_CLASS,
+  MEDIA_HEADING_CLASS,
+  MEDIA_SELECT_CLASS,
+  MEDIA_TAB_PANEL_CLASS,
+} from "./media-layout";
 
 interface SpeakResponse {
   speech?: UnknownRecord;
@@ -54,74 +67,74 @@ export function SpeechTab({ active }: { active: boolean }) {
   return (
     <section
       aria-labelledby="media-tab-speech"
-      className="media-tab-panel"
+      className={MEDIA_TAB_PANEL_CLASS}
       hidden={!active}
       id="media-panel-speech"
       role="tabpanel"
     >
-      <form className="content-card media-form" onSubmit={runSpeak}>
-        <div className="card-heading">
+      <form className={MEDIA_FORM_CLASS} onSubmit={runSpeak}>
+        <div className={MEDIA_HEADING_CLASS}>
           <div>
             <h2>Generate text-to-speech output</h2>
           </div>
         </div>
-        <label>
+        <label className={MEDIA_FIELD_WIDE_CLASS} htmlFor="media-speech-text">
           <span>Text</span>
-          <textarea
+          <Textarea
+            id="media-speech-text"
             onChange={(event) => setText(event.target.value)}
             placeholder="Write your summary…"
             rows={5}
             value={text}
           />
         </label>
-        <details className="media-options">
-          <summary>
-            Voice and output <span>{voice || "Default"}</span>
-          </summary>
-          <div className="media-options-grid">
-            <label>
-              <span>Output name</span>
-              <input
-                onChange={(event) => setName(event.target.value)}
-                placeholder="summary-audio"
-                value={name}
-              />
-            </label>
-            <label>
-              <span>Voice</span>
-              <input
-                onChange={(event) => setVoice(event.target.value)}
-                placeholder="default"
-                value={voice}
-              />
-            </label>
-            <label>
-              <span>Format</span>
-              <select
-                onChange={(event) => setFormat(event.target.value)}
-                value={format}
-              >
-                <option value="mp3">mp3</option>
-                <option value="svg">svg</option>
-              </select>
-            </label>
-            <label>
-              <span>Speed</span>
-              <input
-                max="3"
-                min="0.5"
-                onChange={(event) => setSpeed(event.target.value)}
-                step="0.1"
-                type="number"
-                value={speed}
-              />
-            </label>
-          </div>
-        </details>
-        <div className="form-actions">
-          <button className="primary-button" disabled={busy} type="submit">
+        <MediaOptions label="Voice and output" value={voice || "Default"}>
+          <label className={MEDIA_FIELD_CLASS} htmlFor="media-speech-name">
+            <span>Output name</span>
+            <Input
+              id="media-speech-name"
+              onChange={(event) => setName(event.target.value)}
+              placeholder="summary-audio"
+              value={name}
+            />
+          </label>
+          <label className={MEDIA_FIELD_CLASS} htmlFor="media-speech-voice">
+            <span>Voice</span>
+            <Input
+              id="media-speech-voice"
+              onChange={(event) => setVoice(event.target.value)}
+              placeholder="default"
+              value={voice}
+            />
+          </label>
+          <label className={MEDIA_FIELD_CLASS}>
+            <span>Format</span>
+            <select
+              className={MEDIA_SELECT_CLASS}
+              onChange={(event) => setFormat(event.target.value)}
+              value={format}
+            >
+              <option value="mp3">mp3</option>
+              <option value="svg">svg</option>
+            </select>
+          </label>
+          <label className={MEDIA_FIELD_CLASS} htmlFor="media-speech-speed">
+            <span>Speed</span>
+            <Input
+              id="media-speech-speed"
+              max="3"
+              min="0.5"
+              onChange={(event) => setSpeed(event.target.value)}
+              step="0.1"
+              type="number"
+              value={speed}
+            />
+          </label>
+        </MediaOptions>
+        <div className={MEDIA_ACTIONS_CLASS}>
+          <Button disabled={busy} type="submit">
             {busy ? "Generating…" : "Generate speech"}
-          </button>
+          </Button>
         </div>
       </form>
       {error ? <Notice tone="bad">{error}</Notice> : null}

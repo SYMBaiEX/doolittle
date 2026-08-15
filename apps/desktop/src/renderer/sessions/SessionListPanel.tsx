@@ -1,3 +1,5 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
 import { useMemo, useState } from "react";
 import type {
   SessionSearchResponse,
@@ -13,6 +15,12 @@ import {
   useDebouncedValue,
 } from "../lib";
 import { compactSessionPreview } from "../session-preview";
+import {
+  SESSION_LIST_PANEL_CLASS,
+  SESSION_ROW_CLASS,
+  SESSION_ROW_SELECTED_CLASS,
+  SESSION_STATUS_ROW_CLASS,
+} from "./sessions-layout";
 
 export const SESSION_LIST_PAGE_SIZE = 20;
 
@@ -82,10 +90,11 @@ export function SessionListPanel({
     selectedIndex,
   });
   return (
-    <section className="list-panel">
-      <label className="search-field">
+    <section className={`list-panel ${SESSION_LIST_PANEL_CLASS}`}>
+      <label htmlFor="session-search-input">
         <span className="sr-only">Search sessions</span>
-        <input
+        <Input
+          id="session-search-input"
           placeholder="Search conversations or message text"
           value={query}
           onChange={(event) => {
@@ -96,13 +105,13 @@ export function SessionListPanel({
         />
       </label>
       {active && query.trim() ? (
-        <div className="session-search-status">
+        <div className="mb-1.5">
           {search.loading ? (
             <LoadingBlock label="Searching persisted sessions…" />
           ) : search.error ? (
             <ErrorBlock error={search.error} retry={search.reload} />
           ) : search.data?.hits?.length ? (
-            <div className="status-row">
+            <div className={SESSION_STATUS_ROW_CLASS}>
               <div>
                 <strong>Full-text search</strong>
                 <small>{search.data.hits.length} persisted hit(s)</small>
@@ -113,16 +122,17 @@ export function SessionListPanel({
       ) : null}
       <section
         aria-label="Conversations"
-        className="list-scroll session-list-scroll"
+        className="overflow-auto overscroll-contain [scrollbar-gutter:stable]"
       >
         {sessionWindow.visible.map((session) => (
           <button
-            className={`row-card ${selectedId === session.sessionId ? "selected" : ""}`}
+            className={`${SESSION_ROW_CLASS} ${selectedId === session.sessionId ? SESSION_ROW_SELECTED_CLASS : ""}`}
+            data-session-row="true"
             key={session.sessionId}
             onClick={() => onSelect(session)}
             type="button"
           >
-            <span className="row-card-main">
+            <span className="grid min-w-0 gap-0.5 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[var(--text-meta)] [&_small]:text-[var(--text-muted)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[var(--text-control)]">
               <strong>
                 {compactSessionPreview(session.title || "") ||
                   compactSessionPreview(session.preview?.[0] || "") ||
@@ -133,7 +143,7 @@ export function SessionListPanel({
                   session.sessionId}
               </small>
             </span>
-            <span className="row-card-meta">
+            <span className="grid shrink-0 justify-items-end gap-0.5 [&_small]:font-[var(--font-mono)] [&_small]:text-[9px] [&_small]:text-[var(--text-muted)]">
               <small>{session.messageCount} messages</small>
               <small>{displayTimestamp(session.endedAt)}</small>
             </span>
@@ -145,23 +155,28 @@ export function SessionListPanel({
           </EmptyBlock>
         ) : null}
         {sessionWindow.remaining ? (
-          <footer className="session-list-footer">
-            <span>
+          <footer
+            className="mt-1 flex min-h-[38px] items-center justify-between gap-2 border-t border-[var(--border-subtle)] px-1 pt-[5px]"
+            data-session-list-footer="true"
+          >
+            <span className="font-[var(--font-mono)] text-[9px] tracking-[0.04em] text-[var(--text-muted)] uppercase">
               Showing {sessionWindow.visible.length} of {filtered.length}
             </span>
-            <button
-              className="secondary-button"
+            <Button
+              className="min-h-7 px-[9px]"
               onClick={() =>
                 setPage({
                   key: filterKey,
                   limit: sessionWindow.limit + SESSION_LIST_PAGE_SIZE,
                 })
               }
+              size="sm"
               type="button"
+              variant="secondary"
             >
               Show {Math.min(SESSION_LIST_PAGE_SIZE, sessionWindow.remaining)}
               {" more"}
-            </button>
+            </Button>
           </footer>
         ) : null}
       </section>

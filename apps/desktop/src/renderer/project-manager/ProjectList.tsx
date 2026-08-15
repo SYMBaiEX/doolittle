@@ -1,3 +1,12 @@
+import {
+  PROJECT_MANAGER_GROUP_LABEL_CLASS,
+  PROJECT_MANAGER_LIST_CLASS,
+  PROJECT_MANAGER_ROW_ACTIVE_CLASS,
+  PROJECT_MANAGER_ROW_CLASS,
+  PROJECT_MANAGER_ROW_SELECTED_CLASS,
+  PROJECT_MANAGER_SCOPE_ACTIVE_CLASS,
+  PROJECT_MANAGER_SCOPE_CLASS,
+} from "./layout";
 import { formatCount, type ProjectLike, type ProjectScope } from "./models";
 import { ProjectAvatar } from "./ProjectAvatar";
 
@@ -28,10 +37,10 @@ export function ProjectList({
 }) {
   const projects = [...pinned, ...regular];
   return (
-    <aside className="project-manager__list" aria-label="Project list">
+    <aside className={PROJECT_MANAGER_LIST_CLASS} aria-label="Project list">
       <button
         type="button"
-        className={`project-manager__scope ${activeScope === "all" ? "is-active" : ""}`}
+        className={`${PROJECT_MANAGER_SCOPE_CLASS} ${activeScope === "all" ? PROJECT_MANAGER_SCOPE_ACTIVE_CLASS : ""}`}
         onClick={() => onSelectScope("all")}
       >
         <span>⌘</span>
@@ -40,14 +49,14 @@ export function ProjectList({
       </button>
       <button
         type="button"
-        className={`project-manager__scope ${activeScope === "unscoped" ? "is-active" : ""}`}
+        className={`${PROJECT_MANAGER_SCOPE_CLASS} ${activeScope === "unscoped" ? PROJECT_MANAGER_SCOPE_ACTIVE_CLASS : ""}`}
         onClick={() => onSelectScope("unscoped")}
       >
         <span>○</span>
         <strong>Unscoped</strong>
         <small>{formatCount(unscopedChatCount)}</small>
       </button>
-      <div className="project-manager__group-label">
+      <div className={PROJECT_MANAGER_GROUP_LABEL_CLASS}>
         <span>Pinned</span>
       </div>
       {pinned.map((project) => (
@@ -60,7 +69,7 @@ export function ProjectList({
         />
       ))}
       {regular.length ? (
-        <div className="project-manager__group-label">
+        <div className={PROJECT_MANAGER_GROUP_LABEL_CLASS}>
           <span>{showArchived ? "Archived" : "Projects"}</span>
         </div>
       ) : null}
@@ -74,13 +83,14 @@ export function ProjectList({
         />
       ))}
       {!projects.length ? (
-        <p className="project-manager__empty">
+        <p className="project-manager__empty mx-2 my-2.5 text-xs text-[var(--muted)]">
           {showArchived ? "No archived projects." : "No projects yet."}
         </p>
       ) : null}
       <button
         type="button"
-        className="project-manager__archive-toggle"
+        className="project-manager__archive-toggle mt-auto border-[var(--border)] border-t px-1.75 pt-3 pb-0.75 text-left text-xs text-[var(--muted)] transition-colors hover:text-[var(--text-soft)] max-[740px]:hidden"
+        data-project-action="toggle-archive"
         onClick={onToggleArchived}
       >
         {showArchived ? "← Active projects" : `Archived (${archivedCount})`}
@@ -103,7 +113,7 @@ function ProjectRow({
   return (
     <button
       type="button"
-      className={`project-manager__project-row ${selected ? "is-selected" : ""} ${active ? "is-active" : ""}`}
+      className={`${PROJECT_MANAGER_ROW_CLASS} ${selected ? PROJECT_MANAGER_ROW_SELECTED_CLASS : ""} ${active ? PROJECT_MANAGER_ROW_ACTIVE_CLASS : ""}`}
       onClick={onClick}
     >
       <ProjectAvatar project={project} size="small" />

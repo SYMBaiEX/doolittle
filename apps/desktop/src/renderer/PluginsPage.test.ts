@@ -5,7 +5,6 @@ const source = readFileSync(
   new URL("./PluginsPage.tsx", import.meta.url),
   "utf8",
 );
-const styles = readFileSync(new URL("./plugins.css", import.meta.url), "utf8");
 const model = readFileSync(
   new URL("./plugins/plugin-catalog-model.ts", import.meta.url),
   "utf8",
@@ -14,44 +13,33 @@ const workspace = readFileSync(
   new URL("./plugins/PluginCatalogWorkspace.tsx", import.meta.url),
   "utf8",
 );
-const catalogBrowserStyles = readFileSync(
-  new URL("./components/catalog-browser.css", import.meta.url),
+const catalogBrowserLayout = readFileSync(
+  new URL("./components/catalog-browser-layout.ts", import.meta.url),
   "utf8",
 );
 
 describe("PluginsPage density", () => {
   it("keeps the plugin search as the primary desktop control with a bounded category rail", () => {
     expect(source).toContain('className="page plugins-page"');
-    expect(source).toContain('className="plugins-catalog-controls"');
-    expect(source).toContain('label="Plugin catalog summary"');
-    expect(source).toContain('className="filter-bar plugins-filter-bar"');
-    expect(source).toContain('className="plugins-filter-label">Search</span>');
     expect(source).toContain(
-      'className="plugins-filter-label" id="plugin-category-label"',
+      'className="plugins-catalog-controls grid grid-cols-[minmax(520px,1fr)_minmax(460px,0.78fr)]',
     );
-    expect(source).toContain('className="plugins-category-trigger"');
-    expect(styles).toContain(
-      "grid-template-columns: minmax(0, 1fr) clamp(176px, 22vw, 240px)",
+    expect(source).toContain('label="Plugin catalog summary"');
+    expect(source).toContain(
+      'className="filter-bar plugins-filter-bar grid min-w-0 grid-cols-[minmax(0,1fr)_clamp(176px,22vw,240px)]',
     );
-    expect(styles).toContain(
-      "grid-template-columns: minmax(520px, 1fr) minmax(460px, 0.78fr)",
+    expect(source).toContain(
+      'className="plugins-filter-label font-[var(--font-mono)]',
     );
-    expect(styles).toContain("align-items: end;");
-    expect(styles).toContain("width: 100%;");
-    expect(styles).toContain("@media (max-width: 1180px)");
-    expect(styles).toContain("@media (max-width: 680px)");
-    expect(styles).toContain(".plugins-page .catalog-browser");
-    expect(styles).toContain("min-height: clamp(380px, 42vh, 500px)");
-    expect(styles).toContain(
-      ".plugin-catalog-workspace .catalog-browser__facts",
+    expect(source).toContain('id="plugin-category-label"');
+    expect(source).toContain(
+      'className="plugins-category-trigger w-full min-w-0"',
     );
-    expect(styles).toContain(
-      "grid-template-columns: repeat(2, minmax(0, 1fr))",
-    );
-    expect(catalogBrowserStyles).toContain("@media (max-width: 820px)");
-    expect(catalogBrowserStyles).toContain(
-      "grid-template-columns: minmax(0, 1fr)",
-    );
+    expect(source).toContain("max-[1180px]:grid-cols-1");
+    expect(source).toContain("max-[680px]:grid-cols-1");
+    expect(workspace).toContain("grid-cols-2 gap-x-[22px]");
+    expect(workspace).toContain("max-[1180px]:grid-cols-1");
+    expect(catalogBrowserLayout).toContain("max-[820px]:grid-cols-1");
   });
 
   it("normalizes the catalog once and keeps purpose in a focused detail pane", () => {
@@ -60,12 +48,8 @@ describe("PluginsPage density", () => {
     expect(model).toContain(
       'title: pluginDisplayTitle(id || "unnamed-plugin", category)',
     );
-    expect(workspace).toContain(
-      'className="catalog-browser plugin-catalog-workspace"',
-    );
-    expect(workspace).toContain(
-      '<span className="eyebrow">Plugin detail</span>',
-    );
+    expect(workspace).toContain("min-[821px]:h-[clamp(380px,42vh,500px)]");
+    expect(workspace).toContain("CATALOG_EYEBROW_CLASS}>Plugin detail");
     expect(workspace).toContain("selected.description");
     expect(workspace).toContain("selected.packageName");
     expect(workspace).not.toContain("CompactCatalogList");

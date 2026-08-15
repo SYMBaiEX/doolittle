@@ -1,3 +1,4 @@
+import { Button } from "@elizaos/ui/components/ui/button";
 import { type FormEvent, useEffect, useState } from "react";
 import {
   type AutomationDraft,
@@ -13,6 +14,7 @@ import {
 
 export { AutomationDeleteConfirmation } from "./automations/AutomationWorkspace";
 
+import { AUTOMATION_PAGE_CLASS } from "./automations/layout";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import {
@@ -26,7 +28,6 @@ import {
   PageHeader,
   useApiResource,
 } from "./lib";
-import "./automations.css";
 import { automationRequests } from "./resource-request-policy";
 
 interface CronResponse {
@@ -139,21 +140,21 @@ export function AutomationsPage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className="page automation-page">
+    <div className={AUTOMATION_PAGE_CLASS}>
       <PageHeader
         eyebrow="Operations"
         title="Automations"
         description="Build local workflows from explicit triggers, conditions, and actions."
         actions={
           showHeaderAction ? (
-            <button
-              className={showCreate ? "secondary-button" : "primary-button"}
+            <Button
               disabled={!active}
               onClick={() => setShowCreate((value) => !value)}
               type="button"
+              variant={showCreate ? "secondary" : "default"}
             >
               {showCreate ? "Close builder" : "New automation"}
-            </button>
+            </Button>
           ) : null
         }
       />

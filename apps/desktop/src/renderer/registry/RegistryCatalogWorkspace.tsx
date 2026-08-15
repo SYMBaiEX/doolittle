@@ -1,7 +1,21 @@
-import "../components/catalog-browser.css";
+import { Button } from "@elizaos/ui/components/ui/button";
+import {
+  CATALOG_BROWSER_CLASS,
+  CATALOG_CALLOUT_CLASS,
+  CATALOG_DETAIL_CLASS,
+  CATALOG_DETAIL_HEADER_CLASS,
+  CATALOG_EYEBROW_CLASS,
+  CATALOG_FACTS_CLASS,
+  CATALOG_INDEX_CLASS,
+  CATALOG_INDEX_FOOTER_CLASS,
+  CATALOG_INDEX_HEADER_CLASS,
+  CATALOG_INDEX_LIST_CLASS,
+  CATALOG_INDEX_META_CLASS,
+  CATALOG_INDEX_TITLE_CLASS,
+  catalogIndexItemClass,
+} from "../components/catalog-browser-layout";
 import { useCatalogBrowser } from "../components/useCatalogBrowser";
 import { Badge, titleCase } from "../lib";
-import "../registry.css";
 import { REGISTRY_INSTALL_CAVEAT, type RegistryEntry } from "./registry-model";
 
 export const REGISTRY_CATALOG_PAGE_SIZE = 12;
@@ -58,12 +72,12 @@ export function RegistryCatalogWorkspace({
   return (
     <section
       aria-label="Eliza plugin registry"
-      className="catalog-browser registry-catalog-workspace"
+      className={CATALOG_BROWSER_CLASS}
     >
-      <aside className="catalog-browser__index">
-        <header className="catalog-browser__index-header">
+      <aside className={CATALOG_INDEX_CLASS}>
+        <header className={CATALOG_INDEX_HEADER_CLASS}>
           <div>
-            <span className="eyebrow">Registry index</span>
+            <span className={CATALOG_EYEBROW_CLASS}>Registry index</span>
             <strong>Browse packages</strong>
           </div>
           <small>{items.length} results</small>
@@ -71,7 +85,7 @@ export function RegistryCatalogWorkspace({
         <div
           aria-label="Registry packages"
           aria-orientation="vertical"
-          className="catalog-browser__index-list"
+          className={CATALOG_INDEX_LIST_CLASS}
           ref={listRef}
           role="tablist"
         >
@@ -83,7 +97,7 @@ export function RegistryCatalogWorkspace({
                 key={entry.name}
                 aria-controls={panelId}
                 aria-selected={active}
-                className={`catalog-browser__index-item${active ? " is-selected" : ""}`}
+                className={catalogIndexItemClass(active)}
                 id={itemId(index)}
                 onClick={() => selectAt(index, false)}
                 onKeyDown={(event) => handleKeyDown(event, index)}
@@ -91,7 +105,7 @@ export function RegistryCatalogWorkspace({
                 tabIndex={active ? 0 : -1}
                 type="button"
               >
-                <span className="catalog-browser__index-title">
+                <span className={CATALOG_INDEX_TITLE_CLASS}>
                   <strong>{entry.name}</strong>
                   {entry.installed ? (
                     <Badge tone="good">Installed</Badge>
@@ -99,7 +113,7 @@ export function RegistryCatalogWorkspace({
                     <Badge tone="good">Eligible</Badge>
                   ) : null}
                 </span>
-                <span className="catalog-browser__index-meta">
+                <span className={CATALOG_INDEX_META_CLASS}>
                   <code>{entry.version}</code>
                   <span>{titleCase(entry.trust)}</span>
                 </span>
@@ -108,36 +122,37 @@ export function RegistryCatalogWorkspace({
           })}
         </div>
         {window.remaining ? (
-          <footer className="catalog-browser__index-footer">
+          <footer className={CATALOG_INDEX_FOOTER_CLASS}>
             <span>
               {window.visible.length} of {items.length}
             </span>
-            <button
-              className="secondary-button"
+            <Button
               onClick={showMore}
+              size="sm"
               type="button"
+              variant="outline"
             >
               Show {Math.min(REGISTRY_CATALOG_PAGE_SIZE, window.remaining)} more
-            </button>
+            </Button>
           </footer>
         ) : null}
       </aside>
       <article
         aria-labelledby={itemId(selectedIndex)}
-        className="catalog-browser__detail"
+        className={CATALOG_DETAIL_CLASS}
         id={panelId}
         role="tabpanel"
       >
-        <header className="catalog-browser__detail-header">
+        <header className={CATALOG_DETAIL_HEADER_CLASS}>
           <div>
-            <span className="eyebrow">Package detail</span>
+            <span className={CATALOG_EYEBROW_CLASS}>Package detail</span>
             <h2>{selectedEntry.name}</h2>
             <p>{selectedEntry.description}</p>
           </div>
           <Badge tone={status.tone}>{status.label}</Badge>
         </header>
         {!selectedEntry.installable && !selectedEntry.installed ? (
-          <div className="catalog-browser__callout" role="note">
+          <div className={CATALOG_CALLOUT_CLASS} role="note">
             <strong>Runtime policy</strong>
             <span>
               {selectedEntry.reasons.length
@@ -146,7 +161,7 @@ export function RegistryCatalogWorkspace({
             </span>
           </div>
         ) : null}
-        <dl className="catalog-browser__facts">
+        <dl className={CATALOG_FACTS_CLASS}>
           <div>
             <dt>Package</dt>
             <dd>
@@ -183,10 +198,10 @@ export function RegistryCatalogWorkspace({
         {selectedEntry.installable && !selectedEntry.installed ? (
           <section
             aria-label={`Install ${selectedEntry.name}`}
-            className="registry-install-review"
+            className="registry-install-review mt-4 flex items-center justify-between gap-[18px] rounded-[var(--radius-xs)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_72%,transparent)] px-3 py-[11px] max-[620px]:flex-col max-[620px]:items-stretch max-[620px]:gap-[9px] [&>div:first-child]:grid [&>div:first-child]:min-w-0 [&>div:first-child]:gap-0.5 [&_p]:m-0 [&_p]:max-w-[700px] [&_p]:text-[var(--text-meta)] [&_p]:leading-[1.45] [&_p]:text-[var(--muted)] [&_strong]:text-[var(--text-control)] [&_strong]:text-[var(--text)]"
           >
             <div>
-              <span className="eyebrow">Install approval</span>
+              <span className={CATALOG_EYEBROW_CLASS}>Install approval</span>
               <strong>
                 {reviewing
                   ? "Confirm exact package"
@@ -198,11 +213,10 @@ export function RegistryCatalogWorkspace({
                   : `${selectedEntry.packageName} ${selectedEntry.version} will be passed to the Eliza installer only after explicit approval.`}
               </p>
             </div>
-            <div className="registry-install-review__actions">
+            <div className="registry-install-review__actions flex flex-none items-center gap-[7px] max-[620px]:justify-start [&>button]:min-h-[30px] [&>button]:px-[9px] [&>button]:py-1">
               {reviewing ? (
                 <>
-                  <button
-                    className="primary-button"
+                  <Button
                     disabled={installing}
                     onClick={() => onApproveInstall(selectedEntry)}
                     type="button"
@@ -210,25 +224,25 @@ export function RegistryCatalogWorkspace({
                     {installing
                       ? "Installing…"
                       : `Approve ${selectedEntry.version}`}
-                  </button>
-                  <button
-                    className="text-button"
+                  </Button>
+                  <Button
                     disabled={installing}
                     onClick={onCancelInstall}
                     type="button"
+                    variant="ghost"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <button
-                  className="secondary-button"
+                <Button
                   disabled={installing}
                   onClick={() => onReviewInstall(selectedEntry)}
                   type="button"
+                  variant="outline"
                 >
                   Review install
-                </button>
+                </Button>
               )}
             </div>
           </section>

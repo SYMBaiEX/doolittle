@@ -74,7 +74,8 @@ describe("AutomationRunHistory", () => {
       />,
     );
 
-    expect(markup).toContain("automation-runs-panel is-quiet");
+    expect(markup).toContain("automation-runs-panel");
+    expect(markup).toContain("is-quiet");
     expect(markup).toContain("Run history");
     expect(markup).toContain("View past runs");
   });

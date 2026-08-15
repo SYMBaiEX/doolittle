@@ -46,7 +46,7 @@ describe("ReviewQueue", () => {
   it("keeps the tablist, search affordance, and selected queue item contract", () => {
     const markup = render();
 
-    expect(markup).toContain('class="review-rail"');
+    expect(markup).toContain('data-review="queue"');
     expect(markup).toContain('role="tablist"');
     expect(markup).toContain('aria-label="Search review queue"');
     expect(markup).toContain('aria-current="true"');

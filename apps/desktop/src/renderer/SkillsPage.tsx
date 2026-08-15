@@ -23,8 +23,6 @@ import {
   useApiResource,
 } from "./lib";
 import { SkillCatalogWorkspace } from "./skills/SkillCatalogWorkspace";
-import "./agent-pages.css";
-import "./catalog-pages.css";
 
 const LazySkillWorkshopPanel = lazy(async () => {
   const module = await import("./components/SkillWorkshopPanel");
@@ -70,7 +68,7 @@ export function SkillsPage({ active }: { active: boolean }) {
   });
   if (!active) {
     return (
-      <div className="page page-skills">
+      <div className="page page-skills gap-3">
         <PageHeader
           actions={
             <button
@@ -126,7 +124,7 @@ export function SkillsPage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className="page page-skills">
+    <div className="page page-skills gap-3">
       <PageHeader
         eyebrow="Agent"
         title="Skills"
@@ -163,12 +161,13 @@ export function SkillsPage({ active }: { active: boolean }) {
       />
       <div
         aria-label="Skills views"
-        className="skills-page-switcher"
+        className="flex gap-[18px] overflow-x-auto border-b border-[var(--border)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         role="tablist"
       >
         <button
           aria-controls="skills-catalog-panel"
           aria-selected={section === "catalog"}
+          className={`relative flex min-h-[34px] shrink-0 items-center border-b-2 px-0 pt-[5px] pb-[7px] text-left ${section === "catalog" ? "border-[var(--accent)] text-[var(--text)]" : "border-transparent text-[var(--muted)] hover:text-[var(--text)]"}`}
           id="skills-catalog-tab"
           onClick={() => setSection("catalog")}
           onKeyDown={selectSectionWithKeyboard}
@@ -184,6 +183,7 @@ export function SkillsPage({ active }: { active: boolean }) {
         <button
           aria-controls="skills-workshop-panel"
           aria-selected={section === "workshop"}
+          className={`relative flex min-h-[34px] shrink-0 items-center border-b-2 px-0 pt-[5px] pb-[7px] text-left ${section === "workshop" ? "border-[var(--accent)] text-[var(--text)]" : "border-transparent text-[var(--muted)] hover:text-[var(--text)]"}`}
           id="skills-workshop-tab"
           onClick={() => setSection("workshop")}
           onKeyDown={selectSectionWithKeyboard}
@@ -199,7 +199,7 @@ export function SkillsPage({ active }: { active: boolean }) {
       </div>
       <section
         aria-labelledby="skills-catalog-tab"
-        className="skills-page-catalog"
+        className="skills-page-catalog grid gap-2.5 [&_.catalog-browser]:min-h-[clamp(400px,54vh,600px)]"
         hidden={section !== "catalog"}
         id="skills-catalog-panel"
         role="tabpanel"
@@ -238,7 +238,7 @@ export function SkillsPage({ active }: { active: boolean }) {
       </section>
       <div
         aria-labelledby="skills-workshop-tab"
-        className="skills-page-workshop"
+        className="motion-reduce:transition-none"
         hidden={section !== "workshop"}
         id="skills-workshop-panel"
         role="tabpanel"

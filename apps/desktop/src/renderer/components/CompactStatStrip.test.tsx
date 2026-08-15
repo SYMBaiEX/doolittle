@@ -20,7 +20,8 @@ describe("CompactStatStrip", () => {
     );
 
     expect(html).toContain('aria-label="Runtime summary"');
-    expect(html).toContain("compact-stat-strip__item is-good");
+    expect(html).toContain("compact-stat-strip grid");
+    expect(html).toContain("bg-[var(--good)]");
     expect(html).toContain("Needs attention");
     expect(html).toContain('title="Ready"');
     expect(html).toContain('title="3"');

@@ -2,6 +2,13 @@ import { type RefObject, useLayoutEffect } from "react";
 import type { SessionSummary } from "../../shared/contracts";
 import { displayTimestamp } from "../lib";
 import { compactSessionPreview } from "../session-preview";
+import {
+  MOBILE_CONVERSATIONS_BACKDROP_CLASS,
+  MOBILE_CONVERSATIONS_DIALOG_CLASS,
+  MOBILE_CONVERSATIONS_DISMISS_CLASS,
+  MOBILE_CONVERSATIONS_LIST_CLASS,
+  MOBILE_CONVERSATIONS_NEW_CLASS,
+} from "./layout";
 
 export interface MobileConversationsDialogProps {
   activeProjectName?: string;
@@ -37,17 +44,17 @@ export function MobileConversationsDialog({
   }, [dialogRef]);
 
   return (
-    <div className="chat-mobile-conversations-backdrop">
+    <div className={MOBILE_CONVERSATIONS_BACKDROP_CLASS}>
       <button
         aria-label="Close conversations"
-        className="chat-mobile-conversations-dismiss"
+        className={MOBILE_CONVERSATIONS_DISMISS_CLASS}
         onClick={onClose}
         type="button"
       />
       <div
         aria-label="Conversations"
         aria-modal="true"
-        className="chat-mobile-conversations-dialog"
+        className={MOBILE_CONVERSATIONS_DIALOG_CLASS}
         id="mobile-conversations"
         ref={dialogRef}
         role="dialog"
@@ -60,7 +67,7 @@ export function MobileConversationsDialog({
           </div>
           <button
             aria-label="Close conversations"
-            className="icon-button"
+            className="grid size-7.5 place-items-center rounded-[var(--radius-xs)] border border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)]"
             onClick={onClose}
             type="button"
           >
@@ -74,7 +81,7 @@ export function MobileConversationsDialog({
           type="search"
           value={search}
         />
-        <div className="chat-mobile-conversations-list">
+        <div className={MOBILE_CONVERSATIONS_LIST_CLASS}>
           {sessions.map((session) => {
             const conversationTitle =
               compactSessionPreview(session.title ?? "") ||
@@ -105,7 +112,7 @@ export function MobileConversationsDialog({
           })}
         </div>
         <button
-          className="new-chat-button"
+          className={MOBILE_CONVERSATIONS_NEW_CLASS}
           onClick={onNewConversation}
           type="button"
         >

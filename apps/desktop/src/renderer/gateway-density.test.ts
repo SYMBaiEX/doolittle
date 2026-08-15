@@ -9,52 +9,46 @@ const pairingSource = readFileSync(
   new URL("./gateway/GatewayPairingPanel.tsx", import.meta.url),
   "utf8",
 );
-const css = readFileSync(
-  new URL("./gateway-page.css", import.meta.url),
+const timelineSource = readFileSync(
+  new URL("./gateway/GatewayTimelinePanel.tsx", import.meta.url),
   "utf8",
 );
-const polish = readFileSync(
-  new URL("./app-polish.css", import.meta.url),
+const layoutSource = readFileSync(
+  new URL("./gateway/gateway-layout.ts", import.meta.url),
   "utf8",
 );
 
 describe("GatewayPage density", () => {
   it("keeps sender approvals in a concise status disclosure", () => {
     expect(source).toContain("<GatewayPairingPanel");
-    expect(pairingSource).toContain('className="panel pairing-panel"');
+    expect(pairingSource).toContain(
+      'className="pairing-panel group panel grid gap-2.5"',
+    );
+    expect(pairingSource).toContain("GATEWAY_DISCLOSURE_SUMMARY_CLASS");
     expect(pairingSource).toContain("Messaging allowlist");
     expect(pairingSource).toContain("Load approvals");
     expect(pairingSource).toContain("pending.length} pending");
     expect(pairingSource).toContain("approved.length} approved");
-    expect(css).toContain(".pairing-panel > summary {");
+    expect(pairingSource).toContain("group-open:after:content-['−']");
   });
 
   it("keeps thread routes in an independently loaded disclosure", () => {
     expect(source).toContain(
       'resourcePolicy.routes ? "/sessions/gateway" : null',
     );
-    expect(source).toContain('className="panel gateway-session-panel"');
-    expect(source).toContain("Load routes");
-    expect(source).toContain('className="gateway-secondary-grid"');
-    expect(css).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
-    expect(css).toContain(".gateway-secondary-grid > .panel {");
-    expect(css).toContain("border: 1px solid var(--border)");
-    expect(css).toContain(".gateway-session-panel > summary {");
-    expect(polish).not.toContain("minmax(230px, 310px)");
-    expect(polish).not.toContain(
-      ".gateway-page :is(.gateway-timeline-panel, .gateway-session-panel)",
+    expect(source).toContain(
+      'className="group panel min-w-0 overflow-hidden p-0"',
     );
+    expect(source).toContain("Load routes");
+    expect(source).toContain("GATEWAY_SECONDARY_GRID_CLASS");
+    expect(layoutSource).toContain("grid-cols-2");
+    expect(layoutSource).toContain("max-[1060px]:grid-cols-1");
+    expect(layoutSource).toContain("[&>.panel]:border-[var(--border)]");
   });
 
   it("uses a compact status rail instead of a full empty history panel", () => {
-    expect(
-      readFileSync(
-        new URL("./gateway/GatewayTimelinePanel.tsx", import.meta.url),
-        "utf8",
-      ),
-    ).toContain('className="gateway-history-state is-empty"');
-    expect(css).toContain(".gateway-history-state {");
-    expect(css).toContain("min-height: 58px");
-    expect(css).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(timelineSource).toContain('data-gateway-history-state="empty"');
+    expect(layoutSource).toContain("min-h-14.5");
+    expect(timelineSource).toContain("motion-reduce:animate-none");
   });
 });

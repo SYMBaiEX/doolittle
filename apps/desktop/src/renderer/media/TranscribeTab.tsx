@@ -1,3 +1,5 @@
+import { Button } from "@elizaos/ui/components/ui/button";
+import { Input } from "@elizaos/ui/components/ui/input";
 import { type FormEvent, useState } from "react";
 import { MediaResult } from "../components/MediaResult";
 import {
@@ -7,6 +9,16 @@ import {
   type UnknownRecord,
 } from "../lib";
 import { chooseLocalMediaFile } from "./choose-local-media-file";
+import { MediaOptions } from "./MediaOptions";
+import {
+  MEDIA_ACTIONS_CLASS,
+  MEDIA_FIELD_CLASS,
+  MEDIA_FIELD_WIDE_CLASS,
+  MEDIA_FILE_FIELD_CLASS,
+  MEDIA_FORM_CLASS,
+  MEDIA_HEADING_CLASS,
+  MEDIA_TAB_PANEL_CLASS,
+} from "./media-layout";
 
 interface TranscribeResponse {
   transcription?: UnknownRecord;
@@ -53,69 +65,77 @@ export function TranscribeTab({ active }: { active: boolean }) {
   return (
     <section
       aria-labelledby="media-tab-transcribe"
-      className="media-tab-panel"
+      className={MEDIA_TAB_PANEL_CLASS}
       hidden={!active}
       id="media-panel-transcribe"
       role="tabpanel"
     >
-      <form className="content-card media-form" onSubmit={runTranscribe}>
-        <div className="card-heading">
+      <form className={MEDIA_FORM_CLASS} onSubmit={runTranscribe}>
+        <div className={MEDIA_HEADING_CLASS}>
           <div>
             <h2>Convert local media to text</h2>
           </div>
         </div>
-        <div className="media-file-field">
-          <label>
+        <div className={MEDIA_FILE_FIELD_CLASS}>
+          <label className={MEDIA_FIELD_CLASS} htmlFor="media-transcribe-path">
             <span>Audio or video file</span>
-            <input
+            <Input
+              id="media-transcribe-path"
               onChange={(event) => setPath(event.target.value)}
               placeholder="/tmp/meeting.webm"
               value={path}
             />
           </label>
-          <button
-            className="secondary-button"
+          <Button
             onClick={() => void chooseLocalMediaFile(setPath, setError)}
             type="button"
+            variant="secondary"
           >
             Browse…
-          </button>
+          </Button>
         </div>
-        <details className="media-options">
-          <summary>
-            Transcription settings <span>{language || "Automatic"}</span>
-          </summary>
-          <div className="media-options-grid">
-            <label>
-              <span>Language</span>
-              <input
-                onChange={(event) => setLanguage(event.target.value)}
-                placeholder="en-US"
-                value={language}
-              />
-            </label>
-            <label>
-              <span>Source name</span>
-              <input
-                onChange={(event) => setName(event.target.value)}
-                placeholder="meeting"
-                value={name}
-              />
-            </label>
-            <label className="media-options-wide">
-              <span>Prompt</span>
-              <input
-                onChange={(event) => setPrompt(event.target.value)}
-                placeholder="Emphasize action items"
-                value={prompt}
-              />
-            </label>
-          </div>
-        </details>
-        <div className="form-actions">
-          <button className="primary-button" disabled={busy} type="submit">
+        <MediaOptions
+          label="Transcription settings"
+          value={language || "Automatic"}
+        >
+          <label
+            className={MEDIA_FIELD_CLASS}
+            htmlFor="media-transcribe-language"
+          >
+            <span>Language</span>
+            <Input
+              id="media-transcribe-language"
+              onChange={(event) => setLanguage(event.target.value)}
+              placeholder="en-US"
+              value={language}
+            />
+          </label>
+          <label className={MEDIA_FIELD_CLASS} htmlFor="media-transcribe-name">
+            <span>Source name</span>
+            <Input
+              id="media-transcribe-name"
+              onChange={(event) => setName(event.target.value)}
+              placeholder="meeting"
+              value={name}
+            />
+          </label>
+          <label
+            className={MEDIA_FIELD_WIDE_CLASS}
+            htmlFor="media-transcribe-prompt"
+          >
+            <span>Prompt</span>
+            <Input
+              id="media-transcribe-prompt"
+              onChange={(event) => setPrompt(event.target.value)}
+              placeholder="Emphasize action items"
+              value={prompt}
+            />
+          </label>
+        </MediaOptions>
+        <div className={MEDIA_ACTIONS_CLASS}>
+          <Button disabled={busy} type="submit">
             {busy ? "Transcribing…" : "Transcribe"}
-          </button>
+          </Button>
         </div>
       </form>
       {error ? <Notice tone="bad">{error}</Notice> : null}
