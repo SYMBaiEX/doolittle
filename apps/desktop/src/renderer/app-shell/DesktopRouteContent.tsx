@@ -62,6 +62,7 @@ export interface DesktopRouteContentProps {
   onChooseWorkspace: () => Promise<WorkspacePickResult>;
   onOpenWorkspacePath: (path: string) => Promise<WorkspacePickResult>;
   onCodeWorkspaceDirtyChange?: (dirty: boolean) => void;
+  codeEditingLocked: boolean;
   chatChromeHost: HTMLElement | null;
   workspacePath: string;
   approvalsResource: ApiResource<{ approvals?: unknown[] }>;
@@ -76,6 +77,7 @@ export function DesktopRouteContent({
   tasksResource,
   backend,
   chatChromeHost,
+  codeEditingLocked,
   navigation,
   onChooseWorkspace,
   onConsumeContextHandoff,
@@ -159,6 +161,7 @@ export function DesktopRouteContent({
         return (
           <Route
             active={active}
+            editingLocked={codeEditingLocked}
             key={workspacePath || "local-workspace"}
             navigationIntent={pendingNavigationIntent}
             onAcknowledgeNavigationIntent={navigation.consumeNavigationIntent}

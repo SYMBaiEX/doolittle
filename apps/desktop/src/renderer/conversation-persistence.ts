@@ -24,6 +24,10 @@ const MAX_CAPSULE_SOURCE_LENGTH = 4_096;
 const MAX_CAPSULE_CONTENT_LENGTH = 120_000;
 const MAX_QUEUE_ITEMS = 50;
 const MAX_ATTACHMENT_COUNT = 8;
+const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+const MAX_ATTACHMENTS_TOTAL_BYTES = 50 * 1024 * 1024;
+const MAX_ATTACHMENT_NAME_LENGTH = 180;
+const MAX_ATTACHMENT_MIME_TYPE_LENGTH = 127;
 export const MAX_PROMPT_LIBRARY_ITEMS = 50;
 export const MAX_PROMPT_TITLE_LENGTH = 80;
 
@@ -54,6 +58,7 @@ export type ConversationPins = Record<string, boolean>;
 export interface ConversationDraft {
   text: string;
   capsule: ChatContextCapsule | null;
+  attachments: ManagedAttachmentDescriptor[];
 }
 
 export type ConversationDrafts = Record<string, ConversationDraft>;
@@ -134,17 +139,41 @@ function validAttachment(value: unknown): value is ManagedAttachmentDescriptor {
   return Boolean(
     record &&
       typeof record.id === "string" &&
-      /^[a-f0-9-]{16,64}$/iu.test(record.id) &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+        record.id,
+      ) &&
       typeof record.name === "string" &&
       record.name.length > 0 &&
-      record.name.length <= 512 &&
+      record.name.length <= MAX_ATTACHMENT_NAME_LENGTH &&
+      !Array.from(record.name).some((character) => {
+        const code = character.codePointAt(0) ?? 0;
+        return code < 32 || code === 127;
+      }) &&
       ["audio", "document", "image", "video"].includes(String(record.kind)) &&
       typeof record.mimeType === "string" &&
+      record.mimeType.length > 0 &&
+      record.mimeType.length <= MAX_ATTACHMENT_MIME_TYPE_LENGTH &&
+      /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/iu.test(
+        record.mimeType,
+      ) &&
       typeof record.sizeBytes === "number" &&
-      Number.isFinite(record.sizeBytes) &&
+      Number.isInteger(record.sizeBytes) &&
       record.sizeBytes >= 0 &&
+      record.sizeBytes <= MAX_ATTACHMENT_BYTES &&
       typeof record.sha256 === "string" &&
       /^[a-f0-9]{64}$/iu.test(record.sha256),
+  );
+}
+
+function validAttachments(
+  value: unknown,
+): value is ManagedAttachmentDescriptor[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= MAX_ATTACHMENT_COUNT &&
+    value.every(validAttachment) &&
+    value.reduce((total, attachment) => total + attachment.sizeBytes, 0) <=
+      MAX_ATTACHMENTS_TOTAL_BYTES
   );
 }
 
@@ -192,7 +221,7 @@ function sanitizeConversationDraft(value: unknown): ConversationDraft | null {
   // unsent prompts survive the capsule-aware upgrade.
   if (typeof value === "string") {
     return value.length > 0 && value.length <= MAX_DRAFT_LENGTH
-      ? { text: value, capsule: null }
+      ? { text: value, capsule: null, attachments: [] }
       : null;
   }
   const record = objectValue(value);
@@ -201,14 +230,17 @@ function sanitizeConversationDraft(value: unknown): ConversationDraft | null {
     record.capsule === undefined || record.capsule === null
       ? null
       : sanitizeChatContextCapsule(record.capsule);
+  const attachments =
+    record.attachments === undefined ? [] : record.attachments;
   if (
     record.text.length > MAX_DRAFT_LENGTH ||
     (record.capsule !== undefined && record.capsule !== null && !capsule) ||
-    (!record.text && !capsule)
+    !validAttachments(attachments) ||
+    (!record.text && !capsule && attachments.length === 0)
   ) {
     return null;
   }
-  return { text: record.text, capsule };
+  return { text: record.text, capsule, attachments };
 }
 
 function sanitizePromptLibraryEntry(value: unknown): PromptLibraryEntry | null {
@@ -306,9 +338,9 @@ export function saveConversationDrafts(
         if (!validSessionId(sessionId) || !sanitized) return null;
         return [
           sessionId,
-          sanitized.capsule
+          sanitized.capsule || sanitized.attachments.length > 0
             ? sanitized
-            : // Preserve the compact legacy representation when no capsule is present.
+            : // Preserve the compact legacy representation when no draft metadata is present.
               sanitized.text,
         ];
       })
@@ -357,9 +389,7 @@ export function loadConversationQueue(
       !content.trim() ||
       content.length > MAX_DRAFT_LENGTH ||
       (record.capsule !== undefined && record.capsule !== null && !capsule) ||
-      !Array.isArray(record.attachments) ||
-      record.attachments.length > MAX_ATTACHMENT_COUNT ||
-      !record.attachments.every(validAttachment) ||
+      !validAttachments(record.attachments) ||
       (record.memoryMatch !== undefined &&
         !validMemoryMatch(record.memoryMatch))
     ) {

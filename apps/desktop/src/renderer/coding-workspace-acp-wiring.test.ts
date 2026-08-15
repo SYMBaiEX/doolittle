@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -8,6 +9,10 @@ import {
 } from "./coding-workspace/CodingWorkspaceEditor";
 
 const codeEditorModule = vi.hoisted(() => vi.fn());
+const codingWorkspacePageSource = readFileSync(
+  new URL("./CodingWorkspacePage.tsx", import.meta.url),
+  "utf8",
+);
 
 vi.mock("./components/CodeEditor", async () => {
   codeEditorModule();
@@ -48,6 +53,18 @@ describe("Code workspace ACP task wiring", () => {
     expect(prompt).toHaveBeenCalledExactlyOnceWith("Inspect the selected file");
   });
 
+  it("prevents ACP form submission before its locked-editing early return", () => {
+    const preventDefault = codingWorkspacePageSource.indexOf(
+      "event.preventDefault();",
+    );
+    const editingLock = codingWorkspacePageSource.indexOf(
+      "if (!active || editingLocked) {",
+    );
+
+    expect(preventDefault).toBeGreaterThan(-1);
+    expect(editingLock).toBeGreaterThan(preventDefault);
+  });
+
   it("renders ACP execution and chat handoff as separate actions", () => {
     const markup = renderToStaticMarkup(
       createElement(CodingWorkspaceEditor, {
@@ -55,6 +72,7 @@ describe("Code workspace ACP task wiring", () => {
         acpTaskDraft: "Inspect the selected file",
         acpTaskOpen: true,
         draftContent: "",
+        editingLocked: false,
         editorPane: "file",
         fileDirty: false,
         fileNotice: null,
@@ -110,6 +128,7 @@ describe("Code workspace ACP task wiring", () => {
         acpTaskDraft: "",
         acpTaskOpen: false,
         draftContent: "",
+        editingLocked: false,
         editorPane: "file",
         fileDirty: false,
         fileNotice: null,
@@ -154,6 +173,7 @@ describe("Code workspace ACP task wiring", () => {
       acpTaskDraft: "",
       acpTaskOpen: false,
       draftContent: "export {};",
+      editingLocked: false,
       editorPane: "file" as const,
       fileDirty: false,
       fileNotice: null,

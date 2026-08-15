@@ -13,6 +13,17 @@ import type { ChatRequestBody } from "./types";
 
 const RUN_ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
 const PROJECT_ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
+const TURN_FAILURE_MESSAGE =
+  "The response could not be completed. Please try again.";
+
+function failedTurnMessage(
+  context: AppContext,
+  runId: string,
+): string | undefined {
+  return context.services.runController.getByRunId(runId)?.status === "error"
+    ? TURN_FAILURE_MESSAGE
+    : undefined;
+}
 
 function resolveRunId(value: unknown): string {
   if (typeof value !== "string" || !RUN_ID_PATTERN.test(value)) {
@@ -245,6 +256,16 @@ export async function handleChatRoute(
             });
             return;
           }
+          const failureMessage = failedTurnMessage(context, runId);
+          if (failureMessage) {
+            await emit("response.failed", {
+              id: responseId,
+              run_id: runId,
+              room_id: roomId,
+              message: failureMessage,
+            });
+            return;
+          }
           await emit("response.completed", {
             id: responseId,
             response,
@@ -306,6 +327,11 @@ export async function handleChatRoute(
     unregister();
     releaseWorkspace();
     stopFollowingRequest();
+  }
+
+  const failureMessage = failedTurnMessage(context, runId);
+  if (failureMessage) {
+    return json({ error: failureMessage, code: "turn_failed" }, 500);
   }
 
   return json({

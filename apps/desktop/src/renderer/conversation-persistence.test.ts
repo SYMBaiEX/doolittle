@@ -18,6 +18,15 @@ import {
   savePromptLibrary,
 } from "./conversation-persistence";
 
+const attachment = {
+  id: "123e4567-e89b-42d3-a456-426614174000",
+  name: "notes.txt",
+  kind: "document" as const,
+  mimeType: "text/plain",
+  sizeBytes: 42,
+  sha256: "a".repeat(64),
+};
+
 function memoryStorage(seed: Record<string, string> = {}): StorageLike {
   const values = new Map(Object.entries(seed));
   return {
@@ -40,7 +49,7 @@ describe("conversation persistence", () => {
     expect(saveConversationPins(storage, { "desktop:one": true })).toBe(false);
     expect(
       saveConversationDrafts(storage, {
-        "desktop:one": { text: "draft", capsule: null },
+        "desktop:one": { text: "draft", capsule: null, attachments: [] },
       }),
     ).toBe(false);
     expect(saveConversationQueue(storage, [])).toBe(false);
@@ -50,13 +59,21 @@ describe("conversation persistence", () => {
     const storage = memoryStorage();
     saveConversationPins(storage, { "desktop:one": true, ignored: false });
     saveConversationDrafts(storage, {
-      "desktop:one": { text: "Keep this draft", capsule: null },
-      empty: { text: "", capsule: null },
+      "desktop:one": {
+        text: "Keep this draft",
+        capsule: null,
+        attachments: [],
+      },
+      empty: { text: "", capsule: null, attachments: [] },
     });
 
     expect(loadConversationPins(storage)).toEqual({ "desktop:one": true });
     expect(loadConversationDrafts(storage)).toEqual({
-      "desktop:one": { text: "Keep this draft", capsule: null },
+      "desktop:one": {
+        text: "Keep this draft",
+        capsule: null,
+        attachments: [],
+      },
     });
   });
 
@@ -89,7 +106,7 @@ describe("conversation persistence", () => {
 
     expect(loadConversationPins(storage)).toEqual({ good: true });
     expect(loadConversationDrafts(storage)).toEqual({
-      good: { text: "draft", capsule: null },
+      good: { text: "draft", capsule: null, attachments: [] },
     });
     expect(loadConversationQueue(storage)).toEqual([
       {
@@ -106,6 +123,7 @@ describe("conversation persistence", () => {
     saveConversationDrafts(storage, {
       file: {
         text: "Review this file",
+        attachments: [],
         capsule: {
           kind: "file",
           path: "src/app.ts",
@@ -116,6 +134,7 @@ describe("conversation persistence", () => {
       },
       terminal: {
         text: "What failed?",
+        attachments: [],
         capsule: {
           kind: "terminal",
           path: "Terminal",
@@ -127,6 +146,7 @@ describe("conversation persistence", () => {
     expect(loadConversationDrafts(storage)).toEqual({
       file: {
         text: "Review this file",
+        attachments: [],
         capsule: {
           kind: "file",
           path: "src/app.ts",
@@ -137,6 +157,7 @@ describe("conversation persistence", () => {
       },
       terminal: {
         text: "What failed?",
+        attachments: [],
         capsule: {
           kind: "terminal",
           path: "Terminal",
@@ -162,7 +183,53 @@ describe("conversation persistence", () => {
     });
 
     expect(loadConversationDrafts(storage)).toEqual({
-      legacy: { text: "Keep my visible prompt", capsule: null },
+      legacy: {
+        text: "Keep my visible prompt",
+        capsule: null,
+        attachments: [],
+      },
+    });
+  });
+
+  it("round trips managed draft attachments while keeping empty drafts compact", () => {
+    const storage = memoryStorage();
+    saveConversationDrafts(storage, {
+      attached: {
+        text: "Review this",
+        capsule: null,
+        attachments: [attachment],
+      },
+      compact: { text: "No metadata", capsule: null, attachments: [] },
+    });
+    expect(
+      JSON.parse(storage.getItem(CONVERSATION_DRAFTS_STORAGE_KEY) ?? "{}")
+        .compact,
+    ).toBe("No metadata");
+
+    expect(loadConversationDrafts(storage)).toEqual({
+      attached: {
+        text: "Review this",
+        capsule: null,
+        attachments: [attachment],
+      },
+      compact: { text: "No metadata", capsule: null, attachments: [] },
+    });
+  });
+
+  it("migrates legacy draft objects and isolates malformed attachments", () => {
+    const storage = memoryStorage({
+      [CONVERSATION_DRAFTS_STORAGE_KEY]: JSON.stringify({
+        legacyObject: { text: "Keep this", capsule: null },
+        malformed: {
+          text: "Do not restore",
+          capsule: null,
+          attachments: [{ ...attachment, sha256: "not-a-hash" }],
+        },
+      }),
+    });
+
+    expect(loadConversationDrafts(storage)).toEqual({
+      legacyObject: { text: "Keep this", capsule: null, attachments: [] },
     });
   });
 

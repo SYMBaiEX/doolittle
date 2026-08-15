@@ -74,6 +74,7 @@ export interface CodingWorkspaceAcpViewModel {
 
 export function CodingWorkspaceEditor({
   editorPane,
+  editingLocked,
   onEditorPaneChange,
   selectedPath,
   selectedLanguage,
@@ -101,6 +102,7 @@ export function CodingWorkspaceEditor({
   onSendSelectedContext,
 }: {
   editorPane: EditorPane;
+  editingLocked: boolean;
   onEditorPaneChange: (value: EditorPane) => void;
   selectedPath: string;
   selectedLanguage: CodeLanguage;
@@ -153,7 +155,7 @@ export function CodingWorkspaceEditor({
             ) : null}
             <button
               className="secondary-button"
-              disabled={!fileDirty || savingFile}
+              disabled={editingLocked || !fileDirty || savingFile}
               onClick={onDiscard}
               type="button"
             >
@@ -161,7 +163,7 @@ export function CodingWorkspaceEditor({
             </button>
             <button
               className="primary-button"
-              disabled={!fileDirty || savingFile}
+              disabled={editingLocked || !fileDirty || savingFile}
               onClick={onSave}
               type="button"
             >
@@ -182,6 +184,7 @@ export function CodingWorkspaceEditor({
                     className={
                       !stagedPatch ? CODING_DIFF_SOURCE_SELECTED_CLASS : ""
                     }
+                    disabled={editingLocked}
                     onClick={() => onSetStagedPatch(false)}
                     type="button"
                   >
@@ -193,6 +196,7 @@ export function CodingWorkspaceEditor({
                   className={
                     stagedPatch ? CODING_DIFF_SOURCE_SELECTED_CLASS : ""
                   }
+                  disabled={editingLocked}
                   onClick={() => onSetStagedPatch(true)}
                   type="button"
                 >
@@ -205,6 +209,7 @@ export function CodingWorkspaceEditor({
               stagedPatch ? (
                 <button
                   className="secondary-button"
+                  disabled={editingLocked}
                   onClick={() => void onMutateVisiblePatch("unstage-hunk")}
                   type="button"
                 >
@@ -215,6 +220,7 @@ export function CodingWorkspaceEditor({
                   {!selectedChange.untracked ? (
                     <button
                       className="danger-button"
+                      disabled={editingLocked}
                       onClick={() => void onMutateVisiblePatch("discard-hunk")}
                       type="button"
                     >
@@ -223,6 +229,7 @@ export function CodingWorkspaceEditor({
                   ) : null}
                   <button
                     className="primary-button"
+                    disabled={editingLocked}
                     onClick={() => void onMutateVisiblePatch("stage-hunk")}
                     type="button"
                   >
@@ -246,6 +253,11 @@ export function CodingWorkspaceEditor({
         id={EDITOR_PANEL_ID}
         role="tabpanel"
       >
+        {editingLocked ? (
+          <div className={CODING_INLINE_STATE_CLASS} role="status">
+            Switching workspace. Code edits are temporarily locked.
+          </div>
+        ) : null}
         {!selectedPath ? (
           <EmptyBlock title="Choose a file">
             Select a workspace file or changed file to inspect it here.
@@ -277,7 +289,7 @@ export function CodingWorkspaceEditor({
                 }
               >
                 <CodeEditor
-                  disabled={savingFile}
+                  disabled={editingLocked || savingFile}
                   language={selectedLanguage}
                   onChange={onDraftChange}
                   onEditorStateChange={onEditorStateChange}
@@ -360,7 +372,7 @@ export function CodingWorkspaceEditor({
               </small>
             </label>
             <input
-              disabled={acpEditor.promptBusy}
+              disabled={editingLocked || acpEditor.promptBusy}
               id="coding-acp-task-input"
               onChange={(event) => onAcpTaskDraftChange(event.target.value)}
               placeholder="Inspect, edit, test, or explain…"
@@ -369,7 +381,9 @@ export function CodingWorkspaceEditor({
             {acpEditor.promptBusy ? (
               <button
                 className="secondary-button"
-                disabled={acpEditor.promptPhase === "cancelling"}
+                disabled={
+                  editingLocked || acpEditor.promptPhase === "cancelling"
+                }
                 onClick={() => void acpEditor.cancel()}
                 type="button"
               >
@@ -381,7 +395,9 @@ export function CodingWorkspaceEditor({
               <button
                 className="primary-button"
                 disabled={
-                  acpEditor.phase !== "connected" || !acpTaskDraft.trim()
+                  editingLocked ||
+                  acpEditor.phase !== "connected" ||
+                  !acpTaskDraft.trim()
                 }
                 type="submit"
               >
@@ -391,6 +407,7 @@ export function CodingWorkspaceEditor({
             <button
               aria-label="Close ACP editor task"
               className={`ghost-button ${CODING_ACP_TASK_CLOSE_CLASS}`}
+              disabled={editingLocked}
               onClick={() => onAcpTaskOpenChange(false)}
               type="button"
             >
@@ -484,6 +501,7 @@ export function CodingWorkspaceEditor({
         {acpEditor.promptBusy && !acpTaskOpen ? (
           <button
             className={`${CODING_STATUS_ACTION_CLASS} coding-acp-cancel`}
+            disabled={editingLocked}
             onClick={() => void acpEditor.cancel()}
             type="button"
           >
@@ -493,6 +511,7 @@ export function CodingWorkspaceEditor({
         {acpEditor.phase === "degraded" ? (
           <button
             className={`${CODING_STATUS_ACTION_CLASS} coding-acp-retry`}
+            disabled={editingLocked}
             onClick={() => void acpEditor.retryConnection()}
             type="button"
           >
@@ -503,6 +522,7 @@ export function CodingWorkspaceEditor({
         <button
           aria-expanded={acpTaskOpen}
           className={`${CODING_STATUS_ACTION_CLASS} coding-acp-task-toggle aria-expanded:shadow-[inset_0_0_0_1px_color-mix(in_srgb,#1a0d03_24%,transparent)]`}
+          disabled={editingLocked}
           onClick={() => onAcpTaskOpenChange(!acpTaskOpen)}
           type="button"
         >

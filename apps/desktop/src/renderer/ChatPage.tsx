@@ -15,7 +15,6 @@ import { createPortal } from "react-dom";
 import type {
   BackendState,
   ChatEvent,
-  ManagedAttachmentDescriptor,
   RuntimeStatus,
   SessionForkResponse,
   SessionSummary,
@@ -24,6 +23,7 @@ import { ChatComposer } from "./chat/ChatComposer";
 import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
 import { ChatTranscript } from "./chat/ChatTranscript";
 import { isChatNearBottom, scheduleChatScroll } from "./chat/chat-scroll";
+import { handleFailedChatTerminalEvent } from "./chat/chat-terminal-events";
 import {
   CHAT_WORKSPACE_CLASS,
   MOBILE_CONVERSATIONS_BACKDROP_CLASS,
@@ -202,6 +202,7 @@ export function ChatPage({
   const requestSession = useRef<Record<string, string>>({});
   const {
     draft,
+    draftAttachments,
     chatContextCapsule,
     historyError,
     loadingHistory,
@@ -211,6 +212,7 @@ export function ChatPage({
     storageWarning,
     sessions,
     setDraft,
+    setDraftAttachments,
     setChatContextCapsule,
     setDraftForSession,
     setMessages,
@@ -231,9 +233,7 @@ export function ChatPage({
     loadInspectorVisibility,
   );
   const isNarrowWorkbench = useMediaQuery(NARROW_WORKBENCH_QUERY);
-  const [attachedFiles, setAttachedFiles] = useState<
-    ManagedAttachmentDescriptor[]
-  >([]);
+  const attachedFiles = draftAttachments;
   const recoveredQueue = useMemo(() => loadConversationQueue(localStorage), []);
   const [queuedMessages, setQueuedMessages] =
     useState<PersistedQueuedMessage[]>(recoveredQueue);
@@ -277,10 +277,7 @@ export function ChatPage({
   });
   const queueRef = useRef<HTMLDivElement>(null);
   const queueDispatchRef = useRef<string | null>(null);
-  const pendingBranchAttachments = useRef<{
-    sessionId: string;
-    attachments: ManagedAttachmentDescriptor[];
-  } | null>(null);
+  const previousSelectedId = useRef(selectedId);
   const consumedContextHandoffs = useRef(new Set<string>());
 
   const {
@@ -424,13 +421,8 @@ export function ChatPage({
   ]);
 
   useEffect(() => {
-    const pending = pendingBranchAttachments.current;
-    if (pending?.sessionId === selectedId) {
-      setAttachedFiles(pending.attachments);
-      pendingBranchAttachments.current = null;
-    } else {
-      setAttachedFiles([]);
-    }
+    if (previousSelectedId.current === selectedId) return;
+    previousSelectedId.current = selectedId;
     setAttachmentValidationError("");
   }, [selectedId]);
 
@@ -544,17 +536,15 @@ export function ChatPage({
       finishRequest(event.requestId);
       return;
     }
-    if (event.event === "error") {
-      updateAssistant(sessionId, event.requestId, (message) => ({
-        ...message,
-        content:
-          eventText(event.data) || "The response could not be completed.",
-        pending: false,
-        error: true,
-      }));
-      finishRequest(event.requestId);
+    if (
+      handleFailedChatTerminalEvent(
+        event,
+        sessionId,
+        updateAssistant,
+        finishRequest,
+      )
+    )
       return;
-    }
     if (event.event === "cancelled" || event.event === "response.cancelled") {
       updateAssistant(sessionId, event.requestId, (message) => ({
         ...message,
@@ -637,7 +627,7 @@ export function ChatPage({
     }));
     if (clearComposer) {
       setDraft("");
-      setAttachedFiles([]);
+      setDraftAttachments([]);
       setChatContextCapsule(null);
     }
     setProgress("Doolittle is considering the request…");
@@ -714,11 +704,11 @@ export function ChatPage({
       const fork = response.fork;
 
       if (mode === "edit") {
-        setDraftForSession(fork.sessionId, message.content);
-        pendingBranchAttachments.current = {
-          sessionId: fork.sessionId,
-          attachments: message.attachments ?? [],
-        };
+        setDraftForSession(
+          fork.sessionId,
+          message.content,
+          message.attachments ?? [],
+        );
       }
 
       await Promise.resolve(refreshRuntime());
@@ -850,7 +840,7 @@ export function ChatPage({
     setQueuePaused(false);
     setQueueAnnouncement("Message added to the queue.");
     setDraft("");
-    setAttachedFiles([]);
+    setDraftAttachments([]);
     setChatContextCapsule(null);
     composerRef.current?.focus();
   };
@@ -924,7 +914,7 @@ export function ChatPage({
         next.push(attachment);
         totalBytes += attachment.sizeBytes;
       }
-      setAttachedFiles(next);
+      setDraftAttachments(next);
       if (skipped > 0) {
         setAttachmentValidationError(
           `Attachment limit reached. Up to ${MAX_MESSAGE_ATTACHMENTS} files and 50 MB total are allowed.`,
@@ -970,7 +960,7 @@ export function ChatPage({
   );
 
   const removeContextFile = (id: string) => {
-    setAttachedFiles((current) => current.filter((entry) => entry.id !== id));
+    setDraftAttachments(attachedFiles.filter((entry) => entry.id !== id));
     setAttachmentValidationError("");
   };
 

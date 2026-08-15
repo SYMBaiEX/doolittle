@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import type {
+  ManagedAttachmentDescriptor,
   SessionMessagesResponse,
   SessionSummary,
 } from "../../shared/contracts";
@@ -308,18 +309,24 @@ export function useChatConversationState({
   const draftState = conversationDrafts[draftSessionId] ?? {
     text: "",
     capsule: null,
+    attachments: [],
   };
   const draft = draftState.text;
   const chatContextCapsule = draftState.capsule;
+  const draftAttachments = draftState.attachments;
   const setDraft = useCallback(
     (nextValue: SetStateAction<string>) => {
       setConversationDrafts((current) => {
-        const previous = current[draftSessionId] ?? { text: "", capsule: null };
+        const previous = current[draftSessionId] ?? {
+          text: "",
+          capsule: null,
+          attachments: [],
+        };
         const next =
           typeof nextValue === "function"
             ? nextValue(previous.text)
             : nextValue;
-        if (!next && !previous.capsule) {
+        if (!next && !previous.capsule && previous.attachments.length === 0) {
           if (!Object.hasOwn(current, draftSessionId)) return current;
           const updated = { ...current };
           delete updated[draftSessionId];
@@ -334,18 +341,29 @@ export function useChatConversationState({
     [draftSessionId],
   );
 
-  const setDraftForSession = useCallback((sessionId: string, value: string) => {
-    setConversationDrafts((current) => ({
-      ...current,
-      [sessionId]: { text: value, capsule: null },
-    }));
-  }, []);
+  const setDraftForSession = useCallback(
+    (
+      sessionId: string,
+      value: string,
+      attachments: ManagedAttachmentDescriptor[] = [],
+    ) => {
+      setConversationDrafts((current) => ({
+        ...current,
+        [sessionId]: { text: value, capsule: null, attachments },
+      }));
+    },
+    [],
+  );
 
   const setChatContextCapsule = useCallback(
     (capsule: ChatContextCapsule | null) => {
       setConversationDrafts((current) => {
-        const previous = current[draftSessionId] ?? { text: "", capsule: null };
-        if (!previous.text && !capsule) {
+        const previous = current[draftSessionId] ?? {
+          text: "",
+          capsule: null,
+          attachments: [],
+        };
+        if (!previous.text && !capsule && previous.attachments.length === 0) {
           if (!Object.hasOwn(current, draftSessionId)) return current;
           const updated = { ...current };
           delete updated[draftSessionId];
@@ -354,6 +372,29 @@ export function useChatConversationState({
         return {
           ...current,
           [draftSessionId]: { ...previous, capsule },
+        };
+      });
+    },
+    [draftSessionId],
+  );
+
+  const setDraftAttachments = useCallback(
+    (attachments: ManagedAttachmentDescriptor[]) => {
+      setConversationDrafts((current) => {
+        const previous = current[draftSessionId] ?? {
+          text: "",
+          capsule: null,
+          attachments: [],
+        };
+        if (!previous.text && !previous.capsule && attachments.length === 0) {
+          if (!Object.hasOwn(current, draftSessionId)) return current;
+          const updated = { ...current };
+          delete updated[draftSessionId];
+          return updated;
+        }
+        return {
+          ...current,
+          [draftSessionId]: { ...previous, attachments },
         };
       });
     },
@@ -566,6 +607,7 @@ export function useChatConversationState({
   return {
     chatContextCapsule,
     draft,
+    draftAttachments,
     historyError,
     loadingHistory,
     storageWarning,
@@ -577,6 +619,7 @@ export function useChatConversationState({
     sessionSearch,
     sessions,
     setDraft,
+    setDraftAttachments,
     setChatContextCapsule,
     setDraftForSession,
     setMessages,

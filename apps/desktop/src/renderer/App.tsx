@@ -30,7 +30,6 @@ import { DesktopMobileMenuButton } from "./app-shell/DesktopMobileMenuButton";
 import { DesktopRouteLoadingFallback } from "./app-shell/DesktopRouteLoadingFallback";
 import { DesktopSidebar } from "./app-shell/DesktopSidebar";
 import { DesktopWindowContext } from "./app-shell/DesktopWindowContext";
-import { buildDesktopCommandGroups } from "./app-shell/desktop-command-groups";
 import {
   preloadDesktopRoute,
   resetDesktopRoute,
@@ -175,7 +174,7 @@ export function preloadCommandPalette(): Promise<CommandPaletteModule> {
 }
 
 const LazyCommandPalette = lazy(async () => ({
-  default: (await preloadCommandPalette()).CommandPalette,
+  default: (await preloadCommandPalette()).DesktopCommandPalette,
 }));
 
 interface CommandPaletteLoadingFallbackProps {
@@ -295,6 +294,11 @@ export function App() {
     recentPaths: [],
   });
   const [codeWorkspaceDirty, setCodeWorkspaceDirty] = useState(false);
+  const [codeEditingLocked, setCodeEditingLocked] = useState(false);
+  const restoreCodeDirtyAfterFailedWorkspaceTransition = useCallback(
+    () => setCodeWorkspaceDirty(codeWorkspaceDirty),
+    [codeWorkspaceDirty],
+  );
   const [selectedSession, setSelectedSession] = useState(initialConversation);
   const [appearance, setAppearance] = useState<DesktopAppearance>(
     loadAppearancePreference,
@@ -436,7 +440,7 @@ export function App() {
     return () => window.clearTimeout(timer);
   }, [chatTerminalMounted, chatTerminalOpen]);
 
-  const applyViewTransition = useCallback(
+  const confirmViewChange = useCallback(
     (next: View) => {
       if (
         view === "code" &&
@@ -452,6 +456,17 @@ export function App() {
       ) {
         return false;
       }
+      return true;
+    },
+    [codeWorkspaceDirty, view],
+  );
+
+  const applyViewTransition = useCallback(
+    (
+      next: View,
+      { skipDirtyCheck = false }: { skipDirtyCheck?: boolean } = {},
+    ) => {
+      if (!skipDirtyCheck && !confirmViewChange(next)) return false;
       void warmDesktopRoute(next, backend.phase, workspace.currentPath).catch(
         () => undefined,
       );
@@ -472,18 +487,20 @@ export function App() {
     [
       backend.phase,
       closeUtilities,
+      confirmViewChange,
       isMobileSidebarMode,
-      codeWorkspaceDirty,
-      view,
       workspace.currentPath,
       setMobileSidebarOpen,
     ],
   );
 
   const setView = useCallback(
-    (next: View) => {
-      if (!applyViewTransition(next)) return;
+    (next: View, options?: { readonly skipDirtyCheck?: boolean }) => {
+      if (options?.skipDirtyCheck) {
+        if (!applyViewTransition(next, options)) return false;
+      } else if (!applyViewTransition(next)) return false;
       window.location.hash = `/${next}`;
+      return true;
     },
     [applyViewTransition],
   );
@@ -591,7 +608,10 @@ export function App() {
     transitionToProjectScope,
   } = useWorkspaceProjectNavigation({
     backendReady: backend.phase === "ready",
+    confirmViewChange,
     createSessionId: newConversationId,
+    setCodeEditingLocked,
+    restoreCodeDirtyAfterFailedWorkspaceTransition,
     pathsEqual,
     projects,
     projectScope,
@@ -1106,63 +1126,6 @@ export function App() {
     return items.slice(0, 5);
   }, [scopedSessions, selectedSession]);
 
-  const commandGroups = useMemo(
-    () =>
-      buildDesktopCommandGroups({
-        backendPhase: backend.phase,
-        navCollapsed,
-        onChooseRepository: () => chooseRepositoryForConversation(),
-        onCreateConversation: createConversation,
-        onOpenProjectManager: openProjectManager,
-        onOpenSession: openSession,
-        onRefresh: refreshWithFeedback,
-        onSelectProjectScope: selectProjectScope,
-        onSetView: setView,
-        onSwitchRecentWorkspace: switchToRecentWorkspace,
-        onToggleAppearance: toggleAppearance,
-        onToggleTerminal: () => {
-          toggleChatTerminal();
-        },
-        onToggleNavigation: toggleNavigation,
-        paletteQuery,
-        platform: window.doolittle.platform,
-        projectCards,
-        recentWorkspacePaths: workspace.recentPaths,
-        resolvedAppearance,
-        runningTasks,
-        searchCommandGroups,
-        sessionsCount: sessions.length,
-        sidebarSessions,
-        terminalOpen: chatTerminalOpen,
-        workspacePath: workspace.currentPath,
-      }),
-    [
-      backend.phase,
-      chooseRepositoryForConversation,
-      createConversation,
-      navCollapsed,
-      openProjectManager,
-      openSession,
-      paletteQuery,
-      projectCards,
-      refreshWithFeedback,
-      resolvedAppearance,
-      runningTasks,
-      searchCommandGroups,
-      selectProjectScope,
-      sessions.length,
-      setView,
-      sidebarSessions,
-      switchToRecentWorkspace,
-      toggleAppearance,
-      toggleChatTerminal,
-      toggleNavigation,
-      chatTerminalOpen,
-      workspace.currentPath,
-      workspace.recentPaths,
-    ],
-  );
-
   const content = (
     <DesktopRouteContent
       activeProject={activeProject}
@@ -1170,6 +1133,7 @@ export function App() {
       tasksResource={tasksResource}
       backend={backend}
       chatChromeHost={chatChromeHost}
+      codeEditingLocked={codeEditingLocked}
       navigation={{
         chooseRepositoryForConversation,
         consumeNavigationIntent,
@@ -1234,17 +1198,40 @@ export function App() {
           }
         >
           <LazyCommandPalette
-            groups={commandGroups}
+            backendPhase={backend.phase}
             isOpen={paletteOpen}
+            navCollapsed={navCollapsed}
+            onChooseRepository={chooseRepositoryForConversation}
             onClose={() => {
               setPaletteOpen(false);
               setPaletteQuery("");
             }}
+            onCreateConversation={createConversation}
+            onOpenProjectManager={openProjectManager}
+            onOpenSession={openSession}
             onQueryChange={setPaletteQuery}
+            onRefresh={refreshWithFeedback}
+            onSelectProjectScope={selectProjectScope}
+            onSetView={setView}
+            onSwitchRecentWorkspace={switchToRecentWorkspace}
+            onToggleAppearance={toggleAppearance}
+            onToggleNavigation={toggleNavigation}
+            onToggleTerminal={toggleChatTerminal}
+            paletteQuery={paletteQuery}
+            platform={window.doolittle.platform}
+            projectCards={projectCards}
+            recentWorkspacePaths={workspace.recentPaths}
             resetOnOpen
+            resolvedAppearance={resolvedAppearance}
             returnFocusTarget={paletteReturnFocusRef.current}
+            runningTasks={runningTasks}
+            searchCommandGroups={searchCommandGroups}
             searchPlaceholder="Search commands, projects, chats, and files…"
+            sessionsCount={sessions.length}
+            sidebarSessions={sidebarSessions}
+            terminalOpen={chatTerminalOpen}
             title="Command menu"
+            workspacePath={workspace.currentPath}
           />
         </Suspense>
       ) : null}

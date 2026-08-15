@@ -662,6 +662,233 @@ describe("sensitive desktop actions", () => {
     harness.dispose();
   });
 
+  it("treats a failed chat response as terminal and only notifies for attention", async () => {
+    const events: Array<{ requestId: string; event: string; data: unknown }> =
+      [];
+    const notifications: Array<{ title: string; body: string }> = [];
+    const harness = createHarness({
+      confirmed: true,
+      notify: (notification) => notifications.push(notification),
+      fetch: async () =>
+        new Response(
+          'event: response.failed\ndata: {"message":"The response could not be completed. Please try again."}\n\n',
+          { headers: { "content-type": "text/event-stream" } },
+        ),
+    });
+    const sender = {
+      id: 741,
+      isDestroyed: () => false,
+      send: (_channel: string, event: (typeof events)[number]) =>
+        events.push(event),
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+
+    await expect(
+      harness.handlers.get("chat:start")?.(
+        { sender },
+        {
+          requestId: "chat:failed-terminal",
+          message: "stream request",
+          roomId: "desktop:room-1",
+          workspacePath: "/workspace",
+        },
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(events).toEqual([
+      {
+        requestId: "chat:failed-terminal",
+        event: "response.failed",
+        data: {
+          message: "The response could not be completed. Please try again.",
+        },
+      },
+    ]);
+    expect(notifications).toEqual([
+      {
+        title: "Doolittle needs attention",
+        body: "A response stopped with an error.",
+      },
+    ]);
+    harness.dispose();
+  });
+
+  it("forwards only the first of duplicate failed chat terminal events", async () => {
+    const events: Array<{ requestId: string; event: string; data: unknown }> =
+      [];
+    const notifications: Array<{ title: string; body: string }> = [];
+    const harness = createHarness({
+      confirmed: true,
+      notify: (notification) => notifications.push(notification),
+      fetch: async () =>
+        new Response(
+          [
+            'event: response.failed\ndata: {"message":"first failure"}',
+            'event: response.failed\ndata: {"message":"duplicate failure"}',
+            "",
+          ].join("\n\n"),
+          { headers: { "content-type": "text/event-stream" } },
+        ),
+    });
+    const sender = {
+      id: 742,
+      isDestroyed: () => false,
+      send: (_channel: string, event: (typeof events)[number]) =>
+        events.push(event),
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+
+    await expect(
+      harness.handlers.get("chat:start")?.(
+        { sender },
+        {
+          requestId: "chat:duplicate-failed-terminal",
+          message: "stream request",
+          roomId: "desktop:room-1",
+          workspacePath: "/workspace",
+        },
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(events).toEqual([
+      {
+        requestId: "chat:duplicate-failed-terminal",
+        event: "response.failed",
+        data: { message: "first failure" },
+      },
+    ]);
+    expect(notifications).toEqual([
+      {
+        title: "Doolittle needs attention",
+        body: "A response stopped with an error.",
+      },
+    ]);
+    harness.dispose();
+  });
+
+  it("does not turn a failed chat terminal event into completion", async () => {
+    const events: Array<{ requestId: string; event: string; data: unknown }> =
+      [];
+    const notifications: Array<{ title: string; body: string }> = [];
+    const harness = createHarness({
+      confirmed: true,
+      notify: (notification) => notifications.push(notification),
+      fetch: async () =>
+        new Response(
+          [
+            'event: response.failed\ndata: {"message":"turn failed"}',
+            'event: response.completed\ndata: {"response":"incorrectly complete"}',
+            "",
+          ].join("\n\n"),
+          { headers: { "content-type": "text/event-stream" } },
+        ),
+    });
+    const sender = {
+      id: 743,
+      isDestroyed: () => false,
+      send: (_channel: string, event: (typeof events)[number]) =>
+        events.push(event),
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+
+    await expect(
+      harness.handlers.get("chat:start")?.(
+        { sender },
+        {
+          requestId: "chat:failed-then-completed",
+          message: "stream request",
+          roomId: "desktop:room-1",
+          workspacePath: "/workspace",
+        },
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(events).toEqual([
+      {
+        requestId: "chat:failed-then-completed",
+        event: "response.failed",
+        data: { message: "turn failed" },
+      },
+    ]);
+    expect(notifications).toEqual([
+      {
+        title: "Doolittle needs attention",
+        body: "A response stopped with an error.",
+      },
+    ]);
+    harness.dispose();
+  });
+
+  it("does not emit another terminal event after a failed response read error", async () => {
+    const events: Array<{ requestId: string; event: string; data: unknown }> =
+      [];
+    const notifications: Array<{ title: string; body: string }> = [];
+    const encoder = new TextEncoder();
+    const harness = createHarness({
+      confirmed: true,
+      notify: (notification) => notifications.push(notification),
+      fetch: async () => {
+        let readCount = 0;
+        return {
+          ok: true,
+          body: {
+            getReader: () => ({
+              read: async () => {
+                if (readCount++ === 0) {
+                  return {
+                    done: false,
+                    value: encoder.encode(
+                      'event: response.failed\ndata: {"message":"turn failed"}\n\n',
+                    ),
+                  };
+                }
+                throw new Error("late transport failure");
+              },
+            }),
+          },
+        } as unknown as Response;
+      },
+    });
+    const sender = {
+      id: 744,
+      isDestroyed: () => false,
+      send: (_channel: string, event: (typeof events)[number]) =>
+        events.push(event),
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+
+    await expect(
+      harness.handlers.get("chat:start")?.(
+        { sender },
+        {
+          requestId: "chat:failed-late-reader-error",
+          message: "stream request",
+          roomId: "desktop:room-1",
+          workspacePath: "/workspace",
+        },
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(events).toEqual([
+      {
+        requestId: "chat:failed-late-reader-error",
+        event: "response.failed",
+        data: { message: "turn failed" },
+      },
+    ]);
+    expect(notifications).toEqual([
+      {
+        title: "Doolittle needs attention",
+        body: "A response stopped with an error.",
+      },
+    ]);
+    harness.dispose();
+  });
+
   it("stops chat by cancelling the server run before closing the local stream", async () => {
     const requests: Array<{ url: string; init?: RequestInit }> = [];
     let resolveChatResponse: ((response: Response) => void) | undefined;

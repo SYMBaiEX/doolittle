@@ -60,6 +60,7 @@ describe("configuration routes when the local runtime is inactive", () => {
       renderToStaticMarkup(
         <CodingWorkspacePage
           active={false}
+          editingLocked={false}
           navigationIntent={null}
           onAcknowledgeNavigationIntent={() => undefined}
           onChooseWorkspace={pickWorkspace}
@@ -95,6 +96,7 @@ describe("configuration routes when the local runtime is inactive", () => {
     const markup = renderToStaticMarkup(
       <CodingWorkspacePage
         active
+        editingLocked={false}
         navigationIntent={null}
         onAcknowledgeNavigationIntent={() => undefined}
         onChooseWorkspace={pickWorkspace}

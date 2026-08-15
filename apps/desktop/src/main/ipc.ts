@@ -441,15 +441,33 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         }
       };
       const emitChatEvent = (payload: { event: string; data: unknown }) => {
-        if (
+        const terminal =
           payload.event === "response.completed" ||
+          payload.event === "response.failed" ||
           payload.event === "error" ||
           payload.event === "cancelled" ||
-          payload.event === "response.cancelled"
-        ) {
+          payload.event === "response.cancelled";
+        if (terminal && terminalEventEmitted) {
+          return false;
+        }
+        if (terminal) {
           terminalEventEmitted = true;
         }
         emitEvent(payload);
+        return terminal;
+      };
+      const notifyChatTerminalEvent = (eventName: string) => {
+        if (eventName === "response.completed") {
+          notifyBackground({
+            title: "Doolittle is ready",
+            body: "Your response is ready.",
+          });
+        } else if (eventName === "response.failed" || eventName === "error") {
+          notifyBackground({
+            title: "Doolittle needs attention",
+            body: "A response stopped with an error.",
+          });
+        }
       };
       const cleanup = () => {
         activeChats.delete(key);
@@ -496,32 +514,20 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           if (result.done) break;
           const chunk = decoder.decode(result.value, { stream: true });
           for (const eventMessage of parser.push(chunk)) {
-            emitChatEvent(eventMessage);
-            if (eventMessage.event === "response.completed") {
-              notifyBackground({
-                title: "Doolittle is ready",
-                body: "Your response is ready.",
-              });
+            if (emitChatEvent(eventMessage)) {
+              notifyChatTerminalEvent(eventMessage.event);
             }
           }
         }
         const tail = decoder.decode();
         for (const eventMessage of parser.push(tail)) {
-          emitChatEvent(eventMessage);
-          if (eventMessage.event === "response.completed") {
-            notifyBackground({
-              title: "Doolittle is ready",
-              body: "Your response is ready.",
-            });
+          if (emitChatEvent(eventMessage)) {
+            notifyChatTerminalEvent(eventMessage.event);
           }
         }
         for (const eventMessage of parser.finish()) {
-          emitChatEvent(eventMessage);
-          if (eventMessage.event === "response.completed") {
-            notifyBackground({
-              title: "Doolittle is ready",
-              body: "Your response is ready.",
-            });
+          if (emitChatEvent(eventMessage)) {
+            notifyChatTerminalEvent(eventMessage.event);
           }
         }
         if (!terminalEventEmitted) {

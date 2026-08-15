@@ -10,7 +10,9 @@ const fallbackSource = readFileSync(
 describe("desktop view transitions", () => {
   it("uses one transition boundary for direct and hash navigation", () => {
     expect(appSource).toContain("const applyViewTransition = useCallback(");
-    expect(appSource).toContain("if (!applyViewTransition(next)) return;");
+    expect(appSource).toContain(
+      "if (!applyViewTransition(next)) return false;",
+    );
     expect(appSource).toContain(
       "if (!applyViewTransition(next) && window.location.hash",
     );

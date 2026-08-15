@@ -93,6 +93,7 @@ export function codingWorkspaceResourceDependencies(
 
 export function CodingWorkspacePage({
   active,
+  editingLocked,
   navigationIntent,
   onAcknowledgeNavigationIntent,
   onChooseWorkspace,
@@ -104,6 +105,7 @@ export function CodingWorkspacePage({
   workspacePath,
 }: {
   active: boolean;
+  editingLocked: boolean;
   navigationIntent: DesktopNavigationIntent | null;
   onAcknowledgeNavigationIntent: (id: string) => void;
   onChooseWorkspace: () => Promise<WorkspacePickResult>;
@@ -329,6 +331,7 @@ export function CodingWorkspacePage({
 
   const openPath = useCallback(
     (path: string, destination: EditorPane = "file") => {
+      if (editingLocked) return false;
       if (path !== selectedPath && fileDirty) {
         setFileNotice({
           tone: "warn",
@@ -340,7 +343,7 @@ export function CodingWorkspacePage({
       setEditorPane(destination);
       return true;
     },
-    [fileDirty, selectedPath],
+    [editingLocked, fileDirty, selectedPath],
   );
 
   useEffect(() => {
@@ -433,6 +436,7 @@ export function CodingWorkspacePage({
   };
 
   const discardFile = () => {
+    if (editingLocked) return;
     setDraftContent(originalContent);
     setFileNotice({
       tone: "neutral",
@@ -441,7 +445,9 @@ export function CodingWorkspacePage({
   };
 
   const saveFile = async () => {
-    if (!active || !selectedPath || !fileDirty || savingFile) return;
+    if (!active || editingLocked || !selectedPath || !fileDirty || savingFile) {
+      return;
+    }
     setSavingFile(true);
     setFileNotice({
       tone: "neutral",
@@ -483,7 +489,7 @@ export function CodingWorkspacePage({
       "stage-hunk" | "unstage-hunk" | "discard-hunk"
     >,
   ) => {
-    if (!active) return;
+    if (!active || editingLocked) return;
     const patch = patchResource.data?.patch;
     if (!patch?.patch || patch.truncated) return;
     setFileNotice({
@@ -511,7 +517,7 @@ export function CodingWorkspacePage({
   };
 
   const sendSelectedContext = () => {
-    if (!active || !selectedPath) return;
+    if (!active || editingLocked || !selectedPath) return;
     void acpEditor.flushEditorState();
     if (editorPane === "diff") {
       const patch = patchResource.data?.patch?.patch ?? "";
@@ -540,7 +546,10 @@ export function CodingWorkspacePage({
   };
 
   const submitAcpTask = async (event: FormEvent<HTMLFormElement>) => {
-    if (!active) return;
+    if (!active || editingLocked) {
+      event.preventDefault();
+      return;
+    }
     await submitAcpEditorTask(event, acpEditor.prompt, acpTaskDraft);
   };
 
@@ -663,14 +672,20 @@ export function CodingWorkspacePage({
           acpTaskDraft={acpTaskDraft}
           acpTaskOpen={acpTaskOpen}
           draftContent={draftContent}
+          editingLocked={editingLocked}
           editorPane={editorPane}
           fileDirty={fileDirty}
           fileNotice={fileNotice}
           fileResource={fileResource}
-          onAcpTaskDraftChange={setAcpTaskDraft}
-          onAcpTaskOpenChange={setAcpTaskOpen}
+          onAcpTaskDraftChange={(value) => {
+            if (!editingLocked) setAcpTaskDraft(value);
+          }}
+          onAcpTaskOpenChange={(open) => {
+            if (!editingLocked) setAcpTaskOpen(open);
+          }}
           onDiscard={discardFile}
           onDraftChange={(value) => {
+            if (editingLocked) return;
             setDraftContent(value);
             if (fileNotice?.tone !== "bad") setFileNotice(null);
           }}
@@ -694,7 +709,7 @@ export function CodingWorkspacePage({
 
         {utilityVisible ? (
           <CodingWorkspaceUtility
-            active={active}
+            active={active && !editingLocked}
             branchesResource={branchesResource}
             changes={changes}
             conflictsResource={conflictsResource}

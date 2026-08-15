@@ -62,11 +62,13 @@ function ConversationProbe({
   backendReady = true,
   onValue,
   requestSession,
+  selectedId = remoteSession.sessionId,
 }: {
   activeRequest?: string | null;
   backendReady?: boolean;
   onValue: (value: ReturnType<typeof useChatConversationState>) => void;
   requestSession?: MutableRefObject<Record<string, string>>;
+  selectedId?: string;
 }) {
   const localRequestSession = useRef<Record<string, string>>({});
   const value = useChatConversationState({
@@ -75,7 +77,7 @@ function ConversationProbe({
     onSelect: vi.fn(),
     remoteSessions: [remoteSession],
     requestSession: requestSession ?? localRequestSession,
-    selectedId: remoteSession.sessionId,
+    selectedId,
   });
   useEffect(() => {
     onValue(value);
@@ -271,9 +273,18 @@ describe("chat history concurrency", () => {
   });
 
   it("restores an unsent capsule alongside the visible draft after reload", () => {
+    const attachment = {
+      id: "123e4567-e89b-42d3-a456-426614174000",
+      name: "notes.txt",
+      kind: "document" as const,
+      mimeType: "text/plain",
+      sizeBytes: 42,
+      sha256: "a".repeat(64),
+    };
     const savedDrafts = {
       remote: {
         text: "Explain the failure",
+        attachments: [attachment],
         capsule: {
           kind: "terminal",
           path: "Terminal",
@@ -304,6 +315,7 @@ describe("chat history concurrency", () => {
 
     expect(latest?.draft).toBe("Explain the failure");
     expect(latest?.chatContextCapsule).toEqual(savedDrafts.remote.capsule);
+    expect(latest?.draftAttachments).toEqual([attachment]);
     expect(
       composeChatContextMessage(
         latest?.draft ?? "",
@@ -341,6 +353,67 @@ describe("chat history concurrency", () => {
 
     expect(latest?.storageWarning).toContain("Local transcript cache");
     expect(latest?.storageWarning).toContain("Local draft cache");
+  });
+
+  it("keeps draft attachments isolated by chat and clears only the current draft", () => {
+    let latest: ReturnType<typeof useChatConversationState> | undefined;
+    const setItem = vi.fn();
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: { getItem: () => null, setItem },
+    });
+    const attachment = {
+      id: "123e4567-e89b-42d3-a456-426614174000",
+      name: "notes.txt",
+      kind: "document" as const,
+      mimeType: "text/plain",
+      sizeBytes: 42,
+      sha256: "a".repeat(64),
+    };
+    const render = (selectedId: string) =>
+      root.render(
+        createElement(ConversationProbe, {
+          backendReady: false,
+          onValue: (value) => (latest = value),
+          selectedId,
+        }),
+      );
+
+    act(() => render("remote"));
+    act(() => {
+      latest?.setDraft("First chat");
+      latest?.setDraftAttachments([attachment]);
+    });
+    expect(latest?.draftAttachments).toEqual([attachment]);
+
+    act(() => render("second"));
+    expect(latest?.draftAttachments).toEqual([]);
+    act(() => {
+      latest?.setDraft("Second chat");
+      latest?.setDraftAttachments([attachment]);
+    });
+
+    act(() => render("remote"));
+    expect(latest?.draft).toBe("First chat");
+    expect(latest?.draftAttachments).toEqual([attachment]);
+    act(() => {
+      latest?.setDraft("");
+      latest?.setDraftAttachments([]);
+    });
+
+    act(() => render("second"));
+    expect(latest?.draft).toBe("Second chat");
+    expect(latest?.draftAttachments).toEqual([attachment]);
+    act(() =>
+      latest?.setDraftForSession("forked", "Edited branch", [attachment]),
+    );
+    act(() => render("forked"));
+    expect(latest?.draft).toBe("Edited branch");
+    expect(latest?.draftAttachments).toEqual([attachment]);
+    expect(setItem).toHaveBeenCalledWith(
+      "doolittle.desktop.conversation.drafts.v1",
+      expect.not.stringContaining("First chat"),
+    );
   });
 
   it("does not let an in-flight history response erase a newly sent turn", async () => {

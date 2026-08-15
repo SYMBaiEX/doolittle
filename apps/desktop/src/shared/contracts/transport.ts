@@ -92,6 +92,7 @@ export interface ChatEvent {
     | "agent.progress"
     | "response.notice"
     | "response.completed"
+    | "response.failed"
     | "response.cancelled"
     | "error"
     | "cancelled";

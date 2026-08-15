@@ -379,6 +379,62 @@ describe("handleChatRoute turn lifecycle", () => {
     await expect(response.json()).resolves.toMatchObject({ response: "done" });
   });
 
+  it("returns a failure response when the retained run receipt failed", async () => {
+    const context = createContext();
+    executeAgentTurnWithProgress.mockResolvedValue({
+      response: "provider text",
+    });
+    vi.spyOn(context.services.runController, "getByRunId").mockReturnValue({
+      runId: "run-failed-receipt",
+      status: "error",
+      errorMessage: "provider failed",
+    } as never);
+
+    const response = await handleChatRoute(
+      context,
+      chatRequest({
+        message: "fail truthfully",
+        roomId: "room-failed-receipt",
+        runId: "run-failed-receipt",
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "The response could not be completed. Please try again.",
+      code: "turn_failed",
+    });
+  });
+
+  it("emits response.failed instead of response.completed for a failed receipt", async () => {
+    const context = createContext();
+    executeAgentTurnWithProgress.mockResolvedValue({
+      response: "provider text",
+    });
+    vi.spyOn(context.services.runController, "getByRunId").mockReturnValue({
+      runId: "run-stream-failed-receipt",
+      status: "error",
+      errorMessage: "provider failed",
+    } as never);
+
+    const response = await handleChatRoute(
+      context,
+      chatRequest({
+        message: "fail truthfully",
+        roomId: "room-stream-failed-receipt",
+        runId: "run-stream-failed-receipt",
+        stream: true,
+      }),
+    );
+    const body = await response.text();
+
+    expect(body).toContain("event: response.failed");
+    expect(body).toContain(
+      "The response could not be completed. Please try again.",
+    );
+    expect(body).not.toContain("event: response.completed");
+  });
+
   it("cancels the same turn controller when an SSE reader disconnects", async () => {
     const context = createContext();
     let turnSignal: AbortSignal | undefined;

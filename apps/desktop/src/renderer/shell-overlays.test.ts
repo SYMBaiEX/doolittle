@@ -42,6 +42,9 @@ describe("desktop shell overlay Tailwind ownership", () => {
     );
     expect(appSource).toContain('import("./components/CommandPalette")');
     expect(appSource).toContain("const LazyCommandPalette = lazy");
+    expect(appSource).not.toContain("buildDesktopCommandGroups");
+    expect(commandPaletteSource).toContain("DesktopCommandPalette");
+    expect(commandPaletteSource).toContain("buildDesktopCommandGroups");
     expect(appSource).toMatch(
       /paletteMounted \? \(\s*<Suspense\s+fallback=\{/u,
     );

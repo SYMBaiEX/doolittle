@@ -101,7 +101,7 @@ export function ExecutionEnvironmentPanel({
   );
 
   const chooseWorkspace = async () => {
-    if (opening) return;
+    if (!active || opening) return;
     setOpening(true);
     setNotice({
       tone: "neutral",
@@ -129,7 +129,7 @@ export function ExecutionEnvironmentPanel({
   };
 
   const openWorktree = async (worktreePath: string) => {
-    if (opening) return;
+    if (!active || opening) return;
     setOpening(true);
     setNotice({
       tone: "neutral",
@@ -157,7 +157,7 @@ export function ExecutionEnvironmentPanel({
     event.preventDefault();
     const nextBranch = branch.trim();
     const nextPath = path.trim();
-    if (!nextBranch || !nextPath || creating) return;
+    if (!active || !nextBranch || !nextPath || creating) return;
     setCreating(true);
     setNotice({
       tone: "neutral",
@@ -229,7 +229,7 @@ export function ExecutionEnvironmentPanel({
           <Input
             autoCapitalize="none"
             autoComplete="off"
-            disabled={creating || !isRepository}
+            disabled={!active || creating || !isRepository}
             id="worktree-branch"
             onChange={(event) => setBranch(event.target.value)}
             placeholder="feature/short-name"
@@ -242,7 +242,7 @@ export function ExecutionEnvironmentPanel({
           <Input
             autoCapitalize="none"
             autoComplete="off"
-            disabled={creating || !isRepository}
+            disabled={!active || creating || !isRepository}
             id="worktree-path"
             onChange={(event) => setPath(event.target.value)}
             placeholder=".doolittle/worktrees/short-name"
@@ -251,7 +251,13 @@ export function ExecutionEnvironmentPanel({
           />
         </label>
         <Button
-          disabled={!isRepository || !branch.trim() || !path.trim() || creating}
+          disabled={
+            !active ||
+            !isRepository ||
+            !branch.trim() ||
+            !path.trim() ||
+            creating
+          }
           size="sm"
           type="submit"
         >
@@ -288,7 +294,7 @@ export function ExecutionEnvironmentPanel({
       <div className="mt-0.5 flex items-center justify-between gap-2">
         <span className={EXECUTION_EYEBROW_CLASS}>Available worktrees</span>
         <Button
-          disabled={loading}
+          disabled={!active || loading}
           onClick={onRefresh}
           size="sm"
           type="button"
@@ -337,7 +343,7 @@ export function ExecutionEnvironmentPanel({
               {!isCurrentWorkspace(worktree.path, workspaceRoot) ? (
                 <Button
                   className="mt-0.5 self-start"
-                  disabled={opening}
+                  disabled={!active || opening}
                   onClick={() => void openWorktree(worktree.path)}
                   size="sm"
                   type="button"

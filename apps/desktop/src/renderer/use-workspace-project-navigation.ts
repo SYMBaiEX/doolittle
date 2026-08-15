@@ -35,6 +35,18 @@ export interface WorkspaceTransitionCoordinator {
   startRequest(): void;
 }
 
+function workspaceMutationIsBlocked(
+  coordinator: WorkspaceTransitionCoordinator,
+  parentTransition?: number,
+): boolean {
+  const snapshot = coordinator.snapshot();
+  if (snapshot.inFlight > 0) return true;
+  if (snapshot.pendingScope === null) return false;
+  return (
+    parentTransition === undefined || !coordinator.isCurrent(parentTransition)
+  );
+}
+
 /**
  * Owns the counters shared by workspace picker, direct path, recent workspace,
  * and project-scope transitions. Keeping this state outside React rendering
@@ -105,6 +117,10 @@ export async function runWorkspaceRequest<T>({
 
 interface UseWorkspaceProjectNavigationOptions {
   readonly backendReady: boolean;
+  /** Disables Code mutations while an approved workspace switch is pending. */
+  readonly setCodeEditingLocked: (locked: boolean) => void;
+  /** Restores Code's dirty guard if an approved switch leaves the editor mounted. */
+  readonly restoreCodeDirtyAfterFailedWorkspaceTransition: () => void;
   readonly createSessionId: () => string;
   readonly pathsEqual: (left: string | undefined, right: string) => boolean;
   readonly projects: readonly Project[];
@@ -114,7 +130,13 @@ interface UseWorkspaceProjectNavigationOptions {
   readonly sessions: readonly SessionSummary[];
   readonly setProjectScope: Dispatch<SetStateAction<ProjectScope>>;
   readonly setSelectedSession: Dispatch<SetStateAction<string>>;
-  readonly setView: (view: View) => void;
+  /** Checks whether a view may be left without committing the route change. */
+  readonly confirmViewChange: (view: View) => boolean;
+  /** Returns whether the route change was committed (for example, after a dirty-edit prompt). */
+  readonly setView: (
+    view: View,
+    options?: { readonly skipDirtyCheck?: boolean },
+  ) => boolean;
   readonly setWorkspace: Dispatch<SetStateAction<WorkspaceState>>;
   readonly workspace: WorkspaceState;
   readonly confirmWorkspaceChange?: () => boolean;
@@ -123,6 +145,7 @@ interface UseWorkspaceProjectNavigationOptions {
 interface SwitchRecentWorkspaceOptions {
   readonly announce?: boolean;
   readonly sessionId?: string;
+  readonly skipWorkspaceConfirmation?: boolean;
   readonly transition?: number;
 }
 
@@ -144,6 +167,8 @@ export interface WorkspaceProjectNavigation {
 
 export function useWorkspaceProjectNavigation({
   backendReady,
+  setCodeEditingLocked,
+  restoreCodeDirtyAfterFailedWorkspaceTransition,
   createSessionId,
   pathsEqual,
   projects,
@@ -153,6 +178,7 @@ export function useWorkspaceProjectNavigation({
   sessions,
   setProjectScope,
   setSelectedSession,
+  confirmViewChange,
   setView,
   setWorkspace,
   workspace,
@@ -190,6 +216,9 @@ export function useWorkspaceProjectNavigation({
 
   const chooseWorkspace =
     useCallback(async (): Promise<WorkspacePickResult> => {
+      if (workspaceMutationIsBlocked(coordinator)) {
+        return { canceled: true, state: workspace };
+      }
       if (confirmWorkspaceChange && !confirmWorkspaceChange()) {
         return { canceled: true, state: workspace };
       }
@@ -210,6 +239,9 @@ export function useWorkspaceProjectNavigation({
 
   const openWorkspacePath = useCallback(
     async (path: string): Promise<WorkspacePickResult> => {
+      if (workspaceMutationIsBlocked(coordinator)) {
+        return { canceled: true, state: workspace };
+      }
       if (confirmWorkspaceChange && !confirmWorkspaceChange()) {
         return { canceled: true, state: workspace };
       }
@@ -228,7 +260,16 @@ export function useWorkspaceProjectNavigation({
   const switchToRecentWorkspace = useCallback(
     async (path: string, options: SwitchRecentWorkspaceOptions = {}) => {
       const announce = options.announce ?? true;
-      if (confirmWorkspaceChange && !confirmWorkspaceChange()) return false;
+      if (workspaceMutationIsBlocked(coordinator, options.transition)) {
+        return false;
+      }
+      if (
+        !options.skipWorkspaceConfirmation &&
+        confirmWorkspaceChange &&
+        !confirmWorkspaceChange()
+      ) {
+        return false;
+      }
       try {
         const outcome = await runWorkspaceRequest({
           coordinator,
@@ -277,6 +318,7 @@ export function useWorkspaceProjectNavigation({
       scope: ProjectScope,
       transition: number,
       sessionId: string,
+      skipWorkspaceConfirmation = false,
     ): Promise<boolean> => {
       const project =
         scope === "all" || scope === "unscoped"
@@ -294,6 +336,7 @@ export function useWorkspaceProjectNavigation({
           return switchToRecentWorkspace(project.primaryPath, {
             announce: false,
             sessionId,
+            skipWorkspaceConfirmation,
             transition,
           });
         }
@@ -324,7 +367,10 @@ export function useWorkspaceProjectNavigation({
       nextView?: View,
       onActivated?: () => boolean | undefined,
     ): Promise<boolean> => {
+      if (coordinator.snapshot().inFlight > 0) return Promise.resolve(false);
       const transition = coordinator.begin(scope);
+      // A newer navigation attempt owns any pending Code lock from an older one.
+      setCodeEditingLocked(false);
       const project =
         scope === "all" || scope === "unscoped"
           ? undefined
@@ -332,6 +378,18 @@ export function useWorkspaceProjectNavigation({
       const needsWorkspaceSwitch =
         Boolean(project?.primaryPath) &&
         !pathsEqual(project?.primaryPath, workspace.currentPath);
+      const workspaceSwitchWasPreflighted = needsWorkspaceSwitch;
+      if (workspaceSwitchWasPreflighted) {
+        const approved = nextView
+          ? confirmViewChange(nextView)
+          : (confirmWorkspaceChange?.() ?? true);
+        if (!approved) {
+          coordinator.clearPending(transition);
+          restoreCodeDirtyAfterFailedWorkspaceTransition();
+          return Promise.resolve(false);
+        }
+      }
+      if (workspaceSwitchWasPreflighted) setCodeEditingLocked(true);
       return new Promise((resolve) => {
         const activate = async () => {
           if (!coordinator.isCurrent(transition)) {
@@ -343,6 +401,7 @@ export function useWorkspaceProjectNavigation({
               scope,
               transition,
               sessionId,
+              workspaceSwitchWasPreflighted,
             );
             if (!coordinator.isCurrent(transition)) {
               resolve(false);
@@ -350,16 +409,37 @@ export function useWorkspaceProjectNavigation({
             }
             coordinator.clearPending(transition);
             if (!activated) {
+              if (workspaceSwitchWasPreflighted) {
+                restoreCodeDirtyAfterFailedWorkspaceTransition();
+              }
+              setCodeEditingLocked(false);
+              resolve(false);
+              return;
+            }
+            const committed = !nextView
+              ? true
+              : workspaceSwitchWasPreflighted
+                ? setView(nextView, { skipDirtyCheck: true })
+                : setView(nextView);
+            if (!committed) {
+              if (workspaceSwitchWasPreflighted) {
+                restoreCodeDirtyAfterFailedWorkspaceTransition();
+              }
+              setCodeEditingLocked(false);
               resolve(false);
               return;
             }
             setProjectScope(scope);
             setSelectedSession(sessionId);
-            if (nextView) setView(nextView);
+            setCodeEditingLocked(false);
             resolve(onActivated?.() !== false);
           } catch {
             if (coordinator.isCurrent(transition)) {
               coordinator.clearPending(transition);
+              if (workspaceSwitchWasPreflighted) {
+                restoreCodeDirtyAfterFailedWorkspaceTransition();
+              }
+              setCodeEditingLocked(false);
             }
             resolve(false);
           }
@@ -373,12 +453,16 @@ export function useWorkspaceProjectNavigation({
     },
     [
       activateProjectWorkspace,
+      confirmViewChange,
+      confirmWorkspaceChange,
       coordinator,
       pathsEqual,
       projects,
       setProjectScope,
       setSelectedSession,
+      setCodeEditingLocked,
       setView,
+      restoreCodeDirtyAfterFailedWorkspaceTransition,
       workspace.currentPath,
     ],
   );
@@ -386,12 +470,11 @@ export function useWorkspaceProjectNavigation({
   const handleWorkspaceState = useCallback(
     (state: WorkspaceState) => {
       if (coordinator.snapshot().inFlight > 0) {
-        setWorkspace(state);
         return;
       }
       applyWorkspaceSelection(state);
     },
-    [applyWorkspaceSelection, coordinator, setWorkspace],
+    [applyWorkspaceSelection, coordinator],
   );
 
   useEffect(() => {

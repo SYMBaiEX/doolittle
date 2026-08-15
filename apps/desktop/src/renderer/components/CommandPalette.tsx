@@ -19,6 +19,10 @@ import {
   useState,
 } from "react";
 import {
+  buildDesktopCommandGroups,
+  type DesktopCommandGroupsContext,
+} from "../app-shell/desktop-command-groups";
+import {
   COMMAND_PALETTE_CLASS,
   COMMAND_PALETTE_CLOSE_CLASS,
   COMMAND_PALETTE_EMPTY_CLASS,
@@ -72,6 +76,17 @@ interface CommandPaletteProps<TData = unknown> {
   onQueryChange?: (query: string) => void;
   returnFocusTarget?: HTMLElement | null;
   noResultsText?: string;
+}
+
+export interface DesktopCommandPaletteProps
+  extends DesktopCommandGroupsContext {
+  isOpen: boolean;
+  onClose: () => void;
+  onQueryChange: (query: string) => void;
+  returnFocusTarget: HTMLElement | null;
+  title: string;
+  searchPlaceholder: string;
+  resetOnOpen: boolean;
 }
 
 const BASE_TITLE = "Command Palette";
@@ -411,5 +426,108 @@ export function CommandPalette<TData = unknown>({
         </footer>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function DesktopCommandPalette({
+  backendPhase,
+  isOpen,
+  navCollapsed,
+  onChooseRepository,
+  onClose,
+  onCreateConversation,
+  onOpenProjectManager,
+  onOpenSession,
+  onQueryChange,
+  onRefresh,
+  onSelectProjectScope,
+  onSetView,
+  onSwitchRecentWorkspace,
+  onToggleAppearance,
+  onToggleNavigation,
+  onToggleTerminal,
+  paletteQuery,
+  platform,
+  projectCards,
+  recentWorkspacePaths,
+  resetOnOpen,
+  resolvedAppearance,
+  returnFocusTarget,
+  runningTasks,
+  searchCommandGroups,
+  searchPlaceholder,
+  sessionsCount,
+  sidebarSessions,
+  terminalOpen,
+  title,
+  workspacePath,
+}: DesktopCommandPaletteProps): ReactNode {
+  const groups = useMemo(
+    () =>
+      buildDesktopCommandGroups({
+        backendPhase,
+        navCollapsed,
+        onChooseRepository,
+        onCreateConversation,
+        onOpenProjectManager,
+        onOpenSession,
+        onRefresh,
+        onSelectProjectScope,
+        onSetView,
+        onSwitchRecentWorkspace,
+        onToggleAppearance,
+        onToggleNavigation,
+        onToggleTerminal,
+        paletteQuery,
+        platform,
+        projectCards,
+        recentWorkspacePaths,
+        resolvedAppearance,
+        runningTasks,
+        searchCommandGroups,
+        sessionsCount,
+        sidebarSessions,
+        terminalOpen,
+        workspacePath,
+      }),
+    [
+      backendPhase,
+      navCollapsed,
+      onChooseRepository,
+      onCreateConversation,
+      onOpenProjectManager,
+      onOpenSession,
+      onRefresh,
+      onSelectProjectScope,
+      onSetView,
+      onSwitchRecentWorkspace,
+      onToggleAppearance,
+      onToggleNavigation,
+      onToggleTerminal,
+      paletteQuery,
+      platform,
+      projectCards,
+      recentWorkspacePaths,
+      resolvedAppearance,
+      runningTasks,
+      searchCommandGroups,
+      sessionsCount,
+      sidebarSessions,
+      terminalOpen,
+      workspacePath,
+    ],
+  );
+
+  return (
+    <CommandPalette
+      groups={groups}
+      isOpen={isOpen}
+      onClose={onClose}
+      onQueryChange={onQueryChange}
+      resetOnOpen={resetOnOpen}
+      returnFocusTarget={returnFocusTarget}
+      searchPlaceholder={searchPlaceholder}
+      title={title}
+    />
   );
 }
