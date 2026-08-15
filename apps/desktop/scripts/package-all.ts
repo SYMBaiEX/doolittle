@@ -38,6 +38,14 @@ export type ReleaseTarget = {
   cleanupPaths: string[];
 };
 
+export function releaseChecksumText(
+  artifacts: readonly { path: string; sha256: string }[],
+): string {
+  return `${artifacts
+    .map((artifact) => `${artifact.sha256}  ${artifact.path}`)
+    .join("\n")}\n`;
+}
+
 export function releaseTargets(
   version: string,
   hostArch: string,
@@ -187,6 +195,7 @@ async function main(): Promise<void> {
 
   for (const target of targets) cleanTarget(target);
   rmSync(resolve(releaseRoot, "release-manifest.json"), { force: true });
+  rmSync(resolve(releaseRoot, "SHA256SUMS.txt"), { force: true });
 
   run(nub, [...allPlatformInstallArgs]);
   run(nub, ["run", "build"], desktopRoot);
@@ -262,6 +271,8 @@ async function main(): Promise<void> {
       2,
     )}\n`,
   );
+  const checksumPath = resolve(releaseRoot, "SHA256SUMS.txt");
+  writeFileSync(checksumPath, releaseChecksumText(releaseArtifacts));
 
   console.log(`\nAll desktop release targets passed verification:`);
   for (const artifact of releaseArtifacts) {
@@ -270,6 +281,7 @@ async function main(): Promise<void> {
     );
   }
   console.log(`  manifest ${relative(repoRoot, outputPath)}`);
+  console.log(`  checksums ${relative(repoRoot, checksumPath)}`);
 }
 
 const invokedPath = process.argv[1] ? resolve(process.argv[1]) : undefined;

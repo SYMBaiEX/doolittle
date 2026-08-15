@@ -6,6 +6,23 @@ ElizaOS 2.0 beta line.
 
 ## [Unreleased]
 
+### Added
+
+- Added one-command, verified macOS ARM64, Windows x64, and Linux x64 desktop
+  packaging with target-native runtime checks, an exact source/artifact
+  manifest, and portable SHA-256 sums for every generated installer.
+
+### Fixed / Reliability
+
+- Preserved the selected project, workspace, and chat session across Chat,
+  Code, and Work navigation. Chat turns now hold a workspace lease, stale
+  cross-workspace requests are rejected, and terminal handoffs close only after
+  their target chat has accepted the context capsule.
+- Made gateway delivery outcomes restart-durable and safely idempotent. Failed
+  outbound messages retain a private retry payload, expose a guarded desktop
+  **Retry delivery** action, and can be resent without rerunning the agent or
+  its tools; public history projections remain redacted.
+
 ## [0.1.0] - 2026-08-14
 
 ### Platform

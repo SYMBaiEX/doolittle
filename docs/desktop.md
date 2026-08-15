@@ -278,7 +278,9 @@ Linux x64 AppImage/DEB. Wine is required for the Windows cross-build. It
 installs and verifies the target-native runtime modules, removes same-version
 stale outputs before starting, and writes artifact sizes, SHA-256 hashes, the
 native-package inventory, and the source commit to
-`apps/desktop/release/release-manifest.json`.
+`apps/desktop/release/release-manifest.json`. It also emits the portable
+`apps/desktop/release/SHA256SUMS.txt` file used to verify each installer before
+copying or installing it.
 
 Before creating a release tag, run the release-quality gate:
 

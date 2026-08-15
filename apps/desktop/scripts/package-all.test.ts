@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   allPlatformInstallArgs,
   missingNativeTargetPackages,
+  releaseChecksumText,
   releaseTargets,
   requiredNativeTargetPackages,
   resolveSingleExistingPath,
@@ -108,5 +109,16 @@ describe("all-platform desktop release plan", () => {
       from: "../../LICENSE",
       to: "LICENSE",
     });
+  });
+
+  it("writes portable SHA-256 sums for every locally built installer", () => {
+    expect(
+      releaseChecksumText([
+        { path: "Doolittle-0.1.0-mac-arm64.dmg", sha256: "a".repeat(64) },
+        { path: "Doolittle-0.1.0-win-x64.exe", sha256: "b".repeat(64) },
+      ]),
+    ).toBe(
+      `${"a".repeat(64)}  Doolittle-0.1.0-mac-arm64.dmg\n${"b".repeat(64)}  Doolittle-0.1.0-win-x64.exe\n`,
+    );
   });
 });
