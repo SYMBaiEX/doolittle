@@ -1,22 +1,21 @@
 export const CODING_WORKSPACE_PAGE_CLASS =
-  "page coding-workspace-page m-0 flex h-full min-h-0 w-full min-w-0 flex-col gap-1.5 overflow-hidden px-2.25 pt-1.75 pb-2.25 max-[940px]:px-2.5 max-[940px]:pt-2 max-[940px]:pb-2.5 max-[760px]:h-auto max-[760px]:min-h-full max-[760px]:overflow-auto max-[760px]:p-1.5 [&_.badge]:rounded-[3px] [&_.badge]:px-1.25 [&_.badge]:py-0.5 [&_.badge]:text-[8px] [&_.empty-block_h3]:text-[15px] [&_.empty-block_p]:text-[13px] [&_.empty-block_p]:leading-[1.55] [&_.notice_span]:text-[13px] [&_.notice_span]:leading-[1.55] [&_.loading-block_span]:text-[11px] [&_.primary-button]:text-[11px] [&_.secondary-button]:text-[11px]";
+  "page coding-workspace-page m-0 flex h-full min-h-0 w-full min-w-0 flex-col gap-1.5 overflow-hidden px-2.25 pt-1.75 pb-2.25 max-[940px]:h-auto max-[940px]:min-h-full max-[940px]:overflow-auto max-[940px]:p-1.5 [&_.badge]:rounded-[3px] [&_.badge]:px-1.25 [&_.badge]:py-0.5 [&_.badge]:text-[8px] [&_.empty-block_h3]:text-[15px] [&_.empty-block_p]:text-[13px] [&_.empty-block_p]:leading-[1.55] [&_.notice_span]:text-[13px] [&_.notice_span]:leading-[1.55] [&_.loading-block_span]:text-[11px] [&_.primary-button]:text-[11px] [&_.secondary-button]:text-[11px]";
 
 export const CODING_WORKSPACE_ZEN_CLASS = "!p-0";
 
 const CODING_GRID_BASE =
-  "coding-grid grid min-h-0 min-w-0 flex-1 overflow-hidden rounded-none border border-[var(--border)] bg-[var(--surface)] shadow-none [&>.coding-editor:last-child]:border-r-0 max-[760px]:flex-none max-[760px]:grid-cols-1 max-[760px]:grid-rows-[auto_minmax(13rem,1fr)_auto] max-[760px]:overflow-visible";
+  "coding-grid grid min-h-0 min-w-0 flex-1 overflow-hidden rounded-none border border-[var(--border)] bg-[var(--surface)] shadow-none [&>.coding-editor:last-child]:border-r-0 max-[940px]:flex-none max-[940px]:grid-cols-1 max-[940px]:grid-rows-[auto_minmax(15rem,1fr)_auto] max-[940px]:overflow-visible";
 
 const fullGrid =
-  "[grid-template-columns:var(--coding-explorer-width)_minmax(390px,1fr)_var(--coding-utility-width)] max-[1180px]:[grid-template-columns:min(var(--coding-explorer-width),28vw)_minmax(340px,1fr)_min(var(--coding-utility-width),31vw)] max-[940px]:[grid-template-columns:min(var(--coding-explorer-width),27vw)_minmax(330px,1fr)_min(var(--coding-utility-width),30vw)] max-[760px]:[grid-template-columns:1fr]";
+  "[grid-template-columns:var(--coding-explorer-width)_minmax(390px,1fr)_var(--coding-utility-width)] max-[1180px]:[grid-template-columns:min(var(--coding-explorer-width),28vw)_minmax(340px,1fr)_min(var(--coding-utility-width),31vw)] max-[940px]:[grid-template-columns:1fr]";
 
 const explorerHiddenGrid =
-  "[grid-template-columns:minmax(390px,1fr)_var(--coding-utility-width)] max-[1180px]:[grid-template-columns:minmax(340px,1fr)_min(var(--coding-utility-width),31vw)] max-[940px]:[grid-template-columns:minmax(330px,1fr)_min(var(--coding-utility-width),30vw)] max-[760px]:[grid-template-columns:1fr]";
+  "[grid-template-columns:minmax(390px,1fr)_var(--coding-utility-width)] max-[1180px]:[grid-template-columns:minmax(340px,1fr)_min(var(--coding-utility-width),31vw)] max-[940px]:[grid-template-columns:1fr]";
 
 const utilityHiddenGrid =
-  "[grid-template-columns:var(--coding-explorer-width)_minmax(390px,1fr)] max-[1180px]:[grid-template-columns:min(var(--coding-explorer-width),28vw)_minmax(340px,1fr)] max-[940px]:[grid-template-columns:min(var(--coding-explorer-width),27vw)_minmax(330px,1fr)] max-[760px]:[grid-template-columns:1fr]";
+  "[grid-template-columns:var(--coding-explorer-width)_minmax(390px,1fr)] max-[1180px]:[grid-template-columns:min(var(--coding-explorer-width),28vw)_minmax(340px,1fr)] max-[940px]:[grid-template-columns:1fr]";
 
-const editorOnlyGrid =
-  "[grid-template-columns:minmax(0,1fr)] max-[760px]:[grid-template-columns:1fr]";
+const editorOnlyGrid = "[grid-template-columns:minmax(0,1fr)]";
 
 export function codingGridClass(
   explorerVisible: boolean,
@@ -76,19 +75,19 @@ export const CODING_PANE_CLASS =
   "coding-pane relative flex min-h-0 min-w-0 flex-col bg-[var(--surface)]";
 
 export const CODING_EXPLORER_CLASS =
-  "coding-explorer border-[var(--border)] border-r max-[760px]:min-h-[clamp(7rem,18svh,8.5rem)] max-[760px]:border-r-0 max-[760px]:border-b";
+  "coding-explorer border-[var(--border)] border-r max-[940px]:min-h-[clamp(8rem,20svh,11rem)] max-[940px]:border-r-0 max-[940px]:border-b";
 
 export const CODING_EDITOR_CLASS =
-  "coding-editor border-[var(--border)] border-r max-[760px]:min-h-[clamp(13rem,34svh,16rem)] max-[760px]:border-r-0 max-[760px]:border-b";
+  "coding-editor border-[var(--border)] border-r max-[940px]:min-h-[clamp(15rem,38svh,22rem)] max-[940px]:border-r-0 max-[940px]:border-b";
 
 export const CODING_UTILITY_CLASS =
-  "coding-utility max-[760px]:min-h-[clamp(8rem,21svh,10rem)]";
+  "coding-utility max-[940px]:min-h-[clamp(10rem,24svh,14rem)]";
 
 export const CODING_EXPLORER_RESIZER_CLASS =
-  "coding-explorer-resizer top-0 right-[-5px] bottom-0 max-[760px]:hidden";
+  "coding-explorer-resizer top-0 right-[-5px] bottom-0 max-[940px]:hidden";
 
 export const CODING_UTILITY_RESIZER_CLASS =
-  "coding-utility-resizer top-0 bottom-0 left-[-5px] max-[760px]:hidden";
+  "coding-utility-resizer top-0 bottom-0 left-[-5px] max-[940px]:hidden";
 
 export const CODING_TABS_CLASS =
   "coding-tabs flex min-h-8.5 shrink-0 items-stretch gap-0.5 border-[var(--border)] border-b bg-[var(--surface)] px-1.25 pt-0.5 pb-0";

@@ -362,6 +362,17 @@ test.describe("Doolittle desktop navigation", () => {
       const newConversationMenu = page.getByRole("dialog", {
         name: "Start a new conversation",
       });
+      await expect(newConversationMenu).toBeVisible();
+      const floatingMenuBounds = await newConversationMenu.boundingBox();
+      expect(floatingMenuBounds).not.toBeNull();
+      expect(floatingMenuBounds?.x ?? -1).toBeGreaterThanOrEqual(0);
+      expect(floatingMenuBounds?.y ?? -1).toBeGreaterThanOrEqual(0);
+      expect(
+        (floatingMenuBounds?.x ?? 0) + (floatingMenuBounds?.width ?? 0),
+      ).toBeLessThanOrEqual(1440);
+      expect(
+        (floatingMenuBounds?.y ?? 0) + (floatingMenuBounds?.height ?? 0),
+      ).toBeLessThanOrEqual(1000);
       await newConversationMenu
         .getByRole("button", { name: /General chat/ })
         .click();

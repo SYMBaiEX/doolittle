@@ -4,7 +4,10 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLike } from "../project-manager/models";
-import { NewConversationControl } from "./ProjectSidebarControls";
+import {
+  floatingProjectMenuPosition,
+  NewConversationControl,
+} from "./ProjectSidebarControls";
 
 const projects: ProjectLike[] = [
   { id: "alpha", name: "Alpha", primaryPath: "/work/alpha" },
@@ -30,6 +33,22 @@ describe("NewConversationControl", () => {
     container.remove();
   });
 
+  it("keeps the floating menu inside the viewport", () => {
+    expect(
+      floatingProjectMenuPosition(
+        { bottom: 76, left: 238, top: 38 },
+        { height: 620, width: 320 },
+      ),
+    ).toMatchObject({ left: 16, top: 83, width: 288 });
+    expect(
+      floatingProjectMenuPosition(
+        { bottom: 598, left: 18, top: 560 },
+        { height: 620, width: 900 },
+        420,
+      ),
+    ).toMatchObject({ left: 18, top: 133, width: 330 });
+  });
+
   it("shows only active projects and starts in the selected scope", () => {
     const onOpenChange = vi.fn();
     const onStart = vi.fn();
@@ -48,10 +67,10 @@ describe("NewConversationControl", () => {
       ),
     );
 
-    expect(container.textContent).toContain("Alpha");
-    expect(container.textContent).not.toContain("Archived");
+    expect(document.body.textContent).toContain("Alpha");
+    expect(document.body.textContent).not.toContain("Archived");
     act(() =>
-      container
+      document.body
         .querySelector<HTMLButtonElement>("button[data-new-chat-choice]")
         ?.click(),
     );
@@ -78,7 +97,7 @@ describe("NewConversationControl", () => {
         />,
       ),
     );
-    const search = container.querySelector<HTMLInputElement>(
+    const search = document.body.querySelector<HTMLInputElement>(
       'input[aria-label="Search projects"]',
     );
     expect(search).not.toBeNull();
@@ -91,6 +110,6 @@ describe("NewConversationControl", () => {
       setter?.call(search, "missing");
       search.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(container.textContent).toContain("No matching projects.");
+    expect(document.body.textContent).toContain("No matching projects.");
   });
 });

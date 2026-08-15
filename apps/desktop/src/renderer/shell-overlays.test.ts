@@ -11,6 +11,12 @@ import {
   ROUTE_DIALOG_CLASS,
   ROUTE_PROVIDER_CARD_CLASS,
 } from "./app-shell/overlay-layout";
+import {
+  APP_SIDEBAR_CLASS,
+  APP_SIDEBAR_DESKTOP_CLASS,
+  APP_SIDEBAR_MOBILE_CLASS,
+  DESKTOP_SHELL_CLASS,
+} from "./app-shell/shell-layout";
 
 const readSource = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8");
@@ -22,6 +28,14 @@ const routeDialogSource = readSource("./components/RouteControlDialog.tsx");
 const shortcutHintSource = readSource("./components/ShortcutHint.tsx");
 
 describe("desktop shell overlay Tailwind ownership", () => {
+  it("keeps the compact sidebar out of the shell grid flow", () => {
+    expect(DESKTOP_SHELL_CLASS).toContain("grid");
+    expect(APP_SIDEBAR_CLASS).not.toContain("relative");
+    expect(APP_SIDEBAR_CLASS).not.toContain("fixed");
+    expect(APP_SIDEBAR_DESKTOP_CLASS).toBe("relative");
+    expect(APP_SIDEBAR_MOBILE_CLASS).toContain("fixed");
+  });
+
   it("keeps the command palette out of the initial renderer entry", () => {
     expect(appSource).not.toContain(
       'import { CommandPalette } from "./components/CommandPalette"',

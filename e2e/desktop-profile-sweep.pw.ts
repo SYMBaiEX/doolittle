@@ -9,6 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import {
+  type ElectronApplication,
   _electron as electron,
   expect,
   type Page,
@@ -20,7 +21,10 @@ const profileDir = process.env.DOOLITTLE_DESKTOP_PROFILE_DIR;
 const screenshotDir = process.env.DOOLITTLE_SWEEP_SCREENSHOTS_DIR?.trim();
 
 const desktopViewport = { width: 1440, height: 1000 } as const;
-const narrowViewport = { width: 820, height: 1000 } as const;
+// Match the desktop window's supported compact width. Testing below minWidth
+// makes Electron clamp the BrowserWindow while Playwright still assumes the
+// requested size, which produces misleading geometry and screenshots.
+const narrowViewport = { width: 920, height: 1000 } as const;
 
 const routes = [
   "dashboard",
@@ -194,7 +198,52 @@ async function waitForViewportLayout(page: Page): Promise<void> {
   );
 }
 
+async function resizeElectronWindow(
+  app: ElectronApplication,
+  viewport: { height: number; width: number },
+): Promise<void> {
+  await app.evaluate(({ BrowserWindow }, dimensions) => {
+    const window = BrowserWindow.getAllWindows()[0];
+    if (!window) throw new Error("Doolittle window is unavailable.");
+    window.setContentSize(dimensions.width, dimensions.height, false);
+  }, viewport);
+}
+
+async function expectElectronViewport(
+  page: Page,
+  viewport: { height: number; width: number },
+): Promise<void> {
+  const metrics = await page.evaluate(() => {
+    const shell = document.querySelector<HTMLElement>(".desktop-shell");
+    const rect = shell?.getBoundingClientRect();
+    return {
+      documentScrollWidth: document.documentElement.scrollWidth,
+      innerHeight: window.innerHeight,
+      innerWidth: window.innerWidth,
+      shell: rect
+        ? {
+            height: rect.height,
+            left: rect.left,
+            top: rect.top,
+            width: rect.width,
+          }
+        : null,
+    };
+  });
+
+  expect(metrics.innerWidth).toBe(viewport.width);
+  expect(metrics.innerHeight).toBe(viewport.height);
+  expect(metrics.documentScrollWidth).toBeLessThanOrEqual(viewport.width);
+  expect(metrics.shell).toEqual({
+    height: viewport.height,
+    left: 0,
+    top: 0,
+    width: viewport.width,
+  });
+}
+
 async function captureRouteScreenshots(
+  app: ElectronApplication,
   page: Page,
   route: RouteName,
   config: ScreenshotEvidenceConfig,
@@ -202,11 +251,10 @@ async function captureRouteScreenshots(
   const desktopPath = join(config.desktopDir, `${route}.png`);
   const narrowPath = join(config.narrowDir, `${route}.png`);
   const screenshotOptions = {
-    fullPage: true,
     animations: "disabled" as const,
     caret: "hide" as const,
+    fullPage: false,
   } as const;
-
   await page.evaluate((activeRoute) => {
     window.scrollTo(0, 0);
     const view = document.querySelector<HTMLElement>(
@@ -220,21 +268,40 @@ async function captureRouteScreenshots(
     }
   }, route);
 
-  await page.setViewportSize(desktopViewport);
+  await resizeElectronWindow(app, desktopViewport);
   await waitForViewportLayout(page);
+  await expectElectronViewport(page, desktopViewport);
   await page.screenshot({
     ...screenshotOptions,
     path: desktopPath,
   });
 
-  await page.setViewportSize(narrowViewport);
+  await resizeElectronWindow(app, narrowViewport);
   await waitForViewportLayout(page);
+  await expectElectronViewport(page, narrowViewport);
+  const closeNavigation = page.getByRole("button", {
+    name: "Close navigation",
+  });
+  if (await closeNavigation.isVisible()) {
+    await closeNavigation.click();
+    await expect(page.locator("aside.app-sidebar")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    await expect
+      .poll(() =>
+        page
+          .locator("aside.app-sidebar")
+          .evaluate((sidebar) => sidebar.getBoundingClientRect().right),
+      )
+      .toBeLessThanOrEqual(1);
+  }
   await page.screenshot({
     ...screenshotOptions,
     path: narrowPath,
   });
 
-  await page.setViewportSize(desktopViewport);
+  await resizeElectronWindow(app, desktopViewport);
   await waitForViewportLayout(page);
 
   return {
@@ -334,7 +401,7 @@ test.describe("Doolittle packaged-profile control sweep", () => {
         if (message.type() === "error") consoleErrors.push(message.text());
       });
 
-      await page.setViewportSize(desktopViewport);
+      await resizeElectronWindow(app, desktopViewport);
       await expect(page.locator(".window-runtime-status.ready")).toContainText(
         "Local runtime",
         { timeout: 60_000 },
@@ -358,7 +425,7 @@ test.describe("Doolittle packaged-profile control sweep", () => {
         await page.waitForTimeout(80);
 
         const routeScreenshots = screenshotEvidence
-          ? await captureRouteScreenshots(page, route, screenshotEvidence)
+          ? await captureRouteScreenshots(app, page, route, screenshotEvidence)
           : null;
 
         const visibleControlSelector =

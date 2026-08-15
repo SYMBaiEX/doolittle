@@ -34,7 +34,8 @@ export const SIDEBAR_SCRIM_HIDDEN_CLASS =
 export const SIDEBAR_SCRIM_VISIBLE_CLASS = "visible opacity-100";
 
 export const APP_SIDEBAR_CLASS =
-  "app-sidebar relative z-20 flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-[color-mix(in_srgb,var(--border)_84%,transparent)] bg-[color-mix(in_srgb,var(--surface)_97%,var(--bg))] px-3.5 pb-2.5 [-webkit-app-region:drag]";
+  "app-sidebar z-20 flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-[color-mix(in_srgb,var(--border)_84%,transparent)] bg-[color-mix(in_srgb,var(--surface)_97%,var(--bg))] px-3.5 pb-2.5 [-webkit-app-region:drag]";
+export const APP_SIDEBAR_DESKTOP_CLASS = "relative";
 export const APP_SIDEBAR_DARWIN_CLASS = "pt-10.5";
 export const APP_SIDEBAR_MOBILE_CLASS =
   "fixed inset-y-0 left-0 z-30 w-[min(88vw,320px)] max-w-full shadow-[var(--shell-shadow-lg)] transition-transform duration-200 ease-[var(--ease-out)]";

@@ -24,6 +24,7 @@ import {
   APP_SIDEBAR_CLASS,
   APP_SIDEBAR_COLLAPSED_CLASS,
   APP_SIDEBAR_DARWIN_CLASS,
+  APP_SIDEBAR_DESKTOP_CLASS,
   APP_SIDEBAR_MOBILE_CLASS,
   APP_SIDEBAR_MOBILE_CLOSED_CLASS,
   APP_SIDEBAR_MOBILE_OPEN_CLASS,
@@ -162,7 +163,7 @@ export function DesktopSidebar({
                   ? APP_SIDEBAR_MOBILE_OPEN_CLASS
                   : APP_SIDEBAR_MOBILE_CLOSED_CLASS
               }`
-            : ""
+            : ` ${APP_SIDEBAR_DESKTOP_CLASS}`
         }${compact ? ` ${APP_SIDEBAR_COLLAPSED_CLASS}` : ""}`}
         onKeyDown={onSidebarKeyDown}
         ref={sidebarRef}

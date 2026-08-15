@@ -11,19 +11,19 @@ const browserLayout = readFileSync(
 );
 
 describe("workspace responsive layout contracts", () => {
-  it("uses compact, content-led coding panes below 760px instead of a fixed scaffold", () => {
+  it("uses compact, content-led coding panes below the mobile shell breakpoint", () => {
     expect(codingWorkspaceLayout).not.toContain("min-h-[1080px]");
     expect(codingWorkspaceLayout).not.toContain("min-h-[300px]");
-    expect(codingWorkspaceLayout).toContain("max-[760px]:grid-cols-1");
+    expect(codingWorkspaceLayout).toContain("max-[940px]:grid-cols-1");
     expect(codingWorkspaceLayout).toContain(
-      "max-[760px]:grid-rows-[auto_minmax(13rem,1fr)_auto]",
+      "max-[940px]:grid-rows-[auto_minmax(15rem,1fr)_auto]",
     );
-    expect(codingWorkspaceLayout).toContain("max-[760px]:overflow-visible");
+    expect(codingWorkspaceLayout).toContain("max-[940px]:overflow-visible");
     expect(codingWorkspaceLayout).toContain(
-      "max-[760px]:min-h-[clamp(7rem,18svh,8.5rem)]",
+      "max-[940px]:min-h-[clamp(8rem,20svh,11rem)]",
     );
     expect(codingWorkspaceLayout).toContain(
-      "max-[760px]:min-h-[clamp(13rem,34svh,16rem)]",
+      "max-[940px]:min-h-[clamp(15rem,38svh,22rem)]",
     );
   });
 
