@@ -1,11 +1,4 @@
-import {
-  type FormEvent,
-  useEffect,
-  useEffectEvent,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import type { RuntimeStatus } from "../../shared/contracts";
 import {
   type ActionFeedback,
@@ -27,6 +20,7 @@ import {
   ROUTE_PROVIDER_OPTIONS,
   type RouteProviderId,
 } from "../model-routing";
+import { useModalFocusBoundary } from "./useModalFocusBoundary";
 
 interface SettingsResponse {
   settings?: {
@@ -113,10 +107,13 @@ export function RouteControlDialog({
   const [draft, setDraft] = useState<RouteDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
-  const closeFromEffect = useEffectEvent(onClose);
+  const dialogRef = useModalFocusBoundary({
+    active: isOpen,
+    initialFocusSelector: '[aria-label="Close route controls"]',
+    isolateBackground: true,
+    onClose,
+    restoreFocus: true,
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -130,89 +127,6 @@ export function RouteControlDialog({
       setFeedback(null);
       setSaving(false);
     }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    previousFocusRef.current =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-    const dialog = dialogRef.current;
-    const backgroundElements = new Set<HTMLElement>();
-    let pathElement: HTMLElement | null = dialog;
-    while (pathElement && pathElement !== document.body) {
-      const parent = pathElement.parentElement;
-      if (!parent) break;
-      for (const sibling of parent.children) {
-        if (
-          sibling instanceof HTMLElement &&
-          sibling !== pathElement &&
-          !sibling.contains(dialog)
-        ) {
-          backgroundElements.add(sibling);
-        }
-      }
-      pathElement = parent;
-    }
-    const background = Array.from(backgroundElements).map((element) => ({
-      element,
-      inert: element.inert,
-      ariaHidden: element.getAttribute("aria-hidden"),
-    }));
-    for (const entry of background) {
-      entry.element.inert = true;
-      entry.element.setAttribute("aria-hidden", "true");
-    }
-
-    requestAnimationFrame(() => closeButtonRef.current?.focus());
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeFromEffect();
-        return;
-      }
-      if (event.key !== "Tab") return;
-
-      const focusable = Array.from(
-        dialogRef.current?.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      ).filter((element) => !element.hasAttribute("hidden"));
-      const first = focusable.at(0);
-      const last = focusable.at(-1);
-      if (!first || !last) {
-        event.preventDefault();
-        dialogRef.current?.focus();
-        return;
-      }
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      for (const entry of background) {
-        entry.element.inert = entry.inert;
-        if (entry.ariaHidden === null) {
-          entry.element.removeAttribute("aria-hidden");
-        } else {
-          entry.element.setAttribute("aria-hidden", entry.ariaHidden);
-        }
-      }
-      const previousFocus = previousFocusRef.current;
-      previousFocusRef.current = null;
-      if (previousFocus?.isConnected) {
-        requestAnimationFrame(() => previousFocus.focus());
-      }
-    };
   }, [isOpen]);
 
   const linkedAccounts = useMemo(
@@ -304,6 +218,7 @@ export function RouteControlDialog({
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
+          event.stopPropagation();
           onClose();
         }
       }}
@@ -329,7 +244,6 @@ export function RouteControlDialog({
             aria-label="Close route controls"
             className="icon-button"
             onClick={onClose}
-            ref={closeButtonRef}
             type="button"
           >
             ×

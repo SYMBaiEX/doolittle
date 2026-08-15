@@ -2,11 +2,39 @@
 /* Desktop shell overlays.
  *
  * Command palette and route-control dialog visuals live here so their portal
- * surfaces have one route-independent owner. Radix portal positioning and
- * backdrop structure remain in eliza-ui.css.
+ * surfaces and structure have one route-independent owner.
  */
 
 /* Command palette */
+
+/*
+ * @elizaos/ui ships Radix dialog structure with Tailwind utility class names.
+ * Those node_modules class names are intentionally outside Doolittle's host
+ * Tailwind scan, so the shell restores the command menu's portal contract.
+ */
+.command-palette[role="dialog"] {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 1700;
+  translate: -50% -50%;
+}
+
+body > [data-state]:has(+ .command-palette[role="dialog"]) {
+  position: fixed;
+  z-index: 1690;
+  inset: 0;
+  background: color-mix(in srgb, #050504 72%, transparent);
+  will-change: opacity;
+}
+
+body > [data-state="open"]:has(+ .command-palette[role="dialog"]) {
+  animation: command-overlay-in 150ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+body > [data-state="closed"]:has(+ .command-palette[role="dialog"]) {
+  animation: command-overlay-out 110ms cubic-bezier(0.4, 0, 1, 1) both;
+}
 
 .command-palette-loading-backdrop {
   position: fixed;
@@ -594,5 +622,21 @@
   .command-palette-loading-backdrop,
   .command-palette-loading__status i {
     animation: none;
+  }
+
+  body > [data-state]:has(+ .command-palette[role="dialog"]) {
+    animation-duration: 0.01ms;
+  }
+}
+
+@keyframes command-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes command-overlay-out {
+  to {
+    opacity: 0;
   }
 }

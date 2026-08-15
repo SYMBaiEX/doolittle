@@ -377,10 +377,14 @@ test.describe("Doolittle packaged-profile control sweep", () => {
             expect(initialControls).toBeLessThanOrEqual(32);
           }
         }
-        const tabs = view.getByRole("tab");
-        const tabCount = await tabs.count();
-        for (let index = 0; index < tabCount; index += 1) {
-          const tab = tabs.nth(index);
+        const tabLabels = (await view.getByRole("tab").allTextContents()).map(
+          (label) => label.trim(),
+        );
+        const tabCount = tabLabels.length;
+        for (const label of tabLabels) {
+          const tab = page
+            .locator(".view-container:visible")
+            .getByRole("tab", { exact: true, name: label });
           if (await tab.isVisible()) {
             await tab.click();
             await page.waitForTimeout(40);
@@ -388,14 +392,17 @@ test.describe("Doolittle packaged-profile control sweep", () => {
           }
         }
 
-        const disclosures = view.locator("details > summary");
+        const interactionView = page.locator(".view-container:visible");
+        const disclosures = interactionView.locator("details > summary");
         const disclosureCount = Math.min(await disclosures.count(), 12);
         for (let index = 0; index < disclosureCount; index += 1) {
           const disclosure = disclosures.nth(index);
           if (await disclosure.isVisible()) await disclosure.click();
         }
 
-        const refreshButtons = view.getByRole("button", { name: /^Refresh/ });
+        const refreshButtons = interactionView.getByRole("button", {
+          name: /^Refresh/,
+        });
         const refreshCount = Math.min(await refreshButtons.count(), 6);
         for (let index = 0; index < refreshCount; index += 1) {
           const refresh = refreshButtons.nth(index);
@@ -441,9 +448,13 @@ test.describe("Doolittle packaged-profile control sweep", () => {
           route,
           desktopScreenshot: routeScreenshots?.desktopScreenshot ?? null,
           narrowScreenshot: routeScreenshots?.narrowScreenshot ?? null,
-          badNotices: await view.locator(".notice.bad").allTextContents(),
+          badNotices: await interactionView
+            .locator(".notice.bad")
+            .allTextContents(),
           initialControls,
-          controls: await view.locator(visibleControlSelector).count(),
+          controls: await interactionView
+            .locator(visibleControlSelector)
+            .count(),
           tabs: tabCount,
           ...(apiFailures?.length ? { apiFailures } : {}),
         });

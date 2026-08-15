@@ -5,6 +5,7 @@ const readSource = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8");
 
 const experienceCss = readSource("./experience.css");
+const elizaUiCss = readSource("./eliza-ui.css");
 const shellOverlaysCss = readSource("./shell-overlays.css");
 const mainSource = readSource("./main.tsx");
 const appSource = readSource("./App.tsx");
@@ -114,6 +115,18 @@ describe("desktop shell overlay CSS ownership", () => {
     expect(shellOverlaysCss).not.toMatch(/\.chat[-_]/u);
   });
 
+  it("owns the command palette portal structure without cascade dependencies", () => {
+    for (const contract of [
+      '.command-palette[role="dialog"]',
+      'body > [data-state]:has(+ .command-palette[role="dialog"])',
+      "@keyframes command-overlay-in",
+      "@keyframes command-overlay-out",
+    ]) {
+      expect(shellOverlaysCss).toContain(contract);
+      expect(elizaUiCss).not.toContain(contract);
+    }
+  });
+
   it("keeps every moved selector reachable from its renderer", () => {
     for (const selector of commandPaletteSelectors) {
       const source =
@@ -131,6 +144,8 @@ describe("desktop shell overlay CSS ownership", () => {
   it("retains the overlay-specific animation and responsive contracts", () => {
     expect(shellOverlaysCss).toContain("@keyframes command-menu-in");
     expect(shellOverlaysCss).toContain("@keyframes command-menu-out");
+    expect(shellOverlaysCss).toContain("@keyframes command-overlay-in");
+    expect(shellOverlaysCss).toContain("@keyframes command-overlay-out");
     expect(shellOverlaysCss).toContain("@keyframes dialog-backdrop-in");
     expect(shellOverlaysCss).toContain("@keyframes route-control-in");
     expect(shellOverlaysCss).toContain("@media (max-width: 760px)");

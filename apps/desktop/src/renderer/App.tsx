@@ -35,6 +35,7 @@ import { ActivityCenter } from "./components/ActivityCenter";
 import { DesktopRouteErrorBoundary } from "./components/DesktopRouteErrorBoundary";
 import { ProjectManager } from "./components/ProjectManager";
 import { ToastRegion, useToasts } from "./components/ToastRegion";
+import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
 import { newConversationId } from "./conversation-id";
 import {
   collectSidebarFocusables,
@@ -133,29 +134,29 @@ export function CommandPaletteLoadingFallback({
 }: CommandPaletteLoadingFallbackProps) {
   const titleId = useId();
   const descriptionId = useId();
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  const closeRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    dialogRef.current?.focus();
-  }, [open]);
-
-  const closeAndRestoreFocus = useCallback(() => {
-    onClose();
-    if (returnFocusTarget?.isConnected) {
-      requestAnimationFrame(() => returnFocusTarget.focus());
-    }
-  }, [onClose, returnFocusTarget]);
+  const backdropRef = useRef<HTMLDivElement | null>(null);
+  const dialogRef = useModalFocusBoundary({
+    active: open,
+    isolationBoundaryRef: backdropRef,
+    isolateBackground: true,
+    onClose,
+    restoreFocus: true,
+    restoreFocusTarget: returnFocusTarget,
+  });
 
   if (!open) return null;
 
   return (
-    <div className="command-palette-loading-backdrop" role="presentation">
+    <div
+      className="command-palette-loading-backdrop"
+      ref={backdropRef}
+      role="presentation"
+    >
       <button
         aria-label="Close command palette"
         className="command-palette-loading-dismiss"
-        onClick={closeAndRestoreFocus}
+        onClick={onClose}
+        tabIndex={-1}
         type="button"
       />
       <div
@@ -163,15 +164,6 @@ export function CommandPaletteLoadingFallback({
         aria-labelledby={titleId}
         aria-modal="true"
         className="command-palette-loading"
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            closeAndRestoreFocus();
-          } else if (event.key === "Tab") {
-            event.preventDefault();
-            closeRef.current?.focus();
-          }
-        }}
         ref={dialogRef}
         role="dialog"
         tabIndex={-1}
@@ -184,8 +176,7 @@ export function CommandPaletteLoadingFallback({
           <button
             aria-label="Close command palette"
             className="command-palette__close"
-            onClick={closeAndRestoreFocus}
-            ref={closeRef}
+            onClick={onClose}
             type="button"
           >
             Esc

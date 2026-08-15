@@ -48,6 +48,8 @@ describe("CommandPaletteLoadingFallback", () => {
     expect(status?.getAttribute("aria-busy")).toBe("true");
     expect(status?.textContent).toContain("Loading commands");
     expect(document.activeElement).toBe(dialog);
+    expect(trigger.inert).toBe(true);
+    expect(trigger.getAttribute("aria-hidden")).toBe("true");
 
     act(() => {
       dialog?.dispatchEvent(
@@ -56,7 +58,18 @@ describe("CommandPaletteLoadingFallback", () => {
     });
 
     expect(onClose).toHaveBeenCalledOnce();
+    act(() => {
+      root.render(
+        <CommandPaletteLoadingFallback
+          onClose={onClose}
+          open={false}
+          returnFocusTarget={trigger}
+        />,
+      );
+    });
     expect(document.activeElement).toBe(trigger);
+    expect(trigger.inert).not.toBe(true);
+    expect(trigger.hasAttribute("aria-hidden")).toBe(false);
     trigger.remove();
   });
 

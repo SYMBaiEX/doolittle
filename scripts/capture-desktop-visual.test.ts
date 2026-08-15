@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  legacyVisualEvidencePaths,
   selectVisualSweepExecutable,
   visualSweepCandidates,
 } from "./capture-desktop-visual";
@@ -29,5 +30,29 @@ describe("desktop visual sweep launcher", () => {
       ),
     ).toBe("packaged");
     expect(selectVisualSweepExecutable(["missing"], () => false)).toBeNull();
+  });
+
+  it("cleans only known legacy root images from prior evidence", () => {
+    expect(
+      legacyVisualEvidencePaths(
+        "/evidence",
+        JSON.stringify({
+          routes: [
+            { route: "chat" },
+            { route: "review" },
+            { route: "../outside" },
+          ],
+        }),
+      ),
+    ).toEqual([
+      "/evidence/contact-desktop.png",
+      "/evidence/contact-narrow.png",
+      "/evidence/chat.png",
+      "/evidence/review.png",
+    ]);
+    expect(legacyVisualEvidencePaths("/evidence", "not-json")).toEqual([
+      "/evidence/contact-desktop.png",
+      "/evidence/contact-narrow.png",
+    ]);
   });
 });

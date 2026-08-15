@@ -16,6 +16,7 @@ function FocusBoundaryProbe({
   const dialogRef = useModalFocusBoundary({
     active,
     initialFocusSelector: "[data-initial]",
+    isolateBackground: true,
     onClose,
     restoreFocus: true,
     restoreFocusRef: triggerRef,
@@ -67,6 +68,8 @@ describe("useModalFocusBoundary", () => {
       container.querySelectorAll<HTMLButtonElement>("button"),
     );
     expect(document.activeElement).toBe(first);
+    expect(trigger.inert).toBe(true);
+    expect(trigger.getAttribute("aria-hidden")).toBe("true");
 
     act(() => {
       first?.dispatchEvent(
@@ -95,5 +98,7 @@ describe("useModalFocusBoundary", () => {
       root.render(<FocusBoundaryProbe active={false} onClose={onClose} />),
     );
     expect(document.activeElement).toBe(trigger);
+    expect(trigger.inert).not.toBe(true);
+    expect(trigger.hasAttribute("aria-hidden")).toBe(false);
   });
 });

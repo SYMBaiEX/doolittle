@@ -1,7 +1,7 @@
 #!/usr/bin/env nub
 
 import { spawnSync } from "node:child_process";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync, unlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -33,6 +33,46 @@ export function selectVisualSweepExecutable(
   return candidates.find((candidate) => isExecutable(candidate)) ?? null;
 }
 
+export function legacyVisualEvidencePaths(
+  output: string,
+  priorManifest: string | undefined,
+): string[] {
+  const routeNames = new Set<string>();
+  if (priorManifest) {
+    try {
+      const parsed = JSON.parse(priorManifest) as {
+        routes?: Array<{ route?: unknown }>;
+      };
+      for (const entry of parsed.routes ?? []) {
+        if (
+          typeof entry.route === "string" &&
+          /^[a-zA-Z0-9_-]+$/u.test(entry.route)
+        ) {
+          routeNames.add(entry.route);
+        }
+      }
+    } catch {
+      // The sweep replaces malformed manifests; cleanup stays bounded.
+    }
+  }
+
+  return [
+    "contact-desktop.png",
+    "contact-narrow.png",
+    ...Array.from(routeNames, (route) => `${route}.png`),
+  ].map((name) => join(output, name));
+}
+
+function cleanLegacyVisualEvidence(output: string): void {
+  const manifestPath = join(output, "visual-manifest.json");
+  const priorManifest = existsSync(manifestPath)
+    ? readFileSync(manifestPath, "utf8")
+    : undefined;
+  for (const path of legacyVisualEvidencePaths(output, priorManifest)) {
+    if (existsSync(path) && statSync(path).isFile()) unlinkSync(path);
+  }
+}
+
 function argumentValue(name: string): string | undefined {
   const index = process.argv.indexOf(name);
   const value = index >= 0 ? process.argv[index + 1] : undefined;
@@ -56,6 +96,7 @@ export function main(): void {
       process.env.DOOLITTLE_SWEEP_SCREENSHOTS_DIR ??
       join(repoRoot, "var/playwright/route-screenshots"),
   );
+  cleanLegacyVisualEvidence(output);
   const profile =
     argumentValue("--profile") ?? process.env.DOOLITTLE_DESKTOP_PROFILE_DIR;
   const nubx = resolve(repoRoot, "node_modules/.bin/nubx");

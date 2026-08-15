@@ -36,7 +36,6 @@ import {
 import { useChatComposerSupport } from "./chat/useChatComposerSupport";
 import { useChatConversationState } from "./chat/useChatConversationState";
 import { useChatMessageActions } from "./chat/useChatMessageActions";
-import { useModalFocusBoundary } from "./chat/useModalFocusBoundary";
 import type {
   ChatContextCapsule,
   ChatContextHandoff,
@@ -45,6 +44,7 @@ import { composeChatContextMessage } from "./chat-context-handoff";
 import { visibleAssistantText } from "./components/message-output";
 import { RouteControlDialog } from "./components/RouteControlDialog";
 import type { ThreadWorkbenchFullView } from "./components/ThreadWorkbenchRail";
+import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
 import type { VoiceRecorderMime } from "./components/VoiceComposerButton";
 import { newConversationId } from "./conversation-id";
 import {
