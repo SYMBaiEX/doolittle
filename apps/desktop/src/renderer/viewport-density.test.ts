@@ -34,6 +34,9 @@ describe("wide route viewport density", () => {
     expect(configurationCss).toMatch(
       /\.page-settings \.settings-layout\s*{[^}]*grid-template-columns:\s*156px minmax\(0, 1fr\);/s,
     );
+    expect(configurationCss).toMatch(
+      /@media \(max-width: 980px\)[\s\S]*\.page-settings \.settings-layout\s*{[^}]*grid-template-columns:\s*1fr;/s,
+    );
     expect(profilesCss).toMatch(
       /\.profile-picker\s*{[^}]*grid-template-columns:\s*minmax\(18rem, 0\.42fr\) minmax\(0, 0\.58fr\);/s,
     );

@@ -283,6 +283,20 @@ native-package inventory, and the source commit to
 `apps/desktop/release/SHA256SUMS.txt` file used to verify each installer before
 copying or installing it.
 
+Capture full-page visual evidence for every packaged-app route at deterministic
+desktop and narrow widths:
+
+```bash
+nub run test:e2e:desktop-visual
+```
+
+The launcher prefers the installed app, falls back to the current unpacked
+package, and writes ignored PNGs plus `visual-manifest.json` under
+`var/playwright/route-screenshots/`. Pass `-- --executable <path>` or
+`-- --output <directory>` to override either location. The default sweep uses a
+fresh scrubbed profile; `-- --profile <directory>` is available for an explicit
+operator-approved profile and is marked as potentially private in the manifest.
+
 Before creating a release tag, run the release-quality gate:
 
 ```bash

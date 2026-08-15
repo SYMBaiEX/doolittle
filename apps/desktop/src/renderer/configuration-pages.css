@@ -198,6 +198,10 @@
 }
 
 @media (max-width: 980px) {
+  .page-settings .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
   .page-settings .settings-nav {
     position: static;
     display: flex;
