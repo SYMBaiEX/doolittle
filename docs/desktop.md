@@ -266,7 +266,7 @@ Build Linux packages:
 nub run desktop:package:linux
 ```
 
-Build every supported installer in one pass from macOS:
+Build every supported installer in one pass from Apple silicon macOS:
 
 ```bash
 nub run desktop:package:all
@@ -274,7 +274,8 @@ nub run desktop:package:all
 
 The all-platform command compiles the desktop and bundled runtime once, then
 builds and verifies the macOS ARM64 DMG/ZIP, Windows x64 NSIS installer, and
-Linux x64 AppImage/DEB. Wine is required for the Windows cross-build. It
+Linux x64 AppImage/DEB. An ARM64 macOS host and Wine are required for the
+Windows cross-build. It
 installs and verifies the target-native runtime modules, removes same-version
 stale outputs before starting, and writes artifact sizes, SHA-256 hashes, the
 native-package inventory, and the source commit to

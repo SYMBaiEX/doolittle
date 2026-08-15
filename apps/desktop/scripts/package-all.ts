@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const releaseRoot = resolve(desktopRoot, "release");
+const wineCheckArgs = ["--version"] as const;
 
 type DesktopManifest = { version: string };
 type RuntimeManifest = { nativePackages?: string[] };
@@ -143,18 +144,37 @@ function run(command: string, args: string[], cwd = repoRoot): void {
   }
 }
 
-function requireAllBuildHost(): void {
-  if (process.platform !== "darwin") {
+export function validatePackageHost({
+  platform = process.platform,
+  arch = process.arch,
+  checkWine = () => {
+    const wine = spawnSync("wine", wineCheckArgs, { stdio: "ignore" });
+    return wine.status;
+  },
+}: {
+  platform?: NodeJS.Platform;
+  arch?: string;
+  checkWine?: () => number | null | undefined;
+}): void {
+  if (platform !== "darwin") {
     throw new Error(
-      "Building macOS, Windows, and Linux together requires a macOS host. Use the platform-specific package commands or release workflows elsewhere.",
+      "desktop:package:all is supported only on macOS arm64 hosts.",
     );
   }
-  const wine = spawnSync("wine", ["--version"], { stdio: "ignore" });
-  if (wine.status !== 0) {
+  if (arch !== "arm64") {
+    throw new Error(
+      `desktop:package:all requires an Apple Silicon macOS host. Current host is ${platform}-${arch}.`,
+    );
+  }
+  if (checkWine() !== 0) {
     throw new Error(
       "Windows cross-packaging requires Wine. Install Wine, then rerun `nub run desktop:package:all`.",
     );
   }
+}
+
+function requireAllBuildHost(): void {
+  validatePackageHost({});
 }
 
 function cleanTarget(target: ReleaseTarget): void {

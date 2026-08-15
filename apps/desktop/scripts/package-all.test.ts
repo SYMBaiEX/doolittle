@@ -8,6 +8,7 @@ import {
   releaseTargets,
   requiredNativeTargetPackages,
   resolveSingleExistingPath,
+  validatePackageHost,
 } from "./package-all";
 
 const desktopManifest = JSON.parse(
@@ -120,5 +121,47 @@ describe("all-platform desktop release plan", () => {
     ).toBe(
       `${"a".repeat(64)}  Doolittle-0.1.0-mac-arm64.dmg\n${"b".repeat(64)}  Doolittle-0.1.0-win-x64.exe\n`,
     );
+  });
+
+  it("supports darwin/arm64 packaging hosts", () => {
+    expect(() =>
+      validatePackageHost({
+        platform: "darwin",
+        arch: "arm64",
+        checkWine: () => 0,
+      }),
+    ).not.toThrow();
+  });
+
+  it("fails clearly on darwin/x64 hosts", () => {
+    expect(() =>
+      validatePackageHost({
+        platform: "darwin",
+        arch: "x64",
+        checkWine: () => 0,
+      }),
+    ).toThrow(
+      "requires an Apple Silicon macOS host. Current host is darwin-x64",
+    );
+  });
+
+  it("fails clearly on non-darwin hosts", () => {
+    expect(() =>
+      validatePackageHost({
+        platform: "linux",
+        arch: "x64",
+        checkWine: () => 0,
+      }),
+    ).toThrow("supported only on macOS arm64 hosts");
+  });
+
+  it("fails clearly when Wine is missing", () => {
+    expect(() =>
+      validatePackageHost({
+        platform: "darwin",
+        arch: "arm64",
+        checkWine: () => 127,
+      }),
+    ).toThrow("Windows cross-packaging requires Wine");
   });
 });
