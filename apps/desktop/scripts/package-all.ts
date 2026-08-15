@@ -77,7 +77,12 @@ export function releaseTargets(
         "linux-x64-unpacked/resources/app.asar",
         "linux-unpacked/resources/app.asar",
       ],
-      cleanupPaths: ["linux-x64-unpacked", "linux-unpacked"],
+      cleanupPaths: [
+        "linux-x64-unpacked",
+        "linux-unpacked",
+        `Doolittle-${version}-linux-x86_64.AppImage`,
+        `Doolittle-${version}-linux-amd64.deb`,
+      ],
     },
   ];
 }

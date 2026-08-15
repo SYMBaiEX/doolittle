@@ -163,6 +163,7 @@
       ]
     },
     "linux": {
+      "artifactName": "Doolittle-${version}-linux-x64.${ext}",
       "category": "Utility",
       "icon": "assets/icon.png",
       "maintainer": "SYMBaiEX <solsymbaiex@gmail.com>",

@@ -20,7 +20,11 @@ const desktopManifest = JSON.parse(
   homepage?: string;
   build?: {
     extraResources?: Array<{ from?: string; to?: string }>;
-    linux?: { maintainer?: string; syncDesktopName?: boolean };
+    linux?: {
+      artifactName?: string;
+      maintainer?: string;
+      syncDesktopName?: boolean;
+    };
   };
 };
 
@@ -91,6 +95,7 @@ describe("all-platform desktop release plan", () => {
       desktopName: "Doolittle.desktop",
       build: {
         linux: {
+          artifactName: "Doolittle-$" + "{version}-linux-x64.$" + "{ext}",
           maintainer: "SYMBaiEX <solsymbaiex@gmail.com>",
           syncDesktopName: true,
         },
