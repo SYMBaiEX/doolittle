@@ -164,6 +164,57 @@ function createTurn() {
 }
 
 describe("chat turn provider seam", () => {
+  it("scopes the selected OpenAI reasoning effort and shadows a stale bootstrap value", async () => {
+    const harness = createProviderContext();
+    const settingsBefore = harness.context.services.settings.get();
+    const settingsWithEffort = {
+      ...settingsBefore,
+      model: {
+        ...settingsBefore.model,
+        reasoningEffort: "medium",
+      },
+    } as typeof settingsBefore;
+    const observedEfforts: unknown[] = [];
+
+    harness.context.runtime.setSetting("OPENAI_REASONING_EFFORT", "high");
+    harness.context.runtime.messageService = {
+      handleMessage: async (runtime: {
+        getSetting: (key: string) => unknown;
+      }) => {
+        observedEfforts.push(runtime.getSetting("OPENAI_REASONING_EFFORT"));
+        return {
+          responseContent: { text: "done" },
+          responseMessages: [],
+          state: { data: {} },
+        };
+      },
+    } as unknown as typeof harness.context.runtime.messageService;
+
+    const runTurn = (settingsDuring: typeof settingsBefore) =>
+      runProviderModelTurn({
+        context: harness.context,
+        turn: createTurn(),
+        userId: "alice",
+        effectiveMessage: "Check reasoning effort.",
+        settingsBefore,
+        settingsDuring,
+        messagePolicy: {
+          runDepth: "quick",
+          useMultiStep: false,
+          maxIterations: 1,
+          toolProgressMode: "new",
+        },
+      });
+
+    await runTurn(settingsWithEffort);
+    await runTurn(settingsBefore);
+
+    expect(observedEfforts).toEqual(["medium", null]);
+    expect(harness.context.runtime.getSetting("OPENAI_REASONING_EFFORT")).toBe(
+      "high",
+    );
+  });
+
   it("applies temporary provider settings, streams the response, and restores state", async () => {
     const harness = createProviderContext();
     const settingsBefore = harness.context.services.settings.get();

@@ -15,8 +15,7 @@ import {
 } from "./memory/models";
 import { RuntimeSectionNav } from "./runtime-state/RuntimeSectionNav";
 
-const MEMORY_PAGE_CLASS =
-  "mx-auto flex min-h-full w-[min(100%,1420px)] flex-col gap-2.5 px-[clamp(24px,4vw,58px)] pt-[34px] pb-[54px] [&_.page-header]:min-h-[74px] [&_.page-header]:pb-3";
+const MEMORY_PAGE_CLASS = "page gap-2.5";
 
 const MEMORY_SECTIONS: Array<{
   detail: string;

@@ -1,16 +1,21 @@
 import { createHash } from "node:crypto";
 import {
+  existsSync,
   lstatSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   importRecordedAudio,
+  pruneStaleRecordedAudioImports,
   RECORDED_AUDIO_IMPORT_MAX_BYTES,
 } from "./recorded-audio-import";
 
@@ -39,7 +44,7 @@ afterEach(() => {
 });
 
 describe("importRecordedAudio", () => {
-  test("atomically imports ArrayBuffer audio into private managed storage", () => {
+  test("atomically imports ArrayBuffer audio into private transient storage", () => {
     const root = sandbox();
     const contents = wavBytes();
     const arrayBuffer = contents.buffer.slice(
@@ -63,23 +68,29 @@ describe("importRecordedAudio", () => {
       sizeBytes: contents.byteLength,
       sha256: createHash("sha256").update(contents).digest("hex"),
     });
-    const attachmentsDir = join(root, "runtime", "attachments");
-    const metadataPath = join(attachmentsDir, `${descriptor.id}.meta.json`);
+    const sessionDir = join(
+      root,
+      "runtime",
+      "transient",
+      "dictation",
+      descriptor.id,
+    );
+    const metadataPath = join(sessionDir, `${descriptor.id}.meta.json`);
     const metadata = JSON.parse(readFileSync(metadataPath, "utf8")) as {
       storedName: string;
     };
-    expect(readFileSync(join(attachmentsDir, metadata.storedName))).toEqual(
+    expect(readFileSync(join(sessionDir, metadata.storedName))).toEqual(
       contents,
     );
     expect(JSON.stringify(descriptor)).not.toContain(root);
-    expect(
-      readdirSync(attachmentsDir).some((name) => name.startsWith(".")),
-    ).toBe(false);
+    expect(readdirSync(sessionDir).some((name) => name.startsWith("."))).toBe(
+      false,
+    );
     if (process.platform !== "win32") {
-      expect(lstatSync(attachmentsDir).mode & 0o777).toBe(0o700);
+      expect(lstatSync(sessionDir).mode & 0o777).toBe(0o700);
       expect(lstatSync(metadataPath).mode & 0o777).toBe(0o600);
       expect(
-        lstatSync(join(attachmentsDir, metadata.storedName)).mode & 0o777,
+        lstatSync(join(sessionDir, metadata.storedName)).mode & 0o777,
       ).toBe(0o600);
     }
   });
@@ -130,7 +141,7 @@ describe("importRecordedAudio", () => {
     ).toThrow(expect.objectContaining({ code: "audio_too_large" }));
   });
 
-  test("removes the managed data file and temporary files after a late failure", () => {
+  test("removes transient data and temporary files after a late failure", () => {
     const root = sandbox();
     const runtime = join(root, "runtime");
     vi.spyOn(Date.prototype, "toISOString").mockImplementationOnce(() => {
@@ -148,6 +159,93 @@ describe("importRecordedAudio", () => {
       ),
     ).toThrow(expect.objectContaining({ code: "import_failed" }));
 
-    expect(readdirSync(join(runtime, "attachments"))).toEqual([]);
+    expect(readdirSync(join(runtime, "transient", "dictation"))).toEqual([]);
   });
+
+  test("prunes crash-left dictation imports without touching durable attachments", () => {
+    const root = sandbox();
+    const runtime = join(root, "runtime");
+    const descriptor = importRecordedAudio(
+      {
+        bytes: wavBytes(),
+        mimeType: "audio/wav",
+        name: "recording.wav",
+      },
+      runtime,
+    );
+    const durableDir = join(runtime, "attachments");
+    const durablePath = join(durableDir, "keep.txt");
+    mkdirSync(durableDir, { recursive: true });
+    writeFileSync(durablePath, "durable");
+
+    expect(pruneStaleRecordedAudioImports(runtime)).toBe(1);
+    expect(
+      existsSync(join(runtime, "transient", "dictation", descriptor.id)),
+    ).toBe(false);
+    expect(readFileSync(durablePath, "utf8")).toBe("durable");
+  });
+
+  test("bounds startup pruning work", () => {
+    const root = sandbox();
+    const runtime = join(root, "runtime");
+    for (let index = 0; index < 3; index += 1) {
+      importRecordedAudio(
+        {
+          bytes: wavBytes(),
+          mimeType: "audio/wav",
+          name: `recording-${index}.wav`,
+        },
+        runtime,
+      );
+    }
+
+    expect(pruneStaleRecordedAudioImports(runtime, 1)).toBe(1);
+    expect(readdirSync(join(runtime, "transient", "dictation"))).toHaveLength(
+      2,
+    );
+  });
+
+  test.skipIf(process.platform === "win32")(
+    "rejects a symlinked transient root before creating external files",
+    () => {
+      const root = sandbox();
+      const runtime = join(root, "runtime");
+      const externalDir = join(root, "external");
+      mkdirSync(runtime);
+      mkdirSync(externalDir);
+      symlinkSync(externalDir, join(runtime, "transient"), "dir");
+
+      expect(() =>
+        importRecordedAudio(
+          {
+            bytes: wavBytes(),
+            mimeType: "audio/wav",
+            name: "recording.wav",
+          },
+          runtime,
+        ),
+      ).toThrow(expect.objectContaining({ code: "import_failed" }));
+      expect(readdirSync(externalDir)).toEqual([]);
+    },
+  );
+
+  test.skipIf(process.platform === "win32")(
+    "unlinks a stale symlink without traversing its external target",
+    () => {
+      const root = sandbox();
+      const runtime = join(root, "runtime");
+      const importsDir = join(runtime, "transient", "dictation");
+      const externalDir = join(root, "external");
+      const externalFile = join(externalDir, "keep.txt");
+      mkdirSync(importsDir, { recursive: true });
+      mkdirSync(externalDir);
+      writeFileSync(externalFile, "keep");
+      const linkName = "00000000-0000-4000-8000-000000000001";
+      symlinkSync(externalDir, join(importsDir, linkName), "dir");
+
+      expect(pruneStaleRecordedAudioImports(runtime)).toBe(1);
+      expect(readFileSync(externalFile, "utf8")).toBe("keep");
+      expect(existsSync(join(importsDir, linkName))).toBe(false);
+    },
+  );
 });

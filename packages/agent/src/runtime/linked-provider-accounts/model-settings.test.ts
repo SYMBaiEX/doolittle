@@ -85,6 +85,72 @@ describe("syncProviderSettings", () => {
     expect(runtimeSettings.get("OPENAI_BASE_URL")).toBe("https://openai.local");
   });
 
+  it("projects the selected OpenAI reasoning effort into the current turn", () => {
+    const settings = {
+      model: {
+        provider: "openai",
+        model: "gpt-5.4",
+        baseUrl: "https://api.openai.com/v1",
+        reasoningEffort: "high",
+      },
+    } as ReturnType<AgentExecutionContext["services"]["settings"]["get"]>;
+    const context = {
+      runtime: { getSetting: () => undefined },
+      config: {},
+      services: { settings: { get: () => settings } },
+    } as unknown as AgentExecutionContext;
+
+    const runtimeSettings = buildProviderRuntimeSettings(context, settings);
+
+    expect(runtimeSettings.get("OPENAI_REASONING_EFFORT")).toBe("high");
+  });
+
+  it("shadows a cleared or unsupported OpenAI reasoning effort", () => {
+    const context = {
+      runtime: { getSetting: () => undefined },
+      config: {},
+      services: { settings: { get: () => undefined } },
+    } as unknown as AgentExecutionContext;
+
+    for (const reasoningEffort of [undefined, "xhigh"]) {
+      const settings = {
+        model: {
+          provider: "openai",
+          model: "gpt-5.4",
+          baseUrl: "https://api.openai.com/v1",
+          reasoningEffort,
+        },
+      } as ReturnType<AgentExecutionContext["services"]["settings"]["get"]>;
+
+      expect(
+        buildProviderRuntimeSettings(context, settings).get(
+          "OPENAI_REASONING_EFFORT",
+        ),
+      ).toBeNull();
+    }
+  });
+
+  it("shadows OpenAI reasoning effort after switching to another provider", () => {
+    const settings = {
+      model: {
+        provider: "codex",
+        model: "gpt-5.4",
+        baseUrl: "https://ignored.example",
+        reasoningEffort: "high",
+      },
+    } as ReturnType<AgentExecutionContext["services"]["settings"]["get"]>;
+    const context = {
+      runtime: { getSetting: () => undefined },
+      config: {},
+      services: { settings: { get: () => settings } },
+    } as unknown as AgentExecutionContext;
+
+    const runtimeSettings = buildProviderRuntimeSettings(context, settings);
+
+    expect(runtimeSettings.get("CODEX_MODEL")).toBe("gpt-5.4");
+    expect(runtimeSettings.get("OPENAI_REASONING_EFFORT")).toBeNull();
+  });
+
   it("maps Codex selection to the official Eliza Codex plugin settings", () => {
     const runtimeSettings = new Map<string, string>();
     const context = {

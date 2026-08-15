@@ -1,15 +1,24 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
+  readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
+import {
+  createTransientDictationOutputDir,
+  materializeTransientDictationInput,
+  resolveTransientDictation,
+} from "@/services/transient-dictation";
 import { handleManagedMediaRoutes } from "./media-managed";
 
 const roots: string[] = [];
@@ -50,6 +59,38 @@ function writeAttachment(
   return { id, path };
 }
 
+function writeTransientDictation(
+  dataDir: string,
+  options: { recordingTarget?: string } = {},
+): { id: string; path: string; sessionDir: string } {
+  const id = randomUUID();
+  const sessionDir = join(dataDir, "transient", "dictation", id);
+  const path = join(sessionDir, `${id}.wav`);
+  const content = Buffer.from("RIFF0000WAVEaudio");
+  mkdirSync(sessionDir, { recursive: true });
+  if (options.recordingTarget) {
+    symlinkSync(options.recordingTarget, path);
+  } else {
+    writeFileSync(path, content, { mode: 0o600 });
+  }
+  writeFileSync(
+    join(sessionDir, `${id}.meta.json`),
+    JSON.stringify({
+      version: 1,
+      id,
+      name: "dictation.wav",
+      kind: "audio",
+      mimeType: "audio/wav",
+      sizeBytes: content.byteLength,
+      sha256: createHash("sha256").update(content).digest("hex"),
+      storedName: `${id}.wav`,
+      createdAt: new Date(0).toISOString(),
+    }),
+    { mode: 0o600 },
+  );
+  return { id, path, sessionDir };
+}
+
 function createContext(
   dataDir: string,
   transcribeWithModel: ReturnType<typeof vi.fn> = vi.fn(
@@ -70,10 +111,32 @@ function createContext(
       options,
     }),
   ),
+  transcribeTransient: ReturnType<typeof vi.fn> = vi.fn(
+    async (
+      path: string,
+      outputDir: string,
+      options?: Record<string, unknown>,
+    ) => ({
+      inspection: { path },
+      bundle: { manifestPath: join(outputDir, "bundle.json") },
+      prompt: "prompt",
+      transcriptText: "transient transcript",
+      transcriptPath: join(outputDir, "transcript.txt"),
+      promptPath: join(outputDir, "prompt.md"),
+      manifestPath: join(outputDir, "manifest.json"),
+      reportPath: join(outputDir, "report.md"),
+      response: "transient transcript",
+      responsePath: join(outputDir, "response.txt"),
+      model: "test-model",
+      provider: "test-provider",
+      source: "openai" as const,
+      options,
+    }),
+  ),
 ): AppContext {
   return {
     config: { dataDir, workspaceDir: dataDir },
-    services: { media: { transcribeWithModel } },
+    services: { media: { transcribeTransient, transcribeWithModel } },
   } as unknown as AppContext;
 }
 
@@ -84,6 +147,182 @@ afterEach(() => {
 });
 
 describe("handleManagedMediaRoutes", () => {
+  it("removes transient recording and derived artifacts after successful dictation", async () => {
+    const dataDir = createDataDir();
+    const dictation = writeTransientDictation(dataDir);
+    const canonicalSessionDir = realpathSync(dictation.sessionDir);
+    const transcribeTransient = vi.fn(
+      async (path: string, outputDir: string) => {
+        mkdirSync(outputDir, { recursive: true });
+        const artifactNames = [
+          "bundle.json",
+          "bundle.md",
+          "transcript.txt",
+          "prompt.md",
+          "manifest.json",
+          "report.md",
+          "response.txt",
+        ];
+        for (const artifactName of artifactNames) {
+          writeFileSync(join(outputDir, artifactName), artifactName);
+        }
+        return {
+          inspection: { path },
+          bundle: { manifestPath: join(outputDir, "bundle.json") },
+          prompt: "prompt",
+          transcriptText: "private dictation",
+          transcriptPath: join(outputDir, "transcript.txt"),
+          promptPath: join(outputDir, "prompt.md"),
+          manifestPath: join(outputDir, "manifest.json"),
+          reportPath: join(outputDir, "report.md"),
+          response: "private dictation",
+          responsePath: join(outputDir, "response.txt"),
+          model: "voice-model",
+          provider: "openai",
+          source: "openai" as const,
+        };
+      },
+    );
+    const context = createContext(dataDir, undefined, transcribeTransient);
+
+    const response = await handleManagedMediaRoutes(
+      context,
+      new Request("http://localhost/media/transcribe-attachment", {
+        method: "POST",
+        body: JSON.stringify({ attachmentId: dictation.id, name: "dictation" }),
+      }),
+      new URL("http://localhost/media/transcribe-attachment"),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(await response?.json()).toMatchObject({
+      attachment: { id: dictation.id, kind: "audio" },
+      transcription: { transcriptText: "private dictation" },
+    });
+    const invocation = transcribeTransient.mock.calls[0];
+    expect(invocation).toBeDefined();
+    const [stagedInputPath, outputDir] = invocation ?? [];
+    expect(stagedInputPath).toMatch(
+      new RegExp(
+        `^${join(canonicalSessionDir, "artifacts").replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}/\\.input-`,
+      ),
+    );
+    expect(outputDir).toBe(join(canonicalSessionDir, "artifacts"));
+    expect(transcribeTransient).toHaveBeenCalledWith(
+      stagedInputPath,
+      outputDir,
+      {
+        language: undefined,
+        prompt: undefined,
+        name: "dictation",
+      },
+    );
+    expect(existsSync(dictation.sessionDir)).toBe(false);
+    expect(readdirSync(join(dataDir, "attachments"))).toEqual([]);
+  });
+
+  it("removes transient recording and partial artifacts when transcription fails", async () => {
+    const dataDir = createDataDir();
+    const dictation = writeTransientDictation(dataDir);
+    const transcribeTransient = vi.fn(
+      async (_path: string, outputDir: string) => {
+        mkdirSync(outputDir, { recursive: true });
+        writeFileSync(join(outputDir, "partial-transcript.txt"), "private");
+        throw new Error("simulated transcription failure");
+      },
+    );
+    const context = createContext(dataDir, undefined, transcribeTransient);
+
+    await expect(
+      handleManagedMediaRoutes(
+        context,
+        new Request("http://localhost/media/transcribe-attachment", {
+          method: "POST",
+          body: JSON.stringify({ attachmentId: dictation.id }),
+        }),
+        new URL("http://localhost/media/transcribe-attachment"),
+      ),
+    ).rejects.toThrow("simulated transcription failure");
+    expect(existsSync(dictation.sessionDir)).toBe(false);
+  });
+
+  it("removes a transient import when integrity validation fails", async () => {
+    const dataDir = createDataDir();
+    const dictation = writeTransientDictation(dataDir);
+    writeFileSync(dictation.path, "RIFF0000WAVEtampered");
+    const transcribeTransient = vi.fn();
+    const context = createContext(dataDir, undefined, transcribeTransient);
+
+    const response = await handleManagedMediaRoutes(
+      context,
+      new Request("http://localhost/media/transcribe-attachment", {
+        method: "POST",
+        body: JSON.stringify({ attachmentId: dictation.id }),
+      }),
+      new URL("http://localhost/media/transcribe-attachment"),
+    );
+
+    expect(response?.status).toBe(400);
+    expect(await response?.json()).toMatchObject({ code: "integrity_failed" });
+    expect(transcribeTransient).not.toHaveBeenCalled();
+    expect(existsSync(dictation.sessionDir)).toBe(false);
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "rejects a symlinked transient recording without deleting its target",
+    async () => {
+      const dataDir = createDataDir();
+      const externalPath = join(dataDir, "external.wav");
+      writeFileSync(externalPath, "RIFF0000WAVEaudio");
+      const dictation = writeTransientDictation(dataDir, {
+        recordingTarget: externalPath,
+      });
+      const transcribeTransient = vi.fn();
+      const context = createContext(dataDir, undefined, transcribeTransient);
+
+      const response = await handleManagedMediaRoutes(
+        context,
+        new Request("http://localhost/media/transcribe-attachment", {
+          method: "POST",
+          body: JSON.stringify({ attachmentId: dictation.id }),
+        }),
+        new URL("http://localhost/media/transcribe-attachment"),
+      );
+
+      expect(response?.status).toBe(400);
+      expect(existsSync(externalPath)).toBe(true);
+      expect(existsSync(dictation.sessionDir)).toBe(false);
+      expect(transcribeTransient).not.toHaveBeenCalled();
+    },
+  );
+
+  it.skipIf(process.platform === "win32")(
+    "never reads an external target swapped in after dictation validation",
+    () => {
+      const dataDir = createDataDir();
+      const dictation = writeTransientDictation(dataDir);
+      const externalPath = join(dataDir, "external.wav");
+      const externalContent = "RIFF0000WAVEexternal-secret";
+      writeFileSync(externalPath, externalContent);
+      const resolved = resolveTransientDictation(dataDir, dictation.id);
+      expect(resolved).not.toBeNull();
+      if (!resolved) throw new Error("Expected a transient dictation record");
+
+      // The attacker replaces the pathname after it has been resolved but
+      // before the provider input is materialized.
+      rmSync(dictation.path);
+      symlinkSync(externalPath, dictation.path);
+      const outputDir = createTransientDictationOutputDir(resolved);
+
+      expect(() =>
+        materializeTransientDictationInput(resolved, outputDir),
+      ).toThrow("Dictation recording failed integrity checks.");
+      expect(existsSync(externalPath)).toBe(true);
+      expect(readFileSync(externalPath, "utf8")).toBe(externalContent);
+      expect(readdirSync(outputDir)).toEqual([]);
+    },
+  );
+
   it("transcribes a validated audio attachment without returning managed paths", async () => {
     const dataDir = createDataDir();
     const attachment = writeAttachment(dataDir, "audio");

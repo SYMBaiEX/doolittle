@@ -47,6 +47,23 @@ describe("wide route viewport density", () => {
     expect(profilesPage).toContain('className="profile-picker grid');
   });
 
+  it("routes Memory and Keys through the shared page density contract", () => {
+    const memoryPage = source("./MemoryPage.tsx");
+    const keysPage = source("./KeysPage.tsx");
+
+    expect(memoryPage).toContain('const MEMORY_PAGE_CLASS = "page gap-2.5"');
+    expect(keysPage).toContain('const KEYS_PAGE_CLASS = "page gap-4"');
+
+    for (const route of [memoryPage, keysPage]) {
+      expect(route).not.toContain("w-[min(100%,1420px)]");
+      expect(route).not.toContain("w-[min(100%,1380px)]");
+      expect(route).not.toContain("px-[clamp(24px,4vw,58px)]");
+      expect(route).not.toContain("pt-[34px]");
+      expect(route).not.toContain("pb-[54px]");
+    }
+    expect(memoryPage).not.toContain("min-h-[74px]");
+  });
+
   it("focuses zero-work orchestration and review states without full-width strips", () => {
     const orchestration = source("./OrchestrationPage.tsx");
     const orchestrationLayout = source("./orchestration/layout.ts");

@@ -5,6 +5,14 @@ import {
   ManagedAttachmentError,
   resolveManagedAttachmentPath,
 } from "@/services/chat-attachments";
+import {
+  createTransientDictationOutputDir,
+  materializeTransientDictationInput,
+  removeTransientDictation,
+  removeTransientDictationById,
+  resolveTransientDictation,
+  TransientDictationError,
+} from "@/services/transient-dictation";
 
 const ALLOWED_BODY_KEYS = new Set([
   "attachmentId",
@@ -63,6 +71,32 @@ export async function handleManagedMediaRoutes(
     const language = optionalString(body.language, "language", 64);
     const prompt = optionalString(body.prompt, "prompt", 4_096);
     const name = optionalString(body.name, "name", 180);
+    const dictation = resolveTransientDictation(
+      context.config.dataDir,
+      attachmentId,
+    );
+    if (dictation) {
+      try {
+        const outputDir = createTransientDictationOutputDir(dictation);
+        const result = await context.services.media.transcribeTransient(
+          materializeTransientDictationInput(dictation, outputDir),
+          outputDir,
+          { language, prompt, name },
+        );
+        return json({
+          attachment: dictation.descriptor,
+          transcription: {
+            transcriptText: result.transcriptText,
+            model: result.model,
+            provider: result.provider,
+            source: result.source,
+          },
+        });
+      } finally {
+        removeTransientDictation(context.config.dataDir, dictation);
+      }
+    }
+
     const attachment = await resolveManagedAttachmentPath({
       dataDir: context.config.dataDir,
       attachmentId,
@@ -92,6 +126,15 @@ export async function handleManagedMediaRoutes(
     });
   } catch (error) {
     if (error instanceof ManagedAttachmentError) {
+      return json({ error: error.message, code: error.code }, 400);
+    }
+    if (error instanceof TransientDictationError) {
+      try {
+        removeTransientDictationById(context.config.dataDir, body.attachmentId);
+      } catch {
+        // Startup pruning provides a bounded retry if immediate cleanup loses a
+        // filesystem race or the transient root is temporarily unavailable.
+      }
       return json({ error: error.message, code: error.code }, 400);
     }
     if (error instanceof TypeError) {

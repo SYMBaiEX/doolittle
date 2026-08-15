@@ -15,6 +15,7 @@ import type {
 } from "../../shared/contracts";
 import { composeChatContextMessage } from "../chat-context-handoff";
 import type { StorageLike } from "../conversation-persistence";
+import { snapshotDraftForDispatch } from "./draft-dispatch-recovery";
 import {
   loadStoredChatMessages,
   projectChatSessions,
@@ -414,6 +415,91 @@ describe("chat history concurrency", () => {
       "doolittle.desktop.conversation.drafts.v1",
       expect.not.stringContaining("First chat"),
     );
+  });
+
+  it("restores a rejected dispatch's complete draft without overwriting later edits", () => {
+    let latest: ReturnType<typeof useChatConversationState> | undefined;
+    const attachment = {
+      id: "123e4567-e89b-42d3-a456-426614174000",
+      name: "failure.txt",
+      kind: "document" as const,
+      mimeType: "text/plain",
+      sizeBytes: 42,
+      sha256: "a".repeat(64),
+    };
+    const capsule = {
+      kind: "terminal" as const,
+      path: "Terminal",
+      content: "<terminal_context>exit 1</terminal_context>",
+    };
+
+    act(() =>
+      root.render(
+        createElement(ConversationProbe, {
+          backendReady: false,
+          onValue: (value) => (latest = value),
+        }),
+      ),
+    );
+    act(() => {
+      latest?.setDraft("Explain the failure");
+      latest?.setDraftAttachments([attachment]);
+      latest?.setChatContextCapsule(capsule);
+    });
+
+    let recovery: ReturnType<typeof snapshotDraftForDispatch> | undefined;
+    act(() => {
+      if (!latest) return;
+      recovery = snapshotDraftForDispatch(
+        "remote",
+        {
+          text: latest.draft,
+          attachments: latest.draftAttachments,
+          capsule: latest.chatContextCapsule,
+        },
+        latest.clearDraftForDispatch("remote"),
+      );
+    });
+    expect(latest?.draft).toBe("");
+    expect(latest?.draftAttachments).toEqual([]);
+    expect(latest?.chatContextCapsule).toBeNull();
+    if (!recovery) throw new Error("Expected a failed-dispatch draft snapshot");
+
+    act(() => {
+      expect(latest?.restoreDraftAfterRejectedDispatch(recovery)).toBe(true);
+    });
+    expect(latest?.draft).toBe("Explain the failure");
+    expect(latest?.draftAttachments).toEqual([attachment]);
+    expect(latest?.chatContextCapsule).toEqual(capsule);
+    expect(
+      composeChatContextMessage(
+        latest?.draft ?? "",
+        latest?.chatContextCapsule ?? null,
+      ),
+    ).toBe(
+      "Explain the failure\n\n<terminal_context>exit 1</terminal_context>",
+    );
+
+    act(() => {
+      if (!latest) return;
+      recovery = snapshotDraftForDispatch(
+        "remote",
+        {
+          text: latest.draft,
+          attachments: latest.draftAttachments,
+          capsule: latest.chatContextCapsule,
+        },
+        latest.clearDraftForDispatch("remote"),
+      );
+      latest.setDraft("A newer draft");
+    });
+    if (!recovery) throw new Error("Expected a failed-dispatch draft snapshot");
+    act(() => {
+      expect(latest?.restoreDraftAfterRejectedDispatch(recovery)).toBe(false);
+    });
+    expect(latest?.draft).toBe("A newer draft");
+    expect(latest?.draftAttachments).toEqual([]);
+    expect(latest?.chatContextCapsule).toBeNull();
   });
 
   it("does not let an in-flight history response erase a newly sent turn", async () => {

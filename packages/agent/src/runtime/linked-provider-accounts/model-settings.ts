@@ -9,6 +9,22 @@ import type { LinkedProviderName } from "./types";
 
 type ProviderRuntimeSettingValue = string | boolean | null;
 
+function resolveOpenAiReasoningEffort(
+  provider: string,
+  reasoningEffort: unknown,
+): "minimal" | "low" | "medium" | "high" | null {
+  if (provider !== "openai") {
+    return null;
+  }
+
+  return reasoningEffort === "minimal" ||
+    reasoningEffort === "low" ||
+    reasoningEffort === "medium" ||
+    reasoningEffort === "high"
+    ? reasoningEffort
+    : null;
+}
+
 interface ProviderRuntimeSettingsDependencies {
   claudeCodeAccessTokenIsExpiring: typeof claudeCodeAccessTokenIsExpiring;
   getLinkedClaudeCodeCredentials: typeof getLinkedClaudeCodeCredentials;
@@ -88,6 +104,15 @@ export function buildProviderRuntimeSettings(
   const provider = settings.model.provider;
   const model = settings.model.model;
   const baseUrl = settings.model.baseUrl;
+
+  // Keep an explicit shadow entry for every provider route. Turn scopes fall
+  // back to bootstrap settings when a key is absent, which could otherwise
+  // leak a previously selected OpenAI effort into a cleared value or a
+  // different provider's turn.
+  runtimeSettings.set(
+    "OPENAI_REASONING_EFFORT",
+    resolveOpenAiReasoningEffort(provider, settings.model.reasoningEffort),
+  );
 
   runtimeSettings.set(
     "ELIZAOS_CLOUD_ENABLED",

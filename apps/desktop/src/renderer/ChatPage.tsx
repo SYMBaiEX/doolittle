@@ -24,6 +24,7 @@ import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
 import { ChatTranscript } from "./chat/ChatTranscript";
 import { isChatNearBottom, scheduleChatScroll } from "./chat/chat-scroll";
 import { handleFailedChatTerminalEvent } from "./chat/chat-terminal-events";
+import { snapshotDraftForDispatch } from "./chat/draft-dispatch-recovery";
 import {
   CHAT_WORKSPACE_CLASS,
   MOBILE_CONVERSATIONS_BACKDROP_CLASS,
@@ -204,6 +205,7 @@ export function ChatPage({
     draft,
     draftAttachments,
     chatContextCapsule,
+    clearDraftForDispatch,
     historyError,
     loadingHistory,
     selectedMessages,
@@ -217,6 +219,7 @@ export function ChatPage({
     setDraftForSession,
     setMessages,
     retryHistory,
+    restoreDraftAfterRejectedDispatch,
     setSessionSearch,
     togglePin,
   } = useChatConversationState({
@@ -590,6 +593,13 @@ export function ChatPage({
         : (projectIdOverride ?? undefined);
     const requestId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
+    const dispatchedDraft = clearComposer
+      ? {
+          text: input,
+          attachments: messageAttachments,
+          capsule: contextCapsule,
+        }
+      : null;
     requestSession.current[requestId] = sessionId;
     forceTranscriptFollowRef.current = true;
 
@@ -625,11 +635,13 @@ export function ChatPage({
         },
       ],
     }));
-    if (clearComposer) {
-      setDraft("");
-      setDraftAttachments([]);
-      setChatContextCapsule(null);
-    }
+    const dispatchRecovery = dispatchedDraft
+      ? snapshotDraftForDispatch(
+          sessionId,
+          dispatchedDraft,
+          clearDraftForDispatch(sessionId),
+        )
+      : null;
     setProgress("Doolittle is considering the request…");
     setActiveRequest(requestId);
     try {
@@ -651,6 +663,9 @@ export function ChatPage({
         error: true,
       }));
       finishRequest(requestId);
+      if (dispatchRecovery) {
+        restoreDraftAfterRejectedDispatch(dispatchRecovery);
+      }
       return false;
     }
   };

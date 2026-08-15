@@ -29,7 +29,10 @@ import {
 import { DesktopPreferences } from "./desktop-preferences";
 import { type DesktopBackgroundNotification, registerIpc } from "./ipc";
 import { ProviderAuthController } from "./provider-auth";
-import { importRecordedAudio } from "./recorded-audio-import";
+import {
+  importRecordedAudio,
+  pruneStaleRecordedAudioImports,
+} from "./recorded-audio-import";
 import {
   isTrustedRendererNavigation,
   trustedDevRendererUrl,
@@ -605,6 +608,7 @@ app.whenReady().then(async () => {
     runtimeDataDir,
     sourceRepoRoot ? resolve(sourceRepoRoot, ".doolittle") : undefined,
   );
+  pruneStaleRecordedAudioImports(runtimeDataDir);
   const requestedWorkspaceOverride = process.env.DOOLITTLE_DESKTOP_CWD?.trim();
   const requestedWorkspace = requestedWorkspaceOverride || homedir();
   let fallbackWorkspace = homedir();

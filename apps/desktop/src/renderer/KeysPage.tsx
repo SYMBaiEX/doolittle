@@ -22,8 +22,7 @@ import {
   useApiResource,
 } from "./lib";
 
-const KEYS_PAGE_CLASS =
-  "mx-auto flex min-h-full w-[min(100%,1380px)] flex-col gap-4 px-[clamp(24px,4vw,58px)] pt-[34px] pb-[54px]";
+const KEYS_PAGE_CLASS = "page gap-4";
 
 const KEYS_TOOLBAR_CLASS =
   "flex items-start justify-between gap-4 [&>div]:grid [&>div]:gap-0.5 [&_h2]:mt-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-base [&_h2]:font-semibold [&_h2]:leading-[1.2] [&_h2]:tracking-[-0.015em]";

@@ -124,7 +124,10 @@ async function applyInterfaceMode(
   await waitForViewportLayout(page);
 }
 
-async function auditInterfaceModes(page: Page): Promise<void> {
+async function auditInterfaceModes(
+  app: ElectronApplication,
+  page: Page,
+): Promise<void> {
   let auditedControls = 0;
   for (const mode of interfaceModes) {
     await applyInterfaceMode(page, mode);
@@ -176,7 +179,29 @@ async function auditInterfaceModes(page: Page): Promise<void> {
         overflow.view,
         `${mode.appearance}/${mode.density} ${route} view overflow`,
       ).toBeLessThanOrEqual(1);
+
+      await expectViewportGeometry(page, route, mode, desktopViewport);
     }
+
+    await resizeElectronWindow(app, narrowViewport);
+    await waitForViewportLayout(page);
+    await expectElectronViewport(page, narrowViewport);
+
+    for (const route of routes) {
+      await page.evaluate((nextRoute) => {
+        window.location.hash = `#/${nextRoute}`;
+      }, route);
+      const view = page.locator(`.view-container[data-view="${route}"]`);
+      await expect(view).toBeVisible();
+      await expect(page.locator(".recovery-shell")).toHaveCount(0);
+      await expect(
+        view.getByText("Opening view…", { exact: true }),
+      ).toHaveCount(0, { timeout: 15_000 });
+      await expectViewportGeometry(page, route, mode, narrowViewport);
+    }
+
+    await resizeElectronWindow(app, desktopViewport);
+    await waitForViewportLayout(page);
   }
   expect(auditedControls).toBeGreaterThan(0);
 }
@@ -318,6 +343,159 @@ async function expectElectronViewport(
     top: 0,
     width: viewport.width,
   });
+}
+
+async function expectViewportGeometry(
+  page: Page,
+  route: RouteName,
+  mode: (typeof interfaceModes)[number],
+  viewport: { height: number; width: number },
+): Promise<void> {
+  const geometry = await page.evaluate(
+    ({ route, viewport }) => {
+      const readBox = (selector: string) => {
+        const element = document.querySelector<HTMLElement>(selector);
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        return {
+          bottom: rect.bottom,
+          height: rect.height,
+          left: rect.left,
+          right: rect.right,
+          scrollWidth: element.scrollWidth,
+          top: rect.top,
+          width: rect.width,
+        };
+      };
+      const view = document.querySelector<HTMLElement>(
+        `.view-container[data-view="${route}"]`,
+      );
+      const rootStyle = getComputedStyle(document.documentElement);
+      const sidebar = document.querySelector<HTMLElement>(".app-sidebar");
+      const sidebarBox = readBox(".app-sidebar");
+
+      return {
+        composer: readBox(".chat-composer"),
+        documentOverflow:
+          document.documentElement.scrollWidth - window.innerWidth,
+        dragbar: readBox(".window-dragbar--chat"),
+        modelTrigger: readBox(".composer-model-trigger"),
+        sidebar: sidebarBox
+          ? {
+              ...sidebarBox,
+              hidden: sidebar?.getAttribute("aria-hidden") === "true",
+            }
+          : null,
+        tokens: {
+          controlHeight: Number.parseFloat(
+            rootStyle.getPropertyValue("--control-height"),
+          ),
+          sidebarWidth: Number.parseFloat(
+            rootStyle.getPropertyValue("--sidebar-width"),
+          ),
+          space: Number.parseFloat(rootStyle.getPropertyValue("--space-2")),
+        },
+        view: view
+          ? {
+              clientWidth: view.clientWidth,
+              height: view.getBoundingClientRect().height,
+              scrollWidth: view.scrollWidth,
+              width: view.getBoundingClientRect().width,
+            }
+          : null,
+        viewport,
+      };
+    },
+    { route, viewport },
+  );
+
+  const label = `${mode.appearance}/${mode.density} ${route} ${viewport.width}px`;
+  expect(geometry.view, `${label} route view`).not.toBeNull();
+  expect(
+    geometry.documentOverflow,
+    `${label} document overflow`,
+  ).toBeLessThanOrEqual(1);
+  expect(
+    geometry.view?.scrollWidth ?? Number.POSITIVE_INFINITY,
+    `${label} route view width`,
+  ).toBeLessThanOrEqual((geometry.view?.clientWidth ?? 0) + 1);
+  expect(
+    geometry.view?.width ?? 0,
+    `${label} route view visible width`,
+  ).toBeGreaterThan(0);
+  expect(
+    geometry.view?.width ?? Number.POSITIVE_INFINITY,
+    `${label} route view fits viewport`,
+  ).toBeLessThanOrEqual(viewport.width + 1);
+
+  expect(geometry.sidebar, `${label} sidebar`).not.toBeNull();
+  if (viewport.width > 940) {
+    expect(
+      geometry.sidebar?.hidden,
+      `${label} desktop sidebar visibility`,
+    ).toBeFalsy();
+    expect(
+      geometry.sidebar?.width ?? 0,
+      `${label} desktop sidebar follows width token`,
+    ).toBeGreaterThanOrEqual((geometry.tokens.sidebarWidth || 0) * 0.9);
+    expect(
+      geometry.sidebar?.width ?? Number.POSITIVE_INFINITY,
+      `${label} desktop sidebar remains proportionate`,
+    ).toBeLessThanOrEqual(
+      Math.min(viewport.width * 0.5, (geometry.tokens.sidebarWidth || 0) * 1.1),
+    );
+  } else {
+    expect(
+      geometry.sidebar?.hidden,
+      `${label} narrow sidebar closes`,
+    ).toBeTruthy();
+    expect(
+      geometry.sidebar?.width ?? Number.POSITIVE_INFINITY,
+      `${label} narrow sidebar remains a bounded overlay`,
+    ).toBeLessThanOrEqual(Math.min(viewport.width * 0.88, 320) + 1);
+  }
+
+  if (route !== "chat") return;
+
+  expect(geometry.dragbar, `${label} chat dragbar`).not.toBeNull();
+  expect(geometry.composer, `${label} chat composer`).not.toBeNull();
+  expect(geometry.modelTrigger, `${label} model selector`).not.toBeNull();
+
+  const controlHeight = geometry.tokens.controlHeight;
+  const spacing = geometry.tokens.space || 8;
+  expect(controlHeight, `${label} control-height token`).toBeGreaterThan(0);
+  expect(
+    geometry.dragbar?.height ?? 0,
+    `${label} chat dragbar density range`,
+  ).toBeGreaterThanOrEqual(controlHeight + spacing);
+  expect(
+    geometry.dragbar?.height ?? Number.POSITIVE_INFINITY,
+    `${label} chat dragbar density range`,
+  ).toBeLessThanOrEqual(controlHeight + spacing * 3);
+  expect(
+    geometry.composer?.width ?? Number.POSITIVE_INFINITY,
+    `${label} composer fits route view`,
+  ).toBeLessThanOrEqual((geometry.view?.clientWidth ?? 0) - spacing * 2);
+  expect(
+    geometry.composer?.width ?? 0,
+    `${label} composer remains usefully wide`,
+  ).toBeGreaterThan(Math.min(320, (geometry.view?.clientWidth ?? 0) * 0.45));
+  expect(
+    geometry.composer?.height ?? 0,
+    `${label} composer retains input and controls`,
+  ).toBeGreaterThanOrEqual(controlHeight * 2.5);
+  expect(
+    geometry.modelTrigger?.height ?? 0,
+    `${label} model selector follows density`,
+  ).toBeGreaterThanOrEqual(controlHeight - spacing);
+  expect(
+    geometry.modelTrigger?.height ?? Number.POSITIVE_INFINITY,
+    `${label} model selector follows density`,
+  ).toBeLessThanOrEqual(controlHeight + spacing);
+  expect(
+    geometry.modelTrigger?.width ?? Number.POSITIVE_INFINITY,
+    `${label} model selector remains contained`,
+  ).toBeLessThanOrEqual(Math.min(310 + spacing * 2, viewport.width * 0.42));
 }
 
 async function captureRouteScreenshots(
@@ -636,7 +814,7 @@ test.describe("Doolittle packaged-profile control sweep", () => {
       expect(consoleErrors, consoleErrors.join("\n\n")).toEqual([]);
 
       await resizeElectronWindow(app, desktopViewport);
-      await auditInterfaceModes(page);
+      await auditInterfaceModes(app, page);
       expect(pageErrors, pageErrors.join("\n\n")).toEqual([]);
       expect(consoleErrors, consoleErrors.join("\n\n")).toEqual([]);
 

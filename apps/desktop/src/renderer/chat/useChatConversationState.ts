@@ -19,6 +19,7 @@ import {
 import { newConversationId } from "../conversation-id";
 import {
   CONVERSATION_PINS_EVENT,
+  type ConversationDraft,
   loadConversationDrafts,
   loadConversationPins,
   type StorageLike,
@@ -27,6 +28,10 @@ import {
   saveConversationPins,
 } from "../conversation-persistence";
 import { desktopRequest, errorMessage } from "../lib";
+import {
+  canRestoreRejectedDispatch,
+  type DraftDispatchRecovery,
+} from "./draft-dispatch-recovery";
 import type {
   ChatContextMessageCapsule,
   ConversationStore,
@@ -305,6 +310,13 @@ export function useChatConversationState({
   const [loadingHistory, setLoadingHistory] = useState("");
   const [historyRetryVersion, setHistoryRetryVersion] = useState(0);
   const requestedHistory = useRef(new Set<string>());
+  const draftRevisions = useRef<Record<string, number>>({});
+
+  const bumpDraftRevision = useCallback((sessionId: string) => {
+    const revision = (draftRevisions.current[sessionId] ?? 0) + 1;
+    draftRevisions.current[sessionId] = revision;
+    return revision;
+  }, []);
 
   const draftState = conversationDrafts[draftSessionId] ?? {
     text: "",
@@ -316,6 +328,7 @@ export function useChatConversationState({
   const draftAttachments = draftState.attachments;
   const setDraft = useCallback(
     (nextValue: SetStateAction<string>) => {
+      bumpDraftRevision(draftSessionId);
       setConversationDrafts((current) => {
         const previous = current[draftSessionId] ?? {
           text: "",
@@ -338,7 +351,7 @@ export function useChatConversationState({
         };
       });
     },
-    [draftSessionId],
+    [bumpDraftRevision, draftSessionId],
   );
 
   const setDraftForSession = useCallback(
@@ -347,16 +360,18 @@ export function useChatConversationState({
       value: string,
       attachments: ManagedAttachmentDescriptor[] = [],
     ) => {
+      bumpDraftRevision(sessionId);
       setConversationDrafts((current) => ({
         ...current,
         [sessionId]: { text: value, capsule: null, attachments },
       }));
     },
-    [],
+    [bumpDraftRevision],
   );
 
   const setChatContextCapsule = useCallback(
     (capsule: ChatContextCapsule | null) => {
+      bumpDraftRevision(draftSessionId);
       setConversationDrafts((current) => {
         const previous = current[draftSessionId] ?? {
           text: "",
@@ -375,11 +390,12 @@ export function useChatConversationState({
         };
       });
     },
-    [draftSessionId],
+    [bumpDraftRevision, draftSessionId],
   );
 
   const setDraftAttachments = useCallback(
     (attachments: ManagedAttachmentDescriptor[]) => {
+      bumpDraftRevision(draftSessionId);
       setConversationDrafts((current) => {
         const previous = current[draftSessionId] ?? {
           text: "",
@@ -398,7 +414,41 @@ export function useChatConversationState({
         };
       });
     },
-    [draftSessionId],
+    [bumpDraftRevision, draftSessionId],
+  );
+
+  const clearDraftForDispatch = useCallback(
+    (sessionId: string) => {
+      const revision = bumpDraftRevision(sessionId);
+      setConversationDrafts((current) => {
+        if (!Object.hasOwn(current, sessionId)) return current;
+        const updated = { ...current };
+        delete updated[sessionId];
+        return updated;
+      });
+      return revision;
+    },
+    [bumpDraftRevision],
+  );
+
+  const restoreDraftAfterRejectedDispatch = useCallback(
+    (recovery: DraftDispatchRecovery) => {
+      if (
+        !canRestoreRejectedDispatch(
+          recovery,
+          draftRevisions.current[recovery.sessionId] ?? 0,
+        )
+      ) {
+        return false;
+      }
+      bumpDraftRevision(recovery.sessionId);
+      setConversationDrafts((current) => ({
+        ...current,
+        [recovery.sessionId]: recovery.draft satisfies ConversationDraft,
+      }));
+      return true;
+    },
+    [bumpDraftRevision],
   );
 
   const togglePin = useCallback((sessionId: string) => {
@@ -606,12 +656,14 @@ export function useChatConversationState({
 
   return {
     chatContextCapsule,
+    clearDraftForDispatch,
     draft,
     draftAttachments,
     historyError,
     loadingHistory,
     storageWarning,
     retryHistory,
+    restoreDraftAfterRejectedDispatch,
     selectedMessages: messages[selectedId] ?? [],
     selectedSession: sessions.find(
       (session) => session.sessionId === selectedId,

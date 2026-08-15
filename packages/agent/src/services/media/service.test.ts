@@ -1,4 +1,10 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ModelType, ServiceType } from "@elizaos/core";
@@ -285,6 +291,35 @@ describe("MediaService", () => {
       expect(existsSync(transcription.promptPath)).toBe(true);
       expect(existsSync(transcription.reportPath)).toBe(true);
       expect(existsSync(transcription.manifestPath)).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("isolates transient transcription artifacts from the durable media directory", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-media-transient-"));
+    const durableOutputDir = join(root, "media");
+    const transientOutputDir = join(root, "dictation", "artifacts");
+    const service = new MediaService(root, durableOutputDir);
+    const audioPath = join(root, "dictation.wav");
+
+    try {
+      writeFileSync(audioPath, ONE_SECOND_WAV);
+      const transcription = await service.transcribeTransient(
+        audioPath,
+        transientOutputDir,
+        { name: "private-dictation" },
+      );
+
+      expect(transcription.transcriptPath.startsWith(transientOutputDir)).toBe(
+        true,
+      );
+      expect(
+        transcription.bundle.manifestPath.startsWith(transientOutputDir),
+      ).toBe(true);
+      expect(existsSync(transcription.transcriptPath)).toBe(true);
+      expect(existsSync(transcription.bundle.manifestPath)).toBe(true);
+      expect(readdirSync(durableOutputDir)).toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -6,6 +6,14 @@ const keysPage = readFileSync(
   "utf8",
 );
 describe("keys workspace layout", () => {
+  it("uses the shared page shell instead of owning route geometry", () => {
+    expect(keysPage).toContain('const KEYS_PAGE_CLASS = "page gap-4"');
+    expect(keysPage).not.toContain("w-[min(100%,1380px)]");
+    expect(keysPage).not.toContain("px-[clamp(24px,4vw,58px)]");
+    expect(keysPage).not.toContain("pt-[34px]");
+    expect(keysPage).not.toContain("pb-[54px]");
+  });
+
   it("removes the unused inventory column only after an empty response", () => {
     expect(keysPage).toContain(
       "!secrets.loading && !secrets.error && keys.length === 0",

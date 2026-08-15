@@ -161,6 +161,7 @@ describe("runtime-state route density", () => {
   it("switches bounded memory targets without rendering tab descriptions", () => {
     act(() => root.render(<MemoryPage active />));
 
+    expect(container.firstElementChild?.classList.contains("page")).toBe(true);
     const user = container.querySelector<HTMLButtonElement>(
       '[aria-label="User: Saved operator details for the current desktop user"]',
     );

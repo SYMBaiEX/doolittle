@@ -40,7 +40,7 @@ export class MediaService {
   private runtime?: IAgentRuntime;
 
   constructor(
-    workspaceDirectory: WorkspaceDirectorySource,
+    private readonly workspaceDirectory: WorkspaceDirectorySource,
     private readonly outputDir = ".doolittle/media",
     private readonly getModelContext?: () => MediaModelContext,
     private readonly textAnalysisPort?: MediaTextAnalysisPort,
@@ -131,16 +131,52 @@ export class MediaService {
     path: string,
     options: MediaTranscriptionOptions = {},
   ): Promise<MediaTranscriptionBundle> {
+    return this.executeTranscription(
+      path,
+      options,
+      this.outputDir,
+      this.inspectionSupport,
+    );
+  }
+
+  /**
+   * Runs a transcription whose inspection bundle and derived artifacts belong
+   * to a caller-owned temporary directory rather than the durable media store.
+   * The caller is responsible for removing outputDir in a finally block.
+   */
+  async transcribeTransient(
+    path: string,
+    outputDir: string,
+    options: MediaTranscriptionOptions = {},
+  ): Promise<MediaTranscriptionBundle> {
+    const inspectionSupport = new MediaInspectionSupport(
+      this.workspaceDirectory,
+      outputDir,
+    );
+    return this.executeTranscription(
+      path,
+      options,
+      outputDir,
+      inspectionSupport,
+    );
+  }
+
+  private async executeTranscription(
+    path: string,
+    options: MediaTranscriptionOptions,
+    outputDir: string,
+    inspectionSupport: MediaInspectionSupport,
+  ): Promise<MediaTranscriptionBundle> {
     return executeMediaTranscription({
-      outputDir: this.outputDir,
+      outputDir,
       path,
       options,
       modelContext: this.getModelContext?.(),
       dependencies: {
-        inspect: (p) => this.inspect(p),
-        bundle: (p) => this.bundle(p),
+        inspect: (p) => inspectionSupport.inspect(p),
+        bundle: (p) => inspectionSupport.bundle(p),
         buildSignals: (inspection) =>
-          this.inspectionSupport.buildSignals(inspection),
+          inspectionSupport.buildSignals(inspection),
         requestModelText: (requestPrompt, _modelContext, metadata) =>
           this.requestTextAnalysis(requestPrompt, metadata),
         requestTranscription: (mediaPath) =>
