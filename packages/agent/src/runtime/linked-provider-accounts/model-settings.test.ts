@@ -151,6 +151,30 @@ describe("syncProviderSettings", () => {
     expect(runtimeSettings.get("OPENAI_REASONING_EFFORT")).toBeNull();
   });
 
+  it("keeps the selected Codex reasoning effort in the scoped runtime settings envelope", () => {
+    const settings = {
+      model: {
+        provider: "codex",
+        model: "gpt-5.6-sol",
+        baseUrl: "https://ignored.example",
+        reasoningEffort: "max",
+      },
+    } as ReturnType<AgentExecutionContext["services"]["settings"]["get"]>;
+    const context = {
+      runtime: { getSetting: () => undefined },
+      config: {},
+      services: { settings: { get: () => settings } },
+    } as unknown as AgentExecutionContext;
+
+    const envelope = buildProviderRuntimeSettings(context, settings).get(
+      "runtimeSettings",
+    );
+
+    expect(JSON.parse(String(envelope))).toMatchObject({
+      model: { provider: "codex", reasoningEffort: "max" },
+    });
+  });
+
   it("maps Codex selection to the official Eliza Codex plugin settings", () => {
     const runtimeSettings = new Map<string, string>();
     const context = {

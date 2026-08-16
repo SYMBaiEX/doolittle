@@ -42,6 +42,13 @@ export function shouldHideOnClose(
   return state.keepRunningInBackground && !quitting;
 }
 
+/** The final window ends the process unless background mode was explicitly enabled. */
+export function shouldQuitAfterAllWindowsClosed(
+  state: DesktopLifecycleState,
+): boolean {
+  return !state.keepRunningInBackground;
+}
+
 export function handleWindowClose(
   window: Pick<BrowserWindow, "hide">,
   event: Pick<Electron.Event, "preventDefault">,

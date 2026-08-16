@@ -8,7 +8,10 @@ import type {
 } from "@elizaos/core";
 import { executeSlashCommand } from "@/runtime/chat";
 import { getCommandCatalogEntries } from "@/runtime/command-catalog";
-import { getScopedTurnCommandHooks } from "@/runtime/turn-runtime-scope";
+import {
+  getScopedTurnAbortSignal,
+  getScopedTurnCommandHooks,
+} from "@/runtime/turn-runtime-scope";
 import type { AppServices } from "@/services";
 import type { EnvConfig } from "@/types/runtime";
 import { messageText } from "@/utils/eliza-compat";
@@ -103,10 +106,14 @@ export function createCommandAction(
       _options,
       callback,
     ): Promise<ActionResult> => {
+      const commandHooks = getScopedTurnCommandHooks(runtime);
+      const abortSignal = getScopedTurnAbortSignal(runtime);
       const response = await executeSlashCommand(
         commandInput(message),
         { config, services, runtime },
-        getScopedTurnCommandHooks(runtime),
+        commandHooks || abortSignal
+          ? { ...commandHooks, abortSignal }
+          : undefined,
       );
       if (!response) {
         const text = "The explicit command was not recognized.";

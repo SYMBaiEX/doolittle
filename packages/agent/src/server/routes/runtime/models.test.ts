@@ -239,6 +239,7 @@ describe("runtime model discovery", () => {
     expect(codexReasoning?.options).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: "low" }),
+        expect.objectContaining({ id: "xhigh" }),
         expect.objectContaining({ id: "max" }),
       ]),
     );
@@ -278,6 +279,27 @@ describe("runtime model discovery", () => {
             { id: "high", label: "high", description: "Deep" },
           ],
         },
+      },
+    ]);
+  });
+
+  it("does not advertise a Codex reasoning level the compatibility transport cannot send", () => {
+    expect(
+      parseCodexModelCache({
+        models: [
+          {
+            slug: "gpt-5.6-sol",
+            supported_reasoning_levels: [
+              { effort: "minimal" },
+              { effort: "max" },
+              { effort: "ultra" },
+            ],
+          },
+        ],
+      }),
+    ).toMatchObject([
+      {
+        reasoning: { options: [{ id: "max" }] },
       },
     ]);
   });

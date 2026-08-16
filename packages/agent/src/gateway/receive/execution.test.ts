@@ -153,6 +153,53 @@ describe("executeGatewayReceiveTurn", () => {
     );
   });
 
+  it("ignores a historical cross-session binding for a nonlocal gateway", async () => {
+    const executeTurn = vi.fn(async () => ({
+      response: "done",
+      sessionId: "gateway-session",
+    }));
+    const deps = {
+      context: {
+        config: { workspaceDir: "/workspace/active" } as never,
+        runtime: {} as never,
+        services: { runController: new RunControllerService() } as never,
+      },
+      message: {
+        platform: "slack",
+        userId: "gateway-user",
+        roomId: "gateway-room",
+        text: "show my messages",
+      },
+      session: {
+        sessionKey: "gateway-session",
+        activeAgentSessionId: "private-local-session",
+        platform: "slack",
+      },
+      adapter: undefined,
+      recordInbox: vi.fn(),
+      recordOutbox: vi.fn(),
+      pushTrace: vi.fn(),
+      observeAdapter: vi.fn(),
+      editDelivery: vi.fn(),
+      snapshotState: vi.fn(),
+      createProgressiveQueue: () => ({
+        queueProgressFlush: vi.fn(async () => undefined),
+        getProgressiveDelivery: () => undefined,
+        getProgressiveFailure: () => undefined,
+      }),
+      executeTurn,
+    } as never;
+
+    const result = await executeGatewayReceiveTurn(deps);
+
+    expect(result.runSessionId).toBe("gateway-session");
+    expect(executeTurn).toHaveBeenCalledWith(
+      expect.objectContaining({ roomId: "gateway-session" }),
+      expect.anything(),
+      expect.any(Object),
+    );
+  });
+
   it("leases the active workspace for the turn and releases it after success", async () => {
     const runController = new RunControllerService();
     const registerWorkspaceRun = vi.spyOn(

@@ -70,9 +70,12 @@ export function createTurnState(
     localInteractive,
     connectionSource,
     sessionId: roomKey,
-    roomId: cliInteractive
-      ? stableRuntimeUuid(`${agentName}-chat-room`)
-      : stableRuntimeUuid(roomKey),
+    // The CLI's message server is process-wide, but each selected CLI session
+    // needs its own native room. Reusing one agent-global room leaks native
+    // Eliza context when a user resumes or starts another CLI session.
+    // Existing shared CLI-room memories are intentionally not migrated here:
+    // they cannot be assigned safely to a single session after the fact.
+    roomId: stableRuntimeUuid(roomKey),
     worldId: createUniqueUuid(context.runtime, messageServerId),
     entityId: stableRuntimeUuid(input.userId),
     messageServerId,

@@ -151,9 +151,11 @@ jobs:
           zip_path="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-mac-arm64.zip' -print -quit)"
           mount_path="$(mktemp -d)"
           zip_path_root="$(mktemp -d)"
+          install_root="$(mktemp -d "$RUNNER_TEMP/doolittle-install.XXXXXX")"
+          installed_app="$install_root/Applications/Doolittle.app"
           cleanup_release_mounts() {
             hdiutil detach "$mount_path" -quiet 2>/dev/null || true
-            rm -rf "$mount_path" "$zip_path_root"
+            rm -rf "$mount_path" "$zip_path_root" "$install_root"
           }
           trap cleanup_release_mounts EXIT
 
@@ -163,6 +165,14 @@ jobs:
           xcrun stapler validate "$mount_path/Doolittle.app"
           spctl --assess --type execute --verbose=2 "$mount_path/Doolittle.app"
           DOOLITTLE_DESKTOP_EXECUTABLE="$mount_path/Doolittle.app/Contents/MacOS/Doolittle" nub run test:e2e:desktop-packaged
+
+          mkdir -p "$(dirname "$installed_app")"
+          ditto "$mount_path/Doolittle.app" "$installed_app"
+          cmp "$app_path/Contents/Resources/app.asar" "$installed_app/Contents/Resources/app.asar"
+          codesign --verify --deep --strict --verbose=2 "$installed_app"
+          xcrun stapler validate "$installed_app"
+          spctl --assess --type execute --verbose=2 "$installed_app"
+          DOOLITTLE_DESKTOP_EXECUTABLE="$installed_app/Contents/MacOS/Doolittle" nub run test:e2e:desktop-packaged
 
           ditto -x -k "$zip_path" "$zip_path_root"
           cmp "$app_path/Contents/Resources/app.asar" "$zip_path_root/Doolittle.app/Contents/Resources/app.asar"

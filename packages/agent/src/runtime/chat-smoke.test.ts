@@ -130,6 +130,110 @@ describe("chat turn orchestration", () => {
     );
   });
 
+  it("forwards a cancelled /compress analysis signal and does not mutate history", async () => {
+    const controller = new AbortController();
+    const abortError = new Error("model analysis cancelled");
+    abortError.name = "AbortError";
+    const runModelAnalysis = vi.fn(
+      async (
+        _context: AgentExecutionContext,
+        _prompt: string,
+        options: { abortSignal?: AbortSignal },
+      ) => {
+        expect(options.abortSignal).toBe(controller.signal);
+        controller.abort();
+        throw abortError;
+      },
+    );
+    const replaceSessionMessages = vi.fn();
+    const createMemory = vi.fn();
+    const deleteMemory = vi.fn();
+    vi.doUnmock("@/runtime/chat-command-router");
+    vi.doMock("@/runtime/model-analysis", () => ({ runModelAnalysis }));
+    vi.doMock("@/runtime/native/service-bridge/ownership", () => ({
+      getEffectiveActivePersonality: () => ({ id: "primary" }),
+      getEffectiveUserProfile: () => undefined,
+    }));
+
+    const { executeSlashCommand } = await loadHandleAgentTurn();
+    const context = createContext({
+      runtime: {
+        ...createContext().runtime,
+        createMemory,
+        deleteMemory,
+      },
+      services: {
+        ...createContext().services,
+        sessions: {
+          messagesBySession: () => [
+            {
+              id: "00000000-0000-4000-8000-000000000001",
+              sessionId: "room:alice",
+              roomId: "00000000-0000-4000-8000-000000000003",
+              entityId: "alice",
+              role: "user",
+              text: "first",
+              createdAt: "2026-01-01T00:00:00.000Z",
+            },
+            {
+              id: "00000000-0000-4000-8000-000000000004",
+              sessionId: "room:alice",
+              roomId: "00000000-0000-4000-8000-000000000003",
+              entityId: "agent",
+              role: "assistant",
+              text: "second",
+              createdAt: "2026-01-01T00:00:01.000Z",
+            },
+            {
+              id: "00000000-0000-4000-8000-000000000005",
+              sessionId: "room:alice",
+              roomId: "00000000-0000-4000-8000-000000000003",
+              entityId: "alice",
+              role: "user",
+              text: "third",
+              createdAt: "2026-01-01T00:00:02.000Z",
+            },
+            {
+              id: "00000000-0000-4000-8000-000000000006",
+              sessionId: "room:alice",
+              roomId: "00000000-0000-4000-8000-000000000003",
+              entityId: "agent",
+              role: "assistant",
+              text: "fourth",
+              createdAt: "2026-01-01T00:00:03.000Z",
+            },
+            {
+              id: "00000000-0000-4000-8000-000000000007",
+              sessionId: "room:alice",
+              roomId: "00000000-0000-4000-8000-000000000003",
+              entityId: "alice",
+              role: "user",
+              text: "fifth",
+              createdAt: "2026-01-01T00:00:04.000Z",
+            },
+          ],
+          replaceSessionMessages,
+        } as never,
+        contextCompression: {
+          measure: () => ({ estimatedTokens: 1 }),
+        } as never,
+        trajectoryEvaluation: {
+          recordEvent: vi.fn(),
+        } as never,
+      },
+    });
+
+    await expect(
+      executeSlashCommand(createInput("/compress"), context, {
+        abortSignal: controller.signal,
+      }),
+    ).rejects.toBe(abortError);
+    expect(runModelAnalysis).toHaveBeenCalledTimes(1);
+    expect(replaceSessionMessages).not.toHaveBeenCalled();
+    expect(createMemory).not.toHaveBeenCalled();
+    expect(deleteMemory).not.toHaveBeenCalled();
+  });
+
   it("routes explicit commands through the SDK message lifecycle", async () => {
     let effectiveInput: ChatTurnRequest | undefined;
     const runPostCommandTurn = vi.fn(

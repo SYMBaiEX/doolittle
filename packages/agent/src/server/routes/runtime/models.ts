@@ -465,16 +465,7 @@ function parseCodexReasoningCapability(
     const id = record.effort;
     if (
       typeof id !== "string" ||
-      ![
-        "none",
-        "minimal",
-        "low",
-        "medium",
-        "high",
-        "xhigh",
-        "max",
-        "ultra",
-      ].includes(id)
+      !["none", "low", "medium", "high", "xhigh", "max"].includes(id)
     ) {
       return [];
     }

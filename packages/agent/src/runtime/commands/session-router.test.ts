@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext } from "../chat";
 import type { ChatCommandRouterDependencies } from "../chat-command-router/types";
@@ -22,30 +22,17 @@ const dependencies: ChatCommandRouterDependencies = {
 };
 
 describe("session command router", () => {
-  it("searches session history and lists sessions", async () => {
+  it("denies global session search and listing to a Telegram sender", async () => {
+    const searchSessions = vi.fn(() => []);
+    const listSessions = vi.fn(() => []);
     const context = {
       config: {
         sessionSearchLimit: 5,
       },
       services: {
         sessions: {
-          search: () => [
-            {
-              createdAt: "2026-03-28T00:00:00.000Z",
-              role: "user",
-              sessionId: "session-1",
-              text: "prior note",
-            },
-          ],
-          listSessions: () => [
-            {
-              sessionId: "session-1",
-              messageCount: 4,
-              startedAt: "2026-03-28T00:00:00.000Z",
-              endedAt: null,
-              participants: ["user-1"],
-            },
-          ],
+          search: searchSessions,
+          listSessions,
         },
         gatewaySessions: {
           get: () => undefined,
@@ -68,32 +55,44 @@ describe("session command router", () => {
       dependencies,
     );
 
-    expect(search).toContain("session=session-1");
-    expect(sessions).toContain("messages=4");
+    expect(search).toBe(
+      "Global session history is available only to a local or authenticated API operator.",
+    );
+    expect(sessions).toBe(search);
+    expect(searchSessions).not.toHaveBeenCalled();
+    expect(context.services.sessions.listSessions).not.toHaveBeenCalled();
+
+    await expect(
+      handleSessionCommand(
+        createInput({ message: "/search prior", source: "cli" }),
+        "/search prior",
+        "session-1",
+        context,
+        dependencies,
+      ),
+    ).resolves.toBe("No prior session matches found.");
+    await expect(
+      handleSessionCommand(
+        createInput({ message: "/sessions", source: "api" }),
+        "/sessions",
+        "session-1",
+        context,
+        dependencies,
+      ),
+    ).resolves.toBe("No sessions recorded.");
+    expect(searchSessions).toHaveBeenCalledOnce();
+    expect(listSessions).toHaveBeenCalledOnce();
   });
 
-  it("lists titled sessions and resumes onto an active gateway route", async () => {
+  it("does not let a Telegram sender list or resume another session", async () => {
     const activated: Array<{ sessionKey: string; sessionId: string }> = [];
+    const listTitled = vi.fn(() => []);
+    const resolveByTitle = vi.fn(() => undefined);
     const context = {
       services: {
         sessions: {
-          listTitled: () => [
-            {
-              sessionId: "session-2",
-              title: "alpha",
-              messageCount: 8,
-              endedAt: null,
-            },
-          ],
-          resolveByTitle: (query: string) =>
-            query === "alpha"
-              ? {
-                  sessionId: "session-2",
-                  title: "alpha",
-                  messageCount: 8,
-                  endedAt: null,
-                }
-              : undefined,
+          listTitled,
+          resolveByTitle,
         },
         gatewaySessions: {
           get: () => ({ sessionKey: "telegram:room-1:user-1:root" }),
@@ -119,17 +118,14 @@ describe("session command router", () => {
       dependencies,
     );
 
-    expect(listed).toContain("alpha");
-    expect(resumed).toContain("Resumed session alpha.");
-    expect(activated).toEqual([
-      {
-        sessionKey: "telegram:room-1:user-1:root",
-        sessionId: "session-2",
-      },
-    ]);
+    expect(listed).toContain("only to a local or authenticated API operator");
+    expect(resumed).toBe(listed);
+    expect(listTitled).not.toHaveBeenCalled();
+    expect(resolveByTitle).not.toHaveBeenCalled();
+    expect(activated).toEqual([]);
   });
 
-  it("renames sessions and reports continuity, summary, and usage", async () => {
+  it("preserves global session controls for local and authenticated API operators", async () => {
     const context = {
       services: {
         sessions: {
@@ -185,7 +181,10 @@ describe("session command router", () => {
     ).toContain('"title": "focus"');
     expect(
       await handleSessionCommand(
-        createInput({ message: "/session title session-2 :: archive" }),
+        createInput({
+          message: "/session title session-2 :: archive",
+          source: "cli",
+        }),
         "/session title session-2 :: archive",
         "session-1",
         context,
@@ -194,7 +193,10 @@ describe("session command router", () => {
     ).toContain('"sessionId": "session-2"');
     expect(
       await handleSessionCommand(
-        createInput({ message: "/session continuity session-2" }),
+        createInput({
+          message: "/session continuity session-2",
+          source: "desktop",
+        }),
         "/session continuity session-2",
         "session-1",
         context,
@@ -212,13 +214,93 @@ describe("session command router", () => {
     ).toContain('"sessionId": "session-1"');
     expect(
       await handleSessionCommand(
-        createInput({ message: "/usage alpha" }),
+        createInput({ message: "/usage alpha", source: "api" }),
         "/usage alpha",
         "session-1",
         context,
         dependencies,
       ),
     ).toContain("session: session-2");
+  });
+
+  it("allows current-session controls but denies other-session controls to a gateway sender", async () => {
+    const rename = vi.fn((sessionId: string) => ({ sessionId }));
+    const continuity = vi.fn((sessionId: string) => ({ sessionId }));
+    const summarize = vi.fn((sessionId: string) => ({ sessionId }));
+    const usage = vi.fn((sessionId: string) => ({
+      sessionId,
+      messageCount: 0,
+      userMessages: 0,
+      assistantMessages: 0,
+      systemMessages: 0,
+      characterCount: 0,
+      estimatedTokens: 0,
+    }));
+    const context = {
+      services: {
+        sessions: {
+          rename,
+          continuity,
+          summarize,
+          usage,
+          messagesBySession: () => [],
+        },
+        contextCompression: {
+          measure: () => ({
+            estimatedTokens: 0,
+            contextWindowTokens: 100,
+            usageFraction: 0,
+            overThreshold: false,
+          }),
+        },
+      },
+    } as unknown as AgentExecutionContext;
+    const sessionKey = "slack:room-1:user-1:root";
+
+    await expect(
+      handleSessionCommand(
+        createInput({ source: "slack", message: "/title mine" }),
+        "/title mine",
+        sessionKey,
+        context,
+        dependencies,
+      ),
+    ).resolves.toContain(sessionKey);
+    await expect(
+      handleSessionCommand(
+        createInput({ source: "slack", message: "/session summary" }),
+        "/session summary",
+        sessionKey,
+        context,
+        dependencies,
+      ),
+    ).resolves.toContain(sessionKey);
+    await expect(
+      handleSessionCommand(
+        createInput({
+          source: "slack",
+          message: "/session continuity another-session",
+        }),
+        "/session continuity another-session",
+        sessionKey,
+        context,
+        dependencies,
+      ),
+    ).resolves.toContain("only to a local or authenticated API operator");
+    await expect(
+      handleSessionCommand(
+        createInput({ source: "slack", message: "/usage another-session" }),
+        "/usage another-session",
+        sessionKey,
+        context,
+        dependencies,
+      ),
+    ).resolves.toContain("only to a local or authenticated API operator");
+
+    expect(rename).toHaveBeenCalledWith(sessionKey, "mine");
+    expect(summarize).toHaveBeenCalledWith(sessionKey);
+    expect(continuity).not.toHaveBeenCalled();
+    expect(usage).not.toHaveBeenCalled();
   });
 
   it("undoes the latest conversational exchange through session memory", async () => {

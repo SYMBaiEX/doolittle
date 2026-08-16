@@ -16,6 +16,7 @@ const { executeSlashCommand } = vi.hoisted(() => ({
       _input: unknown,
       _context: unknown,
       _hooks?: {
+        abortSignal?: AbortSignal;
         runLocalShellCommand?: (params: {
           command: string;
           afterSuccessConnectProvider?: "codex";
@@ -125,6 +126,7 @@ describe("SDK command action", () => {
       getSetting: () => undefined,
     } as unknown as IAgentRuntime & { getSetting: (key: string) => unknown };
     const runLocalShellCommand = vi.fn(async () => "Authenticated Codex.");
+    const controller = new AbortController();
     executeSlashCommand.mockImplementationOnce(
       async (_input, _context, hooks) => {
         await hooks?.runLocalShellCommand?.({
@@ -139,6 +141,7 @@ describe("SDK command action", () => {
       runtime,
       {
         settings: new Map(),
+        abortSignal: controller.signal,
         commandHooks: { runLocalShellCommand },
       },
       () =>
@@ -162,7 +165,10 @@ describe("SDK command action", () => {
         source: "cli",
       },
       expect.objectContaining({ config, runtime, services }),
-      expect.objectContaining({ runLocalShellCommand }),
+      expect.objectContaining({
+        abortSignal: controller.signal,
+        runLocalShellCommand,
+      }),
     );
     expect(runLocalShellCommand).toHaveBeenCalledWith({
       command: "codex login",

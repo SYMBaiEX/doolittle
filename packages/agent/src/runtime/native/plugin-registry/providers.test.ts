@@ -69,6 +69,7 @@ describe("loadProviderPlugins", () => {
     expect(codex?.models?.[ModelType.RESPONSE_HANDLER]).toBeTypeOf("function");
     expect(codex?.models?.[ModelType.ACTION_PLANNER]).toBeTypeOf("function");
     expect(codex?.services).toBeUndefined();
+    expect(codex?.description).toContain("Codex");
   });
 
   it("uses the official Anthropic plugin for linked OAuth, tools, and planning", async () => {

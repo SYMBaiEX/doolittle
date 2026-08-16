@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createProgressiveDeliveryQueue } from "@/gateway/outbound/builders";
 import { formatRunEvent, shouldRenderRunEvent } from "@/runtime/run-progress";
+import { hasGlobalSessionOperatorAccess } from "@/runtime/session-operator-policy";
 import { executeAgentTurnWithProgress } from "@/runtime/turn-stream";
 import type { RunUpdateEvent } from "@/services/run-controller-service";
 import type { SessionRoute } from "@/types/gateway";
@@ -68,8 +69,12 @@ export async function executeGatewayReceiveTurn(
     session: deps.session,
     editDelivery: deps.editDelivery,
   });
-  const trackedSessionId =
-    deps.session.activeAgentSessionId ?? deps.session.sessionKey;
+  // Older gateway routes may retain an active session selected before
+  // platform-scoped operator authorization existed. Never let a nonlocal
+  // connector inherit that cross-session binding during execution.
+  const trackedSessionId = hasGlobalSessionOperatorAccess(deps.message.platform)
+    ? (deps.session.activeAgentSessionId ?? deps.session.sessionKey)
+    : deps.session.sessionKey;
   const runId = gatewayRunId(deps);
   const releaseWorkspace =
     deps.context.services.runController.registerWorkspaceRun(

@@ -112,6 +112,7 @@ export async function executeSlashCommand(
       runModelAnalysis(context, prompt, {
         label,
         personalityId: getEffectiveActivePersonality(context.runtime).id,
+        abortSignal: hooks?.abortSignal,
       }),
     executeDelegationTask: async (taskId) => {
       const task = await executeEffectiveDelegationTask(

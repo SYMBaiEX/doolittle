@@ -4,6 +4,7 @@ import {
   ensureDesktopWindow,
   handleWindowClose,
   shouldHideOnClose,
+  shouldQuitAfterAllWindowsClosed,
   shouldStayOnDirtyClosePrompt,
 } from "./desktop-lifecycle";
 
@@ -57,6 +58,15 @@ describe("desktop background lifecycle", () => {
     expect(shouldHideOnClose({ keepRunningInBackground: true }, false)).toBe(
       true,
     );
+  });
+
+  it("quits after the final window unless background mode is enabled", () => {
+    expect(
+      shouldQuitAfterAllWindowsClosed({ keepRunningInBackground: false }),
+    ).toBe(true);
+    expect(
+      shouldQuitAfterAllWindowsClosed({ keepRunningInBackground: true }),
+    ).toBe(false);
   });
 
   it("never intercepts an explicit quit", () => {

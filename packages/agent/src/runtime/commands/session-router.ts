@@ -7,6 +7,11 @@ import {
   deleteNativeConversationMemories,
   replaceNativeConversationContext,
 } from "../chat-turn/conversation-persistence";
+import {
+  GLOBAL_SESSION_ACCESS_DENIED,
+  hasGlobalSessionOperatorAccess,
+  requiresGlobalSessionOperatorAccess,
+} from "../session-operator-policy";
 
 function buildCompressionPrompt(input: {
   focus: string;
@@ -268,6 +273,13 @@ export async function handleSessionCommand(
   context: AgentExecutionContext,
   dependencies: ChatCommandRouterDependencies,
 ): Promise<string | undefined> {
+  if (
+    requiresGlobalSessionOperatorAccess(trimmed, sessionKey) &&
+    !hasGlobalSessionOperatorAccess(input.source)
+  ) {
+    return GLOBAL_SESSION_ACCESS_DENIED;
+  }
+
   const compression = await handleConversationCompression(
     input,
     trimmed,

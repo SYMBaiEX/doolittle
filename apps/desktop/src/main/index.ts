@@ -24,8 +24,10 @@ import {
 } from "./backend";
 import {
   configureDesktopSingleInstance,
+  DEFAULT_DESKTOP_LIFECYCLE_STATE,
   ensureDesktopWindow,
   handleWindowClose,
+  shouldQuitAfterAllWindowsClosed,
   shouldStayOnDirtyClosePrompt,
 } from "./desktop-lifecycle";
 import { DesktopPreferences } from "./desktop-preferences";
@@ -734,5 +736,11 @@ app.on("before-quit", (event) => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+  if (
+    shouldQuitAfterAllWindowsClosed(
+      desktopPreferences?.getState() ?? DEFAULT_DESKTOP_LIFECYCLE_STATE,
+    )
+  ) {
+    app.quit();
+  }
 });

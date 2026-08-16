@@ -60,10 +60,17 @@ describe("atomic desktop release workflow", () => {
 
     expect(mac).toContain("hdiutil attach");
     expect(mac).toContain("ditto -x -k");
-    expect(mac.match(/spctl --assess/gu)?.length).toBeGreaterThanOrEqual(3);
+    expect(mac).toContain(
+      'installed_app="$install_root/Applications/Doolittle.app"',
+    );
+    expect(mac).toContain('ditto "$mount_path/Doolittle.app" "$installed_app"');
+    expect(mac).toContain(
+      'rm -rf "$mount_path" "$zip_path_root" "$install_root"',
+    );
+    expect(mac.match(/spctl --assess/gu)?.length).toBeGreaterThanOrEqual(4);
     expect(
       mac.match(/nub run test:e2e:desktop-packaged/gu)?.length,
-    ).toBeGreaterThanOrEqual(3);
+    ).toBeGreaterThanOrEqual(4);
     expect(windows).toContain(
       "Install, launch, and uninstall the NSIS artifact",
     );
@@ -76,7 +83,7 @@ describe("atomic desktop release workflow", () => {
     expect(windows).toContain("desktop-provenance-windows.json");
     expect(linux).toContain("desktop-provenance-linux.json");
     expect(mac).toContain("verify-package.ts --verify-signature");
-    expect(mac.match(/cmp .*app\.asar/gu)).toHaveLength(2);
+    expect(mac.match(/cmp .*app\.asar/gu)).toHaveLength(3);
     expect(windows).toContain("Get-FileHash $installedAsar");
     expect(linux.match(/cmp .*app\.asar/gu)).toHaveLength(2);
   });

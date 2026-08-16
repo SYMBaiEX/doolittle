@@ -8,6 +8,10 @@ import type {
   State,
 } from "@elizaos/core";
 import { searchNativeSessions } from "@/runtime/native/service-bridge/tooling";
+import {
+  GLOBAL_SESSION_ACCESS_DENIED,
+  hasGlobalSessionOperatorAccess,
+} from "@/runtime/session-operator-policy";
 import type { SessionSearchResult } from "@/types";
 import { messageText } from "@/utils/eliza-compat";
 
@@ -27,6 +31,17 @@ function explicitSearchQuery(message: Memory): string | undefined {
   }
   const query = text.slice("/search ".length).trim();
   return query || undefined;
+}
+
+function messageSource(message: Memory): string | undefined {
+  const metadata = message.metadata as
+    | { doolittle?: { source?: unknown } }
+    | undefined;
+  const metadataSource = metadata?.doolittle?.source;
+  if (typeof metadataSource === "string") return metadataSource;
+  return typeof message.content?.source === "string"
+    ? message.content.source
+    : undefined;
 }
 
 export function formatSessionSearchResults(
@@ -53,7 +68,8 @@ export function createSessionSearchAction(limit: number): Action {
       "find or recall prior conversation content -> DOOLITTLE_SESSION_SEARCH",
     contexts: ["memory"],
     cacheStable: true,
-    validate: async () => true,
+    validate: async (_runtime, message) =>
+      hasGlobalSessionOperatorAccess(messageSource(message)),
     handler: async (
       runtime: IAgentRuntime,
       message: Memory,
@@ -61,6 +77,17 @@ export function createSessionSearchAction(limit: number): Action {
       _options: HandlerOptions | undefined,
       callback?: HandlerCallback,
     ): Promise<ActionResult> => {
+      if (!hasGlobalSessionOperatorAccess(messageSource(message))) {
+        await callback?.({
+          text: GLOBAL_SESSION_ACCESS_DENIED,
+          source: "session-search-action",
+        });
+        return {
+          success: false,
+          text: GLOBAL_SESSION_ACCESS_DENIED,
+          userFacingText: GLOBAL_SESSION_ACCESS_DENIED,
+        };
+      }
       const query = optionQuery(_options) ?? explicitSearchQuery(message);
       if (!query) {
         const usage =

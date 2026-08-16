@@ -56,6 +56,51 @@ describe("chat turn state helpers", () => {
     expect(turnA.roomId).toBe(turnB.roomId);
   });
 
+  it("gives each CLI session an isolated native room while preserving its shared message server", () => {
+    const context = {
+      runtime: { character: { name: "Doolittle" } },
+      services: {
+        settings: {
+          get: () => ({
+            agent: {
+              runDepth: "standard",
+              maxIterations: 1,
+              toolProgressMode: "off",
+            },
+          }),
+        },
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+
+    const first = createTurnState(
+      {
+        userId: "local-user",
+        message: "first session",
+        source: "cli",
+        roomId: "cli:first",
+      },
+      context,
+    );
+    const second = createTurnState(
+      {
+        userId: "local-user",
+        message: "second session",
+        source: "cli",
+        roomId: "cli:second",
+      },
+      context,
+    );
+
+    expect(first.roomId).toBe(stableRuntimeUuid("cli:first"));
+    expect(second.roomId).toBe(stableRuntimeUuid("cli:second"));
+    expect(first.roomId).not.toBe(second.roomId);
+    expect(first.messageServerId).toBe(
+      stableRuntimeUuid("Doolittle-cli-server"),
+    );
+    expect(second.messageServerId).toBe(first.messageServerId);
+  });
+
   it("uses deterministic non-cli session fields", () => {
     const context = {
       runtime: {},
@@ -315,6 +360,96 @@ describe("chat turn state helpers", () => {
 });
 
 describe("chat turn state helpers with session persistence", () => {
+  it("does not hydrate one CLI session from another session's native room", async () => {
+    const queriedRoomIds: string[] = [];
+    const nativeByRoom = new Map<
+      string,
+      Array<{ id: string; content: { text: string } }>
+    >([
+      [
+        stableRuntimeUuid("cli:first"),
+        [
+          {
+            id: "00000000-0000-4000-8000-000000000101",
+            content: { text: "first-session secret" },
+          },
+        ],
+      ],
+    ]);
+    const projected: Array<{ sessionId: string; text: string }> = [];
+    const context = {
+      services: {
+        settings: {
+          get: () => ({
+            agent: {
+              runDepth: "standard",
+              maxIterations: 1,
+              toolProgressMode: "off",
+            },
+          }),
+        },
+        sessions: {
+          continuityKey: (sessionId: string) => sessionId,
+          messagesBySession: () => [],
+          replaceSessionMessages: (_sessionId: string, messages: unknown[]) => {
+            projected.push(
+              ...(messages as Array<{ sessionId: string; text: string }>),
+            );
+          },
+          storeMessage: (message: { sessionId: string; text: string }) => {
+            projected.push(message);
+          },
+        },
+      },
+      runtime: {
+        agentId: "agent-1",
+        getMemories: async ({ roomId }: { roomId: string }) => {
+          queriedRoomIds.push(roomId);
+          return nativeByRoom.get(roomId) ?? [];
+        },
+        createMemory: async (memory: {
+          id: string;
+          roomId: string;
+          content: { text: string };
+        }) => {
+          const room = nativeByRoom.get(memory.roomId) ?? [];
+          room.push(memory);
+          nativeByRoom.set(memory.roomId, room);
+          return memory.id;
+        },
+        queueEmbeddingGeneration: async () => undefined,
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+    const second = createTurnState(
+      {
+        userId: "local-user",
+        message: "new isolated session",
+        source: "cli",
+        roomId: "cli:second",
+      },
+      context,
+    );
+
+    await persistUserTurnMemory({
+      context,
+      turn: second,
+      userId: "local-user",
+      text: "new isolated session",
+    });
+
+    expect(queriedRoomIds).toEqual([stableRuntimeUuid("cli:second")]);
+    expect(projected).toEqual([
+      expect.objectContaining({
+        sessionId: "cli:second",
+        text: "new isolated session",
+      }),
+    ]);
+    expect(
+      nativeByRoom.get(stableRuntimeUuid("cli:first"))?.[0]?.content.text,
+    ).toBe("first-session secret");
+  });
+
   it("persists assistant messages through Eliza before projecting them", async () => {
     const messages: unknown[] = [];
     const nativeMemories: unknown[] = [];

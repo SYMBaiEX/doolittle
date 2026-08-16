@@ -315,13 +315,17 @@ copying or installing it. Each native target also writes a checksummed
 `desktop-provenance-<platform>.json` receipt binding its installers and update
 metadata to the verified packaged `app.asar` and source commit. Native release
 jobs also compare that payload with the mounted, extracted, or installed
-deliverable before upload. Before promotion, the local macOS target also runs
+deliverable before upload. The macOS workflow mounts the DMG, copies its app to
+a fresh Applications-style directory, and rechecks the installed payload,
+strict code signature, stapled ticket, Gatekeeper assessment, and packaged-app
+smoke test. Before promotion, the local macOS target also runs
 `codesign --verify --deep --strict` on its staged app bundle. This checks a
 local signing surface only; it does not establish notarization. The native
 macOS release workflow additionally validates stapling and Gatekeeper
 assessment before publishing a notarized release artifact. It requires the
 signing and Apple notarization secrets for both manual and tag-triggered runs;
-there is no unsigned workflow artifact path.
+there is no
+unsigned workflow artifact path.
 
 Capture full-page visual evidence for every packaged-app route at deterministic
 desktop and narrow widths:
