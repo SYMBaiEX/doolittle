@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleRuntimeRoutes } from "@/server/routes/runtime/index";
+import { switchRuntimeWorkspace } from "@/server/routes/runtime/workspace";
 import { RunControllerService } from "@/services/run-controller-service";
 
 function createContext() {
@@ -126,6 +127,18 @@ describe("handleRuntimeRoutes", () => {
     } finally {
       rmSync(workspaceDir, { recursive: true, force: true });
     }
+  });
+
+  it("preserves interactive terminal sessions when the workspace is unchanged", () => {
+    const context = createContext();
+    const invalidateWorkspace = vi.fn();
+    context.services.terminal.invalidateWorkspace = invalidateWorkspace;
+
+    const workspaceDir = context.config.workspaceDir;
+    const result = switchRuntimeWorkspace(context, workspaceDir);
+
+    expect(result).toBe(workspaceDir);
+    expect(invalidateWorkspace).not.toHaveBeenCalled();
   });
 
   it("rejects a direct workspace switch while an agent run is bound elsewhere", async () => {

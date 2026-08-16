@@ -1,3 +1,4 @@
+import { throwIfMediaAborted } from "../abort";
 import {
   buildMediaImageManifest,
   buildMediaImagePrompt,
@@ -12,6 +13,13 @@ export async function generateMediaImageArtifact(
   input: MediaImageGenerationInput,
 ): Promise<MediaGenerationResult> {
   const options = input.options ?? {};
+  throwIfMediaAborted(options.signal);
+  const artifactOptions = {
+    name: options.name,
+    size: options.size,
+    style: options.style,
+    focus: options.focus,
+  };
   const modelContext = input.modelContext;
   const stamp = Date.now();
   const label = slugifyMediaText(options.name ?? input.prompt);
@@ -35,13 +43,16 @@ export async function generateMediaImageArtifact(
       focus: "vision",
     },
   );
+  throwIfMediaAborted(options.signal);
 
   const generation = await requestImageGeneration({
     outputDir: input.outputDir,
     prompt: refinedPrompt || input.prompt,
     size: options.size,
     generateImage: input.dependencies.generateImage,
+    signal: options.signal,
   });
+  throwIfMediaAborted(options.signal);
 
   const artifactPath = generation.path;
   const artifactKind = generation.kind;
@@ -54,7 +65,7 @@ export async function generateMediaImageArtifact(
       new Date().toISOString(),
       input.prompt,
       refinedPrompt || input.prompt,
-      options,
+      artifactOptions,
       generation.provider,
       generation.model,
       artifactPath,
@@ -64,7 +75,11 @@ export async function generateMediaImageArtifact(
   );
   writeMediaTextFile(
     promptPath,
-    buildMediaImagePrompt(input.prompt, refinedPrompt || input.prompt, options),
+    buildMediaImagePrompt(
+      input.prompt,
+      refinedPrompt || input.prompt,
+      artifactOptions,
+    ),
   );
   writeMediaTextFile(
     reportPath,

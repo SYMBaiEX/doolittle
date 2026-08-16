@@ -19,7 +19,9 @@ export async function handleGatewayMessageRoutes(
     if (!parsed.ok) {
       return parsed.response;
     }
-    const result = await context.gateway.receive(parsed.value);
+    const result = await context.gateway.receive(parsed.value, {
+      abortSignal: request.signal,
+    });
     const status = result.ok
       ? 200
       : result.agentCompleted && result.deliveryStatus === "rejected"

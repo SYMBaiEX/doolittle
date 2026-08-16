@@ -177,6 +177,7 @@ export async function runProviderModelTurn(
     input.context.runtime,
     {
       settings: runtimeSettings,
+      abortSignal: input.options?.abortSignal,
       personalityId: input.options?.personalityId,
       commandHooks: {
         runLocalShellCommand: input.options?.runLocalShellCommand,

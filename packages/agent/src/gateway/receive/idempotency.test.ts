@@ -80,6 +80,109 @@ describe("GatewayReceiveIdempotencyCoordinator", () => {
     expect(execute).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps a shared execution alive when one joined transport disconnects", async () => {
+    const coordinator = new GatewayReceiveIdempotencyCoordinator(store());
+    const firstTransport = new AbortController();
+    const secondTransport = new AbortController();
+    let resolve!: (outcome: GatewayReceiveOutcome) => void;
+    let executionSignal: AbortSignal | undefined;
+    const execute = vi.fn(
+      (abortSignal: AbortSignal) =>
+        new Promise<GatewayReceiveOutcome>((done) => {
+          executionSignal = abortSignal;
+          resolve = done;
+        }),
+    );
+
+    const first = coordinator.receive(message(), execute, {
+      abortSignal: firstTransport.signal,
+    });
+    const second = coordinator.receive(message(), execute, {
+      abortSignal: secondTransport.signal,
+    });
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+
+    firstTransport.abort(new Error("first client disconnected"));
+    expect(executionSignal?.aborted).toBe(false);
+
+    resolve({ ok: true, response: "computed once", traceId: "trace-1" });
+    await expect(first).resolves.toMatchObject({ response: "computed once" });
+    await expect(second).resolves.toMatchObject({
+      response: GATEWAY_DUPLICATE_ACK_RESPONSE,
+      duplicate: true,
+    });
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts a shared execution after every joined transport disconnects", async () => {
+    const coordinator = new GatewayReceiveIdempotencyCoordinator(store());
+    const firstTransport = new AbortController();
+    const secondTransport = new AbortController();
+    let executionSignal: AbortSignal | undefined;
+    const execute = vi.fn(
+      (abortSignal: AbortSignal) =>
+        new Promise<GatewayReceiveOutcome>((_done, reject) => {
+          executionSignal = abortSignal;
+          abortSignal.addEventListener(
+            "abort",
+            () => reject(abortSignal.reason),
+            { once: true },
+          );
+        }),
+    );
+
+    const first = coordinator.receive(message(), execute, {
+      abortSignal: firstTransport.signal,
+    });
+    const second = coordinator.receive(message(), execute, {
+      abortSignal: secondTransport.signal,
+    });
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+
+    firstTransport.abort(new Error("first client disconnected"));
+    expect(executionSignal?.aborted).toBe(false);
+    secondTransport.abort(new Error("second client disconnected"));
+    await vi.waitFor(() => expect(executionSignal?.aborted).toBe(true));
+
+    await expect(first).rejects.toThrow("second client disconnected");
+    await expect(second).rejects.toThrow("second client disconnected");
+
+    await expect(
+      coordinator.receive(message(), async () => ({
+        ok: true,
+        response: "retry after all clients disconnected",
+      })),
+    ).resolves.toMatchObject({
+      response: "retry after all clients disconnected",
+    });
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not let an already-aborted first transport poison a later delivery", async () => {
+    const coordinator = new GatewayReceiveIdempotencyCoordinator(store());
+    const disconnectedTransport = new AbortController();
+    const disconnectReason = new Error("client disconnected before receive");
+    disconnectedTransport.abort(disconnectReason);
+    const execute = vi.fn(async () => ({
+      ok: true,
+      response: "live delivery executed",
+    }));
+
+    await expect(
+      coordinator.receive(message(), execute, {
+        abortSignal: disconnectedTransport.signal,
+      }),
+    ).rejects.toBe(disconnectReason);
+    expect(execute).not.toHaveBeenCalled();
+
+    await expect(
+      coordinator.receive(message(), execute),
+    ).resolves.toMatchObject({
+      response: "live delivery executed",
+    });
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
   it("returns a durable prior outcome after coordinator restart", async () => {
     const durableStore = store();
     const first = new GatewayReceiveIdempotencyCoordinator(durableStore);

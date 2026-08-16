@@ -11,9 +11,6 @@ jobs:
   installer:
     runs-on: macos-latest
     timeout-minutes: 40
-    env:
-      MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -48,8 +45,7 @@ jobs:
       - name: Verify desktop
         run: nub run desktop:test
 
-      - name: Require signing credentials for tagged releases
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Require signing and notarization credentials
         env:
           CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
@@ -73,13 +69,20 @@ jobs:
         run: |
           nub run desktop:build
           nub run --cwd apps/desktop runtime:prepare
-          if [[ -n "$CSC_LINK" && -n "$CSC_KEY_PASSWORD" && -n "$APPLE_ID" && -n "$APPLE_APP_SPECIFIC_PASSWORD" && -n "$APPLE_TEAM_ID" ]]; then
-            (cd apps/desktop && nubx electron-builder --mac dmg zip --arm64 --config.mac.notarize=true)
-          else
-            echo "Signing credentials are not configured; producing an unsigned development artifact."
-            (cd apps/desktop && CSC_IDENTITY_AUTO_DISCOVERY=false nubx electron-builder --mac dmg zip --arm64)
-          fi
+          nub apps/desktop/scripts/package.ts --mac dmg zip --arm64 --config.mac.notarize=true
           nub apps/desktop/scripts/verify-package.ts
+
+      - name: Record macOS package provenance
+        run: |
+          app_path="$(find apps/desktop/release -path '*/Doolittle.app' -type d -print -quit)"
+          test -n "$app_path"
+          receipt_app_asar="${app_path#apps/desktop/release/}/Contents/Resources/app.asar"
+          dmg_path="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-mac-arm64.dmg' -print -quit)"
+          zip_path="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-mac-arm64.zip' -print -quit)"
+          dmg="$(basename "$dmg_path")"
+          zip="$(basename "$zip_path")"
+          test -n "$dmg" && test -n "$zip"
+          nub apps/desktop/scripts/package-provenance.ts --write-receipt --release-directory apps/desktop/release --platform macos --commit "$GITHUB_SHA" --app-asar "$receipt_app_asar" --artifact "$dmg" --artifact "$dmg.blockmap" --artifact "$zip" --artifact "$zip.blockmap" --artifact latest-mac.yml
 
       - name: Smoke-test bundled macOS runtime
         run: |
@@ -138,10 +141,9 @@ jobs:
           DOOLITTLE_DESKTOP_EXECUTABLE="$PWD/$executable" nub run test:e2e:desktop-packaged
 
       - name: Verify signed and notarized application
-        if: env.MAC_CSC_LINK != ''
         run: |
           app_path="$(find apps/desktop/release -path '*/Doolittle.app' -type d -print -quit)"
-          codesign --verify --deep --strict --verbose=2 "$app_path"
+          nub apps/desktop/scripts/verify-package.ts --verify-signature "$app_path"
           xcrun stapler validate "$app_path"
           spctl --assess --type execute --verbose=2 "$app_path"
 
@@ -156,12 +158,14 @@ jobs:
           trap cleanup_release_mounts EXIT
 
           hdiutil attach "$dmg_path" -nobrowse -readonly -mountpoint "$mount_path" -quiet
+          cmp "$app_path/Contents/Resources/app.asar" "$mount_path/Doolittle.app/Contents/Resources/app.asar"
           codesign --verify --deep --strict --verbose=2 "$mount_path/Doolittle.app"
           xcrun stapler validate "$mount_path/Doolittle.app"
           spctl --assess --type execute --verbose=2 "$mount_path/Doolittle.app"
           DOOLITTLE_DESKTOP_EXECUTABLE="$mount_path/Doolittle.app/Contents/MacOS/Doolittle" nub run test:e2e:desktop-packaged
 
           ditto -x -k "$zip_path" "$zip_path_root"
+          cmp "$app_path/Contents/Resources/app.asar" "$zip_path_root/Doolittle.app/Contents/Resources/app.asar"
           codesign --verify --deep --strict --verbose=2 "$zip_path_root/Doolittle.app"
           xcrun stapler validate "$zip_path_root/Doolittle.app"
           spctl --assess --type execute --verbose=2 "$zip_path_root/Doolittle.app"
@@ -183,4 +187,5 @@ jobs:
             apps/desktop/release/Doolittle-*-mac-*.zip
             apps/desktop/release/*.blockmap
             apps/desktop/release/latest-mac.yml
+            apps/desktop/release/desktop-provenance-macos.json
           if-no-files-found: error

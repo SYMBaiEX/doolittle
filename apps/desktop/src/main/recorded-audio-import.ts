@@ -279,6 +279,28 @@ export function pruneStaleRecordedAudioImports(
   return removed;
 }
 
+export function discardRecordedAudioImport(
+  runtimeDataDir: string,
+  recordingId: string,
+): boolean {
+  if (!RECORDING_ID_PATTERN.test(recordingId)) {
+    throw new RecordedAudioImportError(
+      "invalid_audio",
+      "Recording ID is invalid.",
+    );
+  }
+  const importsDir = canonicalRecordedAudioImportsDir(runtimeDataDir, false);
+  if (!importsDir) return false;
+  const candidate = resolve(importsDir, recordingId);
+  if (!isContainedPath(importsDir, candidate) || !existsSync(candidate)) {
+    return false;
+  }
+  const tombstone = resolve(importsDir, `.deleting-${randomUUID()}`);
+  renameSync(candidate, tombstone);
+  rmSync(tombstone, { recursive: true, force: true });
+  return true;
+}
+
 export function importRecordedAudio(
   input: RecordedAudioImportInput,
   runtimeDataDir: string,

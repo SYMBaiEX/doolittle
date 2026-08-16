@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { writeNativePackageReceipt } from "../apps/desktop/scripts/package-provenance";
 import {
   createDesktopRelease,
   expectedDesktopReleaseArtifacts,
@@ -27,6 +28,20 @@ function releaseDirectory(version = "0.1.0"): string {
           ? `version: ${version}\npath: ${primaryArtifact}\n`
           : `fixture:${artifact.path}\n`,
     );
+  }
+  for (const platform of ["linux", "macos", "windows"] as const) {
+    const appAsar = `app-${platform}.asar`;
+    writeFileSync(join(directory, appAsar), `fixture:${appAsar}\n`);
+    writeNativePackageReceipt({
+      releaseDirectory: directory,
+      platform,
+      commit: "a".repeat(40),
+      appAsarPath: appAsar,
+      artifactPaths: expectedDesktopReleaseArtifacts(version)
+        .filter((artifact) => artifact.platform === platform)
+        .map((artifact) => artifact.path),
+    });
+    rmSync(join(directory, appAsar));
   }
   return directory;
 }
@@ -56,7 +71,7 @@ describe("desktop release aggregation", () => {
       commit: "a".repeat(40),
       generatedAt: "2026-08-14T00:00:00.000Z",
     });
-    expect(manifest.artifacts).toHaveLength(12);
+    expect(manifest.artifacts).toHaveLength(15);
     expect(manifest.artifacts).toContainEqual(
       expect.objectContaining({
         path: "LICENSE",
@@ -78,8 +93,15 @@ describe("desktop release aggregation", () => {
         architecture: "x64",
       }),
     );
+    expect(manifest.artifacts).toContainEqual(
+      expect.objectContaining({
+        path: "desktop-provenance-macos.json",
+        platform: "release",
+        architecture: "all",
+      }),
+    );
     const sums = readFileSync(join(directory, "SHA256SUMS.txt"), "utf8");
-    expect(sums.trim().split("\n")).toHaveLength(12);
+    expect(sums.trim().split("\n")).toHaveLength(15);
     expect(
       JSON.parse(
         readFileSync(join(directory, "release-manifest.json"), "utf8"),
@@ -129,5 +151,46 @@ describe("desktop release aggregation", () => {
     ).rejects.toThrow(
       "latest-mac.yml must identify version 0.1.0 and Doolittle-0.1.0-mac-arm64.zip",
     );
+  });
+
+  it("rejects missing, cross-commit, and mismatched native provenance receipts", async () => {
+    const directory = releaseDirectory();
+    rmSync(join(directory, "desktop-provenance-linux.json"));
+    await expect(
+      createDesktopRelease({
+        directory,
+        version: "0.1.0",
+        tag: "v0.1.0",
+        commit: "a".repeat(40),
+      }),
+    ).rejects.toThrow("missing: desktop-provenance-linux.json");
+
+    const crossCommit = releaseDirectory();
+    const receiptPath = join(crossCommit, "desktop-provenance-macos.json");
+    const receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+    receipt.commit = "b".repeat(40);
+    writeFileSync(receiptPath, JSON.stringify(receipt));
+    await expect(
+      createDesktopRelease({
+        directory: crossCommit,
+        version: "0.1.0",
+        tag: "v0.1.0",
+        commit: "a".repeat(40),
+      }),
+    ).rejects.toThrow("Invalid native provenance receipt");
+
+    const mismatch = releaseDirectory();
+    writeFileSync(
+      join(mismatch, "Doolittle-0.1.0-linux-x64.AppImage"),
+      "tampered",
+    );
+    await expect(
+      createDesktopRelease({
+        directory: mismatch,
+        version: "0.1.0",
+        tag: "v0.1.0",
+        commit: "a".repeat(40),
+      }),
+    ).rejects.toThrow("Native provenance receipt hash mismatch");
   });
 });

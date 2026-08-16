@@ -94,6 +94,74 @@ describe("window-state persistence", () => {
     }
   });
 
+  it("rejects plausible window sizes that are fully outside the current displays", () => {
+    const root = mkdtempSync(resolve(tmpdir(), "doolittle-window-state-"));
+    const statePath = resolve(root, "window-state.json");
+    try {
+      writeFileSync(
+        statePath,
+        JSON.stringify({
+          bounds: { x: 9_000, y: 100, width: 1_320, height: 860 },
+          isMaximized: false,
+        }),
+        "utf8",
+      );
+      expect(
+        loadWindowState(statePath, {
+          displayBounds: { x: 0, y: 0, width: 1_920, height: 1_080 },
+        }),
+      ).toEqual(DEFAULT_WINDOW_STATE);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves a partially off-screen window when a usable edge remains visible", () => {
+    const root = mkdtempSync(resolve(tmpdir(), "doolittle-window-state-"));
+    const statePath = resolve(root, "window-state.json");
+    const bounds = { x: -1_200, y: 80, width: 1_320, height: 860 };
+    try {
+      writeFileSync(
+        statePath,
+        JSON.stringify({ bounds, isMaximized: false }),
+        "utf8",
+      );
+      expect(
+        loadWindowState(statePath, {
+          displayBounds: { x: 0, y: 0, width: 1_920, height: 1_080 },
+        }).bounds,
+      ).toEqual(bounds);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects windows positioned in a gap between real display work areas", () => {
+    const root = mkdtempSync(resolve(tmpdir(), "doolittle-window-state-"));
+    const statePath = resolve(root, "window-state.json");
+    try {
+      writeFileSync(
+        statePath,
+        JSON.stringify({
+          bounds: { x: 1_960, y: 100, width: 1_000, height: 700 },
+          isMaximized: false,
+        }),
+        "utf8",
+      );
+      expect(
+        loadWindowState(statePath, {
+          displayBounds: { x: 0, y: 0, width: 4_480, height: 1_440 },
+          displayWorkAreas: [
+            { x: 0, y: 0, width: 1_920, height: 1_080 },
+            { x: 3_200, y: 0, width: 1_280, height: 1_440 },
+          ],
+        }),
+      ).toEqual(DEFAULT_WINDOW_STATE);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("persists state atomically and writes readable JSON", () => {
     const root = mkdtempSync(resolve(tmpdir(), "doolittle-window-state-"));
     const statePath = resolve(root, "window-state.json");

@@ -4,10 +4,13 @@ import {
   bodyToString,
   headersToRecord,
 } from "@elizaos/ui/api/transport";
-import type { AgentTransportRequest, HttpMethod } from "../shared/contracts";
+import {
+  type AgentTransportRequest,
+  desktopRequestTimeoutMs,
+  type HttpMethod,
+} from "../shared/contracts";
 
 const DESKTOP_AGENT_ORIGIN = "http://desktop.local";
-const DESKTOP_REQUEST_TIMEOUT_MS = 15_000;
 const DESKTOP_HTTP_METHODS = new Set<HttpMethod>([
   "GET",
   "POST",
@@ -47,6 +50,10 @@ async function invokeDesktopTransport(
 
   return new Promise<Awaited<typeof pending>>((resolve, reject) => {
     const onAbort = () => {
+      void window.doolittle.cancelAgentRequest(request.requestId).catch(() => {
+        // The renderer cancellation result is authoritative; IPC teardown may
+        // race request completion or application shutdown.
+      });
       reject(
         new DOMException(
           "The Eliza desktop request was aborted.",
@@ -66,6 +73,7 @@ export const desktopAgentTransport: AgentRequestTransport = {
   async request(url, init) {
     const response = await invokeDesktopTransport(
       {
+        requestId: crypto.randomUUID(),
         path: desktopPath(url),
         method: desktopMethod(init.method),
         headers: headersToRecord(init.headers),
@@ -90,7 +98,7 @@ export async function desktopRequest<T>(
   method: HttpMethod = "GET",
   body?: unknown,
   signal?: AbortSignal,
-  timeoutMs = DESKTOP_REQUEST_TIMEOUT_MS,
+  timeoutMs = desktopRequestTimeoutMs(path),
 ): Promise<T> {
   return desktopElizaClient.fetch<T>(
     path,

@@ -86,6 +86,7 @@ export async function handleMediaRoutes(
       analysis: await context.services.media.analyzeWithModel(
         typedBody.path,
         typedBody.focus ?? "auto",
+        request.signal,
       ),
     });
   }
@@ -109,6 +110,7 @@ export async function handleMediaRoutes(
           language: typedBody.language,
           prompt: typedBody.prompt,
           name: typedBody.name,
+          signal: request.signal,
         },
       ),
     });
@@ -133,6 +135,7 @@ export async function handleMediaRoutes(
         voice: typedBody.voice,
         format: typedBody.format,
         speed: typedBody.speed,
+        signal: request.signal,
       }),
     });
   }
@@ -156,6 +159,7 @@ export async function handleMediaRoutes(
         size: typedBody.size,
         style: typedBody.style,
         focus: typedBody.focus,
+        signal: request.signal,
       }),
     });
   }

@@ -8,6 +8,32 @@ export const DEFAULT_DESKTOP_LIFECYCLE_STATE: DesktopLifecycleState = {
   keepRunningInBackground: false,
 };
 
+export interface DesktopSingleInstanceApp {
+  requestSingleInstanceLock(): boolean;
+  quit(): void;
+  on(event: "second-instance", listener: () => void): unknown;
+}
+
+/** Prevents multiple desktop runtimes from sharing one private data directory. */
+export function configureDesktopSingleInstance(
+  application: DesktopSingleInstanceApp,
+  onSecondInstance: () => void,
+): boolean {
+  if (!application.requestSingleInstanceLock()) {
+    application.quit();
+    return false;
+  }
+  application.on("second-instance", onSecondInstance);
+  return true;
+}
+
+/** Reuses a live window and replaces one that has already been destroyed. */
+export function ensureDesktopWindow<
+  TWindow extends Pick<BrowserWindow, "isDestroyed">,
+>(current: TWindow | null, create: () => TWindow): TWindow {
+  return !current || current.isDestroyed() ? create() : current;
+}
+
 /** Keeps close behaviour deliberate: hiding is only allowed after opting in. */
 export function shouldHideOnClose(
   state: DesktopLifecycleState,

@@ -6,6 +6,7 @@ import { asRecord } from "@elizaos/shared/type-guards";
 
 export const MIN_WINDOW_WIDTH = 920;
 export const MIN_WINDOW_HEIGHT = 620;
+const MIN_VISIBLE_WINDOW_EDGE = 64;
 
 export interface WindowBounds {
   x: number;
@@ -23,9 +24,19 @@ export interface WindowStatePersistenceOptions {
   minWidth?: number;
   minHeight?: number;
   displayBounds?: WindowBounds;
+  displayWorkAreas?: WindowBounds[];
   defaultState?: PersistedWindowState;
   debounceMs?: number;
 }
+
+type NormalizedWindowStatePersistenceOptions = {
+  minWidth: number;
+  minHeight: number;
+  displayBounds: WindowBounds;
+  displayWorkAreas: WindowBounds[];
+  defaultState: PersistedWindowState;
+  debounceMs: number;
+};
 
 export interface PersistableWindow {
   getBounds(): WindowBounds;
@@ -57,17 +68,34 @@ export const DEFAULT_WINDOW_STATE: PersistedWindowState = {
   isMaximized: false,
 };
 
+function normalizeWindowStateOptions(
+  options: WindowStatePersistenceOptions,
+): NormalizedWindowStatePersistenceOptions {
+  const displayBounds = options.displayBounds ?? DEFAULT_DISPLAY_BOUNDS;
+  return {
+    minWidth: options.minWidth ?? MIN_WINDOW_WIDTH,
+    minHeight: options.minHeight ?? MIN_WINDOW_HEIGHT,
+    displayBounds,
+    displayWorkAreas:
+      options.displayWorkAreas && options.displayWorkAreas.length > 0
+        ? options.displayWorkAreas
+        : [displayBounds],
+    defaultState: options.defaultState ?? DEFAULT_WINDOW_STATE,
+    debounceMs: options.debounceMs ?? 150,
+  };
+}
+
 function isFiniteInteger(value: unknown): value is number {
   return (
     typeof value === "number" &&
     Number.isFinite(value) &&
-    Number.isInteger(value)
+    Number.isSafeInteger(value)
   );
 }
 
 function sanitizeWindowState(
   state: PersistedWindowState,
-  options: Required<WindowStatePersistenceOptions>,
+  options: NormalizedWindowStatePersistenceOptions,
 ): PersistedWindowState {
   const bounds = sanitizeWindowBounds(state.bounds, options);
   return {
@@ -78,25 +106,13 @@ function sanitizeWindowState(
 
 function sanitizeWindowBounds(
   raw: WindowBounds,
-  options: Required<WindowStatePersistenceOptions>,
+  options: NormalizedWindowStatePersistenceOptions,
 ): WindowBounds {
   const minWidth = options.minWidth;
   const minHeight = options.minHeight;
   const displayBounds = options.displayBounds;
-  const marginX = Math.max(1_000, Math.floor(displayBounds.width * 0.25));
-  const marginY = Math.max(1_000, Math.floor(displayBounds.height * 0.25));
   const maxWidth = Math.max(minWidth, displayBounds.width * 4);
   const maxHeight = Math.max(minHeight, displayBounds.height * 4);
-  const maxX = Math.max(
-    displayBounds.x + displayBounds.width + marginX,
-    10_000,
-  );
-  const minX = Math.min(displayBounds.x - marginX, -10_000);
-  const maxY = Math.max(
-    displayBounds.y + displayBounds.height + marginY,
-    10_000,
-  );
-  const minY = Math.min(displayBounds.y - marginY, -10_000);
 
   const x = raw.x;
   const y = raw.y;
@@ -114,16 +130,25 @@ function sanitizeWindowBounds(
 
   width = Math.max(minWidth, width);
   height = Math.max(minHeight, height);
+  const windowRight = x + width;
+  const windowBottom = y + height;
+  const hasVisibleArea = options.displayWorkAreas.some((workArea) => {
+    const displayRight = workArea.x + workArea.width;
+    const displayBottom = workArea.y + workArea.height;
+    return (
+      windowRight >= workArea.x + MIN_VISIBLE_WINDOW_EDGE &&
+      x <= displayRight - MIN_VISIBLE_WINDOW_EDGE &&
+      windowBottom >= workArea.y + MIN_VISIBLE_WINDOW_EDGE &&
+      y <= displayBottom - MIN_VISIBLE_WINDOW_EDGE
+    );
+  });
 
   if (
     width < minWidth ||
     height < minHeight ||
     width > maxWidth ||
     height > maxHeight ||
-    x < minX ||
-    x > maxX ||
-    y < minY ||
-    y > maxY
+    !hasVisibleArea
   ) {
     return options.defaultState.bounds;
   }
@@ -140,14 +165,7 @@ export function loadWindowState(
   statePath: string,
   options: WindowStatePersistenceOptions = {},
 ): PersistedWindowState {
-  const normalizedOptions: Required<WindowStatePersistenceOptions> = {
-    minWidth: MIN_WINDOW_WIDTH,
-    minHeight: MIN_WINDOW_HEIGHT,
-    displayBounds: DEFAULT_DISPLAY_BOUNDS,
-    defaultState: DEFAULT_WINDOW_STATE,
-    debounceMs: 150,
-    ...options,
-  };
+  const normalizedOptions = normalizeWindowStateOptions(options);
 
   const raw = asRecord(readJsonFileSync<unknown>(statePath));
   if (!raw) return normalizedOptions.defaultState;
@@ -188,14 +206,7 @@ export function persistWindowState(
   state: PersistedWindowState,
   options: WindowStatePersistenceOptions = {},
 ): void {
-  const normalizedOptions: Required<WindowStatePersistenceOptions> = {
-    minWidth: MIN_WINDOW_WIDTH,
-    minHeight: MIN_WINDOW_HEIGHT,
-    displayBounds: DEFAULT_DISPLAY_BOUNDS,
-    defaultState: DEFAULT_WINDOW_STATE,
-    debounceMs: 150,
-    ...options,
-  };
+  const normalizedOptions = normalizeWindowStateOptions(options);
 
   const normalizedState = sanitizeWindowState(state, normalizedOptions);
   writeJsonAtomicSync(statePath, normalizedState, { trailingNewline: true });
@@ -206,14 +217,7 @@ export function createWindowStatePersistenceController(
   statePath: string,
   options: WindowStatePersistenceOptions = {},
 ): WindowStateController {
-  const normalizedOptions: Required<WindowStatePersistenceOptions> = {
-    minWidth: MIN_WINDOW_WIDTH,
-    minHeight: MIN_WINDOW_HEIGHT,
-    displayBounds: DEFAULT_DISPLAY_BOUNDS,
-    defaultState: DEFAULT_WINDOW_STATE,
-    debounceMs: 150,
-    ...options,
-  };
+  const normalizedOptions = normalizeWindowStateOptions(options);
 
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;

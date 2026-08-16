@@ -1067,6 +1067,13 @@ export function validateAgentTransportRequest(
   if (!isRecord(unsafeRequest)) {
     throw new Error("Invalid Eliza desktop transport request.");
   }
+  const requestId = unsafeRequest.requestId;
+  if (
+    typeof requestId !== "string" ||
+    !/^[a-zA-Z0-9_-]{1,128}$/u.test(requestId)
+  ) {
+    throw new Error("Eliza desktop transport request ID is invalid.");
+  }
   const method = unsafeRequest.method;
   if (
     method !== "GET" &&
@@ -1111,6 +1118,7 @@ export function validateAgentTransportRequest(
     headers[name] = unsafeValue;
   }
   return {
+    requestId,
     path: unsafeRequest.path,
     method,
     headers,

@@ -104,6 +104,11 @@ const bridge: DoolittleDesktopBridge = {
       desktopIpcChannels.invoke.chatImportRecordedAudio,
       request,
     ),
+  discardRecordedAudio: (recordingId: string) =>
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.chatDiscardRecordedAudio,
+      recordingId,
+    ),
   startProviderAuth: (
     provider: ProviderAuthProvider,
     options?: ProviderAuthStartOptions,
@@ -129,6 +134,8 @@ const bridge: DoolittleDesktopBridge = {
     ),
   requestAgent: (request: AgentTransportRequest) =>
     ipcRenderer.invoke(desktopIpcChannels.invoke.agentRequest, request),
+  cancelAgentRequest: (requestId: string) =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.agentRequestCancel, requestId),
   runCommand: (request: DesktopCommandRequest) =>
     ipcRenderer.invoke(desktopIpcChannels.invoke.terminalRunConfirmed, request),
   startTerminalRun: (request: TerminalStreamRequest) =>

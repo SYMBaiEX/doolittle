@@ -1,7 +1,11 @@
 import { PassThrough } from "node:stream";
 import { syncResolvedApiPort } from "@elizaos/shared";
 import { describe, expect, it } from "vitest";
-import { internalServerErrorResponse, writeWebResponse } from "./server";
+import {
+  internalServerErrorResponse,
+  isRequestCancellation,
+  writeWebResponse,
+} from "./server";
 
 function responseOutput(): PassThrough & {
   statusCode: number;
@@ -24,6 +28,25 @@ describe("Eliza-native API environment", () => {
 
     expect(env.ELIZA_API_PORT).toBe("48123");
     expect(env.ELIZA_PORT).toBe("48123");
+  });
+});
+
+describe("request cancellation classification", () => {
+  it("distinguishes operator aborts from internal failures", () => {
+    const controller = new AbortController();
+    expect(isRequestCancellation(new Error("boom"), controller.signal)).toBe(
+      false,
+    );
+    expect(
+      isRequestCancellation(
+        new DOMException("cancelled", "AbortError"),
+        controller.signal,
+      ),
+    ).toBe(false);
+    controller.abort();
+    expect(
+      isRequestCancellation(new Error("socket closed"), controller.signal),
+    ).toBe(true);
   });
 });
 

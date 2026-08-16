@@ -1,11 +1,55 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  configureDesktopSingleInstance,
+  ensureDesktopWindow,
   handleWindowClose,
   shouldHideOnClose,
   shouldStayOnDirtyClosePrompt,
 } from "./desktop-lifecycle";
 
 describe("desktop background lifecycle", () => {
+  it("quits a second process before it starts a shared runtime", () => {
+    const quit = vi.fn();
+    const on = vi.fn();
+    expect(
+      configureDesktopSingleInstance(
+        { requestSingleInstanceLock: () => false, quit, on },
+        vi.fn(),
+      ),
+    ).toBe(false);
+    expect(quit).toHaveBeenCalledOnce();
+    expect(on).not.toHaveBeenCalled();
+  });
+
+  it("focuses the existing process when another launch is requested", () => {
+    const focusExisting = vi.fn();
+    const on = vi.fn((_event: "second-instance", listener: () => void) =>
+      listener(),
+    );
+    expect(
+      configureDesktopSingleInstance(
+        { requestSingleInstanceLock: () => true, quit: vi.fn(), on },
+        focusExisting,
+      ),
+    ).toBe(true);
+    expect(on).toHaveBeenCalledWith("second-instance", focusExisting);
+    expect(focusExisting).toHaveBeenCalledOnce();
+  });
+
+  it("recreates a destroyed window for a later launch", () => {
+    const replacement = { isDestroyed: () => false };
+    const create = vi.fn(() => replacement);
+
+    expect(ensureDesktopWindow({ isDestroyed: () => true }, create)).toBe(
+      replacement,
+    );
+    expect(create).toHaveBeenCalledOnce();
+
+    const existing = { isDestroyed: () => false };
+    expect(ensureDesktopWindow(existing, create)).toBe(existing);
+    expect(create).toHaveBeenCalledOnce();
+  });
+
   it("only hides a window after the user opted into background mode", () => {
     expect(shouldHideOnClose({ keepRunningInBackground: false }, false)).toBe(
       false,

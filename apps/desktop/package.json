@@ -17,11 +17,11 @@
     "build:main": "vite build --config vite.main.config.ts && vite build --config vite.preload.config.ts",
     "build:renderer": "vite build --config vite.renderer.config.ts && nub scripts/renderer-bundle-budget.ts",
     "runtime:prepare": "nub scripts/prepare-runtime.ts",
-    "package": "nub run build && nub run runtime:prepare && nubx electron-builder && nub scripts/verify-package.ts",
-    "package:dir": "nub run build && nub run runtime:prepare && nub scripts/package.ts --dir && nub scripts/verify-package.ts",
-    "package:mac": "nub run build && nub run runtime:prepare && nubx electron-builder --mac dmg zip && nub scripts/verify-package.ts",
-    "package:win": "nub run build && nub run runtime:prepare && nubx electron-builder --win nsis --x64 && nub scripts/verify-package.ts",
-    "package:linux": "nub run build && nub run runtime:prepare && nubx electron-builder --linux AppImage deb --x64 && nub scripts/verify-package.ts",
+    "package": "nub run build && nub run runtime:prepare && nub scripts/package.ts",
+    "package:dir": "nub run build && nub run runtime:prepare && nub scripts/package.ts --dir",
+    "package:mac": "nub run build && nub run runtime:prepare && nub scripts/package.ts --mac dmg zip",
+    "package:win": "nub run build && nub run runtime:prepare && nub scripts/package.ts --win nsis --x64",
+    "package:linux": "nub run build && nub run runtime:prepare && nub scripts/package.ts --linux AppImage deb --x64",
     "package:all": "nub scripts/package-all.ts",
     "typecheck": "tsc -b tsconfig.main.json tsconfig.renderer.json",
     "test": "nubx vitest run"
@@ -116,6 +116,7 @@
           "**/*",
           "!**/dist/**",
           "!**/node_modules/**",
+          "!**/.generated/**",
           "!**/*.test.ts"
         ]
       },

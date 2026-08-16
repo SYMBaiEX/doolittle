@@ -36,11 +36,14 @@ Ordinary renderer requests use `@elizaos/ui`'s `ElizaClient`, so Eliza owns
 client identity, request deadlines, resume retries, response parsing, and
 structured `ApiError` failures. Because Electron cannot structured-clone native
 `Request`, `Response`, or streaming bodies, the preload carries only path,
-method, approved headers, serialized body, status, and response text. The main
-process still enforces the route, query, method, header, request-size, and
-response-size allowlists before contacting the loopback runtime. Chat, terminal,
-and PTY traffic retain dedicated cancellable channels instead of imitating a
-stream through this adapter.
+method, request ID, approved headers, serialized body, status, and response
+text. The main process still enforces the route, query, method, header,
+request-size, and response-size allowlists before contacting the loopback
+runtime. Ordinary calls retain a 15-second deadline, registry installation is
+bounded at two minutes, and media inference is bounded at three minutes. An
+aborted Eliza request cancels its sender-scoped main-process fetch. Chat,
+terminal, and PTY traffic retain dedicated cancellable channels instead of
+imitating a stream through this adapter.
 
 ## Operator surfaces
 
@@ -243,13 +246,38 @@ Build a runnable unpacked app for the current machine:
 nub run desktop:package:dir
 ```
 
+The directory build uses a private staging release tree, verifies its packaged
+`app.asar`, then atomically promotes it while preserving existing installers,
+provenance receipts, checksums, and unrelated operator files. Because it
+replaces the current host's packaged payload, it removes a stale aggregate
+`release-manifest.json`, then replaces only the current host's unpacked package
+and `unpacked-manifest.json`. A failed build, verification, or source-drift
+check leaves the prior directory build intact. It records the source commit and
+packaged `app.asar` hash in
+`apps/desktop/release/unpacked-manifest.json` so packaged tests can reject stale
+or modified output before Electron launches.
+
 Build the macOS DMG and zip:
 
 ```bash
 nub run desktop:package:mac
 ```
 
-The artifacts are written under `apps/desktop/release/`.
+Native installer commands build into a private staged release tree with
+publishing disabled. After the packaged `app.asar` (and, on macOS, the strict
+code signature) passes verification and the source commit remains unchanged,
+they atomically replace the selected platform's complete canonical installer
+set, unpacked app, update metadata, and provenance receipt. A partial same-
+platform target cannot promote because the canonical receipt must verify in
+full. Existing installers and receipts for other platforms, plus operator
+files, are retained. Because a target-specific build invalidates aggregate
+release hashes, it removes `release-manifest.json` and `SHA256SUMS.txt`. When
+the selected target matches the packaging host, it also removes the now-stale
+`unpacked-manifest.json`; use `desktop:package:all` or
+`desktop:package:dir` to regenerate the applicable aggregate metadata. A
+build, verification, or source-drift failure leaves the current release tree
+unchanged. Artifacts are promoted under
+`apps/desktop/release/`.
 
 ## Windows installer
 
@@ -277,11 +305,23 @@ builds and verifies the macOS ARM64 DMG/ZIP, Windows x64 NSIS installer, and
 Linux x64 AppImage/DEB. An ARM64 macOS host and Wine are required for the
 Windows cross-build. It
 installs and verifies the target-native runtime modules, removes same-version
-stale outputs before starting, and writes artifact sizes, SHA-256 hashes, the
-native-package inventory, and the source commit to
+stale outputs inside a private staging directory, and promotes the complete set
+only after every platform passes. A failed dependency install, build, package,
+or verification leaves the prior release directory intact. The command writes
+artifact sizes, SHA-256 hashes, the native-package inventory, and the source commit to
 `apps/desktop/release/release-manifest.json`. It also emits the portable
 `apps/desktop/release/SHA256SUMS.txt` file used to verify each installer before
-copying or installing it.
+copying or installing it. Each native target also writes a checksummed
+`desktop-provenance-<platform>.json` receipt binding its installers and update
+metadata to the verified packaged `app.asar` and source commit. Native release
+jobs also compare that payload with the mounted, extracted, or installed
+deliverable before upload. Before promotion, the local macOS target also runs
+`codesign --verify --deep --strict` on its staged app bundle. This checks a
+local signing surface only; it does not establish notarization. The native
+macOS release workflow additionally validates stapling and Gatekeeper
+assessment before publishing a notarized release artifact. It requires the
+signing and Apple notarization secrets for both manual and tag-triggered runs;
+there is no unsigned workflow artifact path.
 
 Capture full-page visual evidence for every packaged-app route at deterministic
 desktop and narrow widths:
@@ -297,9 +337,21 @@ writes ignored PNGs plus `visual-manifest.json` under
 `-- --output <directory>` to override either location. The default sweep uses a
 fresh scrubbed profile; `-- --profile <directory>` is available for an explicit
 operator-approved profile and is marked as potentially private in the manifest.
-The manifest records HEAD, the exact executable path and SHA-256, actual desktop
-and compact viewports, and the canonical route count; stale packages fail before
-Electron launches.
+The manifest records HEAD, the exact executable and packaged `app.asar`
+SHA-256 values, actual desktop and compact viewports, and the canonical route
+count; stale packages fail before Electron launches.
+
+Run the packaged preload, runtime, chat, and route-control journeys directly:
+
+```bash
+nub run test:e2e:desktop-packaged
+```
+
+The launcher selects only a clean, current repository package whose `app.asar`
+hash matches its package manifest. Missing, stale, dirty, or modified packages
+fail before Electron launches instead of silently skipping the suite. Set
+`DOOLITTLE_DESKTOP_EXECUTABLE` to explicitly verify another installer output.
+Close an already-running installed app before explicitly selecting it.
 
 Before creating a release tag, run the release-quality gate:
 

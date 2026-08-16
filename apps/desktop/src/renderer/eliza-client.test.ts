@@ -11,10 +11,11 @@ function installTransport(
   requestAgent: (
     request: AgentTransportRequest,
   ) => Promise<AgentTransportResponse>,
+  cancelAgentRequest = async (_requestId: string): Promise<void> => undefined,
 ): void {
   Object.defineProperty(globalThis, "window", {
     configurable: true,
-    value: { doolittle: { requestAgent } },
+    value: { doolittle: { requestAgent, cancelAgentRequest } },
   });
 }
 
@@ -105,12 +106,14 @@ describe("desktop Eliza client transport", () => {
   });
 
   it("honors Eliza request cancellation while IPC work is pending", async () => {
+    const cancelAgentRequest = vi.fn(async () => undefined);
     installTransport(
       async () =>
         new Promise<AgentTransportResponse>(() => {
           // The main-process request may still finish, but the Eliza caller must
           // stop awaiting it as soon as its request signal is cancelled.
         }),
+      cancelAgentRequest,
     );
     const controller = new AbortController();
     const pending = desktopAgentTransport.request(
@@ -124,6 +127,7 @@ describe("desktop Eliza client transport", () => {
     controller.abort();
 
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(cancelAgentRequest).toHaveBeenCalledWith(expect.any(String));
   });
 
   it("forwards cancellation through the desktop client helper", async () => {

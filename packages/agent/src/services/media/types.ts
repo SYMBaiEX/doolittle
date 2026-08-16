@@ -127,6 +127,7 @@ export interface MediaGenerationOptions {
   size?: string;
   style?: string;
   focus?: string;
+  signal?: AbortSignal;
 }
 
 export interface MediaSpeechOptions {
@@ -134,16 +135,24 @@ export interface MediaSpeechOptions {
   voice?: string;
   format?: "mp3" | "svg";
   speed?: number;
+  signal?: AbortSignal;
 }
 
 export interface MediaTranscriptionOptions {
   language?: string;
   prompt?: string;
   name?: string;
+  /**
+   * Cancels provider work and prevents a partial transcription from being
+   * persisted. This is intentionally runtime-only and is never serialized
+   * into media artifacts.
+   */
+  signal?: AbortSignal;
 }
 
 export interface MediaAnalysisOptions {
   focus?: "auto" | "voice" | "vision" | "research";
+  signal?: AbortSignal;
 }
 
 export interface MediaInspectionServiceOptions {

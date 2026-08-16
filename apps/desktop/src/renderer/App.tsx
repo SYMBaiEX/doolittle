@@ -94,8 +94,8 @@ import {
 import type { ProjectLike, ProjectScope } from "./project-manager/models";
 import { projectNavigationTarget } from "./project-navigation";
 import {
-  isChatTerminalShortcut,
   isCommandPaletteShortcut,
+  shouldHandleGlobalChatTerminalShortcut,
   shouldIgnoreShellShortcut,
 } from "./shell-shortcuts";
 import { useDesktopContentNavigation } from "./use-desktop-content-navigation";
@@ -896,7 +896,7 @@ export function App() {
 
   useEffect(() => {
     const onChatTerminalKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (!isChatTerminalShortcut(event)) return;
+      if (!shouldHandleGlobalChatTerminalShortcut(view, event)) return;
       event.preventDefault();
       event.stopPropagation();
       toggleChatTerminal();
@@ -904,7 +904,7 @@ export function App() {
     window.addEventListener("keydown", onChatTerminalKeyDown, true);
     return () =>
       window.removeEventListener("keydown", onChatTerminalKeyDown, true);
-  }, [toggleChatTerminal]);
+  }, [toggleChatTerminal, view]);
 
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {

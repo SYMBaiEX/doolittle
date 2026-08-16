@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { syncProviderSettings } from "@/runtime/linked-provider-accounts";
 import { getEffectiveActivePersonality } from "@/runtime/native/service-bridge/ownership";
+import { getScopedTurnAbortSignal } from "@/runtime/turn-runtime-scope";
 import { runProviderModelTurn } from "./chat-turn/provider";
 
 function createProviderContext() {
@@ -164,6 +165,42 @@ function createTurn() {
 }
 
 describe("chat turn provider seam", () => {
+  it("scopes the request abort signal across beta.7 planned action execution", async () => {
+    const harness = createProviderContext();
+    const settings = harness.context.services.settings.get();
+    const controller = new AbortController();
+    let observedSignal: AbortSignal | undefined;
+
+    harness.context.runtime.messageService = {
+      handleMessage: async (runtime: object) => {
+        observedSignal = getScopedTurnAbortSignal(runtime);
+        return {
+          responseContent: { text: "done" },
+          responseMessages: [],
+          state: { data: {} },
+        };
+      },
+    } as unknown as typeof harness.context.runtime.messageService;
+
+    await runProviderModelTurn({
+      context: harness.context,
+      turn: createTurn(),
+      userId: "alice",
+      effectiveMessage: "Research this.",
+      settingsBefore: settings,
+      settingsDuring: settings,
+      messagePolicy: {
+        runDepth: "quick",
+        useMultiStep: true,
+        maxIterations: 2,
+        toolProgressMode: "new",
+      },
+      options: { abortSignal: controller.signal },
+    });
+
+    expect(observedSignal).toBe(controller.signal);
+  });
+
   it("scopes the selected OpenAI reasoning effort and shadows a stale bootstrap value", async () => {
     const harness = createProviderContext();
     const settingsBefore = harness.context.services.settings.get();

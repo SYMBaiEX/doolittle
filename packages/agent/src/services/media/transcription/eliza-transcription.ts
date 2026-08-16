@@ -1,4 +1,5 @@
 import { ModelType } from "@elizaos/core";
+import { isTranscriptionAbort } from "./abort";
 import type {
   MediaTranscriptionState,
   PreparedMediaTranscription,
@@ -33,6 +34,9 @@ export async function applyElizaTranscription(
       model: ModelType.TRANSCRIPTION,
     };
   } catch (error) {
+    if (isTranscriptionAbort(error, transcription.options.signal)) {
+      throw error;
+    }
     return {
       ...state,
       response: error instanceof Error ? error.message : String(error),

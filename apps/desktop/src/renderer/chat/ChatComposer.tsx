@@ -96,6 +96,7 @@ export interface ChatComposerProps {
     bytes: Uint8Array,
     mimeType: VoiceRecorderMime,
     name: string,
+    signal: AbortSignal,
   ) => Promise<{ transcriptText: string }>;
   insertDictationTranscript: (transcript: string) => void;
   selectedContext?: ContextPressureSnapshot;

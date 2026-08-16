@@ -945,19 +945,45 @@ export function ChatPage({
   };
 
   const importAndTranscribeRecording = useCallback(
-    async (bytes: Uint8Array, mimeType: VoiceRecorderMime, name: string) => {
+    async (
+      bytes: Uint8Array,
+      mimeType: VoiceRecorderMime,
+      name: string,
+      signal: AbortSignal,
+    ) => {
+      if (signal.aborted) {
+        throw new DOMException("Voice dictation was cancelled.", "AbortError");
+      }
       const attachment = await window.doolittle.importRecordedAudio({
         bytes,
         mimeType,
         name,
       });
-      const result = await desktopRequest<{
-        transcription: { transcriptText: string };
-      }>("/media/transcribe-attachment", "POST", {
-        attachmentId: attachment.id,
-        name,
-      });
-      return { transcriptText: result.transcription.transcriptText };
+      if (signal.aborted) {
+        await window.doolittle
+          .discardRecordedAudio(attachment.id)
+          .catch(() => undefined);
+        throw new DOMException("Voice dictation was cancelled.", "AbortError");
+      }
+      try {
+        const result = await desktopRequest<{
+          transcription: { transcriptText: string };
+        }>(
+          "/media/transcribe-attachment",
+          "POST",
+          {
+            attachmentId: attachment.id,
+            name,
+          },
+          signal,
+        );
+        return { transcriptText: result.transcription.transcriptText };
+      } catch (error) {
+        await window.doolittle
+          .discardRecordedAudio(attachment.id)
+          .catch(() => undefined);
+        throw error;
+      }
     },
     [],
   );

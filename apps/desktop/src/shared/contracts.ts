@@ -158,3 +158,9 @@ export type {
   LocalMutation,
   RunSnapshot,
 } from "./contracts/transport";
+export {
+  DESKTOP_MEDIA_REQUEST_TIMEOUT_MS,
+  DESKTOP_REGISTRY_INSTALL_TIMEOUT_MS,
+  DESKTOP_REQUEST_TIMEOUT_MS,
+  desktopRequestTimeoutMs,
+} from "./contracts/transport";

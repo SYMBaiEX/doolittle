@@ -26,6 +26,7 @@ const screenshotDir = process.env.DOOLITTLE_SWEEP_SCREENSHOTS_DIR?.trim();
 const sweepExecutablePath = process.env.DOOLITTLE_SWEEP_EXECUTABLE_PATH?.trim();
 const sweepExecutableSha256 =
   process.env.DOOLITTLE_SWEEP_EXECUTABLE_SHA256?.trim();
+const sweepAppAsarSha256 = process.env.DOOLITTLE_SWEEP_APP_ASAR_SHA256?.trim();
 const sweepSourceRevision = process.env.DOOLITTLE_SWEEP_SOURCE_REVISION?.trim();
 
 const desktopViewport = { width: 1440, height: 1000 } as const;
@@ -46,6 +47,7 @@ type ScreenshotManifest = {
   executable: {
     path: string;
     sha256: string;
+    appAsarSha256: string;
   };
   profile: {
     source: "scrubbed" | "explicit";
@@ -248,19 +250,25 @@ function writeManifest(
   }>,
   explicitProfileUsed: boolean,
 ): void {
-  if (!sweepSourceRevision || !sweepExecutablePath || !sweepExecutableSha256) {
+  if (
+    !sweepSourceRevision ||
+    !sweepExecutablePath ||
+    !sweepExecutableSha256 ||
+    !sweepAppAsarSha256
+  ) {
     throw new Error(
       "Visual evidence provenance is missing. Use scripts/capture-desktop-visual.ts.",
     );
   }
   const manifest: ScreenshotManifest = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     generatedAt: new Date().toISOString(),
     sourceRevision: sweepSourceRevision,
     routeCount: audit.length,
     executable: {
       path: sweepExecutablePath,
       sha256: sweepExecutableSha256,
+      appAsarSha256: sweepAppAsarSha256,
     },
     profile: {
       source: explicitProfileUsed ? "explicit" : "scrubbed",

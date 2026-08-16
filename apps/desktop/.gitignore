@@ -1,3 +1,5 @@
 build/
 dist/
 release/
+/.release-staging-*/
+/release.backup-*/

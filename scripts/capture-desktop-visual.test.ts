@@ -17,36 +17,36 @@ describe("desktop visual sweep launcher", () => {
   it("accepts only clean evidence from the exact packaged revision", () => {
     expect(() =>
       assertVisualSweepProvenance({
-        executableSha256: "a".repeat(64),
+        appAsarSha256: "a".repeat(64),
         releaseRevision: "head",
-        repositoryExecutableSha256: "a".repeat(64),
+        repositoryAppAsarSha256: "a".repeat(64),
         sourceRevision: "head",
         worktreeClean: true,
       }),
     ).not.toThrow();
     expect(() =>
       assertVisualSweepProvenance({
-        executableSha256: "a".repeat(64),
+        appAsarSha256: "a".repeat(64),
         releaseRevision: "old",
-        repositoryExecutableSha256: "a".repeat(64),
+        repositoryAppAsarSha256: "a".repeat(64),
         sourceRevision: "head",
         worktreeClean: true,
       }),
     ).toThrow("does not match HEAD");
     expect(() =>
       assertVisualSweepProvenance({
-        executableSha256: "b".repeat(64),
+        appAsarSha256: "b".repeat(64),
         releaseRevision: "head",
-        repositoryExecutableSha256: "a".repeat(64),
+        repositoryAppAsarSha256: "a".repeat(64),
         sourceRevision: "head",
         worktreeClean: true,
       }),
-    ).toThrow("does not match the repository package");
+    ).toThrow("application code does not match the repository package");
     expect(() =>
       assertVisualSweepProvenance({
-        executableSha256: "a".repeat(64),
+        appAsarSha256: "a".repeat(64),
         releaseRevision: "head",
-        repositoryExecutableSha256: "a".repeat(64),
+        repositoryAppAsarSha256: "a".repeat(64),
         sourceRevision: "head",
         worktreeClean: false,
       }),

@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import type { IAgentRuntime } from "@elizaos/core";
 import type { WorkspaceDirectorySource } from "../workspace-directory";
+import { raceMediaAbort, throwIfMediaAborted } from "./abort";
 import {
   inferMediaAnalysisFocus,
   persistMediaAnalysisArtifacts,
@@ -60,10 +61,17 @@ export class MediaService {
   private requestTextAnalysis(
     prompt: string,
     metadata: MediaTextRequestMetadata,
+    signal?: AbortSignal,
   ): Promise<string> {
-    return this.textAnalysisPort
-      ? this.textAnalysisPort.analyze(prompt)
-      : Promise.resolve(buildOfflineMediaTextResponse(prompt, metadata));
+    throwIfMediaAborted(signal);
+    return raceMediaAbort(
+      this.textAnalysisPort
+        ? signal
+          ? this.textAnalysisPort.analyze(prompt, { abortSignal: signal })
+          : this.textAnalysisPort.analyze(prompt)
+        : Promise.resolve(buildOfflineMediaTextResponse(prompt, metadata)),
+      signal,
+    );
   }
 
   inspect(path: string): MediaInspection {
@@ -102,7 +110,9 @@ export class MediaService {
   async analyzeWithModel(
     path: string,
     focus: MediaAnalysisOptions["focus"] = "auto",
+    signal?: AbortSignal,
   ): Promise<MediaModelAnalysisBundle> {
+    throwIfMediaAborted(signal);
     const analysis = this.analyze(path, focus);
     const modelContext = this.getModelContext?.();
     const metadata = {
@@ -110,7 +120,12 @@ export class MediaService {
       inspection: analysis.inspection,
       signals: analysis.signals,
     };
-    const response = await this.requestTextAnalysis(analysis.prompt, metadata);
+    const response = await this.requestTextAnalysis(
+      analysis.prompt,
+      metadata,
+      signal,
+    );
+    throwIfMediaAborted(signal);
     return persistMediaAnalysisArtifacts({
       analysis,
       outputDir: this.outputDir,
@@ -119,12 +134,18 @@ export class MediaService {
     });
   }
 
-  async voiceWithModel(path: string): Promise<MediaModelAnalysisBundle> {
-    return this.analyzeWithModel(path, "voice");
+  async voiceWithModel(
+    path: string,
+    signal?: AbortSignal,
+  ): Promise<MediaModelAnalysisBundle> {
+    return this.analyzeWithModel(path, "voice", signal);
   }
 
-  async visionWithModel(path: string): Promise<MediaModelAnalysisBundle> {
-    return this.analyzeWithModel(path, "vision");
+  async visionWithModel(
+    path: string,
+    signal?: AbortSignal,
+  ): Promise<MediaModelAnalysisBundle> {
+    return this.analyzeWithModel(path, "vision", signal);
   }
 
   async transcribe(
@@ -178,9 +199,9 @@ export class MediaService {
         buildSignals: (inspection) =>
           inspectionSupport.buildSignals(inspection),
         requestModelText: (requestPrompt, _modelContext, metadata) =>
-          this.requestTextAnalysis(requestPrompt, metadata),
+          this.requestTextAnalysis(requestPrompt, metadata, options.signal),
         requestTranscription: (mediaPath) =>
-          transcribeWithEliza(this.runtime, mediaPath),
+          transcribeWithEliza(this.runtime, mediaPath, options),
       },
     });
   }
@@ -203,9 +224,9 @@ export class MediaService {
       modelContext: this.getModelContext?.(),
       dependencies: {
         requestModelText: (requestPrompt, _modelContext, metadata) =>
-          this.requestTextAnalysis(requestPrompt, metadata),
-        generateImage: (refinedPrompt, size) =>
-          generateImageWithEliza(this.runtime, refinedPrompt, size),
+          this.requestTextAnalysis(requestPrompt, metadata, options.signal),
+        generateImage: (refinedPrompt, size, signal) =>
+          generateImageWithEliza(this.runtime, refinedPrompt, size, signal),
       },
     });
   }
@@ -221,7 +242,7 @@ export class MediaService {
       modelContext: this.getModelContext?.(),
       dependencies: {
         requestModelText: (requestPrompt, _modelContext, metadata) =>
-          this.requestTextAnalysis(requestPrompt, metadata),
+          this.requestTextAnalysis(requestPrompt, metadata, options.signal),
         synthesizeSpeech: (script, speechOptions) =>
           synthesizeSpeechWithEliza(this.runtime, script, speechOptions),
       },

@@ -10,12 +10,13 @@ export async function handleInboundWebhook(
   platform: Parameters<typeof normalizeInboundMessage>[0],
   context: AppContext,
   body: unknown,
+  abortSignal?: AbortSignal,
 ): Promise<Response> {
   const inbound = normalizeInboundMessage(platform, body);
   if (!inbound) {
     return json({ ok: true, ignored: true });
   }
-  const result = await context.gateway.receive(inbound);
+  const result = await context.gateway.receive(inbound, { abortSignal });
   const status = result.ok
     ? 200
     : result.agentCompleted && result.deliveryStatus === "rejected"

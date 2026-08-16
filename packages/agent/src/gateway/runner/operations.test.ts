@@ -8,6 +8,7 @@ import { GATEWAY_DUPLICATE_ACK_RESPONSE } from "@/gateway/receive/idempotency";
 import type { GatewayReceiveResult } from "@/gateway/receive/index";
 import type { GatewayRunnerContext } from "@/gateway/runner/context";
 import { createGatewayRunnerOperations } from "@/gateway/runner/operations";
+import { RunControllerService } from "@/services/run-controller-service";
 import type {
   DeliveredMessageRecord,
   IncomingPlatformMessage,
@@ -25,8 +26,9 @@ const { executeAgentTurnWithProgress } = vi.hoisted(() => ({
 vi.mock("@/runtime/turn-stream", () => ({ executeAgentTurnWithProgress }));
 
 type GatewayRunnerContextLike = {
-  config: { gatewayDataDir: string };
+  config: { gatewayDataDir: string; workspaceDir: string };
   services: {
+    runController: RunControllerService;
     pairing: {
       isAllowed: () => boolean;
     };
@@ -208,8 +210,12 @@ function createContext(overrides: {
   runtimeLogger?: GatewayRunnerContextLike["runtime"]["logger"];
 }): GatewayRunnerContext {
   return {
-    config: { gatewayDataDir: "/tmp/gateway-runner-ops" },
+    config: {
+      gatewayDataDir: "/tmp/gateway-runner-ops",
+      workspaceDir: "/workspace/active",
+    },
     services: {
+      runController: new RunControllerService(),
       pairing: {
         isAllowed: () => true,
       },

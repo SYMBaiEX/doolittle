@@ -19,6 +19,7 @@ import {
   MEDIA_HEADING_CLASS,
   MEDIA_TAB_PANEL_CLASS,
 } from "./media-layout";
+import { useAbortableMediaRequest } from "./use-abortable-media-request";
 
 interface TranscribeResponse {
   transcription?: UnknownRecord;
@@ -30,7 +31,7 @@ export function TranscribeTab({ active }: { active: boolean }) {
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState<UnknownRecord | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { busy, cancel, run } = useAbortableMediaRequest(active);
   const [error, setError] = useState("");
 
   const runTranscribe = async (event: FormEvent) => {
@@ -40,25 +41,25 @@ export function TranscribeTab({ active }: { active: boolean }) {
       setError("Path is required.");
       return;
     }
-    setBusy(true);
     setError("");
     setResult(null);
     try {
-      const payload = await desktopRequest<TranscribeResponse>(
-        "/media/transcribe",
-        "POST",
-        {
-          path: trimmed,
-          language: language || undefined,
-          name: name || undefined,
-          prompt: prompt || undefined,
-        },
+      const payload = await run((signal) =>
+        desktopRequest<TranscribeResponse>(
+          "/media/transcribe",
+          "POST",
+          {
+            path: trimmed,
+            language: language || undefined,
+            name: name || undefined,
+            prompt: prompt || undefined,
+          },
+          signal,
+        ),
       );
-      setResult(payload.transcription ?? {});
+      if (payload) setResult(payload.transcription ?? {});
     } catch (caught) {
       setError(errorMessage(caught));
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -136,6 +137,16 @@ export function TranscribeTab({ active }: { active: boolean }) {
           <Button disabled={busy} type="submit">
             {busy ? "Transcribing…" : "Transcribe"}
           </Button>
+          {busy ? (
+            <Button
+              aria-label="Cancel transcription"
+              onClick={cancel}
+              type="button"
+              variant="secondary"
+            >
+              Cancel
+            </Button>
+          ) : null}
         </div>
       </form>
       {error ? <Notice tone="bad">{error}</Notice> : null}

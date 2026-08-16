@@ -211,11 +211,12 @@ describe("handleManagedMediaRoutes", () => {
     expect(transcribeTransient).toHaveBeenCalledWith(
       stagedInputPath,
       outputDir,
-      {
+      expect.objectContaining({
         language: undefined,
         prompt: undefined,
         name: "dictation",
-      },
+        signal: expect.any(AbortSignal),
+      }),
     );
     expect(existsSync(dictation.sessionDir)).toBe(false);
     expect(readdirSync(join(dataDir, "attachments"))).toEqual([]);
@@ -243,6 +244,48 @@ describe("handleManagedMediaRoutes", () => {
         new URL("http://localhost/media/transcribe-attachment"),
       ),
     ).rejects.toThrow("simulated transcription failure");
+    expect(existsSync(dictation.sessionDir)).toBe(false);
+  });
+
+  it("aborts provider transcription and removes transient input and artifacts", async () => {
+    const dataDir = createDataDir();
+    const dictation = writeTransientDictation(dataDir);
+    const controller = new AbortController();
+    let providerSignal: AbortSignal | undefined;
+    const transcribeTransient = vi.fn(
+      async (
+        _path: string,
+        outputDir: string,
+        options?: { signal?: AbortSignal },
+      ) => {
+        providerSignal = options?.signal;
+        mkdirSync(outputDir, { recursive: true });
+        writeFileSync(join(outputDir, "partial-transcript.txt"), "private");
+        return await new Promise<never>((_resolve, reject) => {
+          providerSignal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("Aborted", "AbortError")),
+            { once: true },
+          );
+        });
+      },
+    );
+    const context = createContext(dataDir, undefined, transcribeTransient);
+    const pending = handleManagedMediaRoutes(
+      context,
+      new Request("http://localhost/media/transcribe-attachment", {
+        method: "POST",
+        body: JSON.stringify({ attachmentId: dictation.id }),
+        signal: controller.signal,
+      }),
+      new URL("http://localhost/media/transcribe-attachment"),
+    );
+
+    await vi.waitFor(() => expect(providerSignal).toBeDefined());
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(providerSignal?.aborted).toBe(true);
     expect(existsSync(dictation.sessionDir)).toBe(false);
   });
 
@@ -362,11 +405,12 @@ describe("handleManagedMediaRoutes", () => {
     expect(response?.status).toBe(200);
     expect(transcribeWithModel).toHaveBeenCalledWith(
       realpathSync(attachment.path),
-      {
+      expect.objectContaining({
         language: "en",
         prompt: "Names: Doolittle",
         name: "dictation",
-      },
+        signal: expect.any(AbortSignal),
+      }),
     );
     const body = await response?.json();
     expect(body).toMatchObject({

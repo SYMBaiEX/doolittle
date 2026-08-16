@@ -50,8 +50,15 @@ jobs:
         run: |
           nub run desktop:build
           nub run --cwd apps/desktop runtime:prepare
-          (cd apps/desktop && nubx electron-builder --linux AppImage deb --x64)
+          nub apps/desktop/scripts/package.ts --linux AppImage deb --x64
           nub apps/desktop/scripts/verify-package.ts
+
+      - name: Record Linux package provenance
+        run: |
+          appimage="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-linux-x64.AppImage' -printf '%f\n' -quit)"
+          deb="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-linux-x64.deb' -printf '%f\n' -quit)"
+          test -n "$appimage" && test -n "$deb"
+          nub apps/desktop/scripts/package-provenance.ts --write-receipt --release-directory apps/desktop/release --platform linux --commit "$GITHUB_SHA" --app-asar linux-unpacked/resources/app.asar --artifact "$appimage" --artifact "$deb" --artifact latest-linux.yml
 
       - name: Smoke-test bundled Linux runtime
         run: |
@@ -114,12 +121,19 @@ jobs:
           test -n "$appimage"
           test -n "$deb"
           chmod +x "$appimage"
-          APPIMAGE_EXTRACT_AND_RUN=1 DOOLITTLE_DESKTOP_EXECUTABLE="$PWD/$appimage" xvfb-run -a nub run test:e2e:desktop-packaged
+          appimage_abs="$PWD/$appimage"
+          APPIMAGE_EXTRACT_AND_RUN=1 DOOLITTLE_DESKTOP_EXECUTABLE="$appimage_abs" xvfb-run -a nub run test:e2e:desktop-packaged
+          source_asar="$PWD/apps/desktop/release/linux-unpacked/resources/app.asar"
+          extract_root="$RUNNER_TEMP/doolittle-appimage-extract"
+          mkdir -p "$extract_root"
+          (cd "$extract_root" && "$appimage_abs" --appimage-extract >/dev/null)
+          cmp "$source_asar" "$extract_root/squashfs-root/resources/app.asar"
 
           sudo apt-get update
           sudo apt-get install -y "$PWD/$deb"
           installed="$(find /opt -maxdepth 4 -type f -name Doolittle -perm -111 -print -quit)"
           test -n "$installed"
+          cmp "$source_asar" "$(dirname "$installed")/resources/app.asar"
           DOOLITTLE_DESKTOP_EXECUTABLE="$installed" xvfb-run -a nub run test:e2e:desktop-packaged
           package_name="$(dpkg-deb -f "$deb" Package)"
           sudo apt-get remove -y "$package_name"
@@ -139,4 +153,5 @@ jobs:
             apps/desktop/release/Doolittle-*-linux-*.AppImage
             apps/desktop/release/Doolittle-*-linux-*.deb
             apps/desktop/release/latest-linux.yml
+            apps/desktop/release/desktop-provenance-linux.json
           if-no-files-found: error

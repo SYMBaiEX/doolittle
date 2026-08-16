@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
-import type { BackendState } from "../../shared/contracts";
+import {
+  type BackendState,
+  DESKTOP_MEDIA_REQUEST_TIMEOUT_MS,
+  DESKTOP_REGISTRY_INSTALL_TIMEOUT_MS,
+  DESKTOP_REQUEST_TIMEOUT_MS,
+  desktopRequestTimeoutMs,
+} from "../../shared/contracts";
 import type { BackendManager } from "../backend";
 import {
   apiResponseLimit,
   fetchBackendApi,
   isRecoverableRuntimeFetchError,
   parseApiPath,
+  requestAgentTransport,
   validateAgentTransportRequest,
   waitForReadyBackend,
 } from "./agent-transport";
@@ -26,10 +33,28 @@ describe("apiResponseLimit", () => {
   });
 });
 
+describe("desktop request timeout policy", () => {
+  it("keeps ordinary calls short and reserves bounded time for media work", () => {
+    expect(desktopRequestTimeoutMs("/settings")).toBe(
+      DESKTOP_REQUEST_TIMEOUT_MS,
+    );
+    expect(desktopRequestTimeoutMs("/media/transcribe-attachment")).toBe(
+      DESKTOP_MEDIA_REQUEST_TIMEOUT_MS,
+    );
+    expect(desktopRequestTimeoutMs("/media/transcribe")).toBe(
+      DESKTOP_MEDIA_REQUEST_TIMEOUT_MS,
+    );
+    expect(desktopRequestTimeoutMs("/runtime/registry/install")).toBe(
+      DESKTOP_REGISTRY_INSTALL_TIMEOUT_MS,
+    );
+  });
+});
+
 describe("validateAgentTransportRequest", () => {
   it("keeps the official Eliza request metadata needed by the local agent", () => {
     expect(
       validateAgentTransportRequest({
+        requestId: "settings-test",
         path: "/settings",
         method: "POST",
         headers: {
@@ -41,6 +66,7 @@ describe("validateAgentTransportRequest", () => {
         body: JSON.stringify({ theme: "system" }),
       }),
     ).toEqual({
+      requestId: "settings-test",
       path: "/settings",
       method: "POST",
       headers: {
@@ -55,6 +81,7 @@ describe("validateAgentTransportRequest", () => {
   it("rejects malformed methods, GET bodies, and oversized payloads", () => {
     expect(() =>
       validateAgentTransportRequest({
+        requestId: "invalid-method",
         path: "/settings",
         method: "PUT",
         headers: {},
@@ -62,6 +89,7 @@ describe("validateAgentTransportRequest", () => {
     ).toThrow(/method/i);
     expect(() =>
       validateAgentTransportRequest({
+        requestId: "invalid-get-body",
         path: "/health",
         method: "GET",
         headers: {},
@@ -70,6 +98,7 @@ describe("validateAgentTransportRequest", () => {
     ).toThrow(/cannot include a body/i);
     expect(() =>
       validateAgentTransportRequest({
+        requestId: "oversized-body",
         path: "/settings",
         method: "POST",
         headers: {},
@@ -991,6 +1020,95 @@ describe("runtime transition API requests", () => {
     await expect(waitForReadyBackend(backend, 10)).rejects.toThrow(
       /not ready/i,
     );
+  });
+
+  it("cancels a GET while it is waiting for a replacement runtime", async () => {
+    const listeners = new Set<(state: BackendState) => void>();
+    const backend = {
+      getState: () => ({ phase: "booting" as const, message: "switching" }),
+      subscribe: (listener: (state: BackendState) => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    } as unknown as BackendManager;
+    const controller = new AbortController();
+    const pending = waitForReadyBackend(backend, 45_000, controller.signal);
+
+    controller.abort(new DOMException("cancelled", "AbortError"));
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(listeners.size).toBe(0);
+  });
+
+  it("forwards desktop cancellation to the backend fetch signal", async () => {
+    const backend = {
+      getState: () => ({
+        phase: "ready" as const,
+        url: "http://127.0.0.1:4100",
+        message: "ready",
+      }),
+    } as unknown as BackendManager;
+    const controller = new AbortController();
+    let fetchSignal: AbortSignal | undefined;
+    const pending = requestAgentTransport(
+      backend,
+      async (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          fetchSignal = init?.signal ?? undefined;
+          fetchSignal?.addEventListener(
+            "abort",
+            () => reject(fetchSignal?.reason),
+            { once: true },
+          );
+        }),
+      {
+        requestId: "cancel-test",
+        path: "/settings",
+        method: "POST",
+        headers: {},
+        body: "{}",
+      },
+      controller.signal,
+    );
+
+    controller.abort(new DOMException("cancelled", "AbortError"));
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(fetchSignal?.aborted).toBe(true);
+  });
+
+  it("cancels bounded response reading after headers arrive", async () => {
+    const backend = {
+      getState: () => ({
+        phase: "ready" as const,
+        url: "http://127.0.0.1:4100",
+        message: "ready",
+      }),
+    } as unknown as BackendManager;
+    const controller = new AbortController();
+    const pending = requestAgentTransport(
+      backend,
+      async () =>
+        new Response(
+          new ReadableStream({
+            start(streamController) {
+              streamController.enqueue(new TextEncoder().encode("partial"));
+            },
+          }),
+        ),
+      {
+        requestId: "response-cancel-test",
+        path: "/health",
+        method: "GET",
+        headers: {},
+      },
+      controller.signal,
+    );
+    await Promise.resolve();
+
+    controller.abort(new DOMException("cancelled", "AbortError"));
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
   });
 });
 

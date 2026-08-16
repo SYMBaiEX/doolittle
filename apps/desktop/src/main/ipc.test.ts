@@ -1,5 +1,6 @@
+import { EventEmitter } from "node:events";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   isTrustedDesktopIpcSender,
   registerIpc,
@@ -172,10 +173,12 @@ describe("sensitive desktop actions", () => {
     });
 
     const handler = harness.handlers.get("agent:request");
+    const sender = Object.assign(new EventEmitter(), { id: 1 });
     await expect(
       handler?.(
-        {},
+        { sender },
         {
+          requestId: "test-agent-request",
           path: "/settings",
           method: "POST",
           headers: {
@@ -212,6 +215,39 @@ describe("sensitive desktop actions", () => {
       },
     ]);
     expect(harness.handlers.has("api:request")).toBe(false);
+    harness.dispose();
+  });
+
+  it("aborts an agent request when its renderer is destroyed", async () => {
+    let requestSignal: AbortSignal | undefined;
+    const harness = createHarness({
+      confirmed: true,
+      fetch: async (_input, init) =>
+        await new Promise<Response>((_resolve, reject) => {
+          requestSignal = init?.signal ?? undefined;
+          requestSignal?.addEventListener(
+            "abort",
+            () => reject(requestSignal?.reason),
+            { once: true },
+          );
+        }),
+    });
+    const sender = Object.assign(new EventEmitter(), { id: 8 });
+    const pending = harness.handlers.get("agent:request")?.(
+      { sender },
+      {
+        requestId: "renderer-lifecycle",
+        path: "/health",
+        method: "GET",
+        headers: {},
+      },
+    ) as Promise<unknown>;
+    await vi.waitFor(() => expect(requestSignal).toBeDefined());
+
+    sender.emit("destroyed");
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(requestSignal?.aborted).toBe(true);
     harness.dispose();
   });
 
@@ -957,6 +993,69 @@ describe("sensitive desktop actions", () => {
 
     resolveChatResponse?.(new Response(""));
     await expect(start).resolves.toBeUndefined();
+    harness.dispose();
+  });
+
+  it("aborts and cleans up a local chat when the server cancellation fails", async () => {
+    let chatSignal: AbortSignal | undefined;
+    let chatStarts = 0;
+    const harness = createHarness({
+      confirmed: true,
+      fetch: async (input, init) => {
+        if (String(input).endsWith("/chat")) {
+          chatStarts += 1;
+          if (chatStarts === 2) {
+            return new Response(
+              `event: response.completed
+data: {"response":"retried"}
+
+`,
+              { headers: { "content-type": "text/event-stream" } },
+            );
+          }
+          return await new Promise<Response>((_resolve, reject) => {
+            chatSignal = init?.signal ?? undefined;
+            chatSignal?.addEventListener(
+              "abort",
+              () => reject(chatSignal?.reason),
+              { once: true },
+            );
+          });
+        }
+        return new Response("runtime cancellation failed", { status: 503 });
+      },
+    });
+    const sender = {
+      id: 77,
+      isDestroyed: () => false,
+      send: () => undefined,
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+    const request = {
+      requestId: "chat:cancel-fallback",
+      message: "Stop this local stream",
+      roomId: "desktop:room-1",
+      workspacePath: "/workspace",
+    };
+    const start = harness.handlers.get("chat:start")?.(
+      { sender },
+      request,
+    ) as Promise<unknown>;
+    await vi.waitFor(() => expect(chatSignal).toBeDefined());
+
+    await expect(
+      harness.handlers.get("chat:cancel")?.({ sender }, "chat:cancel-fallback"),
+    ).rejects.toThrow("runtime cancellation failed");
+    expect(chatSignal?.aborted).toBe(true);
+    await expect(start).resolves.toBeUndefined();
+
+    // chatStart's finally block must remove the active entry, otherwise a
+    // retry with the same request ID would be rejected as already running.
+    await expect(
+      harness.handlers.get("chat:start")?.({ sender }, request),
+    ).resolves.toBeUndefined();
+    expect(chatStarts).toBe(2);
     harness.dispose();
   });
 

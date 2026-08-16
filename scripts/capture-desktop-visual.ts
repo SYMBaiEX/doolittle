@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { packagedAppAsarPath } from "./run-desktop-packaged-tests";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -34,15 +35,15 @@ export function visualSweepCandidates(
 }
 
 export function assertVisualSweepProvenance({
-  executableSha256,
+  appAsarSha256,
   releaseRevision,
-  repositoryExecutableSha256,
+  repositoryAppAsarSha256,
   sourceRevision,
   worktreeClean,
 }: {
-  executableSha256: string;
+  appAsarSha256: string;
   releaseRevision: string;
-  repositoryExecutableSha256: string;
+  repositoryAppAsarSha256: string;
   sourceRevision: string;
   worktreeClean: boolean;
 }): void {
@@ -56,9 +57,9 @@ export function assertVisualSweepProvenance({
       `Packaged desktop revision ${releaseRevision || "unknown"} does not match HEAD ${sourceRevision || "unknown"}. Rebuild the desktop release first.`,
     );
   }
-  if (!executableSha256 || executableSha256 !== repositoryExecutableSha256) {
+  if (!appAsarSha256 || appAsarSha256 !== repositoryAppAsarSha256) {
     throw new Error(
-      "Selected desktop executable does not match the repository package. Pass the current repository executable or reinstall the exact package.",
+      "Selected desktop application code does not match the repository package. Pass the current repository package or reinstall the exact package.",
     );
   }
 }
@@ -169,14 +170,16 @@ export function main(): void {
   }
   const sourceRevision = gitOutput(["rev-parse", "HEAD"]);
   const selectedExecutable = realpathSync(executable);
-  const repositoryExecutableSha256 = sha256File(
-    realpathSync(repositoryExecutable),
+  const selectedAppAsar = realpathSync(packagedAppAsarPath(selectedExecutable));
+  const repositoryAppAsar = realpathSync(
+    packagedAppAsarPath(repositoryExecutable),
   );
   const executableSha256 = sha256File(selectedExecutable);
+  const appAsarSha256 = sha256File(selectedAppAsar);
   assertVisualSweepProvenance({
-    executableSha256,
+    appAsarSha256,
     releaseRevision: releaseRevision(),
-    repositoryExecutableSha256,
+    repositoryAppAsarSha256: sha256File(repositoryAppAsar),
     sourceRevision,
     worktreeClean: gitOutput(["status", "--porcelain"]).length === 0,
   });
@@ -206,6 +209,7 @@ export function main(): void {
         DOOLITTLE_DESKTOP_EXECUTABLE: selectedExecutable,
         DOOLITTLE_SWEEP_EXECUTABLE_PATH: selectedExecutable,
         DOOLITTLE_SWEEP_EXECUTABLE_SHA256: executableSha256,
+        DOOLITTLE_SWEEP_APP_ASAR_SHA256: appAsarSha256,
         DOOLITTLE_SWEEP_SOURCE_REVISION: sourceRevision,
         DOOLITTLE_SWEEP_SCREENSHOTS_DIR: output,
         ...(profile ? { DOOLITTLE_DESKTOP_PROFILE_DIR: resolve(profile) } : {}),

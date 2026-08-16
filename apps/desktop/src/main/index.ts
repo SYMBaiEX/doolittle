@@ -23,6 +23,8 @@ import {
   sourceRuntimeTarget,
 } from "./backend";
 import {
+  configureDesktopSingleInstance,
+  ensureDesktopWindow,
   handleWindowClose,
   shouldStayOnDirtyClosePrompt,
 } from "./desktop-lifecycle";
@@ -30,6 +32,7 @@ import { DesktopPreferences } from "./desktop-preferences";
 import { type DesktopBackgroundNotification, registerIpc } from "./ipc";
 import { ProviderAuthController } from "./provider-auth";
 import {
+  discardRecordedAudioImport,
   importRecordedAudio,
   pruneStaleRecordedAudioImports,
 } from "./recorded-audio-import";
@@ -58,13 +61,33 @@ let mainWindow: BrowserWindow | null = null;
 let backend: BackendManager | null = null;
 let workspaceState: WorkspaceStateManager | null = null;
 let workspacePickInFlight: Promise<WorkspacePickResult> | null = null;
-let workspaceSwitchQueue: Promise<void> = Promise.resolve();
 let disposeIpc: (() => void) | null = null;
 let quitting = false;
 let tray: Tray | null = null;
 let desktopPreferences: DesktopPreferences | null = null;
 let updates: DesktopUpdateController | null = null;
+let secondInstanceRequested = false;
+let desktopInitialized = false;
 const mainBundleDirectory = import.meta.dirname;
+
+/**
+ * Keeps backend workspace transitions and their persisted desktop state in the
+ * same order, while allowing a failed transition to leave later requests live.
+ */
+export function createSerializedWorkspaceSwitchQueue() {
+  let queue: Promise<void> = Promise.resolve();
+
+  return <T>(operation: () => Promise<T>): Promise<T> => {
+    const queuedOperation = queue.then(operation);
+    queue = queuedOperation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return queuedOperation;
+  };
+}
+
+const enqueueWorkspaceSwitch = createSerializedWorkspaceSwitchQueue();
 
 function sendAppCommand(command: DesktopCommand): void {
   if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -176,6 +199,8 @@ async function pickWorkspaceImpl(): Promise<WorkspacePickResult> {
   if (!workspaceState || !backend) {
     throw new Error("The desktop workspace manager is not ready.");
   }
+  const activeWorkspaceState = workspaceState;
+  const activeBackend = backend;
   const options: Electron.OpenDialogOptions = {
     title: "Open a Doolittle workspace",
     buttonLabel: "Open workspace",
@@ -196,10 +221,12 @@ async function pickWorkspaceImpl(): Promise<WorkspacePickResult> {
     throw new Error("The directory picker did not return a workspace.");
   }
   const normalizedPath = normalizeWorkspaceDirectory(selectedPath);
-  await backend.switchWorkspace(normalizedPath);
-  return workspaceState.applyPickerResult({
-    canceled: false,
-    filePaths: [normalizedPath],
+  return enqueueWorkspaceSwitch(async () => {
+    await activeBackend.switchWorkspace(normalizedPath);
+    return activeWorkspaceState.applyPickerResult({
+      canceled: false,
+      filePaths: [normalizedPath],
+    });
   });
 }
 
@@ -282,25 +309,11 @@ function pickWorkspace(): Promise<WorkspacePickResult> {
 }
 
 function switchRecentWorkspace(path: string): Promise<WorkspacePickResult> {
-  const operation = workspaceSwitchQueue.then(() =>
-    switchRecentWorkspaceImpl(path),
-  );
-  workspaceSwitchQueue = operation.then(
-    () => undefined,
-    () => undefined,
-  );
-  return operation;
+  return enqueueWorkspaceSwitch(() => switchRecentWorkspaceImpl(path));
 }
 
 function openWorkspacePath(path: string): Promise<WorkspacePickResult> {
-  const operation = workspaceSwitchQueue.then(() =>
-    openWorkspacePathImpl(path),
-  );
-  workspaceSwitchQueue = operation.then(
-    () => undefined,
-    () => undefined,
-  );
-  return operation;
+  return enqueueWorkspaceSwitch(() => openWorkspacePathImpl(path));
 }
 
 function reportWorkspacePickerError(error: unknown): void {
@@ -430,6 +443,18 @@ function showMainWindow(): void {
   mainWindow.focus();
 }
 
+function handleSecondInstance(): void {
+  secondInstanceRequested = true;
+  if (!desktopInitialized) return;
+  mainWindow = ensureDesktopWindow(mainWindow, createWindow);
+  showMainWindow();
+}
+
+const ownsSingleInstance = configureDesktopSingleInstance(
+  app,
+  handleSecondInstance,
+);
+
 function requestQuit(): void {
   if (!quitting) app.quit();
 }
@@ -448,8 +473,7 @@ function installTray(): void {
   tray.on("click", showMainWindow);
 }
 
-function desktopDisplayBounds(): WindowBounds {
-  const areas = screen.getAllDisplays().map((display) => display.workArea);
+function enclosingDisplayBounds(areas: WindowBounds[]): WindowBounds {
   const left = Math.min(...areas.map((area) => area.x));
   const top = Math.min(...areas.map((area) => area.y));
   const right = Math.max(...areas.map((area) => area.x + area.width));
@@ -464,8 +488,14 @@ function desktopDisplayBounds(): WindowBounds {
 
 function createWindow(): BrowserWindow {
   const statePath = resolve(app.getPath("userData"), "window-state.json");
-  const displayBounds = desktopDisplayBounds();
-  const savedState = loadWindowState(statePath, { displayBounds });
+  const displayWorkAreas = screen
+    .getAllDisplays()
+    .map((display) => display.workArea);
+  const displayBounds = enclosingDisplayBounds(displayWorkAreas);
+  const savedState = loadWindowState(statePath, {
+    displayBounds,
+    displayWorkAreas,
+  });
   const window = new BrowserWindow({
     ...savedState.bounds,
     minWidth: 920,
@@ -539,7 +569,7 @@ function createWindow(): BrowserWindow {
   const windowState = createWindowStatePersistenceController(
     window,
     statePath,
-    { displayBounds },
+    { displayBounds, displayWorkAreas },
   );
   const persistWindowState = () => windowState.requestPersist();
   window.on("resize", persistWindowState);
@@ -561,133 +591,135 @@ function createWindow(): BrowserWindow {
   return window;
 }
 
-app.whenReady().then(async () => {
-  if (process.platform === "darwin" && app.dock) {
-    app.setActivationPolicy("regular");
-    await app.dock.show();
-  }
-  const sourceRoot = sourceRootOverride(
-    app.isPackaged,
-    process.env.DOOLITTLE_DESKTOP_SOURCE_ROOT,
-  );
-  const sourceRepoRoot = app.isPackaged
-    ? null
-    : sourceRoot
-      ? findRepoRoot([sourceRoot])
-      : findRepoRoot(
-          [
-            process.env.DOOLITTLE_REPO_ROOT || "",
-            app.getAppPath(),
-            process.cwd(),
-            mainBundleDirectory,
-          ].filter(Boolean),
-        );
-  const packagedRuntime = app.isPackaged
-    ? findPackagedRuntime(process.resourcesPath)
-    : null;
-  const target = selectBackendLaunchTarget({
-    isPackaged: app.isPackaged,
-    packagedRuntime,
-    sourceRuntime: app.isPackaged
+if (ownsSingleInstance)
+  app.whenReady().then(async () => {
+    if (process.platform === "darwin" && app.dock) {
+      app.setActivationPolicy("regular");
+      await app.dock.show();
+    }
+    const sourceRoot = sourceRootOverride(
+      app.isPackaged,
+      process.env.DOOLITTLE_DESKTOP_SOURCE_ROOT,
+    );
+    const sourceRepoRoot = app.isPackaged
       ? null
-      : sourceRuntimeTarget(
-          sourceRepoRoot ??
-            findRepoRoot([
+      : sourceRoot
+        ? findRepoRoot([sourceRoot])
+        : findRepoRoot(
+            [
+              process.env.DOOLITTLE_REPO_ROOT || "",
               app.getAppPath(),
               process.cwd(),
               mainBundleDirectory,
-            ]),
-        ),
-  });
-  const runtimeDataDir = resolve(app.getPath("userData"), "runtime");
-  // Eliza's OAuth/account-storage helpers resolve their state root from
-  // ELIZA_HOME. Bind the desktop main process to the same private data root
-  // passed to the backend so newly saved accounts appear in the live pool.
-  process.env.ELIZA_HOME ??= runtimeDataDir;
-  ensureDesktopRuntimeState(
-    runtimeDataDir,
-    sourceRepoRoot ? resolve(sourceRepoRoot, ".doolittle") : undefined,
-  );
-  pruneStaleRecordedAudioImports(runtimeDataDir);
-  const requestedWorkspaceOverride = process.env.DOOLITTLE_DESKTOP_CWD?.trim();
-  const requestedWorkspace = requestedWorkspaceOverride || homedir();
-  let fallbackWorkspace = homedir();
-  try {
-    fallbackWorkspace = normalizeWorkspaceDirectory(requestedWorkspace);
-  } catch {
-    // Invalid environment overrides must not prevent the desktop from opening.
-  }
-  workspaceState = new WorkspaceStateManager(
-    resolve(app.getPath("userData"), "workspace-state.json"),
-    fallbackWorkspace,
-    { selectFallback: Boolean(requestedWorkspaceOverride) },
-  );
-  desktopPreferences = new DesktopPreferences(
-    resolve(app.getPath("userData"), "desktop-preferences.json"),
-  );
-  updates = new DesktopUpdateController(
-    app.isPackaged ? configuredUpdater() : null,
-    app.isPackaged
-      ? "Updates are unavailable in this packaged build."
-      : "Updates are only available in a packaged, signed Doolittle build.",
-  );
-  backend = new BackendManager(
-    target,
-    runtimeDataDir,
-    workspaceState.getState().currentPath || fallbackWorkspace,
-  );
-  mainWindow = createWindow();
-  const providerAuth = new ProviderAuthController({
-    openExternal: (url) => shell.openExternal(url),
-    readClipboardText: () => clipboard.readText(),
-  });
-  installApplicationMenu();
-  installTray();
-  disposeIpc = registerIpc({
-    ipcMain,
-    backend,
-    getMainWindow: () => mainWindow,
-    pickFiles,
-    workspace: {
-      getState: () =>
-        workspaceState?.getState() ?? { currentPath: "", recentPaths: [] },
-      pickWorkspace,
-      openWorkspace: openWorkspacePath,
-      switchWorkspace: switchRecentWorkspace,
-      subscribe: (listener) =>
-        workspaceState?.subscribe(listener) ?? (() => undefined),
-    },
-    sensitiveActionDependencies: { notify: showBackgroundNotification },
-    pickChatAttachments: () => pickChatAttachments(runtimeDataDir),
-    pickProjectFiles,
-    pickProjectFolders,
-    importRecordedAudio: (request) =>
-      importRecordedAudio(request, runtimeDataDir),
-    desktopControls: {
-      getLifecycleState: () =>
-        desktopPreferences?.getState() ?? { keepRunningInBackground: false },
-      setKeepRunningInBackground: (enabled) =>
-        desktopPreferences?.setBackgroundMode(enabled) ?? {
-          keepRunningInBackground: false,
-        },
-      updates,
-      providerAuth,
-    },
-  });
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
-  void backend.start();
-
-  app.on("activate", () => {
-    if (!mainWindow) {
-      mainWindow = createWindow();
-      return;
+            ].filter(Boolean),
+          );
+    const packagedRuntime = app.isPackaged
+      ? findPackagedRuntime(process.resourcesPath)
+      : null;
+    const target = selectBackendLaunchTarget({
+      isPackaged: app.isPackaged,
+      packagedRuntime,
+      sourceRuntime: app.isPackaged
+        ? null
+        : sourceRuntimeTarget(
+            sourceRepoRoot ??
+              findRepoRoot([
+                app.getAppPath(),
+                process.cwd(),
+                mainBundleDirectory,
+              ]),
+          ),
+    });
+    const runtimeDataDir = resolve(app.getPath("userData"), "runtime");
+    // Eliza's OAuth/account-storage helpers resolve their state root from
+    // ELIZA_HOME. Bind the desktop main process to the same private data root
+    // passed to the backend so newly saved accounts appear in the live pool.
+    process.env.ELIZA_HOME ??= runtimeDataDir;
+    ensureDesktopRuntimeState(
+      runtimeDataDir,
+      sourceRepoRoot ? resolve(sourceRepoRoot, ".doolittle") : undefined,
+    );
+    pruneStaleRecordedAudioImports(runtimeDataDir);
+    const requestedWorkspaceOverride =
+      process.env.DOOLITTLE_DESKTOP_CWD?.trim();
+    const requestedWorkspace = requestedWorkspaceOverride || homedir();
+    let fallbackWorkspace = homedir();
+    try {
+      fallbackWorkspace = normalizeWorkspaceDirectory(requestedWorkspace);
+    } catch {
+      // Invalid environment overrides must not prevent the desktop from opening.
     }
-    if (!mainWindow.isVisible()) mainWindow.show();
-    mainWindow.focus();
+    workspaceState = new WorkspaceStateManager(
+      resolve(app.getPath("userData"), "workspace-state.json"),
+      fallbackWorkspace,
+      { selectFallback: Boolean(requestedWorkspaceOverride) },
+    );
+    desktopPreferences = new DesktopPreferences(
+      resolve(app.getPath("userData"), "desktop-preferences.json"),
+    );
+    updates = new DesktopUpdateController(
+      app.isPackaged ? configuredUpdater() : null,
+      app.isPackaged
+        ? "Updates are unavailable in this packaged build."
+        : "Updates are only available in a packaged, signed Doolittle build.",
+    );
+    backend = new BackendManager(
+      target,
+      runtimeDataDir,
+      workspaceState.getState().currentPath || fallbackWorkspace,
+    );
+    mainWindow = createWindow();
+    desktopInitialized = true;
+    if (secondInstanceRequested) showMainWindow();
+    const providerAuth = new ProviderAuthController({
+      openExternal: (url) => shell.openExternal(url),
+      readClipboardText: () => clipboard.readText(),
+    });
+    installApplicationMenu();
+    installTray();
+    disposeIpc = registerIpc({
+      ipcMain,
+      backend,
+      getMainWindow: () => mainWindow,
+      pickFiles,
+      workspace: {
+        getState: () =>
+          workspaceState?.getState() ?? { currentPath: "", recentPaths: [] },
+        pickWorkspace,
+        openWorkspace: openWorkspacePath,
+        switchWorkspace: switchRecentWorkspace,
+        subscribe: (listener) =>
+          workspaceState?.subscribe(listener) ?? (() => undefined),
+      },
+      sensitiveActionDependencies: { notify: showBackgroundNotification },
+      pickChatAttachments: () => pickChatAttachments(runtimeDataDir),
+      pickProjectFiles,
+      pickProjectFolders,
+      importRecordedAudio: (request) =>
+        importRecordedAudio(request, runtimeDataDir),
+      discardRecordedAudio: (recordingId) =>
+        discardRecordedAudioImport(runtimeDataDir, recordingId),
+      desktopControls: {
+        getLifecycleState: () =>
+          desktopPreferences?.getState() ?? { keepRunningInBackground: false },
+        setKeepRunningInBackground: (enabled) =>
+          desktopPreferences?.setBackgroundMode(enabled) ?? {
+            keepRunningInBackground: false,
+          },
+        updates,
+        providerAuth,
+      },
+    });
+    mainWindow.on("closed", () => {
+      mainWindow = null;
+    });
+    void backend.start();
+
+    app.on("activate", () => {
+      mainWindow = ensureDesktopWindow(mainWindow, createWindow);
+      showMainWindow();
+    });
   });
-});
 
 app.on("before-quit", (event) => {
   if (quitting || !backend) return;

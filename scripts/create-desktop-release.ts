@@ -9,6 +9,10 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, resolve } from "node:path";
+import {
+  type NativePackageReceipt,
+  nativeReceiptName,
+} from "../apps/desktop/scripts/package-provenance";
 
 const SHA256_SUMS = "SHA256SUMS.txt";
 const RELEASE_MANIFEST = "release-manifest.json";
@@ -47,6 +51,82 @@ export interface CreateDesktopReleaseOptions {
   generatedAt?: string;
 }
 
+const RECEIPT_PLATFORMS = ["linux", "macos", "windows"] as const;
+
+function receiptArtifactPlatforms(
+  platform: NativePackageReceipt["platform"],
+): DesktopReleaseArtifact["platform"] {
+  return platform;
+}
+
+function isSha256(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{64}$/u.test(value);
+}
+
+async function verifyNativePackageReceipts(
+  directory: string,
+  expected: ExpectedArtifact[],
+  commit: string,
+): Promise<void> {
+  for (const platform of RECEIPT_PLATFORMS) {
+    const receiptPath = resolve(directory, nativeReceiptName(platform));
+    let receipt: NativePackageReceipt;
+    try {
+      receipt = JSON.parse(
+        readFileSync(receiptPath, "utf8"),
+      ) as NativePackageReceipt;
+    } catch {
+      throw new Error(
+        `Missing or invalid native provenance receipt: ${nativeReceiptName(platform)}.`,
+      );
+    }
+    if (
+      receipt.schemaVersion !== 1 ||
+      receipt.platform !== platform ||
+      receipt.commit !== commit ||
+      !isSha256(receipt.appAsar?.sha256) ||
+      !receipt.appAsar.path ||
+      !Number.isSafeInteger(receipt.appAsar.bytes) ||
+      receipt.appAsar.bytes < 0
+    ) {
+      throw new Error(
+        `Invalid native provenance receipt: ${nativeReceiptName(platform)}.`,
+      );
+    }
+    const expectedPaths = expected
+      .filter(
+        (artifact) => artifact.platform === receiptArtifactPlatforms(platform),
+      )
+      .map((artifact) => artifact.path)
+      .sort();
+    const actualPaths = receipt.artifacts
+      .map((artifact) => artifact.path)
+      .sort();
+    if (
+      expectedPaths.join("\n") !== actualPaths.join("\n") ||
+      new Set(actualPaths).size !== actualPaths.length
+    ) {
+      throw new Error(
+        `Native provenance receipt does not bind the expected ${platform} artifacts.`,
+      );
+    }
+    for (const artifact of receipt.artifacts) {
+      const artifactPath = resolve(directory, artifact.path);
+      if (
+        !isSha256(artifact.sha256) ||
+        !Number.isSafeInteger(artifact.bytes) ||
+        artifact.bytes < 0 ||
+        statSync(artifactPath).size !== artifact.bytes ||
+        (await sha256(artifactPath)) !== artifact.sha256
+      ) {
+        throw new Error(
+          `Native provenance receipt hash mismatch: ${nativeReceiptName(platform)} (${artifact.path}).`,
+        );
+      }
+    }
+  }
+}
+
 export function expectedDesktopReleaseArtifacts(
   version: string,
 ): ExpectedArtifact[] {
@@ -55,6 +135,21 @@ export function expectedDesktopReleaseArtifacts(
   const linux = `Doolittle-${version}-linux-x64`;
   return [
     { path: "LICENSE", platform: "release", architecture: "all" },
+    {
+      path: nativeReceiptName("macos"),
+      platform: "release",
+      architecture: "all",
+    },
+    {
+      path: nativeReceiptName("windows"),
+      platform: "release",
+      architecture: "all",
+    },
+    {
+      path: nativeReceiptName("linux"),
+      platform: "release",
+      architecture: "all",
+    },
     { path: `${mac}.dmg`, platform: "macos", architecture: "arm64" },
     {
       path: `${mac}.dmg.blockmap`,
@@ -165,6 +260,7 @@ export async function createDesktopRelease(
     options.version,
     `Doolittle-${options.version}-mac-arm64.zip`,
   );
+  await verifyNativePackageReceipts(directory, expected, options.commit);
   verifyUpdateManifest(
     directory,
     "latest.yml",

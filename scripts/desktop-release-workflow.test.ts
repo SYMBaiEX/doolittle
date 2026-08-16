@@ -72,5 +72,28 @@ describe("atomic desktop release workflow", () => {
     expect(linux).toContain("sudo apt-get install -y");
     expect(linux).toContain("sudo apt-get remove -y");
     expect(linux).not.toContain("AppImage.blockmap");
+    expect(mac).toContain("desktop-provenance-macos.json");
+    expect(windows).toContain("desktop-provenance-windows.json");
+    expect(linux).toContain("desktop-provenance-linux.json");
+    expect(mac).toContain("verify-package.ts --verify-signature");
+    expect(mac.match(/cmp .*app\.asar/gu)).toHaveLength(2);
+    expect(windows).toContain("Get-FileHash $installedAsar");
+    expect(linux.match(/cmp .*app\.asar/gu)).toHaveLength(2);
+  });
+
+  it("requires macOS signing and notarization credentials for every run", () => {
+    const mac = readFileSync(producers[0] ?? "", "utf8");
+    expect(mac).toContain("Require signing and notarization credentials");
+    expect(mac).toContain('test -n "$CSC_LINK"');
+    expect(mac).toContain('test -n "$CSC_KEY_PASSWORD"');
+    expect(mac).toContain('test -n "$APPLE_ID"');
+    expect(mac).toContain('test -n "$APPLE_APP_SPECIFIC_PASSWORD"');
+    expect(mac).toContain('test -n "$APPLE_TEAM_ID"');
+    expect(mac).toContain(
+      "nub apps/desktop/scripts/package.ts --mac dmg zip --arm64 --config.mac.notarize=true",
+    );
+    expect(mac).not.toContain("unsigned development artifact");
+    expect(mac).not.toContain("CSC_IDENTITY_AUTO_DISCOVERY=false");
+    expect(mac).not.toContain("if: env.MAC_CSC_LINK != ''");
   });
 });

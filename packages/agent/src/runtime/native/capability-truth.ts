@@ -148,7 +148,7 @@ const CAPABILITY_TRUTH: NativeCapabilityTruthRecord[] = [
     realBehavior: [
       "Maps capabilityProfile=research to an official research task while leaving providerPolicy.preferredFramework unset unless the operator chooses a framework.",
       "Executes research tasks directly through Eliza ModelType.RESEARCH, records a sessionless durable research receipt, and validates real model output without a human override.",
-      "Passes a per-run abort signal to RESEARCH providers and always keeps durable cancellation guards; provider network cancellation begins with Eliza releases that declare ResearchParams.signal.",
+      "Keeps the per-run abort signal request-local so beta.7 planned research actions receive it even though the SDK omits it from handler options; Doolittle stops awaiting immediately, providers cancel network work when they observe ResearchParams.signal, and durable guards always reject late results. Beta providers that ignore the signal may finish their already-started upstream request in the background.",
       "Does not mislabel an ACP coding session as deep research; coding tasks retain the official ACP spawn path.",
       "Keeps coding workers on the same official orchestrator while granting them Doolittle's real workspace and terminal tool surfaces.",
     ],

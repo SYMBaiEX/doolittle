@@ -16,6 +16,7 @@ export interface MediaImageGenerationDependencies {
   generateImage?: (
     prompt: string,
     size: string,
+    signal?: AbortSignal,
   ) => Promise<ElizaImageGenerationResult | undefined>;
 }
 
@@ -27,7 +28,7 @@ export interface MediaSpeechGenerationDependencies {
   ) => Promise<string>;
   synthesizeSpeech?: (
     text: string,
-    options: { voice: string; speed?: number },
+    options: { voice: string; speed?: number; signal?: AbortSignal },
   ) => Promise<Uint8Array | undefined>;
 }
 

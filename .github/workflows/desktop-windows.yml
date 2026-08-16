@@ -182,6 +182,13 @@ jobs:
             Write-Warning "WIN_CSC_LINK is not configured; producing an unsigned development artifact."
           }
 
+      - name: Record Windows package provenance
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem apps/desktop/release/Doolittle-*-win-x64.exe | Select-Object -First 1
+          if (-not $installer) { throw "Doolittle Windows installer was not produced." }
+          nub apps/desktop/scripts/package-provenance.ts --write-receipt --release-directory apps/desktop/release --platform windows --commit "$env:GITHUB_SHA" --app-asar win-unpacked/resources/app.asar --artifact $installer.Name --artifact "$($installer.Name).blockmap" --artifact latest.yml
+
       - name: Install, launch, and uninstall the NSIS artifact
         shell: pwsh
         run: |
@@ -199,6 +206,14 @@ jobs:
           $installedApp = Join-Path $installDirectory "Doolittle.exe"
           if (-not (Test-Path $installedApp -PathType Leaf)) {
             throw "Installed application is missing: $installedApp"
+          }
+          $sourceAsar = (Resolve-Path "apps/desktop/release/win-unpacked/resources/app.asar").Path
+          $installedAsar = Join-Path $installDirectory "resources/app.asar"
+          if (-not (Test-Path $installedAsar -PathType Leaf)) {
+            throw "Installed app.asar is missing: $installedAsar"
+          }
+          if ((Get-FileHash $sourceAsar -Algorithm SHA256).Hash -ne (Get-FileHash $installedAsar -Algorithm SHA256).Hash) {
+            throw "Installed app.asar does not match the verified package receipt source."
           }
           $env:DOOLITTLE_DESKTOP_EXECUTABLE = $installedApp
           nub run test:e2e:desktop-packaged
@@ -227,4 +242,5 @@ jobs:
             apps/desktop/release/Doolittle-*-win-x64.exe
             apps/desktop/release/Doolittle-*-win-x64.exe.blockmap
             apps/desktop/release/latest.yml
+            apps/desktop/release/desktop-provenance-windows.json
           if-no-files-found: error

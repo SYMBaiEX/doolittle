@@ -49,6 +49,13 @@ export function internalServerErrorResponse(): Response {
   return json({ error: "Internal server error" }, 500);
 }
 
+export function isRequestCancellation(
+  _error: unknown,
+  signal: AbortSignal,
+): boolean {
+  return signal.aborted;
+}
+
 async function writeEarlyResponse(
   response: Response,
   incoming: IncomingMessage,
@@ -269,6 +276,10 @@ export async function startApiServer(
         }
         await writeWebResponse(response, outgoing);
       } catch (error) {
+        if (isRequestCancellation(error, requestLifecycle.controller.signal)) {
+          if (!outgoing.destroyed) outgoing.destroy();
+          return;
+        }
         if (error instanceof RequestBodyTooLargeError) {
           await writeEarlyResponse(
             json({ error: error.message }, 413),

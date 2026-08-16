@@ -373,13 +373,152 @@ describe("MediaService", () => {
       expect(speech.model).toBe(ModelType.TEXT_TO_SPEECH);
       expect(useModel).toHaveBeenCalledWith(
         ModelType.TRANSCRIPTION,
-        expect.any(Buffer),
+        expect.objectContaining({ audio: expect.any(Buffer) }),
       );
       expect(useModel).toHaveBeenCalledWith(ModelType.TEXT_TO_SPEECH, {
         text: expect.any(String),
         voice: "alloy",
         speed: undefined,
       });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("passes an abort signal to the Eliza transcription provider", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-media-abort-"));
+    const outputDir = join(root, "media");
+    const audioPath = join(root, "briefing.wav");
+    const controller = new AbortController();
+    let providerSignal: AbortSignal | undefined;
+    const useModel = vi.fn(async (_modelType: string, params: unknown) => {
+      providerSignal = (params as { signal?: AbortSignal }).signal;
+      return await new Promise<string>((_resolve, reject) => {
+        providerSignal?.addEventListener(
+          "abort",
+          () => reject(new DOMException("Aborted", "AbortError")),
+          { once: true },
+        );
+      });
+    });
+    const service = new MediaService(root, outputDir);
+    service.bindRuntime({
+      getModel: vi.fn(() => useModel),
+      useModel,
+    } as never);
+
+    try {
+      writeFileSync(audioPath, ONE_SECOND_WAV);
+      const pending = service.transcribeTransient(audioPath, outputDir, {
+        signal: controller.signal,
+      });
+      controller.abort();
+
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      expect(providerSignal).toBe(controller.signal);
+      expect(useModel).toHaveBeenCalledWith(
+        ModelType.TRANSCRIPTION,
+        expect.objectContaining({
+          audio: expect.any(Buffer),
+          signal: controller.signal,
+        }),
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("cancels model analysis, image generation, and speech without artifacts", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-media-cancel-all-"));
+    const outputDir = join(root, "media");
+    const analysisController = new AbortController();
+    const imageController = new AbortController();
+    const speechController = new AbortController();
+    let analysisSignal: AbortSignal | undefined;
+    let speechSignal: AbortSignal | undefined;
+    const textAnalysisPort: MediaTextAnalysisPort = {
+      bindRuntime: vi.fn(),
+      analyze: vi.fn(async (_prompt, options) => {
+        analysisSignal = options?.abortSignal;
+        if (analysisSignal === analysisController.signal) {
+          return await new Promise<string>(() => undefined);
+        }
+        return "Refined media prompt";
+      }),
+    };
+    const service = new MediaService(
+      root,
+      outputDir,
+      () => ({
+        provider: "openai",
+        model: "gpt-4.1-mini",
+        baseUrl: "https://example.invalid/v1",
+        temperature: 0.2,
+        maxTokens: 128,
+      }),
+      textAnalysisPort,
+    );
+    const useModel = vi.fn(async (modelType: string, params: unknown) => {
+      if (modelType === ModelType.TEXT_TO_SPEECH) {
+        speechSignal = (params as { signal?: AbortSignal }).signal;
+        return await new Promise<Uint8Array>(() => undefined);
+      }
+      throw new Error(`Unexpected model: ${modelType}`);
+    });
+    service.bindRuntime({
+      getModel: vi.fn((modelType: string) =>
+        modelType === ModelType.TEXT_TO_SPEECH ? useModel : undefined,
+      ),
+      getService: vi.fn((serviceType: string) =>
+        serviceType === ServiceType.MEDIA_GENERATION
+          ? {
+              canGenerateMedia: vi.fn(async () => true),
+              generateMedia: vi.fn(
+                async () => await new Promise(() => undefined),
+              ),
+            }
+          : null,
+      ),
+      useModel,
+    } as never);
+
+    try {
+      writeFileSync(join(root, "voice.wav"), ONE_SECOND_WAV);
+      const analysis = service.analyzeWithModel(
+        "voice.wav",
+        "auto",
+        analysisController.signal,
+      );
+      await vi.waitFor(() =>
+        expect(analysisSignal).toBe(analysisController.signal),
+      );
+      analysisController.abort();
+      await expect(analysis).rejects.toMatchObject({ name: "AbortError" });
+
+      const image = service.generateImage("A compact icon", {
+        signal: imageController.signal,
+      });
+      await vi.waitFor(() =>
+        expect(textAnalysisPort.analyze).toHaveBeenCalledTimes(2),
+      );
+      imageController.abort();
+      await expect(image).rejects.toMatchObject({ name: "AbortError" });
+
+      const speech = service.speakWithModel("A short narration", {
+        signal: speechController.signal,
+      });
+      await vi.waitFor(() =>
+        expect(speechSignal).toBe(speechController.signal),
+      );
+      speechController.abort();
+      await expect(speech).rejects.toMatchObject({ name: "AbortError" });
+
+      expect(existsSync(outputDir)).toBe(true);
+      expect(
+        readdirSync(outputDir).every(
+          (name) => !/response|prompt|speech|generation/iu.test(name),
+        ),
+      ).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

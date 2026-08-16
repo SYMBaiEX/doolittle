@@ -1,4 +1,5 @@
 import type { MediaTranscriptionBundle } from "../types";
+import { throwIfTranscriptionAborted } from "./abort";
 import { persistMediaTranscriptionArtifacts } from "./artifacts";
 import { applyElizaTranscription } from "./eliza-transcription";
 import { applyModelSummaryTranscription } from "./model-summary-transcription";
@@ -13,6 +14,7 @@ import type {
 export async function executeMediaTranscription(
   input: ExecuteMediaTranscriptionInput,
 ): Promise<MediaTranscriptionBundle> {
+  throwIfTranscriptionAborted(input.options?.signal);
   const transcription = prepareMediaTranscription(input);
   let state: MediaTranscriptionState = {
     transcriptText: "",
@@ -21,9 +23,13 @@ export async function executeMediaTranscription(
   };
 
   state = await applyElizaTranscription(state, transcription);
+  throwIfTranscriptionAborted(transcription.options.signal);
   state = applySidecarTranscription(state, transcription);
+  throwIfTranscriptionAborted(transcription.options.signal);
   state = await applyModelSummaryTranscription(state, transcription);
+  throwIfTranscriptionAborted(transcription.options.signal);
   state = applyOfflineTranscription(state, transcription);
+  throwIfTranscriptionAborted(transcription.options.signal);
 
   return persistMediaTranscriptionArtifacts(transcription, state);
 }

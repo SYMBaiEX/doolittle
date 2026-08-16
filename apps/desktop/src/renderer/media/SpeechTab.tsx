@@ -19,6 +19,7 @@ import {
   MEDIA_SELECT_CLASS,
   MEDIA_TAB_PANEL_CLASS,
 } from "./media-layout";
+import { useAbortableMediaRequest } from "./use-abortable-media-request";
 
 interface SpeakResponse {
   speech?: UnknownRecord;
@@ -31,7 +32,7 @@ export function SpeechTab({ active }: { active: boolean }) {
   const [format, setFormat] = useState("mp3");
   const [speed, setSpeed] = useState("1");
   const [result, setResult] = useState<UnknownRecord | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { busy, cancel, run } = useAbortableMediaRequest(active);
   const [error, setError] = useState("");
 
   const runSpeak = async (event: FormEvent) => {
@@ -41,26 +42,26 @@ export function SpeechTab({ active }: { active: boolean }) {
       setError("Text is required.");
       return;
     }
-    setBusy(true);
     setError("");
     setResult(null);
     try {
-      const payload = await desktopRequest<SpeakResponse>(
-        "/media/speak",
-        "POST",
-        {
-          text: trimmed,
-          name: name || undefined,
-          voice: voice || undefined,
-          format: format || "mp3",
-          speed: Number.parseFloat(speed) || 1,
-        },
+      const payload = await run((signal) =>
+        desktopRequest<SpeakResponse>(
+          "/media/speak",
+          "POST",
+          {
+            text: trimmed,
+            name: name || undefined,
+            voice: voice || undefined,
+            format: format || "mp3",
+            speed: Number.parseFloat(speed) || 1,
+          },
+          signal,
+        ),
       );
-      setResult(payload.speech ?? {});
+      if (payload) setResult(payload.speech ?? {});
     } catch (caught) {
       setError(errorMessage(caught));
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -135,6 +136,16 @@ export function SpeechTab({ active }: { active: boolean }) {
           <Button disabled={busy} type="submit">
             {busy ? "Generating…" : "Generate speech"}
           </Button>
+          {busy ? (
+            <Button
+              aria-label="Cancel speech generation"
+              onClick={cancel}
+              type="button"
+              variant="secondary"
+            >
+              Cancel
+            </Button>
+          ) : null}
         </div>
       </form>
       {error ? <Notice tone="bad">{error}</Notice> : null}

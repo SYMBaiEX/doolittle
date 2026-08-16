@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import {
+  discardRecordedAudioImport,
   importRecordedAudio,
   pruneStaleRecordedAudioImports,
   RECORDED_AUDIO_IMPORT_MAX_BYTES,
@@ -93,6 +94,27 @@ describe("importRecordedAudio", () => {
         lstatSync(join(sessionDir, metadata.storedName)).mode & 0o777,
       ).toBe(0o600);
     }
+  });
+
+  test("immediately discards a cancelled transient recording", () => {
+    const root = sandbox();
+    const runtime = join(root, "runtime");
+    const descriptor = importRecordedAudio(
+      {
+        bytes: wavBytes(),
+        mimeType: "audio/wav",
+        name: "Cancelled.wav",
+      },
+      runtime,
+    );
+    const sessionDir = join(runtime, "transient", "dictation", descriptor.id);
+
+    expect(discardRecordedAudioImport(runtime, descriptor.id)).toBe(true);
+    expect(existsSync(sessionDir)).toBe(false);
+    expect(discardRecordedAudioImport(runtime, descriptor.id)).toBe(false);
+    expect(() => discardRecordedAudioImport(runtime, "../outside")).toThrow(
+      /recording id/i,
+    );
   });
 
   test("rejects paths, unsupported or mismatched MIME types, and oversized bytes", () => {

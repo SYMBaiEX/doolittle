@@ -18,6 +18,7 @@ export function parseRequestError(response: Response): Promise<string> {
 export async function readBoundedResponseText(
   response: Response,
   maximumBytes: number,
+  signal?: AbortSignal,
 ): Promise<string> {
   const contentLength = Number(response.headers.get("content-length") ?? "0");
   if (Number.isFinite(contentLength) && contentLength > maximumBytes) {
@@ -25,21 +26,32 @@ export async function readBoundedResponseText(
   }
   if (!response.body) return "";
   const reader = response.body.getReader();
+  const abort = () => {
+    void reader.cancel(signal?.reason).catch(() => undefined);
+  };
+  signal?.throwIfAborted();
+  signal?.addEventListener("abort", abort, { once: true });
   const decoder = new TextDecoder();
   let totalBytes = 0;
   let text = "";
-  while (true) {
-    const chunk = await reader.read();
-    if (chunk.done) break;
-    totalBytes += chunk.value.byteLength;
-    if (totalBytes > maximumBytes) {
-      await reader.cancel().catch(() => undefined);
-      throw new Error("The local runtime response is too large.");
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      signal?.throwIfAborted();
+      if (chunk.done) break;
+      totalBytes += chunk.value.byteLength;
+      if (totalBytes > maximumBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error("The local runtime response is too large.");
+      }
+      text += decoder.decode(chunk.value, { stream: true });
     }
-    text += decoder.decode(chunk.value, { stream: true });
+    text += decoder.decode();
+    signal?.throwIfAborted();
+    return text;
+  } finally {
+    signal?.removeEventListener("abort", abort);
   }
-  text += decoder.decode();
-  return text;
 }
 
 export async function parseSuccessfulJson(

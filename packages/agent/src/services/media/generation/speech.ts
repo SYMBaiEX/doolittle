@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { ModelType } from "@elizaos/core";
+import { isMediaAbort, throwIfMediaAborted } from "../abort";
 import { renderSpeechSvg } from "./renderers";
 
 export async function requestSpeechGeneration(input: {
@@ -10,8 +11,9 @@ export async function requestSpeechGeneration(input: {
   fallbackArtifactPath: string;
   synthesizeSpeech?: (
     text: string,
-    options: { voice: string; speed?: number },
+    options: { voice: string; speed?: number; signal?: AbortSignal },
   ) => Promise<Uint8Array | undefined>;
+  signal?: AbortSignal;
 }): Promise<{
   artifactPath: string;
   artifactKind: "mp3" | "svg";
@@ -19,6 +21,7 @@ export async function requestSpeechGeneration(input: {
   provider: string;
   model: string;
 }> {
+  throwIfMediaAborted(input.signal);
   let artifactPath = input.fallbackArtifactPath;
   let artifactKind: "mp3" | "svg" = "svg";
   let response = "Generated an offline Doolittle speech concept artifact.";
@@ -28,7 +31,9 @@ export async function requestSpeechGeneration(input: {
       const bytes = await input.synthesizeSpeech(input.script, {
         voice: input.voice,
         speed: input.speed,
+        signal: input.signal,
       });
+      throwIfMediaAborted(input.signal);
       if (bytes && bytes.byteLength > 0) {
         artifactPath = artifactPath.replace(/\.svg$/u, ".mp3");
         artifactKind = "mp3";
@@ -36,6 +41,7 @@ export async function requestSpeechGeneration(input: {
         response = `Generated speech through Eliza ${ModelType.TEXT_TO_SPEECH} at ${artifactPath}.`;
       }
     } catch (error) {
+      if (isMediaAbort(error, input.signal)) throw error;
       response = error instanceof Error ? error.message : String(error);
     }
   }

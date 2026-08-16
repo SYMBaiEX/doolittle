@@ -3,6 +3,7 @@ import {
   isChatTerminalShortcut,
   isCommandPaletteShortcut,
   isEditableShortcutTarget,
+  shouldHandleGlobalChatTerminalShortcut,
   shouldIgnoreShellShortcut,
 } from "./shell-shortcuts";
 
@@ -78,5 +79,13 @@ describe("shell shortcut guards", () => {
     expect(
       isChatTerminalShortcut({ key: "j", metaKey: true, isComposing: true }),
     ).toBe(false);
+  });
+
+  it("leaves the Code utility shortcut to the active workspace", () => {
+    const event = { key: "j", metaKey: true };
+
+    expect(shouldHandleGlobalChatTerminalShortcut("chat", event)).toBe(true);
+    expect(shouldHandleGlobalChatTerminalShortcut("work", event)).toBe(true);
+    expect(shouldHandleGlobalChatTerminalShortcut("code", event)).toBe(false);
   });
 });

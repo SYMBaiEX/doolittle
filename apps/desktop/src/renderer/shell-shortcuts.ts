@@ -37,6 +37,13 @@ export function isChatTerminalShortcut(event: ShellShortcutEventLike): boolean {
   );
 }
 
+export function shouldHandleGlobalChatTerminalShortcut(
+  view: string,
+  event: ShellShortcutEventLike,
+): boolean {
+  return view !== "code" && isChatTerminalShortcut(event);
+}
+
 export function isEditableShortcutTarget(target: unknown): boolean {
   let current =
     target && typeof target === "object"

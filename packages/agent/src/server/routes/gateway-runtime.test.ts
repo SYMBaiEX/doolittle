@@ -395,6 +395,34 @@ describe("handleGatewayRuntimeRoutes", () => {
     expect(authorization?.status).toBe(403);
   });
 
+  it("forwards the initiating request signal to gateway receive", async () => {
+    const { context } = createContext();
+    let receivedAbortSignal: AbortSignal | undefined;
+    context.gateway.receive = async (_message, options) => {
+      receivedAbortSignal = options?.abortSignal;
+      return { ok: true, response: "" };
+    };
+    const request = new Request("http://localhost/gateway/message", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        platform: "api",
+        userId: "user-1",
+        roomId: "room-1",
+        text: "hello",
+      }),
+    });
+
+    const response = await handleGatewayRuntimeRoutes(
+      context,
+      request,
+      new URL(request.url),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(receivedAbortSignal).toBe(request.signal);
+  });
+
   it("retries a rejected delivery through the authenticated gateway surface", async () => {
     const { context } = createContext();
     const retry = await handleGatewayRuntimeRoutes(

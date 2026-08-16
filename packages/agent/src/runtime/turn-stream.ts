@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { AppContext } from "@/runtime/bootstrap";
 import type { AgentTurnHooks } from "@/runtime/chat";
 import { handleAgentTurn } from "@/runtime/chat";
@@ -41,10 +42,20 @@ export async function executeAgentTurnWithProgress(
   handlers?: StreamedTurnHandlers,
 ): Promise<{ response: string; sessionId: string }> {
   const sessionId = resolveSessionId(input);
+  // A streamed surface subscribes before the room queue starts the turn. Give
+  // that subscription the exact same stable run id the queued execution will
+  // use, otherwise a later same-room run can leak its progress into this one.
+  const turnInput: ChatTurnRequest = {
+    ...input,
+    runId: input.runId ?? randomUUID(),
+  };
   const responseAccumulator = createResponseTextAccumulator();
   const unsubscribeRunUpdates = context.services.runController.onUpdate(
     async (event) => {
-      if (event.sessionId !== sessionId) {
+      if (
+        event.sessionId !== sessionId ||
+        event.run.runId !== turnInput.runId
+      ) {
         return;
       }
       await handlers?.onRunUpdate?.(event);
@@ -60,7 +71,7 @@ export async function executeAgentTurnWithProgress(
   );
 
   try {
-    const response = await handleAgentTurn(input, context, {
+    const response = await handleAgentTurn(turnInput, context, {
       abortSignal: handlers?.abortSignal,
       onResponseProgress: async ({ chunk, response, phase }) => {
         const frame = nextResponseTextFrame(responseAccumulator, response) ?? {

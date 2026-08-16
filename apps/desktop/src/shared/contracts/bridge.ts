@@ -72,6 +72,7 @@ export interface DoolittleDesktopBridge {
   importRecordedAudio(
     request: RecordedAudioImportRequest,
   ): Promise<ManagedAttachmentDescriptor>;
+  discardRecordedAudio(recordingId: string): Promise<void>;
   startProviderAuth(
     provider: ProviderAuthProvider,
     options?: ProviderAuthStartOptions,
@@ -89,6 +90,7 @@ export interface DoolittleDesktopBridge {
     provider: ProviderAuthProvider,
   ): Promise<ProviderAuthState>;
   requestAgent(request: AgentTransportRequest): Promise<AgentTransportResponse>;
+  cancelAgentRequest(requestId: string): Promise<void>;
   runCommand(request: DesktopCommandRequest): Promise<DesktopCommandResult>;
   startTerminalRun(request: TerminalStreamRequest): Promise<void>;
   cancelTerminalRun(requestId: string): Promise<void>;

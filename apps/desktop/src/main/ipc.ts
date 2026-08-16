@@ -84,8 +84,22 @@ interface ActiveChat {
   controller: AbortController;
 }
 
+interface ActiveAgentRequest {
+  controller: AbortController;
+}
+
 function chatKey(event: IpcMainInvokeEvent, requestId: string): string {
   return `${event.sender.id}:${requestId}`;
+}
+
+function agentRequestKey(event: IpcMainInvokeEvent, requestId: string): string {
+  return `${event.sender.id}:${requestId}`;
+}
+
+function assertAgentRequestId(value: unknown): asserts value is string {
+  if (typeof value !== "string" || !/^[a-zA-Z0-9_-]{1,128}$/u.test(value)) {
+    throw new Error("Eliza desktop transport request ID is invalid.");
+  }
 }
 
 async function showSensitiveActionConfirmation(
@@ -136,6 +150,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       paths: [],
     }),
     importRecordedAudio,
+    discardRecordedAudio,
     desktopControls,
   } = dependencies;
   const { event: eventChannels, invoke: invokeChannels } = desktopIpcChannels;
@@ -144,6 +159,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     ((event: IpcMainInvokeEvent) =>
       isTrustedDesktopIpcSender(event, getMainWindow()));
   const activeChats = new Map<string, ActiveChat>();
+  const activeAgentRequests = new Map<string, ActiveAgentRequest>();
   const activeTerminalRuns = new Map<string, { controller: AbortController }>();
   const registeredChannels = new Set<DesktopIpcInvokeChannel>();
   const registerHandler = (
@@ -215,6 +231,21 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         throw new Error("A valid recent workspace path is required.");
       }
       return workspace.switchWorkspace(path);
+    },
+  );
+  registerHandler(
+    invokeChannels.chatDiscardRecordedAudio,
+    (_event, recordingId: unknown) => {
+      if (!discardRecordedAudio) {
+        throw new Error("Recorded audio cleanup is unavailable.");
+      }
+      if (
+        typeof recordingId !== "string" ||
+        !/^[0-9a-f-]{36}$/iu.test(recordingId)
+      ) {
+        throw new Error("Recording ID is invalid.");
+      }
+      discardRecordedAudio(recordingId);
     },
   );
   if (desktopControls) {
@@ -407,8 +438,46 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
   });
   registerHandler(
     invokeChannels.agentRequest,
-    (_event: IpcMainInvokeEvent, unsafeRequest: unknown) =>
-      requestAgentTransport(backend, sensitiveFetch, unsafeRequest),
+    async (event: IpcMainInvokeEvent, unsafeRequest: unknown) => {
+      if (!isRecord(unsafeRequest)) {
+        throw new Error("Eliza desktop transport request ID is invalid.");
+      }
+      assertAgentRequestId(unsafeRequest.requestId);
+      const key = agentRequestKey(event, unsafeRequest.requestId);
+      if (activeAgentRequests.has(key)) {
+        throw new Error("This desktop transport request is already running.");
+      }
+      const controller = new AbortController();
+      activeAgentRequests.set(key, { controller });
+      const cleanupDestroyedSender = () => {
+        controller.abort(
+          new DOMException("Desktop renderer closed.", "AbortError"),
+        );
+        activeAgentRequests.delete(key);
+      };
+      event.sender.once("destroyed", cleanupDestroyedSender);
+      try {
+        return await requestAgentTransport(
+          backend,
+          sensitiveFetch,
+          unsafeRequest,
+          controller.signal,
+        );
+      } finally {
+        event.sender.removeListener("destroyed", cleanupDestroyedSender);
+        activeAgentRequests.delete(key);
+      }
+    },
+  );
+  registerHandler(
+    invokeChannels.agentRequestCancel,
+    (event: IpcMainInvokeEvent, unsafeRequestId: unknown) => {
+      assertAgentRequestId(unsafeRequestId);
+      // The sender-specific key prevents one renderer from cancelling another.
+      activeAgentRequests
+        .get(agentRequestKey(event, unsafeRequestId))
+        ?.controller.abort();
+    },
   );
 
   registerHandler(
@@ -567,37 +636,43 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     async (event, requestId: string) => {
       const active = activeChats.get(chatKey(event, requestId));
       if (!active) return;
-      const state = backend.getState();
-      if (state.phase !== "ready" || !state.url) {
-        throw new Error("The local runtime is not ready.");
+      try {
+        const state = backend.getState();
+        if (state.phase !== "ready" || !state.url) {
+          throw new Error("The local runtime is not ready.");
+        }
+        // Request server-side cancellation before closing the renderer stream.
+        // This reaches the provider/tool abort signal; aborting fetch alone is
+        // only a local transport teardown.
+        const response = await sensitiveFetch(
+          `${state.url}/chat/runs/${encodeURIComponent(requestId)}/cancel`,
+          {
+            method: "POST",
+            signal: AbortSignal.timeout(API_TIMEOUT_MS),
+          },
+        );
+        if (!response.ok) {
+          throw new Error(await parseRequestError(response));
+        }
+        const payload = await parseSuccessfulJson(
+          response,
+          MAX_SENSITIVE_RESPONSE_BYTES,
+        );
+        const run =
+          isRecord(payload) && isRecord(payload.run) ? payload.run : undefined;
+        if (run && !event.sender.isDestroyed()) {
+          event.sender.send(eventChannels.chatEvent, {
+            requestId,
+            event: "agent.run",
+            data: { type: "cancelled", sessionId: run.sessionId, run },
+          });
+        }
+      } finally {
+        // A failed cancellation acknowledgement must never leave local stream
+        // work alive. Preserve the server failure for the renderer, but always
+        // tear down our fetch and let chatStart clean its tracking entry.
+        active.controller.abort();
       }
-      // Request server-side cancellation before closing the renderer stream. This
-      // is what reaches the provider/tool abort signal; aborting fetch alone is
-      // only a local transport teardown.
-      const response = await sensitiveFetch(
-        `${state.url}/chat/runs/${encodeURIComponent(requestId)}/cancel`,
-        {
-          method: "POST",
-          signal: AbortSignal.timeout(API_TIMEOUT_MS),
-        },
-      );
-      if (!response.ok) {
-        throw new Error(await parseRequestError(response));
-      }
-      const payload = await parseSuccessfulJson(
-        response,
-        MAX_SENSITIVE_RESPONSE_BYTES,
-      );
-      const run =
-        isRecord(payload) && isRecord(payload.run) ? payload.run : undefined;
-      if (run && !event.sender.isDestroyed()) {
-        event.sender.send(eventChannels.chatEvent, {
-          requestId,
-          event: "agent.run",
-          data: { type: "cancelled", sessionId: run.sessionId, run },
-        });
-      }
-      active.controller.abort();
     },
   );
 
@@ -610,6 +685,10 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       active.controller.abort();
     }
     activeChats.clear();
+    for (const active of activeAgentRequests.values()) {
+      active.controller.abort();
+    }
+    activeAgentRequests.clear();
     for (const active of activeTerminalRuns.values()) {
       active.controller.abort();
     }

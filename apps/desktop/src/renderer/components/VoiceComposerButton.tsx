@@ -49,6 +49,7 @@ export interface VoiceComposerButtonProps {
     bytes: Uint8Array,
     mimeType: VoiceRecorderMime,
     name: string,
+    signal: AbortSignal,
   ) => Promise<{ transcriptText: string }>;
   onTranscript: (text: string) => void;
   disabled?: boolean;
@@ -178,6 +179,7 @@ export function VoiceComposerButton({
   const durationTimerRef = useRef<number | null>(null);
   const elapsedTimerRef = useRef<number | null>(null);
   const operationRef = useRef(0);
+  const transcriptionControllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
   const terminalErrorRef = useRef("");
 
@@ -214,6 +216,8 @@ export function VoiceComposerButton({
 
   const cancel = useCallback(() => {
     operationRef.current += 1;
+    transcriptionControllerRef.current?.abort();
+    transcriptionControllerRef.current = null;
     releaseCapture(true);
     terminalErrorRef.current = "";
     setErrorDetail("");
@@ -222,9 +226,12 @@ export function VoiceComposerButton({
   }, [releaseCapture]);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       operationRef.current += 1;
+      transcriptionControllerRef.current?.abort();
+      transcriptionControllerRef.current = null;
       clearTimers();
       const recorder = recorderRef.current;
       if (recorder && recorder.state !== "inactive") {
@@ -247,6 +254,7 @@ export function VoiceComposerButton({
   const beginTranscription = useCallback(
     async (chunks: Blob[], mimeType: VoiceRecorderMime, operation: number) => {
       dispatch("transcribe");
+      let transcriptionController: AbortController | null = null;
       try {
         const buffer = await new Blob(chunks, { type: mimeType }).arrayBuffer();
         chunks.length = 0;
@@ -273,10 +281,15 @@ export function VoiceComposerButton({
           }
           return;
         }
+        const controller = new AbortController();
+        transcriptionController = controller;
+        transcriptionControllerRef.current?.abort();
+        transcriptionControllerRef.current = controller;
         const result = await importAndTranscribe(
           new Uint8Array(buffer),
           mimeType,
           `dictation-${new Date().toISOString().replaceAll(":", "-")}`,
+          controller.signal,
         );
         if (!mountedRef.current || operationRef.current !== operation) return;
         const transcript = result.transcriptText.trim();
@@ -295,6 +308,13 @@ export function VoiceComposerButton({
             : "Transcription failed. Try again.",
         );
         dispatch("fail");
+      } finally {
+        if (
+          transcriptionController &&
+          transcriptionControllerRef.current === transcriptionController
+        ) {
+          transcriptionControllerRef.current = null;
+        }
       }
     },
     [importAndTranscribe, onTranscript],

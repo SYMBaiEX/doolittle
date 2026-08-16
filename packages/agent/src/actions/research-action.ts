@@ -14,6 +14,7 @@ import {
   hashParts,
   promptCacheMetrics,
 } from "@/runtime/prompt-cache";
+import { getScopedTurnAbortSignal } from "@/runtime/turn-runtime-scope";
 import { messageText } from "@/utils/eliza-compat";
 
 const RESEARCH_PREFIX = "/research";
@@ -46,6 +47,33 @@ type CancellableResearchParams = {
   tools: Array<{ type: "web_search_preview" }>;
   signal?: AbortSignal;
 };
+
+async function waitForResearchResult<T>(
+  operation: Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (!signal) return operation;
+  signal.throwIfAborted();
+  return await new Promise<T>((resolve, reject) => {
+    const abort = () =>
+      reject(
+        signal.reason instanceof Error
+          ? signal.reason
+          : new DOMException("Research was cancelled.", "AbortError"),
+      );
+    signal.addEventListener("abort", abort, { once: true });
+    operation.then(
+      (value) => {
+        signal.removeEventListener("abort", abort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", abort);
+        reject(error);
+      },
+    );
+  });
+}
 
 export type DoolittleResearchRuntime = Pick<
   IAgentRuntime,
@@ -151,7 +179,10 @@ export async function runDoolittleResearch(
   // beta.7 accepts and forwards structurally extended model parameters even
   // though ResearchParams does not yet declare signal. Providers from the
   // upstream cancellation PR consume it; older providers safely ignore it.
-  const result = await runtime.useModel(ModelType.RESEARCH, params);
+  const result = await waitForResearchResult(
+    runtime.useModel(ModelType.RESEARCH, params),
+    signal,
+  );
   signal?.throwIfAborted();
   const sources = sourcesFromAnnotations(result.annotations ?? []);
   return {
@@ -196,11 +227,14 @@ export function createResearchAction(): Action {
       }
 
       try {
+        const abortSignal =
+          (options as { abortSignal?: AbortSignal } | undefined)?.abortSignal ??
+          getScopedTurnAbortSignal(runtime);
         const research = await runDoolittleResearch(
           runtime,
           question,
           message.roomId,
-          (options as { abortSignal?: AbortSignal } | undefined)?.abortSignal,
+          abortSignal,
         );
         const report = research.report;
         await callback?.({ text: report, source: "research-action" });
@@ -216,6 +250,15 @@ export function createResearchAction(): Action {
           } satisfies DoolittleResearchActionData,
         };
       } catch (error) {
+        const abortSignal =
+          (options as { abortSignal?: AbortSignal } | undefined)?.abortSignal ??
+          getScopedTurnAbortSignal(runtime);
+        if (
+          abortSignal?.aborted ||
+          (error instanceof Error && error.name === "AbortError")
+        ) {
+          throw error;
+        }
         const failure = `Deep research failed: ${
           error instanceof Error ? error.message : String(error)
         }`;

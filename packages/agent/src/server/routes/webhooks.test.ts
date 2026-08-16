@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
+import type { GatewayReceiveOptions } from "@/gateway/receive/types";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleWebhookRoutes } from "@/server/routes/webhooks";
 import { handleInboundWebhook } from "@/server/routes/webhooks/inbound";
@@ -10,7 +11,10 @@ function createContext(overrides?: {
   whatsappAppSecret?: string;
   whatsappAccessToken?: string;
   whatsappPhoneNumberId?: string;
-  gatewayReceive?: () => Promise<{ ok: boolean }>;
+  gatewayReceive?: (
+    message: unknown,
+    options?: GatewayReceiveOptions,
+  ) => Promise<{ ok: boolean }>;
 }) {
   const pairing = {
     listPending: (platform?: string) => [{ platform: platform ?? "telegram" }],
@@ -99,6 +103,37 @@ describe("handleWebhookRoutes", () => {
     });
 
     expect(response.status).toBe(403);
+  });
+
+  it("forwards the initiating request signal for normalized webhook ingress", async () => {
+    let receivedAbortSignal: AbortSignal | undefined;
+    const context = createContext({
+      gatewayReceive: async (_message, options) => {
+        receivedAbortSignal = options?.abortSignal;
+        return { ok: true };
+      },
+    });
+    const request = new Request("http://localhost/webhooks/telegram", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        message: {
+          message_id: 44,
+          text: "hello",
+          chat: { id: 100 },
+          from: { id: 200 },
+        },
+      }),
+    });
+
+    const response = await handleWebhookRoutes(
+      context,
+      request,
+      new URL(request.url),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(receivedAbortSignal).toBe(request.signal);
   });
 
   it("returns pending pairing requests", async () => {

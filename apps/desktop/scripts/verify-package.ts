@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
@@ -150,7 +151,33 @@ function verifyPackagedLicense(appAsarPath: string): void {
   }
 }
 
+export type CodeSignRunner = (command: string, args: string[]) => number | null;
+
+export function verifyMacCodeSignature(
+  appBundlePath: string,
+  run: CodeSignRunner = (command, commandArgs) =>
+    spawnSync(command, commandArgs, { stdio: "inherit" }).status,
+): void {
+  const status = run("codesign", [
+    "--verify",
+    "--deep",
+    "--strict",
+    "--verbose=2",
+    appBundlePath,
+  ]);
+  if (status !== 0) {
+    throw new Error(
+      `macOS code signature verification failed for ${appBundlePath}.`,
+    );
+  }
+}
+
 function main(): void {
+  const appBundlePath = argumentValue("--verify-signature");
+  if (appBundlePath) {
+    verifyMacCodeSignature(appBundlePath);
+    return;
+  }
   const appAsarPath =
     argumentValue("--app-asar") ??
     currentPlatformAppAsarPath(resolve(desktopRoot, "release"));
@@ -171,4 +198,5 @@ function main(): void {
   );
 }
 
-main();
+const invokedPath = process.argv[1] ? resolve(process.argv[1]) : undefined;
+if (invokedPath === fileURLToPath(import.meta.url)) main();

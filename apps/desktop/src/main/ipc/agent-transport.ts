@@ -2,6 +2,7 @@ import type {
   AgentTransportResponse,
   BackendState,
 } from "../../shared/contracts";
+import { desktopRequestTimeoutMs } from "../../shared/contracts";
 import type { BackendManager } from "../backend";
 import {
   apiResponseLimit,
@@ -17,8 +18,6 @@ export {
 
 import { readBoundedResponseText } from "./runtime-http";
 
-const API_TIMEOUT_MS = 15_000;
-const EXTENSION_INSTALL_TIMEOUT_MS = 120_000;
 const RUNTIME_TRANSITION_TIMEOUT_MS = 45_000;
 
 type ReadyBackendState = BackendState & {
@@ -50,7 +49,9 @@ export function isRecoverableRuntimeFetchError(error: unknown): boolean {
 export async function waitForReadyBackend(
   backend: BackendManager,
   timeoutMs = RUNTIME_TRANSITION_TIMEOUT_MS,
+  signal?: AbortSignal,
 ): Promise<ReadyBackendState> {
+  signal?.throwIfAborted();
   const current = backend.getState();
   if (isReadyBackendState(current)) return current;
   if (current.phase !== "booting") {
@@ -61,6 +62,13 @@ export async function waitForReadyBackend(
     let settled = false;
     let unsubscribe: () => void = () => undefined;
     let timeout: ReturnType<typeof setTimeout> | undefined;
+    const abort = () =>
+      finish({
+        error:
+          signal?.reason instanceof Error
+            ? signal.reason
+            : new DOMException("Desktop request was cancelled.", "AbortError"),
+      });
     const finish = (
       result: { state: ReadyBackendState } | { error: Error },
     ) => {
@@ -68,6 +76,7 @@ export async function waitForReadyBackend(
       settled = true;
       if (timeout) clearTimeout(timeout);
       unsubscribe();
+      signal?.removeEventListener("abort", abort);
       if ("state" in result) resolvePromise(result.state);
       else rejectPromise(result.error);
     };
@@ -92,6 +101,7 @@ export async function waitForReadyBackend(
       timeoutMs,
     );
     unsubscribe = backend.subscribe(inspect);
+    signal?.addEventListener("abort", abort, { once: true });
     inspect(backend.getState());
   });
 }
@@ -102,6 +112,7 @@ export async function fetchBackendApi(
   path: string,
   init: RequestInit,
   retryDuringRuntimeTransition: boolean,
+  signal?: AbortSignal,
 ): Promise<Response> {
   const attempts = retryDuringRuntimeTransition ? 2 : 1;
   let lastError: unknown;
@@ -112,17 +123,18 @@ export async function fetchBackendApi(
       if (!retryDuringRuntimeTransition || state.phase !== "booting") {
         throw new Error("The local runtime is not ready.");
       }
-      state = await waitForReadyBackend(backend);
+      state = await waitForReadyBackend(
+        backend,
+        RUNTIME_TRANSITION_TIMEOUT_MS,
+        signal,
+      );
     }
 
     try {
+      const timeout = AbortSignal.timeout(desktopRequestTimeoutMs(path));
       const response = await fetchImplementation(`${state.url}${path}`, {
         ...init,
-        signal: AbortSignal.timeout(
-          path === "/runtime/registry/install"
-            ? EXTENSION_INSTALL_TIMEOUT_MS
-            : API_TIMEOUT_MS,
-        ),
+        signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       });
       const latest = backend.getState();
       if (
@@ -130,11 +142,17 @@ export async function fetchBackendApi(
         attempt + 1 < attempts &&
         (!isReadyBackendState(latest) || latest.url !== state.url)
       ) {
-        await waitForReadyBackend(backend);
+        signal?.throwIfAborted();
+        await waitForReadyBackend(
+          backend,
+          RUNTIME_TRANSITION_TIMEOUT_MS,
+          signal,
+        );
         continue;
       }
       return response;
     } catch (error) {
+      signal?.throwIfAborted();
       lastError = error;
       const latest = backend.getState();
       const runtimeChanged =
@@ -146,7 +164,7 @@ export async function fetchBackendApi(
       ) {
         throw error;
       }
-      await waitForReadyBackend(backend);
+      await waitForReadyBackend(backend, RUNTIME_TRANSITION_TIMEOUT_MS, signal);
     }
   }
 
@@ -157,6 +175,7 @@ export async function requestAgentTransport(
   backend: BackendManager,
   fetchImplementation: typeof fetch,
   unsafeRequest: unknown,
+  signal?: AbortSignal,
 ): Promise<AgentTransportResponse> {
   const request = validateAgentTransportRequest(unsafeRequest);
   const path = parseApiPath(request.path, request.method);
@@ -170,8 +189,13 @@ export async function requestAgentTransport(
       body: request.body ?? undefined,
     },
     request.method === "GET",
+    signal,
   );
-  const body = await readBoundedResponseText(response, apiResponseLimit(path));
+  const body = await readBoundedResponseText(
+    response,
+    apiResponseLimit(path),
+    signal,
+  );
   const headers: Record<string, string> = {};
   response.headers.forEach((value, name) => {
     if (name !== "set-cookie" && name !== "set-cookie2") headers[name] = value;

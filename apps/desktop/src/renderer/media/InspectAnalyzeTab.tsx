@@ -19,6 +19,7 @@ import {
   MEDIA_SELECT_CLASS,
   MEDIA_TAB_PANEL_CLASS,
 } from "./media-layout";
+import { useAbortableMediaRequest } from "./use-abortable-media-request";
 
 interface AnalyzeResponse {
   analysis?: UnknownRecord;
@@ -37,8 +38,8 @@ export function InspectAnalyzeTab({ active }: { active: boolean }) {
   const [analyzeResult, setAnalyzeResult] = useState<UnknownRecord | null>(
     null,
   );
-  const [inspectBusy, setInspectBusy] = useState(false);
-  const [analyzeBusy, setAnalyzeBusy] = useState(false);
+  const inspectRequest = useAbortableMediaRequest(active);
+  const analyzeRequest = useAbortableMediaRequest(active);
   const [inspectError, setInspectError] = useState("");
   const [analyzeError, setAnalyzeError] = useState("");
 
@@ -49,18 +50,20 @@ export function InspectAnalyzeTab({ active }: { active: boolean }) {
       setInspectError("Path is required.");
       return;
     }
-    setInspectBusy(true);
     setInspectError("");
     setInspectResult(null);
     try {
-      const payload = await desktopRequest<InspectResponse>(
-        `/media/inspect?path=${encodeURIComponent(trimmed)}`,
+      const payload = await inspectRequest.run((signal) =>
+        desktopRequest<InspectResponse>(
+          `/media/inspect?path=${encodeURIComponent(trimmed)}`,
+          "GET",
+          undefined,
+          signal,
+        ),
       );
-      setInspectResult(payload.media ?? {});
+      if (payload) setInspectResult(payload.media ?? {});
     } catch (error) {
       setInspectError(errorMessage(error));
-    } finally {
-      setInspectBusy(false);
     }
   };
 
@@ -70,20 +73,20 @@ export function InspectAnalyzeTab({ active }: { active: boolean }) {
       setAnalyzeError("Path is required.");
       return;
     }
-    setAnalyzeBusy(true);
     setAnalyzeError("");
     setAnalyzeResult(null);
     try {
-      const payload = await desktopRequest<AnalyzeResponse>(
-        "/media/analyze",
-        "POST",
-        { path: trimmed, focus: focus || undefined },
+      const payload = await analyzeRequest.run((signal) =>
+        desktopRequest<AnalyzeResponse>(
+          "/media/analyze",
+          "POST",
+          { path: trimmed, focus: focus || undefined },
+          signal,
+        ),
       );
-      setAnalyzeResult(payload.analysis ?? {});
+      if (payload) setAnalyzeResult(payload.analysis ?? {});
     } catch (error) {
       setAnalyzeError(errorMessage(error));
-    } finally {
-      setAnalyzeBusy(false);
     }
   };
 
@@ -137,16 +140,36 @@ export function InspectAnalyzeTab({ active }: { active: boolean }) {
         </MediaOptions>
         <div className={MEDIA_ACTIONS_CLASS}>
           <Button
-            disabled={analyzeBusy}
+            disabled={analyzeRequest.busy}
             onClick={() => void runAnalyze()}
             type="button"
             variant="secondary"
           >
-            {analyzeBusy ? "Analyzing…" : "Analyze"}
+            {analyzeRequest.busy ? "Analyzing…" : "Analyze"}
           </Button>
-          <Button disabled={inspectBusy} type="submit">
-            {inspectBusy ? "Inspecting…" : "Inspect"}
+          {analyzeRequest.busy ? (
+            <Button
+              aria-label="Cancel media analysis"
+              onClick={analyzeRequest.cancel}
+              type="button"
+              variant="secondary"
+            >
+              Cancel analysis
+            </Button>
+          ) : null}
+          <Button disabled={inspectRequest.busy} type="submit">
+            {inspectRequest.busy ? "Inspecting…" : "Inspect"}
           </Button>
+          {inspectRequest.busy ? (
+            <Button
+              aria-label="Cancel media inspection"
+              onClick={inspectRequest.cancel}
+              type="button"
+              variant="secondary"
+            >
+              Cancel inspection
+            </Button>
+          ) : null}
         </div>
       </form>
 

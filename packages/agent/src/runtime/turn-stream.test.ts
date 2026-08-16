@@ -5,16 +5,20 @@ let publishRunUpdate:
   | ((event: RunUpdateEvent) => void | Promise<void>)
   | undefined;
 let observedAbortSignal: AbortSignal | undefined;
+let observedTurnInput: { runId?: string } | undefined;
+let observedRunId = "";
 
 vi.doMock("@/runtime/chat", () => ({
   handleAgentTurn: async (
-    _input: unknown,
+    input: { runId?: string },
     _context: unknown,
     options?: { abortSignal?: AbortSignal },
   ) => {
+    observedTurnInput = input;
+    observedRunId = input.runId ?? "";
     observedAbortSignal = options?.abortSignal;
     const baseRun = {
-      runId: "run-1",
+      runId: "other-run",
       sessionId: "room-1",
       roomId: "room-1",
       source: "desktop",
@@ -44,12 +48,17 @@ vi.doMock("@/runtime/chat", () => ({
       sessionId: "room-1",
       run: baseRun,
     });
+    await publishRunUpdate?.({
+      type: "message",
+      sessionId: "room-1",
+      run: { ...baseRun, runId: input.runId ?? "missing-run-id" },
+    });
     return "done";
   },
 }));
 
 describe("executeAgentTurnWithProgress", () => {
-  it("delivers matching raw run updates before prose filtering", async () => {
+  it("forwards only updates for the exact streamed run", async () => {
     const unsubscribe = vi.fn(() => undefined);
     const rawUpdates: RunUpdateEvent[] = [];
     const proseUpdates: RunUpdateEvent[] = [];
@@ -60,6 +69,7 @@ describe("executeAgentTurnWithProgress", () => {
         message: "hello",
         userId: "desktop-user",
         roomId: "room-1",
+        runId: "matching-run",
         source: "desktop",
       },
       {
@@ -87,9 +97,53 @@ describe("executeAgentTurnWithProgress", () => {
     );
 
     expect(result).toEqual({ response: "done", sessionId: "room-1" });
-    expect(rawUpdates.map((event) => event.type)).toEqual(["message"]);
+    expect(observedTurnInput?.runId).toBe("matching-run");
+    expect(rawUpdates.map((event) => event.run.runId)).toEqual([
+      "matching-run",
+    ]);
     expect(proseUpdates).toEqual([]);
     expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("generates one route-safe run id shared by execution and progress filtering", async () => {
+    observedTurnInput = undefined;
+    observedRunId = "";
+    const rawUpdates: RunUpdateEvent[] = [];
+    const { executeAgentTurnWithProgress } = await import("./turn-stream");
+
+    await executeAgentTurnWithProgress(
+      {
+        message: "hello",
+        userId: "desktop-user",
+        roomId: "room-1",
+        source: "desktop",
+      },
+      {
+        config: {} as never,
+        runtime: {} as never,
+        services: {
+          runController: {
+            onUpdate: (
+              listener: (event: RunUpdateEvent) => void | Promise<void>,
+            ) => {
+              publishRunUpdate = listener;
+              return () => undefined;
+            },
+          },
+        } as never,
+      },
+      {
+        onRunUpdate: (event) => {
+          rawUpdates.push(event);
+        },
+      },
+    );
+
+    expect(observedTurnInput).toMatchObject({
+      runId: expect.stringMatching(/^[a-zA-Z0-9:_-]{1,128}$/u),
+    });
+    expect(rawUpdates).toHaveLength(1);
+    expect(rawUpdates[0]?.run.runId).toBe(observedRunId);
   });
 
   it("passes the server cancellation signal into the provider turn", async () => {

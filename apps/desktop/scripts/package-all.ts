@@ -1,21 +1,32 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  cpSync,
   createReadStream,
   existsSync,
+  mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
-import { basename, relative, resolve } from "node:path";
+import { basename, dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  assertPackageSourceUnchanged,
+  nativeReceiptName,
+  requireCleanPackageSource,
+  writeNativePackageReceipt,
+} from "./package-provenance";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const releaseRoot = resolve(desktopRoot, "release");
 const wineCheckArgs = ["--version"] as const;
+const versionedReleaseArtifact =
+  /^Doolittle-\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?-(?:mac|win|linux)-(?:arm64|x64|x86_64|amd64|ia32)\.(?:AppImage|deb|dmg|exe|zip)(?:\.blockmap)?$/u;
 
 type DesktopManifest = { version: string };
 type RuntimeManifest = { nativePackages?: string[] };
@@ -39,6 +50,36 @@ export type ReleaseTarget = {
   appAsarCandidates: string[];
   cleanupPaths: string[];
 };
+
+export function releaseTargetReceipt(target: ReleaseTarget): {
+  platform: "linux" | "macos" | "windows";
+  artifacts: string[];
+} {
+  if (target.id === "mac") {
+    return {
+      platform: "macos",
+      artifacts: [
+        ...target.artifacts.flatMap((artifact) => [
+          artifact,
+          `${artifact}.blockmap`,
+        ]),
+        "latest-mac.yml",
+      ],
+    };
+  }
+  if (target.id === "win") {
+    const installer = target.artifacts[0];
+    if (!installer) throw new Error("Windows release target is incomplete.");
+    return {
+      platform: "windows",
+      artifacts: [installer, `${installer}.blockmap`, "latest.yml"],
+    };
+  }
+  return {
+    platform: "linux",
+    artifacts: [...target.artifacts, "latest-linux.yml"],
+  };
+}
 
 export function releaseChecksumText(
   artifacts: readonly { path: string; sha256: string }[],
@@ -131,7 +172,9 @@ export function supersededReleaseOutputNames(
   );
 
   return entries.filter((entry) => {
-    if (entry.startsWith("Doolittle-")) return !activeArtifacts.has(entry);
+    if (versionedReleaseArtifact.test(entry)) {
+      return !activeArtifacts.has(entry);
+    }
     if (/^latest-.+-(?:arm64|x64|ia32)\.yml$/u.test(entry)) return true;
     if (/^mac-(?:arm64|x64)$/u.test(entry)) {
       return !activeDirectories.has(entry);
@@ -156,6 +199,10 @@ export function resolveSingleExistingPath(
     );
   }
   return existing[0];
+}
+
+export function macAppBundlePath(appAsarPath: string): string {
+  return resolve(dirname(appAsarPath), "../..");
 }
 
 function run(command: string, args: string[], cwd = repoRoot): void {
@@ -205,23 +252,110 @@ function requireAllBuildHost(): void {
   validatePackageHost({});
 }
 
-function cleanTarget(target: ReleaseTarget): void {
+function cleanTarget(root: string, target: ReleaseTarget): void {
   for (const path of [
     ...target.cleanupPaths,
     ...target.artifacts,
     ...target.artifacts.map((artifact) => `${artifact}.blockmap`),
   ]) {
-    rmSync(resolve(releaseRoot, path), { force: true, recursive: true });
+    rmSync(resolve(root, path), { force: true, recursive: true });
   }
 }
 
-function cleanSupersededReleaseOutputs(targets: ReleaseTarget[]): void {
-  if (!existsSync(releaseRoot)) return;
+function cleanSupersededReleaseOutputs(
+  root: string,
+  targets: ReleaseTarget[],
+): void {
+  if (!existsSync(root)) return;
   for (const entry of supersededReleaseOutputNames(
-    readdirSync(releaseRoot),
+    readdirSync(root),
     targets,
   )) {
-    rmSync(resolve(releaseRoot, entry), { force: true, recursive: true });
+    rmSync(resolve(root, entry), { force: true, recursive: true });
+  }
+}
+
+function isManagedReleaseEntry(entry: string): boolean {
+  return (
+    versionedReleaseArtifact.test(entry) ||
+    /^latest(?:-.+)?\.yml$/u.test(entry) ||
+    /^desktop-provenance-(?:linux|macos|windows)\.json$/u.test(entry) ||
+    /^(?:mac(?:-.+)?|(?:win|linux)(?:-.+)?-unpacked)$/u.test(entry) ||
+    [
+      ".DS_Store",
+      "SHA256SUMS.txt",
+      "builder-debug.yml",
+      "builder-effective-config.yaml",
+      "release-manifest.json",
+      "unpacked-manifest.json",
+    ].includes(entry)
+  );
+}
+
+function preserveOperatorReleaseEntries(
+  currentRoot: string,
+  stagingRoot: string,
+): void {
+  if (!existsSync(currentRoot)) return;
+  for (const entry of readdirSync(currentRoot)) {
+    if (isManagedReleaseEntry(entry)) continue;
+    const destination = resolve(stagingRoot, entry);
+    if (existsSync(destination)) continue;
+    cpSync(resolve(currentRoot, entry), destination, { recursive: true });
+  }
+}
+
+function seedStagingReleaseEntries(
+  currentRoot: string,
+  stagingRoot: string,
+): void {
+  if (!existsSync(currentRoot)) return;
+  for (const entry of readdirSync(currentRoot)) {
+    cpSync(resolve(currentRoot, entry), resolve(stagingRoot, entry), {
+      recursive: true,
+    });
+  }
+}
+
+function promoteStagedRelease(stagingRoot: string, currentRoot: string): void {
+  preserveOperatorReleaseEntries(currentRoot, stagingRoot);
+  const backupRoot = `${currentRoot}.backup-${process.pid}-${Date.now()}`;
+  let currentMoved = false;
+  try {
+    if (existsSync(currentRoot)) {
+      renameSync(currentRoot, backupRoot);
+      currentMoved = true;
+    }
+    renameSync(stagingRoot, currentRoot);
+  } catch (error) {
+    if (!existsSync(currentRoot) && currentMoved && existsSync(backupRoot)) {
+      renameSync(backupRoot, currentRoot);
+    }
+    throw error;
+  }
+  if (currentMoved) {
+    rmSync(backupRoot, { force: true, recursive: true });
+  }
+}
+
+export async function withTransactionalReleaseDirectory<T>(
+  currentRoot: string,
+  build: (stagingRoot: string) => Promise<T>,
+  options: { seedCurrentEntries?: boolean } = {},
+): Promise<T> {
+  const stagingRoot = mkdtempSync(
+    resolve(dirname(currentRoot), `.${basename(currentRoot)}-staging-`),
+  );
+  try {
+    if (options.seedCurrentEntries) {
+      seedStagingReleaseEntries(currentRoot, stagingRoot);
+    }
+    const result = await build(stagingRoot);
+    promoteStagedRelease(stagingRoot, currentRoot);
+    return result;
+  } catch (error) {
+    rmSync(stagingRoot, { force: true, recursive: true });
+    throw error;
   }
 }
 
@@ -243,6 +377,7 @@ async function sha256(path: string): Promise<string> {
 
 async function main(): Promise<void> {
   requireAllBuildHost();
+  const packageCommit = requireCleanPackageSource(repoRoot);
   const manifest = JSON.parse(
     readFileSync(resolve(desktopRoot, "package.json"), "utf8"),
   ) as DesktopManifest;
@@ -251,96 +386,150 @@ async function main(): Promise<void> {
   const nub = resolve(repoRoot, "node_modules", ".bin", "nub");
   const nubx = resolve(repoRoot, "node_modules", ".bin", "nubx");
 
-  cleanSupersededReleaseOutputs(targets);
-  for (const target of targets) cleanTarget(target);
-  rmSync(resolve(releaseRoot, "release-manifest.json"), { force: true });
-  rmSync(resolve(releaseRoot, "SHA256SUMS.txt"), { force: true });
+  const result = await withTransactionalReleaseDirectory(
+    releaseRoot,
+    async (stagingRoot) => {
+      cleanSupersededReleaseOutputs(stagingRoot, targets);
+      for (const target of targets) cleanTarget(stagingRoot, target);
+      rmSync(resolve(stagingRoot, "release-manifest.json"), { force: true });
+      rmSync(resolve(stagingRoot, "SHA256SUMS.txt"), { force: true });
+      for (const platform of ["linux", "macos", "windows"] as const) {
+        rmSync(resolve(stagingRoot, nativeReceiptName(platform)), {
+          force: true,
+        });
+      }
 
-  run(nub, [...allPlatformInstallArgs]);
-  run(nub, ["run", "build"], desktopRoot);
-  run(nub, ["run", "runtime:prepare"], desktopRoot);
-  const runtimeManifest = JSON.parse(
-    readFileSync(
-      resolve(desktopRoot, "build/runtime/runtime-manifest.json"),
-      "utf8",
-    ),
-  ) as RuntimeManifest;
-  const missingNativePackages = missingNativeTargetPackages(
-    requiredNativePackages,
-    runtimeManifest.nativePackages ?? [],
+      run(nub, [...allPlatformInstallArgs]);
+      run(nub, ["run", "build"], desktopRoot);
+      run(nub, ["run", "runtime:prepare"], desktopRoot);
+      const runtimeManifest = JSON.parse(
+        readFileSync(
+          resolve(desktopRoot, "build/runtime/runtime-manifest.json"),
+          "utf8",
+        ),
+      ) as RuntimeManifest;
+      const missingNativePackages = missingNativeTargetPackages(
+        requiredNativePackages,
+        runtimeManifest.nativePackages ?? [],
+      );
+      if (missingNativePackages.length > 0) {
+        throw new Error(
+          `Bundled runtime is missing target-native packages: ${missingNativePackages.join(", ")}`,
+        );
+      }
+
+      const releaseArtifacts: Array<{
+        target: ReleaseTarget["id"];
+        path: string;
+        bytes: number;
+        sha256: string;
+      }> = [];
+      const unpackedPackages: Array<{
+        target: ReleaseTarget["id"];
+        appAsarPath: string;
+        bytes: number;
+        sha256: string;
+      }> = [];
+      for (const target of targets) {
+        assertPackageSourceUnchanged(repoRoot, packageCommit);
+        run(
+          nubx,
+          [
+            "electron-builder",
+            ...target.builderArgs,
+            `--config.directories.output=${stagingRoot}`,
+            "--publish",
+            "never",
+          ],
+          desktopRoot,
+        );
+        assertPackageSourceUnchanged(repoRoot, packageCommit);
+        const appAsarPath = resolveSingleExistingPath(
+          stagingRoot,
+          target.appAsarCandidates,
+        );
+        run(
+          nub,
+          ["scripts/verify-package.ts", "--app-asar", appAsarPath],
+          desktopRoot,
+        );
+        if (target.id === "mac") {
+          run(
+            nub,
+            [
+              "scripts/verify-package.ts",
+              "--verify-signature",
+              macAppBundlePath(appAsarPath),
+            ],
+            desktopRoot,
+          );
+        }
+        unpackedPackages.push({
+          target: target.id,
+          appAsarPath: relative(stagingRoot, appAsarPath),
+          bytes: statSync(appAsarPath).size,
+          sha256: await sha256(appAsarPath),
+        });
+        for (const artifact of target.artifacts) {
+          const artifactPath = resolve(stagingRoot, artifact);
+          requireArtifact(artifactPath);
+          releaseArtifacts.push({
+            target: target.id,
+            path: relative(stagingRoot, artifactPath),
+            bytes: statSync(artifactPath).size,
+            sha256: await sha256(artifactPath),
+          });
+        }
+        const receipt = releaseTargetReceipt(target);
+        for (const artifact of receipt.artifacts) {
+          requireArtifact(resolve(stagingRoot, artifact));
+        }
+        writeNativePackageReceipt({
+          releaseDirectory: stagingRoot,
+          platform: receipt.platform,
+          commit: packageCommit,
+          appAsarPath,
+          artifactPaths: receipt.artifacts,
+        });
+      }
+
+      assertPackageSourceUnchanged(repoRoot, packageCommit);
+      writeFileSync(
+        resolve(stagingRoot, "release-manifest.json"),
+        `${JSON.stringify(
+          {
+            version: manifest.version,
+            commit: packageCommit,
+            generatedAt: new Date().toISOString(),
+            host: `${process.platform}-${process.arch}`,
+            nativePackages: requiredNativePackages,
+            unpackedPackages,
+            artifacts: releaseArtifacts,
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      writeFileSync(
+        resolve(stagingRoot, "SHA256SUMS.txt"),
+        releaseChecksumText(releaseArtifacts),
+      );
+      return { releaseArtifacts };
+    },
   );
-  if (missingNativePackages.length > 0) {
-    throw new Error(
-      `Bundled runtime is missing target-native packages: ${missingNativePackages.join(", ")}`,
-    );
-  }
-
-  const releaseArtifacts: Array<{
-    target: ReleaseTarget["id"];
-    path: string;
-    bytes: number;
-    sha256: string;
-  }> = [];
-  for (const target of targets) {
-    run(
-      nubx,
-      ["electron-builder", ...target.builderArgs, "--publish", "never"],
-      desktopRoot,
-    );
-    const appAsarPath = resolveSingleExistingPath(
-      releaseRoot,
-      target.appAsarCandidates,
-    );
-    run(
-      nub,
-      ["scripts/verify-package.ts", "--app-asar", appAsarPath],
-      desktopRoot,
-    );
-    for (const artifact of target.artifacts) {
-      const artifactPath = resolve(releaseRoot, artifact);
-      requireArtifact(artifactPath);
-      releaseArtifacts.push({
-        target: target.id,
-        path: relative(releaseRoot, artifactPath),
-        bytes: statSync(artifactPath).size,
-        sha256: await sha256(artifactPath),
-      });
-    }
-  }
-
-  const git = spawnSync("git", ["rev-parse", "HEAD"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-  });
-  if (git.status !== 0)
-    throw new Error("Unable to resolve the release commit.");
-  const outputPath = resolve(releaseRoot, "release-manifest.json");
-  writeFileSync(
-    outputPath,
-    `${JSON.stringify(
-      {
-        version: manifest.version,
-        commit: git.stdout.trim(),
-        generatedAt: new Date().toISOString(),
-        host: `${process.platform}-${process.arch}`,
-        nativePackages: requiredNativePackages,
-        artifacts: releaseArtifacts,
-      },
-      null,
-      2,
-    )}\n`,
-  );
-  const checksumPath = resolve(releaseRoot, "SHA256SUMS.txt");
-  writeFileSync(checksumPath, releaseChecksumText(releaseArtifacts));
 
   console.log(`\nAll desktop release targets passed verification:`);
-  for (const artifact of releaseArtifacts) {
+  for (const artifact of result.releaseArtifacts) {
     console.log(
       `  ${artifact.target.padEnd(5)} ${basename(artifact.path)} (${(artifact.bytes / 1024 / 1024).toFixed(1)} MiB)`,
     );
   }
-  console.log(`  manifest ${relative(repoRoot, outputPath)}`);
-  console.log(`  checksums ${relative(repoRoot, checksumPath)}`);
+  console.log(
+    `  manifest ${relative(repoRoot, resolve(releaseRoot, "release-manifest.json"))}`,
+  );
+  console.log(
+    `  checksums ${relative(repoRoot, resolve(releaseRoot, "SHA256SUMS.txt"))}`,
+  );
 }
 
 const invokedPath = process.argv[1] ? resolve(process.argv[1]) : undefined;

@@ -282,22 +282,28 @@ export function createGatewayRunnerOperations(
   return {
     observeAdapter: deps.observeAdapter,
     receive: (message, options) =>
-      receiveIdempotency.receive(message, () =>
-        processGatewayReceive(
-          {
-            context: deps.context,
-            message,
-            adapter: deps.adapters.get(message.platform),
-            recordInbox: deps.recording.recordInbox.bind(deps.recording),
-            recordOutbox: deps.recording.recordOutbox.bind(deps.recording),
-            pushTrace: deps.recording.pushTrace.bind(deps.recording),
-            observeAdapter: deps.observeAdapter,
-            editDelivery,
-            snapshotState: (reason, limit) =>
-              deps.snapshotState(reason, limit) as Promise<unknown>,
-          },
-          options,
-        ),
+      receiveIdempotency.receive(
+        message,
+        (abortSignal) =>
+          processGatewayReceive(
+            {
+              context: deps.context,
+              message,
+              adapter: deps.adapters.get(message.platform),
+              recordInbox: deps.recording.recordInbox.bind(deps.recording),
+              recordOutbox: deps.recording.recordOutbox.bind(deps.recording),
+              pushTrace: deps.recording.pushTrace.bind(deps.recording),
+              observeAdapter: deps.observeAdapter,
+              editDelivery,
+              snapshotState: (reason, limit) =>
+                deps.snapshotState(reason, limit) as Promise<unknown>,
+            },
+            {
+              ...options,
+              abortSignal,
+            },
+          ),
+        options,
       ),
     retryDelivery,
     sendToHomes: (text, options) => {

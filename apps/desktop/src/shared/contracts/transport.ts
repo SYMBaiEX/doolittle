@@ -1,10 +1,35 @@
 export type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
+
+export const DESKTOP_REQUEST_TIMEOUT_MS = 15_000;
+export const DESKTOP_MEDIA_REQUEST_TIMEOUT_MS = 180_000;
+export const DESKTOP_REGISTRY_INSTALL_TIMEOUT_MS = 120_000;
+
+/** Returns the bounded desktop budget for an API operation. */
+export function desktopRequestTimeoutMs(path: string): number {
+  const pathname = path.split("?", 1)[0];
+  if (pathname === "/runtime/registry/install") {
+    return DESKTOP_REGISTRY_INSTALL_TIMEOUT_MS;
+  }
+  if (
+    pathname === "/media/transcribe-attachment" ||
+    pathname === "/media/transcribe" ||
+    pathname === "/media/generate" ||
+    pathname === "/media/speak" ||
+    pathname === "/media/inspect" ||
+    pathname === "/media/analyze"
+  ) {
+    return DESKTOP_MEDIA_REQUEST_TIMEOUT_MS;
+  }
+  return DESKTOP_REQUEST_TIMEOUT_MS;
+}
 /**
  * Structured-clone-safe side of Eliza's AgentRequestTransport contract.
  * Request and Response instances stay in the renderer; Electron IPC carries
  * only this serializable representation across the process boundary.
  */
 export interface AgentTransportRequest {
+  /** Sender-scoped identifier used for cancellation and lifecycle cleanup. */
+  requestId: string;
   path: string;
   method: HttpMethod;
   headers: Record<string, string>;

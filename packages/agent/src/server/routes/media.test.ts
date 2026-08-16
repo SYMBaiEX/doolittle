@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleMediaRoutes } from "./media";
 
@@ -140,6 +140,77 @@ describe("handleMediaRoutes", () => {
     expect((await speak?.json())?.speech.text).toBe("hello");
     expect((await generate?.json())?.generation.prompt).toBe("diagram");
     expect(await runtime?.json()).toHaveProperty("media");
+  });
+
+  it("passes each mutation request signal through the media service", async () => {
+    const analyzeWithModel = vi.fn(async () => ({ analysis: true }));
+    const transcribeWithModel = vi.fn(async () => ({ transcription: true }));
+    const speakWithModel = vi.fn(async () => ({ speech: true }));
+    const generateImage = vi.fn(async () => ({ generated: true }));
+    const context = {
+      ...createContext(),
+      services: {
+        ...createContext().services,
+        media: {
+          ...createContext().services.media,
+          analyzeWithModel,
+          transcribeWithModel,
+          speakWithModel,
+          generateImage,
+        },
+      },
+    } as unknown as AppContext;
+    const analyzeRequest = new Request("http://localhost/media/analyze", {
+      method: "POST",
+      body: JSON.stringify({ path: "clip.wav" }),
+    });
+    const transcribeRequest = new Request("http://localhost/media/transcribe", {
+      method: "POST",
+      body: JSON.stringify({ path: "clip.wav" }),
+    });
+    const speakRequest = new Request("http://localhost/media/speak", {
+      method: "POST",
+      body: JSON.stringify({ text: "hello" }),
+    });
+    const generateRequest = new Request("http://localhost/media/generate", {
+      method: "POST",
+      body: JSON.stringify({ prompt: "diagram" }),
+    });
+
+    await handleMediaRoutes(
+      context,
+      analyzeRequest,
+      new URL(analyzeRequest.url),
+    );
+    await handleMediaRoutes(
+      context,
+      transcribeRequest,
+      new URL(transcribeRequest.url),
+    );
+    await handleMediaRoutes(context, speakRequest, new URL(speakRequest.url));
+    await handleMediaRoutes(
+      context,
+      generateRequest,
+      new URL(generateRequest.url),
+    );
+
+    expect(analyzeWithModel).toHaveBeenCalledWith(
+      "clip.wav",
+      "auto",
+      analyzeRequest.signal,
+    );
+    expect(transcribeWithModel).toHaveBeenCalledWith(
+      "clip.wav",
+      expect.objectContaining({ signal: transcribeRequest.signal }),
+    );
+    expect(speakWithModel).toHaveBeenCalledWith(
+      "hello",
+      expect.objectContaining({ signal: speakRequest.signal }),
+    );
+    expect(generateImage).toHaveBeenCalledWith(
+      "diagram",
+      expect.objectContaining({ signal: generateRequest.signal }),
+    );
   });
 
   it("returns 400 for malformed media mutation bodies", async () => {

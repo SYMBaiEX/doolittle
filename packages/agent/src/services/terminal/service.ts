@@ -85,6 +85,7 @@ export class TerminalService {
   }
 
   invalidateWorkspace(): void {
+    this.interactiveSessions.dispose();
     this.invalidateHealthCache();
   }
 

@@ -1,6 +1,7 @@
 import type { IAgentRuntime, Memory, ResearchResult } from "@elizaos/core";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { promptCacheMetrics } from "@/runtime/prompt-cache";
+import { runWithTurnRuntimeScope } from "@/runtime/turn-runtime-scope";
 import { createResearchAction } from "./research-action";
 
 function message(text: string): Memory {
@@ -12,6 +13,7 @@ function makeRuntime(opts: {
   research?: (params: unknown) => Promise<ResearchResult>;
 }): IAgentRuntime {
   return {
+    getSetting: () => undefined,
     getModel: () => (opts.hasModel ? () => Promise.resolve({}) : undefined),
     useModel: (_modelType: unknown, params: unknown) =>
       (
@@ -170,6 +172,63 @@ describe("research action (ModelType.RESEARCH adoption)", () => {
       message("/research cancellation"),
       undefined,
       { abortSignal: controller.signal },
+    );
+
+    expect(observedSignal).toBe(controller.signal);
+  });
+
+  it("stops awaiting beta providers and rethrows cancellation", async () => {
+    const controller = new AbortController();
+    const callback = vi.fn();
+    let providerStarted = false;
+    const action = createResearchAction();
+    const runtime = makeRuntime({
+      hasModel: true,
+      research: async () => {
+        providerStarted = true;
+        return await new Promise<ResearchResult>(() => undefined);
+      },
+    });
+    const pending = action.handler(
+      runtime,
+      message("/research cancellation"),
+      undefined,
+      { abortSignal: controller.signal },
+      callback,
+    );
+    await vi.waitFor(() => expect(providerStarted).toBe(true));
+
+    controller.abort(new DOMException("cancelled", "AbortError"));
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("recovers request-local cancellation when beta.7 omits handler options", async () => {
+    const controller = new AbortController();
+    let observedSignal: AbortSignal | undefined;
+    const action = createResearchAction();
+    const runtime = makeRuntime({
+      hasModel: true,
+      research: async (params) => {
+        observedSignal = (params as { signal?: AbortSignal }).signal;
+        return { id: "resp_scoped", text: "Report." } as ResearchResult;
+      },
+    });
+
+    await runWithTurnRuntimeScope(
+      runtime,
+      {
+        abortSignal: controller.signal,
+        settings: new Map(),
+      },
+      () =>
+        action.handler(
+          runtime,
+          message("/research planned cancellation"),
+          undefined,
+          undefined,
+        ),
     );
 
     expect(observedSignal).toBe(controller.signal);

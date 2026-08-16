@@ -1,3 +1,4 @@
+import { isMediaAbort, throwIfMediaAborted } from "../abort";
 import {
   buildMediaSpeechManifest,
   buildMediaSpeechPrompt,
@@ -12,6 +13,7 @@ export async function generateMediaSpeechArtifact(
   input: MediaSpeechGenerationInput,
 ): Promise<MediaSpeechResult> {
   const options = input.options ?? {};
+  throwIfMediaAborted(options.signal);
   const modelContext = input.modelContext;
   const stamp = Date.now();
   const label = slugifyMediaText(options.name ?? input.text);
@@ -42,7 +44,9 @@ export async function generateMediaSpeechArtifact(
         focus: "voice",
       },
     );
-  } catch {
+    throwIfMediaAborted(options.signal);
+  } catch (error) {
+    if (isMediaAbort(error, options.signal)) throw error;
     refinedText = input.text;
   }
 
@@ -54,7 +58,9 @@ export async function generateMediaSpeechArtifact(
     preferredFormat: options.format ?? "mp3",
     fallbackArtifactPath,
     synthesizeSpeech: input.dependencies.synthesizeSpeech,
+    signal: options.signal,
   });
+  throwIfMediaAborted(options.signal);
 
   writeMediaTextFile(
     promptPath,

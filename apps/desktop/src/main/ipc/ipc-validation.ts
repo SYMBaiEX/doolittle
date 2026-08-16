@@ -97,6 +97,7 @@ export interface RegisterIpcDependencies {
   importRecordedAudio?: (
     request: RecordedAudioImportRequest,
   ) => AttachmentSelection["attachments"][number];
+  discardRecordedAudio?: (recordingId: string) => void;
   desktopControls?: DesktopControlIpcDependencies;
 }
 

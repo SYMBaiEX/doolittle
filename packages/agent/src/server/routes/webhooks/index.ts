@@ -15,7 +15,7 @@ export async function handleWebhookRoutes(
     if (!body) {
       return json({ error: "Invalid JSON body." }, 400);
     }
-    return handleInboundWebhook("telegram", context, body);
+    return handleInboundWebhook("telegram", context, body, request.signal);
   }
 
   if (request.method === "POST" && url.pathname === "/webhooks/discord") {
@@ -23,7 +23,7 @@ export async function handleWebhookRoutes(
     if (!body) {
       return json({ error: "Invalid JSON body." }, 400);
     }
-    return handleInboundWebhook("discord", context, body);
+    return handleInboundWebhook("discord", context, body, request.signal);
   }
 
   if (request.method === "POST" && url.pathname === "/webhooks/slack") {
@@ -52,7 +52,7 @@ export async function handleWebhookRoutes(
     if (body.challenge) {
       return json({ challenge: body.challenge });
     }
-    return handleInboundWebhook("slack", context, body);
+    return handleInboundWebhook("slack", context, body, request.signal);
   }
 
   if (request.method === "GET" && url.pathname === "/webhooks/whatsapp") {
@@ -100,23 +100,43 @@ export async function handleWebhookRoutes(
     } catch {
       return json({ error: "Invalid JSON body." }, 400);
     }
-    return handleInboundWebhook("whatsapp", context, body);
+    return handleInboundWebhook("whatsapp", context, body, request.signal);
   }
 
   if (request.method === "POST" && url.pathname === "/webhooks/signal") {
-    return handleInboundWebhook("signal", context, await readJsonBody(request));
+    return handleInboundWebhook(
+      "signal",
+      context,
+      await readJsonBody(request),
+      request.signal,
+    );
   }
 
   if (request.method === "POST" && url.pathname === "/webhooks/matrix") {
-    return handleInboundWebhook("matrix", context, await readJsonBody(request));
+    return handleInboundWebhook(
+      "matrix",
+      context,
+      await readJsonBody(request),
+      request.signal,
+    );
   }
 
   if (request.method === "POST" && url.pathname === "/webhooks/email") {
-    return handleInboundWebhook("email", context, await readJsonBody(request));
+    return handleInboundWebhook(
+      "email",
+      context,
+      await readJsonBody(request),
+      request.signal,
+    );
   }
 
   if (request.method === "POST" && url.pathname === "/webhooks/sms") {
-    return handleInboundWebhook("sms", context, await readJsonBody(request));
+    return handleInboundWebhook(
+      "sms",
+      context,
+      await readJsonBody(request),
+      request.signal,
+    );
   }
 
   if (request.method === "POST" && url.pathname === "/webhooks/mattermost") {
@@ -124,6 +144,7 @@ export async function handleWebhookRoutes(
       "mattermost",
       context,
       await readJsonBody(request),
+      request.signal,
     );
   }
 
@@ -132,6 +153,7 @@ export async function handleWebhookRoutes(
       "homeassistant",
       context,
       await readJsonBody(request),
+      request.signal,
     );
   }
 
@@ -140,6 +162,7 @@ export async function handleWebhookRoutes(
       "dingtalk",
       context,
       await readJsonBody(request),
+      request.signal,
     );
   }
 

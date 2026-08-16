@@ -15,6 +15,7 @@ export type TurnCommandHooks = {
 type TurnRuntimeScope = {
   runtime: object;
   settings: ReadonlyMap<string, unknown>;
+  abortSignal?: AbortSignal;
   personalityId?: string;
   commandHooks?: TurnCommandHooks;
 };
@@ -44,6 +45,20 @@ export function getScopedTurnPersonalityId(
 ): string | undefined {
   const scope = turnRuntimeScope.getStore();
   return scope?.runtime === runtime ? scope.personalityId : undefined;
+}
+
+/**
+ * Returns the active message turn's cancellation signal for Doolittle actions.
+ *
+ * Eliza beta.7 does not copy the message-service abort signal into planned
+ * action handler options. Keeping it request-local closes that compatibility
+ * gap without mutating the shared runtime.
+ */
+export function getScopedTurnAbortSignal(
+  runtime: object,
+): AbortSignal | undefined {
+  const scope = turnRuntimeScope.getStore();
+  return scope?.runtime === runtime ? scope.abortSignal : undefined;
 }
 
 /**

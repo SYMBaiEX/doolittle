@@ -91,6 +91,45 @@ function writeExecutable(filePath: string, content: string): void {
 }
 
 describe("TerminalService", () => {
+  it("disposes interactive sessions before starting them in a new workspace", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-terminal-workspace-"));
+    const firstWorkspace = join(root, "first-workspace");
+    const secondWorkspace = join(root, "second-workspace");
+    mkdirSync(firstWorkspace);
+    mkdirSync(secondWorkspace);
+    let workspaceDir = firstWorkspace;
+    const service = new TerminalService(
+      join(root, "data"),
+      () => workspaceDir,
+      makeSettings,
+    );
+
+    try {
+      const oldSessions = Array.from({ length: 4 }, () =>
+        service.startInteractiveSession(),
+      );
+      expect(() => service.startInteractiveSession()).toThrow(
+        "At most 4 interactive terminal sessions",
+      );
+
+      workspaceDir = secondWorkspace;
+      service.invalidateWorkspace();
+
+      for (const session of oldSessions) {
+        expect(() => service.interactiveSessionOutput(session.id)).toThrow(
+          "was not found",
+        );
+      }
+      expect(service.startInteractiveSession()).toMatchObject({
+        state: "running",
+        cwd: secondWorkspace,
+      });
+    } finally {
+      service.disposeInteractiveSessions();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("runs local commands and records them", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-terminal-test-"));
     const service = new TerminalService(join(root, "data"), root, makeSettings);

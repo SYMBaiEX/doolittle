@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
 import { fetchRemoteMedia, ModelType } from "@elizaos/core";
+import { isMediaAbort, throwIfMediaAborted } from "../abort";
 import type { ElizaImageGenerationResult } from "../eliza-runtime";
 import { slugifyMediaText } from "../paths";
 import { renderGenerationSvg } from "./renderers";
@@ -15,7 +16,9 @@ export async function requestImageGeneration(input: {
   generateImage?: (
     prompt: string,
     size: string,
+    signal?: AbortSignal,
   ) => Promise<ElizaImageGenerationResult | undefined>;
+  signal?: AbortSignal;
 }): Promise<{
   path: string;
   responsePath?: string;
@@ -24,6 +27,7 @@ export async function requestImageGeneration(input: {
   provider: string;
   model: string;
 }> {
+  throwIfMediaAborted(input.signal);
   const fallbackPath = join(
     input.outputDir,
     `media-${Date.now()}-${slugifyMediaText(input.prompt)}.svg`,
@@ -47,8 +51,10 @@ export async function requestImageGeneration(input: {
     generated = await input.generateImage(
       input.prompt,
       input.size ?? "1024x1024",
+      input.signal,
     );
   } catch (error) {
+    if (isMediaAbort(error, input.signal)) throw error;
     writeFileSync(
       fallbackPath,
       renderGenerationSvg(input.prompt, input.size ?? "1024x1024", [
@@ -77,6 +83,7 @@ export async function requestImageGeneration(input: {
       model: "offline",
     };
   }
+  throwIfMediaAborted(input.signal);
 
   const inlineBase64 = generated.url?.match(
     /^data:image\/[a-z0-9.+-]+;base64,(.+)$/iu,
@@ -97,11 +104,24 @@ export async function requestImageGeneration(input: {
   }
 
   if (generated.url) {
+    const requestSignal = input.signal;
     try {
       const { buffer } = await fetchRemoteMedia({
         url: generated.url,
         maxBytes: MAX_GENERATED_IMAGE_BYTES,
+        ...(requestSignal
+          ? {
+              fetchImpl: (resource, init) =>
+                fetch(resource, {
+                  ...init,
+                  signal: init?.signal
+                    ? AbortSignal.any([init.signal, requestSignal])
+                    : requestSignal,
+                }),
+            }
+          : {}),
       });
+      throwIfMediaAborted(input.signal);
       const path = join(
         input.outputDir,
         `media-${Date.now()}-${slugifyMediaText(input.prompt)}.png`,
@@ -114,7 +134,9 @@ export async function requestImageGeneration(input: {
         provider: "eliza",
         model: ModelType.IMAGE,
       };
-    } catch {
+    } catch (error) {
+      if (input.signal?.aborted) throwIfMediaAborted(input.signal);
+      if (isMediaAbort(error, input.signal)) throw error;
       writeFileSync(
         fallbackPath,
         renderGenerationSvg(input.prompt, input.size ?? "1024x1024", [

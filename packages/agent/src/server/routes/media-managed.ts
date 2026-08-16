@@ -14,6 +14,14 @@ import {
   TransientDictationError,
 } from "@/services/transient-dictation";
 
+function throwIfRequestAborted(signal: AbortSignal): void {
+  if (!signal.aborted) return;
+  if (signal.reason instanceof Error) throw signal.reason;
+  const error = new Error("Media transcription request was cancelled.");
+  error.name = "AbortError";
+  throw error;
+}
+
 const ALLOWED_BODY_KEYS = new Set([
   "attachmentId",
   "language",
@@ -64,6 +72,7 @@ export async function handleManagedMediaRoutes(
   }
 
   try {
+    throwIfRequestAborted(request.signal);
     const attachmentId = optionalString(body.attachmentId, "attachmentId", 36);
     if (!attachmentId) {
       return json({ error: "attachmentId is required" }, 400);
@@ -81,7 +90,7 @@ export async function handleManagedMediaRoutes(
         const result = await context.services.media.transcribeTransient(
           materializeTransientDictationInput(dictation, outputDir),
           outputDir,
-          { language, prompt, name },
+          { language, prompt, name, signal: request.signal },
         );
         return json({
           attachment: dictation.descriptor,
@@ -113,7 +122,7 @@ export async function handleManagedMediaRoutes(
 
     const result = await context.services.media.transcribeWithModel(
       attachment.path,
-      { language, prompt, name },
+      { language, prompt, name, signal: request.signal },
     );
     return json({
       attachment: attachment.descriptor,
@@ -125,6 +134,18 @@ export async function handleManagedMediaRoutes(
       },
     });
   } catch (error) {
+    if (
+      request.signal.aborted ||
+      (error instanceof Error && error.name === "AbortError")
+    ) {
+      try {
+        removeTransientDictationById(context.config.dataDir, body.attachmentId);
+      } catch {
+        // The desktop import bridge also requests immediate cleanup. Startup
+        // pruning remains the bounded final fallback if both processes stop.
+      }
+      throw error;
+    }
     if (error instanceof ManagedAttachmentError) {
       return json({ error: error.message, code: error.code }, 400);
     }
