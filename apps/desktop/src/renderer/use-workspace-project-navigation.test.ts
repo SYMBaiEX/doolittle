@@ -8,6 +8,7 @@ import type {
   Project,
   WorkspaceState,
 } from "../shared/contracts";
+import type { ToastInput } from "./components/ToastRegion";
 import type { View } from "./desktop-navigation";
 import type { ProjectScope } from "./project-manager/models";
 import {
@@ -48,6 +49,7 @@ function NavigationProbe({
   onCodeEditingLockChange,
   onRestoreCodeDirty,
   onStateChange,
+  onToast,
   projectEntries = projects,
   setView,
 }: {
@@ -60,6 +62,7 @@ function NavigationProbe({
     selectedSession: string;
     workspace: WorkspaceState;
   }) => void;
+  onToast?: (toast: ToastInput) => void;
   projectEntries?: readonly Project[];
   setView: (
     view: View,
@@ -78,7 +81,10 @@ function NavigationProbe({
     pathsEqual: (left, right) => left === right,
     projects: projectEntries,
     projectScope,
-    pushToast: vi.fn(),
+    pushToast: (toast) => {
+      onToast?.(toast);
+      return "toast-id";
+    },
     selectedSession,
     sessions: [],
     setProjectScope,
@@ -122,6 +128,7 @@ async function renderNavigationProbe({
   onCodeEditingLockChange,
   onRestoreCodeDirty,
   onStateChange,
+  onToast,
   projectEntries,
   setView,
 }: {
@@ -134,6 +141,7 @@ async function renderNavigationProbe({
     selectedSession: string;
     workspace: WorkspaceState;
   }) => void;
+  onToast?: (toast: ToastInput) => void;
   projectEntries?: readonly Project[];
   setView: (
     view: View,
@@ -148,6 +156,7 @@ async function renderNavigationProbe({
         onCodeEditingLockChange,
         onRestoreCodeDirty,
         onStateChange,
+        onToast,
         projectEntries,
         setView,
       }),
@@ -621,6 +630,51 @@ describe("project scope transition", () => {
     await expect(transition).resolves.toBe(true);
     expect(switchWorkspace).toHaveBeenCalledOnce();
     expect(lockChanges).toEqual([false, true, false]);
+  });
+
+  it("turns picker and direct-path failures into cancellation-safe feedback", async () => {
+    const pickWorkspace = vi.fn(async () => {
+      throw new Error("Native picker is unavailable.");
+    });
+    const openWorkspace = vi.fn(async () => {
+      throw new Error("Workspace access was denied.");
+    });
+    Object.defineProperty(window, "doolittle", {
+      configurable: true,
+      value: { openWorkspace, pickWorkspace } as Pick<
+        DoolittleDesktopBridge,
+        "openWorkspace" | "pickWorkspace"
+      >,
+    });
+    const toasts: ToastInput[] = [];
+    const states: WorkspaceState[] = [];
+    const navigation = await renderNavigationProbe({
+      onStateChange: (state) => states.push(state.workspace),
+      onToast: (toast) => toasts.push(toast),
+      setView: vi.fn(() => true),
+    });
+
+    await expect(navigation.chooseWorkspace()).resolves.toEqual({
+      canceled: true,
+      state: workspace,
+    });
+    await expect(
+      navigation.openWorkspacePath("/work/blocked"),
+    ).resolves.toEqual({ canceled: true, state: workspace });
+
+    expect(states.at(-1)).toEqual(workspace);
+    expect(toasts).toEqual([
+      {
+        tone: "error",
+        title: "Workspace could not be opened",
+        message: "Native picker is unavailable.",
+      },
+      {
+        tone: "error",
+        title: "Workspace could not be opened",
+        message: "Workspace access was denied.",
+      },
+    ]);
   });
 
   it("preflights and locks a cross-workspace project selection without changing views", async () => {

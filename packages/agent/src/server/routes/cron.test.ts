@@ -103,6 +103,27 @@ function createContext(calls: string[] = []): AppContext {
 }
 
 describe("handleCronRoutes", () => {
+  it("does not shadow unrelated routes when automation is unavailable", async () => {
+    const context = {
+      runtime: { getService: () => null },
+    } as unknown as AppContext;
+
+    await expect(
+      handleCronRoutes(
+        context,
+        new Request("http://localhost/webhooks/slack", { method: "POST" }),
+        new URL("http://localhost/webhooks/slack"),
+      ),
+    ).resolves.toBeNull();
+
+    const cronResponse = await handleCronRoutes(
+      context,
+      new Request("http://localhost/cron/jobs"),
+      new URL("http://localhost/cron/jobs"),
+    );
+    expect(cronResponse?.status).toBe(503);
+  });
+
   it("returns cron job and run summaries", async () => {
     const context = createContext();
     const jobs = await handleCronRoutes(

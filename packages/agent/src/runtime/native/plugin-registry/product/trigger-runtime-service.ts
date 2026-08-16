@@ -606,21 +606,38 @@ export function createTriggerRuntimeServices(
       payload?: Record<string, unknown>,
     ) {
       const task = await taskForJob(this.runtime, id);
-      if (!task) throw new Error(`Cron job not found: ${id}`);
+      const job = task && jobFromTask(task);
+      if (!task || !job) throw new Error(`Cron job not found: ${id}`);
+      let eventKind = `doolittle.manual.${id}`;
+      if (source === "webhook") {
+        if (job.trigger?.type !== "webhook") {
+          throw new Error(`Webhook automation not found: ${id}`);
+        }
+        if (job.status !== "active") {
+          throw new Error(`Cron job is paused: ${id}`);
+        }
+        eventKind = `doolittle.webhook.${job.trigger.token}`;
+      }
       const result = await executeTriggerTask(this.runtime, task, {
         source: source === "webhook" ? "event" : "manual",
-        force: true,
+        force: source === "manual",
         event: {
-          kind:
-            source === "webhook"
-              ? `doolittle.webhook.${id}`
-              : `doolittle.manual.${id}`,
+          kind: eventKind,
           payload,
         },
       });
       if (result.status === "error")
         throw new Error(result.error ?? `Automation failed: ${id}`);
-      return (await this.runs(1))[0];
+      if (result.status === "skipped")
+        throw new Error(`Automation trigger was skipped: ${id}`);
+      const receiptTask = result.executionId
+        ? await this.runtime.getTask(result.executionId as UUID)
+        : undefined;
+      const receipt = receiptTask ? readRunReceipt(receiptTask) : undefined;
+      if (!receipt) {
+        throw new Error(`Automation receipt was not persisted: ${id}`);
+      }
+      return receipt;
     }
     async triggerWebhook(token: string, payload?: Record<string, unknown>) {
       const job = (await this.list()).find(

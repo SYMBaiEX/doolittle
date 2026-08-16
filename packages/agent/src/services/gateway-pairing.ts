@@ -12,6 +12,10 @@ import type {
   PlatformName,
 } from "@/types";
 import { migrateLegacyPairingStore } from "./gateway-pairing-migration";
+import {
+  createAccountIdentity,
+  normalizeAccountId,
+} from "./gateway-session-service/routes";
 
 const ELIZA_PAIRING_PAGE_LIMIT = 100;
 
@@ -93,14 +97,35 @@ function projectApprovedSender(entry: {
   };
 }
 
+const LEGACY_ACCOUNT_SCOPED_PAIRING_PLATFORMS = new Set<PlatformName>([
+  // Telegram was the only account-scoped pairing identity released before the
+  // connector-wide isolation change. Preserve its single-account allowlists.
+  "telegram",
+]);
+
 function pairingSenderId(
   platform: PlatformName,
   userId: string,
   metadata?: Record<string, string>,
 ): string {
-  const accountId =
-    platform === "telegram" ? metadata?.accountId?.trim() : undefined;
-  return accountId ? `telegram-account:${accountId}:${userId}` : userId;
+  const accountIdentity = createAccountIdentity(metadata?.accountId);
+  if (!accountIdentity) return userId;
+
+  // Account identities are percent-encoded or hashed before being embedded.
+  // `userId` is terminal, so delimiter-bearing IDs cannot make the account
+  // boundary ambiguous.
+  return `doolittle-pairing:v1:${platform}:account=${accountIdentity}:user=${userId}`;
+}
+
+function legacyTelegramAccountPairingSenderId(
+  platform: PlatformName,
+  userId: string,
+  metadata?: Record<string, string>,
+): string | undefined {
+  if (platform !== "telegram") return undefined;
+
+  const accountId = normalizeAccountId(metadata?.accountId);
+  return accountId ? `telegram-account:${accountId}:${userId}` : undefined;
 }
 
 /**
@@ -163,11 +188,26 @@ export class GatewayPairingProjection {
     const runtime = this.requireRuntime();
     const service = await this.service();
     const senderId = pairingSenderId(platform, userId, metadata);
-    // Existing single-account allowlist entries predate account-scoped sender
-    // identities and intentionally continue to authorize every Telegram bot.
-    if (senderId !== userId) {
+    // Telegram's pre-upgrade, single-account allowlist intentionally remains
+    // compatible. New account-scoped approvals never use this fallback, so an
+    // approval for one account cannot authorize another.
+    if (
+      senderId !== userId &&
+      LEGACY_ACCOUNT_SCOPED_PAIRING_PLATFORMS.has(platform)
+    ) {
       const legacyAllowlist = await service.getAllowlist(platform);
-      if (legacyAllowlist.some((entry) => entry.senderId === userId)) {
+      const legacyAccountSenderId = legacyTelegramAccountPairingSenderId(
+        platform,
+        userId,
+        metadata,
+      );
+      if (
+        legacyAllowlist.some(
+          (entry) =>
+            entry.senderId === userId ||
+            entry.senderId === legacyAccountSenderId,
+        )
+      ) {
         return { allowed: true };
       }
     }

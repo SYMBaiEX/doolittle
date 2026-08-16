@@ -18,6 +18,12 @@ import {
   desktopRouteCapabilities,
 } from "./desktop-route-capabilities";
 import { getDesktopRouteComponent } from "./desktop-route-registry";
+import {
+  type CodingWorkspaceFocusState,
+  type DesktopRouteFocusStore,
+  desktopRouteFocusScope,
+  type OrchestrationFocusState,
+} from "./route-focus-state";
 import { VIEW_PRIMITIVES_CLASS } from "./view-layout";
 
 export interface DesktopRouteNavigation {
@@ -36,7 +42,7 @@ export interface DesktopRouteNavigation {
     onActivated?: () => boolean | undefined,
   ) => Promise<boolean>;
   consumeNavigationIntent: (id: string) => void;
-  openChatWithContext: (request: ChatContextRequest) => void;
+  openChatWithContext: (request: ChatContextRequest) => Promise<boolean>;
   openProjectManager: () => void;
   openWorkspaceFile: (path: string) => void;
 }
@@ -69,6 +75,7 @@ export interface DesktopRouteContentProps {
   tasksResource: ApiResource<{ tasks?: unknown[] }>;
   refreshRuntime: () => Promise<boolean>;
   navigation: DesktopRouteNavigation;
+  routeFocus: DesktopRouteFocusStore;
 }
 
 export function DesktopRouteContent({
@@ -91,6 +98,7 @@ export function DesktopRouteContent({
   projectScope,
   refreshRuntime,
   runtime,
+  routeFocus,
   runningTasks,
   scopedSessions,
   selectedSession,
@@ -99,6 +107,8 @@ export function DesktopRouteContent({
 }: DesktopRouteContentProps): ReactNode {
   const active = canRenderDesktopRoute(view, backend.phase);
   const Route = getDesktopRouteComponent(view);
+  const focusScope = desktopRouteFocusScope(workspacePath, projectScope);
+  const focusForScope = routeFocus.get(focusScope);
 
   const content = (() => {
     switch (view) {
@@ -162,7 +172,12 @@ export function DesktopRouteContent({
           <Route
             active={active}
             editingLocked={codeEditingLocked}
-            key={workspacePath || "local-workspace"}
+            key={focusScope}
+            focusState={focusForScope?.code}
+            onFocusStateChange={(state: CodingWorkspaceFocusState) => {
+              const current = routeFocus.get(focusScope) ?? {};
+              routeFocus.set(focusScope, { ...current, code: state });
+            }}
             navigationIntent={pendingNavigationIntent}
             onAcknowledgeNavigationIntent={navigation.consumeNavigationIntent}
             onChooseWorkspace={onChooseWorkspace}
@@ -195,6 +210,11 @@ export function DesktopRouteContent({
           <Route
             active={active}
             key={`${workspacePath}\u0000${projectScope}`}
+            focusState={focusForScope?.work}
+            onFocusStateChange={(state: OrchestrationFocusState) => {
+              const current = routeFocus.get(focusScope) ?? {};
+              routeFocus.set(focusScope, { ...current, work: state });
+            }}
             navigationIntent={pendingNavigationIntent}
             onAcknowledgeNavigationIntent={navigation.consumeNavigationIntent}
             onSectionChange={(section: string) => {

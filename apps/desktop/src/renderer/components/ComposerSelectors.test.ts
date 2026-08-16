@@ -49,6 +49,21 @@ vi.mock("../lib", async () => {
                   ],
                   ready: true,
                 },
+                {
+                  detail: "Local models",
+                  discovery: "configured",
+                  id: "ollama",
+                  label: "Ollama",
+                  mode: "local",
+                  models: [
+                    {
+                      id: "granite4.1:3b",
+                      label: "Granite 4.1",
+                      source: "configured",
+                    },
+                  ],
+                  ready: true,
+                },
               ],
               refreshedAt: "2026-08-15T00:00:00.000Z",
             }
@@ -267,6 +282,41 @@ describe("ComposerModelSelector loaded catalog", () => {
     expect(effort?.tagName).toBe("BUTTON");
   });
 
+  it("uses refreshed runtime effort when the cached catalog is stale", () => {
+    act(() =>
+      root.render(
+        createElement(ComposerModelSelector, {
+          active: true,
+          onOpenModelsPage: vi.fn(),
+          onOpenProvidersPage: vi.fn(),
+          refreshRuntime: vi.fn(),
+          runtime: {
+            model: "gpt-5.6-terra",
+            plugins: {},
+            provider: "codex",
+            // The mocked catalog remains at XHigh, matching a still-fresh
+            // resource-cache entry after this successful settings save.
+            reasoningEffort: "medium",
+          },
+        }),
+      ),
+    );
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>(
+          '[aria-label^="Choose model. Current route"]',
+        )
+        ?.click(),
+    );
+
+    const effort = container.querySelector<HTMLButtonElement>(
+      '[aria-label="GPT-5.6 Terra reasoning effort"]',
+    );
+
+    expect(effort?.textContent).toContain("Medium");
+    expect(effort?.textContent).not.toContain("XHigh");
+  });
+
   it("closes the nested effort list before the model dialog on Escape", async () => {
     act(() =>
       root.render(
@@ -384,5 +434,51 @@ describe("ComposerModelSelector loaded catalog", () => {
     expect(refreshRuntime).toHaveBeenCalledOnce();
     expect(container.querySelector('[role="dialog"]')).toBeNull();
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it("clears stale effort when applying a model without reasoning support", async () => {
+    act(() =>
+      root.render(
+        createElement(ComposerModelSelector, {
+          active: true,
+          onOpenModelsPage: vi.fn(),
+          onOpenProvidersPage: vi.fn(),
+          refreshRuntime: vi.fn(),
+          runtime: {
+            model: "gpt-5.6-terra",
+            plugins: {},
+            provider: "codex",
+            reasoningEffort: "xhigh",
+          },
+        }),
+      ),
+    );
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>(
+          '[aria-label^="Choose model. Current route"]',
+        )
+        ?.click(),
+    );
+
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>('[title="granite4.1:3b"]')
+        ?.click();
+      await Promise.resolve();
+    });
+
+    expect(desktopRequestMock).toHaveBeenCalledWith(
+      "/settings",
+      "POST",
+      expect.objectContaining({
+        changes: expect.arrayContaining([
+          expect.objectContaining({
+            path: "model.reasoningEffort",
+            value: null,
+          }),
+        ]),
+      }),
+    );
   });
 });

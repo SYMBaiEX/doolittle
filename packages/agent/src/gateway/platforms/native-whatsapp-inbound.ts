@@ -27,11 +27,24 @@ type WhatsAppServiceLike = {
     message: NativeWhatsAppMessage,
     accountId?: string,
   ) => Promise<void>;
+  sendMessage?: (message: {
+    accountId?: string;
+    type: "text";
+    to: string;
+    content: string;
+    replyToMessageId?: string;
+  }) => Promise<unknown>;
   [HANDOFF_INSTALLED]?: boolean;
 };
 
 export interface NativeWhatsAppInboundGateway {
-  receive(message: IncomingPlatformMessage): Promise<{ ok: boolean }>;
+  receive(message: IncomingPlatformMessage): Promise<{
+    ok: boolean;
+    response?: string;
+    pairingCode?: string;
+    agentCompleted?: boolean;
+    deliveryStatus?: "sent" | "fallback" | "rejected";
+  }>;
 }
 
 function isNonEmpty(value: unknown): value is string {
@@ -109,10 +122,18 @@ export function installNativeWhatsAppInboundHandoff(
     return false;
   }
 
-  service.handleNormalizedMessage = async (message, accountId) => {
+  service.handleNormalizedMessage = async function (message, accountId) {
     const inbound = normalizeNativeWhatsAppMessage(message, accountId);
     if (!inbound) return;
-    await gateway.receive(inbound);
+    const result = await gateway.receive(inbound);
+    if (result.ok || result.agentCompleted || !result.response?.trim()) return;
+    await this.sendMessage?.({
+      ...(accountId ? { accountId } : {}),
+      type: "text",
+      to: inbound.roomId,
+      content: result.response,
+      replyToMessageId: inbound.messageId,
+    });
   };
   Object.defineProperty(service, HANDOFF_INSTALLED, {
     configurable: false,

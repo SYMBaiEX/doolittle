@@ -44,7 +44,7 @@ describe("session transfer", () => {
         text: "Review the release.",
         attachments: [
           {
-            id: "attachment-1",
+            id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
             name: "release.md",
             kind: "document",
             mimeType: "text/markdown",
@@ -113,6 +113,24 @@ describe("session transfer", () => {
         "Review the release.",
         "The release is ready.",
       ]);
+      expect(importedMessages[0]?.attachments).toEqual([
+        {
+          id: expect.stringMatching(/^archive:[0-9a-f]{64}$/u),
+          name: "release.md",
+          kind: "document",
+          mimeType: "text/markdown",
+          sizeBytes: 42,
+          sha256: "a".repeat(64),
+        },
+      ]);
+      expect(importedMessages[0]?.attachments?.[0]?.id).not.toBe(
+        "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+      );
+      expect(() =>
+        service.previewSessionArchive(
+          service.exportSessionArchive(imported.sessionId),
+        ),
+      ).not.toThrow();
       expect(service.messagesBySession("source", 10)).toHaveLength(2);
 
       const scoped = service.importSessionArchive({

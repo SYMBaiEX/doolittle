@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { apiResourceCacheKey } from "./lib";
 import {
@@ -5,6 +6,11 @@ import {
   reviewWorkspaceScopeKey,
   shouldShowReviewWorkspace,
 } from "./ReviewPage";
+
+const reviewPageSource = readFileSync(
+  new URL("./ReviewPage.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("review workspace scope", () => {
   it("changes for either the selected workspace or project scope", () => {
@@ -46,5 +52,11 @@ describe("review workspace scope", () => {
   it("omits the duplicate queue and detail shell until review items exist", () => {
     expect(shouldShowReviewWorkspace(0)).toBe(false);
     expect(shouldShowReviewWorkspace(1)).toBe(true);
+  });
+
+  it("does not claim offline review notes are saved when storage fails", () => {
+    expect(reviewPageSource).toContain("locallyPersisted: boolean");
+    expect(reviewPageSource).toContain("It exists only in this window");
+    expect(reviewPageSource).toContain("will be lost on reload");
   });
 });

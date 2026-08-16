@@ -35,6 +35,7 @@ function createRouteProps(
     projectLabels: {},
     projectScope: "all",
     refreshRuntime: vi.fn().mockResolvedValue(true),
+    routeFocus: new Map(),
     runtime: null,
     runningTasks: 0,
     scopedSessions: [],

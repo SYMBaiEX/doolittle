@@ -24,6 +24,8 @@ export interface GatewayRuntimeContext {
 export interface GatewayReceiveOptions {
   /** Cancels provider and tool execution when the initiating transport closes. */
   abortSignal?: AbortSignal;
+  /** Internal ingress-only signal; never serialize this on public responses. */
+  preserveIdempotencyDisposition?: boolean;
   onResponseProgress?: (update: {
     chunk: string;
     response: string;

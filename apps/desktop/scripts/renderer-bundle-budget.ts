@@ -20,7 +20,13 @@ export const RENDERER_BUNDLE_BUDGETS: readonly BundleBudget[] = [
   {
     label: "initial renderer entry",
     pattern: /^index-[^.]+\.js$/u,
-    maxBytes: 800_000,
+    maxBytes: 775_000,
+    required: true,
+  },
+  {
+    label: "lazy desktop sidebar",
+    pattern: /^DesktopSidebar-[^.]+\.js$/u,
+    maxBytes: 180_000,
     required: true,
   },
   {

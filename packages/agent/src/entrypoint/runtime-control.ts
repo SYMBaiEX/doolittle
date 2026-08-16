@@ -110,6 +110,7 @@ export function createApiStartupController(
   const startServer = async () => {
     try {
       await context.ensureDeferredHydration("api");
+      context.gateway.startIngress();
       let serverAddress: ApiServerAddress | undefined;
       if (!startApiServer) {
         const server = await import("@/server");

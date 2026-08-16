@@ -11,6 +11,7 @@ function createHarness(
   executor: AutomationExecutor = async () => "automation complete",
 ) {
   const tasks = new Map<string, Task>();
+  const services = new Map<string, unknown>();
   const runtime = {
     agentId: "00000000-0000-4000-8000-000000000001",
     createTask: async (task: Task) => {
@@ -28,7 +29,7 @@ function createHarness(
     deleteTask: async (id: UUID) => {
       tasks.delete(String(id));
     },
-    getService: () => null,
+    getService: (name: string) => services.get(name) ?? null,
     logger: {
       info: () => undefined,
       warn: () => undefined,
@@ -44,7 +45,7 @@ function createHarness(
     if (!service) throw new Error(`Missing service class: ${type}`);
     return service;
   };
-  return { runtime, serviceClass, tasks };
+  return { runtime, serviceClass, services, tasks };
 }
 
 describe("Eliza product trigger runtime adapter", () => {
@@ -196,5 +197,66 @@ describe("Eliza product trigger runtime adapter", () => {
         }),
       ]),
     );
+  });
+
+  it("rejects paused webhook triggers without weakening explicit operator runs", async () => {
+    const executor = vi.fn(
+      async (
+        _job: Parameters<AutomationExecutor>[0],
+        _context: Parameters<AutomationExecutor>[1],
+      ) => "webhook automation complete",
+    );
+    const harness = createHarness(executor);
+    const dispatcher = await harness
+      .serviceClass(DOOLITTLE_WORKFLOW_DISPATCH_SERVICE)
+      .start(harness.runtime);
+    harness.services.set(DOOLITTLE_WORKFLOW_DISPATCH_SERVICE, dispatcher);
+    const cron = (await harness
+      .serviceClass(DOOLITTLE_AUTOMATION_SERVICE)
+      .start(harness.runtime)) as unknown as {
+      create(input: Record<string, unknown>): Promise<{
+        id: string;
+        trigger: { type: "webhook"; token: string };
+      }>;
+      pause(id: string): Promise<unknown>;
+      runNow(id: string): Promise<unknown>;
+      runs(limit: number): Promise<Array<{ id: string }>>;
+      triggerWebhook(
+        token: string,
+        payload?: Record<string, unknown>,
+      ): Promise<{ id: string; status?: string }>;
+    };
+    harness.services.set(DOOLITTLE_AUTOMATION_SERVICE, cron);
+    const job = await cron.create({
+      name: "Deploy webhook",
+      trigger: { type: "webhook" },
+      prompt: "Review the deployment.",
+    });
+
+    const activeReceipt = await cron.triggerWebhook(job.trigger.token, {
+      deployment: { status: "ready" },
+    });
+    expect(activeReceipt.status).toBe("completed");
+    expect(executor).toHaveBeenCalledOnce();
+    expect(executor.mock.calls[0]?.[1]).toMatchObject({
+      source: "webhook",
+      payload: { deployment: { status: "ready" } },
+    });
+
+    await cron.pause(job.id);
+    const receiptsBeforePausedTrigger = await cron.runs(10);
+    await expect(cron.triggerWebhook(job.trigger.token)).rejects.toThrow(
+      `Cron job is paused: ${job.id}`,
+    );
+    await expect(cron.triggerWebhook("wrong-token")).rejects.toThrow(
+      "Webhook automation not found.",
+    );
+    expect(executor).toHaveBeenCalledOnce();
+    await expect(cron.runs(10)).resolves.toEqual(receiptsBeforePausedTrigger);
+
+    await expect(cron.runNow(job.id)).resolves.toMatchObject({
+      id: job.id,
+    });
+    expect(executor).toHaveBeenCalledTimes(2);
   });
 });

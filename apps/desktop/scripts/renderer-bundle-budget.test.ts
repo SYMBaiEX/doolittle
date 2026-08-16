@@ -5,7 +5,8 @@ import {
 } from "./renderer-bundle-budget";
 
 const healthy = [
-  { name: "index-hash.js", bytes: 780_000 },
+  { name: "index-hash.js", bytes: 775_000 },
+  { name: "DesktopSidebar-hash.js", bytes: 120_000 },
   { name: "CommandPalette-hash.js", bytes: 35_000 },
   { name: "ChatPage-hash.js", bytes: 120_000 },
   { name: "OrchestrationPage-hash.js", bytes: 120_000 },
@@ -28,6 +29,7 @@ describe("renderer bundle budget", () => {
   it("reports missing, oversized, and total regressions", () => {
     const failures = rendererBundleBudgetFailures([
       { name: "index-hash.js", bytes: MAX_RENDERER_JAVASCRIPT_BYTES + 1 },
+      { name: "DesktopSidebar-hash.js", bytes: 180_001 },
       { name: "CommandPalette-hash.js", bytes: 40_001 },
       { name: "ChatPage-hash.js", bytes: 180_001 },
       { name: "CodingWorkspacePage-hash.js", bytes: 550_001 },
@@ -41,6 +43,7 @@ describe("renderer bundle budget", () => {
       expect.arrayContaining([
         expect.stringContaining("total"),
         expect.stringContaining("initial renderer entry"),
+        expect.stringContaining("lazy desktop sidebar"),
         expect.stringContaining("lazy command palette"),
         expect.stringContaining("chat route"),
         expect.stringContaining("orchestration route bundle was not emitted"),

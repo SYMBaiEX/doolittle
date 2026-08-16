@@ -21,23 +21,30 @@ describe("createShellRuntimeService", () => {
     const runtime = {} as IAgentRuntime;
     const Service = createShellRuntimeService(services) as ServiceClass;
     const service = (await Service.start(runtime)) as Service & {
-      run(command: string): Promise<unknown>;
+      run(
+        command: string,
+        timeoutMs?: number,
+        abortSignal?: AbortSignal,
+      ): Promise<unknown>;
       history(limit?: number): unknown[];
       status(): Promise<unknown>;
     };
 
     expect(Service.serviceType).toBe(DOOLITTLE_SHELL_SERVICE);
-    await expect(service.run("pwd")).resolves.toEqual({
-      command: "pwd",
-      exitCode: 0,
-    });
+    const controller = new AbortController();
+    await expect(service.run("pwd", 1_234, controller.signal)).resolves.toEqual(
+      {
+        command: "pwd",
+        exitCode: 0,
+      },
+    );
     expect(service.history(3)).toEqual([{ command: "pwd", limit: 3 }]);
     await expect(service.status()).resolves.toEqual({
       configured: "local-shell",
     });
 
     await service.stop();
-    expect(run).toHaveBeenCalledWith("pwd");
+    expect(run).toHaveBeenCalledWith("pwd", 1_234, controller.signal);
     expect(recent).toHaveBeenCalledWith(3);
     expect(status).toHaveBeenCalledTimes(1);
     expect(disposeInteractiveSessions).toHaveBeenCalledTimes(1);

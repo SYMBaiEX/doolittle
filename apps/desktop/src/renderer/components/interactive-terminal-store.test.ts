@@ -196,4 +196,62 @@ describe("interactive terminal state", () => {
     expect(resolved.tabs[0]?.name).toBe("Saved terminal");
     expect(resolved.tabs[0]?.cwd).toBe("/work/doolittle");
   });
+
+  it("closes persisted running tabs when returning after a workspace switch", () => {
+    const storage = fakeStorage();
+    const persisted = createInteractiveTerminalTab("Build shell");
+    persisted.sessionId = "session-from-workspace-a";
+    persisted.state = "running";
+    persisted.output = "bun test\n";
+    saveInteractiveTerminalState(
+      "/work/a",
+      { activeTabId: persisted.id, tabs: [persisted] },
+      storage,
+    );
+
+    const resolved = resolveInteractiveTerminalWorkspaceState({
+      previousWorkspacePath: "/work/b",
+      nextWorkspacePath: "/work/a",
+      currentState: {
+        activeTabId: "workspace-b-tab",
+        tabs: [createInteractiveTerminalTab("Terminal 1")],
+      },
+      storage,
+    });
+
+    expect(resolved.tabs[0]).toMatchObject({
+      state: "closed",
+      sessionId: null,
+      stale: true,
+      output: "bun test\n",
+    });
+  });
+
+  it("keeps persisted running tabs live when the workspace did not change", () => {
+    const storage = fakeStorage();
+    const persisted = createInteractiveTerminalTab("Build shell");
+    persisted.sessionId = "live-session";
+    persisted.state = "running";
+    saveInteractiveTerminalState(
+      "/work/a",
+      { activeTabId: persisted.id, tabs: [persisted] },
+      storage,
+    );
+
+    const resolved = resolveInteractiveTerminalWorkspaceState({
+      previousWorkspacePath: "/work/a",
+      nextWorkspacePath: "/work/a",
+      currentState: {
+        activeTabId: persisted.id,
+        tabs: [persisted],
+      },
+      storage,
+    });
+
+    expect(resolved.tabs[0]).toMatchObject({
+      state: "running",
+      sessionId: "live-session",
+      stale: false,
+    });
+  });
 });

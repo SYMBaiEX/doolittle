@@ -1,5 +1,5 @@
 import { Button } from "@elizaos/ui/components/ui/button";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   BROWSER_CODE_PREVIEW_CLASS,
   BROWSER_FIELD_CLASS,
@@ -25,7 +25,7 @@ interface BrowserResultPanelProps {
   address: string;
   currentUrl: string;
   onError: (message: string) => void;
-  onSendToChat?: (text: string) => void;
+  onSendToChat?: (text: string) => boolean | Promise<boolean>;
   previewSize: string;
   result: BrowserResult;
 }
@@ -43,6 +43,8 @@ export function BrowserResultPanel({
   const [region, setRegion] = useState("");
   const [viewportNote, setViewportNote] = useState("");
   const [sentResult, setSentResult] = useState<BrowserResult | null>(null);
+  const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
   const sent = sentResult === result;
   const resultView = useMemo(
     () => buildBrowserResultViewModel(result),
@@ -63,12 +65,34 @@ export function BrowserResultPanel({
       }),
     [address, comment, currentUrl, region, result, selector, viewport],
   );
+  const currentEvidenceContextRef = useRef(evidenceContext);
+  currentEvidenceContextRef.current = evidenceContext;
   const capture =
     resultView.cards.find((card) => card.label === "Capture")?.value ??
     "Structured receipt";
   const updateEvidence = (update: (value: string) => void, value: string) => {
     update(value);
     setSentResult(null);
+  };
+  const sendToThread = async () => {
+    if (!onSendToChat || !evidenceContext || sendingRef.current) return;
+    const submittedContext = evidenceContext;
+    sendingRef.current = true;
+    setSending(true);
+    try {
+      const sent = await onSendToChat(submittedContext);
+      setSentResult(
+        sent && currentEvidenceContextRef.current === submittedContext
+          ? result
+          : null,
+      );
+    } catch (handoffError) {
+      onError(errorMessage(handoffError));
+      setSentResult(null);
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
   };
 
   return (
@@ -238,25 +262,18 @@ export function BrowserResultPanel({
           <span className="flex-1 text-[10px] leading-normal text-[var(--muted)]">
             {sent
               ? "Sent to the active thread."
-              : onSendToChat
-                ? "Ready to hand off"
-                : "Thread handoff is unavailable."}
+              : sending
+                ? "Sending to the active thread…"
+                : onSendToChat
+                  ? "Ready to hand off"
+                  : "Thread handoff is unavailable."}
           </span>
           <Button
-            disabled={!onSendToChat || !evidenceContext}
-            onClick={() => {
-              if (!onSendToChat || !evidenceContext) return;
-              try {
-                onSendToChat(evidenceContext);
-                setSentResult(result);
-              } catch (handoffError) {
-                onError(errorMessage(handoffError));
-                setSentResult(null);
-              }
-            }}
+            disabled={!onSendToChat || !evidenceContext || sending}
+            onClick={() => void sendToThread()}
             type="button"
           >
-            Send to thread
+            {sending ? "Sending…" : "Send to thread"}
           </Button>
         </div>
       </section>

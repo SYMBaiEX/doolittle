@@ -99,6 +99,7 @@ export function DesktopSettingsPanel({
               {update?.phase === "downloaded" ? (
                 <button
                   className="primary-button"
+                  disabled={updateBusy}
                   onClick={onInstallUpdate}
                   type="button"
                 >

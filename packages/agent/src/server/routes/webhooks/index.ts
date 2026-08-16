@@ -1,7 +1,11 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import { json } from "@/server/responses";
 import { handleHookRoutes } from "./hooks";
-import { handleInboundWebhook, readJsonBody } from "./inbound";
+import {
+  handleDurableInboundWebhook,
+  handleInboundWebhook,
+  readJsonBody,
+} from "./inbound";
 import { handlePairingRoutes } from "./pairing";
 import { verifySlackSignature, verifyWhatsAppSignature } from "./signature";
 
@@ -27,6 +31,12 @@ export async function handleWebhookRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/webhooks/slack") {
+    if (!context.config.slackSigningSecret) {
+      return json(
+        { error: "Slack signature verification is not configured." },
+        503,
+      );
+    }
     const rawBody = await request.text();
     if (
       !verifySlackSignature(
@@ -52,7 +62,7 @@ export async function handleWebhookRoutes(
     if (body.challenge) {
       return json({ challenge: body.challenge });
     }
-    return handleInboundWebhook("slack", context, body, request.signal);
+    return handleDurableInboundWebhook("slack", context, body, request.signal);
   }
 
   if (request.method === "GET" && url.pathname === "/webhooks/whatsapp") {
@@ -71,12 +81,7 @@ export async function handleWebhookRoutes(
   }
 
   if (request.method === "POST" && url.pathname === "/webhooks/whatsapp") {
-    const whatsappCloudConfigured = Boolean(
-      context.config.whatsappAccessToken &&
-        context.config.whatsappPhoneNumberId &&
-        context.config.whatsappVerifyToken,
-    );
-    if (whatsappCloudConfigured && !context.config.whatsappAppSecret) {
+    if (!context.config.whatsappAppSecret) {
       return json(
         { error: "WhatsApp signature verification is not configured." },
         503,
@@ -100,7 +105,12 @@ export async function handleWebhookRoutes(
     } catch {
       return json({ error: "Invalid JSON body." }, 400);
     }
-    return handleInboundWebhook("whatsapp", context, body, request.signal);
+    return handleDurableInboundWebhook(
+      "whatsapp",
+      context,
+      body,
+      request.signal,
+    );
   }
 
   if (request.method === "POST" && url.pathname === "/webhooks/signal") {

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createUniqueUuid } from "@elizaos/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import type { ChatTurnRequest } from "@/types/runtime";
@@ -77,6 +78,13 @@ function mockWorkflowCommands(overrides?: {
   }));
 }
 
+function retryProjectionSupport(messages: unknown[] = []) {
+  return {
+    messagesBySession: () => structuredClone(messages),
+    replaceSessionMessages: vi.fn(),
+  };
+}
+
 describe("chat turn orchestration", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -130,7 +138,7 @@ describe("chat turn orchestration", () => {
     );
   });
 
-  it("forwards a cancelled /compress analysis signal and does not mutate history", async () => {
+  it("rejects a late cancelled /compress result before it mutates history", async () => {
     const controller = new AbortController();
     const abortError = new Error("model analysis cancelled");
     abortError.name = "AbortError";
@@ -141,8 +149,8 @@ describe("chat turn orchestration", () => {
         options: { abortSignal?: AbortSignal },
       ) => {
         expect(options.abortSignal).toBe(controller.signal);
-        controller.abort();
-        throw abortError;
+        controller.abort(abortError);
+        return "late summary";
       },
     );
     const replaceSessionMessages = vi.fn();
@@ -371,6 +379,7 @@ describe("chat turn orchestration", () => {
         services: {
           ...createContext().services,
           sessions: {
+            ...retryProjectionSupport(),
             deleteLatestExchange,
           },
         },
@@ -383,6 +392,348 @@ describe("chat turn orchestration", () => {
     });
     expect(runPostCommandTurn).toHaveBeenCalledTimes(1);
     expect(retryInput?.message).toBe("ship the operator loop");
+  });
+
+  it("does not retry when a partial native exchange deletion is rolled back", async () => {
+    const firstId = "00000000-0000-4000-8000-000000000041";
+    const secondId = "00000000-0000-4000-8000-000000000042";
+    const native = new Map<
+      string,
+      { id: string; roomId: string; content: { text: string } }
+    >([
+      [
+        firstId,
+        { id: firstId, roomId: "room:alice", content: { text: "retry me" } },
+      ],
+      [
+        secondId,
+        { id: secondId, roomId: "room:alice", content: { text: "old answer" } },
+      ],
+    ]);
+    const originalProjection = [
+      {
+        id: firstId,
+        sessionId: "room:alice",
+        roomId: "room:alice",
+        entityId: "alice",
+        role: "user" as const,
+        text: "retry me",
+        createdAt: "2026-05-13T00:00:00.000Z",
+      },
+      {
+        id: secondId,
+        sessionId: "room:alice",
+        roomId: "room:alice",
+        entityId: "agent-1",
+        role: "assistant" as const,
+        text: "old answer",
+        createdAt: "2026-05-13T00:00:01.000Z",
+      },
+    ];
+    const projection = retryProjectionSupport(originalProjection);
+    const runPostCommandTurn = vi.fn(async () => "should-not-run");
+    vi.doMock("@/runtime/chat-turn/post-command", () => ({
+      runPostCommandTurn,
+    }));
+    mockWorkflowCommands();
+
+    const { handleAgentTurn } = await loadHandleAgentTurn();
+    const response = await handleAgentTurn(
+      createInput("/retry"),
+      createContext({
+        runtime: {
+          agentId: "agent-1",
+          getMemories: async () => [...native.values()],
+          createMemory: async (memory: {
+            id: string;
+            roomId: string;
+            content: { text: string };
+          }) => {
+            native.set(memory.id, memory);
+            return memory.id;
+          },
+          deleteMemory: async (id: string) => {
+            if (id === secondId) throw new Error("delete failed");
+            native.delete(id);
+          },
+        },
+        services: {
+          ...createContext().services,
+          sessions: {
+            ...projection,
+            deleteLatestExchange: () => ({
+              sessionId: "room:alice",
+              userMessage: originalProjection[0],
+              assistantMessages: [originalProjection[1]],
+              deletedMessages: 2,
+            }),
+          },
+        },
+      } as unknown as Partial<AgentExecutionContext>),
+    );
+
+    expect(response).toBe(
+      "The previous exchange could not be removed from native conversation history, so it was not retried.",
+    );
+    expect(runPostCommandTurn).not.toHaveBeenCalled();
+    expect(projection.replaceSessionMessages).toHaveBeenCalledWith(
+      "room:alice",
+      originalProjection,
+    );
+    expect([...native.keys()].sort()).toEqual([firstId, secondId].sort());
+  });
+
+  it("restores the original native exchange and projection when retry replay aborts", async () => {
+    const nativeId = "00000000-0000-4000-8000-000000000044";
+    const originalProjection = [
+      {
+        id: nativeId,
+        sessionId: "room:alice",
+        roomId: "room:alice",
+        entityId: "alice",
+        role: "user" as const,
+        text: "retry me",
+        createdAt: "2026-05-13T00:00:00.000Z",
+      },
+    ];
+    let projected = structuredClone(originalProjection);
+    const native = new Map<
+      string,
+      {
+        id: string;
+        agentId: string;
+        roomId: string;
+        entityId: string;
+        content: { text: string; inReplyTo?: string };
+        metadata: Record<string, unknown>;
+      }
+    >([
+      [
+        nativeId,
+        {
+          id: nativeId,
+          agentId: "agent-1",
+          roomId: "room:alice",
+          entityId: "alice",
+          content: { text: "retry me" },
+          metadata: {},
+        },
+      ],
+    ]);
+    const abortError = new Error("replay cancelled");
+    abortError.name = "AbortError";
+    const runPostCommandTurn = vi.fn(async (...args: unknown[]) => {
+      const prepared = args[6] as {
+        turn: { messageId: string; roomId: string };
+      };
+      native.set(prepared.turn.messageId, {
+        id: prepared.turn.messageId,
+        agentId: "agent-1",
+        roomId: prepared.turn.roomId,
+        entityId: "alice",
+        content: { text: "retry me" },
+        metadata: {},
+      });
+      native.set("00000000-0000-4000-8000-000000000045", {
+        id: "00000000-0000-4000-8000-000000000045",
+        agentId: "agent-1",
+        roomId: prepared.turn.roomId,
+        entityId: "agent-1",
+        content: {
+          text: "partial answer",
+          inReplyTo: createUniqueUuid(
+            { agentId: "agent-1" } as never,
+            prepared.turn.messageId,
+          ),
+        },
+        metadata: {},
+      });
+      projected = [
+        {
+          ...originalProjection[0],
+          id: prepared.turn.messageId,
+          text: "partial retry projection",
+        },
+      ];
+      throw abortError;
+    });
+    const replaceSessionMessages = vi.fn(
+      (_sessionId: string, messages: typeof originalProjection) => {
+        projected = structuredClone(messages);
+      },
+    );
+    vi.doMock("@/runtime/chat-turn/post-command", () => ({
+      runPostCommandTurn,
+    }));
+    mockWorkflowCommands();
+
+    const { handleAgentTurn } = await loadHandleAgentTurn();
+    await expect(
+      handleAgentTurn(
+        createInput("/retry"),
+        createContext({
+          runtime: {
+            agentId: "agent-1",
+            getMemories: async () => [...native.values()],
+            createMemory: async (memory: { id: string }) => {
+              native.set(memory.id, memory as never);
+              return memory.id;
+            },
+            deleteMemory: async (id: string) => {
+              native.delete(id);
+            },
+          },
+          services: {
+            ...createContext().services,
+            sessions: {
+              messagesBySession: () => structuredClone(projected),
+              replaceSessionMessages,
+              deleteLatestExchange: () => ({
+                sessionId: "room:alice",
+                userMessage: {
+                  id: nativeId,
+                  sessionId: "room:alice",
+                  roomId: "room:alice",
+                  entityId: "alice",
+                  role: "user" as const,
+                  text: "retry me",
+                  createdAt: "2026-05-13T00:00:00.000Z",
+                },
+                assistantMessages: [],
+                deletedMessages: 1,
+              }),
+            },
+          },
+        } as unknown as Partial<AgentExecutionContext>),
+      ),
+    ).rejects.toBe(abortError);
+
+    expect(runPostCommandTurn).toHaveBeenCalledTimes(1);
+    expect(native.has(nativeId)).toBe(true);
+    expect([...native.keys()]).toEqual([nativeId]);
+    expect(projected).toEqual(originalProjection);
+    expect(replaceSessionMessages).toHaveBeenCalledWith(
+      "room:alice",
+      originalProjection,
+    );
+  });
+
+  it("restores the exact projection when native retry rollback is incomplete", async () => {
+    const nativeId = "00000000-0000-4000-8000-000000000046";
+    const originalProjection = [
+      {
+        id: nativeId,
+        sessionId: "room:alice",
+        roomId: "room:alice",
+        entityId: "alice",
+        role: "user" as const,
+        text: "retry me",
+        createdAt: "2026-05-13T00:00:00.000Z",
+      },
+    ];
+    let projected = structuredClone(originalProjection);
+    const native = new Map<
+      string,
+      {
+        id: string;
+        agentId: string;
+        roomId: string;
+        entityId: string;
+        content: { text: string };
+        metadata: Record<string, unknown>;
+      }
+    >([
+      [
+        nativeId,
+        {
+          id: nativeId,
+          agentId: "agent-1",
+          roomId: "room:alice",
+          entityId: "alice",
+          content: { text: "retry me" },
+          metadata: {},
+        },
+      ],
+    ]);
+    let replayMessageId = "";
+    const replayError = new Error("replay failed");
+    const runPostCommandTurn = vi.fn(async (...args: unknown[]) => {
+      const prepared = args[6] as {
+        turn: { messageId: string; roomId: string };
+      };
+      replayMessageId = prepared.turn.messageId;
+      native.set(replayMessageId, {
+        id: replayMessageId,
+        agentId: "agent-1",
+        roomId: prepared.turn.roomId,
+        entityId: "alice",
+        content: { text: "retry me" },
+        metadata: {},
+      });
+      projected = [
+        {
+          ...originalProjection[0],
+          id: replayMessageId,
+          text: "partial retry projection",
+        },
+      ];
+      throw replayError;
+    });
+    const replaceSessionMessages = vi.fn(
+      (_sessionId: string, messages: typeof originalProjection) => {
+        projected = structuredClone(messages);
+      },
+    );
+    vi.doMock("@/runtime/chat-turn/post-command", () => ({
+      runPostCommandTurn,
+    }));
+    mockWorkflowCommands();
+
+    const { handleAgentTurn } = await loadHandleAgentTurn();
+    await expect(
+      handleAgentTurn(
+        createInput("/retry"),
+        createContext({
+          runtime: {
+            agentId: "agent-1",
+            getMemories: async () => [...native.values()],
+            createMemory: async (memory: { id: string }) => {
+              native.set(memory.id, memory as never);
+              return memory.id;
+            },
+            deleteMemory: async (id: string) => {
+              if (id === replayMessageId) {
+                throw new Error("retry cleanup refused");
+              }
+              native.delete(id);
+            },
+          },
+          services: {
+            ...createContext().services,
+            sessions: {
+              messagesBySession: () => structuredClone(projected),
+              replaceSessionMessages,
+              deleteLatestExchange: () => ({
+                sessionId: "room:alice",
+                userMessage: originalProjection[0],
+                assistantMessages: [],
+                deletedMessages: 1,
+              }),
+            },
+          },
+        } as unknown as Partial<AgentExecutionContext>),
+      ),
+    ).rejects.toThrow(
+      "Retry replay failed and its original exchange could not be fully restored.",
+    );
+
+    expect(native.has(nativeId)).toBe(true);
+    expect(native.has(replayMessageId)).toBe(true);
+    expect(projected).toEqual(originalProjection);
+    expect(replaceSessionMessages).toHaveBeenCalledWith(
+      "room:alice",
+      originalProjection,
+    );
   });
 
   it("restores managed attachments when retrying a prior turn", async () => {
@@ -441,6 +792,7 @@ describe("chat turn orchestration", () => {
           services: {
             ...createContext().services,
             sessions: {
+              ...retryProjectionSupport(),
               deleteLatestExchange: () => ({
                 sessionId: "room:alice",
                 userMessage: {
@@ -469,6 +821,110 @@ describe("chat turn orchestration", () => {
     }
   });
 
+  it("does not resolve local attachment bytes for imported archive descriptors on retry", async () => {
+    const runPostCommandTurn = vi.fn(async () => "should-not-run");
+    const nativeId = "00000000-0000-4000-8000-000000000043";
+    const native = new Map([
+      [
+        nativeId,
+        {
+          id: nativeId,
+          roomId: "room:alice",
+          content: { text: "review this" },
+        },
+      ],
+    ]);
+    const deleteMemory = vi.fn(async (id: string) => {
+      native.delete(id);
+    });
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-retry-archive-"));
+    const attachmentsDir = join(dataDir, "attachments");
+    mkdirSync(attachmentsDir);
+    const contents = Buffer.from("local bytes must remain private");
+    const localDescriptor = {
+      id: "62df6968-19be-4ea6-b7a1-479a57fa3b7c",
+      name: "private.md",
+      kind: "document" as const,
+      mimeType: "text/markdown",
+      sizeBytes: contents.byteLength,
+      sha256: createHash("sha256").update(contents).digest("hex"),
+    };
+    writeFileSync(join(attachmentsDir, `${localDescriptor.id}.md`), contents);
+    writeFileSync(
+      join(attachmentsDir, `${localDescriptor.id}.meta.json`),
+      JSON.stringify({
+        version: 1,
+        ...localDescriptor,
+        storedName: `${localDescriptor.id}.md`,
+      }),
+    );
+    const importedDescriptor = {
+      ...localDescriptor,
+      id: `archive:${"a".repeat(64)}`,
+    };
+    const originalProjection = [
+      {
+        id: nativeId,
+        sessionId: "room:alice",
+        roomId: "room:alice",
+        entityId: "alice",
+        role: "user" as const,
+        text: "review this",
+        attachments: [importedDescriptor],
+        createdAt: "2026-05-13T00:00:00.000Z",
+      },
+    ];
+    const projection = retryProjectionSupport(originalProjection);
+    vi.doMock("@/runtime/chat-turn/post-command", () => ({
+      runPostCommandTurn,
+    }));
+    mockWorkflowCommands();
+
+    try {
+      const { handleAgentTurn } = await loadHandleAgentTurn();
+      const response = await handleAgentTurn(
+        createInput("/retry"),
+        createContext({
+          runtime: {
+            agentId: "agent-1",
+            getMemories: async () => [...native.values()],
+            createMemory: async () => undefined,
+            deleteMemory,
+          },
+          config: {
+            workspaceDir: "/workspace/demo",
+            dataDir,
+          },
+          services: {
+            ...createContext().services,
+            sessions: {
+              ...projection,
+              deleteLatestExchange: () => ({
+                sessionId: "room:alice",
+                userMessage: originalProjection[0],
+                assistantMessages: [],
+                deletedMessages: 2,
+              }),
+            },
+          },
+        } as unknown as Partial<AgentExecutionContext>),
+      );
+
+      expect(response).toBe(
+        "The previous turn used attachments that are no longer available, so it was not retried.",
+      );
+      expect(runPostCommandTurn).not.toHaveBeenCalled();
+      expect(deleteMemory).not.toHaveBeenCalled();
+      expect([...native.keys()]).toEqual([nativeId]);
+      expect(projection.replaceSessionMessages).toHaveBeenCalledWith(
+        "room:alice",
+        originalProjection,
+      );
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true });
+    }
+  });
+
   it("returns a truthful retry message when no prior conversational turn exists", async () => {
     const runPostCommandTurn = vi.fn(async () => "post-result");
 
@@ -484,6 +940,7 @@ describe("chat turn orchestration", () => {
         services: {
           ...createContext().services,
           sessions: {
+            ...retryProjectionSupport(),
             deleteLatestExchange: () => ({
               sessionId: "room:alice",
               assistantMessages: [],
@@ -497,6 +954,35 @@ describe("chat turn orchestration", () => {
     expect(response).toBe(
       "No prior conversational turn is available to retry.",
     );
+    expect(runPostCommandTurn).not.toHaveBeenCalled();
+  });
+
+  it("refuses retry before deletion when exact projection rollback is unavailable", async () => {
+    const deleteLatestExchange = vi.fn();
+    const runPostCommandTurn = vi.fn(async () => "should-not-run");
+    vi.doMock("@/runtime/chat-turn/post-command", () => ({
+      runPostCommandTurn,
+    }));
+    mockWorkflowCommands();
+
+    const { handleAgentTurn } = await loadHandleAgentTurn();
+    const response = await handleAgentTurn(
+      createInput("/retry"),
+      createContext({
+        services: {
+          ...createContext().services,
+          sessions: {
+            messagesBySession: () => [],
+            deleteLatestExchange,
+          },
+        },
+      } as unknown as Partial<AgentExecutionContext>),
+    );
+
+    expect(response).toBe(
+      "Retry is unavailable because complete session rollback is not supported by this runtime.",
+    );
+    expect(deleteLatestExchange).not.toHaveBeenCalled();
     expect(runPostCommandTurn).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
-import { PassThrough } from "node:stream";
+import { PassThrough, Writable } from "node:stream";
 import { syncResolvedApiPort } from "@elizaos/shared";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   internalServerErrorResponse,
   isRequestCancellation,
@@ -103,5 +103,35 @@ describe("writeWebResponse", () => {
     );
     await new Promise<void>((resolve) => setImmediate(resolve));
     expect(cancelled).toBe(true);
+  });
+
+  it("rejects a close after end but before the response actually finishes", async () => {
+    let finishWrite: (() => void) | undefined;
+    const output = new Writable({
+      write(_chunk, _encoding, callback) {
+        callback();
+      },
+      final(callback) {
+        finishWrite = callback;
+      },
+    }) as Writable & {
+      statusCode: number;
+      setHeader: (name: string, value: string | string[]) => void;
+    };
+    output.statusCode = 200;
+    output.setHeader = () => undefined;
+
+    const writing = writeWebResponse(
+      new Response("complete"),
+      output as unknown as import("node:http").ServerResponse,
+    );
+    await vi.waitFor(() => expect(output.writableEnded).toBe(true));
+    expect(output.writableFinished).toBe(false);
+    output.emit("close");
+
+    await expect(writing).rejects.toThrow(
+      "Client disconnected before response completed.",
+    );
+    finishWrite?.();
   });
 });

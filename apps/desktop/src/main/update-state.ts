@@ -15,6 +15,7 @@ export type ConfigurableUpdateProvider = UpdateProvider &
 export class DesktopUpdateController {
   private state: DesktopUpdateState;
   private listeners = new Set<(state: DesktopUpdateState) => void>();
+  private installRequested = false;
 
   constructor(provider: UpdateProvider | null, unavailableDetail: string) {
     this.state = provider
@@ -48,12 +49,13 @@ export class DesktopUpdateController {
         message: "Update downloaded. Install when you are ready.",
       }),
     );
-    provider.on("error", (error: Error) =>
+    provider.on("error", (error: Error) => {
+      this.installRequested = false;
       this.set({
         phase: "error",
         message: error.message || "Update check failed.",
-      }),
-    );
+      });
+    });
     this.provider = provider;
   }
 
@@ -83,7 +85,14 @@ export class DesktopUpdateController {
     if (!this.provider) throw new Error(this.state.message);
     if (this.state.phase !== "downloaded")
       throw new Error("No downloaded update is ready to install.");
-    this.provider.quitAndInstall();
+    if (this.installRequested) return;
+    this.installRequested = true;
+    try {
+      this.provider.quitAndInstall();
+    } catch (error) {
+      this.installRequested = false;
+      throw error;
+    }
   }
 }
 

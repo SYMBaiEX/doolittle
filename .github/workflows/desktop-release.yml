@@ -40,17 +40,23 @@ jobs:
   macos:
     needs: preflight
     uses: ./.github/workflows/desktop-macos.yml
-    secrets: inherit
+    secrets:
+      MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+      MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
   windows:
     needs: preflight
     uses: ./.github/workflows/desktop-windows.yml
-    secrets: inherit
+    secrets:
+      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
 
   linux:
     needs: preflight
     uses: ./.github/workflows/desktop-linux.yml
-    secrets: inherit
 
   assemble:
     needs: [macos, windows, linux]

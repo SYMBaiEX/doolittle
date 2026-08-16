@@ -7,6 +7,7 @@ import type { ExecutionApprovalScopeRecord } from "./types";
 interface PendingApprovalRecord {
   id: string;
   reason: string;
+  created: boolean;
 }
 
 export function isApprovalScopedToRequester(
@@ -54,23 +55,26 @@ export async function resolvePendingExecutionApproval(input: {
     return undefined;
   }
 
-  return (
-    context.services.executionApprovals.findPending({
-      platform,
-      userId: request.userId,
-      roomId,
-      sessionKey: roomId,
-      command,
-    }) ??
-    (await context.services.executionApprovals.request({
-      platform,
-      userId: request.userId,
-      roomId,
-      sessionKey: roomId,
-      runtimeRoomId: String(runtimeRoomId),
-      runtimeEntityId: String(runtimeEntityId),
-      command,
-      reason,
-    }))
-  );
+  const pending = context.services.executionApprovals.findPending({
+    platform,
+    userId: request.userId,
+    roomId,
+    sessionKey: roomId,
+    command,
+  });
+  if (pending) {
+    return { ...pending, created: false };
+  }
+
+  const created = await context.services.executionApprovals.request({
+    platform,
+    userId: request.userId,
+    roomId,
+    sessionKey: roomId,
+    runtimeRoomId: String(runtimeRoomId),
+    runtimeEntityId: String(runtimeEntityId),
+    command,
+    reason,
+  });
+  return { ...created, created: true };
 }

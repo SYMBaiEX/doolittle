@@ -14,6 +14,10 @@ export async function handleGatewayMessageRoutes(
   request: Request,
   url: URL,
 ): Promise<Response | null> {
+  if (request.method === "GET" && url.pathname === "/gateway/ingress") {
+    return json({ receipts: context.gateway.ingressHistory() });
+  }
+
   if (request.method === "POST" && url.pathname === "/gateway/message") {
     const parsed = await readJsonBody<IncomingPlatformMessage>(request);
     if (!parsed.ok) {

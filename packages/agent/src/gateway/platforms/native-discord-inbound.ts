@@ -36,6 +36,10 @@ type DiscordMessage = {
     parentId?: string | null;
     isDMBased?: () => boolean;
     isThread?: () => boolean;
+    send?: (content: {
+      content: string;
+      reply?: { messageReference: string };
+    }) => Promise<unknown>;
   };
   guildId?: string | null;
   guild?: { id?: string } | null;
@@ -78,7 +82,13 @@ type DiscordMessageManager = {
 };
 
 export interface NativeDiscordInboundGateway {
-  receive(message: IncomingPlatformMessage): Promise<{ ok: boolean }>;
+  receive(message: IncomingPlatformMessage): Promise<{
+    ok: boolean;
+    response?: string;
+    pairingCode?: string;
+    agentCompleted?: boolean;
+    deliveryStatus?: "sent" | "fallback" | "rejected";
+  }>;
 }
 
 function isDm(message: DiscordMessage): boolean {
@@ -99,22 +109,40 @@ function isThread(message: DiscordMessage): boolean {
     : Boolean(message.channel?.parentId);
 }
 
+function isDiscordAttachment(value: unknown): value is DiscordAttachment {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function attachmentValues(
   attachments: DiscordMessage["attachments"],
 ): DiscordAttachment[] {
-  if (Array.isArray(attachments)) return attachments;
+  if (Array.isArray(attachments))
+    return attachments.filter(isDiscordAttachment);
   if (attachments && typeof attachments.values === "function") {
-    return [...attachments.values()];
+    return [...attachments.values()].filter(isDiscordAttachment);
   }
   return [];
+}
+
+function usableString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function attachmentLocator(attachment: DiscordAttachment): string | undefined {
+  return (
+    usableString(attachment.url) ??
+    usableString(attachment.proxyURL) ??
+    usableString(attachment.proxy_url)
+  );
 }
 
 function toParserPayload(message: DiscordMessage): Record<string, unknown> {
   const referenceId =
     message.reference?.messageId ?? message.message_reference?.message_id;
   const threadId = isThread(message) ? message.channel?.id : undefined;
+  const content = typeof message.content === "string" ? message.content : "";
   return {
-    content: message.content,
+    content: content.trim() ? content : "",
     channel_id: message.channel?.id,
     id: message.id,
     author: message.author
@@ -128,11 +156,13 @@ function toParserPayload(message: DiscordMessage): Record<string, unknown> {
     guild_id: message.guildId ?? message.guild?.id,
     thread_id: threadId,
     attachments: attachmentValues(message.attachments).map((attachment) => ({
-      id: attachment.id,
-      filename: attachment.name ?? attachment.filename,
-      url: attachment.url,
-      proxy_url: attachment.proxyURL ?? attachment.proxy_url,
-      content_type: attachment.contentType ?? attachment.content_type,
+      id: usableString(attachment.id),
+      filename:
+        usableString(attachment.name) ?? usableString(attachment.filename),
+      url: attachmentLocator(attachment),
+      content_type:
+        usableString(attachment.contentType) ??
+        usableString(attachment.content_type),
       size: attachment.size,
       height: attachment.height,
       width: attachment.width,
@@ -145,7 +175,17 @@ function shouldIgnoreDiscordMessage(
   message: DiscordMessage,
 ): boolean {
   const authorId = message.author?.id;
-  if (!authorId || !message.channel?.id || !message.content) return true;
+  const content = typeof message.content === "string" ? message.content : "";
+  const hasValidAttachment = attachmentValues(message.attachments).some(
+    (attachment) => Boolean(attachmentLocator(attachment)),
+  );
+  if (
+    !authorId ||
+    !message.channel?.id ||
+    (!content.trim() && !hasValidAttachment)
+  ) {
+    return true;
+  }
 
   const botUserId = service.client?.user?.id;
   if (botUserId && authorId === botUserId) return true;
@@ -174,8 +214,8 @@ function shouldIgnoreDiscordMessage(
   if (settings.shouldRespondOnlyToMentions && !directMessage) {
     const mentioned =
       Boolean(botUserId) &&
-      (message.content.includes(`<@${botUserId}>`) ||
-        message.content.includes(`<@!${botUserId}>`));
+      (content.includes(`<@${botUserId}>`) ||
+        content.includes(`<@!${botUserId}>`));
     if (!mentioned) return true;
   }
 
@@ -240,7 +280,21 @@ function installManagerHandoff(
   manager.handleMessage = async (message) => {
     const inbound = normalizeNativeDiscordMessage(service, message, accountId);
     if (!inbound) return;
-    await gateway.receive(inbound);
+    const result = await gateway.receive(inbound);
+    if (
+      result.ok ||
+      result.agentCompleted ||
+      !result.response?.trim() ||
+      !message.channel?.send
+    ) {
+      return;
+    }
+    await message.channel.send({
+      content: result.response,
+      ...(inbound.messageId
+        ? { reply: { messageReference: inbound.messageId } }
+        : {}),
+    });
   };
   Object.defineProperty(manager, HANDOFF_INSTALLED, {
     configurable: false,

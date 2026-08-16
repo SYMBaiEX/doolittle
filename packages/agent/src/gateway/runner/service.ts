@@ -10,6 +10,12 @@ import type {
   GatewayReceiveOptions,
   GatewayReceiveResult,
 } from "@/gateway/receive/index";
+import {
+  type GatewayIngressHistoryEntry,
+  type GatewayIngressReceipt,
+  GatewayIngressSpool,
+} from "@/gateway/receive/ingress-spool";
+import { GatewayIngressWorker } from "@/gateway/receive/ingress-worker";
 import type { GatewayInboxReplayResult } from "@/gateway/receive/replay";
 import type {
   GatewayHistorySnapshot,
@@ -36,18 +42,65 @@ import { wireGatewayRunnerRuntime } from "./service-runtime/wire";
 
 export class GatewayRunner {
   private readonly api: GatewayRunnerRuntimeApi;
+  private readonly context: GatewayRunnerContext;
+  private ingress: GatewayIngressSpool | undefined;
+  private ingressWorker: GatewayIngressWorker | undefined;
 
   constructor(context: GatewayRunnerContext) {
+    this.context = context;
     const runtimeState = new GatewayRunnerRuntimeState();
     this.api = wireGatewayRunnerRuntime(context, runtimeState);
   }
 
   async start(): Promise<void> {
+    this.startIngress();
     await this.api.control.start();
   }
 
   async stop(): Promise<void> {
+    await this.ingressWorker?.stop();
     await this.api.control.stop();
+  }
+
+  /** Durably acknowledge provider callbacks before their model turn begins. */
+  acceptInbound(
+    message: IncomingPlatformMessage,
+    options?: { abortSignal?: AbortSignal },
+  ): GatewayIngressReceipt {
+    const ingress = this.ensureIngress();
+    const receipt = ingress.accept(message, options?.abortSignal);
+    return receipt;
+  }
+
+  startIngress(): void {
+    this.ensureIngressWorker().start();
+  }
+
+  ingressHistory(limit = 20): GatewayIngressHistoryEntry[] {
+    return this.ingress?.history(limit) ?? [];
+  }
+
+  waitForIngressIdle(): Promise<void> {
+    return this.ingressWorker?.idle() ?? Promise.resolve();
+  }
+
+  private ensureIngress(): GatewayIngressSpool {
+    if (!this.ingress) {
+      this.ingress = new GatewayIngressSpool(
+        `${this.context.config.gatewayDataDir}/journals`,
+      );
+    }
+    return this.ingress;
+  }
+
+  private ensureIngressWorker(): GatewayIngressWorker {
+    if (!this.ingressWorker) {
+      this.ingressWorker = new GatewayIngressWorker(
+        this.ensureIngress(),
+        (message, options) => this.api.delivery.receive(message, options),
+      );
+    }
+    return this.ingressWorker;
   }
 
   heartbeat(reason = "heartbeat"): Promise<GatewayStateSnapshot> {

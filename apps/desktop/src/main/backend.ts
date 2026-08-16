@@ -69,7 +69,10 @@ export function buildBackendEnvironment(
     // merely because Doolittle was launched from the project directory.
     DOOLITTLE_CLAUDE_CODE_CLI_FALLBACK: "true",
     DOOLITTLE_DATA_DIR: runtimeDataDir,
-    DOOLITTLE_SKILLS_DIR: resolve(repoRoot, "packages", "skills"),
+    // Generated skills and their metadata are mutable. Keep them in the
+    // desktop data directory so a packaged, signed application never writes
+    // into its sealed Resources tree.
+    DOOLITTLE_SKILLS_DIR: resolve(runtimeDataDir, "skills"),
     ELIZAOS_BUNDLED_SKILLS_DIR: resolve(repoRoot, "packages", "skills"),
     DOOLITTLE_WORKSPACE_DIR: workspaceDir,
     DOOLITTLE_GATEWAY_DATA_DIR: resolve(runtimeDataDir, "gateway"),

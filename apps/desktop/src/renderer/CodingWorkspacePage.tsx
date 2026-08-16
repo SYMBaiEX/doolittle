@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import type { WorkspacePickResult } from "../shared/contracts";
+import type { CodingWorkspaceFocusState } from "./app-shell/route-focus-state";
 import type { ChatContextRequest } from "./chat-context-handoff";
 import { detectCodeLanguage } from "./code-language";
 import { submitAcpEditorTask } from "./coding-workspace/acp-task";
@@ -101,6 +102,8 @@ export function CodingWorkspacePage({
   onOpenChatTerminal,
   onSendToChat,
   onDirtyChange,
+  focusState,
+  onFocusStateChange,
   projectScope,
   workspacePath,
 }: {
@@ -113,6 +116,8 @@ export function CodingWorkspacePage({
   onOpenChatTerminal: () => void;
   onSendToChat: (request: ChatContextRequest) => void;
   onDirtyChange?: (dirty: boolean) => void;
+  focusState?: CodingWorkspaceFocusState;
+  onFocusStateChange?: (state: CodingWorkspaceFocusState) => void;
   projectScope: ProjectScope;
   workspacePath: string;
 }) {
@@ -131,19 +136,35 @@ export function CodingWorkspacePage({
   const [utilityWidth, setUtilityWidth] = useState(() =>
     loadPanelWidth(localStorage, CODE_UTILITY_WIDTH_KEY, CODE_UTILITY_WIDTH),
   );
-  const [leftPane, setLeftPane] = useState<LeftPane>("files");
-  const [editorPane, setEditorPane] = useState<EditorPane>("file");
-  const [utilityPane, setUtilityPane] = useState<UtilityPane>("source-control");
-  const [selectedPath, setSelectedPath] = useState("");
+  const [leftPane, setLeftPane] = useState<LeftPane>(
+    () => focusState?.leftPane ?? "files",
+  );
+  const [editorPane, setEditorPane] = useState<EditorPane>(
+    () => focusState?.editorPane ?? "file",
+  );
+  const [utilityPane, setUtilityPane] = useState<UtilityPane>(
+    () => focusState?.utilityPane ?? "source-control",
+  );
+  const [selectedPath, setSelectedPath] = useState(
+    () => focusState?.selectedPath ?? "",
+  );
   const [stagedPatch, setStagedPatch] = useState(false);
-  const [searchDraft, setSearchDraft] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchDraft, setSearchDraft] = useState(
+    () => focusState?.searchDraft ?? "",
+  );
+  const [searchQuery, setSearchQuery] = useState(
+    () => focusState?.searchQuery ?? "",
+  );
   const [originalContent, setOriginalContent] = useState("");
   const [draftContent, setDraftContent] = useState("");
   const [fileNotice, setFileNotice] = useState<ActionNotice | null>(null);
   const [savingFile, setSavingFile] = useState(false);
-  const [acpTaskOpen, setAcpTaskOpen] = useState(false);
-  const [acpTaskDraft, setAcpTaskDraft] = useState("");
+  const [acpTaskOpen, setAcpTaskOpen] = useState(
+    () => focusState?.acpTaskOpen ?? false,
+  );
+  const [acpTaskDraft, setAcpTaskDraft] = useState(
+    () => focusState?.acpTaskDraft ?? "",
+  );
   const fileDirtyRef = useRef(false);
   const consumedNavigationIntents = useRef(new Set<string>());
   const hasWorkspace = Boolean(workspacePath.trim());
@@ -163,6 +184,29 @@ export function CodingWorkspacePage({
     hasSelectedPath: Boolean(selectedPath),
     hasSearchQuery: Boolean(searchQuery),
   });
+
+  useEffect(() => {
+    onFocusStateChange?.({
+      leftPane,
+      editorPane,
+      utilityPane,
+      selectedPath,
+      searchDraft,
+      searchQuery,
+      acpTaskOpen,
+      acpTaskDraft,
+    });
+  }, [
+    acpTaskDraft,
+    acpTaskOpen,
+    editorPane,
+    leftPane,
+    onFocusStateChange,
+    searchDraft,
+    searchQuery,
+    selectedPath,
+    utilityPane,
+  ]);
 
   const summaryResource = useApiResource<RepositorySummaryResponse>(
     requestPolicy.summary ? "/repo/summary" : null,

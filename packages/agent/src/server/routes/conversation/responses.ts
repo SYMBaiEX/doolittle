@@ -157,212 +157,235 @@ export async function handleResponsesRoute(
     );
   }
   const roomId = continuation.roomId;
+  const gatewayMessageId = `api-msg-${randomUUID()}`;
 
   if (body.stream) {
     const streamResponseId = createApiResponseId();
     const outputItemId = `msg_${randomUUID().replace(/-/gu, "")}`;
     const createdAt = new Date().toISOString();
-    return streamSse(async (emit) => {
-      let sequenceNumber = 0;
-      const emitResponseEvent = async (
-        type: string,
-        data: Record<string, unknown>,
-      ) => {
-        await emit(type, {
-          type,
-          sequence_number: sequenceNumber,
-          ...data,
-        });
-        sequenceNumber += 1;
-      };
-      const responseAccumulator = createResponseTextAccumulator();
-      let observedRunSessionId: string | undefined;
-      const emitRunUpdates = async (event: RunUpdateEvent): Promise<void> => {
-        if (observedRunSessionId && event.sessionId !== observedRunSessionId) {
-          return;
-        }
-        if (!observedRunSessionId) {
-          if (event.run.source === "api" && event.run.message === inputText) {
-            observedRunSessionId = event.sessionId;
-          } else {
+    const streamAbortController = new AbortController();
+    const abortSignal = AbortSignal.any([
+      request.signal,
+      streamAbortController.signal,
+    ]);
+    return streamSse(
+      async (emit) => {
+        let sequenceNumber = 0;
+        const emitResponseEvent = async (
+          type: string,
+          data: Record<string, unknown>,
+        ) => {
+          await emit(type, {
+            type,
+            sequence_number: sequenceNumber,
+            ...data,
+          });
+          sequenceNumber += 1;
+        };
+        const responseAccumulator = createResponseTextAccumulator();
+        let observedRunSessionId: string | undefined;
+        const emitRunUpdates = async (event: RunUpdateEvent): Promise<void> => {
+          if (
+            observedRunSessionId &&
+            event.sessionId !== observedRunSessionId
+          ) {
             return;
           }
-        }
-        if (!shouldRenderRunEvent(event.run.progressMode, event)) {
-          return;
-        }
-        const detail = formatRunEvent(event);
-        if (!detail) {
-          return;
-        }
-        await emitResponseEvent("agent.progress", {
-          event: event.type,
-          detail: `[run] ${detail}`,
-          sessionId: event.sessionId,
-        });
-      };
-      const pendingResponse = {
-        ...buildResponsePayload({
-          id: streamResponseId,
-          createdAt,
-          previousResponseId: body.previous_response_id,
-          outputText: "",
-          roomId,
-        }),
-        status: "in_progress",
-      };
-      await emitResponseEvent("response.created", {
-        response: pendingResponse,
-      });
-      await emitResponseEvent("response.in_progress", {
-        response: pendingResponse,
-      });
-      await emitResponseEvent("response.output_item.added", {
-        output_index: 0,
-        item: {
-          id: outputItemId,
-          type: "message",
-          status: "in_progress",
-          role: "assistant",
-          content: [],
-        },
-      });
-      await emitResponseEvent("response.content_part.added", {
-        item_id: outputItemId,
-        output_index: 0,
-        content_index: 0,
-        part: {
-          type: "output_text",
-          text: "",
-          annotations: [],
-        },
-      });
-
-      try {
-        const result = await context.gateway.receive(
-          {
-            platform: "api",
-            userId,
-            roomId,
-            text: inputText,
-            messageId: `api-msg-${Date.now()}`,
-            replyToMessageId: body.previous_response_id,
-            metadata: {
-              ...(body.metadata ?? {}),
-              apiTransport: "responses",
-            },
-          },
-          {
-            abortSignal: request.signal,
-            onRunUpdate: emitRunUpdates,
-            onResponseProgress: async ({ response }) => {
-              const frame = nextResponseTextFrame(
-                responseAccumulator,
-                response,
-              );
-              if (!frame?.delta) {
-                return;
-              }
-              await emitResponseEvent("response.output_text.delta", {
-                item_id: outputItemId,
-                output_index: 0,
-                content_index: 0,
-                delta: frame.delta,
-              });
-            },
-          },
-        );
-        const outputText = result.response;
-        const finalFrame = nextResponseTextFrame(
-          responseAccumulator,
-          outputText,
-        );
-        if (finalFrame?.delta) {
-          await emitResponseEvent("response.output_text.delta", {
-            item_id: outputItemId,
-            output_index: 0,
-            content_index: 0,
-            delta: finalFrame.delta,
+          if (!observedRunSessionId) {
+            if (event.run.source === "api" && event.run.message === inputText) {
+              observedRunSessionId = event.sessionId;
+            } else {
+              return;
+            }
+          }
+          if (!shouldRenderRunEvent(event.run.progressMode, event)) {
+            return;
+          }
+          const detail = formatRunEvent(event);
+          if (!detail) {
+            return;
+          }
+          await emitResponseEvent("agent.progress", {
+            event: event.type,
+            detail: `[run] ${detail}`,
+            sessionId: event.sessionId,
           });
-        }
-        const record = context.services.apiTransport.create({
-          id: streamResponseId,
-          input: inputText,
-          outputText,
-          userId,
-          roomId,
-          previousResponseId: body.previous_response_id,
-          metadata: {
-            ...(body.metadata ?? {}),
-            traceId: result.traceId ?? "",
-            deliveryId: result.deliveryId ?? "",
-          },
-        });
-        const responsePayload = buildResponsePayload(record);
-        if (!result.ok) {
-          const deliveryFailed =
-            result.agentCompleted && result.deliveryStatus === "rejected";
-          await emitResponseEvent("response.failed", {
-            response: {
-              ...responsePayload,
-              status: "failed",
-              error: {
-                code: deliveryFailed ? "delivery_failed" : "agent_turn_failed",
-                message: deliveryFailed
-                  ? result.deliveryFailure ||
-                    "The response could not be delivered."
-                  : outputText || "The agent turn failed.",
-              },
-            },
-          });
-          return;
-        }
-        await emitResponseEvent("response.output_text.done", {
-          item_id: outputItemId,
-          output_index: 0,
-          content_index: 0,
-          text: outputText,
-        });
-        const completedPart = {
-          type: "output_text",
-          text: outputText,
-          annotations: [],
         };
-        await emitResponseEvent("response.content_part.done", {
-          item_id: outputItemId,
-          output_index: 0,
-          content_index: 0,
-          part: completedPart,
+        const pendingResponse = {
+          ...buildResponsePayload({
+            id: streamResponseId,
+            createdAt,
+            previousResponseId: body.previous_response_id,
+            outputText: "",
+            roomId,
+          }),
+          status: "in_progress",
+        };
+        await emitResponseEvent("response.created", {
+          response: pendingResponse,
         });
-        await emitResponseEvent("response.output_item.done", {
+        await emitResponseEvent("response.in_progress", {
+          response: pendingResponse,
+        });
+        await emitResponseEvent("response.output_item.added", {
           output_index: 0,
           item: {
             id: outputItemId,
             type: "message",
-            status: "completed",
+            status: "in_progress",
             role: "assistant",
-            content: [completedPart],
+            content: [],
           },
         });
-        await emitResponseEvent("response.completed", {
-          response: {
-            ...responsePayload,
-            status: "completed",
+        await emitResponseEvent("response.content_part.added", {
+          item_id: outputItemId,
+          output_index: 0,
+          content_index: 0,
+          part: {
+            type: "output_text",
+            text: "",
+            annotations: [],
           },
         });
-      } catch (error) {
-        await emitResponseEvent("response.failed", {
-          response: {
-            ...pendingResponse,
-            status: "failed",
-            error: {
-              code: "agent_turn_failed",
-              message: error instanceof Error ? error.message : String(error),
+
+        try {
+          const result = await context.gateway.receive(
+            {
+              platform: "api",
+              userId,
+              roomId,
+              text: inputText,
+              messageId: gatewayMessageId,
+              replyToMessageId: body.previous_response_id,
+              metadata: {
+                ...(body.metadata ?? {}),
+                apiTransport: "responses",
+              },
             },
-          },
-        });
-      }
-    });
+            {
+              abortSignal,
+              onRunUpdate: emitRunUpdates,
+              onResponseProgress: async ({ response }) => {
+                const frame = nextResponseTextFrame(
+                  responseAccumulator,
+                  response,
+                );
+                if (!frame?.delta) {
+                  return;
+                }
+                await emitResponseEvent("response.output_text.delta", {
+                  item_id: outputItemId,
+                  output_index: 0,
+                  content_index: 0,
+                  delta: frame.delta,
+                });
+              },
+            },
+          );
+          const outputText = result.response;
+          const finalFrame = nextResponseTextFrame(
+            responseAccumulator,
+            outputText,
+          );
+          if (finalFrame?.delta) {
+            await emitResponseEvent("response.output_text.delta", {
+              item_id: outputItemId,
+              output_index: 0,
+              content_index: 0,
+              delta: finalFrame.delta,
+            });
+          }
+          const record = context.services.apiTransport.create({
+            id: streamResponseId,
+            input: inputText,
+            outputText,
+            userId,
+            roomId,
+            previousResponseId: body.previous_response_id,
+            metadata: {
+              ...(body.metadata ?? {}),
+              traceId: result.traceId ?? "",
+              deliveryId: result.deliveryId ?? "",
+            },
+          });
+          const responsePayload = buildResponsePayload(record);
+          if (!result.ok) {
+            const deliveryFailed =
+              result.agentCompleted && result.deliveryStatus === "rejected";
+            await emitResponseEvent("response.failed", {
+              response: {
+                ...responsePayload,
+                status: "failed",
+                error: {
+                  code: deliveryFailed
+                    ? "delivery_failed"
+                    : "agent_turn_failed",
+                  message: deliveryFailed
+                    ? result.deliveryFailure ||
+                      "The response could not be delivered."
+                    : outputText || "The agent turn failed.",
+                },
+              },
+            });
+            return;
+          }
+          await emitResponseEvent("response.output_text.done", {
+            item_id: outputItemId,
+            output_index: 0,
+            content_index: 0,
+            text: outputText,
+          });
+          const completedPart = {
+            type: "output_text",
+            text: outputText,
+            annotations: [],
+          };
+          await emitResponseEvent("response.content_part.done", {
+            item_id: outputItemId,
+            output_index: 0,
+            content_index: 0,
+            part: completedPart,
+          });
+          await emitResponseEvent("response.output_item.done", {
+            output_index: 0,
+            item: {
+              id: outputItemId,
+              type: "message",
+              status: "completed",
+              role: "assistant",
+              content: [completedPart],
+            },
+          });
+          await emitResponseEvent("response.completed", {
+            response: {
+              ...responsePayload,
+              status: "completed",
+            },
+          });
+        } catch (error) {
+          await emitResponseEvent("response.failed", {
+            response: {
+              ...pendingResponse,
+              status: "failed",
+              error: {
+                code: "agent_turn_failed",
+                message: error instanceof Error ? error.message : String(error),
+              },
+            },
+          });
+        }
+      },
+      {
+        onCancel: () => {
+          streamAbortController.abort(
+            new DOMException(
+              "The Responses stream was cancelled.",
+              "AbortError",
+            ),
+          );
+        },
+      },
+    );
   }
 
   const result = await context.gateway.receive(
@@ -371,7 +394,7 @@ export async function handleResponsesRoute(
       userId,
       roomId,
       text: inputText,
-      messageId: `api-msg-${Date.now()}`,
+      messageId: gatewayMessageId,
       replyToMessageId: body.previous_response_id,
       metadata: {
         ...(body.metadata ?? {}),

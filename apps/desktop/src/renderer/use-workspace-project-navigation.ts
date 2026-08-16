@@ -222,18 +222,28 @@ export function useWorkspaceProjectNavigation({
       if (confirmWorkspaceChange && !confirmWorkspaceChange()) {
         return { canceled: true, state: workspace };
       }
-      const outcome = await runWorkspaceRequest({
-        coordinator,
-        operation: () => window.doolittle.pickWorkspace(),
-        onCurrent: (result) => {
-          if (!result.canceled) applyWorkspaceSelection(result.state);
-        },
-      });
-      return outcome.result;
+      try {
+        const outcome = await runWorkspaceRequest({
+          coordinator,
+          operation: () => window.doolittle.pickWorkspace(),
+          onCurrent: (result) => {
+            if (!result.canceled) applyWorkspaceSelection(result.state);
+          },
+        });
+        return outcome.result;
+      } catch (error) {
+        pushToast({
+          tone: "error",
+          title: "Workspace could not be opened",
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return { canceled: true, state: workspace };
+      }
     }, [
       applyWorkspaceSelection,
       confirmWorkspaceChange,
       coordinator,
+      pushToast,
       workspace,
     ]);
 
@@ -245,16 +255,31 @@ export function useWorkspaceProjectNavigation({
       if (confirmWorkspaceChange && !confirmWorkspaceChange()) {
         return { canceled: true, state: workspace };
       }
-      const outcome = await runWorkspaceRequest({
-        coordinator,
-        operation: () => window.doolittle.openWorkspace(path),
-        onCurrent: (result) => {
-          if (!result.canceled) applyWorkspaceSelection(result.state);
-        },
-      });
-      return outcome.result;
+      try {
+        const outcome = await runWorkspaceRequest({
+          coordinator,
+          operation: () => window.doolittle.openWorkspace(path),
+          onCurrent: (result) => {
+            if (!result.canceled) applyWorkspaceSelection(result.state);
+          },
+        });
+        return outcome.result;
+      } catch (error) {
+        pushToast({
+          tone: "error",
+          title: "Workspace could not be opened",
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return { canceled: true, state: workspace };
+      }
     },
-    [applyWorkspaceSelection, confirmWorkspaceChange, coordinator, workspace],
+    [
+      applyWorkspaceSelection,
+      confirmWorkspaceChange,
+      coordinator,
+      pushToast,
+      workspace,
+    ],
   );
 
   const switchToRecentWorkspace = useCallback(

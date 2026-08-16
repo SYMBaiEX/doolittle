@@ -26,15 +26,56 @@ export type NativeSignalMessage = {
 };
 
 type SignalServiceLike = {
+  runtime?: {
+    getSetting?: (key: string) => unknown;
+  };
+  settings?: {
+    shouldIgnoreGroupMessages?: boolean;
+  };
   handleIncomingMessage?: (
     message: NativeSignalMessage,
     accountId?: string,
   ) => Promise<void>;
+  sendMessage?: (
+    recipient: string,
+    text: string,
+    options?: {
+      accountId?: string;
+      quote?: { timestamp: number; author: string };
+    },
+  ) => Promise<unknown>;
+  sendGroupMessage?: (
+    groupId: string,
+    text: string,
+    options?: {
+      accountId?: string;
+      quote?: { timestamp: number; author: string };
+    },
+  ) => Promise<unknown>;
   [HANDOFF_INSTALLED]?: boolean;
 };
 
 export interface NativeSignalInboundGateway {
-  receive(message: IncomingPlatformMessage): Promise<{ ok: boolean }>;
+  receive(message: IncomingPlatformMessage): Promise<{
+    ok: boolean;
+    response?: string;
+    pairingCode?: string;
+    agentCompleted?: boolean;
+    deliveryStatus?: "sent" | "fallback" | "rejected";
+  }>;
+}
+
+function shouldIgnoreSignalGroupMessage(
+  service: SignalServiceLike,
+  message: NativeSignalMessage,
+): boolean {
+  if (!message.groupId) return false;
+  const configured = service.settings?.shouldIgnoreGroupMessages;
+  if (configured !== undefined) return configured;
+  const runtimeSetting = service.runtime?.getSetting?.(
+    "SIGNAL_SHOULD_IGNORE_GROUP_MESSAGES",
+  );
+  return runtimeSetting === true || runtimeSetting === "true";
 }
 
 function attachmentMetadata(
@@ -169,10 +210,30 @@ export function installNativeSignalInboundHandoff(
   if (!service?.handleIncomingMessage || service[HANDOFF_INSTALLED])
     return false;
 
-  service.handleIncomingMessage = async (message, accountId) => {
+  service.handleIncomingMessage = async function (message, accountId) {
+    if (shouldIgnoreSignalGroupMessage(this, message)) return;
     const inbound = normalizeNativeSignalMessage(message, accountId);
     if (!inbound) return;
-    await gateway.receive(inbound);
+    const result = await gateway.receive(inbound);
+    if (result.ok || result.agentCompleted || !result.response?.trim()) return;
+
+    const timestamp = Number(inbound.messageId);
+    const options = {
+      ...(accountId ? { accountId } : {}),
+      ...(Number.isFinite(timestamp)
+        ? { quote: { timestamp, author: inbound.userId } }
+        : {}),
+    };
+    if (message.groupId) {
+      // beta.7's public group-send signature accepts `quote`, but its pinned
+      // client drops that option. A pairing or authorization response can
+      // contain a secret, so never fall back to an unquoted group send.
+      // Direct send forwards the account and quote to Signal; this is a
+      // private response to the sender, not a native reply in the group.
+      await this.sendMessage?.(inbound.userId, result.response, options);
+      return;
+    }
+    await this.sendMessage?.(inbound.roomId, result.response, options);
   };
   Object.defineProperty(service, HANDOFF_INSTALLED, {
     configurable: false,

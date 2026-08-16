@@ -4,6 +4,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
   lazy,
+  type RefObject,
   Suspense,
   useCallback,
   useEffect,
@@ -28,15 +29,21 @@ import {
 } from "./app-shell/command-palette-loading-layout";
 import { DesktopMobileMenuButton } from "./app-shell/DesktopMobileMenuButton";
 import { DesktopRouteLoadingFallback } from "./app-shell/DesktopRouteLoadingFallback";
-import { DesktopSidebar } from "./app-shell/DesktopSidebar";
 import { DesktopWindowContext } from "./app-shell/DesktopWindowContext";
 import {
   preloadDesktopRoute,
   resetDesktopRoute,
   warmDesktopRoute,
 } from "./app-shell/desktop-route-registry";
+import type { DesktopRouteFocusStore } from "./app-shell/route-focus-state";
 import {
   APP_MAIN_CLASS,
+  APP_SIDEBAR_CLASS,
+  APP_SIDEBAR_DARWIN_CLASS,
+  APP_SIDEBAR_DESKTOP_CLASS,
+  APP_SIDEBAR_MOBILE_CLASS,
+  APP_SIDEBAR_MOBILE_CLOSED_CLASS,
+  APP_SIDEBAR_MOBILE_OPEN_CLASS,
   CHAT_CHROME_HOST_CLASS,
   DESKTOP_SHELL_CLASS,
   VIEW_CONTAINER_CLASS,
@@ -139,6 +146,46 @@ const DesktopRouteContent = lazy(() =>
     default: module.DesktopRouteContent,
   })),
 );
+
+const loadDesktopSidebar = () =>
+  import("./app-shell/DesktopSidebar").then((module) => ({
+    default: module.DesktopSidebar,
+  }));
+
+const LazyDesktopSidebar = lazy(loadDesktopSidebar);
+
+function DesktopSidebarLoadingFallback({
+  isMobileSidebarMode,
+  mobileSidebarOpen,
+  platform,
+  sidebarRef,
+}: {
+  isMobileSidebarMode: boolean;
+  mobileSidebarOpen: boolean;
+  platform: "darwin" | "linux" | "win32";
+  sidebarRef: RefObject<HTMLElement | null>;
+}) {
+  return (
+    <aside
+      aria-busy="true"
+      aria-hidden={isMobileSidebarMode && !mobileSidebarOpen ? true : undefined}
+      aria-label={mobileSidebarOpen ? "Application navigation" : undefined}
+      className={`${APP_SIDEBAR_CLASS}${
+        platform === "darwin" ? ` ${APP_SIDEBAR_DARWIN_CLASS}` : ""
+      }${
+        isMobileSidebarMode
+          ? ` ${APP_SIDEBAR_MOBILE_CLASS} ${
+              mobileSidebarOpen
+                ? APP_SIDEBAR_MOBILE_OPEN_CLASS
+                : APP_SIDEBAR_MOBILE_CLOSED_CLASS
+            }`
+          : ` ${APP_SIDEBAR_DESKTOP_CLASS}`
+      }`}
+      ref={sidebarRef}
+      tabIndex={-1}
+    />
+  );
+}
 
 const DesktopRuntimeNotices = lazy(() =>
   import("./app-shell/DesktopRuntimeNotices").then((module) => ({
@@ -258,9 +305,11 @@ export function CommandPaletteLoadingFallback({
 
 export function App() {
   const initialConversation = useMemo(newConversationId, []);
+  const routeFocus = useRef<DesktopRouteFocusStore>(new Map());
   const [view, setViewState] = useState<View>(viewFromHash);
   const [routeRetryNonce, setRouteRetryNonce] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarReady, setSidebarReady] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteMounted, setPaletteMounted] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
@@ -306,6 +355,20 @@ export function App() {
   const [density, setDensity] = useState<DesktopDensity>(loadDensityPreference);
   const systemPrefersDark = useMediaQuery("(prefers-color-scheme: dark)");
   const resolvedAppearance = resolveAppearance(appearance, systemPrefersDark);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadDesktopSidebar()
+      .then(() => {
+        if (!cancelled) setSidebarReady(true);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -569,9 +632,9 @@ export function App() {
   );
 
   const createConversation = useCallback(() => {
-    if (isMobileSidebarMode) setMobileSidebarOpen(true);
+    if (isMobileSidebarMode) openSidebarForMobile();
     setNewConversationMenuOpen(true);
-  }, [isMobileSidebarMode, setMobileSidebarOpen]);
+  }, [isMobileSidebarMode, openSidebarForMobile]);
 
   const toggleAppearance = useCallback(() => {
     const nextAppearance = resolvedAppearance === "dark" ? "light" : "dark";
@@ -864,10 +927,12 @@ export function App() {
       sidebar.removeAttribute("inert");
       appMain.setAttribute("inert", "");
       appMain.setAttribute("aria-hidden", "true");
-      requestAnimationFrame(() => {
-        const [first] = collectSidebarFocusables(sidebar);
-        (first || sidebar).focus();
-      });
+      if (sidebarReady) {
+        requestAnimationFrame(() => {
+          const [first] = collectSidebarFocusables(sidebar);
+          (first || sidebar).focus();
+        });
+      }
       return;
     }
 
@@ -879,7 +944,7 @@ export function App() {
       requestAnimationFrame(() => returnTarget.focus());
     }
     sidebarReturnFocusRef.current = null;
-  }, [isMobileSidebarMode, mobileSidebarOpen]);
+  }, [isMobileSidebarMode, mobileSidebarOpen, sidebarReady]);
 
   useEffect(() => {
     const onHashChange = () => {
@@ -1158,6 +1223,7 @@ export function App() {
       projectLabels={projectLabels}
       projectScope={projectScope}
       refreshRuntime={refreshRuntime}
+      routeFocus={routeFocus.current}
       runtime={runtime}
       runningTasks={runningTasks}
       scopedSessions={scopedSessions}
@@ -1267,43 +1333,54 @@ export function App() {
           toasts={toasts}
         />
       </Suspense>
-      <DesktopSidebar
-        isMobileSidebarMode={isMobileSidebarMode}
-        mobileSidebarOpen={mobileSidebarOpen}
-        navCollapsed={navCollapsed}
-        sidebarOpen={sidebarOpen}
-        projectScope={projectScope}
-        newConversationMenuOpen={newConversationMenuOpen}
-        sidebarWidth={sidebarWidth}
-        projectCards={projectCards}
-        sessions={sessions}
-        selectedSession={selectedSession}
-        view={view}
-        navigationView={navigationView}
-        workspacePath={workspace.currentPath}
-        resolvedAppearance={resolvedAppearance}
-        platform={window.doolittle.platform}
-        sidebarRef={sidebarRef}
-        onSidebarKeyDown={handleSidebarKeyDown}
-        onClose={() => setMobileSidebarOpen(false)}
-        onResize={setSidebarWidth}
-        onToggleNavigation={toggleNavigation}
-        onSetNewConversationMenuOpen={setNewConversationMenuOpen}
-        onOpenPalette={openCommandPalette}
-        onChooseRepository={chooseRepositoryForConversation}
-        onManageProjects={openProjectManager}
-        onStartConversation={startConversation}
-        onOpenSession={openSession}
-        onPreloadView={(next) =>
-          preloadDesktopRoute(next, backend.phase, workspace.currentPath)
+      <Suspense
+        fallback={
+          <DesktopSidebarLoadingFallback
+            isMobileSidebarMode={isMobileSidebarMode}
+            mobileSidebarOpen={mobileSidebarOpen}
+            platform={window.doolittle.platform}
+            sidebarRef={sidebarRef}
+          />
         }
-        onSelectScope={selectProjectScope}
-        onViewAll={() => setView("sessions")}
-        onSetView={setView}
-        onToggleUtilities={toggleUtilities}
-        utilityOpen={utilityOpen}
-        onToggleAppearance={toggleAppearance}
-      />
+      >
+        <LazyDesktopSidebar
+          isMobileSidebarMode={isMobileSidebarMode}
+          mobileSidebarOpen={mobileSidebarOpen}
+          navCollapsed={navCollapsed}
+          sidebarOpen={sidebarOpen}
+          projectScope={projectScope}
+          newConversationMenuOpen={newConversationMenuOpen}
+          sidebarWidth={sidebarWidth}
+          projectCards={projectCards}
+          sessions={sessions}
+          selectedSession={selectedSession}
+          view={view}
+          navigationView={navigationView}
+          workspacePath={workspace.currentPath}
+          resolvedAppearance={resolvedAppearance}
+          platform={window.doolittle.platform}
+          sidebarRef={sidebarRef}
+          onSidebarKeyDown={handleSidebarKeyDown}
+          onClose={() => setMobileSidebarOpen(false)}
+          onResize={setSidebarWidth}
+          onToggleNavigation={toggleNavigation}
+          onSetNewConversationMenuOpen={setNewConversationMenuOpen}
+          onOpenPalette={openCommandPalette}
+          onChooseRepository={chooseRepositoryForConversation}
+          onManageProjects={openProjectManager}
+          onStartConversation={startConversation}
+          onOpenSession={openSession}
+          onPreloadView={(next) =>
+            preloadDesktopRoute(next, backend.phase, workspace.currentPath)
+          }
+          onSelectScope={selectProjectScope}
+          onViewAll={() => setView("sessions")}
+          onSetView={setView}
+          onToggleUtilities={toggleUtilities}
+          utilityOpen={utilityOpen}
+          onToggleAppearance={toggleAppearance}
+        />
+      </Suspense>
       <section
         className={`${APP_MAIN_CLASS}${view === "chat" ? " app-main--chat" : ""}`}
         ref={appMainRef}

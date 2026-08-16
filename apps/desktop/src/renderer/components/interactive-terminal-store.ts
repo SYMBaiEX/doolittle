@@ -264,6 +264,21 @@ function migrateInteractiveTerminalTabCwd(
   };
 }
 
+function closeInvalidatedTerminalTabs(
+  tabs: InteractiveTerminalTabState[],
+): InteractiveTerminalTabState[] {
+  return tabs.map((tab) =>
+    tab.state === "running"
+      ? {
+          ...tab,
+          sessionId: null,
+          state: "closed",
+          stale: true,
+        }
+      : tab,
+  );
+}
+
 export function loadInteractiveTerminalState(
   workspacePath: string,
   storage?: Storage,
@@ -317,7 +332,15 @@ export function resolveInteractiveTerminalWorkspaceState({
     };
   }
 
-  return loadInteractiveTerminalState(nextWorkspacePath, storage);
+  const restored = loadInteractiveTerminalState(nextWorkspacePath, storage);
+  if (!previous || !next || previous === next) return restored;
+
+  return {
+    ...restored,
+    // The runtime disposes PTYs when changing workspaces. A tab restored after
+    // a real departure cannot retain a usable running session id.
+    tabs: closeInvalidatedTerminalTabs(restored.tabs),
+  };
 }
 
 export function saveInteractiveTerminalState(

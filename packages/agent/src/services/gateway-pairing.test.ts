@@ -79,6 +79,7 @@ function createPairingRuntime() {
 
   pairingService = new PairingService(runtime, {
     requestTtlMs: 60_000,
+    maxPendingRequests: 10,
   });
 
   return { runtime, requests, allowlist, pairingService };
@@ -146,9 +147,9 @@ describe("GatewayPairingProjection", () => {
     expect(requests).toHaveLength(0);
   });
 
-  it("scopes new Telegram pairing requests by account while honoring legacy allowlists", async () => {
+  it("scopes all account-bearing connector requests by account and user", async () => {
     const { runtime, requests } = createPairingRuntime();
-    const projection = new GatewayPairingProjection(["telegram"]);
+    const projection = new GatewayPairingProjection(["telegram", "slack"]);
     projection.bindRuntime(runtime);
 
     await projection.checkOrRequest("telegram", "alice", { accountId: "work" });
@@ -156,15 +157,101 @@ describe("GatewayPairingProjection", () => {
       accountId: "personal",
     });
     expect(requests.map((request) => request.senderId).sort()).toEqual([
-      "telegram-account:personal:alice",
-      "telegram-account:work:alice",
+      "doolittle-pairing:v1:telegram:account=personal:user=alice",
+      "doolittle-pairing:v1:telegram:account=work:user=alice",
     ]);
 
+    // The unscoped pre-account Telegram allowlist intentionally continues to
+    // authorize this user across the connector's accounts.
     const legacy = await projection.checkOrRequest("telegram", "bob");
     await projection.approve("telegram", legacy.pairingCode ?? "");
     await expect(
       projection.checkOrRequest("telegram", "bob", { accountId: "work" }),
     ).resolves.toEqual({ allowed: true });
+
+    const slackA = await projection.checkOrRequest("slack", "U123", {
+      accountId: "workspace-a",
+    });
+    const slackB = await projection.checkOrRequest("slack", "U123", {
+      accountId: "workspace-b",
+    });
+    expect(slackA.pairingCode).not.toBe(slackB.pairingCode);
+    await projection.approve("slack", slackA.pairingCode ?? "");
+    await expect(
+      projection.checkOrRequest("slack", "U123", { accountId: "workspace-a" }),
+    ).resolves.toEqual({ allowed: true, pairingCode: undefined });
+    await expect(
+      projection.checkOrRequest("slack", "U123", { accountId: "workspace-b" }),
+    ).resolves.toMatchObject({
+      allowed: false,
+      pairingCode: slackB.pairingCode,
+    });
+    await expect(projection.listApproved("slack")).resolves.toMatchObject([
+      {
+        platform: "slack",
+        userId: "doolittle-pairing:v1:slack:account=workspace-a:user=U123",
+        status: "approved",
+      },
+    ]);
+  });
+
+  it("honors legacy Telegram account approvals only for their normalized account and user", async () => {
+    const { runtime, requests, allowlist, pairingService } =
+      createPairingRuntime();
+    const projection = new GatewayPairingProjection(["telegram"]);
+    projection.bindRuntime(runtime);
+
+    const legacySenderId = "telegram-account:work:alice";
+    await pairingService.addToAllowlist("telegram", legacySenderId);
+
+    await expect(
+      projection.checkOrRequest("telegram", "alice", { accountId: " work " }),
+    ).resolves.toEqual({ allowed: true });
+    await expect(
+      projection.checkOrRequest("telegram", "alice", {
+        accountId: "personal",
+      }),
+    ).resolves.toMatchObject({ allowed: false });
+    expect(requests).toMatchObject([
+      {
+        senderId: "doolittle-pairing:v1:telegram:account=personal:user=alice",
+      },
+    ]);
+
+    await expect(projection.listApproved("telegram")).resolves.toMatchObject([
+      {
+        platform: "telegram",
+        userId: legacySenderId,
+        status: "approved",
+      },
+    ]);
+    await expect(
+      projection.revoke("telegram", legacySenderId),
+    ).resolves.toMatchObject({ userId: legacySenderId, status: "approved" });
+    expect(allowlist).toHaveLength(0);
+  });
+
+  it("bounds delimiter-bearing and malformed account IDs without pairing collisions", async () => {
+    const { runtime, requests } = createPairingRuntime();
+    const projection = new GatewayPairingProjection(["slack"]);
+    projection.bindRuntime(runtime);
+
+    await projection.checkOrRequest("slack", "U123", {
+      accountId: `workspace:${"a".repeat(240)}`,
+    });
+    await projection.checkOrRequest("slack", "U123", {
+      accountId: `workspace:${"b".repeat(240)}`,
+    });
+    await projection.checkOrRequest("slack", "U123", { accountId: "\ud800" });
+    await projection.checkOrRequest("slack", "U123", { accountId: "\udc00" });
+
+    const senderIds = requests.map((request) => request.senderId);
+    expect(senderIds[0]).not.toBe(senderIds[1]);
+    expect(senderIds[2]).not.toBe(senderIds[3]);
+    expect(new Set(senderIds).size).toBe(4);
+    expect(senderIds.every((senderId) => senderId.length < 180)).toBe(true);
+    expect(senderIds[0]).toContain("account=$sha256-");
+    expect(senderIds[2]).toContain("account=$sha256-utf16le-");
   });
 
   it("lists and revokes only the official Eliza allowlist", async () => {
@@ -189,6 +276,25 @@ describe("GatewayPairingProjection", () => {
     await expect(projection.revoke("telegram", "alice")).rejects.toThrow(
       "No approved pairing sender found",
     );
+  });
+
+  it("keeps account scope visible and revocable in pairing management", async () => {
+    const { runtime, allowlist } = createPairingRuntime();
+    const projection = new GatewayPairingProjection(["slack"]);
+    projection.bindRuntime(runtime);
+
+    const request = await projection.checkOrRequest("slack", "U123", {
+      accountId: "workspace-a",
+    });
+    await projection.approve("slack", request.pairingCode ?? "");
+    const [approved] = await projection.listApproved("slack");
+    expect(approved?.userId).toBe(
+      "doolittle-pairing:v1:slack:account=workspace-a:user=U123",
+    );
+    await expect(
+      projection.revoke("slack", approved?.userId ?? ""),
+    ).resolves.toMatchObject({ userId: approved?.userId, status: "approved" });
+    expect(allowlist).toHaveLength(0);
   });
 
   it("uses the official bounded paging APIs when the installed Eliza release exposes them", async () => {

@@ -2,6 +2,11 @@ name: desktop-windows
 
 on:
   workflow_call:
+    secrets:
+      WIN_CSC_LINK:
+        required: false
+      WIN_CSC_KEY_PASSWORD:
+        required: false
   workflow_dispatch:
 
 permissions:

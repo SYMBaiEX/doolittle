@@ -6,8 +6,12 @@ import type {
   SessionRoute,
 } from "@/types";
 import {
+  createLegacyTelegramAccountSessionKey,
   createSessionKey,
   createSessionRoute,
+  createUnattributedSessionKey,
+  createUnscopedSessionKey,
+  normalizeAccountId,
   normalizeSessionRoute,
   nowIso,
   type SessionRouteStore,
@@ -34,22 +38,39 @@ export class GatewaySessionService {
       (session) => session.sessionKey === sessionKey,
     );
     if (existing) {
-      existing.roomId = message.roomId;
-      existing.userId = message.userId;
-      existing.channelId = message.channelId ?? existing.channelId;
-      existing.threadId = message.threadId ?? existing.threadId;
-      existing.messageId = message.messageId ?? existing.messageId;
-      existing.replyToMessageId =
-        message.replyToMessageId ?? existing.replyToMessageId;
-      existing.channelType = message.channelType ?? existing.channelType;
-      existing.authorName = message.authorName ?? existing.authorName;
-      existing.metadata = {
-        ...(existing.metadata ?? {}),
-        ...(message.metadata ?? {}),
-      };
-      existing.updatedAt = nowIso();
+      if (
+        !normalizeAccountId(message.metadata?.accountId) &&
+        normalizeAccountId(existing.metadata?.accountId)
+      ) {
+        const unattributedSessionKey = createUnattributedSessionKey(message);
+        const unattributed = store.sessions.find(
+          (session) => session.sessionKey === unattributedSessionKey,
+        );
+        if (unattributed) {
+          this.refresh(unattributed, message);
+          this.write(store);
+          return normalizeSessionRoute(unattributed);
+        }
+
+        const created = createSessionRoute(message);
+        created.sessionKey = unattributedSessionKey;
+        created.activeAgentSessionId = unattributedSessionKey;
+        store.sessions.push(created);
+        this.write(store);
+        return created;
+      }
+      this.refresh(existing, message);
       this.write(store);
       return normalizeSessionRoute(existing);
+    }
+
+    const legacy = this.matchLegacyAccountRoute(store, message);
+    if (legacy) {
+      // Keep the legacy session key so its Eliza room/history remains attached.
+      // Only a persisted matching account ID may claim an unscoped route.
+      this.refresh(legacy, message);
+      this.write(store);
+      return normalizeSessionRoute(legacy);
     }
 
     const created = createSessionRoute(message);
@@ -99,10 +120,12 @@ export class GatewaySessionService {
   ): SessionRoute {
     return this.update(sessionKey, (session, store) => {
       if (options?.isHome ?? true) {
+        const accountId = normalizeAccountId(session.metadata?.accountId);
         for (const entry of store.sessions) {
           if (
             entry.platform === session.platform &&
-            entry.userId === session.userId
+            entry.userId === session.userId &&
+            normalizeAccountId(entry.metadata?.accountId) === accountId
           ) {
             entry.isHome = false;
           }
@@ -166,6 +189,46 @@ export class GatewaySessionService {
     session.updatedAt = nowIso();
     this.write(store);
     return normalizeSessionRoute(session);
+  }
+
+  private matchLegacyAccountRoute(
+    store: SessionRouteStore,
+    message: IncomingPlatformMessage,
+  ): SessionRoute | undefined {
+    const accountId = normalizeAccountId(message.metadata?.accountId);
+    if (!accountId) return undefined;
+
+    const legacySessionKey =
+      message.platform === "telegram"
+        ? createLegacyTelegramAccountSessionKey(message)
+        : createUnscopedSessionKey(message);
+    if (!legacySessionKey) return undefined;
+
+    return store.sessions.find(
+      (session) =>
+        session.sessionKey === legacySessionKey &&
+        session.metadata?.accountId === accountId,
+    );
+  }
+
+  private refresh(
+    session: SessionRoute,
+    message: IncomingPlatformMessage,
+  ): void {
+    session.roomId = message.roomId;
+    session.userId = message.userId;
+    session.channelId = message.channelId ?? session.channelId;
+    session.threadId = message.threadId ?? session.threadId;
+    session.messageId = message.messageId ?? session.messageId;
+    session.replyToMessageId =
+      message.replyToMessageId ?? session.replyToMessageId;
+    session.channelType = message.channelType ?? session.channelType;
+    session.authorName = message.authorName ?? session.authorName;
+    session.metadata = {
+      ...(session.metadata ?? {}),
+      ...(message.metadata ?? {}),
+    };
+    session.updatedAt = nowIso();
   }
 
   private read(): SessionRouteStore {

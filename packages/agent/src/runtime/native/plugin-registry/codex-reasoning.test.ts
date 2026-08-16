@@ -44,7 +44,7 @@ const fakeAuth = {
 describe("Codex reasoning compatibility backend", () => {
   it("adds the selected Codex effort to the real /responses request body", async () => {
     let requestBody: Record<string, unknown> | undefined;
-    const backend = createCodexReasoningBackend(runtimeFor("codex", "max"), {
+    const backend = createCodexReasoningBackend(runtimeFor("codex", "ultra"), {
       loadAuth: async () => fakeAuth,
       fetchImpl: async (_input: RequestInfo | URL, init?: RequestInit) => {
         requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -60,7 +60,7 @@ describe("Codex reasoning compatibility backend", () => {
     );
     expect(requestBody).toMatchObject({
       model: expect.any(String),
-      reasoning: { effort: "max" },
+      reasoning: { effort: "ultra" },
     });
   });
 

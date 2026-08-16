@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RoomHandlerQueue } from "@elizaos/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleConversationRoutes } from "@/server/routes/conversation";
 import { RunControllerService } from "@/services/run-controller-service";
@@ -548,6 +548,96 @@ describe("handleConversationRoutes", () => {
       deliveryStatus: "rejected",
       deliveryFailure: "adapter unavailable",
     });
+  });
+
+  it("assigns collision-resistant gateway identities to concurrent Responses requests", async () => {
+    const context = createContext();
+    const messageIds: string[] = [];
+    context.gateway.receive = async (message) => {
+      messageIds.push(message.messageId ?? "");
+      return {
+        ok: true,
+        response: "assistant reply",
+        traceId: `trace-${messageIds.length}`,
+        deliveryId: `delivery-${messageIds.length}`,
+      };
+    };
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_234_567_890);
+
+    try {
+      const send = () =>
+        handleConversationRoutes(
+          context,
+          new Request("http://localhost/v1/responses", {
+            method: "POST",
+            body: JSON.stringify({ input: "hello", user: "same-user" }),
+            headers: { "content-type": "application/json" },
+          }),
+          new URL("http://localhost/v1/responses"),
+        );
+
+      const responses = await Promise.all([send(), send()]);
+
+      expect(responses.map((response) => response?.status)).toEqual([200, 200]);
+      expect(messageIds).toHaveLength(2);
+      expect(new Set(messageIds)).toHaveLength(2);
+      expect(messageIds).toEqual([
+        expect.stringMatching(/^api-msg-[0-9a-f-]{36}$/u),
+        expect.stringMatching(/^api-msg-[0-9a-f-]{36}$/u),
+      ]);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it("aborts streamed Responses work when the SSE consumer cancels", async () => {
+    const context = createContext();
+    let gatewaySignal: AbortSignal | undefined;
+    let markStarted: (() => void) | undefined;
+    let markExited: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const exited = new Promise<void>((resolve) => {
+      markExited = resolve;
+    });
+    context.gateway.receive = async (_message, hooks) => {
+      gatewaySignal = hooks?.abortSignal;
+      markStarted?.();
+      return await new Promise((_, reject) => {
+        const abort = () => {
+          markExited?.();
+          reject(
+            gatewaySignal?.reason ??
+              new DOMException("Responses request aborted", "AbortError"),
+          );
+        };
+        if (gatewaySignal?.aborted) {
+          abort();
+          return;
+        }
+        gatewaySignal?.addEventListener("abort", abort, { once: true });
+      });
+    };
+
+    const response = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/v1/responses", {
+        method: "POST",
+        body: JSON.stringify({ input: "keep working", stream: true }),
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/v1/responses"),
+    );
+    const reader = response?.body?.getReader();
+
+    await reader?.read();
+    await started;
+    await reader?.cancel();
+    await exited;
+
+    expect(gatewaySignal?.aborted).toBe(true);
+    expect(gatewaySignal?.reason).toMatchObject({ name: "AbortError" });
   });
 
   it("streams delivery_failed after a completed response cannot be delivered", async () => {

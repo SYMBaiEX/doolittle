@@ -41,6 +41,27 @@ import {
 } from "./index";
 
 describe("tooling bridge helpers", () => {
+  it("passes shell timeouts and cancellation through the native bridge", async () => {
+    const run = vi.fn(async () => ({ command: "pwd", exitCode: 0 }));
+    const runtime = {
+      getService(name: string) {
+        return name === DOOLITTLE_SHELL_SERVICE
+          ? {
+              run,
+              history: () => [],
+              status: async () => ({}),
+            }
+          : null;
+      },
+    } as unknown as RuntimeLike;
+    const controller = new AbortController();
+
+    await expect(
+      runEffectiveShellCommand(runtime, "pwd", 1_234, controller.signal),
+    ).resolves.toEqual({ command: "pwd", exitCode: 0 });
+    expect(run).toHaveBeenCalledWith("pwd", 1_234, controller.signal);
+  });
+
   it("prefers native shell, mcp, workspace, and repository bridges", async () => {
     const runtime = {
       getService(name: string) {

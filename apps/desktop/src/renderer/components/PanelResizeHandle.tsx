@@ -1,4 +1,9 @@
-import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
+import {
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  useEffect,
+  useRef,
+} from "react";
 import { clampPanelSize } from "../panel-layout";
 
 export type PanelResizeDirection =
@@ -22,12 +27,21 @@ export function PanelResizeHandle({
   onResize: (value: number) => void;
   value: number;
 }) {
+  const activeResizeCleanup = useRef<(() => void) | null>(null);
   const resizesHeight = direction === "grow-up" || direction === "grow-down";
   const growsWithPointer =
     direction === "grow-right" || direction === "grow-down";
 
+  useEffect(() => {
+    return () => activeResizeCleanup.current?.();
+  }, []);
+
   const resizeStart = (event: ReactPointerEvent<HTMLHRElement>) => {
     event.preventDefault();
+    activeResizeCleanup.current?.();
+
+    const handle = event.currentTarget;
+    const pointerId = event.pointerId;
     const startPosition = resizesHeight ? event.clientY : event.clientX;
     const startSize = value;
     const root = document.documentElement;
@@ -43,6 +57,7 @@ export function PanelResizeHandle({
     body.style.userSelect = "none";
 
     const onMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
       const pointerPosition = resizesHeight
         ? moveEvent.clientY
         : moveEvent.clientX;
@@ -50,7 +65,32 @@ export function PanelResizeHandle({
       const next = growsWithPointer ? startSize + delta : startSize - delta;
       onResize(clampPanelSize(next, bounds));
     };
-    const onEnd = () => {
+    let finished = false;
+    let capturedPointer = false;
+    const releasePointer = () => {
+      if (!capturedPointer) return;
+      capturedPointer = false;
+      try {
+        if (
+          typeof handle.hasPointerCapture !== "function" ||
+          handle.hasPointerCapture(pointerId)
+        ) {
+          handle.releasePointerCapture?.(pointerId);
+        }
+      } catch {
+        // A browser may already have released capture after cancellation.
+      }
+    };
+    const onEnd = (endEvent?: Event) => {
+      if (
+        endEvent &&
+        "pointerId" in endEvent &&
+        endEvent.pointerId !== pointerId
+      ) {
+        return;
+      }
+      if (finished) return;
+      finished = true;
       delete root.dataset.panelResizing;
       root.style.cursor = previousRootCursor;
       root.style.userSelect = previousRootSelection;
@@ -59,11 +99,27 @@ export function PanelResizeHandle({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onEnd);
       window.removeEventListener("pointercancel", onEnd);
+      handle.removeEventListener("lostpointercapture", onEnd);
+      releasePointer();
+      if (activeResizeCleanup.current === onEnd) {
+        activeResizeCleanup.current = null;
+      }
     };
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onEnd);
     window.addEventListener("pointercancel", onEnd);
+    handle.addEventListener("lostpointercapture", onEnd);
+    activeResizeCleanup.current = onEnd;
+
+    if (typeof handle.setPointerCapture === "function") {
+      try {
+        handle.setPointerCapture(pointerId);
+        capturedPointer = true;
+      } catch {
+        // Pointer capture is unavailable in some embedded and test contexts.
+      }
+    }
   };
 
   const resizeWithKeyboard = (event: KeyboardEvent<HTMLHRElement>) => {

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { SessionDatabase } from "@/services/session/database";
 import type { SessionMessageStore } from "@/services/session/messages";
 import type { SessionMetadataStore } from "@/services/session/metadata";
@@ -23,6 +23,7 @@ const ARCHIVE_OMISSIONS = [
   "Secrets, provider credentials, settings, memories, workspace contents, structured tool outputs, and binaries are omitted.",
 ];
 const MAX_ID_ATTEMPTS = 8;
+const IMPORTED_ARCHIVE_ATTACHMENT_ID_PREFIX = "archive:";
 
 export class SessionTransferService {
   constructor(
@@ -127,7 +128,14 @@ export class SessionTransferService {
       entityId: message.role === "user" ? "archive:user" : "archive:assistant",
       role: message.role,
       text: message.text,
-      attachments: message.attachments,
+      // Archive binaries are deliberately not imported. Keep descriptors
+      // displayable, but give them an ID that the managed attachment resolver
+      // will permanently reject rather than allowing a source ID to select a
+      // same-named local attachment during /retry.
+      attachments: message.attachments?.map((attachment) => ({
+        ...attachment,
+        id: importedArchiveAttachmentId(archive, attachment.id),
+      })),
       createdAt: message.createdAt,
     }));
     const importedAt = new Date().toISOString();
@@ -207,4 +215,21 @@ export class SessionTransferService {
 
 function serializedBytes(value: unknown): number {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength;
+}
+
+function importedArchiveAttachmentId(
+  archive: DoolittleSessionArchiveV1,
+  attachmentId: string,
+): string {
+  const identity = JSON.stringify({
+    schema: archive.schema,
+    version: archive.version,
+    application: archive.source.application,
+    sessionId: archive.source.sessionId,
+    rootSessionId: archive.source.rootSessionId,
+    attachmentId,
+  });
+  return `${IMPORTED_ARCHIVE_ATTACHMENT_ID_PREFIX}${createHash("sha256")
+    .update(identity)
+    .digest("hex")}`;
 }

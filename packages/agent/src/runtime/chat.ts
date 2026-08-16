@@ -1,5 +1,10 @@
+import type { UUID } from "@elizaos/core";
 import { buildCommandResponse } from "@/runtime/chat-command-router";
-import { deleteNativeConversationMemories } from "@/runtime/chat-turn/conversation-persistence";
+import {
+  deleteNativeConversationMemories,
+  rollbackNativeConversationReplay,
+  snapshotNativeConversationMemories,
+} from "@/runtime/chat-turn/conversation-persistence";
 import { runPostCommandTurn } from "@/runtime/chat-turn/post-command";
 import { prepareTurnState } from "@/runtime/chat-turn/state";
 import {
@@ -151,7 +156,18 @@ export async function handleAgentTurn(
       String(preparedTurn.turn.roomId),
       async () => {
         throwIfTurnAborted(options?.abortSignal);
-        const replay = context.services.sessions.deleteLatestExchange(
+        const sessions = context.services.sessions;
+        if (
+          typeof sessions.messagesBySession !== "function" ||
+          typeof sessions.replaceSessionMessages !== "function"
+        ) {
+          return "Retry is unavailable because complete session rollback is not supported by this runtime.";
+        }
+        const projectionSnapshot = sessions.messagesBySession(
+          preparedTurn.turn.sessionId,
+          Number.MAX_SAFE_INTEGER,
+        );
+        const replay = sessions.deleteLatestExchange(
           preparedTurn.turn.sessionId,
           {
             skipSlashCommands: true,
@@ -160,9 +176,42 @@ export async function handleAgentTurn(
         if (!replay.userMessage) {
           return "No prior conversational turn is available to retry.";
         }
+        const replayUserMessage = replay.userMessage;
+        const restoreReplayProjection = () => {
+          // A replay may already have projected a partial replacement. Reset
+          // the complete cache to its exact pre-retry snapshot instead of
+          // appending the discarded exchange after partial replay output.
+          sessions.replaceSessionMessages(
+            preparedTurn.turn.sessionId,
+            projectionSnapshot,
+          );
+        };
+        let replayAttachments: Awaited<
+          ReturnType<typeof resolveManagedChatAttachments>
+        > = [];
+        if (replayUserMessage.attachments?.length) {
+          try {
+            replayAttachments = await resolveManagedChatAttachments({
+              dataDir: context.config.dataDir,
+              attachmentIds: replayUserMessage.attachments.map(
+                (attachment) => attachment.id,
+              ),
+            });
+          } catch {
+            restoreReplayProjection();
+            return "The previous turn used attachments that are no longer available, so it was not retried.";
+          }
+        }
+        let nativeSnapshots: Awaited<
+          ReturnType<typeof snapshotNativeConversationMemories>
+        > = [];
         try {
+          nativeSnapshots = await snapshotNativeConversationMemories(context, [
+            replayUserMessage,
+            ...replay.assistantMessages,
+          ]);
           const nativeDelete = await deleteNativeConversationMemories(context, [
-            replay.userMessage,
+            replayUserMessage,
             ...replay.assistantMessages,
           ]);
           if (nativeDelete.unsupported.length) {
@@ -171,36 +220,12 @@ export async function handleAgentTurn(
             );
           }
         } catch {
-          // The projection is a cache; restore it rather than retrying against a
-          // native context that still contains the discarded exchange.
-          context.services.sessions.storeMessage(replay.userMessage);
-          for (const assistantMessage of replay.assistantMessages) {
-            context.services.sessions.storeMessage(assistantMessage);
-          }
+          restoreReplayProjection();
           return "The previous exchange could not be removed from native conversation history, so it was not retried.";
-        }
-        let replayAttachments: Awaited<
-          ReturnType<typeof resolveManagedChatAttachments>
-        > = [];
-        if (replay.userMessage.attachments?.length) {
-          try {
-            replayAttachments = await resolveManagedChatAttachments({
-              dataDir: context.config.dataDir,
-              attachmentIds: replay.userMessage.attachments.map(
-                (attachment) => attachment.id,
-              ),
-            });
-          } catch {
-            context.services.sessions.storeMessage(replay.userMessage);
-            for (const assistantMessage of replay.assistantMessages) {
-              context.services.sessions.storeMessage(assistantMessage);
-            }
-            return "The previous turn used attachments that are no longer available, so it was not retried.";
-          }
         }
         const retryInput = {
           ...input,
-          message: replay.userMessage.text,
+          message: replayUserMessage.text,
           attachments: replayAttachments.map((attachment) => attachment.media),
           attachmentDescriptors: replayAttachments.map(
             (attachment) => attachment.descriptor,
@@ -208,15 +233,43 @@ export async function handleAgentTurn(
         };
         const retryTurn = prepareTurnState(retryInput, context);
         perf.mark("retry-replay");
-        return runPostCommandTurn(
-          retryInput,
-          retryInput,
-          context,
-          options ?? {},
-          perf,
-          undefined,
-          retryTurn,
-        );
+        try {
+          return await runPostCommandTurn(
+            retryInput,
+            retryInput,
+            context,
+            options ?? {},
+            perf,
+            undefined,
+            retryTurn,
+          );
+        } catch (replayError) {
+          const rollbackErrors: unknown[] = [];
+          try {
+            await rollbackNativeConversationReplay({
+              context,
+              roomId: retryTurn.turn.roomId as UUID,
+              replayMessageId: retryTurn.turn.messageId as UUID,
+              originalSnapshots: nativeSnapshots,
+            });
+          } catch (error) {
+            rollbackErrors.push(error);
+          }
+          try {
+            restoreReplayProjection();
+          } catch (error) {
+            rollbackErrors.push(error);
+          }
+          if (rollbackErrors.length) {
+            throw new Error(
+              "Retry replay failed and its original exchange could not be fully restored.",
+              {
+                cause: new AggregateError([replayError, ...rollbackErrors]),
+              },
+            );
+          }
+          throw replayError;
+        }
       },
     );
   }

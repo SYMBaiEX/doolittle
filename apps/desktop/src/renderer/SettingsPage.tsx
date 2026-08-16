@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type {
   DesktopLifecycleState,
   DesktopUpdateState,
@@ -123,6 +123,7 @@ export function SettingsPage({ active }: { active: boolean }) {
   );
   const [update, setUpdate] = useState<DesktopUpdateState | null>(null);
   const [updateBusy, setUpdateBusy] = useState(false);
+  const installInFlightRef = useRef(false);
   useEffect(() => {
     if (!resourcePolicy.desktop) return;
     let disposed = false;
@@ -133,7 +134,13 @@ export function SettingsPage({ active }: { active: boolean }) {
       .getUpdateState()
       .then((state) => !disposed && setUpdate(state));
     const unsubscribe = window.doolittle.onUpdateState((state) => {
-      if (!disposed) setUpdate(state);
+      if (disposed) return;
+      if (state.phase === "error" && installInFlightRef.current) {
+        installInFlightRef.current = false;
+        setUpdateBusy(false);
+        setSavedMessage(state.message);
+      }
+      setUpdate(state);
     });
     return () => {
       disposed = true;
@@ -264,9 +271,15 @@ export function SettingsPage({ active }: { active: boolean }) {
       .finally(() => setUpdateBusy(false));
   };
   const installUpdate = () => {
-    void window.doolittle
-      .installUpdate()
-      .catch((error) => setSavedMessage(errorMessage(error)));
+    if (installInFlightRef.current) return;
+    installInFlightRef.current = true;
+    setUpdateBusy(true);
+    setSavedMessage("Installing update and restarting Doolittle…");
+    void window.doolittle.installUpdate().catch((error) => {
+      setSavedMessage(errorMessage(error));
+      installInFlightRef.current = false;
+      setUpdateBusy(false);
+    });
   };
   const runtimeCategoryOffline = settingsCategoryOffline(category, active);
 

@@ -4,13 +4,18 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { useApiResourceMock } = vi.hoisted(() => ({
+const { desktopRequestMock, useApiResourceMock } = vi.hoisted(() => ({
+  desktopRequestMock: vi.fn(),
   useApiResourceMock: vi.fn(),
 }));
 
 vi.mock("./lib", async () => {
   const actual = await vi.importActual<typeof import("./lib")>("./lib");
-  return { ...actual, useApiResource: useApiResourceMock };
+  return {
+    ...actual,
+    desktopRequest: desktopRequestMock,
+    useApiResource: useApiResourceMock,
+  };
 });
 
 import { MemoryPage } from "./MemoryPage";
@@ -37,6 +42,8 @@ describe("runtime-state route density", () => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
+    desktopRequestMock.mockReset();
+    desktopRequestMock.mockResolvedValue({});
     useApiResourceMock.mockReset();
     useApiResourceMock.mockImplementation((path: string | null) => {
       if (path === "/settings") {
@@ -156,6 +163,37 @@ describe("runtime-state route density", () => {
 
     expect(tuning?.open).toBe(true);
     expect(tuning?.querySelector('input[type="number"]')).not.toBeNull();
+  });
+
+  it("serializes an explicit reasoning-effort clear for unsupported models", async () => {
+    act(() =>
+      root.render(
+        <ModelsPage
+          active
+          refreshRuntime={() => undefined}
+          runtime={{ model: "granite4.1:3b", plugins: {}, provider: "ollama" }}
+        />,
+      ),
+    );
+
+    await act(async () => {
+      container
+        .querySelector("form")
+        ?.dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        );
+      await Promise.resolve();
+    });
+
+    expect(desktopRequestMock).toHaveBeenCalledWith(
+      "/settings",
+      "POST",
+      expect.objectContaining({
+        changes: expect.arrayContaining([
+          { path: "model.reasoningEffort", value: null },
+        ]),
+      }),
+    );
   });
 
   it("switches bounded memory targets without rendering tab descriptions", () => {

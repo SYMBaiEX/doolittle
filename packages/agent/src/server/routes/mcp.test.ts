@@ -1,11 +1,14 @@
 import { DOOLITTLE_MCP_SERVICE } from "@doolittle/contracts";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleMcpRoutes } from "./mcp";
 
+const describeEffectiveCachedMcpTools = vi.hoisted(() =>
+  vi.fn((_runtime: unknown, limit: number) => `cached:${limit}`),
+);
+
 vi.mock("@/runtime/native/service-bridge/tooling", () => ({
-  describeEffectiveCachedMcpTools: (_runtime: unknown, limit: number) =>
-    `cached:${limit}`,
+  describeEffectiveCachedMcpTools,
   describeEffectiveMcpTool: (_runtime: unknown, name: string) => `tool:${name}`,
   discoverEffectiveMcpTools: async () => [{ name: "discover:tool" }],
   getEffectiveCachedMcpTools: () => [{ name: "tool-1" }],
@@ -67,6 +70,10 @@ function createContext(): AppContext {
 }
 
 describe("handleMcpRoutes", () => {
+  beforeEach(() => {
+    describeEffectiveCachedMcpTools.mockClear();
+  });
+
   it("returns MCP status, discovery, cached, and describe payloads", async () => {
     const context = createContext();
     const status = await handleMcpRoutes(
@@ -160,6 +167,58 @@ describe("handleMcpRoutes", () => {
     await expect(unsafeMarketplaceLimit?.json()).resolves.toEqual({
       error: "marketplace limit must be between 1 and 20",
     });
+  });
+
+  it.each(["Infinity", "1000000000", "0", "-1", "1.5", "not-a-number"])(
+    "rejects an unbounded cached description limit %s",
+    async (limit) => {
+      const response = await handleMcpRoutes(
+        createContext(),
+        new Request(
+          `http://localhost/mcp/cached/describe?limit=${encodeURIComponent(limit)}`,
+        ),
+        new URL(
+          `http://localhost/mcp/cached/describe?limit=${encodeURIComponent(limit)}`,
+        ),
+      );
+
+      expect(response?.status).toBe(400);
+      await expect(response?.json()).resolves.toEqual({
+        error: "cached description limit must be between 1 and 20",
+      });
+      expect(describeEffectiveCachedMcpTools).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects duplicate cached description limits", async () => {
+    const response = await handleMcpRoutes(
+      createContext(),
+      new Request("http://localhost/mcp/cached/describe?limit=1&limit=20"),
+      new URL("http://localhost/mcp/cached/describe?limit=1&limit=20"),
+    );
+
+    expect(response?.status).toBe(400);
+    expect(describeEffectiveCachedMcpTools).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["http://localhost/mcp/cached/describe", 20],
+    ["http://localhost/mcp/cached/describe?limit=20", 20],
+  ])("keeps bounded cached description requests %s", async (href, limit) => {
+    const response = await handleMcpRoutes(
+      createContext(),
+      new Request(href),
+      new URL(href),
+    );
+
+    expect(response?.status).toBe(200);
+    await expect(response?.json()).resolves.toEqual({
+      detail: `cached:${limit}`,
+    });
+    expect(describeEffectiveCachedMcpTools).toHaveBeenCalledWith(
+      expect.anything(),
+      limit,
+    );
   });
 
   it("returns a structured 400 for malformed invoke bodies", async () => {

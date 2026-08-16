@@ -1,13 +1,15 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { DOOLITTLE_SHELL_SERVICE } from "@doolittle/contracts";
+import { describe, expect, it, vi } from "vitest";
 import { ExecutionApprovalService } from "@/services/execution-approval/service";
 import type { AgentExecutionContext } from "../chat";
 import {
   formatShellCommandResponse,
   getExecutionApprovalReason,
   maybeRequireRemoteExecutionApproval,
+  resolveRemoteExecutionApprovalPrompt,
   runShellCommandForTurn,
 } from "./command-execution";
 
@@ -57,6 +59,16 @@ describe("command execution helpers", () => {
         source: "telegram",
       };
 
+      const created = await resolveRemoteExecutionApprovalPrompt(
+        input,
+        context,
+        "git push origin main",
+      );
+      const reused = await resolveRemoteExecutionApprovalPrompt(
+        input,
+        context,
+        "git push origin main",
+      );
       const prompt = await maybeRequireRemoteExecutionApproval(
         input,
         context,
@@ -67,14 +79,10 @@ describe("command execution helpers", () => {
           },
         },
       );
-      const reused = await maybeRequireRemoteExecutionApproval(
-        input,
-        context,
-        "git push origin main",
-      );
 
+      expect(created).toMatchObject({ created: true });
+      expect(reused).toMatchObject({ created: false, id: created?.id });
       expect(prompt).toContain("Remote execution approval required");
-      expect(reused).toContain("Approve and run");
       expect(notices).toHaveLength(1);
       expect(executionApprovals.list("pending")).toHaveLength(1);
     } finally {
@@ -125,5 +133,130 @@ describe("command execution helpers", () => {
     expect(result.exitCode).toBe(0);
     expect(updates.length).toBeGreaterThan(0);
     expect(updates.at(-1)).toContain("STDOUT:\nhello");
+  });
+
+  it("propagates cancellation through non-local terminal execution", async () => {
+    const controller = new AbortController();
+    const onResponseProgress = vi.fn();
+    let markStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const run = vi.fn(
+      async (
+        command: string,
+        _timeoutMs?: number,
+        abortSignal?: AbortSignal,
+      ) => {
+        await new Promise<void>((resolve) => {
+          abortSignal?.addEventListener("abort", () => resolve(), {
+            once: true,
+          });
+          markStarted?.();
+        });
+        return {
+          command,
+          exitCode: 130,
+          stdout: "",
+          stderr: "Command cancelled.",
+          durationMs: 5,
+        };
+      },
+    );
+    const context = {
+      runtime: {
+        getService: (name: string) =>
+          name === DOOLITTLE_SHELL_SERVICE
+            ? { run, history: () => [], status: async () => ({}) }
+            : null,
+      },
+      services: {
+        settings: {
+          get: () => ({ execution: { backend: "docker" } }),
+        },
+      },
+    } as unknown as AgentExecutionContext;
+
+    const turn = runShellCommandForTurn("long-command", context, {
+      abortSignal: controller.signal,
+      onResponseProgress,
+    });
+    await started;
+    const reason = new DOMException("Turn cancelled", "AbortError");
+    controller.abort(reason);
+
+    await expect(turn).rejects.toBe(reason);
+    expect(run).toHaveBeenCalledWith(
+      "long-command",
+      undefined,
+      controller.signal,
+    );
+    expect(onResponseProgress).not.toHaveBeenCalled();
+  });
+
+  it("drops buffered local output after terminal cancellation", async () => {
+    const controller = new AbortController();
+    const onResponseProgress = vi.fn();
+    let markStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const runStreamingLocal = vi.fn(
+      async (
+        command: string,
+        handlers: {
+          onStdout?: (chunk: string) => void;
+          onStderr?: (chunk: string) => void;
+        },
+        _timeoutMs: number | undefined,
+        abortSignal: AbortSignal | undefined,
+      ) => {
+        await new Promise<void>((resolve) => {
+          abortSignal?.addEventListener(
+            "abort",
+            () => {
+              handlers.onStdout?.("late stdout\n");
+              handlers.onStderr?.("late stderr\n");
+              resolve();
+            },
+            { once: true },
+          );
+          markStarted?.();
+        });
+        return {
+          command,
+          exitCode: 130,
+          stdout: "late stdout\n",
+          stderr: "late stderr\n",
+          durationMs: 5,
+        };
+      },
+    );
+    const context = {
+      runtime: {},
+      services: {
+        settings: {
+          get: () => ({ execution: { backend: "local" } }),
+        },
+        terminal: { runStreamingLocal },
+      },
+    } as unknown as AgentExecutionContext;
+
+    const turn = runShellCommandForTurn("long-command", context, {
+      abortSignal: controller.signal,
+      onResponseProgress,
+    });
+    await started;
+    const reason = new DOMException("Turn cancelled", "AbortError");
+    controller.abort(reason);
+
+    await expect(turn).rejects.toBe(reason);
+    expect(runStreamingLocal).toHaveBeenCalledWith(
+      "long-command",
+      expect.any(Object),
+      undefined,
+      controller.signal,
+    );
+    expect(onResponseProgress).not.toHaveBeenCalled();
   });
 });

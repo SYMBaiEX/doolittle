@@ -12,14 +12,20 @@ export const GATEWAY_DELIVERY_PENDING_RESPONSE =
 
 function publicGatewayReceiveOutcome(
   outcome: GatewayReceiveOutcome,
+  preserveIdempotencyDisposition = false,
 ): GatewayReceiveOutcome {
+  if (preserveIdempotencyDisposition) return outcome;
   const { idempotencyDisposition: _, ...publicOutcome } = outcome;
   return publicOutcome;
 }
 
 function duplicateGatewayReceiveOutcome(
   outcome: GatewayReceiveOutcome,
+  preserveIdempotencyDisposition = false,
 ): GatewayReceiveOutcome {
+  if (preserveIdempotencyDisposition) {
+    return { ...outcome, duplicate: true };
+  }
   const { pairingCode: _, ...publicOutcome } =
     publicGatewayReceiveOutcome(outcome);
   const isPairingOutcome =
@@ -98,6 +104,8 @@ export interface GatewayReceiveIdempotencyOptions {
    * lease; the coordinated run is cancelled only after every lease ends.
    */
   abortSignal?: AbortSignal;
+  /** Internal ingress-only marker; not part of provider-facing results. */
+  preserveIdempotencyDisposition?: boolean;
 }
 
 interface InFlightGatewayReceive {
@@ -139,12 +147,22 @@ export class GatewayReceiveIdempotencyCoordinator {
       inMemory ?? (stored ? durableGatewayReceiveOutcome(stored) : undefined);
     if (completed) {
       this.completed.set(idempotencyKey, completed);
-      return Promise.resolve(duplicateGatewayReceiveOutcome(completed));
+      return Promise.resolve(
+        duplicateGatewayReceiveOutcome(
+          completed,
+          options?.preserveIdempotencyDisposition,
+        ),
+      );
     }
 
     const active = this.inFlight.get(idempotencyKey);
     if (active) {
-      return this.join(active, options).then(duplicateGatewayReceiveOutcome);
+      return this.join(active, options).then((outcome) =>
+        duplicateGatewayReceiveOutcome(
+          outcome,
+          options?.preserveIdempotencyDisposition,
+        ),
+      );
     }
 
     const controller = new AbortController();
@@ -161,7 +179,7 @@ export class GatewayReceiveIdempotencyCoordinator {
           this.completed.set(idempotencyKey, durableOutcome);
           this.store.recordOutcome(message, idempotencyKey, durableOutcome);
         }
-        return publicGatewayReceiveOutcome(outcome);
+        return outcome;
       })
       .finally(() => {
         if (this.inFlight.get(idempotencyKey) === inFlight) {
@@ -174,7 +192,12 @@ export class GatewayReceiveIdempotencyCoordinator {
       });
     inFlight.execution = execution;
     this.inFlight.set(idempotencyKey, inFlight);
-    return this.join(inFlight, options);
+    return this.join(inFlight, options).then((outcome) =>
+      publicGatewayReceiveOutcome(
+        outcome,
+        options?.preserveIdempotencyDisposition,
+      ),
+    );
   }
 
   private join(

@@ -145,6 +145,15 @@ export function ModelsPage({
     [selectedModelId, selectedProvider?.models],
   );
   const reasoningOptions = selectedModel?.reasoning?.options ?? [];
+  const selectedReasoningEffort = (() => {
+    const requestedEffort = fieldValue(
+      "reasoningEffort",
+      model?.reasoningEffort ?? selectedModel?.reasoning?.default,
+    );
+    return reasoningOptions.some((option) => option.id === requestedEffort)
+      ? (requestedEffort as RuntimeReasoningEffort)
+      : (selectedModel?.reasoning?.default ?? reasoningOptions[0]?.id);
+  })();
   const usableProviderCount = accountProviders.filter(
     (provider) =>
       linkedProviderAccess(
@@ -161,10 +170,6 @@ export function ModelsPage({
     setSaving(true);
     setFeedback(null);
     try {
-      const effort = fieldValue(
-        "reasoningEffort",
-        model?.reasoningEffort ?? selectedModel?.reasoning?.default,
-      );
       await desktopRequest("/settings", "POST", {
         changes: [
           { path: "model.provider", value: selectedProviderId },
@@ -186,7 +191,7 @@ export function ModelsPage({
           },
           {
             path: "model.reasoningEffort",
-            value: effort || undefined,
+            value: reasoningOptions.length ? selectedReasoningEffort : null,
           },
         ],
       });
@@ -402,12 +407,7 @@ export function ModelsPage({
                       <label>
                         <span>Reasoning effort</span>
                         <select
-                          value={fieldValue(
-                            "reasoningEffort",
-                            model?.reasoningEffort ??
-                              selectedModel?.reasoning?.default ??
-                              "",
-                          )}
+                          value={selectedReasoningEffort ?? ""}
                           onChange={(event) =>
                             setDraft((current) => ({
                               ...current,
@@ -424,13 +424,7 @@ export function ModelsPage({
                         <small>
                           {
                             reasoningOptions.find(
-                              (option) =>
-                                option.id ===
-                                fieldValue(
-                                  "reasoningEffort",
-                                  model?.reasoningEffort ??
-                                    selectedModel?.reasoning?.default,
-                                ),
+                              (option) => option.id === selectedReasoningEffort,
                             )?.description
                           }
                         </small>

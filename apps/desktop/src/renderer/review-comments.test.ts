@@ -133,6 +133,18 @@ describe("review comments", () => {
     expect(loadReviewComments(identity, storage)).toEqual([]);
   });
 
+  it("reports when local review-note persistence is unavailable", () => {
+    const identity = reviewCommentIdentity(repositoryReview());
+    const unavailableStorage: ReviewCommentStorage = {
+      getItem: () => null,
+      setItem: () => {
+        throw new DOMException("Storage is disabled.", "SecurityError");
+      },
+    };
+
+    expect(saveReviewComments(identity, [], unavailableStorage)).toBe(false);
+  });
+
   it("compiles bounded, escaped, unresolved feedback for the next prompt", () => {
     const identity = reviewCommentIdentity(repositoryReview());
     const open = createReviewComment({

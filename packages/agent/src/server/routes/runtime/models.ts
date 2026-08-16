@@ -64,11 +64,53 @@ export function modelDiscoveryRequested(url: URL): boolean {
   return !["false", "0"].includes(url.searchParams.get("refresh") ?? "");
 }
 
-const codexReasoning: ModelReasoningCapability = {
+function codexReasoningCapability(
+  defaultEffort: RuntimeReasoningEffort,
+  efforts: readonly RuntimeReasoningEffort[],
+): ModelReasoningCapability {
+  return {
+    default: defaultEffort,
+    options: efforts.map((id) => ({ id, label: id })),
+  };
+}
+
+const codexSolReasoning = codexReasoningCapability("low", [
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+  "ultra",
+]);
+
+const codexTerraReasoning = codexReasoningCapability("medium", [
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+  "ultra",
+]);
+
+const codexLunaReasoning = codexReasoningCapability("medium", [
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+]);
+
+const codexStandardReasoning: ModelReasoningCapability = {
   default: "medium",
-  options: (["none", "low", "medium", "high", "xhigh", "max"] as const).map(
-    (id) => ({ id, label: id === "none" ? "None" : id }),
-  ),
+  options: (["low", "medium", "high", "xhigh"] as const).map((id) => ({
+    id,
+    label: id,
+  })),
+};
+
+const codexSparkReasoning: ModelReasoningCapability = {
+  ...codexStandardReasoning,
+  default: "high",
 };
 
 const claudeReasoning: ModelReasoningCapability = {
@@ -99,17 +141,41 @@ function openAiReasoningForModel(
 }
 
 const CODEX_LINKED_MODELS: ModelCatalogEntry[] = [
-  { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", reasoning: codexReasoning },
+  {
+    id: "gpt-5.6-sol",
+    label: "GPT-5.6 Sol",
+    reasoning: codexSolReasoning,
+  },
   {
     id: "gpt-5.6-terra",
     label: "GPT-5.6 Terra",
-    reasoning: codexReasoning,
+    reasoning: codexTerraReasoning,
   },
-  { id: "gpt-5.6-luna", label: "GPT-5.6 Luna", reasoning: codexReasoning },
-  { id: "gpt-5.5", label: "GPT-5.5" },
-  { id: "gpt-5.4", label: "GPT-5.4" },
-  { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
-  { id: "gpt-5.3-codex-spark", label: "GPT-5.3 Codex Spark" },
+  {
+    id: "gpt-5.6-luna",
+    label: "GPT-5.6 Luna",
+    reasoning: codexLunaReasoning,
+  },
+  {
+    id: "gpt-5.5",
+    label: "GPT-5.5",
+    reasoning: codexStandardReasoning,
+  },
+  {
+    id: "gpt-5.4",
+    label: "GPT-5.4",
+    reasoning: codexStandardReasoning,
+  },
+  {
+    id: "gpt-5.4-mini",
+    label: "GPT-5.4 Mini",
+    reasoning: codexStandardReasoning,
+  },
+  {
+    id: "gpt-5.3-codex-spark",
+    label: "GPT-5.3 Codex Spark",
+    reasoning: codexSparkReasoning,
+  },
 ];
 
 const CLAUDE_CODE_LINKED_MODELS: ModelCatalogEntry[] = [
@@ -465,7 +531,7 @@ function parseCodexReasoningCapability(
     const id = record.effort;
     if (
       typeof id !== "string" ||
-      !["none", "low", "medium", "high", "xhigh", "max"].includes(id)
+      !["none", "low", "medium", "high", "xhigh", "max", "ultra"].includes(id)
     ) {
       return [];
     }

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { IncomingPlatformMessage, SessionRoute } from "@/types";
 
 export interface SessionRouteStore {
@@ -8,7 +9,38 @@ export function nowIso(): string {
   return new Date().toISOString();
 }
 
-export function createSessionKey(message: IncomingPlatformMessage): string {
+const MAX_ACCOUNT_ID_LENGTH = 120;
+
+export function normalizeAccountId(accountId?: string): string | undefined {
+  const normalized = accountId?.trim();
+  return normalized || undefined;
+}
+
+// Shared by route and pairing identities. It keeps untrusted connector account
+// IDs delimiter-safe and bounded without conflating malformed Unicode.
+export function createAccountIdentity(accountId?: string): string | undefined {
+  const normalized = normalizeAccountId(accountId);
+  if (!normalized) return undefined;
+
+  let encoded: string;
+  try {
+    encoded = encodeURIComponent(normalized);
+  } catch {
+    // encodeURIComponent rejects lone UTF-16 surrogates. Hash their code units
+    // directly so malformed account IDs remain distinct and never reject ingress.
+    return `$sha256-utf16le-${createHash("sha256").update(normalized, "utf16le").digest("hex")}`;
+  }
+
+  if (encoded.length <= MAX_ACCOUNT_ID_LENGTH) {
+    return encoded;
+  }
+
+  return `$sha256-${createHash("sha256").update(normalized).digest("hex")}`;
+}
+
+export function createUnscopedSessionKey(
+  message: IncomingPlatformMessage,
+): string {
   const threadIdentity =
     message.platform === "telegram"
       ? // Telegram reply IDs identify messages, not forum topics. Native inbound
@@ -21,12 +53,36 @@ export function createSessionKey(message: IncomingPlatformMessage): string {
     message.userId,
     threadIdentity,
   ];
-  const accountId =
-    message.platform === "telegram" ? message.metadata?.accountId?.trim() : "";
-  // Legacy/no-account keys remain byte-for-byte stable; only live native
-  // multi-account Telegram contexts receive an additional identity segment.
-  if (accountId) parts.push(`account=${accountId}`);
   return parts.join(":");
+}
+
+export function createUnattributedSessionKey(
+  message: IncomingPlatformMessage,
+): string {
+  return `${createUnscopedSessionKey(message)}:scope=unattributed`;
+}
+
+export function createSessionKey(message: IncomingPlatformMessage): string {
+  const parts = [createUnscopedSessionKey(message)];
+  const accountIdentity = createAccountIdentity(message.metadata?.accountId);
+  // Legacy/no-account keys remain byte-for-byte stable. Account identities are
+  // encoded so delimiters cannot make session keys ambiguous, and are bounded
+  // before they are persisted in the route store.
+  if (accountIdentity) parts.push(`account=${accountIdentity}`);
+  return parts.join(":");
+}
+
+export function createLegacyTelegramAccountSessionKey(
+  message: IncomingPlatformMessage,
+): string | undefined {
+  if (message.platform !== "telegram") return undefined;
+
+  const accountId = normalizeAccountId(message.metadata?.accountId);
+  if (!accountId) return undefined;
+
+  // This reproduces a pre-upgrade key strictly for in-memory route lookup. It
+  // is never persisted: new keys always use createSessionKey's bounded identity.
+  return `${createUnscopedSessionKey(message)}:account=${accountId}`;
 }
 
 export function createSessionRoute(

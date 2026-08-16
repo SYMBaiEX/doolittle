@@ -3,6 +3,7 @@ import { isAuthorized } from "@elizaos/agent/api/server-helpers-auth";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   applyDoolittleCors,
+  isProviderAuthenticatedWebhookRequest,
   remoteTerminalMutationTokenError,
   sdkTerminalRunTokenError,
 } from "./auth";
@@ -38,6 +39,26 @@ function nodeResponse(): {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("Eliza-native API security adapters", () => {
+  it("limits public provider admission to signed Slack and WhatsApp callbacks", () => {
+    expect(
+      isProviderAuthenticatedWebhookRequest("/webhooks/slack", "POST"),
+    ).toBe(true);
+    expect(
+      isProviderAuthenticatedWebhookRequest("/webhooks/whatsapp", "POST"),
+    ).toBe(true);
+    expect(
+      isProviderAuthenticatedWebhookRequest("/webhooks/whatsapp", "GET"),
+    ).toBe(true);
+
+    expect(
+      isProviderAuthenticatedWebhookRequest("/webhooks/telegram", "POST"),
+    ).toBe(false);
+    expect(
+      isProviderAuthenticatedWebhookRequest("/webhooks/slack", "GET"),
+    ).toBe(false);
+    expect(isProviderAuthenticatedWebhookRequest("/chat", "POST")).toBe(false);
+  });
+
   it("uses Eliza's CORS policy and extends preflight for product PATCH routes", () => {
     vi.stubEnv("ELIZA_API_BIND", "127.0.0.1");
     const { response, headers } = nodeResponse();

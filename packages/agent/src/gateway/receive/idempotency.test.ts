@@ -50,6 +50,48 @@ function store() {
 }
 
 describe("GatewayReceiveIdempotencyCoordinator", () => {
+  it("keeps transient classification on the private ingress receive path", async () => {
+    const coordinator = new GatewayReceiveIdempotencyCoordinator(store());
+    const outcome = await coordinator.receive(
+      message(),
+      async () => ({
+        ok: false,
+        response: "retry later",
+        idempotencyDisposition: "transient",
+      }),
+      { preserveIdempotencyDisposition: true },
+    );
+    expect(outcome.idempotencyDisposition).toBe("transient");
+  });
+
+  it("preserves transient classification for an ingress consumer joining a public receive", async () => {
+    const coordinator = new GatewayReceiveIdempotencyCoordinator(store());
+    let resolve!: (outcome: GatewayReceiveOutcome) => void;
+    const execute = vi.fn(
+      () =>
+        new Promise<GatewayReceiveOutcome>((done) => {
+          resolve = done;
+        }),
+    );
+    const publicReceive = coordinator.receive(message(), execute);
+    const ingressReceive = coordinator.receive(message(), execute, {
+      preserveIdempotencyDisposition: true,
+    });
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    resolve({
+      ok: false,
+      response: "retry",
+      idempotencyDisposition: "transient",
+    });
+    await expect(publicReceive).resolves.not.toHaveProperty(
+      "idempotencyDisposition",
+    );
+    await expect(ingressReceive).resolves.toMatchObject({
+      duplicate: true,
+      idempotencyDisposition: "transient",
+    });
+  });
+
   it("joins concurrent retries to the same in-flight outcome", async () => {
     const durableStore = store();
     const coordinator = new GatewayReceiveIdempotencyCoordinator(durableStore);

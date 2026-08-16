@@ -3,10 +3,14 @@ import { runEffectiveShellCommand } from "@/runtime/native/service-bridge/toolin
 import type { AppServices } from "@/services";
 import type { ChatTurnRequest } from "@/types/runtime";
 import type { AgentExecutionContext, AgentTurnHooks } from "../chat";
-import type { ShellCommandTurnResult } from "./command-execution";
+import type {
+  RemoteExecutionApprovalPrompt,
+  ShellCommandTurnResult,
+} from "./command-execution";
 import {
   formatShellCommandResponse,
   maybeRequireRemoteExecutionApproval,
+  resolveRemoteExecutionApprovalPrompt,
   runShellCommandForTurn,
 } from "./command-execution";
 
@@ -40,8 +44,14 @@ export async function executeTerminalCommand(
   runtime: IAgentRuntime,
   services: AppServices,
   command: string,
+  abortSignal?: AbortSignal,
 ): Promise<TerminalCommandResult> {
-  const rawResult = await runEffectiveShellCommand(runtime, command);
+  const rawResult = await runEffectiveShellCommand(
+    runtime,
+    command,
+    undefined,
+    abortSignal,
+  );
   return normalizeTerminalCommandResult(
     rawResult,
     command,
@@ -62,6 +72,14 @@ export async function requestTerminalCommandApproval(
   hooks?: AgentTurnHooks,
 ): Promise<string | undefined> {
   return maybeRequireRemoteExecutionApproval(input, context, command, hooks);
+}
+
+export async function requestTerminalCommandApprovalDetails(
+  input: ChatTurnRequest,
+  context: AgentExecutionContext,
+  command: string,
+): Promise<RemoteExecutionApprovalPrompt | undefined> {
+  return resolveRemoteExecutionApprovalPrompt(input, context, command);
 }
 
 export async function executeTerminalCommandForTurn(

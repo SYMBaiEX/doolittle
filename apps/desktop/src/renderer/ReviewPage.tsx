@@ -337,7 +337,11 @@ export function ReviewPage({
 
   const persistComments = (nextComments: ReviewComment[]) => {
     setComments(nextComments);
-    saveReviewComments(commentIdentity, nextComments, window.localStorage);
+    return saveReviewComments(
+      commentIdentity,
+      nextComments,
+      window.localStorage,
+    );
   };
 
   const applyDurableRecord = (response: ReviewRecordResponse) => {
@@ -345,10 +349,12 @@ export function ReviewPage({
     branchRecord.reload();
   };
 
-  const showOfflineFallback = (error: unknown) => {
+  const showOfflineFallback = (error: unknown, locallyPersisted: boolean) => {
     setFeedback({
       tone: "warn",
-      message: `Saved only in this app until the local runtime returns: ${errorMessage(error)}`,
+      message: locallyPersisted
+        ? `Saved only in this app until the local runtime returns: ${errorMessage(error)}`
+        : `The local runtime could not save this review note, and local storage is unavailable. It exists only in this window and will be lost on reload: ${errorMessage(error)}`,
     });
   };
 
@@ -382,7 +388,7 @@ export function ReviewPage({
             }
           : comment,
       );
-      persistComments(nextComments);
+      const locallyPersisted = persistComments(nextComments);
       try {
         applyDurableRecord(
           await desktopRequest<ReviewRecordResponse>(
@@ -392,7 +398,7 @@ export function ReviewPage({
           ),
         );
       } catch (error) {
-        showOfflineFallback(error);
+        showOfflineFallback(error, locallyPersisted);
       }
     } else {
       const comment = createReviewComment({
@@ -404,7 +410,7 @@ export function ReviewPage({
         body: commentDraft,
         now,
       });
-      persistComments([...comments, comment]);
+      const locallyPersisted = persistComments([...comments, comment]);
       try {
         applyDurableRecord(
           await desktopRequest<ReviewRecordResponse>(
@@ -414,7 +420,7 @@ export function ReviewPage({
           ),
         );
       } catch (error) {
-        showOfflineFallback(error);
+        showOfflineFallback(error, locallyPersisted);
       }
     }
     cancelComment();
@@ -427,7 +433,7 @@ export function ReviewPage({
       (comment) => comment.id === commentId,
     );
     const nextStatus = selectedComment?.status === "open" ? "resolved" : "open";
-    persistComments(
+    const locallyPersisted = persistComments(
       comments.map((comment) =>
         comment.id === commentId
           ? {
@@ -448,7 +454,7 @@ export function ReviewPage({
         ),
       );
     } catch (error) {
-      showOfflineFallback(error);
+      showOfflineFallback(error, locallyPersisted);
     }
   };
 
@@ -488,7 +494,10 @@ export function ReviewPage({
         ),
       );
     } catch (error) {
-      showOfflineFallback(error);
+      setFeedback({
+        tone: "warn",
+        message: `Review feedback could not be recorded until the local runtime returns: ${errorMessage(error)}`,
+      });
     }
   };
 

@@ -9,8 +9,9 @@ import type {
 import {
   executeTerminalCommand,
   formatTerminalCommandResponse,
-  requestTerminalCommandApproval,
+  requestTerminalCommandApprovalDetails,
 } from "@/runtime/commands/shell-command-facade";
+import { getScopedTurnAbortSignal } from "@/runtime/turn-runtime-scope";
 import type { AppServices } from "@/services";
 import type { ChatTurnRequest, EnvConfig } from "@/types/runtime";
 import { messageText } from "@/utils/eliza-compat";
@@ -75,6 +76,65 @@ function shellCommandInput(message: Memory): ChatTurnRequest {
   };
 }
 
+function throwIfShellActionAborted(signal: AbortSignal | undefined): void {
+  if (!signal?.aborted) return;
+  throw (
+    signal.reason ??
+    new DOMException("The shell command was cancelled.", "AbortError")
+  );
+}
+
+async function deliverShellApproval(
+  callback: (() => Promise<unknown> | unknown) | undefined,
+  signal: AbortSignal | undefined,
+): Promise<void> {
+  throwIfShellActionAborted(signal);
+  if (!callback) return;
+  if (!signal) {
+    await callback();
+    return;
+  }
+
+  const delivery = Promise.resolve(callback()).then(() => undefined);
+  let removeAbortListener: () => void = () => undefined;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    const rejectForAbort = () => {
+      try {
+        throwIfShellActionAborted(signal);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    if (signal.aborted) {
+      rejectForAbort();
+      return;
+    }
+    signal.addEventListener("abort", rejectForAbort, { once: true });
+    removeAbortListener = () =>
+      signal.removeEventListener("abort", rejectForAbort);
+  });
+
+  try {
+    await Promise.race([delivery, aborted]);
+  } finally {
+    removeAbortListener();
+  }
+  throwIfShellActionAborted(signal);
+}
+
+async function denyCreatedApprovalAfterAbort(
+  services: AppServices,
+  approval: { id: string; created: boolean },
+): Promise<void> {
+  if (!approval.created) return;
+  try {
+    await services.executionApprovals.deny(approval.id);
+  } catch {
+    // Cancellation must preserve its AbortError even if approval cleanup is
+    // unavailable; the approval service retains its normal expiry fallback.
+  }
+}
+
 export function createShellCommandAction(
   services: AppServices,
   config: EnvConfig,
@@ -110,26 +170,44 @@ export function createShellCommandAction(
         };
       }
 
+      const abortSignal = getScopedTurnAbortSignal(runtime);
+      throwIfShellActionAborted(abortSignal);
       const input = shellCommandInput(message);
       const context = { config, services, runtime };
-      const approvalPrompt = await requestTerminalCommandApproval(
+      const approval = await requestTerminalCommandApprovalDetails(
         input,
         context,
         command,
       );
-      if (approvalPrompt) {
+      if (abortSignal?.aborted) {
+        if (approval) await denyCreatedApprovalAfterAbort(services, approval);
+        throwIfShellActionAborted(abortSignal);
+      }
+      if (approval) {
+        try {
+          await deliverShellApproval(
+            () =>
+              callback?.({
+                text: approval.prompt,
+                source: "doolittle-shell-command",
+              }),
+            abortSignal,
+          );
+        } catch (error) {
+          if (abortSignal?.aborted) {
+            await denyCreatedApprovalAfterAbort(services, approval);
+          }
+          throw error;
+        }
+        throwIfShellActionAborted(abortSignal);
         services.runController.setPendingApprovals(
           input.roomId ?? String(message.roomId),
           1,
         );
-        await callback?.({
-          text: approvalPrompt,
-          source: "doolittle-shell-command",
-        });
         return {
           success: true,
-          text: approvalPrompt,
-          userFacingText: approvalPrompt,
+          text: approval.prompt,
+          userFacingText: approval.prompt,
           verifiedUserFacing: true,
           data: {
             actionName: DOOLITTLE_SHELL_SHORTCUT_ACTION,
@@ -140,7 +218,13 @@ export function createShellCommandAction(
       }
 
       try {
-        const result = await executeTerminalCommand(runtime, services, command);
+        const result = await executeTerminalCommand(
+          runtime,
+          services,
+          command,
+          abortSignal,
+        );
+        throwIfShellActionAborted(abortSignal);
         const text = formatTerminalCommandResponse(result);
         await callback?.({ text, source: "doolittle-shell-command" });
         return {
@@ -159,6 +243,7 @@ export function createShellCommandAction(
           },
         };
       } catch (error) {
+        if (abortSignal?.aborted) throw error;
         const text = `Shell command failed: ${
           error instanceof Error ? error.message : String(error)
         }`;

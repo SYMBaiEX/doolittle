@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlatformHealth } from "@/gateway/platforms/base";
 import type { GatewayHistoryFilter } from "@/gateway/read/history-view";
@@ -29,6 +32,7 @@ describe("GatewayRunner", () => {
   });
 
   it("delegates control, delivery, and read API methods to the runtime wiring", async () => {
+    const gatewayDataDir = mkdtempSync(join(tmpdir(), "doolittle-gateway-"));
     const runtimeStatus: GatewayRuntimeStatus = {
       pid: 1,
       running: true,
@@ -86,7 +90,7 @@ describe("GatewayRunner", () => {
       transportInventory: [],
     };
     const context = {
-      config: {},
+      config: { gatewayDataDir },
       services: { gatewayConfig: {} },
       runtime: {},
     } as never;
@@ -213,6 +217,7 @@ describe("GatewayRunner", () => {
       expect(detach).toBeTypeOf("function");
       expect(typeof detach).toBe("function");
     } finally {
+      rmSync(gatewayDataDir, { recursive: true, force: true });
       vi.restoreAllMocks();
       vi.resetModules();
       vi.clearAllMocks();

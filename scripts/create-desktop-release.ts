@@ -182,28 +182,132 @@ async function sha256(path: string): Promise<string> {
   return hash.digest("hex");
 }
 
+async function sha512(path: string): Promise<string> {
+  const hash = createHash("sha512");
+  for await (const chunk of createReadStream(path)) hash.update(chunk);
+  return hash.digest("base64");
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
-function verifyUpdateManifest(
+function yamlScalar(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function yamlFields(source: string, name: string): string[] {
+  const pattern = new RegExp(`^${escapeRegExp(name)}:\\s*(.+?)\\s*$`, "gmu");
+  return [...source.matchAll(pattern)].map((match) => yamlScalar(match[1]));
+}
+
+function requireSingleYamlField(
+  source: string,
+  manifestName: string,
+  name: string,
+  expected?: string,
+): string {
+  const values = yamlFields(source, name);
+  if (
+    values.length !== 1 ||
+    !values[0] ||
+    (expected && values[0] !== expected)
+  ) {
+    throw new Error(
+      `${manifestName} must contain one unambiguous ${name}${expected ? ` (${expected})` : ""}.`,
+    );
+  }
+  return values[0];
+}
+
+interface UpdateManifestFileEntry {
+  url: string[];
+  sha512: string[];
+  size: string[];
+}
+
+function updateManifestFileEntries(source: string): UpdateManifestFileEntry[] {
+  const lines = source.split(/\r?\n/u);
+  const start = lines.findIndex((line) => /^files:\s*$/u.test(line));
+  if (
+    start < 0 ||
+    lines.filter((line) => /^files:\s*$/u.test(line)).length !== 1
+  ) {
+    return [];
+  }
+  const entries: UpdateManifestFileEntry[] = [];
+  let entry: UpdateManifestFileEntry | null = null;
+  for (const line of lines.slice(start + 1)) {
+    if (/^\S/u.test(line)) break;
+    const item = line.match(/^\s*-\s*(?:url:\s*(.*))?$/u);
+    if (item) {
+      entry = {
+        url: item[1] === undefined ? [] : [yamlScalar(item[1])],
+        sha512: [],
+        size: [],
+      };
+      entries.push(entry);
+      continue;
+    }
+    if (!entry) continue;
+    const field = line.match(/^\s+(url|sha512|size):\s*(.+?)\s*$/u);
+    if (field)
+      entry[field[1] as "url" | "sha512" | "size"].push(yamlScalar(field[2]));
+  }
+  return entries;
+}
+
+async function verifyUpdateManifest(
   directory: string,
   manifestName: string,
   version: string,
   primaryArtifact: string,
-): void {
+): Promise<void> {
   const source = readFileSync(resolve(directory, manifestName), "utf8");
-  const versionPattern = new RegExp(
-    `^version:\\s*["']?${escapeRegExp(version)}["']?\\s*$`,
-    "mu",
-  );
-  const pathPattern = new RegExp(
-    `^path:\\s*["']?${escapeRegExp(primaryArtifact)}["']?\\s*$`,
-    "mu",
-  );
-  if (!versionPattern.test(source) || !pathPattern.test(source)) {
+  try {
+    requireSingleYamlField(source, manifestName, "version", version);
+    requireSingleYamlField(source, manifestName, "path", primaryArtifact);
+    const primarySha512 = requireSingleYamlField(
+      source,
+      manifestName,
+      "sha512",
+    );
+    const matchingEntries = updateManifestFileEntries(source).filter(
+      (entry) => entry.url.length === 1 && entry.url[0] === primaryArtifact,
+    );
+    if (matchingEntries.length !== 1) {
+      throw new Error("one matching files entry");
+    }
+    const [entry] = matchingEntries;
+    const fileSize = Number(entry.size[0]);
+    if (
+      entry.sha512.length !== 1 ||
+      entry.size.length !== 1 ||
+      !/^\d+$/u.test(entry.size[0]) ||
+      !Number.isSafeInteger(fileSize)
+    ) {
+      throw new Error("one sha512 and size in the matching files entry");
+    }
+    const artifactPath = resolve(directory, primaryArtifact);
+    const artifactSha512 = await sha512(artifactPath);
+    const artifactSize = statSync(artifactPath).size;
+    if (
+      primarySha512 !== entry.sha512[0] ||
+      primarySha512 !== artifactSha512 ||
+      fileSize !== artifactSize
+    ) {
+      throw new Error("primary artifact sha512 or size mismatch");
+    }
+  } catch {
     throw new Error(
-      `${manifestName} must identify version ${version} and ${primaryArtifact}.`,
+      `${manifestName} must structurally bind version ${version} to ${primaryArtifact}.`,
     );
   }
 }
@@ -254,25 +358,25 @@ export async function createDesktopRelease(
     throw new Error("Release LICENSE must contain Doolittle's MIT notice.");
   }
 
-  verifyUpdateManifest(
+  await verifyUpdateManifest(
     directory,
     "latest-mac.yml",
     options.version,
     `Doolittle-${options.version}-mac-arm64.zip`,
   );
-  await verifyNativePackageReceipts(directory, expected, options.commit);
-  verifyUpdateManifest(
+  await verifyUpdateManifest(
     directory,
     "latest.yml",
     options.version,
     `Doolittle-${options.version}-win-x64.exe`,
   );
-  verifyUpdateManifest(
+  await verifyUpdateManifest(
     directory,
     "latest-linux.yml",
     options.version,
     `Doolittle-${options.version}-linux-x64.AppImage`,
   );
+  await verifyNativePackageReceipts(directory, expected, options.commit);
 
   const artifacts: DesktopReleaseArtifact[] = [];
   for (const expectedArtifact of expected) {

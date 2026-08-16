@@ -44,7 +44,7 @@ export function BrowserPage({
   onSendToChat,
 }: {
   active: boolean;
-  onSendToChat?: (text: string) => void;
+  onSendToChat?: (text: string) => boolean | Promise<boolean>;
 }) {
   const browser = useBrowserWorkspace(active);
   const {

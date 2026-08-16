@@ -1,7 +1,54 @@
 import { describe, expect, it } from "vitest";
-import { json, sse, streamSse } from "./responses";
+import { writeResponseAndRunPostCommit } from "../server";
+import {
+  json,
+  onResponseCommitted,
+  runResponsePostCommit,
+  sse,
+  streamSse,
+} from "./responses";
 
 describe("response constructors", () => {
+  it("does not run post-commit work until the server confirms the response write", () => {
+    let started = false;
+    const response = onResponseCommitted(json({ ok: true }), () => {
+      started = true;
+    });
+    expect(started).toBe(false);
+    runResponsePostCommit(response);
+    expect(started).toBe(true);
+  });
+
+  it("runs durable post-commit work once after a successful write settles", async () => {
+    const order: string[] = [];
+    const response = onResponseCommitted(json({ ok: true }), () => {
+      order.push("commit");
+    });
+
+    await writeResponseAndRunPostCommit(response, async () => {
+      order.push("write");
+    });
+
+    expect(order).toEqual(["write", "commit"]);
+    runResponsePostCommit(response);
+    expect(order).toEqual(["write", "commit"]);
+  });
+
+  it("runs durable post-commit work once after a failed write settles", async () => {
+    const order: string[] = [];
+    const response = onResponseCommitted(json({ ok: true }), () => {
+      order.push("commit");
+    });
+    await expect(
+      writeResponseAndRunPostCommit(response, async () => {
+        order.push("write");
+        throw new Error("client disconnected");
+      }),
+    ).rejects.toThrow("client disconnected");
+    expect(order).toEqual(["write", "commit"]);
+    runResponsePostCommit(response);
+    expect(order).toEqual(["write", "commit"]);
+  });
   it("leave CORS policy to the HTTP server boundary", () => {
     for (const response of [json({ ok: true }), sse([])]) {
       expect(response.headers.get("access-control-allow-origin")).toBeNull();

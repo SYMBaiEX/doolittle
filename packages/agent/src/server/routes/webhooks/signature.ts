@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+const SLACK_SIGNATURE_MAX_AGE_SECONDS = 5 * 60;
+
 export function verifySlackSignature(
   rawBody: string,
   timestamp: string | null,
@@ -7,9 +9,26 @@ export function verifySlackSignature(
   signingSecret?: string,
 ): boolean {
   if (!signingSecret) {
-    return true;
+    return false;
   }
   if (!timestamp || !signature) {
+    return false;
+  }
+
+  // Slack signs a Unix timestamp in seconds. Reject malformed and stale/future
+  // values before comparing the HMAC so a captured valid callback cannot be
+  // replayed indefinitely.
+  if (!/^\d+$/.test(timestamp)) {
+    return false;
+  }
+  const timestampSeconds = Number(timestamp);
+  if (!Number.isSafeInteger(timestampSeconds)) {
+    return false;
+  }
+  const nowSeconds = Math.floor(Date.now() / 1_000);
+  if (
+    Math.abs(nowSeconds - timestampSeconds) > SLACK_SIGNATURE_MAX_AGE_SECONDS
+  ) {
     return false;
   }
 
@@ -25,9 +44,8 @@ export function verifySlackSignature(
 
 /**
  * Verify Meta's WhatsApp Cloud API webhook signature over the exact request
- * body. The app secret is optional for local/development installs, matching the
- * existing Slack webhook behavior; once configured, every POST must carry a
- * valid sha256 HMAC.
+ * body. Public webhook delivery requires an app secret; local development can
+ * use authenticated application routes instead of exposing this callback.
  */
 export function verifyWhatsAppSignature(
   rawBody: string,
@@ -35,7 +53,7 @@ export function verifyWhatsAppSignature(
   appSecret?: string,
 ): boolean {
   if (!appSecret) {
-    return true;
+    return false;
   }
   if (!signature?.startsWith("sha256=")) {
     return false;

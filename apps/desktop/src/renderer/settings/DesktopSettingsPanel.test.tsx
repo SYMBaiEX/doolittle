@@ -74,4 +74,25 @@ describe("DesktopSettingsPanel", () => {
     expect(onBackgroundChange).toHaveBeenCalledWith(true);
     expect(onInstallUpdate).toHaveBeenCalledOnce();
   });
+
+  it("disables install while the accepted restart request is in flight", () => {
+    act(() =>
+      root.render(
+        <DesktopSettingsPanel
+          lifecycle={{ keepRunningInBackground: false }}
+          onBackgroundChange={vi.fn()}
+          onCheckUpdates={vi.fn()}
+          onDownloadUpdate={vi.fn()}
+          onInstallUpdate={vi.fn()}
+          update={{ phase: "downloaded", message: "Restart requested" }}
+          updateBusy
+        />,
+      ),
+    );
+
+    const install =
+      container.querySelector<HTMLButtonElement>(".primary-button");
+    expect(install?.disabled).toBe(true);
+    expect(install?.textContent).toBe("Install and restart");
+  });
 });

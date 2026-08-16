@@ -78,6 +78,148 @@ describe("native Discord inbound handoff", () => {
     });
   });
 
+  it("normalizes attachment-only native messages with fallback text and media", () => {
+    const normalized = normalizeNativeDiscordMessage(
+      createDiscordService(),
+      message({
+        content: "",
+        attachments: [
+          {
+            id: "attachment-1",
+            name: "capture.png",
+            url: "https://cdn.example.com/capture.png",
+            contentType: "image/png",
+            size: 1024,
+            width: 400,
+            height: 300,
+          },
+        ],
+      }),
+    );
+
+    expect(normalized).toMatchObject({
+      text: "Discord attachment: capture.png",
+      attachments: [
+        {
+          id: "attachment-1",
+          url: "https://cdn.example.com/capture.png",
+          source: "discord",
+          contentType: "image",
+          mimeType: "image/png",
+          filename: "capture.png",
+          size: 1024,
+          width: 400,
+          height: 300,
+        },
+      ],
+    });
+  });
+
+  it("rejects native messages without text or a usable attachment", () => {
+    const service = createDiscordService();
+
+    expect(
+      normalizeNativeDiscordMessage(service, message({ content: "" })),
+    ).toBeNull();
+    expect(
+      normalizeNativeDiscordMessage(
+        service,
+        message({
+          content: "",
+          attachments: [{ id: "attachment-1", name: "capture.png" }],
+        }),
+      ),
+    ).toBeNull();
+    expect(
+      normalizeNativeDiscordMessage(
+        service,
+        message({
+          content: "",
+          attachments: [{ id: "attachment-1", url: "   ", proxyURL: "\t" }],
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects malformed native attachment locators without throwing", () => {
+    const malformed = message({
+      content: "",
+      attachments: [{ id: "attachment-1", url: {} as unknown as string }],
+    });
+
+    expect(() =>
+      normalizeNativeDiscordMessage(createDiscordService(), malformed),
+    ).not.toThrow();
+    expect(
+      normalizeNativeDiscordMessage(createDiscordService(), malformed),
+    ).toBeNull();
+  });
+
+  it("drops malformed native attachment strings without throwing", () => {
+    const malformed = message({
+      content: {} as unknown as string,
+      attachments: [
+        {
+          id: {} as unknown as string,
+          name: {} as unknown as string,
+          url: "https://cdn.example.com/capture.png",
+          contentType: {} as unknown as string,
+        },
+      ],
+    });
+
+    expect(() =>
+      normalizeNativeDiscordMessage(createDiscordService(), malformed),
+    ).not.toThrow();
+    expect(
+      normalizeNativeDiscordMessage(createDiscordService(), malformed),
+    ).toMatchObject({
+      text: "Discord attachment",
+      attachments: [
+        expect.objectContaining({ url: "https://cdn.example.com/capture.png" }),
+      ],
+    });
+  });
+
+  it("rejects malformed attachment entries and preserves valid collection entries", () => {
+    const malformed = message({
+      content: "",
+      attachments: [null, undefined, 42] as unknown as Array<{
+        id?: string;
+      }>,
+    });
+
+    expect(() =>
+      normalizeNativeDiscordMessage(createDiscordService(), malformed),
+    ).not.toThrow();
+    expect(
+      normalizeNativeDiscordMessage(createDiscordService(), malformed),
+    ).toBeNull();
+
+    expect(
+      normalizeNativeDiscordMessage(
+        createDiscordService(),
+        message({
+          content: "",
+          attachments: [
+            null,
+            42,
+            {
+              id: "attachment-1",
+              name: "capture.png",
+              url: "https://cdn.example.com/capture.png",
+            },
+          ] as unknown as Array<{ id?: string }>,
+        }),
+      ),
+    ).toMatchObject({
+      text: "Discord attachment: capture.png",
+      attachments: [
+        expect.objectContaining({ url: "https://cdn.example.com/capture.png" }),
+      ],
+    });
+  });
+
   it("routes accepted native messages through the shared gateway and installs once", async () => {
     const service = createDiscordService();
     const receive = vi.fn(async () => ({ ok: true }));
@@ -100,6 +242,80 @@ describe("native Discord inbound handoff", () => {
         }),
       }),
     );
+  });
+
+  it("routes attachment-only native messages through the shared gateway", async () => {
+    const service = createDiscordService();
+    const receive = vi.fn(async () => ({ ok: true }));
+
+    expect(
+      installNativeDiscordInboundHandoff(
+        { getService: () => service },
+        { receive },
+      ),
+    ).toBe(true);
+
+    await service.messageManager.handleMessage(
+      message({
+        content: "",
+        attachments: [
+          {
+            id: "attachment-1",
+            filename: "capture.png",
+            url: "",
+            proxyURL: "https://cdn.example.com/capture.png",
+            contentType: "image/png",
+          },
+        ],
+      }),
+    );
+
+    expect(receive).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Discord attachment: capture.png",
+        attachments: [
+          expect.objectContaining({
+            url: "https://cdn.example.com/capture.png",
+            contentType: "image",
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("replies once to a pre-agent pairing rejection without resending completed delivery", async () => {
+    const service = createDiscordService();
+    const send = vi.fn(async (..._args: unknown[]) => undefined);
+    const receive = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        response: "Pair with code DTL-42",
+        pairingCode: "DTL-42",
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        response: "Delivery failed",
+        agentCompleted: true,
+        deliveryStatus: "rejected",
+      });
+    installNativeDiscordInboundHandoff(
+      { getService: () => service },
+      { receive },
+    );
+
+    await service.messageManager.handleMessage(
+      message({ channel: { id: "thread-1", type: "PublicThread", send } }),
+    );
+    await service.messageManager.handleMessage(
+      message({ id: "message-2", channel: { id: "channel-1", send } }),
+    );
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith({
+      content: "Pair with code DTL-42",
+      reply: { messageReference: "message-1" },
+    });
   });
 
   it("preserves Discord bot, direct-message, channel, and mention policy", () => {

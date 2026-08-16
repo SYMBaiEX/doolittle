@@ -340,6 +340,88 @@ describe("session command router", () => {
     expect(undone).toContain("try the Doolittle-native loop");
   });
 
+  it("restores the projection when undo hits a partial native deletion failure", async () => {
+    const firstId = "00000000-0000-4000-8000-000000000051";
+    const secondId = "00000000-0000-4000-8000-000000000052";
+    const native = new Map<
+      string,
+      { id: string; roomId: string; content: { text: string } }
+    >([
+      [
+        firstId,
+        { id: firstId, roomId: "room-1", content: { text: "undo me" } },
+      ],
+      [
+        secondId,
+        { id: secondId, roomId: "room-1", content: { text: "answer" } },
+      ],
+    ]);
+    const restored: string[] = [];
+    const context = {
+      runtime: {
+        agentId: "agent-1",
+        getMemories: async () => [...native.values()],
+        createMemory: async (memory: {
+          id: string;
+          roomId: string;
+          content: { text: string };
+        }) => {
+          native.set(memory.id, memory);
+          return memory.id;
+        },
+        deleteMemory: async (id: string) => {
+          if (id === secondId) throw new Error("delete failed");
+          native.delete(id);
+        },
+      },
+      services: {
+        sessions: {
+          storeMessage: (message: { id: string }) => restored.push(message.id),
+          deleteLatestExchange: () => ({
+            sessionId: "session-1",
+            userMessage: {
+              id: firstId,
+              sessionId: "session-1",
+              roomId: "room-1",
+              entityId: "user-1",
+              role: "user" as const,
+              text: "undo me",
+              createdAt: "2026-03-28T00:00:00.000Z",
+            },
+            assistantMessages: [
+              {
+                id: secondId,
+                sessionId: "session-1",
+                roomId: "room-1",
+                entityId: "agent-1",
+                role: "assistant" as const,
+                text: "answer",
+                createdAt: "2026-03-28T00:00:01.000Z",
+              },
+            ],
+            deletedMessages: 2,
+          }),
+        },
+        gatewaySessions: { get: () => undefined },
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+
+    const undone = await handleSessionCommand(
+      createInput({ message: "/undo" }),
+      "/undo",
+      "session-1",
+      context,
+      dependencies,
+    );
+
+    expect(undone).toBe(
+      "The exchange could not be removed from native conversation history, so it was not undone.",
+    );
+    expect(restored).toEqual([firstId, secondId]);
+    expect([...native.keys()].sort()).toEqual([firstId, secondId].sort());
+  });
+
   it("compresses active session context and renders operator insights", async () => {
     const replaced: unknown[] = [];
     const trajectoryEvents: unknown[] = [];
@@ -449,5 +531,152 @@ describe("session command router", () => {
     expect(JSON.stringify(replaced)).toContain("compressed summary");
     expect(insights).toContain("OPERATOR INSIGHTS");
     expect(insights).toContain("operator-loop");
+  });
+
+  it("rolls native compression back when replacing the SQLite projection fails", async () => {
+    const ids = Array.from(
+      { length: 5 },
+      (_, index) =>
+        `00000000-0000-4000-8000-${String(100 + index).padStart(12, "0")}`,
+    );
+    const messages = ids.map((id, index) => ({
+      id,
+      sessionId: "session-rollback",
+      roomId: "room-rollback",
+      entityId: index % 2 ? "agent-1" : "user-1",
+      role: index % 2 ? ("assistant" as const) : ("user" as const),
+      text: `message ${index}`,
+      createdAt: `2026-03-28T00:00:0${index}.000Z`,
+    }));
+    const native = new Map(
+      messages.map((message) => [
+        message.id,
+        {
+          id: message.id,
+          agentId: "agent-1",
+          roomId: message.roomId,
+          entityId: message.entityId,
+          content: { text: message.text },
+          metadata: {},
+        },
+      ]),
+    );
+    const context = {
+      runtime: {
+        agentId: "agent-1",
+        getMemories: async () => [...native.values()],
+        createMemory: async (memory: { id: string }) => {
+          native.set(memory.id, memory as never);
+          return memory.id;
+        },
+        deleteMemory: async (id: string) => native.delete(id),
+      },
+      services: {
+        sessions: {
+          messagesBySession: () => messages,
+          continuityKey: (sessionId: string) => sessionId,
+          replaceSessionMessages: () => {
+            throw new Error("SQLite projection unavailable");
+          },
+        },
+        contextCompression: { measure: () => ({ estimatedTokens: 1 }) },
+      },
+    } as unknown as AgentExecutionContext;
+
+    await expect(
+      handleSessionCommand(
+        createInput({ message: "/compress" }),
+        "/compress",
+        "session-rollback",
+        context,
+        { ...dependencies, runAnalysis: async () => "summary" },
+      ),
+    ).rejects.toThrow("SQLite projection unavailable");
+
+    expect(native.has(ids[1] as string)).toBe(true);
+    expect(
+      [...native.values()].some((memory) =>
+        String(
+          (memory as { content?: { text?: string } }).content?.text,
+        ).includes("CONTEXT SUMMARY"),
+      ),
+    ).toBe(false);
+  });
+
+  it("rolls native compression back when cancellation arrives after native replacement", async () => {
+    const ids = Array.from(
+      { length: 5 },
+      (_, index) =>
+        `00000000-0000-4000-8000-${String(110 + index).padStart(12, "0")}`,
+    );
+    const messages = ids.map((id, index) => ({
+      id,
+      sessionId: "session-late-cancel",
+      roomId: "room-late-cancel",
+      entityId: index % 2 ? "agent-1" : "user-1",
+      role: index % 2 ? ("assistant" as const) : ("user" as const),
+      text: `message ${index}`,
+      createdAt: `2026-03-28T00:00:0${index}.000Z`,
+    }));
+    const native = new Map(
+      messages.map((message) => [
+        message.id,
+        {
+          id: message.id,
+          agentId: "agent-1",
+          roomId: message.roomId,
+          entityId: message.entityId,
+          content: { text: message.text },
+          metadata: {},
+        },
+      ]),
+    );
+    const controller = new AbortController();
+    const abortError = new Error("cancelled after native replacement");
+    abortError.name = "AbortError";
+    const replaceSessionMessages = vi.fn();
+    const context = {
+      runtime: {
+        agentId: "agent-1",
+        getMemories: async () => [...native.values()],
+        createMemory: async (memory: { id: string }) => {
+          native.set(memory.id, memory as never);
+          return memory.id;
+        },
+        deleteMemory: async (id: string) => {
+          native.delete(id);
+          if (id === ids[1]) controller.abort(abortError);
+        },
+      },
+      services: {
+        sessions: {
+          messagesBySession: () => messages,
+          continuityKey: (sessionId: string) => sessionId,
+          replaceSessionMessages,
+        },
+        contextCompression: { measure: () => ({ estimatedTokens: 1 }) },
+      },
+    } as unknown as AgentExecutionContext;
+
+    await expect(
+      handleSessionCommand(
+        createInput({ message: "/compress" }),
+        "/compress",
+        "session-late-cancel",
+        context,
+        { ...dependencies, runAnalysis: async () => "summary" },
+        { abortSignal: controller.signal },
+      ),
+    ).rejects.toBe(abortError);
+
+    expect(replaceSessionMessages).not.toHaveBeenCalled();
+    expect(native.has(ids[1] as string)).toBe(true);
+    expect(
+      [...native.values()].some((memory) =>
+        String(
+          (memory as { content?: { text?: string } }).content?.text,
+        ).includes("CONTEXT SUMMARY"),
+      ),
+    ).toBe(false);
   });
 });

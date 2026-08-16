@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getEffectiveUserProfile } from "@/runtime/native/service-bridge/ownership";
 import type { ChatTurnRequest } from "@/types/runtime";
-import type { AgentExecutionContext } from "../chat";
+import type { AgentExecutionContext, AgentTurnHooks } from "../chat";
 import type { ChatCommandRouterDependencies } from "../chat-command-router/types";
 import {
   deleteNativeConversationMemories,
@@ -37,12 +37,21 @@ function buildCompressionPrompt(input: {
   ].join("\n");
 }
 
+function throwIfCommandAborted(signal: AbortSignal | undefined): void {
+  if (!signal?.aborted) return;
+  if (signal.reason instanceof Error) throw signal.reason;
+  const error = new Error("Agent run cancelled.");
+  error.name = "AbortError";
+  throw error;
+}
+
 async function handleConversationCompression(
   input: ChatTurnRequest,
   trimmed: string,
   sessionKey: string,
   context: AgentExecutionContext,
   dependencies: ChatCommandRouterDependencies,
+  hooks?: AgentTurnHooks,
 ): Promise<string | undefined> {
   if (trimmed !== "/compress" && !trimmed.startsWith("/compress ")) {
     return undefined;
@@ -70,6 +79,9 @@ async function handleConversationCompression(
       "manual-context-compression",
     )
   ).trim();
+  // Analysis can settle after cancellation. Do not let that late result alter
+  // the authoritative native transcript or its SQLite projection.
+  throwIfCommandAborted(hooks?.abortSignal);
   const now = new Date().toISOString();
   const summaryMessage = {
     id: randomUUID(),
@@ -104,7 +116,7 @@ async function handleConversationCompression(
   // Native messages are authoritative. Replace native context before changing
   // the SQLite cache, otherwise a successful-looking /compress only changes
   // what the UI displays while the SDK still receives the raw middle turns.
-  await replaceNativeConversationContext({
+  const nativeReplacement = await replaceNativeConversationContext({
     context,
     turn: {
       sessionId: sessionKey,
@@ -116,7 +128,22 @@ async function handleConversationCompression(
     replaced: middleTurns,
     summary: nativeSummary,
   });
-  context.services.sessions.replaceSessionMessages(sessionKey, compressed);
+  try {
+    // The native write/delete sequence can finish while cancellation is
+    // racing. Compensate before the SQLite cache is touched.
+    throwIfCommandAborted(hooks?.abortSignal);
+    context.services.sessions.replaceSessionMessages(sessionKey, compressed);
+  } catch (projectionError) {
+    try {
+      await nativeReplacement.rollback();
+    } catch (rollbackError) {
+      throw new Error(
+        "Conversation compression could not update its projection and native context rollback failed.",
+        { cause: new AggregateError([projectionError, rollbackError]) },
+      );
+    }
+    throw projectionError;
+  }
   const after = context.services.contextCompression.measure(compressed);
   context.services.trajectoryEvaluation.recordEvent({
     category: "run",
@@ -272,6 +299,7 @@ export async function handleSessionCommand(
   sessionKey: string,
   context: AgentExecutionContext,
   dependencies: ChatCommandRouterDependencies,
+  hooks?: AgentTurnHooks,
 ): Promise<string | undefined> {
   if (
     requiresGlobalSessionOperatorAccess(trimmed, sessionKey) &&
@@ -286,6 +314,7 @@ export async function handleSessionCommand(
     sessionKey,
     context,
     dependencies,
+    hooks,
   );
   if (compression) {
     return compression;

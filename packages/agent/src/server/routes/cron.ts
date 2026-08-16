@@ -13,6 +13,13 @@ export async function handleCronRoutes(
   request: Request,
   url: URL,
 ): Promise<Response | null> {
+  const isCronRoute =
+    url.pathname === "/cron/jobs" ||
+    url.pathname === "/cron/runs" ||
+    url.pathname.startsWith("/cron/jobs/") ||
+    url.pathname.startsWith("/cron/webhooks/");
+  if (!isCronRoute) return null;
+
   const nativeServices = getNativeServices(context.runtime);
   const cron = nativeServices.automation;
   if (!cron) {

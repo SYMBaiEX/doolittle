@@ -18,6 +18,23 @@ const TERMINAL_MUTATION_PATHS = new Set([
 ]);
 
 /**
+ * The three public provider callbacks authenticate at their own protocol
+ * boundary: Slack and WhatsApp POSTs carry signed payloads, and WhatsApp's
+ * subscription probe carries its verification token. Keep this list exact so
+ * no other webhook (or ordinary API route) can bypass Doolittle API auth.
+ */
+export function isProviderAuthenticatedWebhookRequest(
+  pathname: string,
+  method: string,
+): boolean {
+  return (
+    (method === "POST" &&
+      (pathname === "/webhooks/slack" || pathname === "/webhooks/whatsapp")) ||
+    (method === "GET" && pathname === "/webhooks/whatsapp")
+  );
+}
+
+/**
  * Apply Eliza's canonical origin policy and security headers.
  *
  * Doolittle has product-owned PATCH routes, while beta.7's public helper does

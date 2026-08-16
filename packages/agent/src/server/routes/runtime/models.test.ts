@@ -233,17 +233,42 @@ describe("runtime model discovery", () => {
         }),
       ]),
     );
-    const codexReasoning = codex?.models.find(
-      (model) => model.id === "gpt-5.6-sol",
-    )?.reasoning;
-    expect(codexReasoning?.options).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: "low" }),
-        expect.objectContaining({ id: "xhigh" }),
-        expect.objectContaining({ id: "max" }),
-      ]),
-    );
-    expect(codexReasoning?.default).toBeTruthy();
+    for (const [id, defaultEffort, options] of [
+      [
+        "gpt-5.6-sol",
+        "low",
+        ["low", "medium", "high", "xhigh", "max", "ultra"],
+      ],
+      [
+        "gpt-5.6-terra",
+        "medium",
+        ["low", "medium", "high", "xhigh", "max", "ultra"],
+      ],
+      ["gpt-5.6-luna", "medium", ["low", "medium", "high", "xhigh", "max"]],
+    ] as const) {
+      const reasoning = codex?.models.find(
+        (model) => model.id === id,
+      )?.reasoning;
+      expect(reasoning?.default).toBe(defaultEffort);
+      expect(reasoning?.options.map((option) => option.id)).toEqual(options);
+    }
+    for (const [id, defaultEffort] of [
+      ["gpt-5.5", "medium"],
+      ["gpt-5.4", "medium"],
+      ["gpt-5.4-mini", "medium"],
+      ["gpt-5.3-codex-spark", "high"],
+    ] as const) {
+      const reasoning = codex?.models.find(
+        (model) => model.id === id,
+      )?.reasoning;
+      expect(reasoning?.default).toBe(defaultEffort);
+      expect(reasoning?.options.map((option) => option.id)).toEqual([
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+      ]);
+    }
     expect(
       claude?.models.find((model) => model.id === "claude-sonnet-5")?.reasoning,
     ).toMatchObject({ default: "high" });
@@ -299,7 +324,7 @@ describe("runtime model discovery", () => {
       }),
     ).toMatchObject([
       {
-        reasoning: { options: [{ id: "max" }] },
+        reasoning: { options: [{ id: "max" }, { id: "ultra" }] },
       },
     ]);
   });

@@ -1,4 +1,11 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -27,6 +34,28 @@ function releaseDirectory(version = "0.1.0"): string {
         : primaryArtifact
           ? `version: ${version}\npath: ${primaryArtifact}\n`
           : `fixture:${artifact.path}\n`,
+    );
+  }
+  for (const [manifestName, primaryArtifact] of Object.entries({
+    "latest-linux.yml": `Doolittle-${version}-linux-x64.AppImage`,
+    "latest-mac.yml": `Doolittle-${version}-mac-arm64.zip`,
+    "latest.yml": `Doolittle-${version}-win-x64.exe`,
+  })) {
+    const primaryPath = join(directory, primaryArtifact);
+    const primarySha512 = createHash("sha512")
+      .update(readFileSync(primaryPath))
+      .digest("base64");
+    writeFileSync(
+      join(directory, manifestName),
+      `${[
+        `version: ${version}`,
+        "files:",
+        `  - url: ${primaryArtifact}`,
+        `    sha512: ${primarySha512}`,
+        `    size: ${statSync(primaryPath).size}`,
+        `path: ${primaryArtifact}`,
+        `sha512: ${primarySha512}`,
+      ].join("\n")}\n`,
     );
   }
   for (const platform of ["linux", "macos", "windows"] as const) {
@@ -148,9 +177,91 @@ describe("desktop release aggregation", () => {
         tag: "v0.1.0",
         commit: "a".repeat(40),
       }),
-    ).rejects.toThrow(
-      "latest-mac.yml must identify version 0.1.0 and Doolittle-0.1.0-mac-arm64.zip",
+    ).rejects.toThrow("latest-mac.yml must structurally bind version 0.1.0");
+  });
+
+  it("rejects ambiguous and conflicting updater metadata", async () => {
+    const duplicateVersion = releaseDirectory();
+    const duplicateVersionPath = join(duplicateVersion, "latest.yml");
+    writeFileSync(
+      duplicateVersionPath,
+      `${readFileSync(duplicateVersionPath, "utf8")}version: 0.1.0\n`,
     );
+    await expect(
+      createDesktopRelease({
+        directory: duplicateVersion,
+        version: "0.1.0",
+        tag: "v0.1.0",
+        commit: "a".repeat(40),
+      }),
+    ).rejects.toThrow("latest.yml must structurally bind");
+
+    const conflictingHash = releaseDirectory();
+    const hashPath = join(conflictingHash, "latest-linux.yml");
+    writeFileSync(
+      hashPath,
+      readFileSync(hashPath, "utf8").replace(/^sha512: .+$/mu, "sha512: wrong"),
+    );
+    await expect(
+      createDesktopRelease({
+        directory: conflictingHash,
+        version: "0.1.0",
+        tag: "v0.1.0",
+        commit: "a".repeat(40),
+      }),
+    ).rejects.toThrow("latest-linux.yml must structurally bind");
+  });
+
+  it("rejects missing or duplicate matching files entries and artifact drift", async () => {
+    const missingSize = releaseDirectory();
+    const missingSizePath = join(missingSize, "latest-mac.yml");
+    writeFileSync(
+      missingSizePath,
+      readFileSync(missingSizePath, "utf8").replace(/^ {4}size: .+\n/mu, ""),
+    );
+    await expect(
+      createDesktopRelease({
+        directory: missingSize,
+        version: "0.1.0",
+        tag: "v0.1.0",
+        commit: "a".repeat(40),
+      }),
+    ).rejects.toThrow("latest-mac.yml must structurally bind");
+
+    const duplicateFile = releaseDirectory();
+    const duplicateFilePath = join(duplicateFile, "latest.yml");
+    const fileEntry = readFileSync(duplicateFilePath, "utf8").match(
+      / {2}- url:[\s\S]*? {4}size: .+\n/u,
+    )?.[0];
+    writeFileSync(
+      duplicateFilePath,
+      readFileSync(duplicateFilePath, "utf8").replace(
+        "path:",
+        `${fileEntry}path:`,
+      ),
+    );
+    await expect(
+      createDesktopRelease({
+        directory: duplicateFile,
+        version: "0.1.0",
+        tag: "v0.1.0",
+        commit: "a".repeat(40),
+      }),
+    ).rejects.toThrow("latest.yml must structurally bind");
+
+    const artifactDrift = releaseDirectory();
+    writeFileSync(
+      join(artifactDrift, "Doolittle-0.1.0-mac-arm64.zip"),
+      "tampered",
+    );
+    await expect(
+      createDesktopRelease({
+        directory: artifactDrift,
+        version: "0.1.0",
+        tag: "v0.1.0",
+        commit: "a".repeat(40),
+      }),
+    ).rejects.toThrow("latest-mac.yml must structurally bind");
   });
 
   it("rejects missing, cross-commit, and mismatched native provenance receipts", async () => {
@@ -180,10 +291,7 @@ describe("desktop release aggregation", () => {
     ).rejects.toThrow("Invalid native provenance receipt");
 
     const mismatch = releaseDirectory();
-    writeFileSync(
-      join(mismatch, "Doolittle-0.1.0-linux-x64.AppImage"),
-      "tampered",
-    );
+    writeFileSync(join(mismatch, "Doolittle-0.1.0-linux-x64.deb"), "tampered");
     await expect(
       createDesktopRelease({
         directory: mismatch,

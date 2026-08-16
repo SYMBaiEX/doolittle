@@ -30,4 +30,28 @@ describe("InteractiveTerminalSurface", () => {
     expect(markup).toContain(">Clear view</button>");
     expect(markup).toContain(">Add to chat</button>");
   });
+
+  it("explains that a stale session needs a new shell", () => {
+    const tab = {
+      ...createInteractiveTerminalTab("Terminal 1"),
+      stale: true,
+    };
+    const markup = renderToStaticMarkup(
+      <InteractiveTerminalSurface
+        active
+        activeTab={tab}
+        notice=""
+        onSendToChat={vi.fn()}
+        onStart={vi.fn()}
+        running={false}
+        setTabs={vi.fn()}
+        starting={false}
+        viewportRef={{ current: null }}
+      />,
+    );
+
+    expect(markup).toContain(
+      "This terminal session ended when the workspace changed. Start a new shell to continue.",
+    );
+  });
 });

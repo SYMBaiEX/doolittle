@@ -19,6 +19,7 @@ import { hasAsciiControlCharacters } from "@/utils/text-validation";
 const MAX_MARKETPLACE_QUERY_LENGTH = 128;
 const MAX_MARKETPLACE_SERVER_NAME_LENGTH = 256;
 const MAX_MARKETPLACE_RESULTS = 20;
+const MAX_CACHED_TOOL_DESCRIPTIONS = 20;
 const MCP_MARKETPLACE_SERVER_NAME = /^[\w./@-]+$/u;
 
 function marketplaceQuery(value: string | null): string | null {
@@ -97,13 +98,26 @@ export async function handleMcpRoutes(
   }
 
   if (request.method === "GET" && url.pathname === "/mcp/cached/describe") {
-    const limitRaw = url.searchParams.get("limit");
-    const limit = limitRaw ? Number(limitRaw) : 20;
+    const requestedLimits = url.searchParams.getAll("limit");
+    if (requestedLimits.length > 1) {
+      return json(
+        { error: "cached description limit must be between 1 and 20" },
+        400,
+      );
+    }
+    const requestedLimit = Number(requestedLimits[0] ?? "20");
+    if (
+      !Number.isSafeInteger(requestedLimit) ||
+      requestedLimit < 1 ||
+      requestedLimit > MAX_CACHED_TOOL_DESCRIPTIONS
+    ) {
+      return json(
+        { error: "cached description limit must be between 1 and 20" },
+        400,
+      );
+    }
     return json({
-      detail: describeEffectiveCachedMcpTools(
-        context.runtime,
-        !Number.isNaN(limit) && limit > 0 ? limit : 20,
-      ),
+      detail: describeEffectiveCachedMcpTools(context.runtime, requestedLimit),
     });
   }
 

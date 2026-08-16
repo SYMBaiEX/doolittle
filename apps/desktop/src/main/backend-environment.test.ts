@@ -44,7 +44,7 @@ describe("buildBackendEnvironment", () => {
       DOOLITTLE_USE_LINKED_DEVIN_AUTH: "false",
       DOOLITTLE_CLAUDE_CODE_CLI_FALLBACK: "true",
       DOOLITTLE_DATA_DIR: runtimeDataDir,
-      DOOLITTLE_SKILLS_DIR: resolve(repoRoot, "packages", "skills"),
+      DOOLITTLE_SKILLS_DIR: resolve(runtimeDataDir, "skills"),
       ELIZAOS_BUNDLED_SKILLS_DIR: resolve(repoRoot, "packages", "skills"),
       DOOLITTLE_WORKSPACE_DIR: workspaceDir,
       DOOLITTLE_GATEWAY_DATA_DIR: resolve(runtimeDataDir, "gateway"),

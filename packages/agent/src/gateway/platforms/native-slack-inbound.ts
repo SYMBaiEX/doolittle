@@ -19,6 +19,11 @@ type SlackEvent = {
   thread_ts?: string;
 };
 
+type SlackAccountSettings = {
+  shouldIgnoreBotMessages?: boolean;
+  shouldRespondOnlyToMentions?: boolean;
+};
+
 type SlackServiceLike = {
   runtime?: {
     getSetting?: (key: string) => unknown;
@@ -34,16 +39,67 @@ type SlackServiceLike = {
     accountId?: string,
   ) => Promise<void>;
   getAllowedChannelIds?: (accountId?: string | null) => string[];
+  getSettingsForAccount?: (accountId?: string) => SlackAccountSettings;
   getBotUserId?: () => string | null;
+  getBotUserIdForAccount?: (accountId: string) => string | null;
+  sendMessage?: (
+    channelId: string,
+    text: string,
+    options?: { threadTs?: string; replyBroadcast?: boolean },
+    accountId?: string | null,
+  ) => Promise<unknown>;
   [HANDOFF_INSTALLED]?: boolean;
 };
 
 export interface NativeSlackInboundGateway {
-  receive(message: IncomingPlatformMessage): Promise<{ ok: boolean }>;
+  receive(message: IncomingPlatformMessage): Promise<{
+    ok: boolean;
+    response?: string;
+    pairingCode?: string;
+    agentCompleted?: boolean;
+    deliveryStatus?: "sent" | "fallback" | "rejected";
+  }>;
 }
 
 function isTruthySetting(value: unknown): boolean {
   return value === true || value === "true";
+}
+
+function getBotUserIdForInboundAccount(
+  service: SlackServiceLike,
+  accountId?: string,
+): string | null | undefined {
+  return accountId
+    ? (service.getBotUserIdForAccount?.(accountId) ?? service.getBotUserId?.())
+    : service.getBotUserId?.();
+}
+
+function getSlackSettingsForInboundAccount(
+  service: SlackServiceLike,
+  accountId?: string,
+): SlackAccountSettings {
+  const accountSettings = service.getSettingsForAccount?.(accountId);
+  return {
+    shouldIgnoreBotMessages:
+      accountSettings?.shouldIgnoreBotMessages ??
+      isTruthySetting(
+        service.runtime?.getSetting?.("SLACK_SHOULD_IGNORE_BOT_MESSAGES"),
+      ),
+    shouldRespondOnlyToMentions:
+      accountSettings?.shouldRespondOnlyToMentions ??
+      isTruthySetting(
+        service.runtime?.getSetting?.("SLACK_SHOULD_RESPOND_ONLY_TO_MENTIONS"),
+      ),
+  };
+}
+
+function isSlackBotMention(
+  service: SlackServiceLike,
+  event: SlackEvent,
+  accountId?: string,
+): boolean {
+  const botUserId = getBotUserIdForInboundAccount(service, accountId);
+  return Boolean(botUserId && event.text?.includes(`<@${botUserId}>`));
 }
 
 function shouldIgnoreSlackMessage(
@@ -51,14 +107,11 @@ function shouldIgnoreSlackMessage(
   event: SlackEvent,
   accountId?: string,
 ): boolean {
-  if (event.subtype === "bot_message") return true;
-  const botUserId = service.getBotUserId?.();
+  const botUserId = getBotUserIdForInboundAccount(service, accountId);
   if (event.user && event.user === botUserId) return true;
 
-  const ignoreBotMessages = isTruthySetting(
-    service.runtime?.getSetting?.("SLACK_SHOULD_IGNORE_BOT_MESSAGES"),
-  );
-  if (ignoreBotMessages && event.bot_id) return true;
+  const settings = getSlackSettingsForInboundAccount(service, accountId);
+  if (settings.shouldIgnoreBotMessages && event.bot_id) return true;
 
   const allowedChannels = service.getAllowedChannelIds?.(accountId) ?? [];
   if (allowedChannels.length > 0 && event.channel) {
@@ -68,10 +121,11 @@ function shouldIgnoreSlackMessage(
   const isMentioned = Boolean(
     botUserId && event.text?.includes(`<@${botUserId}>`),
   );
-  const onlyMentions = isTruthySetting(
-    service.runtime?.getSetting?.("SLACK_SHOULD_RESPOND_ONLY_TO_MENTIONS"),
-  );
-  if (onlyMentions && event.channel_type !== "im" && !isMentioned) {
+  if (
+    event.type === "message" &&
+    settings.shouldRespondOnlyToMentions &&
+    !isMentioned
+  ) {
     return true;
   }
 
@@ -84,18 +138,22 @@ function normalizeNativeSlackEvent(
   accountId?: string,
 ): IncomingPlatformMessage | null {
   if (
-    event.type === "message" &&
+    (event.type === "message" || event.type === "app_mention") &&
     shouldIgnoreSlackMessage(service, event, accountId)
   ) {
     return null;
   }
 
+  // The shared Slack parser intentionally excludes bot_message events. Native
+  // inbound follows the pinned service's account policy, which can allow them.
+  const senderId =
+    event.type === "app_mention" ? event.user : (event.user ?? event.bot_id);
   const normalized =
-    event.type === "app_mention"
-      ? event.user && event.channel && event.text && event.ts
+    event.type === "app_mention" || event.subtype === "bot_message"
+      ? senderId && event.channel && event.text && event.ts
         ? {
             platform: "slack" as const,
-            userId: event.user,
+            userId: senderId,
             roomId: event.channel,
             text: event.text,
             channelId: event.channel,
@@ -138,9 +196,25 @@ export function installNativeSlackInboundHandoff(
   if (!service?.handleMessage || service[HANDOFF_INSTALLED]) return false;
 
   service.handleMessage = async function (message, _client, accountId) {
+    // Slack emits both a message event and app_mention for channel mentions.
+    // Let the dedicated handler own those events so the gateway sees one turn.
+    if (
+      message.channel_type !== "im" &&
+      this.handleAppMention &&
+      isSlackBotMention(this, message, accountId)
+    ) {
+      return;
+    }
     const inbound = normalizeNativeSlackEvent(this, message, accountId);
     if (!inbound) return;
-    await gateway.receive(inbound);
+    const result = await gateway.receive(inbound);
+    if (result.ok || result.agentCompleted || !result.response?.trim()) return;
+    await this.sendMessage?.(
+      inbound.roomId,
+      result.response,
+      { threadTs: inbound.threadId ?? inbound.messageId },
+      accountId,
+    );
   };
 
   if (service.handleAppMention) {
@@ -154,7 +228,15 @@ export function installNativeSlackInboundHandoff(
         accountId,
       );
       if (!inbound) return;
-      await gateway.receive(inbound);
+      const result = await gateway.receive(inbound);
+      if (result.ok || result.agentCompleted || !result.response?.trim())
+        return;
+      await this.sendMessage?.(
+        inbound.roomId,
+        result.response,
+        { threadTs: inbound.threadId ?? inbound.messageId },
+        accountId,
+      );
     };
   }
 

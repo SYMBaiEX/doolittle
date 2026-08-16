@@ -51,12 +51,27 @@ function createContext(overrides?: {
     },
     gateway: {
       receive: overrides?.gatewayReceive ?? (async () => ({ ok: true })),
+      acceptInbound: () => ({
+        receiptId: "receipt-1",
+        duplicate: false,
+        status: "queued",
+      }),
     },
     services: {
       pairing,
       hooks,
     },
   } as unknown as AppContext;
+}
+
+function slackSignature(
+  secret: string,
+  timestamp: string,
+  body: string,
+): string {
+  return `v0=${createHmac("sha256", secret)
+    .update(`v0:${timestamp}:${body}`)
+    .digest("hex")}`;
 }
 
 describe("handleWebhookRoutes", () => {
@@ -248,15 +263,16 @@ describe("handleWebhookRoutes", () => {
   });
 
   it("rejects invalid slack signatures", async () => {
+    const body = JSON.stringify({ event: {} });
     const response = await handleWebhookRoutes(
       createContext({ slackSigningSecret: "secret" }),
       new Request("http://localhost/webhooks/slack", {
         method: "POST",
         headers: {
-          "x-slack-request-timestamp": "123",
+          "x-slack-request-timestamp": String(Math.floor(Date.now() / 1_000)),
           "x-slack-signature": "v0=bad",
         },
-        body: JSON.stringify({ event: {} }),
+        body,
       }),
       new URL("http://localhost/webhooks/slack"),
     );
@@ -266,6 +282,76 @@ describe("handleWebhookRoutes", () => {
       error: "Invalid Slack signature.",
     });
   });
+
+  it("rejects Slack deliveries when signature verification is not configured", async () => {
+    const receive = vi.fn(async () => ({ ok: true }));
+    const response = await handleWebhookRoutes(
+      createContext({ gatewayReceive: receive }),
+      new Request("http://localhost/webhooks/slack", {
+        method: "POST",
+        body: JSON.stringify({ event: {} }),
+      }),
+      new URL("http://localhost/webhooks/slack"),
+    );
+
+    expect(response?.status).toBe(503);
+    await expect(response?.json()).resolves.toEqual({
+      error: "Slack signature verification is not configured.",
+    });
+    expect(receive).not.toHaveBeenCalled();
+  });
+
+  it("accepts a fresh signed Slack challenge", async () => {
+    const secret = "secret";
+    const timestamp = String(Math.floor(Date.now() / 1_000));
+    const body = JSON.stringify({ challenge: "ready" });
+    const response = await handleWebhookRoutes(
+      createContext({ slackSigningSecret: secret }),
+      new Request("http://localhost/webhooks/slack", {
+        method: "POST",
+        headers: {
+          "x-slack-request-timestamp": timestamp,
+          "x-slack-signature": slackSignature(secret, timestamp, body),
+        },
+        body,
+      }),
+      new URL("http://localhost/webhooks/slack"),
+    );
+
+    expect(response?.status).toBe(200);
+    await expect(response?.json()).resolves.toEqual({ challenge: "ready" });
+  });
+
+  it.each([
+    ["old", String(Math.floor(Date.now() / 1_000) - 301)],
+    ["future", String(Math.floor(Date.now() / 1_000) + 600)],
+    ["malformed", "1700000000.5"],
+  ])(
+    "rejects %s Slack timestamps even with a valid signature",
+    async (_label, timestamp) => {
+      const receive = vi.fn(async () => ({ ok: true }));
+      const secret = "secret";
+      const body = JSON.stringify({ event: {} });
+      const response = await handleWebhookRoutes(
+        createContext({ gatewayReceive: receive, slackSigningSecret: secret }),
+        new Request("http://localhost/webhooks/slack", {
+          method: "POST",
+          headers: {
+            "x-slack-request-timestamp": timestamp,
+            "x-slack-signature": slackSignature(secret, timestamp, body),
+          },
+          body,
+        }),
+        new URL("http://localhost/webhooks/slack"),
+      );
+
+      expect(response?.status).toBe(403);
+      await expect(response?.json()).resolves.toEqual({
+        error: "Invalid Slack signature.",
+      });
+      expect(receive).not.toHaveBeenCalled();
+    },
+  );
 
   it("verifies whatsapp subscriptions", async () => {
     const response = await handleWebhookRoutes(
@@ -318,10 +404,15 @@ describe("handleWebhookRoutes", () => {
     );
 
     expect(response?.status).toBe(200);
-    await expect(response?.json()).resolves.toEqual({ ok: true });
+    await expect(response?.json()).resolves.toEqual({
+      ok: true,
+      receiptId: "receipt-1",
+      duplicate: false,
+      status: "queued",
+    });
   });
 
-  it("fails closed when cloud credentials omit the app secret", async () => {
+  it("fails closed when WhatsApp credentials omit the app secret", async () => {
     const receive = vi.fn(async () => ({ ok: true }));
     const response = await handleWebhookRoutes(
       createContext({
@@ -329,6 +420,45 @@ describe("handleWebhookRoutes", () => {
         whatsappPhoneNumberId: "phone-1",
         whatsappVerifyToken: "verify-me",
         gatewayReceive: receive,
+      }),
+      new Request("http://localhost/webhooks/whatsapp", {
+        method: "POST",
+        body: JSON.stringify({ entry: [] }),
+      }),
+      new URL("http://localhost/webhooks/whatsapp"),
+    );
+
+    expect(response?.status).toBe(503);
+    await expect(response?.json()).resolves.toEqual({
+      error: "WhatsApp signature verification is not configured.",
+    });
+    expect(receive).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when WhatsApp is not configured", async () => {
+    const receive = vi.fn(async () => ({ ok: true }));
+    const response = await handleWebhookRoutes(
+      createContext({ gatewayReceive: receive }),
+      new Request("http://localhost/webhooks/whatsapp", {
+        method: "POST",
+        body: JSON.stringify({ entry: [] }),
+      }),
+      new URL("http://localhost/webhooks/whatsapp"),
+    );
+
+    expect(response?.status).toBe(503);
+    await expect(response?.json()).resolves.toEqual({
+      error: "WhatsApp signature verification is not configured.",
+    });
+    expect(receive).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when WhatsApp configuration is partial", async () => {
+    const receive = vi.fn(async () => ({ ok: true }));
+    const response = await handleWebhookRoutes(
+      createContext({
+        gatewayReceive: receive,
+        whatsappAccessToken: "access-token",
       }),
       new Request("http://localhost/webhooks/whatsapp", {
         method: "POST",

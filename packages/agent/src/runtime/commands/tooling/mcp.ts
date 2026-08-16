@@ -13,6 +13,9 @@ import {
 import type { AgentExecutionContext } from "../../chat";
 import { parseNamedToolPayload } from "./shared";
 
+const MAX_CACHED_TOOL_DESCRIPTIONS = 20;
+const CACHED_DESCRIBE_USAGE = "Usage: /mcp cached describe [1-20]";
+
 export async function handleMcpCommand(
   trimmed: string,
   context: AgentExecutionContext,
@@ -80,10 +83,14 @@ export async function handleMcpCommand(
   if (trimmed.startsWith("/mcp cached describe ")) {
     const raw = trimmed.replace("/mcp cached describe ", "").trim();
     const limit = Number(raw);
-    return describeEffectiveCachedMcpTools(
-      context.runtime,
-      Number.isFinite(limit) && limit > 0 ? limit : 20,
-    );
+    if (
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > MAX_CACHED_TOOL_DESCRIPTIONS
+    ) {
+      return CACHED_DESCRIBE_USAGE;
+    }
+    return describeEffectiveCachedMcpTools(context.runtime, limit);
   }
 
   if (trimmed.startsWith("/mcp describe ")) {

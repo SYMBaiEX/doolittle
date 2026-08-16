@@ -2,6 +2,17 @@ name: desktop-macos
 
 on:
   workflow_call:
+    secrets:
+      MAC_CSC_LINK:
+        required: true
+      MAC_CSC_KEY_PASSWORD:
+        required: true
+      APPLE_ID:
+        required: true
+      APPLE_APP_SPECIFIC_PASSWORD:
+        required: true
+      APPLE_TEAM_ID:
+        required: true
   workflow_dispatch:
 
 permissions:
@@ -74,7 +85,7 @@ jobs:
 
       - name: Record macOS package provenance
         run: |
-          app_path="$(find apps/desktop/release -path '*/Doolittle.app' -type d -print -quit)"
+          app_path="$(find "$PWD/apps/desktop/release" -path '*/Doolittle.app' -type d -print -quit)"
           test -n "$app_path"
           receipt_app_asar="${app_path#apps/desktop/release/}/Contents/Resources/app.asar"
           dmg_path="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-mac-arm64.dmg' -print -quit)"
@@ -100,8 +111,8 @@ jobs:
 
           export DOOLITTLE_REPO_ROOT="$packaged_runtime"
           export DOOLITTLE_DATA_DIR="$runtime_data"
-          export DOOLITTLE_SKILLS_DIR="$packaged_runtime/packages/skills"
-          export ELIZAOS_BUNDLED_SKILLS_DIR="$DOOLITTLE_SKILLS_DIR"
+          export DOOLITTLE_SKILLS_DIR="$runtime_data/skills"
+          export ELIZAOS_BUNDLED_SKILLS_DIR="$packaged_runtime/packages/skills"
           export DOOLITTLE_WORKSPACE_DIR="$runtime_data"
           export DOOLITTLE_CRON_OUTPUT_DIR="$runtime_data/cron-output"
           export DOOLITTLE_GATEWAY_DATA_DIR="$runtime_data/gateway"

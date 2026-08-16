@@ -130,4 +130,21 @@ describe("tooling command router", () => {
     expect(mcpMarketplace).toBe("Usage: /mcp marketplace search <query>");
     expect(describe).toBe("Usage: /acp describe <tool-name>");
   });
+
+  it("bounds cached MCP tool descriptions", async () => {
+    const context = createContext();
+
+    await expect(
+      handleToolingCommand("/mcp cached describe 20", context),
+    ).resolves.toBe("cached:20");
+    await expect(
+      handleToolingCommand("/mcp cached describe Infinity", context),
+    ).resolves.toBe("Usage: /mcp cached describe [1-20]");
+    await expect(
+      handleToolingCommand("/mcp cached describe 1000000000", context),
+    ).resolves.toBe("Usage: /mcp cached describe [1-20]");
+    await expect(
+      handleToolingCommand("/mcp cached describe 1.5", context),
+    ).resolves.toBe("Usage: /mcp cached describe [1-20]");
+  });
 });

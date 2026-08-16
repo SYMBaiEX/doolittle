@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { stableRuntimeUuid } from "@/runtime/stable-runtime-uuid";
 import {
@@ -703,12 +703,23 @@ describe("chat turn state helpers with session persistence", () => {
   it("replaces native middle context before its projection is changed", async () => {
     const created: string[] = [];
     const deleted: string[] = [];
+    const replacedId = "00000000-0000-4000-8000-000000000010";
+    const summaryId = "00000000-0000-4000-8000-000000000011";
+    const native = [
+      {
+        id: replacedId,
+        roomId: "r1",
+        entityId: "user-1",
+        content: { text: "replaced" },
+      },
+    ];
     const context = {
       services: {
         sessions: { continuityKey: (sessionId: string) => sessionId },
       },
       runtime: {
         agentId: "agent-1",
+        getMemories: async () => native,
         createMemory: async (memory: { id: string }) => {
           created.push(memory.id);
           return memory.id;
@@ -720,8 +731,6 @@ describe("chat turn state helpers with session persistence", () => {
       },
       config: {},
     } as unknown as AgentExecutionContext;
-    const replacedId = "00000000-0000-4000-8000-000000000010";
-    const summaryId = "00000000-0000-4000-8000-000000000011";
 
     await replaceNativeConversationContext({
       context,
@@ -731,7 +740,7 @@ describe("chat turn state helpers with session persistence", () => {
         entityId: "user-1",
         connectionSource: "desktop",
       } as Parameters<typeof replaceNativeConversationContext>[0]["turn"],
-      replaced: [{ id: replacedId } as never],
+      replaced: [{ id: replacedId, roomId: "r1" } as never],
       summary: {
         id: summaryId,
         sessionId: "s1",
@@ -745,6 +754,459 @@ describe("chat turn state helpers with session persistence", () => {
 
     expect(created).toEqual([summaryId]);
     expect(deleted).toEqual([replacedId]);
+  });
+
+  it("rejects partial native replacement capability before writing a summary", async () => {
+    const replacedId = "00000000-0000-4000-8000-000000000012";
+    const summaryId = "00000000-0000-4000-8000-000000000013";
+
+    for (const partialRuntime of [
+      { getMemories: async () => [], deleteMemory: async () => undefined },
+      {
+        createMemory: vi.fn(async () => summaryId),
+        deleteMemory: async () => undefined,
+      },
+      {
+        createMemory: vi.fn(async () => summaryId),
+        getMemories: async () => [],
+      },
+    ]) {
+      const createMemory =
+        "createMemory" in partialRuntime
+          ? partialRuntime.createMemory
+          : vi.fn();
+      const context = {
+        services: {
+          sessions: { continuityKey: (sessionId: string) => sessionId },
+        },
+        runtime: {
+          agentId: "agent-1",
+          ...partialRuntime,
+        },
+        config: {},
+      } as unknown as AgentExecutionContext;
+
+      await expect(
+        replaceNativeConversationContext({
+          context,
+          turn: {
+            sessionId: "s-capability",
+            roomId: "room-capability",
+            entityId: "user-1",
+            connectionSource: "desktop",
+          } as Parameters<typeof replaceNativeConversationContext>[0]["turn"],
+          replaced: [{ id: replacedId, roomId: "room-capability" }] as never,
+          summary: {
+            id: summaryId,
+            sessionId: "s-capability",
+            roomId: "room-capability",
+            entityId: "system",
+            role: "system",
+            text: "summary",
+            createdAt: "2026-07-30T00:00:00.000Z",
+          },
+        }),
+      ).rejects.toThrow(
+        "requires create, read, and delete memory capabilities",
+      );
+      expect(createMemory).not.toHaveBeenCalled();
+    }
+  });
+
+  it("restores only successfully deleted native memories when a multi-delete fails", async () => {
+    const firstId = "00000000-0000-4000-8000-000000000021";
+    const secondId = "00000000-0000-4000-8000-000000000022";
+    const otherId = "00000000-0000-4000-8000-000000000023";
+    const native = new Map<
+      string,
+      {
+        id: string;
+        roomId: string;
+        entityId: string;
+        content: { text: string; source?: string };
+        metadata: unknown;
+        createdAt: number;
+      }
+    >([
+      [
+        firstId,
+        {
+          id: firstId,
+          roomId: "room-1",
+          entityId: "user-1",
+          content: { text: "first", source: "desktop" },
+          metadata: { doolittle: { role: "user", marker: "preserve" } },
+          createdAt: 101,
+        },
+      ],
+      [
+        secondId,
+        {
+          id: secondId,
+          roomId: "room-1",
+          entityId: "agent-1",
+          content: { text: "second", source: "desktop" },
+          metadata: { doolittle: { role: "assistant" } },
+          createdAt: 102,
+        },
+      ],
+      [
+        otherId,
+        {
+          id: otherId,
+          roomId: "room-1",
+          entityId: "user-2",
+          content: { text: "unrelated newer memory" },
+          metadata: { source: "other-writer" },
+          createdAt: 103,
+        },
+      ],
+    ]);
+    const deleted: string[] = [];
+    const created: Array<{ id: string; metadata?: unknown }> = [];
+    const embedded: Array<{ id: string; priority: "high" | "normal" }> = [];
+    const context = {
+      services: {},
+      runtime: {
+        agentId: "agent-1",
+        getMemories: async () => [...native.values()],
+        createMemory: async (memory: { id: string; metadata?: unknown }) => {
+          created.push(memory);
+          native.set(memory.id, memory as never);
+          return memory.id;
+        },
+        queueEmbeddingGeneration: async (
+          memory: { id: string },
+          priority: "high" | "normal",
+        ) => {
+          embedded.push({ id: memory.id, priority });
+        },
+        deleteMemory: async (id: string) => {
+          deleted.push(id);
+          native.delete(id);
+          if (id === secondId) throw new Error("second delete failed");
+        },
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+
+    await expect(
+      deleteNativeConversationMemories(context, [
+        { id: firstId, roomId: "room-1" },
+        { id: secondId, roomId: "room-1" },
+      ]),
+    ).rejects.toThrow("deleted memories were restored");
+
+    expect(deleted).toEqual([firstId, secondId]);
+    expect([...native.keys()].sort()).toEqual(
+      [firstId, secondId, otherId].sort(),
+    );
+    expect(native.get(firstId)).toMatchObject({
+      content: { text: "first", source: "desktop" },
+      metadata: { doolittle: { role: "user", marker: "preserve" } },
+      createdAt: 101,
+    });
+    expect(created).toEqual([
+      expect.objectContaining({
+        id: firstId,
+        metadata: { doolittle: { role: "user", marker: "preserve" } },
+      }),
+      expect.objectContaining({ id: secondId }),
+    ]);
+    expect(embedded).toEqual([
+      { id: firstId, priority: "high" },
+      { id: secondId, priority: "normal" },
+    ]);
+  });
+
+  it("removes a persisted summary after partial native context replacement fails", async () => {
+    const firstId = "00000000-0000-4000-8000-000000000031";
+    const secondId = "00000000-0000-4000-8000-000000000032";
+    const summaryId = "00000000-0000-4000-8000-000000000033";
+    const native = new Map<
+      string,
+      {
+        id: string;
+        roomId: string;
+        content: { text: string };
+      }
+    >([
+      [firstId, { id: firstId, roomId: "room-2", content: { text: "one" } }],
+      [secondId, { id: secondId, roomId: "room-2", content: { text: "two" } }],
+    ]);
+    const context = {
+      services: {
+        sessions: { continuityKey: (sessionId: string) => sessionId },
+      },
+      runtime: {
+        agentId: "agent-1",
+        getMemories: async () => [...native.values()],
+        createMemory: async (memory: { id: string }) => {
+          native.set(memory.id, memory as never);
+          return memory.id;
+        },
+        deleteMemory: async (id: string) => {
+          if (id === secondId) throw new Error("middle delete failed");
+          native.delete(id);
+        },
+        queueEmbeddingGeneration: async () => undefined,
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+
+    await expect(
+      replaceNativeConversationContext({
+        context,
+        turn: {
+          sessionId: "s2",
+          roomId: "room-2",
+          entityId: "user-1",
+          connectionSource: "desktop",
+        } as Parameters<typeof replaceNativeConversationContext>[0]["turn"],
+        replaced: [
+          { id: firstId, roomId: "room-2" },
+          { id: secondId, roomId: "room-2" },
+        ] as never,
+        summary: {
+          id: summaryId,
+          sessionId: "s2",
+          roomId: "room-2",
+          entityId: "system",
+          role: "system",
+          text: "summary",
+          createdAt: "2026-07-30T00:00:00.000Z",
+        },
+      }),
+    ).rejects.toThrow("deleted memories were restored");
+
+    expect([...native.keys()].sort()).toEqual([firstId, secondId].sort());
+    expect(native.get(firstId)?.content.text).toBe("one");
+    expect(native.has(summaryId)).toBe(false);
+  });
+
+  it("removes a summary written before createMemory rejects", async () => {
+    const originalId = "00000000-0000-4000-8000-000000000034";
+    const summaryId = "00000000-0000-4000-8000-000000000035";
+    const native = new Map<
+      string,
+      {
+        id: string;
+        roomId: string;
+        entityId: string;
+        content: { text: string };
+      }
+    >([
+      [
+        originalId,
+        {
+          id: originalId,
+          roomId: "room-3",
+          entityId: "user-1",
+          content: { text: "original" },
+        },
+      ],
+    ]);
+    const deleted: string[] = [];
+    const context = {
+      services: {
+        sessions: { continuityKey: (sessionId: string) => sessionId },
+      },
+      runtime: {
+        agentId: "agent-1",
+        getMemories: async () => [...native.values()],
+        createMemory: async (memory: {
+          id: string;
+          roomId: string;
+          entityId: string;
+          content: { text: string };
+        }) => {
+          // PostgreSQL JSONB can return equivalent metadata with a different
+          // insertion order than the object that was written.
+          native.set(memory.id, {
+            ...memory,
+            metadata: {
+              doolittle: {
+                projectionOriginMessageId: summaryId,
+                source: "desktop",
+                role: "system",
+              },
+              sessionKey: "s3",
+              sessionId: "s3",
+            },
+          } as never);
+          throw new Error("create rejected after write");
+        },
+        deleteMemory: async (id: string) => {
+          deleted.push(id);
+          native.delete(id);
+        },
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+
+    await expect(
+      replaceNativeConversationContext({
+        context,
+        turn: {
+          sessionId: "s3",
+          roomId: "room-3",
+          entityId: "user-1",
+          connectionSource: "desktop",
+        } as Parameters<typeof replaceNativeConversationContext>[0]["turn"],
+        replaced: [{ id: originalId, roomId: "room-3" }] as never,
+        summary: {
+          id: summaryId,
+          sessionId: "s3",
+          roomId: "room-3",
+          entityId: "system",
+          role: "system",
+          text: "summary",
+          createdAt: "2026-07-30T00:00:00.000Z",
+        },
+      }),
+    ).rejects.toThrow("create rejected after write");
+
+    expect(deleted).toEqual([summaryId]);
+    expect([...native.keys()]).toEqual([originalId]);
+  });
+
+  it("refuses to delete a different concurrent memory with the summary id", async () => {
+    const originalId = "00000000-0000-4000-8000-000000000038";
+    const summaryId = "00000000-0000-4000-8000-000000000039";
+    const native = new Map<string, Record<string, unknown>>([
+      [
+        originalId,
+        {
+          id: originalId,
+          agentId: "agent-1",
+          roomId: "room-5",
+          entityId: "user-1",
+          content: { text: "original" },
+          metadata: {},
+        },
+      ],
+    ]);
+    const context = {
+      services: {
+        sessions: { continuityKey: (sessionId: string) => sessionId },
+      },
+      runtime: {
+        agentId: "agent-1",
+        getMemories: async () => [...native.values()],
+        createMemory: async (memory: Record<string, unknown>) => {
+          native.set(String(memory.id), {
+            ...memory,
+            metadata: { replacedBy: "another writer" },
+          });
+          throw new Error("create rejected after concurrent write");
+        },
+        deleteMemory: async (id: string) => native.delete(id),
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+
+    await expect(
+      replaceNativeConversationContext({
+        context,
+        turn: {
+          sessionId: "s5",
+          roomId: "room-5",
+          entityId: "user-1",
+          connectionSource: "desktop",
+        } as Parameters<typeof replaceNativeConversationContext>[0]["turn"],
+        replaced: [{ id: originalId, roomId: "room-5" }] as never,
+        summary: {
+          id: summaryId,
+          sessionId: "s5",
+          roomId: "room-5",
+          entityId: "system",
+          role: "system",
+          text: "summary",
+          createdAt: "2026-07-30T00:00:00.000Z",
+        },
+      }),
+    ).rejects.toThrow("summary could not be removed");
+
+    expect(native.get(summaryId)?.metadata).toEqual({
+      replacedBy: "another writer",
+    });
+    expect(native.has(originalId)).toBe(true);
+  });
+
+  it("removes a summary when embedding enqueue rejects after persistence", async () => {
+    const originalId = "00000000-0000-4000-8000-000000000036";
+    const summaryId = "00000000-0000-4000-8000-000000000037";
+    const native = new Map<
+      string,
+      {
+        id: string;
+        roomId: string;
+        entityId: string;
+        content: { text: string };
+      }
+    >([
+      [
+        originalId,
+        {
+          id: originalId,
+          roomId: "room-4",
+          entityId: "user-1",
+          content: { text: "original" },
+        },
+      ],
+    ]);
+    const deleted: string[] = [];
+    const context = {
+      services: {
+        sessions: { continuityKey: (sessionId: string) => sessionId },
+      },
+      runtime: {
+        agentId: "agent-1",
+        getMemories: async () => [...native.values()],
+        createMemory: async (memory: {
+          id: string;
+          roomId: string;
+          entityId: string;
+          content: { text: string };
+        }) => {
+          native.set(memory.id, memory);
+          return memory.id;
+        },
+        queueEmbeddingGeneration: async () => {
+          throw new Error("embedding enqueue rejected");
+        },
+        deleteMemory: async (id: string) => {
+          deleted.push(id);
+          native.delete(id);
+        },
+      },
+      config: {},
+    } as unknown as AgentExecutionContext;
+
+    await expect(
+      replaceNativeConversationContext({
+        context,
+        turn: {
+          sessionId: "s4",
+          roomId: "room-4",
+          entityId: "user-1",
+          connectionSource: "desktop",
+        } as Parameters<typeof replaceNativeConversationContext>[0]["turn"],
+        replaced: [{ id: originalId, roomId: "room-4" }] as never,
+        summary: {
+          id: summaryId,
+          sessionId: "s4",
+          roomId: "room-4",
+          entityId: "system",
+          role: "system",
+          text: "summary",
+          createdAt: "2026-07-30T00:00:00.000Z",
+        },
+      }),
+    ).rejects.toThrow("embedding enqueue rejected");
+
+    expect(deleted).toEqual([summaryId]);
+    expect([...native.keys()]).toEqual([originalId]);
   });
 
   it("does not claim native deletion for legacy projection-only ids", async () => {

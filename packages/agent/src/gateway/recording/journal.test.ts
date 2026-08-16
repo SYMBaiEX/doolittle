@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   appendGatewayJournalRecord,
+  appendGatewayJournalRecordDurably,
   ensureGatewayJournalFile,
   loadGatewayJournal,
   persistGatewaySnapshotFiles,
@@ -40,6 +41,50 @@ describe("gateway journal helpers", () => {
         message: "hello",
       },
     ]);
+  });
+
+  it("retries short durable writes until the complete journal line is written", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-gateway-journal-"));
+    const journalPath = join(root, "journal.jsonl");
+    const chunks: string[] = [];
+    appendGatewayJournalRecordDurably(
+      journalPath,
+      { at: "2026-03-29T12:00:00.000Z", message: "hello" },
+      {
+        open: () => 1,
+        write: (_descriptor, buffer, offset, length) => {
+          const size = Math.min(3, length);
+          chunks.push(
+            Buffer.from(buffer)
+              .subarray(offset, offset + size)
+              .toString(),
+          );
+          return size;
+        },
+        fsync: () => undefined,
+        close: () => undefined,
+      },
+    );
+    expect(chunks.join("")).toBe(
+      '{"at":"2026-03-29T12:00:00.000Z","message":"hello"}\n',
+    );
+  });
+
+  it("fails durable appends that make no write progress", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-gateway-journal-"));
+    const journalPath = join(root, "journal.jsonl");
+    expect(() =>
+      appendGatewayJournalRecordDurably(
+        journalPath,
+        { at: "2026-03-29T12:00:00.000Z" },
+        {
+          open: () => 1,
+          write: () => 0,
+          fsync: () => undefined,
+          close: () => undefined,
+        },
+      ),
+    ).toThrow("no write progress");
   });
 
   it("ignores malformed journal lines during load", () => {

@@ -15,6 +15,7 @@ import { formatLoggerError } from "@/logging/logger";
 import type { AppContext } from "@/runtime/bootstrap";
 import {
   applyDoolittleCors,
+  isProviderAuthenticatedWebhookRequest,
   remoteTerminalMutationTokenError,
 } from "@/server/auth";
 import { dispatchRuntimePluginRoute } from "@/server/plugin-routes";
@@ -26,7 +27,7 @@ import {
   requestBodyFraming,
 } from "@/server/request-body";
 import { createRequestAbortController } from "@/server/request-lifecycle";
-import { json } from "@/server/responses";
+import { json, runResponsePostCommit } from "@/server/responses";
 import { dispatchRouteHandlers } from "@/server/router";
 import { apiRouteHandlers } from "@/server/routes";
 
@@ -123,7 +124,7 @@ export async function writeWebResponse(
     const onOutputError = (error: Error) => settle(() => reject(error));
     const onFinish = () => settle(resolve);
     const onClose = () => {
-      if (outgoing.writableEnded) {
+      if (outgoing.writableFinished) {
         settle(resolve);
         return;
       }
@@ -140,6 +141,18 @@ export async function writeWebResponse(
     outgoing.once("close", onClose);
     body.pipe(outgoing);
   });
+}
+
+/** Runs durable post-response work after either a successful or failed write attempt. */
+export async function writeResponseAndRunPostCommit(
+  response: Response,
+  write: () => Promise<void>,
+): Promise<void> {
+  try {
+    await write();
+  } finally {
+    runResponsePostCommit(response);
+  }
 }
 
 export async function stopApiServer(): Promise<void> {
@@ -202,8 +215,10 @@ export async function startApiServer(
         }
 
         let response: Response;
-        const authorized = isAuthorized(incoming);
         const method = incoming.method ?? "GET";
+        const authorized = isAuthorized(incoming);
+        const providerAuthenticatedWebhook =
+          isProviderAuthenticatedWebhookRequest(requestPath, method);
         const bodyFraming = requestBodyFraming(incoming);
         if (
           bodyFraming.hasBody &&
@@ -219,7 +234,7 @@ export async function startApiServer(
         }
         if (method === "OPTIONS") {
           response = json({ ok: true });
-        } else if (!authorized) {
+        } else if (!authorized && !providerAuthenticatedWebhook) {
           await writeEarlyResponse(
             json({ error: "Unauthorized" }, 401),
             incoming,
@@ -259,22 +274,34 @@ export async function startApiServer(
             body,
           );
           const url = new URL(request.url);
-          response =
-            (await dispatchRuntimePluginRoute({
-              runtime: context.runtime,
-              request,
-              url,
-              isAuthorized: () => authorized,
-            })) ??
-            (await dispatchRouteHandlers(
-              context,
-              request,
-              url,
-              apiRouteHandlers,
-            )) ??
-            json({ error: "Not found" }, 404);
+          // Provider callbacks authenticate using their own signed payload or
+          // verification token. Route them straight to Doolittle's webhook
+          // handlers so a runtime plugin cannot intercept a public endpoint
+          // or observe a synthetic API authorization result.
+          response = providerAuthenticatedWebhook
+            ? ((await dispatchRouteHandlers(
+                context,
+                request,
+                url,
+                apiRouteHandlers,
+              )) ?? json({ error: "Not found" }, 404))
+            : ((await dispatchRuntimePluginRoute({
+                runtime: context.runtime,
+                request,
+                url,
+                isAuthorized: () => authorized,
+              })) ??
+              (await dispatchRouteHandlers(
+                context,
+                request,
+                url,
+                apiRouteHandlers,
+              )) ??
+              json({ error: "Not found" }, 404));
         }
-        await writeWebResponse(response, outgoing);
+        await writeResponseAndRunPostCommit(response, () =>
+          writeWebResponse(response, outgoing),
+        );
       } catch (error) {
         if (isRequestCancellation(error, requestLifecycle.controller.signal)) {
           if (!outgoing.destroyed) outgoing.destroy();

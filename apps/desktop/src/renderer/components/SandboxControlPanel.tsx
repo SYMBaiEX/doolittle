@@ -1,6 +1,6 @@
 import { Button } from "@elizaos/ui/components/ui/button";
 import { Textarea } from "@elizaos/ui/components/ui/textarea";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { desktopRequest } from "../eliza-client";
 import {
   asArray,
@@ -20,6 +20,7 @@ import {
   EXECUTION_NOTICE_CLASS,
   EXECUTION_RESULT_PRE_CLASS,
 } from "./execution-environment-layout";
+import { InlineActionConfirmation } from "./InlineActionConfirmation";
 
 export type LocalSandbox = {
   id: string;
@@ -123,6 +124,8 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
   const [error, setError] = useState("");
   const [result, setResult] = useState<LocalSandboxResult | null>(null);
   const [retry, setRetry] = useState<(() => void) | null>(null);
+  const [killConfirmationId, setKillConfirmationId] = useState("");
+  const mutationInFlight = useRef(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -152,6 +155,7 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
 
   useEffect(() => {
     if (!active) {
+      setKillConfirmationId("");
       setLoading(false);
       return;
     }
@@ -159,7 +163,8 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
   }, [active, refresh]);
 
   const runMutation = async (operation: () => Promise<void>) => {
-    if (mutating) return;
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
     setMutating(true);
     setError("");
     setRetry(null);
@@ -174,6 +179,7 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
       );
       if (isConflict(cause)) setRetry(() => () => void refresh());
     } finally {
+      mutationInFlight.current = false;
       setMutating(false);
     }
   };
@@ -202,10 +208,10 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
       await refresh();
     });
 
-  const kill = () =>
+  const kill = (sandboxId: string) =>
     runMutation(async () => {
-      if (!selectedId) return;
-      await desktopRequest("/e2b/kill", "POST", { id: selectedId });
+      if (!sandboxId) return;
+      await desktopRequest("/e2b/kill", "POST", { id: sandboxId });
       setResult(null);
       await refresh();
     });
@@ -368,8 +374,10 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
                   {mutating ? "Working…" : "Run in selected sandbox"}
                 </Button>
                 <Button
-                  disabled={!active || !selectedId || mutating}
-                  onClick={() => void kill()}
+                  disabled={
+                    !active || !selectedId || mutating || !!killConfirmationId
+                  }
+                  onClick={() => setKillConfirmationId(selectedId)}
                   size="sm"
                   type="button"
                   variant="outline"
@@ -377,6 +385,24 @@ export function SandboxControlPanel({ active }: { active: boolean }) {
                   Kill selected
                 </Button>
               </div>
+              {active && killConfirmationId ? (
+                <InlineActionConfirmation
+                  busy={mutating}
+                  busyLabel="Killing…"
+                  confirmLabel="Confirm kill"
+                  detail={`This stops and removes the local environment for sandbox ${killConfirmationId}.`}
+                  onCancel={() => setKillConfirmationId("")}
+                  onConfirm={() => {
+                    const sandboxId = killConfirmationId;
+                    void kill(sandboxId).finally(() => {
+                      setKillConfirmationId((current) =>
+                        current === sandboxId ? "" : current,
+                      );
+                    });
+                  }}
+                  title={`Kill sandbox ${killConfirmationId}?`}
+                />
+              ) : null}
             </>
           )}
         </>

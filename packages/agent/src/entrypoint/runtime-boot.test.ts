@@ -70,6 +70,8 @@ describe("prepareEntrypointRuntimeBoot", () => {
     const ensureOnboardedCalls: string[] = [];
     const loadLocalRuntimeEnvCalls: string[] = [];
     const ensureDeferredHydrationCalls: string[] = [];
+    const startIngressCalls: string[] = [];
+    const startupOrder: string[] = [];
     const startApiServerCalls: string[] = [];
     const childLogger = {
       info() {},
@@ -94,7 +96,12 @@ describe("prepareEntrypointRuntimeBoot", () => {
         ensureDeferredHydrationCalls.push(reason ?? "unset");
       },
       runtime: {} as never,
-      gateway: {} as never,
+      gateway: {
+        startIngress: () => {
+          startIngressCalls.push("started");
+          startupOrder.push("ingress");
+        },
+      } as never,
     } as unknown as AppContext;
 
     const boot = await prepareEntrypointRuntimeBoot(
@@ -132,6 +139,7 @@ describe("prepareEntrypointRuntimeBoot", () => {
         importServer: async () => ({
           startApiServer: async () => {
             startApiServerCalls.push("started");
+            startupOrder.push("listener");
             return { host: "127.0.0.1", port: 0, url: "http://127.0.0.1:0" };
           },
         }),
@@ -150,7 +158,9 @@ describe("prepareEntrypointRuntimeBoot", () => {
     await boot.startServer();
 
     expect(ensureDeferredHydrationCalls).toEqual(["api"]);
+    expect(startIngressCalls).toEqual(["started"]);
     expect(startApiServerCalls).toEqual(["started"]);
+    expect(startupOrder).toEqual(["ingress", "listener"]);
   });
 
   it("lets the desktop-owned API boot before terminal onboarding", async () => {

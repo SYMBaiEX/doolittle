@@ -762,6 +762,7 @@ test.describe("Doolittle packaged-profile control sweep", () => {
                 paths.map(async (path) => {
                   try {
                     const response = await window.doolittle.requestAgent({
+                      requestId: crypto.randomUUID(),
                       path,
                       method: "GET",
                       headers: { accept: "application/json" },

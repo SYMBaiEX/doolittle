@@ -1,5 +1,9 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import type { RuntimeStatus } from "../../shared/contracts";
+import type {
+  RuntimeModelsResponse,
+  RuntimeReasoningEffort,
+  RuntimeStatus,
+} from "../../shared/contracts";
 import {
   ROUTE_DIALOG_ACTIONS_CLASS,
   ROUTE_DIALOG_BACKDROP_CLASS,
@@ -45,6 +49,7 @@ interface SettingsResponse {
       baseUrl?: string;
       temperature?: number;
       maxTokens?: number;
+      reasoningEffort?: RuntimeReasoningEffort;
     };
   };
 }
@@ -60,6 +65,7 @@ interface RouteDraft {
   baseUrl: string;
   temperature: string;
   maxTokens: string;
+  reasoningEffort: string;
 }
 
 function draftFromSettings(
@@ -75,6 +81,7 @@ function draftFromSettings(
       typeof model?.temperature === "number" ? String(model.temperature) : "",
     maxTokens:
       typeof model?.maxTokens === "number" ? String(model.maxTokens) : "",
+    reasoningEffort: model?.reasoningEffort ?? "",
   };
 }
 
@@ -119,6 +126,10 @@ export function RouteControlDialog({
     isOpen ? "/runtime/accounts" : null,
     [isOpen],
   );
+  const models = useApiResource<RuntimeModelsResponse>(
+    isOpen ? "/runtime/models?refresh=false" : null,
+    [isOpen],
+  );
   const [draft, setDraft] = useState<RouteDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<ActionFeedback | null>(null);
@@ -152,6 +163,22 @@ export function RouteControlDialog({
 
   const activeProvider = draft?.provider ?? runtime?.provider ?? "ollama";
   const readiness = providerReadiness(activeProvider, linkedAccounts);
+  const selectedModel = useMemo(
+    () =>
+      models.data?.providers
+        .find((provider) => provider.id === draft?.provider)
+        ?.models.find((model) => model.id === draft?.model.trim()),
+    [draft?.model, draft?.provider, models.data?.providers],
+  );
+  const reasoningOptions = selectedModel?.reasoning?.options ?? [];
+  const resolvedReasoningEffort = reasoningOptions.some(
+    (option) => option.id === draft?.reasoningEffort,
+  )
+    ? (draft?.reasoningEffort as RuntimeReasoningEffort)
+    : (selectedModel?.reasoning?.default ?? reasoningOptions[0]?.id);
+  const selectedReasoningOption = reasoningOptions.find(
+    (option) => option.id === resolvedReasoningEffort,
+  );
 
   const chooseProvider = (provider: RouteProviderId) => {
     setDraft((current) => {
@@ -191,10 +218,14 @@ export function RouteControlDialog({
         current?.maxTokens,
       );
 
-      const changes: Array<{ path: string; value: string | number }> = [
+      const changes: Array<{ path: string; value: string | number | null }> = [
         { path: "model.provider", value: draft.provider },
         { path: "model.model", value: draft.model.trim() },
         { path: "model.baseUrl", value: draft.baseUrl.trim() },
+        {
+          path: "model.reasoningEffort",
+          value: reasoningOptions.length ? resolvedReasoningEffort : null,
+        },
       ];
       if (resolvedTemperature !== undefined) {
         changes.push({
@@ -258,12 +289,16 @@ export function RouteControlDialog({
           </button>
         </div>
 
-        {settings.loading || accounts.loading || !draft ? (
+        {settings.loading || accounts.loading || models.loading ? (
           <LoadingBlock label="Loading route controls…" />
         ) : settings.error ? (
           <ErrorBlock error={settings.error} retry={settings.reload} />
         ) : accounts.error ? (
           <ErrorBlock error={accounts.error} retry={accounts.reload} />
+        ) : models.error ? (
+          <ErrorBlock error={models.error} retry={models.reload} />
+        ) : !draft ? (
+          <LoadingBlock label="Loading route controls…" />
         ) : (
           <form className={ROUTE_DIALOG_FORM_CLASS} onSubmit={save}>
             <div className={ROUTE_DIALOG_STATUS_CLASS}>
@@ -321,6 +356,31 @@ export function RouteControlDialog({
                   value={draft.model}
                 />
               </label>
+              {reasoningOptions.length ? (
+                <label>
+                  <span>Reasoning effort</span>
+                  <select
+                    aria-label="Reasoning effort"
+                    onChange={(event) =>
+                      setDraft((current) =>
+                        current
+                          ? { ...current, reasoningEffort: event.target.value }
+                          : current,
+                      )
+                    }
+                    value={resolvedReasoningEffort ?? ""}
+                  >
+                    {reasoningOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedReasoningOption?.description ? (
+                    <small>{selectedReasoningOption.description}</small>
+                  ) : null}
+                </label>
+              ) : null}
               <label className={ROUTE_FIELD_SPAN_CLASS}>
                 <span>Base URL</span>
                 <input

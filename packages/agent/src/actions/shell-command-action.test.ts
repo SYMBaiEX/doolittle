@@ -6,32 +6,47 @@ import {
   type UUID,
 } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
+import { runWithTurnRuntimeScope } from "@/runtime/turn-runtime-scope";
 import type { AppServices } from "@/services";
 import type { EnvConfig } from "@/types/runtime";
 
 const {
   executeTerminalCommand,
   formatTerminalCommandResponse,
-  requestTerminalCommandApproval,
+  requestTerminalCommandApprovalDetails,
 } = vi.hoisted(() => ({
-  executeTerminalCommand: vi.fn(async () => ({
-    command: "pwd",
-    exitCode: 0,
-    stdout: "/workspace/project",
-    stderr: "",
-    cwd: "/workspace/project",
-    durationMs: 12,
-  })),
+  executeTerminalCommand: vi.fn(
+    async (
+      _runtime: unknown,
+      _services: unknown,
+      _command: string,
+      _abortSignal?: AbortSignal,
+    ) => ({
+      command: "pwd",
+      exitCode: 0,
+      stdout: "/workspace/project",
+      stderr: "",
+      cwd: "/workspace/project",
+      durationMs: 12,
+    }),
+  ),
   formatTerminalCommandResponse: vi.fn(
     (result: { stdout: string }) => `Command output: ${result.stdout}`,
   ),
-  requestTerminalCommandApproval: vi.fn(async () => undefined),
+  requestTerminalCommandApprovalDetails: vi.fn(
+    async (
+      _input: unknown,
+      _context: unknown,
+      _command: string,
+    ): Promise<{ id: string; prompt: string; created: boolean } | undefined> =>
+      undefined,
+  ),
 }));
 
 vi.mock("@/runtime/commands/shell-command-facade", () => ({
   executeTerminalCommand,
   formatTerminalCommandResponse,
-  requestTerminalCommandApproval,
+  requestTerminalCommandApprovalDetails,
 }));
 
 import {
@@ -56,6 +71,9 @@ function message(text: string, source = "cli"): Memory {
 
 function services() {
   return {
+    executionApprovals: {
+      deny: vi.fn(async (id: string) => ({ id, status: "denied" })),
+    },
     runController: {
       setPendingApprovals: vi.fn(),
     },
@@ -103,7 +121,7 @@ describe("SDK shell shortcut action", () => {
         command: "pwd",
       }),
     });
-    expect(requestTerminalCommandApproval).toHaveBeenCalledWith(
+    expect(requestTerminalCommandApprovalDetails).toHaveBeenCalledWith(
       expect.objectContaining({
         message: "! pwd",
         roomId: "session-1",
@@ -116,6 +134,7 @@ describe("SDK shell shortcut action", () => {
       runtime,
       appServices,
       "pwd",
+      undefined,
     );
     expect(callback).toHaveBeenCalledWith({
       text: "Command output: /workspace/project",
@@ -125,9 +144,11 @@ describe("SDK shell shortcut action", () => {
 
   it("returns an approval prompt without invoking the shell service", async () => {
     vi.clearAllMocks();
-    requestTerminalCommandApproval.mockResolvedValueOnce(
-      "Remote execution approval required." as never,
-    );
+    requestTerminalCommandApprovalDetails.mockResolvedValueOnce({
+      id: "approval-1",
+      prompt: "Remote execution approval required.",
+      created: true,
+    } as never);
     const appServices = services();
     const action = createShellCommandAction(appServices, config);
     const shortcutRegistry = new ShortcutRegistry();
@@ -156,6 +177,148 @@ describe("SDK shell shortcut action", () => {
       "session-1",
       1,
     );
+  });
+
+  it("denies a newly created approval when the turn cancels before delivery", async () => {
+    vi.clearAllMocks();
+    const appServices = services();
+    const action = createShellCommandAction(appServices, config);
+    const shortcutRegistry = new ShortcutRegistry();
+    shortcutRegistry.register(createShellCommandShortcut());
+    const runtime = {
+      actions: [action],
+      shortcutRegistry,
+      getSetting: vi.fn(),
+    } as unknown as IAgentRuntime;
+    const callback = vi.fn(async () => []);
+    const controller = new AbortController();
+    const reason = new DOMException("Turn cancelled", "AbortError");
+    requestTerminalCommandApprovalDetails.mockImplementationOnce(async () => {
+      controller.abort(reason);
+      return {
+        id: "approval-created-by-cancelled-turn",
+        prompt: "Remote execution approval required.",
+        created: true,
+      };
+    });
+
+    const turn = runWithTurnRuntimeScope(
+      runtime,
+      { settings: new Map(), abortSignal: controller.signal },
+      () =>
+        action.handler(
+          runtime,
+          message("! git push origin main", "telegram"),
+          undefined,
+          undefined,
+          callback,
+        ),
+    );
+
+    await expect(turn).rejects.toBe(reason);
+    expect(appServices.executionApprovals.deny).toHaveBeenCalledWith(
+      "approval-created-by-cancelled-turn",
+    );
+    expect(callback).not.toHaveBeenCalled();
+    expect(executeTerminalCommand).not.toHaveBeenCalled();
+  });
+
+  it("preserves a reused approval when the turn cancels before delivery", async () => {
+    vi.clearAllMocks();
+    const appServices = services();
+    const action = createShellCommandAction(appServices, config);
+    const shortcutRegistry = new ShortcutRegistry();
+    shortcutRegistry.register(createShellCommandShortcut());
+    const runtime = {
+      actions: [action],
+      shortcutRegistry,
+      getSetting: vi.fn(),
+    } as unknown as IAgentRuntime;
+    const callback = vi.fn(async () => []);
+    const controller = new AbortController();
+    const reason = new DOMException("Turn cancelled", "AbortError");
+    requestTerminalCommandApprovalDetails.mockImplementationOnce(async () => {
+      controller.abort(reason);
+      return {
+        id: "approval-created-by-another-turn",
+        prompt: "Remote execution approval required.",
+        created: false,
+      };
+    });
+
+    const turn = runWithTurnRuntimeScope(
+      runtime,
+      { settings: new Map(), abortSignal: controller.signal },
+      () =>
+        action.handler(
+          runtime,
+          message("! git push origin main", "telegram"),
+          undefined,
+          undefined,
+          callback,
+        ),
+    );
+
+    await expect(turn).rejects.toBe(reason);
+    expect(appServices.executionApprovals.deny).not.toHaveBeenCalled();
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("denies a newly created approval when cancellation races its delivery", async () => {
+    vi.clearAllMocks();
+    const appServices = services();
+    const action = createShellCommandAction(appServices, config);
+    const shortcutRegistry = new ShortcutRegistry();
+    shortcutRegistry.register(createShellCommandShortcut());
+    const runtime = {
+      actions: [action],
+      shortcutRegistry,
+      getSetting: vi.fn(),
+    } as unknown as IAgentRuntime;
+    const controller = new AbortController();
+    const reason = new DOMException("Turn cancelled", "AbortError");
+    let deliveryStarted: (() => void) | undefined;
+    let completeDelivery: ((memories: Memory[]) => void) | undefined;
+    const deliveryStartedPromise = new Promise<void>((resolve) => {
+      deliveryStarted = resolve;
+    });
+    const callback = vi.fn(
+      () =>
+        new Promise<Memory[]>((resolve) => {
+          completeDelivery = resolve;
+          deliveryStarted?.();
+        }),
+    );
+    requestTerminalCommandApprovalDetails.mockResolvedValueOnce({
+      id: "approval-delivery-race",
+      prompt: "Remote execution approval required.",
+      created: true,
+    } as never);
+
+    const turn = runWithTurnRuntimeScope(
+      runtime,
+      { settings: new Map(), abortSignal: controller.signal },
+      () =>
+        action.handler(
+          runtime,
+          message("! git push origin main", "telegram"),
+          undefined,
+          undefined,
+          callback,
+        ),
+    );
+    await deliveryStartedPromise;
+    controller.abort(reason);
+
+    await expect(turn).rejects.toBe(reason);
+    expect(appServices.executionApprovals.deny).toHaveBeenCalledWith(
+      "approval-delivery-race",
+    );
+    expect(
+      appServices.runController.setPendingApprovals,
+    ).not.toHaveBeenCalled();
+    expect(executeTerminalCommand).not.toHaveBeenCalled();
+    completeDelivery?.([]);
   });
 
   it("routes ! commands through Eliza's pre-LLM shortcut gate", async () => {
@@ -190,5 +353,71 @@ describe("SDK shell shortcut action", () => {
     expect(result.result.responseContent?.text).toBe(
       "Command output: /workspace/project",
     );
+  });
+
+  it("propagates turn cancellation and suppresses a late shell reply", async () => {
+    vi.clearAllMocks();
+    const appServices = services();
+    const action = createShellCommandAction(appServices, config);
+    const shortcutRegistry = new ShortcutRegistry();
+    shortcutRegistry.register(createShellCommandShortcut());
+    const runtime = {
+      actions: [action],
+      shortcutRegistry,
+      getSetting: vi.fn(),
+    } as unknown as IAgentRuntime;
+    const callback = vi.fn(async () => []);
+    const controller = new AbortController();
+    let markStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    executeTerminalCommand.mockImplementationOnce(
+      async (_runtime, _services, command, abortSignal) => {
+        await new Promise<void>((resolve) => {
+          if (abortSignal?.aborted) {
+            resolve();
+            return;
+          }
+          abortSignal?.addEventListener("abort", () => resolve(), {
+            once: true,
+          });
+          markStarted?.();
+        });
+        return {
+          command,
+          exitCode: 130,
+          stdout: "",
+          stderr: "Command cancelled.",
+          cwd: "/workspace/project",
+          durationMs: 4,
+        };
+      },
+    );
+
+    const turn = runWithTurnRuntimeScope(
+      runtime,
+      { settings: new Map(), abortSignal: controller.signal },
+      () =>
+        action.handler(
+          runtime,
+          message("! long-command"),
+          undefined,
+          undefined,
+          callback,
+        ),
+    );
+    await started;
+    const reason = new DOMException("Turn cancelled", "AbortError");
+    controller.abort(reason);
+
+    await expect(turn).rejects.toBe(reason);
+    expect(executeTerminalCommand).toHaveBeenCalledWith(
+      runtime,
+      appServices,
+      "long-command",
+      controller.signal,
+    );
+    expect(callback).not.toHaveBeenCalled();
   });
 });

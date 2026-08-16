@@ -44,6 +44,48 @@ describe("desktop updates", () => {
     });
   });
 
+  it("accepts only one install request after an update is downloaded", () => {
+    const mock = provider();
+    const updates = new DesktopUpdateController(mock.value, "Unavailable");
+    mock.emit("update-downloaded", { version: "1.2.0" });
+
+    updates.install();
+    updates.install();
+
+    expect(mock.value.quitAndInstall).toHaveBeenCalledOnce();
+  });
+
+  it("allows a later downloaded update after an asynchronous installer error", () => {
+    const mock = provider();
+    const updates = new DesktopUpdateController(mock.value, "Unavailable");
+    mock.emit("update-downloaded", { version: "1.2.0" });
+
+    updates.install();
+    mock.emit("error", new Error("native updater failed"));
+    mock.emit("update-downloaded", { version: "1.2.1" });
+    updates.install();
+
+    expect(mock.value.quitAndInstall).toHaveBeenCalledTimes(2);
+    expect(updates.getState()).toMatchObject({
+      phase: "downloaded",
+      version: "1.2.1",
+    });
+  });
+
+  it("allows install retry when the native restart request throws", () => {
+    const mock = provider();
+    vi.mocked(mock.value.quitAndInstall).mockImplementation(() => {
+      throw new Error("restart failed");
+    });
+    const updates = new DesktopUpdateController(mock.value, "Unavailable");
+    mock.emit("update-downloaded", { version: "1.2.0" });
+
+    expect(() => updates.install()).toThrow("restart failed");
+    expect(() => updates.install()).toThrow("restart failed");
+
+    expect(mock.value.quitAndInstall).toHaveBeenCalledTimes(2);
+  });
+
   it("uses embedded publisher metadata unless a generic feed override is configured", () => {
     const value = provider().value as ConfigurableUpdateProvider;
     value.autoDownload = true;

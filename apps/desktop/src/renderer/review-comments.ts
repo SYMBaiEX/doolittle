@@ -227,11 +227,12 @@ export function saveReviewComments(
   identity: ReviewCommentIdentity,
   comments: readonly ReviewComment[],
   storage: ReviewCommentStorage,
-): void {
+): boolean {
   try {
     storage.setItem(identity.storageKey, JSON.stringify(comments));
+    return true;
   } catch {
-    // Draft persistence is best effort (for example, storage can be disabled).
+    return false;
   }
 }
 

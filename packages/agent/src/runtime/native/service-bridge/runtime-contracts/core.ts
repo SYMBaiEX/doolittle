@@ -47,7 +47,11 @@ export interface NativePdfService {
 }
 
 export interface NativeShellService {
-  run(command: string, timeoutMs?: number): Promise<TerminalCommandRecord>;
+  run(
+    command: string,
+    timeoutMs?: number,
+    abortSignal?: AbortSignal,
+  ): Promise<TerminalCommandRecord>;
   history(limit?: number): TerminalCommandRecord[];
   status(): Promise<unknown>;
 }

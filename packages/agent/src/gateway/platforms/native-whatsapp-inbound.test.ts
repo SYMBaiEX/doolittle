@@ -71,6 +71,54 @@ describe("native WhatsApp inbound handoff", () => {
     );
   });
 
+  it("replies once to a pre-agent pairing rejection using the native reply target", async () => {
+    const service = createService();
+    const sendMessage = vi.fn(async (..._args: unknown[]) => undefined);
+    Object.assign(service, { sendMessage });
+    const receive = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, response: "Pair with DTL-42" })
+      .mockResolvedValueOnce({
+        ok: false,
+        response: "Delivery failed",
+        agentCompleted: true,
+        deliveryStatus: "rejected",
+      });
+    installNativeWhatsAppInboundHandoff(
+      { getService: () => service },
+      { receive },
+    );
+
+    await service.handleNormalizedMessage(
+      {
+        id: "wamid.4",
+        from: "15555550123",
+        chatId: "120363@g.us",
+        timestamp: 1700000004,
+        content: "pair me",
+      },
+      "account-b",
+    );
+    await service.handleNormalizedMessage(
+      {
+        id: "wamid.5",
+        from: "15555550123",
+        timestamp: 1700000005,
+        content: "do not resend",
+      },
+      "account-b",
+    );
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledWith({
+      accountId: "account-b",
+      type: "text",
+      to: "120363@g.us",
+      content: "Pair with DTL-42",
+      replyToMessageId: "wamid.4",
+    });
+  });
+
   it("does not invoke the original handler after a successful handoff", async () => {
     const original = vi.fn(async (..._args: unknown[]) => undefined);
     const service = { handleNormalizedMessage: original };

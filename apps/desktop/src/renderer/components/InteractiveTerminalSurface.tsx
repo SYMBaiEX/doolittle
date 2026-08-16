@@ -78,8 +78,9 @@ export function InteractiveTerminalSurface({
       >
         <span className="truncate">
           {notice ||
-            "Active tab output is preserved across workspace navigation."}
-          {activeTab?.stale ? " · stale session" : ""}
+            (activeTab?.stale
+              ? "This terminal session ended when the workspace changed. Start a new shell to continue."
+              : "Active tab output is preserved across workspace navigation.")}
         </span>
         <div className="flex shrink-0 gap-1.25">
           <button

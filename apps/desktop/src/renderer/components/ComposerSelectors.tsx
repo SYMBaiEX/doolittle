@@ -67,7 +67,7 @@ function resolvedReasoningEffort(
   if (!model.reasoning) return undefined;
   return model.reasoning.options.some((option) => option.id === activeEffort)
     ? activeEffort
-    : model.reasoning.default;
+    : (model.reasoning.default ?? model.reasoning.options[0]?.id);
 }
 
 function formatReasoningEffort(value: string | undefined): string {
@@ -146,7 +146,7 @@ export function ComposerModelSelector({
   const applyModel = async (
     provider: RuntimeModelProvider,
     model: RuntimeModelOption,
-    effort = model.reasoning?.default,
+    effort?: RuntimeReasoningEffort,
   ) => {
     const modelId = model.id;
     const key = `${provider.id}:${modelId}`;
@@ -161,12 +161,15 @@ export function ComposerModelSelector({
           runtime?.provider,
           provider.id === runtime?.provider ? provider.baseUrl : undefined,
         );
+      const resolvedEffort = model.reasoning
+        ? resolvedReasoningEffort(model, effort)
+        : null;
       await desktopRequest("/settings", "POST", {
         changes: [
           { path: "model.provider", value: provider.id },
           { path: "model.model", value: modelId },
           { path: "model.baseUrl", value: baseUrl },
-          { path: "model.reasoningEffort", value: effort },
+          { path: "model.reasoningEffort", value: resolvedEffort },
         ],
       });
       await Promise.resolve(refreshRuntime());
@@ -275,7 +278,8 @@ export function ComposerModelSelector({
                           const effort = resolvedReasoningEffort(
                             model,
                             selected
-                              ? models.data?.activeReasoningEffort
+                              ? (runtime?.reasoningEffort ??
+                                  models.data?.activeReasoningEffort)
                               : undefined,
                           );
                           return (

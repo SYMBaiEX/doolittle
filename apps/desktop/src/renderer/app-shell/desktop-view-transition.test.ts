@@ -38,4 +38,20 @@ describe("desktop view transitions", () => {
     expect(fallbackSource).toContain("Opening {label.toLowerCase()}…");
     expect(fallbackSource).not.toContain("Opening workspace");
   });
+
+  it("keeps the project sidebar behind its own shell boundary", () => {
+    expect(appSource).toContain(
+      "const LazyDesktopSidebar = lazy(loadDesktopSidebar)",
+    );
+    expect(appSource).toContain('import("./app-shell/DesktopSidebar")');
+    expect(appSource).toContain("DesktopSidebarLoadingFallback");
+  });
+
+  it("marks the lazy sidebar ready for every mobile open path", () => {
+    expect(appSource).toContain("void loadDesktopSidebar()");
+    expect(appSource).toContain("if (!cancelled) setSidebarReady(true);");
+    expect(appSource).toContain(
+      "if (isMobileSidebarMode) openSidebarForMobile();",
+    );
+  });
 });

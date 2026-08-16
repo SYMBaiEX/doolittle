@@ -31,7 +31,7 @@ export async function runShellCommandForTurn(
     return runStreamingLocalShellCommand(command, context, hooks);
   }
 
-  return runRuntimeShellCommand(command, context);
+  return runRuntimeShellCommand(command, context, hooks);
 }
 
 export async function maybeRequireRemoteExecutionApproval(
@@ -40,6 +40,31 @@ export async function maybeRequireRemoteExecutionApproval(
   command: string,
   hooks?: AgentTurnHooks,
 ): Promise<string | undefined> {
+  const approval = await resolveRemoteExecutionApprovalPrompt(
+    input,
+    context,
+    command,
+  );
+  if (!approval) return undefined;
+  await hooks?.onResponseProgress?.({
+    chunk: approval.prompt,
+    response: approval.prompt,
+    phase: "command",
+  });
+  return approval.prompt;
+}
+
+export interface RemoteExecutionApprovalPrompt {
+  id: string;
+  prompt: string;
+  created: boolean;
+}
+
+export async function resolveRemoteExecutionApprovalPrompt(
+  input: ChatTurnRequest,
+  context: AgentExecutionContext,
+  command: string,
+): Promise<RemoteExecutionApprovalPrompt | undefined> {
   const platform = resolveRemoteExecutionPlatform(input.source);
   const reason = getExecutionApprovalReason(command);
   if (!platform || !reason) {
@@ -61,10 +86,5 @@ export async function maybeRequireRemoteExecutionApproval(
     command,
     reason: pending.reason,
   });
-  await hooks?.onResponseProgress?.({
-    chunk: prompt,
-    response: prompt,
-    phase: "command",
-  });
-  return prompt;
+  return { id: pending.id, prompt, created: pending.created };
 }

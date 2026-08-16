@@ -1,3 +1,20 @@
+const responsePostCommit = new WeakMap<Response, () => void>();
+
+/** Registers work that may start only after Node finished writing the response. */
+export function onResponseCommitted(
+  response: Response,
+  callback: () => void,
+): Response {
+  responsePostCommit.set(response, callback);
+  return response;
+}
+
+export function runResponsePostCommit(response: Response): void {
+  const callback = responsePostCommit.get(response);
+  responsePostCommit.delete(response);
+  callback?.();
+}
+
 export function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body, null, 2), {
     status,

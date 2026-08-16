@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { OrchestrationFocusState } from "./app-shell/route-focus-state";
 import type { ChatContextRequest } from "./chat-context-handoff";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
@@ -72,6 +73,8 @@ export function OrchestrationPage({
   onOpenWorkspaceFile,
   projectScope = "all",
   reviewMode = false,
+  focusState,
+  onFocusStateChange,
   workspaceLabel,
   workspacePath,
 }: {
@@ -83,17 +86,29 @@ export function OrchestrationPage({
   onOpenWorkspaceFile?: (path: string) => void;
   projectScope?: string;
   reviewMode?: boolean;
+  focusState?: OrchestrationFocusState;
+  onFocusStateChange?: (state: OrchestrationFocusState) => void;
   workspaceLabel?: string;
   workspacePath?: string;
 }) {
   const [activeTab, setActiveTab] = useState<WorkTabId>(
-    reviewMode ? "review" : "tasks",
+    reviewMode ? "review" : (focusState?.activeTab ?? "tasks"),
   );
-  const [selectedTaskId, setSelectedTaskId] = useState("");
-  const [selectedWorkerId, setSelectedWorkerId] = useState("");
-  const [selectedPlanId, setSelectedPlanId] = useState("");
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState("");
-  const [selectedRunId, setSelectedRunId] = useState("");
+  const [selectedTaskId, setSelectedTaskId] = useState(
+    () => focusState?.selectedTaskId ?? "",
+  );
+  const [selectedWorkerId, setSelectedWorkerId] = useState(
+    () => focusState?.selectedWorkerId ?? "",
+  );
+  const [selectedPlanId, setSelectedPlanId] = useState(
+    () => focusState?.selectedPlanId ?? "",
+  );
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState(
+    () => focusState?.selectedWorkflowId ?? "",
+  );
+  const [selectedRunId, setSelectedRunId] = useState(
+    () => focusState?.selectedRunId ?? "",
+  );
   const tabRefs = useRef<Record<WorkTabId, HTMLButtonElement | null>>({
     tasks: null,
     agents: null,
@@ -102,6 +117,25 @@ export function OrchestrationPage({
     review: null,
   });
   const consumedNavigationIntents = useRef(new Set<string>());
+
+  useEffect(() => {
+    onFocusStateChange?.({
+      activeTab,
+      selectedTaskId,
+      selectedWorkerId,
+      selectedPlanId,
+      selectedWorkflowId,
+      selectedRunId,
+    });
+  }, [
+    activeTab,
+    onFocusStateChange,
+    selectedPlanId,
+    selectedRunId,
+    selectedTaskId,
+    selectedWorkerId,
+    selectedWorkflowId,
+  ]);
 
   useEffect(() => {
     if (reviewMode) {

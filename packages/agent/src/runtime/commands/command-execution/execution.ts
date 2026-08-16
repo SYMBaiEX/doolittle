@@ -3,6 +3,14 @@ import type { AgentExecutionContext, AgentTurnHooks } from "../../chat";
 import { formatShellCommandResponse } from "./formatting";
 import type { ShellCommandTurnResult } from "./types";
 
+function throwIfCommandAborted(signal: AbortSignal | undefined): void {
+  if (!signal?.aborted) return;
+  throw (
+    signal.reason ??
+    new DOMException("The terminal command was cancelled.", "AbortError")
+  );
+}
+
 export async function runStreamingLocalShellCommand(
   command: string,
   context: AgentExecutionContext,
@@ -11,6 +19,7 @@ export async function runStreamingLocalShellCommand(
   let stdout = "";
   let stderr = "";
   const emit = async (chunk: string) => {
+    if (hooks?.abortSignal?.aborted) return;
     await hooks?.onResponseProgress?.({
       chunk,
       response: formatShellCommandResponse({
@@ -26,10 +35,12 @@ export async function runStreamingLocalShellCommand(
     command,
     {
       onStdout: (chunk) => {
+        if (hooks?.abortSignal?.aborted) return;
         stdout += chunk;
         void emit(chunk);
       },
       onStderr: (chunk) => {
+        if (hooks?.abortSignal?.aborted) return;
         stderr += chunk;
         void emit(chunk);
       },
@@ -37,6 +48,7 @@ export async function runStreamingLocalShellCommand(
     undefined,
     hooks?.abortSignal,
   );
+  throwIfCommandAborted(hooks?.abortSignal);
   return {
     command: result.command,
     exitCode: result.exitCode,
@@ -49,9 +61,14 @@ export async function runStreamingLocalShellCommand(
 export async function runRuntimeShellCommand(
   command: string,
   context: AgentExecutionContext,
+  hooks?: AgentTurnHooks,
 ): Promise<ShellCommandTurnResult> {
-  return (await runEffectiveShellCommand(
+  const result = (await runEffectiveShellCommand(
     context.runtime,
     command,
+    undefined,
+    hooks?.abortSignal,
   )) as ShellCommandTurnResult;
+  throwIfCommandAborted(hooks?.abortSignal);
+  return result;
 }
