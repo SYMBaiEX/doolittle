@@ -2,7 +2,7 @@ export const MCP_PANEL_CLASS =
   "grid gap-3.5 rounded-[5px] border border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] bg-[radial-gradient(circle_at_12%_-10%,color-mix(in_srgb,var(--accent)_14%,transparent),transparent_38%),var(--surface-raised)] p-[18px]";
 
 export const MCP_HEADER_CLASS =
-  "flex items-start justify-between gap-4 max-[760px]:flex-col [&_h2]:mt-1 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-base [&_p]:mt-[7px] [&_p]:mb-0 [&_p]:max-w-[620px] [&_p]:text-[length:var(--text-body)] [&_p]:leading-[1.55] [&_p]:text-[var(--text-soft)]";
+  "flex items-start justify-between gap-4 max-[760px]:flex-col [&_h2]:mt-1 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_p]:mt-[7px] [&_p]:mb-0 [&_p]:max-w-[620px] [&_p]:text-[length:var(--text-body)] [&_p]:leading-[1.55] [&_p]:text-[var(--text-soft)]";
 
 export const MCP_DISCLOSURE_CLASS =
   "group grid min-w-0 gap-0 rounded border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_76%,transparent)] p-[13px]";

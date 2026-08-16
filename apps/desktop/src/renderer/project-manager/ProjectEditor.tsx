@@ -58,7 +58,7 @@ export function ProjectEditor({
               {project ? "Project settings" : "New project"}
             </span>
             <h3
-              className="mt-1 mb-0 font-[var(--font-display)] text-base tracking-[-0.02em]"
+              className="mt-1 mb-0 font-[var(--font-display)] text-sm tracking-[-0.015em]"
               id={titleId}
             >
               {project ? `Edit ${project.name}` : "Create a project"}

@@ -78,7 +78,7 @@ const ORCHESTRATION_CLASS = {
   "orchestration-detail":
     "orchestration-detail min-h-0 min-w-0 overflow-auto bg-[var(--bg)] px-5.5 pt-4 pb-6.5 max-[680px]:min-h-95 max-[680px]:overflow-visible [&>*]:w-[min(100%,1080px)]",
   "orchestration-detail-header":
-    "orchestration-detail-header flex max-w-225 items-start justify-between gap-3.5 border-[var(--border)] border-b pb-3 [&>div]:min-w-0 [&_h2]:mt-0.75 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(16px,1.3vw,20px)] [&_h2]:font-semibold [&_h2]:leading-[1.14] [&_h2]:tracking-[-0.02em] [&_p]:m-0 [&_p]:max-w-170 [&_p]:text-[11px] [&_p]:leading-[1.55] [&_p]:text-[var(--text-soft)]",
+    "orchestration-detail-header flex max-w-225 items-start justify-between gap-3.5 border-[var(--border)] border-b pb-3 [&>div]:min-w-0 [&_h2]:mt-0.75 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(14px,1.1vw,17px)] [&_h2]:font-semibold [&_h2]:leading-[1.18] [&_h2]:tracking-[-0.015em] [&_p]:m-0 [&_p]:max-w-170 [&_p]:text-[11px] [&_p]:leading-[1.55] [&_p]:text-[var(--text-soft)]",
   "detail-kicker":
     "detail-kicker block font-[var(--font-mono)] text-[8px] font-bold tracking-[0.09em] text-[var(--accent)] uppercase",
   "orchestration-detail-tags":

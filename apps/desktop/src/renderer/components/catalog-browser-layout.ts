@@ -17,7 +17,7 @@ export const CATALOG_INDEX_FOOTER_CLASS =
 export const CATALOG_DETAIL_CLASS =
   "min-h-0 min-w-0 overflow-auto bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] px-5 pt-[18px] pb-6 max-[820px]:min-h-[310px] max-[520px]:px-[13px] max-[520px]:pt-3.5 max-[520px]:pb-[18px]";
 export const CATALOG_DETAIL_HEADER_CLASS =
-  "flex items-start justify-between gap-[18px] border-b border-[var(--border)] pb-4 max-[520px]:flex-col max-[520px]:gap-[9px] [&>div]:min-w-0 [&_h2]:mt-[5px] [&_h2]:mb-1.5 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(16px,1.5vw,19px)] [&_h2]:font-semibold [&_h2]:leading-[1.14] [&_h2]:tracking-[-0.02em] [&_p]:m-0 [&_p]:max-w-[760px] [&_p]:text-[length:var(--text-body)] [&_p]:leading-[1.58] [&_p]:text-[var(--text-soft)]";
+  "flex items-start justify-between gap-[18px] border-b border-[var(--border)] pb-4 max-[520px]:flex-col max-[520px]:gap-[9px] [&>div]:min-w-0 [&_h2]:mt-[5px] [&_h2]:mb-1.5 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(14px,1.1vw,17px)] [&_h2]:font-semibold [&_h2]:leading-[1.18] [&_h2]:tracking-[-0.015em] [&_p]:m-0 [&_p]:max-w-[760px] [&_p]:text-[length:var(--text-body)] [&_p]:leading-[1.58] [&_p]:text-[var(--text-soft)]";
 export const CATALOG_CALLOUT_CLASS =
   "mt-3 grid gap-0.5 border-l-2 border-[var(--warn)] bg-[var(--warn-soft)] px-[11px] py-[9px] text-[length:var(--text-meta)] text-[var(--text-soft)] [&_strong]:font-[var(--font-mono)] [&_strong]:uppercase [&_strong]:text-[var(--warn)]";
 export const CATALOG_FACTS_CLASS =

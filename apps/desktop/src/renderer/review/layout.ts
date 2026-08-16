@@ -100,7 +100,7 @@ export const REVIEW_DETAIL_CLASS =
   "review-detail min-h-0 min-w-0 overflow-auto bg-[var(--bg)] px-5.5 pt-4.5 pb-6 [scrollbar-gutter:stable]";
 
 export const REVIEW_DETAIL_HEADER_CLASS =
-  "review-detail-header flex max-w-245 items-start justify-between gap-5 border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-b pb-3 [&>div]:min-w-0 [&>div>span]:font-[var(--font-mono)] [&>div>span]:text-[10px] [&>div>span]:font-bold [&>div>span]:tracking-[0.1em] [&>div>span]:text-[var(--accent)] [&>div>span]:uppercase [&_h2]:mt-1.25 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(16px,1.35vw,20px)] [&_h2]:leading-[1.15] [&_h2]:[overflow-wrap:anywhere] [&_p]:m-0 [&_p]:max-w-175 [&_p]:text-xs [&_p]:leading-[1.55] [&_p]:text-[var(--muted)]";
+  "review-detail-header flex max-w-245 items-start justify-between gap-5 border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-b pb-3 [&>div]:min-w-0 [&>div>span]:font-[var(--font-mono)] [&>div>span]:text-[10px] [&>div>span]:font-bold [&>div>span]:tracking-[0.1em] [&>div>span]:text-[var(--accent)] [&>div>span]:uppercase [&_h2]:mt-1.25 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(14px,1.1vw,17px)] [&_h2]:leading-[1.18] [&_h2]:[overflow-wrap:anywhere] [&_p]:m-0 [&_p]:max-w-175 [&_p]:text-xs [&_p]:leading-[1.55] [&_p]:text-[var(--muted)]";
 
 export const REVIEW_DETAIL_BODY_CLASS = "grid max-w-245 gap-3.5 pt-4";
 

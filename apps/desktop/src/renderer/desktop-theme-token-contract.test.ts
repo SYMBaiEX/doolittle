@@ -51,6 +51,13 @@ function unresolvedRendererVariables(): string[] {
   return [...used].filter((variable) => !declared.has(variable)).sort();
 }
 
+function rendererSourceEntries(): Array<{ path: string; source: string }> {
+  return rendererSources(RENDERER_ROOT).map((path) => ({
+    path,
+    source: readFileSync(path, "utf8"),
+  }));
+}
+
 describe("desktop theme token contract", () => {
   it("resolves every renderer and official Eliza custom-property reference", () => {
     expect(unresolvedRendererVariables()).toEqual([]);
@@ -73,5 +80,36 @@ describe("desktop theme token contract", () => {
     expect(themeSource).toContain('"--canvas-border": "#3a3630"');
     expect(themeSource).toContain('"--accent-text": "#ff9b5c"');
     expect(themeSource).toContain('"--accent-text": "#8a3500"');
+  });
+
+  it("keeps length tokens explicit in Tailwind text utilities", () => {
+    const ambiguousLengthTokens =
+      /text-\[var\(--(?:text-meta|text-control|text-caption|text-body|text-sm|page-title-size|chat-welcome-title-size|page-readable-meta)\)\]/gu;
+    const violations = rendererSourceEntries().flatMap(({ path, source }) =>
+      [...source.matchAll(ambiguousLengthTokens)].map(
+        (match) => `${path}:${match[0]}`,
+      ),
+    );
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps application typography below marketing-scale utilities", () => {
+    const marketingScale = /\btext-(?:xl|[2-9]xl)\b/gu;
+    const violations = rendererSourceEntries().flatMap(({ path, source }) =>
+      [...source.matchAll(marketingScale)].map(
+        (match) => `${path}:${match[0]}`,
+      ),
+    );
+    expect(violations).toEqual([]);
+  });
+
+  it("caps nested responsive headings at 18px", () => {
+    const responsiveText = /text-\[clamp\([^\]]*?,[^\]]*?,(\d+)px\)\]/gu;
+    const violations = rendererSourceEntries().flatMap(({ path, source }) =>
+      [...source.matchAll(responsiveText)]
+        .filter((match) => Number(match[1]) > 18)
+        .map((match) => `${path}:${match[0]}`),
+    );
+    expect(violations).toEqual([]);
   });
 });

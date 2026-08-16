@@ -50,7 +50,7 @@ export function ProjectDetail({
         <ProjectAvatar project={project} />
         <div className="min-w-0">
           <div className="project-manager__title-line flex items-center gap-2.25">
-            <h3 className="m-0 font-[var(--font-display)] text-base leading-[1.1] tracking-[-0.025em]">
+            <h3 className="m-0 font-[var(--font-display)] text-sm leading-[1.15] tracking-[-0.015em]">
               {project.name}
             </h3>
             {project.pinned ? (

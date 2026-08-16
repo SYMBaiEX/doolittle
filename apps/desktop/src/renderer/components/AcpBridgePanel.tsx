@@ -24,7 +24,7 @@ const PANEL_CLASS =
   "grid gap-3.5 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--accent)_42%,var(--border))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--accent-soft)_48%,var(--surface-raised)),var(--surface-raised)_58%)] p-[18px]";
 const HEADER_CLASS =
   "flex items-start justify-between gap-4 max-[760px]:flex-col";
-const HEADING_CLASS = "mt-1 text-base font-bold";
+const HEADING_CLASS = "mt-1 text-sm font-bold";
 const DESCRIPTION_CLASS =
   "mt-[7px] max-w-2xl text-[13px] leading-[1.55] text-[var(--text-soft)]";
 const ACTIONS_CLASS = "flex items-center gap-2";
