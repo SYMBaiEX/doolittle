@@ -165,6 +165,7 @@ test.describe("Doolittle desktop navigation", () => {
         async ({ alternateWorkspace, repoRoot }) => {
           const requestJson = async <T>(path: string): Promise<T> => {
             const response = await window.doolittle.requestAgent({
+              requestId: crypto.randomUUID(),
               path,
               method: "GET",
               headers: { accept: "application/json" },
@@ -316,9 +317,16 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(page.locator(".coding-acp-status")).toContainText(
         "ACP live",
       );
-      await page.keyboard.press(
-        process.platform === "darwin" ? "Meta+J" : "Control+J",
-      );
+      const workspaceUtilities = page.getByRole("tablist", {
+        name: "Workspace utilities",
+      });
+      if (!(await workspaceUtilities.isVisible())) {
+        await page
+          .getByRole("button", { exact: true, name: "Utility" })
+          .click();
+      }
+      await expect(workspaceUtilities).toBeVisible();
+      await workspaceUtilities.getByRole("tab", { name: "Terminal" }).click();
       const chatTerminal = page.getByLabel("Chat terminal panel");
       await expect(chatTerminal).toHaveAttribute("data-open", "true");
       await expect(chatTerminal).toBeVisible();
@@ -424,9 +432,9 @@ test.describe("Doolittle desktop navigation", () => {
           await page.evaluate((nextRoute) => {
             window.location.hash = `#/${nextRoute}`;
           }, route);
-          await expect(page.locator(".window-context strong")).toHaveText(
-            label,
-          );
+          await expect(
+            page.locator('.window-dragbar [aria-live="polite"].sr-only'),
+          ).toContainText(`${label} opened for`);
           await expect(page.locator(".recovery-shell")).toHaveCount(0);
           const viewContainer = page.locator(
             `.view-container[data-view="${route}"]`,
@@ -745,7 +753,7 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(providersHeading).toBeVisible();
       await expect(
         page.getByText(
-          "Connect chat providers and route spawned agents across local account pools.",
+          "Use Codex or Claude subscriptions. Credentials stay outside the UI.",
           { exact: true },
         ),
       ).toBeVisible();
@@ -1044,6 +1052,7 @@ test.describe("Doolittle desktop navigation", () => {
       ).toBeVisible({ timeout: 30_000 });
       const researchReceipt = await page.evaluate(async (taskTitle) => {
         const response = await window.doolittle.requestAgent({
+          requestId: crypto.randomUUID(),
           path: "/delegation/tasks?limit=100",
           method: "GET",
           headers: { accept: "application/json" },
@@ -1110,6 +1119,16 @@ test.describe("Doolittle desktop navigation", () => {
         await scrollFixture.locator("summary").click();
       }
       await expect(scrollFixture).toHaveAttribute("open", "");
+      await connectionsViewport.evaluate((container) => {
+        if (container.scrollHeight <= container.clientHeight) {
+          const overflowFixture = document.createElement("div");
+          overflowFixture.dataset.testid = "route-scroll-overflow";
+          overflowFixture.style.height = "200vh";
+          overflowFixture.style.flex = "0 0 auto";
+          overflowFixture.setAttribute("aria-hidden", "true");
+          container.append(overflowFixture);
+        }
+      });
       await expect
         .poll(() =>
           connectionsViewport.evaluate(
@@ -1216,9 +1235,22 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(page.locator(".window-context strong")).toHaveText("Code");
       // The prior Add to chat flow closes the global terminal by design. Open
       // it again before exercising its tab-management controls.
-      await page.keyboard.press(
-        process.platform === "darwin" ? "Meta+J" : "Control+J",
-      );
+      const reopenedWorkspaceUtilities = page.getByRole("tablist", {
+        name: "Workspace utilities",
+      });
+      if (!(await reopenedWorkspaceUtilities.isVisible())) {
+        await page
+          .getByRole("button", { exact: true, name: "Utility" })
+          .click();
+      }
+      await reopenedWorkspaceUtilities
+        .getByRole("tab", { name: "Terminal" })
+        .click();
+      if (!(await chatTerminal.isVisible())) {
+        await page
+          .getByRole("button", { name: "Open persistent terminal" })
+          .click();
+      }
       await expect(chatTerminal).toHaveAttribute("data-open", "true");
       await expect(chatTerminal).toBeVisible();
       const terminalTabs = page.getByRole("tablist", {

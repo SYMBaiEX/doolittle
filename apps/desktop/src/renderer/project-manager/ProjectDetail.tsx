@@ -50,7 +50,7 @@ export function ProjectDetail({
         <ProjectAvatar project={project} />
         <div className="min-w-0">
           <div className="project-manager__title-line flex items-center gap-2.25">
-            <h3 className="m-0 font-[var(--font-display)] text-lg leading-[1.1] tracking-[-0.035em]">
+            <h3 className="m-0 font-[var(--font-display)] text-base leading-[1.1] tracking-[-0.025em]">
               {project.name}
             </h3>
             {project.pinned ? (
@@ -134,7 +134,7 @@ export function ProjectDetail({
         <div className="project-manager__section-head flex items-start justify-between gap-3 max-[420px]:gap-2">
           <div>
             <span className="eyebrow">Project instructions</span>
-            <h4 className="mt-0.75 mb-0 font-[var(--font-display)] text-[15px] tracking-[-0.01em]">
+            <h4 className="mt-0.75 mb-0 font-[var(--font-display)] text-[13px] tracking-[-0.01em]">
               Working context
             </h4>
           </div>
@@ -159,7 +159,7 @@ export function ProjectDetail({
         <div className="project-manager__section-head flex items-start justify-between gap-3 max-[420px]:gap-2">
           <div>
             <span className="eyebrow">Knowledge</span>
-            <h4 className="mt-0.75 mb-0 font-[var(--font-display)] text-[15px] tracking-[-0.01em]">
+            <h4 className="mt-0.75 mb-0 font-[var(--font-display)] text-[13px] tracking-[-0.01em]">
               Files & folders
             </h4>
           </div>
@@ -292,7 +292,7 @@ export function EmptyDetail({ onCreate }: { onCreate?: () => void }) {
       <span className="text-[32px] text-[var(--accent)]" aria-hidden="true">
         ◇
       </span>
-      <h3 className="mt-3.75 mb-1.5 font-[var(--font-display)] text-lg text-[var(--text)]">
+      <h3 className="mt-3.75 mb-1.5 font-[var(--font-display)] text-sm text-[var(--text)]">
         Make space for the work
       </h3>
       <p className="mt-0 mb-4.5 text-[13px] leading-[1.55]">

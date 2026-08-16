@@ -22,7 +22,7 @@ export function MediaResult({
       </div>
       <pre
         aria-live="polite"
-        className="m-0 max-h-[360px] min-h-[180px] max-w-full overflow-auto rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--border)_88%,var(--accent))] bg-[color-mix(in_srgb,var(--bg)_84%,transparent)] p-[13px] text-[var(--text-meta)] leading-[1.55] whitespace-pre-wrap text-[var(--text-soft)] [overflow-wrap:anywhere] [scrollbar-gutter:stable]"
+        className="m-0 max-h-[360px] min-h-[180px] max-w-full overflow-auto rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--border)_88%,var(--accent))] bg-[color-mix(in_srgb,var(--bg)_84%,transparent)] p-[13px] text-[length:var(--text-meta)] leading-[1.55] whitespace-pre-wrap text-[var(--text-soft)] [overflow-wrap:anywhere] [scrollbar-gutter:stable]"
       >
         {formatBoundedPreview(result, MEDIA_RESULT_CHARACTER_LIMIT)}
       </pre>

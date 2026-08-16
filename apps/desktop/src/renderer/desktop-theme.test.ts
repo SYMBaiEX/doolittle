@@ -217,8 +217,10 @@ describe("desktop theme", () => {
     expect(storage.get("style:--page-pad-block")).toBe("22px 30px");
     expect(storage.get("style:--page-header-min-height")).toBe("64px");
     expect(storage.get("style:--page-title-size")).toBe(
-      "clamp(22px, 2vw, 29px)",
+      "clamp(18px, 1.5vw, 22px)",
     );
+    expect(storage.get("style:--text-body")).toBe("13px");
+    expect(storage.get("style:--text-control")).toBe("11px");
     expect(storage.get("style:--card-pad")).toBe("15px");
     expect(storage.get("style:--control-height")).toBe("32px");
 
@@ -226,8 +228,10 @@ describe("desktop theme", () => {
     expect(storage.get("style:--page-pad-block")).toBe("16px 22px");
     expect(storage.get("style:--page-header-min-height")).toBe("54px");
     expect(storage.get("style:--page-title-size")).toBe(
-      "clamp(20px, 1.8vw, 25px)",
+      "clamp(17px, 1.35vw, 20px)",
     );
+    expect(storage.get("style:--text-body")).toBe("12px");
+    expect(storage.get("style:--text-control")).toBe("10px");
     expect(storage.get("style:--card-pad")).toBe("11px");
     expect(storage.get("style:--control-height")).toBe("28px");
   });

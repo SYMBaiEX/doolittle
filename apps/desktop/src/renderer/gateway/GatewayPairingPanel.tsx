@@ -61,7 +61,7 @@ export function GatewayPairingPanel({
         className={`${GATEWAY_DISCLOSURE_SUMMARY_CLASS} group-open:border-[var(--border)] group-open:border-b`}
       >
         <span className="flex min-w-0 flex-col gap-0.5">
-          <strong className="text-base" id="pairing-title">
+          <strong className="text-sm" id="pairing-title">
             Sender approvals
           </strong>
           <small className={GATEWAY_META_CLASS}>Messaging allowlist</small>

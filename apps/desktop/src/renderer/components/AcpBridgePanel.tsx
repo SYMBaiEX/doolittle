@@ -24,7 +24,7 @@ const PANEL_CLASS =
   "grid gap-3.5 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--accent)_42%,var(--border))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--accent-soft)_48%,var(--surface-raised)),var(--surface-raised)_58%)] p-[18px]";
 const HEADER_CLASS =
   "flex items-start justify-between gap-4 max-[760px]:flex-col";
-const HEADING_CLASS = "mt-1 text-lg font-bold";
+const HEADING_CLASS = "mt-1 text-base font-bold";
 const DESCRIPTION_CLASS =
   "mt-[7px] max-w-2xl text-[13px] leading-[1.55] text-[var(--text-soft)]";
 const ACTIONS_CLASS = "flex items-center gap-2";
@@ -209,19 +209,19 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
         <div className={`acp-bridge-summary ${SUMMARY_CLASS}`}>
           <div className={SUMMARY_CARD_CLASS}>
             <span className={SUMMARY_LABEL_CLASS}>Command</span>
-            <strong className="text-[15px]">{summary.command}</strong>
+            <strong className="text-[13px]">{summary.command}</strong>
             <small className={MUTED_CLASS}>{summary.detail}</small>
           </div>
           <div className={SUMMARY_CARD_CLASS}>
             <span className={SUMMARY_LABEL_CLASS}>Registered tools</span>
-            <strong className="text-[15px]">{summary.toolCount}</strong>
+            <strong className="text-[13px]">{summary.toolCount}</strong>
             <small className={MUTED_CLASS}>
               {summary.sessionCount} local sessions observed
             </small>
           </div>
           <div className={SUMMARY_CARD_CLASS}>
             <span className={SUMMARY_LABEL_CLASS}>Last probe</span>
-            <strong className="text-[15px]">{summary.lastProbe}</strong>
+            <strong className="text-[13px]">{summary.lastProbe}</strong>
             <small className={MUTED_CLASS}>{summary.lastError}</small>
           </div>
         </div>
@@ -267,7 +267,7 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
               <div className={CARD_HEADING_CLASS}>
                 <div>
                   <span className={EYEBROW_CLASS}>Observed locally</span>
-                  <h3 className="mt-[3px] text-[15px] font-bold">
+                  <h3 className="mt-[3px] text-[13px] font-bold">
                     Recent sessions
                   </h3>
                 </div>
@@ -292,7 +292,7 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
               <div className={CARD_HEADING_CLASS}>
                 <div>
                   <span className={EYEBROW_CLASS}>Bridge metadata</span>
-                  <h3 className="mt-[3px] text-[15px] font-bold">
+                  <h3 className="mt-[3px] text-[13px] font-bold">
                     Editor-facing record
                   </h3>
                 </div>
@@ -321,7 +321,7 @@ export function AcpBridgePanel({ active }: { active: boolean }) {
             <div className={CARD_HEADING_CLASS}>
               <div>
                 <span className={EYEBROW_CLASS}>Read-only discovery</span>
-                <h3 className="mt-[3px] text-[15px] font-bold">
+                <h3 className="mt-[3px] text-[13px] font-bold">
                   Search bridge tools
                 </h3>
               </div>

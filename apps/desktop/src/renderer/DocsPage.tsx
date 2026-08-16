@@ -185,7 +185,7 @@ export function DocsPage({ active }: { active: boolean }) {
           )}
           {active && prioritizedChecks.remaining.length ? (
             <details className="group overflow-hidden">
-              <summary className="cursor-pointer list-none py-[9px] font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--text-soft)] [&::-webkit-details-marker]:hidden">
+              <summary className="cursor-pointer list-none py-[9px] font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--text-soft)] [&::-webkit-details-marker]:hidden">
                 <span aria-hidden="true" className={DIAGNOSTICS_CHEVRON_CLASS}>
                   ›
                 </span>{" "}
@@ -208,34 +208,34 @@ export function DocsPage({ active }: { active: boolean }) {
           </div>
           <div className="grid gap-2">
             <div className="grid gap-1 border-t border-[var(--border)] pt-2 first:border-t-0 first:pt-0">
-              <code className="text-[var(--text-control)] text-[var(--accent)]">
+              <code className="text-[length:var(--text-control)] text-[var(--accent)]">
                 ./scripts/install.sh
               </code>
-              <span className="text-[var(--text-meta)] text-[var(--muted)]">
+              <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
                 Install or update the local command.
               </span>
             </div>
             <div className="grid gap-1 border-t border-[var(--border)] pt-2">
-              <code className="text-[var(--text-control)] text-[var(--accent)]">
+              <code className="text-[length:var(--text-control)] text-[var(--accent)]">
                 doolittle desktop
               </code>
-              <span className="text-[var(--text-meta)] text-[var(--muted)]">
+              <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
                 Open this desktop application.
               </span>
             </div>
             <div className="grid gap-1 border-t border-[var(--border)] pt-2">
-              <code className="text-[var(--text-control)] text-[var(--accent)]">
+              <code className="text-[length:var(--text-control)] text-[var(--accent)]">
                 doolittle doctor
               </code>
-              <span className="text-[var(--text-meta)] text-[var(--muted)]">
+              <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
                 Check runtime and provider readiness.
               </span>
             </div>
             <div className="grid gap-1 border-t border-[var(--border)] pt-2">
-              <code className="text-[var(--text-control)] text-[var(--accent)]">
+              <code className="text-[length:var(--text-control)] text-[var(--accent)]">
                 doolittle
               </code>
-              <span className="text-[var(--text-meta)] text-[var(--muted)]">
+              <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
                 Open the terminal interface.
               </span>
             </div>
@@ -251,39 +251,39 @@ export function DocsPage({ active }: { active: boolean }) {
           </span>
           <span className="grid min-w-0 flex-1 gap-1">
             <strong>Desktop security boundary</strong>
-            <small className="text-[var(--text-meta)] text-[var(--muted)]">
+            <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
               Renderer → preload → Electron → local runtime
             </small>
           </span>
-          <span className="font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)]">
+          <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
             Inspect
           </span>
         </summary>
         <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] items-center gap-3 border-t border-[var(--border)] p-[var(--card-pad)] max-[760px]:grid-cols-1 max-[760px]:[&_i]:rotate-90">
           <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
             <strong>React renderer</strong>
-            <span className="text-[var(--text-meta)] text-[var(--muted)]">
+            <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
               Sandboxed UI
             </span>
           </div>
           <i className="text-center not-italic text-[var(--accent)]">→</i>
           <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
             <strong>Typed preload</strong>
-            <span className="text-[var(--text-meta)] text-[var(--muted)]">
+            <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
               Exact endpoint allowlist
             </span>
           </div>
           <i className="text-center not-italic text-[var(--accent)]">→</i>
           <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
             <strong>Electron main</strong>
-            <span className="text-[var(--text-meta)] text-[var(--muted)]">
+            <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
               Private IPC
             </span>
           </div>
           <i className="text-center not-italic text-[var(--accent)]">→</i>
           <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
             <strong>Doolittle runtime</strong>
-            <span className="text-[var(--text-meta)] text-[var(--muted)]">
+            <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
               127.0.0.1 ephemeral port
             </span>
           </div>

@@ -123,16 +123,16 @@ export function SetupPage({
           <section className={SETUP_ACCOUNT_BAR_CLASS}>
             <div className="grid min-w-0 gap-0.5">
               <span className="eyebrow">Optional extension</span>
-              <strong className="font-[var(--font-display)] text-[15px] text-[var(--text)]">
+              <strong className="font-[var(--font-display)] text-sm text-[var(--text)]">
                 Subscription account pools
               </strong>
-              <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-meta)] text-[var(--muted)]">
+              <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-meta)] text-[var(--muted)]">
                 Route delegated coding work across linked accounts.
               </small>
             </div>
             <div className="flex shrink-0 items-center gap-2.5 max-[700px]:justify-between">
               {accountPool.loading ? (
-                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-meta)] text-[var(--muted)]">
+                <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-meta)] text-[var(--muted)]">
                   Checking…
                 </span>
               ) : accountPool.error ? (
@@ -176,7 +176,7 @@ export function SetupPage({
                 <span className="eyebrow">Checklist</span>
                 <strong>Configuration guidance</strong>
               </span>
-              <span className="font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)]">
+              <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
                 {!checklistOpen
                   ? "Open to load"
                   : checklist.loading
@@ -209,7 +209,7 @@ export function SetupPage({
                   <ol className={SETUP_GUIDANCE_LIST_CLASS}>
                     {checklistItems.map((entry, index) => (
                       <li className={SETUP_GUIDANCE_ITEM_CLASS} key={entry.id}>
-                        <span className="font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--accent)]">
+                        <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--accent)]">
                           {String(index + 1).padStart(2, "0")}
                         </span>
                         <span>{entry.label}</span>

@@ -36,10 +36,10 @@ export function InlineActionConfirmation({
           : "border-[color-mix(in_srgb,var(--bad)_26%,var(--border))] bg-[color-mix(in_srgb,var(--bad)_6%,var(--surface))]"
       }`}
     >
-      <legend className="inline-action-confirmation__title col-start-1 m-0 p-0 text-[var(--text-caption)] font-bold">
+      <legend className="inline-action-confirmation__title col-start-1 m-0 p-0 text-[length:var(--text-caption)] font-bold">
         {title}
       </legend>
-      <small className="inline-action-confirmation__detail col-start-1 text-[var(--text-meta)] leading-[1.45] text-[var(--muted)]">
+      <small className="inline-action-confirmation__detail col-start-1 text-[length:var(--text-meta)] leading-[1.45] text-[var(--muted)]">
         {detail}
       </small>
       <div className="inline-action-confirmation__actions col-start-2 row-start-1 row-span-2 flex items-center gap-2 max-[720px]:col-start-1 max-[720px]:row-auto">

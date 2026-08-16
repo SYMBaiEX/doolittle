@@ -196,7 +196,7 @@ export function SkillWorkshopPanel({ active }: { active: boolean }) {
             <strong>Create a skill proposal</strong>
             <small>Paste a slug and raw SKILL.md only when needed.</small>
           </span>
-          <span className="font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)] uppercase group-open:text-[var(--accent)]">
+          <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] uppercase group-open:text-[var(--accent)]">
             New proposal
           </span>
         </summary>

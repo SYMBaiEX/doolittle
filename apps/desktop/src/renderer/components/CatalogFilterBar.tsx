@@ -34,7 +34,7 @@ export function CatalogFilterBar({
       ) : null}
       <output
         aria-live="polite"
-        className="catalog-filter-bar__count flex-none whitespace-nowrap font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)]"
+        className="catalog-filter-bar__count flex-none whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]"
       >
         {resultLabel}
       </output>

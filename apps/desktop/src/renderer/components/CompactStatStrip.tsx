@@ -36,13 +36,13 @@ export function CompactStatStrip({
             className={`absolute inset-y-[9px] left-0 w-0.5 ${STAT_TONE_CLASS_NAMES[stat.tone ?? "neutral"]}`}
           />
           <span
-            className="min-w-0 truncate font-[var(--font-mono)] text-[var(--text-meta)] tracking-[0.07em] text-[var(--muted)] uppercase"
+            className="min-w-0 truncate font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.07em] text-[var(--muted)] uppercase"
             title={stat.label}
           >
             {stat.label}
           </span>
           <strong
-            className="truncate font-[var(--font-display)] text-base tracking-[-0.02em] text-[var(--text)]"
+            className="truncate font-[var(--font-display)] text-sm tracking-[-0.015em] text-[var(--text)]"
             title={
               typeof stat.value === "string" || typeof stat.value === "number"
                 ? String(stat.value)
@@ -53,7 +53,7 @@ export function CompactStatStrip({
           </strong>
           {stat.detail ? (
             <small
-              className="col-span-full truncate text-[var(--text-meta)] text-[var(--text-soft)]"
+              className="col-span-full truncate text-[length:var(--text-meta)] text-[var(--text-soft)]"
               title={
                 typeof stat.detail === "string" ||
                 typeof stat.detail === "number"

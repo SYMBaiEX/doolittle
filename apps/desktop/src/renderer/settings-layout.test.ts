@@ -8,7 +8,8 @@ describe("settings layout density", () => {
   it("keeps embedded section headings below the page hierarchy", () => {
     const layout = read("./settings/settings-layout.ts");
 
-    expect(layout).toContain("[&_.settings-section-header_h2]:text-base");
+    expect(layout).toContain("[&_.settings-section-header_h2]:text-sm");
+    expect(layout).not.toContain("[&_.settings-section-header_h2]:text-base");
     expect(layout).not.toContain("[&_.settings-section-header_h2]:text-xl");
   });
 
@@ -16,7 +17,7 @@ describe("settings layout density", () => {
     const layout = read("./settings/settings-layout.ts");
 
     expect(layout).toContain(
-      "[&>div:first-child_small]:text-[var(--text-meta)]",
+      "[&>div:first-child_small]:text-[length:var(--text-meta)]",
     );
     expect(layout).not.toContain("[&>div:first-child_small]:text-[8px]");
   });

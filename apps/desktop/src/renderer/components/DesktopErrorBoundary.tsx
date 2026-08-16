@@ -4,7 +4,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 export const RECOVERY_CARD_CLASS =
   "max-w-lg border border-[var(--border-strong)] bg-[var(--surface)] p-6";
 export const RECOVERY_EYEBROW_CLASS = "text-xs font-bold text-[var(--bad)]";
-export const RECOVERY_TITLE_CLASS = "text-xl font-bold";
+export const RECOVERY_TITLE_CLASS = "text-base font-bold";
 export const RECOVERY_COPY_CLASS = "mt-2 text-sm text-[var(--text-soft)]";
 export const RECOVERY_ACTIONS_CLASS = "mt-4 flex gap-2 border-t pt-4";
 export const RECOVERY_BUTTON_CLASS =

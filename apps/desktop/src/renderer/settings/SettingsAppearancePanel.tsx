@@ -84,7 +84,7 @@ export function SettingsAppearancePanel({
           ))}
         </fieldset>
       </div>
-      <div className="settings-group-heading mt-1.75 mb-0 min-h-9.5 border-[var(--border)] border-b pb-1.75 [&_p]:mt-0.5 [&_p]:text-[var(--text-meta)]">
+      <div className="settings-group-heading mt-1.75 mb-0 min-h-9.5 border-[var(--border)] border-b pb-1.75 [&_p]:mt-0.5 [&_p]:text-[length:var(--text-meta)]">
         <div>
           <span className="eyebrow">Color system</span>
           <h2>Operator signal</h2>

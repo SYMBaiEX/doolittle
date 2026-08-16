@@ -2,7 +2,7 @@ export const BROWSER_PAGE_CLASS =
   "page h-full gap-2 overflow-hidden px-2.5 pt-2 pb-2.5 max-[1080px]:h-auto max-[1080px]:min-h-full max-[1080px]:overflow-auto";
 
 export const BROWSER_HEADER_CLASS =
-  "flex min-h-12 shrink-0 items-center justify-between gap-5 [&_h1]:mt-0.75 [&_h1]:mb-0.5 [&_h1]:font-[var(--font-display)] [&_h1]:text-xl [&_h1]:tracking-[-0.035em] [&_p]:m-0 [&_p]:text-[10px] [&_p]:text-[var(--muted)] max-[780px]:[&_p]:hidden";
+  "flex min-h-12 shrink-0 items-center justify-between gap-5 [&_h1]:mt-0.75 [&_h1]:mb-0.5 [&_h1]:font-[var(--font-display)] [&_h1]:text-base [&_h1]:tracking-[-0.025em] [&_p]:m-0 [&_p]:text-[10px] [&_p]:text-[var(--muted)] max-[780px]:[&_p]:hidden";
 
 export const BROWSER_STATUS_CLASS =
   "grid grid-cols-[auto_auto_auto] items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] py-1 pr-1.5 pl-2 font-mono text-[10px] shadow-none [&>strong]:text-[var(--text-soft)] [&>strong]:uppercase";
@@ -36,7 +36,7 @@ export const BROWSER_PREVIEW_WIDTH_CLASS = {
 } as const;
 
 export const BROWSER_PLACEHOLDER_CLASS =
-  "grid max-w-[470px] place-items-center self-center justify-self-center gap-2.5 p-10 text-center [&>h2]:mt-1.25 [&>h2]:mb-0 [&>h2]:font-[var(--font-display)] [&>h2]:text-xl [&>p]:mt-0 [&>p]:mb-1.75 [&>p]:text-xs [&>p]:leading-[1.55] [&>p]:text-[var(--muted)]";
+  "grid max-w-[470px] place-items-center self-center justify-self-center gap-2.5 p-10 text-center [&>h2]:mt-1.25 [&>h2]:mb-0 [&>h2]:font-[var(--font-display)] [&>h2]:text-sm [&>p]:mt-0 [&>p]:mb-1.75 [&>p]:text-xs [&>p]:leading-[1.55] [&>p]:text-[var(--muted)]";
 
 export const BROWSER_TOOLS_CLASS =
   "flex min-h-0 min-w-0 flex-col overflow-auto";

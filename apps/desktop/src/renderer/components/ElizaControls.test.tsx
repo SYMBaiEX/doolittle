@@ -1,6 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Button, Input, Textarea } from "./ElizaControls";
+import {
+  Button,
+  ELIZA_SELECT_TEXT_CLASS,
+  Input,
+  Textarea,
+} from "./ElizaControls";
 
 describe("Doolittle Eliza control density adapter", () => {
   it("uses the shared density token for ordinary controls", () => {
@@ -15,6 +20,7 @@ describe("Doolittle Eliza control density adapter", () => {
     expect(markup).toContain("!h-[var(--control-height)]");
     expect(markup).toContain("max-[760px]:!h-9");
     expect(markup).toContain("!min-h-[var(--control-height)]");
+    expect(markup).toContain("!text-[length:var(--text-control)]");
   });
 
   it("gives textareas their own multi-line minimum height", () => {
@@ -24,9 +30,14 @@ describe("Doolittle Eliza control density adapter", () => {
       "--doolittle-textarea-min-height:calc(var(--control-height)*2)",
     );
     expect(markup).toContain("!min-h-[var(--doolittle-textarea-min-height)]");
+    expect(markup).toContain("!text-[length:var(--text-body)]");
     expect(markup).toContain(
       "max-[760px]:[--doolittle-textarea-min-height:72px]",
     );
+  });
+
+  it("keeps select menus on the compact control scale", () => {
+    expect(ELIZA_SELECT_TEXT_CLASS).toBe("!text-[length:var(--text-control)]");
   });
 
   it("does not override explicit icon or large button sizes", () => {

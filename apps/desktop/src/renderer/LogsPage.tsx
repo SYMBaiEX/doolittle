@@ -152,7 +152,7 @@ export function LogsPage({ active }: { active: boolean }) {
         </select>
       </div>
       <LogViewer
-        className="overflow-hidden rounded-[var(--radius-xs)] border border-[var(--border)] bg-[#0e0d0c] p-0 [html[data-appearance=light]_&]:bg-[#f5f1eb] [&>:not(:last-child)]:hidden [&>:last-child]:grid [&>:last-child]:gap-0 [&>:last-child>:first-child]:min-h-[38px] [&>:last-child>:first-child]:items-center [&>:last-child>:first-child]:border-[var(--border)] [&>:last-child>:first-child]:px-2.5 [&>:last-child>:first-child]:py-[7px] [&_h2]:text-[var(--text)] [&_h2]:text-[var(--text-control)] [&_h2]:font-semibold"
+        className="overflow-hidden rounded-[var(--radius-xs)] border border-[var(--border)] bg-[#0e0d0c] p-0 [html[data-appearance=light]_&]:bg-[#f5f1eb] [&>:not(:last-child)]:hidden [&>:last-child]:grid [&>:last-child]:gap-0 [&>:last-child>:first-child]:min-h-[38px] [&>:last-child>:first-child]:items-center [&>:last-child>:first-child]:border-[var(--border)] [&>:last-child>:first-child]:px-2.5 [&>:last-child>:first-child]:py-[7px] [&_h2]:text-[var(--text)] [&_h2]:text-[length:var(--text-control)] [&_h2]:font-semibold"
         emptyState={{
           title: "No matching log events",
           description: "The current filters did not match any recent records.",
@@ -163,7 +163,7 @@ export function LogsPage({ active }: { active: boolean }) {
         entryLevelVariant={logEntryLevelVariant}
         error={resource.error || undefined}
         errorTitle="Could not load runtime logs"
-        heightClassName="h-[clamp(18rem,56vh,35rem)] rounded-none border-0 max-[700px]:h-[clamp(18rem,54svh,26rem)] [&_[data-slot=badge]]:h-[18px] [&_[data-slot=badge]]:min-w-[3.2rem] [&_[data-slot=badge]]:justify-center [&_[data-slot=badge]]:px-[5px] [&_[data-slot=badge]]:text-[9px] [&_[data-slot=scroll-area-viewport]>div>div]:px-[9px] [&_[data-slot=scroll-area-viewport]>div>div]:py-[7px] [&_[data-slot=scroll-area-viewport]>div>div]:text-[var(--text-meta)]"
+        heightClassName="h-[clamp(18rem,56vh,35rem)] rounded-none border-0 max-[700px]:h-[clamp(18rem,54svh,26rem)] [&_[data-slot=badge]]:h-[18px] [&_[data-slot=badge]]:min-w-[3.2rem] [&_[data-slot=badge]]:justify-center [&_[data-slot=badge]]:px-[5px] [&_[data-slot=badge]]:text-[9px] [&_[data-slot=scroll-area-viewport]>div>div]:px-[9px] [&_[data-slot=scroll-area-viewport]>div>div]:py-[7px] [&_[data-slot=scroll-area-viewport]>div>div]:text-[length:var(--text-meta)]"
         isFilteredEmpty={Boolean(query.trim() || level !== "all")}
         loading={resource.loading}
         onRetry={resource.reload}
@@ -177,11 +177,11 @@ export function LogsPage({ active }: { active: boolean }) {
         <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-[18px] px-2.5 py-[7px] [&::-webkit-details-marker]:hidden">
           <span className="grid min-w-0 gap-px">
             <strong>Delivery and terminal history</strong>
-            <small className="font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)]">
+            <small className="font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
               Secondary operational traces
             </small>
           </span>
-          <span className="ml-auto font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)]">
+          <span className="ml-auto font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
             {historyOpen
               ? `${deliveryEntries.length} deliveries · ${commandEntries.length} commands`
               : "Open to load"}

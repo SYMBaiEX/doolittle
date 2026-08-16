@@ -105,7 +105,7 @@ export function ActivityTimeline({
                       </span>
                     </div>
                     <time
-                      className="shrink-0 font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)] tabular-nums"
+                      className="shrink-0 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] tabular-nums"
                       dateTime={event.occurredAt}
                     >
                       {displayTimestamp(event.occurredAt)}
@@ -129,7 +129,7 @@ export function ActivityTimeline({
         })}
       </ol>
       {remainingGroups ? (
-        <footer className="flex min-h-10 items-center justify-between gap-3 bg-[color-mix(in_srgb,var(--surface-soft)_82%,transparent)] px-3 py-1.5 font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)]">
+        <footer className="flex min-h-10 items-center justify-between gap-3 bg-[color-mix(in_srgb,var(--surface-soft)_82%,transparent)] px-3 py-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
           <span>{remainingGroups} older groups</span>
           <Button
             onClick={onShowMore}

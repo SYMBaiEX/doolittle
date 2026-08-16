@@ -28,7 +28,7 @@ export function SetupReadinessPanel({
         </div>
         <Badge tone={readiness.tone}>{readiness.label}</Badge>
       </div>
-      <p className="m-0 max-w-[82ch] text-[var(--text-control)] leading-[1.45] text-[var(--text-soft)]">
+      <p className="m-0 max-w-[82ch] text-[length:var(--text-control)] leading-[1.45] text-[var(--text-soft)]">
         {readiness.detail}
       </p>
     </section>

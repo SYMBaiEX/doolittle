@@ -30,6 +30,8 @@ const shortcutHintSource = readSource("./components/ShortcutHint.tsx");
 describe("desktop shell overlay Tailwind ownership", () => {
   it("keeps the compact sidebar out of the shell grid flow", () => {
     expect(DESKTOP_SHELL_CLASS).toContain("grid");
+    expect(DESKTOP_SHELL_CLASS).toContain("font-[var(--font-sans)]");
+    expect(DESKTOP_SHELL_CLASS).toContain("text-[length:var(--text-body)]");
     expect(APP_SIDEBAR_CLASS).not.toContain("relative");
     expect(APP_SIDEBAR_CLASS).not.toContain("fixed");
     expect(APP_SIDEBAR_DESKTOP_CLASS).toBe("relative");

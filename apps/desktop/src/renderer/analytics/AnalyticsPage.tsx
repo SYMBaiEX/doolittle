@@ -134,12 +134,12 @@ export function AnalyticsPage({
               Private by design
             </span>
             <h2
-              className="text-[17px] font-bold text-[var(--text-strong)]"
+              className="text-sm font-bold text-[var(--text-strong)]"
               id="analytics-empty-title"
             >
               No local activity yet
             </h2>
-            <p className="text-[var(--text-control)] text-[var(--text-muted)]">
+            <p className="text-[length:var(--text-control)] text-[var(--text-muted)]">
               Start a conversation. Session counts and context estimates stay on
               this device.
             </p>
@@ -208,7 +208,7 @@ export function AnalyticsPage({
                         className="flex min-w-5 flex-1 flex-col items-center gap-[5px]"
                         key={`${label}:${JSON.stringify(entry)}`}
                       >
-                        <span className="text-[var(--text-meta)] text-[var(--muted)]">
+                        <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
                           {messages}
                         </span>
                         <div className="relative h-[108px] w-full max-w-8 overflow-hidden rounded-[var(--radius-xs)] bg-[var(--surface-soft)] max-[1120px]:h-[92px]">
@@ -219,7 +219,7 @@ export function AnalyticsPage({
                             }}
                           />
                         </div>
-                        <small className="text-[var(--text-meta)] text-[var(--muted)]">
+                        <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
                           {label.slice(5) || label}
                         </small>
                       </div>
@@ -253,7 +253,7 @@ export function AnalyticsPage({
                         "Last activity",
                       ].map((label) => (
                         <th
-                          className="border-b border-[var(--border)] px-[9px] py-[7px] text-left text-[var(--text-meta)] uppercase tracking-[0.1em] text-[var(--muted)]"
+                          className="border-b border-[var(--border)] px-[9px] py-[7px] text-left text-[length:var(--text-meta)] uppercase tracking-[0.1em] text-[var(--muted)]"
                           key={label}
                         >
                           {label}
@@ -265,7 +265,7 @@ export function AnalyticsPage({
                     {recentSessions.length === 0 ? (
                       <tr>
                         <td
-                          className="h-[58px] border-b border-[var(--border)] px-[9px] py-[7px] text-center text-[var(--text-meta)] text-[var(--muted)]"
+                          className="h-[58px] border-b border-[var(--border)] px-[9px] py-[7px] text-center text-[length:var(--text-meta)] text-[var(--muted)]"
                           colSpan={4}
                         >
                           No session usage yet
@@ -276,13 +276,13 @@ export function AnalyticsPage({
                       const usage = asRecord(entry.usage);
                       return (
                         <tr key={asString(entry.sessionId, String(index))}>
-                          <td className="max-w-[30rem] overflow-hidden text-ellipsis whitespace-nowrap border-b border-[var(--border)] px-[9px] py-[7px] text-[var(--text-meta)] text-[var(--text-soft)]">
+                          <td className="max-w-[30rem] overflow-hidden text-ellipsis whitespace-nowrap border-b border-[var(--border)] px-[9px] py-[7px] text-[length:var(--text-meta)] text-[var(--text-soft)]">
                             {analyticsSessionLabel(entry)}
                           </td>
-                          <td className="border-b border-[var(--border)] px-[9px] py-[7px] text-[var(--text-meta)] text-[var(--text-soft)]">
+                          <td className="border-b border-[var(--border)] px-[9px] py-[7px] text-[length:var(--text-meta)] text-[var(--text-soft)]">
                             {asNumber(entry.messageCount)}
                           </td>
-                          <td className="border-b border-[var(--border)] px-[9px] py-[7px] text-[var(--text-meta)] text-[var(--text-soft)]">
+                          <td className="border-b border-[var(--border)] px-[9px] py-[7px] text-[length:var(--text-meta)] text-[var(--text-soft)]">
                             {compactNumber(
                               asNumber(
                                 usage.estimatedTokens,
@@ -290,7 +290,7 @@ export function AnalyticsPage({
                               ),
                             )}
                           </td>
-                          <td className="border-b border-[var(--border)] px-[9px] py-[7px] text-[var(--text-meta)] text-[var(--text-soft)]">
+                          <td className="border-b border-[var(--border)] px-[9px] py-[7px] text-[length:var(--text-meta)] text-[var(--text-soft)]">
                             {displayTimestamp(
                               asString(entry.endedAt) || undefined,
                             )}

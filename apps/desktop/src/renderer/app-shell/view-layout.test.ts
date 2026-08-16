@@ -7,7 +7,7 @@ describe("shared view primitives", () => {
       "max-[760px]:[&_.page-header_h1]:text-[clamp(",
     );
     expect(VIEW_PRIMITIVES_CLASS).toContain(
-      "[&_.page-header_h1]:text-[var(--page-title-size)]",
+      "[&_.page-header_h1]:text-[length:var(--page-title-size)]",
     );
   });
 
@@ -19,6 +19,14 @@ describe("shared view primitives", () => {
     ]) {
       expect(VIEW_PRIMITIVES_CLASS).toContain(`[&_.${action}]:normal-case`);
     }
+  });
+
+  it("keeps route section headings below the page title hierarchy", () => {
+    expect(VIEW_PRIMITIVES_CLASS).toContain("[&_.card-heading_h2]:text-sm");
+    expect(VIEW_PRIMITIVES_CLASS).toContain("[&_.empty-block_h3]:text-sm");
+    expect(VIEW_PRIMITIVES_CLASS).not.toContain(
+      "[&_.card-heading_h2]:text-[17px]",
+    );
   });
 
   it("gives empty split workspaces a single-column override", () => {

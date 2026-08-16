@@ -176,7 +176,7 @@ function ArtifactItem({
           <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px]">
             {payload?.artifact.name ?? label}
           </strong>
-          <small className="overflow-hidden font-[var(--font-mono)] text-[var(--text-meta,10px)] text-ellipsis whitespace-nowrap text-[var(--muted)]">
+          <small className="overflow-hidden font-[var(--font-mono)] text-[length:var(--text-meta,10px)] text-ellipsis whitespace-nowrap text-[var(--muted)]">
             {payload
               ? `${payload.artifact.kind} · ${compactBytes(
                   payload.artifact.sizeBytes,
@@ -184,7 +184,7 @@ function ArtifactItem({
               : `Artifact ${index + 1}`}
           </small>
         </span>
-        <span className="font-[var(--font-mono)] text-[var(--text-meta,10px)] not-italic tracking-[0.06em] text-[var(--accent)] uppercase">
+        <span className="font-[var(--font-mono)] text-[length:var(--text-meta,10px)] not-italic tracking-[0.06em] text-[var(--accent)] uppercase">
           {expanded ? "Close" : "Open"}
         </span>
       </Button>
@@ -202,7 +202,7 @@ function ArtifactItem({
             <Notice tone="bad">{error}</Notice>
           ) : payload ? (
             <>
-              <div className="flex min-w-0 items-center justify-between gap-2.5 font-[var(--font-mono)] text-[var(--text-meta,10px)] text-[var(--muted)]">
+              <div className="flex min-w-0 items-center justify-between gap-2.5 font-[var(--font-mono)] text-[length:var(--text-meta,10px)] text-[var(--muted)]">
                 <span>{payload.artifact.mimeType}</span>
                 <code className="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--faint)]">
                   {payload.artifact.runId} · {payload.artifact.index}

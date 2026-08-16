@@ -9,12 +9,12 @@ import {
   type InputProps,
 } from "../../../../../node_modules/@elizaos/ui/components/ui/input.js";
 import {
+  SelectItem as ElizaSelectItem,
+  SelectLabel as ElizaSelectLabel,
   SelectTrigger as ElizaSelectTrigger,
   Select,
   SelectContent,
   SelectGroup,
-  SelectItem,
-  SelectLabel,
   SelectScrollDownButton,
   SelectScrollUpButton,
   SelectSeparator,
@@ -34,11 +34,13 @@ import {
  * Eliza size/density variants keep their upstream geometry.
  */
 const standardControlClass =
-  "!h-[var(--control-height)] !min-h-[var(--control-height)] max-[760px]:!h-9 max-[760px]:!min-h-9";
+  "!h-[var(--control-height)] !min-h-[var(--control-height)] !text-[length:var(--text-control)] max-[760px]:!h-9 max-[760px]:!min-h-9";
 
 // Text entry needs room to compose; do not collapse it to a one-line control.
 const textareaControlClass =
-  "[--doolittle-textarea-min-height:calc(var(--control-height)*2)] !min-h-[var(--doolittle-textarea-min-height)] max-[760px]:[--doolittle-textarea-min-height:72px]";
+  "[--doolittle-textarea-min-height:calc(var(--control-height)*2)] !min-h-[var(--doolittle-textarea-min-height)] !text-[length:var(--text-body)] max-[760px]:[--doolittle-textarea-min-height:72px]";
+
+export const ELIZA_SELECT_TEXT_CLASS = "!text-[length:var(--text-control)]";
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, size, ...props }, ref) => {
@@ -99,12 +101,34 @@ export const SelectTrigger = forwardRef<
 ));
 SelectTrigger.displayName = "DoolittleSelectTrigger";
 
+export const SelectItem = forwardRef<
+  HTMLDivElement,
+  ComponentPropsWithoutRef<typeof ElizaSelectItem>
+>(({ className, ...props }, ref) => (
+  <ElizaSelectItem
+    {...props}
+    className={cn(ELIZA_SELECT_TEXT_CLASS, className)}
+    ref={ref}
+  />
+));
+SelectItem.displayName = "DoolittleSelectItem";
+
+export const SelectLabel = forwardRef<
+  HTMLDivElement,
+  ComponentPropsWithoutRef<typeof ElizaSelectLabel>
+>(({ className, ...props }, ref) => (
+  <ElizaSelectLabel
+    {...props}
+    className={cn(ELIZA_SELECT_TEXT_CLASS, className)}
+    ref={ref}
+  />
+));
+SelectLabel.displayName = "DoolittleSelectLabel";
+
 export {
   Select,
   SelectContent,
   SelectGroup,
-  SelectItem,
-  SelectLabel,
   SelectScrollDownButton,
   SelectScrollUpButton,
   SelectSeparator,

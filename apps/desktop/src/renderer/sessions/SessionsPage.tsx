@@ -125,7 +125,7 @@ export function SessionsPage({
               className="session-empty-landing flex min-h-0 items-center justify-between gap-6 bg-[linear-gradient(105deg,color-mix(in_srgb,var(--accent)_6%,transparent),transparent_42%)] px-5 py-[18px] max-[860px]:flex-col max-[860px]:items-stretch max-[860px]:gap-3.5"
               data-session-empty-landing="true"
             >
-              <div className="grid min-w-0 gap-[3px] [&_h2]:m-0 [&_h2]:text-[17px] [&_h2]:text-[var(--text-strong)] [&_p]:m-0 [&_p]:text-[var(--text-control)] [&_p]:text-[var(--text-muted)]">
+              <div className="grid min-w-0 gap-[3px] [&_h2]:m-0 [&_h2]:text-sm [&_h2]:text-[var(--text-strong)] [&_p]:m-0 [&_p]:text-[length:var(--text-control)] [&_p]:text-[var(--text-muted)]">
                 <span className="eyebrow">Conversation archive</span>
                 <h2 id="sessions-empty-title">No saved conversations</h2>
                 <p>Start fresh, or bring in a portable Doolittle archive.</p>

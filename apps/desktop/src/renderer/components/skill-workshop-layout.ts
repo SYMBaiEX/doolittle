@@ -13,7 +13,7 @@ export const SKILL_WORKSHOP_GRID_CLASS =
   "grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start gap-3 max-[1140px]:grid-cols-1";
 
 export const SKILL_FILTER_CLASS =
-  "min-h-7 rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-2.5 font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)] capitalize hover:border-[color-mix(in_srgb,var(--accent)_38%,var(--border))] hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] hover:text-[var(--text)] focus-visible:border-[color-mix(in_srgb,var(--accent)_38%,var(--border))] focus-visible:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] focus-visible:text-[var(--text)]";
+  "min-h-7 rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-2.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] capitalize hover:border-[color-mix(in_srgb,var(--accent)_38%,var(--border))] hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] hover:text-[var(--text)] focus-visible:border-[color-mix(in_srgb,var(--accent)_38%,var(--border))] focus-visible:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] focus-visible:text-[var(--text)]";
 
 export const SKILL_FILTER_SELECTED_CLASS =
   "border-[color-mix(in_srgb,var(--accent)_38%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] text-[var(--text)]";

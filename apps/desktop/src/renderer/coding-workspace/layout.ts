@@ -42,7 +42,7 @@ export const CODING_REPO_MARK_CLASS =
   "coding-repo-mark grid size-6.75 shrink-0 place-items-center rounded-[4px] border border-[var(--accent)] bg-[var(--accent)] font-[var(--font-mono)] text-[10px] font-black text-[#160b03]";
 
 export const CODING_REPO_TITLE_CLASS =
-  "coding-repo-title flex min-w-0 items-center gap-1.75 [&_h1]:m-0 [&_h1]:max-w-[min(35vw,440px)] [&_h1]:truncate [&_h1]:font-[var(--font-display)] [&_h1]:text-base [&_h1]:font-[680] [&_h1]:tracking-[-0.025em] [&_code]:rounded-[3px] [&_code]:bg-[var(--surface-soft)] [&_code]:px-1.25 [&_code]:py-0.5 [&_code]:text-[8px] [&_code]:text-[var(--muted)]";
+  "coding-repo-title flex min-w-0 items-center gap-1.75 [&_h1]:m-0 [&_h1]:max-w-[min(35vw,440px)] [&_h1]:truncate [&_h1]:font-[var(--font-display)] [&_h1]:text-sm [&_h1]:font-[680] [&_h1]:tracking-[-0.02em] [&_code]:rounded-[3px] [&_code]:bg-[var(--surface-soft)] [&_code]:px-1.25 [&_code]:py-0.5 [&_code]:text-[8px] [&_code]:text-[var(--muted)]";
 
 export const CODING_REPO_PATH_CLASS =
   "mt-0.5 mb-0 max-w-[min(46vw,650px)] truncate font-[var(--font-mono)] text-[8px] text-[var(--muted)]";

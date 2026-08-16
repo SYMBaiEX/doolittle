@@ -42,7 +42,7 @@ export function DashboardRuntimeDetails({
             {runtime?.model || "Unknown model"}
           </small>
         </span>
-        <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-meta)] text-[var(--muted)] max-[620px]:hidden">
+        <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-meta)] text-[var(--muted)] max-[620px]:hidden">
           {runtimePluginCount} plugins · {ownershipCount} signals ·{" "}
           {accountPool.enabled} accounts
         </span>

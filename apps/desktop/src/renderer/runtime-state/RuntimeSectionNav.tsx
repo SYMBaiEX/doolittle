@@ -21,7 +21,7 @@ export function RuntimeSectionNav<Section extends string>({
       {sections.map((section) => (
         <TabsTrigger
           aria-label={`${section.label}: ${section.detail}`}
-          className="runtime-section-nav__item min-h-[30px] min-w-0 rounded-xs border-0 border-r border-[var(--line-subtle)] bg-transparent px-[11px] py-[5px] font-[var(--font-mono)] text-[var(--text-meta)] font-bold tracking-[0.055em] whitespace-nowrap text-[var(--muted)] uppercase shadow-none last:border-r-0 focus-visible:z-1 focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[var(--accent)] data-[state=active]:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-raised))] data-[state=active]:text-[var(--text)] data-[state=active]:shadow-[inset_0_-1px_var(--accent)]"
+          className="runtime-section-nav__item min-h-[30px] min-w-0 rounded-xs border-0 border-r border-[var(--line-subtle)] bg-transparent px-[11px] py-[5px] font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold tracking-[0.055em] whitespace-nowrap text-[var(--muted)] uppercase shadow-none last:border-r-0 focus-visible:z-1 focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[var(--accent)] data-[state=active]:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-raised))] data-[state=active]:text-[var(--text)] data-[state=active]:shadow-[inset_0_-1px_var(--accent)]"
           key={section.id}
           title={section.detail}
           value={section.id}

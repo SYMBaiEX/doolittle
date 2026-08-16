@@ -11,7 +11,7 @@ export function MediaOptions({
 }) {
   return (
     <details className="group col-span-full mb-[11px] overflow-hidden rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface-soft)_78%,transparent)]">
-      <summary className="flex min-h-[34px] cursor-pointer list-none items-center justify-between gap-3 px-2.5 font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--text-soft)] uppercase [&::-webkit-details-marker]:hidden">
+      <summary className="flex min-h-[34px] cursor-pointer list-none items-center justify-between gap-3 px-2.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--text-soft)] uppercase [&::-webkit-details-marker]:hidden">
         <span>{label}</span>
         <span className="ml-auto min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[9px] text-[var(--muted)]">
           {value}

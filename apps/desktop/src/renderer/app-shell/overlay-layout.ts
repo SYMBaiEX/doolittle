@@ -10,7 +10,7 @@ export const COMMAND_PALETTE_MARK_CLASS =
 export const COMMAND_PALETTE_TITLE_CLASS =
   "command-palette__title m-0 text-[11px] font-semibold tracking-[0.02em] text-[var(--text-soft)]";
 export const COMMAND_PALETTE_CLOSE_CLASS =
-  "command-palette__close h-6 min-w-0 rounded-[5px] border border-[var(--border)] bg-[var(--surface)] px-1.75 font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)] normal-case";
+  "command-palette__close h-6 min-w-0 rounded-[5px] border border-[var(--border)] bg-[var(--surface)] px-1.75 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] normal-case";
 export const COMMAND_PALETTE_LABEL_CLASS =
   "command-palette__label block px-2.5 pt-1.25 pb-2.5";
 export const COMMAND_PALETTE_SEARCH_SHELL_CLASS =
@@ -32,35 +32,35 @@ export const COMMAND_PALETTE_ITEM_CLASS =
 export const COMMAND_PALETTE_ITEM_LABEL_CLASS =
   "command-palette__item-label overflow-hidden text-ellipsis whitespace-nowrap text-xs font-semibold";
 export const COMMAND_PALETTE_ITEM_DESCRIPTION_CLASS =
-  "command-palette__item-description col-start-1 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-meta)] text-[var(--muted)]";
+  "command-palette__item-description col-start-1 overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-meta)] text-[var(--muted)]";
 export const COMMAND_PALETTE_ITEM_SHORTCUT_CLASS =
   "command-palette__item-shortcut col-start-2 row-span-2 row-start-1 flex text-[var(--muted)]";
 export const COMMAND_PALETTE_EMPTY_CLASS =
-  "command-palette__empty m-0 px-5 py-10.5 text-center text-[var(--text-meta)] text-[var(--muted)]";
+  "command-palette__empty m-0 px-5 py-10.5 text-center text-[length:var(--text-meta)] text-[var(--muted)]";
 export const COMMAND_PALETTE_FOOTER_CLASS =
   "command-palette__footer flex min-h-9 items-center justify-between px-3 py-1.75 font-[var(--font-mono)] text-[9px] text-[var(--faint)]";
 export const COMMAND_PALETTE_KEY_GUIDE_CLASS =
   "command-palette__key-guide flex items-center gap-1.25 [&_kbd]:min-w-5.25 [&_kbd]:rounded [&_kbd]:border [&_kbd]:border-[var(--border)] [&_kbd]:bg-[var(--surface)] [&_kbd]:px-1 [&_kbd]:py-0.5 [&_kbd]:text-center [&_kbd]:font-[inherit] [&_kbd]:text-[var(--muted)]";
 export const COMMAND_SHORTCUT_KEY_CLASS =
-  "command-shortcut__key rounded border border-[var(--border)] bg-[var(--surface)] px-1.25 py-0.75 font-[var(--font-mono)] text-[var(--text-meta)] text-[inherit]";
+  "command-shortcut__key rounded border border-[var(--border)] bg-[var(--surface)] px-1.25 py-0.75 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[inherit]";
 
 export const ROUTE_DIALOG_BACKDROP_CLASS =
   "dialog-backdrop fixed inset-0 z-1000 grid place-items-center overflow-auto bg-[color-mix(in_srgb,#050302_78%,transparent)] p-[clamp(18px,4vw,54px)] max-[760px]:items-end max-[760px]:p-2.5";
 export const ROUTE_DIALOG_CLASS =
   "route-control-dialog w-[min(920px,100%)] max-h-[min(88vh,860px)] overflow-auto rounded-[var(--radius-md)] border border-[color-mix(in_srgb,var(--accent)_28%,var(--border))] bg-[radial-gradient(circle_at_82%_0%,color-mix(in_srgb,var(--accent)_10%,transparent),transparent_34%),color-mix(in_srgb,var(--surface-raised)_98%,#080503)] p-[clamp(18px,3vw,28px)] shadow-[0_30px_90px_color-mix(in_srgb,#000_78%,transparent),0_0_0_1px_color-mix(in_srgb,var(--accent)_7%,transparent)] outline-none max-[760px]:max-h-[calc(100vh-20px)] max-[760px]:rounded-[var(--radius-md)_var(--radius-md)_var(--radius-xs)_var(--radius-xs)]";
 export const ROUTE_DIALOG_HEADER_CLASS =
-  "route-control-header flex items-start justify-between gap-6 border-b border-[var(--border)] pb-4.5 [&_h2]:mt-1.25 [&_h2]:mb-1.75 [&_h2]:text-[clamp(20px,2.4vw,26px)] [&_h2]:leading-none [&_p]:m-0 [&_p]:max-w-140 [&_p]:leading-[1.55] [&_p]:text-[var(--muted)]";
+  "route-control-header flex items-start justify-between gap-6 border-b border-[var(--border)] pb-4.5 [&_h2]:mt-1.25 [&_h2]:mb-1.75 [&_h2]:text-[clamp(17px,1.7vw,21px)] [&_h2]:leading-none [&_p]:m-0 [&_p]:max-w-140 [&_p]:leading-[1.55] [&_p]:text-[var(--muted)]";
 export const ROUTE_DIALOG_FORM_CLASS = "route-control-form grid gap-4.5 pt-4.5";
 export const ROUTE_DIALOG_STATUS_CLASS =
   "route-control-status grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2.5 gap-y-1 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--accent)_14%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] p-3 max-[760px]:grid-cols-1 [&>small]:col-start-2 [&>small]:text-[var(--muted)] max-[760px]:[&>small]:col-start-1 [&>strong]:overflow-hidden [&>strong]:text-ellipsis [&>strong]:whitespace-nowrap [&>strong]:text-[13px]";
 export const ROUTE_PROVIDER_GRID_CLASS =
   "route-provider-grid grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-2.5 max-[760px]:grid-cols-2";
 export const ROUTE_PROVIDER_CARD_CLASS =
-  "route-provider-card relative grid min-h-32 content-start gap-1.25 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_96%,transparent)] p-3 text-left text-[var(--text-soft)] transition-[color,background-color,border-color,transform,box-shadow] hover:-translate-y-px hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&>small]:text-[10px] [&>small]:leading-[1.45] [&>small]:text-[var(--muted)] [&>span]:font-[var(--font-mono)] [&>span]:text-[var(--text-meta)] [&>span]:tracking-[0.08em] [&>span]:text-[var(--accent)] [&>span]:uppercase [&>strong]:text-[13px]";
+  "route-provider-card relative grid min-h-32 content-start gap-1.25 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_96%,transparent)] p-3 text-left text-[var(--text-soft)] transition-[color,background-color,border-color,transform,box-shadow] hover:-translate-y-px hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&>small]:text-[10px] [&>small]:leading-[1.45] [&>small]:text-[var(--muted)] [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:tracking-[0.08em] [&>span]:text-[var(--accent)] [&>span]:uppercase [&>strong]:text-[13px]";
 export const ROUTE_PROVIDER_CARD_SELECTED_CLASS =
   "selected border-[color-mix(in_srgb,var(--accent)_58%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-soft))] text-[var(--text)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_10%,transparent)]";
 export const ROUTE_PROVIDER_READINESS_CLASS =
-  "route-provider-readiness mt-auto place-self-start rounded-full bg-[color-mix(in_srgb,var(--surface-raised)_72%,transparent)] px-1.75 py-0.75 font-[var(--font-mono)] text-[var(--text-meta)] not-italic tracking-[0.06em] text-[var(--faint)] uppercase";
+  "route-provider-readiness mt-auto place-self-start rounded-full bg-[color-mix(in_srgb,var(--surface-raised)_72%,transparent)] px-1.75 py-0.75 font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic tracking-[0.06em] text-[var(--faint)] uppercase";
 export const ROUTE_PROVIDER_READINESS_TONE = {
   neutral: "neutral",
   good: "good bg-[color-mix(in_srgb,var(--good)_14%,transparent)] text-[var(--good)]",

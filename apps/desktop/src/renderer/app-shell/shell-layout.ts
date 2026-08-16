@@ -1,5 +1,5 @@
 export const DESKTOP_SHELL_CLASS =
-  "desktop-shell grid h-full w-full overflow-hidden bg-[var(--bg)] text-[var(--text)] transition-[grid-template-columns] duration-200 ease-[var(--ease-out)]";
+  "desktop-shell grid h-full w-full overflow-hidden bg-[var(--bg)] font-[var(--font-sans)] text-[length:var(--text-body)] text-[var(--text)] transition-[grid-template-columns] duration-200 ease-[var(--ease-out)]";
 
 export const APP_MAIN_CLASS =
   "app-main relative flex min-h-0 min-w-0 flex-col overflow-hidden";
@@ -14,7 +14,7 @@ export const WINDOW_DRAGBAR_PRIMARY_CLASS =
   "window-dragbar-primary flex min-h-11 min-w-0 flex-1 items-center gap-3 px-3.25 pl-4.5";
 
 export const WINDOW_CONTEXT_CLASS =
-  "window-context flex min-w-0 flex-[0_1_auto] items-baseline gap-2.25 [&>span]:font-[var(--font-mono)] [&>span]:text-[var(--text-meta)] [&>span]:font-bold [&>span]:tracking-[0.16em] [&>span]:text-[var(--faint)] [&>span]:uppercase [&>strong]:text-xs [&>strong]:font-semibold [&>strong]:tracking-[0.035em] [&>strong]:text-[var(--text)] max-[480px]:[&>span]:hidden";
+  "window-context flex min-w-0 flex-[0_1_auto] items-baseline gap-2.25 [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:font-bold [&>span]:tracking-[0.16em] [&>span]:text-[var(--faint)] [&>span]:uppercase [&>strong]:text-xs [&>strong]:font-semibold [&>strong]:tracking-[0.035em] [&>strong]:text-[var(--text)] max-[480px]:[&>span]:hidden";
 
 export const WINDOW_TOOLS_CLASS =
   "window-tools ml-auto flex shrink-0 items-center gap-1.25 [-webkit-app-region:no-drag]";
@@ -52,7 +52,7 @@ export const APP_BRAND_COLLAPSED_CLASS =
 export const APP_BRAND_MARK_CLASS =
   "app-brand-mark relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-[9px] border border-[var(--accent)] bg-[var(--accent)] font-[var(--font-display)] text-base font-extrabold tracking-[-0.06em] text-[#120a04] before:absolute before:top-1.25 before:-right-0.5 before:h-px before:w-2.75 before:-rotate-45 before:bg-[color-mix(in_srgb,#0b0a09_58%,transparent)] before:content-[''] after:absolute after:bottom-1.25 after:-left-0.5 after:h-px after:w-2.75 after:-rotate-45 after:bg-[color-mix(in_srgb,#0b0a09_58%,transparent)] after:content-[''] [&>i]:absolute [&>i]:right-1 [&>i]:bottom-1 [&>i]:size-0.75 [&>i]:rounded-full [&>i]:bg-[#0b0a09] [&>span]:-translate-x-px";
 export const APP_BRAND_COPY_CLASS =
-  "app-brand-copy flex min-w-0 flex-col gap-0.5 [&>span]:whitespace-nowrap [&>span]:font-[var(--font-mono)] [&>span]:text-[9px] [&>span]:font-semibold [&>span]:tracking-[0.1em] [&>span]:text-[var(--accent)] [&>span]:uppercase [&>strong]:font-[var(--font-display)] [&>strong]:text-[15px] [&>strong]:font-semibold [&>strong]:tracking-[-0.01em]";
+  "app-brand-copy flex min-w-0 flex-col gap-0.5 [&>span]:whitespace-nowrap [&>span]:font-[var(--font-mono)] [&>span]:text-[9px] [&>span]:font-semibold [&>span]:tracking-[0.1em] [&>span]:text-[var(--accent)] [&>span]:uppercase [&>strong]:font-[var(--font-display)] [&>strong]:text-[13px] [&>strong]:font-semibold [&>strong]:tracking-[-0.01em]";
 export const SIDEBAR_COLLAPSE_CLASS =
   "sidebar-collapse ml-auto grid size-6.5 place-items-center rounded-[var(--radius-xs)] border border-transparent bg-transparent text-[17px] leading-none text-[var(--muted)] [-webkit-app-region:no-drag] hover:border-[var(--border)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)]";
 export const SIDEBAR_COLLAPSE_COLLAPSED_CLASS = "mx-auto h-6 w-8.5 text-sm";
@@ -95,7 +95,7 @@ export const SIDEBAR_FOOTER_CLASS =
 export const SIDEBAR_FOOTER_ACTIONS_CLASS =
   "sidebar-footer-actions flex items-center gap-1.5";
 export const SIDEBAR_ACCOUNT_CLASS =
-  "sidebar-account flex min-h-10.75 min-w-0 flex-1 items-center gap-2 rounded-lg border border-transparent bg-transparent px-1.75 py-1.25 text-left hover:border-[var(--border)] hover:bg-[var(--surface-hover)] [&>div]:flex [&>div]:min-w-0 [&>div]:flex-col [&>div]:gap-px [&>small]:mt-0.5 [&>small]:font-[var(--font-mono)] [&>small]:text-[9px] [&>small]:text-[var(--muted)] [&>span]:grid [&>span]:size-7.5 [&>span]:shrink-0 [&>span]:place-items-center [&>span]:rounded-lg [&>span]:border [&>span]:border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] [&>span]:bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] [&>span]:font-[var(--font-mono)] [&>span]:text-[var(--text-meta)] [&>span]:text-[var(--accent)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-xs [&_strong]:font-semibold [&_strong]:text-[var(--text)]";
+  "sidebar-account flex min-h-10.75 min-w-0 flex-1 items-center gap-2 rounded-lg border border-transparent bg-transparent px-1.75 py-1.25 text-left hover:border-[var(--border)] hover:bg-[var(--surface-hover)] [&>div]:flex [&>div]:min-w-0 [&>div]:flex-col [&>div]:gap-px [&>small]:mt-0.5 [&>small]:font-[var(--font-mono)] [&>small]:text-[9px] [&>small]:text-[var(--muted)] [&>span]:grid [&>span]:size-7.5 [&>span]:shrink-0 [&>span]:place-items-center [&>span]:rounded-lg [&>span]:border [&>span]:border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] [&>span]:bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:text-[var(--accent)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-xs [&_strong]:font-semibold [&_strong]:text-[var(--text)]";
 export const SIDEBAR_ACCOUNT_SELECTED_CLASS =
   "selected border-[var(--border)] bg-[var(--surface-hover)]";
 export const SIDEBAR_ACCOUNT_ARROW_CLASS =
@@ -106,13 +106,13 @@ export const SIDEBAR_APPEARANCE_CLASS =
 export const WINDOW_PROJECT_SCOPE_CLASS =
   "window-project-scope min-h-5.5 max-w-33 truncate rounded-[11px] border border-[var(--line-subtle)] bg-[var(--surface-soft)] px-1.75 py-0.5 font-[var(--font-mono)] text-[9px] text-[var(--muted)] [-webkit-app-region:no-drag] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]";
 export const WINDOW_COMMAND_BUTTON_CLASS =
-  "window-command-button flex min-h-7.5 w-[min(260px,27vw)] items-center justify-between gap-2.5 rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface-soft)_82%,transparent)] px-2 py-1.25 pl-2.5 text-left text-[var(--text-control)] text-[var(--muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-soft)] [&_kbd]:rounded [&_kbd]:border [&_kbd]:border-[var(--border)] [&_kbd]:bg-[var(--surface-raised)] [&_kbd]:px-1 [&_kbd]:py-0.5 [&_kbd]:font-[var(--font-mono)] [&_kbd]:text-[9px] [&_kbd]:text-[var(--faint)] max-[1180px]:w-47.5 max-[940px]:hidden";
+  "window-command-button flex min-h-7.5 w-[min(260px,27vw)] items-center justify-between gap-2.5 rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface-soft)_82%,transparent)] px-2 py-1.25 pl-2.5 text-left text-[length:var(--text-control)] text-[var(--muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-soft)] [&_kbd]:rounded [&_kbd]:border [&_kbd]:border-[var(--border)] [&_kbd]:bg-[var(--surface-raised)] [&_kbd]:px-1 [&_kbd]:py-0.5 [&_kbd]:font-[var(--font-mono)] [&_kbd]:text-[9px] [&_kbd]:text-[var(--faint)] max-[1180px]:w-47.5 max-[940px]:hidden";
 export const WINDOW_COMMAND_BUTTON_COMPACT_CLASS =
   "h-7.5! w-7.5! justify-center p-0 max-[940px]:flex";
 export const WINDOW_UTILITY_BUTTON_CLASS =
   "window-utility-button min-h-7 rounded-[var(--radius-xs)] border border-transparent bg-transparent px-2 py-1.25 text-[var(--muted)] hover:border-[var(--line-subtle)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] aria-expanded:border-[var(--line-subtle)] aria-expanded:bg-[var(--surface-soft)] aria-expanded:text-[var(--text)]";
 export const WINDOW_RUNTIME_STATUS_CLASS =
-  "window-runtime-status flex min-h-6.5 items-center gap-1.5 rounded-[var(--radius-xs)] px-1.5 py-1 font-[var(--font-mono)] text-[var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase [&>i]:size-1.25 [&>i]:rounded-full [&>i]:bg-[var(--muted)]";
+  "window-runtime-status flex min-h-6.5 items-center gap-1.5 rounded-[var(--radius-xs)] px-1.5 py-1 font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase [&>i]:size-1.25 [&>i]:rounded-full [&>i]:bg-[var(--muted)]";
 export const WINDOW_RUNTIME_STATUS_TONE = {
   ready:
     "ready [&>i]:bg-[var(--good)] [&>i]:shadow-[0_0_8px_color-mix(in_srgb,var(--good)_60%,transparent)]",

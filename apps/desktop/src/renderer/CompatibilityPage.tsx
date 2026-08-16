@@ -58,12 +58,12 @@ export function CompatibilityEmptyState({ onRetry }: { onRetry: () => void }) {
       </span>
       <div className="grid gap-px">
         <strong
-          className="text-[var(--text-control)] text-[var(--text)]"
+          className="text-[length:var(--text-control)] text-[var(--text)]"
           id="compatibility-empty-title"
         >
           No compatibility checks reported
         </strong>
-        <small className="text-[var(--text-meta)] text-[var(--muted)]">
+        <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
           The runtime returned no checks payload.
         </small>
       </div>

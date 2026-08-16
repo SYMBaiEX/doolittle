@@ -94,7 +94,7 @@ export function UtilityDrawer<TView extends string>({
           <div className="grid min-w-0 gap-px">
             <span className="eyebrow">Operator console {"//"}</span>
             <h2
-              className="m-0 font-semibold text-base text-[var(--text)] tracking-[-0.02em] [font-family:var(--font-display)]"
+              className="m-0 font-semibold text-sm text-[var(--text)] tracking-[-0.015em] [font-family:var(--font-display)]"
               id="utility-drawer-title"
             >
               Tools & settings

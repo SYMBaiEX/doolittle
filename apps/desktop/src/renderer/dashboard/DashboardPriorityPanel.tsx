@@ -104,7 +104,7 @@ export function DashboardPriorityPanel({
                     <strong>{action.title}</strong>
                     <Badge tone={action.tone}>{action.target}</Badge>
                   </header>
-                  <p className="col-start-1 m-0 text-[var(--text-body,13px)] text-[var(--text-soft)]">
+                  <p className="col-start-1 m-0 text-[length:var(--text-body,13px)] text-[var(--text-soft)]">
                     {action.description}
                   </p>
                   <Button

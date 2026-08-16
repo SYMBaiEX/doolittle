@@ -8,7 +8,7 @@ const ORCHESTRATION_CLASS = {
   "orchestration-page":
     "page orchestration-page relative flex h-full min-h-0 w-full flex-col gap-0 overflow-hidden bg-[var(--bg)] p-0",
   "orchestration-header":
-    "orchestration-header flex min-h-13 shrink-0 items-center justify-between gap-4 border-[var(--border)] border-b bg-[var(--surface)] px-3 py-1.75 [&>div:first-child]:min-w-0 [&_.eyebrow]:text-[8px] [&_.eyebrow]:tracking-[0.1em] [&_.eyebrow]:text-[var(--accent)] [&_h1]:m-0 [&_h1]:font-[var(--font-display)] [&_h1]:text-[15px] [&_h1]:font-semibold [&_h1]:tracking-[-0.01em] [&_p]:mt-px [&_p]:mb-0 [&_p]:text-[9px] [&_p]:text-[var(--muted)] max-[680px]:min-h-15.5 max-[680px]:px-3 max-[680px]:py-2.5 max-[900px]:[&_p]:hidden",
+    "orchestration-header flex min-h-13 shrink-0 items-center justify-between gap-4 border-[var(--border)] border-b bg-[var(--surface)] px-3 py-1.75 [&>div:first-child]:min-w-0 [&_.eyebrow]:text-[8px] [&_.eyebrow]:tracking-[0.1em] [&_.eyebrow]:text-[var(--accent)] [&_h1]:m-0 [&_h1]:font-[var(--font-display)] [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:tracking-[-0.01em] [&_p]:mt-px [&_p]:mb-0 [&_p]:text-[9px] [&_p]:text-[var(--muted)] max-[680px]:min-h-15.5 max-[680px]:px-3 max-[680px]:py-2.5 max-[900px]:[&_p]:hidden",
   "orchestration-header-metrics":
     "orchestration-header-metrics flex flex-wrap items-center gap-0 max-[900px]:[&_.orchestration-summary-chip:nth-child(2)]:hidden",
   "orchestration-summary-chip":
@@ -78,7 +78,7 @@ const ORCHESTRATION_CLASS = {
   "orchestration-detail":
     "orchestration-detail min-h-0 min-w-0 overflow-auto bg-[var(--bg)] px-5.5 pt-4 pb-6.5 max-[680px]:min-h-95 max-[680px]:overflow-visible [&>*]:w-[min(100%,1080px)]",
   "orchestration-detail-header":
-    "orchestration-detail-header flex max-w-225 items-start justify-between gap-3.5 border-[var(--border)] border-b pb-3 [&>div]:min-w-0 [&_h2]:mt-0.75 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(19px,1.65vw,24px)] [&_h2]:font-semibold [&_h2]:leading-[1.14] [&_h2]:tracking-[-0.025em] [&_p]:m-0 [&_p]:max-w-170 [&_p]:text-[11px] [&_p]:leading-[1.55] [&_p]:text-[var(--text-soft)]",
+    "orchestration-detail-header flex max-w-225 items-start justify-between gap-3.5 border-[var(--border)] border-b pb-3 [&>div]:min-w-0 [&_h2]:mt-0.75 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(16px,1.3vw,20px)] [&_h2]:font-semibold [&_h2]:leading-[1.14] [&_h2]:tracking-[-0.02em] [&_p]:m-0 [&_p]:max-w-170 [&_p]:text-[11px] [&_p]:leading-[1.55] [&_p]:text-[var(--text-soft)]",
   "detail-kicker":
     "detail-kicker block font-[var(--font-mono)] text-[8px] font-bold tracking-[0.09em] text-[var(--accent)] uppercase",
   "orchestration-detail-tags":
@@ -161,7 +161,7 @@ const ORCHESTRATION_CLASS = {
   "orchestration-run-inspector":
     "orchestration-run-inspector grid gap-3.25 pt-3.5",
   "orchestration-subheading":
-    "orchestration-subheading flex items-start justify-between gap-3 [&_h3]:mt-1 [&_h3]:mb-0 [&_h3]:font-[var(--font-display)] [&_h3]:text-base",
+    "orchestration-subheading flex items-start justify-between gap-3 [&_h3]:mt-1 [&_h3]:mb-0 [&_h3]:font-[var(--font-display)] [&_h3]:text-sm",
   "orchestration-run-facts":
     "orchestration-run-facts m-0 grid grid-cols-2 content-start gap-x-4.5 border-[var(--border)] border-t max-[900px]:grid-cols-1",
   "orchestration-output-grid":

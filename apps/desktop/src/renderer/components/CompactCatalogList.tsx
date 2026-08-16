@@ -67,7 +67,7 @@ export function CompactCatalogList({
                 className="border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_72%,transparent)] px-2.5 pt-[5px] pb-1 [&:not(:first-child)]:border-t"
                 data-catalog-group="true"
               >
-                <h3 className="m-0 font-[var(--font-mono)] text-[var(--text-meta)] font-semibold uppercase leading-[1.4] tracking-[0.1em] text-[var(--accent)]">
+                <h3 className="m-0 font-[var(--font-mono)] text-[length:var(--text-meta)] font-semibold uppercase leading-[1.4] tracking-[0.1em] text-[var(--accent)]">
                   {entry.group}
                 </h3>
               </li>
@@ -84,7 +84,7 @@ export function CompactCatalogList({
                         {entry.eyebrow}
                       </span>
                     ) : null}
-                    <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-control)] max-[700px]:overflow-visible max-[700px]:whitespace-normal">
+                    <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-control)] max-[700px]:overflow-visible max-[700px]:whitespace-normal">
                       {entry.title}
                     </strong>
                   </div>
@@ -94,14 +94,14 @@ export function CompactCatalogList({
                   >
                     {entry.descriptionMode !== "details" ? (
                       <p
-                        className="m-0 min-w-48 flex-[1_1_22rem] overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-meta)] leading-[1.4] text-[var(--text-soft)] max-[700px]:overflow-visible max-[700px]:whitespace-normal"
+                        className="m-0 min-w-48 flex-[1_1_22rem] overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-meta)] leading-[1.4] text-[var(--text-soft)] max-[700px]:overflow-visible max-[700px]:whitespace-normal"
                         title={entry.description}
                       >
                         {entry.description}
                       </p>
                     ) : null}
                     {entry.code || entry.meta ? (
-                      <span className="flex min-w-0 flex-[0_1_auto] items-center gap-[7px] font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)] [&>*]:overflow-hidden [&>*]:text-ellipsis [&>*]:whitespace-nowrap max-[700px]:[&>*]:overflow-visible max-[700px]:[&>*]:whitespace-normal">
+                      <span className="flex min-w-0 flex-[0_1_auto] items-center gap-[7px] font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] [&>*]:overflow-hidden [&>*]:text-ellipsis [&>*]:whitespace-nowrap max-[700px]:[&>*]:overflow-visible max-[700px]:[&>*]:whitespace-normal">
                         {entry.code ? <code>{entry.code}</code> : null}
                         {entry.meta ? <span>{entry.meta}</span> : null}
                       </span>
@@ -109,7 +109,7 @@ export function CompactCatalogList({
                     {entry.descriptionMode === "details" ||
                     entry.facts?.length ? (
                       <details className="group min-w-0 open:basis-full">
-                        <summary className="cursor-pointer list-none p-0 font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)] [&::-webkit-details-marker]:hidden">
+                        <summary className="cursor-pointer list-none p-0 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] [&::-webkit-details-marker]:hidden">
                           <span
                             aria-hidden="true"
                             className="mr-[7px] inline-block text-[var(--accent)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
@@ -120,7 +120,7 @@ export function CompactCatalogList({
                         </summary>
                         {entry.descriptionMode === "details" ? (
                           <p
-                            className="mt-[7px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_76%,transparent)] px-2.5 py-2 text-[var(--text-meta)] leading-[1.45] text-[var(--text-soft)]"
+                            className="mt-[7px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_76%,transparent)] px-2.5 py-2 text-[length:var(--text-meta)] leading-[1.45] text-[var(--text-soft)]"
                             data-catalog-details-description="true"
                           >
                             {entry.description}
@@ -133,10 +133,10 @@ export function CompactCatalogList({
                                 className="grid grid-cols-[86px_minmax(0,1fr)] gap-2.5"
                                 key={`${entry.id}:${fact.label}`}
                               >
-                                <dt className="font-[var(--font-mono)] text-[var(--text-meta)] uppercase text-[var(--muted)]">
+                                <dt className="font-[var(--font-mono)] text-[length:var(--text-meta)] uppercase text-[var(--muted)]">
                                   {fact.label}
                                 </dt>
-                                <dd className="m-0 min-w-0 text-[var(--text-meta)] text-[var(--text-soft)] [overflow-wrap:anywhere]">
+                                <dd className="m-0 min-w-0 text-[length:var(--text-meta)] text-[var(--text-soft)] [overflow-wrap:anywhere]">
                                   {fact.value}
                                 </dd>
                               </div>
@@ -144,7 +144,7 @@ export function CompactCatalogList({
                           </dl>
                         ) : null}
                         {entry.detailsNote ? (
-                          <p className="mt-[7px] text-[var(--text-meta)] leading-[1.45] text-[var(--muted)]">
+                          <p className="mt-[7px] text-[length:var(--text-meta)] leading-[1.45] text-[var(--muted)]">
                             {entry.detailsNote}
                           </p>
                         ) : null}
@@ -168,7 +168,7 @@ export function CompactCatalogList({
       </ul>
       {remaining ? (
         <footer className="flex items-center justify-between gap-3 bg-[color-mix(in_srgb,var(--surface-soft)_66%,transparent)] px-2.5 py-[7px]">
-          <span className="font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)]">
+          <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
             Showing {visible.length} of {entries.length}
           </span>
           <Button

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 const TEXT_BUTTON_CLASS =
-  "w-fit border-0 bg-transparent px-1.5 py-1 font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--accent-border)] disabled:cursor-not-allowed disabled:opacity-50";
+  "w-fit border-0 bg-transparent px-1.5 py-1 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--accent-border)] disabled:cursor-not-allowed disabled:opacity-50";
 
 export type ActivityCenterKind =
   | "chat-run"
@@ -254,11 +254,11 @@ export function ActivityCenter({
                     <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-semibold text-[var(--text)]">
                       {event.title}
                     </strong>
-                    <span className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--faint)]">
+                    <span className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)]">
                       {KIND_LABELS[event.kind]}
                     </span>
                     <span
-                      className={`overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[var(--text-meta)] ${
+                      className={`overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] ${
                         attention
                           ? "text-[var(--accent)]"
                           : "text-[var(--muted)]"
@@ -267,11 +267,11 @@ export function ActivityCenter({
                       {activityStatusLabel(event.status, event.kind)}
                     </span>
                   </div>
-                  <p className="m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-meta)] text-[var(--muted)]">
+                  <p className="m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[length:var(--text-meta)] text-[var(--muted)]">
                     {event.safeSummary}
                   </p>
                   <time
-                    className="font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--faint)]"
+                    className="font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)]"
                     dateTime={event.occurredAt}
                   >
                     {timestampLabel(event.occurredAt)}
@@ -303,7 +303,7 @@ export function ActivityCenter({
       ) : expanded && orderedEvents.length > INITIAL_VISIBLE_ROWS ? (
         <div className="flex items-center justify-between gap-2.5">
           {hiddenCount > 0 ? (
-            <span className="text-[var(--text-meta)] text-[var(--faint)]">
+            <span className="text-[length:var(--text-meta)] text-[var(--faint)]">
               Showing newest {MAX_EXPANDED_ROWS} of {orderedEvents.length}
             </span>
           ) : null}

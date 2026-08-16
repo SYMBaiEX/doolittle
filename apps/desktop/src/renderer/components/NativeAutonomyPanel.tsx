@@ -102,7 +102,7 @@ export function NativeAutonomyPanel({
             data-runtime-controls="autonomy"
           >
             <label className="grid min-w-0 gap-1">
-              <span className="font-[var(--font-mono)] text-[var(--text-meta)] font-bold tracking-[0.055em] text-[var(--muted)] uppercase">
+              <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold tracking-[0.055em] text-[var(--muted)] uppercase">
                 Cadence
               </span>
               <select

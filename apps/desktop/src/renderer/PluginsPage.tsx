@@ -104,7 +104,7 @@ export function PluginsPage({ active }: { active: boolean }) {
               className="search-field plugins-filter-control plugins-filter-search grid min-w-0 grow gap-1"
               htmlFor="plugin-search"
             >
-              <span className="plugins-filter-label font-[var(--font-mono)] text-[var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase">
+              <span className="plugins-filter-label font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase">
                 Search
               </span>
               <Input
@@ -117,7 +117,7 @@ export function PluginsPage({ active }: { active: boolean }) {
             </label>
             <div className="plugins-filter-control plugins-filter-category grid min-w-0 gap-1">
               <span
-                className="plugins-filter-label font-[var(--font-mono)] text-[var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase"
+                className="plugins-filter-label font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase"
                 id="plugin-category-label"
               >
                 Category

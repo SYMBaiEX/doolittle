@@ -59,7 +59,7 @@ export function ToastViewport({
                   <div className="text-xs font-bold">{toast.title}</div>
                 ) : null}
                 {toast.message ? (
-                  <div className="text-[var(--text-control)] leading-[1.45] text-[var(--muted)]">
+                  <div className="text-[length:var(--text-control)] leading-[1.45] text-[var(--muted)]">
                     {toast.message}
                   </div>
                 ) : null}

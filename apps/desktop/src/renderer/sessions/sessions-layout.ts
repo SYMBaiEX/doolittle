@@ -28,7 +28,7 @@ export const SESSION_DISCLOSURE_SUMMARY_CLASS =
   "flex min-h-[38px] cursor-pointer list-none items-center justify-between gap-2.5 px-2 py-[5px] group-open:border-b group-open:border-[var(--border-subtle)] [&::-webkit-details-marker]:hidden";
 
 export const SESSION_STATUS_ROW_CLASS =
-  "flex min-h-[42px] w-full items-center justify-between gap-4 border-b border-[var(--border-subtle)] py-[7px] text-left last:border-b-0 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-[3px] [&_strong]:text-[var(--text-control)] [&_strong]:text-[var(--text-strong)] [&_small]:break-words [&_small]:text-[var(--text-meta)] [&_small]:text-[var(--text-muted)]";
+  "flex min-h-[42px] w-full items-center justify-between gap-4 border-b border-[var(--border-subtle)] py-[7px] text-left last:border-b-0 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-[3px] [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text-strong)] [&_small]:break-words [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)]";
 
 export const SESSION_TRANSCRIPT_PANEL_CLASS =
   "mt-2 overflow-hidden rounded border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--surface-raised)_68%,transparent)]";

@@ -118,7 +118,7 @@ export function ProfilesPage({ active }: { active: boolean }) {
               className="profile-current grid grid-cols-[38px_minmax(0,1fr)] items-start gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] border-l-2 border-l-[var(--accent)] bg-[color-mix(in_srgb,var(--surface)_94%,transparent)] p-3 min-[701px]:grid-cols-[42px_minmax(0,1fr)_auto] min-[701px]:items-center min-[701px]:gap-3.5 min-[701px]:px-4 min-[701px]:py-3.5 [&>.badge]:col-start-2 [&>.badge]:justify-self-start min-[701px]:[&>.badge]:col-start-auto"
             >
               <div
-                className="profile-current__mark grid size-[38px] place-items-center rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--accent)_44%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_11%,var(--surface-soft))] font-[var(--font-mono)] text-[var(--text-meta)] font-bold text-[var(--accent)]"
+                className="profile-current__mark grid size-[38px] place-items-center rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--accent)_44%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_11%,var(--surface-soft))] font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold text-[var(--accent)]"
                 aria-hidden="true"
               >
                 {presentation.active.name.slice(0, 2).toUpperCase()}
@@ -128,7 +128,7 @@ export function ProfilesPage({ active }: { active: boolean }) {
                 <strong className="text-[var(--text-section)]">
                   {presentation.active.name}
                 </strong>
-                <p className="m-0 text-[var(--text-meta)] leading-[1.4] text-[var(--text-soft)] min-[701px]:truncate">
+                <p className="m-0 text-[length:var(--text-meta)] leading-[1.4] text-[var(--text-soft)] min-[701px]:truncate">
                   {presentation.active.description}
                 </p>
               </div>
@@ -138,7 +138,7 @@ export function ProfilesPage({ active }: { active: boolean }) {
               <section className="profile-alternatives grid min-w-0 gap-[7px]">
                 <header className="profile-alternatives__header flex items-center justify-between gap-3 px-0.5">
                   <span className="eyebrow">Switch identity</span>
-                  <span className="font-[var(--font-mono)] text-[var(--text-meta)] text-[var(--muted)]">
+                  <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
                     {profileEntries.length} available
                   </span>
                 </header>

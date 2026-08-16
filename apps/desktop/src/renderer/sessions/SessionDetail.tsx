@@ -50,7 +50,7 @@ export function SessionTranscriptMessage({
       className={SESSION_TRANSCRIPT_MESSAGE_CLASS}
       data-message-role={message.role}
     >
-      <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[var(--text-meta)] [&_time]:text-[var(--text-muted)]">
+      <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[length:var(--text-meta)] [&_time]:text-[var(--text-muted)]">
         <strong>
           {message.role === "assistant"
             ? "Doolittle"

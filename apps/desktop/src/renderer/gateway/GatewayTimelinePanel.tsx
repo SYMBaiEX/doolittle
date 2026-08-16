@@ -60,7 +60,7 @@ export function GatewayTimelinePanel({
     >
       <div className="panel-heading items-center">
         <div>
-          <h2 className="m-0 text-base" id="gateway-timeline-title">
+          <h2 className="m-0 text-sm" id="gateway-timeline-title">
             Message history
           </h2>
         </div>

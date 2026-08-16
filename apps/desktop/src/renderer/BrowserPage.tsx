@@ -275,7 +275,7 @@ export function BrowserPage({
         </section>
 
         <aside className={BROWSER_TOOLS_CLASS}>
-          <div className="flex items-start justify-between gap-3 border-[var(--border)] border-b p-3.5 [&_h2]:mt-1 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-lg">
+          <div className="flex items-start justify-between gap-3 border-[var(--border)] border-b p-3.5 [&_h2]:mt-1 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm">
             <div>
               <span className="eyebrow">Evidence lab</span>
               <h2>Inspect this build</h2>

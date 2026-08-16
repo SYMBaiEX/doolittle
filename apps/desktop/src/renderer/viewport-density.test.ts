@@ -15,7 +15,9 @@ describe("wide route viewport density", () => {
     expect(VIEW_PRIMITIVES_CLASS).toContain(
       "min-h-[var(--page-header-min-height)]",
     );
-    expect(VIEW_PRIMITIVES_CLASS).toContain("text-[var(--page-title-size)]");
+    expect(VIEW_PRIMITIVES_CLASS).toContain(
+      "text-[length:var(--page-title-size)]",
+    );
     expect(CHAT_WORKSPACE_CLASS).toContain("w-[min(100%,700px)]");
     expect(CHAT_WORKSPACE_CLASS).toContain("w-[min(100%,880px)]");
     expect(CHAT_WORKSPACE_CLASS).toContain("w-[min(calc(100%_-_36px),820px)]");

@@ -57,6 +57,7 @@ async function persistedTranscript(
   return page.evaluate(async (message) => {
     const getJson = async <T>(path: string): Promise<T> => {
       const response = await window.doolittle.requestAgent({
+        requestId: crypto.randomUUID(),
         path,
         method: "GET",
         headers: { accept: "application/json" },

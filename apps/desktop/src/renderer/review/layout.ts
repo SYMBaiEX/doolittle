@@ -8,7 +8,7 @@ export function reviewPageClass(embedded: boolean): string {
 }
 
 export const REVIEW_HEADER_CLASS =
-  "review-header flex min-h-13.5 shrink-0 items-center justify-between gap-5.5 border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-b px-px pt-0 pb-2 [&>div:first-child]:min-w-0 [&_h1]:mt-0.5 [&_h1]:mb-0.5 [&_h1]:font-[var(--font-display)] [&_h1]:text-lg [&_h1]:tracking-[-0.03em] [&_p]:m-0 [&_p]:max-w-190 [&_p]:text-[10px] [&_p]:leading-[1.45] [&_p]:text-[var(--muted)] max-[940px]:[&_p]:hidden";
+  "review-header flex min-h-13.5 shrink-0 items-center justify-between gap-5.5 border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-b px-px pt-0 pb-2 [&>div:first-child]:min-w-0 [&_h1]:mt-0.5 [&_h1]:mb-0.5 [&_h1]:font-[var(--font-display)] [&_h1]:text-base [&_h1]:tracking-[-0.025em] [&_p]:m-0 [&_p]:max-w-190 [&_p]:text-[10px] [&_p]:leading-[1.45] [&_p]:text-[var(--muted)] max-[940px]:[&_p]:hidden";
 
 export const REVIEW_HEADER_STATUS_CLASS =
   "review-header-status flex shrink-0 items-center gap-3.5 [&>span]:grid [&>span]:gap-0.5 [&>span]:text-right [&>span]:font-[var(--font-mono)] [&>span]:text-[9px] [&>span]:text-[var(--muted)] [&>span]:uppercase [&_strong]:text-[13px] [&_strong]:text-[var(--text)] max-[940px]:[&>span]:hidden";
@@ -100,7 +100,7 @@ export const REVIEW_DETAIL_CLASS =
   "review-detail min-h-0 min-w-0 overflow-auto bg-[var(--bg)] px-5.5 pt-4.5 pb-6 [scrollbar-gutter:stable]";
 
 export const REVIEW_DETAIL_HEADER_CLASS =
-  "review-detail-header flex max-w-245 items-start justify-between gap-5 border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-b pb-3 [&>div]:min-w-0 [&>div>span]:font-[var(--font-mono)] [&>div>span]:text-[10px] [&>div>span]:font-bold [&>div>span]:tracking-[0.1em] [&>div>span]:text-[var(--accent)] [&>div>span]:uppercase [&_h2]:mt-1.25 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(18px,1.6vw,23px)] [&_h2]:leading-[1.15] [&_h2]:[overflow-wrap:anywhere] [&_p]:m-0 [&_p]:max-w-175 [&_p]:text-xs [&_p]:leading-[1.55] [&_p]:text-[var(--muted)]";
+  "review-detail-header flex max-w-245 items-start justify-between gap-5 border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-b pb-3 [&>div]:min-w-0 [&>div>span]:font-[var(--font-mono)] [&>div>span]:text-[10px] [&>div>span]:font-bold [&>div>span]:tracking-[0.1em] [&>div>span]:text-[var(--accent)] [&>div>span]:uppercase [&_h2]:mt-1.25 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(16px,1.35vw,20px)] [&_h2]:leading-[1.15] [&_h2]:[overflow-wrap:anywhere] [&_p]:m-0 [&_p]:max-w-175 [&_p]:text-xs [&_p]:leading-[1.55] [&_p]:text-[var(--muted)]";
 
 export const REVIEW_DETAIL_BODY_CLASS = "grid max-w-245 gap-3.5 pt-4";
 

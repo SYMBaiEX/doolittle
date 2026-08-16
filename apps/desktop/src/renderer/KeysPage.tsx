@@ -25,7 +25,7 @@ import {
 const KEYS_PAGE_CLASS = "page gap-4";
 
 const KEYS_TOOLBAR_CLASS =
-  "flex items-start justify-between gap-4 [&>div]:grid [&>div]:gap-0.5 [&_h2]:mt-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-base [&_h2]:font-semibold [&_h2]:leading-[1.2] [&_h2]:tracking-[-0.015em]";
+  "flex items-start justify-between gap-4 [&>div]:grid [&>div]:gap-0.5 [&_h2]:mt-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:leading-[1.2] [&_h2]:tracking-[-0.015em]";
 
 const KEYS_FIELD_CLASS =
   "flex min-w-0 flex-col gap-1 [&>span]:font-[var(--font-mono)] [&>span]:text-[9px] [&>span]:font-bold [&>span]:tracking-[0.05em] [&>span]:text-[var(--text-soft)] [&>span]:uppercase";
@@ -203,7 +203,7 @@ export function KeysPage({ active }: { active: boolean }) {
                       }}
                       type="button"
                     >
-                      <span className="flex min-w-0 flex-col gap-1 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[var(--text-meta)] [&_small]:text-[var(--muted)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[var(--text-meta)]">
+                      <span className="flex min-w-0 flex-col gap-1 [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)] [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[length:var(--text-meta)]">
                         <strong>{key}</strong>
                         <small>Stored locally</small>
                       </span>

@@ -198,7 +198,7 @@ export function RegistryCatalogWorkspace({
         {selectedEntry.installable && !selectedEntry.installed ? (
           <section
             aria-label={`Install ${selectedEntry.name}`}
-            className="registry-install-review mt-4 flex items-center justify-between gap-[18px] rounded-[var(--radius-xs)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_72%,transparent)] px-3 py-[11px] max-[620px]:flex-col max-[620px]:items-stretch max-[620px]:gap-[9px] [&>div:first-child]:grid [&>div:first-child]:min-w-0 [&>div:first-child]:gap-0.5 [&_p]:m-0 [&_p]:max-w-[700px] [&_p]:text-[var(--text-meta)] [&_p]:leading-[1.45] [&_p]:text-[var(--muted)] [&_strong]:text-[var(--text-control)] [&_strong]:text-[var(--text)]"
+            className="registry-install-review mt-4 flex items-center justify-between gap-[18px] rounded-[var(--radius-xs)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_72%,transparent)] px-3 py-[11px] max-[620px]:flex-col max-[620px]:items-stretch max-[620px]:gap-[9px] [&>div:first-child]:grid [&>div:first-child]:min-w-0 [&>div:first-child]:gap-0.5 [&_p]:m-0 [&_p]:max-w-[700px] [&_p]:text-[length:var(--text-meta)] [&_p]:leading-[1.45] [&_p]:text-[var(--muted)] [&_strong]:text-[length:var(--text-control)] [&_strong]:text-[var(--text)]"
           >
             <div>
               <span className={CATALOG_EYEBROW_CLASS}>Install approval</span>

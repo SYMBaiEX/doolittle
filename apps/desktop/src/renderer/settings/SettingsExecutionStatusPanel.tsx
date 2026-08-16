@@ -73,7 +73,7 @@ export function SettingsExecutionStatusPanel({
                 <strong className="truncate text-[10px]">
                   {titleCase(asString(backend.backend, "Backend"))}
                 </strong>
-                <small className="truncate text-[var(--text-meta)] text-[var(--muted)]">
+                <small className="truncate text-[length:var(--text-meta)] text-[var(--muted)]">
                   {asString(backend.detail, "No health detail")}
                 </small>
               </div>
@@ -84,7 +84,7 @@ export function SettingsExecutionStatusPanel({
           ))}
         </div>
       ) : (
-        <p className="m-0 px-0.5 pt-1.75 pb-0.5 text-[var(--text-meta)] text-[var(--muted)]">
+        <p className="m-0 px-0.5 pt-1.75 pb-0.5 text-[length:var(--text-meta)] text-[var(--muted)]">
           No execution backends were reported by the runtime.
         </p>
       )}
