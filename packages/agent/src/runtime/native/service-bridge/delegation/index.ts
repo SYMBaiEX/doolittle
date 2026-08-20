@@ -29,6 +29,7 @@ export {
   completeEffectiveDelegationTask,
   createEffectiveDelegationTask,
   executeEffectiveDelegationTask,
+  failEffectiveDelegationTask,
   retryEffectiveDelegationTask,
   spawnEffectiveDelegationChild,
 } from "./write";

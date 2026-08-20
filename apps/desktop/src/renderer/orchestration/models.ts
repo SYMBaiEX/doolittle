@@ -53,12 +53,13 @@ export function compactDetailValue(value: unknown): string {
 
 export type TaskAction =
   | "execute"
-  | "run"
   | "retry"
   | "cancel"
   | "complete"
   | "fail"
   | "note";
+
+export type BulkTaskAction = "cancel" | "complete" | "fail";
 
 export type TaskCreatePriority = "low" | "normal" | "high" | "";
 export type PlanStatus = "draft" | "active" | "completed";

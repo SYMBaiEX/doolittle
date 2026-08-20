@@ -118,8 +118,12 @@ export function ComposerModelSelector({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const restoreTriggerFocusRef = useRef(false);
-  const models = useApiResource<RuntimeModelsResponse>(
+  const configuredModels = useApiResource<RuntimeModelsResponse>(
     active && open ? "/runtime/models?refresh=false" : null,
+    [active, open],
+  );
+  const liveModels = useApiResource<RuntimeModelsResponse>(
+    active && open ? "/runtime/models?refresh=true" : null,
     [active, open],
   );
   const accountPool = useApiResource<AccountPoolResponse>(
@@ -141,9 +145,15 @@ export function ComposerModelSelector({
     requestAnimationFrame(() => searchRef.current?.focus());
   }, [open]);
 
+  const modelCatalog = liveModels.data ?? configuredModels.data;
+  const modelsLoading =
+    !modelCatalog && (configuredModels.loading || liveModels.loading);
+  const modelsError = !modelCatalog
+    ? configuredModels.error || liveModels.error
+    : "";
   const providers = useMemo(
-    () => filteredProviders(models.data?.providers ?? [], query),
-    [models.data?.providers, query],
+    () => filteredProviders(modelCatalog?.providers ?? [], query),
+    [modelCatalog?.providers, query],
   );
   const activeEffort =
     runtime?.provider === "codex" ||
@@ -236,13 +246,13 @@ export function ComposerModelSelector({
             />
           </label>
           <div className={COMPOSER_MODEL_GROUPS_CLASS}>
-            {models.loading ? (
+            {modelsLoading ? (
               <p className="p-4.5 text-[10px] text-[var(--faint)]">
                 Discovering models…
               </p>
-            ) : models.error ? (
+            ) : modelsError ? (
               <p className="p-4.5 text-[10px] text-[var(--bad)]">
-                {models.error}
+                {modelsError}
               </p>
             ) : (
               providers.map((provider) => {
@@ -292,7 +302,7 @@ export function ComposerModelSelector({
                             model,
                             selected
                               ? (runtime?.reasoningEffort ??
-                                  models.data?.activeReasoningEffort)
+                                  modelCatalog?.activeReasoningEffort)
                               : undefined,
                           );
                           return (
@@ -383,7 +393,7 @@ export function ComposerModelSelector({
                 );
               })
             )}
-            {!models.loading && !models.error && !providers.length ? (
+            {!modelsLoading && !modelsError && !providers.length ? (
               <p className="p-4.5 text-[10px] text-[var(--faint)]">
                 No matching models.
               </p>
@@ -427,9 +437,21 @@ export function ComposerModelSelector({
             </button>
           </div>
           <footer className={COMPOSER_ACTIONS_CLASS}>
-            <button onClick={models.reload} type="button">
-              <UiIcon icon={RefreshCw} size="xs" />
-              Refresh models
+            <button
+              disabled={liveModels.loading}
+              onClick={liveModels.reload}
+              type="button"
+            >
+              <UiIcon
+                className={
+                  liveModels.loading
+                    ? "animate-spin motion-reduce:animate-none"
+                    : undefined
+                }
+                icon={RefreshCw}
+                size="xs"
+              />
+              {liveModels.loading ? "Refreshing…" : "Refresh models"}
             </button>
             <button
               onClick={() => {

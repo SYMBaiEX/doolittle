@@ -22,13 +22,11 @@ import type { ConfirmedAction, TaskAction } from "./models";
 export type TaskQueueDetailProps = {
   active: boolean;
   busyKeys: Readonly<Record<string, boolean>>;
-  cascadeChildren: boolean;
   childObjective: string;
   childTitle: string;
   childWorkspaceRoot: string;
   confirmDialogRef: RefObject<HTMLDivElement | null>;
   confirmedAction: ConfirmedAction | null;
-  onCascadeChildrenChange: (value: boolean) => void;
   onChildObjectiveChange: (value: string) => void;
   onChildTitleChange: (value: string) => void;
   onChildWorkspaceRootChange: (value: string) => void;
@@ -53,13 +51,11 @@ export type TaskQueueDetailProps = {
 export function TaskQueueDetail({
   active,
   busyKeys,
-  cascadeChildren,
   childObjective,
   childTitle,
   childWorkspaceRoot,
   confirmDialogRef,
   confirmedAction,
-  onCascadeChildrenChange,
   onChildObjectiveChange,
   onChildTitleChange,
   onChildWorkspaceRootChange,
@@ -138,7 +134,7 @@ export function TaskQueueDetail({
         <span className={oc("detail-kicker")}>Task controls</span>
         <div className={oc("orchestration-action-deck")}>
           <div className={oc("orchestration-action-main")}>
-            {(["execute", "run", "complete"] as const).map((action) => (
+            {(["execute", "complete"] as const).map((action) => (
               <button
                 className={
                   action === "execute" ? "primary-button" : "secondary-button"
@@ -150,11 +146,7 @@ export function TaskQueueDetail({
                   !active || busyKeys[`task:${selectedTask.id}:${action}`]
                 }
               >
-                {action === "execute"
-                  ? "Execute"
-                  : action === "run"
-                    ? "Mark running"
-                    : "Complete"}
+                {action === "execute" ? "Execute" : "Complete"}
               </button>
             ))}
           </div>
@@ -234,20 +226,9 @@ export function TaskQueueDetail({
                 : "Cancel this task?"}
             </strong>
             <span id="task-confirm-description">
-              This changes task state
-              {cascadeChildren ? " and includes child tasks" : ""}.
+              This changes this task's state. Child tasks are unchanged.
             </span>
           </div>
-          <label>
-            <input
-              type="checkbox"
-              checked={cascadeChildren}
-              onChange={(event) =>
-                onCascadeChildrenChange(event.target.checked)
-              }
-            />
-            Cascade to children
-          </label>
           <button
             className="danger-button"
             type="button"

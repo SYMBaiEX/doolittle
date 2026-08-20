@@ -135,13 +135,12 @@ describe("orchestration presentational panels", () => {
         childWorkspaceRoot: "",
         worktrees: [],
         confirmedAction: null,
-        cascadeChildren: false,
         confirmDialogRef: { current: null },
         onSelectTask: vi.fn(),
         onRunTaskAction: vi.fn(),
+        onRunBulkTaskAction: vi.fn(),
         onRequestDestructiveAction: vi.fn(),
         onCloseConfirmation: vi.fn(),
-        onCascadeChildrenChange: vi.fn(),
         onToggleChildCreate: vi.fn(),
         onChildTitleChange: vi.fn(),
         onChildObjectiveChange: vi.fn(),
@@ -182,13 +181,12 @@ describe("orchestration presentational panels", () => {
         childWorkspaceRoot: "",
         worktrees: [],
         confirmedAction: null,
-        cascadeChildren: false,
         confirmDialogRef: { current: null },
         onSelectTask: vi.fn(),
         onRunTaskAction: vi.fn(),
+        onRunBulkTaskAction: vi.fn(),
         onRequestDestructiveAction: vi.fn(),
         onCloseConfirmation: vi.fn(),
-        onCascadeChildrenChange: vi.fn(),
         onToggleChildCreate: vi.fn(),
         onChildTitleChange: vi.fn(),
         onChildObjectiveChange: vi.fn(),
@@ -209,6 +207,9 @@ describe("orchestration presentational panels", () => {
     expect(markup).not.toContain(">normal</span>");
     expect(markup).toContain('placeholder="Filter tasks"');
     expect(markup).toContain('aria-label="Task lifecycle"');
+    expect(markup).toContain("Complete filtered");
+    expect(markup).toContain("Fail filtered");
+    expect(markup).toContain("Cancel filtered");
   });
 
   it("keeps primary task controls visible and secondary diagnostics disclosed", () => {
@@ -249,13 +250,12 @@ describe("orchestration presentational panels", () => {
         childWorkspaceRoot: "",
         worktrees: [],
         confirmedAction: null,
-        cascadeChildren: false,
         confirmDialogRef: { current: null },
         onSelectTask: vi.fn(),
         onRunTaskAction: vi.fn(),
+        onRunBulkTaskAction: vi.fn(),
         onRequestDestructiveAction: vi.fn(),
         onCloseConfirmation: vi.fn(),
-        onCascadeChildrenChange: vi.fn(),
         onToggleChildCreate: vi.fn(),
         onChildTitleChange: vi.fn(),
         onChildObjectiveChange: vi.fn(),

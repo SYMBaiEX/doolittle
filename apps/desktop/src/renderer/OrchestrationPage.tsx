@@ -339,7 +339,6 @@ export function OrchestrationPage({
     bundleWorkflowId,
     busyKeys,
     cancelCodegenRun,
-    cascadeChildren,
     childObjective,
     childTitle,
     childWorkspaceRoot,
@@ -368,10 +367,10 @@ export function OrchestrationPage({
     publishNotice,
     requestDestructiveTaskAction,
     runSupervise,
+    runBulkTaskAction,
     runTaskAction,
     selectWorkflow,
     selectedTaskNote,
-    setCascadeChildren,
     setChildObjective,
     setChildTitle,
     setChildWorkspaceRoot,
@@ -778,7 +777,6 @@ export function OrchestrationPage({
             childWorkspaceRoot={childWorkspaceRoot}
             worktrees={worktrees}
             confirmedAction={confirmedAction}
-            cascadeChildren={cascadeChildren}
             confirmDialogRef={confirmDialogRef}
             onSelectTask={(task) => {
               setSelectedTaskId(task.id);
@@ -786,9 +784,9 @@ export function OrchestrationPage({
               setShowChildCreate(false);
             }}
             onRunTaskAction={runTaskAction}
+            onRunBulkTaskAction={runBulkTaskAction}
             onRequestDestructiveAction={requestDestructiveTaskAction}
             onCloseConfirmation={closeTaskConfirmation}
-            onCascadeChildrenChange={setCascadeChildren}
             onToggleChildCreate={(task) =>
               setShowChildCreate((current) => {
                 const next = !current;

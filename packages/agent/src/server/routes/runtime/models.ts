@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
+import { getModelOptions } from "@elizaos/agent/api/model-provider-helpers";
 import type { AppContext } from "@/runtime/bootstrap";
 import { getRuntimeProviderAccountsSnapshot } from "@/runtime/native/provider-accounts";
 import { json } from "@/server/responses";
@@ -197,6 +198,16 @@ const CLAUDE_CODE_LINKED_MODELS: ModelCatalogEntry[] = [
   { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
 ];
 
+export function officialElizaCloudModels(): ModelCatalogEntry[] {
+  const byId = new Map<string, ModelCatalogEntry>();
+  for (const option of Object.values(getModelOptions()).flat()) {
+    const id = option.id.trim();
+    if (!id || byId.has(id)) continue;
+    byId.set(id, { id, label: option.name.trim() || id });
+  }
+  return [...byId.values()];
+}
+
 export async function handleRuntimeModelRoutes(
   context: AppContext,
   request: Request,
@@ -347,6 +358,7 @@ function providerDefinitions(
         withActive("elizacloud", [
           config.elizaCloudLargeModel,
           config.elizaCloudSmallModel,
+          ...officialElizaCloudModels(),
         ]),
       ),
     },

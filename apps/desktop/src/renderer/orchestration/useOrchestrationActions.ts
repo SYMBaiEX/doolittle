@@ -30,6 +30,7 @@ import {
 } from "../orchestration-resources";
 import type { DesktopPlatform } from "../workspace-path";
 import {
+  type BulkTaskAction,
   type ConfirmedAction,
   compactStatus,
   type NoticeKind,
@@ -163,7 +164,6 @@ export function useOrchestrationActions({
   const [childWorkspaceRoot, setChildWorkspaceRoot] = useState("");
   const [superviseConcurrency, setSuperviseConcurrency] = useState("3");
   const [taskNotes, setTaskNotes] = useState<Record<string, string>>({});
-  const [cascadeChildren, setCascadeChildren] = useState(true);
   const [confirmedAction, setConfirmedAction] =
     useState<ConfirmedAction | null>(null);
   const [planTitle, setPlanTitle] = useState("");
@@ -380,10 +380,6 @@ export function useOrchestrationActions({
         `/delegation/tasks/${orchestrationResourceId(task.id)}/${action}`,
         {
           note: note || undefined,
-          cascadeChildren:
-            action === "cancel" || action === "fail"
-              ? cascadeChildren
-              : undefined,
         },
       );
       if (action === "note") {
@@ -405,6 +401,42 @@ export function useOrchestrationActions({
       publishNotice({
         tone: "bad",
         message: `${compactStatus(action)} failed for ${task.title}.`,
+        details: errorMessage(error),
+      });
+    } finally {
+      runBusy(key, false);
+    }
+  };
+
+  const runBulkTaskAction = async (
+    tasks: readonly DelegationTaskRecord[],
+    action: BulkTaskAction,
+  ) => {
+    if (!active || tasks.length === 0) return;
+    const key = `task:bulk:${action}`;
+    runBusy(key, true);
+    try {
+      const result = await postJson<{
+        failed: number;
+        requested: number;
+        succeeded: number;
+      }>("/delegation/tasks/bulk", {
+        action,
+        ids: tasks.map((task) => task.id),
+      });
+      publishNotice({
+        tone: result.failed > 0 ? "warn" : "good",
+        message: `${compactStatus(action)} applied to ${result.succeeded} task${result.succeeded === 1 ? "" : "s"}.`,
+        details:
+          result.failed > 0
+            ? `${result.failed} of ${result.requested} tasks could not be updated.`
+            : undefined,
+      });
+      refreshDelegation();
+    } catch (error) {
+      publishNotice({
+        tone: "bad",
+        message: `Bulk ${compactStatus(action)} failed.`,
         details: errorMessage(error),
       });
     } finally {
@@ -687,7 +719,6 @@ export function useOrchestrationActions({
     bundleWorkflowId,
     busyKeys,
     cancelCodegenRun,
-    cascadeChildren,
     childObjective,
     childTitle,
     childWorkspaceRoot,
@@ -716,10 +747,10 @@ export function useOrchestrationActions({
     planWorkflowId,
     requestDestructiveTaskAction,
     runSupervise,
+    runBulkTaskAction,
     runTaskAction,
     selectWorkflow,
     selectedTaskNote,
-    setCascadeChildren,
     setChildObjective,
     setChildTitle,
     setChildWorkspaceRoot,

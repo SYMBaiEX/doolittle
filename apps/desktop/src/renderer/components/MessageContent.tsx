@@ -393,7 +393,10 @@ export function MessageContent({
     parsed.steps.continued + parsed.steps.failed + parsed.steps.finished > 0;
 
   return (
-    <PagePanel className="min-w-0" data-message-content="true">
+    <PagePanel
+      className="min-w-0 !bg-transparent !p-0"
+      data-message-content="true"
+    >
       {parsed.text ? (
         <Streamdown
           animated={pending ? { animation: "fadeIn", duration: 120 } : false}

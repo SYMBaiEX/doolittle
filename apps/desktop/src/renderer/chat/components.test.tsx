@@ -107,10 +107,47 @@ describe("chat presentation components", () => {
     const props = composerProps();
     const html = renderToStaticMarkup(<ChatComposer {...props} />);
     expect(html).toContain('class="chat-composer"');
-    expect(html).toContain('aria-label="Attach file context"');
+    expect(html).toContain('aria-label="Attach multiple files"');
+    expect(html).toContain("Attach files");
     expect(html).toContain('aria-label="Message Doolittle"');
     expect(html).toContain('class="chat-context-meter neutral"');
     expect(html).toContain('aria-label="Send message"');
+  });
+
+  it("renders multiple selected files compactly and omits empty memory chrome", () => {
+    const html = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          attachedFiles: [
+            {
+              id: "file-1",
+              name: "README.md",
+              kind: "document",
+              mimeType: "text/markdown",
+              sizeBytes: 1_024,
+              sha256: "a".repeat(64),
+            },
+            {
+              id: "file-2",
+              name: "app.ts",
+              kind: "document",
+              mimeType: "text/typescript",
+              sizeBytes: 2_048,
+              sha256: "b".repeat(64),
+            },
+          ],
+          attachmentTotalBytes: 3_072,
+          memoryMatches: { query: "draft", matches: [], status: "ready" },
+        })}
+      />,
+    );
+
+    expect(html).toContain("README.md");
+    expect(html).toContain("app.ts");
+    expect(html).toContain("2 / 8 files");
+    expect(html).toContain("Add files");
+    expect(html).not.toContain("No saved profile matches");
+    expect(html).not.toContain('class="chat-memory-matches"');
   });
 
   it("renders source handoff as a compact removable capsule", () => {

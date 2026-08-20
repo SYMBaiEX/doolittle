@@ -632,7 +632,9 @@ export async function handleDelegationCommandRoutes(
     request.method === "POST" &&
     url.pathname.startsWith("/delegation/tasks/")
   ) {
-    return json({ error: "unknown delegation action" }, 404);
+    // Lifecycle mutations are handled by the next route handler. Keep this
+    // command router focused on create, spawn, and execute operations.
+    return null;
   }
 
   return null;

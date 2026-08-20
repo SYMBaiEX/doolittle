@@ -8,12 +8,18 @@ import {
   titleCase,
   type UnknownRecord,
 } from "../lib";
+import { orchestrationStatusTier } from "../orchestration-helpers";
 import type {
   DelegationTaskRecord,
   RepositoryWorktreeRecord,
 } from "../orchestration-resources";
 import { orchestrationClass as oc } from "./layout";
-import type { ConfirmedAction, ResourceState, TaskAction } from "./models";
+import type {
+  BulkTaskAction,
+  ConfirmedAction,
+  ResourceState,
+  TaskAction,
+} from "./models";
 import { TaskQueueDetail } from "./TaskQueueDetail";
 import { TaskQueueRail } from "./TaskQueueRail";
 import {
@@ -41,13 +47,12 @@ export function TaskQueuePanel({
   childWorkspaceRoot,
   worktrees,
   confirmedAction,
-  cascadeChildren,
   confirmDialogRef,
   onSelectTask,
   onRunTaskAction,
+  onRunBulkTaskAction,
   onRequestDestructiveAction,
   onCloseConfirmation,
-  onCascadeChildrenChange,
   onToggleChildCreate,
   onChildTitleChange,
   onChildObjectiveChange,
@@ -72,17 +77,19 @@ export function TaskQueuePanel({
   childWorkspaceRoot: string;
   worktrees: readonly RepositoryWorktreeRecord[];
   confirmedAction: ConfirmedAction | null;
-  cascadeChildren: boolean;
   confirmDialogRef: RefObject<HTMLDivElement | null>;
   onSelectTask: (task: DelegationTaskRecord) => void;
   onRunTaskAction: (task: DelegationTaskRecord, action: TaskAction) => void;
+  onRunBulkTaskAction: (
+    tasks: readonly DelegationTaskRecord[],
+    action: BulkTaskAction,
+  ) => Promise<void>;
   onRequestDestructiveAction: (
     task: DelegationTaskRecord,
     action: "cancel" | "fail",
     returnTarget: HTMLButtonElement,
   ) => void;
   onCloseConfirmation: () => void;
-  onCascadeChildrenChange: (value: boolean) => void;
   onToggleChildCreate: (task: DelegationTaskRecord) => void;
   onChildTitleChange: (value: string) => void;
   onChildObjectiveChange: (value: string) => void;
@@ -98,6 +105,7 @@ export function TaskQueuePanel({
   });
   const [query, setQuery] = useState("");
   const [tier, setTier] = useState<TaskQueueTier>("all");
+  const [bulkAction, setBulkAction] = useState<BulkTaskAction | null>(null);
   const tiers = availableTaskQueueTiers(tasks);
   const effectiveTier = tiers.includes(tier) ? tier : "all";
   useEffect(() => {
@@ -107,6 +115,13 @@ export function TaskQueuePanel({
     query,
     tier: effectiveTier,
   });
+  const actionableTasks = filteredTasks.filter((task) => {
+    const statusTier = orchestrationStatusTier(task.status ?? "pending");
+    return statusTier !== "completed" && statusTier !== "failed";
+  });
+  const bulkBusy = bulkAction
+    ? Boolean(busyKeys[`task:bulk:${bulkAction}`])
+    : false;
   const filterKey = `${pageKey}:${effectiveTier}:${query.trim().toLocaleLowerCase()}`;
   const requested = page.key === filterKey ? page.limit : TASK_QUEUE_PAGE_SIZE;
   const selectedIndex = selectedTask
@@ -184,6 +199,72 @@ export function TaskQueuePanel({
             </select>
           </label>
         </div>
+        {actionableTasks.length > 1 ? (
+          <div className={oc("orchestration-bulk-bar")}>
+            {bulkAction ? (
+              <>
+                <span>
+                  {bulkAction === "complete"
+                    ? "Complete"
+                    : bulkAction === "fail"
+                      ? "Fail"
+                      : "Cancel"}{" "}
+                  {actionableTasks.length} filtered tasks?
+                </span>
+                <button
+                  className="text-button"
+                  disabled={bulkBusy}
+                  onClick={() => setBulkAction(null)}
+                  type="button"
+                >
+                  Keep tasks
+                </button>
+                <button
+                  className={
+                    bulkAction === "complete"
+                      ? "primary-button"
+                      : "danger-button"
+                  }
+                  disabled={bulkBusy}
+                  onClick={() => {
+                    const action = bulkAction;
+                    void onRunBulkTaskAction(actionableTasks, action).finally(
+                      () => setBulkAction(null),
+                    );
+                  }}
+                  type="button"
+                >
+                  {bulkBusy ? "Updating…" : `Confirm ${bulkAction}`}
+                </button>
+              </>
+            ) : (
+              <>
+                <span>{actionableTasks.length} actionable</span>
+                <button
+                  className="text-button"
+                  onClick={() => setBulkAction("complete")}
+                  type="button"
+                >
+                  Complete filtered
+                </button>
+                <button
+                  className="text-button danger-text-button"
+                  onClick={() => setBulkAction("fail")}
+                  type="button"
+                >
+                  Fail filtered
+                </button>
+                <button
+                  className="text-button danger-text-button"
+                  onClick={() => setBulkAction("cancel")}
+                  type="button"
+                >
+                  Cancel filtered
+                </button>
+              </>
+            )}
+          </div>
+        ) : null}
         <div className={oc("orchestration-scroll")}>
           <TaskQueueRail
             filteredTasks={filteredTasks}
@@ -214,13 +295,11 @@ export function TaskQueuePanel({
           <TaskQueueDetail
             active={active}
             busyKeys={busyKeys}
-            cascadeChildren={cascadeChildren}
             childObjective={childObjective}
             childTitle={childTitle}
             childWorkspaceRoot={childWorkspaceRoot}
             confirmDialogRef={confirmDialogRef}
             confirmedAction={confirmedAction}
-            onCascadeChildrenChange={onCascadeChildrenChange}
             onChildObjectiveChange={onChildObjectiveChange}
             onChildTitleChange={onChildTitleChange}
             onChildWorkspaceRootChange={onChildWorkspaceRootChange}

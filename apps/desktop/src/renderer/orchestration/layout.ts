@@ -48,6 +48,8 @@ const ORCHESTRATION_CLASS = {
     "orchestration-scroll min-h-0 flex-1 overflow-auto px-1 pt-0.5 pb-1.5",
   "orchestration-queue-controls":
     "orchestration-queue-controls grid shrink-0 grid-cols-[minmax(0,1fr)_minmax(92px,0.46fr)] gap-1.25 border-[var(--border)] border-b px-1.75 py-1.5 [&_label]:min-w-0 [&_input]:min-h-7 [&_input]:w-full [&_input]:px-1.75 [&_input]:py-1 [&_input]:text-[length:var(--text-meta)] [&_select]:min-h-7 [&_select]:w-full [&_select]:px-1.75 [&_select]:py-1 [&_select]:text-[length:var(--text-meta)]",
+  "orchestration-bulk-bar":
+    "orchestration-bulk-bar flex min-h-7.5 shrink-0 items-center gap-1.25 border-[var(--border)] border-b bg-[color-mix(in_srgb,var(--accent)_3%,var(--surface))] px-2 py-1 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] [&>span]:mr-auto [&_button]:min-h-5.5 [&_button]:px-1.25 [&_button]:py-0.5 [&_button]:text-[length:var(--text-meta)] [&_button]:normal-case max-[900px]:flex-wrap",
   "orchestration-master-list":
     "orchestration-master-list m-0 grid list-none gap-0 p-0 [&>li]:min-w-0 [&>li+li]:border-[color-mix(in_srgb,var(--border)_70%,transparent)] [&>li+li]:border-t",
   "orchestration-master-footer":

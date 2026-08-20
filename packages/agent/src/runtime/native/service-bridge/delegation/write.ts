@@ -237,6 +237,31 @@ export async function completeEffectiveDelegationTask(
   return task ? updateProjection(projection, projectOfficialTask(task)) : null;
 }
 
+export async function failEffectiveDelegationTask(
+  runtime: RuntimeLike,
+  projection: DelegationProjection | undefined,
+  id: string,
+  note?: string,
+) {
+  const service = requireOfficialOrchestrator(runtime);
+  const summary = note?.trim() || "Failed by operator.";
+  const existing = await service.getTask(id);
+  if (!existing) return null;
+  await service.addMessage(id, {
+    content: summary,
+    senderKind: "system",
+    direction: "system",
+  });
+  await service.pauseTask(id);
+  const task = await service.updateTask(id, {
+    status: "failed",
+    paused: true,
+    summary,
+    closedAt: new Date().toISOString(),
+  });
+  return task ? updateProjection(projection, projectOfficialTask(task)) : null;
+}
+
 export async function executeEffectiveDelegationTask(
   runtime: RuntimeLike,
   projection: DelegationProjection | undefined,

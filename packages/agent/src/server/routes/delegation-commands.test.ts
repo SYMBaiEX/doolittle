@@ -99,6 +99,20 @@ function createContext() {
 }
 
 describe("handleDelegationCommandRoutes", () => {
+  it("passes lifecycle mutations to the mutation router", async () => {
+    const { context } = createContext();
+    const response = await handleDelegationCommandRoutes(
+      context,
+      new Request("http://localhost/delegation/tasks/bulk", {
+        method: "POST",
+        body: JSON.stringify({ action: "complete", ids: ["task-1"] }),
+      }),
+      new URL("http://localhost/delegation/tasks/bulk"),
+    );
+
+    expect(response).toBeNull();
+  });
+
   it("creates parent and child tasks in the official store", async () => {
     const { context, createTask } = createContext();
     const create = await handleDelegationCommandRoutes(

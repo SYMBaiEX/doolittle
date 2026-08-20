@@ -30,6 +30,15 @@ describe("shared view primitives", () => {
     }
   });
 
+  it("keeps shared action buttons compact and visually quiet", () => {
+    expect(VIEW_PRIMITIVES_CLASS).toContain("[&_.primary-button]:px-2.25");
+    expect(VIEW_PRIMITIVES_CLASS).toContain(
+      "[&_.secondary-button]:border-[var(--border)]",
+    );
+    expect(VIEW_PRIMITIVES_CLASS).toContain("[&_.text-button]:font-semibold");
+    expect(VIEW_PRIMITIVES_CLASS).not.toContain("[&_.text-button]:font-bold");
+  });
+
   it("keeps route section headings below the page title hierarchy", () => {
     expect(VIEW_PRIMITIVES_CLASS).toContain("[&_.card-heading_h2]:text-sm");
     expect(VIEW_PRIMITIVES_CLASS).toContain("[&_.empty-block_h3]:text-sm");

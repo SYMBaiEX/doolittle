@@ -1,7 +1,7 @@
 import { Button as ElizaButton } from "@elizaos/ui/components/ui/button";
 import { StatusBadge } from "@elizaos/ui/components/ui/status-badge";
 import { Textarea as ElizaTextarea } from "@elizaos/ui/components/ui/textarea";
-import { ArrowUp, Paperclip, X } from "lucide-react";
+import { ArrowUp, FileText, Paperclip, X } from "lucide-react";
 import type {
   Dispatch,
   FormEvent,
@@ -249,9 +249,14 @@ export function ChatComposer({
         >
           {attachedFiles.map((attachment) => (
             <li className="chat-file-context-chip" key={attachment.id}>
+              <UiIcon
+                className="chat-file-context-chip__icon"
+                icon={FileText}
+                size="xs"
+              />
               <span
                 className="chat-file-context-chip__name"
-                title={`${attachment.kind} · ${attachmentSize(attachment.sizeBytes)}`}
+                title={`${attachment.name} · ${attachment.kind} · ${attachmentSize(attachment.sizeBytes)}`}
               >
                 {attachment.name}
               </span>
@@ -265,6 +270,10 @@ export function ChatComposer({
               </button>
             </li>
           ))}
+          <li className="chat-file-context-summary">
+            {attachedFiles.length} / {MAX_MESSAGE_ATTACHMENTS} files ·{" "}
+            {attachmentSize(attachmentTotalBytes)} / 50 MB
+          </li>
         </ul>
       ) : null}
       {chatContextCapsule ? (
@@ -301,12 +310,6 @@ export function ChatComposer({
           </button>
         </div>
       ) : null}
-      {attachedFiles.length > 0 ? (
-        <div className="chat-attachment-summary">
-          {attachedFiles.length} / {MAX_MESSAGE_ATTACHMENTS} files ·{" "}
-          {attachmentSize(attachmentTotalBytes)} / 50 MB
-        </div>
-      ) : null}
       {composerValidationError ? (
         <div
           aria-live="polite"
@@ -316,16 +319,7 @@ export function ChatComposer({
           {composerValidationError}
         </div>
       ) : null}
-      {memoryMatches.status === "loading" ? (
-        <div
-          aria-live="polite"
-          className="chat-memory-matches"
-          data-status="loading"
-        >
-          <span>Checking saved profile matches…</span>
-        </div>
-      ) : null}
-      {memoryMatches.status === "ready" ? (
+      {memoryMatches.status === "ready" && memoryMatches.matches.length > 0 ? (
         <section
           aria-label={`${memoryMatches.matches.length} saved profile matches`}
           className="chat-memory-matches"
@@ -334,26 +328,17 @@ export function ChatComposer({
           <strong>
             Memory matches <span>· saved profile</span>
           </strong>
-          {memoryMatches.matches.length ? (
-            <ul>
-              {memoryMatches.matches.map((match) => (
-                <li key={`${match.kind}:${match.value}`}>
-                  <small className="chat-memory-matches__kind">
-                    {match.kind}
-                  </small>
-                  <span title={match.value}>{match.value}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <span>No saved profile matches for this draft.</span>
-          )}
+          <ul>
+            {memoryMatches.matches.map((match) => (
+              <li key={`${match.kind}:${match.value}`}>
+                <small className="chat-memory-matches__kind">
+                  {match.kind}
+                </small>
+                <span title={match.value}>{match.value}</span>
+              </li>
+            ))}
+          </ul>
         </section>
-      ) : null}
-      {memoryMatches.status === "error" ? (
-        <div className="chat-memory-matches" data-status="error">
-          <span>Saved profile matches are unavailable for this draft.</span>
-        </div>
       ) : null}
       {commandSuggestions.length > 0 ? (
         <div
@@ -405,7 +390,7 @@ export function ChatComposer({
       ) : null}
       <div className="chat-composer-tools flex min-w-0 flex-wrap items-center gap-1.5">
         <ElizaButton
-          aria-label="Attach file context"
+          aria-label="Attach multiple files"
           className="!min-h-[30px] rounded-[7px] px-[7px] py-[5px] text-[10px] font-semibold"
           onClick={pickContextFiles}
           size="sm"
@@ -413,7 +398,7 @@ export function ChatComposer({
           variant="secondary"
         >
           <UiIcon icon={Paperclip} size="xs" />
-          Attach
+          {attachedFiles.length > 0 ? "Add files" : "Attach files"}
         </ElizaButton>
         <VoiceComposerButton
           disabled={backend.phase !== "ready"}

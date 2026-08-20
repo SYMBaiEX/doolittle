@@ -46,6 +46,18 @@ describe("MessageContent", () => {
     expect(html).not.toContain("onclick");
   });
 
+  it("uses compact terminal-style markdown and code surfaces", () => {
+    const html = renderToStaticMarkup(
+      <MessageContent content={"## Setup\n\n```bash\nbun install\n```"} />,
+    );
+
+    expect(html).toContain('data-streamdown="code-block"');
+    expect(html).toContain('data-streamdown="code-block-body"');
+    expect(html).toContain("!max-h-[420px]");
+    expect(html).toContain("!rounded-[var(--radius-xs)]");
+    expect(html).toContain("!bg-[var(--canvas-bg)]");
+  });
+
   it("renders one tool call as one compact collapsed disclosure row", () => {
     const content = [
       JSON.stringify({

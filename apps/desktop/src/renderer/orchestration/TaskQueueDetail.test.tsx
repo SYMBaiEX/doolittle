@@ -30,13 +30,11 @@ describe("TaskQueueDetail", () => {
     return {
       active: true,
       busyKeys: {},
-      cascadeChildren: false,
       childObjective: "",
       childTitle: "",
       childWorkspaceRoot: "",
       confirmDialogRef: { current: null },
       confirmedAction: null,
-      onCascadeChildrenChange: vi.fn(),
       onChildObjectiveChange: vi.fn(),
       onChildTitleChange: vi.fn(),
       onChildWorkspaceRootChange: vi.fn(),
@@ -88,5 +86,28 @@ describe("TaskQueueDetail", () => {
       "fail",
       failButton,
     );
+  });
+
+  it("does not offer the unsupported manual running transition", () => {
+    act(() => root.render(<TaskQueueDetail {...props()} />));
+
+    expect(container.textContent).toContain("Execute");
+    expect(container.textContent).toContain("Complete");
+    expect(container.textContent).not.toContain("Mark running");
+  });
+
+  it("states the official single-task lifecycle boundary truthfully", () => {
+    act(() =>
+      root.render(
+        <TaskQueueDetail
+          {...props({
+            confirmedAction: { taskId: "task-1", action: "fail" },
+          })}
+        />,
+      ),
+    );
+
+    expect(container.textContent).toContain("Child tasks are unchanged");
+    expect(container.textContent).not.toContain("Cascade to children");
   });
 });

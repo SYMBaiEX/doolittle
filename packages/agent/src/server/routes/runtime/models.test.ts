@@ -3,6 +3,7 @@ import type { EnvConfig } from "@/types";
 import {
   discoverModelProviders,
   modelDiscoveryRequested,
+  officialElizaCloudModels,
   parseCodexModelCache,
 } from "./models";
 
@@ -61,6 +62,31 @@ describe("runtime model discovery", () => {
         new URL("http://localhost/runtime/models?refresh=false"),
       ),
     ).toBe(false);
+  });
+
+  it("uses the official Eliza catalog for the immediate cloud model list", async () => {
+    const official = officialElizaCloudModels();
+    const providers = await discoverModelProviders(
+      config({ elizaCloudEnabled: true }),
+      "elizacloud",
+      "anthropic/claude-sonnet-4.6",
+      vi.fn<typeof fetch>(),
+      { elizacloud: true },
+      false,
+    );
+    const cloud = providers.find((provider) => provider.id === "elizacloud");
+
+    expect(official.length).toBeGreaterThan(10);
+    expect(new Set(official.map((model) => model.id)).size).toBe(
+      official.length,
+    );
+    expect(cloud?.models).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "openai/gpt-5.5" }),
+        expect.objectContaining({ id: "anthropic/claude-opus-4.7" }),
+        expect.objectContaining({ id: "google/gemini-3.1-pro-preview" }),
+      ]),
+    );
   });
 
   it("recognizes an account-pool materialized API key without returning it", async () => {

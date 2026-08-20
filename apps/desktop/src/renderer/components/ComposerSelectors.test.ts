@@ -9,8 +9,9 @@ import type {
   RuntimeStatus,
 } from "../../shared/contracts";
 
-const { desktopRequestMock } = vi.hoisted(() => ({
+const { desktopRequestMock, liveModelsReloadMock } = vi.hoisted(() => ({
   desktopRequestMock: vi.fn(),
+  liveModelsReloadMock: vi.fn(),
 }));
 
 vi.mock("../lib", async () => {
@@ -72,7 +73,10 @@ vi.mock("../lib", async () => {
             : null,
       error: "",
       loading: false,
-      reload: vi.fn(),
+      reload:
+        path === "/runtime/models?refresh=true"
+          ? liveModelsReloadMock
+          : vi.fn(),
     }),
   };
 });
@@ -225,6 +229,7 @@ describe("ComposerModelSelector loaded catalog", () => {
     root = createRoot(container);
     desktopRequestMock.mockReset();
     desktopRequestMock.mockResolvedValue({});
+    liveModelsReloadMock.mockReset();
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
       callback(0);
       return 1;
@@ -315,6 +320,37 @@ describe("ComposerModelSelector loaded catalog", () => {
 
     expect(effort?.textContent).toContain("Medium");
     expect(effort?.textContent).not.toContain("XHigh");
+  });
+
+  it("requests a live provider refresh from the model picker", () => {
+    act(() =>
+      root.render(
+        createElement(ComposerModelSelector, {
+          active: true,
+          onOpenModelsPage: vi.fn(),
+          onOpenProvidersPage: vi.fn(),
+          refreshRuntime: vi.fn(),
+          runtime: {
+            model: "gpt-5.6-terra",
+            plugins: {},
+            provider: "codex",
+          },
+        }),
+      ),
+    );
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>(
+          '[aria-label^="Choose model. Current route"]',
+        )
+        ?.click(),
+    );
+    const refresh = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("Refresh models"),
+    );
+
+    act(() => refresh?.click());
+    expect(liveModelsReloadMock).toHaveBeenCalledOnce();
   });
 
   it("closes the nested effort list before the model dialog on Escape", async () => {
