@@ -224,13 +224,14 @@ export async function handleChatRoute(
             context,
             {
               abortSignal: controller.signal,
-              onProgress: async ({ delta }) => {
+              onProgress: async ({ delta, response }) => {
                 if (!delta) {
                   return;
                 }
                 await emit("response.output_text.delta", {
                   id: responseId,
                   delta,
+                  response,
                 });
               },
               onRunUpdate: async (event) => {

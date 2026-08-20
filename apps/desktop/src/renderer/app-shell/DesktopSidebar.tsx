@@ -1,6 +1,7 @@
 import {
   ChevronRight,
   FolderClosed,
+  History,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
@@ -253,6 +254,17 @@ export function DesktopSidebar({
             <strong>Projects</strong>
             <kbd>{platform === "darwin" ? "⌘O" : "Ctrl O"}</kbd>
           </button>
+          {compact ? (
+            <button
+              aria-label="Open conversation history"
+              onClick={onViewAll}
+              title="Conversation history"
+              type="button"
+            >
+              <UiIcon icon={History} size="md" />
+              <strong>History</strong>
+            </button>
+          ) : null}
         </div>
         <ProjectHistorySidebar
           activeScope={projectScope}
@@ -275,6 +287,7 @@ export function DesktopSidebar({
             <legend className="sr-only">Workspace modes</legend>
             {PRIMARY_NAV_ITEMS.map((item) => (
               <button
+                aria-label={item.label}
                 aria-current={navigationView === item.id ? "page" : undefined}
                 className={`${SIDEBAR_MODE_BUTTON_CLASS}${
                   navigationView === item.id

@@ -16,6 +16,7 @@ export const CONVERSATION_DRAFTS_STORAGE_KEY =
 export const CONVERSATION_QUEUE_STORAGE_KEY =
   "doolittle.desktop.conversation.queue.v1";
 export const PROMPT_LIBRARY_STORAGE_KEY = "doolittle.desktop.prompt-library.v1";
+export const PROMPT_LIBRARY_CHANGE_EVENT = "doolittle:prompt-library-changed";
 
 const MAX_PERSISTED_SESSIONS = 250;
 const MAX_DRAFT_LENGTH = 50_000;

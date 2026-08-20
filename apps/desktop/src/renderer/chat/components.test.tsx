@@ -1,6 +1,11 @@
+// @vitest-environment jsdom
+
+import { act, useState } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { DesktopRunUpdate } from "../../shared/contracts";
+import { savePromptLibrary } from "../conversation-persistence";
 import {
   CHAT_COMPOSER_MAX_HEIGHT,
   CHAT_COMPOSER_MIN_HEIGHT,
@@ -13,6 +18,17 @@ import { ChatTranscript } from "./ChatTranscript";
 import { MessageActions } from "./MessageActions";
 import { RunReceiptView } from "./RunReceiptView";
 import { Welcome } from "./Welcome";
+
+const composerStorage = new Map<string, string>();
+Object.defineProperty(globalThis, "localStorage", {
+  configurable: true,
+  value: {
+    clear: () => composerStorage.clear(),
+    getItem: (key: string) => composerStorage.get(key) ?? null,
+    removeItem: (key: string) => composerStorage.delete(key),
+    setItem: (key: string, value: string) => composerStorage.set(key, value),
+  },
+});
 
 function runUpdate(
   type: DesktopRunUpdate["type"] = "completed",
@@ -72,6 +88,7 @@ function composerProps(
     composerValidationError: "",
     memoryMatches: { query: "", matches: [], status: "idle" },
     commandSuggestions: [],
+    commandMenuDismissed: false,
     commandSelection: 0,
     setCommandSelection: () => undefined,
     setCommandMenuDismissed: () => undefined,
@@ -112,6 +129,127 @@ describe("chat presentation components", () => {
     expect(html).toContain('aria-label="Message Doolittle"');
     expect(html).toContain('class="chat-context-meter neutral"');
     expect(html).toContain('aria-label="Send message"');
+  });
+
+  it("inserts the active dollar-prefix prompt on Enter without submitting", () => {
+    window.localStorage.clear();
+    savePromptLibrary(window.localStorage, [
+      {
+        id: "release-review",
+        title: "Release review",
+        content: "Review the release carefully.",
+        createdAt: "2026-08-20T00:00:00.000Z",
+        updatedAt: "2026-08-20T00:00:00.000Z",
+      },
+    ]);
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    let submitCount = 0;
+
+    function Probe() {
+      const [draft, setDraft] = useState("$release");
+      return (
+        <ChatComposer
+          {...composerProps({
+            draft,
+            setDraft,
+            onSubmit: () => {
+              submitCount += 1;
+            },
+          })}
+        />
+      );
+    }
+
+    act(() => root.render(<Probe />));
+    const textarea = container.querySelector<HTMLTextAreaElement>(
+      '[aria-label="Message Doolittle"]',
+    );
+    expect(container.textContent).toContain("Release review");
+    act(() => {
+      textarea?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }),
+      );
+    });
+
+    expect(textarea?.value).toBe("Review the release carefully.");
+    expect(submitCount).toBe(0);
+    act(() => root.unmount());
+    container.remove();
+    window.localStorage.clear();
+  });
+
+  it("loads an Eliza skill and inserts its official command on Tab", async () => {
+    window.localStorage.clear();
+    const requestAgent = vi.fn(async (request: { path: string }) => ({
+      status: 200,
+      statusText: "OK",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(
+        request.path === "/skills"
+          ? {
+              skills: [
+                {
+                  slug: "release/check",
+                  title: "Release check",
+                  description: "Verify a release.",
+                  commandName: "release-check",
+                  userInvocable: true,
+                },
+              ],
+            }
+          : { approvals: [] },
+      ),
+    }));
+    Object.defineProperty(window, "doolittle", {
+      configurable: true,
+      value: {
+        requestAgent,
+        cancelAgentRequest: vi.fn(async () => undefined),
+      },
+    });
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    let submitCount = 0;
+
+    function Probe() {
+      const [draft, setDraft] = useState("$release");
+      return (
+        <ChatComposer
+          {...composerProps({
+            backend: { phase: "ready", message: "" },
+            draft,
+            setDraft,
+            onSubmit: () => {
+              submitCount += 1;
+            },
+          })}
+        />
+      );
+    }
+
+    await act(async () => root.render(<Probe />));
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain("Release check"),
+    );
+    const textarea = container.querySelector<HTMLTextAreaElement>(
+      '[aria-label="Message Doolittle"]',
+    );
+    act(() => {
+      textarea?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Tab" }),
+      );
+    });
+
+    expect(textarea?.value).toBe("/release-check");
+    expect(submitCount).toBe(0);
+    expect(requestAgent).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "/skills" }),
+    );
+    act(() => root.unmount());
+    container.remove();
   });
 
   it("renders multiple selected files compactly and omits empty memory chrome", () => {

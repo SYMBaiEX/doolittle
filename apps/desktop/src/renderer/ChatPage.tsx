@@ -40,6 +40,10 @@ import {
   type RunReceiptStore,
   runEventKey,
 } from "./chat/models";
+import {
+  completedResponseText,
+  reconcileStreamedResponse,
+} from "./chat/streamed-response";
 import { useChatComposerSupport } from "./chat/useChatComposerSupport";
 import { useChatConversationState } from "./chat/useChatConversationState";
 import { useChatMessageActions } from "./chat/useChatMessageActions";
@@ -512,13 +516,13 @@ export function ChatPage({
       return;
     }
     if (event.event === "response.output_text.delta") {
-      const delta =
+      const payload =
         event.data && typeof event.data === "object"
-          ? String((event.data as { delta?: unknown }).delta ?? "")
-          : "";
+          ? (event.data as { delta?: unknown; response?: unknown })
+          : {};
       updateAssistant(sessionId, event.requestId, (message) => ({
         ...message,
-        content: message.content + delta,
+        content: reconcileStreamedResponse(message.content, payload),
       }));
       return;
     }
@@ -533,7 +537,7 @@ export function ChatPage({
           : "";
       updateAssistant(sessionId, event.requestId, (message) => ({
         ...message,
-        content: message.content || response || "Done.",
+        content: completedResponseText(message.content, { response }),
         pending: false,
       }));
       finishRequest(event.requestId);
@@ -1192,6 +1196,7 @@ export function ChatPage({
           composerValidationError={composerValidationError}
           memoryMatches={memoryMatches}
           commandSuggestions={commandSuggestions}
+          commandMenuDismissed={commandMenuDismissed}
           commandSelection={commandSelection}
           setCommandSelection={setCommandSelection}
           setCommandMenuDismissed={setCommandMenuDismissed}

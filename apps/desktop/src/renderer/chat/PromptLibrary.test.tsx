@@ -191,4 +191,71 @@ describe("PromptLibrary", () => {
     expect(container.textContent).toContain("General prompt");
     expect(container.textContent).not.toContain("Project prompt");
   });
+
+  it("opens the full manager and restores focus when the quick panel closes", () => {
+    savePromptLibrary(localStorage, [
+      {
+        id: "managed-prompt",
+        title: "Managed prompt",
+        content: "Inspect all managed prompts.",
+        createdAt: "2026-08-20T10:00:00.000Z",
+        updatedAt: "2026-08-20T10:00:00.000Z",
+      },
+    ]);
+    act(() => root.render(<PromptLibraryProbe />));
+
+    const promptsButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Prompts · 1",
+    );
+    act(() => promptsButton?.click());
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      );
+    });
+    expect(container.querySelector("#chat-prompt-library")).toBeNull();
+    expect(document.activeElement).toBe(promptsButton);
+
+    act(() => promptsButton?.click());
+    const manageButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("Manage all"),
+    );
+    act(() => manageButton?.click());
+
+    const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]');
+    expect(dialog?.textContent).toContain("Manage prompt library");
+    expect(dialog?.textContent).toContain("Managed prompt");
+    expect(document.activeElement).toBe(
+      dialog?.querySelector('[aria-label="Search saved prompts"]'),
+    );
+  });
+
+  it("reloads saved prompts from another window", () => {
+    act(() => root.render(<PromptLibraryProbe />));
+    expect(container.textContent).toContain("Prompts");
+
+    savePromptLibrary(localStorage, [
+      {
+        id: "external-prompt",
+        title: "External prompt",
+        content: "Reload this prompt from storage.",
+        createdAt: "2026-08-20T10:00:00.000Z",
+        updatedAt: "2026-08-20T10:00:00.000Z",
+      },
+    ]);
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: "doolittle.desktop.prompt-library.v1",
+        }),
+      );
+    });
+
+    const promptsButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Prompts · 1",
+    );
+    expect(promptsButton).toBeDefined();
+    act(() => promptsButton?.click());
+    expect(container.textContent).toContain("External prompt");
+  });
 });

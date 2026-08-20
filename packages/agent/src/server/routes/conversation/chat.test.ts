@@ -379,6 +379,50 @@ describe("handleChatRoute turn lifecycle", () => {
     await expect(response.json()).resolves.toMatchObject({ response: "done" });
   });
 
+  it("streams the authoritative response snapshot with each text update", async () => {
+    const context = createContext();
+    executeAgentTurnWithProgress.mockImplementation(
+      async (
+        _input: unknown,
+        _executionContext: unknown,
+        hooks: {
+          onProgress?: (update: {
+            delta: string;
+            response: string;
+          }) => Promise<void>;
+        },
+      ) => {
+        await hooks.onProgress?.({ delta: "Working…", response: "Working…" });
+        await hooks.onProgress?.({
+          delta: "Final answer",
+          response: "Final answer",
+        });
+        return { response: "Final answer", sessionId: "room-snapshot" };
+      },
+    );
+
+    const response = await handleChatRoute(
+      context,
+      chatRequest({
+        message: "replace provisional output",
+        roomId: "room-snapshot",
+        stream: true,
+      }),
+    );
+    const body = await response.text();
+    const updates = body
+      .split("\n\n")
+      .filter((frame) => frame.startsWith("event: response.output_text.delta"))
+      .map((frame) =>
+        JSON.parse(frame.split("\n")[1]?.replace("data: ", "") ?? "{}"),
+      );
+
+    expect(updates).toMatchObject([
+      { delta: "Working…", response: "Working…" },
+      { delta: "Final answer", response: "Final answer" },
+    ]);
+  });
+
   it("returns a failure response when the retained run receipt failed", async () => {
     const context = createContext();
     executeAgentTurnWithProgress.mockResolvedValue({

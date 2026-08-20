@@ -9,13 +9,14 @@ import type {
   RefObject,
   SetStateAction,
 } from "react";
-import { useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import type {
   BackendState,
   CommandCatalogItem,
   ManagedAttachmentDescriptor,
   RuntimeStatus,
 } from "../../shared/contracts";
+import { buildSkillCatalogEntries } from "../catalog-entry-models";
 import type { ChatContextCapsule } from "../chat-context-handoff";
 import {
   ComposerModelSelector,
@@ -33,11 +34,21 @@ import type {
 } from "../context-pressure";
 import { contextPressureLabel } from "../context-pressure";
 import type { PersistedQueuedMessage } from "../conversation-persistence";
+import {
+  loadPromptLibrary,
+  PROMPT_LIBRARY_CHANGE_EVENT,
+  PROMPT_LIBRARY_STORAGE_KEY,
+} from "../conversation-persistence";
+import { asArray, asRecord, desktopRequest, errorMessage } from "../lib";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import { ContextCapsuleIcon } from "./ContextCapsuleIcon";
 import type { ChatMemoryMatchState } from "./models";
 import { attachmentSize, fileName, MAX_MESSAGE_ATTACHMENTS } from "./models";
 import { PromptLibrary } from "./PromptLibrary";
+import {
+  type ReusableCompletion,
+  reusableCompletions,
+} from "./reusable-completion";
 
 export const CHAT_COMPOSER_MIN_HEIGHT = 46;
 export const CHAT_COMPOSER_MAX_HEIGHT = 180;
@@ -89,6 +100,7 @@ export interface ChatComposerProps {
   composerValidationError: string;
   memoryMatches: ChatMemoryMatchState;
   commandSuggestions: CommandCatalogItem[];
+  commandMenuDismissed: boolean;
   commandSelection: number;
   setCommandSelection: Dispatch<SetStateAction<number>>;
   setCommandMenuDismissed: Dispatch<SetStateAction<boolean>>;
@@ -147,6 +159,7 @@ export function ChatComposer({
   composerValidationError,
   memoryMatches,
   commandSuggestions,
+  commandMenuDismissed,
   commandSelection,
   setCommandSelection,
   setCommandMenuDismissed,
@@ -166,6 +179,56 @@ export function ChatComposer({
   pendingApprovals,
   runningTasks,
 }: ChatComposerProps) {
+  const [skills, setSkills] = useState(() => buildSkillCatalogEntries([]));
+  const [skillsError, setSkillsError] = useState("");
+  const [promptEntries, setPromptEntries] = useState(() =>
+    typeof window === "undefined" ? [] : loadPromptLibrary(window.localStorage),
+  );
+
+  useEffect(() => {
+    const refresh = () => setPromptEntries(loadPromptLibrary(localStorage));
+    const refreshFromStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === PROMPT_LIBRARY_STORAGE_KEY) {
+        refresh();
+      }
+    };
+    window.addEventListener(PROMPT_LIBRARY_CHANGE_EVENT, refresh);
+    window.addEventListener("storage", refreshFromStorage);
+    return () => {
+      window.removeEventListener(PROMPT_LIBRARY_CHANGE_EVENT, refresh);
+      window.removeEventListener("storage", refreshFromStorage);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (backend.phase !== "ready" || !workspacePath) {
+      setSkills([]);
+      setSkillsError("");
+      return;
+    }
+    let cancelled = false;
+    void desktopRequest<{ skills?: unknown }>("/skills")
+      .then((response) => {
+        if (cancelled) return;
+        setSkills(
+          buildSkillCatalogEntries(asArray(response.skills).map(asRecord)),
+        );
+        setSkillsError("");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setSkills([]);
+        setSkillsError(`Skills unavailable: ${errorMessage(error)}`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [backend.phase, workspacePath]);
+
+  const reusableSuggestions = commandMenuDismissed
+    ? []
+    : reusableCompletions(draft, promptEntries, skills, activeProject?.id);
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: draft changes are the measurement trigger; the ref is stable and intentionally read at effect time.
   useLayoutEffect(() => {
     const textarea = composerRef.current;
@@ -177,13 +240,26 @@ export function ChatComposer({
   }, [composerRef, draft]);
 
   const commandMenuOpen = commandSuggestions.length > 0;
-  const activeCommandIndex = commandMenuOpen
-    ? Math.min(commandSelection, commandSuggestions.length - 1)
-    : -1;
+  const reusableMenuOpen = reusableSuggestions.length > 0;
+  const completionCount = commandMenuOpen
+    ? commandSuggestions.length
+    : reusableSuggestions.length;
+  const activeCommandIndex =
+    completionCount > 0 ? Math.min(commandSelection, completionCount - 1) : -1;
   const activeCommandId =
     activeCommandIndex >= 0
-      ? `chat-command-option-${activeCommandIndex}`
+      ? `${commandMenuOpen ? "chat-command" : "chat-reusable"}-option-${activeCommandIndex}`
       : undefined;
+  const selectReusableSuggestion = (suggestion: ReusableCompletion) => {
+    setDraft(suggestion.insertText);
+    setCommandMenuDismissed(true);
+    setQueueAnnouncement(
+      suggestion.kind === "prompt"
+        ? `Inserted “${suggestion.label}”.`
+        : `Selected “${suggestion.label}”.`,
+    );
+    requestAnimationFrame(() => composerRef.current?.focus());
+  };
 
   return (
     <form className="chat-composer" onSubmit={onSubmit}>
@@ -383,9 +459,52 @@ export function ChatComposer({
           ))}
         </div>
       ) : null}
+      {reusableSuggestions.length > 0 ? (
+        <div
+          aria-label="Reusable prompts and skills"
+          className="chat-reusable-completions absolute inset-x-0 bottom-[calc(100%+8px)] z-50 grid max-h-[min(360px,46vh)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-1.5 shadow-[var(--shell-shadow-lg)]"
+          id="chat-reusable-completions"
+          role="listbox"
+        >
+          <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
+            <span>Reusable prompts &amp; skills</span>
+            <kbd>$</kbd>
+          </div>
+          {reusableSuggestions.map((suggestion, index) => (
+            <ElizaButton
+              aria-selected={index === activeCommandIndex}
+              className={`!grid !min-h-11 !min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 !rounded-[var(--radius-sm)] !border-0 !bg-transparent px-2.5 py-2 !text-left text-[var(--text-soft)] hover:!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] hover:!text-[var(--text)] ${index === activeCommandIndex ? "!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] !text-[var(--text)]" : ""}`}
+              id={`chat-reusable-option-${index}`}
+              key={suggestion.id}
+              onClick={() => selectReusableSuggestion(suggestion)}
+              role="option"
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              <span className="flex min-w-0 flex-col gap-0.5 [&>*]:overflow-hidden [&>*]:text-ellipsis [&>*]:whitespace-nowrap">
+                <strong className="text-[11px] font-semibold text-[var(--text)]">
+                  {suggestion.label}
+                </strong>
+                <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
+                  {suggestion.description}
+                </small>
+              </span>
+              <small className="rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-1.5 py-0.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--accent)]">
+                {suggestion.scope}
+              </small>
+            </ElizaButton>
+          ))}
+        </div>
+      ) : null}
       {draft.trimStart().startsWith("/") && commandCatalog.error ? (
         <div className="chat-command-catalog-error" role="alert">
           {commandCatalog.error}
+        </div>
+      ) : null}
+      {draft.trimStart().startsWith("$") && skillsError ? (
+        <div className="chat-command-catalog-error" role="alert">
+          {skillsError}
         </div>
       ) : null}
       <div className="chat-composer-tools flex min-w-0 flex-wrap items-center gap-1.5">
@@ -424,7 +543,13 @@ export function ChatComposer({
         className="chat-composer-input !max-h-[180px] !min-h-[46px] !w-full !resize-none !rounded-none !border-0 !bg-transparent px-1 pt-1 pb-1 text-sm leading-[1.55] [box-shadow:none]! focus-visible:!outline-none max-[720px]:!max-h-[150px]"
         aria-activedescendant={activeCommandId}
         aria-autocomplete="list"
-        aria-controls={commandMenuOpen ? "chat-command-completions" : undefined}
+        aria-controls={
+          commandMenuOpen
+            ? "chat-command-completions"
+            : reusableMenuOpen
+              ? "chat-reusable-completions"
+              : undefined
+        }
         aria-haspopup="listbox"
         aria-label="Message Doolittle"
         disabled={backend.phase !== "ready"}
@@ -435,11 +560,11 @@ export function ChatComposer({
         }}
         onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
           if (event.nativeEvent.isComposing) return;
-          if (commandSuggestions.length > 0) {
+          if (completionCount > 0) {
             if (event.key === "ArrowDown") {
               event.preventDefault();
               setCommandSelection((current) =>
-                Math.min(current + 1, commandSuggestions.length - 1),
+                Math.min(current + 1, completionCount - 1),
               );
               return;
             }
@@ -448,13 +573,19 @@ export function ChatComposer({
               setCommandSelection((current) => Math.max(current - 1, 0));
               return;
             }
-            if (event.key === "Tab") {
+            if (
+              event.key === "Tab" ||
+              (event.key === "Enter" && reusableMenuOpen)
+            ) {
               event.preventDefault();
-              const selected =
-                commandSuggestions[
-                  Math.min(commandSelection, commandSuggestions.length - 1)
-                ];
-              if (selected) selectCommandSuggestion(selected);
+              const selection = Math.min(commandSelection, completionCount - 1);
+              if (commandMenuOpen) {
+                const selected = commandSuggestions[selection];
+                if (selected) selectCommandSuggestion(selected);
+              } else {
+                const selected = reusableSuggestions[selection];
+                if (selected) selectReusableSuggestion(selected);
+              }
               return;
             }
             if (event.key === "Escape") {
