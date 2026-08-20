@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import { VIEW_PRIMITIVES_CLASS } from "./view-layout";
 
 describe("shared view primitives", () => {
+  it("lets every route surface span the full viewport column", () => {
+    expect(VIEW_PRIMITIVES_CLASS).toContain("[&_.page]:mx-0");
+    expect(VIEW_PRIMITIVES_CLASS).toContain("[&_.page]:w-full");
+    expect(VIEW_PRIMITIVES_CLASS).toContain("[&_.page]:max-w-none");
+    expect(VIEW_PRIMITIVES_CLASS).not.toContain(
+      "[&_.page]:w-[min(100%,1380px)]",
+    );
+  });
+
   it("keeps narrow page titles on the density-aware token", () => {
     expect(VIEW_PRIMITIVES_CLASS).not.toContain(
       "max-[760px]:[&_.page-header_h1]:text-[clamp(",

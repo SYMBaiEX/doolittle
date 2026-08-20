@@ -9,6 +9,8 @@ function source(path: string) {
 
 describe("wide route viewport density", () => {
   it("uses compact shared route geometry and restores focused chat line lengths", () => {
+    expect(VIEW_PRIMITIVES_CLASS).toContain("[&_.page]:w-full");
+    expect(VIEW_PRIMITIVES_CLASS).toContain("[&_.page]:max-w-none");
     expect(VIEW_PRIMITIVES_CLASS).toContain(
       "[padding-block:var(--page-pad-block)]",
     );
@@ -23,13 +25,14 @@ describe("wide route viewport density", () => {
     expect(CHAT_WORKSPACE_CLASS).toContain("w-[min(calc(100%_-_36px),820px)]");
   });
 
-  it("bounds dashboard and observability content while preserving responsive stacks", () => {
+  it("lets dashboard own the full route width while preserving focused inner observability content", () => {
     const dashboardPage = source("./DashboardPage.tsx");
     const dashboardLayout = source("./dashboard/dashboard-layout.ts");
     const observabilityLayout = source("./observability-layout.ts");
 
     expect(dashboardPage).toContain("DASHBOARD_PAGE_CLASS");
-    expect(dashboardLayout).toContain("w-[min(100%,1320px)]");
+    expect(dashboardLayout).not.toContain("mx-auto");
+    expect(dashboardLayout).not.toContain("w-[min(100%,1320px)]");
     expect(dashboardLayout).toContain("max-[980px]:grid-cols-1");
     expect(observabilityLayout).toContain("mx-auto");
     expect(observabilityLayout).toContain("max-w-[1280px]");

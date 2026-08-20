@@ -688,6 +688,26 @@ test.describe("Doolittle packaged-profile control sweep", () => {
         });
         await page.waitForTimeout(80);
 
+        const routePage = view.locator(".page").first();
+        if ((await routePage.count()) > 0 && (await routePage.isVisible())) {
+          const horizontalBounds = await Promise.all([
+            view.evaluate((element) => {
+              const rect = element.getBoundingClientRect();
+              return { left: rect.left, right: rect.right };
+            }),
+            routePage.evaluate((element) => {
+              const rect = element.getBoundingClientRect();
+              return { left: rect.left, right: rect.right };
+            }),
+          ]);
+          expect(
+            Math.abs(horizontalBounds[1].left - horizontalBounds[0].left),
+          ).toBeLessThanOrEqual(1);
+          expect(
+            Math.abs(horizontalBounds[1].right - horizontalBounds[0].right),
+          ).toBeLessThanOrEqual(1);
+        }
+
         const routeScreenshots = screenshotEvidence
           ? await captureRouteScreenshots(app, page, route, screenshotEvidence)
           : null;

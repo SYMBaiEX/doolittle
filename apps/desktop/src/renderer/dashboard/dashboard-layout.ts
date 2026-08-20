@@ -1,5 +1,4 @@
-export const DASHBOARD_PAGE_CLASS =
-  "page mx-auto grid w-[min(100%,1320px)] gap-2.5";
+export const DASHBOARD_PAGE_CLASS = "page grid gap-2.5";
 
 export const DASHBOARD_CARD_CLASS =
   "min-w-0 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3.5";

@@ -34,7 +34,7 @@ export function MediaPage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className="page w-[min(100%,1260px)] max-w-[1380px] gap-3.5">
+    <div className="page gap-3.5">
       <PageHeader
         description="Inspect, transcribe, and generate with Eliza media services."
         eyebrow="Operator"
