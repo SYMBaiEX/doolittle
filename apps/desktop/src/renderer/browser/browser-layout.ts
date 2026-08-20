@@ -45,7 +45,7 @@ export const BROWSER_ACTIONS_CLASS =
   "grid grid-cols-2 gap-1.5 border-[var(--border)] border-b p-2.5";
 
 export const BROWSER_ACTION_CLASS =
-  "grid min-h-9.5 grid-cols-[minmax(0,1fr)_auto] content-center gap-2 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-2.25 py-1.75 text-left text-[var(--text-soft)] transition-colors hover:border-[var(--accent-border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 [&>i]:col-start-2 [&>i]:self-center [&>i]:not-italic [&>i]:text-[var(--accent)] [&>span]:text-[11px] [&>span]:font-extrabold";
+  "grid min-h-9.5 grid-cols-[minmax(0,1fr)_auto] content-center gap-2 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-2.25 py-1.75 text-left text-[var(--text-soft)] transition-colors hover:border-[var(--accent-border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 [&>i]:col-start-2 [&>i]:self-center [&>i]:not-italic [&>i]:text-[var(--accent)] [&>span]:text-[11px] [&>span]:font-semibold";
 
 export const BROWSER_COMPARE_SUMMARY_CLASS =
   "relative flex min-h-9.5 cursor-pointer list-none items-center justify-between gap-3 px-3.5 text-[11px] font-bold text-[var(--text-soft)] after:text-[var(--accent)] after:content-['+'] group-open:after:content-['−'] [&::-webkit-details-marker]:hidden [&_small]:ml-auto [&_small]:font-mono [&_small]:text-[9px] [&_small]:font-medium [&_small]:text-[var(--muted)] [&_small]:uppercase";
