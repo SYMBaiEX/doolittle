@@ -284,6 +284,9 @@ describe("resolveEditorProjectContext", () => {
 
       expect(context.compilerOptions.baseUrl).toBe(workspace);
       expect(context.compilerOptions.moduleResolution).toBe("bundler");
+      expect(context.compilerOptions.paths?.react).toEqual([
+        resolve(workspace, "node_modules/@types/react/index.d.ts"),
+      ]);
       expect(paths).toEqual(
         expect.arrayContaining([
           resolve(workspace, "node_modules/@types/react/index.d.ts"),

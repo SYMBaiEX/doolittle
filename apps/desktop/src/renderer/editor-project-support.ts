@@ -34,7 +34,12 @@ function configureMonaco(options: EditorProjectCompilerOptions): void {
     noSyntaxValidation: false,
     onlyVisible: false,
   };
-  const compilerOptions = compilerOptionsForMonaco(options);
+  // Monaco's TypeScript worker keys models and extra libraries by URI string.
+  // Translate every absolute compiler path into that same namespace; plain
+  // filesystem paths otherwise miss `file:///...` models during resolution.
+  const compilerOptions = compilerOptionsForMonaco(options, (path) =>
+    monaco.Uri.file(path).toString(),
+  );
   monacoTypeScript.javascriptDefaults.setCompilerOptions(compilerOptions);
   monacoTypeScript.typescriptDefaults.setCompilerOptions(compilerOptions);
   monacoTypeScript.javascriptDefaults.setDiagnosticsOptions(diagnostics);

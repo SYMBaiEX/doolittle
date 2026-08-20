@@ -43,12 +43,26 @@ export const MONACO_TS_CONSTANTS = {
 
 export function compilerOptionsForMonaco(
   options: EditorProjectCompilerOptions,
+  fileUri: (path: string) => string = (path) => path,
 ): Record<string, unknown> {
+  const virtualBaseUrl = options.baseUrl ? fileUri(options.baseUrl) : undefined;
+  const virtualPaths = options.paths
+    ? Object.fromEntries(
+        Object.entries(options.paths).map(([specifier, targets]) => [
+          specifier,
+          targets.map((target) =>
+            target.startsWith("/") || /^[A-Za-z]:[\\/]/u.test(target)
+              ? fileUri(target)
+              : target,
+          ),
+        ]),
+      )
+    : undefined;
   return {
     allowJs: options.allowJs ?? true,
     allowNonTsExtensions: true,
     allowSyntheticDefaultImports: options.allowSyntheticDefaultImports ?? true,
-    baseUrl: options.baseUrl,
+    baseUrl: virtualBaseUrl,
     esModuleInterop: options.esModuleInterop ?? true,
     jsx: options.jsx ? MONACO_TS_CONSTANTS.jsx[options.jsx] : undefined,
     lib: options.lib,
@@ -59,7 +73,7 @@ export function compilerOptionsForMonaco(
       ? MONACO_TS_CONSTANTS.moduleResolution[options.moduleResolution]
       : MONACO_TS_CONSTANTS.moduleResolution.node,
     noEmit: true,
-    paths: options.paths,
+    paths: virtualPaths,
     resolveJsonModule: options.resolveJsonModule ?? true,
     skipLibCheck: options.skipLibCheck ?? true,
     target: options.target

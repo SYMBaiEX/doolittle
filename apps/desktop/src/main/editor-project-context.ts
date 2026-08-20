@@ -351,12 +351,20 @@ function collectSupportFiles(
     // declarations, so registering only the resolved .d.ts file still leaves
     // imports such as `@scope/ui/Button` unresolved inside the editor.
     if (virtualPackageRoot) {
+      const virtualResolvedPath = resolve(
+        virtualPackageRoot,
+        packageId.subModuleName,
+      );
       // Monaco's worker does not consistently expose package.json files to
       // the resolver through addExtraLib. An exact path mapping keeps package
       // `exports` subpaths resolvable even when the package has no physical
       // file at the import-shaped path (for example `@scope/ui/Button`).
       if (requestedModule && !packagePaths.has(requestedModule)) {
-        packagePaths.set(requestedModule, diskPath);
+        // pnpm resolves declarations through its physical `.pnpm` store, but
+        // the editor registers them at the logical node_modules path visible
+        // to the workspace. Keep the path mapping in that same virtual
+        // namespace or Monaco cannot find the extra library it just received.
+        packagePaths.set(requestedModule, virtualResolvedPath);
       }
       enqueue(
         resolve(diskPackageRoot, "package.json"),

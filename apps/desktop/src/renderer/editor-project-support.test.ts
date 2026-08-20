@@ -1,3 +1,4 @@
+import ts from "typescript-legacy";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { compilerOptionsForMonaco } from "./editor-project-compiler-options";
 import { acquireMonacoProjectSupport } from "./editor-project-support";
@@ -33,26 +34,74 @@ beforeEach(() => {
 
 describe("compilerOptionsForMonaco", () => {
   it("preserves modern project settings for Monaco's bundled TS worker", () => {
-    const options = compilerOptionsForMonaco({
-      allowJs: false,
-      baseUrl: "/workspace/apps/desktop",
-      jsx: "react-jsx",
-      module: "esnext",
-      moduleResolution: "bundler",
-      paths: {
-        "@/*": ["../../packages/agent/src/*"],
+    const options = compilerOptionsForMonaco(
+      {
+        allowJs: false,
+        baseUrl: "/workspace/apps/desktop",
+        jsx: "react-jsx",
+        module: "esnext",
+        moduleResolution: "bundler",
+        paths: {
+          "@/*": ["../../packages/agent/src/*"],
+          react: ["/workspace/node_modules/@types/react/index.d.ts"],
+        },
+        target: "es2022",
+        types: ["node", "vite/client"],
       },
-      target: "es2022",
-      types: ["node", "vite/client"],
-    });
+      (path) => `file://${path}`,
+    );
 
     expect(options.allowJs).toBe(false);
-    expect(options.baseUrl).toBe("/workspace/apps/desktop");
+    expect(options.baseUrl).toBe("file:///workspace/apps/desktop");
     expect(options.jsx).toBe(4);
     expect(options.module).toBe(99);
     expect(options.moduleResolution).toBe(100);
     expect(options.target).toBe(99);
+    expect(options.paths).toEqual({
+      "@/*": ["../../packages/agent/src/*"],
+      react: ["file:///workspace/node_modules/@types/react/index.d.ts"],
+    });
     expect(options.types).toEqual(["node", "vite/client"]);
+  });
+
+  it("resolves workspace aliases and packages inside Monaco's file URI namespace", () => {
+    const entry = "file:///workspace/app/about/page.tsx";
+    const aliasTarget = "file:///workspace/components/landing/LandingShell.tsx";
+    const packageTarget =
+      "file:///workspace/node_modules/motion/dist/react.d.ts";
+    const files = new Set([entry, aliasTarget, packageTarget]);
+    const options = compilerOptionsForMonaco(
+      {
+        baseUrl: "/workspace",
+        module: "esnext",
+        moduleResolution: "bundler",
+        paths: {
+          "@/*": ["./*"],
+          "motion/react": ["/workspace/node_modules/motion/dist/react.d.ts"],
+        },
+      },
+      (path) => `file://${path}`,
+    ) as ts.CompilerOptions;
+    const host: ts.ModuleResolutionHost = {
+      directoryExists: () => true,
+      fileExists: (path) => files.has(path),
+      getCurrentDirectory: () => "",
+      readFile: () => "",
+      realpath: (path) => path,
+    };
+
+    expect(
+      ts.resolveModuleName(
+        "@/components/landing/LandingShell",
+        entry,
+        options,
+        host,
+      ).resolvedModule?.resolvedFileName,
+    ).toBe(aliasTarget);
+    expect(
+      ts.resolveModuleName("motion/react", entry, options, host).resolvedModule
+        ?.resolvedFileName,
+    ).toBe(packageTarget);
   });
 });
 
@@ -63,8 +112,13 @@ describe("acquireMonacoProjectSupport", () => {
       projectRoot: "/workspace",
       entryPath: "/workspace/src/component.tsx",
       compilerOptions: {
+        baseUrl: "/workspace",
         jsx: "react-jsx",
         moduleResolution: "bundler",
+        paths: {
+          "@/*": ["./*"],
+          react: ["/workspace/node_modules/@types/react/index.d.ts"],
+        },
       },
       supportFiles: [
         {
@@ -82,8 +136,13 @@ describe("acquireMonacoProjectSupport", () => {
 
     expect(languageDefaults.typescript.setCompilerOptions).toHaveBeenCalledWith(
       expect.objectContaining({
+        baseUrl: "file:///workspace",
         jsx: 4,
         moduleResolution: 100,
+        paths: {
+          "@/*": ["./*"],
+          react: ["file:///workspace/node_modules/@types/react/index.d.ts"],
+        },
       }),
     );
     expect(languageDefaults.javascript.addExtraLib).toHaveBeenCalledWith(
