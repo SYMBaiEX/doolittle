@@ -1,4 +1,6 @@
+import { Globe2 } from "lucide-react";
 import type { ReactNode } from "react";
+import { UiIcon } from "../components/UiIcon";
 import {
   asArray,
   asNumber,
@@ -507,7 +509,9 @@ function PreviewPanel({ controller }: { controller: PreviewPanelController }) {
         <div className={WORKBENCH_PREVIEW_STATUS_CLASS}>
           <div className={WORKBENCH_PREVIEW_ORBIT_CLASS} aria-hidden="true">
             <i />
-            <span className={WORKBENCH_ORBIT_MARK_CLASS}>◎</span>
+            <span className={WORKBENCH_ORBIT_MARK_CLASS}>
+              <UiIcon icon={Globe2} size="sm" />
+            </span>
           </div>
           <Badge tone="good">{previewMode}</Badge>
           <strong>Local preview tools are connected</strong>

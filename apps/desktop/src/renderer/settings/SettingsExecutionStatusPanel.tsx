@@ -66,7 +66,7 @@ export function SettingsExecutionStatusPanel({
         >
           {backends.map((backend, index) => (
             <div
-              className="grid min-h-11 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-2 py-1.5"
+              className="grid min-h-9.5 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-2 py-1.25"
               key={asString(backend.backend, String(index))}
             >
               <div className="grid min-w-0 gap-0.5">
@@ -84,7 +84,7 @@ export function SettingsExecutionStatusPanel({
           ))}
         </div>
       ) : (
-        <p className="m-0 px-0.5 pt-1.75 pb-0.5 text-[length:var(--text-meta)] text-[var(--muted)]">
+        <p className="m-0 px-0.5 pt-1 pb-0.25 text-[length:var(--text-meta)] text-[var(--muted)]">
           No execution backends were reported by the runtime.
         </p>
       )}

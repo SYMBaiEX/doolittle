@@ -51,7 +51,7 @@ export const CODING_REPO_STATE_CLASS =
   "coding-repo-state flex shrink-0 items-center gap-2.75 max-[760px]:w-full max-[760px]:flex-wrap max-[760px]:justify-between [&>span]:flex [&>span]:flex-col [&>span]:gap-0.5 [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:tracking-[0.03em] [&>span]:text-[var(--muted)] [&>span]:uppercase";
 
 export const CODING_REPO_STATE_VALUE_CLASS =
-  "coding-repo-state-value text-[10px] text-[var(--text-soft)]";
+  "coding-repo-state-value inline-flex items-center justify-end gap-0.5 text-[10px] text-[var(--text-soft)]";
 
 export const CODING_LAYOUT_CONTROLS_CLASS =
   "coding-layout-controls flex gap-0.5 rounded-[4px] border border-[var(--border)] bg-[var(--surface-soft)] p-0.5";

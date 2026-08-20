@@ -1,4 +1,6 @@
+import { FileText, Image } from "lucide-react";
 import type { ManagedAttachmentDescriptor } from "../../shared/contracts";
+import { UiIcon } from "../components/UiIcon";
 import { attachmentSize } from "./models";
 
 export function MessageAttachmentList({
@@ -12,7 +14,10 @@ export function MessageAttachmentList({
       {attachments.map((attachment) => (
         <li key={attachment.id}>
           <span aria-hidden="true" className="chat-message-attachment-icon">
-            {attachment.kind === "image" ? "◫" : "◇"}
+            <UiIcon
+              icon={attachment.kind === "image" ? Image : FileText}
+              size="sm"
+            />
           </span>
           <span className="chat-message-attachment-copy">
             <strong>{attachment.name}</strong>

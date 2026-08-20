@@ -72,7 +72,7 @@ const BASE_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
   "--operator-glow": "color-mix(in srgb, var(--accent) 8%, transparent)",
   "--surface-selected":
     "color-mix(in srgb, var(--accent) 7%, var(--surface-hover))",
-  "--line-subtle": "color-mix(in srgb, var(--border) 72%, transparent)",
+  "--line-subtle": "color-mix(in srgb, var(--border) 52%, transparent)",
   // Compatibility aliases used by the imported Eliza primitives and retained
   // renderer surfaces. Keep these mapped to Doolittle's canonical palette.
   "--accent-contrast": cssVariable("accent-ink"),

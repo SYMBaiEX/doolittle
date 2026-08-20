@@ -1,5 +1,14 @@
 import { Button } from "@elizaos/ui/components/ui/button";
 import {
+  ArrowLeft,
+  ArrowRight,
+  ArrowUpRight,
+  Globe2,
+  Link2,
+  Monitor,
+  RefreshCw,
+} from "lucide-react";
+import {
   BROWSER_ACTION_CLASS,
   BROWSER_ACTIONS_CLASS,
   BROWSER_ADDRESS_CLASS,
@@ -24,6 +33,7 @@ import {
 } from "./browser/useBrowserWorkspace";
 import { BrowserResultPanel } from "./components/BrowserResultPanel";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { UiIcon } from "./components/UiIcon";
 import { Badge, Notice } from "./lib";
 
 export { isLocalPreviewUrl } from "./browser/browser-navigation";
@@ -154,7 +164,7 @@ export function BrowserPage({
           onClick={() => travelHistory(-1)}
           type="button"
         >
-          ←
+          <UiIcon icon={ArrowLeft} size="sm" />
         </button>
         <button
           aria-label="Go forward"
@@ -163,7 +173,7 @@ export function BrowserPage({
           onClick={() => travelHistory(1)}
           type="button"
         >
-          →
+          <UiIcon icon={ArrowRight} size="sm" />
         </button>
         <button
           aria-label="Reload preview"
@@ -172,14 +182,13 @@ export function BrowserPage({
           onClick={reloadPreview}
           type="button"
         >
-          ↻
+          <UiIcon icon={RefreshCw} size="sm" />
         </button>
-        <span
-          aria-hidden="true"
-          className="text-[length:var(--text-meta)] text-[var(--accent)]"
-        >
-          {embedded ? "●" : "◇"}
-        </span>
+        <UiIcon
+          className="text-[var(--accent)]"
+          icon={embedded ? Monitor : Globe2}
+          size="sm"
+        />
         <input
           aria-describedby={
             error && errorField === "address" ? "browser-url-error" : undefined
@@ -252,7 +261,7 @@ export function BrowserPage({
                 aria-hidden="true"
                 className="grid size-8.5 place-items-center rounded-[var(--radius-xs)] border border-[var(--accent-border)] bg-[var(--accent-soft)] text-base text-[var(--accent)]"
               >
-                ⌁
+                <UiIcon icon={Link2} size="md" />
               </span>
               <h2>
                 {currentUrl
@@ -313,7 +322,13 @@ export function BrowserPage({
                 type="button"
               >
                 <span>{action.label}</span>
-                <i>{busy === action.id ? "…" : "↗"}</i>
+                <i>
+                  {busy === action.id ? (
+                    "…"
+                  ) : (
+                    <UiIcon icon={ArrowUpRight} size="xs" />
+                  )}
+                </i>
               </button>
             ))}
           </div>

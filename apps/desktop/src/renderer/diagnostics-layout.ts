@@ -8,7 +8,7 @@ export const DIAGNOSTICS_CARD_HEADING_CLASS =
   "mb-3 flex min-h-9 items-center justify-between gap-4 [&>div]:min-w-0 [&_h2]:mt-1 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:font-semibold";
 
 export const DIAGNOSTICS_STATUS_ROW_CLASS =
-  "flex min-h-[42px] items-center justify-between gap-4 border-b border-[var(--border)] py-[7px] last:border-b-0 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-[3px] [&_strong]:text-[length:var(--text-control)] [&_small]:text-[length:var(--text-meta)] [&_small]:leading-[1.4] [&_small]:text-[var(--muted)]";
+  "flex min-h-[42px] items-center justify-between gap-4 rounded-[var(--radius-xs)] px-1 py-[7px] [&>div]:grid [&>div]:min-w-0 [&>div]:gap-[3px] [&_strong]:text-[length:var(--text-control)] [&_small]:text-[length:var(--text-meta)] [&_small]:leading-[1.4] [&_small]:text-[var(--muted)]";
 
 export const DIAGNOSTICS_DETAILS_CLASS =
   "group overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)]";

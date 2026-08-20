@@ -1,5 +1,7 @@
 import { useMediaQuery } from "@elizaos/ui/hooks/useMediaQuery";
+import { X } from "lucide-react";
 import type { Toast } from "./ToastRegion";
+import { UiIcon } from "./UiIcon";
 
 export interface ToastViewportProps {
   readonly toasts: readonly Toast[];
@@ -70,7 +72,7 @@ export function ToastViewport({
                 onClick={() => onDismiss(toast.id)}
                 aria-label={`Dismiss ${toast.tone} toast`}
               >
-                ×
+                <UiIcon icon={X} size="xs" />
               </button>
             </li>
           );

@@ -49,7 +49,12 @@ describe("dashboard operator metric layout", () => {
     );
     expect(runtimeDetails).toContain("dashboard-workspace-details");
     expect(runtimeDetails).toContain("DASHBOARD_DISCLOSURE_CLASS");
-    expect(priorityPanel).toContain('<details className="group mt-[9px]');
+    expect(priorityPanel).toContain(
+      '<details className="group mt-[7px] rounded-[var(--radius-xs)]',
+    );
+    expect(priorityPanel).not.toContain(
+      '<div className="grid border-t border-[var(--border)]">',
+    );
     expect(runtimeDetails).toContain("Runtime &amp; agent accounts");
     expect(runtimeDetails).toContain("grid-cols-2");
   });

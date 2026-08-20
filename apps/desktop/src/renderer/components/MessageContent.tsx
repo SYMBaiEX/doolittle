@@ -1,6 +1,7 @@
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { StatusBadge } from "@elizaos/ui/components/ui/status-badge";
+import { Activity, ChevronRight, Wrench } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Streamdown, type UrlTransform } from "streamdown";
 import "streamdown/styles.css";
@@ -25,6 +26,7 @@ import {
   type ToolActivityStatus,
   webSearchResults,
 } from "./message-output";
+import { UiIcon } from "./UiIcon";
 
 interface MessageContentProps {
   content: string;
@@ -189,12 +191,7 @@ function ToolActivityCard({ activity }: { activity: ToolActivity }) {
       data-tool-status={activity.status}
     >
       <summary className={MESSAGE_TOOL_CARD_SUMMARY_CLASS}>
-        <span
-          className="grid size-3 place-items-center rounded-[3px] font-mono text-[length:var(--text-meta)] text-[var(--accent)]"
-          aria-hidden="true"
-        >
-          ↗
-        </span>
+        <UiIcon className="text-[var(--accent)]" icon={Wrench} size="xs" />
         <span className="flex min-w-0 items-baseline gap-1.25">
           <strong className="truncate text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)]">
             {toolLabel(activity)}
@@ -223,12 +220,11 @@ function ToolActivityCard({ activity }: { activity: ToolActivity }) {
           pulse={activity.status === "running"}
           withDot
         />
-        <span
-          className="font-mono text-[15px] text-[var(--faint)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
-          aria-hidden="true"
-        >
-          ›
-        </span>
+        <UiIcon
+          className="text-[var(--faint)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
+          icon={ChevronRight}
+          size="xs"
+        />
       </summary>
       <div className={MESSAGE_TOOL_BODY_CLASS}>
         {activity.error ? (
@@ -315,12 +311,11 @@ function ToolActivityGroup({
         <span className="whitespace-nowrap font-mono text-[length:var(--text-meta)] text-[var(--faint)] max-[760px]:hidden">
           {state} · {tools.length}
         </span>
-        <span
-          className="font-mono text-xs text-[var(--faint)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
-          aria-hidden="true"
-        >
-          ›
-        </span>
+        <UiIcon
+          className="text-[var(--faint)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
+          icon={ChevronRight}
+          size="xs"
+        />
       </summary>
       <div className="grid max-h-45 gap-0.5 overflow-auto border-[var(--border)] border-t p-0.75 [scrollbar-gutter:stable]">
         {tools.map((activity) => (
@@ -344,19 +339,18 @@ function AgentSteps({
   return (
     <details className={MESSAGE_AGENT_STEPS_CLASS}>
       <summary className="grid min-h-6 cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.25 px-0.75 py-0.5 font-mono text-[length:var(--text-meta)] [&::-webkit-details-marker]:hidden">
-        <span aria-hidden="true">⌁</span>
+        <UiIcon className="text-[var(--faint)]" icon={Activity} size="xs" />
         <strong className="font-medium text-[var(--muted)]">
           Run diagnostics
         </strong>
         <small className="text-[var(--faint)]">
           {failed} {failed === 1 ? "issue" : "issues"}
         </small>
-        <i
-          aria-hidden="true"
-          className="font-mono text-[15px] not-italic text-[var(--faint)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
-        >
-          ›
-        </i>
+        <UiIcon
+          className="text-[var(--faint)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
+          icon={ChevronRight}
+          size="xs"
+        />
       </summary>
       <div className="max-h-42.5 overflow-auto pt-0.25 pr-1.5 pb-2.25 pl-5.75 text-[10px] leading-[1.55] text-[var(--muted)] [&>p]:my-1 [&>small]:mt-1.75 [&>small]:block [&>small]:text-[var(--faint)]">
         {continued > 0 ? (

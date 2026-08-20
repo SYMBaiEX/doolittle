@@ -4,12 +4,14 @@ import type {
   RepositoryRemote,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
+import { Trash2 } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import {
   branchNameIsValid,
   remoteNameIsValid,
   remoteUrlIsValid,
 } from "../../repository-control";
+import { UiIcon } from "../UiIcon";
 import {
   GIT_CODE_CLASS,
   GIT_LIST_CLASS,
@@ -149,7 +151,7 @@ export function GitAdvancedControls({
                     tone="danger"
                     type="button"
                   >
-                    ×
+                    <UiIcon icon={Trash2} size="xs" />
                   </GitButton>
                 </>
               ) : null}

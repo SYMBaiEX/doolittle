@@ -78,7 +78,7 @@ const ORCHESTRATION_CLASS = {
   "orchestration-detail":
     "orchestration-detail min-h-0 min-w-0 overflow-auto bg-[var(--bg)] px-4 pt-3 pb-4 max-[680px]:min-h-95 max-[680px]:overflow-visible [&>*]:w-[min(100%,1080px)]",
   "orchestration-detail-header":
-    "orchestration-detail-header flex max-w-225 items-start justify-between gap-3.5 border-[var(--border)] border-b pb-3 [&>div]:min-w-0 [&_h2]:mt-0.75 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(14px,1.1vw,17px)] [&_h2]:font-semibold [&_h2]:leading-[1.18] [&_h2]:tracking-[-0.015em] [&_p]:m-0 [&_p]:max-w-170 [&_p]:text-[11px] [&_p]:leading-[1.55] [&_p]:text-[var(--text-soft)]",
+    "orchestration-detail-header flex max-w-225 items-start justify-between gap-3.5 pb-1.5 [&>div]:min-w-0 [&_h2]:mt-0.75 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(14px,1.1vw,17px)] [&_h2]:font-semibold [&_h2]:leading-[1.18] [&_h2]:tracking-[-0.015em] [&_p]:m-0 [&_p]:max-w-170 [&_p]:text-[11px] [&_p]:leading-[1.55] [&_p]:text-[var(--text-soft)]",
   "detail-kicker":
     "detail-kicker block font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold tracking-[0.09em] text-[var(--accent)] uppercase",
   "orchestration-detail-tags":
@@ -108,17 +108,17 @@ const ORCHESTRATION_CLASS = {
     "orchestration-run-confirm mt-2.5 mb-0 border-[color-mix(in_srgb,var(--bad)_34%,var(--border))]",
   "orchestration-inline-form": `orchestration-inline-form grid grid-cols-[minmax(140px,0.4fr)_minmax(240px,1fr)_minmax(180px,0.55fr)_auto] items-end gap-2 border-[var(--border)] border-b bg-[color-mix(in_srgb,var(--accent)_4%,var(--surface-soft))] p-3 max-[900px]:grid-cols-2 max-[900px]:[&_.inline-form-wide]:col-span-full ${FORM_LABEL} [&_input]:w-full [&_select]:w-full`,
   "orchestration-detail-grid":
-    "orchestration-detail-grid grid max-w-245 grid-cols-[minmax(240px,0.62fr)_minmax(300px,1.38fr)] gap-5 py-3 max-[900px]:grid-cols-1 [&>dl]:m-0 [&>dl]:grid [&>dl]:content-start [&>dl]:border-[var(--border)] [&>dl]:border-t",
+    "orchestration-detail-grid grid max-w-245 grid-cols-[minmax(240px,0.62fr)_minmax(300px,1.38fr)] gap-5 py-3 max-[900px]:grid-cols-1 [&>dl]:m-0 [&>dl]:grid [&>dl]:content-start [&>dl]:gap-0.5",
   "orchestration-detail-row":
-    "orchestration-detail-row grid min-w-0 grid-cols-[minmax(88px,0.4fr)_minmax(0,1fr)] gap-3 border-[var(--border)] border-b py-2 [&_dt]:font-[var(--font-mono)] [&_dt]:text-[10px] [&_dt]:text-[var(--muted)] [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:text-[11px] [&_dd]:leading-[1.4] [&_dd]:text-[var(--text-soft)] [&_dd]:[overflow-wrap:anywhere]",
+    "orchestration-detail-row grid min-w-0 grid-cols-[minmax(88px,0.4fr)_minmax(0,1fr)] gap-3 rounded-[var(--radius-xs)] px-1 py-2 [&_dt]:font-[var(--font-mono)] [&_dt]:text-[10px] [&_dt]:text-[var(--muted)] [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:text-[11px] [&_dd]:leading-[1.4] [&_dd]:text-[var(--text-soft)] [&_dd]:[overflow-wrap:anywhere]",
   "orchestration-mini-dl":
-    "orchestration-mini-dl m-0 grid content-start border-[var(--border)] border-t",
-  "orchestration-evidence": `orchestration-evidence grid min-w-0 content-start gap-2 border-0 border-[var(--border)] border-t bg-transparent p-0 [&>h3]:mt-2 [&>strong]:mt-2 [&_ul]:m-0 [&_ul]:grid [&_ul]:list-none [&_ul]:gap-1.75 [&_ul]:p-0 [&_li]:relative [&_li]:pl-3 [&_li]:text-[11px] [&_li]:leading-[1.45] [&_li]:text-[var(--text-soft)] [&_li]:before:absolute [&_li]:before:top-[0.48em] [&_li]:before:left-0 [&_li]:before:size-1 [&_li]:before:rounded-full [&_li]:before:bg-[var(--accent)] [&_li]:before:content-[''] ${DETAIL_CODE}`,
+    "orchestration-mini-dl m-0 grid content-start gap-0.5",
+  "orchestration-evidence": `orchestration-evidence grid min-w-0 content-start gap-2 bg-transparent p-0 [&>h3]:mt-1 [&>strong]:mt-1 [&_ul]:m-0 [&_ul]:grid [&_ul]:list-none [&_ul]:gap-1.75 [&_ul]:p-0 [&_li]:relative [&_li]:pl-3 [&_li]:text-[11px] [&_li]:leading-[1.45] [&_li]:text-[var(--text-soft)] [&_li]:before:absolute [&_li]:before:top-[0.48em] [&_li]:before:left-0 [&_li]:before:size-1 [&_li]:before:rounded-full [&_li]:before:bg-[var(--accent)] [&_li]:before:content-[''] ${DETAIL_CODE}`,
   "orchestration-workspace-card":
     "orchestration-workspace-card min-w-0 gap-2.5 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--surface-raised)_72%,transparent)] p-3.25",
   "orchestration-empty-line":
     "orchestration-empty-line m-0 text-[11px] leading-[1.5] text-[var(--muted)]",
-  "orchestration-note-composer": `orchestration-note-composer grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 border-[color-mix(in_srgb,var(--border)_76%,transparent)] border-t pt-1.5 max-[680px]:grid-cols-1 ${FORM_LABEL} [&_textarea]:min-h-13 [&_textarea]:w-full [&_textarea]:resize-y`,
+  "orchestration-note-composer": `orchestration-note-composer grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 pt-1 max-[680px]:grid-cols-1 ${FORM_LABEL} [&_textarea]:min-h-13 [&_textarea]:w-full [&_textarea]:resize-y`,
   "orchestration-task-diagnostics":
     "orchestration-task-diagnostics group mt-3.5 max-w-225 border-[var(--border)] border-b [&>summary]:grid [&>summary]:min-h-9.5 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:grid-cols-[minmax(0,1fr)_auto_14px] [&>summary]:items-center [&>summary]:gap-3 [&>summary]:px-0 [&>summary]:py-2 [&>summary]:text-[var(--text-soft)] [&>summary::-webkit-details-marker]:hidden [&>summary>span]:grid [&>summary>span]:gap-0.5 [&>summary_strong]:text-[10px] [&>summary_strong]:text-[var(--text)] [&>summary_small]:font-[var(--font-mono)] [&>summary_small]:text-[length:var(--text-meta)] [&>summary_small]:leading-[1.35] [&>summary_small]:text-[var(--muted)] [&>summary]:after:text-right [&>summary]:after:font-[var(--font-mono)] [&>summary]:after:text-sm [&>summary]:after:leading-none [&>summary]:after:text-[var(--muted)] [&>summary]:after:content-['+'] group-open:[&>summary]:after:content-['−'] [&>dl]:m-0 [&>dl]:grid [&>dl]:grid-cols-2 [&>dl]:border-[color-mix(in_srgb,var(--border)_70%,transparent)] [&>dl]:border-t [&>dl]:pt-0 [&>dl]:pb-2.5 max-[900px]:[&>dl]:grid-cols-1 [&_.orchestration-detail-row]:py-1.75 [&_.orchestration-detail-row]:pr-2.5",
   "orchestration-task-workspace":
@@ -130,9 +130,9 @@ const ORCHESTRATION_CLASS = {
   "orchestration-steps":
     "orchestration-steps m-0 grid list-decimal gap-2 pl-4.5 text-[11px] leading-[1.5] text-[var(--text-soft)]",
   "orchestration-plan-control":
-    "orchestration-plan-control grid grid-cols-[minmax(260px,1fr)_auto] items-center gap-2.5 border-[var(--border)] border-b py-3 max-[680px]:grid-cols-1 [&>div]:grid [&>div]:gap-0.75 [&_strong]:text-xs [&_strong]:text-[var(--text)] [&_span]:text-[10px] [&_span]:leading-[1.45] [&_span]:text-[var(--muted)]",
+    "orchestration-plan-control grid grid-cols-[minmax(260px,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] bg-[var(--surface-soft)] px-2.5 py-2.5 max-[680px]:grid-cols-1 [&>div]:grid [&>div]:gap-0.75 [&_strong]:text-xs [&_strong]:text-[var(--text)] [&_span]:text-[10px] [&_span]:leading-[1.45] [&_span]:text-[var(--muted)]",
   "orchestration-plan-steer":
-    "orchestration-plan-steer grid grid-cols-[minmax(180px,0.6fr)_minmax(260px,1fr)_auto] items-center gap-2.5 border-[var(--border)] border-b py-3 max-[680px]:grid-cols-1 [&>div]:grid [&>div]:gap-0.75 [&_strong]:text-xs [&_strong]:text-[var(--text)] [&_span]:text-[10px] [&_span]:leading-[1.45] [&_span]:text-[var(--muted)] [&_label]:min-w-0 [&_label]:w-full [&_textarea]:min-h-13 [&_textarea]:min-w-0 [&_textarea]:w-full [&_textarea]:resize-y",
+    "orchestration-plan-steer grid grid-cols-[minmax(180px,0.6fr)_minmax(260px,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] bg-[var(--surface-soft)] px-2.5 py-2.5 max-[680px]:grid-cols-1 [&>div]:grid [&>div]:gap-0.75 [&_strong]:text-xs [&_strong]:text-[var(--text)] [&_span]:text-[10px] [&_span]:leading-[1.45] [&_span]:text-[var(--muted)] [&_label]:min-w-0 [&_label]:w-full [&_textarea]:min-h-13 [&_textarea]:min-w-0 [&_textarea]:w-full [&_textarea]:resize-y",
   "orchestration-control-footnote":
     "orchestration-control-footnote flex items-baseline gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2.5 text-[10px] text-[var(--muted)] [&_strong]:text-[var(--text-soft)]",
   "orchestration-runs-layout":
@@ -154,7 +154,7 @@ const ORCHESTRATION_CLASS = {
   "orchestration-run-detail":
     "orchestration-run-detail max-[900px]:col-span-full max-[900px]:border-[var(--border)] max-[900px]:border-t",
   "orchestration-run-toolbar":
-    "orchestration-run-toolbar flex max-w-245 items-center justify-between gap-3 border-[var(--border)] border-b py-2 text-[10px] text-[var(--muted)] max-[680px]:flex-col max-[680px]:items-start",
+    "orchestration-run-toolbar flex max-w-245 items-center justify-between gap-3 rounded-[var(--radius-xs)] bg-[var(--surface-soft)] px-2.5 py-2 text-[10px] text-[var(--muted)] max-[680px]:flex-col max-[680px]:items-start",
   "orchestration-run-actions":
     "orchestration-run-actions flex items-center gap-1.75",
   "orchestration-bundle-receipt": `orchestration-bundle-receipt my-3 grid grid-cols-[auto_minmax(160px,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--good)_28%,var(--border))] bg-[var(--good-soft)] p-2.5 text-[10px] text-[var(--muted)] max-[680px]:grid-cols-1 [&_strong]:text-[var(--good)] ${DETAIL_CODE}`,
@@ -163,7 +163,7 @@ const ORCHESTRATION_CLASS = {
   "orchestration-subheading":
     "orchestration-subheading flex items-start justify-between gap-3 [&_h3]:mt-1 [&_h3]:mb-0 [&_h3]:font-[var(--font-display)] [&_h3]:text-sm",
   "orchestration-run-facts":
-    "orchestration-run-facts m-0 grid grid-cols-2 content-start gap-x-4.5 border-[var(--border)] border-t max-[900px]:grid-cols-1",
+    "orchestration-run-facts m-0 grid grid-cols-2 content-start gap-x-4.5 max-[900px]:grid-cols-1",
   "orchestration-output-grid":
     "orchestration-output-grid grid grid-cols-2 gap-2.5 max-[1180px]:grid-cols-1 [&_section]:grid [&_section]:min-w-0 [&_section]:gap-1.75 [&_pre]:m-0 [&_pre]:min-h-28 [&_pre]:max-h-60 [&_pre]:overflow-auto [&_pre]:whitespace-pre-wrap [&_pre]:rounded-[var(--radius-sm)] [&_pre]:border [&_pre]:border-[var(--border)] [&_pre]:bg-[var(--surface-soft)] [&_pre]:p-2.75 [&_pre]:font-[var(--font-mono)] [&_pre]:text-[10px] [&_pre]:leading-[1.55] [&_pre]:text-[var(--text-soft)] [&_pre]:[overflow-wrap:anywhere]",
   "orchestration-artifacts": `orchestration-artifacts grid gap-1.75 ${DETAIL_CODE}`,

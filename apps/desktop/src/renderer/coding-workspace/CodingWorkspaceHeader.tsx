@@ -1,3 +1,5 @@
+import { ArrowDown, ArrowUp } from "lucide-react";
+import { UiIcon } from "../components/UiIcon";
 import { Badge, ErrorBlock } from "../lib";
 import { compactWorkspacePath } from "../workspace-path";
 import {
@@ -85,13 +87,15 @@ export function CodingWorkspaceHeader({
           </span>
           <span>
             <strong className={CODING_REPO_STATE_VALUE_CLASS}>
-              ↑ {summaryLoading ? "—" : summary.ahead}
+              <UiIcon icon={ArrowUp} size="xs" />
+              {summaryLoading ? "—" : summary.ahead}
             </strong>{" "}
             ahead
           </span>
           <span>
             <strong className={CODING_REPO_STATE_VALUE_CLASS}>
-              ↓ {summaryLoading ? "—" : summary.behind}
+              <UiIcon icon={ArrowDown} size="xs" />
+              {summaryLoading ? "—" : summary.behind}
             </strong>{" "}
             behind
           </span>

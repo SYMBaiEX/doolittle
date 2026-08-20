@@ -1,3 +1,12 @@
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  LoaderCircle,
+  RefreshCw,
+  Search,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AccountPoolResponse,
@@ -35,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ElizaControls";
+import { UiIcon } from "./UiIcon";
 
 export { ComposerProjectSelector } from "../composer-selectors/ComposerProjectSelector";
 
@@ -207,7 +217,7 @@ export function ComposerModelSelector({
           </span>
         ) : null}
         <small>{runtime?.provider ?? "provider"}</small>
-        <i aria-hidden="true">⌃</i>
+        <UiIcon icon={ChevronUp} size="xs" />
       </button>
       {open ? (
         <section
@@ -216,7 +226,7 @@ export function ComposerModelSelector({
           role="dialog"
         >
           <label className={`${COMPOSER_SEARCH_CLASS} m-2 mb-1.25`}>
-            <span aria-hidden="true">⌕</span>
+            <UiIcon icon={Search} size="sm" />
             <input
               aria-label="Search models"
               onChange={(event) => setQuery(event.target.value)}
@@ -252,7 +262,10 @@ export function ComposerModelSelector({
                       }
                       type="button"
                     >
-                      <span aria-hidden="true">{isCollapsed ? "›" : "⌄"}</span>
+                      <UiIcon
+                        icon={isCollapsed ? ChevronRight : ChevronDown}
+                        size="xs"
+                      />
                       <strong>{provider.label}</strong>
                       <small
                         className={`rounded-full border px-1.25 py-0.5 font-mono text-[length:var(--text-meta)] tracking-[0.04em] uppercase ${
@@ -301,15 +314,21 @@ export function ComposerModelSelector({
                                     <small>{model.id}</small>
                                   ) : null}
                                 </span>
-                                <i aria-hidden="true">
-                                  {saving === key
-                                    ? "…"
-                                    : selected
-                                      ? "✓"
-                                      : model.source === "discovered"
-                                        ? "Live"
-                                        : ""}
-                                </i>
+                                {saving === key ? (
+                                  <UiIcon
+                                    className="animate-spin text-[var(--accent)] motion-reduce:animate-none"
+                                    icon={LoaderCircle}
+                                    size="xs"
+                                  />
+                                ) : selected ? (
+                                  <UiIcon
+                                    className="text-[var(--accent-text)]"
+                                    icon={Check}
+                                    size="xs"
+                                  />
+                                ) : model.source === "discovered" ? (
+                                  <i>Live</i>
+                                ) : null}
                               </button>
                               {model.reasoning ? (
                                 <div className={COMPOSER_EFFORT_CLASS}>
@@ -409,7 +428,7 @@ export function ComposerModelSelector({
           </div>
           <footer className={COMPOSER_ACTIONS_CLASS}>
             <button onClick={models.reload} type="button">
-              <span aria-hidden="true">↻</span>
+              <UiIcon icon={RefreshCw} size="xs" />
               Refresh models
             </button>
             <button

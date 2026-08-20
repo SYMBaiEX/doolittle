@@ -1,6 +1,8 @@
 import { Button } from "@elizaos/ui/components/ui/button";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { desktopRequest, errorMessage, Notice } from "../lib";
+import { UiIcon } from "./UiIcon";
 
 type ArtifactKind =
   | "diff"
@@ -166,11 +168,8 @@ function ArtifactItem({
         type="button"
         variant="ghost"
       >
-        <span
-          aria-hidden="true"
-          className="grid size-5 place-items-center rounded-[2px] border border-[var(--accent-border)] bg-[var(--accent-soft)] font-[var(--font-mono)] text-xs text-[var(--accent)]"
-        >
-          {expanded ? "−" : "+"}
+        <span className="grid size-5 place-items-center rounded-[2px] border border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]">
+          <UiIcon icon={expanded ? ChevronDown : ChevronRight} size="xs" />
         </span>
         <span className="flex min-w-0 flex-col gap-0.5">
           <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px]">

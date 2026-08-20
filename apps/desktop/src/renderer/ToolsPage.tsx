@@ -1,8 +1,10 @@
+import { LoaderCircle } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { CatalogFilterBar } from "./components/CatalogFilterBar";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
+import { UiIcon } from "./components/UiIcon";
 import {
   asArray,
   asNumber,
@@ -73,7 +75,11 @@ export function McpControlPanelFallback() {
       className={TOOLS_INTEGRATIONS_LOADING_CLASS}
       role="status"
     >
-      <span aria-hidden="true">◇</span>
+      <UiIcon
+        className="animate-spin text-[var(--accent)] motion-reduce:animate-none"
+        icon={LoaderCircle}
+        size="md"
+      />
       <div>
         <strong className={TOOLS_INTEGRATIONS_LOADING_TITLE_CLASS}>
           Loading MCP workspace…

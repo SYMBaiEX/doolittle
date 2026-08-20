@@ -1,4 +1,6 @@
+import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { type ReactNode, useDeferredValue, useMemo, useState } from "react";
+import { UiIcon } from "./UiIcon";
 
 export interface UtilityDrawerItem<TView extends string = string> {
   id: TView;
@@ -106,11 +108,11 @@ export function UtilityDrawer<TView extends string>({
         </div>
         <button
           aria-label="Close tools and settings"
-          className="grid size-7 place-items-center rounded-[var(--radius-sm)] border border-transparent bg-transparent text-lg text-[var(--muted)] leading-none hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+          className="grid size-7 place-items-center rounded-[var(--radius-sm)] border border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-border)]"
           onClick={onClose}
           type="button"
         >
-          ×
+          <UiIcon icon={X} size="sm" />
         </button>
       </header>
 
@@ -118,12 +120,11 @@ export function UtilityDrawer<TView extends string>({
         <label className="sr-only" htmlFor="utility-drawer-search">
           Find a tool or setting
         </label>
-        <span
-          aria-hidden="true"
-          className="absolute top-3.75 left-4.75 z-1 font-bold font-mono text-[11px] text-[var(--accent)] leading-none"
-        >
-          /
-        </span>
+        <UiIcon
+          className="absolute top-3.25 left-4.25 z-1 text-[var(--accent)]"
+          icon={Search}
+          size="sm"
+        />
         <input
           autoComplete="off"
           className="h-8 w-full rounded-[5px] border border-[var(--border)] bg-[var(--surface-soft)] pr-12 pl-6.75 text-xs text-[var(--text)] outline-none placeholder:text-[var(--faint)] focus-visible:border-[var(--accent)]"
@@ -176,12 +177,11 @@ export function UtilityDrawer<TView extends string>({
                     <b className="font-inherit text-[var(--faint)]">
                       {section.items.length}
                     </b>
-                    <i
-                      aria-hidden="true"
-                      className="min-w-2.5 text-center text-xs text-[var(--faint)] not-italic"
-                    >
-                      {expanded ? "⌄" : "›"}
-                    </i>
+                    <UiIcon
+                      className="text-[var(--faint)]"
+                      icon={expanded ? ChevronDown : ChevronRight}
+                      size="xs"
+                    />
                   </span>
                 </button>
                 {expanded ? (

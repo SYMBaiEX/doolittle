@@ -244,7 +244,9 @@ test.describe("Doolittle desktop navigation", () => {
       await page.getByRole("button", { name: "Manage projects" }).click();
       const projectManager = page.getByRole("dialog", { name: "Projects" });
       await expect(projectManager).toBeVisible();
-      await page.getByRole("button", { name: "+ New" }).click();
+      await projectManager
+        .getByRole("button", { name: "New", exact: true })
+        .click();
       const projectEditor = page.getByRole("dialog", {
         name: "Create a project",
       });
@@ -253,8 +255,12 @@ test.describe("Doolittle desktop navigation", () => {
       await page.keyboard.press("Escape");
       await expect(projectEditor).toBeHidden();
       await expect(projectManager).toBeVisible();
-      await expect(page.getByRole("button", { name: "+ New" })).toBeFocused();
-      await page.getByRole("button", { name: "+ New" }).click();
+      await expect(
+        projectManager.getByRole("button", { name: "New", exact: true }),
+      ).toBeFocused();
+      await projectManager
+        .getByRole("button", { name: "New", exact: true })
+        .click();
       await expect(
         page
           .getByRole("dialog", { name: "Create a project" })
@@ -583,6 +589,52 @@ test.describe("Doolittle desktop navigation", () => {
             await expect(traces).not.toHaveAttribute("open", "");
           }
           if (route === "settings") {
+            const settingsNavigation = viewContainer.getByRole(
+              "complementary",
+              { name: "Settings categories" },
+            );
+            await expect(settingsNavigation).toBeVisible();
+            const settingsCategories = settingsNavigation.getByRole("button");
+            await expect(settingsCategories.first()).toBeVisible();
+            const settingsCategoryCount = await settingsCategories.count();
+            expect(settingsCategoryCount).toBeGreaterThan(4);
+            for (let index = 0; index < settingsCategoryCount; index += 1) {
+              await settingsCategories.nth(index).click();
+              const settingsHeader = viewContainer.locator(
+                ".settings-content-header",
+              );
+              await expect(settingsHeader).toBeVisible();
+              const geometry = await viewContainer.evaluate((element) => {
+                const pageHeader = element.querySelector(".page-header");
+                const layout = element.querySelector(".settings-layout");
+                const content = element.querySelector(".settings-content");
+                const header = element.querySelector(
+                  ".settings-content-header",
+                );
+                const next = header?.nextElementSibling;
+                if (!(pageHeader && layout && content && header)) {
+                  throw new Error("Missing settings density geometry.");
+                }
+                const pageHeaderRect = pageHeader.getBoundingClientRect();
+                const layoutRect = layout.getBoundingClientRect();
+                const contentRect = content.getBoundingClientRect();
+                const headerRect = header.getBoundingClientRect();
+                const nextRect = next?.getBoundingClientRect();
+                return {
+                  contentOffset: Math.round(headerRect.top - contentRect.top),
+                  headerHeight: Math.round(headerRect.height),
+                  pageGap: Math.round(layoutRect.top - pageHeaderRect.bottom),
+                  panelGap: nextRect
+                    ? Math.round(nextRect.top - headerRect.bottom)
+                    : 0,
+                };
+              });
+              expect(geometry.contentOffset).toBeGreaterThanOrEqual(-1);
+              expect(geometry.contentOffset).toBeLessThanOrEqual(2);
+              expect(geometry.headerHeight).toBeLessThanOrEqual(38);
+              expect(geometry.pageGap).toBeLessThanOrEqual(8);
+              expect(geometry.panelGap).toBeLessThanOrEqual(10);
+            }
             await viewContainer
               .getByRole("button", { name: /Advanced/ })
               .click();

@@ -1,7 +1,9 @@
 import { Button } from "@elizaos/ui/components/ui/button";
 import { Input } from "@elizaos/ui/components/ui/input";
 import { Textarea } from "@elizaos/ui/components/ui/textarea";
+import { X } from "lucide-react";
 import { type FormEvent, useId, useRef, useState } from "react";
+import { UiIcon } from "../components/UiIcon";
 import { useDialogFocus } from "./dialog-focus";
 import {
   PROJECT_EDITOR_BACKDROP_CLASS,
@@ -68,14 +70,14 @@ export function ProjectEditor({
           </div>
           <Button
             type="button"
-            className="text-lg"
+            className="text-[var(--muted)]"
             size="icon-sm"
             variant="ghost"
             aria-label="Close project editor"
             onClick={onClose}
             disabled={saving}
           >
-            ×
+            <UiIcon icon={X} size="sm" />
           </Button>
         </header>
         <label

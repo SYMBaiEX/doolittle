@@ -1,7 +1,9 @@
 import type { RepositoryMutationRequest } from "@doolittle/contracts/repository";
+import { X } from "lucide-react";
 import { type FormEvent, lazy, Suspense } from "react";
 import type { CodeLanguage } from "../code-language";
 import type { CodeEditorStateSnapshot } from "../components/CodeEditor";
+import { UiIcon } from "../components/UiIcon";
 import type {
   DesktopAcpPhase,
   DesktopAcpPromptPhase,
@@ -411,7 +413,7 @@ export function CodingWorkspaceEditor({
               onClick={() => onAcpTaskOpenChange(false)}
               type="button"
             >
-              ×
+              <UiIcon icon={X} size="xs" />
             </button>
           </div>
           {acpEditor.promptError ? (

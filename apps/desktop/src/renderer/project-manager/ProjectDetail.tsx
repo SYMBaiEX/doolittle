@@ -1,5 +1,14 @@
 import { Button } from "@elizaos/ui/components/ui/button";
 import {
+  File,
+  FilePlus2,
+  Folder,
+  FolderOpen,
+  FolderPlus,
+  X,
+} from "lucide-react";
+import { UiIcon } from "../components/UiIcon";
+import {
   formatCount,
   type ProjectLike,
   type ProjectResourceLike,
@@ -171,7 +180,8 @@ export function ProjectDetail({
               onClick={onAddFiles}
               disabled={working}
             >
-              + File
+              <UiIcon icon={FilePlus2} size="xs" />
+              File
             </Button>
             <Button
               type="button"
@@ -180,15 +190,14 @@ export function ProjectDetail({
               onClick={onAddFolders}
               disabled={working}
             >
-              + Folder
+              <UiIcon icon={FolderPlus} size="xs" />
+              Folder
             </Button>
           </div>
         </div>
         {project.primaryPath && !hasPrimaryResource ? (
           <div className="project-manager__primary-folder mt-2.75 grid min-h-12 grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-2.25 border-[var(--border)] border-b py-1.25 pr-8.5 pl-2.25">
-            <span className="text-base text-[var(--accent)]" aria-hidden="true">
-              ▱
-            </span>
+            <UiIcon className="text-[var(--accent)]" icon={Folder} size="md" />
             <span className="grid min-w-0" title={project.primaryPath}>
               <strong className="truncate text-xs">
                 {resourceLabel({
@@ -214,10 +223,13 @@ export function ProjectDetail({
                 key={resource.id}
               >
                 <span
-                  className={`project-manager__resource-kind project-manager__resource-kind--${resource.kind} inline-flex items-center justify-center text-[17px] ${resource.kind === "folder" ? "text-[var(--warn)]" : "text-[var(--accent)]"}`}
+                  className={`project-manager__resource-kind project-manager__resource-kind--${resource.kind} inline-flex items-center justify-center ${resource.kind === "folder" ? "text-[var(--warn)]" : "text-[var(--accent)]"}`}
                   aria-hidden="true"
                 >
-                  {resource.kind === "folder" ? "□" : "◇"}
+                  <UiIcon
+                    icon={resource.kind === "folder" ? Folder : File}
+                    size="md"
+                  />
                 </span>
                 <span className="grid min-w-0" title={resource.path}>
                   <strong className="truncate text-xs">
@@ -247,14 +259,14 @@ export function ProjectDetail({
                 ) : null}
                 <Button
                   type="button"
-                  className="project-manager__remove-resource col-start-4 text-lg text-[var(--muted)] hover:bg-[var(--bad-soft)] hover:text-[var(--bad)]"
+                  className="project-manager__remove-resource col-start-4 text-[var(--muted)] hover:bg-[var(--bad-soft)] hover:text-[var(--bad)]"
                   size="icon-sm"
                   variant="ghost"
                   aria-label={`Remove ${resourceLabel(resource)}`}
                   onClick={() => onRemoveResource(resource)}
                   disabled={working}
                 >
-                  ×
+                  <UiIcon icon={X} size="sm" />
                 </Button>
               </li>
             ))}
@@ -289,9 +301,7 @@ export function ProjectDetail({
 export function EmptyDetail({ onCreate }: { onCreate?: () => void }) {
   return (
     <div className="project-manager__empty-detail mx-auto flex min-h-full max-w-90 flex-col items-center justify-center text-center text-[var(--text-soft)]">
-      <span className="text-[32px] text-[var(--accent)]" aria-hidden="true">
-        ◇
-      </span>
+      <UiIcon className="text-[var(--accent)]" icon={FolderOpen} size="xl" />
       <h3 className="mt-3.75 mb-1.5 font-[var(--font-display)] text-sm text-[var(--text)]">
         Make space for the work
       </h3>

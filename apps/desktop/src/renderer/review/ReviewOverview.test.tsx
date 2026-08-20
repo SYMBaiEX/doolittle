@@ -4,7 +4,7 @@ import { ReviewOverview } from "./ReviewOverview";
 
 const emptyWorkState = {
   tone: "neutral" as const,
-  icon: "○",
+  icon: "empty" as const,
   title: "No completed work yet",
   detail:
     "Completed agent runs, changed files, checks, and decisions will collect here.",
@@ -41,7 +41,7 @@ describe("ReviewOverview", () => {
         reviewHead="1234567890abcdef"
         workState={{
           tone: "good",
-          icon: "✓",
+          icon: "ready",
           title: "Ready for your review",
           detail: "Doolittle completed two runs.",
         }}

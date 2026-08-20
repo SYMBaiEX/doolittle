@@ -20,7 +20,7 @@ export const WORKBENCH_KICKER_CLASS =
   "thread-workbench-kicker font-[var(--font-mono)] text-[length:var(--text-meta)] font-[750] tracking-[0.12em] text-[var(--accent)] uppercase";
 
 export const WORKBENCH_ICON_BUTTON_CLASS =
-  "thread-workbench-icon-button inline-flex size-7 cursor-pointer items-center justify-center rounded-[7px] border-0 bg-transparent p-0 text-[color-mix(in_srgb,currentColor_62%,transparent)] hover:bg-[color-mix(in_srgb,currentColor_8%,transparent)] hover:text-[var(--text)] focus-visible:bg-[color-mix(in_srgb,currentColor_8%,transparent)] focus-visible:text-[var(--text)] focus-visible:outline-none max-[720px]:size-8";
+  "thread-workbench-icon-button inline-flex size-7 cursor-pointer items-center justify-center rounded-[7px] border-0 bg-transparent p-0 text-[color-mix(in_srgb,currentColor_62%,transparent)] hover:bg-[color-mix(in_srgb,currentColor_8%,transparent)] hover:text-[var(--text)] focus-visible:bg-[color-mix(in_srgb,currentColor_8%,transparent)] focus-visible:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[var(--accent-border)] max-[720px]:size-8";
 
 export const WORKBENCH_CONTEXT_ROW_CLASS =
   "thread-workbench-context-row flex min-w-0 items-center justify-between gap-2.25 rounded-lg border border-[color-mix(in_srgb,currentColor_8%,transparent)] bg-[var(--surface-soft)] px-2 py-1.75 max-[960px]:items-start max-[960px]:gap-1.75";
@@ -186,7 +186,7 @@ export const WORKBENCH_PREVIEW_ORBIT_CLASS =
   "thread-workbench-preview-orbit relative mb-4.25 inline-flex size-15 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[var(--thread-workbench-accent-soft)] [&>i]:absolute [&>i]:inset-[-7px] [&>i]:animate-spin [&>i]:rounded-full [&>i]:border [&>i]:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] [&>i]:duration-[4000ms] motion-reduce:[&>i]:animate-none [&>i]:after:absolute [&>i]:after:top-[7px] [&>i]:after:left-[7px] [&>i]:after:size-1.25 [&>i]:after:rounded-full [&>i]:after:bg-[var(--accent)] [&>i]:after:content-['']";
 
 export const WORKBENCH_ORBIT_MARK_CLASS =
-  "thread-workbench-orbit-mark text-[21px] text-[var(--accent)]";
+  "thread-workbench-orbit-mark text-[var(--accent)]";
 
 export const WORKBENCH_PREVIEW_COPY_CLASS =
   "thread-workbench-preview-copy mt-1.75 mb-4 text-[10px] leading-[1.55] text-[color-mix(in_srgb,currentColor_54%,transparent)]";

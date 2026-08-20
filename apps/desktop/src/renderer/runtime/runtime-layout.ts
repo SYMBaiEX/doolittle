@@ -15,7 +15,6 @@ export const RUNTIME_CARD_HEADING_CLASS =
   "mb-2.5 flex min-h-[34px] items-center justify-between gap-4 [&>div]:min-w-0 [&_h2]:mt-1 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:leading-[1.2] [&_h2]:tracking-[-0.015em]";
 
 export const RUNTIME_STATUS_ROW_CLASS =
-  "flex min-h-[42px] items-center justify-between gap-[15px] border-b border-[var(--line-subtle)] py-[7px] last:border-b-0 [&>div]:flex [&>div]:min-w-0 [&>div]:max-w-full [&>div]:flex-col [&>div]:gap-[3px] [&_strong]:text-[length:var(--text-control)] [&_strong]:break-words [&_small]:text-[length:var(--text-meta)] [&_small]:leading-[1.4] [&_small]:break-words [&_small]:text-[var(--muted)]";
+  "flex min-h-[42px] items-center justify-between gap-[15px] rounded-[var(--radius-xs)] px-1 py-[7px] [&>div]:flex [&>div]:min-w-0 [&>div]:max-w-full [&>div]:flex-col [&>div]:gap-[3px] [&_strong]:text-[length:var(--text-control)] [&_strong]:break-words [&_small]:text-[length:var(--text-meta)] [&_small]:leading-[1.4] [&_small]:break-words [&_small]:text-[var(--muted)]";
 
-export const RUNTIME_COMPACT_LIST_CLASS =
-  "grid gap-0 border-t border-[var(--line-subtle)]";
+export const RUNTIME_COMPACT_LIST_CLASS = "grid gap-0.5";

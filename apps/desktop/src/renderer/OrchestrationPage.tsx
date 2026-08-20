@@ -1,3 +1,4 @@
+import { RefreshCw } from "lucide-react";
 import {
   type KeyboardEvent,
   lazy,
@@ -8,8 +9,10 @@ import {
   useState,
 } from "react";
 import type { OrchestrationFocusState } from "./app-shell/route-focus-state";
+import { ICON_BUTTON_CLASS } from "./app-shell/shell-layout";
 import type { ChatContextRequest } from "./chat-context-handoff";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
+import { UiIcon } from "./components/UiIcon";
 import type { DesktopNavigationIntent } from "./desktop-navigation-intent";
 import { asNumber, asRecord, asString, Notice } from "./lib";
 import { AgentRosterPanel } from "./orchestration/AgentRosterPanel";
@@ -539,14 +542,14 @@ export function OrchestrationPage({
             </>
           ) : null}
           <button
-            className={oc("icon-button", "orchestration-refresh")}
+            className={`${ICON_BUTTON_CLASS} ${oc("orchestration-refresh")}`}
             type="button"
             onClick={refreshAll}
             disabled={!active}
             aria-label="Refresh orchestration data"
             title="Refresh"
           >
-            ↻
+            <UiIcon icon={RefreshCw} size="sm" />
           </button>
         </div>
       </header>

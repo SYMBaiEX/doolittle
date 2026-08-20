@@ -2,6 +2,7 @@ import type { AccountWithCredentialFlag } from "@elizaos/ui/api/client-agent";
 import { AccountCard } from "@elizaos/ui/components/accounts/AccountCard";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { Input } from "@elizaos/ui/components/ui/input";
+import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import type {
   AccountPoolAccount,
@@ -11,6 +12,7 @@ import type {
 } from "../../shared/contracts";
 import { toElizaAccount } from "../account-pool-ui";
 import type { AccountImportDraft } from "../agent-pages-helpers";
+import { UiIcon } from "../components/UiIcon";
 import { Badge } from "../lib";
 import {
   PROVIDER_ACCOUNT_PREVIEWED_CLASS,
@@ -168,7 +170,7 @@ export function AccountPoolDirectory({
               {accounts.length ? "Add account" : "Connect account"}
             </strong>
           </span>
-          <span aria-hidden="true">+</span>
+          <UiIcon icon={Plus} size="xs" />
         </summary>
         <div className={PROVIDER_IMPORT_FORM_CLASS}>
           <label

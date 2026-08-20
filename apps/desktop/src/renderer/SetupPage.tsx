@@ -1,7 +1,9 @@
 import { Button } from "@elizaos/ui/components/ui/button";
+import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import type { AccountPoolResponse } from "../shared/contracts";
 import { CompactStatStrip } from "./components/CompactStatStrip";
+import { UiIcon } from "./components/UiIcon";
 import {
   DIAGNOSTICS_CHEVRON_CLASS,
   DIAGNOSTICS_DETAILS_CLASS,
@@ -169,9 +171,11 @@ export function SetupPage({
             onToggle={(event) => setChecklistOpen(event.currentTarget.open)}
           >
             <summary className={DIAGNOSTICS_SUMMARY_CLASS}>
-              <span aria-hidden="true" className={DIAGNOSTICS_CHEVRON_CLASS}>
-                ›
-              </span>
+              <UiIcon
+                className={DIAGNOSTICS_CHEVRON_CLASS}
+                icon={ChevronRight}
+                size="xs"
+              />
               <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="eyebrow">Checklist</span>
                 <strong>Configuration guidance</strong>

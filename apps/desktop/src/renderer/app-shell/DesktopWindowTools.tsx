@@ -1,7 +1,9 @@
+import { RefreshCw, Search } from "lucide-react";
 import type {
   BackendState,
   DoolittleDesktopBridge,
 } from "../../shared/contracts";
+import { UiIcon } from "../components/UiIcon";
 import {
   ICON_BUTTON_CLASS,
   WINDOW_COMMAND_BUTTON_CLASS,
@@ -44,16 +46,7 @@ export function DesktopWindowTools({
         type="button"
       >
         {compactCommand ? (
-          <svg
-            aria-hidden="true"
-            className="size-3.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <circle cx="8.5" cy="8.5" r="5" />
-            <path d="m12.25 12.25 4 4" />
-          </svg>
+          <UiIcon icon={Search} size="sm" />
         ) : (
           <>
             <span>Search or jump to…</span>
@@ -90,14 +83,7 @@ export function DesktopWindowTools({
         title="Refresh runtime"
         type="button"
       >
-        <svg
-          aria-hidden="true"
-          fill="none"
-          viewBox="0 0 20 20"
-          stroke="currentColor"
-        >
-          <path d="M15.5 6.5V3m0 3.5H12M4.7 7.1A6 6 0 0 1 15.5 6.5M4.5 13.5V17m0-3.5H8m7.3-.6A6 6 0 0 1 4.5 13.5" />
-        </svg>
+        <UiIcon icon={RefreshCw} size="sm" />
       </button>
     </>
   );

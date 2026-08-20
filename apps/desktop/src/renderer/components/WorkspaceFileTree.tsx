@@ -1,4 +1,5 @@
 import { Button } from "@elizaos/ui/components/ui/button";
+import { ChevronDown, ChevronRight, File, Folder } from "lucide-react";
 import { type KeyboardEvent, useMemo, useRef, useState } from "react";
 import {
   allWorkspaceDirectories,
@@ -6,6 +7,7 @@ import {
   type WorkspaceTreeEntry,
   workspaceEntryParent,
 } from "../workspace-file-tree";
+import { UiIcon } from "./UiIcon";
 
 const TREE_ITEM_CLASS =
   "group grid min-h-[29px] w-full grid-cols-[12px_15px_minmax(0,1fr)_auto] items-center gap-1 overflow-hidden rounded-[var(--radius-xs)] border-0 bg-transparent py-[3px] pr-[7px] text-left text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:bg-[var(--surface-hover)] focus-visible:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[var(--accent-border)]";
@@ -13,30 +15,12 @@ const SELECTED_ITEM_CLASS =
   "bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-hover))] text-[var(--text)] shadow-[inset_2px_0_var(--accent)]";
 
 function EntryIcon({ directory }: { directory: boolean }) {
-  return directory ? (
-    <svg
-      aria-hidden="true"
-      className="size-[13px] text-[var(--accent)]"
-      fill="none"
-      viewBox="0 0 16 16"
-    >
-      <path
-        d="M1.5 4.5h4l1.25 1.5h7.75v7.5h-13z"
-        fill="currentColor"
-        fillOpacity=".15"
-        stroke="currentColor"
-      />
-    </svg>
-  ) : (
-    <svg
-      aria-hidden="true"
-      className="size-[13px] text-[var(--muted)]"
-      fill="none"
-      viewBox="0 0 16 16"
-    >
-      <path d="M3 1.5h6l4 4v9H3z" stroke="currentColor" />
-      <path d="M9 1.5v4h4" stroke="currentColor" />
-    </svg>
+  return (
+    <UiIcon
+      className={directory ? "text-[var(--accent)]" : "text-[var(--muted)]"}
+      icon={directory ? Folder : File}
+      size="xs"
+    />
   );
 }
 
@@ -214,12 +198,15 @@ export function WorkspaceFileTree({
               title={entry.path}
               type="button"
             >
-              <span
-                aria-hidden="true"
-                className="text-center font-[var(--font-mono)] text-[13px] leading-none text-[var(--muted)] transition-colors group-hover:text-[var(--accent)] motion-reduce:transition-none"
-              >
-                {directory ? (expanded ? "⌄" : "›") : ""}
-              </span>
+              {directory ? (
+                <UiIcon
+                  className="text-[var(--muted)] transition-colors group-hover:text-[var(--accent)] motion-reduce:transition-none"
+                  icon={expanded ? ChevronDown : ChevronRight}
+                  size="xs"
+                />
+              ) : (
+                <span />
+              )}
               <EntryIcon directory={directory} />
               <span
                 className={`overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[11px] ${

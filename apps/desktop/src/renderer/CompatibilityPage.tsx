@@ -1,9 +1,11 @@
 import { Button } from "@elizaos/ui/components/ui/button";
+import { CircleDashed } from "lucide-react";
 import {
   type CompactCatalogEntry,
   CompactCatalogList,
 } from "./components/CompactCatalogList";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { UiIcon } from "./components/UiIcon";
 import { COMPATIBILITY_EMPTY_CLASS } from "./diagnostics-layout";
 import {
   asArray,
@@ -50,12 +52,7 @@ export function CompatibilityEmptyState({ onRetry }: { onRetry: () => void }) {
       className={COMPATIBILITY_EMPTY_CLASS}
       data-compatibility-empty="true"
     >
-      <span
-        aria-hidden="true"
-        className="font-[var(--font-mono)] text-[var(--accent)]"
-      >
-        ○
-      </span>
+      <UiIcon className="text-[var(--accent)]" icon={CircleDashed} size="sm" />
       <div className="grid gap-px">
         <strong
           className="text-[length:var(--text-control)] text-[var(--text)]"

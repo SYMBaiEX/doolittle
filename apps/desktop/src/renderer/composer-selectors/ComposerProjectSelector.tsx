@@ -1,3 +1,4 @@
+import { Check, ChevronDown, MessageCircle, Plus, Search } from "lucide-react";
 import {
   type CSSProperties,
   useEffect,
@@ -5,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { UiIcon } from "../components/UiIcon";
 import {
   type ProjectLike,
   type ProjectScope,
@@ -34,7 +36,9 @@ function ProjectGlyph({ project }: { project?: ProjectLike }) {
         } as CSSProperties
       }
     >
-      {project?.icon?.trim() || project?.name.slice(0, 1).toUpperCase() || "○"}
+      {project?.icon?.trim() || project?.name.slice(0, 1).toUpperCase() || (
+        <UiIcon icon={MessageCircle} size="xs" />
+      )}
     </span>
   );
 }
@@ -111,7 +115,7 @@ export function ComposerProjectSelector({
       >
         <ProjectGlyph project={activeProject} />
         <span>{activeProject?.name ?? "General"}</span>
-        <i aria-hidden="true">⌄</i>
+        <UiIcon icon={ChevronDown} size="xs" />
       </button>
       {open ? (
         <section
@@ -126,7 +130,7 @@ export function ComposerProjectSelector({
             </span>
           </header>
           <label className={`${COMPOSER_SEARCH_CLASS} m-2`}>
-            <span aria-hidden="true">⌕</span>
+            <UiIcon icon={Search} size="sm" />
             <input
               aria-label="Search projects"
               onChange={(event) => setQuery(event.target.value)}
@@ -146,7 +150,7 @@ export function ComposerProjectSelector({
                 <strong>General</strong>
                 <small>No repository context</small>
               </span>
-              {!activeProject ? <i aria-hidden="true">✓</i> : null}
+              {!activeProject ? <UiIcon icon={Check} size="xs" /> : null}
             </button>
             {visibleProjects.map((project) => (
               <button
@@ -167,7 +171,7 @@ export function ComposerProjectSelector({
                   </small>
                 </span>
                 {activeProjectId === project.id ? (
-                  <i aria-hidden="true">✓</i>
+                  <UiIcon icon={Check} size="xs" />
                 ) : null}
               </button>
             ))}
@@ -185,7 +189,7 @@ export function ComposerProjectSelector({
               }}
               type="button"
             >
-              <span aria-hidden="true">＋</span>
+              <UiIcon icon={Plus} size="xs" />
               Add repository
             </button>
             <button

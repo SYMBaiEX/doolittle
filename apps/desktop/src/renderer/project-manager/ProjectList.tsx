@@ -1,3 +1,5 @@
+import { Archive, ArrowLeft, History, MessageCircle, Pin } from "lucide-react";
+import { UiIcon } from "../components/UiIcon";
 import {
   PROJECT_MANAGER_GROUP_LABEL_CLASS,
   PROJECT_MANAGER_LIST_CLASS,
@@ -43,7 +45,9 @@ export function ProjectList({
         className={`${PROJECT_MANAGER_SCOPE_CLASS} ${activeScope === "all" ? PROJECT_MANAGER_SCOPE_ACTIVE_CLASS : ""}`}
         onClick={() => onSelectScope("all")}
       >
-        <span>⌘</span>
+        <span>
+          <UiIcon icon={History} size="sm" />
+        </span>
         <strong>All chats</strong>
         <small>{formatCount(allChatCount)}</small>
       </button>
@@ -52,7 +56,9 @@ export function ProjectList({
         className={`${PROJECT_MANAGER_SCOPE_CLASS} ${activeScope === "unscoped" ? PROJECT_MANAGER_SCOPE_ACTIVE_CLASS : ""}`}
         onClick={() => onSelectScope("unscoped")}
       >
-        <span>○</span>
+        <span>
+          <UiIcon icon={MessageCircle} size="sm" />
+        </span>
         <strong>Unscoped</strong>
         <small>{formatCount(unscopedChatCount)}</small>
       </button>
@@ -89,11 +95,12 @@ export function ProjectList({
       ) : null}
       <button
         type="button"
-        className="project-manager__archive-toggle mt-auto border-[var(--border)] border-t px-1.75 pt-3 pb-0.75 text-left text-xs text-[var(--muted)] transition-colors hover:text-[var(--text-soft)] max-[740px]:hidden"
+        className="project-manager__archive-toggle mt-auto inline-flex items-center gap-1.5 px-1.75 pt-3 pb-0.75 text-left text-xs text-[var(--muted)] transition-colors hover:text-[var(--text-soft)] focus-visible:rounded-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-border)] max-[740px]:hidden"
         data-project-action="toggle-archive"
         onClick={onToggleArchived}
       >
-        {showArchived ? "← Active projects" : `Archived (${archivedCount})`}
+        <UiIcon icon={showArchived ? ArrowLeft : Archive} size="xs" />
+        {showArchived ? "Active projects" : `Archived (${archivedCount})`}
       </button>
     </aside>
   );
@@ -121,7 +128,12 @@ function ProjectRow({
         <strong>{project.name}</strong>
         <small>{formatCount(project.chatCount)}</small>
       </span>
-      {project.pinned ? <b title="Pinned">⌁</b> : null}
+      {project.pinned ? (
+        <b title="Pinned">
+          <UiIcon className="fill-current" icon={Pin} size="xs" />
+          <span className="sr-only">Pinned</span>
+        </b>
+      ) : null}
     </button>
   );
 }

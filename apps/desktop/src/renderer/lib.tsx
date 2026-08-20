@@ -2,12 +2,14 @@ import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Badge as ElizaBadge } from "@elizaos/ui/components/ui/badge";
 import { getCached, revalidate } from "@elizaos/ui/hooks/resource-cache";
 import { useCachedResource } from "@elizaos/ui/hooks/useCachedResource";
+import { ChevronRight } from "lucide-react";
 import {
   type DependencyList,
   type ReactNode,
   useEffect,
   useState,
 } from "react";
+import { UiIcon } from "./components/UiIcon";
 import { desktopRequest } from "./eliza-client";
 
 export { desktopRequest } from "./eliza-client";
@@ -351,6 +353,7 @@ export function RawDataDisclosure({
       open={open}
     >
       <summary>
+        <UiIcon className="raw-data-chevron" icon={ChevronRight} size="xs" />
         <span>{label}</span>
         <small>
           {open ? `${formatted.length.toLocaleString()} characters` : "Inspect"}
@@ -521,7 +524,7 @@ export function Icon({
       stroke="currentColor"
       strokeLinecap="round"
       strokeLinejoin="round"
-      strokeWidth="1.6"
+      strokeWidth="1.8"
     >
       {paths[name]}
     </svg>

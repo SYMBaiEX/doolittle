@@ -29,6 +29,13 @@ describe("shared view primitives", () => {
     );
   });
 
+  it("uses spacing instead of decorative rules for document hierarchy", () => {
+    expect(VIEW_PRIMITIVES_CLASS).not.toContain("[&_.page-header]:border-b");
+    expect(VIEW_PRIMITIVES_CLASS).not.toContain("[&_.page-header::after]");
+    expect(VIEW_PRIMITIVES_CLASS).not.toContain("[&_.form-actions]:border-t");
+    expect(VIEW_PRIMITIVES_CLASS).not.toContain("[&_.status-row]:border-b");
+  });
+
   it("gives empty split workspaces a single-column override", () => {
     expect(VIEW_PRIMITIVES_CLASS).toContain(
       "[&_.split-workspace.is-empty]:grid-cols-1",

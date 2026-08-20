@@ -1,4 +1,13 @@
+import {
+  CircleCheck,
+  ExternalLink,
+  GitCompareArrows,
+  Search,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 import type { KeyboardEvent, RefObject } from "react";
+import { UiIcon } from "../components/UiIcon";
 import { Badge, displayTimestamp, EmptyBlock } from "../lib";
 import {
   REVIEW_LIST_BUTTON_CLASS,
@@ -108,7 +117,7 @@ export function ReviewQueue({
         ))}
       </div>
       <label className={REVIEW_SEARCH_CLASS}>
-        <span aria-hidden="true">⌕</span>
+        <UiIcon icon={Search} size="sm" />
         <input
           aria-label="Search review queue"
           onChange={(event) => onQueryChange(event.target.value)}
@@ -123,7 +132,7 @@ export function ReviewQueue({
             onClick={() => onQueryChange("")}
             type="button"
           >
-            ×
+            <UiIcon icon={X} size="xs" />
           </button>
         ) : (
           <kbd>{platform === "darwin" ? "⌘F" : "Ctrl F"}</kbd>
@@ -156,13 +165,18 @@ export function ReviewQueue({
                   item.kind === "ci" ? statusTone(item.status) : "",
                 )}
               >
-                {item.kind === "approvals"
-                  ? "!"
-                  : item.kind === "ci"
-                    ? "✓"
-                    : item.kind === "changes"
-                      ? "±"
-                      : "↗"}
+                <UiIcon
+                  icon={
+                    item.kind === "approvals"
+                      ? TriangleAlert
+                      : item.kind === "ci"
+                        ? CircleCheck
+                        : item.kind === "changes"
+                          ? GitCompareArrows
+                          : ExternalLink
+                  }
+                  size="sm"
+                />
               </span>
               <span className={REVIEW_LIST_COPY_CLASS}>
                 <strong>{item.title}</strong>

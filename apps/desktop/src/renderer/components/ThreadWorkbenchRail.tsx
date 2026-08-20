@@ -1,3 +1,4 @@
+import { GitBranch, RefreshCw, X } from "lucide-react";
 import { type CSSProperties, type KeyboardEvent, useRef } from "react";
 import { asNumber, Badge } from "../lib";
 import {
@@ -39,6 +40,7 @@ import {
 import { WorkbenchPanels } from "../thread-workbench/WorkbenchPanels";
 import { useThreadWorkbenchRailController } from "../thread-workbench-controller";
 import { PanelResizeHandle } from "./PanelResizeHandle";
+import { UiIcon } from "./UiIcon";
 
 export type { ThreadWorkbenchFullView } from "../thread-workbench/models";
 
@@ -155,7 +157,7 @@ export function ThreadWorkbenchRail({
             title="Close workbench"
             type="button"
           >
-            ×
+            <UiIcon icon={X} size="sm" />
           </button>
         </div>
         <div
@@ -164,7 +166,7 @@ export function ThreadWorkbenchRail({
         >
           <div className={WORKBENCH_CONTEXT_PRIMARY_CLASS}>
             <span className={WORKBENCH_REPO_MARK_CLASS} aria-hidden="true">
-              ⎇
+              <UiIcon icon={GitBranch} size="sm" />
             </span>
             <div className={WORKBENCH_CONTEXT_COPY_CLASS}>
               <strong>{branchHeadLabel(model.branch, model.head)}</strong>
@@ -255,7 +257,7 @@ export function ThreadWorkbenchRail({
           title="Refresh"
           type="button"
         >
-          ↻
+          <UiIcon icon={RefreshCw} size="sm" />
         </button>
       </footer>
     </aside>

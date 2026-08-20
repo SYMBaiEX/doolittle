@@ -1,3 +1,7 @@
+import { ChevronDown } from "lucide-react";
+import { UiIcon } from "../components/UiIcon";
+import { orchestrationClass as oc } from "./layout";
+
 export interface TaskSupervisionControlsProps {
   active: boolean;
   busy: boolean;
@@ -18,7 +22,7 @@ export function TaskSupervisionControls({
       <summary>
         <span>Supervise</span>
         <small>Parallel {concurrency}</small>
-        <i aria-hidden="true">⌄</i>
+        <UiIcon icon={ChevronDown} size="xs" />
       </summary>
       <div className={oc("orchestration-supervision__body")}>
         <label>
@@ -43,5 +47,3 @@ export function TaskSupervisionControls({
     </details>
   );
 }
-
-import { orchestrationClass as oc } from "./layout";

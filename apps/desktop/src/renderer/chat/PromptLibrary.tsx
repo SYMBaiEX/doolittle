@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import {
   type Dispatch,
   Fragment,
@@ -8,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { UiIcon } from "../components/UiIcon";
 import {
   loadPromptLibrary,
   MAX_PROMPT_LIBRARY_ITEMS,
@@ -186,7 +188,7 @@ export function PromptLibrary({
               onClick={() => setOpen(false)}
               type="button"
             >
-              ×
+              <UiIcon icon={X} size="sm" />
             </button>
           </header>
           {activeProject ? (

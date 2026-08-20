@@ -1,4 +1,6 @@
+import { PanelRight, Pin } from "lucide-react";
 import type { RefObject } from "react";
+import { UiIcon } from "../components/UiIcon";
 import type { ContextPressureTone } from "../context-pressure";
 import { displayTimestamp } from "../lib";
 import { compactSessionPreview } from "../session-preview";
@@ -144,9 +146,11 @@ export function ChatHeaderChrome({
               }
               type="button"
             >
-              <span aria-hidden="true">
-                {selectedSession.pinned ? "◆" : "◇"}
-              </span>
+              <UiIcon
+                className={selectedSession.pinned ? "fill-current" : ""}
+                icon={Pin}
+                size="xs"
+              />
             </button>
           ) : null}
           <button
@@ -187,7 +191,7 @@ export function ChatHeaderChrome({
             ref={workbenchToggleRef}
             type="button"
           >
-            <span aria-hidden="true">◧</span>
+            <UiIcon icon={PanelRight} size="xs" />
             Workbench
           </button>
         </div>

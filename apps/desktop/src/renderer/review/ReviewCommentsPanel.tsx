@@ -1,4 +1,6 @@
+import { ChevronDown } from "lucide-react";
 import { type RefObject, useEffect, useRef, useState } from "react";
+import { UiIcon } from "../components/UiIcon";
 import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
 import { Badge } from "../lib";
 import type { ReviewComment, ReviewCommentAnchor } from "../review-comments";
@@ -102,9 +104,11 @@ export function ReviewCommentsPanel({
             open on this file
           </small>
         </span>
-        <i aria-hidden="true" className={REVIEW_FEEDBACK_ICON_CLASS}>
-          ⌄
-        </i>
+        <UiIcon
+          className={REVIEW_FEEDBACK_ICON_CLASS}
+          icon={ChevronDown}
+          size="xs"
+        />
       </summary>
 
       {notesOpen ? (

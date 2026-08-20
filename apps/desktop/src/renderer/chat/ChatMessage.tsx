@@ -5,6 +5,7 @@ import {
   parseAgentMessage,
 } from "../components/message-output";
 import { displayTimestamp } from "../lib";
+import { ContextCapsuleIcon } from "./ContextCapsuleIcon";
 import { MessageAttachmentList } from "./MessageAttachmentList";
 import type { DisplayMessage, RunReceipt } from "./models";
 import { RunReceiptView } from "./RunReceiptView";
@@ -80,13 +81,7 @@ export function ChatMessage({
             role="note"
           >
             <span aria-hidden="true">
-              {message.contextCapsule.kind === "terminal"
-                ? "▣"
-                : message.contextCapsule.kind === "browser"
-                  ? "◎"
-                  : message.contextCapsule.kind === "file"
-                    ? "▤"
-                    : "⌁"}
+              <ContextCapsuleIcon kind={message.contextCapsule.kind} />
             </span>
             <span>
               {message.contextCapsule.kind === "diff"

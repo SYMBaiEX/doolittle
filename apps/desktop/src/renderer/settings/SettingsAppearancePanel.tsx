@@ -1,5 +1,7 @@
+import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { useRef } from "react";
 import { OfflineRouteState } from "../components/OfflineRouteState";
+import { UiIcon } from "../components/UiIcon";
 import type {
   DesktopAppearance,
   DesktopDensity,
@@ -67,9 +69,12 @@ export function SettingsAppearancePanel({
             }
             type="button"
           >
-            <i aria-hidden="true">
-              {option === "dark" ? "◐" : option === "light" ? "☼" : "◑"}
-            </i>
+            <UiIcon
+              icon={
+                option === "dark" ? Moon : option === "light" ? Sun : Monitor
+              }
+              size="md"
+            />
             <strong>{titleCase(option)}</strong>
           </button>
         ))}
@@ -94,7 +99,7 @@ export function SettingsAppearancePanel({
           ))}
         </fieldset>
       </div>
-      <div className="settings-group-heading mt-1.75 mb-0 min-h-9.5 border-[var(--border)] border-b pb-1.75 [&_p]:mt-0.5 [&_p]:text-[length:var(--text-meta)]">
+      <div className="settings-group-heading mt-0.75 mb-0 min-h-8 [&_p]:mt-0.25 [&_p]:text-[length:var(--text-meta)]">
         <div>
           <span className="eyebrow">Color system</span>
           <h2>Operator signal</h2>
@@ -104,7 +109,7 @@ export function SettingsAppearancePanel({
           {activeTheme?.label ?? (active ? "Default" : "Unavailable")}
         </Badge>
       </div>
-      <div className="settings-theme-transfer flex min-h-11 items-center justify-between gap-4 rounded-[var(--radius-xs)] border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface-soft)_64%,transparent)] px-2.5 py-2 max-[620px]:items-stretch max-[620px]:flex-col">
+      <div className="settings-theme-transfer flex min-h-9.5 items-center justify-between gap-3 rounded-[var(--radius-xs)] border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface-soft)_64%,transparent)] px-2 py-1.5 max-[620px]:items-stretch max-[620px]:flex-col">
         <div className="grid min-w-0 gap-0.5">
           <strong className="text-[length:var(--text-control)]">
             Shareable theme file
@@ -184,7 +189,9 @@ export function SettingsAppearancePanel({
                 />
               </span>
               <strong>{label}</strong>
-              <b aria-hidden="true">{activeTheme?.name === name ? "✓" : ""}</b>
+              {activeTheme?.name === name ? (
+                <UiIcon icon={Check} size="xs" />
+              ) : null}
             </button>
           );
         })}

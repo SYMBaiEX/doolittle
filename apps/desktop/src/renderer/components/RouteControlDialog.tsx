@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import type {
   RuntimeModelsResponse,
@@ -19,6 +20,7 @@ import {
   ROUTE_PROVIDER_READINESS_CLASS,
   ROUTE_PROVIDER_READINESS_TONE,
 } from "../app-shell/overlay-layout";
+import { ICON_BUTTON_CLASS } from "../app-shell/shell-layout";
 import {
   type ActionFeedback,
   asRecord,
@@ -39,6 +41,7 @@ import {
   ROUTE_PROVIDER_OPTIONS,
   type RouteProviderId,
 } from "../model-routing";
+import { UiIcon } from "./UiIcon";
 import { useModalFocusBoundary } from "./useModalFocusBoundary";
 
 interface SettingsResponse {
@@ -281,11 +284,11 @@ export function RouteControlDialog({
           </div>
           <button
             aria-label="Close route controls"
-            className="icon-button"
+            className={ICON_BUTTON_CLASS}
             onClick={onClose}
             type="button"
           >
-            ×
+            <UiIcon icon={X} size="sm" />
           </button>
         </div>
 

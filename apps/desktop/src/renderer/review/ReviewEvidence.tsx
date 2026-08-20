@@ -4,9 +4,11 @@ import type {
   RepositoryRemote,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
+import { ChevronRight } from "lucide-react";
 import type { RepositoryReview } from "../../shared/contracts";
 import { GitControlPanel } from "../components/GitControlPanel";
 import { GitHubPullRequestPanel } from "../components/GitHubPullRequestPanel";
+import { UiIcon } from "../components/UiIcon";
 import { LoadingBlock, Notice } from "../lib";
 import type { RepositoryControlChange } from "../repository-control";
 import type {
@@ -94,9 +96,11 @@ export function ReviewEvidence({
             {review?.pullRequest ? ` · PR #${review.pullRequest.number}` : ""}
           </small>
         </span>
-        <i aria-hidden="true" className={REVIEW_DISCLOSURE_ICON_CLASS}>
-          ›
-        </i>
+        <UiIcon
+          className={REVIEW_DISCLOSURE_ICON_CLASS}
+          icon={ChevronRight}
+          size="xs"
+        />
       </summary>
       {evidenceOpen ? (
         <div className={REVIEW_EVIDENCE_BODY_CLASS}>

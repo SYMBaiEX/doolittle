@@ -1,3 +1,12 @@
+import {
+  ChevronRight,
+  FolderPlus,
+  History,
+  MessageCircle,
+  MoreHorizontal,
+  Pin,
+  Plus,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { SessionSummary } from "../../shared/contracts";
 import {
@@ -22,6 +31,7 @@ import {
   buildProjectSidebarModel,
   conversationLabel,
 } from "./project-sidebar-model";
+import { UiIcon } from "./UiIcon";
 
 function sessionActivityLabel(session: SessionSummary): string {
   const value = session.endedAt ?? session.startedAt;
@@ -184,7 +194,11 @@ export function ProjectHistorySidebar({
                 title={pinned ? "Unpin conversation" : "Pin conversation"}
                 type="button"
               >
-                ⌁
+                <UiIcon
+                  className={pinned ? "fill-current" : ""}
+                  icon={Pin}
+                  size="xs"
+                />
               </button>
             </div>
           );
@@ -223,11 +237,11 @@ export function ProjectHistorySidebar({
           <button
             aria-expanded={isExpanded}
             aria-label={`${isExpanded ? "Collapse" : "Expand"} ${project.name} chats`}
-            className="project-rail-disclosure grid h-6 w-4.25 place-items-center p-0 text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden [&>span]:transition-transform [&>span]:duration-120 motion-reduce:[&>span]:transition-none aria-expanded:[&>span]:rotate-90"
+            className="project-rail-disclosure grid h-6 w-4.25 place-items-center p-0 text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden [&>svg]:transition-transform [&>svg]:duration-120 motion-reduce:[&>svg]:transition-none aria-expanded:[&>svg]:rotate-90"
             onClick={() => toggleExpanded(project.id)}
             type="button"
           >
-            <span aria-hidden="true">›</span>
+            <UiIcon icon={ChevronRight} size="xs" />
           </button>
           <button
             className={PROJECT_RAIL_MAIN_CLASS}
@@ -251,7 +265,7 @@ export function ProjectHistorySidebar({
             title={`New chat in ${project.name}`}
             type="button"
           >
-            +
+            <UiIcon icon={Plus} size="xs" />
           </button>
           <small className="project-rail-count font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden">
             {chatCount}
@@ -283,7 +297,7 @@ export function ProjectHistorySidebar({
             title="Choose a repository"
             type="button"
           >
-            <span aria-hidden="true">＋</span>
+            <UiIcon icon={Plus} size="sm" />
           </button>
           <button
             className="grid size-6.5 place-items-center rounded-[var(--radius-xs)] border border-transparent p-0 text-sm text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&>span]:text-[length:var(--text-meta)] [&>span]:tracking-[-0.16em]"
@@ -292,7 +306,7 @@ export function ProjectHistorySidebar({
             title="Manage projects"
             type="button"
           >
-            <span aria-hidden="true">•••</span>
+            <UiIcon icon={MoreHorizontal} size="sm" />
           </button>
         </div>
       </div>
@@ -303,7 +317,7 @@ export function ProjectHistorySidebar({
         title="All conversations"
         type="button"
       >
-        <span aria-hidden="true">◷</span>
+        <UiIcon icon={History} size="sm" />
         <span>
           <strong>All conversations</strong>
           <em>Browse recent and pinned chats</em>
@@ -316,11 +330,11 @@ export function ProjectHistorySidebar({
         )}
         {!model.projects.length ? (
           <button
-            className="project-rail-onboarding mt-0.75 grid grid-cols-[28px_minmax(0,1fr)] gap-x-2 gap-y-px rounded-[var(--radius-sm)] border border-dashed border-[color-mix(in_srgb,var(--accent)_28%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] px-2 py-2.25 text-left text-[var(--text-soft)] [.desktop-shell.nav-collapsed_&]:min-h-10.5 [.desktop-shell.nav-collapsed_&]:grid-cols-1 [.desktop-shell.nav-collapsed_&]:justify-items-center [.desktop-shell.nav-collapsed_&]:gap-0 [.desktop-shell.nav-collapsed_&]:px-1 [&>span]:row-span-2 [&>span]:text-base [&>span]:text-[var(--accent)] [&>strong]:text-[11px] [.desktop-shell.nav-collapsed_&]:[&>strong]:hidden [&>small]:text-[length:var(--text-meta)] [&>small]:text-[var(--muted)] [.desktop-shell.nav-collapsed_&]:[&>small]:hidden"
+            className="project-rail-onboarding mt-0.75 grid grid-cols-[28px_minmax(0,1fr)] gap-x-2 gap-y-px rounded-[var(--radius-sm)] border border-dashed border-[color-mix(in_srgb,var(--accent)_28%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] px-2 py-2.25 text-left text-[var(--text-soft)] [.desktop-shell.nav-collapsed_&]:min-h-10.5 [.desktop-shell.nav-collapsed_&]:grid-cols-1 [.desktop-shell.nav-collapsed_&]:justify-items-center [.desktop-shell.nav-collapsed_&]:gap-0 [.desktop-shell.nav-collapsed_&]:px-1 [&>svg]:row-span-2 [&>svg]:text-[var(--accent)] [&>strong]:text-[11px] [.desktop-shell.nav-collapsed_&]:[&>strong]:hidden [&>small]:text-[length:var(--text-meta)] [&>small]:text-[var(--muted)] [.desktop-shell.nav-collapsed_&]:[&>small]:hidden"
             onClick={() => void onChooseRepository()}
             type="button"
           >
-            <span aria-hidden="true">▱</span>
+            <UiIcon icon={FolderPlus} size="lg" />
             <strong>Add your first repository</strong>
             <small>Projects keep chats and code together.</small>
           </button>
@@ -335,11 +349,11 @@ export function ProjectHistorySidebar({
               <button
                 aria-expanded={expanded.has("unscoped")}
                 aria-label={`${expanded.has("unscoped") ? "Collapse" : "Expand"} general chats`}
-                className="project-rail-disclosure grid h-6 w-4.25 place-items-center p-0 text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden [&>span]:transition-transform [&>span]:duration-120 motion-reduce:[&>span]:transition-none aria-expanded:[&>span]:rotate-90"
+                className="project-rail-disclosure grid h-6 w-4.25 place-items-center p-0 text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden [&>svg]:transition-transform [&>svg]:duration-120 motion-reduce:[&>svg]:transition-none aria-expanded:[&>svg]:rotate-90"
                 onClick={() => toggleExpanded("unscoped")}
                 type="button"
               >
-                <span aria-hidden="true">›</span>
+                <UiIcon icon={ChevronRight} size="xs" />
               </button>
               <button
                 className={PROJECT_RAIL_MAIN_CLASS}
@@ -350,7 +364,7 @@ export function ProjectHistorySidebar({
                   aria-hidden="true"
                   className="project-rail-general-mark grid size-7 shrink-0 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] font-[var(--font-mono)] text-[10px] font-bold text-[var(--muted)] [.desktop-shell.nav-collapsed_&]:size-6.5 [.desktop-shell.nav-collapsed_&]:rounded-[7px]"
                 >
-                  ○
+                  <UiIcon icon={MessageCircle} size="sm" />
                 </span>
                 <span>
                   <strong>General</strong>
@@ -364,7 +378,7 @@ export function ProjectHistorySidebar({
                 title="New general chat"
                 type="button"
               >
-                +
+                <UiIcon icon={Plus} size="xs" />
               </button>
               <small className="project-rail-count font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden">
                 {model.unscopedChatCount}

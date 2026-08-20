@@ -1,5 +1,6 @@
 import { Button } from "@elizaos/ui/components/ui/button";
 import { Input } from "@elizaos/ui/components/ui/input";
+import { Plus, Search, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useDialogFocus } from "../project-manager/dialog-focus";
 import {
@@ -21,6 +22,7 @@ import type {
 import { EmptyDetail, ProjectDetail } from "../project-manager/ProjectDetail";
 import { ProjectEditor } from "../project-manager/ProjectEditor";
 import { ProjectList } from "../project-manager/ProjectList";
+import { UiIcon } from "./UiIcon";
 
 export function ProjectManager(props: ProjectManagerProps) {
   const {
@@ -137,19 +139,19 @@ export function ProjectManager(props: ProjectManagerProps) {
           <Button
             ref={closeButtonRef}
             type="button"
-            className="text-lg"
+            className="text-[var(--muted)]"
             size="icon-sm"
             variant="ghost"
             aria-label="Close projects"
             onClick={onClose}
             disabled={working}
           >
-            ×
+            <UiIcon icon={X} size="sm" />
           </Button>
         </header>
         <div className={PROJECT_MANAGER_TOOLBAR_CLASS}>
           <label className={PROJECT_MANAGER_SEARCH_CLASS} htmlFor={searchId}>
-            <span aria-hidden="true">⌕</span>
+            <UiIcon icon={Search} size="sm" />
             <Input
               className="h-8 border-0 bg-transparent px-0 text-[13px] shadow-none"
               id={searchId}
@@ -165,7 +167,8 @@ export function ProjectManager(props: ProjectManagerProps) {
             onClick={() => setEditing("new")}
             disabled={!onCreateProject || working}
           >
-            + New
+            <UiIcon icon={Plus} size="xs" />
+            New
           </Button>
         </div>
         {error ? (

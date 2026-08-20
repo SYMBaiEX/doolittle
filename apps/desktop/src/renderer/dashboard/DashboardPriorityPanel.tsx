@@ -83,7 +83,7 @@ export function DashboardPriorityPanel({
               {nextActions.length} queued
             </Badge>
           </div>
-          <div className="grid border-t border-[var(--border)]">
+          <div className="grid gap-0.5">
             {nextActions.map((action) => {
               const handler =
                 action.target === "review"
@@ -97,7 +97,7 @@ export function DashboardPriorityPanel({
                         : () => onOpenChat?.(sessions[0]?.id);
               return (
                 <article
-                  className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-b border-[var(--border)] py-2.5"
+                  className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 rounded-[var(--radius-xs)] px-1 py-2.5"
                   key={action.id}
                 >
                   <header className="col-start-1 flex justify-between gap-2.5">
@@ -148,14 +148,14 @@ export function DashboardPriorityPanel({
               </Badge>
             </div>
           </div>
-          <details className="group mt-[9px] border-t border-[var(--border)]">
+          <details className="group mt-[7px] rounded-[var(--radius-xs)] bg-[color-mix(in_srgb,var(--surface-soft)_44%,transparent)] px-1.5">
             <summary className="flex min-h-[38px] cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
               <span>Workspace diagnostics</span>
               <Badge tone={setupWarnings ? "warn" : "good"}>
                 {setupWarnings ? `${setupWarnings} warnings` : "Ready"}
               </Badge>
             </summary>
-            <div className="grid border-t border-[var(--border)]">
+            <div className="grid gap-0.5 pb-1.5">
               {setupEntries.slice(0, 4).map((entry) => (
                 <div className={DASHBOARD_STATUS_ROW_CLASS} key={entry.key}>
                   <div>

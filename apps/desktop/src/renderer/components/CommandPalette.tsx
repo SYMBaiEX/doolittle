@@ -7,6 +7,7 @@ import {
 } from "@elizaos/ui/components/ui/dialog";
 import { Input } from "@elizaos/ui/components/ui/input";
 import { ScrollArea } from "@elizaos/ui/components/ui/scroll-area";
+import { Search } from "lucide-react";
 import {
   type ChangeEvent,
   type MouseEvent,
@@ -54,6 +55,7 @@ import {
   nextFocusableCommandIndex,
 } from "./command-palette-model";
 import { ShortcutHint } from "./ShortcutHint";
+import { UiIcon } from "./UiIcon";
 
 export type {
   CommandGroup,
@@ -316,12 +318,11 @@ export function CommandPalette<TData = unknown>({
         <label htmlFor={inputId} className={COMMAND_PALETTE_LABEL_CLASS}>
           <span className="sr-only">Search</span>
           <span className={COMMAND_PALETTE_SEARCH_SHELL_CLASS}>
-            <span
-              aria-hidden="true"
+            <UiIcon
               className={COMMAND_PALETTE_SEARCH_ICON_CLASS}
-            >
-              ⌕
-            </span>
+              icon={Search}
+              size="sm"
+            />
             <Input
               ref={searchRef}
               id={inputId}

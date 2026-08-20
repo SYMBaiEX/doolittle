@@ -5,10 +5,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@elizaos/ui/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
 import type {
   ProviderAuthProvider,
   ProviderAuthState,
 } from "../../shared/contracts";
+import { UiIcon } from "../components/UiIcon";
 import { asString, Badge } from "../lib";
 import {
   PROVIDER_CONNECTION_ACTIONS_CLASS,
@@ -212,7 +214,7 @@ export function ProviderConnectionRow({
                 type="button"
                 variant="ghost"
               >
-                <span aria-hidden="true">•••</span>
+                <UiIcon icon={MoreHorizontal} size="sm" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent

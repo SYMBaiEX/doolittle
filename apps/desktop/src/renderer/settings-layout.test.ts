@@ -1,10 +1,32 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import {
+  SETTINGS_CONTENT_CLASS,
+  SETTINGS_CONTENT_HEADER_CLASS,
+  SETTINGS_LAYOUT_CLASS,
+  SETTINGS_PAGE_CLASS,
+  SETTINGS_ROW_LAYOUT_CLASS,
+} from "./settings/settings-layout";
 
 const read = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8");
 
 describe("settings layout density", () => {
+  it("pins every category to the top of the settings workspace", () => {
+    expect(SETTINGS_LAYOUT_CLASS).toContain("content-start");
+    expect(SETTINGS_LAYOUT_CLASS).toContain("items-start");
+    expect(SETTINGS_CONTENT_CLASS).toContain("content-start");
+    expect(SETTINGS_CONTENT_CLASS).toContain("self-start");
+    expect(SETTINGS_PAGE_CLASS).toContain("!gap-1.5");
+    expect(SETTINGS_PAGE_CLASS).toContain("[&>.page-header]:!min-h-12");
+  });
+
+  it("keeps category headers, rows, and panels on the compact rhythm", () => {
+    expect(SETTINGS_CONTENT_HEADER_CLASS).toContain("min-h-8.5");
+    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("min-h-9");
+    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("py-1.5");
+  });
+
   it("keeps embedded section headings below the page hierarchy", () => {
     const layout = read("./settings/settings-layout.ts");
 

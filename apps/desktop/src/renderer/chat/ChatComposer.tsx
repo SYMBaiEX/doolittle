@@ -1,6 +1,7 @@
 import { Button as ElizaButton } from "@elizaos/ui/components/ui/button";
 import { StatusBadge } from "@elizaos/ui/components/ui/status-badge";
 import { Textarea as ElizaTextarea } from "@elizaos/ui/components/ui/textarea";
+import { ArrowUp, Paperclip, X } from "lucide-react";
 import type {
   Dispatch,
   FormEvent,
@@ -21,6 +22,7 @@ import {
   ComposerProjectSelector,
 } from "../components/ComposerSelectors";
 import { InlineApprovalPanel } from "../components/InlineApprovalPanel";
+import { UiIcon } from "../components/UiIcon";
 import {
   VoiceComposerButton,
   type VoiceRecorderMime,
@@ -32,6 +34,7 @@ import type {
 import { contextPressureLabel } from "../context-pressure";
 import type { PersistedQueuedMessage } from "../conversation-persistence";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
+import { ContextCapsuleIcon } from "./ContextCapsuleIcon";
 import type { ChatMemoryMatchState } from "./models";
 import { attachmentSize, fileName, MAX_MESSAGE_ATTACHMENTS } from "./models";
 import { PromptLibrary } from "./PromptLibrary";
@@ -232,7 +235,7 @@ export function ChatComposer({
                   onClick={() => removeQueuedMessage(message.id)}
                   type="button"
                 >
-                  ×
+                  <UiIcon icon={X} size="xs" />
                 </button>
               </li>
             ))}
@@ -258,7 +261,7 @@ export function ChatComposer({
                 onClick={() => removeContextFile(attachment.id)}
                 type="button"
               >
-                ×
+                <UiIcon icon={X} size="xs" />
               </button>
             </li>
           ))}
@@ -267,13 +270,7 @@ export function ChatComposer({
       {chatContextCapsule ? (
         <div className="chat-context-capsule" role="status">
           <span className="chat-context-capsule__icon" aria-hidden="true">
-            {chatContextCapsule.kind === "terminal"
-              ? "▣"
-              : chatContextCapsule.kind === "browser"
-                ? "◎"
-                : chatContextCapsule.kind === "file"
-                  ? "▤"
-                  : "⌁"}
+            <ContextCapsuleIcon kind={chatContextCapsule.kind} />
           </span>
           <span className="chat-context-capsule__label">
             {chatContextCapsule.kind === "diff"
@@ -300,7 +297,7 @@ export function ChatComposer({
             onClick={removeChatContext}
             type="button"
           >
-            ×
+            <UiIcon icon={X} size="xs" />
           </button>
         </div>
       ) : null}
@@ -415,7 +412,7 @@ export function ChatComposer({
           type="button"
           variant="secondary"
         >
-          <span aria-hidden="true">＋</span>
+          <UiIcon icon={Paperclip} size="xs" />
           Attach
         </ElizaButton>
         <VoiceComposerButton
@@ -507,14 +504,7 @@ export function ChatComposer({
         type="submit"
         variant="default"
       >
-        <svg
-          aria-hidden="true"
-          fill="none"
-          viewBox="0 0 20 20"
-          stroke="currentColor"
-        >
-          <path d="m5 10 5-5 5 5M10 5v11" />
-        </svg>
+        <UiIcon icon={ArrowUp} size="md" />
       </ElizaButton>
       <small className="chat-composer-hint">
         {activeRequest ? "Enter to queue" : "Enter to send"} · Shift Enter for a

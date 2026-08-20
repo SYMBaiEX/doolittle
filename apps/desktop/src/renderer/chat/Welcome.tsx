@@ -38,10 +38,13 @@ export function Welcome({
             <span>{String(index + 1).padStart(2, "0")}</span>
             <strong>{prompt}</strong>
             <small>{detail}</small>
-            <i aria-hidden="true">↗</i>
+            <UiIcon icon={ArrowUpRight} size="sm" />
           </button>
         ))}
       </div>
     </div>
   );
 }
+
+import { ArrowUpRight } from "lucide-react";
+import { UiIcon } from "../components/UiIcon";

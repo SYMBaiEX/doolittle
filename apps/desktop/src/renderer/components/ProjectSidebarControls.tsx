@@ -1,4 +1,14 @@
 import {
+  ArrowRight,
+  Check,
+  ExternalLink,
+  FolderOpen,
+  MessageCircle,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
+import {
   type CSSProperties,
   useEffect,
   useLayoutEffect,
@@ -22,6 +32,7 @@ import {
   PROJECT_MARK_CLASS,
 } from "./project-sidebar-layout";
 import { repositoryLabel } from "./project-sidebar-model";
+import { UiIcon } from "./UiIcon";
 
 export function projectLocationLabel(project: ProjectLike): string {
   const repository = repositoryLabel(project.primaryPath);
@@ -236,7 +247,7 @@ export function NewConversationControl({
         title="New conversation"
         type="button"
       >
-        <span aria-hidden="true">＋</span>
+        <UiIcon icon={Plus} size="md" />
         <strong>New conversation</strong>
         <kbd>{shortcut}</kbd>
       </button>
@@ -269,12 +280,12 @@ export function NewConversationControl({
                   onClick={() => onOpenChange(false)}
                   type="button"
                 >
-                  ×
+                  <UiIcon icon={X} size="sm" />
                 </button>
               </header>
               {projects.filter((project) => !project.archived).length > 5 ? (
                 <label className={NEW_CHAT_SEARCH_CLASS}>
-                  <span aria-hidden="true">⌕</span>
+                  <UiIcon icon={Search} size="sm" />
                   <input
                     aria-label="Search projects"
                     className="min-h-7.75 w-full border-0 bg-transparent p-0 text-xs text-[var(--text)] outline-0"
@@ -291,7 +302,7 @@ export function NewConversationControl({
                     aria-current={
                       activeScope === project.id ? "true" : undefined
                     }
-                    className={`${NEW_CHAT_CHOICE_CLASS} ${activeScope === project.id ? "is-current [&>i]:text-[var(--accent)]" : ""}`}
+                    className={`${NEW_CHAT_CHOICE_CLASS} ${activeScope === project.id ? "is-current [&>svg]:text-[var(--accent)]" : ""}`}
                     data-new-chat-choice
                     key={project.id}
                     onClick={() => choose(project.id)}
@@ -302,9 +313,10 @@ export function NewConversationControl({
                       <strong>{project.name}</strong>
                       <small>{projectLocationLabel(project)}</small>
                     </span>
-                    <i aria-hidden="true">
-                      {activeScope === project.id ? "✓" : "↗"}
-                    </i>
+                    <UiIcon
+                      icon={activeScope === project.id ? Check : ExternalLink}
+                      size="xs"
+                    />
                   </button>
                 ))}
                 {visibleProjects.length === 0 && query ? (
@@ -327,7 +339,7 @@ export function NewConversationControl({
                     aria-hidden="true"
                     className="grid size-6.75 place-items-center rounded-[var(--radius-xs)] border border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] text-[var(--accent)]"
                   >
-                    ▱
+                    <UiIcon icon={FolderOpen} size="sm" />
                   </span>
                   <span>
                     <strong>Choose repository…</strong>
@@ -347,14 +359,14 @@ export function NewConversationControl({
                     aria-hidden="true"
                     className="grid size-6.75 place-items-center rounded-[var(--radius-xs)] border border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] text-[var(--accent)]"
                   >
-                    ○
+                    <UiIcon icon={MessageCircle} size="sm" />
                   </span>
                   <span>
                     <strong>General chat</strong>
                     <small>Start without repository context</small>
                   </span>
                   {activeScope === "unscoped" ? (
-                    <i aria-hidden="true">✓</i>
+                    <UiIcon icon={Check} size="xs" />
                   ) : null}
                 </button>
               </div>
@@ -368,7 +380,7 @@ export function NewConversationControl({
                   type="button"
                 >
                   Manage project context and sources
-                  <span aria-hidden="true">→</span>
+                  <UiIcon icon={ArrowRight} size="xs" />
                 </button>
               </footer>
             </div>,

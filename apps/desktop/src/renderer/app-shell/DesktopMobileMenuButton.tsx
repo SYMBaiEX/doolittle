@@ -12,16 +12,11 @@ export function DesktopMobileMenuButton({
       onClick={onOpen}
       type="button"
     >
-      <svg
-        aria-hidden="true"
-        fill="none"
-        viewBox="0 0 20 20"
-        stroke="currentColor"
-      >
-        <path d="M3 5h14M3 10h14M3 15h14" />
-      </svg>
+      <UiIcon icon={Menu} size="md" />
     </button>
   );
 }
 
+import { Menu } from "lucide-react";
+import { UiIcon } from "../components/UiIcon";
 import { MENU_BUTTON_CLASS } from "./shell-layout";

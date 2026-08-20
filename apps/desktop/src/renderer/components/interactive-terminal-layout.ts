@@ -11,4 +11,4 @@ export const INTERACTIVE_TERMINAL_PRIMARY_BUTTON_CLASS =
   "min-h-6 rounded-[var(--radius-xs)] border border-[var(--accent)] bg-[var(--accent)] px-1.75 py-1 font-extrabold font-mono text-[length:var(--text-meta)] text-[var(--accent-ink)] uppercase tracking-[0.05em] hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50";
 
 export const INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS =
-  "min-h-6.5 min-w-6.5 shrink-0 rounded-[var(--radius-xs)] border border-[color-mix(in_srgb,var(--border)_52%,transparent)] bg-[color-mix(in_srgb,var(--surface-soft)_78%,transparent)] p-0 text-[var(--text-soft)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)]";
+  "min-h-6.5 min-w-6.5 shrink-0 rounded-[var(--radius-xs)] border border-[color-mix(in_srgb,var(--border)_52%,transparent)] bg-[color-mix(in_srgb,var(--surface-soft)_78%,transparent)] p-0 text-[var(--text-soft)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-border)]";

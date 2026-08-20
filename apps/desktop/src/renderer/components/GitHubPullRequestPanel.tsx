@@ -5,6 +5,7 @@ import type {
 import { Button } from "@elizaos/ui/components/ui/button";
 import { Input } from "@elizaos/ui/components/ui/input";
 import { Textarea } from "@elizaos/ui/components/ui/textarea";
+import { ExternalLink } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import type { RepositoryReview } from "../../shared/contracts";
 import { errorMessage, Notice } from "../lib";
@@ -13,6 +14,7 @@ import {
   mutationNotice,
   requestLabel,
 } from "../repository-control";
+import { UiIcon } from "./UiIcon";
 
 const FORM_CLASS = "grid gap-[9px]";
 const LABEL_CLASS =
@@ -199,12 +201,13 @@ export function GitHubPullRequestPanel({
         </div>
         {pullRequest?.url ? (
           <a
-            className="shrink-0 font-[var(--font-mono)] text-[10px] font-bold text-[var(--accent)] uppercase no-underline hover:underline hover:underline-offset-3"
+            className="inline-flex shrink-0 items-center gap-1 font-[var(--font-mono)] text-[10px] font-bold text-[var(--accent)] uppercase no-underline hover:underline hover:underline-offset-3"
             href={pullRequest.url}
             rel="noreferrer"
             target="_blank"
           >
-            View on GitHub ↗
+            View on GitHub
+            <UiIcon icon={ExternalLink} size="xs" />
           </a>
         ) : null}
       </header>

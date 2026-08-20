@@ -7,7 +7,7 @@ export interface ReviewWorkStateInput {
 
 export interface ReviewWorkState {
   tone: "bad" | "warn" | "good" | "neutral";
-  icon: string;
+  icon: "attention" | "waiting" | "ready" | "empty";
   title: string;
   detail: string;
 }
@@ -21,7 +21,7 @@ export function reviewWorkState({
   if (failingChecks > 0) {
     return {
       tone: "bad",
-      icon: "!",
+      icon: "attention",
       title: "Needs attention",
       detail: `${failingChecks} verification ${
         failingChecks === 1 ? "check is" : "checks are"
@@ -32,7 +32,7 @@ export function reviewWorkState({
   if (pendingApprovals > 0) {
     return {
       tone: "warn",
-      icon: "…",
+      icon: "waiting",
       title: "Waiting on your decision",
       detail: `${pendingApprovals} ${
         pendingApprovals === 1 ? "approval needs" : "approvals need"
@@ -47,7 +47,7 @@ export function reviewWorkState({
         : "the latest work";
     return {
       tone: "good",
-      icon: "✓",
+      icon: "ready",
       title: "Ready for your review",
       detail: `Doolittle completed ${completedWork} with ${changedFiles} changed ${
         changedFiles === 1 ? "file" : "files"
@@ -57,7 +57,7 @@ export function reviewWorkState({
 
   return {
     tone: "neutral",
-    icon: "○",
+    icon: "empty",
     title: "No completed work yet",
     detail:
       "Completed agent runs, changed files, checks, and decisions will collect here.",

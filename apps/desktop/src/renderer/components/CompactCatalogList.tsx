@@ -1,7 +1,9 @@
 import { Button } from "@elizaos/ui/components/ui/button";
+import { ChevronRight } from "lucide-react";
 import { Fragment, type ReactNode, useState } from "react";
 import { Badge } from "../lib";
 import { progressiveWindow } from "./progressive-window";
+import { UiIcon } from "./UiIcon";
 
 export const DEFAULT_CATALOG_PAGE_SIZE = 12;
 
@@ -110,12 +112,11 @@ export function CompactCatalogList({
                     entry.facts?.length ? (
                       <details className="group min-w-0 open:basis-full">
                         <summary className="cursor-pointer list-none p-0 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] [&::-webkit-details-marker]:hidden">
-                          <span
-                            aria-hidden="true"
+                          <UiIcon
                             className="mr-[7px] inline-block text-[var(--accent)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
-                          >
-                            ›
-                          </span>
+                            icon={ChevronRight}
+                            size="xs"
+                          />
                           {entry.detailsLabel ?? "Details"}
                         </summary>
                         {entry.descriptionMode === "details" ? (

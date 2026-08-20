@@ -1,5 +1,7 @@
+import { Plus, X } from "lucide-react";
 import { type RefObject, useLayoutEffect } from "react";
 import type { SessionSummary } from "../../shared/contracts";
+import { UiIcon } from "../components/UiIcon";
 import { displayTimestamp } from "../lib";
 import { compactSessionPreview } from "../session-preview";
 import {
@@ -71,7 +73,7 @@ export function MobileConversationsDialog({
             onClick={onClose}
             type="button"
           >
-            ×
+            <UiIcon icon={X} size="sm" />
           </button>
         </header>
         <input
@@ -116,7 +118,7 @@ export function MobileConversationsDialog({
           onClick={onNewConversation}
           type="button"
         >
-          <span>＋</span> New conversation
+          <UiIcon icon={Plus} size="sm" /> New conversation
         </button>
       </div>
     </div>

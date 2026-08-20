@@ -1,9 +1,11 @@
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { Input } from "@elizaos/ui/components/ui/input";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { UiIcon } from "./components/UiIcon";
 import {
   asArray,
   asRecord,
@@ -171,12 +173,11 @@ export function LogsPage({ active }: { active: boolean }) {
               ? `${deliveryEntries.length} deliveries · ${commandEntries.length} commands`
               : "Open to load"}
           </span>
-          <span
-            aria-hidden="true"
-            className="font-[var(--font-mono)] text-[var(--muted)]"
-          >
-            {historyOpen ? "−" : "+"}
-          </span>
+          <UiIcon
+            className="text-[var(--muted)]"
+            icon={historyOpen ? ChevronDown : ChevronRight}
+            size="xs"
+          />
         </summary>
         {historyOpen ? (
           <OperationsTracePanel

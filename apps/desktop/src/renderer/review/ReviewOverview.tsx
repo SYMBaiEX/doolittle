@@ -1,3 +1,5 @@
+import { Check, CircleDashed, Clock3, TriangleAlert } from "lucide-react";
+import { UiIcon } from "../components/UiIcon";
 import { Badge, displayTimestamp } from "../lib";
 import type {
   ReviewRecordEvent,
@@ -17,6 +19,13 @@ import {
   reviewOverviewClass,
 } from "./layout";
 import { recordEventLabel } from "./models";
+
+const workStateIcons = {
+  attention: TriangleAlert,
+  waiting: Clock3,
+  ready: Check,
+  empty: CircleDashed,
+} as const;
 
 export interface ReviewHeaderProps {
   active: boolean;
@@ -94,7 +103,9 @@ export function ReviewOverview({
       data-review-empty={empty || undefined}
     >
       <div className={REVIEW_WORK_OUTCOME_CLASS}>
-        <i aria-hidden="true">{workState.icon}</i>
+        <i aria-hidden="true">
+          <UiIcon icon={workStateIcons[workState.icon]} size="sm" />
+        </i>
         <span>
           <small>{empty ? "Review ready" : "Current workset"}</small>
           <strong>{workState.title}</strong>

@@ -374,7 +374,6 @@ export function SettingsPage({ active }: { active: boolean }) {
             {!runtimeCategoryOffline ? (
               <header className={SETTINGS_CONTENT_HEADER_CLASS}>
                 <div>
-                  <span className="eyebrow">Configuration</span>
                   <h2>{activeCategory?.label ?? "Settings"}</h2>
                   <p>{activeCategory?.description}</p>
                 </div>

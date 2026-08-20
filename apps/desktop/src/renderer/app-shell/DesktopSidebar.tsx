@@ -1,3 +1,12 @@
+import {
+  ChevronRight,
+  FolderClosed,
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
+  Sun,
+} from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import type {
   DoolittleDesktopBridge,
@@ -8,6 +17,7 @@ import {
   NewConversationControl,
   ProjectHistorySidebar,
 } from "../components/ProjectSidebar";
+import { UiIcon } from "../components/UiIcon";
 import {
   PRIMARY_NAV_ITEMS,
   type View,
@@ -202,7 +212,10 @@ export function DesktopSidebar({
             title={navCollapsed ? "Expand navigation" : "Collapse navigation"}
             type="button"
           >
-            {navCollapsed ? "›" : "‹"}
+            <UiIcon
+              icon={navCollapsed ? PanelLeftOpen : PanelLeftClose}
+              size="md"
+            />
           </button>
         </div>
         <div
@@ -226,7 +239,7 @@ export function DesktopSidebar({
             title="Search"
             type="button"
           >
-            <span aria-hidden="true">⌕</span>
+            <UiIcon icon={Search} size="md" />
             <strong>Search</strong>
             <kbd>{platform === "darwin" ? "⌘K" : "Ctrl K"}</kbd>
           </button>
@@ -236,7 +249,7 @@ export function DesktopSidebar({
             title={workspacePath || "Choose a project folder"}
             type="button"
           >
-            <span aria-hidden="true">◇</span>
+            <UiIcon icon={FolderClosed} size="md" />
             <strong>Projects</strong>
             <kbd>{platform === "darwin" ? "⌘O" : "Ctrl O"}</kbd>
           </button>
@@ -335,9 +348,11 @@ export function DesktopSidebar({
                   {workspaceName(workspacePath)}
                 </small>
               </div>
-              <i aria-hidden="true" className={SIDEBAR_ACCOUNT_ARROW_CLASS}>
-                ›
-              </i>
+              <UiIcon
+                className={SIDEBAR_ACCOUNT_ARROW_CLASS}
+                icon={ChevronRight}
+                size="xs"
+              />
             </button>
             <button
               aria-label={`Use ${
@@ -348,7 +363,10 @@ export function DesktopSidebar({
               title="Toggle appearance"
               type="button"
             >
-              {resolvedAppearance === "dark" ? "☼" : "◐"}
+              <UiIcon
+                icon={resolvedAppearance === "dark" ? Sun : Moon}
+                size="sm"
+              />
             </button>
           </div>
         </div>

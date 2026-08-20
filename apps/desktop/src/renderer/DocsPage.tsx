@@ -1,7 +1,9 @@
 import { Button } from "@elizaos/ui/components/ui/button";
+import { ArrowRight, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { CompactStatStrip } from "./components/CompactStatStrip";
 import { OfflineRouteState } from "./components/OfflineRouteState";
+import { UiIcon } from "./components/UiIcon";
 import {
   DIAGNOSTICS_CARD_CLASS,
   DIAGNOSTICS_CARD_HEADING_CLASS,
@@ -186,9 +188,11 @@ export function DocsPage({ active }: { active: boolean }) {
           {active && prioritizedChecks.remaining.length ? (
             <details className="group overflow-hidden">
               <summary className="cursor-pointer list-none py-[9px] font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--text-soft)] [&::-webkit-details-marker]:hidden">
-                <span aria-hidden="true" className={DIAGNOSTICS_CHEVRON_CLASS}>
-                  ›
-                </span>{" "}
+                <UiIcon
+                  className={DIAGNOSTICS_CHEVRON_CLASS}
+                  icon={ChevronRight}
+                  size="xs"
+                />{" "}
                 {prioritizedChecks.remaining.length} more checks
               </summary>
               <div className="grid">
@@ -246,9 +250,11 @@ export function DocsPage({ active }: { active: boolean }) {
         className={`architecture-disclosure ${DIAGNOSTICS_DETAILS_CLASS}`}
       >
         <summary className={DIAGNOSTICS_SUMMARY_CLASS}>
-          <span aria-hidden="true" className={DIAGNOSTICS_CHEVRON_CLASS}>
-            ›
-          </span>
+          <UiIcon
+            className={DIAGNOSTICS_CHEVRON_CLASS}
+            icon={ChevronRight}
+            size="xs"
+          />
           <span className="grid min-w-0 flex-1 gap-1">
             <strong>Desktop security boundary</strong>
             <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
@@ -266,21 +272,33 @@ export function DocsPage({ active }: { active: boolean }) {
               Sandboxed UI
             </span>
           </div>
-          <i className="text-center not-italic text-[var(--accent)]">→</i>
+          <UiIcon
+            className="mx-auto text-[var(--accent)]"
+            icon={ArrowRight}
+            size="sm"
+          />
           <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
             <strong>Typed preload</strong>
             <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
               Exact endpoint allowlist
             </span>
           </div>
-          <i className="text-center not-italic text-[var(--accent)]">→</i>
+          <UiIcon
+            className="mx-auto text-[var(--accent)]"
+            icon={ArrowRight}
+            size="sm"
+          />
           <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
             <strong>Electron main</strong>
             <span className="text-[length:var(--text-meta)] text-[var(--muted)]">
               Private IPC
             </span>
           </div>
-          <i className="text-center not-italic text-[var(--accent)]">→</i>
+          <UiIcon
+            className="mx-auto text-[var(--accent)]"
+            icon={ArrowRight}
+            size="sm"
+          />
           <div className="grid gap-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--bg)] p-3">
             <strong>Doolittle runtime</strong>
             <span className="text-[length:var(--text-meta)] text-[var(--muted)]">

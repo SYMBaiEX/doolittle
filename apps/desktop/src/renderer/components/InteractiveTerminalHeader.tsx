@@ -1,3 +1,4 @@
+import { Pencil, Plus, X } from "lucide-react";
 import type { KeyboardEvent, RefObject } from "react";
 import {
   INTERACTIVE_TERMINAL_BUTTON_CLASS,
@@ -7,6 +8,7 @@ import {
 } from "./interactive-terminal-layout";
 import { terminalTabLabelId } from "./interactive-terminal-state";
 import type { InteractiveTerminalTabState } from "./interactive-terminal-store";
+import { UiIcon } from "./UiIcon";
 
 export interface InteractiveTerminalHeaderProps {
   active: boolean;
@@ -227,7 +229,7 @@ export function InteractiveTerminalHeader({
                   onClick={() => onBeginRename(tab.id)}
                   type="button"
                 >
-                  ✎
+                  <UiIcon icon={Pencil} size="xs" />
                 </button>
                 <button
                   aria-label={`Close terminal ${tab.name}`}
@@ -236,7 +238,7 @@ export function InteractiveTerminalHeader({
                   onClick={() => void onCloseTab(tab.id)}
                   type="button"
                 >
-                  ×
+                  <UiIcon icon={X} size="xs" />
                 </button>
               </div>
             );
@@ -249,7 +251,7 @@ export function InteractiveTerminalHeader({
           onClick={onCreateTab}
           type="button"
         >
-          +
+          <UiIcon icon={Plus} size="sm" />
         </button>
       </div>
     </header>

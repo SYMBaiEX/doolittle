@@ -54,11 +54,11 @@ export const APP_BRAND_MARK_CLASS =
 export const APP_BRAND_COPY_CLASS =
   "app-brand-copy flex min-w-0 flex-col gap-0.5 [&>span]:whitespace-nowrap [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:font-semibold [&>span]:tracking-[0.08em] [&>span]:text-[var(--accent)] [&>span]:uppercase [&>strong]:font-[var(--font-display)] [&>strong]:text-[13px] [&>strong]:font-semibold [&>strong]:tracking-[-0.01em]";
 export const SIDEBAR_COLLAPSE_CLASS =
-  "sidebar-collapse ml-auto grid size-6.5 place-items-center rounded-[var(--radius-xs)] border border-transparent bg-transparent text-[17px] leading-none text-[var(--muted)] [-webkit-app-region:no-drag] hover:border-[var(--border)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)]";
-export const SIDEBAR_COLLAPSE_COLLAPSED_CLASS = "mx-auto h-6 w-8.5 text-sm";
+  "sidebar-collapse ml-auto grid size-6.5 place-items-center rounded-[var(--radius-xs)] border border-transparent bg-transparent text-[var(--muted)] [-webkit-app-region:no-drag] hover:border-[var(--border)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-border)]";
+export const SIDEBAR_COLLAPSE_COLLAPSED_CLASS = "mx-auto h-6 w-8.5";
 
 export const SIDEBAR_QUICK_ACTIONS_CLASS =
-  "sidebar-quick-actions grid shrink-0 grid-cols-2 gap-1 py-2 pt-2.5 [-webkit-app-region:no-drag] [&>.sidebar-new-chat-shell]:col-span-2 [&>button]:grid [&>button]:min-h-7.5 [&>button]:grid-cols-[16px_minmax(0,1fr)] [&>button]:items-center [&>button]:gap-1.5 [&>button]:rounded-[var(--radius-sm)] [&>button]:border [&>button]:border-transparent [&>button]:bg-transparent [&>button]:px-2 [&>button]:py-1 [&>button]:text-left [&>button]:text-[var(--text-soft)] [&>button:hover]:bg-[color-mix(in_srgb,var(--surface-hover)_78%,transparent)] [&>button:hover]:text-[var(--text)] [&_button>span]:text-center [&_button>span]:text-[14px] [&_button>span]:text-[var(--accent)] [&_button_kbd]:hidden [&_button_strong]:overflow-hidden [&_button_strong]:text-ellipsis [&_button_strong]:whitespace-nowrap [&_button_strong]:text-xs [&_button_strong]:font-semibold [&_.sidebar-new-chat-shell>button]:min-h-9 [&_.sidebar-new-chat-shell>button]:grid-cols-[20px_minmax(0,1fr)_auto] [&_.sidebar-new-chat-shell>button]:border-[color-mix(in_srgb,var(--accent)_15%,var(--border))] [&_.sidebar-new-chat-shell>button]:bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] [&_.sidebar-new-chat-shell>button]:text-[var(--text)]";
+  "sidebar-quick-actions grid shrink-0 grid-cols-2 gap-1 py-2 pt-2.5 [-webkit-app-region:no-drag] [&>.sidebar-new-chat-shell]:col-span-2 [&>button]:grid [&>button]:min-h-7.5 [&>button]:grid-cols-[16px_minmax(0,1fr)] [&>button]:items-center [&>button]:gap-1.5 [&>button]:rounded-[var(--radius-sm)] [&>button]:border [&>button]:border-transparent [&>button]:bg-transparent [&>button]:px-2 [&>button]:py-1 [&>button]:text-left [&>button]:text-[var(--text-soft)] [&>button:hover]:bg-[color-mix(in_srgb,var(--surface-hover)_78%,transparent)] [&>button:hover]:text-[var(--text)] [&>button:focus-visible]:outline [&>button:focus-visible]:outline-1 [&>button:focus-visible]:outline-offset-1 [&>button:focus-visible]:outline-[var(--accent-border)] [&_button>svg]:mx-auto [&_button>svg]:text-[var(--accent)] [&_button_kbd]:hidden [&_button_strong]:overflow-hidden [&_button_strong]:text-ellipsis [&_button_strong]:whitespace-nowrap [&_button_strong]:text-xs [&_button_strong]:font-semibold [&_.sidebar-new-chat-shell>button]:min-h-9 [&_.sidebar-new-chat-shell>button]:grid-cols-[20px_minmax(0,1fr)_auto] [&_.sidebar-new-chat-shell>button]:border-[color-mix(in_srgb,var(--accent)_15%,var(--border))] [&_.sidebar-new-chat-shell>button]:bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] [&_.sidebar-new-chat-shell>button]:text-[var(--text)]";
 export const SIDEBAR_QUICK_ACTIONS_COLLAPSED_CLASS =
   "grid-cols-1 [&>button]:mx-auto [&>button]:w-10.5 [&>button]:grid-cols-1 [&>button]:place-items-center [&>.sidebar-new-chat-shell]:col-span-1 [&>.sidebar-new-chat-shell]:mx-auto [&>.sidebar-new-chat-shell]:w-10.5 [&_.sidebar-new-chat-shell>button]:w-10.5 [&_.sidebar-new-chat-shell>button]:grid-cols-1 [&_.sidebar-new-chat-shell>button]:place-items-center";
 
@@ -69,7 +69,7 @@ export const SIDEBAR_DOCK_HEADING_CLASS =
 export const SIDEBAR_MODE_SWITCH_CLASS =
   "sidebar-mode-switch grid grid-cols-3 gap-0.75 rounded-[11px] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_72%,transparent)] p-1 shadow-[inset_0_1px_color-mix(in_srgb,white_3%,transparent)]";
 export const SIDEBAR_MODE_BUTTON_CLASS =
-  "relative grid min-h-10 w-full grid-cols-1 place-items-center gap-0.5 rounded-[7px] border border-transparent bg-transparent px-1 py-1 text-[length:var(--text-meta)] font-semibold text-[var(--muted)] hover:bg-[color-mix(in_srgb,var(--surface-hover)_78%,transparent)] hover:text-[var(--text)] [&>.icon]:size-3.5";
+  "relative grid min-h-10 w-full grid-cols-1 place-items-center gap-0.5 rounded-[7px] border border-transparent bg-transparent px-1 py-1 text-[length:var(--text-meta)] font-semibold text-[var(--muted)] hover:bg-[color-mix(in_srgb,var(--surface-hover)_78%,transparent)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[var(--accent-border)] [&>.icon]:size-3.5";
 export const SIDEBAR_MODE_BUTTON_SELECTED_CLASS =
   "selected border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] bg-[var(--surface-raised)] text-[var(--text)] shadow-[0_5px_14px_color-mix(in_srgb,var(--shadow)_18%,transparent),inset_0_1px_color-mix(in_srgb,white_4%,transparent)] [&>.icon]:text-[var(--accent)]";
 export const SIDEBAR_MODE_SIGNAL_CLASS =
@@ -78,7 +78,7 @@ export const SIDEBAR_MODE_SIGNAL_SELECTED_CLASS =
   "bg-[var(--accent)] shadow-[0_0_7px_color-mix(in_srgb,var(--accent)_72%,transparent)]";
 
 export const SIDEBAR_UTILITY_BUTTON_CLASS =
-  "sidebar-utility-button grid min-h-10 grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2 rounded-[9px] border border-transparent bg-transparent px-1.5 py-1 text-left text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]";
+  "sidebar-utility-button grid min-h-10 grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2 rounded-[9px] border border-transparent bg-transparent px-1.5 py-1 text-left text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[var(--accent-border)]";
 export const SIDEBAR_UTILITY_BUTTON_OPEN_CLASS =
   "is-open border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text)]";
 export const SIDEBAR_UTILITY_MARK_CLASS =
@@ -122,6 +122,6 @@ export const WINDOW_RUNTIME_STATUS_TONE = {
 } as const;
 
 export const ICON_BUTTON_CLASS =
-  "icon-button grid size-7.5 shrink-0 place-items-center rounded-[var(--radius-xs)] border border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] [&>svg]:size-3.5";
+  "icon-button grid size-7.5 shrink-0 place-items-center rounded-[var(--radius-xs)] border border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-border)] [&>svg]:size-3.5";
 export const MENU_BUTTON_CLASS =
-  "menu-button hidden size-7.5 shrink-0 place-items-center rounded-[var(--radius-xs)] border border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] max-[940px]:grid [&>svg]:size-3.5";
+  "menu-button hidden size-7.5 shrink-0 place-items-center rounded-[var(--radius-xs)] border border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-border)] max-[940px]:grid [&>svg]:size-3.5";

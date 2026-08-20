@@ -1,4 +1,5 @@
 import { Button } from "@elizaos/ui/components/ui/button";
+import { Mic } from "lucide-react";
 import {
   type KeyboardEvent,
   useCallback,
@@ -8,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { UiIcon } from "./UiIcon";
 
 export const VOICE_RECORDING_MAX_BYTES = 20 * 1024 * 1024;
 export const VOICE_RECORDING_MAX_DURATION_MS = 2 * 60 * 1_000;
@@ -481,10 +483,7 @@ export function VoiceComposerButton({
         type="button"
         variant="ghost"
       >
-        <svg aria-hidden="true" viewBox="0 0 24 24">
-          <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" />
-          <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M9 21h6" />
-        </svg>
+        <UiIcon icon={Mic} size="md" />
       </Button>
 
       {open ? (

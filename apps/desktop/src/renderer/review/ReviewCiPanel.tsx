@@ -1,4 +1,6 @@
+import { ExternalLink } from "lucide-react";
 import type { RepositoryReview } from "../../shared/contracts";
+import { UiIcon } from "../components/UiIcon";
 import {
   asNumber,
   asString,
@@ -47,7 +49,8 @@ function PullRequestReview({ selected, review }: ReviewCiPanelProps) {
         </div>
         {pullRequestUrl ? (
           <a href={pullRequestUrl} rel="noreferrer" target="_blank">
-            Open on GitHub ↗
+            Open on GitHub
+            <UiIcon icon={ExternalLink} size="xs" />
           </a>
         ) : null}
       </div>
@@ -118,7 +121,7 @@ function PullRequestReview({ selected, review }: ReviewCiPanelProps) {
                       rel="noreferrer"
                       target="_blank"
                     >
-                      ↗
+                      <UiIcon icon={ExternalLink} size="xs" />
                     </a>
                   ) : null}
                 </li>
@@ -149,7 +152,8 @@ function CheckOrWorkflowReview({ selected, review }: ReviewCiPanelProps) {
         </div>
         {asString(selected.raw.url) ? (
           <a href={asString(selected.raw.url)} rel="noreferrer" target="_blank">
-            Open on GitHub ↗
+            Open on GitHub
+            <UiIcon icon={ExternalLink} size="xs" />
           </a>
         ) : null}
       </div>

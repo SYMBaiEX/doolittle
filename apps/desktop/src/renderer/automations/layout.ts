@@ -5,7 +5,7 @@ export const AUTOMATION_BUILDER_CLASS =
   "automation-builder overflow-hidden rounded-[var(--radius-md)] border border-[var(--automation-line)] bg-[var(--surface)]";
 
 export const AUTOMATION_BUILDER_HEADER_CLASS =
-  "automation-builder__header grid grid-cols-[minmax(0,1fr)_minmax(220px,0.55fr)] items-end gap-4 border-[var(--automation-line)] border-b px-4 py-3 max-[720px]:grid-cols-1 [&_h2]:mt-0.5 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:tracking-[-0.015em]";
+  "automation-builder__header grid grid-cols-[minmax(0,1fr)_minmax(220px,0.55fr)] items-end gap-4 px-4 pt-3 pb-2 max-[720px]:grid-cols-1 [&_h2]:mt-0.5 [&_h2]:mb-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:tracking-[-0.015em]";
 
 export const AUTOMATION_FIELD_LABEL_CLASS =
   "grid min-w-0 gap-1.5 text-[11px] font-semibold tracking-[0.06em] text-[var(--muted)] uppercase";
@@ -14,10 +14,10 @@ export const AUTOMATION_FIELD_CONTROL_CLASS =
   "min-h-9 w-full rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-2 text-[13px] text-[var(--text)]";
 
 export const AUTOMATION_BUILDER_GRID_CLASS =
-  "automation-builder__grid grid grid-cols-3 gap-0 border-[var(--border)] border-t max-[1040px]:grid-cols-1";
+  "automation-builder__grid grid grid-cols-3 gap-1.5 px-4 pb-3 max-[1040px]:grid-cols-1";
 
 export const AUTOMATION_BUILDER_SECTION_CLASS =
-  "automation-builder__section grid content-start gap-3 border-[var(--border)] border-r p-4 last:border-r-0 max-[1040px]:border-r-0 max-[1040px]:border-b max-[1040px]:last:border-b-0";
+  "automation-builder__section grid content-start gap-3 rounded-[var(--radius-sm)] bg-[color-mix(in_srgb,var(--surface-soft)_68%,transparent)] p-3";
 
 export const AUTOMATION_SECTION_HEADING_CLASS =
   "automation-builder__section-heading flex items-start justify-between gap-3 [&_strong]:text-sm [&_small]:text-[10px] [&_small]:text-[var(--muted)]";
@@ -32,7 +32,7 @@ export const AUTOMATION_CHOICE_SELECTED_CLASS =
   "selected bg-[var(--accent-soft)] text-[var(--accent)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_34%,var(--border))]";
 
 export const AUTOMATION_BUILDER_FOOTER_CLASS =
-  "automation-builder__footer flex items-center justify-between gap-3 border-[var(--automation-line)] border-t px-4 py-3 max-[720px]:items-stretch max-[720px]:flex-col [&>span]:text-[11px] [&>span]:text-[var(--muted)]";
+  "automation-builder__footer flex items-center justify-between gap-3 px-4 pt-1 pb-3 max-[720px]:items-stretch max-[720px]:flex-col [&>span]:text-[11px] [&>span]:text-[var(--muted)]";
 
 export const AUTOMATION_WORKSPACE_CLASS =
   "automation-workspace grid grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] items-start gap-3 max-[1040px]:grid-cols-1";
@@ -44,7 +44,7 @@ export const AUTOMATION_JOB_SUMMARY_CLASS =
   "automation-job-summary my-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-xs)] bg-[var(--surface-soft)] p-2.5 max-[620px]:grid-cols-1";
 
 export const AUTOMATION_DETAILS_SUMMARY_CLASS =
-  "flex min-h-8 cursor-pointer list-none items-center justify-between border-[var(--border)] border-t pt-2.5 text-[11px] font-semibold text-[var(--muted)] [&::-webkit-details-marker]:hidden after:text-[var(--faint)] after:content-['+'] [details[open]_&]:after:content-['−']";
+  "flex min-h-8 cursor-pointer list-none items-center justify-between rounded-[var(--radius-xs)] px-1.5 py-1.5 text-[11px] font-semibold text-[var(--muted)] hover:bg-[var(--surface-hover)] [&::-webkit-details-marker]:hidden after:text-[var(--faint)] after:content-['+'] [details[open]_&]:after:content-['−']";
 
 export const AUTOMATION_RUNS_PANEL_CLASS =
   "automation-runs-panel overflow-hidden [&[open]>summary]:border-b [&[open]>summary]:border-[var(--border)] [&>summary]:flex [&>summary]:min-h-14 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:items-center [&>summary]:justify-between [&>summary]:gap-3 [&>summary]:px-4 [&>summary]:py-3 [&>summary::-webkit-details-marker]:hidden [&>summary>span:first-child]:grid [&>summary>span:first-child]:gap-0.5 [&>summary_small]:text-[10px] [&>summary_small]:text-[var(--muted)]";

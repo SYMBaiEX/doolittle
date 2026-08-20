@@ -1,10 +1,12 @@
 import { Button } from "@elizaos/ui/components/ui/button";
+import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import {
   type AutomationStarterChoice,
   summarizeAutomation,
 } from "../automation-model";
 import { InlineActionConfirmation } from "../components/InlineActionConfirmation";
+import { UiIcon } from "../components/UiIcon";
 import {
   asString,
   Badge,
@@ -102,12 +104,11 @@ function AutomationJobCard({
             {summary.triggerLabel}
           </span>
         </span>
-        <b
-          className="text-center text-sm text-[var(--accent)] opacity-60 max-[620px]:hidden"
-          aria-hidden="true"
-        >
-          ›
-        </b>
+        <UiIcon
+          className="mx-auto text-[var(--accent)] opacity-60 max-[620px]:hidden"
+          icon={ChevronRight}
+          size="xs"
+        />
         <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
           <i className="font-[var(--font-mono)] text-[10px] not-italic text-[var(--accent)] uppercase">
             Condition
@@ -116,12 +117,11 @@ function AutomationJobCard({
             {summary.conditionLabel}
           </span>
         </span>
-        <b
-          className="text-center text-sm text-[var(--accent)] opacity-60 max-[620px]:hidden"
-          aria-hidden="true"
-        >
-          ›
-        </b>
+        <UiIcon
+          className="mx-auto text-[var(--accent)] opacity-60 max-[620px]:hidden"
+          icon={ChevronRight}
+          size="xs"
+        />
         <span className="automation-job-summary__segment inline-flex min-w-0 items-center gap-1.5 max-[620px]:justify-between">
           <i className="font-[var(--font-mono)] text-[10px] not-italic text-[var(--accent)] uppercase">
             Action
@@ -287,10 +287,10 @@ export function AutomationWorkspace({
               Blank workflow
             </Button>
           </div>
-          <fieldset className="automation-starters mt-3 grid min-w-0 grid-cols-2 border-0 border-[var(--border)] border-t p-0 max-[720px]:grid-cols-1">
+          <fieldset className="automation-starters mt-2.5 grid min-w-0 grid-cols-2 gap-1.25 border-0 p-0 max-[720px]:grid-cols-1">
             <legend className="sr-only">Automation starters</legend>
             <button
-              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 px-0.5 py-2.75 text-left text-[var(--text-soft)] hover:bg-[color-mix(in_srgb,var(--accent)_4%,transparent)] [&>span:first-child]:font-[var(--font-mono)] [&>span:first-child]:text-[10px] [&>span:first-child]:text-[var(--accent)] [&>span:nth-child(2)]:flex [&>span:nth-child(2)]:min-w-0 [&>span:nth-child(2)]:flex-col [&>span:nth-child(2)]:gap-0.5 [&_strong]:truncate [&_strong]:text-xs [&_small]:truncate [&_small]:text-[10px] [&_small]:text-[var(--muted)] [&>i]:font-[var(--font-mono)] [&>i]:text-[10px] [&>i]:not-italic [&>i]:text-[var(--accent)]"
+              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] px-2 py-2.5 text-left text-[var(--text-soft)] hover:bg-[color-mix(in_srgb,var(--accent)_4%,var(--surface-soft))] [&>span:first-child]:font-[var(--font-mono)] [&>span:first-child]:text-[10px] [&>span:first-child]:text-[var(--accent)] [&>span:nth-child(2)]:flex [&>span:nth-child(2)]:min-w-0 [&>span:nth-child(2)]:flex-col [&>span:nth-child(2)]:gap-0.5 [&_strong]:truncate [&_strong]:text-xs [&_small]:truncate [&_small]:text-[10px] [&_small]:text-[var(--muted)] [&>i]:font-[var(--font-mono)] [&>i]:text-[10px] [&>i]:not-italic [&>i]:text-[var(--accent)]"
               onClick={() => onCreate("weekday-brief")}
               type="button"
             >
@@ -302,7 +302,7 @@ export function AutomationWorkspace({
               <i>Use starter</i>
             </button>
             <button
-              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 border-[var(--border)] border-l px-3.5 py-2.75 text-left text-[var(--text-soft)] hover:bg-[color-mix(in_srgb,var(--accent)_4%,transparent)] max-[720px]:border-t max-[720px]:border-l-0 max-[720px]:px-0.5 [&>span:first-child]:font-[var(--font-mono)] [&>span:first-child]:text-[10px] [&>span:first-child]:text-[var(--accent)] [&>span:nth-child(2)]:flex [&>span:nth-child(2)]:min-w-0 [&>span:nth-child(2)]:flex-col [&>span:nth-child(2)]:gap-0.5 [&_strong]:truncate [&_strong]:text-xs [&_small]:truncate [&_small]:text-[10px] [&_small]:text-[var(--muted)] [&>i]:font-[var(--font-mono)] [&>i]:text-[10px] [&>i]:not-italic [&>i]:text-[var(--accent)]"
+              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[var(--radius-xs)] px-2 py-2.5 text-left text-[var(--text-soft)] hover:bg-[color-mix(in_srgb,var(--accent)_4%,var(--surface-soft))] [&>span:first-child]:font-[var(--font-mono)] [&>span:first-child]:text-[10px] [&>span:first-child]:text-[var(--accent)] [&>span:nth-child(2)]:flex [&>span:nth-child(2)]:min-w-0 [&>span:nth-child(2)]:flex-col [&>span:nth-child(2)]:gap-0.5 [&_strong]:truncate [&_strong]:text-xs [&_small]:truncate [&_small]:text-[10px] [&_small]:text-[var(--muted)] [&>i]:font-[var(--font-mono)] [&>i]:text-[10px] [&>i]:not-italic [&>i]:text-[var(--accent)]"
               onClick={() => onCreate("webhook-triage")}
               type="button"
             >

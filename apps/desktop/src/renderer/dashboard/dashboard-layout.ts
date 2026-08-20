@@ -14,10 +14,10 @@ export const DASHBOARD_MINI_GRID_CLASS =
   "grid grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] items-start gap-2.5 max-[980px]:grid-cols-1";
 
 export const DASHBOARD_STATUS_ROW_CLASS =
-  "flex min-h-[42px] w-full items-center justify-between gap-4 border-b border-[var(--border)] py-[7px] text-left last:border-b-0 [&>div]:grid [&>div]:min-w-0 [&>div]:gap-[3px] [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]";
+  "flex min-h-[42px] w-full items-center justify-between gap-4 rounded-[var(--radius-xs)] px-1 py-[7px] text-left [&>div]:grid [&>div]:min-w-0 [&>div]:gap-[3px] [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]";
 
 export const DASHBOARD_DISCLOSURE_CLASS =
   "group overflow-hidden rounded border border-[var(--border)] bg-[var(--surface)]";
 
 export const DASHBOARD_SUMMARY_CLASS =
-  "flex min-h-[50px] cursor-pointer list-none items-center justify-between gap-[18px] px-3.5 py-2.5 text-[var(--text)] group-open:border-b group-open:border-[var(--border)] [&::-webkit-details-marker]:hidden";
+  "flex min-h-[50px] cursor-pointer list-none items-center justify-between gap-[18px] px-3.5 py-2.5 text-[var(--text)] group-open:bg-[var(--surface-soft)] [&::-webkit-details-marker]:hidden";

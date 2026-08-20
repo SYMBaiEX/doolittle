@@ -1,3 +1,5 @@
+import { ChevronRight } from "lucide-react";
+import { UiIcon } from "../components/UiIcon";
 import { Badge, displayTimestamp } from "../lib";
 import { type RunReceipt, runEventCopy, runEventKey } from "./models";
 
@@ -58,12 +60,11 @@ export function RunReceiptView({
           {latest.run.observedActionCount} actions ·{" "}
           {latest.run.localMutations.length} changes
         </span>
-        <span
-          className="chat-run-chevron font-[var(--font-mono)] text-sm text-[var(--faint)] transition-transform duration-150 group-open:rotate-90"
-          aria-hidden="true"
-        >
-          ›
-        </span>
+        <UiIcon
+          className="chat-run-chevron text-[var(--faint)] transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none"
+          icon={ChevronRight}
+          size="xs"
+        />
       </summary>
       <ol className="m-0 max-h-36 list-none overflow-y-auto border-[var(--border)] border-t px-2.75 py-0.75">
         {visibleEvents.slice(-14).map((event) => {
