@@ -126,7 +126,7 @@ export function AnalyticsPage({
       ) : !hasActivity ? (
         <section
           aria-labelledby="analytics-empty-title"
-          className={`analytics-empty-landing ${OBSERVABILITY_CARD_CLASS} flex items-center justify-between gap-6 bg-[linear-gradient(105deg,color-mix(in_srgb,var(--accent)_6%,transparent),transparent_42%)] px-5 py-[18px] max-[700px]:flex-col max-[700px]:items-stretch max-[700px]:gap-3.5`}
+          className={`analytics-empty-landing ${OBSERVABILITY_CARD_CLASS} flex items-center justify-between gap-4 bg-[linear-gradient(105deg,color-mix(in_srgb,var(--accent)_6%,transparent),transparent_42%)] px-4 py-3 max-[700px]:flex-col max-[700px]:items-stretch max-[700px]:gap-3`}
           data-analytics-empty="true"
         >
           <div className="grid min-w-0 gap-[3px]">

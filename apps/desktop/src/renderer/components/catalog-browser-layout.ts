@@ -15,7 +15,7 @@ export const CATALOG_INDEX_META_CLASS =
 export const CATALOG_INDEX_FOOTER_CLASS =
   "flex min-h-[42px] items-center justify-between gap-2.5 border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_66%,transparent)] px-2 py-1.5 [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:text-[var(--muted)]";
 export const CATALOG_DETAIL_CLASS =
-  "min-h-0 min-w-0 overflow-auto bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] px-5 pt-[18px] pb-6 max-[820px]:min-h-[310px] max-[520px]:px-[13px] max-[520px]:pt-3.5 max-[520px]:pb-[18px]";
+  "min-h-0 min-w-0 overflow-auto bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] px-4 pt-4 pb-4 max-[820px]:min-h-[310px] max-[520px]:px-3 max-[520px]:pt-3 max-[520px]:pb-4";
 export const CATALOG_DETAIL_HEADER_CLASS =
   "flex items-start justify-between gap-[18px] border-b border-[var(--border)] pb-4 max-[520px]:flex-col max-[520px]:gap-[9px] [&>div]:min-w-0 [&_h2]:mt-[5px] [&_h2]:mb-1.5 [&_h2]:font-[var(--font-display)] [&_h2]:text-[clamp(14px,1.1vw,17px)] [&_h2]:font-semibold [&_h2]:leading-[1.18] [&_h2]:tracking-[-0.015em] [&_p]:m-0 [&_p]:max-w-[760px] [&_p]:text-[length:var(--text-body)] [&_p]:leading-[1.58] [&_p]:text-[var(--text-soft)]";
 export const CATALOG_CALLOUT_CLASS =

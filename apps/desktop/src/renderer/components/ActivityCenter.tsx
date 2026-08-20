@@ -188,7 +188,7 @@ export function ActivityCenter({
             <i className="absolute size-[13px] rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)]" />
           </span>
           <div className="grid gap-px">
-            <span className="font-[var(--font-mono)] text-[9px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
+            <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
               Signal queue {"//"}
             </span>
             <h2
@@ -211,7 +211,7 @@ export function ActivityCenter({
 
       <p
         aria-live="polite"
-        className={`m-0 min-h-3.5 font-[var(--font-mono)] text-[8px] leading-[1.3] uppercase tracking-[0.03em] ${
+        className={`m-0 min-h-3.5 font-[var(--font-mono)] text-[length:var(--text-meta)] leading-[1.3] uppercase tracking-[0.03em] ${
           error ? "text-[var(--bad)]" : "text-[var(--faint)]"
         }`}
         role="status"

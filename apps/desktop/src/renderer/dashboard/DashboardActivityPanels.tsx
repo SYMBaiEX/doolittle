@@ -86,7 +86,7 @@ export function DashboardActivityPanels({
                   <strong>{session.title}</strong>
                   <small>{session.preview}</small>
                 </span>
-                <span className="grid justify-items-end gap-0.5 [&_small]:font-[var(--font-mono)] [&_small]:text-[9px] [&_small]:text-[var(--muted)]">
+                <span className="grid justify-items-end gap-0.5 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--muted)]">
                   <small>{session.messageCount} messages</small>
                   <small>{displayTimestamp(session.lastActivityLabel)}</small>
                 </span>

@@ -57,6 +57,25 @@ function isLightEditorColor(color: string): boolean {
   );
 }
 
+function mixEditorColors(
+  foreground: string,
+  background: string,
+  amount: number,
+): string {
+  return [0, 2, 4]
+    .map((offset) =>
+      Math.round(
+        Number.parseInt(foreground.slice(offset, offset + 2), 16) * amount +
+          Number.parseInt(background.slice(offset, offset + 2), 16) *
+            (1 - amount),
+      )
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")
+    .toUpperCase();
+}
+
 export function doolittleEditorTheme(
   profile: DesktopThemeProfile | null,
 ): editor.IStandaloneThemeData {
@@ -70,9 +89,9 @@ export function doolittleEditorTheme(
   const background = editorColor(profile?.panelBg ?? profile?.baseBg, "0C0B0A");
   const foreground = editorColor(profile?.baseFg, "DCD5CE");
   const light = isLightEditorColor(background);
-  const surface = light ? "F2EEE9" : "171412";
-  const border = light ? "C8BFB6" : "342D28";
-  const lineNumber = light ? "786F67" : "756B63";
+  const surface = mixEditorColors(foreground, background, 0.05);
+  const border = mixEditorColors(foreground, background, 0.18);
+  const lineNumber = mixEditorColors(foreground, background, 0.48);
 
   return {
     base: light ? "vs" : "vs-dark",

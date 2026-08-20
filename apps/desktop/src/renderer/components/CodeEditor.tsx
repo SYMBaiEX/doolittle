@@ -5,7 +5,7 @@ import cssWorker from "monaco-editor/language/css/css.worker?worker";
 import htmlWorker from "monaco-editor/language/html/html.worker?worker";
 import jsonWorker from "monaco-editor/language/json/json.worker?worker";
 import tsWorker from "monaco-editor/language/typescript/ts.worker?worker";
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { CodeLanguage } from "../code-language";
 import {
   APPEARANCE_CHANGE_EVENT,
@@ -136,6 +136,9 @@ export function CodeEditor({
   const disabledRef = useRef(disabled);
   const projectSupportReleaseRef = useRef<(() => void) | null>(null);
   const projectSupportRequestRef = useRef(0);
+  const projectRevisionRef = useRef("");
+  const [projectSupportRefresh, setProjectSupportRefresh] = useState(0);
+  const [projectSupportNotice, setProjectSupportNotice] = useState("");
   const emitChange = useEffectEvent(onChange);
   const emitEditorState = useEffectEvent((snapshot: CodeEditorStateSnapshot) =>
     onEditorStateChange?.(snapshot),
@@ -300,11 +303,15 @@ export function CodeEditor({
     ) {
       projectSupportReleaseRef.current?.();
       projectSupportReleaseRef.current = null;
+      projectRevisionRef.current = "";
+      setProjectSupportNotice("");
       return;
     }
 
+    const projectLanguage = language.id;
     const requestId = projectSupportRequestRef.current + 1;
     projectSupportRequestRef.current = requestId;
+    const refreshDelay = projectSupportRefresh > 0 ? 0 : 180;
     const timer = window.setTimeout(() => {
       const content = valueRef.current;
       if (projectSupportSignature(content) !== supportSignature) return;
@@ -317,19 +324,28 @@ export function CodeEditor({
         .then((context) => {
           if (projectSupportRequestRef.current !== requestId) return;
           projectSupportReleaseRef.current?.();
-          projectSupportReleaseRef.current =
-            acquireMonacoProjectSupport(context);
+          projectSupportReleaseRef.current = acquireMonacoProjectSupport(
+            context,
+            projectLanguage,
+          );
+          projectRevisionRef.current = context.revision;
           if (context.truncated) {
+            setProjectSupportNotice(
+              `Project types partial · ${context.supportFiles.length} files · ${(context.supportBytes / 1_000_000).toFixed(1)} MB`,
+            );
             editorLogger.warn(
               { context: { path } },
               "Project support was truncated to keep Monaco memory bounded.",
             );
+          } else {
+            setProjectSupportNotice("");
           }
         })
         .catch((error) => {
           if (projectSupportRequestRef.current !== requestId) return;
           projectSupportReleaseRef.current?.();
           projectSupportReleaseRef.current = null;
+          setProjectSupportNotice("Project types unavailable");
           editorLogger.warn(
             {
               context: {
@@ -340,7 +356,7 @@ export function CodeEditor({
             "Unable to hydrate Monaco project support.",
           );
         });
-    }, 180);
+    }, refreshDelay);
 
     return () => {
       window.clearTimeout(timer);
@@ -348,7 +364,62 @@ export function CodeEditor({
         projectSupportRequestRef.current += 1;
       }
     };
-  }, [language.id, path, supportSignature, workspacePath]);
+  }, [
+    language.id,
+    path,
+    projectSupportRefresh,
+    supportSignature,
+    workspacePath,
+  ]);
+
+  useEffect(() => {
+    if (
+      !workspacePath ||
+      !path ||
+      (language.id !== "typescript" && language.id !== "javascript")
+    ) {
+      return;
+    }
+    let active = true;
+    let checking = false;
+    const checkRevision = async () => {
+      if (checking || document.visibilityState === "hidden") return;
+      checking = true;
+      try {
+        const revision = await window.doolittle.getEditorProjectRevision({
+          workspacePath,
+          entryPath: path,
+        });
+        if (
+          active &&
+          projectRevisionRef.current &&
+          revision !== projectRevisionRef.current
+        ) {
+          projectRevisionRef.current = revision;
+          setProjectSupportRefresh((value) => value + 1);
+        }
+      } catch (error) {
+        editorLogger.debug(
+          {
+            context: {
+              path,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          },
+          "Unable to check Monaco project support revision.",
+        );
+      } finally {
+        checking = false;
+      }
+    };
+    const timer = window.setInterval(() => void checkRevision(), 2_500);
+    window.addEventListener("focus", checkRevision);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", checkRevision);
+    };
+  }, [language.id, path, workspacePath]);
 
   useEffect(
     () => () => {
@@ -359,9 +430,26 @@ export function CodeEditor({
   );
 
   return (
-    <div
-      className="doolittle-code-editor absolute inset-0 min-h-0 min-w-0 overflow-hidden bg-[var(--canvas-bg)] [&_.margin]:!bg-[var(--canvas-bg)] [&_.monaco-editor-background]:!bg-[var(--canvas-bg)] [&_.monaco-editor]:!bg-[var(--canvas-bg)] [&_.sticky-widget]:!border-b [&_.sticky-widget]:!border-[var(--canvas-border)] [&_.sticky-widget]:!shadow-[var(--shell-shadow-md)] [&_.monaco-hover]:!rounded-[var(--radius-xs)] [&_.monaco-hover]:!shadow-[var(--shell-shadow-lg)] [&_.suggest-widget]:!rounded-[var(--radius-xs)] [&_.suggest-widget]:!shadow-[var(--shell-shadow-lg)]"
-      ref={hostRef}
-    />
+    <div className="doolittle-code-editor absolute inset-0 min-h-0 min-w-0 overflow-hidden bg-[var(--canvas-bg)]">
+      <div
+        className="absolute inset-0 [&_.margin]:!bg-[var(--canvas-bg)] [&_.monaco-editor-background]:!bg-[var(--canvas-bg)] [&_.monaco-editor]:!bg-[var(--canvas-bg)] [&_.sticky-widget]:!border-b [&_.sticky-widget]:!border-[var(--canvas-border)] [&_.sticky-widget]:!shadow-[var(--shell-shadow-md)] [&_.monaco-hover]:!rounded-[var(--radius-xs)] [&_.monaco-hover]:!shadow-[var(--shell-shadow-lg)] [&_.suggest-widget]:!rounded-[var(--radius-xs)] [&_.suggest-widget]:!shadow-[var(--shell-shadow-lg)]"
+        ref={hostRef}
+      />
+      {projectSupportNotice ? (
+        <div
+          className="absolute right-2 bottom-2 z-5 flex min-h-6 items-center gap-2 rounded-[var(--radius-xs)] border border-[var(--canvas-border)] bg-[color-mix(in_srgb,var(--canvas-bg)_94%,var(--canvas-text))] px-2 py-1 font-[var(--font-mono)] text-[length:var(--text-meta)] leading-[var(--line-meta)] text-[var(--canvas-text-soft)] shadow-[var(--shell-shadow-md)]"
+          role="status"
+        >
+          <span>{projectSupportNotice}</span>
+          <button
+            className="border-0 bg-transparent p-0 font-inherit text-[var(--accent)]"
+            onClick={() => setProjectSupportRefresh((value) => value + 1)}
+            type="button"
+          >
+            Reload
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }

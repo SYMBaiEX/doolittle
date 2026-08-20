@@ -87,7 +87,7 @@ export function InteractiveTerminalHeader({
                 : "bg-[color-mix(in_srgb,var(--muted)_65%,transparent)]"
             }`}
           />
-          <span className="shrink-0 text-[9px] text-[var(--accent)] uppercase font-extrabold tracking-[0.09em]">
+          <span className="shrink-0 text-[length:var(--text-meta)] text-[var(--accent)] uppercase font-extrabold tracking-[0.09em]">
             {activeShell}
           </span>
           <strong
@@ -98,7 +98,7 @@ export function InteractiveTerminalHeader({
           </strong>
         </div>
         <div className="flex shrink-0 items-center justify-end gap-1.25">
-          <span className="interactive-terminal-mode whitespace-nowrap text-[9px] text-[var(--faint)] tracking-[0.06em]">
+          <span className="interactive-terminal-mode whitespace-nowrap text-[length:var(--text-meta)] text-[var(--faint)] tracking-[0.06em]">
             {currentStatus}
           </span>
           {running ? (
@@ -211,7 +211,7 @@ export function InteractiveTerminalHeader({
                       {tab.name}
                     </span>
                     <small
-                      className={`ml-auto inline-flex shrink-0 text-[9px] ${
+                      className={`ml-auto inline-flex shrink-0 text-[length:var(--text-meta)] ${
                         tab.state === "running"
                           ? "text-[var(--accent)]"
                           : "text-[color-mix(in_srgb,var(--muted)_56%,transparent)]"

@@ -47,14 +47,14 @@ export function RunReceiptView({
           aria-hidden="true"
         />
         <span className="flex min-w-0 items-baseline gap-1.75">
-          <strong className="text-[8px] font-semibold text-[var(--text)]">
+          <strong className="text-[length:var(--text-meta)] font-semibold text-[var(--text)]">
             {pending ? "Working" : "Run complete"}
           </strong>
-          <small className="truncate font-[var(--font-mono)] text-[7px] text-[var(--muted)]">
+          <small className="truncate font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
             {summary}
           </small>
         </span>
-        <span className="chat-run-metrics whitespace-nowrap font-[var(--font-mono)] text-[7px] tracking-[0.04em] text-[var(--faint)] max-[480px]:hidden">
+        <span className="chat-run-metrics whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.04em] text-[var(--faint)] max-[480px]:hidden">
           {latest.run.observedActionCount} actions ·{" "}
           {latest.run.localMutations.length} changes
         </span>
@@ -85,14 +85,14 @@ export function RunReceiptView({
                 }`}
               />
               <span className="flex min-w-0 flex-col gap-px">
-                <strong className="truncate text-[9px] text-[var(--text-soft)]">
+                <strong className="truncate text-[length:var(--text-meta)] text-[var(--text-soft)]">
                   {copy.label}
                 </strong>
-                <small className="truncate font-[var(--font-mono)] text-[7px] text-[var(--muted)]">
+                <small className="truncate font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
                   {copy.detail}
                 </small>
               </span>
-              <time className="whitespace-nowrap font-[var(--font-mono)] text-[7px] text-[var(--faint)] max-[480px]:hidden">
+              <time className="whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)] max-[480px]:hidden">
                 {displayTimestamp(event.run.updatedAt)}
               </time>
             </li>
@@ -101,7 +101,7 @@ export function RunReceiptView({
       </ol>
       <footer className="flex items-center gap-2 border-[var(--border)] border-t px-2.75 py-1.25">
         <Badge tone={tone}>{latest.run.status}</Badge>
-        <code className="truncate text-[8px] text-[var(--faint)]">
+        <code className="truncate text-[length:var(--text-meta)] text-[var(--faint)]">
           {latest.run.runId}
         </code>
       </footer>

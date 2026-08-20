@@ -26,6 +26,9 @@ describe("Doolittle code editor theme", () => {
       "editor.background": "#0F172A",
       "editor.foreground": "#F8FAFC",
       "editorCursor.foreground": "#7C3AED",
+      "editorLineNumber.foreground": "#7F848F",
+      "editorWidget.background": "#1B2235",
+      "editorWidget.border": "#394050",
       "editorSuggestWidget.selectedBackground": "#7C3AED22",
     });
     expect(theme.rules).toEqual(
@@ -58,6 +61,9 @@ describe("Doolittle code editor theme", () => {
       "editor.background": "#F8FAFC",
       "editor.foreground": "#111827",
       "editorCursor.foreground": "#2563EB",
+      "editorLineNumber.foreground": "#898E96",
+      "editorWidget.background": "#ECEFF1",
+      "editorWidget.border": "#CED1D6",
     });
   });
 });

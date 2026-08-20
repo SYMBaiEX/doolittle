@@ -6,7 +6,7 @@ export const GATEWAY_SECONDARY_GRID_CLASS =
   "grid grid-cols-2 items-start gap-2.5 max-[1060px]:grid-cols-1 [&>.panel]:min-w-0 [&>.panel]:rounded-[var(--radius-sm)] [&>.panel]:border [&>.panel]:border-[var(--border)] [&>.panel]:bg-[color-mix(in_srgb,var(--surface)_76%,transparent)]";
 
 export const GATEWAY_DISCLOSURE_SUMMARY_CLASS =
-  "relative flex min-h-11.5 cursor-pointer list-none items-center justify-between gap-4 py-2 pr-8.5 pl-3 [&::-webkit-details-marker]:hidden";
+  "relative flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 py-1.5 pr-8 pl-3 [&::-webkit-details-marker]:hidden";
 
 export const GATEWAY_META_CLASS = "font-mono text-[10px] text-[var(--muted)]";
 

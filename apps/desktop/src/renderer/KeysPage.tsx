@@ -28,7 +28,7 @@ const KEYS_TOOLBAR_CLASS =
   "flex items-start justify-between gap-4 [&>div]:grid [&>div]:gap-0.5 [&_h2]:mt-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:leading-[1.2] [&_h2]:tracking-[-0.015em]";
 
 const KEYS_FIELD_CLASS =
-  "flex min-w-0 flex-col gap-1 [&>span]:font-[var(--font-mono)] [&>span]:text-[9px] [&>span]:font-bold [&>span]:tracking-[0.05em] [&>span]:text-[var(--text-soft)] [&>span]:uppercase";
+  "flex min-w-0 flex-col gap-1 [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:font-bold [&>span]:tracking-[0.05em] [&>span]:text-[var(--text-soft)] [&>span]:uppercase";
 
 interface SecretsResponse {
   keys?: unknown[];
@@ -217,7 +217,7 @@ export function KeysPage({ active }: { active: boolean }) {
             className={
               inventoryEmpty
                 ? "grid min-h-0 min-w-0 grid-cols-[minmax(180px,0.42fr)_minmax(0,1.58fr)] gap-x-3.5 gap-y-2 p-[11px_13px] max-[800px]:grid-cols-1"
-                : "flex min-h-0 min-w-0 flex-col overflow-auto p-5 [scrollbar-gutter:stable]"
+                : "flex min-h-0 min-w-0 flex-col overflow-auto p-4 [scrollbar-gutter:stable]"
             }
           >
             <div
@@ -225,7 +225,7 @@ export function KeysPage({ active }: { active: boolean }) {
                 inventoryEmpty
                   ? "col-start-1 row-start-1 border-r border-[var(--border)] py-[3px] pr-[13px] max-[800px]:col-start-1 max-[800px]:row-auto max-[800px]:border-r-0 max-[800px]:border-b max-[800px]:px-0 max-[800px]:pt-0 max-[800px]:pb-2"
                   : "border-b border-[var(--border)] pb-[15px]"
-              } [&_small]:max-w-[34rem] [&_small]:text-[9px] [&_small]:leading-[1.4] [&_small]:text-[var(--muted)]`}
+              } [&_small]:max-w-[34rem] [&_small]:text-[length:var(--text-meta)] [&_small]:leading-[1.4] [&_small]:text-[var(--muted)]`}
             >
               <div>
                 <span className="eyebrow">Local secret store</span>

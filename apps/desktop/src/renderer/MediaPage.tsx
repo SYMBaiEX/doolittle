@@ -56,7 +56,7 @@ export function MediaPage({ active }: { active: boolean }) {
               <Button
                 aria-controls={`media-panel-${entry.id}`}
                 aria-selected={entry.id === activeTab}
-                className={`relative min-h-[34px] flex-none rounded-none border-0 border-b-2 bg-transparent px-0 pt-1.5 pb-2 font-[var(--font-mono)] text-[9px] font-bold tracking-[0.055em] whitespace-nowrap uppercase shadow-none hover:bg-transparent ${
+                className={`relative min-h-[34px] flex-none rounded-none border-0 border-b-2 bg-transparent px-0 pt-1.5 pb-2 font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold tracking-[0.055em] whitespace-nowrap uppercase shadow-none hover:bg-transparent ${
                   entry.id === activeTab
                     ? "border-[var(--accent)] text-[var(--text)]"
                     : "border-transparent text-[var(--muted)] hover:text-[var(--text-soft)]"

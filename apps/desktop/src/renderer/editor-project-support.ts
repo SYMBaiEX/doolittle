@@ -21,13 +21,22 @@ const monacoTypeScript = {
 
 type SupportFileRegistryEntry = {
   count: number;
-  javascriptDisposable: monaco.IDisposable;
-  typescriptDisposable: monaco.IDisposable;
+  disposable: monaco.IDisposable;
 };
 
 const supportFiles = new Map<string, SupportFileRegistryEntry>();
+export type MonacoProjectLanguage = "javascript" | "typescript";
 
-function configureMonaco(options: EditorProjectCompilerOptions): void {
+function defaultsFor(language: MonacoProjectLanguage) {
+  return language === "javascript"
+    ? monacoTypeScript.javascriptDefaults
+    : monacoTypeScript.typescriptDefaults;
+}
+
+function configureMonaco(
+  options: EditorProjectCompilerOptions,
+  language: MonacoProjectLanguage,
+): void {
   const diagnostics = {
     noSemanticValidation: false,
     noSuggestionDiagnostics: false,
@@ -40,60 +49,64 @@ function configureMonaco(options: EditorProjectCompilerOptions): void {
   const compilerOptions = compilerOptionsForMonaco(options, (path) =>
     monaco.Uri.file(path).toString(),
   );
-  monacoTypeScript.javascriptDefaults.setCompilerOptions(compilerOptions);
-  monacoTypeScript.typescriptDefaults.setCompilerOptions(compilerOptions);
-  monacoTypeScript.javascriptDefaults.setDiagnosticsOptions(diagnostics);
-  monacoTypeScript.typescriptDefaults.setDiagnosticsOptions(diagnostics);
-  monacoTypeScript.javascriptDefaults.setEagerModelSync(true);
-  monacoTypeScript.typescriptDefaults.setEagerModelSync(true);
+  const defaults = defaultsFor(language);
+  defaults.setCompilerOptions(compilerOptions);
+  defaults.setDiagnosticsOptions(diagnostics);
+  defaults.setEagerModelSync(true);
 }
 
-function addSupportFile(path: string, content: string): void {
-  const existing = supportFiles.get(path);
+function supportKey(language: MonacoProjectLanguage, path: string): string {
+  return `${language}:${path}`;
+}
+
+function addSupportFile(
+  language: MonacoProjectLanguage,
+  path: string,
+  content: string,
+): void {
+  const key = supportKey(language, path);
+  const existing = supportFiles.get(key);
   if (existing) {
     existing.count += 1;
     return;
   }
-  supportFiles.set(path, {
+  supportFiles.set(key, {
     count: 1,
-    javascriptDisposable: monacoTypeScript.javascriptDefaults.addExtraLib(
-      content,
-      path,
-    ),
-    typescriptDisposable: monacoTypeScript.typescriptDefaults.addExtraLib(
-      content,
-      path,
-    ),
+    disposable: defaultsFor(language).addExtraLib(content, path),
   });
 }
 
-function removeSupportFile(path: string): void {
-  const existing = supportFiles.get(path);
+function removeSupportFile(
+  language: MonacoProjectLanguage,
+  path: string,
+): void {
+  const key = supportKey(language, path);
+  const existing = supportFiles.get(key);
   if (!existing) return;
   existing.count -= 1;
   if (existing.count > 0) return;
-  existing.javascriptDisposable.dispose();
-  existing.typescriptDisposable.dispose();
-  supportFiles.delete(path);
+  existing.disposable.dispose();
+  supportFiles.delete(key);
 }
 
 export function acquireMonacoProjectSupport(
   context: EditorProjectContextResult,
+  language: MonacoProjectLanguage,
 ): () => void {
   const files = context.supportFiles.map((file) => ({
     path: monaco.Uri.file(file.path).toString(),
     content: file.content,
   }));
   for (const file of files) {
-    addSupportFile(file.path, file.content);
+    addSupportFile(language, file.path, file.content);
   }
   // Register declarations before changing compiler options. Monaco otherwise
   // recomputes diagnostics while its worker is still receiving extra libs,
   // which can leave stale "Cannot find module" markers until the next edit.
-  configureMonaco(context.compilerOptions);
+  configureMonaco(context.compilerOptions, language);
   return () => {
     for (const file of files) {
-      removeSupportFile(file.path);
+      removeSupportFile(language, file.path);
     }
   };
 }

@@ -130,7 +130,7 @@ export function ProjectDetail({
           )}
         </div>
       ) : null}
-      <section className="project-manager__section border-[var(--border)] border-t py-5">
+      <section className="project-manager__section border-[var(--border)] border-t py-4">
         <div className="project-manager__section-head flex items-start justify-between gap-3 max-[420px]:gap-2">
           <div>
             <span className="eyebrow">Project instructions</span>
@@ -155,7 +155,7 @@ export function ProjectDetail({
             "Add instructions that should carry across every chat in this project."}
         </p>
       </section>
-      <section className="project-manager__section border-[var(--border)] border-t py-5">
+      <section className="project-manager__section border-[var(--border)] border-t py-4">
         <div className="project-manager__section-head flex items-start justify-between gap-3 max-[420px]:gap-2">
           <div>
             <span className="eyebrow">Knowledge</span>
@@ -201,7 +201,7 @@ export function ProjectDetail({
                 {project.primaryPath}
               </small>
             </span>
-            <b className="font-[var(--font-mono)] text-[9px] font-semibold tracking-[0.06em] text-[var(--accent)] uppercase">
+            <b className="font-[var(--font-mono)] text-[length:var(--text-meta)] font-semibold tracking-[0.06em] text-[var(--accent)] uppercase">
               Primary
             </b>
           </div>
@@ -229,12 +229,12 @@ export function ProjectDetail({
                 </span>
                 {resource.kind === "folder" ? (
                   samePath(resource.path, project.primaryPath) ? (
-                    <b className="project-manager__primary-badge font-[var(--font-mono)] text-[9px] font-semibold tracking-[0.06em] text-[var(--accent)] uppercase">
+                    <b className="project-manager__primary-badge font-[var(--font-mono)] text-[length:var(--text-meta)] font-semibold tracking-[0.06em] text-[var(--accent)] uppercase">
                       Primary
                     </b>
                   ) : (
                     <Button
-                      className="project-manager__make-primary h-6.25 px-1.75 font-[var(--font-mono)] text-[9px]"
+                      className="project-manager__make-primary h-6.25 px-1.75 font-[var(--font-mono)] text-[length:var(--text-meta)]"
                       disabled={working}
                       onClick={() => onSetPrimaryPath(resource.path)}
                       title={`Use ${resourceLabel(resource)} for new chats and Git operations`}
@@ -260,7 +260,7 @@ export function ProjectDetail({
             ))}
           </ul>
         ) : (
-          <div className="project-manager__source-empty mt-2.75 rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] p-3.5 text-xs leading-6 text-[var(--muted)]">
+          <div className="project-manager__source-empty mt-2.5 rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] p-3 text-[length:var(--text-body)] leading-[var(--line-body)] text-[var(--muted)]">
             Add the repository, a folder, or reference files to ground this
             project.
           </div>

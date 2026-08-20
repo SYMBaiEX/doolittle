@@ -64,4 +64,4 @@ export const GIT_LIST_CLASS = "m-0 grid min-w-0 list-none gap-1 p-0";
 export const GIT_ROW_CLASS = "flex min-w-0 items-center gap-1.5";
 
 export const GIT_CODE_CLASS =
-  "truncate font-mono text-[9px] text-[var(--text-soft)]";
+  "truncate font-mono text-[length:var(--text-meta)] text-[var(--text-soft)]";

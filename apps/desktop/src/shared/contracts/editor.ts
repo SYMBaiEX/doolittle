@@ -8,6 +8,10 @@ export interface EditorProjectContextRequest {
   entryPath: string;
   content?: string;
 }
+export interface EditorProjectRevisionRequest {
+  workspacePath: string;
+  entryPath: string;
+}
 export interface EditorProjectCompilerOptions {
   allowJs?: boolean;
   allowSyntheticDefaultImports?: boolean;
@@ -59,6 +63,8 @@ export interface EditorProjectContextResult {
   tsconfigPath?: string;
   compilerOptions: EditorProjectCompilerOptions;
   supportFiles: EditorProjectSupportFile[];
+  supportBytes: number;
+  revision: string;
   truncated: boolean;
 }
 export type WorkspaceFileSaveResult =

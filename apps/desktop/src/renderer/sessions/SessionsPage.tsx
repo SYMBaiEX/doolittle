@@ -122,7 +122,7 @@ export function SessionsPage({
           {showEmptyLanding ? (
             <section
               aria-labelledby="sessions-empty-title"
-              className="session-empty-landing flex min-h-0 items-center justify-between gap-6 bg-[linear-gradient(105deg,color-mix(in_srgb,var(--accent)_6%,transparent),transparent_42%)] px-5 py-[18px] max-[860px]:flex-col max-[860px]:items-stretch max-[860px]:gap-3.5"
+              className="session-empty-landing flex min-h-0 items-center justify-between gap-4 bg-[linear-gradient(105deg,color-mix(in_srgb,var(--accent)_6%,transparent),transparent_42%)] px-4 py-3 max-[860px]:flex-col max-[860px]:items-stretch max-[860px]:gap-3"
               data-session-empty-landing="true"
             >
               <div className="grid min-w-0 gap-[3px] [&_h2]:m-0 [&_h2]:text-sm [&_h2]:text-[var(--text-strong)] [&_p]:m-0 [&_p]:text-[length:var(--text-control)] [&_p]:text-[var(--text-muted)]">

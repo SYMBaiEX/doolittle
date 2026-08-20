@@ -69,6 +69,7 @@ export type {
   EditorProjectCompilerOptions,
   EditorProjectContextRequest,
   EditorProjectContextResult,
+  EditorProjectRevisionRequest,
   EditorProjectSupportFile,
   WorkspaceFileSaveRequest,
   WorkspaceFileSaveResult,

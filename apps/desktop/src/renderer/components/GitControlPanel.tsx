@@ -136,7 +136,7 @@ function ChangeSection({
                 onChange={() => onToggle(change.path)}
                 type="checkbox"
               />
-              <span className="w-14 text-[9px] text-[var(--muted)]">
+              <span className="w-14 text-[length:var(--text-meta)] text-[var(--muted)]">
                 {gitChangeLabel(change)}
               </span>
               <code
@@ -376,11 +376,11 @@ export function GitControlPanel({
                 <strong className="font-mono text-[10px] text-[var(--text-soft)] uppercase tracking-[0.06em]">
                   Advanced repository operations
                 </strong>
-                <small className="text-[9px] text-[var(--muted)]">
+                <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
                   Branches, stashes, remotes, and worktrees
                 </small>
               </span>
-              <span className="flex items-center gap-2 text-[9px] text-[var(--muted)] after:font-mono after:text-[var(--muted)] after:content-['+'] group-open:after:content-['−']">
+              <span className="flex items-center gap-2 text-[length:var(--text-meta)] text-[var(--muted)] after:font-mono after:text-[var(--muted)] after:content-['+'] group-open:after:content-['−']">
                 {branches.length} branches · {stashes.length} stashes
               </span>
             </summary>

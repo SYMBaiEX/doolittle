@@ -255,7 +255,7 @@ export function ComposerModelSelector({
                       <span aria-hidden="true">{isCollapsed ? "›" : "⌄"}</span>
                       <strong>{provider.label}</strong>
                       <small
-                        className={`rounded-full border px-1.25 py-0.5 font-mono text-[7px] tracking-[0.04em] uppercase ${
+                        className={`rounded-full border px-1.25 py-0.5 font-mono text-[length:var(--text-meta)] tracking-[0.04em] uppercase ${
                           provider.discovery === "live"
                             ? "border-[color-mix(in_srgb,var(--good)_32%,var(--border))] text-[var(--good)]"
                             : "border-[var(--border)] text-[var(--faint)]"
@@ -326,7 +326,7 @@ export function ComposerModelSelector({
                                   >
                                     <SelectTrigger
                                       aria-label={`${model.label} reasoning effort`}
-                                      className="!h-6 !min-h-6 min-w-20 border-[var(--border)] bg-[var(--surface)] px-1.5 py-0 font-mono text-[8px] text-[var(--text)] lowercase hover:border-[var(--border-strong)]"
+                                      className="!h-6 !min-h-6 min-w-20 border-[var(--border)] bg-[var(--surface)] px-1.5 py-0 font-mono text-[length:var(--text-meta)] text-[var(--text)] lowercase hover:border-[var(--border-strong)]"
                                       disabled={
                                         Boolean(saving) || !provider.ready
                                       }
@@ -372,13 +372,13 @@ export function ComposerModelSelector({
           </div>
           {feedback ? (
             <p
-              className="border-[var(--border)] border-t px-3 py-1.75 text-[9px] text-[var(--bad)]"
+              className="border-[var(--border)] border-t px-3 py-1.75 text-[length:var(--text-meta)] text-[var(--bad)]"
               role="alert"
             >
               {feedback}
             </p>
           ) : null}
-          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-[var(--border)] border-t bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] px-3 py-2.25 text-[9px] text-[var(--muted)] max-[560px]:grid-cols-[1fr_auto] [&>button]:whitespace-nowrap [&>button]:border-0 [&>button]:bg-transparent [&>button]:text-[9px] [&>button]:text-[var(--accent)] [&>span]:min-w-0 max-[560px]:[&>span]:col-span-full [&>strong]:text-[var(--text)]">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-[var(--border)] border-t bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] px-3 py-2.25 text-[length:var(--text-meta)] text-[var(--muted)] max-[560px]:grid-cols-[1fr_auto] [&>button]:whitespace-nowrap [&>button]:border-0 [&>button]:bg-transparent [&>button]:text-[length:var(--text-meta)] [&>button]:text-[var(--accent)] [&>span]:min-w-0 max-[560px]:[&>span]:col-span-full [&>strong]:text-[var(--text)]">
             <strong>Spawned-agent pool</strong>
             <span>
               {accountPool.loading

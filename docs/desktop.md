@@ -131,9 +131,10 @@ The exported file is also the authoring template: change the profile name,
 label, tagline, and color values, then import it from Settings > Appearance.
 Required palette fields are `primary`, `secondary`, `amberGlow`, and
 `greenGlow`; optional `cyanGlow`, `magentaGlow`, `muted`, `baseBg`, `baseFg`,
-and `panelBg` extend editor and terminal surfaces. Colors accept hex, rgb, hsl,
-or the bounded ANSI names shown by built-in exports. The bundle is versioned,
-limited to 64 KB, and ignores unknown keys when it is exported again.
+and `panelBg` extend the entire workbench, including shell, routes, editor, and
+terminal surfaces. Colors accept hex, rgb, hsl, or the bounded ANSI names shown
+by built-in exports. The bundle is versioned, limited to 64 KB, and ignores
+unknown keys when it is exported again.
 
 ### MCP marketplace discovery
 

@@ -270,7 +270,7 @@ export function AutomationWorkspace({
           aria-labelledby="automation-starter-title"
           className="content-card automation-empty-panel"
         >
-          <div className="automation-empty-starter flex items-center justify-between gap-6 px-0.5 py-0.75 text-[var(--muted)] max-[720px]:items-stretch max-[720px]:flex-col">
+          <div className="automation-empty-starter flex items-center justify-between gap-4 px-0.5 py-0.75 text-[var(--muted)] max-[720px]:items-stretch max-[720px]:flex-col">
             <div className="flex min-w-0 flex-col gap-1">
               <span className="eyebrow">Start here</span>
               <strong

@@ -385,16 +385,16 @@ export function ChatComposer({
                 <strong className="text-[11px] font-semibold">
                   {command.category}
                 </strong>
-                <small className="text-[9px] text-[var(--muted)]">
+                <small className="text-[length:var(--text-meta)] text-[var(--muted)]">
                   {command.disabledReason ?? command.description}
                 </small>
                 {command.aliases?.length ? (
-                  <small className="text-[9px] text-[var(--faint)]">
+                  <small className="text-[length:var(--text-meta)] text-[var(--faint)]">
                     Aliases: {command.aliases.join(", ")}
                   </small>
                 ) : null}
               </span>
-              <kbd className="text-[9px] text-[var(--muted)]">
+              <kbd className="text-[length:var(--text-meta)] text-[var(--muted)]">
                 {index === activeCommandIndex ? "Tab" : "↑↓"}
               </kbd>
             </ElizaButton>
@@ -543,9 +543,9 @@ export function ChatComposer({
             : selectedUsageError
         }
       >
-        <span className="chat-status-runtime flex min-w-0 items-center gap-1.5 whitespace-nowrap font-[var(--font-mono)] text-[9px] text-[var(--muted)] [&_small]:max-w-[170px] [&_small]:overflow-hidden [&_small]:text-ellipsis">
+        <span className="chat-status-runtime flex min-w-0 items-center gap-1.5 whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] [&_small]:max-w-[170px] [&_small]:overflow-hidden [&_small]:text-ellipsis">
           <StatusBadge
-            className="chat-status-badge !inline-flex !min-h-[18px] items-center !border-0 !bg-transparent px-[5px] py-px !font-[inherit] !text-[9px] !tracking-normal !text-[var(--text-soft)] normal-case"
+            className="chat-status-badge !inline-flex !min-h-[18px] items-center !border-0 !bg-transparent px-[5px] py-px !font-[inherit] !text-[length:var(--text-meta)] !tracking-normal !text-[var(--text-soft)] normal-case"
             label={
               activeRequest
                 ? "Working"

@@ -3,7 +3,7 @@ export const PROVIDER_CONSOLE_CLASS = "provider-console grid gap-2.5";
 export const PROVIDER_SURFACE_CLASS = "provider-surface grid gap-2.25 pt-0.5";
 
 export const PROVIDER_SECTION_HEADING_CLASS =
-  "provider-section-heading flex items-center justify-between gap-6 px-0.5 max-[860px]:items-start max-[860px]:flex-col max-[860px]:gap-1.75 [&>div]:grid [&>div]:gap-1 [&_h2]:m-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:font-[650] [&_h2]:tracking-[-0.02em]";
+  "provider-section-heading flex items-center justify-between gap-4 px-0.5 max-[860px]:items-start max-[860px]:flex-col max-[860px]:gap-1.75 [&>div]:grid [&>div]:gap-1 [&_h2]:m-0 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:font-[650] [&_h2]:tracking-[-0.02em]";
 
 export const PROVIDER_ROSTER_CLASS =
   "provider-roster overflow-hidden rounded-[5px] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)]";
@@ -36,7 +36,7 @@ export const PROVIDER_CONNECTION_ACTIONS_CLASS =
   "provider-connection-actions relative flex items-center justify-end gap-1.5 max-[860px]:col-start-2 max-[860px]:justify-start [&_button]:min-h-7";
 
 export const PROVIDER_CONNECTION_MORE_CLASS =
-  "provider-connection-more font-[var(--font-mono)] text-[9px] tracking-[1px] text-[var(--text-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)] focus-visible:bg-[var(--surface-raised)] focus-visible:text-[var(--text)] data-[state=open]:bg-[var(--surface-raised)] data-[state=open]:text-[var(--text)]";
+  "provider-connection-more font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[1px] text-[var(--text-soft)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)] focus-visible:bg-[var(--surface-raised)] focus-visible:text-[var(--text)] data-[state=open]:bg-[var(--surface-raised)] data-[state=open]:text-[var(--text)]";
 
 export const PROVIDER_CONNECTION_MENU_CLASS =
   "provider-connection-menu min-w-34.5 [&_[role=menuitem]]:text-[length:var(--text-control)]";

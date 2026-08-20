@@ -151,12 +151,12 @@ function WebSearchSources({ activity }: { activity: ToolActivity }) {
               target="_blank"
             >
               <strong>{result.title}</strong>
-              <span className="shrink-0 font-mono text-[8px] text-[var(--faint)]">
+              <span className="shrink-0 font-mono text-[length:var(--text-meta)] text-[var(--faint)]">
                 {new URL(result.url).hostname}
               </span>
             </a>
             {result.excerpt ? (
-              <p className="mt-1.25 mb-0 line-clamp-3 overflow-hidden text-[9px] leading-normal text-[var(--muted)]">
+              <p className="mt-1.25 mb-0 line-clamp-3 overflow-hidden text-[length:var(--text-meta)] leading-normal text-[var(--muted)]">
                 {result.excerpt.slice(0, 360)}
               </p>
             ) : null}
@@ -190,25 +190,25 @@ function ToolActivityCard({ activity }: { activity: ToolActivity }) {
     >
       <summary className={MESSAGE_TOOL_CARD_SUMMARY_CLASS}>
         <span
-          className="grid size-3 place-items-center rounded-[3px] font-mono text-[9px] text-[var(--accent)]"
+          className="grid size-3 place-items-center rounded-[3px] font-mono text-[length:var(--text-meta)] text-[var(--accent)]"
           aria-hidden="true"
         >
           ↗
         </span>
         <span className="flex min-w-0 items-baseline gap-1.25">
-          <strong className="truncate text-[9px] font-semibold text-[var(--text-soft)]">
+          <strong className="truncate text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)]">
             {toolLabel(activity)}
           </strong>
           {summary ? (
             <>
               <i
                 aria-hidden="true"
-                className="shrink-0 font-mono text-[7px] not-italic text-[var(--faint)]"
+                className="shrink-0 font-mono text-[length:var(--text-meta)] not-italic text-[var(--faint)]"
               >
                 ·
               </i>
               <small
-                className="min-w-0 flex-1 truncate font-mono text-[7px] text-[var(--faint)]"
+                className="min-w-0 flex-1 truncate font-mono text-[length:var(--text-meta)] text-[var(--faint)]"
                 title={summary}
               >
                 {summary}
@@ -309,10 +309,10 @@ function ToolActivityGroup({
           />
           Activity
         </span>
-        <span className="truncate text-[8px] text-[var(--text-soft)]">
+        <span className="truncate text-[length:var(--text-meta)] text-[var(--text-soft)]">
           {tools.map(toolLabel).join(" · ")}
         </span>
-        <span className="whitespace-nowrap font-mono text-[7px] text-[var(--faint)] max-[760px]:hidden">
+        <span className="whitespace-nowrap font-mono text-[length:var(--text-meta)] text-[var(--faint)] max-[760px]:hidden">
           {state} · {tools.length}
         </span>
         <span
@@ -343,7 +343,7 @@ function AgentSteps({
   if (!failed) return null;
   return (
     <details className={MESSAGE_AGENT_STEPS_CLASS}>
-      <summary className="grid min-h-6 cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.25 px-0.75 py-0.5 font-mono text-[8px] [&::-webkit-details-marker]:hidden">
+      <summary className="grid min-h-6 cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.25 px-0.75 py-0.5 font-mono text-[length:var(--text-meta)] [&::-webkit-details-marker]:hidden">
         <span aria-hidden="true">⌁</span>
         <strong className="font-medium text-[var(--muted)]">
           Run diagnostics

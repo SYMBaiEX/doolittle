@@ -40,6 +40,7 @@ export const desktopIpcChannels = {
     terminalSessionClose: "terminal:session-close",
     terminalSessionOutput: "terminal:session-output",
     editorProjectContext: "editor:project-context",
+    editorProjectRevision: "editor:project-revision",
     workspaceSaveConfirmed: "workspace:save-confirmed",
     repositoryCreateWorktreeConfirmed: "repository:create-worktree-confirmed",
     repositoryMutateConfirmed: "repository:mutate-confirmed",

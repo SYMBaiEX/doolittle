@@ -143,7 +143,7 @@ export function SessionListPanel({
                   session.sessionId}
               </small>
             </span>
-            <span className="grid shrink-0 justify-items-end gap-0.5 [&_small]:font-[var(--font-mono)] [&_small]:text-[9px] [&_small]:text-[var(--text-muted)]">
+            <span className="grid shrink-0 justify-items-end gap-0.5 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)]">
               <small>{session.messageCount} messages</small>
               <small>{displayTimestamp(session.endedAt)}</small>
             </span>
@@ -159,7 +159,7 @@ export function SessionListPanel({
             className="mt-1 flex min-h-[38px] items-center justify-between gap-2 border-t border-[var(--border-subtle)] px-1 pt-[5px]"
             data-session-list-footer="true"
           >
-            <span className="font-[var(--font-mono)] text-[9px] tracking-[0.04em] text-[var(--text-muted)] uppercase">
+            <span className="font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.04em] text-[var(--text-muted)] uppercase">
               Showing {sessionWindow.visible.length} of {filtered.length}
             </span>
             <Button

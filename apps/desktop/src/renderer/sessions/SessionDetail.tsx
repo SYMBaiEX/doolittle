@@ -245,11 +245,13 @@ export function SessionDetail({
       <div className={SESSION_INSIGHT_GRID_CLASS}>
         <details className={SESSION_DISCLOSURE_CLASS}>
           <summary className={SESSION_DISCLOSURE_SUMMARY_CLASS}>
-            <span className="grid min-w-0 gap-px [&_small]:text-[8px] [&_small]:text-[var(--text-muted)] [&_strong]:text-[10px] [&_strong]:text-[var(--text-strong)]">
+            <span className="grid min-w-0 gap-px [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)] [&_strong]:text-[10px] [&_strong]:text-[var(--text-strong)]">
               <strong>Session metadata</strong>
               <small>Identifiers, branch lineage, and timestamps</small>
             </span>
-            <span className="text-[8px] text-[var(--text-muted)]">Inspect</span>
+            <span className="text-[length:var(--text-meta)] text-[var(--text-muted)]">
+              Inspect
+            </span>
           </summary>
           <div className="grid p-2">
             <div className={SESSION_STATUS_ROW_CLASS}>
@@ -304,11 +306,11 @@ export function SessionDetail({
           onToggle={(event) => setContinuityOpen(event.currentTarget.open)}
         >
           <summary className={SESSION_DISCLOSURE_SUMMARY_CLASS}>
-            <span className="grid min-w-0 gap-px [&_small]:text-[8px] [&_small]:text-[var(--text-muted)] [&_strong]:text-[10px] [&_strong]:text-[var(--text-strong)]">
+            <span className="grid min-w-0 gap-px [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)] [&_strong]:text-[10px] [&_strong]:text-[var(--text-strong)]">
               <strong>Related sessions</strong>
               <small>Branches sharing this continuity key</small>
             </span>
-            <span className="text-[8px] text-[var(--text-muted)]">
+            <span className="text-[length:var(--text-meta)] text-[var(--text-muted)]">
               {continuityOpen
                 ? continuity.loading
                   ? "…"

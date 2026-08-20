@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, relative, resolve } from "node:path";
 // TypeScript 7's stable package does not expose the compiler API yet. Keep the
@@ -7,11 +8,20 @@ import type {
   EditorProjectCompilerOptions,
   EditorProjectContextRequest,
   EditorProjectContextResult,
+  EditorProjectRevisionRequest,
 } from "../shared/contracts";
 
-const MAX_SUPPORT_FILES = 1_200;
-const MAX_SUPPORT_BYTES = 6_000_000;
+const MAX_SUPPORT_FILES = 2_400;
+const MAX_SUPPORT_BYTES = 16_000_000;
 const PROJECT_CONFIG_PATTERN = /^(?:tsconfig(?:\.[^.]+)?|jsconfig)\.json$/u;
+const PROJECT_REVISION_FILES = [
+  "package.json",
+  "bun.lock",
+  "bun.lockb",
+  "pnpm-lock.yaml",
+  "package-lock.json",
+  "yarn.lock",
+] as const;
 const TYPE_REFERENCE_HOST: ts.ModuleResolutionHost = {
   directoryExists: ts.sys.directoryExists,
   fileExists: ts.sys.fileExists,
@@ -100,6 +110,44 @@ function isSourceLikeFile(path: string): boolean {
 
 function normalizePath(path: string): string {
   return resolve(path);
+}
+
+function projectRevision(
+  entryAbsolutePath: string,
+  workspacePath: string,
+  projectConfigPath?: string,
+): string {
+  const candidates = new Set<string>([entryAbsolutePath]);
+  if (projectConfigPath) candidates.add(projectConfigPath);
+  let directory = dirname(entryAbsolutePath);
+  while (isInsideWorkspace(workspacePath, directory)) {
+    for (const name of PROJECT_REVISION_FILES) {
+      candidates.add(resolve(directory, name));
+    }
+    candidates.add(resolve(directory, "node_modules"));
+    candidates.add(resolve(directory, "node_modules", ".modules.yaml"));
+    for (const name of existsSync(directory) ? readdirSync(directory) : []) {
+      if (PROJECT_CONFIG_PATTERN.test(name))
+        candidates.add(resolve(directory, name));
+    }
+    if (directory === workspacePath) break;
+    const parent = dirname(directory);
+    if (parent === directory) break;
+    directory = parent;
+  }
+
+  const fingerprint = [...candidates]
+    .sort()
+    .map((path) => {
+      try {
+        const stats = statSync(path);
+        return `${path}:${stats.size}:${stats.mtimeMs}:${stats.isDirectory() ? "d" : "f"}`;
+      } catch {
+        return `${path}:missing`;
+      }
+    })
+    .join("\n");
+  return createHash("sha256").update(fingerprint).digest("hex");
 }
 
 function moduleKindName(
@@ -270,6 +318,7 @@ function collectSupportFiles(
 ): {
   supportFiles: EditorProjectContextResult["supportFiles"];
   packagePaths: Record<string, string[]>;
+  supportBytes: number;
   truncated: boolean;
 } {
   const seenVirtualPaths = new Set<string>();
@@ -500,8 +549,25 @@ function collectSupportFiles(
       [...packagePaths].map(([specifier, path]) => [specifier, [path]]),
     ),
     supportFiles,
+    supportBytes: totalBytes,
     truncated,
   };
+}
+
+export function resolveEditorProjectRevision(
+  request: EditorProjectRevisionRequest,
+): string {
+  const workspacePath = validateWorkspacePath(request.workspacePath);
+  const entryPath = validateWorkspaceRelativePath(request.entryPath);
+  const entryAbsolutePath = resolve(workspacePath, entryPath);
+  if (!isInsideWorkspace(workspacePath, entryAbsolutePath)) {
+    throw new Error("Editor path must remain inside the workspace.");
+  }
+  if (!existsSync(entryAbsolutePath)) {
+    throw new Error("The requested editor file does not exist.");
+  }
+  const projectConfig = findProjectConfig(entryAbsolutePath, workspacePath);
+  return projectRevision(entryAbsolutePath, workspacePath, projectConfig?.path);
 }
 
 export function resolveEditorProjectContext(
@@ -539,12 +605,13 @@ export function resolveEditorProjectContext(
     typeof request.content === "string"
       ? request.content
       : readFileSync(entryAbsolutePath, "utf8");
-  const { packagePaths, supportFiles, truncated } = collectSupportFiles(
-    entryAbsolutePath,
-    entryContent,
-    compilerOptions,
-    workspacePath,
-  );
+  const { packagePaths, supportBytes, supportFiles, truncated } =
+    collectSupportFiles(
+      entryAbsolutePath,
+      entryContent,
+      compilerOptions,
+      workspacePath,
+    );
 
   const normalizedCompilerOptions = normalizeCompilerOptions(
     compilerOptions,
@@ -566,6 +633,12 @@ export function resolveEditorProjectContext(
         (Object.keys(mergedPaths).length > 0 ? workspacePath : undefined),
       paths: Object.keys(mergedPaths).length > 0 ? mergedPaths : undefined,
     },
+    revision: projectRevision(
+      entryAbsolutePath,
+      workspacePath,
+      projectConfig?.path,
+    ),
+    supportBytes,
     supportFiles,
     truncated,
   };

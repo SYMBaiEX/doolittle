@@ -107,32 +107,37 @@ describe("compilerOptionsForMonaco", () => {
 
 describe("acquireMonacoProjectSupport", () => {
   it("configures Monaco through the registered TypeScript defaults and loads project declarations", () => {
-    const release = acquireMonacoProjectSupport({
-      workspacePath: "/workspace",
-      projectRoot: "/workspace",
-      entryPath: "/workspace/src/component.tsx",
-      compilerOptions: {
-        baseUrl: "/workspace",
-        jsx: "react-jsx",
-        moduleResolution: "bundler",
-        paths: {
-          "@/*": ["./*"],
-          react: ["/workspace/node_modules/@types/react/index.d.ts"],
+    const release = acquireMonacoProjectSupport(
+      {
+        workspacePath: "/workspace",
+        projectRoot: "/workspace",
+        entryPath: "/workspace/src/component.tsx",
+        compilerOptions: {
+          baseUrl: "/workspace",
+          jsx: "react-jsx",
+          moduleResolution: "bundler",
+          paths: {
+            "@/*": ["./*"],
+            react: ["/workspace/node_modules/@types/react/index.d.ts"],
+          },
         },
+        supportFiles: [
+          {
+            path: "/workspace/node_modules/@types/react/index.d.ts",
+            content: "export type FC = () => unknown;",
+          },
+          {
+            path: "/workspace/node_modules/@example/ui/package.json",
+            content:
+              '{"exports":{"./Button":{"types":"./dist/Button/index.d.ts"}}}',
+          },
+        ],
+        revision: "revision-1",
+        supportBytes: 160,
+        truncated: false,
       },
-      supportFiles: [
-        {
-          path: "/workspace/node_modules/@types/react/index.d.ts",
-          content: "export type FC = () => unknown;",
-        },
-        {
-          path: "/workspace/node_modules/@example/ui/package.json",
-          content:
-            '{"exports":{"./Button":{"types":"./dist/Button/index.d.ts"}}}',
-        },
-      ],
-      truncated: false,
-    });
+      "typescript",
+    );
 
     expect(languageDefaults.typescript.setCompilerOptions).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -145,10 +150,7 @@ describe("acquireMonacoProjectSupport", () => {
         },
       }),
     );
-    expect(languageDefaults.javascript.addExtraLib).toHaveBeenCalledWith(
-      "export type FC = () => unknown;",
-      "file:///workspace/node_modules/@types/react/index.d.ts",
-    );
+    expect(languageDefaults.javascript.addExtraLib).not.toHaveBeenCalled();
     expect(languageDefaults.typescript.addExtraLib).toHaveBeenCalledWith(
       "export type FC = () => unknown;",
       "file:///workspace/node_modules/@types/react/index.d.ts",
@@ -164,12 +166,37 @@ describe("acquireMonacoProjectSupport", () => {
         .invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
     );
 
-    const javascriptDisposable =
-      languageDefaults.javascript.addExtraLib.mock.results[0]?.value;
     const typescriptDisposable =
       languageDefaults.typescript.addExtraLib.mock.results[0]?.value;
     release();
-    expect(javascriptDisposable?.dispose).toHaveBeenCalledOnce();
     expect(typescriptDisposable?.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("registers JavaScript support only with the JavaScript worker", () => {
+    const release = acquireMonacoProjectSupport(
+      {
+        workspacePath: "/workspace",
+        projectRoot: "/workspace",
+        entryPath: "/workspace/src/component.js",
+        compilerOptions: { allowJs: true, moduleResolution: "bundler" },
+        supportFiles: [
+          {
+            path: "/workspace/node_modules/example/index.d.ts",
+            content: "export declare const value: string;",
+          },
+        ],
+        revision: "revision-2",
+        supportBytes: 43,
+        truncated: false,
+      },
+      "javascript",
+    );
+
+    expect(languageDefaults.javascript.addExtraLib).toHaveBeenCalledOnce();
+    expect(languageDefaults.typescript.addExtraLib).not.toHaveBeenCalled();
+    expect(
+      languageDefaults.javascript.setCompilerOptions,
+    ).toHaveBeenCalledOnce();
+    release();
   });
 });

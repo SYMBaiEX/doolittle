@@ -43,20 +43,26 @@ const BASE_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
   "--text-control": "11px",
   "--text-caption": "11px",
   "--text-body": "13px",
+  "--line-meta": "14px",
+  "--line-control": "16px",
+  "--line-body": "19px",
+  "--line-title": "1.2",
   "--ease-out": "cubic-bezier(0.23, 1, 0.32, 1)",
   "--sidebar-width": "280px",
   "--sidebar-compact-width": "68px",
-  "--page-gap": "14px",
-  "--page-pad-block": "22px 30px",
-  "--page-pad-inline": "clamp(16px, 2.5vw, 36px)",
-  "--page-header-min-height": "64px",
-  "--page-header-pad-bottom": "11px",
-  "--page-title-size": "clamp(17px, 1.3vw, 20px)",
-  "--chat-welcome-title-size": "clamp(18px, 1.8vw, 22px)",
-  "--card-pad": "15px",
-  "--row-pad": "9px",
+  "--page-gap": "12px",
+  "--page-pad-block": "16px 24px",
+  "--page-pad-inline": "clamp(14px, 2vw, 28px)",
+  "--page-header-min-height": "56px",
+  "--page-header-pad-bottom": "8px",
+  "--page-title-size": "clamp(17px, 1.2vw, 19px)",
+  "--chat-welcome-title-size": "clamp(18px, 1.6vw, 21px)",
+  "--card-pad": "12px",
+  "--row-pad": "8px",
   "--control-height": "32px",
-  "--page-readable-meta": "9px",
+  "--page-readable-meta": "10px",
+  "--space-hairline": "2px",
+  "--space-tight": "6px",
   "--space-1": "4px",
   "--space-2": "8px",
   "--space-3": "12px",
@@ -207,14 +213,14 @@ const COMPACT_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
   "--text-control": "10px",
   "--text-caption": "10px",
   "--text-body": "12px",
-  "--page-gap": "10px",
-  "--page-pad-block": "16px 22px",
-  "--page-pad-inline": "clamp(12px, 2vw, 26px)",
-  "--page-header-min-height": "54px",
-  "--page-header-pad-bottom": "8px",
-  "--page-title-size": "clamp(16px, 1.2vw, 18px)",
-  "--chat-welcome-title-size": "clamp(17px, 1.6vw, 20px)",
-  "--card-pad": "11px",
+  "--page-gap": "8px",
+  "--page-pad-block": "12px 18px",
+  "--page-pad-inline": "clamp(12px, 1.7vw, 22px)",
+  "--page-header-min-height": "48px",
+  "--page-header-pad-bottom": "6px",
+  "--page-title-size": "clamp(16px, 1.1vw, 18px)",
+  "--chat-welcome-title-size": "clamp(17px, 1.4vw, 19px)",
+  "--card-pad": "10px",
   "--row-pad": "6px",
   "--control-height": "28px",
 };
@@ -223,15 +229,15 @@ const COMFORTABLE_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
   "--text-control": "11px",
   "--text-caption": "11px",
   "--text-body": "13px",
-  "--page-gap": "14px",
-  "--page-pad-block": "22px 30px",
-  "--page-pad-inline": "clamp(16px, 2.5vw, 36px)",
-  "--page-header-min-height": "64px",
-  "--page-header-pad-bottom": "11px",
-  "--page-title-size": "clamp(17px, 1.3vw, 20px)",
-  "--chat-welcome-title-size": "clamp(18px, 1.8vw, 22px)",
-  "--card-pad": "15px",
-  "--row-pad": "9px",
+  "--page-gap": "12px",
+  "--page-pad-block": "16px 24px",
+  "--page-pad-inline": "clamp(14px, 2vw, 28px)",
+  "--page-header-min-height": "56px",
+  "--page-header-pad-bottom": "8px",
+  "--page-title-size": "clamp(17px, 1.2vw, 19px)",
+  "--chat-welcome-title-size": "clamp(18px, 1.6vw, 21px)",
+  "--card-pad": "12px",
+  "--row-pad": "8px",
   "--control-height": "32px",
 };
 
@@ -359,6 +365,40 @@ export function themeCssTokens(
     "--canvas-text": canvasText,
     "--canvas-text-soft": `color-mix(in srgb, ${canvasText} 76%, ${canvasBackground})`,
   };
+  const shellBackground = profile.baseBg;
+  const shellSurface = profile.panelBg ?? shellBackground;
+  const shellText = profile.baseFg;
+  if (shellBackground) tokens["--bg"] = shellBackground;
+  if (shellSurface) {
+    tokens["--surface"] = shellSurface;
+    if (shellText) {
+      tokens["--surface-raised"] =
+        `color-mix(in srgb, ${shellText} 4%, ${shellSurface})`;
+      tokens["--surface-soft"] =
+        `color-mix(in srgb, ${shellText} 7%, ${shellSurface})`;
+      tokens["--surface-hover"] =
+        `color-mix(in srgb, ${shellText} 11%, ${shellSurface})`;
+      tokens["--border"] =
+        `color-mix(in srgb, ${shellText} 14%, ${shellSurface})`;
+      tokens["--border-strong"] =
+        `color-mix(in srgb, ${shellText} 24%, ${shellSurface})`;
+    }
+  }
+  if (shellText) {
+    const textBackground = shellSurface ?? shellBackground ?? "var(--surface)";
+    tokens["--text"] = shellText;
+    tokens["--text-soft"] =
+      `color-mix(in srgb, ${shellText} 78%, ${textBackground})`;
+    tokens["--muted"] =
+      profile.muted ??
+      `color-mix(in srgb, ${shellText} 62%, ${textBackground})`;
+    tokens["--faint"] =
+      `color-mix(in srgb, ${shellText} 54%, ${textBackground})`;
+  } else if (profile.muted) {
+    tokens["--muted"] = profile.muted;
+    tokens["--faint"] =
+      `color-mix(in srgb, ${profile.muted} 82%, var(--surface))`;
+  }
   return tokens;
 }
 
@@ -368,6 +408,14 @@ export function applyDesktopTheme(
 ): void {
   const root = document.documentElement;
   root.dataset.theme = profile.name;
+  // Restore the selected appearance before applying a new profile so moving
+  // from a full workbench theme to an accent-only theme cannot leave stale
+  // shell colors behind.
+  setCssTokens(
+    root.dataset.appearance === "light"
+      ? LIGHT_DESKTOP_TOKENS
+      : DARK_DESKTOP_TOKENS,
+  );
   for (const [property, value] of Object.entries(themeCssTokens(profile))) {
     root.style.setProperty(property, value);
   }

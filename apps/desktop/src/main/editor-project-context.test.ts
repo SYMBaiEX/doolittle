@@ -7,7 +7,10 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolveEditorProjectContext } from "./editor-project-context";
+import {
+  resolveEditorProjectContext,
+  resolveEditorProjectRevision,
+} from "./editor-project-context";
 
 function createWorkspace(): string {
   const workspace = mkdtempSync(
@@ -87,6 +90,31 @@ describe("resolveEditorProjectContext", () => {
       expect(
         context.supportFiles.some((file) => file.path.includes("@types/node")),
       ).toBe(true);
+      expect(context.supportBytes).toBeGreaterThan(0);
+      expect(context.revision).toMatch(/^[a-f0-9]{64}$/u);
+    } finally {
+      rmSync(workspace, { force: true, recursive: true });
+    }
+  });
+
+  it("changes the cheap project revision when dependencies are installed", () => {
+    const workspace = createWorkspace();
+    try {
+      const request = {
+        workspacePath: workspace,
+        entryPath: "src/main/backend.ts",
+      };
+      const before = resolveEditorProjectRevision(request);
+      mkdirSync(join(workspace, "node_modules", "new-package"), {
+        recursive: true,
+      });
+      writeFileSync(
+        join(workspace, "node_modules", "new-package", "package.json"),
+        JSON.stringify({ name: "new-package", version: "1.0.0" }),
+      );
+      const after = resolveEditorProjectRevision(request);
+
+      expect(after).not.toBe(before);
     } finally {
       rmSync(workspace, { force: true, recursive: true });
     }

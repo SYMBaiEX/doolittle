@@ -31,7 +31,7 @@ export { isLocalPreviewUrl } from "./browser/browser-navigation";
 export function BrowserEmptyEvidence() {
   return (
     <p
-      className="m-0 px-3.5 py-2.5 font-mono text-[9px] leading-[1.45] text-[var(--muted)]"
+      className="m-0 px-3.5 py-2.5 font-mono text-[length:var(--text-meta)] leading-[1.45] text-[var(--muted)]"
       data-browser-result-state="empty"
     >
       Evidence appears here after an inspect, capture, or analysis.
@@ -174,7 +174,10 @@ export function BrowserPage({
         >
           ↻
         </button>
-        <span aria-hidden="true" className="text-[9px] text-[var(--accent)]">
+        <span
+          aria-hidden="true"
+          className="text-[length:var(--text-meta)] text-[var(--accent)]"
+        >
           {embedded ? "●" : "◇"}
         </span>
         <input

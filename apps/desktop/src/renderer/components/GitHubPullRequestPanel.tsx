@@ -17,7 +17,8 @@ import {
 const FORM_CLASS = "grid gap-[9px]";
 const LABEL_CLASS =
   "grid gap-[5px] text-[11px] font-bold text-[var(--text-soft)]";
-const OPTIONAL_CLASS = "font-[var(--font-mono)] text-[9px] text-[var(--muted)]";
+const OPTIONAL_CLASS =
+  "font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]";
 const CHECKBOX_CLASS =
   "flex min-h-[31px] items-center gap-[7px] text-[10px] font-bold text-[var(--muted)] [&_input]:accent-[var(--accent)]";
 const ACTIONS_CLASS =
@@ -191,7 +192,7 @@ export function GitHubPullRequestPanel({
               ? `#${pullRequest.number} ${pullRequest.title}`
               : "Open a pull request"}
           </strong>
-          <small className="font-[var(--font-mono)] text-[9px] text-[var(--muted)]">
+          <small className="font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
             {review.repository?.slug ?? "GitHub unavailable"} ·{" "}
             {prStateLabel(review)}
           </small>

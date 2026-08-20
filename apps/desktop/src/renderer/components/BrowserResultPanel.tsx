@@ -240,7 +240,7 @@ export function BrowserResultPanel({
             </label>
           </div>
         </details>
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_58%,transparent)] p-2 [&>code]:truncate [&>code]:text-[10px] [&>code]:text-[var(--text-soft)] [&>span]:font-mono [&>span]:text-[9px] [&>span]:text-[var(--muted)] [&>span]:uppercase">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_58%,transparent)] p-2 [&>code]:truncate [&>code]:text-[10px] [&>code]:text-[var(--text-soft)] [&>span]:font-mono [&>span]:text-[length:var(--text-meta)] [&>span]:text-[var(--muted)] [&>span]:uppercase">
           <span>URL</span>
           <code>{currentUrl || address}</code>
           <span>Viewport</span>
@@ -253,7 +253,7 @@ export function BrowserResultPanel({
             Preview exact context for thread
           </summary>
           <pre
-            className={`${BROWSER_CODE_PREVIEW_CLASS} max-h-42.5 p-2.25 text-[9px]`}
+            className={`${BROWSER_CODE_PREVIEW_CLASS} max-h-42.5 p-2.25 text-[length:var(--text-meta)]`}
           >
             {evidenceContext}
           </pre>

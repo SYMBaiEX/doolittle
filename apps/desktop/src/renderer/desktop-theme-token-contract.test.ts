@@ -108,6 +108,24 @@ describe("desktop theme token contract", () => {
     expect(violations).toEqual([]);
   });
 
+  it("keeps visible metadata at the shared 10px floor", () => {
+    const pixelText = /\btext-\[(\d+(?:\.\d+)?)px\]/gu;
+    const violations = rendererSourceEntries().flatMap(({ path, source }) =>
+      [...source.matchAll(pixelText)]
+        .filter((match) => Number(match[1]) < 10)
+        .map((match) => `${path}:${match[0]}`),
+    );
+    expect(violations).toEqual([]);
+
+    const themeSource = readFileSync(
+      join(RENDERER_ROOT, "desktop-theme.ts"),
+      "utf8",
+    );
+    expect(themeSource).toContain('"--text-meta": "10px"');
+    expect(themeSource).toContain('"--line-meta": "14px"');
+    expect(themeSource).toContain('"--line-body": "19px"');
+  });
+
   it("keeps renderer surfaces on theme tokens instead of fixed Tailwind colors", () => {
     const fixedTailwindColor =
       /\b(?:bg|text|border)-(?:black|white|red|orange|amber|yellow|green|blue|purple|pink)(?:\b|\/)|\b(?:bg|text|border)-\[#[\da-f]{3,8}\]|color-mix\([^)]*#[\da-f]{3,8}/giu;

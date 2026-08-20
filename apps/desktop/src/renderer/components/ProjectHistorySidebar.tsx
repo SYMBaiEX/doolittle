@@ -142,7 +142,7 @@ export function ProjectHistorySidebar({
       return (
         draft ?? (
           <button
-            className="project-rail-empty min-h-6.25 rounded-[var(--radius-xs)] py-0.75 pr-1.75 pl-5.5 text-left font-[var(--font-mono)] text-[9px] text-[var(--faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent)] [.desktop-shell.nav-collapsed_&]:hidden"
+            className="project-rail-empty min-h-6.25 rounded-[var(--radius-xs)] py-0.75 pr-1.75 pl-5.5 text-left font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent)] [.desktop-shell.nav-collapsed_&]:hidden"
             onClick={() => onStartConversation(scope)}
             type="button"
           >
@@ -191,7 +191,7 @@ export function ProjectHistorySidebar({
         })}
         {chatCount > entries.length ? (
           <button
-            className="project-rail-more min-h-6.25 rounded-[var(--radius-xs)] py-0.75 pr-1.75 pl-5.5 text-left font-[var(--font-mono)] text-[9px] text-[var(--faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent)] [.desktop-shell.nav-collapsed_&]:hidden"
+            className="project-rail-more min-h-6.25 rounded-[var(--radius-xs)] py-0.75 pr-1.75 pl-5.5 text-left font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent)] [.desktop-shell.nav-collapsed_&]:hidden"
             onClick={() => {
               onSelectScope(scope);
               onViewAll();
@@ -253,7 +253,7 @@ export function ProjectHistorySidebar({
           >
             +
           </button>
-          <small className="project-rail-count font-[var(--font-mono)] text-[9px] text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden">
+          <small className="project-rail-count font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden">
             {chatCount}
           </small>
         </div>
@@ -286,7 +286,7 @@ export function ProjectHistorySidebar({
             <span aria-hidden="true">＋</span>
           </button>
           <button
-            className="grid size-6.5 place-items-center rounded-[var(--radius-xs)] border border-transparent p-0 text-sm text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&>span]:text-[8px] [&>span]:tracking-[-0.16em]"
+            className="grid size-6.5 place-items-center rounded-[var(--radius-xs)] border border-transparent p-0 text-sm text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&>span]:text-[length:var(--text-meta)] [&>span]:tracking-[-0.16em]"
             aria-label="Manage projects"
             onClick={onManageProjects}
             title="Manage projects"
@@ -316,7 +316,7 @@ export function ProjectHistorySidebar({
         )}
         {!model.projects.length ? (
           <button
-            className="project-rail-onboarding mt-0.75 grid grid-cols-[28px_minmax(0,1fr)] gap-x-2 gap-y-px rounded-[var(--radius-sm)] border border-dashed border-[color-mix(in_srgb,var(--accent)_28%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] px-2 py-2.25 text-left text-[var(--text-soft)] [.desktop-shell.nav-collapsed_&]:min-h-10.5 [.desktop-shell.nav-collapsed_&]:grid-cols-1 [.desktop-shell.nav-collapsed_&]:justify-items-center [.desktop-shell.nav-collapsed_&]:gap-0 [.desktop-shell.nav-collapsed_&]:px-1 [&>span]:row-span-2 [&>span]:text-base [&>span]:text-[var(--accent)] [&>strong]:text-[11px] [.desktop-shell.nav-collapsed_&]:[&>strong]:hidden [&>small]:text-[9px] [&>small]:text-[var(--muted)] [.desktop-shell.nav-collapsed_&]:[&>small]:hidden"
+            className="project-rail-onboarding mt-0.75 grid grid-cols-[28px_minmax(0,1fr)] gap-x-2 gap-y-px rounded-[var(--radius-sm)] border border-dashed border-[color-mix(in_srgb,var(--accent)_28%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] px-2 py-2.25 text-left text-[var(--text-soft)] [.desktop-shell.nav-collapsed_&]:min-h-10.5 [.desktop-shell.nav-collapsed_&]:grid-cols-1 [.desktop-shell.nav-collapsed_&]:justify-items-center [.desktop-shell.nav-collapsed_&]:gap-0 [.desktop-shell.nav-collapsed_&]:px-1 [&>span]:row-span-2 [&>span]:text-base [&>span]:text-[var(--accent)] [&>strong]:text-[11px] [.desktop-shell.nav-collapsed_&]:[&>strong]:hidden [&>small]:text-[length:var(--text-meta)] [&>small]:text-[var(--muted)] [.desktop-shell.nav-collapsed_&]:[&>small]:hidden"
             onClick={() => void onChooseRepository()}
             type="button"
           >
@@ -366,7 +366,7 @@ export function ProjectHistorySidebar({
               >
                 +
               </button>
-              <small className="project-rail-count font-[var(--font-mono)] text-[9px] text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden">
+              <small className="project-rail-count font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden">
                 {model.unscopedChatCount}
               </small>
             </div>

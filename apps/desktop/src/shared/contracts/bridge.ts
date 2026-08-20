@@ -16,6 +16,7 @@ import type {
 import type {
   EditorProjectContextRequest,
   EditorProjectContextResult,
+  EditorProjectRevisionRequest,
   WorkspaceFileSaveRequest,
   WorkspaceFileSaveResult,
 } from "./editor";
@@ -117,6 +118,9 @@ export interface DoolittleDesktopBridge {
   getEditorProjectContext(
     request: EditorProjectContextRequest,
   ): Promise<EditorProjectContextResult>;
+  getEditorProjectRevision(
+    request: EditorProjectRevisionRequest,
+  ): Promise<string>;
   saveWorkspaceFile(
     request: WorkspaceFileSaveRequest,
   ): Promise<WorkspaceFileSaveResult>;

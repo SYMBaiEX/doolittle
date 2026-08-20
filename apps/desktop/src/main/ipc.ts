@@ -4,6 +4,7 @@ import type {
   DesktopUpdateState,
   EditorProjectContextRequest,
   EditorProjectContextResult,
+  EditorProjectRevisionRequest,
   RecordedAudioImportRequest,
   WorkspaceFileSaveRequest,
   WorkspaceFileSaveResult,
@@ -14,7 +15,10 @@ import {
   desktopIpcChannels,
 } from "../shared/ipc-channels";
 import { SseParser } from "../shared/sse";
-import { resolveEditorProjectContext } from "./editor-project-context";
+import {
+  resolveEditorProjectContext,
+  resolveEditorProjectRevision,
+} from "./editor-project-context";
 import { requestAgentTransport } from "./ipc/agent-transport";
 import { isRecord } from "./ipc/input-validation";
 import type {
@@ -379,6 +383,13 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       _event: IpcMainInvokeEvent,
       request: EditorProjectContextRequest,
     ): EditorProjectContextResult => resolveEditorProjectContext(request),
+  );
+  registerHandler(
+    invokeChannels.editorProjectRevision,
+    (
+      _event: IpcMainInvokeEvent,
+      request: EditorProjectRevisionRequest,
+    ): string => resolveEditorProjectRevision(request),
   );
   registerHandler(
     invokeChannels.workspaceSaveConfirmed,

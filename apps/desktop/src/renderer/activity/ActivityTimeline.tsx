@@ -10,7 +10,7 @@ import {
 } from "./activity-model";
 
 const SOURCE_CLASS =
-  "inline-flex min-h-[18px] items-center rounded-[2px] border border-[var(--border)] px-[5px] font-[var(--font-mono)] text-[9px] uppercase tracking-[0.04em] text-[var(--muted)]";
+  "inline-flex min-h-[18px] items-center rounded-[2px] border border-[var(--border)] px-[5px] font-[var(--font-mono)] text-[length:var(--text-meta)] uppercase tracking-[0.04em] text-[var(--muted)]";
 
 function sourceToneClass(tone: ReturnType<typeof activityTone>): string {
   if (tone === "bad") {
@@ -99,7 +99,7 @@ export function ActivityTimeline({
                       >
                         {ACTIVITY_SOURCE_LABELS[event.kind]}
                       </span>
-                      <span className="inline-flex min-h-[18px] items-center font-[var(--font-mono)] text-[9px] uppercase tracking-[0.04em] text-[var(--muted)]">
+                      <span className="inline-flex min-h-[18px] items-center font-[var(--font-mono)] text-[length:var(--text-meta)] uppercase tracking-[0.04em] text-[var(--muted)]">
                         {event.status} · {event.target}
                         {count > 1 ? ` · ${count} events` : ""}
                       </span>

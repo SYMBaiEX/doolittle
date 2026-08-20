@@ -510,7 +510,7 @@ export function VoiceComposerButton({
             <strong className="min-w-0 text-xs tracking-[0.01em]">
               Voice dictation
             </strong>
-            <small className="font-[var(--font-mono)] text-[9px] tracking-[0.035em] text-[var(--faint)] uppercase">
+            <small className="font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.035em] text-[var(--faint)] uppercase">
               Review before sending
             </small>
           </div>

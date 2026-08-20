@@ -179,6 +179,9 @@ describe("desktop theme", () => {
     expect(profile).not.toBeNull();
     if (!profile) throw new Error("Expected a valid theme profile");
     expect(themeCssTokens(profile)).toMatchObject({
+      "--bg": "#090807",
+      "--surface": "#100d0d",
+      "--text": "#f9f6f1",
       "--accent": "#D7263D",
       "--accent-ink": "#fffaf5",
       "--accent-text": "color-mix(in srgb, #D7263D 72%, var(--text))",
@@ -250,32 +253,58 @@ describe("desktop theme", () => {
 
   it("uses density tokens for route headers, titles, cards, and controls", () => {
     applyDesktopDensity("comfortable");
-    expect(storage.get("style:--page-pad-block")).toBe("22px 30px");
-    expect(storage.get("style:--page-header-min-height")).toBe("64px");
+    expect(storage.get("style:--page-pad-block")).toBe("16px 24px");
+    expect(storage.get("style:--page-header-min-height")).toBe("56px");
     expect(storage.get("style:--page-title-size")).toBe(
-      "clamp(17px, 1.3vw, 20px)",
+      "clamp(17px, 1.2vw, 19px)",
     );
     expect(storage.get("style:--chat-welcome-title-size")).toBe(
-      "clamp(18px, 1.8vw, 22px)",
+      "clamp(18px, 1.6vw, 21px)",
     );
     expect(storage.get("style:--text-body")).toBe("13px");
     expect(storage.get("style:--text-control")).toBe("11px");
-    expect(storage.get("style:--card-pad")).toBe("15px");
+    expect(storage.get("style:--card-pad")).toBe("12px");
     expect(storage.get("style:--control-height")).toBe("32px");
 
     applyDesktopDensity("compact");
-    expect(storage.get("style:--page-pad-block")).toBe("16px 22px");
-    expect(storage.get("style:--page-header-min-height")).toBe("54px");
+    expect(storage.get("style:--page-pad-block")).toBe("12px 18px");
+    expect(storage.get("style:--page-header-min-height")).toBe("48px");
     expect(storage.get("style:--page-title-size")).toBe(
-      "clamp(16px, 1.2vw, 18px)",
+      "clamp(16px, 1.1vw, 18px)",
     );
     expect(storage.get("style:--chat-welcome-title-size")).toBe(
-      "clamp(17px, 1.6vw, 20px)",
+      "clamp(17px, 1.4vw, 19px)",
     );
     expect(storage.get("style:--text-body")).toBe("12px");
     expect(storage.get("style:--text-control")).toBe("10px");
-    expect(storage.get("style:--card-pad")).toBe("11px");
+    expect(storage.get("style:--card-pad")).toBe("10px");
     expect(storage.get("style:--control-height")).toBe("28px");
+  });
+
+  it("restores the appearance palette before applying an accent-only theme", () => {
+    applyDesktopAppearance("light", false);
+    const fullProfile = parseDesktopThemeProfile({
+      name: "midnight",
+      label: "Midnight",
+      primary: "#2563eb",
+      baseBg: "#020617",
+      baseFg: "#f8fafc",
+      panelBg: "#0f172a",
+    });
+    const accentOnly = parseDesktopThemeProfile({
+      name: "ember",
+      label: "Ember",
+      primary: "#df5700",
+    });
+    if (!fullProfile || !accentOnly) throw new Error("Expected valid themes");
+
+    applyDesktopTheme(fullProfile, "imported");
+    applyDesktopTheme(accentOnly, "imported");
+
+    expect(storage.get("style:--bg")).toBe("#eeeae4");
+    expect(storage.get("style:--surface")).toBe("#f7f4ef");
+    expect(storage.get("style:--text")).toBe("#211d19");
+    expect(storage.get("style:--accent")).toBe("#df5700");
   });
 
   it("does not reset the active palette when density changes", () => {

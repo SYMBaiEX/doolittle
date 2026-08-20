@@ -22,7 +22,7 @@ describe("chat chrome density contract", () => {
     expect(CHAT_HEADER_CONTENT_CLASS).not.toContain("chat-header-toolbar");
   });
 
-  it("combines desktop workspace and conversation controls into one 44px row", () => {
+  it("combines desktop workspace and conversation controls into one 40px row", () => {
     expect(app).toContain("WINDOW_DRAGBAR_PRIMARY_CLASS");
     expect(app).toContain("WINDOW_CONTEXT_CLASS");
     expect(app).toContain("CHAT_CHROME_HOST_CLASS");
@@ -38,14 +38,14 @@ describe("chat chrome density contract", () => {
     expect(chatHeader).toMatch(
       /chat-mobile-conversations-button[\s\S]*?History[\s\S]*?chat-workbench-toggle[\s\S]*?Workbench/,
     );
-    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain("basis-11");
-    expect(WINDOW_DRAGBAR_PRIMARY_CLASS).toContain("min-h-11");
+    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain("basis-10");
+    expect(WINDOW_DRAGBAR_PRIMARY_CLASS).toContain("min-h-10");
     expect(CHAT_CHROME_HOST_CLASS).toContain("min-w-0");
     expect(CHAT_CHROME_HOST_CLASS).toContain("flex-[1_1_420px]");
     expect(CHAT_HEADER_CONTENT_CLASS).toContain(
       "grid-cols-[minmax(132px,0.7fr)_minmax(0,1fr)_auto]",
     );
-    expect(CHAT_HEADER_CONTENT_CLASS).toContain("grid-rows-[44px]");
+    expect(CHAT_HEADER_CONTENT_CLASS).toContain("grid-rows-[40px]");
     expect(CHAT_HEADER_CONTENT_CLASS).toContain("[-webkit-app-region:no-drag]");
   });
 
@@ -57,9 +57,9 @@ describe("chat chrome density contract", () => {
       "max-[980px]:[&_.chat-header-title-wrap]:hidden",
     );
     expect(app).toContain('compactCommand={view === "chat"}');
-    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain("max-[760px]:basis-17");
+    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain("max-[760px]:basis-16");
     expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain(
-      "max-[760px]:[&_.window-dragbar-primary]:grid-rows-[34px_34px]",
+      "max-[760px]:[&_.window-dragbar-primary]:grid-rows-[32px_32px]",
     );
     expect(CHAT_HEADER_CONTENT_CLASS).toContain("whitespace-nowrap");
   });

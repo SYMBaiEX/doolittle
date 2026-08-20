@@ -20,7 +20,7 @@ export function DesktopRuntimeNotices({
           aria-atomic="true"
           aria-label="Local runtime unavailable"
           aria-live="polite"
-          className="flex min-h-9 shrink-0 items-center justify-between gap-2.5 border-b border-[color-mix(in_srgb,var(--warn)_22%,var(--border))] bg-[color-mix(in_srgb,var(--warn-soft)_72%,var(--surface))] px-2.5 py-1.5 text-[9px] text-[var(--warn)]"
+          className="flex min-h-9 shrink-0 items-center justify-between gap-2.5 border-b border-[color-mix(in_srgb,var(--warn)_22%,var(--border))] bg-[color-mix(in_srgb,var(--warn-soft)_72%,var(--surface))] px-2.5 py-1.5 text-[length:var(--text-meta)] text-[var(--warn)]"
           role="status"
         >
           <div className="flex min-w-0 items-baseline gap-1.75">
@@ -42,7 +42,7 @@ export function DesktopRuntimeNotices({
         <div
           aria-atomic="true"
           aria-label="Application error"
-          className="flex min-h-9 shrink-0 items-center justify-between gap-2.5 border-b border-[color-mix(in_srgb,var(--bad)_30%,var(--border))] bg-[color-mix(in_srgb,var(--bad-soft)_72%,var(--surface))] px-2.5 py-1.5 text-[9px] text-[var(--bad)]"
+          className="flex min-h-9 shrink-0 items-center justify-between gap-2.5 border-b border-[color-mix(in_srgb,var(--bad)_30%,var(--border))] bg-[color-mix(in_srgb,var(--bad-soft)_72%,var(--surface))] px-2.5 py-1.5 text-[length:var(--text-meta)] text-[var(--bad)]"
           role="alert"
         >
           <span>{globalError}</span>

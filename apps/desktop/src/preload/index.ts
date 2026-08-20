@@ -9,6 +9,7 @@ import type {
   DesktopUpdateState,
   DoolittleDesktopBridge,
   EditorProjectContextRequest,
+  EditorProjectRevisionRequest,
   InteractiveTerminalInputRequest,
   InteractiveTerminalResizeRequest,
   InteractiveTerminalStartRequest,
@@ -177,6 +178,11 @@ const bridge: DoolittleDesktopBridge = {
     ),
   getEditorProjectContext: (request: EditorProjectContextRequest) =>
     ipcRenderer.invoke(desktopIpcChannels.invoke.editorProjectContext, request),
+  getEditorProjectRevision: (request: EditorProjectRevisionRequest) =>
+    ipcRenderer.invoke(
+      desktopIpcChannels.invoke.editorProjectRevision,
+      request,
+    ),
   saveWorkspaceFile: (request: WorkspaceFileSaveRequest) =>
     ipcRenderer.invoke(
       desktopIpcChannels.invoke.workspaceSaveConfirmed,

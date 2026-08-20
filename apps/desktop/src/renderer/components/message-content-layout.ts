@@ -14,7 +14,7 @@ export const MESSAGE_TOOL_CARD_SUMMARY_CLASS =
   "grid min-h-5.5 cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.25 px-0.75 py-0.5 select-none hover:bg-[color-mix(in_srgb,var(--accent)_4%,transparent)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[color-mix(in_srgb,var(--accent)_60%,transparent)] [&::-webkit-details-marker]:hidden";
 
 export const MESSAGE_TOOL_STATE_CLASS =
-  "inline-flex items-center gap-1.25 font-mono text-[7px] font-semibold uppercase";
+  "inline-flex items-center gap-1.25 font-mono text-[length:var(--text-meta)] font-semibold uppercase";
 
 export const MESSAGE_TOOL_BODY_CLASS =
   "max-h-[300px] overflow-auto border-[var(--border)] border-t pt-0.5 pr-2 pb-2 pl-6.5 [scrollbar-gutter:stable] max-[760px]:pl-2.5";
@@ -22,10 +22,10 @@ export const MESSAGE_TOOL_BODY_CLASS =
 export const MESSAGE_TOOL_SECTION_CLASS = "mt-2.5";
 
 export const MESSAGE_TOOL_SECTION_HEADING_CLASS =
-  "mb-1.25 flex items-center justify-between font-mono text-[8px] tracking-[0.08em] text-[var(--faint)] uppercase";
+  "mb-1.25 flex items-center justify-between font-mono text-[length:var(--text-meta)] tracking-[0.08em] text-[var(--faint)] uppercase";
 
 export const MESSAGE_TOOL_PAYLOAD_CLASS =
-  "m-0 max-h-55 overflow-auto whitespace-pre-wrap break-words rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_86%,black)] p-2.5 font-mono text-[9px] leading-[1.55] text-[var(--text-soft)]";
+  "m-0 max-h-55 overflow-auto whitespace-pre-wrap break-words rounded-md border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg)_86%,black)] p-2.5 font-mono text-[length:var(--text-meta)] leading-[1.55] text-[var(--text-soft)]";
 
 export const MESSAGE_AGENT_STEPS_CLASS =
   "group mt-0.75 border-[var(--border)] border-t text-[var(--muted)]";

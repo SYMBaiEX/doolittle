@@ -139,7 +139,7 @@ export function WorkspaceFileTree({
           <strong className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-soft)]">
             Workspace
           </strong>
-          <span className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[9px] text-[var(--faint)]">
+          <span className="overflow-hidden text-ellipsis whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)]">
             {fileCount} {fileCount === 1 ? "file" : "files"} ·{" "}
             {directories.length}{" "}
             {directories.length === 1 ? "folder" : "folders"}
@@ -229,7 +229,7 @@ export function WorkspaceFileTree({
                 {entry.name}
               </span>
               {suffix ? (
-                <small className="font-[var(--font-mono)] text-[9px] uppercase tracking-[0.04em] text-[var(--faint)]">
+                <small className="font-[var(--font-mono)] text-[length:var(--text-meta)] uppercase tracking-[0.04em] text-[var(--faint)]">
                   {suffix}
                 </small>
               ) : null}

@@ -86,7 +86,7 @@ export function UtilityDrawer<TView extends string>({
         <div className="flex min-w-0 items-center gap-2.5">
           <span
             aria-hidden="true"
-            className="relative grid size-8.5 shrink-0 place-items-center rounded-[7px] border border-[color-mix(in_srgb,var(--accent)_27%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface))] font-bold font-mono text-[9px] text-[var(--accent)] tracking-[0.08em]"
+            className="relative grid size-8.5 shrink-0 place-items-center rounded-[7px] border border-[color-mix(in_srgb,var(--accent)_27%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface))] font-bold font-mono text-[length:var(--text-meta)] text-[var(--accent)] tracking-[0.08em]"
           >
             <i className="absolute top-1.25 right-1.25 size-1 rounded-full bg-[var(--accent)] shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_70%,transparent)]" />
             <span>OP</span>
@@ -99,7 +99,7 @@ export function UtilityDrawer<TView extends string>({
             >
               Tools & settings
             </h2>
-            <p className="m-0 mt-px font-mono text-[8px] text-[var(--faint)] uppercase leading-tight tracking-[0.04em]">
+            <p className="m-0 mt-px font-mono text-[length:var(--text-meta)] text-[var(--faint)] uppercase leading-tight tracking-[0.04em]">
               {totalTools} connected surfaces
             </p>
           </div>
@@ -136,7 +136,7 @@ export function UtilityDrawer<TView extends string>({
         {filtering ? (
           <span
             aria-live="polite"
-            className="absolute right-4.75 bottom-4.5 font-mono text-[9px] text-[var(--faint)]"
+            className="absolute right-4.75 bottom-4.5 font-mono text-[length:var(--text-meta)] text-[var(--faint)]"
           >
             {resultCount} {resultCount === 1 ? "result" : "results"}
           </span>
@@ -226,7 +226,7 @@ export function UtilityDrawer<TView extends string>({
                           {selected ? (
                             <span
                               aria-hidden="true"
-                              className="inline-flex items-center gap-1.25 font-mono text-[9px] text-[var(--accent)] uppercase"
+                              className="inline-flex items-center gap-1.25 font-mono text-[length:var(--text-meta)] text-[var(--accent)] uppercase"
                             >
                               <i className="size-1.25 rounded-full bg-current shadow-[0_0_7px_color-mix(in_srgb,currentColor_70%,transparent)]" />
                               Live
