@@ -1,5 +1,5 @@
 export const PROJECT_MARK_CLASS =
-  "project-rail-mark grid size-7 shrink-0 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--project-color,var(--accent))_24%,var(--border))] bg-[color-mix(in_srgb,var(--project-color,var(--accent))_10%,var(--surface-soft))] font-[var(--font-mono)] text-[10px] font-bold text-[color-mix(in_srgb,var(--project-color,var(--accent))_78%,white)] uppercase [.desktop-shell.nav-collapsed_&]:size-6.5 [.desktop-shell.nav-collapsed_&]:rounded-[7px]";
+  "project-rail-mark grid size-7 shrink-0 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--project-color,var(--accent))_24%,var(--border))] bg-[color-mix(in_srgb,var(--project-color,var(--accent))_10%,var(--surface-soft))] font-[var(--font-mono)] text-[10px] font-bold text-[color-mix(in_srgb,var(--project-color,var(--accent))_78%,var(--text))] uppercase [.desktop-shell.nav-collapsed_&]:size-6.5 [.desktop-shell.nav-collapsed_&]:rounded-[7px]";
 
 export const NEW_CHAT_SHELL_CLASS =
   "sidebar-new-chat-shell relative w-full [.desktop-shell.nav-collapsed_&]:mx-auto [.desktop-shell.nav-collapsed_&]:w-10.5";

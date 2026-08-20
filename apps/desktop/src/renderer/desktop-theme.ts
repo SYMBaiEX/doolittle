@@ -9,11 +9,18 @@ export interface DesktopThemeProfile {
   secondary: string;
   amberGlow: string;
   greenGlow: string;
+  cyanGlow?: string;
+  magentaGlow?: string;
+  muted?: string;
+  baseBg?: string;
+  baseFg?: string;
+  panelBg?: string;
 }
 
 export const APPEARANCE_STORAGE_KEY = "doolittle.desktop.appearance";
 export const DENSITY_STORAGE_KEY = "doolittle.desktop.density";
 export const THEME_STORAGE_KEY = "doolittle.desktop.theme";
+export const THEME_SOURCE_STORAGE_KEY = "doolittle.desktop.theme-source";
 export const APPEARANCE_CHANGE_EVENT = "doolittle:appearance-change";
 export const DENSITY_CHANGE_EVENT = "doolittle:density-change";
 export const THEME_CHANGE_EVENT = "doolittle:theme-change";
@@ -87,7 +94,7 @@ const BASE_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
   "--chart-3": cssVariable("warn"),
   "--chart-4": cssVariable("bad"),
   "--chart-5": cssVariable("text-soft"),
-  // Fixed dark canvas tokens are intentionally independent of appearance.
+  // Canvas defaults are replaced by profiles that provide editor colors.
   "--canvas-bg": "#080706",
   "--canvas-text": "#f4f1eb",
   "--canvas-text-soft": "#c9c3b9",
@@ -212,6 +219,22 @@ const COMPACT_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
   "--control-height": "28px",
 };
 
+const COMFORTABLE_DESKTOP_TOKENS: Readonly<Record<string, string>> = {
+  "--text-control": "11px",
+  "--text-caption": "11px",
+  "--text-body": "13px",
+  "--page-gap": "14px",
+  "--page-pad-block": "22px 30px",
+  "--page-pad-inline": "clamp(16px, 2.5vw, 36px)",
+  "--page-header-min-height": "64px",
+  "--page-header-pad-bottom": "11px",
+  "--page-title-size": "clamp(17px, 1.3vw, 20px)",
+  "--chat-welcome-title-size": "clamp(20px, 2vw, 24px)",
+  "--card-pad": "15px",
+  "--row-pad": "9px",
+  "--control-height": "32px",
+};
+
 function setCssTokens(tokens: Readonly<Record<string, string>>): void {
   const style = document.documentElement.style;
   for (const [property, value] of Object.entries(tokens)) {
@@ -229,14 +252,36 @@ export function applyDesktopFoundationTokens(): void {
 
 const CSS_COLOR =
   /^(#[\da-f]{3,8}|[a-z]+|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%deg]+\))$/i;
+const THEME_NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
+const TERMINAL_COLOR_ALIASES: Readonly<Record<string, string>> = {
+  black: "#080706",
+  blue: "#4f7cff",
+  cyan: "#63e6ff",
+  gray: "#a0988f",
+  green: "#86b875",
+  magenta: "#ff7de8",
+  orange: "#ff7a00",
+  red: "#e47763",
+  white: "#f4f1eb",
+  yellow: "#e7a84d",
+};
 
-function stringValue(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
+function stringValue(value: unknown, maxLength = 240): string {
+  return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
 }
 
 function safeColor(value: unknown, fallback: string): string {
   const candidate = stringValue(value);
-  return candidate && CSS_COLOR.test(candidate) ? candidate : fallback;
+  if (!candidate || !CSS_COLOR.test(candidate)) return fallback;
+  if (/^[a-z]+$/iu.test(candidate)) {
+    return TERMINAL_COLOR_ALIASES[candidate.toLowerCase()] ?? fallback;
+  }
+  return candidate;
+}
+
+function optionalColor(value: unknown): string | undefined {
+  const candidate = safeColor(value, "");
+  return candidate || undefined;
 }
 
 export function parseDesktopThemeProfile(
@@ -244,19 +289,31 @@ export function parseDesktopThemeProfile(
 ): DesktopThemeProfile | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const profile = value as Record<string, unknown>;
-  const name = stringValue(profile.name);
-  const label = stringValue(profile.label);
+  const name = stringValue(profile.name, 64).toLowerCase();
+  const label = stringValue(profile.label, 80);
   const primary = safeColor(profile.primary, "");
-  if (!name || !label || !primary) return null;
-  return {
+  if (!THEME_NAME.test(name) || !label || !primary) return null;
+  const parsed: DesktopThemeProfile = {
     name,
     label,
-    tagline: stringValue(profile.tagline),
+    tagline: stringValue(profile.tagline, 240),
     primary,
     secondary: safeColor(profile.secondary, primary),
     amberGlow: safeColor(profile.amberGlow, primary),
     greenGlow: safeColor(profile.greenGlow, "#86b875"),
   };
+  const optional = {
+    cyanGlow: optionalColor(profile.cyanGlow),
+    magentaGlow: optionalColor(profile.magentaGlow),
+    muted: optionalColor(profile.muted),
+    baseBg: optionalColor(profile.baseBg),
+    baseFg: optionalColor(profile.baseFg),
+    panelBg: optionalColor(profile.panelBg),
+  };
+  for (const [key, color] of Object.entries(optional)) {
+    if (color) parsed[key as keyof typeof optional] = color;
+  }
+  return parsed;
 }
 
 export function themeCssTokens(
@@ -273,24 +330,49 @@ export function themeCssTokens(
         return luminance >= 150 ? "#160b03" : "#fffaf5";
       })()
     : "#160b03";
-  return {
+  const canvasBackground = profile.panelBg ?? profile.baseBg ?? "#080706";
+  const canvasText = profile.baseFg ?? "#f4f1eb";
+  const cyan = profile.cyanGlow ?? profile.secondary;
+  const magenta = profile.magentaGlow ?? profile.secondary;
+  const tokens: Record<string, string> = {
     "--accent": profile.primary,
     "--accent-ink": accentInk,
+    "--accent-text": `color-mix(in srgb, ${profile.primary} 72%, var(--text))`,
     "--accent-hover": profile.secondary,
     "--accent-soft": `color-mix(in srgb, ${profile.primary} 14%, var(--surface))`,
     "--accent-border": `color-mix(in srgb, ${profile.primary} 42%, var(--border))`,
     "--good": profile.greenGlow,
+    "--good-soft": `color-mix(in srgb, ${profile.greenGlow} 14%, var(--surface))`,
     "--warn": profile.amberGlow,
+    "--warn-soft": `color-mix(in srgb, ${profile.amberGlow} 14%, var(--surface))`,
+    "--theme-cyan": cyan,
+    "--theme-magenta": magenta,
+    "--theme-muted": profile.muted ?? "var(--muted)",
+    "--terminal-blue": profile.primary,
+    "--terminal-bright-blue": profile.secondary,
+    "--terminal-cyan": cyan,
+    "--terminal-bright-cyan": cyan,
+    "--terminal-magenta": magenta,
+    "--terminal-bright-magenta": magenta,
+    "--canvas-bg": canvasBackground,
+    "--canvas-border": `color-mix(in srgb, ${profile.primary} 28%, ${canvasBackground})`,
+    "--canvas-text": canvasText,
+    "--canvas-text-soft": `color-mix(in srgb, ${canvasText} 76%, ${canvasBackground})`,
   };
+  return tokens;
 }
 
-export function applyDesktopTheme(profile: DesktopThemeProfile): void {
+export function applyDesktopTheme(
+  profile: DesktopThemeProfile,
+  source?: "imported" | "runtime",
+): void {
   const root = document.documentElement;
   root.dataset.theme = profile.name;
   for (const [property, value] of Object.entries(themeCssTokens(profile))) {
     root.style.setProperty(property, value);
   }
   localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(profile));
+  if (source) localStorage.setItem(THEME_SOURCE_STORAGE_KEY, source);
 }
 
 export function applyDesktopAppearance(
@@ -313,7 +395,7 @@ export function applyDesktopAppearance(
 
 export function applyDesktopDensity(density: DesktopDensity): void {
   setCssTokens(
-    density === "compact" ? COMPACT_DESKTOP_TOKENS : BASE_DESKTOP_TOKENS,
+    density === "compact" ? COMPACT_DESKTOP_TOKENS : COMFORTABLE_DESKTOP_TOKENS,
   );
   document.documentElement.dataset.density = density;
   localStorage.setItem(DENSITY_STORAGE_KEY, density);
@@ -327,6 +409,11 @@ export function loadStoredDesktopTheme(): DesktopThemeProfile | null {
   } catch {
     return null;
   }
+}
+
+export function loadDesktopThemeSource(): "imported" | "runtime" | null {
+  const source = localStorage.getItem(THEME_SOURCE_STORAGE_KEY);
+  return source === "imported" || source === "runtime" ? source : null;
 }
 
 export function loadAppearancePreference(): DesktopAppearance {

@@ -22,6 +22,7 @@ const CONTRACTS_ROOT = join(ROOT, "packages", "contracts", "src");
 const BOOTSTRAP_SCRIPTS_ROOT = join(ROOT, "scripts", "bootstrap");
 const AGENT_SRC_ROOT = join(ROOT, "packages", "agent", "src");
 const ACTIONS_ROOT = join(AGENT_SRC_ROOT, "actions");
+const NATIVE_TOOLS_ROOT = join(AGENT_SRC_ROOT, "native-tools");
 const ALLOWED_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts"]);
 const FORBIDDEN_IMPORT_PATTERNS: Array<{
   pattern: RegExp;
@@ -73,6 +74,24 @@ const INTERNAL_FACADE_GUARDS: Array<{
   include: RegExp;
   patterns: Array<{ pattern: RegExp; reason: string }>;
 }> = [
+  {
+    root: NATIVE_TOOLS_ROOT,
+    include:
+      /packages\/agent\/src\/native-tools\/(?!.+\.test\.[cm]?tsx?$).+\.(?:[cm]?ts|tsx)$/u,
+    patterns: [
+      {
+        pattern: /(?:from\s+|import\s*\()["']@elizaos\//u,
+        reason:
+          "imports an Eliza package into a standalone Doolittle native utility",
+      },
+      {
+        pattern:
+          /(?:from\s+|import\s*\()["'](?:@\/|@doolittle\/agent(?:\/|["']))/u,
+        reason:
+          "imports the Doolittle host runtime into a standalone native utility",
+      },
+    ],
+  },
   {
     root: AGENT_SRC_ROOT,
     include:

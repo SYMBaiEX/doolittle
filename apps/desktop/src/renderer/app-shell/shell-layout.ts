@@ -28,7 +28,7 @@ export const VIEW_CONTAINER_CLASS =
 export const VIEW_CONTAINER_WORKSPACE_CLASS = "overflow-hidden bg-[var(--bg)]";
 
 export const SIDEBAR_SCRIM_CLASS =
-  "sidebar-scrim fixed inset-0 z-19 border-0 bg-black/65 transition-opacity duration-150";
+  "sidebar-scrim fixed inset-0 z-19 border-0 bg-[color-mix(in_srgb,var(--shadow)_65%,transparent)] transition-opacity duration-150";
 export const SIDEBAR_SCRIM_HIDDEN_CLASS =
   "pointer-events-none invisible opacity-0";
 export const SIDEBAR_SCRIM_VISIBLE_CLASS = "visible opacity-100";
@@ -50,7 +50,7 @@ export const APP_BRAND_CLASS =
 export const APP_BRAND_COLLAPSED_CLASS =
   "min-h-20.5 flex-col justify-center gap-1.25 px-0 py-2";
 export const APP_BRAND_MARK_CLASS =
-  "app-brand-mark relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-[9px] border border-[var(--accent)] bg-[var(--accent)] font-[var(--font-display)] text-base font-extrabold tracking-[-0.06em] text-[#120a04] before:absolute before:top-1.25 before:-right-0.5 before:h-px before:w-2.75 before:-rotate-45 before:bg-[color-mix(in_srgb,#0b0a09_58%,transparent)] before:content-[''] after:absolute after:bottom-1.25 after:-left-0.5 after:h-px after:w-2.75 after:-rotate-45 after:bg-[color-mix(in_srgb,#0b0a09_58%,transparent)] after:content-[''] [&>i]:absolute [&>i]:right-1 [&>i]:bottom-1 [&>i]:size-0.75 [&>i]:rounded-full [&>i]:bg-[#0b0a09] [&>span]:-translate-x-px";
+  "app-brand-mark relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-[9px] border border-[var(--accent)] bg-[var(--accent)] font-[var(--font-display)] text-base font-extrabold tracking-[-0.06em] text-[var(--accent-ink)] before:absolute before:top-1.25 before:-right-0.5 before:h-px before:w-2.75 before:-rotate-45 before:bg-[color-mix(in_srgb,var(--accent-ink)_58%,transparent)] before:content-[''] after:absolute after:bottom-1.25 after:-left-0.5 after:h-px after:w-2.75 after:-rotate-45 after:bg-[color-mix(in_srgb,var(--accent-ink)_58%,transparent)] after:content-[''] [&>i]:absolute [&>i]:right-1 [&>i]:bottom-1 [&>i]:size-0.75 [&>i]:rounded-full [&>i]:bg-[var(--accent-ink)] [&>span]:-translate-x-px";
 export const APP_BRAND_COPY_CLASS =
   "app-brand-copy flex min-w-0 flex-col gap-0.5 [&>span]:whitespace-nowrap [&>span]:font-[var(--font-mono)] [&>span]:text-[9px] [&>span]:font-semibold [&>span]:tracking-[0.1em] [&>span]:text-[var(--accent)] [&>span]:uppercase [&>strong]:font-[var(--font-display)] [&>strong]:text-[13px] [&>strong]:font-semibold [&>strong]:tracking-[-0.01em]";
 export const SIDEBAR_COLLAPSE_CLASS =

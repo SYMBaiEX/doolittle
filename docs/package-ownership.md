@@ -10,7 +10,7 @@ pinned `2.0.3-beta.7` train.
 | Workspace | Ownership | Status | Boundary |
 |---|---|---|---|
 | `apps/desktop` | Doolittle client over Eliza | Keep thin | Official `@elizaos/ui` `ElizaClient` owns ordinary REST request, timeout, retry, client-ID, response, and `ApiError` semantics. Electron retains only lifecycle, a context-isolated transport, its security allowlist, native capabilities, dedicated streams, and operator UX. |
-| `packages/agent` | Doolittle product over Eliza | Keep thin | Composes `AgentRuntime`, official plugins, CLI/TUI, gateway, API, and product projections. Standard runtime lifecycles remain Eliza-owned. |
+| `packages/agent` | Doolittle product over Eliza | Keep thin | Composes `AgentRuntime`, official plugins, CLI/TUI, gateway, API, product projections, and isolated product-owned native utilities. Standard runtime lifecycles remain Eliza-owned; native utilities may call but never replace them. |
 | `packages/acp` | Protocol adapter | Keep | Implements the Agent Client Protocol through the official ACP SDK; Eliza does not publish a replacement for Doolittle's ACP server boundary. |
 | `packages/contracts` | Doolittle product contracts | Keep | Secret-free API, desktop, gateway, and operator records. These contracts must not shadow SDK lifecycle types. |
 | `packages/characters` | Eliza configuration | Native data | Character JSON is loaded by Eliza and contains no competing runtime implementation. |
@@ -30,6 +30,12 @@ pinned `2.0.3-beta.7` train.
 `packages/plugins/doolittle-plugin` is source inside the private
 `@doolittle/plugins` workspace rather than an additional package. It remains the
 home for product-only actions and service projections.
+
+`packages/agent/src/native-tools` is a deliberately narrower boundary for
+standalone Doolittle utilities compiled with ScriptC. These sources cannot
+import Eliza packages or recreate model, provider, plugin, task, memory,
+gateway, skill, or runtime-service ownership. See
+[Doolittle native tools](native-tools.md).
 
 ## Migration results
 

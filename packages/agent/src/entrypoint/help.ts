@@ -42,6 +42,7 @@ export function renderTopLevelHelp(): string {
     "  doolittle --version       Print the Doolittle product version",
     "  doolittle desktop         Build and open the native desktop app",
     "  doolittle acp             Run the ACP stdio server for editors",
+    "  doolittle native          Build or inspect Doolittle-owned native tools",
     "  doolittle setup           Run onboarding",
     "  doolittle doctor          Check readiness and local setup",
     "",

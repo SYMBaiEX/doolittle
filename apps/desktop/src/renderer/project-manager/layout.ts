@@ -1,5 +1,5 @@
 export const PROJECT_MANAGER_BACKDROP_CLASS =
-  "project-manager-backdrop fixed inset-0 z-[95] flex items-center justify-center bg-[color-mix(in_srgb,#000_62%,transparent)] p-7 max-[740px]:items-end max-[740px]:p-0";
+  "project-manager-backdrop fixed inset-0 z-[95] flex items-center justify-center bg-[color-mix(in_srgb,var(--shadow)_62%,transparent)] p-7 max-[740px]:items-end max-[740px]:p-0";
 
 export const PROJECT_MANAGER_CLASS =
   "project-manager flex h-[min(780px,calc(100vh-56px))] w-[min(100%,1060px)] max-w-[1060px] flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface)] shadow-[0_28px_90px_color-mix(in_srgb,var(--shadow)_76%,transparent)] outline-none max-[740px]:h-[min(90vh,820px)] max-[740px]:w-full max-[740px]:rounded-b-none max-[740px]:rounded-t-[14px] max-[740px]:border-b-0";
@@ -44,7 +44,7 @@ export const PROJECT_MANAGER_DETAIL_CLASS =
   "project-manager__detail min-w-0 overflow-y-auto px-7 py-6.5 max-[740px]:min-h-112.5 max-[740px]:px-4 max-[740px]:py-5";
 
 export const PROJECT_EDITOR_BACKDROP_CLASS =
-  "project-editor-backdrop absolute inset-0 z-3 flex items-center justify-center bg-[color-mix(in_srgb,#000_42%,transparent)] p-4.5";
+  "project-editor-backdrop absolute inset-0 z-3 flex items-center justify-center bg-[color-mix(in_srgb,var(--shadow)_42%,transparent)] p-4.5";
 
 export const PROJECT_EDITOR_CLASS =
   "project-editor grid max-h-full w-[min(100%,510px)] gap-3.75 overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--surface-raised)] p-5 shadow-[0_18px_48px_color-mix(in_srgb,var(--shadow)_72%,transparent)]";
@@ -53,4 +53,4 @@ export const PROJECT_EDITOR_LABEL_CLASS =
   "grid gap-1.5 text-xs text-[var(--text-soft)] [&>small]:text-[11px] [&>small]:text-[var(--muted)]";
 
 export const PROJECT_AVATAR_CLASS =
-  "project-avatar inline-flex shrink-0 items-center justify-center border border-[color-mix(in_srgb,var(--project-color)_58%,var(--border))] bg-[color-mix(in_srgb,var(--project-color)_18%,var(--surface-raised))] font-bold leading-none text-[color-mix(in_srgb,var(--project-color)_85%,white)]";
+  "project-avatar inline-flex shrink-0 items-center justify-center border border-[color-mix(in_srgb,var(--project-color)_58%,var(--border))] bg-[color-mix(in_srgb,var(--project-color)_18%,var(--surface-raised))] font-bold leading-none text-[color-mix(in_srgb,var(--project-color)_85%,var(--text))]";

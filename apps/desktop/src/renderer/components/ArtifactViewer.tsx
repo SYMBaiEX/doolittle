@@ -97,7 +97,7 @@ function ArtifactBody({ payload }: { payload: ArtifactPayload }) {
     const lockedDocument = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:"><meta name="referrer" content="no-referrer">${payload.content}`;
     return (
       <iframe
-        className="min-h-[420px] w-full border border-[var(--border)] bg-white"
+        className="min-h-[420px] w-full border border-[var(--border)] bg-[var(--canvas-bg)]"
         sandbox=""
         srcDoc={lockedDocument}
         title={`Generated HTML artifact ${payload.artifact.name}`}

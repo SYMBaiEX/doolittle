@@ -26,7 +26,7 @@ export const BROWSER_CANVAS_TOOLBAR_CLASS =
   "grid min-h-9.75 grid-cols-[58px_minmax(0,1fr)_auto_auto] items-center gap-2.5 border-[var(--border)] border-b bg-[var(--surface-raised)] px-2.5 [&>div]:flex [&>div]:gap-1.25 [&>span:not(.badge)]:truncate [&>span:not(.badge)]:text-center [&>span:not(.badge)]:font-mono [&>span:not(.badge)]:text-[10px] [&>span:not(.badge)]:text-[var(--muted)]";
 
 export const BROWSER_FRAME_STAGE_CLASS =
-  "flex min-h-0 min-w-0 flex-1 justify-center overflow-auto bg-[var(--canvas-bg)] [&>iframe]:h-full [&>iframe]:w-full [&>iframe]:shrink-0 [&>iframe]:border-0 [&>iframe]:bg-white [&>iframe]:shadow-[0_0_0_1px_var(--canvas-border)]";
+  "flex min-h-0 min-w-0 flex-1 justify-center overflow-auto bg-[var(--canvas-bg)] [&>iframe]:h-full [&>iframe]:w-full [&>iframe]:shrink-0 [&>iframe]:border-0 [&>iframe]:bg-[var(--canvas-bg)] [&>iframe]:shadow-[0_0_0_1px_var(--canvas-border)]";
 
 export const BROWSER_PREVIEW_WIDTH_CLASS = {
   responsive: "[&>iframe]:w-full",

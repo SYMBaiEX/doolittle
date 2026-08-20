@@ -13,6 +13,8 @@ import {
   defaultDraft,
   type ProjectDraft,
   type ProjectLike,
+  projectAccentColor,
+  THEME_PROJECT_COLOR,
 } from "./models";
 
 export function ProjectEditor({
@@ -141,8 +143,12 @@ export function ProjectEditor({
                 key={color}
                 type="button"
                 className={`size-6 rounded-full border-2 border-transparent p-0 outline-offset-2 ${draft.color === color ? "is-selected border-[var(--text)] shadow-[0_0_0_2px_var(--surface-raised),0_0_0_3px_var(--accent)]" : ""}`}
-                style={{ background: color }}
-                aria-label={`Use ${color} accent`}
+                style={{ background: projectAccentColor(color) }}
+                aria-label={
+                  color === THEME_PROJECT_COLOR
+                    ? "Follow desktop theme accent"
+                    : `Use ${color} accent`
+                }
                 aria-pressed={draft.color === color}
                 onClick={() => setDraft((value) => ({ ...value, color }))}
               />

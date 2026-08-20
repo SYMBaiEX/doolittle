@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   logEntryBorderColor,
   logEntryClassName,
-  logEntryLevelVariant,
+  logEntryTone,
   toLogViewerEntries,
 } from "./log-viewer-mapping";
 
@@ -37,21 +37,19 @@ describe("toLogViewerEntries", () => {
 
   it("keeps routine entries quiet and reserves strong treatment for failures", () => {
     expect(logEntryClassName({ level: "info", message: "ready" })).toBe(
-      "text-[var(--text-soft)] [&_[data-slot=badge]]:border-[var(--line-subtle)] [&_[data-slot=badge]]:bg-[color-mix(in_srgb,var(--surface-raised)_82%,transparent)] [&_[data-slot=badge]]:text-[var(--muted)]",
+      "[&_[data-slot=badge]]:border-[var(--line-subtle)] [&_[data-slot=badge]]:bg-[color-mix(in_srgb,var(--surface-raised)_82%,transparent)] [&_[data-slot=badge]]:text-[var(--muted)]",
     );
-    expect(logEntryLevelVariant("info")).toBe("secondary");
+    expect(logEntryTone("info")).toBe("neutral");
     expect(logEntryBorderColor("info")).toBe("var(--line-subtle)");
 
     expect(logEntryClassName({ level: "warning", message: "retry" })).toBe(
-      "text-[var(--text-soft)] [&_[data-slot=badge]]:border-[color-mix(in_srgb,var(--warning)_48%,var(--border))] [&_[data-slot=badge]]:text-[var(--warning)]",
+      "[&_[data-slot=badge]]:border-[color-mix(in_srgb,var(--warning)_48%,var(--border))] [&_[data-slot=badge]]:text-[var(--warning)]",
     );
-    expect(logEntryLevelVariant("warning")).toBe("outline");
+    expect(logEntryTone("warning")).toBe("warn");
     expect(logEntryBorderColor("warning")).toBe("var(--warning)");
 
-    expect(logEntryClassName({ level: "fatal", message: "stopped" })).toBe(
-      "text-[var(--text-soft)]",
-    );
-    expect(logEntryLevelVariant("fatal")).toBe("destructive");
+    expect(logEntryClassName({ level: "fatal", message: "stopped" })).toBe("");
+    expect(logEntryTone("fatal")).toBe("bad");
     expect(logEntryBorderColor("fatal")).toBe("var(--danger)");
   });
 });

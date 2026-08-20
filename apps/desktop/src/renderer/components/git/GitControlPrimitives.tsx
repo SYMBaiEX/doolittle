@@ -7,7 +7,7 @@ const buttonTone = {
   default:
     "border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-soft)] hover:border-[color-mix(in_srgb,var(--accent)_56%,var(--border))] hover:bg-[color-mix(in_srgb,var(--accent-soft)_72%,var(--surface-raised))] hover:text-[var(--text)]",
   primary:
-    "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast,#15110c)] hover:border-[var(--accent)] hover:bg-[var(--accent)]",
+    "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] hover:border-[var(--accent)] hover:bg-[var(--accent)]",
   danger:
     "border-[var(--border)] bg-[var(--surface-raised)] text-[var(--text-soft)] hover:border-[color-mix(in_srgb,var(--bad)_55%,var(--border))] hover:bg-[color-mix(in_srgb,var(--bad-soft)_50%,var(--surface-raised))] hover:text-[var(--bad)]",
 } as const;

@@ -33,6 +33,7 @@ overrides:
   '@elizaos/skills': 2.0.3-beta.7
   '@elizaos/ui': 2.0.3-beta.7
   '@elizaos/vault': 2.0.3-beta.7
+  cytoscape: 3.34.0
   elizaos: 2.0.3-beta.7
   protobufjs: 8.7.2
   tar: 7.5.22
@@ -192,6 +193,9 @@ importers:
       knip:
         specifier: 6.32.0
         version: 6.32.0
+      scriptc:
+        specifier: 0.0.33
+        version: 0.0.33
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -4842,6 +4846,12 @@ packages:
   '@scalar/openapi-types@0.8.0':
     resolution: {integrity: sha512-WmaxVSfvY5K/TwcG2B2TU1WOe1As1uc2s7myswtP6dBlcjU3hM08SApxv/jmyGaCE8t4gO5BBhmHY4pDUfmr2g==}
     engines: {node: '>=22'}
+
+  '@scriptc/compiler@0.0.33':
+    resolution: {integrity: sha512-Hkxo+Z0WwY/c/X9jR/EXVqQv4uHxRuVoE7THIdfYOgTbnshqVvW2z8k5womnSu33j4pAV8MCo4vDImgOpoAeUw==}
+
+  '@scriptc/runtime@0.0.33':
+    resolution: {integrity: sha512-dvmfPdS/Jz4l7rmvnHk76yC469il+zk317RTnTDzP3iW4PHjOhd+W8ZCDgQZEp1VSsNSBy2EQnh2+8Eyv+uVKA==}
 
   '@scure/base@1.1.9':
     resolution: {integrity: sha512-8YKhl8GHiNI/pU2VMaofa2Tor7PJRAjwQLBBuilkJ9L5+13yVbC7JO/wS7piioAvPSwR3JKM1IJ/u4xQzbcXKg==}
@@ -12872,6 +12882,11 @@ packages:
   scheduler@0.27.0:
     resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
 
+  scriptc@0.0.33:
+    resolution: {integrity: sha512-GzNvPRl41xzPA+E9hifmhACoIWPHxx2gU0BT++2T1CatrkQLvt5QKrjPw+OZzRLQBtOD/xGr3Tt4lT5gV/ganA==}
+    engines: {node: '>=24'}
+    hasBin: true
+
   sdp@2.12.0:
     resolution: {integrity: sha512-jhXqQAQVM+8Xj5EjJGVweuEzgtGWb3tmEEpl3CLP3cStInSbVHSg0QWOGQzNq8pSID4JkpeV2mPqlMDLrm0/Vw==}
 
@@ -13575,6 +13590,12 @@ packages:
     resolution: {integrity: sha512-mbCddXd+jm7hfx7w2YU64/Av4/NqqeG3GoRZgxPcgoTxYjhrcfJRw9ULch71SS4G+Q3bOXFhRvPqjguN0Hyp5w==}
     hasBin: true
     aliasOf: '@typescript/typescript6'
+
+  typescript5@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+    aliasOf: typescript
 
   typescript@7.0.2:
     resolution: {integrity: sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==}
@@ -21383,6 +21404,14 @@ snapshots:
   '@sapphire/snowflake@3.5.5': {}
 
   '@scalar/openapi-types@0.8.0': {}
+
+  '@scriptc/compiler@0.0.33':
+    dependencies:
+      '@scriptc/runtime': 0.0.33
+      typescript: 7.0.2
+      typescript5: 5.9.3
+
+  '@scriptc/runtime@0.0.33': {}
 
   '@scure/base@1.1.9': {}
 
@@ -32431,6 +32460,10 @@ snapshots:
 
   scheduler@0.27.0: {}
 
+  scriptc@0.0.33:
+    dependencies:
+      '@scriptc/compiler': 0.0.33
+
   sdp@2.12.0: {}
 
   semver-compare@1.0.0:
@@ -33284,6 +33317,8 @@ snapshots:
   typescript-legacy@6.0.2:
     dependencies:
       '@typescript/old': 6.0.3
+
+  typescript5@5.9.3: {}
 
   typescript@7.0.2:
     optionalDependencies:

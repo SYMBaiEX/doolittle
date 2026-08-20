@@ -521,7 +521,7 @@ export function CodingWorkspaceEditor({
         <span className="coding-spacer flex-1" />
         <button
           aria-expanded={acpTaskOpen}
-          className={`${CODING_STATUS_ACTION_CLASS} coding-acp-task-toggle aria-expanded:shadow-[inset_0_0_0_1px_color-mix(in_srgb,#1a0d03_24%,transparent)]`}
+          className={`${CODING_STATUS_ACTION_CLASS} coding-acp-task-toggle aria-expanded:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent-ink)_24%,transparent)]`}
           disabled={editingLocked}
           onClick={() => onAcpTaskOpenChange(!acpTaskOpen)}
           type="button"

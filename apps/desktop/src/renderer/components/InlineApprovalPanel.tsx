@@ -73,7 +73,7 @@ export function InlineApprovalPanel({ active }: InlineApprovalPanelProps) {
       <header className="flex items-center gap-[9px]">
         <span
           aria-hidden="true"
-          className="grid size-[23px] place-items-center rounded-full bg-[var(--accent)] font-[var(--font-mono)] text-[11px] font-black text-[#1a0d03]"
+          className="grid size-[23px] place-items-center rounded-full bg-[var(--accent)] font-[var(--font-mono)] text-[11px] font-black text-[var(--accent-ink)]"
         >
           !
         </span>

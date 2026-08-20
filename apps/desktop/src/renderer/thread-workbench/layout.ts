@@ -1,5 +1,5 @@
 export const WORKBENCH_RAIL_CLASS =
-  "thread-workbench relative grid h-full max-h-full min-h-0 w-[var(--thread-workbench-width)] min-w-[min(var(--thread-workbench-width),48vw)] max-w-[min(var(--thread-workbench-width),48vw)] flex-[0_0_var(--thread-workbench-width)] grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden border-[color-mix(in_srgb,var(--border)_82%,transparent)] border-l bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-raised)_48%,transparent),transparent_110px),color-mix(in_srgb,var(--surface)_98%,var(--bg))] text-[var(--text)] shadow-[-16px_0_42px_rgb(0_0_0/14%)] [--thread-workbench-accent:var(--accent)] [--thread-workbench-accent-soft:color-mix(in_srgb,var(--accent)_14%,transparent)] [&>*]:min-w-0 [&_.loading-block]:m-0 [&_.loading-block]:rounded-[9px] [&_.loading-block]:px-2.75 [&_.loading-block]:py-2.5 [&_.loading-block_span]:[overflow-wrap:anywhere] [&_.empty-block]:m-0 [&_.empty-block]:min-h-24 [&_.empty-block]:rounded-[9px] [&_.empty-block]:px-2.75 [&_.empty-block]:py-2.5 [&_.empty-block_span]:[overflow-wrap:anywhere] [&_.notice]:m-0 [&_.notice]:rounded-[9px] [&_.notice]:px-2.75 [&_.notice]:py-2.5 [&_.notice_span]:[overflow-wrap:anywhere] [&_.notice_p]:[overflow-wrap:anywhere] max-[1180px]:min-w-[min(var(--thread-workbench-width),44vw)] max-[1180px]:max-w-[min(var(--thread-workbench-width),44vw)] max-[960px]:min-w-[min(var(--thread-workbench-width),40vw)] max-[960px]:max-w-[min(var(--thread-workbench-width),40vw)] max-[720px]:w-full max-[720px]:min-w-0 max-[720px]:max-w-none max-[720px]:flex-1 max-[720px]:shadow-none";
+  "thread-workbench relative grid h-full max-h-full min-h-0 w-[var(--thread-workbench-width)] min-w-[min(var(--thread-workbench-width),48vw)] max-w-[min(var(--thread-workbench-width),48vw)] flex-[0_0_var(--thread-workbench-width)] grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden border-[color-mix(in_srgb,var(--border)_82%,transparent)] border-l bg-[linear-gradient(180deg,color-mix(in_srgb,var(--surface-raised)_48%,transparent),transparent_110px),color-mix(in_srgb,var(--surface)_98%,var(--bg))] text-[var(--text)] shadow-[-16px_0_42px_color-mix(in_srgb,var(--shadow)_35%,transparent)] [--thread-workbench-accent:var(--accent)] [--thread-workbench-accent-soft:color-mix(in_srgb,var(--accent)_14%,transparent)] [&>*]:min-w-0 [&_.loading-block]:m-0 [&_.loading-block]:rounded-[9px] [&_.loading-block]:px-2.75 [&_.loading-block]:py-2.5 [&_.loading-block_span]:[overflow-wrap:anywhere] [&_.empty-block]:m-0 [&_.empty-block]:min-h-24 [&_.empty-block]:rounded-[9px] [&_.empty-block]:px-2.75 [&_.empty-block]:py-2.5 [&_.empty-block_span]:[overflow-wrap:anywhere] [&_.notice]:m-0 [&_.notice]:rounded-[9px] [&_.notice]:px-2.75 [&_.notice]:py-2.5 [&_.notice_span]:[overflow-wrap:anywhere] [&_.notice_p]:[overflow-wrap:anywhere] max-[1180px]:min-w-[min(var(--thread-workbench-width),44vw)] max-[1180px]:max-w-[min(var(--thread-workbench-width),44vw)] max-[960px]:min-w-[min(var(--thread-workbench-width),40vw)] max-[960px]:max-w-[min(var(--thread-workbench-width),40vw)] max-[720px]:w-full max-[720px]:min-w-0 max-[720px]:max-w-none max-[720px]:flex-1 max-[720px]:shadow-none";
 
 export const WORKBENCH_RESIZER_CLASS =
   "thread-workbench-resizer top-0 bottom-0 left-[-5px] max-[720px]:hidden";
@@ -94,9 +94,9 @@ export const WORKBENCH_PREVIEW_CLASS =
 
 export const WORKBENCH_CODE_PREVIEW_CLASS = `${WORKBENCH_PREVIEW_CLASS} thread-workbench-code-preview relative [&>div:first-child]:grid [&>div:first-child]:grid-cols-[minmax(0,1fr)_auto_auto] [&>div:first-child>span]:font-[var(--font-mono)] [&>div:first-child>span]:text-[8px] [&>div:first-child>span]:leading-none [&>div:first-child>span]:font-bold [&>div:first-child>span]:tracking-[0.06em] [&>div:first-child>span]:text-[var(--accent)] [&>div:first-child>span]:uppercase [&>div:first-child>div]:flex [&>div:first-child>div]:shrink-0 [&>div:first-child>div]:gap-0.5`;
 
-export const WORKBENCH_DIFF_PREVIEW_CLASS = `${WORKBENCH_PREVIEW_CLASS} diff [&_pre]:text-[#d8c9b9] [&_pre]:whitespace-pre`;
+export const WORKBENCH_DIFF_PREVIEW_CLASS = `${WORKBENCH_PREVIEW_CLASS} diff [&_pre]:text-[var(--canvas-text-soft)] [&_pre]:whitespace-pre`;
 
-export const WORKBENCH_TERMINAL_PREVIEW_CLASS = `${WORKBENCH_PREVIEW_CLASS} terminal [&_pre]:text-[#f0d8c1]`;
+export const WORKBENCH_TERMINAL_PREVIEW_CLASS = `${WORKBENCH_PREVIEW_CLASS} terminal [&_pre]:text-[var(--canvas-text)]`;
 
 export const WORKBENCH_MONACO_CLASS =
   "thread-workbench-monaco relative block min-h-0 min-w-0 overflow-hidden border-0 p-0 [&_.doolittle-code-editor]:rounded-none";
@@ -129,9 +129,9 @@ export const WORKBENCH_LIST_BUTTON_SELECTED_CLASS =
   "selected bg-[color-mix(in_srgb,currentColor_6%,transparent)] text-[var(--text)] shadow-[inset_2px_0_0_var(--accent)]";
 
 export function workbenchChangeTone(tone: string): string {
-  if (tone === "untracked") return "untracked text-[#7dc8f4]";
-  if (tone === "staged") return "staged text-[#88d498]";
-  return "modified text-[#f7bd62]";
+  if (tone === "untracked") return "untracked text-[var(--theme-cyan)]";
+  if (tone === "staged") return "staged text-[var(--good)]";
+  return "modified text-[var(--warn)]";
 }
 
 export const WORKBENCH_TERMINAL_CLASS =

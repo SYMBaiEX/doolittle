@@ -8,11 +8,13 @@ import tsWorker from "monaco-editor/language/typescript/ts.worker?worker";
 import { useEffect, useEffectEvent, useRef } from "react";
 import type { CodeLanguage } from "../code-language";
 import {
+  APPEARANCE_CHANGE_EVENT,
   loadStoredDesktopTheme,
   parseDesktopThemeProfile,
   THEME_CHANGE_EVENT,
 } from "../desktop-theme";
 import { acquireMonacoProjectSupport } from "../editor-project-support";
+import { doolittleEditorTheme } from "./code-editor-theme";
 
 const DOOLITTLE_EDITOR_THEME = "doolittle-ember";
 const editorLogger = createLogger({
@@ -42,64 +44,11 @@ monacoHost.MonacoEnvironment = {
   },
 };
 
-function editorAccent(value?: string): string {
-  const candidate = value?.replace(/^#/u, "").toUpperCase();
-  return candidate && /^[\dA-F]{6}$/u.test(candidate) ? candidate : "FF711A";
-}
-
-function defineDoolittleTheme(accentValue?: string) {
-  const accent = editorAccent(accentValue);
+function defineDoolittleTheme(
+  profile: Parameters<typeof doolittleEditorTheme>[0],
+) {
   monaco.editor.defineTheme(DOOLITTLE_EDITOR_THEME, {
-    base: "vs-dark",
-    inherit: true,
-    rules: [
-      { token: "comment", foreground: "736B64", fontStyle: "italic" },
-      { token: "keyword", foreground: accent },
-      { token: "keyword.control", foreground: accent },
-      { token: "type", foreground: "F0A15F" },
-      { token: "type.identifier", foreground: "EAAA72" },
-      { token: "identifier", foreground: "E9E1DA" },
-      { token: "string", foreground: "D9AF72" },
-      { token: "number", foreground: "E78B55" },
-      { token: "regexp", foreground: "C99162" },
-      { token: "delimiter", foreground: "968D85" },
-      { token: "tag", foreground: accent },
-      { token: "attribute.name", foreground: "DDA66E" },
-      { token: "attribute.value", foreground: "D9AF72" },
-    ],
-    colors: {
-      "editor.background": "#0C0B0A",
-      "editor.foreground": "#DCD5CE",
-      "editor.lineHighlightBackground": "#171412",
-      "editor.lineHighlightBorder": "#00000000",
-      "editor.selectionBackground": `#${accent}40`,
-      "editor.inactiveSelectionBackground": `#${accent}22`,
-      "editor.selectionHighlightBackground": `#${accent}18`,
-      "editor.findMatchBackground": `#${accent}55`,
-      "editor.findMatchHighlightBackground": `#${accent}26`,
-      "editorCursor.foreground": `#${accent}`,
-      "editorLineNumber.foreground": "#554E48",
-      "editorLineNumber.activeForeground": "#BDB3AA",
-      "editorIndentGuide.background1": "#26221F",
-      "editorIndentGuide.activeBackground1": "#5B4638",
-      "editorBracketMatch.background": `#${accent}18`,
-      "editorBracketMatch.border": `#${accent}70`,
-      "editorWhitespace.foreground": "#332E2A",
-      "editorGutter.background": "#0C0B0A",
-      "editorWidget.background": "#171411",
-      "editorWidget.border": "#342D28",
-      "editorSuggestWidget.background": "#171411",
-      "editorSuggestWidget.border": "#342D28",
-      "editorSuggestWidget.selectedBackground": "#2B211A",
-      "editorHoverWidget.background": "#171411",
-      "editorHoverWidget.border": "#342D28",
-      "minimap.background": "#0C0B0A",
-      "minimap.selectionHighlight": `#${accent}45`,
-      "scrollbar.shadow": "#00000000",
-      "scrollbarSlider.background": "#6B5D5345",
-      "scrollbarSlider.hoverBackground": "#8C796B65",
-      "scrollbarSlider.activeBackground": `#${accent}65`,
-    },
+    ...doolittleEditorTheme(profile),
   });
 }
 
@@ -200,7 +149,7 @@ export function CodeEditor({
   useEffect(() => {
     const host = hostRef.current;
     if (!host || !path) return;
-    defineDoolittleTheme(loadStoredDesktopTheme()?.primary);
+    defineDoolittleTheme(loadStoredDesktopTheme());
 
     const uri = modelUri(path, workspacePath);
     monaco.editor.getModel(uri)?.dispose();
@@ -316,13 +265,19 @@ export function CodeEditor({
       const profile = parseDesktopThemeProfile(
         (event as CustomEvent<unknown>).detail,
       );
-      defineDoolittleTheme(
-        profile?.primary ?? loadStoredDesktopTheme()?.primary,
-      );
+      defineDoolittleTheme(profile ?? loadStoredDesktopTheme());
+      monaco.editor.setTheme(DOOLITTLE_EDITOR_THEME);
+    };
+    const updateAppearance = () => {
+      defineDoolittleTheme(loadStoredDesktopTheme());
       monaco.editor.setTheme(DOOLITTLE_EDITOR_THEME);
     };
     window.addEventListener(THEME_CHANGE_EVENT, updateTheme);
-    return () => window.removeEventListener(THEME_CHANGE_EVENT, updateTheme);
+    window.addEventListener(APPEARANCE_CHANGE_EVENT, updateAppearance);
+    return () => {
+      window.removeEventListener(THEME_CHANGE_EVENT, updateTheme);
+      window.removeEventListener(APPEARANCE_CHANGE_EVENT, updateAppearance);
+    };
   }, []);
 
   useEffect(() => {
@@ -405,7 +360,7 @@ export function CodeEditor({
 
   return (
     <div
-      className="doolittle-code-editor absolute inset-0 min-h-0 min-w-0 overflow-hidden bg-[#0c0b0a] [&_.margin]:!bg-[#0c0b0a] [&_.monaco-editor-background]:!bg-[#0c0b0a] [&_.monaco-editor]:!bg-[#0c0b0a] [&_.sticky-widget]:!border-b [&_.sticky-widget]:!border-[#2d2824] [&_.sticky-widget]:!shadow-[0_8px_18px_rgba(0,0,0,0.26)] [&_.monaco-hover]:!rounded-[var(--radius-xs)] [&_.monaco-hover]:!shadow-[0_14px_36px_rgba(0,0,0,0.4)] [&_.suggest-widget]:!rounded-[var(--radius-xs)] [&_.suggest-widget]:!shadow-[0_14px_36px_rgba(0,0,0,0.4)]"
+      className="doolittle-code-editor absolute inset-0 min-h-0 min-w-0 overflow-hidden bg-[var(--canvas-bg)] [&_.margin]:!bg-[var(--canvas-bg)] [&_.monaco-editor-background]:!bg-[var(--canvas-bg)] [&_.monaco-editor]:!bg-[var(--canvas-bg)] [&_.sticky-widget]:!border-b [&_.sticky-widget]:!border-[var(--canvas-border)] [&_.sticky-widget]:!shadow-[var(--shell-shadow-md)] [&_.monaco-hover]:!rounded-[var(--radius-xs)] [&_.monaco-hover]:!shadow-[var(--shell-shadow-lg)] [&_.suggest-widget]:!rounded-[var(--radius-xs)] [&_.suggest-widget]:!shadow-[var(--shell-shadow-lg)]"
       ref={hostRef}
     />
   );

@@ -149,7 +149,7 @@ export function InteractiveTerminalHeader({
           ) : null}
         </div>
       </div>
-      <div className="flex min-h-8.75 min-w-0 items-center gap-1 overflow-hidden border-[color-mix(in_srgb,var(--border)_70%,transparent)] border-t bg-[color-mix(in_srgb,#0d0b0a_44%,transparent)] px-1.5 pt-1 pb-1.25">
+      <div className="flex min-h-8.75 min-w-0 items-center gap-1 overflow-hidden border-[color-mix(in_srgb,var(--border)_70%,transparent)] border-t bg-[color-mix(in_srgb,var(--canvas-bg)_44%,transparent)] px-1.5 pt-1 pb-1.25">
         <div
           aria-label="Interactive terminal tabs"
           className="flex min-w-0 flex-1 flex-nowrap items-stretch gap-0.75 overflow-x-auto overscroll-x-contain [scrollbar-color:var(--accent-border)_transparent] [scrollbar-width:thin]"

@@ -13,6 +13,7 @@ export type EntrypointSubcommand =
   | "setup"
   | "install"
   | "doctor"
+  | "native"
   | "dev"
   | "api"
   | "acp"
@@ -106,6 +107,7 @@ export function resolveSubcommand(userArgs: string[] = process.argv.slice(2)): {
     install: "install",
     doctor: "doctor",
     check: "doctor",
+    native: "native",
     dev: "dev",
     api: "api",
     acp: "acp",

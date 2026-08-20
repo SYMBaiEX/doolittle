@@ -33,14 +33,14 @@ export function InteractiveTerminalSurface({
 }) {
   return (
     <>
-      <div className="relative min-h-0 min-w-0 overflow-hidden bg-[#0d0b0a]">
+      <div className="relative min-h-0 min-w-0 overflow-hidden bg-[var(--canvas-bg)]">
         <div
           aria-label="Terminal output"
           aria-labelledby={
             activeTab ? terminalTabLabelId(activeTab.id) : undefined
           }
           aria-live="off"
-          className="absolute inset-0 m-0 min-h-0 min-w-0 overflow-auto border-0 bg-transparent p-2.5 font-mono text-[#e7dfd8] outline-0 [scrollbar-color:var(--accent-border)_transparent] [scrollbar-width:thin] focus-visible:shadow-[inset_2px_0_var(--accent)] [&_.xterm]:h-full [&_.xterm-helper-textarea]:opacity-[0.01] [&_.xterm-viewport]:overscroll-contain [&_.xterm-viewport]:[scrollbar-color:var(--accent-border)_transparent] [&_.xterm-viewport]:[scrollbar-width:thin]"
+          className="absolute inset-0 m-0 min-h-0 min-w-0 overflow-auto border-0 bg-transparent p-2.5 font-mono text-[var(--canvas-text)] outline-0 [scrollbar-color:var(--accent-border)_transparent] [scrollbar-width:thin] focus-visible:shadow-[inset_2px_0_var(--accent)] [&_.xterm]:h-full [&_.xterm-helper-textarea]:opacity-[0.01] [&_.xterm-viewport]:!bg-[var(--canvas-bg)] [&_.xterm-viewport]:overscroll-contain [&_.xterm-viewport]:[scrollbar-color:var(--accent-border)_transparent] [&_.xterm-viewport]:[scrollbar-width:thin]"
           id={
             activeTab ? `interactive-terminal-${activeTab.id}-panel` : undefined
           }
@@ -48,7 +48,7 @@ export function InteractiveTerminalSurface({
           role="tabpanel"
         />
         {!running && !activeTab?.output ? (
-          <div className="absolute inset-0 z-3 flex flex-col items-center justify-center bg-[color-mix(in_srgb,#0d0b0a_92%,transparent)] p-6 text-center text-[var(--muted)]">
+          <div className="absolute inset-0 z-3 flex flex-col items-center justify-center bg-[color-mix(in_srgb,var(--canvas-bg)_92%,transparent)] p-6 text-center text-[var(--muted)]">
             <span
               aria-hidden="true"
               className="mb-2.75 grid size-9.5 place-items-center rounded-[var(--radius-xs)] border border-[var(--accent-border)] bg-[var(--accent-soft)] font-black font-mono text-xs text-[var(--accent)] shadow-[0_0_28px_color-mix(in_srgb,var(--accent)_12%,transparent)]"

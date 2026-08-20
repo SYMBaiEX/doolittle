@@ -1,5 +1,10 @@
+import { useRef } from "react";
 import { OfflineRouteState } from "../components/OfflineRouteState";
-import type { DesktopAppearance, DesktopDensity } from "../desktop-theme";
+import type {
+  DesktopAppearance,
+  DesktopDensity,
+  DesktopThemeProfile,
+} from "../desktop-theme";
 import { asRecord, asString, Badge, titleCase } from "../lib";
 import {
   SETTINGS_APPEARANCE_BUTTON_CLASS,
@@ -18,18 +23,23 @@ export function SettingsAppearancePanel({
   density,
   onAppearanceChange,
   onDensityChange,
+  onThemeExport,
+  onThemeImport,
   onThemeChange,
   themes,
 }: {
   active: boolean;
-  activeTheme?: string;
+  activeTheme: DesktopThemeProfile | null;
   appearance: DesktopAppearance;
   density: DesktopDensity;
   onAppearanceChange: (appearance: DesktopAppearance) => void;
   onDensityChange: (density: DesktopDensity) => void;
+  onThemeExport: () => void;
+  onThemeImport: (file: File) => void;
   onThemeChange: (theme: string) => void;
   themes: unknown[];
 }) {
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   return (
     <section className={SETTINGS_GROUP_CLASS}>
       <fieldset
@@ -91,8 +101,48 @@ export function SettingsAppearancePanel({
           <p>Shared across chat, code, review, workbench, and terminal.</p>
         </div>
         <Badge>
-          {active ? titleCase(activeTheme ?? "orange") : "Unavailable"}
+          {activeTheme?.label ?? (active ? "Default" : "Unavailable")}
         </Badge>
+      </div>
+      <div className="settings-theme-transfer flex min-h-11 items-center justify-between gap-4 rounded-[var(--radius-xs)] border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface-soft)_64%,transparent)] px-2.5 py-2 max-[620px]:items-stretch max-[620px]:flex-col">
+        <div className="grid min-w-0 gap-0.5">
+          <strong className="text-[length:var(--text-control)]">
+            Shareable theme file
+          </strong>
+          <small className="text-[length:var(--text-meta)] leading-[1.45] text-[var(--muted)]">
+            Palette, appearance, and density only. Imported files cannot run CSS
+            or scripts.
+          </small>
+        </div>
+        <div className="flex shrink-0 gap-1.25 max-[620px]:w-full [&>button]:min-h-7 [&>button]:flex-1 [&>button]:px-2.25 [&>button]:text-[10px]">
+          <button
+            className="secondary-button"
+            onClick={() => importInputRef.current?.click()}
+            type="button"
+          >
+            Import
+          </button>
+          <button
+            className="secondary-button"
+            disabled={!activeTheme}
+            onClick={onThemeExport}
+            type="button"
+          >
+            Export
+          </button>
+          <input
+            accept=".doolittle-theme.json,application/json"
+            aria-label="Import Doolittle theme file"
+            className="sr-only"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              if (file) onThemeImport(file);
+              event.currentTarget.value = "";
+            }}
+            ref={importInputRef}
+            type="file"
+          />
+        </div>
       </div>
       {!active ? (
         <OfflineRouteState>
@@ -104,7 +154,7 @@ export function SettingsAppearancePanel({
         {themes.map((value, index) => {
           const entry = asRecord(value);
           const name = asString(entry.name, String(index));
-          const primary = asString(entry.primary, "#ff6a00");
+          const primary = asString(entry.primary, "var(--accent)");
           const secondary = asString(entry.secondary, primary);
           const label = asString(entry.label, titleCase(name));
           const tagline = asString(entry.tagline, "Desktop color system");
@@ -112,7 +162,7 @@ export function SettingsAppearancePanel({
             <button
               aria-label={`${label}: ${tagline}`}
               className={`${SETTINGS_THEME_BUTTON_CLASS} ${
-                activeTheme === name ? "selected" : ""
+                activeTheme?.name === name ? "selected" : ""
               }`}
               key={name}
               onClick={() => onThemeChange(name)}
@@ -129,12 +179,12 @@ export function SettingsAppearancePanel({
                 <i style={{ background: secondary }} />
                 <i
                   style={{
-                    background: asString(entry.greenGlow, "#86b875"),
+                    background: asString(entry.greenGlow, "var(--good)"),
                   }}
                 />
               </span>
               <strong>{label}</strong>
-              <b aria-hidden="true">{activeTheme === name ? "✓" : ""}</b>
+              <b aria-hidden="true">{activeTheme?.name === name ? "✓" : ""}</b>
             </button>
           );
         })}

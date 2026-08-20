@@ -121,6 +121,20 @@ of a duplicate desktop schema. Secrets and OAuth tokens are intentionally
 absent: connection actions cross a narrow IPC allowlist, but secret values are
 never returned to the renderer.
 
+Appearance settings also provide a shareable `.doolittle-theme.json` bundle.
+Export captures the active color profile, light/dark/system appearance, and
+interface density; Import validates and applies that versioned JSON locally.
+Theme files cannot include CSS, scripts, URLs, or runtime settings. Imported
+profiles remain active across restarts until the operator selects a built-in
+runtime theme, which makes the export-edit-share-import path safe and portable.
+The exported file is also the authoring template: change the profile name,
+label, tagline, and color values, then import it from Settings > Appearance.
+Required palette fields are `primary`, `secondary`, `amberGlow`, and
+`greenGlow`; optional `cyanGlow`, `magentaGlow`, `muted`, `baseBg`, `baseFg`,
+and `panelBg` extend editor and terminal surfaces. Colors accept hex, rgb, hsl,
+or the bounded ANSI names shown by built-in exports. The bundle is versioned,
+limited to 64 KB, and ignores unknown keys when it is exported again.
+
 ### MCP marketplace discovery
 
 The Tools page separates configured MCP connections from the official MCP

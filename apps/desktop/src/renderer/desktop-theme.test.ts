@@ -5,6 +5,8 @@ import {
   applyDesktopDensity,
   applyDesktopTheme,
   DENSITY_CHANGE_EVENT,
+  loadDesktopThemeSource,
+  loadStoredDesktopTheme,
   parseDesktopThemeProfile,
   resolveAppearance,
   subscribeToDesktopThemeChanges,
@@ -116,6 +118,12 @@ describe("desktop theme", () => {
         secondary: "#7DFFB3",
         amberGlow: "#C4FF00",
         greenGlow: "#00FF66",
+        cyanGlow: "#00FFD5",
+        magentaGlow: "#FF4FD8",
+        muted: "gray",
+        baseBg: "black",
+        baseFg: "white",
+        panelBg: "#090b0a",
         ignored: "<script>",
       }),
     ).toEqual({
@@ -126,6 +134,12 @@ describe("desktop theme", () => {
       secondary: "#7DFFB3",
       amberGlow: "#C4FF00",
       greenGlow: "#00FF66",
+      cyanGlow: "#00FFD5",
+      magentaGlow: "#FF4FD8",
+      muted: "#a0988f",
+      baseBg: "#080706",
+      baseFg: "#f4f1eb",
+      panelBg: "#090b0a",
     });
   });
 
@@ -138,6 +152,13 @@ describe("desktop theme", () => {
         primary: "url(javascript:alert(1))",
       }),
     ).toBeNull();
+    expect(
+      parseDesktopThemeProfile({
+        name: "not-css",
+        label: "Invalid color",
+        primary: "notacolor",
+      }),
+    ).toBeNull();
   });
 
   it("derives live CSS tokens from the selected palette", () => {
@@ -148,15 +169,28 @@ describe("desktop theme", () => {
       secondary: "#FF6B6B",
       amberGlow: "#FFC857",
       greenGlow: "#93FFB0",
+      cyanGlow: "#63E6FF",
+      magentaGlow: "#FF7DE8",
+      muted: "gray",
+      baseBg: "#090807",
+      baseFg: "#f9f6f1",
+      panelBg: "#100d0d",
     });
     expect(profile).not.toBeNull();
     if (!profile) throw new Error("Expected a valid theme profile");
     expect(themeCssTokens(profile)).toMatchObject({
       "--accent": "#D7263D",
       "--accent-ink": "#fffaf5",
+      "--accent-text": "color-mix(in srgb, #D7263D 72%, var(--text))",
       "--accent-hover": "#FF6B6B",
       "--good": "#93FFB0",
+      "--good-soft": "color-mix(in srgb, #93FFB0 14%, var(--surface))",
       "--warn": "#FFC857",
+      "--warn-soft": "color-mix(in srgb, #FFC857 14%, var(--surface))",
+      "--theme-cyan": "#63E6FF",
+      "--theme-magenta": "#FF7DE8",
+      "--canvas-bg": "#100d0d",
+      "--canvas-text": "#f9f6f1",
     });
   });
 
@@ -193,7 +227,7 @@ describe("desktop theme", () => {
 
     applyDesktopAppearance("system", true);
     applyDesktopDensity("compact");
-    applyDesktopTheme(profile);
+    applyDesktopTheme(profile, "imported");
 
     expect(root.dataset).toMatchObject({
       appearance: "dark",
@@ -210,6 +244,8 @@ describe("desktop theme", () => {
       JSON.stringify(profile),
     );
     expect(storage.get("style:--accent")).toBe("#D7263D");
+    expect(loadDesktopThemeSource()).toBe("imported");
+    expect(loadStoredDesktopTheme()).toEqual(profile);
   });
 
   it("uses density tokens for route headers, titles, cards, and controls", () => {
@@ -240,6 +276,29 @@ describe("desktop theme", () => {
     expect(storage.get("style:--text-control")).toBe("10px");
     expect(storage.get("style:--card-pad")).toBe("11px");
     expect(storage.get("style:--control-height")).toBe("28px");
+  });
+
+  it("does not reset the active palette when density changes", () => {
+    const profile = parseDesktopThemeProfile({
+      name: "blue",
+      label: "Blue Static",
+      primary: "#0B35F1",
+      secondary: "cyan",
+      amberGlow: "yellow",
+      greenGlow: "green",
+      panelBg: "#030712",
+      baseFg: "#f8fafc",
+    });
+    if (!profile) throw new Error("Expected a valid theme profile");
+
+    applyDesktopTheme(profile, "runtime");
+    applyDesktopDensity("compact");
+    applyDesktopDensity("comfortable");
+
+    expect(storage.get("style:--accent")).toBe("#0B35F1");
+    expect(storage.get("style:--canvas-bg")).toBe("#030712");
+    expect(storage.get("style:--canvas-text")).toBe("#f8fafc");
+    expect(loadDesktopThemeSource()).toBe("runtime");
   });
 
   it("keeps representative small semantic text above 4.5:1 on its surfaces", () => {

@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { PROJECT_AVATAR_CLASS } from "./layout";
-import { COLORS, type ProjectLike, projectLabel } from "./models";
+import { type ProjectLike, projectAccentColor, projectLabel } from "./models";
 
 export function ProjectAvatar({
   project,
@@ -16,7 +16,11 @@ export function ProjectAvatar({
           ? "project-avatar--small size-5 rounded-[5px] text-[11px]"
           : "project-avatar--regular size-8.5 rounded-[var(--radius-xs)] text-sm"
       }`}
-      style={{ "--project-color": project.color ?? COLORS[0] } as CSSProperties}
+      style={
+        {
+          "--project-color": projectAccentColor(project.color),
+        } as CSSProperties
+      }
       aria-hidden="true"
     >
       {projectLabel(project)}

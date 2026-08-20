@@ -1,6 +1,6 @@
 import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
 import { FitAddon } from "@xterm/addon-fit";
-import { Terminal } from "@xterm/xterm";
+import { type ITheme, Terminal } from "@xterm/xterm";
 import {
   type KeyboardEvent,
   useCallback,
@@ -14,6 +14,7 @@ import type {
   InteractiveTerminalOutput,
   InteractiveTerminalSession,
 } from "../../shared/contracts";
+import { APPEARANCE_CHANGE_EVENT, THEME_CHANGE_EVENT } from "../desktop-theme";
 import { errorMessage } from "../lib";
 import { compactWorkspacePath } from "../workspace-path";
 import { InteractiveTerminalHeader } from "./InteractiveTerminalHeader";
@@ -46,6 +47,57 @@ export function appendTerminalBytes(
     MAX_RENDERED_TERMINAL_OUTPUT,
     truncatedBeforeCursor,
   );
+}
+
+function colorWithAlpha(
+  color: string,
+  alpha: string,
+  fallback: string,
+): string {
+  const compact = color.match(/^#([\da-f])([\da-f])([\da-f])$/iu);
+  if (compact) {
+    return `#${compact[1]}${compact[1]}${compact[2]}${compact[2]}${compact[3]}${compact[3]}${alpha}`;
+  }
+  return /^#[\da-f]{6}$/iu.test(color) ? `${color}${alpha}` : fallback;
+}
+
+export function interactiveTerminalTheme(
+  style: Pick<CSSStyleDeclaration, "getPropertyValue">,
+): ITheme {
+  const token = (name: string, fallback: string) =>
+    style.getPropertyValue(name).trim() || fallback;
+  const background = token("--canvas-bg", "#080706");
+  const foreground = token("--canvas-text", "#f4f1eb");
+  const softText = token("--canvas-text-soft", "#c9c3b9");
+  const accent = token("--accent", "#ff6b16");
+  const good = token("--good", "#86b875");
+  const warn = token("--warn", "#e7a84d");
+  const bad = token("--bad", "#e47763");
+
+  return {
+    background,
+    foreground,
+    cursor: accent,
+    cursorAccent: token("--accent-ink", "#1b0b02"),
+    selectionBackground: colorWithAlpha(accent, "66", softText),
+    selectionInactiveBackground: colorWithAlpha(accent, "33", background),
+    black: background,
+    brightBlack: token("--theme-muted", softText),
+    red: bad,
+    brightRed: bad,
+    green: good,
+    brightGreen: good,
+    yellow: warn,
+    brightYellow: warn,
+    blue: token("--terminal-blue", accent),
+    brightBlue: token("--terminal-bright-blue", accent),
+    magenta: token("--terminal-magenta", accent),
+    brightMagenta: token("--terminal-bright-magenta", accent),
+    cyan: token("--terminal-cyan", accent),
+    brightCyan: token("--terminal-bright-cyan", accent),
+    white: foreground,
+    brightWhite: foreground,
+  };
 }
 
 function preserveTabs(
@@ -231,30 +283,9 @@ export function InteractiveTerminal({
       fontSize: 12,
       lineHeight: 1.35,
       scrollback: 5_000,
-      theme: {
-        background: "#0d0b0a",
-        cursor: "#f5a623",
-        cursorAccent: "#120b06",
-        foreground: "#e7dfd8",
-        selectionBackground: "#6c4c2a",
-        selectionInactiveBackground: "#49311f",
-        black: "#171310",
-        brightBlack: "#756b63",
-        red: "#e86b58",
-        brightRed: "#ff826d",
-        green: "#95b67a",
-        brightGreen: "#aed08e",
-        yellow: "#d6a759",
-        brightYellow: "#efc06d",
-        blue: "#7b9fbd",
-        brightBlue: "#91b8d5",
-        magenta: "#b58aa9",
-        brightMagenta: "#cca0bf",
-        cyan: "#79aaa5",
-        brightCyan: "#8ec4bd",
-        white: "#ded6cf",
-        brightWhite: "#fff8f1",
-      },
+      theme: interactiveTerminalTheme(
+        getComputedStyle(document.documentElement),
+      ),
     });
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
@@ -292,6 +323,22 @@ export function InteractiveTerminal({
       xtermTabIdRef.current = null;
     };
   }, [activeTabId, fitTerminalToViewport, syncSession]);
+
+  useEffect(() => {
+    const updateTheme = () => {
+      const terminal = xtermRef.current;
+      if (!terminal) return;
+      terminal.options.theme = interactiveTerminalTheme(
+        getComputedStyle(document.documentElement),
+      );
+    };
+    window.addEventListener(THEME_CHANGE_EVENT, updateTheme);
+    window.addEventListener(APPEARANCE_CHANGE_EVENT, updateTheme);
+    return () => {
+      window.removeEventListener(THEME_CHANGE_EVENT, updateTheme);
+      window.removeEventListener(APPEARANCE_CHANGE_EVENT, updateTheme);
+    };
+  }, []);
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
   const running = activeTab?.state === "running";

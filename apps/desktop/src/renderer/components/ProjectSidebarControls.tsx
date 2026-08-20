@@ -7,7 +7,11 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import type { ProjectLike, ProjectScope } from "../project-manager/models";
+import {
+  type ProjectLike,
+  type ProjectScope,
+  projectAccentColor,
+} from "../project-manager/models";
 import {
   NEW_CHAT_CHOICE_CLASS,
   NEW_CHAT_MENU_CLASS,
@@ -35,7 +39,7 @@ export function ProjectMark({ project }: { project: ProjectLike }) {
       className={PROJECT_MARK_CLASS}
       style={
         {
-          "--project-color": project.color ?? "var(--accent)",
+          "--project-color": projectAccentColor(project.color),
         } as CSSProperties
       }
     >

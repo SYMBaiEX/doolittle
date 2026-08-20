@@ -27,6 +27,7 @@ describe("handleLocalEntrypointSubcommand", () => {
         runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
         renderCommandCatalog: vi.fn(() => "catalog"),
         runDesktopCommand: vi.fn(async () => ({ exitCode: 0 })),
+        runNativeToolCommand: vi.fn(async () => ({ exitCode: 0 })),
         runAcpServer: vi.fn(async () => {}),
       },
     );
@@ -54,6 +55,7 @@ describe("handleLocalEntrypointSubcommand", () => {
         runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
         renderCommandCatalog: vi.fn(() => "catalog"),
         runDesktopCommand: vi.fn(async () => ({ exitCode: 0 })),
+        runNativeToolCommand: vi.fn(async () => ({ exitCode: 0 })),
         runAcpServer: vi.fn(async () => {}),
       },
     );
@@ -80,6 +82,7 @@ describe("handleLocalEntrypointSubcommand", () => {
         runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
         renderCommandCatalog: vi.fn(() => "catalog"),
         runDesktopCommand: vi.fn(async () => ({ exitCode: 0 })),
+        runNativeToolCommand: vi.fn(async () => ({ exitCode: 0 })),
         runAcpServer: vi.fn(async () => {}),
       },
     );
@@ -110,6 +113,7 @@ describe("handleLocalEntrypointSubcommand", () => {
         runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
         renderCommandCatalog: vi.fn(() => "catalog"),
         runDesktopCommand: vi.fn(async () => ({ exitCode: 0 })),
+        runNativeToolCommand: vi.fn(async () => ({ exitCode: 0 })),
         runAcpServer: vi.fn(async () => {}),
       },
     );
@@ -143,6 +147,7 @@ describe("handleLocalEntrypointSubcommand", () => {
         runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
         renderCommandCatalog: vi.fn(() => "catalog"),
         runDesktopCommand,
+        runNativeToolCommand: vi.fn(async () => ({ exitCode: 0 })),
         runAcpServer: vi.fn(async () => {}),
       },
     );
@@ -174,11 +179,45 @@ describe("handleLocalEntrypointSubcommand", () => {
         runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
         renderCommandCatalog: vi.fn(() => "catalog"),
         runDesktopCommand: vi.fn(async () => ({ exitCode: 0 })),
+        runNativeToolCommand: vi.fn(async () => ({ exitCode: 0 })),
         runAcpServer,
       },
     );
 
     expect(handled).toBe(true);
     expect(runAcpServer).toHaveBeenCalledOnce();
+  });
+
+  it("routes native tooling without booting the Eliza runtime", async () => {
+    const exit = vi.fn(() => {});
+    const runNativeToolCommand = vi.fn(async () => ({ exitCode: 0 }));
+    const handled = await handleLocalEntrypointSubcommand(
+      {
+        command: "native",
+        rest: ["coverage"],
+        repoRoot: "/repo",
+        renderTopLevelHelp: () => "help text",
+        entryLogger: createLogger() as never,
+        runOnboardingWizard: async () => {},
+        exit,
+      },
+      {
+        existsSync: vi.fn(() => true),
+        resolve: ((...parts: string[]) => parts.join("/")) as never,
+        runProcess: vi.fn(async () => ({ exitCode: 0 })) as never,
+        renderCommandCatalog: vi.fn(() => "catalog"),
+        runDesktopCommand: vi.fn(async () => ({ exitCode: 0 })),
+        runNativeToolCommand,
+        runAcpServer: vi.fn(async () => {}),
+      },
+    );
+
+    expect(handled).toBe(true);
+    expect(runNativeToolCommand).toHaveBeenCalledWith({
+      repoRoot: "/repo",
+      args: ["coverage"],
+      printLine: console.log,
+    });
+    expect(exit).toHaveBeenCalledWith(0);
   });
 });

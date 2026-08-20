@@ -68,8 +68,11 @@ export interface ProjectManagerProps {
   className?: string;
 }
 
+export const THEME_PROJECT_COLOR = "theme";
+export const LEGACY_DEFAULT_PROJECT_COLOR = "#ff6a00";
+
 export const COLORS = [
-  "#ff6a00",
+  THEME_PROJECT_COLOR,
   "#e77955",
   "#d49a39",
   "#95b65e",
@@ -79,12 +82,35 @@ export const COLORS = [
   "#d76a94",
 ] as const;
 
+/**
+ * Projects created before theme profiles stored Doolittle's old orange as
+ * ordinary project data. Treat that one legacy default as the live theme
+ * accent while preserving every explicitly different project colour.
+ */
+export function projectAccentColor(color?: string): string {
+  const normalized = color?.trim();
+  if (
+    !normalized ||
+    normalized === THEME_PROJECT_COLOR ||
+    normalized.toLowerCase() === LEGACY_DEFAULT_PROJECT_COLOR
+  ) {
+    return "var(--accent)";
+  }
+  return normalized;
+}
+
+export function projectDraftColor(color?: string): string {
+  return projectAccentColor(color) === "var(--accent)"
+    ? THEME_PROJECT_COLOR
+    : (color?.trim() ?? THEME_PROJECT_COLOR);
+}
+
 export function defaultDraft(project?: ProjectLike): ProjectDraft {
   return {
     name: project?.name ?? "",
     description: project?.description ?? "",
     instructions: project?.instructions ?? "",
-    color: project?.color ?? COLORS[0],
+    color: projectDraftColor(project?.color),
   };
 }
 

@@ -1,11 +1,11 @@
 export const COMMAND_PALETTE_LOADING_BACKDROP_CLASS =
-  "command-palette-loading-backdrop fixed inset-0 z-160 grid place-items-center bg-black/80 p-4";
+  "command-palette-loading-backdrop fixed inset-0 z-160 grid place-items-center bg-[color-mix(in_srgb,var(--shadow)_80%,transparent)] p-4";
 
 export const COMMAND_PALETTE_LOADING_DISMISS_CLASS =
   "command-palette-loading-dismiss absolute inset-0 cursor-default border-0 bg-transparent";
 
 export const COMMAND_PALETTE_LOADING_CLASS =
-  "command-palette-loading relative z-1 w-[min(620px,calc(100vw-32px))] overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,transparent)] shadow-[0_30px_90px_rgba(0,0,0,0.52)] outline-none";
+  "command-palette-loading relative z-1 w-[min(620px,calc(100vw-32px))] overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,transparent)] shadow-[var(--shell-shadow-lg)] outline-none";
 
 export const COMMAND_PALETTE_LOADING_HEADER_CLASS =
   "command-palette-loading__header grid min-h-10 grid-cols-[auto_1fr_auto] items-center gap-2 px-2.5 pt-2 pb-1 [&_h2]:m-0 [&_h2]:text-[11px] [&_h2]:font-semibold [&_h2]:text-[var(--text-soft)]";

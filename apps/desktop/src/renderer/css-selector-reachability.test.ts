@@ -194,8 +194,5 @@ describe("Tailwind contract reachability", () => {
     expect(elizaTailwindCss).toContain(
       '@source "../../../../node_modules/@elizaos/ui/components/ui"',
     );
-    expect(elizaTailwindCss).toContain(
-      '@source "../../../../node_modules/@elizaos/ui/cloud-ui/components/log-viewer"',
-    );
   });
 });

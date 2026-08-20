@@ -79,6 +79,7 @@ import {
   type DesktopDensity,
   loadAppearancePreference,
   loadDensityPreference,
+  loadDesktopThemeSource,
   loadStoredDesktopTheme,
   parseDesktopThemeProfile,
   resolveAppearance,
@@ -812,8 +813,9 @@ export function App() {
     void desktopRequest<ThemeResponse>("/theme")
       .then((response) => {
         if (disposed) return;
+        if (loadDesktopThemeSource() === "imported") return;
         const profile = parseDesktopThemeProfile(response.profile);
-        if (profile) applyDesktopTheme(profile);
+        if (profile) applyDesktopTheme(profile, "runtime");
       })
       .catch(() => {
         // The cached profile preserves the visual theme while the runtime recovers.

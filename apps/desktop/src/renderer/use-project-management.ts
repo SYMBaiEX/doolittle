@@ -197,7 +197,6 @@ export function useProjectManagement({
             {
               name: workspaceName(repositoryPath),
               description: "Local repository workspace",
-              color: "#ff6a00",
               primaryPath: repositoryPath,
             },
           );

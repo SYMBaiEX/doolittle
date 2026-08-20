@@ -8,7 +8,7 @@ Doolittle is organized as a Nub workspace monorepo running on stock Node.js.
 | --- | --- |
 | Root package | Workspace manifest, exact ElizaOS release contract, shared scripts, documentation, and toolchain configuration. |
 | `apps/desktop` | Electron lifecycle and native capabilities, context-isolated preload contract, and React operator UI. See the [desktop guide](./desktop.md). |
-| `packages/agent` | Primary application: Eliza runtime assembly, CLI/cockpit, API, gateway, and product services. |
+| `packages/agent` | Primary application: Eliza runtime assembly, CLI/cockpit, API, gateway, product services, and strictly product-owned optional native utilities. |
 | `packages/acp` | Agent Client Protocol server and in-process bridge built on the official ACP SDK. |
 | `packages/contracts` | Secret-free contracts shared across the agent, desktop, gateway, and plugins. |
 | `packages/plugins` | Doolittle product facets plus the Claude Code and Devin provider bridges. Official Codex, Eliza Cloud, SQL, browser, MCP, messaging, and model plugins remain upstream-owned. |
@@ -24,6 +24,7 @@ Doolittle is organized as a Nub workspace monorepo running on stock Node.js.
   - operator flows
   - ACP surfaces
   - Doolittle identity and routing
+  - isolated native utilities that call, but do not replace, Eliza-owned runtime surfaces
 - keep provider bridges and product plugin facets in `packages/plugins/*`
   - avoid claiming official plugin workspaces unless they are actual workspace packages
   - prefer direct ElizaOS SDK imports over local compatibility shims
@@ -65,4 +66,8 @@ nub run lint:check
 nub run typecheck
 nub run test
 nub run build
+nub run native:verify
 ```
+
+See [Doolittle native tools](./native-tools.md) for the stricter ownership and
+toolchain rules applied to native compilation.

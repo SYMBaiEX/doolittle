@@ -16,11 +16,16 @@ import {
   type DesktopDensity,
   loadAppearancePreference,
   loadDensityPreference,
+  loadDesktopThemeSource,
+  loadStoredDesktopTheme,
   parseDesktopThemeProfile,
 } from "./desktop-theme";
 import {
+  downloadDesktopThemeBundle,
+  parseDesktopThemeBundle,
+} from "./desktop-theme-transfer";
+import {
   asArray,
-  asString,
   Badge,
   desktopRequest,
   ErrorBlock,
@@ -118,6 +123,9 @@ export function SettingsPage({ active }: { active: boolean }) {
     loadAppearancePreference,
   );
   const [density, setDensity] = useState<DesktopDensity>(loadDensityPreference);
+  const [activeThemeProfile, setActiveThemeProfile] = useState(
+    loadStoredDesktopTheme,
+  );
   const [lifecycle, setLifecycle] = useState<DesktopLifecycleState | null>(
     null,
   );
@@ -147,6 +155,11 @@ export function SettingsPage({ active }: { active: boolean }) {
       unsubscribe();
     };
   }, [resourcePolicy.desktop]);
+  useEffect(() => {
+    if (loadDesktopThemeSource() === "imported") return;
+    const profile = parseDesktopThemeProfile(themes.data?.profile);
+    if (profile) setActiveThemeProfile(profile);
+  }, [themes.data?.profile]);
   const fields = useMemo(
     () => flattenSettings(settings.data?.settings ?? {}),
     [settings.data],
@@ -213,7 +226,8 @@ export function SettingsPage({ active }: { active: boolean }) {
       if (!profile) {
         throw new Error("The runtime did not return a valid theme profile.");
       }
-      applyDesktopTheme(profile);
+      applyDesktopTheme(profile, "runtime");
+      setActiveThemeProfile(profile);
       announceTheme(profile);
       setSavedMessage(`${profile.label} is now active everywhere.`);
       themes.reload();
@@ -239,6 +253,41 @@ export function SettingsPage({ active }: { active: boolean }) {
     applyDesktopDensity(next);
     announceDensity(next);
     setSavedMessage(`${titleCase(next)} interface density is now active.`);
+  };
+
+  const importTheme = async (file: File) => {
+    try {
+      const bundle = parseDesktopThemeBundle(await file.text());
+      setAppearance(bundle.appearance);
+      applyDesktopAppearance(bundle.appearance);
+      announceAppearance(bundle.appearance);
+      setDensity(bundle.density);
+      applyDesktopDensity(bundle.density);
+      announceDensity(bundle.density);
+      applyDesktopTheme(bundle.theme, "imported");
+      setActiveThemeProfile(bundle.theme);
+      announceTheme(bundle.theme);
+      setSavedMessage(`${bundle.theme.label} was imported and applied.`);
+    } catch (error) {
+      setSavedMessage(errorMessage(error));
+    }
+  };
+
+  const exportTheme = () => {
+    const profile =
+      activeThemeProfile ?? parseDesktopThemeProfile(themes.data?.profile);
+    if (!profile) {
+      setSavedMessage("Choose a valid theme before exporting it.");
+      return;
+    }
+    try {
+      downloadDesktopThemeBundle(profile, appearance, density);
+      setSavedMessage(
+        `${profile.label} was exported as a Doolittle theme file.`,
+      );
+    } catch (error) {
+      setSavedMessage(errorMessage(error));
+    }
   };
 
   const reloadSettings = () => {
@@ -345,11 +394,13 @@ export function SettingsPage({ active }: { active: boolean }) {
             {!runtimeCategoryOffline && category === "appearance" ? (
               <SettingsAppearancePanel
                 active={active}
-                activeTheme={asString(themes.data?.active, "orange")}
+                activeTheme={activeThemeProfile}
                 appearance={appearance}
                 density={density}
                 onAppearanceChange={changeAppearance}
                 onDensityChange={changeDensity}
+                onThemeExport={exportTheme}
+                onThemeImport={(file) => void importTheme(file)}
                 onThemeChange={(theme) => void changeTheme(theme)}
                 themes={asArray(themes.data?.themes)}
               />

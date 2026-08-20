@@ -193,7 +193,7 @@ export function UtilityDrawer<TView extends string>({
                           aria-current={selected ? "page" : undefined}
                           className={`grid min-h-10 min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.25 rounded-[var(--radius-sm)] border px-1.75 py-1.5 text-left transition-colors motion-reduce:transition-none ${
                             selected
-                              ? "border-[color-mix(in_srgb,var(--accent)_22%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] text-[var(--text)] shadow-[inset_2px_0_var(--accent),0_5px_15px_rgb(0_0_0/8%)]"
+                              ? "border-[color-mix(in_srgb,var(--accent)_22%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] text-[var(--text)] shadow-[inset_2px_0_var(--accent),var(--shell-shadow-md)]"
                               : "border-transparent bg-transparent text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                           }`}
                           key={item.id}

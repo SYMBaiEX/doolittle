@@ -103,6 +103,40 @@ describe("desktop theme token contract", () => {
     expect(violations).toEqual([]);
   });
 
+  it("keeps renderer surfaces on theme tokens instead of fixed Tailwind colors", () => {
+    const fixedTailwindColor =
+      /\b(?:bg|text|border)-(?:black|white|red|orange|amber|yellow|green|blue|purple|pink)(?:\b|\/)|\b(?:bg|text|border)-\[#[\da-f]{3,8}\]|color-mix\([^)]*#[\da-f]{3,8}/giu;
+    const violations = rendererSourceEntries().flatMap(({ path, source }) => {
+      if (path.endsWith("BrowserPage.tsx")) return [];
+      return [...source.matchAll(fixedTailwindColor)].map(
+        (match) => `${path}:${match[0]}`,
+      );
+    });
+    expect(violations).toEqual([]);
+  });
+
+  it("routes editor and terminal canvases through the shared profile", () => {
+    const editorSource = readFileSync(
+      join(RENDERER_ROOT, "components/CodeEditor.tsx"),
+      "utf8",
+    );
+    const terminalSource = readFileSync(
+      join(RENDERER_ROOT, "components/InteractiveTerminal.tsx"),
+      "utf8",
+    );
+    const terminalSurfaceSource = readFileSync(
+      join(RENDERER_ROOT, "components/InteractiveTerminalSurface.tsx"),
+      "utf8",
+    );
+    expect(editorSource).toContain("doolittleEditorTheme");
+    expect(editorSource).toContain("bg-[var(--canvas-bg)]");
+    expect(terminalSource).toContain("interactiveTerminalTheme");
+    expect(terminalSource).toContain("THEME_CHANGE_EVENT");
+    expect(terminalSurfaceSource).toContain(
+      "[&_.xterm-viewport]:!bg-[var(--canvas-bg)]",
+    );
+  });
+
   it("caps nested responsive headings at 18px", () => {
     const responsiveText = /text-\[clamp\([^\]]*?,[^\]]*?,(\d+)px\)\]/gu;
     const violations = rendererSourceEntries().flatMap(({ path, source }) =>

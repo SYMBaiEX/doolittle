@@ -39,7 +39,7 @@ export const CODING_REPO_IDENTITY_CLASS =
   "coding-repo-identity flex min-w-0 items-center gap-2.25 [&_.eyebrow]:hidden [&>div:last-child]:min-w-0";
 
 export const CODING_REPO_MARK_CLASS =
-  "coding-repo-mark grid size-6.75 shrink-0 place-items-center rounded-[4px] border border-[var(--accent)] bg-[var(--accent)] font-[var(--font-mono)] text-[10px] font-black text-[#160b03]";
+  "coding-repo-mark grid size-6.75 shrink-0 place-items-center rounded-[4px] border border-[var(--accent)] bg-[var(--accent)] font-[var(--font-mono)] text-[10px] font-black text-[var(--accent-ink)]";
 
 export const CODING_REPO_TITLE_CLASS =
   "coding-repo-title flex min-w-0 items-center gap-1.75 [&_h1]:m-0 [&_h1]:max-w-[min(35vw,440px)] [&_h1]:truncate [&_h1]:font-[var(--font-display)] [&_h1]:text-sm [&_h1]:font-[680] [&_h1]:tracking-[-0.02em] [&_code]:rounded-[3px] [&_code]:bg-[var(--surface-soft)] [&_code]:px-1.25 [&_code]:py-0.5 [&_code]:text-[8px] [&_code]:text-[var(--muted)]";
@@ -214,7 +214,7 @@ export const CODING_ACP_STATUS_CLASS =
   "coding-acp-status inline-flex items-center gap-1.25 whitespace-nowrap [&>i]:size-1.25 [&>i]:rounded-full [&>i]:bg-current";
 
 export const CODING_STATUS_ACTION_CLASS =
-  "coding-status-action min-h-5.25 rounded-[var(--radius-xs)] border-0 bg-[var(--accent)] px-1.75 py-0.75 font-[var(--font-mono)] text-[9px] font-extrabold tracking-[0.03em] text-[#1a0d03] uppercase";
+  "coding-status-action min-h-5.25 rounded-[var(--radius-xs)] border-0 bg-[var(--accent)] px-1.75 py-0.75 font-[var(--font-mono)] text-[9px] font-extrabold tracking-[0.03em] text-[var(--accent-ink)] uppercase";
 
 export const CODING_COMMIT_LIST_CLASS =
   "coding-commit-list p-2.5 [&_article]:relative [&_article]:grid [&_article]:min-h-11 [&_article]:grid-cols-[13px_minmax(0,1fr)] [&_article]:gap-1.75 [&_article>span]:relative [&_article>span]:mt-1 [&_article>span]:size-1.75 [&_article>span]:rounded-full [&_article>span]:border-2 [&_article>span]:border-[var(--accent)] [&_article>span]:bg-[var(--surface)] [&_article:not(:last-child)>span]:after:absolute [&_article:not(:last-child)>span]:after:top-1.75 [&_article:not(:last-child)>span]:after:bottom-[-35px] [&_article:not(:last-child)>span]:after:left-px [&_article:not(:last-child)>span]:after:w-px [&_article:not(:last-child)>span]:after:bg-[var(--border-strong)] [&_article:not(:last-child)>span]:after:content-[''] [&_article>div]:flex [&_article>div]:min-w-0 [&_article>div]:flex-col [&_article>div]:gap-1.25 [&_code]:text-[10px] [&_code]:text-[var(--muted)]";

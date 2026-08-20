@@ -10,6 +10,7 @@ is an operator guide, generated runtime truth, or a maintainer design record.
 | [Quickstart](./quickstart.md) | Install Doolittle, configure a first provider, and verify the runtime. |
 | [Operator loop](./operator-loop.md) | Learn the shortest daily shell, runtime, and gateway workflow. |
 | [Desktop](./desktop.md) | Install, develop, package, and understand the Electron security boundary. |
+| [Native tools](./native-tools.md) | Build the optional Doolittle-owned native utilities without changing ElizaOS runtime ownership. |
 | [Skills Hub](./skills-hub.md) | Understand native Eliza skill ownership and Doolittle's operator projection. |
 | [v0.1.0 release notes](./releases/v0.1.0.md) | Supported artifacts, compatibility, limitations, and release provenance. |
 

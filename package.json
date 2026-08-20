@@ -44,6 +44,11 @@
     "dev": "nub run --cwd packages/agent dev",
     "start": "nub run --cwd packages/agent start",
     "build": "nub run --cwd packages/agent build",
+    "native:status": "nub packages/agent/src/index.ts native status",
+    "native:coverage": "nub packages/agent/src/index.ts native coverage",
+    "native:build": "nub packages/agent/src/index.ts native build",
+    "native:test": "nub run native:build && nub scripts/test-native-probe.ts",
+    "native:verify": "nub run native:coverage && nub run native:test",
     "desktop:dev": "nub run --cwd apps/desktop dev",
     "desktop:build": "nub run --cwd apps/desktop build",
     "desktop:typecheck": "nub run --cwd apps/desktop typecheck",
@@ -158,6 +163,7 @@
     "@elizaos/shared": "2.0.3-beta.7",
     "@elizaos/ui": "2.0.3-beta.7",
     "@elizaos/vault": "2.0.3-beta.7",
+    "cytoscape": "3.34.0",
     "elizaos": "2.0.3-beta.7",
     "protobufjs": "8.7.2",
     "tar": "7.5.22"
@@ -171,6 +177,7 @@
     "blessed": "^0.1.81",
     "esbuild": "0.28.2",
     "knip": "6.32.0",
+    "scriptc": "0.0.33",
     "typescript": "^7.0.2",
     "vitest": "4.1.10"
   },

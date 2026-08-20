@@ -1,5 +1,5 @@
 export const COMMAND_PALETTE_CLASS =
-  "command-palette z-1700 max-h-[min(590px,calc(100vh-96px))] w-[min(620px,calc(100vw-32px))] gap-0 overflow-hidden rounded-2xl border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,transparent)] p-0 shadow-[0_30px_90px_rgba(0,0,0,0.52),0_0_0_1px_color-mix(in_srgb,var(--accent)_4%,transparent)]";
+  "command-palette z-1700 max-h-[min(590px,calc(100vh-96px))] w-[min(620px,calc(100vw-32px))] gap-0 overflow-hidden rounded-2xl border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,transparent)] p-0 shadow-[var(--shell-shadow-lg)]";
 
 export const COMMAND_PALETTE_HEADER_CLASS =
   "command-palette__header flex min-h-10 items-center justify-between px-2.5 pt-2 pb-1";
@@ -45,9 +45,9 @@ export const COMMAND_SHORTCUT_KEY_CLASS =
   "command-shortcut__key rounded border border-[var(--border)] bg-[var(--surface)] px-1.25 py-0.75 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[inherit]";
 
 export const ROUTE_DIALOG_BACKDROP_CLASS =
-  "dialog-backdrop fixed inset-0 z-1000 grid place-items-center overflow-auto bg-[color-mix(in_srgb,#050302_78%,transparent)] p-[clamp(18px,4vw,54px)] max-[760px]:items-end max-[760px]:p-2.5";
+  "dialog-backdrop fixed inset-0 z-1000 grid place-items-center overflow-auto bg-[color-mix(in_srgb,var(--shadow)_78%,transparent)] p-[clamp(18px,4vw,54px)] max-[760px]:items-end max-[760px]:p-2.5";
 export const ROUTE_DIALOG_CLASS =
-  "route-control-dialog w-[min(920px,100%)] max-h-[min(88vh,860px)] overflow-auto rounded-[var(--radius-md)] border border-[color-mix(in_srgb,var(--accent)_28%,var(--border))] bg-[radial-gradient(circle_at_82%_0%,color-mix(in_srgb,var(--accent)_10%,transparent),transparent_34%),color-mix(in_srgb,var(--surface-raised)_98%,#080503)] p-[clamp(18px,3vw,28px)] shadow-[0_30px_90px_color-mix(in_srgb,#000_78%,transparent),0_0_0_1px_color-mix(in_srgb,var(--accent)_7%,transparent)] outline-none max-[760px]:max-h-[calc(100vh-20px)] max-[760px]:rounded-[var(--radius-md)_var(--radius-md)_var(--radius-xs)_var(--radius-xs)]";
+  "route-control-dialog w-[min(920px,100%)] max-h-[min(88vh,860px)] overflow-auto rounded-[var(--radius-md)] border border-[color-mix(in_srgb,var(--accent)_28%,var(--border))] bg-[radial-gradient(circle_at_82%_0%,color-mix(in_srgb,var(--accent)_10%,transparent),transparent_34%),var(--surface-raised)] p-[clamp(18px,3vw,28px)] shadow-[0_30px_90px_color-mix(in_srgb,var(--shadow)_78%,transparent),0_0_0_1px_color-mix(in_srgb,var(--accent)_7%,transparent)] outline-none max-[760px]:max-h-[calc(100vh-20px)] max-[760px]:rounded-[var(--radius-md)_var(--radius-md)_var(--radius-xs)_var(--radius-xs)]";
 export const ROUTE_DIALOG_HEADER_CLASS =
   "route-control-header flex items-start justify-between gap-6 border-b border-[var(--border)] pb-4.5 [&_h2]:mt-1.25 [&_h2]:mb-1.75 [&_h2]:text-[clamp(15px,1.2vw,18px)] [&_h2]:leading-[1.1] [&_p]:m-0 [&_p]:max-w-140 [&_p]:leading-[1.55] [&_p]:text-[var(--muted)]";
 export const ROUTE_DIALOG_FORM_CLASS = "route-control-form grid gap-4.5 pt-4.5";

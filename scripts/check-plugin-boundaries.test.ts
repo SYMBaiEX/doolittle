@@ -31,6 +31,7 @@ function createBoundaryFixture(options: {
   includeRetiredCodexProvider?: boolean;
   includeRetiredSecretsManager?: boolean;
   includeUnnamespacedProductService?: boolean;
+  includeNativeElizaImport?: boolean;
 }): string {
   const root = mkdtempSync(join(tmpdir(), "doolittle-boundary-"));
 
@@ -53,6 +54,7 @@ function createBoundaryFixture(options: {
     join(packagesDir, "agent", "src", "runtime", "bootstrap", "runtime"),
     join(packagesDir, "agent", "src", "runtime", "native"),
     join(packagesDir, "agent", "src", "actions"),
+    join(packagesDir, "agent", "src", "native-tools"),
     join(packagesDir, "contracts", "src"),
     join(root, "apps", "desktop", "src", "main"),
     join(root, "apps", "desktop", "src", "renderer"),
@@ -63,6 +65,14 @@ function createBoundaryFixture(options: {
   for (const dir of requiredDirs) {
     mkdirSync(dir, { recursive: true });
   }
+
+  writeFileSync(
+    join(packagesDir, "agent", "src", "native-tools", "probe.ts"),
+    options.includeNativeElizaImport
+      ? 'import { AgentRuntime } from "@elizaos/core";\nexport type Runtime = AgentRuntime;\n'
+      : 'export const probe = "doolittle-owned";\n',
+    "utf8",
+  );
 
   writeFileSync(
     join(packagesDir, "agent", "src", "actions", "model-action.ts"),
@@ -248,6 +258,17 @@ describe("check-plugin-boundaries", () => {
       "redeclares the shared Eliza text model surface",
     );
     expect(result.stderr).toContain("plugin-dummy/index.ts");
+  });
+
+  it("keeps standalone native utilities outside Eliza runtime ownership", () => {
+    fixture = createBoundaryFixture({ includeNativeElizaImport: true });
+    const result = runScript(fixture);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "imports an Eliza package into a standalone Doolittle native utility",
+    );
+    expect(result.stderr).toContain("native-tools/probe.ts");
   });
 
   it("rejects reusable plugins that import the host application", () => {

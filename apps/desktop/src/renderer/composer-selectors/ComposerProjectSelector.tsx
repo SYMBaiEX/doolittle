@@ -5,7 +5,11 @@ import {
   useRef,
   useState,
 } from "react";
-import type { ProjectLike, ProjectScope } from "../project-manager/models";
+import {
+  type ProjectLike,
+  type ProjectScope,
+  projectAccentColor,
+} from "../project-manager/models";
 import {
   COMPOSER_ACTIONS_CLASS,
   COMPOSER_POPOVER_CLASS,
@@ -26,7 +30,7 @@ function ProjectGlyph({ project }: { project?: ProjectLike }) {
       data-project-glyph="true"
       style={
         {
-          "--composer-project-color": project?.color ?? "var(--accent)",
+          "--composer-project-color": projectAccentColor(project?.color),
         } as CSSProperties
       }
     >

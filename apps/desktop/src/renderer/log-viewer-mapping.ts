@@ -1,7 +1,13 @@
-import type { LogViewerStructuredEntry } from "@elizaos/ui/cloud-ui/components/log-viewer";
 import { asRecord, asString } from "./lib";
 
 type LogLevelTone = "debug" | "error" | "info" | "trace" | "warn";
+
+export interface RuntimeLogEntry {
+  id: string;
+  level: string;
+  message: string;
+  timestamp?: string;
+}
 
 function logLevelTone(level: unknown): LogLevelTone {
   const normalized = asString(level, "info").toLowerCase();
@@ -12,27 +18,27 @@ function logLevelTone(level: unknown): LogLevelTone {
   return "info";
 }
 
-export function logEntryClassName(entry: LogViewerStructuredEntry): string {
-  const tone = logLevelTone(entry.level);
-  if (tone === "debug" || tone === "trace") {
-    return "text-[var(--text-soft)] opacity-75";
-  }
-  if (tone === "warn") {
-    return "text-[var(--text-soft)] [&_[data-slot=badge]]:border-[color-mix(in_srgb,var(--warning)_48%,var(--border))] [&_[data-slot=badge]]:text-[var(--warning)]";
-  }
-  if (tone === "info") {
-    return "text-[var(--text-soft)] [&_[data-slot=badge]]:border-[var(--line-subtle)] [&_[data-slot=badge]]:bg-[color-mix(in_srgb,var(--surface-raised)_82%,transparent)] [&_[data-slot=badge]]:text-[var(--muted)]";
-  }
-  return "text-[var(--text-soft)]";
+export function logEntryTone(level: string): "neutral" | "warn" | "bad" {
+  const tone = logLevelTone(level);
+  if (tone === "error") return "bad";
+  if (tone === "warn") return "warn";
+  return "neutral";
 }
 
-export function logEntryLevelVariant(
-  level: string,
-): "destructive" | "outline" | "secondary" {
-  const tone = logLevelTone(level);
-  if (tone === "error") return "destructive";
-  if (tone === "info") return "secondary";
-  return "outline";
+export function logEntryClassName(
+  entry: Pick<RuntimeLogEntry, "level">,
+): string {
+  const tone = logLevelTone(entry.level);
+  if (tone === "debug" || tone === "trace") {
+    return "opacity-75";
+  }
+  if (tone === "warn") {
+    return "[&_[data-slot=badge]]:border-[color-mix(in_srgb,var(--warning)_48%,var(--border))] [&_[data-slot=badge]]:text-[var(--warning)]";
+  }
+  if (tone === "info") {
+    return "[&_[data-slot=badge]]:border-[var(--line-subtle)] [&_[data-slot=badge]]:bg-[color-mix(in_srgb,var(--surface-raised)_82%,transparent)] [&_[data-slot=badge]]:text-[var(--muted)]";
+  }
+  return "";
 }
 
 export function logEntryBorderColor(level: string): string {
@@ -50,9 +56,7 @@ export function logEntryBorderColor(level: string): string {
 }
 
 /** Translates Doolittle's structured runtime events into the public UI viewer shape. */
-export function toLogViewerEntries(
-  logs: unknown[],
-): LogViewerStructuredEntry[] {
+export function toLogViewerEntries(logs: unknown[]): RuntimeLogEntry[] {
   return logs.map((value, index) => {
     const entry = asRecord(value);
     const scope = asString(entry.scope, "runtime");

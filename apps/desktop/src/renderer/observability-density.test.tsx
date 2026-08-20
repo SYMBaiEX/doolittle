@@ -13,14 +13,6 @@ vi.mock("./lib", async () => {
   return { ...actual, useApiResource: useApiResourceMock };
 });
 
-vi.mock("@elizaos/ui/cloud-ui/components/log-viewer", () => ({
-  LogViewer: ({ entries, title }: { entries: unknown[]; title: string }) => (
-    <section className="log-console" data-entry-count={entries.length}>
-      <h2>{title}</h2>
-    </section>
-  ),
-}));
-
 import { ActivityPage } from "./ActivityPage";
 import { AnalyticsPage } from "./analytics/AnalyticsPage";
 import { LogsPage } from "./LogsPage";
@@ -104,6 +96,8 @@ describe("observability route density", () => {
       container.querySelectorAll(".compact-stat-strip__item"),
     ).toHaveLength(3);
     expect(container.textContent).not.toContain("FilterAll");
+    expect(container.querySelector("[data-runtime-log-stream]")).not.toBeNull();
+    expect(container.textContent).toContain("gateway · Retrying");
     expect(requestedPaths).not.toContain("/deliveries");
     expect(requestedPaths).not.toContain("/terminal/history");
 

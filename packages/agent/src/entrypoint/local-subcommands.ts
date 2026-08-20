@@ -5,6 +5,7 @@ import { renderCommandCatalog } from "@/runtime/command-catalog";
 import { runInheritedTextProcess } from "@/services/process-execution";
 import { DOOLITTLE_VERSION } from "@/version";
 import { runDesktopCommand } from "./desktop-command";
+import { runNativeToolCommand } from "./native-tool-command";
 import type { EntrypointSubcommand } from "./subcommand";
 
 interface LocalSubcommandDeps {
@@ -13,6 +14,7 @@ interface LocalSubcommandDeps {
   runProcess: typeof runInheritedTextProcess;
   renderCommandCatalog: typeof renderCommandCatalog;
   runDesktopCommand: typeof runDesktopCommand;
+  runNativeToolCommand: typeof runNativeToolCommand;
   runAcpServer: () => Promise<void>;
 }
 
@@ -22,6 +24,7 @@ const localSubcommandDeps: LocalSubcommandDeps = {
   runProcess: runInheritedTextProcess,
   renderCommandCatalog,
   runDesktopCommand,
+  runNativeToolCommand,
   runAcpServer: async () => (await import("./acp-server")).startAcpServer(),
 };
 
@@ -81,6 +84,19 @@ export async function handleLocalEntrypointSubcommand(
       repoRoot: input.repoRoot,
       args: input.rest,
       launchCwd: process.cwd(),
+      printLine,
+    });
+    if (result.message) {
+      writeStderrLine(result.message);
+    }
+    exit(result.exitCode);
+    return true;
+  }
+
+  if (input.command === "native") {
+    const result = await deps.runNativeToolCommand({
+      repoRoot: input.repoRoot,
+      args: input.rest,
       printLine,
     });
     if (result.message) {

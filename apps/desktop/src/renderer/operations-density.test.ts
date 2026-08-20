@@ -46,6 +46,8 @@ describe("operational route density", () => {
     expect(analytics).toContain("max-[1120px]:grid-cols-1");
     expect(analytics).toContain("max-[700px]:flex-col");
     expect(logs).toContain("h-[clamp(18rem,56vh,35rem)]");
+    expect(logs).toContain("<RuntimeLogStream");
+    expect(logs).not.toContain("@elizaos/ui/cloud-ui/components/log-viewer");
   });
 
   it("keeps secondary operational diagnostics closed until requested", () => {

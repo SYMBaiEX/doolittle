@@ -1,4 +1,3 @@
-import { LogViewer } from "@elizaos/ui/cloud-ui/components/log-viewer";
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { Input } from "@elizaos/ui/components/ui/input";
@@ -13,13 +12,9 @@ import {
   useApiResource,
   useDebouncedValue,
 } from "./lib";
-import {
-  logEntryBorderColor,
-  logEntryClassName,
-  logEntryLevelVariant,
-  toLogViewerEntries,
-} from "./log-viewer-mapping";
+import { toLogViewerEntries } from "./log-viewer-mapping";
 import { OperationsTracePanel } from "./logs/OperationsTracePanel";
+import { RuntimeLogStream } from "./logs/RuntimeLogStream";
 import {
   OBSERVABILITY_CONTROL_CLASS,
   OBSERVABILITY_FILTER_CLASS,
@@ -151,23 +146,13 @@ export function LogsPage({ active }: { active: boolean }) {
           <option value="fatal">Fatal</option>
         </select>
       </div>
-      <LogViewer
-        className="overflow-hidden rounded-[var(--radius-xs)] border border-[var(--border)] bg-[#0e0d0c] p-0 [html[data-appearance=light]_&]:bg-[#f5f1eb] [&>:not(:last-child)]:hidden [&>:last-child]:grid [&>:last-child]:gap-0 [&>:last-child>:first-child]:min-h-[38px] [&>:last-child>:first-child]:items-center [&>:last-child>:first-child]:border-[var(--border)] [&>:last-child>:first-child]:px-2.5 [&>:last-child>:first-child]:py-[7px] [&_h2]:text-[var(--text)] [&_h2]:text-[length:var(--text-control)] [&_h2]:font-semibold"
-        emptyState={{
-          title: "No matching log events",
-          description: "The current filters did not match any recent records.",
-        }}
+      <RuntimeLogStream
+        className="[&>[role=log]]:h-[clamp(18rem,56vh,35rem)] max-[700px]:[&>[role=log]]:h-[clamp(18rem,54svh,26rem)]"
         entries={logEntries}
-        entryClassName={logEntryClassName}
-        entryLevelBorderColor={logEntryBorderColor}
-        entryLevelVariant={logEntryLevelVariant}
         error={resource.error || undefined}
-        errorTitle="Could not load runtime logs"
-        heightClassName="h-[clamp(18rem,56vh,35rem)] rounded-none border-0 max-[700px]:h-[clamp(18rem,54svh,26rem)] [&_[data-slot=badge]]:h-[18px] [&_[data-slot=badge]]:min-w-[3.2rem] [&_[data-slot=badge]]:justify-center [&_[data-slot=badge]]:px-[5px] [&_[data-slot=badge]]:text-[9px] [&_[data-slot=scroll-area-viewport]>div>div]:px-[9px] [&_[data-slot=scroll-area-viewport]>div>div]:py-[7px] [&_[data-slot=scroll-area-viewport]>div>div]:text-[length:var(--text-meta)]"
-        isFilteredEmpty={Boolean(query.trim() || level !== "all")}
+        filtered={Boolean(query.trim() || level !== "all")}
         loading={resource.loading}
         onRetry={resource.reload}
-        title="Event stream"
       />
       <details
         className="operations-trace-details overflow-hidden rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface)] open:[&>summary]:border-b open:[&>summary]:border-[var(--border)]"
