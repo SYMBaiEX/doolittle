@@ -174,7 +174,7 @@ export function ChatHeaderChrome({
           </button>
           {activeRequest ? (
             <button
-              className="secondary-button"
+              className="secondary-button chat-stop-response"
               onClick={() => onCancelRequest(activeRequest)}
               type="button"
             >

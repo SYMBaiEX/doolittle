@@ -1,3 +1,4 @@
+import { Files } from "lucide-react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -47,7 +48,7 @@ describe("coding workspace presentational sections", () => {
         label: "Explorer views",
         onChange: vi.fn(),
         options: [
-          { id: "files", label: "Files" },
+          { id: "files", label: "Files", icon: Files },
           { id: "changes", label: "Changes", count: 2 },
         ],
         panelId: "coding-explorer-panel",
@@ -60,6 +61,8 @@ describe("coding workspace presentational sections", () => {
     expect(markup).toContain('aria-controls="coding-explorer-panel"');
     expect(markup).toContain('id="coding-explorer-panel-tab-changes"');
     expect(markup).toContain('tabindex="0"');
-    expect(markup).toContain("Changes<span>2</span>");
+    expect(markup).toContain('class="coding-tab-label">Changes</span>');
+    expect(markup).toContain('class="coding-tab-count">2</span>');
+    expect(markup).toContain('aria-hidden="true"');
   });
 });

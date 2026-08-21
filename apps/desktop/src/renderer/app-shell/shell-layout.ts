@@ -8,7 +8,7 @@ export const WINDOW_DRAGBAR_CLASS =
   "window-dragbar relative flex min-h-10 shrink-0 flex-col items-stretch gap-0 border-b border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--bg)_97%,var(--surface))] text-[var(--muted)] [-webkit-app-region:drag]";
 
 export const WINDOW_DRAGBAR_CHAT_CLASS =
-  "window-dragbar--chat flex basis-10 bg-[color-mix(in_srgb,var(--bg)_98%,var(--surface))] border-[color-mix(in_srgb,var(--border)_64%,transparent)] max-[1440px]:[&_.window-context]:hidden max-[760px]:basis-16 max-[760px]:min-h-16 max-[760px]:[&_.window-dragbar-primary]:grid max-[760px]:[&_.window-dragbar-primary]:min-h-16 max-[760px]:[&_.window-dragbar-primary]:grid-cols-[auto_minmax(0,1fr)_auto] max-[760px]:[&_.window-dragbar-primary]:grid-rows-[32px_32px] max-[760px]:[&_.window-dragbar-primary]:gap-x-1.5 max-[760px]:[&_.window-dragbar-primary]:px-2 max-[760px]:[&_.menu-button]:col-start-1 max-[760px]:[&_.menu-button]:row-start-1 max-[760px]:[&_.window-tools]:col-start-3 max-[760px]:[&_.window-tools]:row-start-1 max-[760px]:[&_.chat-chrome-host]:col-span-full max-[760px]:[&_.chat-chrome-host]:row-start-2";
+  "window-dragbar--chat flex basis-10 bg-[color-mix(in_srgb,var(--bg)_98%,var(--surface))] border-[color-mix(in_srgb,var(--border)_64%,transparent)] max-[1440px]:[&_.window-context]:hidden max-[760px]:basis-[calc(var(--control-height)+40px+var(--space-2))] max-[760px]:min-h-[calc(var(--control-height)+40px+var(--space-2))] max-[760px]:[&_.window-dragbar-primary]:grid max-[760px]:[&_.window-dragbar-primary]:min-h-[calc(var(--control-height)+40px+var(--space-2))] max-[760px]:[&_.window-dragbar-primary]:grid-cols-[auto_minmax(0,1fr)_auto] max-[760px]:[&_.window-dragbar-primary]:grid-rows-[var(--control-height)_40px] max-[760px]:[&_.window-dragbar-primary]:gap-x-1.5 max-[760px]:[&_.window-dragbar-primary]:gap-y-[var(--space-2)] max-[760px]:[&_.window-dragbar-primary]:px-2 max-[760px]:[&_.menu-button]:col-start-1 max-[760px]:[&_.menu-button]:row-start-1 max-[760px]:[&_.window-tools]:col-start-3 max-[760px]:[&_.window-tools]:row-start-1 max-[760px]:[&_.chat-chrome-host]:col-span-full max-[760px]:[&_.chat-chrome-host]:row-start-2 max-[480px]:basis-[calc(80px+var(--space-2))] max-[480px]:min-h-[calc(80px+var(--space-2))] max-[480px]:[&_.window-dragbar-primary]:min-h-[calc(80px+var(--space-2))] max-[480px]:[&_.window-dragbar-primary]:grid-rows-[40px_40px] max-[480px]:[.desktop-shell.platform-darwin_&]:basis-[calc(116px+var(--space-2))] max-[480px]:[.desktop-shell.platform-darwin_&]:min-h-[calc(116px+var(--space-2))] max-[480px]:[.desktop-shell.platform-darwin_&]:pt-9";
 
 export const WINDOW_DRAGBAR_PRIMARY_CLASS =
   "window-dragbar-primary flex min-h-10 min-w-0 flex-1 items-center gap-2.5 px-3 pl-4";
@@ -38,7 +38,7 @@ export const APP_SIDEBAR_CLASS =
 export const APP_SIDEBAR_DESKTOP_CLASS = "relative";
 export const APP_SIDEBAR_DARWIN_CLASS = "pt-9";
 export const APP_SIDEBAR_MOBILE_CLASS =
-  "fixed inset-y-0 left-0 z-30 w-[min(88vw,320px)] max-w-full shadow-[var(--shell-shadow-lg)] transition-transform duration-200 ease-[var(--ease-out)]";
+  "fixed inset-y-0 left-0 z-30 w-[min(88vw,320px)] max-w-full shadow-[var(--shell-shadow-lg)] transition-transform duration-200 ease-[var(--ease-out)] motion-reduce:transition-none motion-reduce:duration-0";
 export const APP_SIDEBAR_MOBILE_CLOSED_CLASS =
   "pointer-events-none -translate-x-full";
 export const APP_SIDEBAR_MOBILE_OPEN_CLASS = "translate-x-0";
@@ -51,6 +51,8 @@ export const APP_BRAND_COLLAPSED_CLASS =
   "min-h-20.5 flex-col justify-center gap-1.25 px-0 py-2";
 export const APP_BRAND_MARK_CLASS =
   "app-brand-mark relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-[9px] border border-[var(--accent)] bg-[var(--accent)] font-[var(--font-display)] text-base font-extrabold tracking-[-0.06em] text-[var(--accent-ink)] before:absolute before:top-1.25 before:-right-0.5 before:h-px before:w-2.75 before:-rotate-45 before:bg-[color-mix(in_srgb,var(--accent-ink)_58%,transparent)] before:content-[''] after:absolute after:bottom-1.25 after:-left-0.5 after:h-px after:w-2.75 after:-rotate-45 after:bg-[color-mix(in_srgb,var(--accent-ink)_58%,transparent)] after:content-[''] [&>i]:absolute [&>i]:right-1 [&>i]:bottom-1 [&>i]:size-0.75 [&>i]:rounded-full [&>i]:bg-[var(--accent-ink)] [&>span]:-translate-x-px";
+export const APP_BRAND_HOME_CLASS =
+  "app-brand-home flex min-w-0 items-center gap-2.5 rounded-[var(--radius-xs)] border-0 bg-transparent p-0 text-left text-[var(--text)] [-webkit-app-region:no-drag] hover:[&_.app-brand-copy>strong]:text-[var(--accent)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-border)] [.desktop-shell.nav-collapsed_&]:mx-auto [.desktop-shell.nav-collapsed_&]:justify-center";
 export const APP_BRAND_COPY_CLASS =
   "app-brand-copy flex min-w-0 flex-col gap-0.5 [&>span]:whitespace-nowrap [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:font-semibold [&>span]:tracking-[0.08em] [&>span]:text-[var(--accent)] [&>span]:uppercase [&>strong]:font-[var(--font-display)] [&>strong]:text-[13px] [&>strong]:font-semibold [&>strong]:tracking-[-0.01em]";
 export const SIDEBAR_COLLAPSE_CLASS =
@@ -82,7 +84,7 @@ export const SIDEBAR_UTILITY_BUTTON_CLASS =
 export const SIDEBAR_UTILITY_BUTTON_OPEN_CLASS =
   "is-open border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text)]";
 export const SIDEBAR_UTILITY_MARK_CLASS =
-  "sidebar-utility-mark grid size-7 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] text-[var(--muted)]";
+  "sidebar-utility-mark grid size-7 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] text-[var(--muted)] [&>svg]:size-3.5";
 export const SIDEBAR_UTILITY_MARK_OPEN_CLASS =
   "border-[color-mix(in_srgb,var(--accent)_28%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] text-[var(--accent)]";
 export const SIDEBAR_UTILITY_COPY_CLASS =
@@ -108,11 +110,11 @@ export const WINDOW_PROJECT_SCOPE_CLASS =
 export const WINDOW_COMMAND_BUTTON_CLASS =
   "window-command-button flex min-h-7.5 w-[min(260px,27vw)] items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface-soft)_82%,transparent)] px-2 py-1 pl-2.5 text-left text-[length:var(--text-control)] text-[var(--muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-soft)] [&_kbd]:rounded [&_kbd]:border [&_kbd]:border-[var(--border)] [&_kbd]:bg-[var(--surface-raised)] [&_kbd]:px-1 [&_kbd]:py-0.5 [&_kbd]:font-[var(--font-mono)] [&_kbd]:text-[length:var(--text-meta)] [&_kbd]:text-[var(--faint)] max-[1180px]:w-47.5 max-[940px]:hidden";
 export const WINDOW_COMMAND_BUTTON_COMPACT_CLASS =
-  "h-7.5! w-7.5! justify-center p-0 max-[940px]:flex";
+  "h-7.5! w-7.5! justify-center p-0 max-[940px]:flex max-[480px]:h-10! max-[480px]:w-10!";
 export const WINDOW_UTILITY_BUTTON_CLASS =
-  "window-utility-button min-h-7 rounded-[var(--radius-xs)] border border-transparent bg-transparent px-2 py-1.25 text-[var(--muted)] hover:border-[var(--line-subtle)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] aria-expanded:border-[var(--line-subtle)] aria-expanded:bg-[var(--surface-soft)] aria-expanded:text-[var(--text)]";
+  "window-utility-button inline-flex min-h-7 items-center gap-1.5 rounded-[var(--radius-xs)] border border-transparent bg-transparent px-2 py-1.25 text-[var(--muted)] hover:border-[var(--line-subtle)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] aria-expanded:border-[var(--line-subtle)] aria-expanded:bg-[var(--surface-soft)] aria-expanded:text-[var(--text)] max-[480px]:size-10 max-[480px]:justify-center max-[480px]:p-0 max-[480px]:[&>span]:sr-only";
 export const WINDOW_RUNTIME_STATUS_CLASS =
-  "window-runtime-status flex min-h-6.5 items-center gap-1.5 rounded-[var(--radius-xs)] px-1.5 py-1 font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase [&>i]:size-1.25 [&>i]:rounded-full [&>i]:bg-[var(--muted)]";
+  "window-runtime-status flex min-h-6.5 items-center gap-1.5 rounded-[var(--radius-xs)] px-1.5 py-1 font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase [&>i]:size-1.25 [&>i]:rounded-full [&>i]:bg-[var(--muted)] max-[480px]:size-10 max-[480px]:justify-center max-[480px]:p-0 max-[480px]:[&>span]:sr-only";
 export const WINDOW_RUNTIME_STATUS_TONE = {
   ready:
     "ready [&>i]:bg-[var(--good)] [&>i]:shadow-[0_0_8px_color-mix(in_srgb,var(--good)_60%,transparent)]",
@@ -122,6 +124,6 @@ export const WINDOW_RUNTIME_STATUS_TONE = {
 } as const;
 
 export const ICON_BUTTON_CLASS =
-  "icon-button grid size-7.5 shrink-0 place-items-center rounded-[var(--radius-xs)] border border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-border)] [&>svg]:size-3.5";
+  "icon-button grid size-7.5 shrink-0 place-items-center rounded-[var(--radius-xs)] border border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-border)] [&>svg]:size-3.5 max-[480px]:size-10";
 export const MENU_BUTTON_CLASS =
-  "menu-button hidden size-7.5 shrink-0 place-items-center rounded-[var(--radius-xs)] border border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-border)] max-[940px]:grid [&>svg]:size-3.5";
+  "menu-button hidden size-7.5 shrink-0 place-items-center rounded-[var(--radius-xs)] border border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-border)] max-[940px]:grid max-[480px]:size-10 [&>svg]:size-3.5";

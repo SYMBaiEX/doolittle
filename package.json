@@ -54,6 +54,8 @@
     "desktop:typecheck": "nub run --cwd apps/desktop typecheck",
     "desktop:test": "nub run --cwd apps/desktop test",
     "desktop:runtime:install": "node node_modules/electron/install.js",
+    "desktop:runtime:prepare": "nub run --cwd apps/desktop runtime:prepare",
+    "desktop:runtime:audit": "nub run --cwd apps/desktop runtime:audit",
     "desktop:package": "nub run --cwd apps/desktop package",
     "desktop:package:dir": "nub run --cwd apps/desktop package:dir",
     "desktop:package:mac": "nub run --cwd apps/desktop package:mac",
@@ -78,11 +80,12 @@
     "check:workflow-security": "nub scripts/check-workflow-security.ts",
     "check:plugin-boundaries": "nub scripts/check-plugin-boundaries.ts",
     "check:eliza-sdk": "nub scripts/check-eliza-sdk-release.ts",
+    "check:runtime-advisory-policy": "nub scripts/check-runtime-advisory-policy.ts",
     "check:docs-truth": "nub scripts/sync-doc-truth.ts --check",
     "check:local-links": "nub scripts/check-local-links.ts",
     "check:acceptance": "nub run check:repo-hygiene && nub run check:workflow-security && nub run check:plugin-boundaries && nub run check:eliza-sdk && nub run check:docs-truth && nub run check:local-links && nub run knip:deps && nub run audit:production:critical",
     "check": "nub run lint:check && nub run typecheck && nub run desktop:typecheck && nub run test && nub run build",
-    "check:release": "nub run check && nub run desktop:test && nub run check:acceptance && nub run audit:production:high",
+    "check:release": "nub run check && nub run desktop:test && nub run check:acceptance && nub run check:runtime-advisory-policy && nub run desktop:runtime:prepare && nub run desktop:runtime:audit",
     "publish:claude-code:dry-run": "nub run publish:providers -- --provider claude-code",
     "publish:devin:dry-run": "nub run publish:providers -- --provider devin",
     "publish:provider-transport:dry-run": "nub run publish:providers -- --provider provider-transport",
@@ -94,7 +97,7 @@
     "@discordjs/node-pre-gyp": "0.4.5",
     "@doolittle/acp": "workspace:*",
     "@doolittle/contracts": "workspace:*",
-    "@electric-sql/pglite": "0.5.4",
+    "@electric-sql/pglite": "0.5.5",
     "@elizaos/agent": "2.0.3-beta.7",
     "@elizaos/app-core": "2.0.3-beta.7",
     "@elizaos/app-training": "workspace:*",
@@ -163,23 +166,28 @@
     "@elizaos/shared": "2.0.3-beta.7",
     "@elizaos/ui": "2.0.3-beta.7",
     "@elizaos/vault": "2.0.3-beta.7",
+    "@elizaos/plugin-elizacloud>undici": "8.10.0",
+    "@elizaos/app-core>undici": "8.10.0",
+    "@elizaos/plugin-discord>undici": "8.10.0",
+    "@elizaos/plugin-computeruse>puppeteer-core": "25.8.0",
     "cytoscape": "3.34.0",
+    "dompurify": "3.4.14",
     "elizaos": "2.0.3-beta.7",
     "protobufjs": "8.7.2",
     "tar": "7.5.22"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.7",
-    "@nubjs/nub": "0.7.4",
+    "@biomejs/biome": "2.5.9",
+    "@nubjs/nub": "0.7.5",
     "@playwright/test": "^1.62.1",
     "@types/blessed": "^0.1.27",
     "@types/node": "^26.2.0",
     "blessed": "^0.1.81",
     "esbuild": "0.28.2",
-    "knip": "6.32.0",
+    "knip": "6.32.2",
     "scriptc": "0.0.33",
     "typescript": "^7.0.2",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   },
   "allowBuilds": {
     "@nubjs/nub": true,
@@ -189,9 +197,9 @@
   "devEngines": {
     "packageManager": {
       "name": "nub",
-      "version": "^0.7.4",
+      "version": "^0.7.5",
       "onFail": "warn"
     }
   },
-  "packageManager": "nub@0.7.4"
+  "packageManager": "nub@0.7.5"
 }

@@ -2,7 +2,6 @@ import { join } from "node:path";
 import type { Plugin } from "@elizaos/core";
 import { agentOrchestratorPlugin } from "@elizaos/plugin-agent-orchestrator";
 import { agentSkillsPlugin } from "@elizaos/plugin-agent-skills";
-import mcpPlugin from "@elizaos/plugin-mcp";
 import {
   createCodingAgentPlugin,
   createPlanningPlugin,
@@ -39,7 +38,6 @@ export async function loadHotExecutionPlugins(
     }),
     agentOrchestratorPlugin,
     agentSkillsPlugin,
-    mcpPlugin,
     createPlanningPlugin({
       storage: {
         dataRoot: join(config.dataDir, "plugins"),

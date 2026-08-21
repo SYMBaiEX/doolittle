@@ -17,7 +17,7 @@ describe("local sandbox setup artifacts", () => {
       "FROM node:26.5.0-bookworm-slim@sha256:2d49d876e96237d76de412761cf05dbfe5aee325cc4406a4d41d5824c5bb8beb",
     );
     expect(sandboxDockerfile).toContain("python3");
-    expect(sandboxDockerfile).toContain("@nubjs/nub@0.7.4");
+    expect(sandboxDockerfile).toContain("@nubjs/nub@0.7.5");
     expect(sandboxDockerfile).toContain("WORKDIR /workspace");
     expect(sandboxDockerfile).toContain("USER 1000:1000");
     expect(sandboxDockerfile).toContain('CMD ["sleep", "infinity"]');

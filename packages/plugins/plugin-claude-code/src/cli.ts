@@ -1,4 +1,4 @@
-import { runShell } from "@elizaos/agent/services/shell-execution-router";
+import { runProviderCommand } from "@doolittle/provider-transport";
 import { logger } from "@elizaos/core";
 import { CLAUDE_CODE_CLI_INFERENCE_SYSTEM_PROMPT } from "./constants";
 
@@ -40,11 +40,10 @@ export async function invokeClaudeCodeCliPrint(params: {
     args.push("--system-prompt", params.systemPrompt.trim());
   }
 
-  const result = await runShell({
+  const result = await runProviderCommand({
     command: "claude",
     args,
     timeoutMs: 120_000,
-    toolName: "doolittle.provider.claude-code",
   });
 
   if (result.exitCode !== 0) {

@@ -19,7 +19,7 @@ jobs:
       - name: Set up Nub and Node
         uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
         with:
-          nub-version: 0.7.4
+          nub-version: 0.7.5
           node-version-file: .node-version
           cache-dependency-path: nub.lock
 
@@ -59,6 +59,7 @@ jobs:
           deb="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-linux-x64.deb' -printf '%f\n' -quit)"
           test -n "$appimage" && test -n "$deb"
           nub apps/desktop/scripts/package-provenance.ts --write-receipt --release-directory apps/desktop/release --platform linux --commit "$GITHUB_SHA" --app-asar linux-unpacked/resources/app.asar --artifact "$appimage" --artifact "$deb" --artifact latest-linux.yml
+          nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform linux --runtime-directory apps/desktop/release/linux-unpacked/resources/runtime
 
       - name: Smoke-test bundled Linux runtime
         run: |
@@ -128,12 +129,14 @@ jobs:
           mkdir -p "$extract_root"
           (cd "$extract_root" && "$appimage_abs" --appimage-extract >/dev/null)
           cmp "$source_asar" "$extract_root/squashfs-root/resources/app.asar"
+          nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform linux --runtime-directory "$extract_root/squashfs-root/resources/runtime"
 
           sudo apt-get update
           sudo apt-get install -y "$PWD/$deb"
           installed="$(find /opt -maxdepth 4 -type f -name Doolittle -perm -111 -print -quit)"
           test -n "$installed"
           cmp "$source_asar" "$(dirname "$installed")/resources/app.asar"
+          nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform linux --runtime-directory "$(dirname "$installed")/resources/runtime"
           DOOLITTLE_DESKTOP_EXECUTABLE="$installed" xvfb-run -a nub run test:e2e:desktop-packaged
           package_name="$(dpkg-deb -f "$deb" Package)"
           sudo apt-get remove -y "$package_name"

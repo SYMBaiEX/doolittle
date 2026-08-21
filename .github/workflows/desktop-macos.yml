@@ -29,7 +29,7 @@ jobs:
       - name: Set up Nub and Node
         uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
         with:
-          nub-version: 0.7.4
+          nub-version: 0.7.5
           node-version-file: .node-version
           cache-dependency-path: nub.lock
 
@@ -94,6 +94,7 @@ jobs:
           zip="$(basename "$zip_path")"
           test -n "$dmg" && test -n "$zip"
           nub apps/desktop/scripts/package-provenance.ts --write-receipt --release-directory apps/desktop/release --platform macos --commit "$GITHUB_SHA" --app-asar "$receipt_app_asar" --artifact "$dmg" --artifact "$dmg.blockmap" --artifact "$zip" --artifact "$zip.blockmap" --artifact latest-mac.yml
+          nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform macos --runtime-directory "$app_path/Contents/Resources/runtime"
 
       - name: Smoke-test bundled macOS runtime
         run: |
@@ -172,6 +173,8 @@ jobs:
 
           hdiutil attach "$dmg_path" -nobrowse -readonly -mountpoint "$mount_path" -quiet
           cmp "$app_path/Contents/Resources/app.asar" "$mount_path/Doolittle.app/Contents/Resources/app.asar"
+          nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform macos --runtime-directory "$mount_path/Doolittle.app/Contents/Resources/runtime"
+          nub apps/desktop/scripts/verify-package.ts --verify-signature "$mount_path/Doolittle.app"
           codesign --verify --deep --strict --verbose=2 "$mount_path/Doolittle.app"
           xcrun stapler validate "$mount_path/Doolittle.app"
           spctl --assess --type execute --verbose=2 "$mount_path/Doolittle.app"
@@ -180,6 +183,8 @@ jobs:
           mkdir -p "$(dirname "$installed_app")"
           ditto "$mount_path/Doolittle.app" "$installed_app"
           cmp "$app_path/Contents/Resources/app.asar" "$installed_app/Contents/Resources/app.asar"
+          nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform macos --runtime-directory "$installed_app/Contents/Resources/runtime"
+          nub apps/desktop/scripts/verify-package.ts --verify-signature "$installed_app"
           codesign --verify --deep --strict --verbose=2 "$installed_app"
           xcrun stapler validate "$installed_app"
           spctl --assess --type execute --verbose=2 "$installed_app"
@@ -187,6 +192,8 @@ jobs:
 
           ditto -x -k "$zip_path" "$zip_path_root"
           cmp "$app_path/Contents/Resources/app.asar" "$zip_path_root/Doolittle.app/Contents/Resources/app.asar"
+          nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform macos --runtime-directory "$zip_path_root/Doolittle.app/Contents/Resources/runtime"
+          nub apps/desktop/scripts/verify-package.ts --verify-signature "$zip_path_root/Doolittle.app"
           codesign --verify --deep --strict --verbose=2 "$zip_path_root/Doolittle.app"
           xcrun stapler validate "$zip_path_root/Doolittle.app"
           spctl --assess --type execute --verbose=2 "$zip_path_root/Doolittle.app"

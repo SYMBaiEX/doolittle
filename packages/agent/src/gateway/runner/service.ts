@@ -52,6 +52,14 @@ export class GatewayRunner {
     this.api = wireGatewayRunnerRuntime(context, runtimeState);
   }
 
+  setDeferredHydration(
+    ensureDeferredHydration: NonNullable<
+      GatewayRunnerContext["ensureDeferredHydration"]
+    >,
+  ): void {
+    this.context.ensureDeferredHydration = ensureDeferredHydration;
+  }
+
   async start(): Promise<void> {
     this.startIngress();
     await this.api.control.start();

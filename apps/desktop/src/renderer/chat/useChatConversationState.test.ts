@@ -18,6 +18,7 @@ import type { StorageLike } from "../conversation-persistence";
 import { snapshotDraftForDispatch } from "./draft-dispatch-recovery";
 import {
   loadStoredChatMessages,
+  mergeConversationHistory,
   projectChatSessions,
   reconcileOrphanedPendingMessages,
   saveStoredChatMessages,
@@ -645,10 +646,51 @@ describe("chat history concurrency", () => {
 
     expect(latest?.selectedMessages.map((message) => message.id)).toEqual([
       "remote-user",
-      "persisted-user",
       "remote-assistant",
     ]);
     expect(latest?.selectedMessages.at(-1)?.content).toBe("Recovered reply");
+  });
+
+  it("replaces optimistic rows one-to-one without collapsing repeated turns", () => {
+    const local = [
+      {
+        id: "local-user-1",
+        role: "user" as const,
+        content: "What is this repo?",
+        createdAt: "2026-08-20T08:09:38.400Z",
+      },
+      {
+        id: "assistant:request-1",
+        role: "assistant" as const,
+        content: "A repository overview",
+        createdAt: "2026-08-20T08:09:38.400Z",
+      },
+      {
+        id: "local-user-2",
+        role: "user" as const,
+        content: "What is this repo?",
+        createdAt: "2026-08-20T08:11:38.400Z",
+      },
+    ];
+    const history = [
+      {
+        id: "remote-user-1",
+        role: "user" as const,
+        content: "What is this repo?",
+        createdAt: "2026-08-20T08:09:38.419Z",
+      },
+      {
+        id: "remote-assistant-1",
+        role: "assistant" as const,
+        content: "A repository overview",
+        createdAt: "2026-08-20T08:09:46.528Z",
+      },
+    ];
+
+    expect(mergeConversationHistory(local, history, new Set())).toEqual([
+      ...history,
+      local[2],
+    ]);
   });
 
   it("marks an orphaned pending row retryable when no remote assistant exists", () => {

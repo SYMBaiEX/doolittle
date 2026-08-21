@@ -36,6 +36,8 @@ export async function handleRuntimeStatusRoutes(
   if (request.method === "GET" && url.pathname === "/runtime/status") {
     const settings = context.services.settings.get();
     const catalog = getNativePluginCatalog(context.config);
+    const catalogEnabled = (id: string): boolean =>
+      catalog.find((entry) => entry.id === id)?.enabled ?? false;
     const ownership = resolveOwnership(context);
     return json({
       provider: settings.model.provider,
@@ -57,16 +59,12 @@ export async function handleRuntimeStatusRoutes(
         ),
         pdf: true,
         browser: true,
-        telegram: Boolean(context.config.telegramBotToken),
+        telegram: catalogEnabled("messaging.telegram"),
         discord: Boolean(context.config.discordBotToken),
         slack: Boolean(
           context.config.slackBotToken && context.config.slackAppToken,
         ),
-        whatsapp: Boolean(
-          context.config.whatsappAccessToken &&
-            context.config.whatsappPhoneNumberId &&
-            context.config.whatsappVerifyToken,
-        ),
+        whatsapp: catalogEnabled("messaging.whatsapp"),
         signal: Boolean(context.config.signalAccountNumber),
       },
       gateway: context.services.gatewayConfig,

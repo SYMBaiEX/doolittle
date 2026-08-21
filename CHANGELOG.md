@@ -12,9 +12,31 @@ ElizaOS 2.0 beta line.
   packaging with target-native runtime checks, an exact source/artifact
   manifest, portable SHA-256 sums, and updater SHA-512/size verification for
   every generated installer.
+- Added a deterministic packaged-runtime dependency inventory and release gate
+  that checks only emitted bundle bytes plus copied native packages, verifies
+  their actual package identities, and stops for newly published unreviewed
+  high-severity advisories.
 
 ### Fixed / Reliability
 
+- Kept the MIT desktop runtime license-compatible by excluding the optional
+  Telegram and WhatsApp native connectors from distributed binaries while
+  preserving them for source installs, and by using the host's FFmpeg for
+  Discord voice. Linux in-app updates now remain disabled until their metadata
+  has an independently pinned signature, while signed Windows releases bind
+  updater publisher metadata to the certificate's full subject identity.
+- Upgraded the computer-use plugin's scoped Puppeteer runtime to 25.8.0,
+  removing the vulnerable `extract-zip` closure from the shipped desktop while
+  preserving the exact ElizaOS beta train. Provider CLI packages now use the
+  audited Doolittle transport directly instead of importing the full Eliza
+  Agent package into their published consumers.
+
+- Refreshed the supported desktop and repository toolchain to current stable
+  releases: Electron 43.4.1, Vite 8.2.2, Vitest 4.1.11, Nub 0.7.5, Biome
+  2.5.9, PGlite 0.5.5, and their compatible companion packages. Monaco's
+  renderer dependency is now constrained to DOMPurify 3.4.14, while the full
+  ElizaOS runtime remains coherently pinned to the newest published beta train,
+  `2.0.3-beta.7`.
 - Preserved the selected project, workspace, and chat session across Chat,
   Code, and Work navigation. Chat turns now hold a workspace lease, stale
   cross-workspace requests are rejected, and terminal handoffs close only after

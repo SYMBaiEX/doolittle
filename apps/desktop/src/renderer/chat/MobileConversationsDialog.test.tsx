@@ -43,6 +43,7 @@ describe("MobileConversationsDialog", () => {
       root.render(
         <MobileConversationsDialog
           activeProjectName="Doolittle"
+          backdropRef={{ current: null }}
           dialogRef={{ current: null }}
           onClose={onClose}
           onNewConversation={onNewConversation}
@@ -110,6 +111,7 @@ describe("MobileConversationsDialog", () => {
       root.render(
         <MobileConversationsDialog
           activeProjectName="Doolittle"
+          backdropRef={{ current: null }}
           dialogRef={{ current: null }}
           onClose={onClose}
           onNewConversation={onNewConversation}

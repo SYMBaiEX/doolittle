@@ -3,6 +3,8 @@ import type {
   RepositoryBranch,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { GitControlPanel } from "./GitControlPanel";
 
@@ -57,5 +59,20 @@ describe("GitControlPanel density", () => {
     expect(gitControlSource).not.toContain(
       'data-git-advanced-disclosure="" open',
     );
+  });
+
+  it("removes empty selection chrome and advanced controls in compact mode", () => {
+    const markup = renderToStaticMarkup(
+      createElement(GitControlPanel, {
+        active: true,
+        branches: [{ name: "main", current: true }],
+        variant: "compact",
+      }),
+    );
+
+    expect(markup).not.toContain("data-git-selection-actions");
+    expect(markup).not.toContain("data-git-advanced-disclosure");
+    expect(markup).toContain("Commit");
+    expect(markup).toContain("min-h-10 resize-none");
   });
 });

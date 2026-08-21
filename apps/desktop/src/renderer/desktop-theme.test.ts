@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  APPEARANCE_APPLIED_EVENT,
   APPEARANCE_CHANGE_EVENT,
+  announceAppearanceApplied,
   applyDesktopAppearance,
   applyDesktopDensity,
   applyDesktopTheme,
@@ -179,12 +181,9 @@ describe("desktop theme", () => {
     expect(profile).not.toBeNull();
     if (!profile) throw new Error("Expected a valid theme profile");
     expect(themeCssTokens(profile)).toMatchObject({
-      "--bg": "#090807",
-      "--surface": "#100d0d",
-      "--text": "#f9f6f1",
       "--accent": "#D7263D",
       "--accent-ink": "#fffaf5",
-      "--accent-text": "color-mix(in srgb, #D7263D 72%, var(--text))",
+      "--accent-text": "#ff9b5c",
       "--accent-hover": "#FF6B6B",
       "--good": "#93FFB0",
       "--good-soft": "color-mix(in srgb, #93FFB0 14%, var(--surface))",
@@ -195,6 +194,9 @@ describe("desktop theme", () => {
       "--canvas-bg": "#100d0d",
       "--canvas-text": "#f9f6f1",
     });
+    expect(themeCssTokens(profile)).not.toHaveProperty("--bg");
+    expect(themeCssTokens(profile)).not.toHaveProperty("--surface");
+    expect(themeCssTokens(profile)).not.toHaveProperty("--text");
   });
 
   it("keeps high-luminance accents readable with dark ink", () => {
@@ -299,6 +301,8 @@ describe("desktop theme", () => {
     if (!fullProfile || !accentOnly) throw new Error("Expected valid themes");
 
     applyDesktopTheme(fullProfile, "imported");
+    expect(storage.get("style:--bg")).toBe("#eeeae4");
+    expect(storage.get("style:--canvas-bg")).toBe("#fdfbf8");
     applyDesktopTheme(accentOnly, "imported");
 
     expect(storage.get("style:--bg")).toBe("#eeeae4");
@@ -382,6 +386,82 @@ describe("desktop theme", () => {
     );
   });
 
+  it("falls back from transparent or low-contrast imported semantics in both appearances", () => {
+    const profile = parseDesktopThemeProfile({
+      name: "washed-out",
+      label: "Washed Out",
+      primary: "rgba(255, 255, 255, 0.35)",
+      amberGlow: "#777777",
+      greenGlow: "#777777",
+    });
+    if (!profile) throw new Error("Expected a valid theme profile");
+
+    for (const [appearance, surface, expected] of [
+      [
+        "dark",
+        "#10100f",
+        { accent: "#ff9b5c", good: "#86b875", warn: "#e7a84d" },
+      ],
+      [
+        "light",
+        "#f7f4ef",
+        { accent: "#8a3500", good: "#2d5b21", warn: "#5c4208" },
+      ],
+    ] as const) {
+      const tokens = themeCssTokens(profile, appearance);
+      expect(tokens["--accent"]).toBe(expected.accent);
+      expect(tokens["--accent-text"]).toBe(expected.accent);
+      expect(tokens["--accent-hover"]).toBe(expected.accent);
+      expect(tokens["--good"]).toBe(expected.good);
+      expect(tokens["--warn"]).toBe(expected.warn);
+      for (const color of [expected.accent, expected.good, expected.warn]) {
+        expect(
+          contrastRatio(color, mixSrgb(color, surface, 0.14)),
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("keeps an opaque accent while independently protecting its text and ink", () => {
+    const profile = parseDesktopThemeProfile({
+      name: "crimson",
+      label: "Crimson",
+      primary: "#D7263D",
+      secondary: "rgba(255, 255, 255, 0.4)",
+    });
+    if (!profile) throw new Error("Expected a valid theme profile");
+
+    for (const [appearance, surface, accentText] of [
+      ["dark", "#10100f", "#ff9b5c"],
+      ["light", "#f7f4ef", "#8a3500"],
+    ] as const) {
+      const tokens = themeCssTokens(profile, appearance);
+      expect(tokens["--accent"]).toBe("#D7263D");
+      expect(tokens["--accent-text"]).toBe(accentText);
+      expect(tokens["--accent-hover"]).toBe("#D7263D");
+      expect(tokens["--accent-soft"]).toBe(
+        "color-mix(in srgb, #D7263D 14%, var(--surface))",
+      );
+      expect(
+        contrastRatio(tokens["--accent-text"], surface),
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(
+        contrastRatio(tokens["--accent-ink"], tokens["--accent"]),
+      ).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("retains uppercase fully opaque hex alpha colors", () => {
+    const profile = parseDesktopThemeProfile({
+      name: "opaque-alpha",
+      label: "Opaque Alpha",
+      primary: "#D7263DFF",
+    });
+    if (!profile) throw new Error("Expected a valid theme profile");
+
+    expect(themeCssTokens(profile, "dark")["--accent"]).toBe("#D7263DFF");
+  });
+
   it("forwards valid changes once and removes its window subscriptions", () => {
     const changes: string[] = [];
     const unsubscribe = subscribeToDesktopThemeChanges({
@@ -411,5 +491,19 @@ describe("desktop theme", () => {
       "density:compact",
       "theme:ember",
     ]);
+  });
+
+  it("announces the resolved appearance after root tokens are applied", () => {
+    const appearances: string[] = [];
+    const listener = (event: Event) => {
+      appearances.push((event as CustomEvent<string>).detail);
+    };
+    window.addEventListener(APPEARANCE_APPLIED_EVENT, listener);
+
+    announceAppearanceApplied("light");
+    announceAppearanceApplied("dark");
+    window.removeEventListener(APPEARANCE_APPLIED_EVENT, listener);
+
+    expect(appearances).toEqual(["light", "dark"]);
   });
 });

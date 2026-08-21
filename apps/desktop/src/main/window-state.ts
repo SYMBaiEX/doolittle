@@ -4,8 +4,10 @@ import {
 } from "@elizaos/agent/utils/atomic-json";
 import { asRecord } from "@elizaos/shared/type-guards";
 
-export const MIN_WINDOW_WIDTH = 920;
-export const MIN_WINDOW_HEIGHT = 620;
+// Keep the native window aligned with the renderer's narrowest supported
+// layout instead of clamping before the mobile shell can ever activate.
+export const MIN_WINDOW_WIDTH = 360;
+export const MIN_WINDOW_HEIGHT = 480;
 const MIN_VISIBLE_WINDOW_EDGE = 64;
 
 export interface WindowBounds {

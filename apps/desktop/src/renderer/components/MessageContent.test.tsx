@@ -53,7 +53,13 @@ describe("MessageContent", () => {
 
     expect(html).toContain('data-streamdown="code-block"');
     expect(html).toContain('data-streamdown="code-block-body"');
-    expect(html).toContain("!max-h-[420px]");
+    expect(html).toContain("!max-h-[280px]");
+    expect(html).toContain(
+      "max-[480px]:[&amp;_[data-streamdown=code-block-body]]:!max-h-[220px]",
+    );
+    expect(html).toContain("[contain-intrinsic-size:none]!");
+    expect(html).toContain("[content-visibility:visible]!");
+    expect(html).toContain("[&amp;_hr]:!hidden");
     expect(html).toContain("!rounded-[var(--radius-xs)]");
     expect(html).toContain("!bg-[var(--canvas-bg)]");
   });

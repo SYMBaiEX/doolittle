@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   copyFileSync,
   cpSync,
@@ -9,14 +10,20 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
-import { basename, dirname, resolve } from "node:path";
+import { basename, dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build, type Plugin } from "esbuild";
+import { build, type Metafile, type Plugin } from "esbuild";
 import {
+  assertDesktopDistributionLicensePolicy,
   discoverDynamicCommonJsPackages,
   discoverRuntimeAssetReferences,
+  emittedMetafileInputPaths,
+  type RuntimeDependencyInventoryEntry,
+  type RuntimeDependencyLicenseSource,
   type RuntimePackageManifest,
   runtimePackageClosure,
+  stableRuntimeDependencyInventory,
+  writeRuntimeThirdPartyNotices,
 } from "./runtime-requirements";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -64,11 +71,113 @@ const pgliteBundlePaths: Plugin = {
   },
 };
 
+type PackageJson = RuntimePackageManifest & {
+  name?: string;
+  version?: string;
+};
+
+function packageRoot(directory: string, manifest: PackageJson): string {
+  let root = directory;
+  while (true) {
+    const parent = dirname(root);
+    const parentManifestPath = resolve(parent, "package.json");
+    if (!existsSync(parentManifestPath)) return root;
+    const parentManifest = JSON.parse(
+      readFileSync(parentManifestPath, "utf8"),
+    ) as PackageJson;
+    if (
+      parentManifest.name !== manifest.name ||
+      parentManifest.version !== manifest.version
+    ) {
+      return root;
+    }
+    root = parent;
+  }
+}
+
+function nearestPackageForSource(
+  sourcePath: string,
+): RuntimeDependencyLicenseSource | undefined {
+  let directory = dirname(resolve(repoRoot, sourcePath));
+  while (
+    relative(repoRoot, directory) &&
+    !relative(repoRoot, directory).startsWith("..")
+  ) {
+    const manifestPath = resolve(directory, "package.json");
+    if (existsSync(manifestPath)) {
+      const manifest = JSON.parse(
+        readFileSync(manifestPath, "utf8"),
+      ) as PackageJson;
+      if (manifest.name?.trim() && manifest.version?.trim()) {
+        return {
+          name: manifest.name,
+          version: manifest.version,
+          directory: packageRoot(directory, manifest),
+        };
+      }
+      return undefined;
+    }
+    const parent = dirname(directory);
+    if (parent === directory) return undefined;
+    directory = parent;
+  }
+  return undefined;
+}
+
+function bundledPackageInventory(
+  metafile: Metafile,
+): RuntimeDependencyInventoryEntry[] {
+  return stableRuntimeDependencyInventory(
+    emittedMetafileInputPaths(metafile)
+      .map(nearestPackageForSource)
+      .filter(
+        (entry): entry is RuntimeDependencyLicenseSource => entry !== undefined,
+      ),
+  );
+}
+
+function bundledPackageLicenseSources(
+  metafile: Metafile,
+): RuntimeDependencyLicenseSource[] {
+  return emittedMetafileInputPaths(metafile)
+    .map(nearestPackageForSource)
+    .filter(
+      (entry): entry is RuntimeDependencyLicenseSource => entry !== undefined,
+    );
+}
+
+function thirdPartyRuntimeLicenseSources(
+  sources: readonly RuntimeDependencyLicenseSource[],
+): RuntimeDependencyLicenseSource[] {
+  return sources.filter((source) =>
+    relative(repoRoot, source.directory).startsWith("node_modules/"),
+  );
+}
+
+function installedPackageInventory(
+  packageNames: readonly string[],
+): RuntimeDependencyInventoryEntry[] {
+  return stableRuntimeDependencyInventory(
+    packageNames.map((name) => {
+      const manifestPath = repoRequire.resolve(`${name}/package.json`);
+      const manifest = JSON.parse(
+        readFileSync(manifestPath, "utf8"),
+      ) as PackageJson;
+      if (!manifest.name?.trim() || !manifest.version?.trim()) {
+        throw new Error(
+          `Runtime package has no name or version: ${manifestPath}`,
+        );
+      }
+      return { name: manifest.name, version: manifest.version };
+    }),
+  );
+}
+
 console.log(
   `Bundling the Doolittle runtime for Electron's embedded Node (${pgliteAssets.length} database assets)…`,
 );
 
-await build({
+const runtimeBuild = await build({
   absWorkingDir: repoRoot,
   entryPoints: {
     "doolittle-runtime": resolve(
@@ -98,8 +207,14 @@ await build({
   minify: true,
   sourcemap: false,
   legalComments: "none",
+  metafile: true,
   logLevel: "info",
   plugins: [pgliteBundlePaths],
+  define: {
+    // Make the distribution policy a build-time constant so esbuild removes
+    // the guarded optional imports and their full dependency closures.
+    "process.env.DOOLITTLE_DISTRIBUTED_DESKTOP_RUNTIME": '"1"',
+  },
   alias: {
     "@elizaos/registry/first-party/curated-app-definitions.json": resolve(
       repoRoot,
@@ -123,6 +238,10 @@ await build({
     "term.js",
     "pty.js",
     "onnxruntime-node",
+    // Discord voice treats this optional lookup as best-effort and falls back
+    // to a system ffmpeg/avconv binary. Do not fold the GPL executable helper
+    // into Doolittle's single-file MIT desktop runtime.
+    "ffmpeg-static",
     "@napi-rs/keyring",
     "@napi-rs/keyring-*",
     "@node-llama-cpp/*",
@@ -177,7 +296,10 @@ function installedRuntimePackageGraph(rootPackages: readonly string[]): {
   return { manifests, sourceDirectories };
 }
 
-function copyNativeRuntimePackages(rootPackages: readonly string[]): string[] {
+function copyNativeRuntimePackages(rootPackages: readonly string[]): {
+  packageNames: string[];
+  licenseSources: RuntimeDependencyLicenseSource[];
+} {
   const { manifests, sourceDirectories } =
     installedRuntimePackageGraph(rootPackages);
   const packageNames = runtimePackageClosure(rootPackages, manifests);
@@ -198,18 +320,34 @@ function copyNativeRuntimePackages(rootPackages: readonly string[]): string[] {
       dereference: true,
     });
   }
-  return packageNames;
+  return {
+    packageNames,
+    licenseSources: packageNames.map((name) => {
+      const directory = sourceDirectories.get(name);
+      if (!directory) {
+        throw new Error(`Native runtime package was not resolved: ${name}`);
+      }
+      const manifest = JSON.parse(
+        readFileSync(resolve(directory, "package.json"), "utf8"),
+      ) as PackageJson;
+      if (!manifest.name?.trim() || !manifest.version?.trim()) {
+        throw new Error(`Runtime package has no name or version: ${directory}`);
+      }
+      return { name: manifest.name, version: manifest.version, directory };
+    }),
+  };
 }
 
-const copiedNativePackages = copyNativeRuntimePackages(nativeExternalPackages);
+const copiedNativeRuntime = copyNativeRuntimePackages(nativeExternalPackages);
+const copiedNativePackages = copiedNativeRuntime.packageNames;
 
 async function bundleCommonJsRuntimePackage(
   name: string,
   entry: string,
-): Promise<void> {
+): Promise<Metafile> {
   const packageDir = resolve(runtimeNodeModulesDir, name);
   mkdirSync(packageDir, { recursive: true });
-  await build({
+  const result = await build({
     absWorkingDir: repoRoot,
     entryPoints: [entry],
     outfile: resolve(packageDir, "index.cjs"),
@@ -220,6 +358,7 @@ async function bundleCommonJsRuntimePackage(
     minify: true,
     sourcemap: false,
     legalComments: "none",
+    metafile: true,
     logLevel: "info",
   });
   writeFileSync(
@@ -227,9 +366,10 @@ async function bundleCommonJsRuntimePackage(
     `${JSON.stringify({ name, private: true, main: "index.cjs" }, null, 2)}\n`,
     "utf8",
   );
+  return result.metafile;
 }
 
-await bundleCommonJsRuntimePackage(
+const gitWorkspaceServiceBuild = await bundleCommonJsRuntimePackage(
   "git-workspace-service",
   resolve(
     repoRoot,
@@ -239,6 +379,39 @@ await bundleCommonJsRuntimePackage(
     "index.cjs",
   ),
 );
+
+const bundledPackages = stableRuntimeDependencyInventory([
+  ...bundledPackageInventory(runtimeBuild.metafile),
+  ...bundledPackageInventory(gitWorkspaceServiceBuild),
+]);
+
+const thirdPartyBundledLicenseSources = thirdPartyRuntimeLicenseSources([
+  ...bundledPackageLicenseSources(runtimeBuild.metafile),
+  ...bundledPackageLicenseSources(gitWorkspaceServiceBuild),
+]);
+const thirdPartyNoticePackages = stableRuntimeDependencyInventory([
+  ...thirdPartyBundledLicenseSources.map(({ name, version }) => ({
+    name,
+    version,
+  })),
+  ...installedPackageInventory(copiedNativePackages),
+]);
+const thirdPartyNoticesPath = resolve(outputDir, "THIRD-PARTY-NOTICES.txt");
+assertDesktopDistributionLicensePolicy(thirdPartyNoticePackages, [
+  ...thirdPartyBundledLicenseSources,
+  ...copiedNativeRuntime.licenseSources,
+]);
+writeRuntimeThirdPartyNotices(thirdPartyNoticesPath, thirdPartyNoticePackages, [
+  ...thirdPartyBundledLicenseSources,
+  ...copiedNativeRuntime.licenseSources,
+]);
+const thirdPartyNotices = {
+  file: basename(thirdPartyNoticesPath),
+  packages: thirdPartyNoticePackages,
+  sha256: createHash("sha256")
+    .update(readFileSync(thirdPartyNoticesPath))
+    .digest("hex"),
+};
 
 const readableStreamShimDir = resolve(
   runtimeNodeModulesDir,
@@ -311,13 +484,18 @@ writeFileSync(
   resolve(outputDir, "runtime-manifest.json"),
   `${JSON.stringify(
     {
+      schema: 1,
       runtime: "node",
       entry: basename(outputPath),
       acpEntry: basename(acpOutputPath),
       node: "electron-embedded",
       assets: pgliteAssets,
-      nativeEntryPackages: [...nativeExternalPackages],
+      nativeEntryPackages: [...nativeExternalPackages].sort(),
       nativePackages: copiedNativePackages,
+      bundledPackages,
+      nativeExternalPackages: installedPackageInventory(nativeExternalPackages),
+      nativePackageClosure: installedPackageInventory(copiedNativePackages),
+      thirdPartyNotices,
     },
     null,
     2,

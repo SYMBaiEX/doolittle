@@ -52,6 +52,8 @@ import { loadDesktopWindow } from "./window-loading";
 import {
   createWindowStatePersistenceController,
   loadWindowState,
+  MIN_WINDOW_HEIGHT,
+  MIN_WINDOW_WIDTH,
   type WindowBounds,
 } from "./window-state";
 import {
@@ -500,8 +502,8 @@ function createWindow(): BrowserWindow {
   });
   const window = new BrowserWindow({
     ...savedState.bounds,
-    minWidth: 920,
-    minHeight: 620,
+    minWidth: MIN_WINDOW_WIDTH,
+    minHeight: MIN_WINDOW_HEIGHT,
     autoHideMenuBar: process.platform !== "darwin",
     show: false,
     title: "Doolittle",
@@ -594,11 +596,7 @@ function createWindow(): BrowserWindow {
 }
 
 if (ownsSingleInstance)
-  app.whenReady().then(async () => {
-    if (process.platform === "darwin" && app.dock) {
-      app.setActivationPolicy("regular");
-      await app.dock.show();
-    }
+  app.whenReady().then(() => {
     const sourceRoot = sourceRootOverride(
       app.isPackaged,
       process.env.DOOLITTLE_DESKTOP_SOURCE_ROOT,
@@ -659,17 +657,29 @@ if (ownsSingleInstance)
     desktopPreferences = new DesktopPreferences(
       resolve(app.getPath("userData"), "desktop-preferences.json"),
     );
+    const packagedUpdater = app.isPackaged ? configuredUpdater() : null;
     updates = new DesktopUpdateController(
-      app.isPackaged ? configuredUpdater() : null,
-      app.isPackaged
-        ? "Updates are unavailable in this packaged build."
-        : "Updates are only available in a packaged, signed Doolittle build.",
+      packagedUpdater,
+      app.isPackaged && process.platform === "linux"
+        ? "Automatic updates are disabled on Linux until release metadata has an independently pinned signature. Download and verify a signed release manually."
+        : app.isPackaged
+          ? "Updates are unavailable in this packaged build."
+          : "Updates are only available in a packaged, signed Doolittle build.",
     );
     backend = new BackendManager(
       target,
       runtimeDataDir,
       workspaceState.getState().currentPath || fallbackWorkspace,
     );
+    // Start the bundled Eliza runtime as soon as its immutable launch inputs
+    // are ready. Window construction, menus, tray wiring, and IPC registration
+    // do not depend on the listener, so let that UI work overlap the backend's
+    // database and plugin bootstrap instead of delaying process spawn.
+    void backend.start();
+    // The packaged app is a normal foreground APPL. Let Electron/AppKit own its
+    // activation policy and construct the first window immediately. Explicit
+    // Dock registration here can leave newly installed builds without a
+    // WindowServer connection on recent macOS releases.
     mainWindow = createWindow();
     desktopInitialized = true;
     if (secondInstanceRequested) showMainWindow();
@@ -715,8 +725,6 @@ if (ownsSingleInstance)
     mainWindow.on("closed", () => {
       mainWindow = null;
     });
-    void backend.start();
-
     app.on("activate", () => {
       mainWindow = ensureDesktopWindow(mainWindow, createWindow);
       showMainWindow();

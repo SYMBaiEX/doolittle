@@ -2,7 +2,7 @@ export const PROJECT_MANAGER_BACKDROP_CLASS =
   "project-manager-backdrop fixed inset-0 z-[95] flex items-center justify-center bg-[color-mix(in_srgb,var(--shadow)_62%,transparent)] p-4 max-[740px]:items-end max-[740px]:p-0";
 
 export const PROJECT_MANAGER_CLASS =
-  "project-manager flex h-[min(780px,calc(100vh-56px))] w-[min(100%,1060px)] max-w-[1060px] flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface)] shadow-[0_28px_90px_color-mix(in_srgb,var(--shadow)_76%,transparent)] outline-none max-[740px]:h-[min(90vh,820px)] max-[740px]:w-full max-[740px]:rounded-b-none max-[740px]:rounded-t-[14px] max-[740px]:border-b-0";
+  "project-manager flex h-[min(780px,calc(100svh-56px))] w-[min(100%,1060px)] max-w-[1060px] flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface)] shadow-[0_28px_90px_color-mix(in_srgb,var(--shadow)_76%,transparent)] outline-none max-[740px]:h-[min(90svh,820px)] max-[740px]:w-full max-[740px]:rounded-b-none max-[740px]:rounded-t-[14px] max-[740px]:border-b-0";
 
 export const PROJECT_MANAGER_HEADER_CLASS =
   "project-manager__header flex items-start justify-between border-[var(--border)] border-b px-4 pt-4 pb-3 max-[740px]:px-4 max-[740px]:pt-3.5 max-[740px]:pb-3 [&_h2]:mt-0.5 [&_h2]:mb-1 [&_h2]:font-[var(--font-display)] [&_h2]:text-sm [&_h2]:leading-[var(--line-title)] [&_h2]:tracking-[-0.015em] [&_p]:m-0 [&_p]:text-[length:var(--text-body)] [&_p]:leading-[var(--line-body)] [&_p]:text-[var(--text-soft)] max-[420px]:[&_p]:hidden";

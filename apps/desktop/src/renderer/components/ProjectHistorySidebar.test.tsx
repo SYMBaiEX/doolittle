@@ -77,6 +77,11 @@ describe("ProjectHistorySidebar", () => {
     act(() => chat?.click());
     expect(onOpenSession).toHaveBeenCalledWith("session-1");
     expect(chat?.className).toContain("is-selected");
+    const group = container.querySelector(".project-rail-group");
+    const projectRow = container.querySelector(".project-rail-row");
+    expect(group?.className).toContain("is-active");
+    expect(group?.className).not.toContain("surface-hover)_76%");
+    expect(projectRow?.className).toContain("surface-hover)_76%");
   });
 
   it("persists pin actions and exposes pressed state", () => {

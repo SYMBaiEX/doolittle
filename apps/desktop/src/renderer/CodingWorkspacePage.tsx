@@ -59,29 +59,13 @@ import {
   PageHeader,
   useApiResource,
 } from "./lib";
-import {
-  CODE_EXPLORER_WIDTH,
-  CODE_EXPLORER_WIDTH_KEY,
-  CODE_UTILITY_WIDTH,
-  CODE_UTILITY_WIDTH_KEY,
-  loadPanelWidth,
-  savePanelWidth,
-} from "./panel-layout";
 import type { ProjectScope } from "./project-manager/models";
 import { codingWorkspaceRequests } from "./resource-request-policy";
-
-const EXPLORER_VISIBLE_KEY = "doolittle.desktop.code.explorer-visible.v1";
-const UTILITY_VISIBLE_KEY = "doolittle.desktop.code.utility-visible.v1";
-const ZEN_MODE_KEY = "doolittle.desktop.code.zen-mode.v1";
-
-function loadBooleanPreference(key: string, fallback: boolean): boolean {
-  try {
-    const value = localStorage.getItem(key);
-    return value === null ? fallback : value === "true";
-  } catch {
-    return fallback;
-  }
-}
+import {
+  loadCodeWorkspaceLayout,
+  saveCodeWorkspaceLayout,
+  workspaceLayoutScope,
+} from "./workspace-layout-state";
 
 /** Keep cached coding resources isolated when the runtime workspace changes. */
 export function codingWorkspaceResourceDependencies(
@@ -121,21 +105,29 @@ export function CodingWorkspacePage({
   projectScope: ProjectScope;
   workspacePath: string;
 }) {
-  const [explorerVisible, setExplorerVisible] = useState(() =>
-    loadBooleanPreference(EXPLORER_VISIBLE_KEY, true),
+  const initialLayoutRef = useRef<ReturnType<
+    typeof loadCodeWorkspaceLayout
+  > | null>(null);
+  if (!initialLayoutRef.current) {
+    initialLayoutRef.current = loadCodeWorkspaceLayout(
+      localStorage,
+      workspacePath,
+    );
+  }
+  const initialLayout = initialLayoutRef.current;
+  const [explorerVisible, setExplorerVisible] = useState(
+    initialLayout.explorerVisible,
   );
-  const [utilityVisible, setUtilityVisible] = useState(() =>
-    loadBooleanPreference(UTILITY_VISIBLE_KEY, true),
+  const [utilityVisible, setUtilityVisible] = useState(
+    initialLayout.utilityVisible,
   );
-  const [zenMode, setZenMode] = useState(() =>
-    loadBooleanPreference(ZEN_MODE_KEY, false),
+  const [zenMode, setZenMode] = useState(initialLayout.zenMode);
+  const [explorerWidth, setExplorerWidth] = useState(
+    initialLayout.explorerWidth,
   );
-  const [explorerWidth, setExplorerWidth] = useState(() =>
-    loadPanelWidth(localStorage, CODE_EXPLORER_WIDTH_KEY, CODE_EXPLORER_WIDTH),
-  );
-  const [utilityWidth, setUtilityWidth] = useState(() =>
-    loadPanelWidth(localStorage, CODE_UTILITY_WIDTH_KEY, CODE_UTILITY_WIDTH),
-  );
+  const [utilityWidth, setUtilityWidth] = useState(initialLayout.utilityWidth);
+  const layoutScopeRef = useRef(workspaceLayoutScope(workspacePath));
+  const hydratingLayoutRef = useRef(false);
   const [leftPane, setLeftPane] = useState<LeftPane>(
     () => focusState?.leftPane ?? "files",
   );
@@ -404,28 +396,43 @@ export function CodingWorkspacePage({
   }, [active, navigationIntent, onAcknowledgeNavigationIntent, openPath]);
 
   useEffect(() => {
-    localStorage.setItem(EXPLORER_VISIBLE_KEY, String(explorerVisible));
-    localStorage.setItem(UTILITY_VISIBLE_KEY, String(utilityVisible));
-    localStorage.setItem(ZEN_MODE_KEY, String(zenMode));
-  }, [explorerVisible, utilityVisible, zenMode]);
+    const nextScope = workspaceLayoutScope(workspacePath);
+    if (layoutScopeRef.current === nextScope) return;
+    layoutScopeRef.current = nextScope;
+    hydratingLayoutRef.current = true;
+    const next = loadCodeWorkspaceLayout(localStorage, workspacePath);
+    setExplorerVisible(next.explorerVisible);
+    setUtilityVisible(next.utilityVisible);
+    setZenMode(next.zenMode);
+    setExplorerWidth(next.explorerWidth);
+    setUtilityWidth(next.utilityWidth);
+  }, [workspacePath]);
 
   useEffect(() => {
-    savePanelWidth(
-      localStorage,
-      CODE_EXPLORER_WIDTH_KEY,
-      explorerWidth,
-      CODE_EXPLORER_WIDTH,
-    );
-  }, [explorerWidth]);
-
-  useEffect(() => {
-    savePanelWidth(
-      localStorage,
-      CODE_UTILITY_WIDTH_KEY,
-      utilityWidth,
-      CODE_UTILITY_WIDTH,
-    );
-  }, [utilityWidth]);
+    if (hydratingLayoutRef.current) {
+      hydratingLayoutRef.current = false;
+      return;
+    }
+    try {
+      saveCodeWorkspaceLayout(localStorage, workspacePath, {
+        explorerVisible,
+        utilityVisible,
+        zenMode,
+        explorerWidth,
+        utilityWidth,
+      });
+    } catch {
+      // Layout persistence is a convenience; keep the editor usable when the
+      // browser profile refuses local storage writes.
+    }
+  }, [
+    explorerVisible,
+    explorerWidth,
+    utilityVisible,
+    utilityWidth,
+    workspacePath,
+    zenMode,
+  ]);
 
   useEffect(() => {
     if (!active) return;

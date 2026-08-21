@@ -1,5 +1,8 @@
 import { loadGatewayConfig } from "@/config/gateway";
-import { getLinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth";
+import {
+  getLinkedProviderAccountsSnapshot,
+  type LinkedProviderName,
+} from "@/runtime/native/account-auth";
 import { NativeOwnershipCache } from "@/runtime/native/ownership-cache";
 import type { EnvConfig } from "@/types";
 import type {
@@ -14,6 +17,7 @@ import {
   applyServiceSettingsBootstrap,
   createServiceSettings,
 } from "../bootstrap/settings";
+import { resolvePersistedProviderAvailability } from "../bootstrap/settings/cloud-bootstrap";
 import { LoggerService } from "../logger-service";
 import type { SettingsService } from "../settings-service";
 import { StartupStateService } from "../startup-state-service";
@@ -30,6 +34,24 @@ export interface ServiceBootstrapState {
 
 export type RuntimeModelContextResolver = () => ServiceModelContext;
 
+function linkedProviderName(provider: string): LinkedProviderName | undefined {
+  if (
+    provider === "codex" ||
+    provider === "claude-code" ||
+    provider === "devin" ||
+    provider === "elizacloud"
+  ) {
+    return provider;
+  }
+  return undefined;
+}
+
+function persistedProviderIsAvailable(
+  availability: ReturnType<typeof resolvePersistedProviderAvailability>,
+): boolean {
+  return Object.values(availability).some(Boolean);
+}
+
 export function createServiceBootstrapState(
   config: EnvConfig,
 ): ServiceBootstrapState & {
@@ -42,8 +64,27 @@ export function createServiceBootstrapState(
   const traits = resolveDefaultServiceModel(config);
   const defaultModelConfig = traits;
   const settings = createServiceSettings(config, defaultModelConfig);
-  const linkedAccounts = getLinkedProviderAccountsSnapshot();
   const currentSettings = settings.get();
+  const activeLinkedProvider = linkedProviderName(
+    currentSettings.model.provider,
+  );
+  const activeAccounts = getLinkedProviderAccountsSnapshot(
+    undefined,
+    activeLinkedProvider ? [activeLinkedProvider] : [],
+  );
+  const activeProviderAvailable = persistedProviderIsAvailable(
+    resolvePersistedProviderAvailability(
+      config,
+      currentSettings,
+      activeAccounts,
+    ),
+  );
+  // Full linked-account discovery can invoke multiple provider CLIs. Preserve
+  // the existing fallback order when the selected route is unavailable, but
+  // keep unrelated account probes out of the healthy startup path.
+  const linkedAccounts = activeProviderAvailable
+    ? activeAccounts
+    : getLinkedProviderAccountsSnapshot();
 
   applyServiceSettingsBootstrap(
     config,

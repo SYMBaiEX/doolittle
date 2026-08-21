@@ -236,7 +236,7 @@ test.describe("Doolittle desktop navigation", () => {
       await expect
         .poll(() =>
           page.evaluate(() =>
-            localStorage.getItem("doolittle.desktop.layout.sidebar-width.v1"),
+            localStorage.getItem("doolittle.desktop.layout.sidebar-width.v2"),
           ),
         )
         .not.toBe("252");
@@ -1785,7 +1785,7 @@ test.describe("Doolittle desktop navigation", () => {
         .poll(() =>
           page.evaluate(() =>
             localStorage.getItem(
-              "doolittle.desktop.layout.utility-drawer-width.v1",
+              "doolittle.desktop.layout.utility-drawer-width.v2",
             ),
           ),
         )

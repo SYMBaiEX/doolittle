@@ -1,7 +1,10 @@
 import ts from "typescript-legacy";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { compilerOptionsForMonaco } from "./editor-project-compiler-options";
-import { acquireMonacoProjectSupport } from "./editor-project-support";
+import {
+  acquireMonacoProjectSupport,
+  setMonacoProjectDiagnosticsPending,
+} from "./editor-project-support";
 
 const languageDefaults = vi.hoisted(() => {
   const create = () => ({
@@ -106,6 +109,29 @@ describe("compilerOptionsForMonaco", () => {
 });
 
 describe("acquireMonacoProjectSupport", () => {
+  it("keeps syntax checks but defers semantic diagnostics until project support is ready", () => {
+    setMonacoProjectDiagnosticsPending("typescript", true);
+
+    expect(
+      languageDefaults.typescript.setDiagnosticsOptions,
+    ).toHaveBeenCalledWith({
+      noSemanticValidation: true,
+      noSuggestionDiagnostics: true,
+      noSyntaxValidation: false,
+      onlyVisible: false,
+    });
+
+    setMonacoProjectDiagnosticsPending("typescript", false);
+    expect(
+      languageDefaults.typescript.setDiagnosticsOptions,
+    ).toHaveBeenLastCalledWith({
+      noSemanticValidation: false,
+      noSuggestionDiagnostics: false,
+      noSyntaxValidation: false,
+      onlyVisible: false,
+    });
+  });
+
   it("configures Monaco through the registered TypeScript defaults and loads project declarations", () => {
     const release = acquireMonacoProjectSupport(
       {

@@ -22,6 +22,7 @@ export const DENSITY_STORAGE_KEY = "doolittle.desktop.density";
 export const THEME_STORAGE_KEY = "doolittle.desktop.theme";
 export const THEME_SOURCE_STORAGE_KEY = "doolittle.desktop.theme-source";
 export const APPEARANCE_CHANGE_EVENT = "doolittle:appearance-change";
+export const APPEARANCE_APPLIED_EVENT = "doolittle:appearance-applied";
 export const DENSITY_CHANGE_EVENT = "doolittle:density-change";
 export const THEME_CHANGE_EVENT = "doolittle:theme-change";
 
@@ -290,6 +291,157 @@ function optionalColor(value: unknown): string | undefined {
   return candidate || undefined;
 }
 
+type RgbColor = Readonly<{ red: number; green: number; blue: number }>;
+
+function opaqueRgbColor(value: string): RgbColor | null {
+  const hex = value.match(/^#([\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/iu)?.[1];
+  if (hex) {
+    const expanded =
+      hex.length <= 4
+        ? [...hex].map((channel) => channel.repeat(2)).join("")
+        : hex;
+    if (expanded.length === 8 && expanded.slice(6).toLowerCase() !== "ff") {
+      return null;
+    }
+    return {
+      red: Number.parseInt(expanded.slice(0, 2), 16),
+      green: Number.parseInt(expanded.slice(2, 4), 16),
+      blue: Number.parseInt(expanded.slice(4, 6), 16),
+    };
+  }
+  const parts = value.match(/^rgba?\((.*)\)$/iu)?.[1]?.split(",");
+  const alphaIsOpaque = (alpha: string | undefined): boolean => {
+    if (!alpha) return true;
+    const trimmed = alpha.trim();
+    const raw = Number.parseFloat(trimmed);
+    const resolved = trimmed.endsWith("%") ? raw / 100 : raw;
+    return Number.isFinite(resolved) && resolved === 1;
+  };
+  const channel = (part: string): number | null => {
+    const trimmed = part.trim();
+    const raw = Number.parseFloat(trimmed);
+    if (!Number.isFinite(raw)) return null;
+    const resolved = trimmed.endsWith("%") ? (raw / 100) * 255 : raw;
+    return resolved >= 0 && resolved <= 255 ? resolved : null;
+  };
+  if (parts && parts.length >= 3 && parts.length <= 4) {
+    const [red, green, blue] = parts.slice(0, 3).map(channel);
+    if (
+      red === null ||
+      green === null ||
+      blue === null ||
+      !alphaIsOpaque(parts[3])
+    ) {
+      return null;
+    }
+    return { red, green, blue };
+  }
+  const hsl = value.match(/^hsla?\((.*)\)$/iu)?.[1]?.split(",");
+  if (!hsl || hsl.length < 3 || hsl.length > 4 || !alphaIsOpaque(hsl[3])) {
+    return null;
+  }
+  const hue = Number.parseFloat(hsl[0]);
+  const saturation = Number.parseFloat(hsl[1]);
+  const lightness = Number.parseFloat(hsl[2]);
+  if (
+    !Number.isFinite(hue) ||
+    !hsl[1].trim().endsWith("%") ||
+    !hsl[2].trim().endsWith("%") ||
+    saturation < 0 ||
+    saturation > 100 ||
+    lightness < 0 ||
+    lightness > 100
+  ) {
+    return null;
+  }
+  const chroma = (1 - Math.abs(2 * (lightness / 100) - 1)) * (saturation / 100);
+  const hueSegment = (((hue % 360) + 360) % 360) / 60;
+  const intermediate = chroma * (1 - Math.abs((hueSegment % 2) - 1));
+  const [red, green, blue] =
+    hueSegment < 1
+      ? [chroma, intermediate, 0]
+      : hueSegment < 2
+        ? [intermediate, chroma, 0]
+        : hueSegment < 3
+          ? [0, chroma, intermediate]
+          : hueSegment < 4
+            ? [0, intermediate, chroma]
+            : hueSegment < 5
+              ? [intermediate, 0, chroma]
+              : [chroma, 0, intermediate];
+  const match = lightness / 100 - chroma / 2;
+  return {
+    red: (red + match) * 255,
+    green: (green + match) * 255,
+    blue: (blue + match) * 255,
+  };
+}
+
+function opaqueColorOrFallback(candidate: string, fallback: string): string {
+  return opaqueRgbColor(candidate) ? candidate : fallback;
+}
+
+function contrastRatio(foreground: RgbColor, background: RgbColor): number {
+  const luminance = ({ red, green, blue }: RgbColor): number =>
+    [red, green, blue]
+      .map((channel) => channel / 255)
+      .map((channel) =>
+        channel <= 0.04045
+          ? channel / 12.92
+          : ((channel + 0.055) / 1.055) ** 2.4,
+      )
+      .reduce(
+        (total, channel, index) =>
+          total + channel * ([0.2126, 0.7152, 0.0722][index] ?? 0),
+        0,
+      );
+  const foregroundLuminance = luminance(foreground);
+  const backgroundLuminance = luminance(background);
+  return (
+    (Math.max(foregroundLuminance, backgroundLuminance) + 0.05) /
+    (Math.min(foregroundLuminance, backgroundLuminance) + 0.05)
+  );
+}
+
+function mixRgb(
+  foreground: RgbColor,
+  background: RgbColor,
+  amount: number,
+): RgbColor {
+  return {
+    red: foreground.red * amount + background.red * (1 - amount),
+    green: foreground.green * amount + background.green * (1 - amount),
+    blue: foreground.blue * amount + background.blue * (1 - amount),
+  };
+}
+
+function accessibleSemanticColor(
+  candidate: string,
+  fallback: string,
+  surface: string,
+): string {
+  const surfaceRgb = opaqueRgbColor(surface);
+  const candidateRgb = opaqueRgbColor(candidate);
+  if (
+    surfaceRgb &&
+    candidateRgb &&
+    contrastRatio(candidateRgb, mixRgb(candidateRgb, surfaceRgb, 0.14)) >= 4.5
+  ) {
+    return candidate;
+  }
+  return fallback;
+}
+
+function accentInkFor(accent: string): string | null {
+  const accentRgb = opaqueRgbColor(accent);
+  const darkInk = opaqueRgbColor("#160b03");
+  const lightInk = opaqueRgbColor("#fffaf5");
+  if (!accentRgb || !darkInk || !lightInk) return null;
+  if (contrastRatio(darkInk, accentRgb) >= 4.5) return "#160b03";
+  if (contrastRatio(lightInk, accentRgb) >= 4.5) return "#fffaf5";
+  return null;
+}
+
 export function parseDesktopThemeProfile(
   value: unknown,
 ): DesktopThemeProfile | null {
@@ -324,33 +476,56 @@ export function parseDesktopThemeProfile(
 
 export function themeCssTokens(
   profile: DesktopThemeProfile,
+  appearance: "dark" | "light" = "dark",
 ): Record<string, string> {
-  const hex = profile.primary.match(/^#([\da-f]{6})$/iu)?.[1];
-  const accentInk = hex
-    ? (() => {
-        const channels = [0, 2, 4].map((offset) =>
-          Number.parseInt(hex.slice(offset, offset + 2), 16),
-        );
-        const luminance =
-          (channels[0] * 299 + channels[1] * 587 + channels[2] * 114) / 1000;
-        return luminance >= 150 ? "#160b03" : "#fffaf5";
-      })()
-    : "#160b03";
-  const canvasBackground = profile.panelBg ?? profile.baseBg ?? "#080706";
-  const canvasText = profile.baseFg ?? "#f4f1eb";
+  const appearanceTokens =
+    appearance === "light" ? LIGHT_DESKTOP_TOKENS : DARK_DESKTOP_TOKENS;
+  const surface = appearanceTokens["--surface"];
+  const accentFallback =
+    appearance === "light" ? "#8a3500" : appearanceTokens["--accent-text"];
+  const goodFallback =
+    appearance === "light" ? "#2d5b21" : appearanceTokens["--good"];
+  const warnFallback =
+    appearance === "light" ? "#5c4208" : appearanceTokens["--warn"];
+  let accent = opaqueColorOrFallback(profile.primary, accentFallback);
+  let accentInk = accentInkFor(accent);
+  if (!accentInk) {
+    accent = accentFallback;
+    accentInk = accentInkFor(accent) ?? "#fffaf5";
+  }
+  const accentText = accessibleSemanticColor(accent, accentFallback, surface);
+  const accentHover = opaqueColorOrFallback(profile.secondary, accent);
+  const good = accessibleSemanticColor(
+    profile.greenGlow,
+    goodFallback,
+    surface,
+  );
+  const warn = accessibleSemanticColor(
+    profile.amberGlow,
+    warnFallback,
+    surface,
+  );
+  const canvasBackground =
+    appearance === "light"
+      ? LIGHT_DESKTOP_TOKENS["--surface-raised"]
+      : (profile.panelBg ?? profile.baseBg ?? "#080706");
+  const canvasText =
+    appearance === "light"
+      ? LIGHT_DESKTOP_TOKENS["--text"]
+      : (profile.baseFg ?? "#f4f1eb");
   const cyan = profile.cyanGlow ?? profile.secondary;
   const magenta = profile.magentaGlow ?? profile.secondary;
   const tokens: Record<string, string> = {
-    "--accent": profile.primary,
+    "--accent": accent,
     "--accent-ink": accentInk,
-    "--accent-text": `color-mix(in srgb, ${profile.primary} 72%, var(--text))`,
-    "--accent-hover": profile.secondary,
-    "--accent-soft": `color-mix(in srgb, ${profile.primary} 14%, var(--surface))`,
-    "--accent-border": `color-mix(in srgb, ${profile.primary} 42%, var(--border))`,
-    "--good": profile.greenGlow,
-    "--good-soft": `color-mix(in srgb, ${profile.greenGlow} 14%, var(--surface))`,
-    "--warn": profile.amberGlow,
-    "--warn-soft": `color-mix(in srgb, ${profile.amberGlow} 14%, var(--surface))`,
+    "--accent-text": accentText,
+    "--accent-hover": accentHover,
+    "--accent-soft": `color-mix(in srgb, ${accent} 14%, var(--surface))`,
+    "--accent-border": `color-mix(in srgb, ${accent} 42%, var(--border))`,
+    "--good": good,
+    "--good-soft": `color-mix(in srgb, ${good} 14%, var(--surface))`,
+    "--warn": warn,
+    "--warn-soft": `color-mix(in srgb, ${warn} 14%, var(--surface))`,
     "--theme-cyan": cyan,
     "--theme-magenta": magenta,
     "--theme-muted": profile.muted ?? "var(--muted)",
@@ -365,40 +540,6 @@ export function themeCssTokens(
     "--canvas-text": canvasText,
     "--canvas-text-soft": `color-mix(in srgb, ${canvasText} 76%, ${canvasBackground})`,
   };
-  const shellBackground = profile.baseBg;
-  const shellSurface = profile.panelBg ?? shellBackground;
-  const shellText = profile.baseFg;
-  if (shellBackground) tokens["--bg"] = shellBackground;
-  if (shellSurface) {
-    tokens["--surface"] = shellSurface;
-    if (shellText) {
-      tokens["--surface-raised"] =
-        `color-mix(in srgb, ${shellText} 4%, ${shellSurface})`;
-      tokens["--surface-soft"] =
-        `color-mix(in srgb, ${shellText} 7%, ${shellSurface})`;
-      tokens["--surface-hover"] =
-        `color-mix(in srgb, ${shellText} 11%, ${shellSurface})`;
-      tokens["--border"] =
-        `color-mix(in srgb, ${shellText} 14%, ${shellSurface})`;
-      tokens["--border-strong"] =
-        `color-mix(in srgb, ${shellText} 24%, ${shellSurface})`;
-    }
-  }
-  if (shellText) {
-    const textBackground = shellSurface ?? shellBackground ?? "var(--surface)";
-    tokens["--text"] = shellText;
-    tokens["--text-soft"] =
-      `color-mix(in srgb, ${shellText} 78%, ${textBackground})`;
-    tokens["--muted"] =
-      profile.muted ??
-      `color-mix(in srgb, ${shellText} 62%, ${textBackground})`;
-    tokens["--faint"] =
-      `color-mix(in srgb, ${shellText} 54%, ${textBackground})`;
-  } else if (profile.muted) {
-    tokens["--muted"] = profile.muted;
-    tokens["--faint"] =
-      `color-mix(in srgb, ${profile.muted} 82%, var(--surface))`;
-  }
   return tokens;
 }
 
@@ -416,7 +557,10 @@ export function applyDesktopTheme(
       ? LIGHT_DESKTOP_TOKENS
       : DARK_DESKTOP_TOKENS,
   );
-  for (const [property, value] of Object.entries(themeCssTokens(profile))) {
+  const appearance = root.dataset.appearance === "light" ? "light" : "dark";
+  for (const [property, value] of Object.entries(
+    themeCssTokens(profile, appearance),
+  )) {
     root.style.setProperty(property, value);
   }
   localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(profile));
@@ -429,13 +573,13 @@ export function applyDesktopAppearance(
 ): void {
   const root = document.documentElement;
   const resolved = resolveAppearance(preference, systemPrefersDark);
+  root.dataset.appearance = resolved;
   setCssTokens(
     resolved === "dark" ? DARK_DESKTOP_TOKENS : LIGHT_DESKTOP_TOKENS,
   );
   const selectedTheme = loadStoredDesktopTheme();
-  if (selectedTheme) setCssTokens(themeCssTokens(selectedTheme));
+  if (selectedTheme) setCssTokens(themeCssTokens(selectedTheme, resolved));
   root.style.colorScheme = resolved;
-  root.dataset.appearance = resolved;
   root.classList.toggle("dark", resolved === "dark");
   root.dataset.appearancePreference = preference;
   localStorage.setItem(APPEARANCE_STORAGE_KEY, preference);
@@ -490,6 +634,14 @@ export function announceAppearance(preference: DesktopAppearance): void {
   window.dispatchEvent(
     new CustomEvent<DesktopAppearance>(APPEARANCE_CHANGE_EVENT, {
       detail: preference,
+    }),
+  );
+}
+
+export function announceAppearanceApplied(appearance: "dark" | "light"): void {
+  window.dispatchEvent(
+    new CustomEvent<"dark" | "light">(APPEARANCE_APPLIED_EVENT, {
+      detail: appearance,
     }),
   );
 }

@@ -128,7 +128,7 @@ export function ProfilesPage({ active }: { active: boolean }) {
                 <strong className="text-[var(--text-section)]">
                   {presentation.active.name}
                 </strong>
-                <p className="m-0 text-[length:var(--text-meta)] leading-[1.4] text-[var(--text-soft)] min-[701px]:truncate">
+                <p className="m-0 break-words text-[length:var(--text-meta)] leading-[1.4] text-[var(--text-soft)]">
                   {presentation.active.description}
                 </p>
               </div>

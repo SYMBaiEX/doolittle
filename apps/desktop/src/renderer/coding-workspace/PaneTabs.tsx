@@ -1,4 +1,6 @@
+import type { LucideIcon } from "lucide-react";
 import type { KeyboardEvent } from "react";
+import { UiIcon } from "../components/UiIcon";
 import {
   CODING_TAB_BUTTON_CLASS,
   CODING_TAB_SELECTED_CLASS,
@@ -13,7 +15,12 @@ export function PaneTabs<T extends string>({
   onChange,
 }: {
   label: string;
-  options: ReadonlyArray<{ id: T; label: string; count?: number }>;
+  options: ReadonlyArray<{
+    id: T;
+    label: string;
+    count?: number;
+    icon?: LucideIcon;
+  }>;
   panelId: string;
   value: T;
   onChange: (value: T) => void;
@@ -60,8 +67,11 @@ export function PaneTabs<T extends string>({
           tabIndex={value === option.id ? 0 : -1}
           type="button"
         >
-          {option.label}
-          {option.count === undefined ? null : <span>{option.count}</span>}
+          {option.icon ? <UiIcon icon={option.icon} size="xs" /> : null}
+          <span className="coding-tab-label">{option.label}</span>
+          {option.count === undefined ? null : (
+            <span className="coding-tab-count">{option.count}</span>
+          )}
         </button>
       ))}
     </div>

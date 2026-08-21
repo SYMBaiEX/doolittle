@@ -1,4 +1,4 @@
-import { RefreshCw, Search } from "lucide-react";
+import { RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import type {
   BackendState,
   DoolittleDesktopBridge,
@@ -55,16 +55,27 @@ export function DesktopWindowTools({
         )}
       </button>
       <button
-        aria-label="Open tools and settings"
+        aria-label={`${utilityOpen ? "Close" : "Open"} tools and settings`}
         aria-expanded={utilityOpen}
         className={WINDOW_UTILITY_BUTTON_CLASS}
         onClick={onToggleUtilities}
+        title={`${utilityOpen ? "Close" : "Open"} tools and settings`}
         type="button"
       >
-        Tools
+        <UiIcon icon={SlidersHorizontal} size="sm" />
+        <span>Tools</span>
       </button>
       <div
+        aria-label={`Runtime status: ${
+          backend.phase === "ready"
+            ? "ready"
+            : backend.phase === "booting"
+              ? "starting"
+              : "offline"
+        }`}
+        aria-live="polite"
         className={`${WINDOW_RUNTIME_STATUS_CLASS} ${WINDOW_RUNTIME_STATUS_TONE[backend.phase]}`}
+        role="status"
         title={backend.message}
       >
         <i />

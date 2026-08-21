@@ -30,10 +30,20 @@ const sweepAppAsarSha256 = process.env.DOOLITTLE_SWEEP_APP_ASAR_SHA256?.trim();
 const sweepSourceRevision = process.env.DOOLITTLE_SWEEP_SOURCE_REVISION?.trim();
 
 const desktopViewport = { width: 1440, height: 1000 } as const;
-// Match the desktop window's supported compact width. Testing below minWidth
-// makes Electron clamp the BrowserWindow while Playwright still assumes the
-// requested size, which produces misleading geometry and screenshots.
-const narrowViewport = { width: 920, height: 1000 } as const;
+// Exercise the real mobile shell rather than stopping at the old native
+// 920px clamp. The BrowserWindow minimum is intentionally aligned to 360px.
+const narrowViewport = { width: 375, height: 812 } as const;
+const responsiveAuditViewports = [
+  // Keep the wide contract inside the smallest supported macOS work area so
+  // Electron does not clamp the requested content height behind the menu bar.
+  { width: 1680, height: 1000 },
+  { width: 1180, height: 900 },
+  { width: 1024, height: 900 },
+  { width: 920, height: 900 },
+  { width: 768, height: 900 },
+  { width: 540, height: 800 },
+  { width: 360, height: 480 },
+] as const;
 
 const routes = Array.from(views);
 
@@ -131,12 +141,14 @@ async function auditInterfaceModes(
   page: Page,
 ): Promise<void> {
   let auditedControls = 0;
-  for (const mode of interfaceModes) {
-    await applyInterfaceMode(page, mode);
-    for (const route of routes) {
-      await page.evaluate((nextRoute) => {
-        window.location.hash = `#/${nextRoute}`;
-      }, route);
+  for (const route of routes) {
+    await resizeElectronWindow(app, desktopViewport);
+    await waitForViewportLayout(page);
+    await expectElectronViewport(page, desktopViewport);
+    await navigateToRoute(page, route);
+
+    for (const mode of interfaceModes) {
+      await applyInterfaceMode(page, mode);
       const view = page.locator(`.view-container[data-view="${route}"]`);
       await expect(view).toBeVisible();
       await expect(page.locator(".recovery-shell")).toHaveCount(0);
@@ -189,10 +201,8 @@ async function auditInterfaceModes(
     await waitForViewportLayout(page);
     await expectElectronViewport(page, narrowViewport);
 
-    for (const route of routes) {
-      await page.evaluate((nextRoute) => {
-        window.location.hash = `#/${nextRoute}`;
-      }, route);
+    for (const mode of interfaceModes) {
+      await applyInterfaceMode(page, mode);
       const view = page.locator(`.view-container[data-view="${route}"]`);
       await expect(view).toBeVisible();
       await expect(page.locator(".recovery-shell")).toHaveCount(0);
@@ -204,8 +214,75 @@ async function auditInterfaceModes(
 
     await resizeElectronWindow(app, desktopViewport);
     await waitForViewportLayout(page);
+    await expectElectronViewport(page, desktopViewport);
   }
   expect(auditedControls).toBeGreaterThan(0);
+}
+
+async function auditResponsiveRoutes(
+  app: ElectronApplication,
+  page: Page,
+): Promise<void> {
+  const mode = interfaceModes.at(-1);
+  if (!mode) throw new Error("Interface mode matrix is empty.");
+
+  for (const route of routes) {
+    await resizeElectronWindow(app, responsiveAuditViewports[0]);
+    await waitForViewportLayout(page);
+    await navigateToRoute(page, route);
+
+    for (const viewport of responsiveAuditViewports) {
+      await resizeElectronWindow(app, viewport);
+      await waitForViewportLayout(page);
+      await expectElectronViewport(page, viewport);
+      const view = page.locator(`.view-container[data-view="${route}"]`);
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() => ({
+              activeView:
+                document
+                  .querySelector<HTMLElement>(".view-container[data-view]")
+                  ?.getAttribute("data-view") ?? null,
+              hash: window.location.hash,
+            })),
+          {
+            message: `${viewport.width}px navigation reaches ${route}`,
+            timeout: 15_000,
+          },
+        )
+        .toEqual({ activeView: route, hash: `#/${route}` });
+      await expect(view).toBeVisible();
+      await expect(page.locator(".recovery-shell")).toHaveCount(0);
+      await expect(
+        view.getByText("Opening view…", { exact: true }),
+      ).toHaveCount(0, { timeout: 15_000 });
+
+      const overflow = await page.evaluate((activeRoute) => {
+        const activeView = document.querySelector<HTMLElement>(
+          `.view-container[data-view="${activeRoute}"]`,
+        );
+        return {
+          document: document.documentElement.scrollWidth - window.innerWidth,
+          view: activeView
+            ? activeView.scrollWidth - activeView.clientWidth
+            : Number.POSITIVE_INFINITY,
+        };
+      }, route);
+      expect(
+        overflow.document,
+        `${viewport.width}px ${route} document overflow`,
+      ).toBeLessThanOrEqual(0);
+      expect(
+        overflow.view,
+        `${viewport.width}px ${route} view overflow`,
+      ).toBeLessThanOrEqual(1);
+      await expectViewportGeometry(page, route, mode, viewport);
+    }
+  }
+
+  await resizeElectronWindow(app, desktopViewport);
+  await waitForViewportLayout(page);
 }
 
 function normalizeScreenshotDir(
@@ -304,9 +381,24 @@ async function waitForViewportLayout(page: Page): Promise<void> {
   await page.evaluate(
     () =>
       new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => window.setTimeout(resolve, 220)),
+        );
       }),
   );
+}
+
+async function navigateToRoute(page: Page, route: RouteName) {
+  await page.evaluate((nextRoute) => {
+    const oldURL = window.location.href;
+    window.history.replaceState(window.history.state, "", `#/${nextRoute}`);
+    window.dispatchEvent(
+      new HashChangeEvent("hashchange", {
+        newURL: window.location.href,
+        oldURL,
+      }),
+    );
+  }, route);
 }
 
 async function resizeElectronWindow(
@@ -381,13 +473,49 @@ async function expectViewportGeometry(
       const rootStyle = getComputedStyle(document.documentElement);
       const sidebar = document.querySelector<HTMLElement>(".app-sidebar");
       const sidebarBox = readBox(".app-sidebar");
+      const headerActions = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          ".chat-header-top-actions button, .chat-header-top-actions [role='button']",
+        ),
+      )
+        .filter((element) => {
+          const style = getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return (
+            style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
+        })
+        .map((element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            bottom: rect.bottom,
+            label:
+              element.getAttribute("aria-label") ??
+              element.textContent?.trim() ??
+              "chat action",
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+          };
+        });
 
       return {
         composer: readBox(".chat-composer"),
         documentOverflow:
           document.documentElement.scrollWidth - window.innerWidth,
         dragbar: readBox(".window-dragbar--chat"),
+        headerActions,
         modelTrigger: readBox(".composer-model-trigger"),
+        platformDarwin: document
+          .querySelector(".desktop-shell")
+          ?.classList.contains("platform-darwin"),
+        routingHasProject:
+          document
+            .querySelector<HTMLElement>(".chat-composer-routing")
+            ?.getAttribute("data-has-project") === "true",
         sidebar: sidebarBox
           ? {
               ...sidebarBox,
@@ -479,11 +607,39 @@ async function expectViewportGeometry(
   expect(
     geometry.dragbar?.height ?? Number.POSITIVE_INFINITY,
     `${label} chat dragbar density range`,
-  ).toBeLessThanOrEqual(controlHeight + spacing * 3);
+  ).toBeLessThanOrEqual(
+    viewport.width <= 480
+      ? 80 + spacing + (geometry.platformDarwin ? 36 : 0)
+      : viewport.width <= 760
+        ? controlHeight + 40 + spacing
+        : controlHeight + spacing * 3,
+  );
+  for (const action of geometry.headerActions) {
+    expect(
+      action.top,
+      `${label} ${action.label} stays below the dragbar top`,
+    ).toBeGreaterThanOrEqual((geometry.dragbar?.top ?? 0) - 1);
+    expect(
+      action.bottom,
+      `${label} ${action.label} stays above the dragbar bottom`,
+    ).toBeLessThanOrEqual((geometry.dragbar?.bottom ?? 0) + 1);
+    expect(
+      action.left,
+      `${label} ${action.label} stays inside the dragbar left edge`,
+    ).toBeGreaterThanOrEqual((geometry.dragbar?.left ?? 0) - 1);
+    expect(
+      action.right,
+      `${label} ${action.label} stays inside the dragbar right edge`,
+    ).toBeLessThanOrEqual((geometry.dragbar?.right ?? viewport.width) + 1);
+  }
   expect(
     geometry.composer?.width ?? Number.POSITIVE_INFINITY,
     `${label} composer fits route view`,
-  ).toBeLessThanOrEqual((geometry.view?.clientWidth ?? 0) - spacing * 2);
+  ).toBeLessThanOrEqual(
+    (geometry.view?.clientWidth ?? 0) -
+      (viewport.width <= 480 ? 8 : viewport.width <= 720 ? 12 : 24) +
+      1,
+  );
   expect(
     geometry.composer?.width ?? 0,
     `${label} composer remains usefully wide`,
@@ -492,6 +648,12 @@ async function expectViewportGeometry(
     geometry.composer?.height ?? 0,
     `${label} composer retains input and controls`,
   ).toBeGreaterThanOrEqual(controlHeight * 2.5);
+  if (viewport.width <= 480) {
+    expect(
+      geometry.composer?.height ?? Number.POSITIVE_INFINITY,
+      `${label} composer stays compact`,
+    ).toBeLessThanOrEqual(Math.max(108, controlHeight * 3.5 + spacing));
+  }
   expect(
     geometry.modelTrigger?.height ?? 0,
     `${label} model selector follows density`,
@@ -499,11 +661,21 @@ async function expectViewportGeometry(
   expect(
     geometry.modelTrigger?.height ?? Number.POSITIVE_INFINITY,
     `${label} model selector follows density`,
-  ).toBeLessThanOrEqual(controlHeight + spacing);
+  ).toBeLessThanOrEqual(
+    viewport.width <= 480
+      ? Math.max(44, controlHeight + spacing)
+      : controlHeight + spacing,
+  );
+  const containedModelWidth =
+    viewport.width <= 720
+      ? geometry.routingHasProject
+        ? ((geometry.composer?.width ?? viewport.width) - spacing) / 2 + 1
+        : (geometry.composer?.width ?? viewport.width)
+      : Math.min(310 + spacing * 2, viewport.width * 0.42);
   expect(
     geometry.modelTrigger?.width ?? Number.POSITIVE_INFINITY,
     `${label} model selector remains contained`,
-  ).toBeLessThanOrEqual(Math.min(310 + spacing * 2, viewport.width * 0.42));
+  ).toBeLessThanOrEqual(containedModelWidth);
 }
 
 async function captureRouteScreenshots(
@@ -631,7 +803,7 @@ test.describe("Doolittle packaged-profile control sweep", () => {
   test.skip(!executablePath, "Packaged app required.");
 
   test("opens safe controls across every route without renderer failures", async () => {
-    test.setTimeout(360_000);
+    test.setTimeout(600_000);
     const screenshotEvidence = normalizeScreenshotDir(screenshotDir);
     if (screenshotEvidence) {
       cleanEvidenceDirectory(screenshotEvidence);
@@ -674,9 +846,7 @@ test.describe("Doolittle packaged-profile control sweep", () => {
       const audit: RouteAudit[] = [];
 
       for (const route of routes) {
-        await page.evaluate((nextRoute) => {
-          window.location.hash = `#/${nextRoute}`;
-        }, route);
+        await navigateToRoute(page, route);
         const view = page.locator(`.view-container[data-view="${route}"]`);
         await expect(view).toBeVisible();
         await expect(page.locator(".recovery-shell")).toHaveCount(0);
@@ -844,6 +1014,7 @@ test.describe("Doolittle packaged-profile control sweep", () => {
 
       await resizeElectronWindow(app, desktopViewport);
       await auditInterfaceModes(app, page);
+      await auditResponsiveRoutes(app, page);
       expect(pageErrors, pageErrors.join("\n\n")).toEqual([]);
       expect(consoleErrors, consoleErrors.join("\n\n")).toEqual([]);
 

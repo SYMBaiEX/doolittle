@@ -251,6 +251,45 @@ describe("sensitive desktop actions", () => {
     harness.dispose();
   });
 
+  it("shares one renderer lifecycle listener across concurrent requests", async () => {
+    const requestSignals: AbortSignal[] = [];
+    const harness = createHarness({
+      confirmed: true,
+      fetch: async (_input, init) =>
+        await new Promise<Response>((_resolve, reject) => {
+          const signal = init?.signal;
+          if (!signal) throw new Error("Expected a request abort signal.");
+          requestSignals.push(signal);
+          signal.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          });
+        }),
+    });
+    const sender = Object.assign(new EventEmitter(), { id: 9 });
+    const pending = Array.from({ length: 12 }, (_, index) =>
+      harness.handlers.get("agent:request")?.(
+        { sender },
+        {
+          requestId: `parallel-${index}`,
+          path: "/health",
+          method: "GET",
+          headers: {},
+        },
+      ),
+    ) as Promise<unknown>[];
+    await vi.waitFor(() => expect(requestSignals).toHaveLength(12));
+
+    expect(sender.listenerCount("destroyed")).toBe(1);
+    sender.emit("destroyed");
+
+    const results = await Promise.allSettled(pending);
+    expect(results).toHaveLength(12);
+    expect(results.every((result) => result.status === "rejected")).toBe(true);
+    expect(requestSignals.every((signal) => signal.aborted)).toBe(true);
+    expect(sender.listenerCount("destroyed")).toBe(0);
+    harness.dispose();
+  });
+
   it("strictly validates commands and workspace save requests", () => {
     expect(validateDesktopCommandRequest({ command: "  bun test  " })).toEqual({
       command: "bun test",

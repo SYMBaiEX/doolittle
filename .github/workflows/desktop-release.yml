@@ -31,11 +31,13 @@ jobs:
       - name: Set up Nub and Node
         uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
         with:
-          nub-version: 0.7.4
+          nub-version: 0.7.5
           node-version-file: .node-version
 
-      - name: Block releases with high-severity production advisories
-        run: nub audit --production --audit-level high
+      - name: Block releases with critical repository advisories
+        run: |
+          nub audit --production --audit-level critical
+          nub run check:runtime-advisory-policy
 
   macos:
     needs: preflight
@@ -50,6 +52,8 @@ jobs:
   windows:
     needs: preflight
     uses: ./.github/workflows/desktop-windows.yml
+    with:
+      windows_publisher_name: ${{ vars.WIN_PUBLISHER_NAME }}
     secrets:
       WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
       WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
@@ -64,6 +68,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+      id-token: write
+      attestations: write
     outputs:
       version: ${{ steps.release.outputs.version }}
 
@@ -74,7 +80,7 @@ jobs:
       - name: Set up Nub and Node
         uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
         with:
-          nub-version: 0.7.4
+          nub-version: 0.7.5
           node-version-file: .node-version
 
       - name: Download all native release artifacts
@@ -96,6 +102,16 @@ jobs:
             --tag "$GITHUB_REF_NAME" \
             --commit "$GITHUB_SHA"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Attest validated installer and archive assets
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: |
+            release/Doolittle-*-mac-arm64.dmg
+            release/Doolittle-*-mac-arm64.zip
+            release/Doolittle-*-win-x64.exe
+            release/Doolittle-*-linux-x64.AppImage
+            release/Doolittle-*-linux-x64.deb
 
       - name: Upload validated release bundle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

@@ -44,10 +44,13 @@ export function GitInput(props: ComponentProps<typeof Input>) {
   );
 }
 
-export function GitTextarea(props: ComponentProps<typeof Textarea>) {
+export function GitTextarea({
+  className = "",
+  ...props
+}: ComponentProps<typeof Textarea>) {
   return (
     <Textarea
-      className="min-h-14.5 w-full resize-y rounded-[var(--radius-xs,5px)] border-[var(--border)] bg-[var(--surface)] px-1.75 py-1.5 font-mono text-[10px] text-[var(--text)] focus-visible:border-[color-mix(in_srgb,var(--accent)_72%,var(--border))] focus-visible:ring-[color-mix(in_srgb,var(--accent)_16%,transparent)]"
+      className={`min-h-14.5 w-full resize-y rounded-[var(--radius-xs,5px)] border-[var(--border)] bg-[var(--surface)] px-1.75 py-1.5 font-mono text-[10px] text-[var(--text)] focus-visible:border-[color-mix(in_srgb,var(--accent)_72%,var(--border))] focus-visible:ring-[color-mix(in_srgb,var(--accent)_16%,transparent)] ${className}`}
       {...props}
     />
   );

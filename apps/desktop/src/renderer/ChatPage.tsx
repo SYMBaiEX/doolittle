@@ -85,14 +85,16 @@ const MobileConversationsDialog = lazy(async () => {
 });
 
 function MobileConversationsDialogFallback({
+  backdropRef,
   dialogRef,
   onClose,
 }: {
+  backdropRef: RefObject<HTMLDivElement | null>;
   dialogRef: RefObject<HTMLDivElement | null>;
   onClose: () => void;
 }) {
   return (
-    <div className={MOBILE_CONVERSATIONS_BACKDROP_CLASS}>
+    <div className={MOBILE_CONVERSATIONS_BACKDROP_CLASS} ref={backdropRef}>
       <button
         aria-label="Close conversations"
         className={MOBILE_CONVERSATIONS_DISMISS_CLASS}
@@ -267,10 +269,13 @@ export function ChatPage({
   const scheduleTranscriptScrollRef = useRef<(() => void) | null>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const mobileConversationsButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileConversationsBackdropRef = useRef<HTMLDivElement>(null);
   const workbenchToggleRef = useRef<HTMLButtonElement>(null);
   const mobileConversationsDialogRef = useModalFocusBoundary({
     active: mobileConversationsOpen,
     initialFocusSelector: "[data-mobile-conversation]",
+    isolationBoundaryRef: mobileConversationsBackdropRef,
+    isolateBackground: true,
     onClose: () => setMobileConversationsOpen(false),
     restoreFocus: true,
     restoreFocusRef: mobileConversationsButtonRef,
@@ -278,6 +283,7 @@ export function ChatPage({
   const workbenchDialogRef = useModalFocusBoundary({
     active: inspectorVisible && isNarrowWorkbench,
     initialFocusSelector: '[aria-label="Close thread workbench"]',
+    isolateBackground: true,
     onClose: () => setInspectorVisible(false),
     restoreFocus: !inspectorVisible,
     restoreFocusRef: workbenchToggleRef,
@@ -578,7 +584,13 @@ export function ChatPage({
     const content =
       composedContentOverride ??
       composeChatContextMessage(visibleContent, contextCapsule);
-    if (!content || !sessionId || activeRequest || backend.phase !== "ready") {
+    if (
+      !content ||
+      !sessionId ||
+      activeRequest ||
+      Object.keys(requestSession.current).length > 0 ||
+      backend.phase !== "ready"
+    ) {
       return false;
     }
 
@@ -1221,6 +1233,7 @@ export function ChatPage({
         <Suspense
           fallback={
             <MobileConversationsDialogFallback
+              backdropRef={mobileConversationsBackdropRef}
               dialogRef={mobileConversationsDialogRef}
               onClose={() => setMobileConversationsOpen(false)}
             />
@@ -1228,6 +1241,7 @@ export function ChatPage({
         >
           <MobileConversationsDialog
             activeProjectName={activeProject?.name}
+            backdropRef={mobileConversationsBackdropRef}
             dialogRef={mobileConversationsDialogRef}
             onClose={() => setMobileConversationsOpen(false)}
             onNewConversation={() => {

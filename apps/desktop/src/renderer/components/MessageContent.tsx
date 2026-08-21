@@ -394,7 +394,7 @@ export function MessageContent({
 
   return (
     <PagePanel
-      className="min-w-0 !bg-transparent !p-0"
+      className="min-w-0 !space-y-0 !bg-transparent !p-0"
       data-message-content="true"
     >
       {parsed.text ? (

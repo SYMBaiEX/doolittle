@@ -43,6 +43,21 @@ const MAX_UPDATE_HISTORY = 500;
 const SESSION_HISTORY_PAGE_SIZE = 200;
 const MAX_SESSION_HISTORY_REPLAY = 10_000;
 
+export class AcpSessionNotFoundError extends Error {
+  readonly code = "ACP_SESSION_NOT_FOUND";
+
+  constructor(readonly sessionId: string) {
+    super(`ACP session not found: ${sessionId}`);
+    this.name = "AcpSessionNotFoundError";
+  }
+}
+
+export function isAcpSessionNotFoundError(
+  error: unknown,
+): error is AcpSessionNotFoundError {
+  return error instanceof AcpSessionNotFoundError;
+}
+
 export class AcpProtocolRuntime {
   private readonly sessions = new Map<string, AcpProtocolSession>();
   private readonly clientCapabilities = new WeakMap<
@@ -335,7 +350,7 @@ export class AcpProtocolRuntime {
       !this.sessions.has(params.sessionId) &&
       !this.sessionExists(params.sessionId)
     ) {
-      throw new Error(`ACP session not found: ${params.sessionId}`);
+      throw new AcpSessionNotFoundError(params.sessionId);
     }
     const capabilities =
       this.clientCapabilities.get(connectionKey(context)) ?? {};
@@ -629,7 +644,7 @@ export class AcpProtocolRuntime {
   private requireSession(sessionId: string): AcpProtocolSession {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      throw new Error(`ACP session not found: ${sessionId}`);
+      throw new AcpSessionNotFoundError(sessionId);
     }
     return session;
   }

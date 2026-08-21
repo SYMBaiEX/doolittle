@@ -7,9 +7,22 @@ import { requireRuntimeService } from "./required-service";
 export function createGatewayAccessor(params: {
   services: AppServices;
   runtime: IAgentRuntime;
-}): { get(): GatewayRunner } {
+}): {
+  get(): GatewayRunner;
+  setDeferredHydration(
+    ensureDeferredHydration: (reason?: string) => Promise<void>,
+  ): void;
+} {
   const { services, runtime } = params;
   let gatewayInstance: GatewayRunner | undefined;
+  let ensureDeferredHydration: ((reason?: string) => Promise<void>) | undefined;
+
+  const bindDeferredHydration = (runner: GatewayRunner): GatewayRunner => {
+    if (ensureDeferredHydration) {
+      runner.setDeferredHydration(ensureDeferredHydration);
+    }
+    return runner;
+  };
 
   return {
     get(): GatewayRunner {
@@ -19,7 +32,7 @@ export function createGatewayAccessor(params: {
           ensureRunner(): GatewayRunner;
         }>(runtime, DOOLITTLE_GATEWAY_SERVICE, ["ensureRunner"]);
         gatewayInstance = gatewayService.runner;
-        if (gatewayInstance) return gatewayInstance;
+        if (gatewayInstance) return bindDeferredHydration(gatewayInstance);
         services.startupState.markWarming(
           "gateway",
           "preparing messaging gateway",
@@ -27,7 +40,13 @@ export function createGatewayAccessor(params: {
         gatewayInstance = gatewayService.ensureRunner();
         services.startupState.markReady("gateway", "gateway runner ready");
       }
-      return gatewayInstance;
+      return bindDeferredHydration(gatewayInstance);
+    },
+    setDeferredHydration(nextEnsureDeferredHydration): void {
+      ensureDeferredHydration = nextEnsureDeferredHydration;
+      if (gatewayInstance) {
+        gatewayInstance.setDeferredHydration(nextEnsureDeferredHydration);
+      }
     },
   };
 }

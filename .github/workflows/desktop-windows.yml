@@ -2,12 +2,22 @@ name: desktop-windows
 
 on:
   workflow_call:
+    inputs:
+      windows_publisher_name:
+        description: Full Authenticode signer subject DN used by electron-updater
+        required: false
+        type: string
     secrets:
       WIN_CSC_LINK:
         required: false
       WIN_CSC_KEY_PASSWORD:
         required: false
   workflow_dispatch:
+    inputs:
+      windows_publisher_name:
+        description: Full Authenticode signer subject DN used by electron-updater
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -24,7 +34,7 @@ jobs:
       - name: Set up Nub and Node
         uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
         with:
-          nub-version: 0.7.4
+          nub-version: 0.7.5
           node-version-file: .node-version
           cache-dependency-path: nub.lock
 
@@ -57,6 +67,7 @@ jobs:
         env:
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          WIN_PUBLISHER_NAME: ${{ inputs.windows_publisher_name }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:WIN_CSC_LINK)) {
             throw "WIN_CSC_LINK is required for tagged releases."
@@ -64,12 +75,16 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:WIN_CSC_KEY_PASSWORD)) {
             throw "WIN_CSC_KEY_PASSWORD is required for tagged releases."
           }
+          if ([string]::IsNullOrWhiteSpace($env:WIN_PUBLISHER_NAME)) {
+            throw "The full Authenticode signer subject DN is required for tagged releases."
+          }
 
       - name: Build Windows installer
         run: nub run desktop:package:win
         env:
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          WIN_PUBLISHER_NAME: ${{ inputs.windows_publisher_name }}
 
       - name: Smoke-test bundled Windows runtime
         shell: pwsh
@@ -161,6 +176,7 @@ jobs:
         shell: pwsh
         env:
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_PUBLISHER_NAME: ${{ inputs.windows_publisher_name }}
         run: |
           $installer = Get-ChildItem apps/desktop/release/Doolittle-*-win-x64.exe | Select-Object -First 1
           if (-not $installer) {
@@ -173,6 +189,7 @@ jobs:
           Write-Host "Installer blockmap ready: $($blockmap.FullName)"
 
           $app = Get-Item apps/desktop/release/win-unpacked/Doolittle.exe
+          $appUpdate = Get-Item apps/desktop/release/win-unpacked/resources/app-update.yml
           $installerSignature = Get-AuthenticodeSignature $installer.FullName
           $appSignature = Get-AuthenticodeSignature $app.FullName
           if (-not [string]::IsNullOrWhiteSpace($env:WIN_CSC_LINK)) {
@@ -182,6 +199,15 @@ jobs:
             if ($appSignature.Status -ne "Valid") {
               throw "Application signature is $($appSignature.Status), expected Valid."
             }
+            if ([string]::IsNullOrWhiteSpace($env:WIN_PUBLISHER_NAME)) {
+              throw "WIN_PUBLISHER_NAME is required for a signed update artifact."
+            }
+            if ($appSignature.SignerCertificate.Subject -ne $env:WIN_PUBLISHER_NAME) {
+              throw "Application signer subject does not match WIN_PUBLISHER_NAME."
+            }
+            nub apps/desktop/scripts/verify-windows-update-manifest.ts `
+              --manifest $appUpdate.FullName `
+              --expected-publisher $env:WIN_PUBLISHER_NAME
             Write-Host "Windows Authenticode signatures are valid."
           } else {
             Write-Warning "WIN_CSC_LINK is not configured; producing an unsigned development artifact."
@@ -193,9 +219,12 @@ jobs:
           $installer = Get-ChildItem apps/desktop/release/Doolittle-*-win-x64.exe | Select-Object -First 1
           if (-not $installer) { throw "Doolittle Windows installer was not produced." }
           nub apps/desktop/scripts/package-provenance.ts --write-receipt --release-directory apps/desktop/release --platform windows --commit "$env:GITHUB_SHA" --app-asar win-unpacked/resources/app.asar --artifact $installer.Name --artifact "$($installer.Name).blockmap" --artifact latest.yml
+          nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform windows --runtime-directory apps/desktop/release/win-unpacked/resources/runtime
 
       - name: Install, launch, and uninstall the NSIS artifact
         shell: pwsh
+        env:
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
         run: |
           $installer = Get-ChildItem apps/desktop/release/Doolittle-*-win-x64.exe | Select-Object -First 1
           $installDirectory = Join-Path $env:RUNNER_TEMP "Doolittle-installed"
@@ -212,6 +241,15 @@ jobs:
           if (-not (Test-Path $installedApp -PathType Leaf)) {
             throw "Installed application is missing: $installedApp"
           }
+          $installedSignature = Get-AuthenticodeSignature $installedApp
+          if (-not [string]::IsNullOrWhiteSpace($env:WIN_CSC_LINK)) {
+            if ($installedSignature.Status -ne "Valid") {
+              throw "Installed application signature is $($installedSignature.Status), expected Valid."
+            }
+            Write-Host "Installed Windows Authenticode signature is valid."
+          } else {
+            Write-Warning "WIN_CSC_LINK is not configured; installed development artifact is unsigned."
+          }
           $sourceAsar = (Resolve-Path "apps/desktop/release/win-unpacked/resources/app.asar").Path
           $installedAsar = Join-Path $installDirectory "resources/app.asar"
           if (-not (Test-Path $installedAsar -PathType Leaf)) {
@@ -220,6 +258,7 @@ jobs:
           if ((Get-FileHash $sourceAsar -Algorithm SHA256).Hash -ne (Get-FileHash $installedAsar -Algorithm SHA256).Hash) {
             throw "Installed app.asar does not match the verified package receipt source."
           }
+          nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform windows --runtime-directory "$installDirectory/resources/runtime"
           $env:DOOLITTLE_DESKTOP_EXECUTABLE = $installedApp
           nub run test:e2e:desktop-packaged
 

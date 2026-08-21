@@ -14,6 +14,7 @@ import {
 
 export interface MobileConversationsDialogProps {
   activeProjectName?: string;
+  backdropRef: RefObject<HTMLDivElement | null>;
   dialogRef: RefObject<HTMLDivElement | null>;
   onClose: () => void;
   onNewConversation: () => void;
@@ -27,6 +28,7 @@ export interface MobileConversationsDialogProps {
 
 export function MobileConversationsDialog({
   activeProjectName,
+  backdropRef,
   dialogRef,
   onClose,
   onNewConversation,
@@ -46,7 +48,7 @@ export function MobileConversationsDialog({
   }, [dialogRef]);
 
   return (
-    <div className={MOBILE_CONVERSATIONS_BACKDROP_CLASS}>
+    <div className={MOBILE_CONVERSATIONS_BACKDROP_CLASS} ref={backdropRef}>
       <button
         aria-label="Close conversations"
         className={MOBILE_CONVERSATIONS_DISMISS_CLASS}

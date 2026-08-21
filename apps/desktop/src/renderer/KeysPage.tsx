@@ -166,12 +166,12 @@ export function KeysPage({ active }: { active: boolean }) {
           className={
             inventoryEmpty
               ? "grid min-h-0 w-[min(100%,1120px)] flex-none self-center grid-cols-1 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface)]"
-              : "grid min-h-[610px] grid-cols-[minmax(240px,0.36fr)_minmax(0,1fr)] overflow-hidden rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface)]"
+              : "grid min-h-0 grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] overflow-auto rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface)]"
           }
           data-inventory-empty={inventoryEmpty ? "true" : undefined}
         >
           {inventoryEmpty ? null : (
-            <section className="flex min-h-0 min-w-0 flex-col border-r border-[var(--border)] p-[9px]">
+            <section className="flex max-h-[min(36svh,360px)] min-h-0 min-w-0 flex-col border-b border-[var(--border)] p-[9px]">
               <div className={KEYS_TOOLBAR_CLASS}>
                 <div>
                   <span className="eyebrow">Known keys</span>

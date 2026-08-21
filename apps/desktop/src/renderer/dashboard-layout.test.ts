@@ -50,13 +50,23 @@ describe("dashboard operator metric layout", () => {
     expect(runtimeDetails).toContain("dashboard-workspace-details");
     expect(runtimeDetails).toContain("DASHBOARD_DISCLOSURE_CLASS");
     expect(priorityPanel).toContain(
-      '<details className="group mt-[7px] rounded-[var(--radius-xs)]',
+      '<details className="group mt-1.5 rounded-[var(--radius-xs)]',
     );
     expect(priorityPanel).not.toContain(
       '<div className="grid border-t border-[var(--border)]">',
     );
     expect(runtimeDetails).toContain("Runtime &amp; agent accounts");
     expect(runtimeDetails).toContain("grid-cols-2");
+  });
+
+  it("keeps dashboard cards and diagnostics on the compact operator density", () => {
+    expect(dashboardLayout).toContain("p-3");
+    expect(dashboardLayout).toContain("min-h-9");
+    expect(dashboardLayout).toContain("text-[length:var(--text-control)]");
+    expect(dashboardLayout).not.toContain("min-h-[50px]");
+    expect(priorityPanel).toContain("min-h-8.5");
+    expect(priorityPanel).toContain("mt-1.5");
+    expect(priorityPanel).not.toContain("min-h-[38px]");
   });
 
   it("lets dashboard sections scroll at their natural height without stretching empty panels", () => {

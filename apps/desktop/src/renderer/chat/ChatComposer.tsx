@@ -260,24 +260,16 @@ export function ChatComposer({
     );
     requestAnimationFrame(() => composerRef.current?.focus());
   };
-
-  return (
-    <form className="chat-composer" onSubmit={onSubmit}>
-      {isNewConversation &&
+  const showProjectSelector = Boolean(
+    isNewConversation &&
       projects &&
       onChooseRepository &&
       onOpenProjectManager &&
-      onSelectProjectForNewChat ? (
-        <div className="absolute -top-7.75 right-3 z-25 max-[760px]:right-2">
-          <ComposerProjectSelector
-            activeProjectId={activeProject?.id}
-            onChooseRepository={onChooseRepository}
-            onManageProjects={onOpenProjectManager}
-            onSelectProject={onSelectProjectForNewChat}
-            projects={projects}
-          />
-        </div>
-      ) : null}
+      onSelectProjectForNewChat,
+  );
+
+  return (
+    <form className="chat-composer" onSubmit={onSubmit}>
       <InlineApprovalPanel active={backend.phase === "ready"} />
       {queuedMessages.length > 0 ? (
         <div className="chat-message-queue" ref={queueRef}>
@@ -510,14 +502,16 @@ export function ChatComposer({
       <div className="chat-composer-tools flex min-w-0 flex-wrap items-center gap-1.5">
         <ElizaButton
           aria-label="Attach multiple files"
-          className="!min-h-[30px] rounded-[7px] px-[7px] py-[5px] text-[10px] font-semibold"
+          className="!min-h-[30px] rounded-[7px] px-[7px] py-[5px] text-[10px] font-semibold max-[480px]:!min-h-10 max-[480px]:px-2.5"
           onClick={pickContextFiles}
           size="sm"
           type="button"
           variant="secondary"
         >
           <UiIcon icon={Paperclip} size="xs" />
-          {attachedFiles.length > 0 ? "Add files" : "Attach files"}
+          <span className="chat-composer-control-label">
+            {attachedFiles.length > 0 ? "Add files" : "Attach files"}
+          </span>
         </ElizaButton>
         <VoiceComposerButton
           disabled={backend.phase !== "ready"}
@@ -531,6 +525,24 @@ export function ChatComposer({
           setAnnouncement={setQueueAnnouncement}
           setDraft={setDraft}
         />
+      </div>
+      <div
+        className="chat-composer-routing flex min-w-0 items-center justify-end gap-1.5"
+        data-has-project={showProjectSelector ? "true" : undefined}
+      >
+        {showProjectSelector &&
+        projects &&
+        onChooseRepository &&
+        onOpenProjectManager &&
+        onSelectProjectForNewChat ? (
+          <ComposerProjectSelector
+            activeProjectId={activeProject?.id}
+            onChooseRepository={onChooseRepository}
+            onManageProjects={onOpenProjectManager}
+            onSelectProject={onSelectProjectForNewChat}
+            projects={projects}
+          />
+        ) : null}
         <ComposerModelSelector
           active={backend.phase === "ready"}
           onOpenModelsPage={onOpenModelsPage}
@@ -540,7 +552,7 @@ export function ChatComposer({
         />
       </div>
       <ElizaTextarea
-        className="chat-composer-input !max-h-[180px] !min-h-[46px] !w-full !resize-none !rounded-none !border-0 !bg-transparent px-1 pt-1 pb-1 text-sm leading-[1.55] [box-shadow:none]! focus-visible:!outline-none max-[720px]:!max-h-[150px]"
+        className="chat-composer-input !max-h-[180px] !min-h-[46px] !w-full !resize-none !rounded-none !border-0 !bg-transparent px-1 pt-1 pb-1 text-sm leading-[1.55] [box-shadow:none]! focus-visible:!outline-none max-[720px]:!max-h-[150px] max-[480px]:!max-h-[120px] max-[480px]:!min-h-10 max-[480px]:py-0.5 max-[480px]:text-[13px]"
         aria-activedescendant={activeCommandId}
         aria-autocomplete="list"
         aria-controls={
@@ -614,7 +626,7 @@ export function ChatComposer({
       />
       <ElizaButton
         aria-label={activeRequest ? "Queue message" : "Send message"}
-        className="chat-composer-submit !size-[34px] !min-h-[34px] !min-w-[34px] !rounded-[9px] !border-0 !bg-[var(--accent)] !p-0 !text-[var(--accent-ink)] hover:!bg-[color-mix(in_srgb,var(--accent)_86%,var(--text))] disabled:!bg-[var(--surface-soft)] disabled:!text-[var(--muted)] disabled:opacity-60 motion-reduce:transition-none"
+        className="chat-composer-submit !size-[34px] !min-h-[34px] !min-w-[34px] !rounded-[9px] !border-0 !bg-[var(--accent)] !p-0 !text-[var(--accent-ink)] hover:!bg-[color-mix(in_srgb,var(--accent)_86%,var(--text))] disabled:!bg-[var(--surface-soft)] disabled:!text-[var(--muted)] disabled:opacity-60 motion-reduce:transition-none max-[480px]:!size-10 max-[480px]:!min-h-10 max-[480px]:!min-w-10"
         disabled={!canSubmit}
         size="icon-sm"
         type="submit"

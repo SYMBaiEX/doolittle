@@ -25,6 +25,10 @@ export async function processGatewayReceive(
   deps: GatewayReceiveDependencies,
   options?: GatewayReceiveOptions,
 ): Promise<GatewayReceiveResult> {
+  // The desktop listener can become healthy while optional Eliza plugins are
+  // still registering. Provider and direct gateway turns must nevertheless
+  // observe the same complete tool surface as chat and Responses API turns.
+  await deps.context.ensureDeferredHydration?.("gateway-receive");
   const traceId = randomUUID();
   const at = () => new Date().toISOString();
   const metadataKeys = Object.keys(deps.message.metadata ?? {});

@@ -5,21 +5,24 @@ import { doolittleEditorTheme } from "./code-editor-theme";
 
 describe("Doolittle code editor theme", () => {
   it("maps a shared dark profile into Monaco canvas and syntax colors", () => {
-    const theme = doolittleEditorTheme({
-      name: "midnight-grid",
-      label: "Midnight Grid",
-      tagline: "Shared operator palette",
-      primary: "#7c3aed",
-      secondary: "#22d3ee",
-      amberGlow: "#f59e0b",
-      greenGlow: "#22c55e",
-      cyanGlow: "#06b6d4",
-      magentaGlow: "#d946ef",
-      muted: "#64748b",
-      baseBg: "#020617",
-      baseFg: "#f8fafc",
-      panelBg: "#0f172a",
-    });
+    const theme = doolittleEditorTheme(
+      {
+        name: "midnight-grid",
+        label: "Midnight Grid",
+        tagline: "Shared operator palette",
+        primary: "#7c3aed",
+        secondary: "#22d3ee",
+        amberGlow: "#f59e0b",
+        greenGlow: "#22c55e",
+        cyanGlow: "#06b6d4",
+        magentaGlow: "#d946ef",
+        muted: "#64748b",
+        baseBg: "#020617",
+        baseFg: "#f8fafc",
+        panelBg: "#0f172a",
+      },
+      "dark",
+    );
 
     expect(theme.base).toBe("vs-dark");
     expect(theme.colors).toMatchObject({
@@ -43,27 +46,30 @@ describe("Doolittle code editor theme", () => {
   });
 
   it("supports a light imported canvas and CSS color functions", () => {
-    const theme = doolittleEditorTheme({
-      name: "shared-light",
-      label: "Shared Light",
-      tagline: "",
-      primary: "rgb(37, 99, 235)",
-      secondary: "cyan",
-      amberGlow: "yellow",
-      greenGlow: "green",
-      baseBg: "#ffffff",
-      baseFg: "#111827",
-      panelBg: "#f8fafc",
-    });
+    const theme = doolittleEditorTheme(
+      {
+        name: "shared-light",
+        label: "Shared Light",
+        tagline: "",
+        primary: "rgb(37, 99, 235)",
+        secondary: "cyan",
+        amberGlow: "yellow",
+        greenGlow: "green",
+        baseBg: "#ffffff",
+        baseFg: "#111827",
+        panelBg: "#f8fafc",
+      },
+      "light",
+    );
 
     expect(theme.base).toBe("vs");
     expect(theme.colors).toMatchObject({
-      "editor.background": "#F8FAFC",
-      "editor.foreground": "#111827",
+      "editor.background": "#FDFBF8",
+      "editor.foreground": "#211D19",
       "editorCursor.foreground": "#2563EB",
-      "editorLineNumber.foreground": "#898E96",
-      "editorWidget.background": "#ECEFF1",
-      "editorWidget.border": "#CED1D6",
+      "editorLineNumber.foreground": "#93908D",
+      "editorWidget.background": "#F2F0ED",
+      "editorWidget.border": "#D5D3D0",
     });
   });
 });

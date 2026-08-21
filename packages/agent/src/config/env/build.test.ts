@@ -32,6 +32,18 @@ describe("env config builder", () => {
     expect(config.dockerEnvPassthrough).toEqual(["PATH", "HOME"]);
   });
 
+  it("defaults container networking to none while preserving an explicit host override", () => {
+    expect(buildEnvConfig(parseEnv({}), directories).dockerNetwork).toBe(
+      "none",
+    );
+    expect(
+      buildEnvConfig(
+        parseEnv({ DOOLITTLE_DOCKER_NETWORK: "host" }),
+        directories,
+      ).dockerNetwork,
+    ).toBe("host");
+  });
+
   it("keeps an explicit max iteration override", () => {
     const values = parseEnv({
       DOOLITTLE_RUN_DEPTH: "quick",

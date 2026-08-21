@@ -4,6 +4,7 @@ import type {
   RepositoryRemote,
   RepositoryStash,
 } from "@doolittle/contracts/repository";
+import { GitBranch, GitCommit, GitFork, SquareTerminal } from "lucide-react";
 import type { WorkspacePickResult } from "../../shared/contracts";
 import { ExecutionEnvironmentPanel } from "../components/ExecutionEnvironmentPanel";
 import { GitControlPanel } from "../components/GitControlPanel";
@@ -93,13 +94,24 @@ export function CodingWorkspaceUtility({
       <PaneTabs<UtilityPane>
         label="Workspace utilities"
         options={[
-          { id: "terminal", label: "Terminal" },
-          { id: "commits", label: "Commits", count: commits.length },
-          { id: "source-control", label: "Git", count: changes.length },
+          { id: "terminal", label: "Shell", icon: SquareTerminal },
+          {
+            id: "commits",
+            label: "Log",
+            count: commits.length,
+            icon: GitCommit,
+          },
+          {
+            id: "source-control",
+            label: "Git",
+            count: changes.length,
+            icon: GitBranch,
+          },
           {
             id: "worktrees",
             label: "Trees",
             count: asArray(worktreeResource.data?.worktrees).length,
+            icon: GitFork,
           },
         ]}
         panelId={UTILITY_PANEL_ID}
@@ -170,6 +182,7 @@ export function CodingWorkspaceUtility({
             onRefresh={onRefresh}
             remotes={records<RepositoryRemote>(remotesResource.data?.remotes)}
             stashes={records<RepositoryStash>(stashesResource.data?.stashes)}
+            variant="compact"
             worktrees={records<{
               path: string;
               branch?: string;

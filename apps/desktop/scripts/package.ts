@@ -57,9 +57,14 @@ export function directoryBuildInvalidatedMetadataPaths(): string[] {
 export function nativeBuildArgs(
   builderArgs: readonly string[],
   stagingRoot: string,
+  environment: NodeJS.ProcessEnv = process.env,
 ): string[] {
+  const windowsPublisherName = environment.WIN_PUBLISHER_NAME?.trim();
   return [
     ...builderArgs,
+    ...(builderArgs.includes("--win") && windowsPublisherName
+      ? [`--config.win.signtoolOptions.publisherName=${windowsPublisherName}`]
+      : []),
     `--config.directories.output=${stagingRoot}`,
     "--publish",
     "never",

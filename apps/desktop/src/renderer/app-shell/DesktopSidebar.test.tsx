@@ -30,6 +30,7 @@ describe("DesktopSidebar", () => {
 
   it("renders a labeled, vertical icon rail when desktop navigation is collapsed", () => {
     const onViewAll = vi.fn();
+    const onSetView = vi.fn();
     act(() =>
       root.render(
         <main className="desktop-shell nav-collapsed">
@@ -48,7 +49,7 @@ describe("DesktopSidebar", () => {
             onResize={vi.fn()}
             onSelectScope={vi.fn()}
             onSetNewConversationMenuOpen={vi.fn()}
-            onSetView={vi.fn()}
+            onSetView={onSetView}
             onSidebarKeyDown={vi.fn()}
             onStartConversation={vi.fn()}
             onToggleAppearance={vi.fn()}
@@ -95,5 +96,14 @@ describe("DesktopSidebar", () => {
     );
     act(() => history?.click());
     expect(onViewAll).toHaveBeenCalledOnce();
+
+    const home = container.querySelector<HTMLButtonElement>(
+      "button[aria-label='Go to Home']",
+    );
+    act(() => home?.click());
+    expect(onSetView).toHaveBeenCalledWith("dashboard");
+
+    const utilityMark = container.querySelector(".sidebar-utility-mark");
+    expect(utilityMark?.className).toContain("[&>svg]:size-3.5");
   });
 });

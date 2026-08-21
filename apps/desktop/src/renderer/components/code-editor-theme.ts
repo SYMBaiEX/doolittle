@@ -78,6 +78,7 @@ function mixEditorColors(
 
 export function doolittleEditorTheme(
   profile: DesktopThemeProfile | null,
+  appearance: "dark" | "light" = "dark",
 ): editor.IStandaloneThemeData {
   const accent = editorColor(profile?.primary, "FF711A");
   const secondary = editorColor(profile?.secondary, "F0A15F");
@@ -85,9 +86,18 @@ export function doolittleEditorTheme(
   const green = editorColor(profile?.greenGlow, "86B875");
   const cyan = editorColor(profile?.cyanGlow, secondary);
   const magenta = editorColor(profile?.magentaGlow, secondary);
-  const muted = editorColor(profile?.muted, "80776F");
-  const background = editorColor(profile?.panelBg ?? profile?.baseBg, "0C0B0A");
-  const foreground = editorColor(profile?.baseFg, "DCD5CE");
+  const muted = editorColor(
+    appearance === "light" ? undefined : profile?.muted,
+    appearance === "light" ? "635950" : "80776F",
+  );
+  const background = editorColor(
+    appearance === "light" ? undefined : (profile?.panelBg ?? profile?.baseBg),
+    appearance === "light" ? "FDFBF8" : "0C0B0A",
+  );
+  const foreground = editorColor(
+    appearance === "light" ? undefined : profile?.baseFg,
+    appearance === "light" ? "211D19" : "DCD5CE",
+  );
   const light = isLightEditorColor(background);
   const surface = mixEditorColors(foreground, background, 0.05);
   const border = mixEditorColors(foreground, background, 0.18);

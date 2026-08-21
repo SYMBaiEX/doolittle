@@ -71,6 +71,7 @@ export async function configureBootstrapContext({
       services.skills;
     },
   });
+  gateway.setDeferredHydration(ensureDeferredHydration);
 
   services.startupState.markReady("runtime", "runtime ready");
   const context = {

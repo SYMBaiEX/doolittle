@@ -60,4 +60,27 @@ describe("installRuntimeProcessLifecycle", () => {
     );
     expect(onExit).toHaveBeenCalledWith(130);
   });
+
+  it("records fatal API failures without changing Node's fatal exit semantics", () => {
+    const signalHost = new EventEmitter();
+    const captureFatal = vi.fn();
+    const onExit = vi.fn();
+    const lifecycle = installRuntimeProcessLifecycle({
+      runtime: {} as never,
+      label: "Doolittle API",
+      signalHost,
+      captureFatal,
+      onExit,
+    });
+    const error = new Error("background task failed");
+
+    signalHost.emit("uncaughtExceptionMonitor", error, "unhandledRejection");
+
+    expect(captureFatal).toHaveBeenCalledOnce();
+    expect(captureFatal).toHaveBeenCalledWith(error, "unhandledRejection");
+    expect(onExit).not.toHaveBeenCalled();
+
+    lifecycle.dispose();
+    expect(signalHost.listenerCount("uncaughtExceptionMonitor")).toBe(0);
+  });
 });

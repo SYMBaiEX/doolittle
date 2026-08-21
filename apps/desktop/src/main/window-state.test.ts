@@ -20,6 +20,11 @@ import {
 } from "./window-state";
 
 describe("window-state persistence", () => {
+  it("allows the renderer to reach its supported mobile shell", () => {
+    expect(MIN_WINDOW_WIDTH).toBe(360);
+    expect(MIN_WINDOW_HEIGHT).toBe(480);
+  });
+
   it("returns defaults when state file is missing", () => {
     const root = mkdtempSync(resolve(tmpdir(), "doolittle-window-state-"));
     const statePath = resolve(root, "window-state.json");

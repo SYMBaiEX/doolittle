@@ -53,6 +53,10 @@ export interface TerminalIpcRegistrationContext {
   ) => Promise<boolean>;
   sensitiveFetch: typeof fetch;
   notifyBackground: (notification: DesktopBackgroundNotification) => void;
+  trackSenderCleanup: (
+    sender: IpcMainInvokeEvent["sender"],
+    cleanup: () => void,
+  ) => () => void;
 }
 
 function terminalKey(event: IpcMainInvokeEvent, requestId: string): string {
@@ -69,6 +73,7 @@ export function registerTerminalIpcHandlers(
     confirmSensitiveAction,
     sensitiveFetch,
     notifyBackground,
+    trackSenderCleanup,
   } = context;
   const { event: eventChannels, invoke: invokeChannels } = desktopIpcChannels;
 
@@ -163,17 +168,18 @@ export function registerTerminalIpcHandlers(
       };
       const controller = new AbortController();
       let cleanedUp = false;
+      let stopTrackingSender: () => void = () => undefined;
       const cleanup = () => {
         if (cleanedUp) return;
         cleanedUp = true;
         activeTerminalRuns.delete(key);
-        event.sender.removeListener("destroyed", cleanup);
+        stopTrackingSender();
         if (!controller.signal.aborted) {
           controller.abort();
         }
       };
       activeTerminalRuns.set(key, { controller });
-      event.sender.once("destroyed", cleanup);
+      stopTrackingSender = trackSenderCleanup(event.sender, cleanup);
 
       try {
         const confirmed = await confirmSensitiveAction({

@@ -6,7 +6,8 @@ import { createGatewayAccessor } from "./gateway-factory";
 
 describe("createGatewayAccessor", () => {
   it("resolves the runner only through the registered Eliza service", () => {
-    const runner = {} as GatewayRunner;
+    const setDeferredHydration = vi.fn();
+    const runner = { setDeferredHydration } as unknown as GatewayRunner;
     const ensureRunner = vi.fn(() => runner);
     const markWarming = vi.fn();
     const markReady = vi.fn();
@@ -24,6 +25,29 @@ describe("createGatewayAccessor", () => {
     expect(ensureRunner).toHaveBeenCalledOnce();
     expect(markWarming).toHaveBeenCalledOnce();
     expect(markReady).toHaveBeenCalledOnce();
+
+    const hydrate = vi.fn(async () => undefined);
+    accessor.setDeferredHydration(hydrate);
+    expect(setDeferredHydration).toHaveBeenCalledWith(hydrate);
+  });
+
+  it("binds deferred hydration before lazily creating the runner", () => {
+    const setDeferredHydration = vi.fn();
+    const runner = { setDeferredHydration } as unknown as GatewayRunner;
+    const accessor = createGatewayAccessor({
+      services: {
+        startupState: { markWarming: vi.fn(), markReady: vi.fn() },
+      } as unknown as AppServices,
+      runtime: {
+        getService: () => ({ ensureRunner: () => runner }),
+      } as unknown as AgentRuntime,
+    });
+    const hydrate = vi.fn(async () => undefined);
+
+    accessor.setDeferredHydration(hydrate);
+    accessor.get();
+
+    expect(setDeferredHydration).toHaveBeenCalledWith(hydrate);
   });
 
   it("requires the Eliza gateway service only when the runner is requested", () => {

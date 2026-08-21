@@ -1,4 +1,16 @@
-import { GitBranch, RefreshCw, X } from "lucide-react";
+import {
+  Activity,
+  FileCode2,
+  GitBranch,
+  GitCompareArrows,
+  ListTodo,
+  type LucideIcon,
+  MonitorPlay,
+  RefreshCw,
+  Settings2,
+  SquareTerminal,
+  X,
+} from "lucide-react";
 import { type CSSProperties, type KeyboardEvent, useRef } from "react";
 import { asNumber, Badge } from "../lib";
 import {
@@ -34,7 +46,6 @@ import {
   branchHeadLabel,
   compactRailLabel,
   TAB_LABELS,
-  TAB_MARKS,
   type ThreadWorkbenchFullView,
 } from "../thread-workbench/models";
 import { WorkbenchPanels } from "../thread-workbench/WorkbenchPanels";
@@ -52,6 +63,16 @@ export interface ThreadWorkbenchRailProps {
   onOpenFullView: (view: ThreadWorkbenchFullView) => void;
   onRequestClose: () => void;
 }
+
+const WORKBENCH_TAB_ICONS: Record<ThreadWorkbenchTab, LucideIcon> = {
+  files: FileCode2,
+  changes: GitCompareArrows,
+  terminal: SquareTerminal,
+  plans: ListTodo,
+  brief: Activity,
+  settings: Settings2,
+  preview: MonitorPlay,
+};
 
 export function ThreadWorkbenchRail({
   active,
@@ -201,8 +222,6 @@ export function ThreadWorkbenchRail({
             <span>
               <i aria-hidden="true" /> {model.lifecycle}
             </span>
-            <span>{model.environment}</span>
-            <span>{THREAD_WORKBENCH_TABS.length} tabs</span>
           </div>
         </div>
       </header>
@@ -214,6 +233,7 @@ export function ThreadWorkbenchRail({
       >
         {THREAD_WORKBENCH_TABS.map((tab, index) => (
           <button
+            aria-label={TAB_LABELS[tab]}
             aria-controls={`thread-workbench-${tab}-panel`}
             aria-selected={model.selectedTab === tab}
             id={`thread-workbench-${tab}-tab`}
@@ -232,9 +252,9 @@ export function ThreadWorkbenchRail({
             type="button"
           >
             <span className={WORKBENCH_TAB_MARK_CLASS} aria-hidden="true">
-              {TAB_MARKS[tab]}
+              <UiIcon icon={WORKBENCH_TAB_ICONS[tab]} size="xs" />
             </span>
-            <small>{TAB_LABELS[tab]}</small>
+            <small className="sr-only">{TAB_LABELS[tab]}</small>
             <i aria-hidden="true" className={WORKBENCH_TAB_SIGNAL_CLASS} />
           </button>
         ))}

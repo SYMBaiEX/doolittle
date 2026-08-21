@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runShell } from "@elizaos/agent/services/shell-execution-router";
+import { runProviderCommand } from "@doolittle/provider-transport";
 import type { DevinCliPrintParams } from "./types";
 
 export const DEFAULT_DEVIN_COMMAND = "devin";
@@ -22,7 +22,7 @@ async function runDevinProcess(
   params: DevinCliPrintParams,
 ): Promise<string> {
   const timeoutMs = params.timeoutMs ?? DEFAULT_DEVIN_TIMEOUT_MS;
-  const result = await runShell({
+  const result = await runProviderCommand({
     command,
     args,
     cwd: params.cwd,
@@ -32,14 +32,10 @@ async function runDevinProcess(
       NO_COLOR: "1",
     },
     timeoutMs,
-    toolName: "doolittle.provider.devin",
   });
   const cleanStdout = stripAnsi(result.stdout).trim();
   const cleanStderr = stripAnsi(result.stderr).trim();
-  if (
-    result.exitCode === 124 &&
-    result.stderr.includes("[shell-router] command timed out")
-  ) {
+  if (result.termination === "timeout") {
     throw new Error(
       `Devin CLI invocation timed out after ${timeoutMs}ms. Partial output: ${
         cleanStdout || cleanStderr || "none"

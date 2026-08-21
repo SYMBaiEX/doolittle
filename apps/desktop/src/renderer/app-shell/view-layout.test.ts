@@ -59,4 +59,16 @@ describe("shared view primitives", () => {
       "[&_.split-workspace.is-empty]:grid-cols-1",
     );
   });
+
+  it("gives plain text controls a token-driven focus indicator without touching switches", () => {
+    expect(VIEW_PRIMITIVES_CLASS).toContain(
+      "[&_input:not([type=checkbox]):not([type=radio]):focus-visible]:outline-[var(--accent-text)]",
+    );
+    expect(VIEW_PRIMITIVES_CLASS).toContain(
+      "[&_textarea:focus-visible]:outline-[var(--accent-text)]",
+    );
+    expect(VIEW_PRIMITIVES_CLASS).not.toContain(
+      "[&_input:focus-visible]:outline-2",
+    );
+  });
 });

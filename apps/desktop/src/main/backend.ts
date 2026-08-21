@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { existsSync, mkdirSync, renameSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, resolve } from "node:path";
 import type { BackendState } from "../shared/contracts";
@@ -9,6 +9,113 @@ import { providerAuthExecutableCandidates } from "./provider-auth";
 const STARTUP_TIMEOUT_MS = 45_000;
 const HEALTH_POLL_MS = 250;
 const STARTUP_OUTPUT_LIMIT = 16_000;
+const SHUTDOWN_GRACE_MS = 3_000;
+const FORCE_EXIT_WAIT_MS = 2_000;
+const EXIT_DIAGNOSTIC_LIMIT = 2_000;
+const MIN_ENV_SECRET_LENGTH = 8;
+const SENSITIVE_ENV_KEY_PATTERN =
+  /(?:api[_-]?key|auth|authorization|bearer|cookie|password|secret|access[_-]?token|refresh[_-]?token|id[_-]?token)\b/i;
+const AUTHORIZATION_VALUE_PATTERN =
+  /(["']?\bauthorization\b["']?\s*[:=]\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\r\n,;}]+)/giu;
+const BEARER_VALUE_PATTERN = /(\bbearer\s+)[a-z0-9._~+/=-]+/giu;
+const SENSITIVE_ASSIGNMENT_PATTERN =
+  /(["']?(?:[a-z0-9_-]*(?:api[_-]?key|password|secret|access[_-]?token|refresh[_-]?token|id[_-]?token))\b["']?\s*[:=]\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;}\]]+)/giu;
+
+type StoppableChild = Pick<
+  ChildProcess,
+  "exitCode" | "signalCode" | "kill" | "once"
+>;
+
+async function waitForExit(
+  child: StoppableChild,
+  timeoutMs: number,
+): Promise<boolean> {
+  if (child.exitCode !== null || child.signalCode !== null) return true;
+  return new Promise<boolean>((resolvePromise) => {
+    let settled = false;
+    const finish = (exited: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolvePromise(exited);
+    };
+    const timeout = setTimeout(() => finish(false), timeoutMs);
+    child.once("exit", () => finish(true));
+  });
+}
+
+/** Stop a runtime process without allowing a replacement to overlap it. */
+export async function terminateBackendChild(
+  child: StoppableChild,
+  graceMs = SHUTDOWN_GRACE_MS,
+  forceWaitMs = FORCE_EXIT_WAIT_MS,
+): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  child.kill("SIGTERM");
+  if (await waitForExit(child, graceMs)) return;
+
+  child.kill("SIGKILL");
+  if (await waitForExit(child, forceWaitMs)) return;
+  throw new Error(
+    "The previous Doolittle runtime did not exit after SIGKILL; restart was cancelled to protect the local database.",
+  );
+}
+
+export function backendExitDetail(
+  code: number | null,
+  signal: NodeJS.Signals | null,
+  output: string,
+): string {
+  const summary = `Runtime exited (${signal ?? `code ${code ?? "unknown"}`}).`;
+  const diagnostic = sanitizeBackendDiagnostic(output);
+  return diagnostic
+    ? `${summary}\nRecent runtime output:\n${diagnostic}`
+    : summary;
+}
+
+export function recordUnexpectedBackendExit(
+  runtimeDataDir: string,
+  detail: string,
+  code: number | null,
+  signal: NodeJS.Signals | null,
+): void {
+  try {
+    const logDir = resolve(runtimeDataDir, "logs");
+    mkdirSync(logDir, { recursive: true });
+    appendFileSync(
+      resolve(logDir, "desktop-backend.jsonl"),
+      `${JSON.stringify({
+        at: new Date().toISOString(),
+        event: "runtime-exit",
+        code,
+        signal,
+        detail,
+      })}\n`,
+      "utf8",
+    );
+  } catch {
+    // The renderer still receives the degraded state below. Diagnostics must
+    // never turn one backend failure into a main-process failure.
+  }
+}
+
+function sanitizeBackendDiagnostic(output: string): string {
+  let redacted = output
+    .replace(AUTHORIZATION_VALUE_PATTERN, "$1[REDACTED]")
+    .replace(BEARER_VALUE_PATTERN, "$1[REDACTED]")
+    .replace(SENSITIVE_ASSIGNMENT_PATTERN, "$1[REDACTED]");
+  for (const [key, secret] of Object.entries(process.env)) {
+    if (
+      !SENSITIVE_ENV_KEY_PATTERN.test(key) ||
+      !secret ||
+      secret.length < MIN_ENV_SECRET_LENGTH
+    ) {
+      continue;
+    }
+    redacted = redacted.replaceAll(secret, "[REDACTED]");
+  }
+  return redacted.trim().slice(-EXIT_DIAGNOSTIC_LIMIT);
+}
 
 export function isRecoverablePgliteStartupFailure(output: string): boolean {
   const normalized = output.toLowerCase();
@@ -287,9 +394,10 @@ export class BackendManager {
     child.once("error", (error) => rejectUrl?.(error));
     child.once("exit", (code, signal) => {
       if (this.child === child) this.child = null;
-      const detail = `Runtime exited (${signal ?? `code ${code ?? "unknown"}`}).`;
+      const detail = backendExitDetail(code, signal, recentOutput);
       rejectUrl?.(new Error(detail));
       if (!this.stopping) {
+        recordUnexpectedBackendExit(this.runtimeDataDir, detail, code, signal);
         this.update({
           phase: "degraded",
           message: "Doolittle’s local runtime stopped unexpectedly.",
@@ -401,20 +509,18 @@ export class BackendManager {
       }
       return;
     }
-    this.child = null;
-    child.kill("SIGTERM");
-    await Promise.race([
-      new Promise<void>((resolvePromise) =>
-        child.once("exit", () => resolvePromise()),
-      ),
-      new Promise<void>((resolvePromise) =>
-        setTimeout(() => {
-          if (child.exitCode === null && child.signalCode === null)
-            child.kill("SIGKILL");
-          resolvePromise();
-        }, 3_000),
-      ),
-    ]);
+    try {
+      await terminateBackendChild(child);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.update({
+        phase: "degraded",
+        message: "Doolittle could not stop its previous local runtime.",
+        detail,
+      });
+      throw error;
+    }
+    if (this.child === child) this.child = null;
     if (updateState) {
       this.update({
         phase: "stopped",

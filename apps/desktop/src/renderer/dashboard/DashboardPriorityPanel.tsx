@@ -148,14 +148,14 @@ export function DashboardPriorityPanel({
               </Badge>
             </div>
           </div>
-          <details className="group mt-[7px] rounded-[var(--radius-xs)] bg-[color-mix(in_srgb,var(--surface-soft)_44%,transparent)] px-1.5">
-            <summary className="flex min-h-[38px] cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-              <span>Workspace diagnostics</span>
+          <details className="group mt-1.5 rounded-[var(--radius-xs)] bg-[color-mix(in_srgb,var(--surface-soft)_44%,transparent)] px-1">
+            <summary className="flex min-h-8.5 cursor-pointer list-none items-center justify-between gap-2.5 px-0.5 text-[length:var(--text-control)] [&::-webkit-details-marker]:hidden">
+              <span className="font-medium">Workspace diagnostics</span>
               <Badge tone={setupWarnings ? "warn" : "good"}>
                 {setupWarnings ? `${setupWarnings} warnings` : "Ready"}
               </Badge>
             </summary>
-            <div className="grid gap-0.5 pb-1.5">
+            <div className="grid pb-1">
               {setupEntries.slice(0, 4).map((entry) => (
                 <div className={DASHBOARD_STATUS_ROW_CLASS} key={entry.key}>
                   <div>
@@ -167,7 +167,7 @@ export function DashboardPriorityPanel({
               ))}
             </div>
             {repo.lines.length > 0 ? (
-              <div className="mt-3.5 grid gap-2">
+              <div className="mt-2 grid gap-1.5 pb-1">
                 {repo.lines.slice(0, 4).map((line) => (
                   <code
                     className="block overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-soft)]"

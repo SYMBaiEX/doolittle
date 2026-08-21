@@ -8,12 +8,15 @@ import tsWorker from "monaco-editor/language/typescript/ts.worker?worker";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { CodeLanguage } from "../code-language";
 import {
-  APPEARANCE_CHANGE_EVENT,
+  APPEARANCE_APPLIED_EVENT,
   loadStoredDesktopTheme,
   parseDesktopThemeProfile,
   THEME_CHANGE_EVENT,
 } from "../desktop-theme";
-import { acquireMonacoProjectSupport } from "../editor-project-support";
+import {
+  acquireMonacoProjectSupport,
+  setMonacoProjectDiagnosticsPending,
+} from "../editor-project-support";
 import { doolittleEditorTheme } from "./code-editor-theme";
 
 const DOOLITTLE_EDITOR_THEME = "doolittle-ember";
@@ -47,8 +50,10 @@ monacoHost.MonacoEnvironment = {
 function defineDoolittleTheme(
   profile: Parameters<typeof doolittleEditorTheme>[0],
 ) {
+  const appearance =
+    document.documentElement.dataset.appearance === "light" ? "light" : "dark";
   monaco.editor.defineTheme(DOOLITTLE_EDITOR_THEME, {
-    ...doolittleEditorTheme(profile),
+    ...doolittleEditorTheme(profile, appearance),
   });
 }
 
@@ -72,6 +77,14 @@ function projectSupportSignature(content: string): string {
       ),
     )
     .join("\n");
+}
+
+function resolveProjectLanguage(
+  language: string,
+): "javascript" | "typescript" | null {
+  return language === "javascript" || language === "typescript"
+    ? language
+    : null;
 }
 
 export interface CodeEditorPosition {
@@ -153,6 +166,11 @@ export function CodeEditor({
     const host = hostRef.current;
     if (!host || !path) return;
     defineDoolittleTheme(loadStoredDesktopTheme());
+
+    const supportLanguage = resolveProjectLanguage(language.id);
+    if (workspacePath && supportLanguage) {
+      setMonacoProjectDiagnosticsPending(supportLanguage, true);
+    }
 
     const uri = modelUri(path, workspacePath);
     monaco.editor.getModel(uri)?.dispose();
@@ -258,6 +276,9 @@ export function CodeEditor({
       for (const disposable of stateDisposables) disposable.dispose();
       editor.dispose();
       model.dispose();
+      if (supportLanguage) {
+        setMonacoProjectDiagnosticsPending(supportLanguage, false);
+      }
       editorRef.current = null;
       modelRef.current = null;
     };
@@ -276,10 +297,10 @@ export function CodeEditor({
       monaco.editor.setTheme(DOOLITTLE_EDITOR_THEME);
     };
     window.addEventListener(THEME_CHANGE_EVENT, updateTheme);
-    window.addEventListener(APPEARANCE_CHANGE_EVENT, updateAppearance);
+    window.addEventListener(APPEARANCE_APPLIED_EVENT, updateAppearance);
     return () => {
       window.removeEventListener(THEME_CHANGE_EVENT, updateTheme);
-      window.removeEventListener(APPEARANCE_CHANGE_EVENT, updateAppearance);
+      window.removeEventListener(APPEARANCE_APPLIED_EVENT, updateAppearance);
     };
   }, []);
 
@@ -295,6 +316,7 @@ export function CodeEditor({
     model.setValue(value);
   }, [value]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refresh is an explicit retry/revision nonce for the same project request.
   useEffect(() => {
     if (
       !workspacePath ||
@@ -305,13 +327,18 @@ export function CodeEditor({
       projectSupportReleaseRef.current = null;
       projectRevisionRef.current = "";
       setProjectSupportNotice("");
+      const unsupportedLanguage = resolveProjectLanguage(language.id);
+      if (unsupportedLanguage) {
+        setMonacoProjectDiagnosticsPending(unsupportedLanguage, false);
+      }
       return;
     }
 
     const projectLanguage = language.id;
     const requestId = projectSupportRequestRef.current + 1;
     projectSupportRequestRef.current = requestId;
-    const refreshDelay = projectSupportRefresh > 0 ? 0 : 180;
+    setMonacoProjectDiagnosticsPending(projectLanguage, true);
+    const refreshDelay = 0;
     const timer = window.setTimeout(() => {
       const content = valueRef.current;
       if (projectSupportSignature(content) !== supportSignature) return;
@@ -345,6 +372,7 @@ export function CodeEditor({
           if (projectSupportRequestRef.current !== requestId) return;
           projectSupportReleaseRef.current?.();
           projectSupportReleaseRef.current = null;
+          setMonacoProjectDiagnosticsPending(projectLanguage, false);
           setProjectSupportNotice("Project types unavailable");
           editorLogger.warn(
             {

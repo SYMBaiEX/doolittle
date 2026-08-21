@@ -23,7 +23,6 @@ interface PublishArgs {
   dryRun: boolean;
   json: boolean;
   tag: string;
-  otp?: string;
 }
 
 interface PublishResult {
@@ -74,13 +73,54 @@ const LOCAL_COMPATIBILITY_PACKAGE_PATHS = [
 ] as const;
 
 const ISOLATED_CONSUMER_OVERRIDE_NAMES = ["protobufjs", "tar"] as const;
+const TRUSTED_PUBLISH_REPOSITORY = "SYMBaiEX/doolittle";
+const TRUSTED_PUBLISH_WORKFLOW = "provider-publish.yml";
+const SECRET_ARGUMENT = /(?:otp|token|auth|password|credential|key)/iu;
+const SECRET_ENVIRONMENT =
+  /(?:token|secret|password|credential|auth|otp|key)$/iu;
+
+function secretValues(environment = process.env): string[] {
+  return Object.entries(environment)
+    .filter(([name, value]) => SECRET_ENVIRONMENT.test(name) && Boolean(value))
+    .map(([, value]) => value as string)
+    .sort((left, right) => right.length - left.length);
+}
+
+function redactSecrets(value: string, environment = process.env): string {
+  return secretValues(environment).reduce(
+    (redacted, secret) => redacted.split(secret).join("[REDACTED]"),
+    value,
+  );
+}
+
+function isSecretArgument(argument: string): boolean {
+  const [name] = argument.split("=", 1);
+  return SECRET_ARGUMENT.test(name ?? "");
+}
+
+function assertTrustedPublishEnvironment(environment = process.env): void {
+  const workflowPrefix = `${TRUSTED_PUBLISH_REPOSITORY}/.github/workflows/${TRUSTED_PUBLISH_WORKFLOW}@`;
+  const trusted =
+    environment.GITHUB_ACTIONS === "true" &&
+    environment.GITHUB_REPOSITORY === TRUSTED_PUBLISH_REPOSITORY &&
+    environment.GITHUB_WORKFLOW_REF?.startsWith(workflowPrefix) &&
+    ["push", "workflow_dispatch"].includes(
+      environment.GITHUB_EVENT_NAME ?? "",
+    ) &&
+    Boolean(environment.ACTIONS_ID_TOKEN_REQUEST_URL) &&
+    Boolean(environment.ACTIONS_ID_TOKEN_REQUEST_TOKEN);
+  if (!trusted) {
+    throw new Error(
+      "Live provider publishing is restricted to the trusted GitHub Actions OIDC workflow.",
+    );
+  }
+}
 
 function parseArgs(argv: string[]): PublishArgs {
   let provider: PublishArgs["provider"] = "all";
   let dryRun = true;
   let json = false;
   let tag = "alpha";
-  let otp: string | undefined;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -118,19 +158,13 @@ function parseArgs(argv: string[]): PublishArgs {
       index += 1;
       continue;
     }
-    if (arg === "--otp") {
-      const value = argv[index + 1]?.trim();
-      if (!value || value.startsWith("--")) {
-        throw new Error("--otp requires a one-time password.");
-      }
-      otp = value;
-      index += 1;
-      continue;
+    if (isSecretArgument(arg)) {
+      throw new Error("Secret-bearing publish arguments are not supported.");
     }
     throw new Error(`Unknown argument: ${arg}.`);
   }
 
-  return { provider, dryRun, json, tag, otp };
+  return { provider, dryRun, json, tag };
 }
 
 function repoRoot(): string {
@@ -172,9 +206,9 @@ function run(command: string, args: string[], cwd: string): CommandResult {
     .trim();
   return {
     ok: result.status === 0,
-    command: `${basename(command)} ${args.join(" ")}`,
-    output,
-    stdout: result.stdout?.trim() ?? "",
+    command: redactSecrets(`${basename(command)} ${args.join(" ")}`),
+    output: redactSecrets(output),
+    stdout: redactSecrets(result.stdout?.trim() ?? ""),
   };
 }
 
@@ -205,6 +239,7 @@ function buildPackage(
       join(dirname(require.resolve("typescript/package.json")), "bin", "tsc"),
       "--declaration",
       "--emitDeclarationOnly",
+      "--ignoreConfig",
       "--outDir",
       outputPath,
       "--rootDir",
@@ -465,7 +500,7 @@ function smokePackedConsumer(
 
     const audited = run(
       "npm",
-      ["audit", "--audit-level", "critical", "--omit", "dev"],
+      ["audit", "--audit-level", "high", "--omit", "dev"],
       consumerPath,
     );
     if (!audited.ok) {
@@ -494,15 +529,50 @@ function smokePackedConsumer(
   }
 }
 
-function publishPackage(
-  targetPath: string,
-  tag: string,
-  otp?: string,
+function verifyPublishedRegistryPackage(
+  manifest: PackageManifest,
 ): CommandResult {
-  const args = ["publish", "--tag", tag];
-  if (otp) {
-    args.push("--otp", otp);
+  const consumerPath = mkdtempSync(
+    join(tmpdir(), "doolittle-provider-registry-receipt-"),
+  );
+  try {
+    writeFileSync(
+      join(consumerPath, "package.json"),
+      `${JSON.stringify({ private: true, type: "module" })}\n`,
+      "utf8",
+    );
+    const installed = run(
+      "npm",
+      ["install", "--ignore-scripts", `${manifest.name}@${manifest.version}`],
+      consumerPath,
+    );
+    if (!installed.ok) return installed;
+
+    const imported = run(
+      process.execPath,
+      [
+        "--input-type=module",
+        "--eval",
+        `import(${JSON.stringify(manifest.name)})`,
+      ],
+      consumerPath,
+    );
+    return {
+      ok: imported.ok,
+      command: `${installed.command} && ${imported.command}`,
+      output: [installed.output, imported.output].filter(Boolean).join("\n"),
+      stdout: imported.stdout,
+    };
+  } finally {
+    rmSync(consumerPath, { recursive: true, force: true });
   }
+}
+
+function publishPackage(targetPath: string, tag: string): CommandResult {
+  // GitHub Actions trusted publishing produces provenance automatically. Keep
+  // this explicit as well so other supported CI environments cannot publish an
+  // unverifiable provider artifact.
+  const args = ["publish", "--tag", tag, "--provenance"];
   return run("npm", args, targetPath);
 }
 
@@ -525,11 +595,14 @@ function successfulReleaseDetail(
       : "";
   return dryRun
     ? `Built dist JavaScript and declarations, then security-audited and imported the packed artifact${supportDetail} in an isolated consumer.`
-    : `Built dist JavaScript and declarations, security-audited and imported the packed artifact${supportDetail} in an isolated consumer, then published it.`;
+    : `Built dist JavaScript and declarations, security-audited and imported the packed artifact${supportDetail} in an isolated consumer, then published and verified its exact version from the registry.`;
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (!args.dryRun) {
+    assertTrustedPublishEnvironment();
+  }
   const results: PublishResult[] = [];
   const stagedPackages: Array<{
     provider: Provider;
@@ -617,10 +690,14 @@ async function main() {
           staged.manifest,
           localDependencies,
         );
-        const release =
+        const published =
           !args.dryRun && smoke.ok
-            ? publishPackage(staged.stagedPackagePath, args.tag, args.otp)
+            ? publishPackage(staged.stagedPackagePath, args.tag)
             : smoke;
+        const release =
+          !args.dryRun && published.ok
+            ? verifyPublishedRegistryPackage(staged.manifest)
+            : published;
         results.push({
           provider: staged.provider,
           packageName: staged.manifest.name,
@@ -720,6 +797,8 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
+  console.error(
+    redactSecrets(error instanceof Error ? error.message : String(error)),
+  );
   process.exitCode = 1;
 });

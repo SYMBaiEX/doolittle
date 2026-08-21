@@ -5,6 +5,7 @@ import {
   DesktopAcpClient,
   describeDesktopAcpUpdate,
   desktopAcpResponseText,
+  isAcpSessionNotFoundError,
   mergeDesktopAcpUpdates,
 } from "./desktop-acp-client";
 
@@ -230,6 +231,17 @@ describe("ACP update presentation", () => {
 });
 
 describe("DesktopAcpClient", () => {
+  it("recognizes only the ACP missing-session runtime boundary", () => {
+    expect(
+      isAcpSessionNotFoundError(
+        new Error("ACP session not found: acp:previous-runtime"),
+      ),
+    ).toBe(true);
+    expect(isAcpSessionNotFoundError(new Error("runtime starting"))).toBe(
+      false,
+    );
+  });
+
   it("uses the negotiated session for editor, prompt, filesystem, and terminal lifecycle calls", async () => {
     const api = vi.fn(async (request: MockAgentRequest) => {
       if (request.path === "/acp/initialize") {
@@ -428,6 +440,96 @@ describe("DesktopAcpClient", () => {
         "acp:recovered",
       );
     });
+  });
+
+  it("recreates a stale runtime session and retries idempotent editor context once", async () => {
+    let initializeAttempts = 0;
+    let sessionAttempts = 0;
+    let contextAttempts = 0;
+    const api = vi.fn(async (request: MockAgentRequest) => {
+      if (request.path === "/acp/initialize") {
+        initializeAttempts += 1;
+        return { initialized: { agentCapabilities: {} } };
+      }
+      if (request.path === "/acp/session/new") {
+        sessionAttempts += 1;
+        return {
+          session: {
+            sessionId: sessionAttempts === 1 ? "acp:stale" : "acp:recovered",
+          },
+        };
+      }
+      if (request.path === "/acp/editor/context") {
+        contextAttempts += 1;
+        const sessionId = (request.body as { sessionId?: string }).sessionId;
+        if (sessionId === "acp:stale") {
+          throw new Error("ACP session not found: acp:stale");
+        }
+        return { context: { activeFile: "src/index.ts" } };
+      }
+      return {};
+    });
+
+    await withAgentApi(api, async () => {
+      const client = new DesktopAcpClient();
+      await expect(
+        client.syncEditorContext("/workspace", {
+          activeFile: "src/index.ts",
+          path: "src/index.ts",
+          uri: "file:///workspace/src/index.ts",
+          language: "typescript",
+          content: "export {};",
+          version: 1,
+          dirty: false,
+          focused: true,
+          visibleRanges: [],
+          resources: [],
+        }),
+      ).resolves.toMatchObject({
+        sessionId: "acp:recovered",
+        context: { activeFile: "src/index.ts" },
+      });
+    });
+
+    expect(initializeAttempts).toBe(2);
+    expect(sessionAttempts).toBe(2);
+    expect(contextAttempts).toBe(2);
+  });
+
+  it("invalidates a stale prompt session without replaying the task", async () => {
+    let sessionAttempts = 0;
+    let promptAttempts = 0;
+    const api = vi.fn(async (request: MockAgentRequest) => {
+      if (request.path === "/acp/initialize") {
+        return { initialized: { agentCapabilities: {} } };
+      }
+      if (request.path === "/acp/session/new") {
+        sessionAttempts += 1;
+        return {
+          session: {
+            sessionId: sessionAttempts === 1 ? "acp:stale" : "acp:recovered",
+          },
+        };
+      }
+      if (request.path === "/acp/session/prompt") {
+        promptAttempts += 1;
+        throw new Error("ACP session not found: acp:stale");
+      }
+      return {};
+    });
+
+    await withAgentApi(api, async () => {
+      const client = new DesktopAcpClient();
+      await expect(
+        client.prompt("/workspace", [{ type: "text", text: "Inspect this" }]),
+      ).rejects.toThrow("ACP session not found");
+      await expect(client.ensureSession("/workspace")).resolves.toBe(
+        "acp:recovered",
+      );
+    });
+
+    expect(promptAttempts).toBe(1);
+    expect(sessionAttempts).toBe(2);
   });
 
   it("rejects incomplete lifecycle inputs before they cross IPC", async () => {

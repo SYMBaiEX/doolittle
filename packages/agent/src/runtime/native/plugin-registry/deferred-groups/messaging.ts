@@ -5,40 +5,46 @@ import type { DeferredPluginGroupContext } from "./shared";
 export async function loadDeferredMessagingPlugins({
   config,
 }: DeferredPluginGroupContext): Promise<Plugin[]> {
-  const messaging: Plugin[] = [];
-
-  if (config.telegramBotToken) {
-    const { default: telegramPlugin } = await import(
-      "@elizaos/plugin-telegram"
-    );
-    messaging.push(normalizePlugin(telegramPlugin));
-  }
-
-  if (config.discordBotToken) {
-    const { default: discordPlugin } = await import("@elizaos/plugin-discord");
-    messaging.push(normalizePlugin(discordPlugin));
-  }
+  const imports: Promise<Plugin>[] = [];
 
   if (
+    process.env.DOOLITTLE_DISTRIBUTED_DESKTOP_RUNTIME !== "1" &&
+    config.telegramBotToken
+  )
+    imports.push(
+      import("@elizaos/plugin-telegram").then(({ default: plugin }) =>
+        normalizePlugin(plugin),
+      ),
+    );
+  if (config.discordBotToken)
+    imports.push(
+      import("@elizaos/plugin-discord").then(({ default: plugin }) =>
+        normalizePlugin(plugin),
+      ),
+    );
+  if (
+    process.env.DOOLITTLE_DISTRIBUTED_DESKTOP_RUNTIME !== "1" &&
     config.whatsappAccessToken &&
     config.whatsappPhoneNumberId &&
     config.whatsappVerifyToken
-  ) {
-    const { default: whatsappPlugin } = await import(
-      "@elizaos/plugin-whatsapp"
+  )
+    imports.push(
+      import("@elizaos/plugin-whatsapp").then(({ default: plugin }) =>
+        normalizePlugin(plugin),
+      ),
     );
-    messaging.push(normalizePlugin(whatsappPlugin));
-  }
+  if (config.signalAccountNumber)
+    imports.push(
+      import("@elizaos/plugin-signal").then(({ default: plugin }) =>
+        normalizePlugin(plugin),
+      ),
+    );
+  if (config.slackBotToken && config.slackAppToken)
+    imports.push(
+      import("@elizaos/plugin-slack").then(({ default: plugin }) =>
+        normalizePlugin(plugin),
+      ),
+    );
 
-  if (config.signalAccountNumber) {
-    const { default: signalPlugin } = await import("@elizaos/plugin-signal");
-    messaging.push(normalizePlugin(signalPlugin));
-  }
-
-  if (config.slackBotToken && config.slackAppToken) {
-    const { default: slackPlugin } = await import("@elizaos/plugin-slack");
-    messaging.push(normalizePlugin(slackPlugin));
-  }
-
-  return messaging;
+  return Promise.all(imports);
 }

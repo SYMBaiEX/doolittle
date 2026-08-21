@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   loadPromptLibrary,
+  PROMPT_LIBRARY_CHANGE_EVENT,
   savePromptLibrary,
 } from "../conversation-persistence";
 import { PromptLibrary } from "./PromptLibrary";
@@ -225,6 +226,8 @@ describe("PromptLibrary", () => {
     const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]');
     expect(dialog?.textContent).toContain("Manage prompt library");
     expect(dialog?.textContent).toContain("Managed prompt");
+    expect(dialog?.className).toContain("calc(100svh-40px)");
+    expect(dialog?.className).not.toContain("calc(100vh-40px)");
     expect(document.activeElement).toBe(
       dialog?.querySelector('[aria-label="Search saved prompts"]'),
     );
@@ -257,5 +260,45 @@ describe("PromptLibrary", () => {
     expect(promptsButton).toBeDefined();
     act(() => promptsButton?.click());
     expect(container.textContent).toContain("External prompt");
+  });
+
+  it("synchronizes same-window saves and storage clears", () => {
+    act(() => root.render(<PromptLibraryProbe />));
+    savePromptLibrary(localStorage, [
+      {
+        id: "same-window-prompt",
+        title: "Same window prompt",
+        content: "Refresh without opening another renderer.",
+        createdAt: "2026-08-20T10:00:00.000Z",
+        updatedAt: "2026-08-20T10:00:00.000Z",
+      },
+    ]);
+    act(() => window.dispatchEvent(new Event(PROMPT_LIBRARY_CHANGE_EVENT)));
+    expect(container.textContent).toContain("Prompts · 1");
+
+    localStorage.clear();
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: null }));
+    });
+    expect(container.textContent).not.toContain("Prompts · 1");
+  });
+
+  it("restores the trigger when an outside click leaves focus orphaned", () => {
+    act(() => root.render(<PromptLibraryProbe />));
+    const promptsButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Prompts",
+    );
+    act(() => promptsButton?.click());
+    const titleInput = container.querySelector<HTMLInputElement>(
+      '[aria-label="Saved prompt title"]',
+    );
+    titleInput?.focus();
+
+    act(() => {
+      document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    });
+
+    expect(container.querySelector("#chat-prompt-library")).toBeNull();
+    expect(document.activeElement).toBe(promptsButton);
   });
 });

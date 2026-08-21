@@ -24,9 +24,11 @@ export async function loadDeferredPluginGroups(
   config: EnvConfig,
 ): Promise<NativeDeferredPluginGroups> {
   const context = { services, config };
-  const messaging = await loadDeferredMessagingPlugins(context);
+  const [messaging, execution] = await Promise.all([
+    loadDeferredMessagingPlugins(context),
+    loadDeferredExecutionPlugins(context),
+  ]);
   const research = loadDeferredResearchPlugins(context);
-  const execution = await loadDeferredExecutionPlugins(context);
 
   return {
     messaging,

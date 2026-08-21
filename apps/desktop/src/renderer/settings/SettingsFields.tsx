@@ -30,6 +30,10 @@ export function settingFieldLabel(path: string): string {
   return titleCase(name.replace(/([\p{Ll}\d])(\p{Lu})/gu, "$1 $2"));
 }
 
+export function settingControlId(path: string): string {
+  return `setting-${path.replace(/[^a-z0-9_-]/giu, "-")}`;
+}
+
 export function flattenSettings(
   value: unknown,
   prefix = "",
@@ -151,6 +155,7 @@ export function SettingControl({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const options = selectOptions[field.path];
+  const controlId = settingControlId(field.path);
 
   const persist = async () => {
     setBusy(true);
@@ -180,16 +185,19 @@ export function SettingControl({
   return (
     <div className={SETTINGS_ROW_LAYOUT_CLASS}>
       <div className="setting-copy">
-        <strong>{settingFieldLabel(field.path)}</strong>
+        <strong>
+          <label htmlFor={controlId}>{settingFieldLabel(field.path)}</label>
+        </strong>
         <small>{settingDescription(field)}</small>
         <code>{field.path}</code>
       </div>
       <div className="setting-control">
         {typeof field.value === "boolean" ? (
-          <label className={SETTINGS_SWITCH_CLASS}>
+          <div className={SETTINGS_SWITCH_CLASS}>
             <input
               checked={Boolean(value)}
               className={SETTINGS_SWITCH_INPUT_CLASS}
+              id={controlId}
               type="checkbox"
               onChange={(event) => setValue(event.target.checked)}
             />
@@ -197,15 +205,17 @@ export function SettingControl({
             <span className={SETTINGS_SWITCH_LABEL_CLASS}>
               {value ? "On" : "Off"}
             </span>
-          </label>
+          </div>
         ) : Array.isArray(field.value) ? (
           <textarea
+            id={controlId}
             rows={Math.min(4, Math.max(2, field.value.length))}
             value={String(value)}
             onChange={(event) => setValue(event.target.value)}
           />
         ) : options ? (
           <select
+            id={controlId}
             value={String(value)}
             onChange={(event) => setValue(event.target.value)}
           >
@@ -220,6 +230,7 @@ export function SettingControl({
           </select>
         ) : (
           <input
+            id={controlId}
             type={typeof field.value === "number" ? "number" : "text"}
             value={String(value)}
             onChange={(event) => setValue(event.target.value)}

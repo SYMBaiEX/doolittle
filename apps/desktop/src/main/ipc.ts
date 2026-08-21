@@ -166,6 +166,40 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
   const activeAgentRequests = new Map<string, ActiveAgentRequest>();
   const activeTerminalRuns = new Map<string, { controller: AbortController }>();
   const registeredChannels = new Set<DesktopIpcInvokeChannel>();
+  const senderLifecycleBuckets = new Map<
+    IpcMainInvokeEvent["sender"],
+    { callbacks: Set<() => void>; handleDestroyed: () => void }
+  >();
+  const trackSenderCleanup = (
+    sender: IpcMainInvokeEvent["sender"],
+    cleanup: () => void,
+  ): (() => void) => {
+    let bucket = senderLifecycleBuckets.get(sender);
+    if (!bucket) {
+      const callbacks = new Set<() => void>();
+      const handleDestroyed = () => {
+        senderLifecycleBuckets.delete(sender);
+        const pending = [...callbacks];
+        callbacks.clear();
+        for (const callback of pending) callback();
+      };
+      bucket = { callbacks, handleDestroyed };
+      senderLifecycleBuckets.set(sender, bucket);
+      sender.once("destroyed", handleDestroyed);
+    }
+    bucket.callbacks.add(cleanup);
+    let tracked = true;
+    return () => {
+      if (!tracked) return;
+      tracked = false;
+      const current = senderLifecycleBuckets.get(sender);
+      current?.callbacks.delete(cleanup);
+      if (current && current.callbacks.size === 0) {
+        sender.removeListener("destroyed", current.handleDestroyed);
+        senderLifecycleBuckets.delete(sender);
+      }
+    };
+  };
   const registerHandler = (
     channel: DesktopIpcInvokeChannel,
     handler: Parameters<IpcMain["handle"]>[1],
@@ -316,6 +350,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     confirmSensitiveAction,
     sensitiveFetch,
     notifyBackground,
+    trackSenderCleanup,
   });
   registerHandler(
     invokeChannels.providerAuthStart,
@@ -466,7 +501,10 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         );
         activeAgentRequests.delete(key);
       };
-      event.sender.once("destroyed", cleanupDestroyedSender);
+      const stopTrackingSender = trackSenderCleanup(
+        event.sender,
+        cleanupDestroyedSender,
+      );
       try {
         return await requestAgentTransport(
           backend,
@@ -475,7 +513,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           controller.signal,
         );
       } finally {
-        event.sender.removeListener("destroyed", cleanupDestroyedSender);
+        stopTrackingSender();
         activeAgentRequests.delete(key);
       }
     },
@@ -549,15 +587,16 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
           });
         }
       };
+      let stopTrackingSender: () => void = () => undefined;
       const cleanup = () => {
         activeChats.delete(key);
-        event.sender.removeListener("destroyed", cleanup);
+        stopTrackingSender();
         if (!controller.signal.aborted) {
           controller.abort();
         }
       };
       activeChats.set(key, { controller });
-      event.sender.once("destroyed", cleanup);
+      stopTrackingSender = trackSenderCleanup(event.sender, cleanup);
 
       try {
         const response = await sensitiveFetch(`${state.url}/chat`, {
@@ -704,6 +743,10 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       active.controller.abort();
     }
     activeTerminalRuns.clear();
+    for (const [sender, bucket] of senderLifecycleBuckets) {
+      sender.removeListener("destroyed", bucket.handleDestroyed);
+    }
+    senderLifecycleBuckets.clear();
     for (const channel of registeredChannels) {
       ipcMain.removeHandler(channel);
     }

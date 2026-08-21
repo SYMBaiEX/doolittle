@@ -1,4 +1,3 @@
-import { useIntervalWhenDocumentVisible } from "@elizaos/ui/hooks/useDocumentVisibility";
 import { FitAddon } from "@xterm/addon-fit";
 import { type ITheme, Terminal } from "@xterm/xterm";
 import {
@@ -14,16 +13,21 @@ import type {
   InteractiveTerminalOutput,
   InteractiveTerminalSession,
 } from "../../shared/contracts";
-import { APPEARANCE_CHANGE_EVENT, THEME_CHANGE_EVENT } from "../desktop-theme";
+import { APPEARANCE_APPLIED_EVENT, THEME_CHANGE_EVENT } from "../desktop-theme";
 import { errorMessage } from "../lib";
 import { compactWorkspacePath } from "../workspace-path";
 import { InteractiveTerminalHeader } from "./InteractiveTerminalHeader";
 import { InteractiveTerminalSurface } from "./InteractiveTerminalSurface";
 import { INTERACTIVE_TERMINAL_ROOT_CLASS } from "./interactive-terminal-layout";
 import {
+  interactiveTerminalPollDelay,
+  TERMINAL_PERSIST_DEBOUNCE_MS,
+} from "./interactive-terminal-performance";
+import {
   appendTerminalBytes as appendTerminalOutputBytes,
   closeTerminalTabState,
   isCurrentTerminalSession,
+  terminalChatContext,
 } from "./interactive-terminal-state";
 import {
   browserInteractiveTerminalStorage,
@@ -151,7 +155,16 @@ export function InteractiveTerminal({
   const xtermTabIdRef = useRef<string | null>(null);
   const renameInputRef = useRef<HTMLInputElement | null>(null);
   const pollingRef = useRef(false);
+  const pollOutputRef = useRef<
+    | ((tabId: string, sessionId: string, cursor: number) => Promise<boolean>)
+    | null
+  >(null);
   const inputSequenceRef = useRef(Promise.resolve());
+  const pendingTerminalWriteRef = useRef("");
+  const terminalWriteFrameRef = useRef<number | null>(null);
+  const persistenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const dimensionsRef = useRef({ cols: 100, rows: 30 });
   const [terminalSize, setTerminalSize] = useState(dimensionsRef.current);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -186,9 +199,13 @@ export function InteractiveTerminal({
         tab: InteractiveTerminalTabState,
       ) => InteractiveTerminalTabState,
     ) => {
-      setTabs((current) =>
-        current.map((tab) => (tab.id === tabId ? updater(tab) : tab)),
-      );
+      setTabs((current) => {
+        const next = current.map((tab) =>
+          tab.id === tabId ? updater(tab) : tab,
+        );
+        tabsRef.current = next;
+        return next;
+      });
     },
     [],
   );
@@ -256,8 +273,42 @@ export function InteractiveTerminal({
   }, [tabs, activeTabId, workspacePath]);
 
   useEffect(() => {
-    saveInteractiveTerminalState(workspacePath, { activeTabId, tabs }, storage);
+    if (persistenceTimerRef.current) {
+      clearTimeout(persistenceTimerRef.current);
+    }
+    persistenceTimerRef.current = setTimeout(() => {
+      saveInteractiveTerminalState(
+        workspacePath,
+        { activeTabId, tabs },
+        storage,
+      );
+      persistenceTimerRef.current = null;
+    }, TERMINAL_PERSIST_DEBOUNCE_MS);
+    return () => {
+      if (persistenceTimerRef.current) {
+        clearTimeout(persistenceTimerRef.current);
+        persistenceTimerRef.current = null;
+      }
+    };
   }, [activeTabId, storage, tabs, workspacePath]);
+
+  useEffect(
+    () => () => {
+      if (persistenceTimerRef.current) {
+        clearTimeout(persistenceTimerRef.current);
+        persistenceTimerRef.current = null;
+      }
+      saveInteractiveTerminalState(
+        workspacePath,
+        {
+          activeTabId: activeTabIdRef.current,
+          tabs: tabsRef.current,
+        },
+        storage,
+      );
+    },
+    [storage, workspacePath],
+  );
 
   useEffect(() => {
     tabsRef.current = tabs;
@@ -276,13 +327,23 @@ export function InteractiveTerminal({
 
     const terminal = new Terminal({
       allowProposedApi: false,
+      customGlyphs: true,
       cursorBlink: true,
+      cursorInactiveStyle: "outline",
       cursorStyle: "block",
       convertEol: false,
+      fastScrollSensitivity: 5,
       fontFamily: "var(--font-mono)",
       fontSize: 12,
-      lineHeight: 1.35,
+      fontWeight: "400",
+      letterSpacing: 0,
+      lineHeight: 1.2,
+      macOptionClickForcesSelection: true,
+      minimumContrastRatio: 4.5,
+      rightClickSelectsWord: true,
+      scrollSensitivity: 2,
       scrollback: 5_000,
+      smoothScrollDuration: 0,
       theme: interactiveTerminalTheme(
         getComputedStyle(document.documentElement),
       ),
@@ -311,18 +372,33 @@ export function InteractiveTerminal({
             data,
           }),
         )
-        .then((session) => syncSession(activeTab.id, session))
+        .then(async () => {
+          const latest = tabsRef.current.find(
+            (candidate) => candidate.id === activeTab.id,
+          );
+          if (!latest || latest.sessionId !== activeTab.sessionId) return;
+          await pollOutputRef.current?.(
+            activeTab.id,
+            activeTab.sessionId as string,
+            latest.cursor,
+          );
+        })
         .catch((error) => setNotice(errorMessage(error)));
     });
 
     return () => {
       disposable.dispose();
       terminal.dispose();
+      if (terminalWriteFrameRef.current !== null) {
+        cancelAnimationFrame(terminalWriteFrameRef.current);
+        terminalWriteFrameRef.current = null;
+      }
+      pendingTerminalWriteRef.current = "";
       xtermRef.current = null;
       fitAddonRef.current = null;
       xtermTabIdRef.current = null;
     };
-  }, [activeTabId, fitTerminalToViewport, syncSession]);
+  }, [activeTabId, fitTerminalToViewport]);
 
   useEffect(() => {
     const updateTheme = () => {
@@ -333,10 +409,10 @@ export function InteractiveTerminal({
       );
     };
     window.addEventListener(THEME_CHANGE_EVENT, updateTheme);
-    window.addEventListener(APPEARANCE_CHANGE_EVENT, updateTheme);
+    window.addEventListener(APPEARANCE_APPLIED_EVENT, updateTheme);
     return () => {
       window.removeEventListener(THEME_CHANGE_EVENT, updateTheme);
-      window.removeEventListener(APPEARANCE_CHANGE_EVENT, updateTheme);
+      window.removeEventListener(APPEARANCE_APPLIED_EVENT, updateTheme);
     };
   }, []);
 
@@ -363,20 +439,30 @@ export function InteractiveTerminal({
     [],
   );
 
+  const queueTerminalWrite = useCallback((tabId: string, data: string) => {
+    if (!data || xtermTabIdRef.current !== tabId) return;
+    pendingTerminalWriteRef.current += data;
+    if (terminalWriteFrameRef.current !== null) return;
+    terminalWriteFrameRef.current = requestAnimationFrame(() => {
+      terminalWriteFrameRef.current = null;
+      const pending = pendingTerminalWriteRef.current;
+      pendingTerminalWriteRef.current = "";
+      if (pending && xtermTabIdRef.current === tabId) {
+        xtermRef.current?.write(pending);
+      }
+    });
+  }, []);
+
   const appendOutputToTab = useCallback(
     (tabId: string, snapshot: InteractiveTerminalOutput) => {
       const chunks = snapshot.chunks.map((chunk) => chunk.data).join("");
       if (!chunks && !snapshot.truncatedBeforeCursor) return;
-      if (xtermTabIdRef.current === tabId) {
-        if (snapshot.truncatedBeforeCursor) {
-          xtermRef.current?.write(
-            "\r\n[Doolittle retained the newest terminal output.]\r\n",
-          );
-        }
-        if (chunks) xtermRef.current?.write(chunks);
-      }
-      setTabs((current) =>
-        current.map((tab) => {
+      queueTerminalWrite(
+        tabId,
+        `${snapshot.truncatedBeforeCursor ? "\r\n[Doolittle retained the newest terminal output.]\r\n" : ""}${chunks}`,
+      );
+      setTabs((current) => {
+        const next = current.map((tab) => {
           if (tab.id !== tabId) return tab;
           return {
             ...tab,
@@ -400,35 +486,52 @@ export function InteractiveTerminal({
             outputBytes: snapshot.session.outputBytes,
             stale: false,
           };
-        }),
-      );
+        });
+        tabsRef.current = next;
+        return next;
+      });
       setNotice("");
     },
-    [],
+    [queueTerminalWrite],
   );
 
   const pollOutput = useCallback(
-    async (tabId: string, sessionId: string, cursor: number) => {
-      if (!sessionId || pollingRef.current) return;
+    async (
+      tabId: string,
+      sessionId: string,
+      cursor: number,
+    ): Promise<boolean> => {
+      if (!sessionId || pollingRef.current) return false;
       pollingRef.current = true;
       try {
         const snapshot = await window.doolittle.getInteractiveTerminalOutput(
           sessionId,
           cursor,
         );
+        const hadOutput =
+          snapshot.truncatedBeforeCursor || snapshot.chunks.length > 0;
         appendOutputToTab(tabId, snapshot);
+        return hadOutput;
       } catch (error) {
         if (!isCurrentTerminalSession(tabsRef.current, tabId, sessionId)) {
-          return;
+          return false;
         }
         setTabToClosed(tabId);
         setNotice(errorMessage(error));
+        return false;
       } finally {
         pollingRef.current = false;
       }
     },
     [appendOutputToTab, setTabToClosed],
   );
+
+  useEffect(() => {
+    pollOutputRef.current = pollOutput;
+    return () => {
+      if (pollOutputRef.current === pollOutput) pollOutputRef.current = null;
+    };
+  }, [pollOutput]);
 
   const onStart = useCallback(async () => {
     if (!activeTab || starting || !active) return;
@@ -654,17 +757,52 @@ export function InteractiveTerminal({
 
   const activeSessionId = activeTab?.sessionId;
 
-  useIntervalWhenDocumentVisible(
-    () => {
-      if (!activeSessionId) return;
-      const tabId = activeTab?.id;
-      if (tabId) {
-        void pollOutput(tabId, activeSessionId, activeTab?.cursor ?? 0);
+  useEffect(() => {
+    const tabId = activeTab?.id;
+    if (!active || !running || !activeSessionId || !tabId) return;
+    let cancelled = false;
+    let ticking = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const schedule = (delay: number) => {
+      if (cancelled) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void tick(), delay);
+    };
+    const tick = async () => {
+      if (cancelled) return;
+      timer = undefined;
+      ticking = true;
+      const visible = document.visibilityState !== "hidden";
+      if (!visible) {
+        ticking = false;
+        schedule(
+          interactiveTerminalPollDelay({ hadOutput: false, visible: false }),
+        );
+        return;
       }
-    },
-    160,
-    active && running && Boolean(activeSessionId),
-  );
+      const latest = tabsRef.current.find((tab) => tab.id === tabId);
+      if (!latest || latest.sessionId !== activeSessionId) {
+        ticking = false;
+        return;
+      }
+      const hadOutput = await pollOutput(tabId, activeSessionId, latest.cursor);
+      ticking = false;
+      schedule(interactiveTerminalPollDelay({ hadOutput, visible: true }));
+    };
+    const wake = () => {
+      if (ticking) return;
+      schedule(0);
+    };
+
+    document.addEventListener("visibilitychange", wake);
+    schedule(0);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", wake);
+    };
+  }, [active, activeSessionId, activeTab?.id, pollOutput, running]);
 
   const activeSessionSupportsResize = activeTab?.supportsResize;
 
@@ -765,6 +903,11 @@ export function InteractiveTerminal({
         maxTabs={MAX_INTERACTIVE_TERMINAL_TABS}
         onBeginRename={beginRename}
         onCancelRename={cancelRename}
+        onClearOutput={() => {
+          if (!activeTab) return;
+          xtermRef.current?.clear();
+          updateTab(activeTab.id, (tab) => ({ ...tab, output: "" }));
+        }}
         onCloseActiveSession={onCloseActiveSession}
         onCloseTab={closeTab}
         onCreateTab={createTab}
@@ -772,6 +915,11 @@ export function InteractiveTerminal({
         onInterrupt={onInterrupt}
         onRenameChange={setRenamingValue}
         onSaveRename={saveRename}
+        onSendOutputToChat={() => {
+          if (activeTab?.output) {
+            onSendToChat(terminalChatContext(activeTab.output));
+          }
+        }}
         onSelectTab={selectTab}
         onStart={onStart}
         onTabKeyDown={onTabKeyDown}
@@ -779,6 +927,7 @@ export function InteractiveTerminal({
         renamingTabId={renamingTabId}
         renamingValue={renamingValue}
         running={running}
+        outputAvailable={Boolean(activeTab?.output)}
         starting={starting}
         tabRefs={tabRefs}
         tabs={tabs}
@@ -787,10 +936,8 @@ export function InteractiveTerminal({
         active={active}
         activeTab={activeTab}
         notice={notice}
-        onSendToChat={onSendToChat}
         onStart={onStart}
         running={running}
-        setTabs={setTabs}
         starting={starting}
         viewportRef={viewportRef}
       />

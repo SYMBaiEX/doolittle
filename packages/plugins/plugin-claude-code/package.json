@@ -29,7 +29,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@elizaos/agent": "2.0.3-beta.7",
     "@elizaos/core": "2.0.3-beta.7",
     "@doolittle/provider-transport": "0.1.0"
   }

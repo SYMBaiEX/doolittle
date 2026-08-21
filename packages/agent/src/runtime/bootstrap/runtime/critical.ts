@@ -48,7 +48,6 @@ const CRITICAL_RUNTIME_SERVICES = [
   DOOLITTLE_EXPERIENCE_SERVICE,
   PluginManagerService.serviceType,
   "planning",
-  "mcp",
   AUTONOMY_SERVICE_TYPE,
   PairingService.serviceType,
   SECRETS_SERVICE_TYPE,

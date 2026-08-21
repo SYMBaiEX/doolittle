@@ -91,6 +91,10 @@ export async function prepareEntrypointRuntimeBoot(
     process.env.DOOLITTLE_MODE ??= "cli";
   }
 
+  const hydrateAfterListening =
+    process.env.DOOLITTLE_DESKTOP_RUNTIME === "1" &&
+    options.commandPlan.shouldUseApiSurface;
+
   const { result: context, logs: bootLogs } = await captureLogs(
     options.commandPlan.shouldUseCockpitSplash ||
       ((options.command === "start" || options.command === "plain") &&
@@ -98,7 +102,8 @@ export async function prepareEntrypointRuntimeBoot(
     async () =>
       getAppContext({
         startupMode: options.commandPlan.startupMode,
-        eagerDeferredHydration: options.commandPlan.eagerDeferredHydration,
+        eagerDeferredHydration:
+          options.commandPlan.eagerDeferredHydration && !hydrateAfterListening,
       }),
   );
   const runtimePlan = resolveRuntimePlan({
@@ -116,6 +121,7 @@ export async function prepareEntrypointRuntimeBoot(
     startApiServer: serverModule?.startApiServer,
     writeStderrLine: options.writeStderrLine,
     formatTopLevelError: options.formatTopLevelError,
+    hydrateAfterListening,
   });
 
   return {

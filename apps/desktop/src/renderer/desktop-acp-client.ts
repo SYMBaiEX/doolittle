@@ -18,6 +18,8 @@ import { desktopRequest } from "./eliza-client";
 
 const EDITOR_SYNC_DELAY_MS = 180;
 const SESSION_UPDATE_POLL_MS = 1_000;
+export const ACP_RUNTIME_RESTART_MESSAGE =
+  "The runtime restarted. Reconnect the ACP editor session.";
 
 export type DesktopAcpPhase = "idle" | "connecting" | "connected" | "degraded";
 export type DesktopAcpPromptPhase = "idle" | "running" | "cancelling";
@@ -74,6 +76,7 @@ interface AcpInitializeResponse {
 export class DesktopAcpClient {
   private initializePromise?: Promise<DesktopAcpCapabilities>;
   private readonly sessions = new Map<string, Promise<string>>();
+  private runtimeGeneration = 0;
 
   capabilities(): Promise<DesktopAcpCapabilities> {
     return this.initialize();
@@ -94,20 +97,59 @@ export class DesktopAcpClient {
     return pending;
   }
 
+  resetRuntimeState(): void {
+    this.runtimeGeneration += 1;
+    this.initializePromise = undefined;
+    this.sessions.clear();
+  }
+
+  async reconnectSession(workspacePath: string): Promise<string> {
+    this.resetRuntimeState();
+    return this.ensureSession(workspacePath);
+  }
+
   async syncEditorContext(
     workspacePath: string,
     context: DesktopAcpEditorContext,
   ): Promise<{ sessionId: string; context?: DesktopAcpEditorContext }> {
-    const sessionId = await this.ensureSession(workspacePath);
-    const response = await desktopRequest<AcpEditorContextResponse>(
-      "/acp/editor/context",
-      "POST",
-      {
-        sessionId,
-        ...context,
+    return this.withRecoverableWorkspaceSession(
+      workspacePath,
+      async (sessionId) => {
+        const response = await desktopRequest<AcpEditorContextResponse>(
+          "/acp/editor/context",
+          "POST",
+          {
+            sessionId,
+            ...context,
+          },
+        );
+        return { sessionId, context: response.context };
       },
     );
-    return { sessionId, context: response.context };
+  }
+
+  private async withRecoverableWorkspaceSession<T>(
+    workspacePath: string,
+    operation: (sessionId: string) => Promise<T>,
+  ): Promise<T> {
+    const sessionId = await this.ensureSession(workspacePath);
+    const generation = this.runtimeGeneration;
+    try {
+      return await operation(sessionId);
+    } catch (error) {
+      if (!isAcpSessionNotFoundError(error)) throw error;
+      if (this.runtimeGeneration === generation) this.resetRuntimeState();
+      return operation(await this.ensureSession(workspacePath));
+    }
+  }
+
+  private invalidateMissingSession(error: unknown, generation: number): void {
+    if (
+      isAcpSessionNotFoundError(error) &&
+      this.runtimeGeneration === generation
+    ) {
+      this.resetRuntimeState();
+    }
   }
 
   async prompt(
@@ -118,12 +160,20 @@ export class DesktopAcpClient {
       throw new Error("An ACP prompt is required.");
     }
     const sessionId = await this.ensureSession(workspacePath);
-    const response = await desktopRequest<AcpPromptResponse>(
-      "/acp/session/prompt",
-      "POST",
-      { sessionId, prompt },
-    );
-    return { sessionId, result: response.result };
+    const generation = this.runtimeGeneration;
+    try {
+      const response = await desktopRequest<AcpPromptResponse>(
+        "/acp/session/prompt",
+        "POST",
+        { sessionId, prompt },
+      );
+      return { sessionId, result: response.result };
+    } catch (error) {
+      // Never replay a task automatically: it may already have performed an
+      // external side effect before the old runtime disappeared.
+      this.invalidateMissingSession(error, generation);
+      throw error;
+    }
   }
 
   async cancel(sessionId: string): Promise<void> {
@@ -162,10 +212,16 @@ export class DesktopAcpClient {
     const normalizedSessionId = sessionId.trim();
     if (!normalizedSessionId) return undefined;
     const normalizedCursor = normalizeCursor(cursor);
-    const response = await desktopRequest<AcpUpdatesResponse>(
-      `/acp/session/updates?sessionId=${encodeURIComponent(normalizedSessionId)}&cursor=${normalizedCursor}`,
-    );
-    return response.snapshot;
+    const generation = this.runtimeGeneration;
+    try {
+      const response = await desktopRequest<AcpUpdatesResponse>(
+        `/acp/session/updates?sessionId=${encodeURIComponent(normalizedSessionId)}&cursor=${normalizedCursor}`,
+      );
+      return response.snapshot;
+    } catch (error) {
+      this.invalidateMissingSession(error, generation);
+      throw error;
+    }
   }
 
   async readFile(sessionId: string, path: string): Promise<string> {
@@ -302,6 +358,11 @@ function requireValue(value: string, message: string): string {
   return normalized;
 }
 
+export function isAcpSessionNotFoundError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\bACP session not found:/i.test(message);
+}
+
 function normalizeCursor(cursor: number): number {
   return Number.isSafeInteger(cursor) && cursor > 0 ? cursor : 0;
 }
@@ -354,6 +415,17 @@ export function useDesktopAcpEditorBridge({
   const [promptPhase, setPromptPhase] = useState<DesktopAcpPromptPhase>("idle");
   const [promptError, setPromptError] = useState("");
   const [stopReason, setStopReason] = useState("");
+
+  const markRuntimeSessionLost = useCallback((reason: unknown): void => {
+    desktopAcpClient.resetRuntimeState();
+    generationRef.current += 1;
+    setSessionId("");
+    setPhase("degraded");
+    setPromptPhase("idle");
+    setStopReason("");
+    setError(ACP_RUNTIME_RESTART_MESSAGE);
+    setPromptError(reason instanceof Error ? reason.message : String(reason));
+  }, []);
 
   useEffect(() => {
     promptPhaseRef.current = promptPhase;
@@ -438,9 +510,13 @@ export function useDesktopAcpEditorBridge({
         }
       } catch (reason) {
         if (!disposed) {
-          setPromptError(
-            reason instanceof Error ? reason.message : String(reason),
-          );
+          if (isAcpSessionNotFoundError(reason)) {
+            markRuntimeSessionLost(reason);
+          } else {
+            setPromptError(
+              reason instanceof Error ? reason.message : String(reason),
+            );
+          }
         }
       } finally {
         pollingRef.current = false;
@@ -452,7 +528,7 @@ export function useDesktopAcpEditorBridge({
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [active, phase, promptPhase, sessionId]);
+  }, [active, markRuntimeSessionLost, phase, promptPhase, sessionId]);
 
   const syncEditorContext = useCallback(
     async (
@@ -493,7 +569,8 @@ export function useDesktopAcpEditorBridge({
     const pending = latestContextRef.current;
     if (pending) pendingContextRef.current = pending;
     try {
-      const nextSessionId = await desktopAcpClient.ensureSession(workspacePath);
+      const nextSessionId =
+        await desktopAcpClient.reconnectSession(workspacePath);
       if (generationRef.current !== generation) return;
       setSessionId(nextSessionId);
       setPhase("connected");
@@ -581,9 +658,13 @@ export function useDesktopAcpEditorBridge({
         return response.result;
       } catch (reason) {
         if (generationRef.current === generation) {
-          setPromptError(
-            reason instanceof Error ? reason.message : String(reason),
-          );
+          if (isAcpSessionNotFoundError(reason)) {
+            markRuntimeSessionLost(reason);
+          } else {
+            setPromptError(
+              reason instanceof Error ? reason.message : String(reason),
+            );
+          }
         }
         return undefined;
       } finally {
@@ -592,7 +673,7 @@ export function useDesktopAcpEditorBridge({
         }
       }
     },
-    [active, flushEditorState, phase, workspacePath],
+    [active, flushEditorState, markRuntimeSessionLost, phase, workspacePath],
   );
 
   const cancel = useCallback(async () => {
@@ -604,10 +685,16 @@ export function useDesktopAcpEditorBridge({
       setStopReason("cancelled");
       setPromptPhase("idle");
     } catch (reason) {
-      setPromptError(reason instanceof Error ? reason.message : String(reason));
-      setPromptPhase("running");
+      if (isAcpSessionNotFoundError(reason)) {
+        markRuntimeSessionLost(reason);
+      } else {
+        setPromptError(
+          reason instanceof Error ? reason.message : String(reason),
+        );
+        setPromptPhase("running");
+      }
     }
-  }, [promptPhase, sessionId]);
+  }, [markRuntimeSessionLost, promptPhase, sessionId]);
 
   const lastUpdate = updates.at(-1);
 

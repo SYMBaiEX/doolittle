@@ -6,7 +6,7 @@ function createVersionSummary() {
     name: "doolittle",
     version: "2.0.3-beta.7",
     node: "26.5.0",
-    nub: "0.7.4",
+    nub: "0.7.5",
     dependencies: {},
     nativePlugins: {
       total: 0,

@@ -72,7 +72,7 @@ describe("SetupPage projections", () => {
           headline: "Finish provider setup",
           detail: "One provider is unavailable.",
         },
-        version: { version: "2.0.3-beta.7", node: "24.1.0", nub: "0.7.4" },
+        version: { version: "2.0.3-beta.7", node: "24.1.0", nub: "0.7.5" },
         providers: [{ ready: true }, { ready: false }],
         transports: [{ ready: true }],
         directories: [{ exists: true }, { exists: false }],

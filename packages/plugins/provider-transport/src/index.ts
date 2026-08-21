@@ -9,6 +9,13 @@ import {
   type ToolDefinition,
 } from "@elizaos/core";
 
+export {
+  type ProviderCommandRequest,
+  type ProviderCommandResult,
+  type ProviderCommandTermination,
+  runProviderCommand,
+} from "./command";
+
 export interface ProviderRuntimeModelSettings {
   provider?: string;
   model?: string;

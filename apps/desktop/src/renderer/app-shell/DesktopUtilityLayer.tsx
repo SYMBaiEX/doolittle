@@ -52,7 +52,7 @@ export function DesktopUtilityLayer({
       {mobileModal ? (
         <button
           aria-label="Close tools and settings"
-          className="fixed inset-0 z-119 block h-screen w-screen border-0 bg-[color-mix(in_srgb,var(--shadow)_24%,transparent)] p-0"
+          className="fixed inset-0 z-119 block h-svh w-screen border-0 bg-[color-mix(in_srgb,var(--shadow)_24%,transparent)] p-0"
           data-utility-backdrop=""
           onClick={onClose}
           tabIndex={-1}

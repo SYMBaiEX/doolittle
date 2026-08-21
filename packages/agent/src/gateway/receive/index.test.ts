@@ -22,6 +22,42 @@ describe("processGatewayReceive outcome", () => {
     vi.clearAllMocks();
   });
 
+  it("hydrates optional plugins before gateway setup begins", async () => {
+    const order: string[] = [];
+    const ensureDeferredHydration = vi.fn(async () => {
+      order.push("hydrate");
+    });
+    setupGatewayReceive.mockImplementation(async () => {
+      order.push("setup");
+      return {
+        response: {
+          ok: false,
+          response: "not authorized",
+          traceId: "trace-rejected",
+        },
+      };
+    });
+    const deps = {
+      context: {
+        config: {},
+        runtime: {},
+        services: {},
+        ensureDeferredHydration,
+      },
+      message: {
+        platform: "api",
+        userId: "user-1",
+        roomId: "room-1",
+        text: "request",
+      },
+    } as unknown as GatewayReceiveDependencies;
+
+    await processGatewayReceive(deps);
+
+    expect(ensureDeferredHydration).toHaveBeenCalledWith("gateway-receive");
+    expect(order).toEqual(["hydrate", "setup"]);
+  });
+
   it("keeps agent completion hooks and snapshots truthful after delivery rejection", async () => {
     const emit = vi.fn(async () => undefined);
     const snapshotState = vi.fn(async () => undefined);

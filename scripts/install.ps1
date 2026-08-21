@@ -9,7 +9,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$NubVersion = "0.7.4"
+$NubVersion = "0.7.5"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $RequiredNodeVersion = (Get-Content (Join-Path $Root ".node-version") -Raw).Trim()
 $RequiredNodeMajor = [int]($RequiredNodeVersion.Split(".")[0])

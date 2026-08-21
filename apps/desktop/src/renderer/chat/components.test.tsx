@@ -124,11 +124,48 @@ describe("chat presentation components", () => {
     const props = composerProps();
     const html = renderToStaticMarkup(<ChatComposer {...props} />);
     expect(html).toContain('class="chat-composer"');
+    expect(html).toContain("chat-composer-routing");
+    expect(html).not.toContain('data-has-project="true"');
     expect(html).toContain('aria-label="Attach multiple files"');
     expect(html).toContain("Attach files");
     expect(html).toContain('aria-label="Message Doolittle"');
     expect(html).toContain('class="chat-context-meter neutral"');
     expect(html).toContain('aria-label="Send message"');
+  });
+
+  it("groups project and model routing into one responsive composer row", () => {
+    const html = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          activeProject: {
+            id: "project-1",
+            name: "Doolittle",
+          },
+          isNewConversation: true,
+          onChooseRepository: () => undefined,
+          onOpenProjectManager: () => undefined,
+          onSelectProjectForNewChat: () => undefined,
+          projects: [
+            {
+              id: "project-1",
+              name: "Doolittle",
+              primaryPath: "/workspace/doolittle",
+            },
+          ],
+        })}
+      />,
+    );
+
+    const routingStart = html.indexOf("chat-composer-routing");
+    expect(routingStart).toBeGreaterThan(-1);
+    expect(html).toContain('data-has-project="true"');
+    expect(
+      html.indexOf("composer-project-trigger", routingStart),
+    ).toBeGreaterThan(routingStart);
+    expect(
+      html.indexOf("composer-model-trigger", routingStart),
+    ).toBeGreaterThan(routingStart);
+    expect(html).not.toContain("absolute -top-7.75");
   });
 
   it("inserts the active dollar-prefix prompt on Enter without submitting", () => {

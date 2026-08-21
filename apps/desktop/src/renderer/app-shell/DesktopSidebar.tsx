@@ -6,6 +6,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Search,
+  SlidersHorizontal,
   Sun,
 } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
@@ -31,6 +32,7 @@ import {
   APP_BRAND_CLASS,
   APP_BRAND_COLLAPSED_CLASS,
   APP_BRAND_COPY_CLASS,
+  APP_BRAND_HOME_CLASS,
   APP_BRAND_MARK_CLASS,
   APP_SIDEBAR_CLASS,
   APP_SIDEBAR_COLLAPSED_CLASS,
@@ -194,14 +196,22 @@ export function DesktopSidebar({
             compact ? ` ${APP_BRAND_COLLAPSED_CLASS}` : ""
           }`}
         >
-          <div className={APP_BRAND_MARK_CLASS} aria-hidden="true">
-            <span>D</span>
-            <i />
-          </div>
-          <div className={APP_BRAND_COPY_CLASS}>
-            <strong>Doolittle</strong>
-            <span>{"ElizaOS // desktop"}</span>
-          </div>
+          <button
+            aria-label="Go to Home"
+            className={APP_BRAND_HOME_CLASS}
+            onClick={() => onSetView("dashboard")}
+            title="Home"
+            type="button"
+          >
+            <span className={APP_BRAND_MARK_CLASS} aria-hidden="true">
+              <span>D</span>
+              <i />
+            </span>
+            <span className={APP_BRAND_COPY_CLASS}>
+              <strong>Doolittle</strong>
+              <span>{"ElizaOS // desktop"}</span>
+            </span>
+          </button>
           <button
             aria-label={
               navCollapsed ? "Expand navigation" : "Collapse navigation"
@@ -330,7 +340,7 @@ export function DesktopSidebar({
                 utilityOpen ? ` ${SIDEBAR_UTILITY_MARK_OPEN_CLASS}` : ""
               }`}
             >
-              <Icon name="tools" />
+              <UiIcon icon={SlidersHorizontal} size="sm" />
             </span>
             <span className={SIDEBAR_UTILITY_COPY_CLASS}>
               <strong>Tools & settings</strong>

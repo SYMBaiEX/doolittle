@@ -61,8 +61,9 @@ describe("ThreadWorkbenchRail", () => {
     expect(markup).toContain("main · 12345678");
     expect(markup).toContain("Worktree · /work/doolittle");
     expect(markup).toContain("2 changed");
-    expect(markup).toContain("7 tabs");
     expect(markup).toContain('role="tablist"');
+    expect(markup).toContain('aria-label="Brief"');
+    expect(markup).toContain('class="sr-only">Brief</small>');
     expect(markup).toContain('aria-controls="thread-workbench-brief-panel"');
     expect(markup).not.toContain("thread-workbench-status-strip");
   });

@@ -1,9 +1,25 @@
 import type { AppContext } from "@/runtime/bootstrap";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
+import { isAcpSessionNotFoundError } from "@/services/acp/protocol-runtime";
 import type { AcpEditorContext } from "@/services/acp/types";
 
 export async function handleAcpRoutes(
+  context: AppContext,
+  request: Request,
+  url: URL,
+): Promise<Response | null> {
+  try {
+    return await handleAcpRoutesImpl(context, request, url);
+  } catch (error) {
+    if (isAcpSessionNotFoundError(error)) {
+      return json({ error: error.message, code: error.code }, 409);
+    }
+    throw error;
+  }
+}
+
+async function handleAcpRoutesImpl(
   context: AppContext,
   request: Request,
   url: URL,

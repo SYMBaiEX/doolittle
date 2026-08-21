@@ -14,7 +14,8 @@
   <a href="#what-is-in-the-runtime">Capabilities</a> ·
   <a href="#architecture-and-ownership">Architecture</a> ·
   <a href="docs/README.md">Documentation</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="CODE_OF_CONDUCT.md">Code of Conduct</a>
 </p>
 
 <p align="center">
@@ -204,13 +205,13 @@ nub run check:acceptance   # hygiene, boundaries, SDK, docs, links, audit
 
 ### Provider package release
 
-Provider publishing is explicit and opt-in. Validate the linked packages and dry-run their publish contracts before using the command with `--publish`:
+Provider publishing is explicit and opt-in. Validate the linked packages and dry-run their publish contracts locally. Live publishing is restricted to the protected GitHub Actions OIDC workflow; the CLI does not accept publishing credentials.
 
 ```bash
 nub run smoke:linked-providers                              # validate all providers
 nub run publish:providers:check                             # verify publish readiness
-nub run publish:providers -- --provider all --publish       # publish all
-nub run publish:providers:alpha                             # publish to alpha tag
+nub run publish:providers -- --provider all                 # dry-run all publish contracts
+nub run publish:providers:alpha                             # dry-run alpha publish contract
 ```
 
 ## Security and privacy
@@ -226,7 +227,7 @@ Please report vulnerabilities privately—do not open a public issue for an unpa
 
 ## Contributing
 
-Issues, focused pull requests, documentation corrections, and test improvements are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before starting: it covers the pinned toolchain, workspace boundaries, how to add actions/providers, prompt-cache rules, and required checks. Keep claims tied to observable behavior; update tests and generated truth docs when a runtime contract changes.
+Issues, focused pull requests, documentation corrections, and test improvements are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) before starting: they cover the pinned toolchain, workspace boundaries, collaboration expectations, and required checks. Keep claims tied to observable behavior; update tests and generated truth docs when a runtime contract changes.
 
 Useful references:
 

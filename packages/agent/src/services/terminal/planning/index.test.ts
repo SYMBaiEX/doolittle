@@ -42,7 +42,7 @@ function makeSettings(): RuntimeSettings {
       remoteArtifactPolicy: "metadata-only",
       remoteWorkspaceLabel: "doolittle-workspace",
       dockerImage: "ghcr.io/nubjs/nub:latest",
-      dockerNetwork: "host",
+      dockerNetwork: "none",
       dockerWorkspacePath: "/workspace",
       dockerEnvPassthrough: ["PATH", "HOME"],
       singularityImage: "",
@@ -164,6 +164,8 @@ describe("planning helpers", () => {
       expect(argv).toContain("--security-opt");
       expect(argv).toContain("no-new-privileges");
       expect(argv).toContain("--read-only");
+      expect(argv).toContain("--network");
+      expect(argv[argv.indexOf("--network") + 1]).toBe("none");
       expect(argv).toContain("-e");
       expect(argv).toContain("TERMINAL_SERVICE_HELPER_TOKEN=ok");
       expect(argv.slice(-5)).toEqual([
@@ -178,6 +180,20 @@ describe("planning helpers", () => {
     } finally {
       delete process.env.TERMINAL_SERVICE_HELPER_TOKEN;
     }
+  });
+
+  it("preserves an explicit host-network override for containers", () => {
+    const settings = makeSettings();
+    settings.execution.dockerNetwork = "host";
+
+    const argv = buildContainerCommand(
+      "podman",
+      "printf ok",
+      "/workspace",
+      settings,
+    );
+
+    expect(argv[argv.indexOf("--network") + 1]).toBe("host");
   });
 
   it("assembles command records and trims history", () => {

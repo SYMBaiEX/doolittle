@@ -21,6 +21,7 @@ import {
   PROJECT_RAIL_ALL_CLASS,
   PROJECT_RAIL_CHAT_CLASS,
   PROJECT_RAIL_CHAT_SELECTED_CLASS,
+  PROJECT_RAIL_GROUP_ACTIVE_CLASS,
   PROJECT_RAIL_GROUP_CLASS,
   PROJECT_RAIL_MAIN_CLASS,
   PROJECT_RAIL_ROW_CLASS,
@@ -228,7 +229,7 @@ export function ProjectHistorySidebar({
     const isActive = activeScope === project.id;
     return (
       <div
-        className={`${PROJECT_RAIL_GROUP_CLASS} ${isActive ? PROJECT_RAIL_ACTIVE_CLASS : ""}`}
+        className={`${PROJECT_RAIL_GROUP_CLASS} ${isActive ? PROJECT_RAIL_GROUP_ACTIVE_CLASS : ""}`}
         key={project.id}
       >
         <div
@@ -341,7 +342,7 @@ export function ProjectHistorySidebar({
         ) : null}
         {model.unscopedChatCount > 0 || activeScope === "unscoped" ? (
           <div
-            className={`${PROJECT_RAIL_GROUP_CLASS} project-rail-group--general ${activeScope === "unscoped" ? PROJECT_RAIL_ACTIVE_CLASS : ""}`}
+            className={`${PROJECT_RAIL_GROUP_CLASS} project-rail-group--general ${activeScope === "unscoped" ? PROJECT_RAIL_GROUP_ACTIVE_CLASS : ""}`}
           >
             <div
               className={`${PROJECT_RAIL_ROW_CLASS} ${activeScope === "unscoped" ? "bg-[color-mix(in_srgb,var(--surface-hover)_76%,transparent)] text-[var(--text)]" : ""}`}

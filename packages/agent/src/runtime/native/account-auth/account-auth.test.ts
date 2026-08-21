@@ -42,6 +42,24 @@ async function withIsolatedAuthStore<T>(
 }
 
 describe.sequential("linked provider account auth snapshot", () => {
+  it("can omit unrelated linked-provider probes during healthy startup", async () => {
+    const mod = await loadSnapshotModule();
+    const snapshot = mod.getLinkedProviderAccountsSnapshot(undefined, []);
+
+    expect(snapshot.codex.detail).toBe(
+      "Provider account not probed during startup.",
+    );
+    expect(snapshot.claudeCode.detail).toBe(
+      "Provider account not probed during startup.",
+    );
+    expect(snapshot.devin.detail).toBe(
+      "Provider account not probed during startup.",
+    );
+    expect(snapshot.elizaCloud.detail).toBe(
+      "Provider account not probed during startup.",
+    );
+  });
+
   it("detects reusable Codex auth from the local CLI store", async () => {
     vi.stubEnv("PATH", dirname(process.execPath));
     try {

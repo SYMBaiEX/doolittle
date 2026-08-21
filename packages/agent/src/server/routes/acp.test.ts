@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
+import { AcpSessionNotFoundError } from "@/services/acp/protocol-runtime";
 import { handleAcpRoutes } from "./acp";
 
 function createContext(): AppContext {
@@ -127,6 +128,30 @@ describe("handleAcpRoutes", () => {
     });
     await expect(updates?.json()).resolves.toEqual({
       snapshot: { sessionId: "acp:1", cursor: 2, updates: [] },
+    });
+  });
+
+  it("returns a stable conflict response when a runtime restart invalidates the session", async () => {
+    const context = createContext();
+    vi.spyOn(context.services.acp, "updateEditorContext").mockImplementation(
+      () => {
+        throw new AcpSessionNotFoundError("acp:previous-runtime");
+      },
+    );
+
+    const response = await handleAcpRoutes(
+      context,
+      jsonRequest("/acp/editor/context", {
+        sessionId: "acp:previous-runtime",
+        path: "src/index.ts",
+      }),
+      new URL("http://localhost/acp/editor/context"),
+    );
+
+    expect(response?.status).toBe(409);
+    await expect(response?.json()).resolves.toEqual({
+      error: "ACP session not found: acp:previous-runtime",
+      code: "ACP_SESSION_NOT_FOUND",
     });
   });
 

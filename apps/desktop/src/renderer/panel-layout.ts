@@ -38,6 +38,28 @@ export const CHAT_TERMINAL_HEIGHT = {
   max: 560,
 } as const;
 
+export const APP_SIDEBAR_COMPACT_WIDTH = 68;
+export const MIN_DOCKED_WORKSPACE_WIDTH = 960;
+
+export function minimumDockedUtilityViewportWidth({
+  navCollapsed,
+  sidebarWidth,
+  utilityWidth,
+}: {
+  navCollapsed: boolean;
+  sidebarWidth: number;
+  utilityWidth: number;
+}): number {
+  const navigationWidth = navCollapsed
+    ? APP_SIDEBAR_COMPACT_WIDTH
+    : clampPanelSize(sidebarWidth, APP_SIDEBAR_WIDTH);
+  return (
+    navigationWidth +
+    clampPanelSize(utilityWidth, UTILITY_DRAWER_WIDTH) +
+    MIN_DOCKED_WORKSPACE_WIDTH
+  );
+}
+
 export interface PanelWidthStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;

@@ -8,6 +8,10 @@ export async function handleConversationRoutes(
   url: URL,
 ): Promise<Response | null> {
   if (request.method === "POST" && url.pathname === "/chat") {
+    // Desktop exposes the hot API listener while optional plugins continue to
+    // hydrate. A turn still waits for the complete tool surface, so an
+    // immediately submitted message cannot observe a partial plugin catalog.
+    await context.ensureDeferredHydration("chat");
     return handleChatRoute(context, request);
   }
 
@@ -58,5 +62,8 @@ export async function handleConversationRoutes(
     }
   }
 
+  if (request.method === "POST" && url.pathname === "/v1/responses") {
+    await context.ensureDeferredHydration("responses-api");
+  }
   return handleResponsesRoute(context, request, url);
 }

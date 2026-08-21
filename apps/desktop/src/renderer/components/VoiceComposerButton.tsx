@@ -466,7 +466,7 @@ export function VoiceComposerButton({
         aria-controls={panelId}
         aria-expanded={open}
         aria-label="Open voice dictation"
-        className="grid size-8 rounded-[3px] border border-transparent bg-transparent p-0 text-[var(--text-soft)] shadow-none hover:border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] aria-expanded:border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] aria-expanded:bg-[var(--accent-soft)] aria-expanded:text-[var(--accent)] [&_svg]:size-4 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:stroke-[1.7] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round]"
+        className="voice-composer-trigger grid size-8 rounded-[5px] border border-transparent bg-transparent p-0 text-[var(--text-soft)] shadow-none hover:border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] aria-expanded:border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] aria-expanded:bg-[var(--accent-soft)] aria-expanded:text-[var(--accent)] max-[480px]:size-10 [&_svg]:size-4 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:stroke-[1.7] [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round]"
         disabled={disabled}
         onClick={() => {
           if (open) {

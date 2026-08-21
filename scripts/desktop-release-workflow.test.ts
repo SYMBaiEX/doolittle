@@ -60,6 +60,9 @@ describe("atomic desktop release workflow", () => {
     expect(source).toContain('      - "v*"');
     expect(source).toContain("uses: ./.github/workflows/desktop-macos.yml");
     expect(source).toContain("uses: ./.github/workflows/desktop-windows.yml");
+    expect(windowsCaller).toContain(
+      "windows_publisher_name: $" + "{{ vars.WIN_PUBLISHER_NAME }}",
+    );
     expect(source).toContain("uses: ./.github/workflows/desktop-linux.yml");
     expect(source).not.toContain("secrets: inherit");
     expect(mappingKeys(macCaller, 6)).toEqual([
@@ -108,21 +111,60 @@ describe("atomic desktop release workflow", () => {
         required: true
   workflow_dispatch:`);
     expect(windows).toContain(`workflow_call:
+    inputs:
+      windows_publisher_name:
+        description: Full Authenticode signer subject DN used by electron-updater
+        required: false
+        type: string
     secrets:
       WIN_CSC_LINK:
         required: false
       WIN_CSC_KEY_PASSWORD:
         required: false
   workflow_dispatch:`);
+    expect(windows).toContain(
+      "nub apps/desktop/scripts/verify-windows-update-manifest.ts",
+    );
+    expect(windows).toContain("--expected-publisher $env:WIN_PUBLISHER_NAME");
     expect(linux).toContain("workflow_call:\n  workflow_dispatch:");
     expect(linux).not.toContain("secrets:");
     expect(source.match(/needs: preflight/gu)).toHaveLength(3);
-    expect(source).toContain("nub audit --production --audit-level high");
+    expect(source).toContain("nub audit --production --audit-level critical");
+    expect(source).not.toContain("nub audit --production --audit-level high");
+    expect(source).toContain("nub run check:runtime-advisory-policy");
+    expect(mac).toContain("nub apps/desktop/scripts/verify-package.ts");
+    expect(linux).toContain("nub apps/desktop/scripts/verify-package.ts");
+    expect(windows).toContain("nub run desktop:package:win");
     expect(source).toContain(
       'git merge-base --is-ancestor "$GITHUB_SHA" origin/main',
     );
     expect(source).toContain("needs: [macos, windows, linux]");
     expect(source).toContain("nub scripts/create-desktop-release.ts");
+    expect(source).toContain("Attest validated installer and archive assets");
+    expect(source).toContain(
+      "actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1",
+    );
+    expect(source).toMatch(
+      /assemble:[\s\S]*?permissions:\n\s+contents: read\n\s+id-token: write\n\s+attestations: write/u,
+    );
+    const attestation = section(
+      source,
+      "      - name: Attest validated installer and archive assets",
+      "      - name: Upload validated release bundle",
+    );
+    expect(attestation).toContain("release/Doolittle-*-mac-arm64.dmg");
+    expect(attestation).toContain("release/Doolittle-*-mac-arm64.zip");
+    expect(attestation).toContain("release/Doolittle-*-win-x64.exe");
+    expect(attestation).toContain("release/Doolittle-*-linux-x64.AppImage");
+    expect(attestation).toContain("release/Doolittle-*-linux-x64.deb");
+    expect(
+      source.indexOf("nub scripts/create-desktop-release.ts"),
+    ).toBeLessThan(
+      source.indexOf("Attest validated installer and archive assets"),
+    );
+    expect(
+      source.indexOf("Attest validated installer and archive assets"),
+    ).toBeLessThan(source.indexOf("Upload validated release bundle"));
     expect(source).toContain("needs: assemble");
     expect(source.match(/softprops\/action-gh-release/gu)).toHaveLength(1);
     expect(source.match(/contents: write/gu)).toHaveLength(1);
@@ -176,9 +218,36 @@ describe("atomic desktop release workflow", () => {
     expect(mac).toContain("desktop-provenance-macos.json");
     expect(windows).toContain("desktop-provenance-windows.json");
     expect(linux).toContain("desktop-provenance-linux.json");
-    expect(mac).toContain("verify-package.ts --verify-signature");
+    expect(
+      mac.match(
+        /nub apps\/desktop\/scripts\/verify-package\.ts --verify-signature/gu,
+      ),
+    ).toHaveLength(4);
+    expect(mac).toContain(
+      'nub apps/desktop/scripts/verify-package.ts --verify-signature "$app_path"',
+    );
+    expect(mac).toContain(
+      'nub apps/desktop/scripts/verify-package.ts --verify-signature "$mount_path/Doolittle.app"',
+    );
+    expect(mac).toContain(
+      'nub apps/desktop/scripts/verify-package.ts --verify-signature "$installed_app"',
+    );
+    expect(mac).toContain(
+      'nub apps/desktop/scripts/verify-package.ts --verify-signature "$zip_path_root/Doolittle.app"',
+    );
     expect(mac.match(/cmp .*app\.asar/gu)).toHaveLength(3);
     expect(windows).toContain("Get-FileHash $installedAsar");
+    expect(windows).toContain("Get-AuthenticodeSignature $installedApp");
+    const windowsInstall = section(
+      windows,
+      "      - name: Install, launch, and uninstall the NSIS artifact",
+      "      - name: Upload Windows installer",
+    );
+    expect(
+      windowsInstall.indexOf(
+        "$installedSignature = Get-AuthenticodeSignature $installedApp",
+      ),
+    ).toBeLessThan(windowsInstall.indexOf("nub run test:e2e:desktop-packaged"));
     expect(linux.match(/cmp .*app\.asar/gu)).toHaveLength(2);
   });
 

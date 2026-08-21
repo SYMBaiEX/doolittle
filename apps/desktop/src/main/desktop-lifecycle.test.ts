@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
   configureDesktopSingleInstance,
@@ -9,6 +10,26 @@ import {
 } from "./desktop-lifecycle";
 
 describe("desktop background lifecycle", () => {
+  it("starts the runtime before constructing renderer chrome", () => {
+    const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+    const startup = source.indexOf("void backend.start();");
+    const windowCreation = source.indexOf("mainWindow = createWindow();");
+
+    expect(startup).toBeGreaterThan(-1);
+    expect(windowCreation).toBeGreaterThan(-1);
+    expect(startup).toBeLessThan(windowCreation);
+  });
+
+  it("lets Electron own macOS activation before constructing the window", () => {
+    const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+    const startup = source.indexOf("void backend.start();");
+    const windowCreation = source.indexOf("mainWindow = createWindow();");
+
+    expect(startup).toBeLessThan(windowCreation);
+    expect(source).not.toContain("setActivationPolicy");
+    expect(source).not.toContain("dock.show()");
+  });
+
   it("quits a second process before it starts a shared runtime", () => {
     const quit = vi.fn();
     const on = vi.fn();

@@ -8,6 +8,11 @@ import {
 
 export type ApiStartupContext = AppContext;
 
+// BackendManager polls health every 250ms. Reserve two poll windows so the
+// desktop can observe a live listener before optional plugin registration does
+// synchronous work; guarded turns still trigger hydration immediately.
+export const DESKTOP_DEFERRED_HYDRATION_DELAY_MS = 500;
+
 export interface EntrypointCommandPlan {
   startupMode: "api" | "cli";
   eagerDeferredHydration: boolean;
@@ -88,6 +93,7 @@ interface ApiStartupControllerOptions {
   ) => ApiServerAddress | undefined | Promise<ApiServerAddress | undefined>;
   writeStderrLine: (message: string) => void;
   formatTopLevelError: (error: unknown) => string;
+  hydrateAfterListening?: boolean;
 }
 
 export function createApiStartupController(
@@ -104,12 +110,15 @@ export function createApiStartupController(
     startApiServer,
     writeStderrLine,
     formatTopLevelError,
+    hydrateAfterListening = false,
   } = options;
 
   let backgroundServerStarted = false;
   const startServer = async () => {
     try {
-      await context.ensureDeferredHydration("api");
+      if (!hydrateAfterListening) {
+        await context.ensureDeferredHydration("api");
+      }
       context.gateway.startIngress();
       let serverAddress: ApiServerAddress | undefined;
       if (!startApiServer) {
@@ -128,6 +137,22 @@ export function createApiStartupController(
       });
       if (!shouldStartCli || command === "api" || command === "gateway") {
         console.log(`${context.config.agentName} API listening on ${url}`);
+      }
+      if (hydrateAfterListening) {
+        // Give the desktop's first health request an actual I/O turn before
+        // optional plugin registration begins. Some Eliza plugin starts do
+        // synchronous work before yielding even though their API is async.
+        // Turns still join this same hydration promise at their route guard.
+        const hydrationTimer = setTimeout(() => {
+          void context.ensureDeferredHydration("desktop-api").catch((error) => {
+            runtimeLogger.captureError(
+              "background-deferred-hydration-failed",
+              error,
+              { command },
+            );
+          });
+        }, DESKTOP_DEFERRED_HYDRATION_DELAY_MS);
+        hydrationTimer.unref();
       }
     } catch (error) {
       const code =

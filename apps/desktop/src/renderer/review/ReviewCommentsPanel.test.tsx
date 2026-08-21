@@ -171,4 +171,30 @@ describe("ReviewCommentsPanel", () => {
     act(() => finalConfirm.click());
     expect(onDelete).toHaveBeenCalledWith("note-1");
   });
+
+  it("keeps long destructive confirmations reachable on a mobile viewport", () => {
+    const note = {
+      id: "note-long",
+      path: `src/${"nested/".repeat(24)}example.ts`,
+      body: "Long review feedback. ".repeat(80),
+      status: "open" as const,
+      createdAt: "2026-08-12T00:00:00.000Z",
+      updatedAt: "2026-08-12T00:00:00.000Z",
+    };
+    act(() =>
+      root.render(<ReviewCommentsPanel {...props({ comments: [note] })} />),
+    );
+
+    const deleteButton = container.querySelector(
+      `button[aria-label="Delete review note for ${note.path}"]`,
+    ) as HTMLButtonElement;
+    act(() => deleteButton.click());
+
+    const dialog = container.querySelector('[role="alertdialog"]');
+    const backdrop = dialog?.parentElement;
+    expect(backdrop?.className).toContain("overflow-y-auto");
+    expect(dialog?.className).toContain("max-h-[calc(100svh-32px)]");
+    expect(dialog?.className).toContain("max-[480px]:[&>div]:flex-col-reverse");
+    expect(dialog?.className).toContain("max-[480px]:[&_button]:w-full");
+  });
 });

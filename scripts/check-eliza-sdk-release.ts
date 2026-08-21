@@ -34,7 +34,11 @@ function readPackageJson(path: string): PackageJson {
 }
 
 function isOfficialElizaPackage(name: string): boolean {
-  return name === "elizaos" || name.startsWith("@elizaos/");
+  // npm/nub parent-scoped override keys use `parent>dependency` syntax and
+  // are policy entries, not Eliza package manifests with an SDK version.
+  return (
+    !name.includes(">") && (name === "elizaos" || name.startsWith("@elizaos/"))
+  );
 }
 
 function packageJsonPaths(directory: string): string[] {

@@ -46,7 +46,7 @@ describe("useDesktopAcpEditorBridge recovery", () => {
     function Probe() {
       bridge = useDesktopAcpEditorBridge({
         active: true,
-        workspacePath: "/workspace",
+        workspacePath: "/workspace-initial",
       });
       useEffect(() => undefined, []);
       return null;
@@ -92,7 +92,7 @@ describe("useDesktopAcpEditorBridge recovery", () => {
     function Probe() {
       bridge = useDesktopAcpEditorBridge({
         active: true,
-        workspacePath: "/workspace",
+        workspacePath: "/workspace-cancel",
       });
       return null;
     }
@@ -125,6 +125,69 @@ describe("useDesktopAcpEditorBridge recovery", () => {
     await act(async () => {
       await promptPromise;
     });
+    host.remove();
+  });
+
+  it("degrades and offers reconnection when a prompt loses its runtime session", async () => {
+    let sessionAttempts = 0;
+    let promptAttempts = 0;
+    mocks.desktopRequest.mockImplementation(async (path: string) => {
+      if (path === "/acp/initialize") {
+        return { initialized: { agentCapabilities: {} } };
+      }
+      if (path === "/acp/session/new") {
+        sessionAttempts += 1;
+        return {
+          session: {
+            sessionId: sessionAttempts === 1 ? "acp:stale" : "acp:reconnected",
+          },
+        };
+      }
+      if (path === "/acp/session/prompt") {
+        promptAttempts += 1;
+        throw new Error("ACP session not found: acp:stale");
+      }
+      return {};
+    });
+
+    let bridge: ReturnType<typeof useDesktopAcpEditorBridge> | undefined;
+    function Probe() {
+      bridge = useDesktopAcpEditorBridge({
+        active: true,
+        workspacePath: "/workspace-stale-prompt",
+      });
+      return null;
+    }
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    await act(async () => {
+      root?.render(createElement(Probe));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await bridge?.prompt("Inspect the selected file");
+    });
+
+    expect(bridge?.phase).toBe("degraded");
+    expect(bridge?.sessionId).toBe("");
+    expect(bridge?.promptPhase).toBe("idle");
+    expect(bridge?.error).toBe(
+      "The runtime restarted. Reconnect the ACP editor session.",
+    );
+    expect(bridge?.promptError).toBe("ACP session not found: acp:stale");
+    expect(promptAttempts).toBe(1);
+
+    await act(async () => {
+      await bridge?.retryConnection();
+    });
+
+    expect(bridge?.phase).toBe("connected");
+    expect(bridge?.sessionId).toBe("acp:reconnected");
+    expect(promptAttempts).toBe(1);
     host.remove();
   });
 });

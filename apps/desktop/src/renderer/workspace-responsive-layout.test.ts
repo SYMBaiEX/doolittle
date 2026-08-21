@@ -11,19 +11,19 @@ const browserLayout = readFileSync(
 );
 
 describe("workspace responsive layout contracts", () => {
-  it("uses compact, content-led coding panes below the mobile shell breakpoint", () => {
+  it("stacks coding panes before shell chrome can squeeze the editor", () => {
     expect(codingWorkspaceLayout).not.toContain("min-h-[1080px]");
     expect(codingWorkspaceLayout).not.toContain("min-h-[300px]");
-    expect(codingWorkspaceLayout).toContain("max-[940px]:grid-cols-1");
+    expect(codingWorkspaceLayout).toContain("max-[1320px]:grid-cols-1");
     expect(codingWorkspaceLayout).toContain(
-      "max-[940px]:grid-rows-[auto_minmax(15rem,1fr)_auto]",
+      "max-[1320px]:grid-rows-[auto_minmax(15rem,1fr)_auto]",
     );
-    expect(codingWorkspaceLayout).toContain("max-[940px]:overflow-visible");
+    expect(codingWorkspaceLayout).toContain("max-[1320px]:overflow-visible");
     expect(codingWorkspaceLayout).toContain(
-      "max-[940px]:min-h-[clamp(8rem,20svh,11rem)]",
+      "max-[1320px]:min-h-[clamp(8rem,20svh,11rem)]",
     );
     expect(codingWorkspaceLayout).toContain(
-      "max-[940px]:min-h-[clamp(15rem,38svh,22rem)]",
+      "max-[1320px]:min-h-[clamp(15rem,38svh,22rem)]",
     );
   });
 

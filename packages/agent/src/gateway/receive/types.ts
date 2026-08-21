@@ -19,6 +19,7 @@ export interface GatewayRuntimeContext {
   config: AppContext["config"];
   runtime: AppContext["runtime"];
   services: AppContext["services"];
+  ensureDeferredHydration?: (reason?: string) => Promise<void>;
 }
 
 export interface GatewayReceiveOptions {

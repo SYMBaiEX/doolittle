@@ -1,3 +1,4 @@
+import { FileStack, GitCompareArrows, Search } from "lucide-react";
 import type { FormEvent } from "react";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
 import { WorkspaceFileTree } from "../components/WorkspaceFileTree";
@@ -84,9 +85,14 @@ export function CodingWorkspaceExplorer({
       <PaneTabs<LeftPane>
         label="Explorer views"
         options={[
-          { id: "files", label: "Files" },
-          { id: "changes", label: "Changes", count: changes.length },
-          { id: "search", label: "Search" },
+          { id: "files", label: "Files", icon: FileStack },
+          {
+            id: "changes",
+            label: "Changes",
+            count: changes.length,
+            icon: GitCompareArrows,
+          },
+          { id: "search", label: "Search", icon: Search },
         ]}
         panelId={EXPLORER_PANEL_ID}
         value={leftPane}

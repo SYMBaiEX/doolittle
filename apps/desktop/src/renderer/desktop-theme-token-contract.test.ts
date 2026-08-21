@@ -168,8 +168,10 @@ describe("desktop theme token contract", () => {
     );
     expect(editorSource).toContain("doolittleEditorTheme");
     expect(editorSource).toContain("bg-[var(--canvas-bg)]");
+    expect(editorSource).toContain("APPEARANCE_APPLIED_EVENT");
     expect(terminalSource).toContain("interactiveTerminalTheme");
     expect(terminalSource).toContain("THEME_CHANGE_EVENT");
+    expect(terminalSource).toContain("APPEARANCE_APPLIED_EVENT");
     expect(terminalSurfaceSource).toContain(
       "[&_.xterm-viewport]:!bg-[var(--canvas-bg)]",
     );

@@ -104,9 +104,9 @@ describe("dashboard helpers", () => {
         name: "doolittle",
         version: "2.0.3-beta.7",
         node: "24.18.0",
-        nub: "0.7.4",
+        nub: "0.7.5",
       }),
-    ).toBe("doolittle 2.0.3-beta.7 · Node 24.18.0 · Nub 0.7.4");
+    ).toBe("doolittle 2.0.3-beta.7 · Node 24.18.0 · Nub 0.7.5");
     expect(
       summarizeDashboardValue([
         { id: "ollama", ready: true },

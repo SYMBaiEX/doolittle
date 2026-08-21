@@ -20,6 +20,7 @@ import {
 import { orchestrationClass } from "./orchestration/layout";
 import {
   PROJECT_EDITOR_CLASS,
+  PROJECT_MANAGER_CLASS,
   PROJECT_MANAGER_DETAIL_CLASS,
   PROJECT_MANAGER_HEADER_CLASS,
 } from "./project-manager/layout";
@@ -49,6 +50,8 @@ describe("desktop typography and spacing rhythm", () => {
     expect(PROJECT_EDITOR_CLASS).toContain("gap-3");
     expect(PROJECT_EDITOR_CLASS).toContain("p-4");
     expect(ROUTE_DIALOG_CLASS).toContain("p-[clamp(14px,2vw,24px)]");
+    expect(PROJECT_MANAGER_CLASS).toContain("100svh");
+    expect(PROJECT_MANAGER_CLASS).not.toContain("100vh");
   });
 
   it("keeps repeated controls and empty states dense without microtype", () => {

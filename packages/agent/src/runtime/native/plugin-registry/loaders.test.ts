@@ -230,7 +230,6 @@ describe("loadHotExecutionPlugins", () => {
       "@doolittle/plugin-coding-agent",
       "@elizaos/plugin-agent-orchestrator",
       "@elizaos/plugin-agent-skills",
-      "mcp",
       "@doolittle/plugin-planning",
     ]);
     const operatorPlanning = plugins.find(
@@ -255,12 +254,13 @@ describe("loadDeferredPluginGroups", () => {
       "@doolittle/plugin-autocoder",
     ]);
     expect(pluginNames(groups.execution)).toEqual([
+      "mcp",
       "@doolittle/plugin-local-sandbox",
       "form",
       "@doolittle/plugin-forms",
       "github",
     ]);
-    expect(groups.execution[1]?.actions?.map((action) => action.name)).toEqual([
+    expect(groups.execution[2]?.actions?.map((action) => action.name)).toEqual([
       "FORM",
     ]);
   });

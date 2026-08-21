@@ -66,7 +66,7 @@ describe("workflow action security", () => {
       "  - name: Current",
       "    uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d",
       "    with:",
-      "      nub-version: 0.7.4",
+      "      nub-version: 0.7.5",
       "  - name: Stale",
       "    uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d",
       "    with:",
@@ -79,19 +79,19 @@ describe("workflow action security", () => {
       findMismatchedWorkflowNubVersions(
         source,
         ".github/workflows/example.yml",
-        "0.7.4",
+        "0.7.5",
       ),
     ).toEqual([
       {
         file: ".github/workflows/example.yml",
         line: 9,
-        expected: "0.7.4",
+        expected: "0.7.5",
         actual: "0.6.0",
       },
       {
         file: ".github/workflows/example.yml",
         line: 11,
-        expected: "0.7.4",
+        expected: "0.7.5",
         actual: "<missing>",
       },
     ]);

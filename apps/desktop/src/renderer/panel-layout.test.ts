@@ -6,6 +6,7 @@ import {
   clampPanelWidth,
   loadPanelSize,
   loadPanelWidth,
+  minimumDockedUtilityViewportWidth,
   savePanelSize,
   savePanelWidth,
   UTILITY_DRAWER_WIDTH,
@@ -28,6 +29,23 @@ describe("panel layout persistence", () => {
       UTILITY_DRAWER_WIDTH.default,
     );
     expect(CHAT_TERMINAL_HEIGHT.default).toBe(280);
+  });
+
+  it("docks the utility only when the active workspace keeps a usable width", () => {
+    expect(
+      minimumDockedUtilityViewportWidth({
+        navCollapsed: false,
+        sidebarWidth: APP_SIDEBAR_WIDTH.default,
+        utilityWidth: UTILITY_DRAWER_WIDTH.default,
+      }),
+    ).toBe(1_584);
+    expect(
+      minimumDockedUtilityViewportWidth({
+        navCollapsed: true,
+        sidebarWidth: APP_SIDEBAR_WIDTH.default,
+        utilityWidth: UTILITY_DRAWER_WIDTH.default,
+      }),
+    ).toBe(1_388);
   });
 
   it("clamps invalid and out-of-range widths", () => {

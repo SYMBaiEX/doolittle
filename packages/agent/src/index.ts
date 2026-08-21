@@ -76,6 +76,12 @@ async function main(): Promise<number> {
     installRuntimeProcessLifecycle({
       runtime: context.runtime as AgentRuntime,
       label: `${context.config.agentName} ${command}`,
+      captureFatal: (error, origin) => {
+        entryLogger.captureError("runtime-process-fatal", error, {
+          command,
+          origin,
+        });
+      },
     });
   }
 

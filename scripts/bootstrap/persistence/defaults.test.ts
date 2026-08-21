@@ -18,6 +18,7 @@ describe("bootstrap persistence defaults", () => {
     expect(settings.model.provider).toBe("devin");
     expect(settings.model.model).toBe("swe-1-6-fast");
     expect(settings.agent.maxIterations).toBeGreaterThan(0);
+    expect(settings.execution.dockerNetwork).toBe("none");
     expect(gateway.allowAllUsers).toBe(true);
     expect(gateway.platforms.api.enabled).toBe(true);
     expect(gateway.platforms.telegram.pairingMode).toBe("pair");
@@ -67,6 +68,7 @@ describe("bootstrap persistence defaults", () => {
 
       expect(settings.model.model).toBe("gpt-5.4-mini");
       expect(settings.execution.backend).toBe("ssh");
+      expect(settings.execution.dockerNetwork).toBe("none");
       expect(settings.ui.theme).toBe(DEFAULT_TUI_THEME);
       expect(gateway.allowAllUsers).toBe(false);
       expect(gateway.platforms.api.enabled).toBe(true);

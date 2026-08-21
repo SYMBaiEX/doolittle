@@ -20,6 +20,11 @@ describe("mobile conversations loading boundary", () => {
     expect(source).toContain('aria-modal="true"');
     expect(source).toContain('role="dialog"');
     expect(source).toContain("dialogRef={mobileConversationsDialogRef}");
+    expect(source).toContain(
+      "isolationBoundaryRef: mobileConversationsBackdropRef",
+    );
+    expect(source).toContain("isolateBackground: true");
+    expect(source).toContain("backdropRef={mobileConversationsBackdropRef}");
     expect(source).toContain("Loading conversations…");
     expect(source).toContain("data-mobile-conversation");
     expect(source).toContain("MOBILE_CONVERSATIONS_DISMISS_CLASS");

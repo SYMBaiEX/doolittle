@@ -1,5 +1,11 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { normalizePersonalityProfiles } from "./ProfilesPage";
+
+const profilesPageSource = readFileSync(
+  new URL("./ProfilesPage.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("personality profile presentation", () => {
   it("separates the active identity from switchable alternatives", () => {
@@ -49,5 +55,17 @@ describe("personality profile presentation", () => {
         },
       ],
     });
+  });
+
+  it("keeps long active descriptions visible at desktop and small layouts", () => {
+    const activeDescription = profilesPageSource.match(
+      /<p className="([^"]*)">\s*\{presentation\.active\.description\}/u,
+    );
+
+    expect(activeDescription?.[1]).toContain("break-words");
+    expect(activeDescription?.[1]).not.toContain("truncate");
+    expect(activeDescription?.[1]).not.toContain("overflow-hidden");
+    expect(activeDescription?.[1]).not.toContain("line-clamp");
+    expect(activeDescription?.[1]).not.toContain("max-h-");
   });
 });

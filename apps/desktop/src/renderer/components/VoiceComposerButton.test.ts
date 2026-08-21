@@ -24,6 +24,8 @@ describe("VoiceComposerButton", () => {
 
     expect(markup).toContain('aria-label="Open voice dictation"');
     expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain("voice-composer-trigger");
+    expect(markup).toContain("max-[480px]:size-10");
     expect(markup).toContain("disabled");
     expect(markup).not.toContain("Voice dictation controls");
   });

@@ -59,6 +59,9 @@ const desktopManifest = JSON.parse(
       maintainer?: string;
       syncDesktopName?: boolean;
     };
+    mac?: {
+      binaries?: string[];
+    };
   };
 };
 
@@ -148,6 +151,13 @@ describe("all-platform desktop release plan", () => {
       "--publish",
       "never",
     ]);
+    expect(
+      nativeBuildArgs(["--win", "nsis", "--x64"], "/private/release-staging", {
+        WIN_PUBLISHER_NAME: "CN=SYMBaiEX, O=SYMBaiEX",
+      }),
+    ).toContain(
+      "--config.win.signtoolOptions.publisherName=CN=SYMBaiEX, O=SYMBaiEX",
+    );
   });
 
   it("resolves a single native package target from its builder arguments", () => {
@@ -242,6 +252,11 @@ describe("all-platform desktop release plan", () => {
     expect(missingNativeTargetPackages(required, required)).toEqual([]);
     expect(missingNativeTargetPackages(required, required.slice(1))).toEqual([
       "@lydell/node-pty-darwin-arm64",
+    ]);
+    expect(desktopManifest.build?.mac?.binaries).toEqual([
+      "Contents/Resources/runtime/bin/node_modules/@lydell/node-pty-darwin-arm64/pty.node",
+      "Contents/Resources/runtime/bin/node_modules/@lydell/node-pty-darwin-arm64/spawn-helper",
+      "Contents/Resources/runtime/bin/node_modules/@snazzah/davey-darwin-arm64/davey.darwin-arm64.node",
     ]);
   });
 

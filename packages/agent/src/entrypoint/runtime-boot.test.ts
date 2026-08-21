@@ -1,12 +1,16 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { prepareEntrypointRuntimeBoot } from "./runtime-boot";
-import { resolveEntrypointCommandPlan } from "./runtime-control";
+import {
+  DESKTOP_DEFERRED_HYDRATION_DELAY_MS,
+  resolveEntrypointCommandPlan,
+} from "./runtime-control";
 
 const originalMode = process.env.DOOLITTLE_MODE;
 const originalDesktopRuntime = process.env.DOOLITTLE_DESKTOP_RUNTIME;
 
 afterEach(() => {
+  vi.useRealTimers();
   if (originalMode === undefined) {
     delete process.env.DOOLITTLE_MODE;
   } else {
@@ -27,6 +31,8 @@ describe("prepareEntrypointRuntimeBoot", () => {
       config: { mode: "cli", host: "127.0.0.1", port: 3131 },
       services: {
         logger: {
+          info() {},
+          captureError() {},
           child() {
             return this;
           },
@@ -164,23 +170,35 @@ describe("prepareEntrypointRuntimeBoot", () => {
   });
 
   it("lets the desktop-owned API boot before terminal onboarding", async () => {
+    vi.useFakeTimers();
     process.env.DOOLITTLE_DESKTOP_RUNTIME = "1";
     const ensureOnboardedCalls: string[] = [];
+    const appContextOptions: Array<{
+      startupMode?: "api" | "cli" | "worker";
+      eagerDeferredHydration?: boolean;
+    }> = [];
+    const startupOrder: string[] = [];
     const context = {
       config: { mode: "api", host: "127.0.0.1", port: 0 },
       services: {
         logger: {
+          info() {},
+          captureError() {},
           child() {
             return this;
           },
         },
       },
-      ensureDeferredHydration: async () => {},
+      ensureDeferredHydration: async () => {
+        startupOrder.push("hydration");
+      },
       runtime: {} as never,
-      gateway: {} as never,
+      gateway: {
+        startIngress: () => startupOrder.push("ingress"),
+      } as never,
     } as unknown as AppContext;
 
-    await prepareEntrypointRuntimeBoot(
+    const boot = await prepareEntrypointRuntimeBoot(
       {
         command: "api",
         commandPlan: {
@@ -202,18 +220,32 @@ describe("prepareEntrypointRuntimeBoot", () => {
         },
         loadLocalRuntimeEnv: () => {},
         importBootstrap: async () => ({
-          getAppContext: async () => context,
+          getAppContext: async (options) => {
+            appContextOptions.push(options ?? {});
+            return context;
+          },
         }),
         importServer: async () => ({
-          startApiServer: async () => ({
-            host: "127.0.0.1",
-            port: 0,
-            url: "http://127.0.0.1:0",
-          }),
+          startApiServer: async () => {
+            startupOrder.push("listener");
+            return {
+              host: "127.0.0.1",
+              port: 0,
+              url: "http://127.0.0.1:0",
+            };
+          },
         }),
       },
     );
 
     expect(ensureOnboardedCalls).toEqual([]);
+    expect(appContextOptions).toEqual([
+      { startupMode: "api", eagerDeferredHydration: false },
+    ]);
+
+    await boot.startServer();
+    expect(startupOrder).toEqual(["ingress", "listener"]);
+    await vi.advanceTimersByTimeAsync(DESKTOP_DEFERRED_HYDRATION_DELAY_MS);
+    expect(startupOrder).toEqual(["ingress", "listener", "hydration"]);
   });
 });

@@ -17,7 +17,7 @@ it("builds ACP metadata, registry, editor, and bundle payloads", () => {
     name: "doolittle",
     version: "1.2.3",
     description: "Example",
-    packageManager: "nub@0.7.4",
+    packageManager: "nub@0.7.5",
     workspaceCount: 4,
     pluginPackageCount: 2,
     rootPath: "/repo",

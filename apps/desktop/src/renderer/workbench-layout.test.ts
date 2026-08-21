@@ -3,9 +3,13 @@ import { describe, expect, it } from "vitest";
 import { CHAT_WORKSPACE_CLASS } from "./chat/layout";
 import {
   WORKBENCH_CHANGES_BODY_CLASS,
+  WORKBENCH_COMMAND_BUTTON_CLASS,
+  WORKBENCH_CONTEXT_COPY_CLASS,
   WORKBENCH_FILES_BODY_CLASS,
+  WORKBENCH_LIST_BUTTON_CLASS,
   WORKBENCH_PANE_STACK_CLASS,
   WORKBENCH_PANEL_CLASS,
+  WORKBENCH_PREVIEW_CLASS,
   WORKBENCH_RAIL_CLASS,
   WORKBENCH_RESIZER_CLASS,
   WORKBENCH_SCROLL_BODY_CLASS,
@@ -13,6 +17,7 @@ import {
   WORKBENCH_TAB_CLASS,
   WORKBENCH_TABS_CLASS,
   WORKBENCH_TERMINAL_BODY_CLASS,
+  WORKBENCH_TREE_CLASS,
 } from "./thread-workbench/layout";
 
 const chatPage = readFileSync(
@@ -40,6 +45,9 @@ describe("thread workbench viewport layout contract", () => {
     expect(chatPage).toContain("inert={inspectorVisible && isNarrowWorkbench}");
     expect(chatPage).toContain(
       "const workbenchDialogRef = useModalFocusBoundary({",
+    );
+    expect(chatPage).toMatch(
+      /const workbenchDialogRef = useModalFocusBoundary\(\{[\s\S]*?isolateBackground: true,/,
     );
     expect(chatPage).toContain("restoreFocus: !inspectorVisible");
     expect(chatPage).toContain(
@@ -125,9 +133,28 @@ describe("thread workbench viewport layout contract", () => {
     expect(WORKBENCH_TABS_CLASS).toContain("grid-cols-7");
     expect(WORKBENCH_TABS_CLASS).toContain("min-w-0");
     expect(WORKBENCH_TABS_CLASS).toContain("overflow-hidden");
-    expect(WORKBENCH_TAB_CLASS).toContain("max-[720px]:[&>small]:hidden");
+    expect(WORKBENCH_TAB_CLASS).toContain("place-items-center");
     expect(WORKBENCH_RAIL_CLASS).toContain(
       "max-[1180px]:min-w-[min(var(--thread-workbench-width),44vw)]",
     );
+  });
+
+  it("keeps workbench surfaces theme-responsive and keyboard-visible", () => {
+    for (const surface of [WORKBENCH_TREE_CLASS, WORKBENCH_PREVIEW_CLASS]) {
+      expect(surface).not.toContain("black_");
+      expect(surface).not.toContain("white_");
+      expect(surface).toContain("var(--");
+    }
+    expect(WORKBENCH_CONTEXT_COPY_CLASS).not.toContain(
+      "max-[960px]:[&_strong]:text-[10px]",
+    );
+    for (const control of [
+      WORKBENCH_LIST_BUTTON_CLASS,
+      WORKBENCH_COMMAND_BUTTON_CLASS,
+    ]) {
+      expect(control).toContain("focus-visible:outline-[var(--accent-border)]");
+      expect(control).toContain("text-[length:var(--text-meta)]");
+      expect(control).not.toContain("focus-visible:outline-none");
+    }
   });
 });

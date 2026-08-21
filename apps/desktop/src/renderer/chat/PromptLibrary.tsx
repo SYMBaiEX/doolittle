@@ -6,7 +6,7 @@ import {
 } from "@elizaos/ui/components/ui/dialog";
 import { Input as ElizaInput } from "@elizaos/ui/components/ui/input";
 import { ScrollArea } from "@elizaos/ui/components/ui/scroll-area";
-import { Search, Settings2, X } from "lucide-react";
+import { BookOpen, Search, Settings2, X } from "lucide-react";
 import {
   type Dispatch,
   Fragment,
@@ -77,22 +77,46 @@ export function PromptLibrary({
   }, [activeProject]);
 
   useEffect(() => {
+    const refresh = () => {
+      const storage = browserStorage();
+      if (!storage) return;
+      const next = loadPromptLibrary(storage);
+      setEntries((current) =>
+        JSON.stringify(current) === JSON.stringify(next) ? current : next,
+      );
+    };
     const refreshFromStorage = (event: StorageEvent) => {
       if (event.key !== null && event.key !== PROMPT_LIBRARY_STORAGE_KEY)
         return;
-      const storage = browserStorage();
-      if (storage) setEntries(loadPromptLibrary(storage));
+      refresh();
     };
     window.addEventListener("storage", refreshFromStorage);
-    return () => window.removeEventListener("storage", refreshFromStorage);
+    window.addEventListener(PROMPT_LIBRARY_CHANGE_EVENT, refresh);
+    return () => {
+      window.removeEventListener("storage", refreshFromStorage);
+      window.removeEventListener(PROMPT_LIBRARY_CHANGE_EVENT, refresh);
+    };
   }, []);
 
   useEffect(() => {
     if (!open) return;
+    const restoreTriggerIfFocusWasLost = (panel: HTMLElement | null) => {
+      requestAnimationFrame(() => {
+        const activeElement = document.activeElement;
+        if (
+          activeElement === document.body ||
+          (activeElement && panel?.contains(activeElement))
+        ) {
+          triggerRef.current?.focus();
+        }
+      });
+    };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
+      const panel = panelRef.current;
       setOpen(false);
+      restoreTriggerIfFocusWasLost(panel);
       requestAnimationFrame(() => triggerRef.current?.focus());
     };
     const closeOutside = (event: PointerEvent) => {
@@ -104,7 +128,9 @@ export function PromptLibrary({
       ) {
         return;
       }
+      const panel = panelRef.current;
       setOpen(false);
+      restoreTriggerIfFocusWasLost(panel);
     };
     document.addEventListener("keydown", closeOnEscape);
     document.addEventListener("pointerdown", closeOutside);
@@ -227,12 +253,16 @@ export function PromptLibrary({
       <button
         aria-controls="chat-prompt-library"
         aria-expanded={open}
-        className="secondary-button !min-h-[30px] rounded-[7px] px-[8px] py-[5px] text-[10px] font-semibold"
+        className="secondary-button !min-h-[30px] rounded-[7px] px-[8px] py-[5px] text-[10px] font-semibold max-[480px]:!min-h-10 max-[480px]:px-2.5"
         onClick={() => setOpen((current) => !current)}
         ref={triggerRef}
         type="button"
       >
-        Prompts{visibleEntries.length > 0 ? ` · ${visibleEntries.length}` : ""}
+        <UiIcon icon={BookOpen} size="sm" />
+        <span className="chat-composer-control-label">
+          Prompts
+          {visibleEntries.length > 0 ? ` · ${visibleEntries.length}` : ""}
+        </span>
       </button>
       {open ? (
         <section
@@ -269,7 +299,10 @@ export function PromptLibrary({
               <ElizaButton
                 aria-label="Close prompt library"
                 className="!size-7 !min-h-7 !min-w-7 !rounded-[var(--radius-xs)] !p-0"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false);
+                  requestAnimationFrame(() => triggerRef.current?.focus());
+                }}
                 size="icon-sm"
                 type="button"
                 variant="ghost"
@@ -393,7 +426,7 @@ export function PromptLibrary({
       <Dialog open={manageOpen} onOpenChange={setManageOpen}>
         <DialogContent
           aria-describedby="prompt-library-manager-description"
-          className="!grid !max-h-[min(720px,calc(100vh-40px))] !w-[min(720px,calc(100vw-32px))] !max-w-none !grid-rows-[auto_auto_minmax(0,1fr)] !gap-3 !overflow-hidden !rounded-[var(--radius-lg)] !border-[var(--border-strong)] !bg-[var(--surface-raised)] !p-4 !shadow-[var(--shell-shadow-lg)]"
+          className="!grid !max-h-[min(720px,calc(100svh-40px))] !w-[min(720px,calc(100vw-32px))] !max-w-none !grid-rows-[auto_auto_minmax(0,1fr)] !gap-3 !overflow-hidden !rounded-[var(--radius-lg)] !border-[var(--border-strong)] !bg-[var(--surface-raised)] !p-4 !shadow-[var(--shell-shadow-lg)]"
           showCloseButton={false}
           onOpenAutoFocus={(event) => {
             event.preventDefault();

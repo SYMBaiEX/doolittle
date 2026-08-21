@@ -1,9 +1,15 @@
-import { runShell } from "@elizaos/agent/services/shell-execution-router";
+import { runProviderCommand } from "@doolittle/provider-transport";
 import { describe, expect, it, vi } from "vitest";
 import { invokeClaudeCodeCliPrint } from "./cli";
 
-vi.mock("@elizaos/agent/services/shell-execution-router", () => ({
-  runShell: vi.fn(async () => ({ exitCode: 0, stdout: "done", stderr: "" })),
+vi.mock("@doolittle/provider-transport", () => ({
+  runProviderCommand: vi.fn(async () => ({
+    exitCode: 0,
+    stdout: "done",
+    stderr: "",
+    durationMs: 1,
+    termination: "exit",
+  })),
 }));
 
 describe("invokeClaudeCodeCliPrint", () => {
@@ -16,12 +22,12 @@ describe("invokeClaudeCodeCliPrint", () => {
       }),
     ).resolves.toBe("done");
 
-    expect(runShell).toHaveBeenCalledWith(
+    expect(runProviderCommand).toHaveBeenCalledWith(
       expect.objectContaining({
         args: expect.arrayContaining(["--effort", "high"]),
       }),
     );
-    expect(runShell).toHaveBeenCalledWith(
+    expect(runProviderCommand).toHaveBeenCalledWith(
       expect.objectContaining({
         args: expect.arrayContaining(["--tools", ""]),
       }),
@@ -29,12 +35,12 @@ describe("invokeClaudeCodeCliPrint", () => {
   });
 
   it("does not mix successful CLI diagnostics into the model response", async () => {
-    vi.mocked(runShell).mockResolvedValueOnce({
+    vi.mocked(runProviderCommand).mockResolvedValueOnce({
       exitCode: 0,
       stdout: "CLAUDE_OK\n",
       stderr: "SessionEnd hook emitted a diagnostic\n",
       durationMs: 10,
-      sandbox: "host",
+      termination: "exit",
     });
 
     await expect(
@@ -46,7 +52,7 @@ describe("invokeClaudeCodeCliPrint", () => {
   });
 
   it("uses Claude native structured output and returns only the schema value", async () => {
-    vi.mocked(runShell).mockResolvedValueOnce({
+    vi.mocked(runProviderCommand).mockResolvedValueOnce({
       exitCode: 0,
       stdout: JSON.stringify({
         type: "result",
@@ -57,7 +63,7 @@ describe("invokeClaudeCodeCliPrint", () => {
       }),
       stderr: "",
       durationMs: 10,
-      sandbox: "host",
+      termination: "exit",
     });
 
     await expect(
@@ -73,7 +79,7 @@ describe("invokeClaudeCodeCliPrint", () => {
       }),
     ).resolves.toBe('{"replyText":"CLAUDE_OK"}');
 
-    expect(runShell).toHaveBeenCalledWith(
+    expect(runProviderCommand).toHaveBeenCalledWith(
       expect.objectContaining({
         args: expect.arrayContaining([
           "--output-format",

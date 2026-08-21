@@ -1,5 +1,5 @@
 import type { RepositoryMutationRequest } from "@doolittle/contracts/repository";
-import { X } from "lucide-react";
+import { FileText, GitCompareArrows, X } from "lucide-react";
 import { type FormEvent, lazy, Suspense } from "react";
 import type { CodeLanguage } from "../code-language";
 import type { CodeEditorStateSnapshot } from "../components/CodeEditor";
@@ -137,8 +137,8 @@ export function CodingWorkspaceEditor({
         <PaneTabs<EditorPane>
           label="Editor views"
           options={[
-            { id: "file", label: "File" },
-            { id: "diff", label: "Diff" },
+            { id: "file", label: "File", icon: FileText },
+            { id: "diff", label: "Diff", icon: GitCompareArrows },
           ]}
           panelId={EDITOR_PANEL_ID}
           value={editorPane}

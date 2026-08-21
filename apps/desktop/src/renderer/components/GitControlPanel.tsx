@@ -232,17 +232,33 @@ export function GitControlPanel({
   return (
     <section
       aria-label="Git controls"
-      className="flex min-h-0 flex-col gap-2 text-[var(--text)]"
+      className={`git-control-panel flex min-h-0 flex-col text-[var(--text)] ${
+        variant === "compact" ? "gap-1.5 p-1.5" : "gap-2"
+      }`}
       data-density={variant}
     >
-      <header className="flex items-center justify-between gap-2.5 max-[700px]:flex-col max-[700px]:items-start">
+      <header
+        className={`flex items-center justify-between gap-2 ${
+          variant === "compact"
+            ? "min-h-7"
+            : "max-[700px]:flex-col max-[700px]:items-start"
+        }`}
+      >
         <div className="flex min-w-0 flex-col items-start gap-0.5">
-          <span className="eyebrow">Source control</span>
-          <strong className="max-w-55 truncate font-mono text-xs max-[700px]:max-w-full">
+          {variant === "full" ? (
+            <span className="eyebrow">Source control</span>
+          ) : null}
+          <strong
+            className={`${
+              variant === "compact"
+                ? "max-w-31 text-[10px]"
+                : "max-w-55 text-xs"
+            } truncate font-mono max-[700px]:max-w-full`}
+          >
             {currentBranch?.name || "Git workspace"}
           </strong>
         </div>
-        <div className="flex flex-wrap gap-1.25 max-[700px]:w-full [&>button]:max-[700px]:flex-1">
+        <div className="flex flex-wrap gap-1 max-[700px]:w-full [&>button]:max-[700px]:flex-1">
           <GitButton
             disabled={busy || !active}
             onClick={() => void run({ type: "fetch" })}
@@ -282,29 +298,31 @@ export function GitControlPanel({
         </p>
       ) : null}
 
-      <div className="flex min-h-0 flex-col gap-2 overflow-auto pr-0.5">
-        <section className={GIT_SECTION_CLASS} data-git-selection-actions="">
-          <header className={GIT_SECTION_HEADER_CLASS}>
-            <strong>Selected changes</strong>
-            <span>{selected.length}</span>
-          </header>
-          <div className="flex flex-wrap items-center gap-1.25">
-            <GitButton
-              disabled={busy || !selected.length}
-              onClick={() => void run({ type: "stage", paths: selected })}
-              type="button"
-            >
-              Stage
-            </GitButton>
-            <GitButton
-              disabled={busy || !selected.length}
-              onClick={() => void run({ type: "unstage", paths: selected })}
-              type="button"
-            >
-              Unstage
-            </GitButton>
-          </div>
-        </section>
+      <div className="git-control-scroll flex min-h-0 flex-col gap-1.5 overflow-auto pr-0.5">
+        {selected.length ? (
+          <section className={GIT_SECTION_CLASS} data-git-selection-actions="">
+            <header className={GIT_SECTION_HEADER_CLASS}>
+              <strong>Selected changes</strong>
+              <span>{selected.length}</span>
+            </header>
+            <div className="flex flex-wrap items-center gap-1.25">
+              <GitButton
+                disabled={busy}
+                onClick={() => void run({ type: "stage", paths: selected })}
+                type="button"
+              >
+                Stage
+              </GitButton>
+              <GitButton
+                disabled={busy}
+                onClick={() => void run({ type: "unstage", paths: selected })}
+                type="button"
+              >
+                Unstage
+              </GitButton>
+            </div>
+          </section>
+        ) : null}
         <ChangeSection
           busy={busy}
           changes={grouped.staged}
@@ -342,6 +360,7 @@ export function GitControlPanel({
             ) : null}
           </header>
           <GitTextarea
+            className={variant === "compact" ? "min-h-10 resize-none" : ""}
             disabled={busy}
             onChange={(event) => setCommitMessage(event.target.value)}
             placeholder="Describe the change"

@@ -22,7 +22,10 @@ describe("wide route viewport density", () => {
     );
     expect(CHAT_WORKSPACE_CLASS).toContain("w-[min(100%,700px)]");
     expect(CHAT_WORKSPACE_CLASS).toContain("w-[min(100%,880px)]");
-    expect(CHAT_WORKSPACE_CLASS).toContain("w-[min(calc(100%_-_28px),820px)]");
+    expect(CHAT_WORKSPACE_CLASS).toContain("w-[min(calc(100%_-_24px),820px)]");
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-composer]:w-[calc(100%_-_8px)]",
+    );
   });
 
   it("lets dashboard own the full route width while preserving focused inner observability content", () => {

@@ -32,4 +32,15 @@ describe("keys workspace layout", () => {
     );
     expect(keysPage).toContain("max-[800px]:grid-cols-1");
   });
+
+  it("intrinsically stacks a populated inventory before its editor is crushed", () => {
+    expect(keysPage).toContain(
+      "grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))]",
+    );
+    expect(keysPage).toContain("max-h-[min(36svh,360px)]");
+    expect(keysPage).not.toContain(
+      "grid-cols-[minmax(240px,0.36fr)_minmax(0,1fr)]",
+    );
+    expect(keysPage).not.toContain("min-h-[610px]");
+  });
 });

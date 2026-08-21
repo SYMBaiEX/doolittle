@@ -215,6 +215,91 @@ export function reconcileOrphanedPendingMessages(
   });
 }
 
+function sameAttachmentSet(
+  left: DisplayMessage["attachments"],
+  right: DisplayMessage["attachments"],
+): boolean {
+  const leftIds = (left ?? []).map((attachment) => attachment.id).sort();
+  const rightIds = (right ?? []).map((attachment) => attachment.id).sort();
+  return (
+    leftIds.length === rightIds.length &&
+    leftIds.every((id, index) => id === rightIds[index])
+  );
+}
+
+function sameCapsule(
+  left: DisplayMessage["contextCapsule"],
+  right: DisplayMessage["contextCapsule"],
+): boolean {
+  if (!left && !right) return true;
+  return (
+    left?.kind === right?.kind &&
+    left?.path === right?.path &&
+    left?.source === right?.source
+  );
+}
+
+function messageDistance(left: DisplayMessage, right: DisplayMessage): number {
+  const leftTime = Date.parse(left.createdAt);
+  const rightTime = Date.parse(right.createdAt);
+  if (!Number.isFinite(leftTime) || !Number.isFinite(rightTime)) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return Math.abs(leftTime - rightTime);
+}
+
+/**
+ * Replace optimistic desktop rows with the server-authoritative transcript.
+ * IDs differ by design, so reconcile one-to-one by payload and timestamp. The
+ * one-to-one match preserves intentionally repeated prompts while preventing a
+ * completed turn from rendering twice when history refreshes.
+ */
+export function mergeConversationHistory(
+  localMessages: readonly DisplayMessage[],
+  history: readonly DisplayMessage[],
+  activeRequestIds: ReadonlySet<string>,
+): DisplayMessage[] {
+  const historyIds = new Set(history.map((message) => message.id));
+  const availableHistory = new Set(history.map((_, index) => index));
+  const localOnly = localMessages.filter(
+    (message) => !historyIds.has(message.id),
+  );
+  const unmatchedLocal = localOnly.filter((local) => {
+    if (local.pending || !local.content) return true;
+    const maximumDistance =
+      local.role === "assistant" && local.id.startsWith("assistant:")
+        ? 24 * 60 * 60 * 1_000
+        : 2 * 60 * 1_000;
+    const match = [...availableHistory]
+      .map((index) => ({ index, message: history[index] }))
+      .filter(
+        ({ message }) =>
+          message.role === local.role &&
+          message.content === local.content &&
+          sameAttachmentSet(message.attachments, local.attachments) &&
+          sameCapsule(message.contextCapsule, local.contextCapsule),
+      )
+      .map(({ index, message }) => ({
+        index,
+        distance: messageDistance(message, local),
+      }))
+      .filter(({ distance }) => distance <= maximumDistance)
+      .sort((left, right) => left.distance - right.distance)[0];
+    if (!match) return true;
+    availableHistory.delete(match.index);
+    return false;
+  });
+
+  return [
+    ...history,
+    ...reconcileOrphanedPendingMessages(
+      unmatchedLocal,
+      history,
+      activeRequestIds,
+    ),
+  ].sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+}
+
 export function projectChatSessions({
   messages,
   pinnedSessions,
@@ -576,10 +661,6 @@ export function useChatConversationState({
           });
         setMessages((current) => {
           const currentMessages = current[selectedId] ?? [];
-          const historyIds = new Set(history.map((message) => message.id));
-          const localOnly = currentMessages.filter(
-            (message) => !historyIds.has(message.id),
-          );
           const activeRequestIds = new Set(
             Object.entries(requestSession.current)
               .filter(([, sessionId]) => sessionId === selectedId)
@@ -587,15 +668,10 @@ export function useChatConversationState({
           );
           return {
             ...current,
-            [selectedId]: [
-              ...history,
-              ...reconcileOrphanedPendingMessages(
-                localOnly,
-                history,
-                activeRequestIds,
-              ),
-            ].sort((left, right) =>
-              left.createdAt.localeCompare(right.createdAt),
+            [selectedId]: mergeConversationHistory(
+              currentMessages,
+              history,
+              activeRequestIds,
             ),
           };
         });

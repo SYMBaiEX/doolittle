@@ -54,6 +54,10 @@ import {
   WINDOW_DRAGBAR_PRIMARY_CLASS,
   WINDOW_TOOLS_CLASS,
 } from "./app-shell/shell-layout";
+import {
+  applyShellOverlayState,
+  utilityReturnFocusTarget,
+} from "./app-shell/shell-overlay-state";
 import { DesktopRouteErrorBoundary } from "./components/DesktopRouteErrorBoundary";
 import { useToasts } from "./components/ToastRegion";
 import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
@@ -72,6 +76,7 @@ import {
   viewFromHash,
 } from "./desktop-navigation";
 import {
+  announceAppearanceApplied,
   applyDesktopAppearance,
   applyDesktopDensity,
   applyDesktopTheme,
@@ -94,6 +99,7 @@ import {
   CHAT_TERMINAL_HEIGHT_KEY,
   loadPanelSize,
   loadPanelWidth,
+  minimumDockedUtilityViewportWidth,
   savePanelSize,
   savePanelWidth,
   UTILITY_DRAWER_WIDTH,
@@ -423,17 +429,32 @@ export function App() {
   const chatTerminalReturnFocusRef = useRef<HTMLElement | null>(null);
   const isMobileSidebarMode = useMediaQuery(MOBILE_SIDEBAR_QUERY);
   const mobileSidebarOpen = sidebarOpen && isMobileSidebarMode;
+  const minimumUtilityDockWidth = minimumDockedUtilityViewportWidth({
+    navCollapsed,
+    sidebarWidth,
+    utilityWidth: utilityDrawerWidth,
+  });
+  const hasUtilityDockSpace = useMediaQuery(
+    `(min-width: ${minimumUtilityDockWidth}px)`,
+  );
+  const utilityModalMode = isMobileSidebarMode || !hasUtilityDockSpace;
+  const utilityDocked = utilityOpen && !utilityModalMode;
 
-  const setMobileSidebarOpen = useCallback((open: boolean) => {
-    setSidebarOpen(open);
-    if (!open) {
-      const restoreTarget = sidebarReturnFocusRef.current;
-      if (restoreTarget?.isConnected) {
-        requestAnimationFrame(() => restoreTarget.focus());
+  const setMobileSidebarOpen = useCallback(
+    (open: boolean, restoreFocus = true) => {
+      setSidebarOpen(open);
+      if (!open) {
+        const restoreTarget = sidebarReturnFocusRef.current;
+        if (restoreTarget?.isConnected) {
+          if (restoreFocus) {
+            requestAnimationFrame(() => restoreTarget.focus());
+          }
+        }
+        sidebarReturnFocusRef.current = null;
       }
-      sidebarReturnFocusRef.current = null;
-    }
-  }, []);
+    },
+    [],
+  );
 
   const openProjectManager = useCallback(() => {
     setMobileSidebarOpen(false);
@@ -461,13 +482,17 @@ export function App() {
   }, []);
 
   const openUtilities = useCallback(() => {
-    utilityReturnFocusRef.current =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-    setMobileSidebarOpen(false);
+    utilityReturnFocusRef.current = utilityReturnFocusTarget({
+      activeElement:
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null,
+      mobileSidebarOpen,
+      sidebarReturnTarget: sidebarReturnFocusRef.current,
+    });
+    setMobileSidebarOpen(false, !mobileSidebarOpen);
     setUtilityOpen(true);
-  }, [setMobileSidebarOpen]);
+  }, [mobileSidebarOpen, setMobileSidebarOpen]);
 
   const toggleUtilities = useCallback(() => {
     if (utilityOpen) closeUtilities();
@@ -536,7 +561,7 @@ export function App() {
       );
       setViewState(next);
       setMobileSidebarOpen(false);
-      if (isMobileSidebarMode) closeUtilities();
+      if (utilityModalMode) closeUtilities();
       const section = navigation.find((entry) =>
         entry.items.some((item) => item.id === next),
       );
@@ -552,11 +577,17 @@ export function App() {
       backend.phase,
       closeUtilities,
       confirmViewChange,
-      isMobileSidebarMode,
+      utilityModalMode,
       workspace.currentPath,
       setMobileSidebarOpen,
     ],
   );
+
+  // Keep one hashchange listener for the lifetime of the shell. Re-registering
+  // it on every view render leaves a narrow gap where rapid browser history or
+  // compact-layout navigation can update the hash without updating the view.
+  const hashNavigationRef = useRef({ applyViewTransition, view });
+  hashNavigationRef.current = { applyViewTransition, view };
 
   const setView = useCallback(
     (next: View, options?: { readonly skipDirtyCheck?: boolean }) => {
@@ -612,7 +643,7 @@ export function App() {
         closeUtilities();
         return;
       }
-      if (!isMobileSidebarMode || event.key !== "Tab") return;
+      if (!utilityModalMode || event.key !== "Tab") return;
 
       const focusable = collectSidebarFocusables(utilityRef.current);
       const first = focusable.at(0);
@@ -629,7 +660,7 @@ export function App() {
         first.focus();
       }
     },
-    [closeUtilities, isMobileSidebarMode, utilityOpen],
+    [closeUtilities, utilityModalMode, utilityOpen],
   );
 
   const createConversation = useCallback(() => {
@@ -796,6 +827,7 @@ export function App() {
 
   useEffect(() => {
     applyDesktopAppearance(appearance, systemPrefersDark);
+    announceAppearanceApplied(resolveAppearance(appearance, systemPrefersDark));
   }, [appearance, systemPrefersDark]);
 
   useEffect(() => {
@@ -886,49 +918,36 @@ export function App() {
   }, [openSections]);
 
   useEffect(() => {
-    if (!utilityOpen || !isMobileSidebarMode) return;
+    if (!utilityOpen || !utilityModalMode) return;
     requestAnimationFrame(() => {
       const [first] = collectSidebarFocusables(utilityRef.current);
       (first || utilityRef.current)?.focus();
     });
-  }, [isMobileSidebarMode, utilityOpen]);
-
-  useEffect(() => {
-    const sidebar = sidebarRef.current;
-    const appMain = appMainRef.current;
-    if (!sidebar || !appMain || !isMobileSidebarMode || !utilityOpen) {
-      return;
-    }
-    sidebar.setAttribute("inert", "");
-    appMain.setAttribute("inert", "");
-    appMain.setAttribute("aria-hidden", "true");
-    return () => {
-      if (mobileSidebarOpen) return;
-      sidebar.removeAttribute("inert");
-      appMain.removeAttribute("inert");
-      appMain.removeAttribute("aria-hidden");
-    };
-  }, [isMobileSidebarMode, mobileSidebarOpen, utilityOpen]);
+  }, [utilityModalMode, utilityOpen]);
 
   useEffect(() => {
     const sidebar = sidebarRef.current;
     const appMain = appMainRef.current;
     if (!sidebar || !appMain) return;
-    if (!isMobileSidebarMode) {
-      sidebar.removeAttribute("inert");
-      appMain.removeAttribute("inert");
-      appMain.removeAttribute("aria-hidden");
-      return;
-    }
+
+    applyShellOverlayState(
+      { appMain, sidebar },
+      {
+        isMobileSidebarMode,
+        mobileSidebarOpen,
+        utilityModalOpen: utilityOpen && utilityModalMode,
+      },
+    );
+
+    if (utilityOpen && utilityModalMode) return;
 
     if (mobileSidebarOpen) {
-      sidebarReturnFocusRef.current =
-        document.activeElement instanceof HTMLElement
-          ? document.activeElement
-          : null;
-      sidebar.removeAttribute("inert");
-      appMain.setAttribute("inert", "");
-      appMain.setAttribute("aria-hidden", "true");
+      if (!sidebarReturnFocusRef.current) {
+        sidebarReturnFocusRef.current =
+          document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+      }
       if (sidebarReady) {
         requestAnimationFrame(() => {
           const [first] = collectSidebarFocusables(sidebar);
@@ -938,28 +957,35 @@ export function App() {
       return;
     }
 
-    sidebar.setAttribute("inert", "");
-    appMain.removeAttribute("inert");
-    appMain.removeAttribute("aria-hidden");
     const returnTarget = sidebarReturnFocusRef.current;
     if (returnTarget?.isConnected) {
       requestAnimationFrame(() => returnTarget.focus());
     }
     sidebarReturnFocusRef.current = null;
-  }, [isMobileSidebarMode, mobileSidebarOpen, sidebarReady]);
+  }, [
+    isMobileSidebarMode,
+    mobileSidebarOpen,
+    sidebarReady,
+    utilityModalMode,
+    utilityOpen,
+  ]);
 
   useEffect(() => {
     const onHashChange = () => {
       const next = viewFromHash();
-      if (!applyViewTransition(next) && window.location.hash !== `#/${view}`) {
-        window.location.hash = `/${view}`;
+      const current = hashNavigationRef.current;
+      if (
+        !current.applyViewTransition(next) &&
+        window.location.hash !== `#/${current.view}`
+      ) {
+        window.location.hash = `/${current.view}`;
       }
     };
     window.addEventListener("hashchange", onHashChange);
     if (!window.location.hash) window.location.hash = "/chat";
     else onHashChange();
     return () => window.removeEventListener("hashchange", onHashChange);
-  }, [applyViewTransition, view]);
+  }, []);
 
   useEffect(() => {
     const onChatTerminalKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -1237,7 +1263,9 @@ export function App() {
 
   return (
     <main
-      className={`${DESKTOP_SHELL_CLASS}${navCollapsed ? " nav-collapsed" : ""}`}
+      className={`${DESKTOP_SHELL_CLASS} platform-${window.doolittle.platform}${
+        navCollapsed ? " nav-collapsed" : ""
+      }`}
       style={
         {
           "--sidebar-width": `${sidebarWidth}px`,
@@ -1245,7 +1273,7 @@ export function App() {
           gridTemplateColumns: isMobileSidebarMode
             ? "minmax(0, 1fr)"
             : `${navCollapsed ? "var(--sidebar-compact-width)" : "var(--sidebar-width)"} minmax(0, 1fr) ${
-                utilityOpen
+                utilityDocked
                   ? "minmax(292px, min(var(--utility-drawer-width), 44vw))"
                   : "0"
               }`,
@@ -1527,7 +1555,7 @@ export function App() {
             openSections={openSections}
             utilityDrawerWidth={utilityDrawerWidth}
             utilityRef={utilityRef}
-            mobileModal={isMobileSidebarMode}
+            mobileModal={utilityModalMode}
           />
         </Suspense>
       ) : null}

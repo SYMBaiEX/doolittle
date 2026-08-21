@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type BackendState,
+  DESKTOP_ACP_PROMPT_REQUEST_TIMEOUT_MS,
   DESKTOP_MEDIA_REQUEST_TIMEOUT_MS,
   DESKTOP_REGISTRY_INSTALL_TIMEOUT_MS,
   DESKTOP_REQUEST_TIMEOUT_MS,
@@ -34,7 +35,7 @@ describe("apiResponseLimit", () => {
 });
 
 describe("desktop request timeout policy", () => {
-  it("keeps ordinary calls short and reserves bounded time for media work", () => {
+  it("keeps ordinary calls short and reserves bounded time for agent and media work", () => {
     expect(desktopRequestTimeoutMs("/settings")).toBe(
       DESKTOP_REQUEST_TIMEOUT_MS,
     );
@@ -44,6 +45,12 @@ describe("desktop request timeout policy", () => {
     expect(desktopRequestTimeoutMs("/media/transcribe")).toBe(
       DESKTOP_MEDIA_REQUEST_TIMEOUT_MS,
     );
+    expect(desktopRequestTimeoutMs("/acp/session/prompt")).toBe(
+      DESKTOP_ACP_PROMPT_REQUEST_TIMEOUT_MS,
+    );
+    expect(
+      desktopRequestTimeoutMs("/acp/session/prompt?sessionId=acp%3A1"),
+    ).toBe(DESKTOP_ACP_PROMPT_REQUEST_TIMEOUT_MS);
     expect(desktopRequestTimeoutMs("/runtime/registry/install")).toBe(
       DESKTOP_REGISTRY_INSTALL_TIMEOUT_MS,
     );

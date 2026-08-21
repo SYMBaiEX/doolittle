@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   type ConfigurableUpdateProvider,
+  configuredUpdater,
   configureUpdateProvider,
   DesktopUpdateController,
   type UpdateProvider,
@@ -102,5 +103,14 @@ describe("desktop updates", () => {
       provider: "generic",
       url: "https://updates.example.test/doolittle",
     });
+  });
+
+  it("does not initialize the unsigned-metadata Linux updater", () => {
+    const resolveProvider = vi.fn(
+      () => provider().value as ConfigurableUpdateProvider,
+    );
+
+    expect(configuredUpdater("linux", resolveProvider)).toBeNull();
+    expect(resolveProvider).not.toHaveBeenCalled();
   });
 });

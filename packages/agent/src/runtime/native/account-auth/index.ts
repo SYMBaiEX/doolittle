@@ -1,3 +1,4 @@
+import { buildUnavailableProviderStatus } from "./account-auth-helpers";
 import {
   getClaudeCodeAccountStatus,
   getLinkedClaudeCodeCredentials,
@@ -156,15 +157,35 @@ export async function resolveLinkedProviderCredentials(
 
 export function getLinkedProviderAccountsSnapshot(
   homePath?: string,
+  providers?: readonly LinkedProviderName[],
 ): LinkedProviderAccountsSnapshot {
+  const selected = providers ? new Set(providers) : undefined;
+  const shouldProbe = (provider: LinkedProviderName) =>
+    selected === undefined || selected.has(provider);
+  const unprobed = (provider: LinkedProviderName) =>
+    buildUnavailableProviderStatus({
+      provider,
+      loginCommand: getLinkedProviderLoginCommand(provider),
+      setupCommand: getLinkedProviderSetupCommand(provider),
+      detail: "Provider account not probed during startup.",
+    });
+
   return {
-    codex: getCodexAccountStatus(homePath),
-    claudeCode: getClaudeCodeAccountStatus(homePath),
-    devin: getDevinAccountStatus(homePath),
-    elizaCloud: getElizaCloudAccountStatusImpl(
-      homePath,
-      getElizaCloudAuthDependencies(),
-    ),
+    codex: shouldProbe("codex")
+      ? getCodexAccountStatus(homePath)
+      : unprobed("codex"),
+    claudeCode: shouldProbe("claude-code")
+      ? getClaudeCodeAccountStatus(homePath)
+      : unprobed("claude-code"),
+    devin: shouldProbe("devin")
+      ? getDevinAccountStatus(homePath)
+      : unprobed("devin"),
+    elizaCloud: shouldProbe("elizacloud")
+      ? getElizaCloudAccountStatusImpl(
+          homePath,
+          getElizaCloudAuthDependencies(),
+        )
+      : unprobed("elizacloud"),
   };
 }
 

@@ -17,6 +17,7 @@
     "build:main": "vite build --config vite.main.config.ts && vite build --config vite.preload.config.ts",
     "build:renderer": "vite build --config vite.renderer.config.ts && nub scripts/renderer-bundle-budget.ts",
     "runtime:prepare": "nub scripts/prepare-runtime.ts",
+    "runtime:audit": "nub scripts/verify-package.ts --runtime-manifest build/runtime/runtime-manifest.json",
     "package": "nub run build && nub run runtime:prepare && nub scripts/package.ts",
     "package:dir": "nub run build && nub run runtime:prepare && nub scripts/package.ts --dir",
     "package:mac": "nub run build && nub run runtime:prepare && nub scripts/package.ts --mac dmg zip",
@@ -31,7 +32,7 @@
   },
   "devDependencies": {
     "@doolittle/contracts": "workspace:*",
-    "@electron/asar": "4.2.1",
+    "@electron/asar": "4.3.0",
     "@elizaos/agent": "2.0.3-beta.7",
     "@elizaos/logger": "2.0.3-beta.7",
     "@elizaos/shared": "2.0.3-beta.7",
@@ -40,13 +41,13 @@
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.0.5",
+    "@vitejs/plugin-react": "^6.1.0",
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",
-    "electron": "43.3.0",
+    "electron": "43.4.1",
     "electron-builder": "^26.15.7",
     "esbuild": "0.28.2",
-    "lucide-react": "1.30.0",
+    "lucide-react": "1.33.0",
     "monaco-editor": "0.56.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -54,8 +55,9 @@
     "tailwindcss": "4.3.3",
     "typescript": "^7.0.2",
     "typescript-legacy": "npm:@typescript/typescript6@^6.0.2",
-    "vite": "^8.2.1",
-    "vitest": "4.1.10"
+    "vite": "^8.2.2",
+    "vitest": "4.1.11",
+    "yaml": "2.9.0"
   },
   "trustedDependencies": [
     "electron"
@@ -143,6 +145,11 @@
       }
     ],
     "mac": {
+      "binaries": [
+        "Contents/Resources/runtime/bin/node_modules/@lydell/node-pty-darwin-arm64/pty.node",
+        "Contents/Resources/runtime/bin/node_modules/@lydell/node-pty-darwin-arm64/spawn-helper",
+        "Contents/Resources/runtime/bin/node_modules/@snazzah/davey-darwin-arm64/davey.darwin-arm64.node"
+      ],
       "category": "public.app-category.productivity",
       "entitlements": "entitlements.mac.plist",
       "entitlementsInherit": "entitlements.mac.inherit.plist",

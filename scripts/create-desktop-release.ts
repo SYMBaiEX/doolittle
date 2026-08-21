@@ -12,6 +12,7 @@ import { basename, resolve } from "node:path";
 import {
   type NativePackageReceipt,
   nativeReceiptName,
+  type PackageProvenanceArtifact,
 } from "../apps/desktop/scripts/package-provenance";
 
 const SHA256_SUMS = "SHA256SUMS.txt";
@@ -53,6 +54,15 @@ export interface CreateDesktopReleaseOptions {
 
 const RECEIPT_PLATFORMS = ["linux", "macos", "windows"] as const;
 
+type UnverifiedNativePackageReceipt = {
+  schemaVersion?: number;
+  platform?: NativePackageReceipt["platform"];
+  commit?: string;
+  appAsar?: Partial<NativePackageReceipt["appAsar"]>;
+  runtime?: Partial<NativePackageReceipt["runtime"]>;
+  artifacts?: PackageProvenanceArtifact[];
+};
+
 function receiptArtifactPlatforms(
   platform: NativePackageReceipt["platform"],
 ): DesktopReleaseArtifact["platform"] {
@@ -63,6 +73,14 @@ function isSha256(value: unknown): value is string {
   return typeof value === "string" && /^[0-9a-f]{64}$/u.test(value);
 }
 
+function isNonnegativeSafeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+function isPositiveSafeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+}
+
 async function verifyNativePackageReceipts(
   directory: string,
   expected: ExpectedArtifact[],
@@ -70,29 +88,35 @@ async function verifyNativePackageReceipts(
 ): Promise<void> {
   for (const platform of RECEIPT_PLATFORMS) {
     const receiptPath = resolve(directory, nativeReceiptName(platform));
-    let receipt: NativePackageReceipt;
+    let unverifiedReceipt: UnverifiedNativePackageReceipt;
     try {
-      receipt = JSON.parse(
+      unverifiedReceipt = JSON.parse(
         readFileSync(receiptPath, "utf8"),
-      ) as NativePackageReceipt;
+      ) as UnverifiedNativePackageReceipt;
     } catch {
       throw new Error(
         `Missing or invalid native provenance receipt: ${nativeReceiptName(platform)}.`,
       );
     }
     if (
-      receipt.schemaVersion !== 1 ||
-      receipt.platform !== platform ||
-      receipt.commit !== commit ||
-      !isSha256(receipt.appAsar?.sha256) ||
-      !receipt.appAsar.path ||
-      !Number.isSafeInteger(receipt.appAsar.bytes) ||
-      receipt.appAsar.bytes < 0
+      unverifiedReceipt.schemaVersion !== 2 ||
+      unverifiedReceipt.platform !== platform ||
+      unverifiedReceipt.commit !== commit ||
+      !isSha256(unverifiedReceipt.appAsar?.sha256) ||
+      !unverifiedReceipt.appAsar.path ||
+      !isNonnegativeSafeInteger(unverifiedReceipt.appAsar.bytes) ||
+      !unverifiedReceipt.runtime ||
+      !unverifiedReceipt.runtime.path ||
+      !isSha256(unverifiedReceipt.runtime.sha256) ||
+      !isPositiveSafeInteger(unverifiedReceipt.runtime.entries) ||
+      !isNonnegativeSafeInteger(unverifiedReceipt.runtime.bytes) ||
+      !Array.isArray(unverifiedReceipt.artifacts)
     ) {
       throw new Error(
         `Invalid native provenance receipt: ${nativeReceiptName(platform)}.`,
       );
     }
+    const receipt = unverifiedReceipt as NativePackageReceipt;
     const expectedPaths = expected
       .filter(
         (artifact) => artifact.platform === receiptArtifactPlatforms(platform),

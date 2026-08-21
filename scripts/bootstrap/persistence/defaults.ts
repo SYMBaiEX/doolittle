@@ -57,7 +57,7 @@ export function createDefaultSettings(
       remoteArtifactPolicy: "metadata-only",
       remoteWorkspaceLabel: "doolittle-workspace",
       dockerImage: "ghcr.io/nubjs/nub:latest",
-      dockerNetwork: "host",
+      dockerNetwork: "none",
       dockerWorkspacePath: "/workspace",
       dockerEnvPassthrough: [
         "PATH",

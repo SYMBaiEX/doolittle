@@ -2,11 +2,19 @@ export type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 export const DESKTOP_REQUEST_TIMEOUT_MS = 15_000;
 export const DESKTOP_MEDIA_REQUEST_TIMEOUT_MS = 180_000;
+// ACP prompts execute a full agent turn (including tools and model latency),
+// while the editor independently polls structured progress updates. They need
+// the same bounded window as other long-running local work rather than the
+// short request budget used for ordinary desktop API calls.
+export const DESKTOP_ACP_PROMPT_REQUEST_TIMEOUT_MS = 180_000;
 export const DESKTOP_REGISTRY_INSTALL_TIMEOUT_MS = 120_000;
 
 /** Returns the bounded desktop budget for an API operation. */
 export function desktopRequestTimeoutMs(path: string): number {
   const pathname = path.split("?", 1)[0];
+  if (pathname === "/acp/session/prompt") {
+    return DESKTOP_ACP_PROMPT_REQUEST_TIMEOUT_MS;
+  }
   if (pathname === "/runtime/registry/install") {
     return DESKTOP_REGISTRY_INSTALL_TIMEOUT_MS;
   }

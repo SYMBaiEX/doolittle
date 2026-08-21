@@ -1,0 +1,116 @@
+name: Publish public provider packages
+
+# Operator prerequisite: configure the npm trusted publisher for each package
+# below to this exact workflow filename, repository, and the npm-publish
+# environment, with npm publish allowed. Protect both the provider-v* tag
+# namespace and the npm-publish GitHub environment before enabling releases.
+# - @doolittle/provider-transport
+# - @doolittle/plugin-claude-code
+# - @doolittle/plugin-devin
+on:
+  push:
+    tags:
+      - "provider-v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing protected provider-v<semver> tag to publish
+        required: true
+        type: string
+      dist_tag:
+        description: npm dist-tag for this release
+        required: true
+        default: latest
+        type: choice
+        options:
+          - latest
+          - next
+          - beta
+          - alpha
+          - rc
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provider-npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # npm trusted publishing only accepts OIDC from GitHub-hosted runners.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Validate selected protected release tag
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        shell: bash
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^provider-v[0-9]+(\.[0-9]+){2}(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "release_tag must be provider-v<semver>." >&2
+            exit 1
+          fi
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+
+      - name: Check out tagged release source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
+      - name: Require the tagged commit to be on main
+        run: git merge-base --is-ancestor HEAD origin/main
+
+      - name: Set up Nub and Node
+        uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
+        with:
+          nub-version: 0.7.5
+          node-version-file: .node-version
+          cache-dependency-path: nub.lock
+
+      - name: Install locked dependencies
+        run: nub install --frozen-lockfile --ignore-scripts
+
+      - name: Require the tag to match every provider package version
+        run: |
+          version="${RELEASE_TAG#provider-v}"
+          node --input-type=module --eval '
+            import { readFileSync } from "node:fs";
+            const version = process.argv[1];
+            const paths = [
+              "packages/plugins/provider-transport/package.json",
+              "packages/plugins/plugin-claude-code/package.json",
+              "packages/plugins/plugin-devin/package.json",
+            ];
+            for (const path of paths) {
+              const manifest = JSON.parse(readFileSync(path, "utf8"));
+              if (manifest.version !== version) {
+                throw new Error(`${path} has ${manifest.version}; expected ${version}.`);
+              }
+            }
+          ' "$version"
+
+      - name: Typecheck
+        run: nub run typecheck
+
+      - name: Test
+        run: nub run test
+
+      - name: Build
+        run: nub run build
+
+      - name: Verify ElizaOS SDK alignment
+        run: nub run check:eliza-sdk
+
+      - name: Build, audit at high severity, and publish provider packages with npm OIDC provenance
+        env:
+          DIST_TAG: ${{ inputs.dist_tag || 'latest' }}
+        run: |
+          dist_tag="$DIST_TAG"
+          nub run publish:providers -- --provider all --publish --tag "$dist_tag"

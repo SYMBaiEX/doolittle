@@ -12,12 +12,16 @@
 Please report security issues **privately** — do not open a public issue for an
 unpatched vulnerability.
 
-- Use GitHub's [private vulnerability reporting](https://github.com/SYMBaiEX/doolittle/security/advisories/new)
-  ("Report a vulnerability" under the **Security** tab), or
-- Open a minimal private channel with the maintainers.
+- Email the repository owner at [solsymbaiex@gmail.com](mailto:solsymbaiex@gmail.com).
+  Include a description, affected version/commit, reproduction steps, and
+  impact. Do not include secrets or other sensitive data beyond what is needed
+  to reproduce the issue.
+- If GitHub's [private vulnerability reporting](https://github.com/SYMBaiEX/doolittle/security/advisories/new)
+  is enabled for this repository, you may use the **Report a vulnerability**
+  form under the **Security** tab.
 
-Include a description, affected version/commit, reproduction steps, and impact.
-We aim to acknowledge reports promptly and coordinate a fix and disclosure.
+Reports will be handled confidentially as practical. Do not rely on the GitHub
+form being available; use the email address above if it is not.
 
 ## Security model
 

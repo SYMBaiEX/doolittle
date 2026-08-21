@@ -55,6 +55,18 @@ function configureMonaco(
   defaults.setEagerModelSync(true);
 }
 
+export function setMonacoProjectDiagnosticsPending(
+  language: MonacoProjectLanguage,
+  pending: boolean,
+): void {
+  defaultsFor(language).setDiagnosticsOptions({
+    noSemanticValidation: pending,
+    noSuggestionDiagnostics: pending,
+    noSyntaxValidation: false,
+    onlyVisible: false,
+  });
+}
+
 function supportKey(language: MonacoProjectLanguage, path: string): string {
   return `${language}:${path}`;
 }

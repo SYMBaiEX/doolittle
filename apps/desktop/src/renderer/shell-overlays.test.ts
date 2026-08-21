@@ -10,6 +10,7 @@ import {
   ROUTE_DIALOG_BACKDROP_CLASS,
   ROUTE_DIALOG_CLASS,
   ROUTE_PROVIDER_CARD_CLASS,
+  ROUTE_PROVIDER_GRID_CLASS,
 } from "./app-shell/overlay-layout";
 import {
   APP_SIDEBAR_CLASS,
@@ -36,6 +37,8 @@ describe("desktop shell overlay Tailwind ownership", () => {
     expect(APP_SIDEBAR_CLASS).not.toContain("fixed");
     expect(APP_SIDEBAR_DESKTOP_CLASS).toBe("relative");
     expect(APP_SIDEBAR_MOBILE_CLASS).toContain("fixed");
+    expect(APP_SIDEBAR_MOBILE_CLASS).toContain("motion-reduce:transition-none");
+    expect(APP_SIDEBAR_MOBILE_CLASS).toContain("motion-reduce:duration-0");
   });
 
   it("keeps the command palette out of the initial renderer entry", () => {
@@ -76,9 +79,12 @@ describe("desktop shell overlay Tailwind ownership", () => {
   it("owns palette and route dialog layout without a stylesheet", () => {
     expect(mainSource).not.toContain('import "./shell-overlays.css"');
     expect(COMMAND_PALETTE_CLASS).toContain("w-[min(620px,calc(100vw-32px))]");
+    expect(COMMAND_PALETTE_CLASS).toContain("100svh");
     expect(COMMAND_PALETTE_ITEM_CLASS).toContain("aria-selected:");
     expect(ROUTE_DIALOG_BACKDROP_CLASS).toContain("max-[760px]:items-end");
     expect(ROUTE_DIALOG_CLASS).toContain("max-[760px]:max-h-");
+    expect(ROUTE_DIALOG_CLASS).toContain("100svh");
+    expect(ROUTE_PROVIDER_GRID_CLASS).toContain("max-[480px]:grid-cols-1");
     expect(ROUTE_PROVIDER_CARD_CLASS).toContain("hover:-translate-y-px");
   });
 

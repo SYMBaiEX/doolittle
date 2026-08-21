@@ -5,7 +5,12 @@ import {
   WINDOW_DRAGBAR_CHAT_CLASS,
   WINDOW_DRAGBAR_PRIMARY_CLASS,
 } from "./app-shell/shell-layout";
-import { CHAT_HEADER_CONTENT_CLASS } from "./chat/layout";
+import { CHAT_HEADER_CONTENT_CLASS, CHAT_WORKSPACE_CLASS } from "./chat/layout";
+import { MESSAGE_RESPONSE_CLASS } from "./components/message-content-layout";
+import {
+  COMPOSER_MODEL_TRIGGER_CLASS,
+  COMPOSER_PROJECT_TRIGGER_CLASS,
+} from "./composer-selectors/layout";
 
 const app = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 const chatPage = readFileSync(
@@ -18,6 +23,14 @@ const chatHeader = readFileSync(
 );
 
 describe("chat chrome density contract", () => {
+  it("closes the same-render double-submit window synchronously", () => {
+    const guard = "Object.keys(requestSession.current).length > 0";
+    expect(chatPage).toContain(guard);
+    expect(chatPage.indexOf(guard)).toBeLessThan(
+      chatPage.indexOf("requestSession.current[requestId] = sessionId"),
+    );
+  });
+
   it("does not retain unreachable legacy chat shell selectors", () => {
     expect(CHAT_HEADER_CONTENT_CLASS).not.toContain("chat-header-toolbar");
   });
@@ -57,11 +70,60 @@ describe("chat chrome density contract", () => {
       "max-[980px]:[&_.chat-header-title-wrap]:hidden",
     );
     expect(app).toContain('compactCommand={view === "chat"}');
-    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain("max-[760px]:basis-16");
     expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain(
-      "max-[760px]:[&_.window-dragbar-primary]:grid-rows-[32px_32px]",
+      "max-[760px]:basis-[calc(var(--control-height)+40px+var(--space-2))]",
+    );
+    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain(
+      "max-[760px]:[&_.window-dragbar-primary]:grid-rows-[var(--control-height)_40px]",
+    );
+    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain(
+      "max-[480px]:[&_.window-dragbar-primary]:grid-rows-[40px_40px]",
+    );
+    expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain(
+      "max-[480px]:[.desktop-shell.platform-darwin_&]:pt-9",
+    );
+    expect(app).toMatch(/platform-\$\{window\.doolittle\.platform\}/);
+    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
+      "max-[480px]:[&_.chat-model-route]:hidden",
+    );
+    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
+      "max-[480px]:[&_.chat-header-top-actions]:grid",
+    );
+    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
+      "max-[480px]:[&_.secondary-button]:min-h-10",
     );
     expect(CHAT_HEADER_CONTENT_CLASS).toContain("whitespace-nowrap");
+  });
+
+  it("keeps the narrow composer to two compact bands", () => {
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-composer]:grid-cols-[auto_minmax(0,1fr)_auto]",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-composer-routing]:!order-20",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-context-meter]:!hidden",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-composer-control-label]:hidden",
+    );
+    expect(COMPOSER_PROJECT_TRIGGER_CLASS).toContain("max-[480px]:w-10");
+    expect(COMPOSER_MODEL_TRIGGER_CLASS).toContain("max-[480px]:h-10");
+  });
+
+  it("uses compact transcript typography and bounded code blocks", () => {
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-messages]:px-2",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "[&_.chat-message.user_.chat-message-body]:py-2",
+    );
+    expect(MESSAGE_RESPONSE_CLASS).toContain("[&_p]:!my-[0.48em]");
+    expect(MESSAGE_RESPONSE_CLASS).toContain("!max-h-[280px]");
+    expect(MESSAGE_RESPONSE_CLASS).toContain(
+      "max-[480px]:[&_[data-streamdown=code-block-body]]:!max-h-[220px]",
+    );
   });
 
   it("passes durable context handoffs into the lazy Chat surface instead of timing a window event", () => {

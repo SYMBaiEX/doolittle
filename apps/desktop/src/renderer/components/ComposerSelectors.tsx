@@ -204,7 +204,7 @@ export function ComposerModelSelector({
 
   return (
     <div
-      className={`${COMPOSER_SELECTOR_ROOT_CLASS} ml-auto min-w-0`}
+      className={`${COMPOSER_SELECTOR_ROOT_CLASS} ml-auto min-w-0 max-[720px]:w-full`}
       ref={rootRef}
     >
       <button

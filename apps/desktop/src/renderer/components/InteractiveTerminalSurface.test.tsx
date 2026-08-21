@@ -6,7 +6,7 @@ import { InteractiveTerminalSurface } from "./InteractiveTerminalSurface";
 import { createInteractiveTerminalTab } from "./interactive-terminal-store";
 
 describe("InteractiveTerminalSurface", () => {
-  it("keeps output panel identity and footer actions present", () => {
+  it("keeps output panel identity without duplicating toolbar actions", () => {
     const tab = {
       ...createInteractiveTerminalTab("Terminal 1"),
       output: "hello",
@@ -16,19 +16,18 @@ describe("InteractiveTerminalSurface", () => {
         active
         activeTab={tab}
         notice=""
-        onSendToChat={vi.fn()}
         onStart={vi.fn()}
         running={false}
-        setTabs={vi.fn()}
         starting={false}
         viewportRef={{ current: null }}
       />,
     );
     expect(markup).toContain('role="tabpanel"');
     expect(markup).toContain('aria-label="Terminal output"');
-    expect(markup).toContain("Active tab output is preserved");
-    expect(markup).toContain(">Clear view</button>");
-    expect(markup).toContain(">Add to chat</button>");
+    expect(markup).toContain("[&amp;_.xterm]:p-2");
+    expect(markup).not.toContain("Terminal state is preserved");
+    expect(markup).not.toContain('aria-label="Clear terminal view"');
+    expect(markup).not.toContain("Add to chat");
   });
 
   it("explains that a stale session needs a new shell", () => {
@@ -41,17 +40,15 @@ describe("InteractiveTerminalSurface", () => {
         active
         activeTab={tab}
         notice=""
-        onSendToChat={vi.fn()}
         onStart={vi.fn()}
         running={false}
-        setTabs={vi.fn()}
         starting={false}
         viewportRef={{ current: null }}
       />,
     );
 
     expect(markup).toContain(
-      "This terminal session ended when the workspace changed. Start a new shell to continue.",
+      "Session ended on workspace change. Open a new shell to continue.",
     );
   });
 });

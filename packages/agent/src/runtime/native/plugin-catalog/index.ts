@@ -5,6 +5,7 @@ import type {
 } from "@doolittle/contracts";
 import type { EnvConfig } from "@/types/runtime";
 import { describeAutonomousAlignment } from "../autonomous-stack";
+import { distributedDesktopIncludesMessagingPlugin } from "../plugin-registry/distribution-policy";
 import {
   getNativePluginCatalogSeeds,
   NATIVE_PLUGIN_CATEGORIES,
@@ -48,14 +49,20 @@ function resolveNativePluginEnablement(
     case "anthropic":
       return enabled(config.anthropicApiKey);
     case "telegram":
-      return enabled(config.telegramBotToken);
+      return (
+        distributedDesktopIncludesMessagingPlugin("@elizaos/plugin-telegram") &&
+        enabled(config.telegramBotToken)
+      );
     case "discord":
       return enabled(config.discordBotToken);
     case "whatsapp":
-      return enabled(
-        config.whatsappAccessToken &&
-          config.whatsappPhoneNumberId &&
-          config.whatsappVerifyToken,
+      return (
+        distributedDesktopIncludesMessagingPlugin("@elizaos/plugin-whatsapp") &&
+        enabled(
+          config.whatsappAccessToken &&
+            config.whatsappPhoneNumberId &&
+            config.whatsappVerifyToken,
+        )
       );
     case "signal":
       return enabled(config.signalAccountNumber);

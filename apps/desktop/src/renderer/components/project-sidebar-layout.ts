@@ -34,6 +34,9 @@ export const PROJECT_RAIL_ACTIVE_CLASS =
 export const PROJECT_RAIL_GROUP_CLASS =
   "project-rail-group relative [.desktop-shell.nav-collapsed_&]:px-0.75";
 
+export const PROJECT_RAIL_GROUP_ACTIVE_CLASS =
+  "is-active before:absolute before:top-1.75 before:bottom-1.75 before:-left-3 before:w-0.5 before:bg-[var(--accent)]";
+
 export const PROJECT_RAIL_ROW_CLASS =
   "project-rail-row grid min-h-10 grid-cols-[16px_minmax(0,1fr)_22px_18px] items-center gap-0.5 rounded-[var(--radius-xs)] border border-transparent py-0.5 pr-1.25 pl-0.25 text-[var(--text-soft)] transition-colors hover:bg-[color-mix(in_srgb,var(--surface-hover)_76%,transparent)] hover:text-[var(--text)] [.desktop-shell.nav-collapsed_&]:min-h-10 [.desktop-shell.nav-collapsed_&]:w-10.5 [.desktop-shell.nav-collapsed_&]:grid-cols-1 [.desktop-shell.nav-collapsed_&]:place-items-center [.desktop-shell.nav-collapsed_&]:p-0";
 

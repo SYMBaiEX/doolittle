@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -60,17 +61,25 @@ function releaseDirectory(version = "0.1.0"): string {
   }
   for (const platform of ["linux", "macos", "windows"] as const) {
     const appAsar = `app-${platform}.asar`;
+    const runtime = `runtime-${platform}`;
     writeFileSync(join(directory, appAsar), `fixture:${appAsar}\n`);
+    mkdirSync(join(directory, runtime, "bin"), { recursive: true });
+    writeFileSync(
+      join(directory, runtime, "bin", "doolittle-runtime.mjs"),
+      `fixture:${runtime}\n`,
+    );
     writeNativePackageReceipt({
       releaseDirectory: directory,
       platform,
       commit: "a".repeat(40),
       appAsarPath: appAsar,
+      runtimeDirectory: runtime,
       artifactPaths: expectedDesktopReleaseArtifacts(version)
         .filter((artifact) => artifact.platform === platform)
         .map((artifact) => artifact.path),
     });
     rmSync(join(directory, appAsar));
+    rmSync(join(directory, runtime), { recursive: true });
   }
   return directory;
 }
@@ -300,5 +309,22 @@ describe("desktop release aggregation", () => {
         commit: "a".repeat(40),
       }),
     ).rejects.toThrow("Native provenance receipt hash mismatch");
+  });
+
+  it("rejects a native receipt without a deterministic runtime tree binding", async () => {
+    const directory = releaseDirectory();
+    const receiptPath = join(directory, "desktop-provenance-linux.json");
+    const receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+    delete receipt.runtime;
+    writeFileSync(receiptPath, JSON.stringify(receipt));
+
+    await expect(
+      createDesktopRelease({
+        directory,
+        version: "0.1.0",
+        tag: "v0.1.0",
+        commit: "a".repeat(40),
+      }),
+    ).rejects.toThrow("Invalid native provenance receipt");
   });
 });

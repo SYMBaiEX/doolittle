@@ -14,8 +14,10 @@ describe("desktop view transitions", () => {
       "if (!applyViewTransition(next)) return false;",
     );
     expect(appSource).toContain(
-      "if (!applyViewTransition(next) && window.location.hash",
+      "const hashNavigationRef = useRef({ applyViewTransition, view });",
     );
+    expect(appSource).toContain("!current.applyViewTransition(next) &&");
+    expect(appSource).toContain("}, []);");
     expect(appSource).not.toContain(
       'if (next !== "chat") closeChatTerminal();',
     );
@@ -23,7 +25,8 @@ describe("desktop view transitions", () => {
     expect(appSource).toContain(
       "if (!shouldHandleGlobalChatTerminalShortcut(view, event)) return;",
     );
-    expect(appSource).toContain("if (isMobileSidebarMode) closeUtilities();");
+    expect(appSource).toContain("if (utilityModalMode) closeUtilities();");
+    expect(appSource).toContain("mobileModal={utilityModalMode}");
   });
 
   it("only dismisses the terminal after an accepted context handoff", () => {

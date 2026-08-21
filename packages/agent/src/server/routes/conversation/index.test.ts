@@ -17,6 +17,7 @@ function createContext() {
     runtime: {
       roomHandlerQueue: new RoomHandlerQueue(),
     },
+    ensureDeferredHydration: vi.fn(async () => {}),
     gateway: {
       receive: async () => ({
         ok: true,
@@ -81,6 +82,22 @@ function createContext() {
 }
 
 describe("handleConversationRoutes", () => {
+  it("hydrates optional tools before accepting a desktop chat turn", async () => {
+    const context = createContext();
+    const response = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: "hello", stream: "invalid" }),
+      }),
+      new URL("http://localhost/chat"),
+    );
+
+    expect(context.ensureDeferredHydration).toHaveBeenCalledWith("chat");
+    expect(response?.status).toBe(400);
+  });
+
   it("cancels the registered server turn and exposes its retained receipt", async () => {
     const context = createContext();
     const controller = new AbortController();
@@ -219,6 +236,9 @@ describe("handleConversationRoutes", () => {
     await expect(response?.json()).resolves.toEqual({
       error: "stream must be a boolean",
     });
+    expect(context.ensureDeferredHydration).toHaveBeenCalledWith(
+      "responses-api",
+    );
     expect(received).toBe(false);
   });
 

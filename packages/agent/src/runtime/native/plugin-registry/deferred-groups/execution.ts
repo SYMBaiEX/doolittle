@@ -1,6 +1,7 @@
 import type { Plugin } from "@elizaos/core";
 import { formAction, formPlugin } from "@elizaos/plugin-form";
 import { githubPlugin } from "@elizaos/plugin-github";
+import mcpPlugin from "@elizaos/plugin-mcp";
 import {
   createFormsPlugin,
   localSandboxPlugin,
@@ -23,6 +24,7 @@ export async function loadDeferredExecutionPlugins({
   config,
 }: DeferredPluginGroupContext): Promise<Plugin[]> {
   return [
+    normalizePlugin(mcpPlugin, "official MCP plugin"),
     normalizePlugin(localSandboxPlugin),
     normalizePlugin(createNativeFormPlugin(), "official form plugin"),
     createFormsPlugin({
