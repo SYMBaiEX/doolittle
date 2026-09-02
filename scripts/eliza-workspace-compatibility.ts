@@ -9,6 +9,10 @@ export interface ElizaWorkspaceCompatibilityPackage {
   reason: string;
 }
 
+export function normalizeCompatibilityPackagePath(path: string): string {
+  return path.replaceAll("\\", "/");
+}
+
 /**
  * Deliberate local packages that occupy an upstream ElizaOS package name.
  *

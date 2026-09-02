@@ -2,7 +2,11 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { ELIZA_WORKSPACE_COMPATIBILITY } from "./eliza-workspace-compatibility";
+import { officialElizaDependencyVersion } from "./eliza-sdk-version-policy";
+import {
+  ELIZA_WORKSPACE_COMPATIBILITY,
+  normalizeCompatibilityPackagePath,
+} from "./eliza-workspace-compatibility";
 import { findDoolittleWorkspaceVersionMismatch } from "./workspace-version-policy";
 
 type PackageJson = {
@@ -16,7 +20,7 @@ type PackageJson = {
   devDependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
-  overrides?: Record<string, string>;
+  overrides?: Record<string, unknown>;
   exports?: string | Record<string, unknown>;
 };
 
@@ -94,7 +98,7 @@ for (const entry of ELIZA_WORKSPACE_COMPATIBILITY) {
 
 for (const path of packagePaths) {
   const manifest = readPackageJson(path);
-  const relativePath = relative(ROOT, path);
+  const relativePath = normalizeCompatibilityPackagePath(relative(ROOT, path));
   const compatibility = compatibilityByPath.get(relativePath);
   const workspaceVersionMismatch = findDoolittleWorkspaceVersionMismatch(
     manifest,
@@ -151,7 +155,8 @@ for (const path of packagePaths) {
     peerDependencies: manifest.peerDependencies,
   })) {
     for (const [name, version] of Object.entries(dependencies ?? {})) {
-      if (!isOfficialElizaPackage(name) || version.startsWith("workspace:")) {
+      const declaredVersion = officialElizaDependencyVersion(name, version);
+      if (!declaredVersion) {
         continue;
       }
       externalPackages.add(name);
@@ -162,9 +167,9 @@ for (const path of packagePaths) {
       ) {
         installedPackages.add(name);
       }
-      if (version !== expectedVersion) {
+      if (declaredVersion !== expectedVersion) {
         mismatches.push(
-          `${relative(ROOT, path)} ${section}.${name}=${version}`,
+          `${relative(ROOT, path)} ${section}.${name}=${declaredVersion}`,
         );
       }
     }

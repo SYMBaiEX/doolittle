@@ -22,7 +22,7 @@ describe("computer-use Puppeteer security override", () => {
 
     expect(
       packageJson.overrides?.["@elizaos/plugin-computeruse>puppeteer-core"],
-    ).toBe("25.8.0");
+    ).toBe("25.9.0");
     expect(computerUsePackage.version).toBe("2.0.3-beta.7");
   });
 
@@ -30,7 +30,7 @@ describe("computer-use Puppeteer security override", () => {
     const puppeteerPackage = requireFromComputerUse(
       "puppeteer-core/package.json",
     ) as { version: string };
-    expect(puppeteerPackage.version).toBe("25.8.0");
+    expect(puppeteerPackage.version).toBe("25.9.0");
     expect(() =>
       requireFromComputerUse.resolve("extract-zip/package.json"),
     ).toThrow();
