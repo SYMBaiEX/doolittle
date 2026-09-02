@@ -68,6 +68,7 @@ export function useRuntimeWorkspaceData(
   const [globalError, setGlobalError] = useState("");
   const backendPhaseRef = useRef(backend.phase);
   const previousBackendPhaseRef = useRef(backend.phase);
+  const backendSubscriptionUpdateRef = useRef(0);
   const refreshRequestRef = useRef(0);
   if (previousBackendPhaseRef.current !== backend.phase) {
     previousBackendPhaseRef.current = backend.phase;
@@ -132,8 +133,16 @@ export function useRuntimeWorkspaceData(
   }, [pushToast]);
 
   useEffect(() => {
-    void window.doolittle.getBackendState().then(setBackend);
-    return window.doolittle.onBackendState(setBackend);
+    const subscriptionUpdateAtStart = backendSubscriptionUpdateRef.current;
+    void window.doolittle.getBackendState().then((state) => {
+      if (backendSubscriptionUpdateRef.current === subscriptionUpdateAtStart) {
+        setBackend(state);
+      }
+    });
+    return window.doolittle.onBackendState((state) => {
+      backendSubscriptionUpdateRef.current += 1;
+      setBackend(state);
+    });
   }, []);
 
   useEffect(() => {

@@ -40,6 +40,14 @@ export {
   visibleActivityWindow,
 } from "./activity/activity-model";
 
+export function activityShowsEmptyState(
+  rowCount: number,
+  filteredCount: number,
+  error: string,
+): boolean {
+  return (!error || rowCount > 0) && filteredCount === 0;
+}
+
 export function ActivityPage({ active }: { active: boolean }) {
   const [query, setQuery] = useState("");
   const [source, setSource] = useState<ActivitySource>("all");
@@ -95,6 +103,11 @@ export function ActivityPage({ active }: { active: boolean }) {
   );
   const visibleGroups = visibleActivityWindow(grouped, visibleCount);
   const remainingGroups = Math.max(0, grouped.length - visibleGroups.length);
+  const showEmptyState = activityShowsEmptyState(
+    rows.length,
+    filtered.length,
+    timeline.error,
+  );
 
   const exportTimeline = async () => {
     if (!active || exporting) return;
@@ -248,11 +261,11 @@ export function ActivityPage({ active }: { active: boolean }) {
             totalCount={rows.length}
           />
         </>
-      ) : (
+      ) : showEmptyState ? (
         <EmptyBlock title="No matching events">
           No activity matched the selected source and search.
         </EmptyBlock>
-      )}
+      ) : null}
     </div>
   );
 }

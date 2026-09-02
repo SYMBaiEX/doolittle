@@ -20,12 +20,15 @@ export type GatewayTimelineDirection = "all" | "inbox" | "outbox";
 export interface GatewayTimelinePanelProps {
   direction: GatewayTimelineDirection;
   entries: GatewayTimelineItem[];
+  historyError?: string;
+  historyUnavailable?: boolean;
   loading: boolean;
   onDirectionChange: (direction: GatewayTimelineDirection) => void;
   onPlatformChange: (platform: string) => void;
   onQueryChange: (query: string) => void;
   onReplay: (recordId: string) => void | Promise<void>;
   onRetryDelivery: (recordId: string) => void | Promise<void>;
+  onRetryHistory?: () => void;
   platform: string;
   platforms: string[];
   query: string;
@@ -37,12 +40,15 @@ export interface GatewayTimelinePanelProps {
 export function GatewayTimelinePanel({
   direction,
   entries,
+  historyError,
+  historyUnavailable = false,
   loading,
   onDirectionChange,
   onPlatformChange,
   onQueryChange,
   onReplay,
   onRetryDelivery,
+  onRetryHistory,
   platform,
   platforms,
   query,
@@ -150,7 +156,40 @@ export function GatewayTimelinePanel({
           </span>
         </div>
       ) : null}
-      {!loading && !entries.length ? (
+      {!loading && !entries.length && historyUnavailable ? (
+        <div
+          aria-live="polite"
+          className={GATEWAY_HISTORY_STATE_CLASS}
+          data-gateway-history-state="unavailable"
+          role="status"
+        >
+          <span
+            aria-hidden="true"
+            className="size-1.75 rounded-full bg-[var(--warn)] shadow-[0_0_0_4px_color-mix(in_srgb,var(--warn)_10%,transparent)]"
+          />
+          <span className="grid min-w-0 gap-0.5">
+            <strong className="text-[13px] font-semibold">
+              Gateway history is unavailable
+            </strong>
+            <small className={GATEWAY_META_CLASS}>
+              {historyError ||
+                "The local inbox or outbox could not be read. Retry the local read to check for records."}
+            </small>
+          </span>
+          {onRetryHistory ? (
+            <Button
+              className="justify-self-start max-[620px]:col-start-2"
+              onClick={onRetryHistory}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              Retry history
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+      {!loading && !entries.length && !historyUnavailable ? (
         <div
           aria-live="polite"
           className={GATEWAY_HISTORY_STATE_CLASS}

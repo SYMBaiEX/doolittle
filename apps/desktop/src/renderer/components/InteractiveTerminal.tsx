@@ -104,6 +104,55 @@ export function interactiveTerminalTheme(
   };
 }
 
+export function attachTerminalAcceleration(
+  terminal: Pick<Terminal, "loadAddon">,
+): {
+  ready: Promise<boolean>;
+  dispose: () => void;
+} {
+  if (typeof window === "undefined") {
+    return { ready: Promise.resolve(false), dispose: () => undefined };
+  }
+  const hasWebglSupport =
+    typeof window.WebGL2RenderingContext === "function" ||
+    typeof window.WebGLRenderingContext === "function";
+  if (!hasWebglSupport) {
+    return { ready: Promise.resolve(false), dispose: () => undefined };
+  }
+  let disposed = false;
+  let teardown = () => undefined;
+  const ready = import("@xterm/addon-webgl")
+    .then(({ WebglAddon }) => {
+      if (disposed) return false;
+      try {
+        const addon = new WebglAddon();
+        terminal.loadAddon(addon);
+        const contextLoss = addon.onContextLoss(() => {
+          try {
+            addon.dispose();
+          } catch {
+            // Ignore teardown failures; xterm falls back to its default renderer.
+          }
+        });
+        teardown = () => {
+          contextLoss.dispose();
+          addon.dispose();
+        };
+        return true;
+      } catch {
+        return false;
+      }
+    })
+    .catch(() => false);
+  return {
+    ready,
+    dispose: () => {
+      disposed = true;
+      teardown();
+    },
+  };
+}
+
 function preserveTabs(
   workspacePath: string,
   tabs: InteractiveTerminalTabState[],
@@ -334,10 +383,10 @@ export function InteractiveTerminal({
       convertEol: false,
       fastScrollSensitivity: 5,
       fontFamily: "var(--font-mono)",
-      fontSize: 12,
-      fontWeight: "400",
+      fontSize: 11.5,
+      fontWeight: 500,
       letterSpacing: 0,
-      lineHeight: 1.2,
+      lineHeight: 1.16,
       macOptionClickForcesSelection: true,
       minimumContrastRatio: 4.5,
       rightClickSelectsWord: true,
@@ -350,6 +399,7 @@ export function InteractiveTerminal({
     });
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
+    const acceleration = attachTerminalAcceleration(terminal);
     terminal.open(viewport);
     xtermRef.current = terminal;
     fitAddonRef.current = fitAddon;
@@ -359,6 +409,18 @@ export function InteractiveTerminal({
       fitTerminalToViewport();
       terminal.focus();
     });
+    void acceleration.ready.then((enabled) => {
+      if (!enabled || xtermRef.current !== terminal) return;
+      requestAnimationFrame(() => fitTerminalToViewport());
+    });
+    if ("fonts" in document) {
+      void document.fonts.ready.then(() => {
+        requestAnimationFrame(() => {
+          if (xtermRef.current !== terminal) return;
+          fitTerminalToViewport();
+        });
+      });
+    }
 
     const disposable = terminal.onData((data) => {
       const activeTab = tabsRef.current.find(
@@ -388,6 +450,7 @@ export function InteractiveTerminal({
 
     return () => {
       disposable.dispose();
+      acceleration.dispose();
       terminal.dispose();
       if (terminalWriteFrameRef.current !== null) {
         cancelAnimationFrame(terminalWriteFrameRef.current);

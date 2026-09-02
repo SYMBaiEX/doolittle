@@ -99,13 +99,13 @@ describe("thread workbench viewport layout contract", () => {
       expect(bodyClass).toContain("flex");
       expect(bodyClass).toContain("flex-1");
       expect(bodyClass).toContain("flex-col");
-      expect(bodyClass).toContain("gap-2.5");
+      expect(bodyClass).toMatch(/gap-2(?:\.5)?/u);
       expect(bodyClass).toContain("overflow-hidden");
     }
     expect(WORKBENCH_CHANGES_BODY_CLASS).toContain(
       "grid-rows-[minmax(140px,0.96fr)_minmax(180px,1.04fr)]",
     );
-    expect(WORKBENCH_SPLIT_CLASS).toContain("min-h-37.5");
+    expect(WORKBENCH_SPLIT_CLASS).toContain("min-h-35");
     expect(WORKBENCH_SPLIT_CLASS).toContain("min-w-0");
     expect(WORKBENCH_SPLIT_CLASS).toContain("overflow-hidden");
     expect(WORKBENCH_SCROLL_BODY_CLASS).toContain("flex-1");
@@ -135,7 +135,7 @@ describe("thread workbench viewport layout contract", () => {
     expect(WORKBENCH_TABS_CLASS).toContain("overflow-hidden");
     expect(WORKBENCH_TAB_CLASS).toContain("place-items-center");
     expect(WORKBENCH_RAIL_CLASS).toContain(
-      "max-[1180px]:min-w-[min(var(--thread-workbench-width),44vw)]",
+      "max-[1180px]:min-w-[min(var(--thread-workbench-width),42vw)]",
     );
   });
 

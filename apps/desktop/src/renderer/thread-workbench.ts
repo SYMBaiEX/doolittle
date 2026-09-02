@@ -114,9 +114,9 @@ export function buildBriefPlanSummary(
   };
 }
 
-export const THREAD_WORKBENCH_DEFAULT_WIDTH = 360;
-export const THREAD_WORKBENCH_MIN_WIDTH = 292;
-export const THREAD_WORKBENCH_MAX_WIDTH = 560;
+export const THREAD_WORKBENCH_DEFAULT_WIDTH = 336;
+export const THREAD_WORKBENCH_MIN_WIDTH = 280;
+export const THREAD_WORKBENCH_MAX_WIDTH = 520;
 
 const LIFECYCLES = new Set<ThreadWorkbenchLifecycle>([
   "idle",

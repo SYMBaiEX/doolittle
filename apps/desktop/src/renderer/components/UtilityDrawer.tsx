@@ -84,11 +84,11 @@ export function UtilityDrawer<TView extends string>({
 
   return (
     <>
-      <header className="flex min-h-19 items-center justify-between gap-3.5 border-[var(--line-subtle)] border-b bg-[var(--surface-soft)] p-3">
+      <header className="flex min-h-16 items-center justify-between gap-3 border-[var(--line-subtle)] border-b bg-[var(--surface-soft)] px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2.5">
           <span
             aria-hidden="true"
-            className="relative grid size-8.5 shrink-0 place-items-center rounded-[7px] border border-[color-mix(in_srgb,var(--accent)_27%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface))] font-bold font-mono text-[length:var(--text-meta)] text-[var(--accent)] tracking-[0.08em]"
+            className="relative grid size-7 shrink-0 place-items-center rounded-[7px] border border-[color-mix(in_srgb,var(--accent)_27%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface))] font-bold font-mono text-[length:var(--text-meta)] text-[var(--accent)] tracking-[0.08em]"
           >
             <i className="absolute top-1.25 right-1.25 size-1 rounded-full bg-[var(--accent)] shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_70%,transparent)]" />
             <span>OP</span>
@@ -108,7 +108,7 @@ export function UtilityDrawer<TView extends string>({
         </div>
         <button
           aria-label="Close tools and settings"
-          className="grid size-7 place-items-center rounded-[var(--radius-sm)] border border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-border)]"
+          className="grid size-6.5 place-items-center rounded-[var(--radius-sm)] border border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-border)]"
           onClick={onClose}
           type="button"
         >
@@ -116,18 +116,18 @@ export function UtilityDrawer<TView extends string>({
         </button>
       </header>
 
-      <div className="relative grid gap-0 border-[var(--border)] border-b px-2.5 py-2">
+      <div className="relative grid gap-0 border-[var(--border)] border-b px-2.5 py-1.75">
         <label className="sr-only" htmlFor="utility-drawer-search">
           Find a tool or setting
         </label>
         <UiIcon
-          className="absolute top-3.25 left-4.25 z-1 text-[var(--accent)]"
+          className="absolute top-3 left-4.25 z-1 text-[var(--accent)]"
           icon={Search}
           size="sm"
         />
         <input
           autoComplete="off"
-          className="h-8 w-full rounded-[5px] border border-[var(--border)] bg-[var(--surface-soft)] pr-12 pl-6.75 text-xs text-[var(--text)] outline-none placeholder:text-[var(--faint)] focus-visible:border-[var(--accent)]"
+          className="h-7.5 w-full rounded-[5px] border border-[var(--border)] bg-[var(--surface-soft)] pr-12 pl-6.75 text-xs text-[var(--text)] outline-none placeholder:text-[var(--faint)] focus-visible:border-[var(--accent)]"
           id="utility-drawer-search"
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search tools, settings, or pages"
@@ -144,11 +144,11 @@ export function UtilityDrawer<TView extends string>({
         ) : null}
       </div>
 
-      <div className="px-2.5 pt-2">{activity}</div>
+      <div className="px-2.5 pt-1.75">{activity}</div>
 
       <nav
         aria-label="All Doolittle tools and settings"
-        className="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto overscroll-contain px-1.75 pt-2 pb-3.5 [scrollbar-gutter:stable]"
+        className="grid min-h-0 flex-1 content-start gap-0.75 overflow-y-auto overscroll-contain px-1.75 pt-1.75 pb-3 [scrollbar-gutter:stable]"
         data-utility-navigation=""
       >
         {filteredSections.length > 0 ? (
@@ -162,7 +162,7 @@ export function UtilityDrawer<TView extends string>({
               >
                 <button
                   aria-expanded={expanded}
-                  className="flex min-h-7 items-center justify-between rounded-[var(--radius-sm)] border-0 bg-transparent px-1.5 py-1.25 text-left font-mono text-[10px] text-[var(--muted)] uppercase tracking-[0.08em] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                  className="flex min-h-6.5 items-center justify-between rounded-[var(--radius-sm)] border-0 bg-transparent px-1.5 py-1 text-left font-mono text-[10px] text-[var(--muted)] uppercase tracking-[0.08em] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                   onClick={() => onToggleSection?.(section.id)}
                   type="button"
                 >
@@ -191,7 +191,7 @@ export function UtilityDrawer<TView extends string>({
                       return (
                         <button
                           aria-current={selected ? "page" : undefined}
-                          className={`grid min-h-10 min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.25 rounded-[var(--radius-sm)] border px-1.75 py-1.5 text-left transition-colors motion-reduce:transition-none ${
+                          className={`grid min-h-9 min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-sm)] border px-1.5 py-1.25 text-left transition-colors motion-reduce:transition-none ${
                             selected
                               ? "border-[color-mix(in_srgb,var(--accent)_22%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] text-[var(--text)] shadow-[inset_2px_0_var(--accent),var(--shell-shadow-md)]"
                               : "border-transparent bg-transparent text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
@@ -206,7 +206,7 @@ export function UtilityDrawer<TView extends string>({
                           {item.icon ? (
                             <span
                               aria-hidden="true"
-                              className={`grid size-6.5 place-items-center rounded-[5px] border ${
+                              className={`grid size-5.5 place-items-center rounded-[5px] border ${
                                 selected
                                   ? "border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] text-[var(--accent)]"
                                   : "border-[color-mix(in_srgb,var(--border)_76%,transparent)] bg-[color-mix(in_srgb,var(--surface-soft)_80%,transparent)] text-[var(--faint)]"

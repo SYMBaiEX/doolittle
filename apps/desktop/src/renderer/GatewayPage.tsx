@@ -159,6 +159,8 @@ export function GatewayPage({ active }: { active: boolean }) {
   );
   const errors = [state.error, inbox.error, outbox.error].filter(Boolean);
   const loading = state.loading || inbox.loading || outbox.loading;
+  const historyError = inbox.error || outbox.error;
+  const historyUnavailable = Boolean(historyError && !entries.length);
   const statusResources = [
     { label: "gateway state", resource: state },
     { label: "inbox", resource: inbox },
@@ -324,12 +326,15 @@ export function GatewayPage({ active }: { active: boolean }) {
         <GatewayTimelinePanel
           direction={direction}
           entries={entries}
+          historyError={historyError}
+          historyUnavailable={historyUnavailable}
           loading={loading}
           onDirectionChange={setDirection}
           onPlatformChange={setPlatform}
           onQueryChange={setQuery}
           onReplay={replay}
           onRetryDelivery={retryDelivery}
+          onRetryHistory={refresh}
           platform={platform}
           platforms={platforms}
           query={query}

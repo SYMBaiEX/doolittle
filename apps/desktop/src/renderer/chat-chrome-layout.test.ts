@@ -24,11 +24,22 @@ const chatHeader = readFileSync(
 
 describe("chat chrome density contract", () => {
   it("closes the same-render double-submit window synchronously", () => {
-    const guard = "Object.keys(requestSession.current).length > 0";
+    expect(chatPage).toContain("activeRequestSessionsRef");
+    expect(chatPage).toContain(
+      "activeRequestSessionsRef.current[sessionId] = true;",
+    );
+    const guard = "activeRequestSessionsRef.current[sessionId] ||";
     expect(chatPage).toContain(guard);
     expect(chatPage.indexOf(guard)).toBeLessThan(
       chatPage.indexOf("requestSession.current[requestId] = sessionId"),
     );
+  });
+
+  it("cleans up the chat event bridge during StrictMode effect replays", () => {
+    expect(chatPage).toContain(
+      "const unsubscribe = window.doolittle.onChatEvent(handleChatEvent);",
+    );
+    expect(chatPage).toContain("return unsubscribe;");
   });
 
   it("does not retain unreachable legacy chat shell selectors", () => {

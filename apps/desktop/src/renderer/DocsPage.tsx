@@ -80,6 +80,18 @@ export function prioritizeDoctorChecks(
   };
 }
 
+export function doctorResultState(
+  requested: boolean,
+  loading: boolean,
+  error: string,
+  checks: DoctorCheckView[],
+): "idle" | "loading" | "error" | "empty" | "results" {
+  if (!requested) return "idle";
+  if (loading) return "loading";
+  if (error) return "error";
+  return checks.length ? "results" : "empty";
+}
+
 function DoctorCheckRow({ check }: { check: DoctorCheckView }) {
   return (
     <div className={DIAGNOSTICS_STATUS_ROW_CLASS}>
@@ -108,6 +120,12 @@ export function DocsPage({ active }: { active: boolean }) {
   const doctor = useApiResource<DoctorResponse>(doctorPath, [doctorPath]);
   const checks = normalizeDoctorChecks(doctor.data);
   const prioritizedChecks = prioritizeDoctorChecks(checks, 5);
+  const resultState = doctorResultState(
+    doctorRequested,
+    doctor.loading,
+    doctor.error,
+    checks,
+  );
   const passing = checks.filter((check) =>
     ["pass", "ready", "ok"].includes(asString(check.status).toLowerCase()),
   ).length;
@@ -166,7 +184,7 @@ export function DocsPage({ active }: { active: boolean }) {
               Runtime diagnostics are unavailable until the local runtime is
               ready.
             </OfflineRouteState>
-          ) : !doctorRequested ? (
+          ) : resultState === "idle" ? (
             <div className={DIAGNOSTICS_IDLE_CLASS}>
               <strong>Checks are ready when you need them.</strong>
               <small>
@@ -174,10 +192,23 @@ export function DocsPage({ active }: { active: boolean }) {
                 open this page.
               </small>
             </div>
-          ) : doctor.loading ? (
+          ) : resultState === "loading" ? (
             <LoadingBlock />
-          ) : doctor.error ? (
+          ) : resultState === "error" ? (
             <ErrorBlock error={doctor.error} retry={doctor.reload} />
+          ) : resultState === "empty" ? (
+            <div
+              aria-live="polite"
+              className={DIAGNOSTICS_IDLE_CLASS}
+              data-doctor-state="empty"
+              role="status"
+            >
+              <strong>No diagnostic results were returned.</strong>
+              <small>
+                The local runtime completed the request without reporting
+                individual checks. Run again to retry the local probe.
+              </small>
+            </div>
           ) : (
             <div className="grid">
               {prioritizedChecks.visible.map((check) => (

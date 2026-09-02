@@ -1,7 +1,33 @@
+import { useEffect, useLayoutEffect, useState } from "react";
 import type { DoolittleDesktopBridge } from "../../shared/contracts";
 import { InteractiveTerminal } from "../components/InteractiveTerminal";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
-import { CHAT_TERMINAL_HEIGHT } from "../panel-layout";
+import { CHAT_TERMINAL_HEIGHT, clampPanelSize } from "../panel-layout";
+
+const SHORT_VIEWPORT_MAX_HEIGHT = 640;
+const CHAT_TERMINAL_TALL_VIEWPORT_RATIO = 0.58;
+const CHAT_TERMINAL_SHORT_VIEWPORT_RATIO = 0.48;
+
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+function terminalHeightBounds(viewportHeight: number | null) {
+  if (viewportHeight === null) return CHAT_TERMINAL_HEIGHT;
+
+  const viewportMax = Math.floor(
+    viewportHeight *
+      (viewportHeight <= SHORT_VIEWPORT_MAX_HEIGHT
+        ? CHAT_TERMINAL_SHORT_VIEWPORT_RATIO
+        : CHAT_TERMINAL_TALL_VIEWPORT_RATIO),
+  );
+  const max = Math.min(CHAT_TERMINAL_HEIGHT.max, viewportMax);
+
+  return {
+    default: Math.min(CHAT_TERMINAL_HEIGHT.default, max),
+    min: Math.min(CHAT_TERMINAL_HEIGHT.min, max),
+    max,
+  };
+}
 
 export interface ChatTerminalPanelProps {
   active: boolean;
@@ -25,6 +51,17 @@ export function ChatTerminalPanel({
   workspacePath,
 }: ChatTerminalPanelProps) {
   const shortcut = platform === "darwin" ? "⌘J" : "Ctrl+J";
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+
+  useIsomorphicLayoutEffect(() => {
+    const updateViewportHeight = () => setViewportHeight(window.innerHeight);
+    updateViewportHeight();
+    window.addEventListener("resize", updateViewportHeight);
+    return () => window.removeEventListener("resize", updateViewportHeight);
+  }, []);
+
+  const heightBounds = terminalHeightBounds(viewportHeight);
+  const effectiveHeight = clampPanelSize(height, heightBounds);
 
   return (
     <section
@@ -36,15 +73,15 @@ export function ChatTerminalPanel({
       }`}
       data-open={open}
       inert={!open}
-      style={{ height: `${open ? height : 0}px` }}
+      style={{ height: `${open ? effectiveHeight : 0}px` }}
     >
       <PanelResizeHandle
-        bounds={CHAT_TERMINAL_HEIGHT}
+        bounds={heightBounds}
         className="-top-[5px] inset-x-0"
         direction="grow-up"
         label="Resize chat terminal"
         onResize={onResize}
-        value={height}
+        value={effectiveHeight}
       />
       <InteractiveTerminal
         active={active && open}

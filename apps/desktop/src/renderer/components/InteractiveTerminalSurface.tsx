@@ -34,7 +34,7 @@ export function InteractiveTerminalSurface({
           activeTab ? terminalTabLabelId(activeTab.id) : undefined
         }
         aria-live="off"
-        className="absolute inset-0 z-2 m-0 min-h-0 min-w-0 overflow-hidden border-0 bg-transparent p-0 font-mono text-[var(--canvas-text)] outline-0 [scrollbar-color:var(--accent-border)_transparent] [scrollbar-width:thin] focus-visible:shadow-[inset_2px_0_var(--accent)] [&_.xterm]:h-full [&_.xterm]:p-2 [&_.xterm-helper-textarea]:opacity-[0.01] [&_.xterm-screen]:will-change-auto [&_.xterm-viewport]:!bg-[var(--canvas-bg)] [&_.xterm-viewport]:overscroll-contain [&_.xterm-viewport]:[scrollbar-color:var(--accent-border)_transparent] [&_.xterm-viewport]:[scrollbar-width:thin]"
+        className="absolute inset-0 z-2 m-0 min-h-0 min-w-0 overflow-hidden border-0 bg-transparent p-0 font-mono text-[var(--canvas-text)] outline-0 [scrollbar-color:var(--accent-border)_transparent] [scrollbar-width:thin] focus-visible:shadow-[inset_2px_0_var(--accent)] [&_.xterm]:h-full [&_.xterm]:px-1.5 [&_.xterm]:py-1 [&_.xterm-helper-textarea]:opacity-[0.01] [&_.xterm-screen]:will-change-auto [&_.xterm-viewport]:!bg-[var(--canvas-bg)] [&_.xterm-viewport]:overscroll-contain [&_.xterm-viewport]:[scrollbar-color:var(--accent-border)_transparent] [&_.xterm-viewport]:[scrollbar-width:thin]"
         id={
           activeTab ? `interactive-terminal-${activeTab.id}-panel` : undefined
         }

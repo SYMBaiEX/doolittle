@@ -217,9 +217,18 @@ export function BrowserPage({
         <section className={BROWSER_CANVAS_CLASS}>
           <div className={BROWSER_CANVAS_TOOLBAR_CLASS}>
             <div>
-              <span className="size-2 rounded-full bg-[#ff5d56]" />
-              <span className="size-2 rounded-full bg-[#ffbd2e]" />
-              <span className="size-2 rounded-full bg-[#27c840]" />
+              <span
+                aria-hidden="true"
+                className="size-2 rounded-full bg-[var(--bad)]"
+              />
+              <span
+                aria-hidden="true"
+                className="size-2 rounded-full bg-[var(--warn)]"
+              />
+              <span
+                aria-hidden="true"
+                className="size-2 rounded-full bg-[var(--good)]"
+              />
             </div>
             <span>{currentUrl || "No preview loaded"}</span>
             <label>

@@ -93,11 +93,17 @@ export function InteractiveTerminalHeader({
   tabs,
   maxTabs,
 }: InteractiveTerminalHeaderProps) {
+  const startActionLabel = starting
+    ? "Opening shell"
+    : hasPriorOutput
+      ? "Restart shell"
+      : "Open shell";
+
   return (
     <header
-      className={`${INTERACTIVE_TERMINAL_CHROME_CLASS} flex min-h-8.5 min-w-0 items-center gap-1 border-b px-1.5 py-1 shadow-[inset_0_1px_color-mix(in_srgb,var(--accent)_20%,transparent)]`}
+      className={`${INTERACTIVE_TERMINAL_CHROME_CLASS} flex min-h-7.5 min-w-0 items-center gap-0.75 border-b px-1.25 py-0.75 shadow-[inset_0_1px_color-mix(in_srgb,var(--accent)_20%,transparent)]`}
     >
-      <div className="flex min-w-0 max-w-[24%] shrink items-center gap-1.25 px-0.75">
+      <div className="flex min-w-0 max-w-[22%] shrink items-center gap-1 px-0.5">
         <UiIcon
           className="shrink-0 text-[var(--accent)]"
           icon={Terminal}
@@ -114,7 +120,7 @@ export function InteractiveTerminalHeader({
           {activeShell}
         </span>
         <strong
-          className="hidden min-w-0 truncate text-[10px] text-[var(--text)] tracking-[0.025em] lg:block"
+          className="hidden min-w-0 truncate text-[10px] text-[var(--text)] tracking-[0.025em] xl:block"
           title={activeCwdTitle}
         >
           {activeCwdLabel}
@@ -142,10 +148,10 @@ export function InteractiveTerminalHeader({
                 aria-controls={`interactive-terminal-${tab.id}-panel`}
                 aria-labelledby={tabLabelId}
                 aria-selected={isActive}
-                className={`inline-flex h-6 min-w-25 max-w-42 items-center gap-1.25 rounded-[var(--radius-xs)] border py-0.5 pl-1.75 text-[var(--text-soft)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_30%,var(--border))] ${
+                className={`inline-flex h-6 min-w-22 max-w-36 items-center gap-1 rounded-[var(--radius-xs)] border py-0.5 pl-1.5 text-[var(--text-soft)] transition-colors hover:border-[color-mix(in_srgb,var(--accent)_30%,var(--border))] ${
                   isActive
-                    ? "border-[color-mix(in_srgb,var(--accent)_48%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-raised))] pr-12 text-[var(--text)] shadow-[inset_0_-1px_var(--accent)]"
-                    : "border-[color-mix(in_srgb,var(--border)_60%,transparent)] bg-[color-mix(in_srgb,var(--surface-raised)_72%,transparent)] pr-2"
+                    ? "border-[color-mix(in_srgb,var(--accent)_48%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-raised))] pr-13 text-[var(--text)] shadow-[inset_0_-1px_var(--accent)]"
+                    : "border-[color-mix(in_srgb,var(--border)_60%,transparent)] bg-[color-mix(in_srgb,var(--surface-raised)_72%,transparent)] pr-1.75"
                 } ${isRenaming ? "pointer-events-none opacity-0" : ""}`}
                 id={`interactive-terminal-${tab.id}-tab`}
                 onClick={() => onSelectTab(tab.id)}
@@ -171,7 +177,7 @@ export function InteractiveTerminalHeader({
               {isRenaming ? (
                 <input
                   aria-label={`Rename terminal ${tab.name}`}
-                  className="absolute inset-0 z-3 h-6 min-w-24 max-w-40 rounded-[var(--radius-xs)] border border-[var(--accent-border)] bg-[var(--surface-soft)] px-1.5 text-[var(--text)]"
+                  className="absolute inset-0 z-3 h-6 min-w-22 max-w-36 rounded-[var(--radius-xs)] border border-[var(--accent-border)] bg-[var(--surface-soft)] px-1.5 text-[var(--text)]"
                   onBlur={onSaveRename}
                   onChange={(event) => onRenameChange(event.target.value)}
                   onKeyDown={(event) => {
@@ -198,7 +204,7 @@ export function InteractiveTerminalHeader({
                 <>
                   <button
                     aria-label={`Rename terminal ${tab.name}`}
-                    className={`${INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS} absolute top-0 right-6 z-2 size-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100`}
+                    className={`${INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS} absolute top-0 right-6.5 z-2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100`}
                     onClick={() => onBeginRename(tab.id)}
                     type="button"
                   >
@@ -206,7 +212,7 @@ export function InteractiveTerminalHeader({
                   </button>
                   <button
                     aria-label={`Close terminal ${tab.name}`}
-                    className={`${INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS} absolute top-0 right-0 z-2 size-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100`}
+                    className={`${INTERACTIVE_TERMINAL_ICON_BUTTON_CLASS} absolute top-0 right-0 z-2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100`}
                     disabled={isClosingTab[tab.id]}
                     onClick={() => void onCloseTab(tab.id)}
                     type="button"
@@ -230,9 +236,9 @@ export function InteractiveTerminalHeader({
         <UiIcon icon={Plus} size="sm" />
       </button>
 
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-0.75">
         <span
-          className={`hidden items-center rounded-[var(--radius-xs)] border px-1.5 py-0.5 text-[length:var(--text-meta)] font-bold tracking-[0.08em] xl:inline-flex ${
+          className={`hidden items-center rounded-[var(--radius-xs)] border px-1.25 py-0.5 text-[length:var(--text-meta)] font-bold tracking-[0.08em] 2xl:inline-flex ${
             running
               ? "border-[color-mix(in_srgb,var(--accent)_34%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] text-[var(--accent)]"
               : "border-[color-mix(in_srgb,var(--border)_60%,transparent)] text-[var(--faint)]"
@@ -253,7 +259,7 @@ export function InteractiveTerminalHeader({
               type="button"
             >
               <UiIcon icon={CircleStop} size="xs" />
-              <span className="hidden xl:inline">Ctrl+C</span>
+              <span className="hidden 2xl:inline">Ctrl+C</span>
             </button>
             <button
               aria-label="Stop terminal session"
@@ -263,23 +269,21 @@ export function InteractiveTerminalHeader({
               type="button"
             >
               <UiIcon icon={Square} size="xs" />
-              <span className="hidden xl:inline">Stop</span>
+              <span className="hidden 2xl:inline">Stop</span>
             </button>
           </>
         ) : (
           <button
+            aria-label={startActionLabel}
             className={`${INTERACTIVE_TERMINAL_PRIMARY_BUTTON_CLASS} inline-flex items-center gap-1.25`}
             disabled={!active || starting}
             onClick={onStart}
+            title={startActionLabel}
             type="button"
           >
             <UiIcon icon={Play} size="xs" />
-            <span className="hidden xl:inline">
-              {starting
-                ? "Opening…"
-                : hasPriorOutput
-                  ? "Restart shell"
-                  : "Open shell"}
+            <span className="hidden 2xl:inline">
+              {starting ? "Opening…" : startActionLabel}
             </span>
           </button>
         )}
@@ -312,7 +316,7 @@ export function InteractiveTerminalHeader({
             type="button"
           >
             <UiIcon icon={PanelBottomClose} size="xs" />
-            <span className="hidden xl:inline">Hide</span>
+            <span className="hidden 2xl:inline">Hide</span>
             {dismissShortcut ? (
               <kbd className="hidden font-inherit text-[var(--faint)] tracking-normal 2xl:inline">
                 {dismissShortcut}

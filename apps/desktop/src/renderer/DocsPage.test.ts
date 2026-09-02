@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   doctorResourcePath,
+  doctorResultState,
   normalizeDoctorChecks,
   prioritizeDoctorChecks,
 } from "./DocsPage";
@@ -59,5 +60,19 @@ describe("DocsPage diagnostics projection", () => {
       visible: [checks[2], checks[0]],
       remaining: [checks[1]],
     });
+  });
+
+  it("distinguishes a successful empty diagnostic response from idle and errors", () => {
+    expect(doctorResultState(false, false, "", [])).toBe("idle");
+    expect(doctorResultState(true, true, "", [])).toBe("loading");
+    expect(doctorResultState(true, false, "Unavailable", [])).toBe("error");
+    expect(doctorResultState(true, false, "", [])).toBe("empty");
+    expect(
+      doctorResultState(true, false, "", [
+        { id: "runtime", status: "pass", label: "Runtime", detail: "Ready" },
+      ]),
+    ).toBe("results");
+    expect(docsPageSource).toContain("No diagnostic results were returned.");
+    expect(docsPageSource).toContain("Run again to retry the local probe.");
   });
 });

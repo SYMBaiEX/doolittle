@@ -6,7 +6,7 @@
  */
 export const VIEW_PRIMITIVES_CLASS = [
   "[&_button]:cursor-pointer [&_button:disabled]:cursor-default [&_button:disabled]:opacity-50",
-  "[&_input]:w-full [&_input]:rounded-[var(--radius-sm)] [&_input]:border [&_input]:border-[var(--border)] [&_input]:bg-[var(--surface-raised)] [&_input]:px-2.5 [&_input]:py-2 [&_input]:text-[length:var(--text-control)] [&_input]:leading-[var(--line-control)] [&_input]:outline-none",
+  "[&_input]:w-full [&_input]:rounded-[var(--radius-sm)] [&_input]:border [&_input]:border-[var(--border)] [&_input]:bg-[var(--surface-raised)] [&_input]:px-2.5 [&_input]:py-2 [&_input]:text-[length:var(--text-control)] [&_input]:leading-[var(--line-control)] [&_input:not([type=checkbox]):not([type=radio])]:outline-none",
   "[&_select]:w-full [&_select]:rounded-[var(--radius-sm)] [&_select]:border [&_select]:border-[var(--border)] [&_select]:bg-[var(--surface-raised)] [&_select]:px-2.5 [&_select]:py-2 [&_select]:text-[length:var(--text-control)] [&_select]:leading-[var(--line-control)] [&_select]:outline-none",
   "[&_textarea]:w-full [&_textarea]:resize-y [&_textarea]:rounded-[var(--radius-sm)] [&_textarea]:border [&_textarea]:border-[var(--border)] [&_textarea]:bg-[var(--surface-raised)] [&_textarea]:px-2.5 [&_textarea]:py-2 [&_textarea]:text-[length:var(--text-body)] [&_textarea]:leading-[var(--line-body)] [&_textarea]:outline-none",
   "[&_input::placeholder]:text-[var(--faint)] [&_textarea::placeholder]:text-[var(--faint)]",

@@ -51,8 +51,13 @@ describe("InteractiveTerminalHeader", () => {
     expect(markup).toContain('aria-label="Create terminal tab"');
     expect(markup).toContain('aria-label="Clear terminal view"');
     expect(markup).toContain('aria-label="Add terminal output to chat"');
+    expect(markup).toContain('aria-label="Open shell"');
+    expect(markup).toContain('title="Open shell"');
     expect(markup).toContain("Open shell");
     expect(markup).toContain("~/repo");
+    expect(markup).toContain("interactive-terminal-mode hidden");
+    expect(markup.match(/2xl:inline/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(markup).not.toContain("3xl:inline");
   });
 
   it("describes starting a new session after preserved output", () => {
@@ -95,6 +100,8 @@ describe("InteractiveTerminalHeader", () => {
     );
 
     expect(markup).toContain("Restart shell");
+    expect(markup).toContain('aria-label="Restart shell"');
+    expect(markup).toContain('title="Restart shell"');
     expect(markup).not.toContain(">Open shell</button>");
   });
 
@@ -141,8 +148,9 @@ describe("InteractiveTerminalHeader", () => {
     expect(markup).toContain('aria-label="Close terminal Terminal 1"');
     expect(markup).not.toContain('aria-label="Rename terminal Terminal 2"');
     expect(markup).not.toContain('aria-label="Close terminal Terminal 2"');
-    expect(markup).toContain("size-6");
-    expect(markup).not.toContain("size-5 min-h-5 min-w-5");
+    expect(markup).toContain("size-6 min-h-6 min-w-6");
+    expect(markup).toContain("right-6.5");
+    expect(markup).toContain("pr-13");
   });
 
   it("keeps the selected tab identity while its name is being edited", () => {

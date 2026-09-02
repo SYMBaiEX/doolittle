@@ -242,4 +242,41 @@ describe("runtime workspace refresh", () => {
     expect(latest?.sessions).toEqual([]);
     expect(latest?.projects).toEqual([]);
   });
+
+  it("keeps a subscription state emitted before the initial snapshot resolves", async () => {
+    const initialBackend = deferred<BackendState>();
+    vi.mocked(window.doolittle.getBackendState).mockReturnValue(
+      initialBackend.promise,
+    );
+    mocks.desktopRequest.mockImplementation((path: string) =>
+      path === "/runtime/status"
+        ? Promise.resolve(runtime)
+        : path === "/sessions?limit=200"
+          ? Promise.resolve({ sessions: [session] })
+          : Promise.resolve({ projects: [project] }),
+    );
+
+    act(() =>
+      root.render(
+        createElement(WorkspaceProbe, {
+          onValue: (value) => (latest = value),
+        }),
+      ),
+    );
+    await act(async () => {
+      await Promise.resolve();
+      backendListener?.(readyBackend);
+      await Promise.resolve();
+    });
+    expect(latest?.backend).toEqual(readyBackend);
+    expect(mocks.desktopRequest).toHaveBeenCalledTimes(3);
+
+    initialBackend.resolve({ message: "Connecting", phase: "booting" });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(latest?.backend).toEqual(readyBackend);
+    expect(mocks.desktopRequest).toHaveBeenCalledTimes(3);
+  });
 });

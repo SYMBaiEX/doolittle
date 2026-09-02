@@ -11,11 +11,6 @@ const OFFICIAL_STYLE_FILES = [
 ];
 const VARIABLE_USE = /var\(\s*(--[A-Za-z0-9_-]+)/g;
 const VARIABLE_DECLARATION = /(?:["']|[\s[,])(--[A-Za-z0-9_-]+)(?:["'])?\s*:/g;
-const BROWSER_TRAFFIC_LIGHT_COLORS = [
-  "bg-[#ff5d56]",
-  "bg-[#ffbd2e]",
-  "bg-[#27c840]",
-] as const;
 
 function rendererSources(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true })
@@ -130,27 +125,22 @@ describe("desktop theme token contract", () => {
     const fixedTailwindColor =
       /\b(?:bg|text|border)-(?:black|white|red|orange|amber|yellow|green|blue|purple|pink)(?:\b|\/)|\b(?:bg|text|border)-\[#[\da-f]{3,8}\]|color-mix\([^)]*#[\da-f]{3,8}/giu;
     const violations = rendererSourceEntries().flatMap(({ path, source }) => {
-      const auditedSource = path.endsWith("BrowserPage.tsx")
-        ? BROWSER_TRAFFIC_LIGHT_COLORS.reduce(
-            (value, color) => value.replace(color, ""),
-            source,
-          )
-        : source;
-      return [...auditedSource.matchAll(fixedTailwindColor)].map(
+      return [...source.matchAll(fixedTailwindColor)].map(
         (match) => `${path}:${match[0]}`,
       );
     });
     expect(violations).toEqual([]);
   });
 
-  it("limits browser fixed colors to native traffic-light affordances", () => {
+  it("maps browser traffic-light affordances to semantic theme tokens", () => {
     const browserSource = readFileSync(
       join(RENDERER_ROOT, "BrowserPage.tsx"),
       "utf8",
     );
-    for (const color of BROWSER_TRAFFIC_LIGHT_COLORS) {
-      expect(browserSource.split(color)).toHaveLength(2);
-    }
+    expect(browserSource).toContain("bg-[var(--bad)]");
+    expect(browserSource).toContain("bg-[var(--warn)]");
+    expect(browserSource).toContain("bg-[var(--good)]");
+    expect(browserSource).not.toMatch(/bg-\[#(?:ff5d56|ffbd2e|27c840)\]/u);
   });
 
   it("routes editor and terminal canvases through the shared profile", () => {

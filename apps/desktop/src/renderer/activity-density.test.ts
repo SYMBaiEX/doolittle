@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ACTIVITY_PAGE_SIZE,
+  activityShowsEmptyState,
   activitySummaryIsDistinct,
   groupConsecutiveActivityEvents,
   visibleActivityWindow,
@@ -92,5 +93,11 @@ describe("ActivityPage density", () => {
         summary: "3 chat runs completed with 3 recorded actions.",
       },
     ]);
+  });
+
+  it("does not describe a failed initial fetch as an empty timeline", () => {
+    expect(activityShowsEmptyState(0, 0, "Runtime unavailable")).toBe(false);
+    expect(activityShowsEmptyState(0, 0, "")).toBe(true);
+    expect(activityShowsEmptyState(2, 0, "Refresh failed")).toBe(true);
   });
 });

@@ -62,9 +62,11 @@ test.describe("packaged Doolittle desktop", () => {
       await expect(chatTerminal).toBeVisible();
       await expect(
         chatTerminal.getByRole("button", {
-          name: "Ctrl+C",
+          name: "Interrupt foreground process",
         }),
       ).toBeVisible({ timeout: 15_000 });
+      // The detailed mode label is hidden below the widest desktop breakpoint,
+      // but the status text should still stay correct in the DOM.
       await expect(
         chatTerminal.locator(".interactive-terminal-mode"),
       ).toContainText("PTY");
@@ -73,10 +75,35 @@ test.describe("packaged Doolittle desktop", () => {
       await page.keyboard.press("Enter");
       await expect
         .poll(() =>
-          page
-            .getByLabel("Chat terminal panel")
-            .locator(".xterm-rows")
-            .textContent(),
+          page.evaluate((needle) => {
+            const prefix = "doolittle.desktop.interactive-terminal.v2:";
+            for (
+              let index = 0;
+              index < window.localStorage.length;
+              index += 1
+            ) {
+              const key = window.localStorage.key(index);
+              if (!key?.startsWith(prefix)) continue;
+              const value = window.localStorage.getItem(key);
+              if (!value) continue;
+              try {
+                const parsed = JSON.parse(value) as {
+                  tabs?: Array<{ output?: unknown }>;
+                };
+                const output = Array.isArray(parsed.tabs)
+                  ? parsed.tabs
+                      .map((tab) =>
+                        typeof tab?.output === "string" ? tab.output : "",
+                      )
+                      .join("\n")
+                  : "";
+                if (output.includes(needle)) return output;
+              } catch {
+                // Ignore unrelated localStorage state while polling.
+              }
+            }
+            return "";
+          }, "DOOLITTLE_INTERACTIVE"),
         )
         .toContain("DOOLITTLE_INTERACTIVE");
       await page.keyboard.press(

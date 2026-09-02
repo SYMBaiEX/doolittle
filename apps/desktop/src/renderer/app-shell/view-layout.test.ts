@@ -62,6 +62,10 @@ describe("shared view primitives", () => {
 
   it("gives plain text controls a token-driven focus indicator without touching switches", () => {
     expect(VIEW_PRIMITIVES_CLASS).toContain(
+      "[&_input:not([type=checkbox]):not([type=radio])]:outline-none",
+    );
+    expect(VIEW_PRIMITIVES_CLASS).not.toContain("[&_input]:outline-none");
+    expect(VIEW_PRIMITIVES_CLASS).toContain(
       "[&_input:not([type=checkbox]):not([type=radio]):focus-visible]:outline-[var(--accent-text)]",
     );
     expect(VIEW_PRIMITIVES_CLASS).toContain(

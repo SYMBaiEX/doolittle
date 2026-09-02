@@ -123,6 +123,37 @@ describe("GatewayTimelinePanel", () => {
     expect(markup).not.toContain('class="loading-block');
   });
 
+  it("reports unavailable history instead of claiming a failed read is empty", () => {
+    const retry = vi.fn();
+    const markup = renderToStaticMarkup(
+      <GatewayTimelinePanel
+        direction="all"
+        entries={[]}
+        historyError="Inbox could not be read"
+        historyUnavailable
+        loading={false}
+        onDirectionChange={vi.fn()}
+        onPlatformChange={vi.fn()}
+        onQueryChange={vi.fn()}
+        onReplay={vi.fn()}
+        onRetryDelivery={vi.fn()}
+        onRetryHistory={retry}
+        platform="all"
+        platforms={[]}
+        query=""
+        replayingId=""
+        retryingDeliveryId=""
+        visibleEntries={[]}
+      />,
+    );
+
+    expect(markup).toContain("Gateway history is unavailable");
+    expect(markup).toContain("Inbox could not be read");
+    expect(markup).toContain(">Retry history</button>");
+    expect(markup).toContain('data-gateway-history-state="unavailable"');
+    expect(markup).not.toContain("Waiting for gateway traffic");
+  });
+
   it("retains filters when existing records have no current match", () => {
     const markup = renderToStaticMarkup(
       <GatewayTimelinePanel

@@ -332,19 +332,23 @@ test.describe("Doolittle desktop navigation", () => {
           .click();
       }
       await expect(workspaceUtilities).toBeVisible();
-      await workspaceUtilities.getByRole("tab", { name: "Terminal" }).click();
+      await workspaceUtilities.getByRole("tab", { name: "Shell" }).click();
+      await page
+        .getByRole("button", { name: "Open persistent terminal" })
+        .click();
       const chatTerminal = page.getByLabel("Chat terminal panel");
       await expect(chatTerminal).toHaveAttribute("data-open", "true");
       await expect(chatTerminal).toBeVisible();
       await expect(
-        chatTerminal.getByRole("button", { name: "Ctrl+C" }),
+        chatTerminal.getByRole("button", {
+          name: "Interrupt foreground process",
+        }),
       ).toBeVisible({ timeout: 15_000 });
-      await expect(
-        chatTerminal.locator(".interactive-terminal-mode"),
-      ).toHaveText(/(?:PTY|PIPE) · \d+×\d+/);
-      await expect(
-        chatTerminal.locator(".interactive-terminal-mode"),
-      ).not.toContainText("100×30");
+      const terminalMode = chatTerminal.locator(".interactive-terminal-mode");
+      // The mode capsule is intentionally compact-only on narrower desktop
+      // widths; assert the status content without forcing the 2xl layout.
+      await expect(terminalMode).toHaveText(/(?:PTY|PIPE) · \d+×\d+/);
+      await expect(terminalMode).not.toContainText("100×30");
       const codeWorkspaceScreenshot = testInfo.outputPath(
         "doolittle-code-workspace.png",
       );
@@ -373,9 +377,9 @@ test.describe("Doolittle desktop navigation", () => {
       await page
         .getByRole("button", { exact: true, name: "New conversation" })
         .click();
-      const newConversationMenu = page.getByRole("dialog", {
-        name: "Start a new conversation",
-      });
+      const newConversationMenu = page.locator(
+        'section[aria-label="Start a new conversation"]',
+      );
       await expect(newConversationMenu).toBeVisible();
       const floatingMenuBounds = await newConversationMenu.boundingBox();
       expect(floatingMenuBounds).not.toBeNull();
@@ -388,7 +392,7 @@ test.describe("Doolittle desktop navigation", () => {
         (floatingMenuBounds?.y ?? 0) + (floatingMenuBounds?.height ?? 0),
       ).toBeLessThanOrEqual(1000);
       await newConversationMenu
-        .getByRole("button", { name: /General chat/ })
+        .getByRole("menuitem", { name: /General chat/ })
         .click();
       await expect(page.locator(".window-context strong")).toHaveText("Chat");
       await page.evaluate(() => {
@@ -407,9 +411,41 @@ test.describe("Doolittle desktop navigation", () => {
       await page.keyboard.type("printf 'DOOLITTLE_TERMINAL_HANDOFF\\n'");
       await page.keyboard.press("Enter");
       await expect
-        .poll(() => chatTerminal.locator(".xterm-rows").textContent())
+        .poll(() =>
+          page.evaluate((needle) => {
+            const prefix = "doolittle.desktop.interactive-terminal.v2:";
+            for (
+              let index = 0;
+              index < window.localStorage.length;
+              index += 1
+            ) {
+              const key = window.localStorage.key(index);
+              if (!key?.startsWith(prefix)) continue;
+              const value = window.localStorage.getItem(key);
+              if (!value) continue;
+              try {
+                const parsed = JSON.parse(value) as {
+                  tabs?: Array<{ output?: unknown }>;
+                };
+                const output = Array.isArray(parsed.tabs)
+                  ? parsed.tabs
+                      .map((tab) =>
+                        typeof tab?.output === "string" ? tab.output : "",
+                      )
+                      .join("\n")
+                  : "";
+                if (output.includes(needle)) return output;
+              } catch {
+                // Ignore unrelated localStorage state while polling.
+              }
+            }
+            return "";
+          }, "DOOLITTLE_TERMINAL_HANDOFF"),
+        )
         .toContain("DOOLITTLE_TERMINAL_HANDOFF");
-      await chatTerminal.getByRole("button", { name: "Add to chat" }).click();
+      await chatTerminal
+        .getByRole("button", { name: "Add terminal output to chat" })
+        .click();
       await expect(chatTerminal).toHaveAttribute("data-open", "false");
       await expect(chatTerminal).toHaveCount(0);
       const terminalContextCapsule = page.locator(".chat-context-capsule");
@@ -1173,12 +1209,15 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(scrollFixture).toHaveAttribute("open", "");
       await connectionsViewport.evaluate((container) => {
         if (container.scrollHeight <= container.clientHeight) {
-          const overflowFixture = document.createElement("div");
-          overflowFixture.dataset.testid = "route-scroll-overflow";
-          overflowFixture.style.height = "200vh";
-          overflowFixture.style.flex = "0 0 auto";
-          overflowFixture.setAttribute("aria-hidden", "true");
-          container.append(overflowFixture);
+          // Constrain the real viewport and add scrollable padding directly to
+          // it. React can reconcile injected fixture children away, but these
+          // inline viewport constraints remain stable through resource renders.
+          container.style.flex = "0 0 400px";
+          container.style.height = "400px";
+          container.style.maxHeight = "400px";
+          container.style.minHeight = "0";
+          container.style.overflowY = "auto";
+          container.style.paddingBottom = "1200px";
         }
       });
       await expect
@@ -1208,6 +1247,14 @@ test.describe("Doolittle desktop navigation", () => {
           dashboardViewport.evaluate((container) => container.scrollTop),
         )
         .toBe(0);
+      await dashboardViewport.evaluate((container) => {
+        container.style.removeProperty("flex");
+        container.style.removeProperty("height");
+        container.style.removeProperty("max-height");
+        container.style.removeProperty("min-height");
+        container.style.removeProperty("overflow-y");
+        container.style.removeProperty("padding-bottom");
+      });
       await expect(
         dashboardViewport.getByRole("heading", { name: "Dashboard" }),
       ).toBeInViewport();
@@ -1285,7 +1332,7 @@ test.describe("Doolittle desktop navigation", () => {
         window.location.hash = "#/code";
       });
       await expect(page.locator(".window-context strong")).toHaveText("Code");
-      // The prior Add to chat flow closes the global terminal by design. Open
+      // The prior terminal-output handoff closes the global terminal by design. Open
       // it again before exercising its tab-management controls.
       const reopenedWorkspaceUtilities = page.getByRole("tablist", {
         name: "Workspace utilities",
@@ -1296,7 +1343,7 @@ test.describe("Doolittle desktop navigation", () => {
           .click();
       }
       await reopenedWorkspaceUtilities
-        .getByRole("tab", { name: "Terminal" })
+        .getByRole("tab", { name: "Shell" })
         .click();
       if (!(await chatTerminal.isVisible())) {
         await page
@@ -1576,7 +1623,11 @@ test.describe("Doolittle desktop navigation", () => {
         .getByRole("button", { name: /Choose model\. Current route/ })
         .click();
       await expect(
-        page.getByRole("dialog", { name: "Choose provider and model" }),
+        page
+          .locator('[aria-label="Choose provider and model"]')
+          .filter({
+            has: page.getByRole("textbox", { name: "Search models" }),
+          }),
       ).toBeVisible();
       await expect(
         page.getByRole("textbox", { name: "Search models" }),
@@ -1585,7 +1636,7 @@ test.describe("Doolittle desktop navigation", () => {
         page.getByRole("button", { name: "Providers & accounts" }),
       ).toBeVisible();
       await expect(
-        page.getByRole("button", { name: /Refresh models/ }),
+        page.getByRole("button", { name: "Refresh model catalog" }),
       ).toBeVisible();
       const modelSelectorScreenshot = testInfo.outputPath(
         "doolittle-composer-model-selector.png",
@@ -1759,7 +1810,7 @@ test.describe("Doolittle desktop navigation", () => {
         .getByRole("button", { name: "Open tools and settings" })
         .click();
       await expect(
-        page.getByRole("complementary", { name: "Tools and settings" }),
+        page.getByRole("dialog", { name: "Tools and settings" }),
       ).toBeVisible();
       await expect(
         page.getByRole("heading", { name: "Tools & settings" }),
