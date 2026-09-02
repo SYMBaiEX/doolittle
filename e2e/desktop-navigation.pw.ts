@@ -1623,11 +1623,9 @@ test.describe("Doolittle desktop navigation", () => {
         .getByRole("button", { name: /Choose model\. Current route/ })
         .click();
       await expect(
-        page
-          .locator('[aria-label="Choose provider and model"]')
-          .filter({
-            has: page.getByRole("textbox", { name: "Search models" }),
-          }),
+        page.locator('[aria-label="Choose provider and model"]').filter({
+          has: page.getByRole("textbox", { name: "Search models" }),
+        }),
       ).toBeVisible();
       await expect(
         page.getByRole("textbox", { name: "Search models" }),
