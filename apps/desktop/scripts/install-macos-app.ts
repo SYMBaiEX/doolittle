@@ -41,6 +41,10 @@ export type MacOSInstallOptions = {
   allowAdHoc?: boolean;
   destination?: string;
   fileSystem?: FileSystem;
+  prepareTrust?: (
+    appBundlePath: string,
+    trustMode: MacOSInstallTrustMode,
+  ) => void;
   source?: string;
   readMetadata?: (appBundlePath: string) => AppMetadata;
   quiesce?: (destination: string) => void;
@@ -324,6 +328,23 @@ function defaultVerifyTrust(
   );
 }
 
+function defaultPrepareTrust(
+  appBundlePath: string,
+  trustMode: MacOSInstallTrustMode,
+): void {
+  if (trustMode !== "ad-hoc") return;
+  const result = spawnSync(
+    "codesign",
+    ["--force", "--deep", "--sign", "-", appBundlePath],
+    { encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    throw new Error(
+      `Ad-hoc signing failed for ${appBundlePath}: ${(result.stderr || result.stdout || "no output").trim()}`,
+    );
+  }
+}
+
 function uniqueSiblingPath(
   destinationParent: string,
   kind: "backup" | "failure" | "stage",
@@ -486,6 +507,9 @@ export function installMacOSApp(
   const lock = lockPath(paths.destinationParent);
   const verifyPackage = options.verifyPackage ?? defaultVerifyPackage;
   const verifyTrust = options.verifyTrust ?? defaultVerifyTrust;
+  const prepareTrust =
+    options.prepareTrust ??
+    (options.verifyTrust ? () => undefined : defaultPrepareTrust);
   const readMetadata = options.readMetadata ?? defaultReadMetadata;
   const trustMode: MacOSInstallTrustMode = options.allowAdHoc
     ? "ad-hoc"
@@ -520,7 +544,7 @@ export function installMacOSApp(
       readMetadata,
     );
     verifyPackage(paths.source);
-    verifyTrust(paths.source, trustMode);
+    if (trustMode === "release") verifyTrust(paths.source, trustMode);
     if (process.platform === "darwin" && !options.fileSystem) {
       copyMacOSApp(paths.source, stage);
     } else {
@@ -537,6 +561,7 @@ export function installMacOSApp(
       inspectMacOSAppIdentity(stage, fileSystem, readMetadata),
       "staged",
     );
+    prepareTrust(stage, trustMode);
     verifyTrust(stage, trustMode);
     (options.quiesce ?? defaultQuiesce)(paths.destination);
     if (fileSystem.existsSync(paths.destination)) {

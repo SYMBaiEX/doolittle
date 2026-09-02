@@ -94,6 +94,26 @@ describe("installMacOSApp", () => {
     ).toBe("new");
   });
 
+  it("normalizes ad-hoc trust on the staged copy before verification", () => {
+    const { destination, source } = fixture({ destination: false });
+    const prepared: string[] = [];
+    const verifiedTrust: string[] = [];
+    installMacOSApp({
+      allowAdHoc: true,
+      destination,
+      source,
+      prepareTrust: (path, mode) => prepared.push(`${mode}:${path}`),
+      readMetadata: fixtureMetadata,
+      verifyPackage: verified,
+      verifyTrust: (path, mode) => verifiedTrust.push(`${mode}:${path}`),
+    });
+    expect(prepared).toHaveLength(1);
+    expect(prepared[0]).toMatch(/^ad-hoc:.*\.Doolittle\.stage-/u);
+    expect(verifiedTrust).toHaveLength(2);
+    expect(verifiedTrust[0]).toMatch(/^ad-hoc:.*\.Doolittle\.stage-/u);
+    expect(verifiedTrust[1]).toBe(`ad-hoc:${realpathSync(destination)}`);
+  });
+
   it("replaces only after verifying source, stage, and promoted app", () => {
     const { destination, source } = fixture();
     const verifiedPaths: string[] = [];
