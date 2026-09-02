@@ -39,6 +39,33 @@ const TRUSTED_PUBLISH_ENVIRONMENT = {
   ACTIONS_ID_TOKEN_REQUEST_URL: "https://example.invalid/oidc",
   ACTIONS_ID_TOKEN_REQUEST_TOKEN: "test-oidc-token",
 };
+const SYSTEM_NPM = spawnSync("which", ["npm"], {
+  encoding: "utf8",
+}).stdout.trim();
+const itWithPosixNpm = process.platform === "win32" ? it.skip : it;
+
+function runGit(cwd: string, args: string[]): string {
+  const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+  if (result.status !== 0) {
+    throw new Error(result.stderr || `git ${args.join(" ")} failed`);
+  }
+  return result.stdout.trim();
+}
+
+function trustedReleaseEnvironment(root: string): Record<string, string> {
+  runGit(root, ["init", "--quiet"]);
+  runGit(root, ["config", "user.name", "Doolittle test"]);
+  runGit(root, ["config", "user.email", "test@example.invalid"]);
+  runGit(root, ["add", "."]);
+  runGit(root, ["commit", "--quiet", "-m", "fixture"]);
+  runGit(root, ["tag", "provider-v0.0.1"]);
+  const commit = runGit(root, ["rev-parse", "HEAD"]);
+  return {
+    ...TRUSTED_PUBLISH_ENVIRONMENT,
+    PUBLISH_RELEASE_TAG: "provider-v0.0.1",
+    PUBLISH_RELEASE_COMMIT: commit,
+  };
+}
 
 function writePackageFixture(
   root: string,
@@ -93,6 +120,7 @@ function buildPackageRoot(dependencies: Record<string, string> = {}): string {
     "@doolittle/plugin-claude-code",
     dependencies,
   );
+  writePackageFixture(root, "plugin-devin", "@doolittle/plugin-devin");
   return root;
 }
 
@@ -139,6 +167,34 @@ function createFailingNpm(root: string): string {
   if (process.platform !== "win32") {
     chmodSync(scriptPath, 0o755);
   }
+  return binPath;
+}
+
+function createAuditPassingNpm(root: string): string {
+  if (process.platform === "win32" || !SYSTEM_NPM) {
+    throw new Error("This test fixture requires a POSIX npm executable.");
+  }
+  const binPath = join(root, "audit-bin");
+  mkdirSync(binPath, { recursive: true });
+  const scriptPath = join(binPath, "npm");
+  writeFileSync(
+    scriptPath,
+    `#!/usr/bin/env sh\nif [ "$1" = audit ]; then exit 0; fi\nexec ${JSON.stringify(SYSTEM_NPM)} "$@"\n`,
+    "utf8",
+  );
+  chmodSync(scriptPath, 0o755);
+  return binPath;
+}
+
+function createRecordingNpm(root: string, script: string): string {
+  if (process.platform === "win32" || !SYSTEM_NPM) {
+    throw new Error("This test fixture requires a POSIX npm executable.");
+  }
+  const binPath = join(root, "recording-bin");
+  mkdirSync(binPath, { recursive: true });
+  const scriptPath = join(binPath, "npm");
+  writeFileSync(scriptPath, `#!/usr/bin/env sh\n${script}\n`, "utf8");
+  chmodSync(scriptPath, 0o755);
   return binPath;
 }
 
@@ -197,6 +253,15 @@ describe("publish-provider-packages", () => {
     expect(workflow).toContain('      - "provider-v*"');
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).toContain("release_tag:");
+    expect(workflow).toContain(
+      "ref: refs/tags/$" + "{{ inputs.release_tag || github.ref_name }}",
+    );
+    expect(workflow).toContain(
+      "Bind publishing to the exact release-tag commit",
+    );
+    expect(workflow).toContain('git show-ref --verify --quiet "$tag_ref"');
+    expect(workflow).toContain('git rev-parse --verify "$' + '{tag_ref}^{}"');
+    expect(workflow).toContain("PUBLISH_RELEASE_COMMIT=$tag_commit");
     expect(workflow).toContain("environment: npm-publish");
     expect(workflow).toContain("id-token: write");
     expect(workflow).toContain("contents: read");
@@ -274,46 +339,275 @@ describe("publish-provider-packages", () => {
     );
   });
 
-  it("keeps the workspace manifest source-resolvable while packing dist artifacts", () => {
+  it("requires the workflow's exact tag commit for live publishing", () => {
     const root = buildPackageRoot();
     roots.push(root);
+    const result = runPublish(root, ["--provider", "claude-code", "--publish"]);
 
-    const result = runPublish(root, ["--provider", "claude-code", "--json"]);
-    expect(result.status, result.stderr || result.stdout).toBe(0);
-
-    const payload = JSON.parse(result.stdout) as {
-      results: Array<{
-        ok: boolean;
-        command: string;
-        detail: string;
-        output?: string;
-      }>;
-    };
-    expect(payload.results).toHaveLength(1);
-    expect(payload.results[0]).toMatchObject({
-      ok: true,
-      detail:
-        "Built dist JavaScript and declarations, then security-audited and imported the packed artifact with Doolittle's audited transitive security overrides in an isolated consumer.",
-    });
-    expect(payload.results[0].command).toContain(
-      "npm install --ignore-scripts",
-    );
-    expect(payload.results[0].command).toContain(
-      "npm audit --audit-level high --omit dev",
-    );
-    expect(payload.results[0].command).toContain(
-      "doolittle-provider-transport-0.0.1.tgz",
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "Live provider publishing is restricted to the trusted GitHub Actions OIDC workflow.",
     );
 
-    const manifest = JSON.parse(
-      readFileSync(
-        join(root, "packages", "plugins", "plugin-claude-code", "package.json"),
-        "utf8",
-      ),
-    ) as { exports: { ".": string }; files: string[] };
-    expect(manifest.exports["."]).toBe("./src/index.ts");
-    expect(manifest.files).toContain("src/**/*.ts");
+    const trustedWithoutRelease = runPublish(
+      root,
+      ["--provider", "claude-code", "--publish"],
+      undefined,
+      TRUSTED_PUBLISH_ENVIRONMENT,
+    );
+    expect(trustedWithoutRelease.status).toBe(1);
+    expect(trustedWithoutRelease.stderr).toContain(
+      "Live provider publishing requires a verified provider-v<semver> release tag.",
+    );
+
+    const taggedEnvironment = trustedReleaseEnvironment(root);
+    const mismatchedCommit = runPublish(
+      root,
+      ["--provider", "claude-code", "--publish"],
+      undefined,
+      {
+        ...taggedEnvironment,
+        PUBLISH_RELEASE_COMMIT: "0".repeat(40),
+      },
+    );
+    expect(mismatchedCommit.status).toBe(1);
+    expect(mismatchedCommit.stderr).toContain(
+      "Live provider publishing requires source checked out at the verified release-tag commit.",
+    );
+
+    const branchOnlyRoot = buildPackageRoot();
+    roots.push(branchOnlyRoot);
+    runGit(branchOnlyRoot, ["init", "--quiet"]);
+    runGit(branchOnlyRoot, ["config", "user.name", "Doolittle test"]);
+    runGit(branchOnlyRoot, ["config", "user.email", "test@example.invalid"]);
+    runGit(branchOnlyRoot, ["add", "."]);
+    runGit(branchOnlyRoot, ["commit", "--quiet", "-m", "branch-only fixture"]);
+    const branchCommit = runGit(branchOnlyRoot, ["rev-parse", "HEAD"]);
+    runGit(branchOnlyRoot, ["branch", "provider-v0.0.1"]);
+    const branchOnly = runPublish(
+      branchOnlyRoot,
+      ["--provider", "claude-code", "--publish"],
+      undefined,
+      {
+        ...TRUSTED_PUBLISH_ENVIRONMENT,
+        PUBLISH_RELEASE_TAG: "provider-v0.0.1",
+        PUBLISH_RELEASE_COMMIT: branchCommit,
+      },
+    );
+    expect(branchOnly.status).toBe(1);
+    expect(branchOnly.stderr).toContain(
+      "Live provider publishing requires source checked out at the verified release-tag commit.",
+    );
   });
+
+  itWithPosixNpm(
+    "keeps the workspace manifest source-resolvable while packing dist artifacts",
+    () => {
+      const root = buildPackageRoot();
+      roots.push(root);
+
+      const result = runPublish(
+        root,
+        ["--provider", "claude-code", "--json"],
+        createAuditPassingNpm(root),
+      );
+      expect(result.status, result.stderr || result.stdout).toBe(0);
+
+      const payload = JSON.parse(result.stdout) as {
+        results: Array<{
+          ok: boolean;
+          command: string;
+          detail: string;
+          output?: string;
+        }>;
+      };
+      expect(payload.results).toHaveLength(1);
+      expect(payload.results[0]).toMatchObject({
+        ok: true,
+        detail:
+          "Built dist JavaScript and declarations, then security-audited and imported the packed artifact in an isolated consumer.",
+      });
+      expect(payload.results[0].command).toContain(
+        "npm install --ignore-scripts",
+      );
+      expect(payload.results[0].command).toContain(
+        "npm audit --audit-level high --omit dev",
+      );
+      expect(payload.results[0].command).toContain(
+        "doolittle-provider-transport-0.0.1.tgz",
+      );
+
+      const manifest = JSON.parse(
+        readFileSync(
+          join(
+            root,
+            "packages",
+            "plugins",
+            "plugin-claude-code",
+            "package.json",
+          ),
+          "utf8",
+        ),
+      ) as { exports: { ".": string }; files: string[] };
+      expect(manifest.exports["."]).toBe("./src/index.ts");
+      expect(manifest.files).toContain("src/**/*.ts");
+    },
+  );
+
+  itWithPosixNpm(
+    "uses a plain consumer manifest even when the workspace has overrides",
+    () => {
+      const root = buildPackageRoot();
+      roots.push(root);
+      const capturedManifest = join(root, "consumer-package.json");
+      const binPath = createRecordingNpm(
+        root,
+        `if [ "$1" = install ] && printf '%s' "$PWD" | grep -q doolittle-provider-consumer; then cp package.json ${JSON.stringify(capturedManifest)}; fi
+if [ "$1" = audit ]; then exit 0; fi
+exec ${JSON.stringify(SYSTEM_NPM)} "$@"`,
+      );
+
+      const result = runPublish(
+        root,
+        ["--provider", "claude-code", "--json"],
+        binPath,
+      );
+
+      expect(result.status, result.stderr || result.stdout).toBe(0);
+      expect(JSON.parse(readFileSync(capturedManifest, "utf8"))).toEqual({
+        private: true,
+        type: "module",
+      });
+    },
+  );
+
+  itWithPosixNpm(
+    "does not publish any provider when a later packed-consumer preflight fails",
+    () => {
+      const root = buildPackageRoot();
+      roots.push(root);
+      const commandLog = join(root, "npm-commands.log");
+      const auditCount = join(root, "audit-count");
+      const binPath = createRecordingNpm(
+        root,
+        `printf '%s\\n' "$1" >> ${JSON.stringify(commandLog)}
+if [ "$1" = audit ]; then
+  count=0; [ -f ${JSON.stringify(auditCount)} ] && count=$(cat ${JSON.stringify(auditCount)})
+  count=$((count + 1)); printf '%s' "$count" > ${JSON.stringify(auditCount)}
+  [ "$count" -ge 2 ] && exit 3
+  exit 0
+fi
+if [ "$1" = publish ]; then exit 0; fi
+exec ${JSON.stringify(SYSTEM_NPM)} "$@"`,
+      );
+
+      const result = runPublish(
+        root,
+        ["--provider", "all", "--publish", "--json"],
+        binPath,
+        trustedReleaseEnvironment(root),
+      );
+
+      expect(result.status).toBe(1);
+      expect(readFileSync(commandLog, "utf8").split("\n")).not.toContain(
+        "publish",
+      );
+    },
+  );
+
+  itWithPosixNpm(
+    "audits an exact registry consumer before its import verification",
+    () => {
+      const root = buildPackageRoot();
+      roots.push(root);
+      const eventLog = join(root, "registry-events.log");
+      const binPath = createRecordingNpm(
+        root,
+        `if [ "$1" = publish ]; then printf '%s\\n' publish >> ${JSON.stringify(eventLog)}; exit 0; fi
+if [ "$1" = install ] && printf '%s' "$*" | grep -q '@doolittle/plugin-claude-code@0.0.1'; then
+  printf '%s\\n' registry-install >> ${JSON.stringify(eventLog)}
+  mkdir -p node_modules/@doolittle/plugin-claude-code
+  printf '%s' '{"name":"@doolittle/plugin-claude-code","version":"0.0.1","type":"module","exports":"./index.js"}' > node_modules/@doolittle/plugin-claude-code/package.json
+  printf '%s' 'export const fixture = true;' > node_modules/@doolittle/plugin-claude-code/index.js
+  exit 0
+fi
+if [ "$1" = audit ]; then
+  if printf '%s' "$PWD" | grep -q doolittle-provider-registry-receipt; then printf '%s\\n' registry-audit >> ${JSON.stringify(eventLog)}; fi
+  exit 0
+fi
+exec ${JSON.stringify(SYSTEM_NPM)} "$@"`,
+      );
+
+      const result = runPublish(
+        root,
+        ["--provider", "claude-code", "--publish", "--json"],
+        binPath,
+        trustedReleaseEnvironment(root),
+      );
+
+      expect(result.status, result.stderr || result.stdout).toBe(0);
+      expect(readFileSync(eventLog, "utf8").trim().split("\n")).toEqual([
+        "publish",
+        "registry-install",
+        "registry-audit",
+      ]);
+      const payload = JSON.parse(result.stdout) as {
+        results: Array<{ command: string; ok: boolean }>;
+      };
+      expect(payload.results[0]).toMatchObject({ ok: true });
+      expect(payload.results[0]?.command).toContain(
+        "npm audit --audit-level high --omit dev",
+      );
+    },
+  );
+
+  itWithPosixNpm(
+    "reports later providers as not published when an earlier registry receipt fails",
+    () => {
+      const root = buildPackageRoot();
+      roots.push(root);
+      const eventLog = join(root, "failed-registry-events.log");
+      const binPath = createRecordingNpm(
+        root,
+        `if [ "$1" = publish ]; then printf '%s\\n' publish >> ${JSON.stringify(eventLog)}; exit 0; fi
+if [ "$1" = install ] && printf '%s' "$*" | grep -q '@doolittle/provider-transport@0.0.1'; then
+  printf '%s\\n' registry-install-failed >> ${JSON.stringify(eventLog)}
+  exit 7
+fi
+if [ "$1" = audit ]; then exit 0; fi
+exec ${JSON.stringify(SYSTEM_NPM)} "$@"`,
+      );
+
+      const result = runPublish(
+        root,
+        ["--provider", "all", "--publish", "--json"],
+        binPath,
+        trustedReleaseEnvironment(root),
+      );
+
+      expect(result.status).toBe(1);
+      expect(readFileSync(eventLog, "utf8").trim().split("\n")).toEqual([
+        "publish",
+        "registry-install-failed",
+      ]);
+      const payload = JSON.parse(result.stdout) as {
+        results: Array<{ command: string; detail: string; ok: boolean }>;
+      };
+      expect(payload.results).toHaveLength(3);
+      expect(payload.results[0]).toMatchObject({ ok: false });
+      expect(payload.results.slice(1)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ok: false,
+            command: "not-published",
+            detail:
+              "Not published because an earlier provider failed publishing or registry verification.",
+          }),
+        ]),
+      );
+      expect(payload.results.slice(1).every((entry) => !entry.ok)).toBe(true);
+    },
+  );
 
   it("fails before publish when packaging cannot produce an artifact", () => {
     const root = buildPackageRoot();
@@ -324,7 +618,7 @@ describe("publish-provider-packages", () => {
       root,
       ["--provider", "claude-code", "--publish", "--tag", "rc", "--json"],
       binPath,
-      TRUSTED_PUBLISH_ENVIRONMENT,
+      trustedReleaseEnvironment(root),
     );
     expect(result.status).toBe(1);
 

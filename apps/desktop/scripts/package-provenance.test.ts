@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  gitCommitCreatedAt,
   packageProvenanceRuntime,
   verifyNativePackageRuntime,
   writeNativePackageReceipt,
@@ -25,7 +26,49 @@ function fixture(): { directory: string; runtime: string } {
     join(directory, runtime, "bin", "doolittle-runtime.mjs"),
     "runtime\n",
   );
+  writeFileSync(
+    join(directory, runtime, "bin", "runtime-manifest.json"),
+    `${JSON.stringify({
+      bundledPackages: [{ name: "bundled", version: "1.0.0" }],
+      nativePackageClosure: [{ name: "native", version: "2.0.0" }],
+    })}\n`,
+  );
   writeFileSync(join(directory, "linux-unpacked/resources/app.asar"), "asar\n");
+  writeFileSync(
+    join(directory, "linux-unpacked/resources/desktop-artifact-manifest.json"),
+    `${JSON.stringify({
+      schemaVersion: 1,
+      desktop: { name: "@doolittle/desktop", version: "0.1.0" },
+      electron: { name: "electron", version: "43.4.1" },
+      surfaces: ["main", "preload", "renderer"].map((surface) => ({
+        schemaVersion: 1,
+        surface,
+        outputs: [{ path: `${surface}.js`, bytes: 1, sha256: "c".repeat(64) }],
+        packages: [],
+      })),
+      appAsar: { productionPackages: [] },
+      runtime: {
+        manifest: {
+          path: "runtime/bin/runtime-manifest.json",
+          sha256: "a".repeat(64),
+        },
+        packages: [{ name: "native", version: "2.0.0" }],
+      },
+      dependencies: [
+        { name: "electron", version: "43.4.1" },
+        { name: "native", version: "2.0.0" },
+      ],
+      legal: [
+        "LICENSE.electron.txt",
+        "LICENSES.chromium.html",
+        "THIRD-PARTY-NOTICES.txt",
+      ].map((path) => ({
+        path,
+        bytes: 1,
+        sha256: "b".repeat(64),
+      })),
+    })}\n`,
+  );
   writeFileSync(join(directory, "artifact.AppImage"), "artifact\n");
   return { directory, runtime };
 }
@@ -37,6 +80,17 @@ afterEach(() => {
 });
 
 describe("package runtime provenance", () => {
+  it("derives a normalized deterministic timestamp from the source commit", () => {
+    const calls: string[][] = [];
+    expect(
+      gitCommitCreatedAt("/repo", "a".repeat(40), (args) => {
+        calls.push(args);
+        return { status: 0, stdout: "2026-08-21T15:00:00-05:00\n" };
+      }),
+    ).toBe("2026-08-21T20:00:00.000Z");
+    expect(calls).toEqual([["show", "-s", "--format=%cI", "a".repeat(40)]]);
+  });
+
   it("rejects an empty runtime tree", () => {
     const directory = mkdtempSync(join(tmpdir(), "doolittle-provenance-"));
     temporaryDirectories.push(directory);
@@ -58,7 +112,7 @@ describe("package runtime provenance", () => {
     expect(
       packageProvenanceRuntime(first.directory, first.runtime),
     ).toMatchObject({
-      entries: 4,
+      entries: 5,
       bytes: expect.any(Number),
       sha256: packageProvenanceRuntime(second.directory, second.runtime).sha256,
     });
@@ -71,6 +125,7 @@ describe("package runtime provenance", () => {
       releaseDirectory: directory,
       platform: "linux",
       commit: "a".repeat(40),
+      createdAt: "2026-08-21T20:00:00.000Z",
       appAsarPath: "linux-unpacked/resources/app.asar",
       artifactPaths: ["artifact.AppImage"],
     });
@@ -81,7 +136,7 @@ describe("package runtime provenance", () => {
         platform: "linux",
         runtimeDirectory: runtime,
       }),
-    ).toMatchObject({ entries: 3 });
+    ).toMatchObject({ entries: 4 });
 
     writeFileSync(
       join(directory, runtime, "bin", "doolittle-runtime.mjs"),

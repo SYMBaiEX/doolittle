@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
+import { desktopSbomName } from "./desktop-sbom";
 import {
   directoryBuildArgs,
   directoryBuildInvalidatedMetadataPaths,
@@ -282,6 +283,19 @@ describe("all-platform desktop release plan", () => {
     });
   });
 
+  it("packages the complete desktop legal and inventory boundary beside app.asar", () => {
+    expect(desktopManifest.build?.extraResources).toContainEqual({
+      from: "build/desktop-artifact",
+      to: ".",
+      filter: [
+        "desktop-artifact-manifest.json",
+        "THIRD-PARTY-NOTICES.txt",
+        "LICENSE.electron.txt",
+        "LICENSES.chromium.html",
+      ],
+    });
+  });
+
   it("excludes private generated-skill metadata from desktop distributions", () => {
     const skillsResource = desktopManifest.build?.extraResources?.find(
       (resource) => resource.from === "../../packages/skills",
@@ -515,6 +529,8 @@ describe("all-platform desktop release plan", () => {
     const manifest = join(release, "release-manifest.json");
     const unpackedManifest = join(release, "unpacked-manifest.json");
     const linuxReceipt = join(release, "desktop-provenance-linux.json");
+    const priorMacSbom = join(release, desktopSbomName("macos"));
+    const linuxSbom = join(release, desktopSbomName("linux"));
     const operatorFile = join(release, "operator-notes.txt");
 
     try {
@@ -525,6 +541,8 @@ describe("all-platform desktop release plan", () => {
       writeFileSync(manifest, "previous manifest");
       writeFileSync(unpackedManifest, "previous unpacked manifest");
       writeFileSync(linuxReceipt, "linux receipt");
+      writeFileSync(priorMacSbom, "previous mac SBOM");
+      writeFileSync(linuxSbom, "linux SBOM");
       writeFileSync(operatorFile, "operator notes");
 
       await expect(
@@ -543,6 +561,8 @@ describe("all-platform desktop release plan", () => {
         "previous unpacked manifest",
       );
       expect(readFileSync(linuxReceipt, "utf8")).toBe("linux receipt");
+      expect(readFileSync(priorMacSbom, "utf8")).toBe("previous mac SBOM");
+      expect(readFileSync(linuxSbom, "utf8")).toBe("linux SBOM");
       expect(readFileSync(operatorFile, "utf8")).toBe("operator notes");
 
       await withTransactionalNativePackage(
@@ -558,6 +578,10 @@ describe("all-platform desktop release plan", () => {
           for (const artifact of releaseTargetReceipt(macTarget).artifacts) {
             writeFileSync(join(staging, artifact), "current mac artifact");
           }
+          writeFileSync(
+            join(staging, desktopSbomName("macos")),
+            "current mac SBOM",
+          );
         },
       );
       expect(readFileSync(priorMacInstaller, "utf8")).toBe(
@@ -568,6 +592,8 @@ describe("all-platform desktop release plan", () => {
       expect(existsSync(manifest)).toBe(false);
       expect(existsSync(unpackedManifest)).toBe(process.platform !== "darwin");
       expect(readFileSync(linuxReceipt, "utf8")).toBe("linux receipt");
+      expect(readFileSync(priorMacSbom, "utf8")).toBe("current mac SBOM");
+      expect(readFileSync(linuxSbom, "utf8")).toBe("linux SBOM");
       expect(readFileSync(operatorFile, "utf8")).toBe("operator notes");
       expect(
         readFileSync(

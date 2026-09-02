@@ -17,9 +17,12 @@
     "build:main": "vite build --config vite.main.config.ts && vite build --config vite.preload.config.ts",
     "build:renderer": "vite build --config vite.renderer.config.ts && nub scripts/renderer-bundle-budget.ts",
     "runtime:prepare": "nub scripts/prepare-runtime.ts",
+    "artifact:prepare": "nub scripts/desktop-artifact.ts",
     "runtime:audit": "nub scripts/verify-package.ts --runtime-manifest build/runtime/runtime-manifest.json",
     "package": "nub run build && nub run runtime:prepare && nub scripts/package.ts",
     "package:dir": "nub run build && nub run runtime:prepare && nub scripts/package.ts --dir",
+    "install:mac": "nub scripts/install-macos-app.ts",
+    "install:mac:ad-hoc": "nub scripts/install-macos-app.ts --allow-ad-hoc",
     "package:mac": "nub run build && nub run runtime:prepare && nub scripts/package.ts --mac dmg zip",
     "package:win": "nub run build && nub run runtime:prepare && nub scripts/package.ts --win nsis --x64",
     "package:linux": "nub run build && nub run runtime:prepare && nub scripts/package.ts --linux AppImage deb --x64",
@@ -43,6 +46,7 @@
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",
     "@xterm/addon-fit": "0.11.0",
+    "@xterm/addon-webgl": "0.17.0",
     "@xterm/xterm": "6.0.0",
     "electron": "43.4.1",
     "electron-builder": "^26.15.7",
@@ -88,6 +92,16 @@
       {
         "from": "../../LICENSE",
         "to": "LICENSE"
+      },
+      {
+        "from": "build/desktop-artifact",
+        "to": ".",
+        "filter": [
+          "desktop-artifact-manifest.json",
+          "THIRD-PARTY-NOTICES.txt",
+          "LICENSE.electron.txt",
+          "LICENSES.chromium.html"
+        ]
       },
       {
         "from": "build/runtime",

@@ -10,6 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { desktopSbomName } from "../apps/desktop/scripts/desktop-sbom";
 import { writeNativePackageReceipt } from "../apps/desktop/scripts/package-provenance";
 import {
   createDesktopRelease,
@@ -59,6 +60,41 @@ function releaseDirectory(version = "0.1.0"): string {
       ].join("\n")}\n`,
     );
   }
+  writeFileSync(
+    join(directory, "desktop-artifact-manifest.json"),
+    `${JSON.stringify({
+      schemaVersion: 1,
+      desktop: { name: "@doolittle/desktop", version },
+      electron: { name: "electron", version: "43.4.1" },
+      surfaces: ["main", "preload", "renderer"].map((surface) => ({
+        schemaVersion: 1,
+        surface,
+        outputs: [{ path: `${surface}.js`, bytes: 1, sha256: "c".repeat(64) }],
+        packages: [],
+      })),
+      appAsar: { productionPackages: [] },
+      runtime: {
+        manifest: {
+          path: "runtime/bin/runtime-manifest.json",
+          sha256: "a".repeat(64),
+        },
+        packages: [{ name: "bundled", version: "1.0.0" }],
+      },
+      dependencies: [
+        { name: "bundled", version: "1.0.0" },
+        { name: "electron", version: "43.4.1" },
+      ],
+      legal: [
+        "LICENSE.electron.txt",
+        "LICENSES.chromium.html",
+        "THIRD-PARTY-NOTICES.txt",
+      ].map((path) => ({
+        path,
+        bytes: 1,
+        sha256: "b".repeat(64),
+      })),
+    })}\n`,
+  );
   for (const platform of ["linux", "macos", "windows"] as const) {
     const appAsar = `app-${platform}.asar`;
     const runtime = `runtime-${platform}`;
@@ -68,19 +104,34 @@ function releaseDirectory(version = "0.1.0"): string {
       join(directory, runtime, "bin", "doolittle-runtime.mjs"),
       `fixture:${runtime}\n`,
     );
+    writeFileSync(
+      join(directory, runtime, "bin", "runtime-manifest.json"),
+      `${JSON.stringify({
+        bundledPackages: [{ name: "bundled", version: "1.0.0" }],
+        nativePackageClosure: [
+          { name: `native-${platform}`, version: "2.0.0" },
+        ],
+      })}\n`,
+    );
     writeNativePackageReceipt({
       releaseDirectory: directory,
       platform,
       commit: "a".repeat(40),
+      createdAt: "2026-08-14T00:00:00.000Z",
       appAsarPath: appAsar,
       runtimeDirectory: runtime,
       artifactPaths: expectedDesktopReleaseArtifacts(version)
-        .filter((artifact) => artifact.platform === platform)
+        .filter(
+          (artifact) =>
+            artifact.platform === platform &&
+            artifact.path !== desktopSbomName(platform),
+        )
         .map((artifact) => artifact.path),
     });
     rmSync(join(directory, appAsar));
     rmSync(join(directory, runtime), { recursive: true });
   }
+  rmSync(join(directory, "desktop-artifact-manifest.json"));
   return directory;
 }
 
@@ -109,7 +160,7 @@ describe("desktop release aggregation", () => {
       commit: "a".repeat(40),
       generatedAt: "2026-08-14T00:00:00.000Z",
     });
-    expect(manifest.artifacts).toHaveLength(15);
+    expect(manifest.artifacts).toHaveLength(18);
     expect(manifest.artifacts).toContainEqual(
       expect.objectContaining({
         path: "LICENSE",
@@ -139,7 +190,7 @@ describe("desktop release aggregation", () => {
       }),
     );
     const sums = readFileSync(join(directory, "SHA256SUMS.txt"), "utf8");
-    expect(sums.trim().split("\n")).toHaveLength(15);
+    expect(sums.trim().split("\n")).toHaveLength(18);
     expect(
       JSON.parse(
         readFileSync(join(directory, "release-manifest.json"), "utf8"),
@@ -326,5 +377,51 @@ describe("desktop release aggregation", () => {
         commit: "a".repeat(40),
       }),
     ).rejects.toThrow("Invalid native provenance receipt");
+  });
+
+  it("rejects missing, tampered, and cross-commit desktop SBOMs", async () => {
+    const missing = releaseDirectory();
+    rmSync(join(missing, "doolittle-desktop-linux.spdx.json"));
+    await expect(
+      createDesktopRelease({
+        directory: missing,
+        version: "0.1.0",
+        tag: "v0.1.0",
+        commit: "a".repeat(40),
+      }),
+    ).rejects.toThrow("missing: doolittle-desktop-linux.spdx.json");
+
+    const tampered = releaseDirectory();
+    writeFileSync(join(tampered, "doolittle-desktop-macos.spdx.json"), "{}\n");
+    await expect(
+      createDesktopRelease({
+        directory: tampered,
+        version: "0.1.0",
+        tag: "v0.1.0",
+        commit: "a".repeat(40),
+      }),
+    ).rejects.toThrow("SBOM hash mismatch");
+
+    const crossCommit = releaseDirectory();
+    const sbomPath = join(crossCommit, "doolittle-desktop-windows.spdx.json");
+    const sbom = JSON.parse(readFileSync(sbomPath, "utf8"));
+    sbom.documentNamespace =
+      "https://github.com/SYMBaiEX/doolittle/sbom/" +
+      `${"b".repeat(40)}/windows`;
+    const serialized = `${JSON.stringify(sbom, null, 2)}\n`;
+    writeFileSync(sbomPath, serialized);
+    const receiptPath = join(crossCommit, "desktop-provenance-windows.json");
+    const receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+    receipt.sbom.bytes = Buffer.byteLength(serialized);
+    receipt.sbom.sha256 = createHash("sha256").update(serialized).digest("hex");
+    writeFileSync(receiptPath, JSON.stringify(receipt));
+    await expect(
+      createDesktopRelease({
+        directory: crossCommit,
+        version: "0.1.0",
+        tag: "v0.1.0",
+        commit: "a".repeat(40),
+      }),
+    ).rejects.toThrow("SPDX document is invalid or mismatched");
   });
 });

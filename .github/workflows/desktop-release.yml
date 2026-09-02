@@ -42,6 +42,8 @@ jobs:
   macos:
     needs: preflight
     uses: ./.github/workflows/desktop-macos.yml
+    with:
+      release_tag: ${{ github.ref_name }}
     secrets:
       MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
       MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
@@ -53,6 +55,7 @@ jobs:
     needs: preflight
     uses: ./.github/workflows/desktop-windows.yml
     with:
+      release_tag: ${{ github.ref_name }}
       windows_publisher_name: ${{ vars.WIN_PUBLISHER_NAME }}
     secrets:
       WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
@@ -103,7 +106,7 @@ jobs:
             --commit "$GITHUB_SHA"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Attest validated installer and archive assets
+      - name: Attest validated binary and SBOM assets
         uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
         with:
           subject-path: |
@@ -112,6 +115,9 @@ jobs:
             release/Doolittle-*-win-x64.exe
             release/Doolittle-*-linux-x64.AppImage
             release/Doolittle-*-linux-x64.deb
+            release/doolittle-desktop-macos.spdx.json
+            release/doolittle-desktop-windows.spdx.json
+            release/doolittle-desktop-linux.spdx.json
 
       - name: Upload validated release bundle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

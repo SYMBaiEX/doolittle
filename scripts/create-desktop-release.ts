@@ -10,6 +10,10 @@ import {
 } from "node:fs";
 import { basename, resolve } from "node:path";
 import {
+  desktopSbomName,
+  validateDesktopSpdxDocument,
+} from "../apps/desktop/scripts/desktop-sbom";
+import {
   type NativePackageReceipt,
   nativeReceiptName,
   type PackageProvenanceArtifact,
@@ -59,7 +63,9 @@ type UnverifiedNativePackageReceipt = {
   platform?: NativePackageReceipt["platform"];
   commit?: string;
   appAsar?: Partial<NativePackageReceipt["appAsar"]>;
+  desktopManifest?: Partial<NativePackageReceipt["desktopManifest"]>;
   runtime?: Partial<NativePackageReceipt["runtime"]>;
+  sbom?: Partial<NativePackageReceipt["sbom"]>;
   artifacts?: PackageProvenanceArtifact[];
 };
 
@@ -99,17 +105,23 @@ async function verifyNativePackageReceipts(
       );
     }
     if (
-      unverifiedReceipt.schemaVersion !== 2 ||
+      unverifiedReceipt.schemaVersion !== 3 ||
       unverifiedReceipt.platform !== platform ||
       unverifiedReceipt.commit !== commit ||
       !isSha256(unverifiedReceipt.appAsar?.sha256) ||
       !unverifiedReceipt.appAsar.path ||
       !isNonnegativeSafeInteger(unverifiedReceipt.appAsar.bytes) ||
+      !unverifiedReceipt.desktopManifest?.path ||
+      !isSha256(unverifiedReceipt.desktopManifest.sha256) ||
+      !isPositiveSafeInteger(unverifiedReceipt.desktopManifest.bytes) ||
       !unverifiedReceipt.runtime ||
       !unverifiedReceipt.runtime.path ||
       !isSha256(unverifiedReceipt.runtime.sha256) ||
       !isPositiveSafeInteger(unverifiedReceipt.runtime.entries) ||
       !isNonnegativeSafeInteger(unverifiedReceipt.runtime.bytes) ||
+      !unverifiedReceipt.sbom?.path ||
+      !isSha256(unverifiedReceipt.sbom.sha256) ||
+      !isPositiveSafeInteger(unverifiedReceipt.sbom.bytes) ||
       !Array.isArray(unverifiedReceipt.artifacts)
     ) {
       throw new Error(
@@ -119,7 +131,9 @@ async function verifyNativePackageReceipts(
     const receipt = unverifiedReceipt as NativePackageReceipt;
     const expectedPaths = expected
       .filter(
-        (artifact) => artifact.platform === receiptArtifactPlatforms(platform),
+        (artifact) =>
+          artifact.platform === receiptArtifactPlatforms(platform) &&
+          artifact.path !== desktopSbomName(platform),
       )
       .map((artifact) => artifact.path)
       .sort();
@@ -148,6 +162,24 @@ async function verifyNativePackageReceipts(
         );
       }
     }
+    const expectedSbomName = desktopSbomName(platform);
+    const sbomPath = resolve(directory, expectedSbomName);
+    if (
+      receipt.sbom.path !== expectedSbomName ||
+      statSync(sbomPath).size !== receipt.sbom.bytes ||
+      (await sha256(sbomPath)) !== receipt.sbom.sha256
+    ) {
+      throw new Error(
+        `Native provenance receipt SBOM hash mismatch: ${nativeReceiptName(platform)} (${expectedSbomName}).`,
+      );
+    }
+    validateDesktopSpdxDocument(JSON.parse(readFileSync(sbomPath, "utf8")), {
+      platform,
+      commit,
+      appAsarSha256: receipt.appAsar.sha256,
+      runtimeSha256: receipt.runtime.sha256,
+      desktopManifestSha256: receipt.desktopManifest.sha256,
+    });
   }
 }
 
@@ -174,6 +206,17 @@ export function expectedDesktopReleaseArtifacts(
       platform: "release",
       architecture: "all",
     },
+    {
+      path: desktopSbomName("macos"),
+      platform: "macos",
+      architecture: "arm64",
+    },
+    {
+      path: desktopSbomName("windows"),
+      platform: "windows",
+      architecture: "x64",
+    },
+    { path: desktopSbomName("linux"), platform: "linux", architecture: "x64" },
     { path: `${mac}.dmg`, platform: "macos", architecture: "arm64" },
     {
       path: `${mac}.dmg.blockmap`,

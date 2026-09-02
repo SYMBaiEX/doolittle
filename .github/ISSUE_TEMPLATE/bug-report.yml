@@ -1,0 +1,73 @@
+name: Bug report
+description: Report a reproducible Doolittle problem
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Doolittle. Do not include API keys, tokens, private prompts, or sensitive workspace contents.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and what you expected instead.
+      placeholder: Doolittle did ...; I expected ...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest reliable sequence, with secrets and private data removed.
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - Desktop app
+        - CLI or TUI
+        - Local API
+        - Gateway or connector
+        - Packaging, install, or update
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Doolittle version or commit
+      description: Use the release version or `git rev-parse --short HEAD` for a source checkout.
+      placeholder: v0.1.0 or abc1234
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, architecture, installation method, and relevant runtime/provider.
+      placeholder: macOS 15 arm64, DMG install, Ollama
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Add relevant screenshots, logs, or traces after removing credentials and private workspace data.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: I removed credentials, tokens, private prompts, and sensitive workspace contents.
+          required: true

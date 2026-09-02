@@ -4,7 +4,13 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { listPackage } from "@electron/asar";
+import { extractFile, listPackage } from "@electron/asar";
+import {
+  DESKTOP_ARTIFACT_FILES,
+  type DesktopArtifactDependency,
+  type DesktopArtifactManifest,
+  validateDesktopArtifactManifest,
+} from "./desktop-artifact";
 import {
   assertPackageComposition,
   MAX_APP_ASAR_BYTES,
@@ -517,6 +523,146 @@ function verifyPackagedLicense(appAsarPath: string): void {
   }
 }
 
+function sameDependencyInventory(
+  left: readonly DesktopArtifactDependency[],
+  right: readonly DesktopArtifactDependency[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every(
+      (entry, index) =>
+        entry.name === right[index]?.name &&
+        entry.version === right[index]?.version,
+    )
+  );
+}
+
+function packagedProductionInventory(
+  appAsarPath: string,
+  entries: readonly string[],
+): DesktopArtifactDependency[] {
+  const packages = new Map<string, DesktopArtifactDependency>();
+  for (const entry of entries.filter(
+    (path) => path.includes("/node_modules/") && path.endsWith("/package.json"),
+  )) {
+    let manifest: { name?: unknown; version?: unknown };
+    try {
+      manifest = JSON.parse(
+        extractFile(appAsarPath, entry.replace(/^\//u, "")).toString("utf8"),
+      ) as { name?: unknown; version?: unknown };
+    } catch (error) {
+      throw new Error(`Packaged app.asar manifest is unreadable: ${entry}`, {
+        cause: error,
+      });
+    }
+    if (
+      typeof manifest.name !== "string" ||
+      !manifest.name ||
+      typeof manifest.version !== "string" ||
+      !manifest.version
+    ) {
+      throw new Error(`Packaged app.asar manifest has no identity: ${entry}`);
+    }
+    packages.set(`${manifest.name}\0${manifest.version}`, {
+      name: manifest.name,
+      version: manifest.version,
+    });
+  }
+  return [...packages.values()].sort(
+    (left, right) =>
+      left.name.localeCompare(right.name) ||
+      left.version.localeCompare(right.version),
+  );
+}
+
+export function verifyPackagedDesktopArtifact(
+  appAsarPath: string,
+  asarEntries: readonly string[] = listPackage(appAsarPath, { isPack: false }),
+): DesktopArtifactManifest {
+  const resources = dirname(appAsarPath);
+  const manifestPath = resolve(resources, "desktop-artifact-manifest.json");
+  if (!existsSync(manifestPath) || !statSync(manifestPath).isFile()) {
+    throw new Error(
+      `Packaged desktop artifact manifest is missing: ${manifestPath}`,
+    );
+  }
+  const manifest = validateDesktopArtifactManifest(
+    JSON.parse(readFileSync(manifestPath, "utf8")),
+  );
+  const actualLegalNames = readdirSync(resources)
+    .filter((entry) =>
+      /^(?:desktop-artifact-manifest(?:\..+)?|THIRD-PARTY-NOTICES(?:\..+)?|LICENSE\.electron(?:\..+)?|LICENSES\.chromium(?:\..+)?)$/u.test(
+        entry,
+      ),
+    )
+    .sort();
+  if (
+    actualLegalNames.join(",") !== [...DESKTOP_ARTIFACT_FILES].sort().join(",")
+  ) {
+    throw new Error(
+      `Packaged desktop legal assets are missing or unexpected: ${actualLegalNames.join(", ")}.`,
+    );
+  }
+  for (const legal of manifest.legal) {
+    const path = resolve(resources, legal.path);
+    if (
+      !existsSync(path) ||
+      statSync(path).size !== legal.bytes ||
+      createHash("sha256").update(readFileSync(path)).digest("hex") !==
+        legal.sha256
+    ) {
+      throw new Error(
+        `Packaged desktop legal asset was tampered with: ${legal.path}`,
+      );
+    }
+  }
+  const runtimeManifestPath = resolve(
+    resources,
+    manifest.runtime.manifest.path,
+  );
+  if (
+    !existsSync(runtimeManifestPath) ||
+    createHash("sha256")
+      .update(readFileSync(runtimeManifestPath))
+      .digest("hex") !== manifest.runtime.manifest.sha256
+  ) {
+    throw new Error("Packaged desktop runtime manifest was tampered with.");
+  }
+  for (const surface of manifest.surfaces) {
+    for (const output of surface.outputs) {
+      const archivePath = `dist/${surface.surface}/${output.path}`;
+      let contents: Buffer;
+      try {
+        contents = extractFile(appAsarPath, archivePath);
+      } catch (error) {
+        throw new Error(`Packaged desktop output is missing: ${archivePath}`, {
+          cause: error,
+        });
+      }
+      if (
+        contents.byteLength !== output.bytes ||
+        createHash("sha256").update(contents).digest("hex") !== output.sha256
+      ) {
+        throw new Error(
+          `Packaged desktop output was tampered with: ${archivePath}`,
+        );
+      }
+    }
+  }
+  const actualPackages = packagedProductionInventory(appAsarPath, asarEntries);
+  if (
+    !sameDependencyInventory(
+      actualPackages,
+      manifest.appAsar.productionPackages,
+    )
+  ) {
+    throw new Error(
+      `Packaged app.asar dependency inventory does not match desktop artifact manifest.`,
+    );
+  }
+  return manifest;
+}
+
 export type CodeSignRunner = (command: string, args: string[]) => number | null;
 
 type CodeSignMetadata = {
@@ -634,16 +780,19 @@ function main(): void {
     throw new Error(`app.asar is missing: ${appAsarPath}`);
   }
   const rootManifest = loadManifest(resolve(desktopRoot, "package.json"));
-  const packagedModules = packageNamesFromAsarEntries(
-    listPackage(appAsarPath, { isPack: false }),
-  );
+  const asarEntries = listPackage(appAsarPath, { isPack: false });
+  const packagedModules = packageNamesFromAsarEntries(asarEntries);
   const allowedModules = installedProductionClosure(rootManifest);
   const asarBytes = statSync(appAsarPath).size;
   assertPackageComposition({ asarBytes, packagedModules, allowedModules });
   verifyPackagedLicense(appAsarPath);
+  const artifactManifest = verifyPackagedDesktopArtifact(
+    appAsarPath,
+    asarEntries,
+  );
   const nativePackages = verifyPackagedNativeRuntime(appAsarPath);
   console.log(
-    `Desktop package verified: ${(asarBytes / 1024 / 1024).toFixed(1)} MiB app.asar, ${packagedModules.length} packaged modules, ${allowedModules.length} allowed production modules, ${nativePackages.length} native runtime packages (limit ${(MAX_APP_ASAR_BYTES / 1024 / 1024).toFixed(0)} MiB).`,
+    `Desktop package verified: ${(asarBytes / 1024 / 1024).toFixed(1)} MiB app.asar, ${packagedModules.length} packaged modules, ${artifactManifest.dependencies.length} complete artifact dependencies, ${allowedModules.length} allowed production modules, ${nativePackages.length} native runtime packages (limit ${(MAX_APP_ASAR_BYTES / 1024 / 1024).toFixed(0)} MiB).`,
   );
 }
 

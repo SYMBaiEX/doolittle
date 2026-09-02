@@ -138,11 +138,11 @@ function licenseFile(
  * emitted into the packaged runtime. This deliberately takes source directories
  * from the bundler/copy closure rather than resolving the broader dev graph.
  */
-export function writeRuntimeThirdPartyNotices(
-  path: string,
+export function runtimeThirdPartyNoticesText(
   inventory: readonly RuntimeDependencyInventoryEntry[],
   sources: readonly RuntimeDependencyLicenseSource[],
-): void {
+  title = "Doolittle packaged runtime third-party notices",
+): string {
   const sourcesByPackage = new Map<string, RuntimeDependencyLicenseSource>();
   for (const source of sources) {
     const key = `${source.name}\u0000${source.version}`;
@@ -228,17 +228,21 @@ export function writeRuntimeThirdPartyNotices(
       ].join("\n");
     },
   );
-  writeFileSync(
-    path,
-    [
-      "Doolittle packaged runtime third-party notices",
-      "",
-      "This file is generated from the packaged runtime dependency inventory.",
-      "",
-      ...notices,
-    ].join("\n"),
-    "utf8",
-  );
+  return [
+    title,
+    "",
+    "This file is generated from the exact packaged dependency inventory.",
+    "",
+    ...notices,
+  ].join("\n");
+}
+
+export function writeRuntimeThirdPartyNotices(
+  path: string,
+  inventory: readonly RuntimeDependencyInventoryEntry[],
+  sources: readonly RuntimeDependencyLicenseSource[],
+): void {
+  writeFileSync(path, runtimeThirdPartyNoticesText(inventory, sources), "utf8");
 }
 
 /**

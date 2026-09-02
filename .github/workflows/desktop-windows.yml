@@ -3,17 +3,25 @@ name: desktop-windows
 on:
   workflow_call:
     inputs:
+      release_tag:
+        description: Exact existing v-prefixed release tag to build
+        required: true
+        type: string
       windows_publisher_name:
         description: Full Authenticode signer subject DN used by electron-updater
         required: false
         type: string
     secrets:
       WIN_CSC_LINK:
-        required: false
+        required: true
       WIN_CSC_KEY_PASSWORD:
-        required: false
+        required: true
   workflow_dispatch:
     inputs:
+      release_tag:
+        description: Exact existing v-prefixed release tag; select the same tag as the workflow ref
+        required: true
+        type: string
       windows_publisher_name:
         description: Full Authenticode signer subject DN used by electron-updater
         required: false
@@ -26,10 +34,14 @@ jobs:
   installer:
     runs-on: windows-latest
     timeout-minutes: 30
+    environment: release
 
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: refs/tags/${{ inputs.release_tag }}
+          fetch-depth: 0
 
       - name: Set up Nub and Node
         uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
@@ -44,13 +56,40 @@ jobs:
       - name: Install Electron runtime
         run: nub run desktop:runtime:install
 
-      - name: Verify tagged release version
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Bind build to exact release tag
         shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
+          if (-not [regex]::IsMatch($env:RELEASE_TAG, '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$')) {
+            throw "Release tag $env:RELEASE_TAG is not an exact version tag."
+          }
+          $tagRef = "refs/tags/$env:RELEASE_TAG"
+          if ($env:GITHUB_REF -ne $tagRef) {
+            throw "Workflow ref $env:GITHUB_REF must exactly match requested release tag $tagRef."
+          }
+          git show-ref --verify --quiet $tagRef
+          if ($LASTEXITCODE -ne 0) {
+            throw "Release tag $tagRef is not present in the checkout."
+          }
+          $tagCommit = (git rev-parse --verify "$($tagRef)^{}").Trim()
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not peel release tag $tagRef to a commit."
+          }
+          $headCommit = (git rev-parse --verify HEAD).Trim()
+          if ($tagCommit -ne $headCommit) {
+            throw "Checked-out HEAD $headCommit does not match peeled tag commit $tagCommit."
+          }
+          if ($headCommit -ne $env:GITHUB_SHA) {
+            throw "Checked-out HEAD $headCommit does not match workflow commit $env:GITHUB_SHA."
+          }
           $expected = "v$((Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json).version)"
-          if ($env:GITHUB_REF_NAME -ne $expected) {
-            throw "Tag $env:GITHUB_REF_NAME must match apps/desktop/package.json version $expected."
+          if ($env:RELEASE_TAG -ne $expected) {
+            throw "Tag $env:RELEASE_TAG must match apps/desktop/package.json version $expected."
+          }
+          git merge-base --is-ancestor $headCommit origin/main
+          if ($LASTEXITCODE -ne 0) {
+            throw "Release commit $headCommit must be on origin/main."
           }
 
       - name: Check application and acceptance contracts
@@ -61,8 +100,7 @@ jobs:
       - name: Verify desktop
         run: nub run desktop:test
 
-      - name: Require signing credentials for tagged releases
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Require signing credentials
         shell: pwsh
         env:
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
@@ -70,13 +108,13 @@ jobs:
           WIN_PUBLISHER_NAME: ${{ inputs.windows_publisher_name }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:WIN_CSC_LINK)) {
-            throw "WIN_CSC_LINK is required for tagged releases."
+            throw "WIN_CSC_LINK is required for releases."
           }
           if ([string]::IsNullOrWhiteSpace($env:WIN_CSC_KEY_PASSWORD)) {
-            throw "WIN_CSC_KEY_PASSWORD is required for tagged releases."
+            throw "WIN_CSC_KEY_PASSWORD is required for releases."
           }
           if ([string]::IsNullOrWhiteSpace($env:WIN_PUBLISHER_NAME)) {
-            throw "The full Authenticode signer subject DN is required for tagged releases."
+            throw "The full Authenticode signer subject DN is required for releases."
           }
 
       - name: Build Windows installer
@@ -218,8 +256,9 @@ jobs:
         run: |
           $installer = Get-ChildItem apps/desktop/release/Doolittle-*-win-x64.exe | Select-Object -First 1
           if (-not $installer) { throw "Doolittle Windows installer was not produced." }
-          nub apps/desktop/scripts/package-provenance.ts --write-receipt --release-directory apps/desktop/release --platform windows --commit "$env:GITHUB_SHA" --app-asar win-unpacked/resources/app.asar --artifact $installer.Name --artifact "$($installer.Name).blockmap" --artifact latest.yml
-          nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform windows --runtime-directory apps/desktop/release/win-unpacked/resources/runtime
+          $createdAt = git show -s --format=%cI "$env:GITHUB_SHA"
+          nub apps/desktop/scripts/package-provenance.ts --write-receipt --release-directory apps/desktop/release --platform windows --commit "$env:GITHUB_SHA" --created-at "$createdAt" --app-asar win-unpacked/resources/app.asar --artifact $installer.Name --artifact "$($installer.Name).blockmap" --artifact latest.yml
+          nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform windows --runtime-directory win-unpacked/resources/runtime
 
       - name: Install, launch, and uninstall the NSIS artifact
         shell: pwsh
@@ -287,4 +326,5 @@ jobs:
             apps/desktop/release/Doolittle-*-win-x64.exe.blockmap
             apps/desktop/release/latest.yml
             apps/desktop/release/desktop-provenance-windows.json
+            apps/desktop/release/doolittle-desktop-windows.spdx.json
           if-no-files-found: error

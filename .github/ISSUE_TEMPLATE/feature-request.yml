@@ -1,0 +1,56 @@
+name: Feature request
+description: Propose a focused product or integration improvement
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Doolittle stays ElizaOS-native. Please describe the user outcome first and identify an official ElizaOS primitive when one already exists.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem or missing workflow should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the complete user experience and how success would be verified.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - Desktop app
+        - CLI or TUI
+        - Local API
+        - Gateway or connector
+        - Packaging, install, or update
+        - Cross-surface
+    validations:
+      required: true
+  - type: textarea
+    id: eliza
+    attributes:
+      label: ElizaOS alignment
+      description: Note any official SDK service, action, provider, plugin, or UI primitive that may apply.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Explain current workarounds or smaller alternatives.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and discussions for a similar request.
+          required: true
+        - label: This request does not require modifying upstream ElizaOS packages inside Doolittle.
+          required: true

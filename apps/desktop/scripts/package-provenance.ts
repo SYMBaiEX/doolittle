@@ -9,6 +9,12 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import {
+  type DesktopSbomPlatform,
+  desktopSbomName,
+  validateDesktopSpdxDocument,
+  writeDesktopSpdxDocument,
+} from "./desktop-sbom";
 
 export type GitCommandResult = {
   status: number | null;
@@ -35,11 +41,13 @@ export type PackageProvenanceRuntime = {
 };
 
 export type NativePackageReceipt = {
-  schemaVersion: 2;
+  schemaVersion: 3;
   platform: "linux" | "macos" | "windows";
   commit: string;
   appAsar: PackageProvenanceArtifact;
+  desktopManifest: PackageProvenanceArtifact;
   runtime: PackageProvenanceRuntime;
+  sbom: PackageProvenanceArtifact;
   artifacts: PackageProvenanceArtifact[];
 };
 
@@ -144,6 +152,7 @@ export function writeNativePackageReceipt({
   releaseDirectory,
   platform,
   commit,
+  createdAt,
   appAsarPath,
   runtimeDirectory = runtimeDirectoryForAppAsar(appAsarPath),
   artifactPaths,
@@ -151,6 +160,7 @@ export function writeNativePackageReceipt({
   releaseDirectory: string;
   platform: NativePackageReceipt["platform"];
   commit: string;
+  createdAt: string;
   appAsarPath: string;
   runtimeDirectory?: string;
   artifactPaths: string[];
@@ -158,12 +168,31 @@ export function writeNativePackageReceipt({
   if (!COMMIT_SHA.test(commit)) {
     throw new Error(`Invalid package source commit: ${commit}`);
   }
-  const receipt: NativePackageReceipt = {
-    schemaVersion: 2,
+  const runtime = packageProvenanceRuntime(releaseDirectory, runtimeDirectory);
+  const appAsar = packageProvenanceArtifact(releaseDirectory, appAsarPath);
+  const resourcesDirectory = dirname(resolve(releaseDirectory, appAsarPath));
+  const desktopManifest = packageProvenanceArtifact(
+    releaseDirectory,
+    resolve(resourcesDirectory, "desktop-artifact-manifest.json"),
+  );
+  const sbomPath = writeDesktopSpdxDocument({
+    releaseDirectory,
+    resourcesDirectory,
     platform,
     commit,
-    appAsar: packageProvenanceArtifact(releaseDirectory, appAsarPath),
-    runtime: packageProvenanceRuntime(releaseDirectory, runtimeDirectory),
+    createdAt,
+    appAsarSha256: appAsar.sha256,
+    runtimeSha256: runtime.sha256,
+    desktopManifestSha256: desktopManifest.sha256,
+  });
+  const receipt: NativePackageReceipt = {
+    schemaVersion: 3,
+    platform,
+    commit,
+    appAsar,
+    desktopManifest,
+    runtime,
+    sbom: packageProvenanceArtifact(releaseDirectory, sbomPath),
     artifacts: artifactPaths.map((path) =>
       packageProvenanceArtifact(releaseDirectory, path),
     ),
@@ -199,6 +228,7 @@ export function writeNativePackageReceiptFromArgs(
       "--platform",
     ) as NativePackageReceipt["platform"],
     commit: requiredArgument(args, "--commit"),
+    createdAt: requiredArgument(args, "--created-at"),
     appAsarPath: requiredArgument(args, "--app-asar"),
     runtimeDirectory: args.includes("--runtime-directory")
       ? requiredArgument(args, "--runtime-directory")
@@ -227,7 +257,7 @@ export function verifyNativePackageRuntime({
       `Missing or invalid native provenance receipt: ${nativeReceiptName(platform)}.`,
     );
   }
-  if (receipt.schemaVersion !== 2 || receipt.platform !== platform) {
+  if (receipt.schemaVersion !== 3 || receipt.platform !== platform) {
     throw new Error(
       `Invalid native provenance receipt: ${nativeReceiptName(platform)}.`,
     );
@@ -242,7 +272,61 @@ export function verifyNativePackageRuntime({
       `Packaged runtime does not match ${nativeReceiptName(platform)}.`,
     );
   }
+  const resourcesDirectory = dirname(
+    resolve(releaseDirectory, receipt.appAsar.path),
+  );
+  const actualAppAsar = packageProvenanceArtifact(
+    releaseDirectory,
+    receipt.appAsar.path,
+  );
+  if (
+    receipt.appAsar.bytes !== actualAppAsar.bytes ||
+    receipt.appAsar.sha256 !== actualAppAsar.sha256
+  ) {
+    throw new Error(
+      `Packaged app.asar does not match ${nativeReceiptName(platform)}.`,
+    );
+  }
+  const desktopManifest = packageProvenanceArtifact(
+    releaseDirectory,
+    resolve(resourcesDirectory, "desktop-artifact-manifest.json"),
+  );
+  const sbomPath = resolve(releaseDirectory, desktopSbomName(platform));
+  const sbom = packageProvenanceArtifact(releaseDirectory, sbomPath);
+  if (
+    receipt.sbom.path !== sbom.path ||
+    receipt.sbom.bytes !== sbom.bytes ||
+    receipt.sbom.sha256 !== sbom.sha256
+  ) {
+    throw new Error(
+      `Packaged desktop SBOM does not match ${nativeReceiptName(platform)}.`,
+    );
+  }
+  validateDesktopSpdxDocument(JSON.parse(readFileSync(sbomPath, "utf8")), {
+    platform: platform as DesktopSbomPlatform,
+    commit: receipt.commit,
+    appAsarSha256: actualAppAsar.sha256,
+    runtimeSha256: runtime.sha256,
+    desktopManifestSha256: desktopManifest.sha256,
+  });
   return runtime;
+}
+
+export function gitCommitCreatedAt(
+  repoRoot: string,
+  commit: string,
+  runner: GitCommandRunner = (args) => runGit(repoRoot, args),
+): string {
+  const value = readGitValue(
+    ["show", "-s", "--format=%cI", commit],
+    runner,
+    `Unable to resolve package source timestamp for ${commit}.`,
+  );
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) {
+    throw new Error(`Invalid package source timestamp for ${commit}: ${value}`);
+  }
+  return new Date(timestamp).toISOString();
 }
 
 function runGit(repoRoot: string, args: string[]): GitCommandResult {

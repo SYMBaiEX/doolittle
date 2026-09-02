@@ -5,7 +5,7 @@
     },
     "apps/desktop": {
       "ignoreDependencies": ["electron-builder"],
-      "ignoreBinaries": ["wine"]
+      "ignoreBinaries": ["ditto", "osascript", "pgrep", "plutil", "wine"]
     },
     "packages/plugins": {
       "project": ["doolittle-plugin/**/*.ts"]

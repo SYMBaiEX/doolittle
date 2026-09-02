@@ -2,12 +2,14 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
+import { createPackage } from "@electron/asar";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   validateRuntimeDependencySecurityPolicy,
   validateRuntimeManifest,
   verifyMacCodeSignature,
   verifyMacRuntimeNativeCodeTeam,
+  verifyPackagedDesktopArtifact,
   verifyPackagedNativeRuntime,
 } from "./verify-package";
 
@@ -333,5 +335,101 @@ describe("macOS packaged runtime native-code signing", () => {
     expect(() =>
       verifyMacRuntimeNativeCodeTeam(app, nativeCode, inspect),
     ).toThrow("TeamIdentifier mismatch");
+  });
+});
+
+describe("complete packaged desktop artifact verification", () => {
+  async function packagedDesktopFixture(): Promise<{
+    appAsarPath: string;
+    resources: string;
+  }> {
+    const root = mkdtempSync(resolve(tmpdir(), "doolittle-desktop-artifact-"));
+    temporaryDirectories.push(root);
+    const source = resolve(root, "source");
+    const resources = resolve(root, "resources");
+    mkdirSync(resolve(source, "dist/main"), { recursive: true });
+    mkdirSync(resolve(source, "dist/preload"), { recursive: true });
+    mkdirSync(resolve(source, "dist/renderer"), { recursive: true });
+    mkdirSync(resolve(source, "node_modules/example"), { recursive: true });
+    mkdirSync(resolve(resources, "runtime/bin"), { recursive: true });
+    const outputs = [
+      ["main", "main.mjs", "main output"],
+      ["preload", "preload.cjs", "preload output"],
+      ["renderer", "index.html", "renderer output"],
+    ] as const;
+    for (const [surface, path, contents] of outputs) {
+      writeFileSync(resolve(source, `dist/${surface}/${path}`), contents);
+    }
+    writeFileSync(
+      resolve(source, "node_modules/example/package.json"),
+      JSON.stringify({ name: "example", version: "1.2.3" }),
+    );
+    const runtimeManifest = '{"schema":1}\n';
+    writeFileSync(
+      resolve(resources, "runtime/bin/runtime-manifest.json"),
+      runtimeManifest,
+    );
+    const legalNames = [
+      "LICENSE.electron.txt",
+      "LICENSES.chromium.html",
+      "THIRD-PARTY-NOTICES.txt",
+    ] as const;
+    for (const name of legalNames)
+      writeFileSync(resolve(resources, name), name);
+    const hash = (value: string | Buffer) =>
+      createHash("sha256").update(value).digest("hex");
+    const manifest = {
+      schemaVersion: 1,
+      desktop: { name: "@doolittle/desktop", version: "0.1.0" },
+      electron: { name: "electron", version: "43.4.1" },
+      surfaces: outputs.map(([surface, path, contents]) => ({
+        schemaVersion: 1,
+        surface,
+        outputs: [
+          { path, bytes: Buffer.byteLength(contents), sha256: hash(contents) },
+        ],
+        packages: [],
+      })),
+      appAsar: { productionPackages: [{ name: "example", version: "1.2.3" }] },
+      runtime: {
+        manifest: {
+          path: "runtime/bin/runtime-manifest.json",
+          sha256: hash(runtimeManifest),
+        },
+        packages: [{ name: "runtime-example", version: "2.0.0" }],
+      },
+      dependencies: [
+        { name: "electron", version: "43.4.1" },
+        { name: "example", version: "1.2.3" },
+        { name: "runtime-example", version: "2.0.0" },
+      ],
+      legal: legalNames.map((path) => ({
+        path,
+        bytes: Buffer.byteLength(path),
+        sha256: hash(path),
+      })),
+    };
+    writeFileSync(
+      resolve(resources, "desktop-artifact-manifest.json"),
+      JSON.stringify(manifest),
+    );
+    const appAsarPath = resolve(resources, "app.asar");
+    await createPackage(source, appAsarPath);
+    return { appAsarPath, resources };
+  }
+
+  it("reconstructs the exact emitted output and app.asar package inventory", async () => {
+    const { appAsarPath } = await packagedDesktopFixture();
+    expect(verifyPackagedDesktopArtifact(appAsarPath).desktop.version).toBe(
+      "0.1.0",
+    );
+  });
+
+  it("rejects tampered legal assets", async () => {
+    const { appAsarPath, resources } = await packagedDesktopFixture();
+    writeFileSync(resolve(resources, "LICENSES.chromium.html"), "tampered");
+    expect(() => verifyPackagedDesktopArtifact(appAsarPath)).toThrow(
+      "legal asset was tampered",
+    );
   });
 });

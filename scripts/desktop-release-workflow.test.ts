@@ -60,6 +60,8 @@ describe("atomic desktop release workflow", () => {
     expect(source).toContain('      - "v*"');
     expect(source).toContain("uses: ./.github/workflows/desktop-macos.yml");
     expect(source).toContain("uses: ./.github/workflows/desktop-windows.yml");
+    expect(macCaller).toContain("release_tag: $" + "{{ github.ref_name }}");
+    expect(windowsCaller).toContain("release_tag: $" + "{{ github.ref_name }}");
     expect(windowsCaller).toContain(
       "windows_publisher_name: $" + "{{ vars.WIN_PUBLISHER_NAME }}",
     );
@@ -98,6 +100,11 @@ describe("atomic desktop release workflow", () => {
       /linux:\n\s+needs: preflight\n\s+uses: \.\/\.github\/workflows\/desktop-linux\.yml\n\n\s+assemble:/u,
     );
     expect(mac).toContain(`workflow_call:
+    inputs:
+      release_tag:
+        description: Exact existing v-prefixed release tag to build
+        required: true
+        type: string
     secrets:
       MAC_CSC_LINK:
         required: true
@@ -112,15 +119,19 @@ describe("atomic desktop release workflow", () => {
   workflow_dispatch:`);
     expect(windows).toContain(`workflow_call:
     inputs:
+      release_tag:
+        description: Exact existing v-prefixed release tag to build
+        required: true
+        type: string
       windows_publisher_name:
         description: Full Authenticode signer subject DN used by electron-updater
         required: false
         type: string
     secrets:
       WIN_CSC_LINK:
-        required: false
+        required: true
       WIN_CSC_KEY_PASSWORD:
-        required: false
+        required: true
   workflow_dispatch:`);
     expect(windows).toContain(
       "nub apps/desktop/scripts/verify-windows-update-manifest.ts",
@@ -135,12 +146,24 @@ describe("atomic desktop release workflow", () => {
     expect(mac).toContain("nub apps/desktop/scripts/verify-package.ts");
     expect(linux).toContain("nub apps/desktop/scripts/verify-package.ts");
     expect(windows).toContain("nub run desktop:package:win");
+    expect(linux).toContain(
+      "--runtime-directory linux-unpacked/resources/runtime",
+    );
+    expect(linux).not.toContain(
+      "--runtime-directory apps/desktop/release/linux-unpacked",
+    );
+    expect(windows).toContain(
+      "--runtime-directory win-unpacked/resources/runtime",
+    );
+    expect(windows).not.toContain(
+      "--runtime-directory apps/desktop/release/win-unpacked",
+    );
     expect(source).toContain(
       'git merge-base --is-ancestor "$GITHUB_SHA" origin/main',
     );
     expect(source).toContain("needs: [macos, windows, linux]");
     expect(source).toContain("nub scripts/create-desktop-release.ts");
-    expect(source).toContain("Attest validated installer and archive assets");
+    expect(source).toContain("Attest validated binary and SBOM assets");
     expect(source).toContain(
       "actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1",
     );
@@ -149,7 +172,7 @@ describe("atomic desktop release workflow", () => {
     );
     const attestation = section(
       source,
-      "      - name: Attest validated installer and archive assets",
+      "      - name: Attest validated binary and SBOM assets",
       "      - name: Upload validated release bundle",
     );
     expect(attestation).toContain("release/Doolittle-*-mac-arm64.dmg");
@@ -157,13 +180,16 @@ describe("atomic desktop release workflow", () => {
     expect(attestation).toContain("release/Doolittle-*-win-x64.exe");
     expect(attestation).toContain("release/Doolittle-*-linux-x64.AppImage");
     expect(attestation).toContain("release/Doolittle-*-linux-x64.deb");
+    expect(attestation).toContain("release/doolittle-desktop-macos.spdx.json");
+    expect(attestation).toContain(
+      "release/doolittle-desktop-windows.spdx.json",
+    );
+    expect(attestation).toContain("release/doolittle-desktop-linux.spdx.json");
     expect(
       source.indexOf("nub scripts/create-desktop-release.ts"),
-    ).toBeLessThan(
-      source.indexOf("Attest validated installer and archive assets"),
-    );
+    ).toBeLessThan(source.indexOf("Attest validated binary and SBOM assets"));
     expect(
-      source.indexOf("Attest validated installer and archive assets"),
+      source.indexOf("Attest validated binary and SBOM assets"),
     ).toBeLessThan(source.indexOf("Upload validated release bundle"));
     expect(source).toContain("needs: assemble");
     expect(source.match(/softprops\/action-gh-release/gu)).toHaveLength(1);
@@ -179,6 +205,75 @@ describe("atomic desktop release workflow", () => {
     );
     expect(source).toMatch(
       /publish:[\s\S]*?permissions:\n\s+contents: write[\s\S]*?softprops\/action-gh-release/u,
+    );
+  });
+
+  it("gates native signing on approval and an exact release tag", () => {
+    const mac = readFileSync(producers[0] ?? "", "utf8");
+    const windows = readFileSync(producers[1] ?? "", "utf8");
+
+    for (const workflow of [mac, windows]) {
+      expect(workflow).toContain("environment: release");
+      expect(workflow.match(/release_tag:/gu)).toHaveLength(2);
+      expect(workflow).toContain(
+        "description: Exact existing v-prefixed release tag; select the same tag as the workflow ref",
+      );
+      expect(workflow).toMatch(
+        /workflow_dispatch:[\s\S]*?release_tag:[\s\S]*?required: true[\s\S]*?type: string/u,
+      );
+      expect(workflow).toContain(
+        "ref: refs/tags/$" + "{{ inputs.release_tag }}",
+      );
+      expect(workflow).toContain("fetch-depth: 0");
+      expect(workflow).toContain("Bind build to exact release tag");
+      expect(workflow).toContain("git show-ref --verify --quiet");
+      expect(workflow).toContain("git rev-parse --verify");
+      expect(workflow).toContain("^{}");
+      expect(workflow).toContain("GITHUB_REF");
+      expect(workflow).toContain("GITHUB_SHA");
+      expect(workflow).toContain("origin/main");
+      expect(workflow.indexOf("Bind build to exact release tag")).toBeLessThan(
+        workflow.indexOf("Require signing"),
+      );
+      expect(workflow.indexOf("Bind build to exact release tag")).toBeLessThan(
+        workflow.indexOf("${{ secrets."),
+      );
+    }
+
+    expect(mac).toContain('test "$GITHUB_REF" = "$tag_ref"');
+    expect(mac).toContain('test "$tag_commit" = "$head_commit"');
+    expect(windows).toContain("if ($env:GITHUB_REF -ne $tagRef)");
+    expect(windows).toContain("if ($tagCommit -ne $headCommit)");
+    expect(windows).not.toContain("if: startsWith(github.ref, 'refs/tags/')");
+  });
+
+  it("documents checksum and GitHub attestation trust separately", () => {
+    const desktop = readFileSync("docs/desktop.md", "utf8");
+    const release = readFileSync("docs/releases/v0.1.0.md", "utf8");
+
+    for (const document of [desktop, release]) {
+      expect(document).toContain(
+        "gh attestation verify Doolittle-0.1.0-linux-x64.AppImage --repo SYMBaiEX/doolittle",
+      );
+      expect(document).toContain(
+        "gh attestation verify Doolittle-0.1.0-linux-x64.deb --repo SYMBaiEX/doolittle",
+      );
+      expect(document).toContain(
+        "gh attestation verify doolittle-desktop-linux.spdx.json --repo SYMBaiEX/doolittle",
+      );
+      expect(document).toMatch(
+        /unsigned (integrity companion|verification records)/u,
+      );
+    }
+
+    expect(desktop).toContain(
+      "`release` environment must require reviewer approval and deployment tag rules",
+    );
+    expect(desktop).toMatch(
+      /cannot prove that the live GitHub environment reviewers or deployment rules are\s+configured/u,
+    );
+    expect(desktop).toMatch(
+      /select the exact\s+existing `v<version>` tag as the workflow ref/u,
     );
   });
 
@@ -199,7 +294,12 @@ describe("atomic desktop release workflow", () => {
     expect(mac).toContain(
       'installed_app="$install_root/Applications/Doolittle.app"',
     );
-    expect(mac).toContain('ditto "$mount_path/Doolittle.app" "$installed_app"');
+    expect(mac).toContain(
+      'nub apps/desktop/scripts/install-macos-app.ts --source "$mount_path/Doolittle.app" --destination "$installed_app"',
+    );
+    expect(mac).not.toContain(
+      'ditto "$mount_path/Doolittle.app" "$installed_app"',
+    );
     expect(mac).toContain(
       'rm -rf "$mount_path" "$zip_path_root" "$install_root"',
     );
@@ -218,6 +318,12 @@ describe("atomic desktop release workflow", () => {
     expect(mac).toContain("desktop-provenance-macos.json");
     expect(windows).toContain("desktop-provenance-windows.json");
     expect(linux).toContain("desktop-provenance-linux.json");
+    expect(mac).toContain("doolittle-desktop-macos.spdx.json");
+    expect(windows).toContain("doolittle-desktop-windows.spdx.json");
+    expect(linux).toContain("doolittle-desktop-linux.spdx.json");
+    for (const workflow of [mac, windows, linux]) {
+      expect(workflow).toContain("--created-at");
+    }
     expect(
       mac.match(
         /nub apps\/desktop\/scripts\/verify-package\.ts --verify-signature/gu,

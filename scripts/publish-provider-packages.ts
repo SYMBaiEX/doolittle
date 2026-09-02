@@ -72,9 +72,11 @@ const LOCAL_COMPATIBILITY_PACKAGE_PATHS = [
   "packages/registry",
 ] as const;
 
-const ISOLATED_CONSUMER_OVERRIDE_NAMES = ["protobufjs", "tar"] as const;
 const TRUSTED_PUBLISH_REPOSITORY = "SYMBaiEX/doolittle";
 const TRUSTED_PUBLISH_WORKFLOW = "provider-publish.yml";
+const PROVIDER_RELEASE_TAG =
+  /^provider-v[0-9]+(?:\.[0-9]+){2}(?:-[0-9A-Za-z.-]+)?$/u;
+const GIT_COMMIT = /^[0-9a-f]{40}$/iu;
 const SECRET_ARGUMENT = /(?:otp|token|auth|password|credential|key)/iu;
 const SECRET_ENVIRONMENT =
   /(?:token|secret|password|credential|auth|otp|key)$/iu;
@@ -112,6 +114,36 @@ function assertTrustedPublishEnvironment(environment = process.env): void {
   if (!trusted) {
     throw new Error(
       "Live provider publishing is restricted to the trusted GitHub Actions OIDC workflow.",
+    );
+  }
+
+  const releaseTag = environment.PUBLISH_RELEASE_TAG;
+  const releaseCommit = environment.PUBLISH_RELEASE_COMMIT?.toLowerCase();
+  if (!releaseTag || !PROVIDER_RELEASE_TAG.test(releaseTag)) {
+    throw new Error(
+      "Live provider publishing requires a verified provider-v<semver> release tag.",
+    );
+  }
+  if (!releaseCommit || !GIT_COMMIT.test(releaseCommit)) {
+    throw new Error(
+      "Live provider publishing requires the verified release-tag commit.",
+    );
+  }
+
+  const tagCommit = run(
+    "git",
+    ["rev-parse", "--verify", `refs/tags/${releaseTag}^{}`],
+    repoRoot(),
+  );
+  const headCommit = run("git", ["rev-parse", "--verify", "HEAD"], repoRoot());
+  if (
+    !tagCommit.ok ||
+    !headCommit.ok ||
+    tagCommit.stdout.toLowerCase() !== releaseCommit ||
+    headCommit.stdout.toLowerCase() !== releaseCommit
+  ) {
+    throw new Error(
+      "Live provider publishing requires source checked out at the verified release-tag commit.",
     );
   }
 }
@@ -454,20 +486,6 @@ function packLocalCompatibilityPackages(): {
   }
 }
 
-function isolatedConsumerSecurityOverrides(): Record<string, string> {
-  const rootManifestPath = join(repoRoot(), "package.json");
-  if (!existsSync(rootManifestPath)) return {};
-  const rootManifest = JSON.parse(readFileSync(rootManifestPath, "utf8")) as {
-    overrides?: Record<string, unknown>;
-  };
-  return Object.fromEntries(
-    ISOLATED_CONSUMER_OVERRIDE_NAMES.flatMap((name) => {
-      const version = rootManifest.overrides?.[name];
-      return typeof version === "string" ? [[name, version]] : [];
-    }),
-  );
-}
-
 function smokePackedConsumer(
   tarballPath: string,
   manifest: PackageManifest,
@@ -477,16 +495,9 @@ function smokePackedConsumer(
     join(tmpdir(), "doolittle-provider-consumer-"),
   );
   try {
-    const securityOverrides = isolatedConsumerSecurityOverrides();
     writeFileSync(
       join(consumerPath, "package.json"),
-      `${JSON.stringify({
-        private: true,
-        type: "module",
-        ...(Object.keys(securityOverrides).length > 0
-          ? { overrides: securityOverrides }
-          : {}),
-      })}\n`,
+      `${JSON.stringify({ private: true, type: "module" })}\n`,
       "utf8",
     );
     const installed = run(
@@ -548,6 +559,13 @@ function verifyPublishedRegistryPackage(
     );
     if (!installed.ok) return installed;
 
+    const audited = run(
+      "npm",
+      ["audit", "--audit-level", "high", "--omit", "dev"],
+      consumerPath,
+    );
+    if (!audited.ok) return audited;
+
     const imported = run(
       process.execPath,
       [
@@ -559,8 +577,10 @@ function verifyPublishedRegistryPackage(
     );
     return {
       ok: imported.ok,
-      command: `${installed.command} && ${imported.command}`,
-      output: [installed.output, imported.output].filter(Boolean).join("\n"),
+      command: `${installed.command} && ${audited.command} && ${imported.command}`,
+      output: [installed.output, audited.output, imported.output]
+        .filter(Boolean)
+        .join("\n"),
       stdout: imported.stdout,
     };
   } finally {
@@ -576,26 +596,28 @@ function publishPackage(targetPath: string, tag: string): CommandResult {
   return run("npm", args, targetPath);
 }
 
-function successfulReleaseDetail(
+function successfulPreflightDetail(
   dryRun: boolean,
   usedCompatibilityPackages: boolean,
-  usedSecurityOverrides: boolean,
 ): string {
   const supportConditions = [
     usedCompatibilityPackages
       ? "explicit local Eliza beta compatibility packages"
-      : undefined,
-    usedSecurityOverrides
-      ? "Doolittle's audited transitive security overrides"
       : undefined,
   ].filter(Boolean);
   const supportDetail =
     supportConditions.length > 0
       ? ` with ${supportConditions.join(" and ")}`
       : "";
-  return dryRun
-    ? `Built dist JavaScript and declarations, then security-audited and imported the packed artifact${supportDetail} in an isolated consumer.`
-    : `Built dist JavaScript and declarations, security-audited and imported the packed artifact${supportDetail} in an isolated consumer, then published and verified its exact version from the registry.`;
+  const verified = `Built dist JavaScript and declarations, then security-audited and imported the packed artifact${supportDetail} in an isolated consumer.`;
+  return dryRun ? verified : `${verified} Publish is pending.`;
+}
+
+function successfulReleaseDetail(usedCompatibilityPackages: boolean): string {
+  const supportDetail = usedCompatibilityPackages
+    ? " with explicit local Eliza beta compatibility packages"
+    : "";
+  return `Built dist JavaScript and declarations, security-audited and imported the packed artifact${supportDetail} in an isolated consumer, then published and verified its exact version from the registry.`;
 }
 
 async function main() {
@@ -610,7 +632,8 @@ async function main() {
     packagePath: string;
     temporaryPath: string;
     stagedPackagePath: string;
-    tarballPath?: string;
+    tarballPath: string;
+    smoke?: CommandResult;
   }> = [];
 
   for (const provider of getProviders(args.provider)) {
@@ -686,36 +709,28 @@ async function main() {
           : [...compatibilityPackages.tarballPaths, transportTarball];
       try {
         const smoke = smokePackedConsumer(
-          staged.tarballPath as string,
+          staged.tarballPath,
           staged.manifest,
           localDependencies,
         );
-        const published =
-          !args.dryRun && smoke.ok
-            ? publishPackage(staged.stagedPackagePath, args.tag)
-            : smoke;
-        const release =
-          !args.dryRun && published.ok
-            ? verifyPublishedRegistryPackage(staged.manifest)
-            : published;
+        staged.smoke = smoke;
         results.push({
           provider: staged.provider,
           packageName: staged.manifest.name,
           version: staged.manifest.version,
           packagePath: staged.packagePath,
           dryRun: args.dryRun,
-          ok: release.ok,
-          command: release.command,
-          detail: release.ok
-            ? successfulReleaseDetail(
+          ok: smoke.ok,
+          command: smoke.command,
+          detail: smoke.ok
+            ? successfulPreflightDetail(
                 args.dryRun,
                 compatibilityPackages.tarballPaths.length > 0,
-                Object.keys(isolatedConsumerSecurityOverrides()).length > 0,
               )
-            : release.output ||
+            : smoke.output ||
               "Provider package build, pack, or import smoke test failed.",
           tag: args.tag,
-          output: release.output || undefined,
+          output: smoke.output || undefined,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -731,6 +746,44 @@ async function main() {
           tag: args.tag,
           output: message,
         });
+      }
+    }
+
+    // A publish is irreversible. Complete every selected package's local
+    // consumer preflight before publishing the first artifact so a later
+    // package cannot leave a partially published release behind.
+    if (!args.dryRun && results.every((result) => result.ok)) {
+      for (const [index, staged] of stagedPackages.entries()) {
+        const result = results.find(
+          (candidate) => candidate.provider === staged.provider,
+        );
+        if (!result) continue;
+        const published = publishPackage(staged.stagedPackagePath, args.tag);
+        const release = published.ok
+          ? verifyPublishedRegistryPackage(staged.manifest)
+          : published;
+        result.ok = release.ok;
+        result.command = release.command;
+        result.detail = release.ok
+          ? successfulReleaseDetail(
+              compatibilityPackages.tarballPaths.length > 0,
+            )
+          : release.output ||
+            "Provider package publishing or registry verification failed.";
+        result.output = release.output || undefined;
+        if (!release.ok) {
+          for (const unattempted of stagedPackages.slice(index + 1)) {
+            const skipped = results.find(
+              (candidate) => candidate.provider === unattempted.provider,
+            );
+            if (!skipped) continue;
+            skipped.ok = false;
+            skipped.command = "not-published";
+            skipped.detail = `Not published because an earlier provider failed publishing or registry verification.`;
+            skipped.output = undefined;
+          }
+          break;
+        }
       }
     }
   } catch (error) {

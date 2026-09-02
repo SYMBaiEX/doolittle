@@ -57,9 +57,10 @@ jobs:
         run: |
           appimage="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-linux-x64.AppImage' -printf '%f\n' -quit)"
           deb="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-linux-x64.deb' -printf '%f\n' -quit)"
+          created_at="$(git show -s --format=%cI "$GITHUB_SHA")"
           test -n "$appimage" && test -n "$deb"
-          nub apps/desktop/scripts/package-provenance.ts --write-receipt --release-directory apps/desktop/release --platform linux --commit "$GITHUB_SHA" --app-asar linux-unpacked/resources/app.asar --artifact "$appimage" --artifact "$deb" --artifact latest-linux.yml
-          nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform linux --runtime-directory apps/desktop/release/linux-unpacked/resources/runtime
+          nub apps/desktop/scripts/package-provenance.ts --write-receipt --release-directory apps/desktop/release --platform linux --commit "$GITHUB_SHA" --created-at "$created_at" --app-asar linux-unpacked/resources/app.asar --artifact "$appimage" --artifact "$deb" --artifact latest-linux.yml
+          nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform linux --runtime-directory linux-unpacked/resources/runtime
 
       - name: Smoke-test bundled Linux runtime
         run: |
@@ -157,4 +158,5 @@ jobs:
             apps/desktop/release/Doolittle-*-linux-*.deb
             apps/desktop/release/latest-linux.yml
             apps/desktop/release/desktop-provenance-linux.json
+            apps/desktop/release/doolittle-desktop-linux.spdx.json
           if-no-files-found: error

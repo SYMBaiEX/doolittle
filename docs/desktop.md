@@ -263,6 +263,24 @@ Build a runnable unpacked app for the current machine:
 nub run desktop:package:dir
 ```
 
+Install that verified unpacked macOS app transactionally for local testing:
+
+```bash
+nub run desktop:install:mac
+```
+
+This root command is explicitly for an **ad-hoc local-development signature**;
+it passes `--allow-ad-hoc`. For a notarized release build, run
+`nub run --cwd apps/desktop install:mac` without that flag. It first copies
+`release/mac-arm64/Doolittle.app` to a uniquely named sibling
+inside `/Applications`, verifies the staged package, and rechecks a strict code
+signature. Release mode additionally requires a Developer ID TeamIdentifier,
+stapler validation, and Gatekeeper acceptance; it never silently falls back to
+an unsigned app. Only then does it rename the existing app
+to a sibling backup and promote the stage. A failed promotion restores the prior
+app; the backup is removed only after a successful install. Use `-- --source
+<app> --destination <app>` to explicitly select test locations.
+
 The directory build uses a private staging release tree, verifies its packaged
 `app.asar`, then atomically promotes it while preserving existing installers,
 provenance receipts, checksums, and unrelated operator files. Because it
@@ -328,15 +346,39 @@ or verification leaves the prior release directory intact. The command writes
 artifact sizes, SHA-256 hashes, the native-package inventory, and the source commit to
 `apps/desktop/release/release-manifest.json`. It also emits the portable
 `apps/desktop/release/SHA256SUMS.txt` file used to verify each installer before
-copying or installing it. Each native target also writes a checksummed
+copying or installing it. Each native target emits a deterministic SPDX 2.3
+JSON document named `doolittle-desktop-<platform>.spdx.json` from the complete
+shipped artifact inventory: Electron itself, packages whose modules were
+emitted into the main/preload/renderer bundles, the exact production package
+closure inside `app.asar`, and the bundled backend runtime/native closure. The
+document identifies the source commit and binds the packaged `app.asar`,
+runtime-tree, and desktop-artifact-manifest SHA-256 values; its timestamp comes
+from the source commit so rebuilding unchanged source produces identical SBOM
+bytes.
+Each native target also writes a checksummed
 `desktop-provenance-<platform>.json` receipt binding its installers and update
-metadata to the verified packaged `app.asar` and source commit. Native release
+metadata, desktop SBOM, verified packaged `app.asar`, runtime tree, and source
+commit. Native release
 jobs also compare that payload with the mounted, extracted, or installed
 deliverable before upload. These local JSON receipts and checksum files are
 unsigned verification records; they are not GitHub artifact attestations. The
 tagged release workflow generates GitHub-native provenance attestations for the
-validated macOS DMG/ZIP, Windows NSIS installer, and Linux AppImage/DEB before
-uploading the release bundle. The macOS workflow mounts the DMG, copies its app to
+validated macOS DMG/ZIP, Windows NSIS installer, Linux AppImage/DEB, and all
+three native desktop SBOMs before uploading the release bundle. After
+downloading a release asset, verify its unsigned checksum against
+`SHA256SUMS.txt`, then verify GitHub provenance with the current GitHub CLI:
+
+```bash
+gh attestation verify Doolittle-0.1.0-linux-x64.AppImage --repo SYMBaiEX/doolittle
+gh attestation verify Doolittle-0.1.0-linux-x64.deb --repo SYMBaiEX/doolittle
+gh attestation verify doolittle-desktop-linux.spdx.json --repo SYMBaiEX/doolittle
+```
+
+Use the same command with the downloaded macOS or Windows filename and its
+platform SBOM. A successful `gh attestation verify` binds that exact file to
+the repository's GitHub Actions provenance; a matching local checksum or JSON
+receipt alone does not authenticate who produced it. The macOS
+workflow mounts the DMG, copies its app to
 a fresh Applications-style directory, and rechecks the installed payload,
 strict code signature, stapled ticket, Gatekeeper assessment, and packaged-app
 smoke test. Before promotion, the local macOS target also runs
@@ -347,6 +389,16 @@ assessment before publishing a notarized release artifact. It requires the
 signing and Apple notarization secrets for both manual and tag-triggered runs;
 there is no
 unsigned workflow artifact path.
+
+Packaging embeds `desktop-artifact-manifest.json`, unified
+`THIRD-PARTY-NOTICES.txt`, Electron's npm MIT `LICENSE`, and the official
+Electron-distribution `LICENSES.chromium.html` beside `app.asar`. The two
+Electron legal sources are distinct and mandatory. An
+`ELECTRON_OVERRIDE_DIST_PATH` directory must contain the Chromium licenses and
+a `version` file exactly matching the packaged Electron version; preparation
+fails closed on a missing, empty, stale, or mismatched input. Run
+`nub run desktop:runtime:install` before a source package build when Electron's
+local distribution has not yet been downloaded.
 
 Capture full-page visual evidence for every packaged-app route at deterministic
 desktop and narrow widths:
@@ -395,6 +447,8 @@ declared license metadata and license text for exactly the emitted bundle and
 copied native runtime closure. Preparation fails if any shipped package lacks
 readable legal attribution; package verification requires the file and its
 manifested SHA-256 digest.
+The notices preserve distributable license text, while the SPDX documents are
+the machine-readable dependency inventory; neither substitutes for the other.
 The only current reviewed shared-license exception is
 `@ai-sdk/provider-utils@4.0.46`, which omits a package-local text file but uses
 the Apache-2.0 text in its published AI SDK sibling `@ai-sdk/provider`.
@@ -415,6 +469,15 @@ fixture and is not evidence that a GPL dependency may ship in the desktop.
 Apache-2.0 text; package preparation never reads either asset from runtime
 dependencies.
 Do not bypass these gates by publishing platform artifacts separately.
+
+GitHub release signing is also an operator-controlled boundary. The existing
+`release` environment must require reviewer approval and deployment tag rules
+that allow only protected `v*` version tags. Keep the macOS signing and Apple
+notarization secrets, Windows signing secrets, and the exact Windows publisher
+subject configured for the release workflow. Repository source can enforce the
+requested tag/ref, peeled tag commit, package version, and main ancestry, but it
+cannot prove that the live GitHub environment reviewers or deployment rules are
+configured; confirm those settings before pushing a release tag.
 
 The installer is written to:
 
@@ -458,12 +521,26 @@ The desktop itself still opens and exposes runtime status in explicit offline
 bootstrap mode when a model provider is not yet available.
 
 The canonical release build runs on `windows-latest` through
-`.github/workflows/desktop-windows.yml`. Run that workflow manually to download
-the `Doolittle-Windows-x64` artifact, or push a `v*` tag to attach the installer
-to a GitHub release. The workflow boots the compiled runtime and requires a
-healthy native Windows API response before it uploads the installer. Building
-Windows from macOS/Linux is also supported by electron-builder when Wine is
-installed, but the native Windows workflow is the release gate.
+`.github/workflows/desktop-windows.yml`. For a manual run, select the exact
+existing `v<version>` tag as the workflow ref and enter that same tag in the
+required `release_tag` input; a branch ref, mismatched input, or tag whose
+peeled commit differs from the workflow commit is rejected before signing.
+For example, dispatch the Windows workflow from the tag (supplying the exact
+certificate subject for its separate publisher input) with:
+
+```bash
+gh workflow run desktop-windows.yml --ref v0.1.0 \
+  -f release_tag=v0.1.0 \
+  -f windows_publisher_name='CN=Example Publisher'
+```
+
+After `release` environment approval, download the `Doolittle-Windows-x64`
+artifact. Alternatively, push a `v*` tag to run the complete release workflow
+and attach the installer to a GitHub release. The workflow boots the compiled
+runtime and requires a healthy native Windows API response before it uploads
+the installer. Building Windows from macOS/Linux is also supported by
+electron-builder when Wine is installed, but the native Windows workflow is
+the release gate.
 
 ## Runtime lifecycle
 

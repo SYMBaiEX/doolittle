@@ -2,6 +2,11 @@ name: desktop-macos
 
 on:
   workflow_call:
+    inputs:
+      release_tag:
+        description: Exact existing v-prefixed release tag to build
+        required: true
+        type: string
     secrets:
       MAC_CSC_LINK:
         required: true
@@ -14,6 +19,11 @@ on:
       APPLE_TEAM_ID:
         required: true
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Exact existing v-prefixed release tag; select the same tag as the workflow ref
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -22,9 +32,13 @@ jobs:
   installer:
     runs-on: macos-latest
     timeout-minutes: 40
+    environment: release
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: refs/tags/${{ inputs.release_tag }}
+          fetch-depth: 0
 
       - name: Set up Nub and Node
         uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
@@ -39,12 +53,40 @@ jobs:
       - name: Install Electron runtime
         run: nub run desktop:runtime:install
 
-      - name: Verify tagged release version
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Bind build to exact release tag
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]] || {
+            echo "Release tag $RELEASE_TAG is not an exact version tag." >&2
+            exit 1
+          }
+          tag_ref="refs/tags/$RELEASE_TAG"
+          test "$GITHUB_REF" = "$tag_ref" || {
+            echo "Workflow ref $GITHUB_REF must exactly match requested release tag $tag_ref." >&2
+            exit 1
+          }
+          git show-ref --verify --quiet "$tag_ref" || {
+            echo "Release tag $tag_ref is not present in the checkout." >&2
+            exit 1
+          }
+          tag_commit="$(git rev-parse --verify "${tag_ref}^{}")"
+          head_commit="$(git rev-parse --verify HEAD)"
+          test "$tag_commit" = "$head_commit" || {
+            echo "Checked-out HEAD $head_commit does not match peeled tag commit $tag_commit." >&2
+            exit 1
+          }
+          test "$head_commit" = "$GITHUB_SHA" || {
+            echo "Checked-out HEAD $head_commit does not match workflow commit $GITHUB_SHA." >&2
+            exit 1
+          }
           expected="v$(node --input-type=module --eval 'import manifest from "./apps/desktop/package.json" with { type: "json" }; console.log(manifest.version)')"
-          test "$GITHUB_REF_NAME" = "$expected" || {
-            echo "Tag $GITHUB_REF_NAME must match apps/desktop/package.json version $expected." >&2
+          test "$RELEASE_TAG" = "$expected" || {
+            echo "Tag $RELEASE_TAG must match apps/desktop/package.json version $expected." >&2
+            exit 1
+          }
+          git merge-base --is-ancestor "$head_commit" origin/main || {
+            echo "Release commit $head_commit must be on origin/main." >&2
             exit 1
           }
 
@@ -92,8 +134,9 @@ jobs:
           zip_path="$(find apps/desktop/release -maxdepth 1 -name 'Doolittle-*-mac-arm64.zip' -print -quit)"
           dmg="$(basename "$dmg_path")"
           zip="$(basename "$zip_path")"
+          created_at="$(git show -s --format=%cI "$GITHUB_SHA")"
           test -n "$dmg" && test -n "$zip"
-          nub apps/desktop/scripts/package-provenance.ts --write-receipt --release-directory apps/desktop/release --platform macos --commit "$GITHUB_SHA" --app-asar "$receipt_app_asar" --artifact "$dmg" --artifact "$dmg.blockmap" --artifact "$zip" --artifact "$zip.blockmap" --artifact latest-mac.yml
+          nub apps/desktop/scripts/package-provenance.ts --write-receipt --release-directory apps/desktop/release --platform macos --commit "$GITHUB_SHA" --created-at "$created_at" --app-asar "$receipt_app_asar" --artifact "$dmg" --artifact "$dmg.blockmap" --artifact "$zip" --artifact "$zip.blockmap" --artifact latest-mac.yml
           nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform macos --runtime-directory "$app_path/Contents/Resources/runtime"
 
       - name: Smoke-test bundled macOS runtime
@@ -181,7 +224,7 @@ jobs:
           DOOLITTLE_DESKTOP_EXECUTABLE="$mount_path/Doolittle.app/Contents/MacOS/Doolittle" nub run test:e2e:desktop-packaged
 
           mkdir -p "$(dirname "$installed_app")"
-          ditto "$mount_path/Doolittle.app" "$installed_app"
+          nub apps/desktop/scripts/install-macos-app.ts --source "$mount_path/Doolittle.app" --destination "$installed_app"
           cmp "$app_path/Contents/Resources/app.asar" "$installed_app/Contents/Resources/app.asar"
           nub apps/desktop/scripts/package-provenance.ts --verify-runtime-tree --release-directory apps/desktop/release --platform macos --runtime-directory "$installed_app/Contents/Resources/runtime"
           nub apps/desktop/scripts/verify-package.ts --verify-signature "$installed_app"
@@ -216,4 +259,5 @@ jobs:
             apps/desktop/release/*.blockmap
             apps/desktop/release/latest-mac.yml
             apps/desktop/release/desktop-provenance-macos.json
+            apps/desktop/release/doolittle-desktop-macos.spdx.json
           if-no-files-found: error

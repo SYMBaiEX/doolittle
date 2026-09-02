@@ -6,7 +6,11 @@ ElizaOS 2.0 beta line.
 
 ## [Unreleased]
 
-### Added
+No unreleased changes are currently queued beyond the v0.1.0 release candidate.
+
+## [0.1.0] - 2026-08-21
+
+### Desktop release
 
 - Added one-command, verified macOS ARM64, Windows x64, and Linux x64 desktop
   packaging with target-native runtime checks, an exact source/artifact
@@ -135,8 +139,6 @@ ElizaOS 2.0 beta line.
 - Limited reusable desktop release workflows to the signing secrets required
   by their operating system; Linux receives none, Windows receives only its
   certificate pair, and macOS receives only its signing and notarization set.
-
-## [0.1.0] - 2026-08-14
 
 ### Platform
 

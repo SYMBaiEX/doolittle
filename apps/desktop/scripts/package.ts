@@ -9,6 +9,8 @@ import {
 } from "node:fs";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { prepareDesktopArtifact } from "./desktop-artifact";
+import { desktopSbomName } from "./desktop-sbom";
 import {
   macAppBundlePath,
   type ReleaseTarget,
@@ -19,6 +21,7 @@ import {
 } from "./package-all";
 import {
   assertPackageSourceUnchanged,
+  gitCommitCreatedAt,
   requireCleanPackageSource,
   writeNativePackageReceipt,
 } from "./package-provenance";
@@ -132,6 +135,7 @@ function cleanNativeTarget(root: string, target: ReleaseTarget): void {
     ...target.artifacts.map((artifact) => `${artifact}.blockmap`),
     ...receipt.artifacts.filter((artifact) => artifact.endsWith(".yml")),
     `desktop-provenance-${receipt.platform}.json`,
+    desktopSbomName(receipt.platform),
   ]) {
     rmSync(resolve(root, path), { force: true, recursive: true });
   }
@@ -235,6 +239,7 @@ async function packageDirectoryBuild(): Promise<void> {
       for (const path of directoryBuildInvalidatedMetadataPaths()) {
         rmSync(resolve(stagingRoot, path), { force: true });
       }
+      prepareDesktopArtifact({ desktopRoot, repoRoot });
       const result = spawnSync(
         existsSync(localNubx) ? localNubx : "nubx",
         ["electron-builder", ...directoryBuildArgs(args, stagingRoot)],
@@ -319,6 +324,7 @@ async function packageNativeBuild(): Promise<void> {
     releaseRoot,
     target,
     async (stagingRoot) => {
+      prepareDesktopArtifact({ desktopRoot, repoRoot });
       const result = spawnSync(
         existsSync(localNubx) ? localNubx : "nubx",
         ["electron-builder", ...nativeBuildArgs(args, stagingRoot)],
@@ -349,6 +355,7 @@ async function packageNativeBuild(): Promise<void> {
         releaseDirectory: stagingRoot,
         platform: receipt.platform,
         commit: packageCommit,
+        createdAt: gitCommitCreatedAt(repoRoot, packageCommit),
         appAsarPath,
         artifactPaths: receipt.artifacts,
       });

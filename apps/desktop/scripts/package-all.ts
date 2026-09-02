@@ -14,8 +14,11 @@ import {
 } from "node:fs";
 import { basename, dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { prepareDesktopArtifact } from "./desktop-artifact";
+import { desktopSbomName } from "./desktop-sbom";
 import {
   assertPackageSourceUnchanged,
+  gitCommitCreatedAt,
   nativeReceiptName,
   requireCleanPackageSource,
   writeNativePackageReceipt,
@@ -280,6 +283,7 @@ function isManagedReleaseEntry(entry: string): boolean {
     versionedReleaseArtifact.test(entry) ||
     /^latest(?:-.+)?\.yml$/u.test(entry) ||
     /^desktop-provenance-(?:linux|macos|windows)\.json$/u.test(entry) ||
+    /^doolittle-desktop-(?:linux|macos|windows)\.spdx\.json$/u.test(entry) ||
     /^(?:mac(?:-.+)?|(?:win|linux)(?:-.+)?-unpacked)$/u.test(entry) ||
     [
       ".DS_Store",
@@ -397,6 +401,9 @@ async function main(): Promise<void> {
         rmSync(resolve(stagingRoot, nativeReceiptName(platform)), {
           force: true,
         });
+        rmSync(resolve(stagingRoot, desktopSbomName(platform)), {
+          force: true,
+        });
       }
 
       run(nub, [...allPlatformInstallArgs]);
@@ -417,6 +424,7 @@ async function main(): Promise<void> {
           `Bundled runtime is missing target-native packages: ${missingNativePackages.join(", ")}`,
         );
       }
+      prepareDesktopArtifact({ desktopRoot, repoRoot });
 
       const releaseArtifacts: Array<{
         target: ReleaseTarget["id"];
@@ -484,12 +492,17 @@ async function main(): Promise<void> {
         for (const artifact of receipt.artifacts) {
           requireArtifact(resolve(stagingRoot, artifact));
         }
-        writeNativePackageReceipt({
+        const nativeReceipt = writeNativePackageReceipt({
           releaseDirectory: stagingRoot,
           platform: receipt.platform,
           commit: packageCommit,
+          createdAt: gitCommitCreatedAt(repoRoot, packageCommit),
           appAsarPath,
           artifactPaths: receipt.artifacts,
+        });
+        releaseArtifacts.push({
+          target: target.id,
+          ...nativeReceipt.sbom,
         });
       }
 

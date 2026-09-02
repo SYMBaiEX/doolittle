@@ -2,6 +2,9 @@ import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
+import { desktopBuildInventoryPlugin } from "./scripts/desktop-build-inventory";
+
+const desktopRoot = fileURLToPath(new URL(".", import.meta.url));
 
 const elizaAccountComponentPath = "/@elizaos/ui/components/accounts/";
 const elizaAppStorePath = fileURLToPath(
@@ -63,6 +66,7 @@ function elizaControlDensityAdapter(): Plugin {
 
 export default defineConfig({
   plugins: [
+    desktopBuildInventoryPlugin({ surface: "renderer", desktopRoot }),
     elizaControlDensityAdapter(),
     elizaAccountStoreShim(),
     react(),

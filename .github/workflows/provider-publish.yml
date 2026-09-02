@@ -61,8 +61,38 @@ jobs:
       - name: Check out tagged release source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          # Always resolve a tag ref. `workflow_dispatch` otherwise starts from
+          # the workflow's default-branch ref, which is not release source.
+          ref: refs/tags/${{ inputs.release_tag || github.ref_name }}
           fetch-depth: 0
+
+      - name: Bind publishing to the exact release-tag commit
+        shell: bash
+        run: |
+          tag_ref="refs/tags/$RELEASE_TAG"
+          if ! git show-ref --verify --quiet "$tag_ref"; then
+            echo "Required release tag $tag_ref does not exist." >&2
+            exit 1
+          fi
+
+          tag_commit="$(git rev-parse --verify "${tag_ref}^{}")"
+          head_commit="$(git rev-parse --verify HEAD)"
+          if [[ "$tag_commit" != "$head_commit" ]]; then
+            echo "Checked-out source does not resolve to $tag_ref." >&2
+            exit 1
+          fi
+
+          # For tag-triggered runs, reject a surprising event ref as well. For
+          # manual runs the input above, rather than github.ref, is canonical.
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" != "$tag_ref" ]]; then
+            echo "Push event must originate from $tag_ref." >&2
+            exit 1
+          fi
+
+          {
+            echo "PUBLISH_RELEASE_TAG=$RELEASE_TAG"
+            echo "PUBLISH_RELEASE_COMMIT=$tag_commit"
+          } >> "$GITHUB_ENV"
 
       - name: Require the tagged commit to be on main
         run: git merge-base --is-ancestor HEAD origin/main
