@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import type { RunSnapshot, RunUpdateEvent } from "./types";
+import type { RunSnapshot, RunUpdateEvent, TaskRunEvent } from "./types";
 import { cloneRun } from "./utils";
 
 export class RunUpdateEventBus {
@@ -18,5 +18,18 @@ export class RunUpdateEventBus {
       sessionId: run.sessionId,
       run: cloneRun(run),
     } satisfies RunUpdateEvent);
+  }
+}
+
+export class TaskRunEventBus {
+  private readonly events = new EventEmitter();
+
+  onEvent(listener: (event: TaskRunEvent) => void): () => void {
+    this.events.on("event", listener);
+    return () => this.events.off("event", listener);
+  }
+
+  emit(event: TaskRunEvent): void {
+    this.events.emit("event", structuredClone(event));
   }
 }

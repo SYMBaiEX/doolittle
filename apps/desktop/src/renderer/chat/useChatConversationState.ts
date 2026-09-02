@@ -43,6 +43,17 @@ const CHAT_STORAGE_KEY = "doolittle.desktop.conversations.v2";
 const MAX_CHAT_STORAGE_CHARS = 3_500_000;
 const MAX_PERSISTED_MESSAGES_PER_SESSION = 500;
 const MAX_PERSISTED_MESSAGE_CONTENT = 120_000;
+const HISTORY_PAGE_SIZE = 500;
+
+type PagedSessionMessagesResponse = SessionMessagesResponse & {
+  hasEarlier?: boolean;
+  nextOffset?: number;
+};
+
+interface HistoryPageState {
+  hasEarlier: boolean;
+  nextOffset: number;
+}
 
 function boundedStoredMessages(
   messages: readonly DisplayMessage[],
@@ -389,10 +400,16 @@ export function useChatConversationState({
     loadConversationPins(localStorage),
   );
   const [sessionSearch, setSessionSearch] = useState("");
-  const [historyError, setHistoryError] = useState("");
+  const [historyErrors, setHistoryErrors] = useState<Record<string, string>>(
+    {},
+  );
+  const [historyPages, setHistoryPages] = useState<
+    Record<string, HistoryPageState>
+  >({});
   const [transcriptStorageWarning, setTranscriptStorageWarning] = useState("");
   const [draftStorageWarning, setDraftStorageWarning] = useState("");
   const [loadingHistory, setLoadingHistory] = useState("");
+  const [loadingEarlierHistory, setLoadingEarlierHistory] = useState("");
   const [historyRetryVersion, setHistoryRetryVersion] = useState(0);
   const requestedHistory = useRef(new Set<string>());
   const draftRevisions = useRef<Record<string, number>>({});
@@ -625,13 +642,18 @@ export function useChatConversationState({
 
     requestedHistory.current.add(historyVersion);
     setLoadingHistory(selectedId);
-    setHistoryError("");
+    setHistoryErrors((current) => {
+      if (!current[selectedId]) return current;
+      const next = { ...current };
+      delete next[selectedId];
+      return next;
+    });
     const controller = new AbortController();
     let cancelled = false;
     let settled = false;
     const path =
-      `/sessions/messages?sessionId=${encodeURIComponent(selectedId)}&limit=500` as const;
-    void desktopRequest<SessionMessagesResponse>(
+      `/sessions/messages?sessionId=${encodeURIComponent(selectedId)}&limit=${HISTORY_PAGE_SIZE}&offset=0` as const;
+    void desktopRequest<PagedSessionMessagesResponse>(
       path,
       "GET",
       undefined,
@@ -675,12 +697,22 @@ export function useChatConversationState({
             ),
           };
         });
+        setHistoryPages((current) => ({
+          ...current,
+          [selectedId]: {
+            hasEarlier: Boolean(response.hasEarlier),
+            nextOffset: response.nextOffset ?? response.messages.length,
+          },
+        }));
       })
       .catch((error) => {
         if (cancelled || controller.signal.aborted) return;
         settled = true;
         requestedHistory.current.delete(historyVersion);
-        setHistoryError(errorMessage(error));
+        setHistoryErrors((current) => ({
+          ...current,
+          [selectedId]: errorMessage(error),
+        }));
       })
       .finally(() =>
         setLoadingHistory((current) => (current === selectedId ? "" : current)),
@@ -713,21 +745,113 @@ export function useChatConversationState({
         session.endedAt ?? "",
       ].join(":");
       requestedHistory.current.delete(historyVersion);
-      setHistoryError("");
+      setHistoryErrors((current) => {
+        if (!current[sessionId]) return current;
+        const next = { ...current };
+        delete next[sessionId];
+        return next;
+      });
       setHistoryRetryVersion((current) => current + 1);
     },
     [loadingHistory, remoteSessions],
   );
 
-  const sessions = useMemo(
+  const loadEarlierHistory = useCallback(
+    async (sessionId: string) => {
+      const page = historyPages[sessionId];
+      if (
+        !backendReady ||
+        !page?.hasEarlier ||
+        loadingEarlierHistory === sessionId
+      ) {
+        return;
+      }
+      setLoadingEarlierHistory(sessionId);
+      const controller = new AbortController();
+      try {
+        const path =
+          `/sessions/messages?sessionId=${encodeURIComponent(sessionId)}&limit=${HISTORY_PAGE_SIZE}&offset=${page.nextOffset}` as const;
+        const response = await desktopRequest<PagedSessionMessagesResponse>(
+          path,
+          "GET",
+          undefined,
+          controller.signal,
+        );
+        const older = response.messages
+          .filter(
+            (message) =>
+              message.role === "user" || message.role === "assistant",
+          )
+          .map<DisplayMessage>((message) => {
+            const handoff =
+              message.role === "user" ? splitChatContext(message.text) : null;
+            return {
+              id: message.id,
+              role: message.role as Role,
+              content: handoff?.prompt ?? message.text,
+              attachments: message.attachments,
+              createdAt: message.createdAt,
+              ...(handoff?.capsule
+                ? { contextCapsule: toMessageCapsule(handoff.capsule) }
+                : {}),
+            };
+          });
+        setMessages((current) => {
+          const existing = current[sessionId] ?? [];
+          const existingIds = new Set(existing.map((message) => message.id));
+          const merged = [
+            ...older.filter((message) => !existingIds.has(message.id)),
+            ...existing,
+          ].sort((left, right) =>
+            left.createdAt.localeCompare(right.createdAt),
+          );
+          return { ...current, [sessionId]: merged };
+        });
+        setHistoryPages((current) => ({
+          ...current,
+          [sessionId]: {
+            hasEarlier: Boolean(response.hasEarlier),
+            nextOffset:
+              response.nextOffset ?? page.nextOffset + response.messages.length,
+          },
+        }));
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setHistoryErrors((current) => ({
+            ...current,
+            [sessionId]: errorMessage(error),
+          }));
+        }
+      } finally {
+        setLoadingEarlierHistory((current) =>
+          current === sessionId ? "" : current,
+        );
+      }
+    },
+    [backendReady, historyPages, loadingEarlierHistory],
+  );
+
+  const allSessions = useMemo(
     () =>
       projectChatSessions({
         messages,
         pinnedSessions,
-        query: sessionSearch,
+        query: "",
         remoteSessions,
       }),
-    [messages, pinnedSessions, remoteSessions, sessionSearch],
+    [messages, pinnedSessions, remoteSessions],
+  );
+  const sessions = useMemo(
+    () =>
+      sessionSearch
+        ? projectChatSessions({
+            messages,
+            pinnedSessions,
+            query: sessionSearch,
+            remoteSessions,
+          })
+        : allSessions,
+    [allSessions, messages, pinnedSessions, remoteSessions, sessionSearch],
   );
 
   return {
@@ -735,15 +859,19 @@ export function useChatConversationState({
     clearDraftForDispatch,
     draft,
     draftAttachments,
-    historyError,
+    historyError: historyErrors[selectedId] ?? "",
+    hasEarlierMessages: Boolean(historyPages[selectedId]?.hasEarlier),
     loadingHistory,
+    loadingEarlierHistory,
+    loadEarlierHistory,
     storageWarning,
     retryHistory,
     restoreDraftAfterRejectedDispatch,
     selectedMessages: messages[selectedId] ?? [],
-    selectedSession: sessions.find(
+    selectedSession: allSessions.find(
       (session) => session.sessionId === selectedId,
     ),
+    sessionsCount: allSessions.length,
     sessionSearch,
     sessions,
     setDraft,

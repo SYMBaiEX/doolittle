@@ -81,7 +81,123 @@ describe("RunControllerService", () => {
     });
   });
 
-  it("resets the tracked run when a new turn starts for the same session", () => {
+  it("claims one active run per session while allowing other sessions in parallel", () => {
+    const service = new RunControllerService();
+    expect(
+      service.claimTaskRun({
+        runId: "run-a",
+        responseId: "response-a",
+        roomId: "room-a",
+        sessionId: "session-a",
+        source: "desktop",
+      }),
+    ).toEqual({ accepted: true });
+    expect(
+      service.claimTaskRun({
+        runId: "run-b",
+        responseId: "response-b",
+        roomId: "room-a",
+        sessionId: "session-a",
+        source: "desktop",
+      }),
+    ).toEqual({
+      accepted: false,
+      reason: "session_active",
+      conflictingRunId: "run-a",
+    });
+    expect(
+      service.claimTaskRun({
+        runId: "run-c",
+        responseId: "response-c",
+        roomId: "room-c",
+        sessionId: "session-c",
+        source: "desktop",
+      }),
+    ).toEqual({ accepted: true });
+  });
+
+  it("rejects a task claim when a non-task turn already owns the session", () => {
+    const service = new RunControllerService();
+    service.startTurn({
+      sessionId: "session-owned",
+      roomId: "room-owned",
+      runId: "run-native",
+      source: "cli",
+      message: "already running",
+      runDepth: "standard",
+      configuredMaxIterations: 45,
+      progressMode: "new",
+    });
+
+    expect(
+      service.claimTaskRun({
+        runId: "run-task",
+        responseId: "response-task",
+        roomId: "room-owned",
+        sessionId: "session-owned",
+        source: "desktop",
+      }),
+    ).toEqual({
+      accepted: false,
+      reason: "session_active",
+      conflictingRunId: "run-native",
+    });
+  });
+
+  it("cancels only the requested task and appends one terminal event", () => {
+    const service = new RunControllerService();
+    const controllerA = new AbortController();
+    const controllerB = new AbortController();
+    for (const suffix of ["a", "b"] as const) {
+      expect(
+        service.claimTaskRun({
+          runId: `run-${suffix}`,
+          responseId: `response-${suffix}`,
+          roomId: `room-${suffix}`,
+          sessionId: `session-${suffix}`,
+          source: "desktop",
+        }),
+      ).toEqual({ accepted: true });
+    }
+    service.appendTaskEvent("run-a", "response.created", { run_id: "run-a" });
+    service.appendTaskEvent("run-b", "response.created", { run_id: "run-b" });
+    service.registerAbortController("run-a", controllerA);
+    service.registerAbortController("run-b", controllerB);
+
+    expect(service.cancelRun("run-a").accepted).toBe(true);
+    expect(service.cancelRun("run-a").accepted).toBe(true);
+    expect(controllerA.signal.aborted).toBe(true);
+    expect(controllerB.signal.aborted).toBe(false);
+    expect(
+      service.getTaskEvents("run-a").filter((event) => event.terminal),
+    ).toMatchObject([{ type: "response.cancelled", terminal: true }]);
+    expect(service.getTerminalTaskEvent("run-b")).toBeUndefined();
+  });
+
+  it("does not abort a controller after the task journal is already complete", () => {
+    const service = new RunControllerService();
+    const controller = new AbortController();
+    expect(
+      service.claimTaskRun({
+        runId: "run-complete",
+        responseId: "response-complete",
+        roomId: "room-complete",
+        sessionId: "session-complete",
+        source: "desktop",
+      }),
+    ).toEqual({ accepted: true });
+    service.appendTaskEvent("run-complete", "response.created", {});
+    service.appendTaskEvent("run-complete", "response.completed", {}, true);
+    service.registerAbortController("run-complete", controller);
+
+    expect(service.cancelRun("run-complete").accepted).toBe(true);
+    expect(controller.signal.aborted).toBe(false);
+    expect(service.getTerminalTaskEvent("run-complete")?.type).toBe(
+      "response.completed",
+    );
+  });
+
+  it("rejects a new turn while the same session still has an active run", () => {
     const service = new RunControllerService();
     service.startTurn({
       sessionId: "session-a",
@@ -95,23 +211,22 @@ describe("RunControllerService", () => {
     });
     service.noteActionStarted("session-a", "repo:status");
 
-    service.startTurn({
-      sessionId: "session-a",
-      roomId: "room-a",
-      runId: "run-b",
-      source: "cli",
-      message: "second task",
-      runDepth: "deep",
-      configuredMaxIterations: 90,
-      progressMode: "verbose",
-    });
+    expect(() =>
+      service.startTurn({
+        sessionId: "session-a",
+        roomId: "room-a",
+        runId: "run-b",
+        source: "cli",
+        message: "second task",
+        runDepth: "deep",
+        configuredMaxIterations: 90,
+        progressMode: "verbose",
+      }),
+    ).toThrow("Session session-a already has active run run-a.");
 
     const active = service.getActive("session-a");
-    expect(active?.runId).toBe("run-b");
-    expect(active?.message).toBe("second task");
-    expect(active?.observedActionCount).toBe(0);
-    expect(active?.configuredMaxIterations).toBe(90);
-    expect(active?.progressMode).toBe("verbose");
+    expect(active?.runId).toBe("run-a");
+    expect(active?.observedActionCount).toBe(1);
   });
 
   it("maps runtime room events back to the active session", () => {
@@ -199,7 +314,7 @@ describe("RunControllerService", () => {
     expect(active?.lastHeartbeatAt).toBeDefined();
   });
 
-  it("emits lifecycle updates as turns reset and complete", () => {
+  it("emits lifecycle updates only for accepted turns", () => {
     const service = new RunControllerService();
     const observed: string[] = [];
     const unsubscribe = service.onUpdate((event) => {
@@ -216,20 +331,10 @@ describe("RunControllerService", () => {
       configuredMaxIterations: 15,
       progressMode: "new",
     });
-    service.startTurn({
-      sessionId: "session-a",
-      roomId: "room-a",
-      runId: "run-b",
-      source: "cli",
-      message: "second task",
-      runDepth: "deep",
-      configuredMaxIterations: 90,
-      progressMode: "verbose",
-    });
     service.finishTurn("session-a", "error", "boom");
     unsubscribe();
 
-    expect(observed).toEqual(["started", "completed", "started", "error"]);
+    expect(observed).toEqual(["started", "error"]);
   });
 
   it("does not report terminal receipts as active runs", () => {

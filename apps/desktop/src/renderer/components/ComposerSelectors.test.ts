@@ -14,6 +14,65 @@ const { desktopRequestMock, liveModelsReloadMock } = vi.hoisted(() => ({
   liveModelsReloadMock: vi.fn(),
 }));
 
+const modelResourceState = {
+  configured: {
+    activeModel: "gpt-5.6-terra",
+    activeProvider: "codex",
+    activeReasoningEffort: "xhigh",
+    capabilities: [],
+    providers: [
+      {
+        detail: "Configured models",
+        discovery: "configured",
+        id: "codex",
+        label: "Codex",
+        mode: "cloud",
+        models: [
+          {
+            id: "gpt-5.6-terra",
+            label: "GPT-5.6 Terra",
+            reasoning: {
+              default: "medium",
+              options: [
+                { id: "medium", label: "Medium" },
+                { id: "xhigh", label: "XHigh" },
+              ],
+            },
+            source: "configured",
+          },
+        ],
+        ready: true,
+      },
+      {
+        detail: "Local models",
+        discovery: "configured",
+        id: "ollama",
+        label: "Ollama",
+        mode: "local",
+        models: [
+          {
+            id: "granite4.1:3b",
+            label: "Granite 4.1",
+            source: "configured",
+          },
+        ],
+        ready: true,
+      },
+    ],
+    refreshedAt: "2026-08-15T00:00:00.000Z",
+  },
+  live: null as null | {
+    activeModel: string;
+    activeProvider: string;
+    activeReasoningEffort: string;
+    capabilities: unknown[];
+    providers: RuntimeModelProvider[];
+    refreshedAt: string;
+  },
+  liveError: "",
+  liveLoading: false,
+};
+
 vi.mock("../lib", async () => {
   const actual = await vi.importActual<typeof import("../lib")>("../lib");
   return {
@@ -22,57 +81,20 @@ vi.mock("../lib", async () => {
     useApiResource: (path: string | null) => ({
       data:
         path === "/runtime/models?refresh=false"
-          ? {
-              activeModel: "gpt-5.6-terra",
-              activeProvider: "codex",
-              activeReasoningEffort: "xhigh",
-              capabilities: [],
-              providers: [
-                {
-                  detail: "Configured models",
-                  discovery: "configured",
-                  id: "codex",
-                  label: "Codex",
-                  mode: "cloud",
-                  models: [
-                    {
-                      id: "gpt-5.6-terra",
-                      label: "GPT-5.6 Terra",
-                      reasoning: {
-                        default: "medium",
-                        options: [
-                          { id: "medium", label: "Medium" },
-                          { id: "xhigh", label: "XHigh" },
-                        ],
-                      },
-                      source: "configured",
-                    },
-                  ],
-                  ready: true,
-                },
-                {
-                  detail: "Local models",
-                  discovery: "configured",
-                  id: "ollama",
-                  label: "Ollama",
-                  mode: "local",
-                  models: [
-                    {
-                      id: "granite4.1:3b",
-                      label: "Granite 4.1",
-                      source: "configured",
-                    },
-                  ],
-                  ready: true,
-                },
-              ],
-              refreshedAt: "2026-08-15T00:00:00.000Z",
-            }
-          : path === "/runtime/account-pool"
-            ? { providers: {} }
-            : null,
-      error: "",
-      loading: false,
+          ? modelResourceState.configured
+          : path === "/runtime/models?refresh=true"
+            ? modelResourceState.live
+            : path === "/runtime/account-pool"
+              ? { providers: {} }
+              : null,
+      error:
+        path === "/runtime/models?refresh=true"
+          ? modelResourceState.liveError
+          : "",
+      loading:
+        path === "/runtime/models?refresh=true"
+          ? modelResourceState.liveLoading
+          : false,
       reload:
         path === "/runtime/models?refresh=true"
           ? liveModelsReloadMock
@@ -85,6 +107,8 @@ import {
   ComposerModelSelector,
   ComposerProjectSelector,
   filteredProviders,
+  modelCatalogFallbackNotice,
+  providerDiscoveryLabel,
 } from "./ComposerSelectors";
 
 (
@@ -125,6 +149,12 @@ const providers: RuntimeModelProvider[] = [
 ];
 
 describe("composer selectors", () => {
+  beforeEach(() => {
+    modelResourceState.live = null;
+    modelResourceState.liveError = "";
+    modelResourceState.liveLoading = false;
+  });
+
   it("keeps the selected reasoning effort visible outside the truncating model label", () => {
     const runtime: RuntimeStatus = {
       model: "gpt-5.6-terra",
@@ -207,6 +237,22 @@ describe("composer selectors", () => {
     expect(markup).not.toContain("No matching projects.");
   });
 
+  it("labels the lightweight model chooser as an expandable popover, not a dialog", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ComposerModelSelector, {
+        active: true,
+        onOpenModelsPage: vi.fn(),
+        onOpenProvidersPage: vi.fn(),
+        refreshRuntime: vi.fn(),
+        runtime: null,
+      }),
+    );
+
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain("aria-controls=");
+    expect(markup).not.toContain('aria-haspopup="dialog"');
+  });
+
   it("filters models across provider names, display labels, and ids", () => {
     expect(filteredProviders(providers, "granite")).toEqual([
       {
@@ -217,6 +263,49 @@ describe("composer selectors", () => {
     expect(filteredProviders(providers, "anthropic")).toEqual([providers[1]]);
     expect(filteredProviders(providers, "missing")).toEqual([]);
   });
+
+  it("labels providers by discovery source instead of implying stale catalogs are live", () => {
+    const [liveProvider, configuredProvider] = providers;
+    if (!liveProvider || !configuredProvider) {
+      throw new Error("expected provider fixtures");
+    }
+    expect(providerDiscoveryLabel(liveProvider)).toBe("Live");
+    expect(providerDiscoveryLabel(configuredProvider)).toBe("Configured");
+    expect(
+      providerDiscoveryLabel({
+        ...configuredProvider,
+        discovery: "configured",
+        ready: false,
+      }),
+    ).toBe("Setup");
+  });
+
+  it("describes when the selector is temporarily falling back to the configured catalog", () => {
+    expect(
+      modelCatalogFallbackNotice({
+        hasConfiguredCatalog: true,
+        hasLiveCatalog: false,
+        liveError: "",
+        liveLoading: true,
+      }),
+    ).toEqual({
+      message:
+        "Refreshing the live model inventory. Showing the last configured catalog until it arrives.",
+      tone: "muted",
+    });
+    expect(
+      modelCatalogFallbackNotice({
+        hasConfiguredCatalog: true,
+        hasLiveCatalog: false,
+        liveError: "boom",
+        liveLoading: false,
+      }),
+    ).toEqual({
+      message:
+        "Live model refresh is unavailable right now. Showing the last configured catalog.",
+      tone: "warn",
+    });
+  });
 });
 
 describe("ComposerModelSelector loaded catalog", () => {
@@ -224,6 +313,9 @@ describe("ComposerModelSelector loaded catalog", () => {
   let root: Root;
 
   beforeEach(() => {
+    modelResourceState.live = null;
+    modelResourceState.liveError = "";
+    modelResourceState.liveLoading = false;
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -345,12 +437,44 @@ describe("ComposerModelSelector loaded catalog", () => {
         )
         ?.click(),
     );
-    const refresh = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("Refresh models"),
+    const refresh = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Refresh model catalog"]',
     );
 
     act(() => refresh?.click());
     expect(liveModelsReloadMock).toHaveBeenCalledOnce();
+  });
+
+  it("explains when the model picker is still showing the configured fallback catalog", () => {
+    modelResourceState.liveLoading = true;
+    act(() =>
+      root.render(
+        createElement(ComposerModelSelector, {
+          active: true,
+          onOpenModelsPage: vi.fn(),
+          onOpenProvidersPage: vi.fn(),
+          refreshRuntime: vi.fn(),
+          runtime: {
+            model: "gpt-5.6-terra",
+            plugins: {},
+            provider: "codex",
+          },
+        }),
+      ),
+    );
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>(
+          '[aria-label^="Choose model. Current route"]',
+        )
+        ?.click(),
+    );
+
+    expect(container.textContent).toContain(
+      "Refreshing the live model inventory. Showing the last configured catalog until it arrives.",
+    );
+    expect(container.textContent).toContain("Configured");
+    expect(container.textContent).not.toContain("Ready");
   });
 
   it("closes the nested effort list before the model dialog on Escape", async () => {
@@ -397,7 +521,10 @@ describe("ComposerModelSelector loaded catalog", () => {
       ),
     );
     expect(document.querySelector('[role="listbox"]')).toBeNull();
-    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(
+      container.querySelector('[aria-label="Choose provider and model"]'),
+    ).not.toBeNull();
 
     act(() =>
       document.activeElement?.dispatchEvent(

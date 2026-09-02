@@ -57,6 +57,13 @@ export interface ChatRequest {
   projectId?: string;
   attachmentIds?: string[];
 }
+
+/** Resume the event feed for an already-submitted, server-owned chat run. */
+export interface ChatRunSubscription {
+  requestId: string;
+  /** The last durable event id rendered by this desktop window. */
+  after?: number;
+}
 export interface LocalMutation {
   action: string;
   requestedPath?: string;
@@ -118,6 +125,8 @@ export interface DesktopRunUpdate {
 }
 export interface ChatEvent {
   requestId: string;
+  /** Monotonic server event id. Undefined only for local transport failures. */
+  eventId?: number;
   event:
     | "response.created"
     | "response.output_text.delta"

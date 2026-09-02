@@ -98,6 +98,50 @@ describe("handleConversationRoutes", () => {
     expect(response?.status).toBe(400);
   });
 
+  it("exposes the durable submit endpoint through the conversation router", async () => {
+    const context = createContext();
+    const response = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/chat/runs", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      }),
+      new URL("http://localhost/chat/runs"),
+    );
+
+    expect(context.ensureDeferredHydration).toHaveBeenCalledWith("chat");
+    expect(response?.status).toBe(400);
+    await expect(response?.json()).resolves.toEqual({
+      error: "message is required",
+    });
+  });
+
+  it("exposes resumable run events through the conversation router", async () => {
+    const context = createContext();
+    context.services.runController.appendTaskEvent(
+      "route-run",
+      "response.created",
+      {
+        run_id: "route-run",
+      },
+    );
+    context.services.runController.appendTaskEvent(
+      "route-run",
+      "response.completed",
+      { response: "done" },
+      true,
+    );
+
+    const response = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/chat/runs/route-run/events?after=1"),
+      new URL("http://localhost/chat/runs/route-run/events?after=1"),
+    );
+    expect(response?.status).toBe(200);
+    expect(await response?.text()).toContain("event: response.completed");
+  });
+
   it("cancels the registered server turn and exposes its retained receipt", async () => {
     const context = createContext();
     const controller = new AbortController();

@@ -5,6 +5,11 @@ import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { DesktopRunUpdate } from "../../shared/contracts";
+import {
+  chatSubmissionContent,
+  clearSessionProgress,
+  setSessionProgress,
+} from "../ChatPage";
 import { savePromptLibrary } from "../conversation-persistence";
 import {
   CHAT_COMPOSER_MAX_HEIGHT,
@@ -16,7 +21,7 @@ import {
 import { ChatMessage } from "./ChatMessage";
 import { ChatTranscript } from "./ChatTranscript";
 import { MessageActions } from "./MessageActions";
-import { RunReceiptView } from "./RunReceiptView";
+import { RunReceiptView, runReceiptState } from "./RunReceiptView";
 import { Welcome } from "./Welcome";
 
 const composerStorage = new Map<string, string>();
@@ -112,6 +117,30 @@ function composerProps(
 }
 
 describe("chat presentation components", () => {
+  it("keeps background conversation progress isolated when another run completes", () => {
+    const withFirstRun = setSessionProgress({}, "session-1", "Reading files…");
+    const withBothRuns = setSessionProgress(
+      withFirstRun,
+      "session-2",
+      "Planning changes…",
+    );
+
+    expect(withBothRuns).toEqual({
+      "session-1": "Reading files…",
+      "session-2": "Planning changes…",
+    });
+    expect(clearSessionProgress(withBothRuns, "session-1")).toEqual({
+      "session-2": "Planning changes…",
+    });
+  });
+
+  it("gives attachment-only submissions a visible user intent", () => {
+    expect(chatSubmissionContent("   ", 1)).toBe("Review the attached files.");
+    expect(chatSubmissionContent("", 2)).toBe("Review the attached files.");
+    expect(chatSubmissionContent("Explain these", 2)).toBe("Explain these");
+    expect(chatSubmissionContent("", 0)).toBe("");
+  });
+
   it("grows multiline drafts up to the capped composer height and resets", () => {
     expect(chatComposerHeight(96)).toBe(96);
     expect(chatComposerHeight(CHAT_COMPOSER_MAX_HEIGHT + 80)).toBe(
@@ -325,6 +354,73 @@ describe("chat presentation components", () => {
     expect(html).not.toContain('class="chat-memory-matches"');
   });
 
+  it("enables attachment-only sends and exposes blocking validation to assistive technology", () => {
+    const attachment = {
+      id: "file-1",
+      name: "README.md",
+      kind: "document" as const,
+      mimeType: "text/markdown",
+      sizeBytes: 1_024,
+      sha256: "a".repeat(64),
+    };
+    const attachmentOnly = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          attachedFiles: [attachment],
+          attachmentTotalBytes: attachment.sizeBytes,
+          backend: { phase: "ready", message: "" },
+          canSubmit: true,
+          draft: "",
+        })}
+      />,
+    );
+    const commandConflict = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          attachedFiles: [attachment],
+          attachmentTotalBytes: attachment.sizeBytes,
+          composerValidationError: "Commands cannot be sent with file context.",
+          draft: "/review",
+        })}
+      />,
+    );
+
+    expect(attachmentOnly).toContain('aria-label="Send message"');
+    expect(attachmentOnly).not.toContain('aria-label="Send message" disabled');
+    expect(commandConflict).toContain('id="chat-composer-validation"');
+    expect(commandConflict).toContain('aria-invalid="true"');
+    expect(commandConflict).toContain(
+      'aria-errormessage="chat-composer-validation"',
+    );
+    expect(commandConflict).toContain(
+      'aria-describedby="chat-composer-validation"',
+    );
+  });
+
+  it("publishes whether slash and dollar completion listboxes are expanded", () => {
+    const slashMenu = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          draft: "/help",
+          commandSuggestions: [
+            {
+              command: "/help",
+              category: "Help",
+              description: "Show help.",
+            },
+          ],
+        })}
+      />,
+    );
+    const closedMenu = renderToStaticMarkup(
+      <ChatComposer {...composerProps({ draft: "Hello" })} />,
+    );
+
+    expect(slashMenu).toContain('aria-expanded="true"');
+    expect(slashMenu).toContain('aria-controls="chat-command-completions"');
+    expect(closedMenu).toContain('aria-expanded="false"');
+  });
+
   it("renders source handoff as a compact removable capsule", () => {
     const html = renderToStaticMarkup(
       <ChatComposer
@@ -523,6 +619,56 @@ describe("chat presentation components", () => {
     expect(html.match(/<li(?:\s|>)/gu)).toHaveLength(1);
   });
 
+  it("labels working, terminal, and approval-required run receipts accurately", () => {
+    const receipt = (overrides: Partial<DesktopRunUpdate["run"]> = {}) => ({
+      latest: { ...runUpdate(), run: { ...runUpdate().run, ...overrides } },
+      events: [],
+    });
+
+    expect(runReceiptState(receipt({ status: "thinking" }))).toMatchObject({
+      label: "Working",
+      statusLabel: "working",
+    });
+    expect(runReceiptState(receipt())).toMatchObject({
+      label: "Run complete",
+      statusLabel: "complete",
+    });
+    expect(runReceiptState(receipt({ status: "cancelled" }))).toMatchObject({
+      label: "Run cancelled",
+      statusLabel: "cancelled",
+    });
+    expect(runReceiptState(receipt({ status: "error" }))).toMatchObject({
+      label: "Run failed",
+      statusLabel: "failed",
+    });
+    expect(
+      runReceiptState(receipt({ status: "waiting", pendingApprovals: 1 })),
+    ).toMatchObject({
+      label: "Approval needed",
+      statusLabel: "approval needed",
+    });
+  });
+
+  it("keeps completed action receipts available beside ordinary assistant text", () => {
+    const html = renderToStaticMarkup(
+      <ChatMessage
+        actions={null}
+        message={{
+          content: "The workspace is ready.",
+          createdAt: "2026-08-09T10:00:01.000Z",
+          id: "assistant-complete",
+          role: "assistant",
+        }}
+        receipt={{ latest: runUpdate(), events: [runUpdate()] }}
+      />,
+    );
+
+    expect(html).toContain("The workspace is ready.");
+    expect(html).toContain("chat-run-receipt");
+    expect(html).toContain("<details");
+    expect(html).toContain("1 actions");
+  });
+
   it("keeps retry available for an errored assistant response", () => {
     const html = renderToStaticMarkup(
       <MessageActions
@@ -606,7 +752,40 @@ describe("chat presentation components", () => {
       />,
     );
     expect(html).toContain('class="chat-messages"');
+    expect(html).toContain('role="log"');
+    expect(html).not.toContain('aria-live="polite"');
+    expect(html).not.toContain('aria-relevant="additions text"');
+    expect(html).toContain('aria-label="Conversation"');
     expect(html).toContain("What are you");
+  });
+
+  it("marks the transcript busy while history or a live request is active", () => {
+    const html = renderToStaticMarkup(
+      <ChatTranscript
+        activeRequest="run-1"
+        backendReady
+        copyStates={{}}
+        endRef={{ current: null }}
+        forkingMessageId=""
+        historyError=""
+        loading
+        messages={[]}
+        onBranch={() => undefined}
+        onCopy={() => undefined}
+        onRead={() => undefined}
+        onRetryHistory={() => undefined}
+        onSelectPrompt={() => undefined}
+        onStopReading={() => undefined}
+        progress=""
+        projectName="Doolittle"
+        runReceipts={{}}
+        speakingMessageId=""
+        speechSupported={false}
+      />,
+    );
+
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain('aria-label="Doolittle conversation"');
   });
 
   it("offers retry when conversation history is unavailable", () => {
@@ -634,5 +813,43 @@ describe("chat presentation components", () => {
     );
     expect(html).toContain("History offline");
     expect(html).toContain(">Retry</button>");
+  });
+
+  it("offers an accessible compact control for bounded earlier history", () => {
+    const html = renderToStaticMarkup(
+      <ChatTranscript
+        activeRequest={null}
+        backendReady
+        copyStates={{}}
+        endRef={{ current: null }}
+        forkingMessageId=""
+        hasEarlierMessages
+        historyError=""
+        loading={false}
+        loadingEarlierHistory={false}
+        messages={[
+          {
+            id: "message-1",
+            role: "user",
+            content: "Earlier work",
+            createdAt: "2026-08-12T10:00:00.000Z",
+          },
+        ]}
+        onBranch={() => undefined}
+        onCopy={() => undefined}
+        onLoadEarlier={async () => undefined}
+        onRead={() => undefined}
+        onRetryHistory={() => undefined}
+        onSelectPrompt={() => undefined}
+        onStopReading={() => undefined}
+        progress=""
+        runReceipts={{}}
+        speakingMessageId=""
+        speechSupported={false}
+      />,
+    );
+    expect(html).toContain('aria-label="Load earlier messages"');
+    expect(html).toContain("Load earlier messages");
+    expect(html).toContain('class="chat-load-earlier"');
   });
 });

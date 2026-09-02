@@ -45,6 +45,7 @@ export const desktopIpcChannels = {
     repositoryCreateWorktreeConfirmed: "repository:create-worktree-confirmed",
     repositoryMutateConfirmed: "repository:mutate-confirmed",
     chatStart: "chat:start",
+    chatSubscribe: "chat:subscribe",
     chatCancel: "chat:cancel",
   },
   event: {

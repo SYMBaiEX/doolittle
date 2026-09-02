@@ -257,6 +257,12 @@ describe("parseApiPath", () => {
     expect(
       parseApiPath("/sessions/messages?limit=200&sessionId=abc", "GET"),
     ).toBe("/sessions/messages?limit=200&sessionId=abc");
+    expect(
+      parseApiPath(
+        "/sessions/messages?limit=200&offset=500&sessionId=abc",
+        "GET",
+      ),
+    ).toBe("/sessions/messages?limit=200&offset=500&sessionId=abc");
     expect(parseApiPath("/sessions/summary?sessionId=abc", "GET")).toBe(
       "/sessions/summary?sessionId=abc",
     );
@@ -439,6 +445,9 @@ describe("parseApiPath", () => {
     );
     expect(() =>
       parseApiPath("/sessions/messages?sessionId=abc&hack=1", "GET"),
+    ).toThrow(/Unsupported query/);
+    expect(() =>
+      parseApiPath("/sessions/messages?sessionId=abc&offset=-1", "GET"),
     ).toThrow(/Unsupported query/);
     expect(() =>
       parseApiPath("/sessions/search?limit=20", "GET"),

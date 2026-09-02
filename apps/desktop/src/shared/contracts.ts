@@ -154,6 +154,7 @@ export type {
   AgentTransportResponse,
   ChatEvent,
   ChatRequest,
+  ChatRunSubscription,
   DesktopRunUpdate,
   HttpMethod,
   LocalMutation,

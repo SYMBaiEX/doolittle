@@ -1,4 +1,7 @@
-import { RunUpdateEventBus } from "@/services/run-controller/event-bus";
+import {
+  RunUpdateEventBus,
+  TaskRunEventBus,
+} from "@/services/run-controller/event-bus";
 import { RunControllerStore } from "@/services/run-controller/store";
 import type {
   LocalMutationInput,
@@ -6,6 +9,9 @@ import type {
   RunStatus,
   RunUpdateEvent,
   StartTurnInput,
+  TaskRunClaimInput,
+  TaskRunClaimResult,
+  TaskRunEvent,
 } from "@/services/run-controller/types";
 import { onRunUpdate } from "./event-capture";
 import { getRunByRoomId, withSessionForRoom } from "./room-mapping";
@@ -32,13 +38,19 @@ export type {
   RunStatus,
   RunUpdateEvent,
   StartTurnInput,
+  TaskRunClaimInput,
+  TaskRunClaimResult,
+  TaskRunEvent,
 } from "@/services/run-controller/types";
 
 export class RunControllerService {
   private readonly events = new RunUpdateEventBus();
+  private readonly taskEvents = new TaskRunEventBus();
   private readonly store: RunControllerStore;
   private readonly abortControllers = new Map<string, AbortController>();
   private readonly workspaceRuns = new Map<string, string>();
+  private readonly activeTasks = new Map<string, TaskRunClaimInput>();
+  private readonly sessionTasks = new Map<string, string>();
   private runtimeBridgeAttached = false;
   private agentEventBridgeAttached = false;
 
@@ -134,6 +146,70 @@ export class RunControllerService {
     };
   }
 
+  claimTaskRun(input: TaskRunClaimInput): TaskRunClaimResult {
+    if (this.activeTasks.has(input.runId) || this.store.hasRunId(input.runId)) {
+      return { accepted: false, reason: "run_exists" };
+    }
+    const conflictingRunId = this.sessionTasks.get(input.sessionId);
+    const activeSessionRun = this.store.getInternal(input.sessionId);
+    const conflictingSessionRunId =
+      conflictingRunId ??
+      (activeSessionRun && !activeSessionRun.endedAt
+        ? activeSessionRun.runId
+        : undefined);
+    if (conflictingSessionRunId) {
+      return {
+        accepted: false,
+        reason: "session_active",
+        conflictingRunId: conflictingSessionRunId,
+      };
+    }
+    this.activeTasks.set(input.runId, { ...input });
+    this.sessionTasks.set(input.sessionId, input.runId);
+    return { accepted: true };
+  }
+
+  releaseTaskRun(runId: string): void {
+    const task = this.activeTasks.get(runId);
+    if (!task) return;
+    this.activeTasks.delete(runId);
+    if (this.sessionTasks.get(task.sessionId) === runId) {
+      this.sessionTasks.delete(task.sessionId);
+    }
+  }
+
+  appendTaskEvent(
+    runId: string,
+    type: string,
+    data: unknown,
+    terminal = false,
+  ): TaskRunEvent {
+    const result = this.store.appendEvent(runId, type, data, terminal);
+    if (result.appended) this.taskEvents.emit(result.event);
+    return result.event;
+  }
+
+  getTaskEvents(runId: string, after = 0): TaskRunEvent[] {
+    return this.store.listEvents(runId, after);
+  }
+
+  getTerminalTaskEvent(runId: string): TaskRunEvent | undefined {
+    return this.store.getTerminalEvent(runId);
+  }
+
+  onTaskEvent(listener: (event: TaskRunEvent) => void): () => void {
+    return this.taskEvents.onEvent(listener);
+  }
+
+  /** Flushes the short-tail event journal debounce during an orderly shutdown. */
+  dispose(): void {
+    this.store.dispose();
+  }
+
+  isTaskActive(runId: string): boolean {
+    return this.activeTasks.has(runId);
+  }
+
   /**
    * Freezes the workspace identity for a chat before its turn begins. Runtime
    * workspace switches consult these leases so a later tool call cannot be
@@ -167,15 +243,36 @@ export class RunControllerService {
   cancelRun(runId: string): { accepted: boolean; run?: RunSnapshot } {
     const controller = this.abortControllers.get(runId);
     const receipt = this.store.getByRunId(runId);
-    if (!controller && !receipt) return { accepted: false };
-    if (!receipt?.endedAt && controller && !controller.signal.aborted) {
+    const task = this.activeTasks.get(runId);
+    const terminalEvent = this.store.getTerminalEvent(runId);
+    if (!controller && !receipt && !task && !terminalEvent) {
+      return { accepted: false };
+    }
+    if (
+      !terminalEvent &&
+      !receipt?.endedAt &&
+      controller &&
+      !controller.signal.aborted
+    ) {
       controller.abort();
     }
-    if (receipt && !receipt.endedAt) {
+    if (!terminalEvent && receipt && !receipt.endedAt) {
       const current = this.store.getInternal(receipt.sessionId);
       if (current?.runId === runId) {
         this.finishTurn(receipt.sessionId, "cancelled");
       }
+    }
+    if (!terminalEvent) {
+      this.appendTaskEvent(
+        runId,
+        "response.cancelled",
+        {
+          id: task?.responseId,
+          run_id: runId,
+          room_id: task?.roomId ?? receipt?.roomId,
+        },
+        true,
+      );
     }
     return { accepted: true, run: this.store.getByRunId(runId) };
   }

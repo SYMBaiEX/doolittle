@@ -11,6 +11,7 @@ import {
 import {
   type CSSProperties,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -137,9 +138,10 @@ export function NewConversationControl({
   onManageProjects,
 }: NewConversationControlProps) {
   const shellRef = useRef<HTMLDivElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuId = useId();
   const [query, setQuery] = useState("");
   const [menuPosition, setMenuPosition] = useState<FloatingMenuPosition | null>(
     null,
@@ -239,7 +241,8 @@ export function NewConversationControl({
     <div className={NEW_CHAT_SHELL_CLASS} ref={shellRef}>
       <button
         aria-expanded={isOpen}
-        aria-haspopup="dialog"
+        aria-controls={menuId}
+        aria-haspopup="menu"
         aria-label="New conversation"
         className={NEW_CHAT_TRIGGER_CLASS}
         onClick={() => onOpenChange(!isOpen)}
@@ -253,11 +256,11 @@ export function NewConversationControl({
       </button>
       {isOpen
         ? createPortal(
-            <div
+            <section
               aria-label="Start a new conversation"
               className={NEW_CHAT_MENU_CLASS}
+              id={menuId}
               ref={menuRef}
-              role="dialog"
               style={
                 menuPosition
                   ? {
@@ -296,7 +299,11 @@ export function NewConversationControl({
                   />
                 </label>
               ) : null}
-              <div className="new-chat-project-menu__list grid max-h-59 gap-0.5 overflow-y-auto p-1.75">
+              <div
+                aria-label="Choose a project for the new conversation"
+                className="new-chat-project-menu__list grid max-h-59 gap-0.5 overflow-y-auto p-1.75"
+                role="menu"
+              >
                 {visibleProjects.map((project) => (
                   <button
                     aria-current={
@@ -306,6 +313,7 @@ export function NewConversationControl({
                     data-new-chat-choice
                     key={project.id}
                     onClick={() => choose(project.id)}
+                    role="menuitem"
                     type="button"
                   >
                     <ProjectMark project={project} />
@@ -320,7 +328,10 @@ export function NewConversationControl({
                   </button>
                 ))}
                 {visibleProjects.length === 0 && query ? (
-                  <p className="m-1.75 text-[11px] text-[var(--muted)]">
+                  <p
+                    className="m-1.75 text-[11px] text-[var(--muted)]"
+                    role="status"
+                  >
                     No matching projects.
                   </p>
                 ) : null}
@@ -333,6 +344,7 @@ export function NewConversationControl({
                     onOpenChange(false);
                     void onChooseRepository();
                   }}
+                  role="menuitem"
                   type="button"
                 >
                   <span
@@ -353,6 +365,7 @@ export function NewConversationControl({
                   aria-current={activeScope === "unscoped" ? "true" : undefined}
                   className={NEW_CHAT_CHOICE_CLASS}
                   onClick={() => choose("unscoped")}
+                  role="menuitem"
                   type="button"
                 >
                   <span
@@ -383,7 +396,7 @@ export function NewConversationControl({
                   <UiIcon icon={ArrowRight} size="xs" />
                 </button>
               </footer>
-            </div>,
+            </section>,
             document.body,
           )
         : null}

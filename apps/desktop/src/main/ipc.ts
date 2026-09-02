@@ -550,15 +550,22 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
 
       const controller = new AbortController();
       let terminalEventEmitted = false;
-      const emitEvent = (payload: { event: string; data: unknown }) => {
+      const emitEvent = (
+        payload: { event: string; data: unknown },
+        eventId?: number,
+      ) => {
         if (!event.sender.isDestroyed()) {
           event.sender.send(eventChannels.chatEvent, {
             requestId: request.requestId,
             ...payload,
+            ...(eventId === undefined ? {} : { eventId }),
           });
         }
       };
-      const emitChatEvent = (payload: { event: string; data: unknown }) => {
+      const emitChatEvent = (
+        payload: { event: string; data: unknown },
+        eventId?: number,
+      ) => {
         const terminal =
           payload.event === "response.completed" ||
           payload.event === "response.failed" ||
@@ -571,7 +578,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         if (terminal) {
           terminalEventEmitted = true;
         }
-        emitEvent(payload);
+        emitEvent(payload, eventId);
         return terminal;
       };
       const notifyChatTerminalEvent = (eventName: string) => {
@@ -598,8 +605,44 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       activeChats.set(key, { controller });
       stopTrackingSender = trackSenderCleanup(event.sender, cleanup);
 
+      const streamEvents = async (after = 0) => {
+        const response = await sensitiveFetch(
+          `${state.url}/chat/runs/${encodeURIComponent(request.requestId)}/events?after=${after}`,
+          { signal: controller.signal },
+        );
+        if (!response.ok) throw new Error(await parseRequestError(response));
+        if (!response.body)
+          throw new Error("The runtime returned an empty stream.");
+        const parser = new SseParser();
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        const consume = (payload: { event: string; data: unknown }) => {
+          const data = payload.data;
+          const eventId =
+            data &&
+            typeof data === "object" &&
+            Number.isSafeInteger((data as { event_id?: unknown }).event_id)
+              ? Number((data as { event_id: number }).event_id)
+              : undefined;
+          if (emitChatEvent(payload, eventId)) {
+            notifyChatTerminalEvent(payload.event);
+          }
+        };
+        while (true) {
+          const result = await reader.read();
+          if (result.done) break;
+          for (const frame of parser.push(
+            decoder.decode(result.value, { stream: true }),
+          )) {
+            consume(frame);
+          }
+        }
+        for (const frame of parser.push(decoder.decode())) consume(frame);
+        for (const frame of parser.finish()) consume(frame);
+      };
+
       try {
-        const response = await sensitiveFetch(`${state.url}/chat`, {
+        const response = await sensitiveFetch(`${state.url}/chat/runs`, {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -610,7 +653,6 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             runId: request.requestId,
             userId: "desktop-user",
             source: "desktop",
-            stream: true,
             workspaceDir: request.workspacePath,
             projectId: request.projectId,
             attachmentIds: validateChatAttachmentIds(request.attachmentIds),
@@ -621,34 +663,14 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         if (!response.ok) {
           throw new Error(await parseRequestError(response));
         }
-        if (!response.body) {
-          throw new Error("The runtime returned an empty stream.");
+        const submitted = await parseSuccessfulJson(
+          response,
+          MAX_SENSITIVE_RESPONSE_BYTES,
+        );
+        if (!isRecord(submitted) || submitted.run_id !== request.requestId) {
+          throw new Error("The runtime returned an invalid chat run receipt.");
         }
-
-        const parser = new SseParser();
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        while (true) {
-          const result = await reader.read();
-          if (result.done) break;
-          const chunk = decoder.decode(result.value, { stream: true });
-          for (const eventMessage of parser.push(chunk)) {
-            if (emitChatEvent(eventMessage)) {
-              notifyChatTerminalEvent(eventMessage.event);
-            }
-          }
-        }
-        const tail = decoder.decode();
-        for (const eventMessage of parser.push(tail)) {
-          if (emitChatEvent(eventMessage)) {
-            notifyChatTerminalEvent(eventMessage.event);
-          }
-        }
-        for (const eventMessage of parser.finish()) {
-          if (emitChatEvent(eventMessage)) {
-            notifyChatTerminalEvent(eventMessage.event);
-          }
-        }
+        await streamEvents();
         if (!terminalEventEmitted) {
           throw new Error(
             "The runtime closed the chat stream before completing the response.",
@@ -682,10 +704,109 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
   );
 
   registerHandler(
+    invokeChannels.chatSubscribe,
+    async (event, unsafeRequest: unknown) => {
+      if (
+        !isRecord(unsafeRequest) ||
+        typeof unsafeRequest.requestId !== "string"
+      ) {
+        throw new Error("Chat run subscription is invalid.");
+      }
+      const { requestId } = unsafeRequest;
+      if (!/^[a-zA-Z0-9:_-]{1,128}$/u.test(requestId)) {
+        throw new Error("Chat run subscription is invalid.");
+      }
+      const after = unsafeRequest.after;
+      if (
+        after !== undefined &&
+        (typeof after !== "number" || !Number.isSafeInteger(after) || after < 0)
+      ) {
+        throw new Error("Chat run subscription cursor is invalid.");
+      }
+      const state = backend.getState();
+      if (state.phase !== "ready" || !state.url) {
+        throw new Error("The local runtime is not ready.");
+      }
+      const key = chatKey(event, requestId);
+      if (activeChats.has(key)) return;
+      const controller = new AbortController();
+      let terminal = false;
+      let stopTrackingSender: () => void = () => undefined;
+      const cleanup = () => {
+        activeChats.delete(key);
+        stopTrackingSender();
+        if (!controller.signal.aborted) controller.abort();
+      };
+      activeChats.set(key, { controller });
+      stopTrackingSender = trackSenderCleanup(event.sender, cleanup);
+      try {
+        const response = await sensitiveFetch(
+          `${state.url}/chat/runs/${encodeURIComponent(requestId)}/events?after=${typeof after === "number" ? after : 0}`,
+          { signal: controller.signal },
+        );
+        if (!response.ok) throw new Error(await parseRequestError(response));
+        if (!response.body)
+          throw new Error("The runtime returned an empty stream.");
+        const parser = new SseParser();
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        const consume = (frame: { event: string; data: unknown }) => {
+          const data = frame.data;
+          const eventId =
+            data &&
+            typeof data === "object" &&
+            Number.isSafeInteger((data as { event_id?: unknown }).event_id)
+              ? Number((data as { event_id: number }).event_id)
+              : undefined;
+          terminal ||= [
+            "response.completed",
+            "response.failed",
+            "response.cancelled",
+            "cancelled",
+            "error",
+          ].includes(frame.event);
+          if (!event.sender.isDestroyed())
+            event.sender.send(eventChannels.chatEvent, {
+              requestId,
+              ...frame,
+              ...(eventId === undefined ? {} : { eventId }),
+            });
+        };
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          for (const frame of parser.push(
+            decoder.decode(chunk.value, { stream: true }),
+          ))
+            consume(frame);
+        }
+        for (const frame of parser.push(decoder.decode())) consume(frame);
+        for (const frame of parser.finish()) consume(frame);
+      } catch (error) {
+        if (
+          !terminal &&
+          !controller.signal.aborted &&
+          !event.sender.isDestroyed()
+        ) {
+          event.sender.send(eventChannels.chatEvent, {
+            requestId,
+            event: "error",
+            data: {
+              message: error instanceof Error ? error.message : String(error),
+            },
+          });
+          throw error;
+        }
+      } finally {
+        cleanup();
+      }
+    },
+  );
+
+  registerHandler(
     invokeChannels.chatCancel,
     async (event, requestId: string) => {
       const active = activeChats.get(chatKey(event, requestId));
-      if (!active) return;
       try {
         const state = backend.getState();
         if (state.phase !== "ready" || !state.url) {
@@ -721,7 +842,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         // A failed cancellation acknowledgement must never leave local stream
         // work alive. Preserve the server failure for the renderer, but always
         // tear down our fetch and let chatStart clean its tracking entry.
-        active.controller.abort();
+        active?.controller.abort();
       }
     },
   );

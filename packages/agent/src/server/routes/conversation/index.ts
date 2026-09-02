@@ -1,5 +1,9 @@
 import type { AppContext } from "@/runtime/bootstrap";
-import { handleChatRoute } from "./chat";
+import {
+  handleChatRoute,
+  handleChatRunEventsRoute,
+  handleChatSubmitRoute,
+} from "./chat";
 import { handleResponsesRoute } from "./responses";
 
 export async function handleConversationRoutes(
@@ -13,6 +17,11 @@ export async function handleConversationRoutes(
     // immediately submitted message cannot observe a partial plugin catalog.
     await context.ensureDeferredHydration("chat");
     return handleChatRoute(context, request);
+  }
+
+  if (request.method === "POST" && url.pathname === "/chat/runs") {
+    await context.ensureDeferredHydration("chat");
+    return handleChatSubmitRoute(context, request);
   }
 
   if (request.method === "POST") {
@@ -34,6 +43,12 @@ export async function handleConversationRoutes(
   }
 
   if (request.method === "GET") {
+    const events = url.pathname.match(
+      /^\/chat\/runs\/([a-zA-Z0-9:_-]{1,128})\/events$/,
+    );
+    if (events?.[1]) {
+      return handleChatRunEventsRoute(context, request, events[1], url);
+    }
     const receipt = url.pathname.match(
       /^\/chat\/runs\/([a-zA-Z0-9:_-]{1,128})$/,
     );

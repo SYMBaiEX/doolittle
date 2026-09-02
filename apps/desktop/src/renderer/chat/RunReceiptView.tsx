@@ -3,8 +3,32 @@ import { UiIcon } from "../components/UiIcon";
 import { Badge, displayTimestamp } from "../lib";
 import { type RunReceipt, runEventCopy, runEventKey } from "./models";
 
+export function runReceiptState(receipt: RunReceipt): {
+  label: string;
+  statusLabel: string;
+  tone: "neutral" | "good" | "warn" | "bad";
+} {
+  const { run } = receipt.latest;
+  if (run.status === "cancelled" || run.terminalReason === "cancelled") {
+    return { label: "Run cancelled", statusLabel: "cancelled", tone: "warn" };
+  }
+  if (run.status === "error" || run.terminalReason === "error") {
+    return { label: "Run failed", statusLabel: "failed", tone: "bad" };
+  }
+  if (run.status === "complete" || run.terminalReason === "completed") {
+    return { label: "Run complete", statusLabel: "complete", tone: "good" };
+  }
+  if (run.pendingApprovals > 0) {
+    return {
+      label: "Approval needed",
+      statusLabel: "approval needed",
+      tone: "warn",
+    };
+  }
+  return { label: "Working", statusLabel: "working", tone: "neutral" };
+}
+
 export function RunReceiptView({
-  pending,
   receipt,
 }: {
   pending: boolean;
@@ -14,35 +38,30 @@ export function RunReceiptView({
   const visibleEvents = receipt.events.filter(
     (event) => !["heartbeat", "message", "stream"].includes(event.type),
   );
+  const state = runReceiptState(receipt);
   const summary =
     latest.run.terminalReason === "cancelled"
       ? "Stopped by operator"
-      : latest.run.errorMessage ||
-        latest.run.activeAction ||
-        latest.run.statusDetail ||
-        latest.run.lastAction ||
-        latest.run.status;
-  const tone =
-    latest.run.status === "complete"
-      ? "good"
-      : latest.run.status === "error"
-        ? "bad"
-        : latest.run.status === "cancelled"
-          ? "warn"
-          : latest.run.pendingApprovals > 0
-            ? "warn"
-            : "neutral";
+      : latest.run.pendingApprovals > 0
+        ? `${latest.run.pendingApprovals} approval${
+            latest.run.pendingApprovals === 1 ? "" : "s"
+          } awaiting your decision`
+        : latest.run.errorMessage ||
+          latest.run.activeAction ||
+          latest.run.statusDetail ||
+          latest.run.lastAction ||
+          latest.run.status;
 
   return (
     <details className="group chat-run-receipt mb-0.75 overflow-hidden border-0 border-[color-mix(in_srgb,var(--border)_62%,transparent)] border-t bg-transparent whitespace-normal text-[var(--text-soft)] open:border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] open:bg-[color-mix(in_srgb,var(--surface-soft)_24%,transparent)]">
       <summary className="grid min-h-6 cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.5 bg-transparent px-0.75 py-0.5 [&::-webkit-details-marker]:hidden">
         <span
           className={`chat-run-state block size-1.5 shrink-0 rounded-full ${
-            tone === "good"
+            state.tone === "good"
               ? "bg-[var(--good)]"
-              : tone === "warn"
+              : state.tone === "warn"
                 ? "bg-[var(--warn)]"
-                : tone === "bad"
+                : state.tone === "bad"
                   ? "bg-[var(--bad)]"
                   : "bg-[var(--muted)]"
           }`}
@@ -50,7 +69,7 @@ export function RunReceiptView({
         />
         <span className="flex min-w-0 items-baseline gap-1.75">
           <strong className="text-[length:var(--text-meta)] font-semibold text-[var(--text)]">
-            {pending ? "Working" : "Run complete"}
+            {state.label}
           </strong>
           <small className="truncate font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
             {summary}
@@ -101,7 +120,7 @@ export function RunReceiptView({
         })}
       </ol>
       <footer className="flex items-center gap-2 border-[var(--border)] border-t px-2.75 py-1.25">
-        <Badge tone={tone}>{latest.run.status}</Badge>
+        <Badge tone={state.tone}>{state.statusLabel}</Badge>
         <code className="truncate text-[length:var(--text-meta)] text-[var(--faint)]">
           {latest.run.runId}
         </code>

@@ -206,7 +206,17 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     {
       exact: "/sessions/messages",
       allowAllQueries: false,
-      allowedQueries: ["sessionId", "limit"],
+      allowedQueries: ["sessionId", "limit", "offset"],
+      validateQuery: (query) =>
+        validateTextQuery(query, "sessionId", {
+          maxLength: 128,
+          required: true,
+        }) &&
+        validateIntegerQuery(query, "limit", { min: 1, max: 500 }) &&
+        validateIntegerQuery(query, "offset", {
+          min: 0,
+          max: 1_000_000_000,
+        }),
     },
     {
       exact: "/sessions/summary",

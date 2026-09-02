@@ -46,6 +46,7 @@ import type {
   AgentTransportResponse,
   ChatEvent,
   ChatRequest,
+  ChatRunSubscription,
 } from "./transport";
 
 export interface DoolittleDesktopBridge {
@@ -131,6 +132,7 @@ export interface DoolittleDesktopBridge {
     request: RepositoryMutationRequest,
   ): Promise<RepositoryMutationDesktopResult>;
   startChat(request: ChatRequest): Promise<void>;
+  subscribeChat(request: ChatRunSubscription): Promise<void>;
   cancelChat(requestId: string): Promise<void>;
   onChatEvent(listener: (event: ChatEvent) => void): () => void;
 }

@@ -5,7 +5,7 @@ import { RoomHandlerQueue } from "@elizaos/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { RunControllerService } from "@/services/run-controller-service";
-import { handleChatRoute } from "./chat";
+import { handleChatRoute, handleChatRunEventsRoute } from "./chat";
 
 const { executeAgentTurnWithProgress } = vi.hoisted(() => ({
   executeAgentTurnWithProgress: vi.fn(),
@@ -130,17 +130,16 @@ describe("handleChatRoute turn lifecycle", () => {
       new Error("provider failed"),
     );
 
-    await expect(
-      handleChatRoute(
-        context,
-        chatRequest({
-          message: "fail safely",
-          roomId: "workspace-failure",
-          runId: "run-workspace-failure",
-          workspaceDir: process.cwd(),
-        }),
-      ),
-    ).rejects.toThrow("provider failed");
+    const response = await handleChatRoute(
+      context,
+      chatRequest({
+        message: "fail safely",
+        roomId: "workspace-failure",
+        runId: "run-workspace-failure",
+        workspaceDir: process.cwd(),
+      }),
+    );
+    expect(response.status).toBe(500);
     expect(
       context.services.runController.workspaceSwitchConflict("/elsewhere"),
     ).toBeUndefined();
@@ -180,13 +179,62 @@ describe("handleChatRoute turn lifecycle", () => {
     );
     expect(duplicateResponse.status).toBe(409);
     await expect(duplicateResponse.json()).resolves.toEqual({
-      error: "This chat run is already active.",
-      code: "run_already_active",
+      error: "This chat run already exists.",
+      code: "run_already_exists",
     });
     expect(executeAgentTurnWithProgress).toHaveBeenCalledTimes(1);
 
     releaseTurn();
     await firstResponse;
+  });
+
+  it("rejects overlapping runs in the same session without blocking another session", async () => {
+    const context = createContext();
+    const releases = new Map<string, () => void>();
+    executeAgentTurnWithProgress.mockImplementation(
+      (input: { runId: string; roomId: string }) =>
+        new Promise((resolve) => {
+          releases.set(input.runId, () =>
+            resolve({ response: "done", sessionId: input.roomId }),
+          );
+        }),
+    );
+
+    const first = handleChatRoute(
+      context,
+      chatRequest({
+        message: "first",
+        roomId: "same-room",
+        runId: "run-first",
+      }),
+    );
+    await vi.waitFor(() => expect(releases.has("run-first")).toBe(true));
+    const conflict = await handleChatRoute(
+      context,
+      chatRequest({
+        message: "second",
+        roomId: "same-room",
+        runId: "run-second",
+      }),
+    );
+    expect(conflict.status).toBe(409);
+    await expect(conflict.json()).resolves.toMatchObject({
+      code: "session_run_active",
+      conflictingRunId: "run-first",
+    });
+
+    const parallel = handleChatRoute(
+      context,
+      chatRequest({
+        message: "parallel",
+        roomId: "other-room",
+        runId: "run-other",
+      }),
+    );
+    await vi.waitFor(() => expect(releases.has("run-other")).toBe(true));
+    releases.get("run-first")?.();
+    releases.get("run-other")?.();
+    await Promise.all([first, parallel]);
   });
 
   it("assigns a project only when starting a new session", async () => {
@@ -318,23 +366,22 @@ describe("handleChatRoute turn lifecycle", () => {
     });
   });
 
-  it("propagates request disconnect cancellation into the active turn", async () => {
+  it("keeps a non-streamed server run alive when its request disconnects", async () => {
     const context = createContext();
     const requestController = new AbortController();
     let turnSignal: AbortSignal | undefined;
+    let releaseTurn!: () => void;
     executeAgentTurnWithProgress.mockImplementation(
-      async (
+      (
         _input: unknown,
         _executionContext: unknown,
         hooks: { abortSignal?: AbortSignal },
       ) => {
         turnSignal = hooks.abortSignal;
-        await new Promise<void>((resolve) => {
-          hooks.abortSignal?.addEventListener("abort", () => resolve(), {
-            once: true,
-          });
+        return new Promise((resolve) => {
+          releaseTurn = () =>
+            resolve({ response: "finished", sessionId: "room-disconnect" });
         });
-        return { response: "", sessionId: "room-disconnect" };
       },
     );
 
@@ -351,9 +398,11 @@ describe("handleChatRoute turn lifecycle", () => {
     );
     await vi.waitFor(() => expect(turnSignal).toBeDefined());
     requestController.abort();
-    await response;
-
-    expect(turnSignal?.aborted).toBe(true);
+    expect(turnSignal?.aborted).toBe(false);
+    releaseTurn();
+    await expect((await response).json()).resolves.toMatchObject({
+      response: "finished",
+    });
   });
 
   it("does not cancel an ordinary completed request", async () => {
@@ -379,7 +428,7 @@ describe("handleChatRoute turn lifecycle", () => {
     await expect(response.json()).resolves.toMatchObject({ response: "done" });
   });
 
-  it("streams the authoritative response snapshot with each text update", async () => {
+  it("streams only incremental text deltas and keeps the full answer terminal", async () => {
     const context = createContext();
     executeAgentTurnWithProgress.mockImplementation(
       async (
@@ -418,9 +467,46 @@ describe("handleChatRoute turn lifecycle", () => {
       );
 
     expect(updates).toMatchObject([
-      { delta: "Working…", response: "Working…" },
-      { delta: "Final answer", response: "Final answer" },
+      { delta: "Working…" },
+      { delta: "Final answer" },
     ]);
+    expect(updates.every((update) => !("response" in update))).toBe(true);
+    expect(body).toContain("event: response.completed");
+    expect(body).toContain('"response":"Final answer"');
+  });
+
+  it("replays only events after the requested cursor and ends at one terminal", async () => {
+    const context = createContext();
+    context.services.runController.appendTaskEvent(
+      "run-replay",
+      "response.created",
+      {
+        run_id: "run-replay",
+      },
+    );
+    context.services.runController.appendTaskEvent(
+      "run-replay",
+      "response.output_text.delta",
+      { delta: "hello" },
+    );
+    context.services.runController.appendTaskEvent(
+      "run-replay",
+      "response.completed",
+      { response: "hello" },
+      true,
+    );
+
+    const response = handleChatRunEventsRoute(
+      context,
+      new Request("http://localhost/chat/runs/run-replay/events?after=1"),
+      "run-replay",
+    );
+    const body = await response.text();
+    expect(body).not.toContain("event: response.created");
+    expect(body).toContain("event: response.output_text.delta");
+    expect(body.match(/event: response.completed/gu)).toHaveLength(1);
+    expect(body).toContain('"event_id":2');
+    expect(body).toContain('"event_id":3');
   });
 
   it("returns a failure response when the retained run receipt failed", async () => {
@@ -479,22 +565,21 @@ describe("handleChatRoute turn lifecycle", () => {
     expect(body).not.toContain("event: response.completed");
   });
 
-  it("cancels the same turn controller when an SSE reader disconnects", async () => {
+  it("detaches an SSE reader without cancelling the server-owned turn", async () => {
     const context = createContext();
     let turnSignal: AbortSignal | undefined;
+    let releaseTurn!: () => void;
     executeAgentTurnWithProgress.mockImplementation(
-      async (
+      (
         _input: unknown,
         _executionContext: unknown,
         hooks: { abortSignal?: AbortSignal },
       ) => {
         turnSignal = hooks.abortSignal;
-        await new Promise<void>((resolve) => {
-          hooks.abortSignal?.addEventListener("abort", () => resolve(), {
-            once: true,
-          });
+        return new Promise((resolve) => {
+          releaseTurn = () =>
+            resolve({ response: "finished", sessionId: "room-stream" });
         });
-        return { response: "", sessionId: "room-stream" };
       },
     );
 
@@ -517,11 +602,18 @@ describe("handleChatRoute turn lifecycle", () => {
     await reader?.cancel();
     await firstFrame;
 
-    expect(turnSignal?.aborted).toBe(true);
+    expect(turnSignal?.aborted).toBe(false);
+    expect(context.services.runController.isTaskActive("run-stream")).toBe(
+      true,
+    );
+    releaseTurn();
     await vi.waitFor(() =>
       expect(
         context.services.runController.workspaceSwitchConflict("/elsewhere"),
       ).toBeUndefined(),
     );
+    expect(
+      context.services.runController.getTerminalTaskEvent("run-stream"),
+    ).toMatchObject({ type: "response.completed", terminal: true });
   });
 });

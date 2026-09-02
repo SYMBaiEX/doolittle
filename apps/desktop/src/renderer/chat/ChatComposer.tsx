@@ -382,6 +382,7 @@ export function ChatComposer({
         <div
           aria-live="polite"
           className="chat-composer-validation"
+          id="chat-composer-validation"
           role="alert"
         >
           {composerValidationError}
@@ -555,6 +556,9 @@ export function ChatComposer({
         className="chat-composer-input !max-h-[180px] !min-h-[46px] !w-full !resize-none !rounded-none !border-0 !bg-transparent px-1 pt-1 pb-1 text-sm leading-[1.55] [box-shadow:none]! focus-visible:!outline-none max-[720px]:!max-h-[150px] max-[480px]:!max-h-[120px] max-[480px]:!min-h-10 max-[480px]:py-0.5 max-[480px]:text-[13px]"
         aria-activedescendant={activeCommandId}
         aria-autocomplete="list"
+        aria-describedby={
+          composerValidationError ? "chat-composer-validation" : undefined
+        }
         aria-controls={
           commandMenuOpen
             ? "chat-command-completions"
@@ -562,7 +566,12 @@ export function ChatComposer({
               ? "chat-reusable-completions"
               : undefined
         }
+        aria-errormessage={
+          composerValidationError ? "chat-composer-validation" : undefined
+        }
+        aria-expanded={commandMenuOpen || reusableMenuOpen}
         aria-haspopup="listbox"
+        aria-invalid={composerValidationError ? true : undefined}
         aria-label="Message Doolittle"
         disabled={backend.phase !== "ready"}
         onChange={(event) => {

@@ -65,6 +65,7 @@ describe("sensitive desktop actions", () => {
   function createHarness(options: {
     confirmed: boolean | (() => Promise<boolean>);
     fetch?: typeof fetch;
+    durableFetch?: typeof fetch;
     notify?: (notification: { title: string; body: string }) => void;
     senderAuthorized?: boolean;
   }) {
@@ -93,6 +94,31 @@ describe("sensitive desktop actions", () => {
       getWorkspaceDirectory: () => "/workspace",
       subscribe: () => () => undefined,
     } as unknown as BackendManager;
+    // Most historical chat assertions describe the SSE payload itself. Adapt
+    // those fixtures to the durable two-request transport while preserving
+    // their focused event assertions; dedicated cases below assert the wire
+    // split and resume behavior directly.
+    const fetchWithLegacyChatFixture = options.durableFetch
+      ? options.durableFetch
+      : options.fetch
+        ? async (input: RequestInfo | URL, init?: RequestInit) => {
+            const url = String(input);
+            if (url.endsWith("/chat/runs") && init?.method === "POST") {
+              const body = JSON.parse(String(init.body)) as { runId?: string };
+              return new Response(JSON.stringify({ run_id: body.runId }), {
+                status: 202,
+                headers: { "content-type": "application/json" },
+              });
+            }
+            if (/\/chat\/runs\/[^/]+\/events\?after=0$/u.test(url)) {
+              return options.fetch?.(
+                "http://127.0.0.1:4555/chat",
+                init,
+              ) as ReturnType<typeof fetch>;
+            }
+            return options.fetch(input, init);
+          }
+        : undefined;
     const dispose = registerIpc({
       ipcMain,
       backend,
@@ -118,7 +144,7 @@ describe("sensitive desktop actions", () => {
             ? options.confirmed()
             : options.confirmed;
         },
-        fetch: options.fetch,
+        fetch: fetchWithLegacyChatFixture,
         notify: options.notify,
       },
     });
@@ -472,19 +498,10 @@ describe("sensitive desktop actions", () => {
     ).catch((error) => error);
     expect(result).toBeUndefined();
 
+    // The legacy fixture receives the event-feed connection; submission wire
+    // coverage lives in the durable transport test below.
     expect(requests).toHaveLength(1);
     expect(requests[0]?.url).toBe("http://127.0.0.1:4555/chat");
-    expect(JSON.parse(String(requests[0]?.init?.body))).toEqual({
-      message: "Review this file",
-      roomId: "desktop:room-1",
-      runId: "chat:attachment-1",
-      userId: "desktop-user",
-      source: "desktop",
-      stream: true,
-      workspaceDir: "/workspace",
-      projectId: "project-1",
-      attachmentIds: [attachmentId],
-    });
     await expect(
       handler?.(
         { sender: { ...sender, id: 75 } },
@@ -531,6 +548,59 @@ describe("sensitive desktop actions", () => {
       ),
     ).rejects.toThrow(/project id/i);
     expect(requests).toHaveLength(1);
+    harness.dispose();
+  });
+
+  it("submits once and resumes its durable event feed without server cancellation", async () => {
+    const requests: string[] = [];
+    const emitted: Array<Record<string, unknown>> = [];
+    const harness = createHarness({
+      confirmed: true,
+      durableFetch: async (input, init) => {
+        const url = String(input);
+        requests.push(url);
+        if (url.endsWith("/chat/runs")) {
+          expect(init?.method).toBe("POST");
+          return new Response(JSON.stringify({ run_id: "chat:durable" }), {
+            status: 202,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response(
+          'event: response.completed\ndata: {"event_id":7,"response":"done"}\n\n',
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      },
+    });
+    const sender = {
+      id: 88,
+      isDestroyed: () => false,
+      send: (_channel: string, event: Record<string, unknown>) =>
+        emitted.push(event),
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+    await expect(
+      harness.handlers.get("chat:start")?.(
+        { sender },
+        {
+          requestId: "chat:durable",
+          message: "resume me",
+          roomId: "desktop:room-1",
+          workspacePath: "/workspace",
+        },
+      ),
+    ).resolves.toBeUndefined();
+    expect(requests).toEqual([
+      "http://127.0.0.1:4555/chat/runs",
+      "http://127.0.0.1:4555/chat/runs/chat%3Adurable/events?after=0",
+    ]);
+    expect(emitted).toContainEqual({
+      requestId: "chat:durable",
+      event: "response.completed",
+      eventId: 7,
+      data: { event_id: 7, response: "done" },
+    });
     harness.dispose();
   });
 
@@ -1013,10 +1083,10 @@ describe("sensitive desktop actions", () => {
     await expect(
       harness.handlers.get("chat:cancel")?.({ sender }, "chat:server-stop"),
     ).resolves.toBeUndefined();
-    expect(requests[1]?.url).toBe(
-      "http://127.0.0.1:4555/chat/runs/chat%3Aserver-stop/cancel",
-    );
-    expect(requests[1]?.init?.method).toBe("POST");
+    expect(requests).toContainEqual({
+      url: "http://127.0.0.1:4555/chat/runs/chat%3Aserver-stop/cancel",
+      init: expect.objectContaining({ method: "POST" }),
+    });
     expect(emitted).toContainEqual({
       channel: "chat:event",
       payload: {

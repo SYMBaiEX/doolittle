@@ -193,8 +193,23 @@ export async function handleSessionRoutes(
       Number.isInteger(limitRaw) && limitRaw > 0
         ? Math.min(limitRaw, 500)
         : 200;
+    const offsetRaw = Number(url.searchParams.get("offset") ?? "0");
+    const offset =
+      Number.isInteger(offsetRaw) && offsetRaw >= 0
+        ? Math.min(offsetRaw, 1_000_000_000)
+        : 0;
+    const total = context.services.sessions.countBySessionRole(sessionId);
+    const pageSize = Math.min(limit, Math.max(0, total - offset));
+    const pageOffset = Math.max(0, total - offset - pageSize);
+    const messages = context.services.sessions.messagesBySession(
+      sessionId,
+      pageSize,
+      pageOffset,
+    );
     return json({
-      messages: context.services.sessions.messagesBySession(sessionId, limit),
+      messages,
+      hasEarlier: pageOffset > 0,
+      nextOffset: offset + messages.length,
     });
   }
 

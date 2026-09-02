@@ -64,12 +64,14 @@ function ConversationProbe({
   backendReady = true,
   onValue,
   requestSession,
+  remoteSessions = [remoteSession],
   selectedId = remoteSession.sessionId,
 }: {
   activeRequest?: string | null;
   backendReady?: boolean;
   onValue: (value: ReturnType<typeof useChatConversationState>) => void;
   requestSession?: MutableRefObject<Record<string, string>>;
+  remoteSessions?: readonly SessionSummary[];
   selectedId?: string;
 }) {
   const localRequestSession = useRef<Record<string, string>>({});
@@ -77,7 +79,7 @@ function ConversationProbe({
     activeRequest,
     backendReady,
     onSelect: vi.fn(),
-    remoteSessions: [remoteSession],
+    remoteSessions,
     requestSession: requestSession ?? localRequestSession,
     selectedId,
   });
@@ -272,6 +274,25 @@ describe("chat history concurrency", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+  });
+
+  it("keeps the selected session and unfiltered count stable while filtering history", () => {
+    let latest: ReturnType<typeof useChatConversationState> | undefined;
+    act(() =>
+      root.render(
+        createElement(ConversationProbe, {
+          backendReady: false,
+          onValue: (value) => (latest = value),
+        }),
+      ),
+    );
+
+    const initialSession = latest?.selectedSession;
+    act(() => latest?.setSessionSearch("missing"));
+
+    expect(latest?.sessions).toEqual([]);
+    expect(latest?.sessionsCount).toBe(1);
+    expect(latest?.selectedSession).toEqual(initialSession);
   });
 
   it("restores an unsent capsule alongside the visible draft after reload", () => {
@@ -518,7 +539,7 @@ describe("chat history concurrency", () => {
       ),
     );
     expect(desktopRequestMock).toHaveBeenCalledWith(
-      "/sessions/messages?sessionId=remote&limit=500",
+      "/sessions/messages?sessionId=remote&limit=500&offset=0",
       "GET",
       undefined,
       expect.any(AbortSignal),
@@ -649,6 +670,132 @@ describe("chat history concurrency", () => {
       "remote-assistant",
     ]);
     expect(latest?.selectedMessages.at(-1)?.content).toBe("Recovered reply");
+  });
+
+  it("keeps history failures with their session and retries the failed session", async () => {
+    const otherSession: SessionSummary = {
+      ...remoteSession,
+      sessionId: "other",
+      title: "Other session",
+    };
+    desktopRequestMock
+      .mockRejectedValueOnce(new Error("Remote history unavailable"))
+      .mockResolvedValueOnce({ messages: [] })
+      .mockRejectedValueOnce(new Error("Remote history unavailable"))
+      .mockResolvedValueOnce({ messages: [] });
+    let latest: ReturnType<typeof useChatConversationState> | undefined;
+
+    act(() =>
+      root.render(
+        createElement(ConversationProbe, {
+          onValue: (value) => (latest = value),
+          remoteSessions: [remoteSession, otherSession],
+        }),
+      ),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(latest?.historyError).toBe("Remote history unavailable");
+
+    act(() =>
+      root.render(
+        createElement(ConversationProbe, {
+          onValue: (value) => (latest = value),
+          remoteSessions: [remoteSession, otherSession],
+          selectedId: otherSession.sessionId,
+        }),
+      ),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(latest?.historyError).toBe("");
+
+    act(() =>
+      root.render(
+        createElement(ConversationProbe, {
+          onValue: (value) => (latest = value),
+          remoteSessions: [remoteSession, otherSession],
+        }),
+      ),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(latest?.historyError).toBe("Remote history unavailable");
+
+    act(() => latest?.retryHistory(remoteSession.sessionId));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(desktopRequestMock).toHaveBeenLastCalledWith(
+      "/sessions/messages?sessionId=remote&limit=500&offset=0",
+      "GET",
+      undefined,
+      expect.any(AbortSignal),
+    );
+  });
+
+  it("loads a bounded earlier page without duplicating the newest 500 messages", async () => {
+    const latestPage = Array.from({ length: 500 }, (_, index) => ({
+      id: `message-${index + 2}`,
+      role: "assistant" as const,
+      text: `Reply ${index + 2}`,
+      createdAt: `2026-08-12T10:${String(index % 60).padStart(2, "0")}:00.000Z`,
+    }));
+    desktopRequestMock.mockImplementation((path: string) => {
+      if (path.includes("offset=0")) {
+        return Promise.resolve({
+          messages: latestPage,
+          hasEarlier: true,
+          nextOffset: 500,
+        });
+      }
+      return Promise.resolve({
+        messages: [
+          {
+            id: "message-1",
+            role: "user",
+            text: "First message",
+            createdAt: "2026-08-12T09:00:00.000Z",
+          },
+          latestPage[0],
+        ],
+        hasEarlier: false,
+        nextOffset: 501,
+      });
+    });
+    let latest: ReturnType<typeof useChatConversationState> | undefined;
+
+    act(() =>
+      root.render(
+        createElement(ConversationProbe, {
+          onValue: (value) => (latest = value),
+        }),
+      ),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(latest?.selectedMessages).toHaveLength(500);
+    expect(latest?.hasEarlierMessages).toBe(true);
+
+    await act(async () => {
+      await latest?.loadEarlierHistory(remoteSession.sessionId);
+    });
+    expect(desktopRequestMock).toHaveBeenLastCalledWith(
+      "/sessions/messages?sessionId=remote&limit=500&offset=500",
+      "GET",
+      undefined,
+      expect.any(AbortSignal),
+    );
+    expect(latest?.selectedMessages).toHaveLength(501);
+    expect(
+      latest?.selectedMessages.filter((message) => message.id === "message-2"),
+    ).toHaveLength(1);
+    expect(latest?.selectedMessages[0]?.id).toBe("message-1");
+    expect(latest?.hasEarlierMessages).toBe(false);
   });
 
   it("replaces optimistic rows one-to-one without collapsing repeated turns", () => {

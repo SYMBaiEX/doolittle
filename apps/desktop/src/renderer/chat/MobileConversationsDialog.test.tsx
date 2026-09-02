@@ -98,12 +98,41 @@ describe("MobileConversationsDialog", () => {
     expect(onNewConversation).toHaveBeenCalledTimes(1);
   });
 
-  it("recovers focus inside the dialog when lazy content replaces its fallback", () => {
-    const firstConversation = container.querySelector<HTMLElement>(
-      "[data-mobile-conversation]",
+  it("focuses search when lazy content replaces its fallback", () => {
+    const search = container.querySelector<HTMLElement>(
+      "[data-mobile-conversations-search]",
     );
 
-    expect(document.activeElement).toBe(firstConversation);
+    expect(document.activeElement).toBe(search);
+  });
+
+  it("announces an empty result state without changing dialog controls", () => {
+    act(() =>
+      root.render(
+        <MobileConversationsDialog
+          activeProjectName="Doolittle"
+          backdropRef={{ current: null }}
+          dialogRef={{ current: null }}
+          onClose={onClose}
+          onNewConversation={onNewConversation}
+          onSearchChange={onSearchChange}
+          onSelect={onSelect}
+          search="missing"
+          selectedId="one"
+          sessions={[]}
+        />,
+      ),
+    );
+
+    expect(container.querySelector('[role="status"]')?.textContent).toContain(
+      "No conversations match your search.",
+    );
+    expect(
+      container.querySelector<HTMLInputElement>(
+        "[data-mobile-conversations-search]",
+      ),
+    ).toBe(document.activeElement);
+    expect(container.querySelector(".new-chat-button")).not.toBeNull();
   });
 
   it("compacts embedded resource titles in the conversation list", () => {

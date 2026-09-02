@@ -1,13 +1,14 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { RunControllerStore } from "./store";
-import type { RunSnapshot } from "./types";
+import type { RunSnapshot, TaskRunEvent } from "./types";
 
 const tempDirectories: string[] = [];
 
 afterEach(() => {
+  vi.useRealTimers();
   for (const directory of tempDirectories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -127,5 +128,201 @@ describe("run-controller/store", () => {
       endedAt: expect.any(String),
     });
     expect(restored.get("session-a")).toBeUndefined();
+    expect(restored.getTerminalEvent("run-a")).toMatchObject({
+      type: "response.failed",
+      terminal: true,
+      data: { code: "runtime_restarted" },
+    });
+  });
+
+  it("persists a monotonic resumable event journal with one terminal event", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-run-events-"));
+    tempDirectories.push(dataDir);
+    const store = new RunControllerStore(dataDir);
+
+    expect(
+      store.appendEvent("run-events", "response.created", { value: 1 }).event
+        .id,
+    ).toBe(1);
+    expect(
+      store.appendEvent("run-events", "response.output_text.delta", {
+        delta: "hello",
+      }).event.id,
+    ).toBe(2);
+    expect(
+      store.appendEvent(
+        "run-events",
+        "response.completed",
+        { response: "hello" },
+        true,
+      ).event.id,
+    ).toBe(3);
+    expect(
+      store.appendEvent("run-events", "response.cancelled", {}, true).appended,
+    ).toBe(false);
+    expect(
+      store.appendEvent("run-events", "agent.progress", { late: true })
+        .appended,
+    ).toBe(false);
+
+    const restored = new RunControllerStore(dataDir);
+    expect(restored.listEvents("run-events", 1)).toMatchObject([
+      { id: 2, type: "response.output_text.delta", terminal: false },
+      { id: 3, type: "response.completed", terminal: true },
+    ]);
+    expect(
+      restored.listEvents("run-events").filter((event) => event.terminal),
+    ).toHaveLength(1);
+  });
+
+  it("debounces burst event writes and synchronously flushes a terminal event", () => {
+    vi.useFakeTimers();
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-run-write-burst-"));
+    tempDirectories.push(dataDir);
+    const writes: unknown[] = [];
+    const store = new RunControllerStore(dataDir, {
+      persistenceDebounceMs: 50,
+      writer: (_filePath, payload) => writes.push(structuredClone(payload)),
+    });
+
+    for (let index = 0; index < 100; index += 1) {
+      store.appendEvent("run-burst", "response.output_text.delta", {
+        delta: String(index),
+      });
+    }
+    expect(writes).toHaveLength(0);
+    vi.advanceTimersByTime(49);
+    expect(writes).toHaveLength(0);
+    vi.advanceTimersByTime(1);
+    expect(writes).toHaveLength(1);
+
+    for (let index = 100; index < 200; index += 1) {
+      store.appendEvent("run-burst", "response.output_text.delta", {
+        delta: String(index),
+      });
+    }
+    expect(writes).toHaveLength(1);
+    store.appendEvent(
+      "run-burst",
+      "response.completed",
+      { response: "complete" },
+      true,
+    );
+    expect(writes).toHaveLength(2);
+    vi.advanceTimersByTime(100);
+    expect(writes).toHaveLength(2);
+
+    const lastWrite = writes.at(-1) as {
+      events: Record<string, TaskRunEvent[]>;
+    };
+    expect(lastWrite.events["run-burst"]?.at(-1)).toMatchObject({
+      id: 201,
+      type: "response.completed",
+      terminal: true,
+    });
+  });
+
+  it("persists streamed deltas linearly instead of journaling cumulative snapshots", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-run-linear-"));
+    tempDirectories.push(dataDir);
+    const writes: unknown[] = [];
+    const store = new RunControllerStore(dataDir, {
+      writer: (_filePath, payload) => writes.push(structuredClone(payload)),
+    });
+
+    let cumulative = "";
+    for (let index = 0; index < 200; index += 1) {
+      const delta = `chunk-${index.toString().padStart(3, "0")}`;
+      cumulative += delta;
+      store.appendEvent("run-linear", "response.output_text.delta", {
+        id: "resp-linear",
+        delta,
+        response: cumulative,
+      });
+    }
+    store.appendEvent(
+      "run-linear",
+      "response.completed",
+      { response: cumulative },
+      true,
+    );
+
+    const payload = writes.at(-1) as {
+      events: Record<string, TaskRunEvent[]>;
+    };
+    const events = payload.events["run-linear"] ?? [];
+
+    expect(events).toHaveLength(201);
+    expect(
+      events.every(
+        (event) =>
+          event.type !== "response.output_text.delta" ||
+          !(
+            event.data &&
+            typeof event.data === "object" &&
+            "response" in (event.data as Record<string, unknown>)
+          ),
+      ),
+    ).toBe(true);
+    expect(Buffer.byteLength(JSON.stringify(events), "utf8")).toBeLessThan(
+      48_000,
+    );
+    expect(events.at(-1)).toMatchObject({
+      type: "response.completed",
+      data: { response: cumulative },
+      terminal: true,
+    });
+  });
+
+  it("bounds oversize delta events while preserving the final terminal answer", () => {
+    const store = new RunControllerStore();
+    const oversizeDelta = "x".repeat(40_000);
+
+    store.appendEvent("run-oversize", "response.output_text.delta", {
+      id: "resp-oversize",
+      delta: oversizeDelta,
+      response: oversizeDelta.repeat(2),
+    });
+    store.appendEvent(
+      "run-oversize",
+      "response.completed",
+      { response: oversizeDelta.repeat(2) },
+      true,
+    );
+
+    const [deltaEvent, terminalEvent] = store.listEvents("run-oversize");
+    expect(deltaEvent).toBeDefined();
+    expect(terminalEvent).toBeDefined();
+    expect(deltaEvent?.type).toBe("response.output_text.delta");
+    expect(
+      Buffer.byteLength(JSON.stringify(deltaEvent?.data ?? {}), "utf8"),
+    ).toBeLessThanOrEqual(32 * 1024);
+    expect(deltaEvent?.data).toMatchObject({
+      id: "resp-oversize",
+      delta: expect.any(String),
+    });
+    expect(terminalEvent).toMatchObject({
+      type: "response.completed",
+      data: { response: oversizeDelta.repeat(2) },
+      terminal: true,
+    });
+  });
+
+  it("flushes a pending nonterminal journal on explicit disposal", () => {
+    vi.useFakeTimers();
+    const dataDir = mkdtempSync(join(tmpdir(), "doolittle-run-dispose-"));
+    tempDirectories.push(dataDir);
+    const writes: unknown[] = [];
+    const store = new RunControllerStore(dataDir, {
+      persistenceDebounceMs: 50,
+      writer: (_filePath, payload) => writes.push(structuredClone(payload)),
+    });
+    store.appendEvent("run-dispose", "response.created", {});
+
+    expect(writes).toHaveLength(0);
+    store.dispose();
+    expect(writes).toHaveLength(1);
+    vi.advanceTimersByTime(100);
+    expect(writes).toHaveLength(1);
   });
 });

@@ -13,9 +13,12 @@ function createContext() {
         continuity: (sessionId: string) => [{ sessionId, next: "session-2" }],
         summarize: (sessionId: string) => ({ sessionId, summary: "ready" }),
         usage: (sessionId: string) => ({ sessionId, tokens: 42 }),
-        messagesBySession: (sessionId: string, limit: number) => [
-          { sessionId, limit, role: "assistant", text: "Ready" },
-        ],
+        countBySessionRole: () => 1,
+        messagesBySession: (
+          sessionId: string,
+          limit: number,
+          offset?: number,
+        ) => [{ sessionId, limit, offset, role: "assistant", text: "Ready" }],
         forkSession: (input: {
           sourceSessionId: string;
           throughMessageId?: string;
@@ -125,11 +128,71 @@ describe("handleSessionRoutes", () => {
       messages: [
         {
           sessionId: "session-1",
-          limit: 500,
+          limit: 1,
+          offset: 0,
           role: "assistant",
           text: "Ready",
         },
       ],
+      hasEarlier: false,
+      nextOffset: 1,
+    });
+  });
+
+  it("returns newest-first pages in chronological order without duplicate offsets", async () => {
+    const allMessages = Array.from({ length: 501 }, (_, index) => ({
+      id: `message-${index + 1}`,
+      text: String(index + 1),
+    }));
+    const context = createContext() as unknown as {
+      services: {
+        sessions: {
+          countBySessionRole: (sessionId: string) => number;
+          messagesBySession: (
+            sessionId: string,
+            limit: number,
+            offset: number,
+          ) => unknown[];
+        };
+      };
+    };
+    context.services.sessions.countBySessionRole = () => allMessages.length;
+    context.services.sessions.messagesBySession = (_sessionId, limit, offset) =>
+      allMessages.slice(offset, offset + limit);
+
+    const latest = await handleSessionRoutes(
+      context as unknown as AppContext,
+      new Request(
+        "http://localhost/sessions/messages?sessionId=session-1&limit=500&offset=0",
+      ),
+      new URL(
+        "http://localhost/sessions/messages?sessionId=session-1&limit=500&offset=0",
+      ),
+    );
+    const earlier = await handleSessionRoutes(
+      context as unknown as AppContext,
+      new Request(
+        "http://localhost/sessions/messages?sessionId=session-1&limit=500&offset=500",
+      ),
+      new URL(
+        "http://localhost/sessions/messages?sessionId=session-1&limit=500&offset=500",
+      ),
+    );
+
+    const latestBody = (await latest?.json()) as {
+      messages: Array<{ id: string }>;
+      hasEarlier: boolean;
+      nextOffset: number;
+    };
+    expect(latestBody.messages).toHaveLength(500);
+    expect(latestBody.messages[0]?.id).toBe("message-2");
+    expect(latestBody.messages.at(-1)?.id).toBe("message-501");
+    expect(latestBody.hasEarlier).toBe(true);
+    expect(latestBody.nextOffset).toBe(500);
+    await expect(earlier?.json()).resolves.toEqual({
+      messages: [{ id: "message-1", text: "1" }],
+      hasEarlier: false,
+      nextOffset: 501,
     });
   });
 

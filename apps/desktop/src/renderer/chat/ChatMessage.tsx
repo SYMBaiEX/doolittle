@@ -34,6 +34,8 @@ export function ChatMessage({
   const showRunReceipt = Boolean(
     receipt &&
       (receiptNeedsAttention ||
+        (receipt.latest.run.status === "complete" &&
+          receipt.latest.run.observedActionCount > 0) ||
         (!hasToolActivity &&
           (message.pending || receipt.latest.run.localMutations.length > 0))),
   );

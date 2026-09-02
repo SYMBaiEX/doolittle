@@ -67,6 +67,31 @@ export interface RunUpdateEvent {
   run: RunSnapshot;
 }
 
+export interface TaskRunEvent {
+  id: number;
+  runId: string;
+  type: string;
+  data: unknown;
+  createdAt: string;
+  terminal: boolean;
+}
+
+export interface TaskRunClaimInput {
+  runId: string;
+  sessionId: string;
+  roomId: string;
+  responseId: string;
+  source: string;
+}
+
+export type TaskRunClaimResult =
+  | { accepted: true }
+  | {
+      accepted: false;
+      reason: "run_exists" | "session_active";
+      conflictingRunId?: string;
+    };
+
 export type RunUpdateType = RunUpdateEvent["type"];
 
 export interface StartTurnInput {

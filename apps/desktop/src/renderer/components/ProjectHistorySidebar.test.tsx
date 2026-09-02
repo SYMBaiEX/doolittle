@@ -67,6 +67,8 @@ describe("ProjectHistorySidebar", () => {
     const disclosure = container.querySelector<HTMLButtonElement>(
       ".project-rail-disclosure",
     );
+    expect(disclosure?.className).toContain("size-6");
+    expect(disclosure?.className).not.toContain("w-4.25");
     expect(disclosure?.getAttribute("aria-expanded")).toBe("true");
     act(() => disclosure?.click());
     expect(disclosure?.getAttribute("aria-expanded")).toBe("false");
@@ -81,7 +83,8 @@ describe("ProjectHistorySidebar", () => {
     const projectRow = container.querySelector(".project-rail-row");
     expect(group?.className).toContain("is-active");
     expect(group?.className).not.toContain("surface-hover)_76%");
-    expect(projectRow?.className).toContain("surface-hover)_76%");
+    expect(projectRow?.className).toContain("surface-hover)_42%");
+    expect(projectRow?.className).toContain("accent)_24%");
   });
 
   it("persists pin actions and exposes pressed state", () => {
@@ -104,6 +107,12 @@ describe("ProjectHistorySidebar", () => {
     const pin = container.querySelector<HTMLButtonElement>(
       ".project-rail-chat-pin",
     );
+    const chatRow = container.querySelector(".project-rail-chat-row");
+    const newChat =
+      container.querySelector<HTMLButtonElement>(".project-rail-new");
+    expect(pin?.className).toContain("size-6");
+    expect(chatRow?.className).toContain("grid-cols-[minmax(0,1fr)_24px]");
+    expect(newChat?.className).toContain("size-6");
     expect(pin?.getAttribute("aria-pressed")).toBe("false");
     act(() => pin?.click());
     expect(pin?.getAttribute("aria-pressed")).toBe("true");

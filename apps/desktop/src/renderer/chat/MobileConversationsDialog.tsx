@@ -43,7 +43,8 @@ export function MobileConversationsDialog({
     const dialog = dialogRef.current;
     if (!dialog || dialog.contains(document.activeElement)) return;
     (
-      dialog.querySelector<HTMLElement>("[data-mobile-conversation]") ?? dialog
+      dialog.querySelector<HTMLElement>("[data-mobile-conversations-search]") ??
+      dialog
     ).focus();
   }, [dialogRef]);
 
@@ -80,40 +81,51 @@ export function MobileConversationsDialog({
         </header>
         <input
           aria-label="Search conversations"
+          data-mobile-conversations-search
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Search conversations"
           type="search"
           value={search}
         />
         <div className={MOBILE_CONVERSATIONS_LIST_CLASS}>
-          {sessions.map((session) => {
-            const conversationTitle =
-              compactSessionPreview(session.title ?? "") ||
-              "Untitled conversation";
-            return (
-              <button
-                aria-current={
-                  session.sessionId === selectedId ? "page" : undefined
-                }
-                data-mobile-conversation
-                key={session.sessionId}
-                onClick={() => {
-                  onSelect(session.sessionId);
-                  onClose();
-                }}
-                type="button"
-              >
-                <strong title={conversationTitle}>{conversationTitle}</strong>
-                <span>
-                  {session.messageCount} messages ·{" "}
-                  {displayTimestamp(session.endedAt)}
-                  {projectLabels
-                    ? ` · ${session.projectId ? (projectLabels[session.projectId] ?? "Project") : "Unscoped"}`
-                    : ""}
-                </span>
-              </button>
-            );
-          })}
+          {sessions.length === 0 ? (
+            <p
+              aria-live="polite"
+              className="px-2.5 py-3 text-[var(--muted)]"
+              role="status"
+            >
+              No conversations match your search.
+            </p>
+          ) : (
+            sessions.map((session) => {
+              const conversationTitle =
+                compactSessionPreview(session.title ?? "") ||
+                "Untitled conversation";
+              return (
+                <button
+                  aria-current={
+                    session.sessionId === selectedId ? "page" : undefined
+                  }
+                  data-mobile-conversation
+                  key={session.sessionId}
+                  onClick={() => {
+                    onSelect(session.sessionId);
+                    onClose();
+                  }}
+                  type="button"
+                >
+                  <strong title={conversationTitle}>{conversationTitle}</strong>
+                  <span>
+                    {session.messageCount} messages ·{" "}
+                    {displayTimestamp(session.endedAt)}
+                    {projectLabels
+                      ? ` · ${session.projectId ? (projectLabels[session.projectId] ?? "Project") : "Unscoped"}`
+                      : ""}
+                  </span>
+                </button>
+              );
+            })
+          )}
         </div>
         <button
           className={MOBILE_CONVERSATIONS_NEW_CLASS}

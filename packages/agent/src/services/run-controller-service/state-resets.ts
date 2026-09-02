@@ -7,7 +7,7 @@ import { cloneRun } from "@/services/run-controller/utils";
 import { emitRunUpdate } from "./event-capture";
 import type { FinishRunStatus, RunControllerDependencies } from "./types";
 
-function finishExistingTurnIfNeeded(
+function assertNoActiveTurn(
   dependencies: RunControllerDependencies,
   sessionId: string,
 ): void {
@@ -15,14 +15,16 @@ function finishExistingTurnIfNeeded(
   if (!existing || existing.endedAt) {
     return;
   }
-  finishTurn(dependencies, sessionId, "complete");
+  throw new Error(
+    `Session ${sessionId} already has active run ${existing.runId}.`,
+  );
 }
 
 export function startTurn(
   dependencies: RunControllerDependencies,
   input: StartTurnInput,
 ) {
-  finishExistingTurnIfNeeded(dependencies, input.sessionId);
+  assertNoActiveTurn(dependencies, input.sessionId);
   const transition = createRunStartTransition(input);
   dependencies.store.save(transition.run);
   emitRunUpdate(dependencies, transition.type, transition.run);

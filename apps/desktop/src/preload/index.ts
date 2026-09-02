@@ -4,6 +4,7 @@ import type {
   BackendState,
   ChatEvent,
   ChatRequest,
+  ChatRunSubscription,
   DesktopCommand,
   DesktopCommandRequest,
   DesktopUpdateState,
@@ -200,6 +201,8 @@ const bridge: DoolittleDesktopBridge = {
     ),
   startChat: (request: ChatRequest) =>
     ipcRenderer.invoke(desktopIpcChannels.invoke.chatStart, request),
+  subscribeChat: (request: ChatRunSubscription) =>
+    ipcRenderer.invoke(desktopIpcChannels.invoke.chatSubscribe, request),
   cancelChat: (requestId: string) =>
     ipcRenderer.invoke(desktopIpcChannels.invoke.chatCancel, requestId),
   onChatEvent: (listener) =>

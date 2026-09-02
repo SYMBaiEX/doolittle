@@ -15,6 +15,7 @@ import { createPortal } from "react-dom";
 import type {
   BackendState,
   ChatEvent,
+  DesktopRunUpdate,
   RuntimeStatus,
   SessionForkResponse,
   SessionSummary,
@@ -74,7 +75,66 @@ import {
 import type { ProjectLike, ProjectScope } from "./project-manager/models";
 
 const INSPECTOR_STORAGE_KEY = "doolittle.desktop.chat-inspector-visible.v1";
+const RUN_CURSOR_STORAGE_KEY = "doolittle.desktop.chat-run-cursors.v1";
 const NARROW_WORKBENCH_QUERY = "(max-width: 720px)";
+const ATTACHMENT_ONLY_MESSAGE = "Review the attached files.";
+
+/** The transcript needs a useful user intent even when file context is the only input. */
+export function chatSubmissionContent(
+  draft: string,
+  attachmentCount: number,
+): string {
+  const trimmed = draft.trim();
+  return trimmed || attachmentCount > 0
+    ? trimmed || ATTACHMENT_ONLY_MESSAGE
+    : "";
+}
+
+/** Progress belongs to its originating conversation, not whichever view is selected. */
+export function setSessionProgress(
+  progressBySession: Readonly<Record<string, string>>,
+  sessionId: string,
+  progress: string,
+): Record<string, string> {
+  if (progressBySession[sessionId] === progress) return progressBySession;
+  return { ...progressBySession, [sessionId]: progress };
+}
+
+export function clearSessionProgress(
+  progressBySession: Readonly<Record<string, string>>,
+  sessionId: string,
+): Record<string, string> {
+  if (!(sessionId in progressBySession)) return progressBySession;
+  const { [sessionId]: _cleared, ...remaining } = progressBySession;
+  return remaining;
+}
+
+function loadRunCursors(): Record<string, number> {
+  try {
+    const raw = sessionStorage.getItem(RUN_CURSOR_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        ([id, cursor]) =>
+          /^[a-zA-Z0-9:_-]{1,128}$/u.test(id) &&
+          Number.isSafeInteger(cursor) &&
+          Number(cursor) >= 0,
+      ),
+    ) as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+
+function saveRunCursors(cursors: Record<string, number>): void {
+  const bounded = Object.fromEntries(Object.entries(cursors).slice(-100));
+  safeSetStorageItem(
+    sessionStorage,
+    RUN_CURSOR_STORAGE_KEY,
+    JSON.stringify(bounded),
+  );
+}
 const ThreadWorkbenchRail = lazy(async () => {
   const module = await import("./components/ThreadWorkbenchRail");
   return { default: module.ThreadWorkbenchRail };
@@ -205,18 +265,26 @@ export function ChatPage({
   runningTasks: number;
   chromeHost: HTMLElement | null;
 }) {
-  const [activeRequest, setActiveRequest] = useState<string | null>(null);
+  const [activeRequests, setActiveRequests] = useState<Record<string, string>>(
+    {},
+  );
+  const activeRequestSessionsRef = useRef<Record<string, true>>({});
   const requestSession = useRef<Record<string, string>>({});
+  const activeRequest = activeRequests[selectedId] ?? null;
   const {
     draft,
     draftAttachments,
     chatContextCapsule,
     clearDraftForDispatch,
+    hasEarlierMessages,
     historyError,
+    loadEarlierHistory,
+    loadingEarlierHistory,
     loadingHistory,
     selectedMessages,
     selectedSession,
     sessionSearch,
+    sessionsCount,
     storageWarning,
     sessions,
     setDraft,
@@ -237,7 +305,10 @@ export function ChatPage({
     selectedId,
   });
   const latestSelectedMessage = selectedMessages.at(-1);
-  const [progress, setProgress] = useState("");
+  const [progressBySession, setProgressBySession] = useState<
+    Record<string, string>
+  >({});
+  const progress = progressBySession[selectedId] ?? "";
   const [inspectorVisible, setInspectorVisible] = useState(
     loadInspectorVisibility,
   );
@@ -255,6 +326,12 @@ export function ChatPage({
       : "",
   );
   const [runReceipts, setRunReceipts] = useState<RunReceiptStore>({});
+  const runCursors = useRef<Record<string, number>>(loadRunCursors());
+  const seenRunEvents = useRef<Record<string, Set<number>>>({});
+  const pendingDeltas = useRef<
+    Record<string, { sessionId: string; delta: unknown }>
+  >({});
+  const deltaFrame = useRef<number | null>(null);
   const [forkingMessageId, setForkingMessageId] = useState("");
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
   const [attachmentValidationError, setAttachmentValidationError] =
@@ -273,7 +350,7 @@ export function ChatPage({
   const workbenchToggleRef = useRef<HTMLButtonElement>(null);
   const mobileConversationsDialogRef = useModalFocusBoundary({
     active: mobileConversationsOpen,
-    initialFocusSelector: "[data-mobile-conversation]",
+    initialFocusSelector: "[data-mobile-conversations-search]",
     isolationBoundaryRef: mobileConversationsBackdropRef,
     isolateBackground: true,
     onClose: () => setMobileConversationsOpen(false),
@@ -457,23 +534,57 @@ export function ChatPage({
           ? "Doolittle replied."
           : "");
 
-  const updateAssistant = (
-    sessionId: string,
-    requestId: string,
-    update: (message: DisplayMessage) => DisplayMessage,
-  ) => {
-    setMessages((current) => ({
-      ...current,
-      [sessionId]: (current[sessionId] ?? []).map((message) =>
-        message.id === `assistant:${requestId}` ? update(message) : message,
-      ),
-    }));
-  };
+  const updateAssistant = useCallback(
+    (
+      sessionId: string,
+      requestId: string,
+      update: (message: DisplayMessage) => DisplayMessage,
+    ) => {
+      setMessages((current) => ({
+        ...current,
+        [sessionId]: (current[sessionId] ?? []).map((message) =>
+          message.id === `assistant:${requestId}` ? update(message) : message,
+        ),
+      }));
+    },
+    [setMessages],
+  );
+
+  const flushPendingDeltas = useCallback(() => {
+    if (deltaFrame.current !== null) {
+      cancelAnimationFrame(deltaFrame.current);
+      deltaFrame.current = null;
+    }
+    const pending = pendingDeltas.current;
+    pendingDeltas.current = {};
+    for (const [requestId, item] of Object.entries(pending)) {
+      updateAssistant(item.sessionId, requestId, (message) => ({
+        ...message,
+        content: reconcileStreamedResponse(
+          message.content,
+          item.delta as { delta?: unknown; response?: unknown },
+        ),
+      }));
+    }
+  }, [updateAssistant]);
 
   const finishRequest = (requestId: string) => {
     const completedSessionId = requestSession.current[requestId];
-    setActiveRequest((current) => (current === requestId ? null : current));
-    setProgress("");
+    if (completedSessionId) {
+      delete activeRequestSessionsRef.current[completedSessionId];
+    }
+    setActiveRequests((current) => {
+      if (!completedSessionId || current[completedSessionId] !== requestId) {
+        return current;
+      }
+      const { [completedSessionId]: _completed, ...remaining } = current;
+      return remaining;
+    });
+    if (completedSessionId) {
+      setProgressBySession((current) =>
+        clearSessionProgress(current, completedSessionId),
+      );
+    }
     delete requestSession.current[requestId];
     refreshRuntime();
     if (completedSessionId) {
@@ -501,6 +612,25 @@ export function ChatPage({
   const handleChatEvent = useEffectEvent((event: ChatEvent) => {
     const sessionId = requestSession.current[event.requestId];
     if (!sessionId) return;
+    const eventId =
+      event.eventId ??
+      (event.data &&
+      typeof event.data === "object" &&
+      Number.isSafeInteger((event.data as { event_id?: unknown }).event_id)
+        ? Number((event.data as { event_id: number }).event_id)
+        : undefined);
+    if (eventId !== undefined) {
+      let seen = seenRunEvents.current[event.requestId];
+      if (!seen) {
+        seen = new Set();
+        seenRunEvents.current[event.requestId] = seen;
+      }
+      if (seen.has(eventId)) return;
+      seen.add(eventId);
+      if (seen.size > 200) seen.delete(Math.min(...seen));
+      runCursors.current[event.requestId] = eventId;
+      saveRunCursors(runCursors.current);
+    }
     if (event.event === "agent.run" && isDesktopRunUpdate(event.data)) {
       const update = event.data;
       setRunReceipts((current) => {
@@ -526,17 +656,33 @@ export function ChatPage({
         event.data && typeof event.data === "object"
           ? (event.data as { delta?: unknown; response?: unknown })
           : {};
-      updateAssistant(sessionId, event.requestId, (message) => ({
-        ...message,
-        content: reconcileStreamedResponse(message.content, payload),
-      }));
+      const prior = pendingDeltas.current[event.requestId];
+      pendingDeltas.current[event.requestId] = {
+        sessionId,
+        delta: prior
+          ? {
+              ...payload,
+              delta: `${String(prior.delta && typeof prior.delta === "object" ? ((prior.delta as { delta?: unknown }).delta ?? "") : "")}${String(payload.delta ?? "")}`,
+            }
+          : payload,
+      };
+      if (deltaFrame.current === null) {
+        deltaFrame.current = requestAnimationFrame(flushPendingDeltas);
+      }
       return;
     }
     if (event.event === "agent.progress" || event.event === "response.notice") {
-      setProgress(eventText(event.data) || "Doolittle is working…");
+      setProgressBySession((current) =>
+        setSessionProgress(
+          current,
+          sessionId,
+          eventText(event.data) || "Doolittle is working…",
+        ),
+      );
       return;
     }
     if (event.event === "response.completed") {
+      flushPendingDeltas();
       const response =
         event.data && typeof event.data === "object"
           ? String((event.data as { response?: unknown }).response ?? "")
@@ -556,9 +702,12 @@ export function ChatPage({
         updateAssistant,
         finishRequest,
       )
-    )
+    ) {
+      flushPendingDeltas();
       return;
+    }
     if (event.event === "cancelled" || event.event === "response.cancelled") {
+      flushPendingDeltas();
       updateAssistant(sessionId, event.requestId, (message) => ({
         ...message,
         content: message.content || "Response stopped.",
@@ -568,7 +717,90 @@ export function ChatPage({
     }
   });
 
-  useEffect(() => window.doolittle.onChatEvent(handleChatEvent), []);
+  useEffect(() => {
+    const unsubscribe = window.doolittle.onChatEvent(handleChatEvent);
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (backend.phase !== "ready") return;
+    let disposed = false;
+    void desktopRequest<{ runs?: unknown }>("/chat/runs?limit=50", "GET")
+      .then((payload) => {
+        if (disposed || !Array.isArray(payload.runs)) return;
+        for (const value of payload.runs) {
+          if (!value || typeof value !== "object") continue;
+          const run = value as Record<string, unknown>;
+          const runId = typeof run.runId === "string" ? run.runId : "";
+          const sessionId =
+            typeof run.sessionId === "string" ? run.sessionId : "";
+          const status = typeof run.status === "string" ? run.status : "";
+          if (run.source !== "desktop") continue;
+          if (
+            !runId ||
+            !sessionId ||
+            ["complete", "cancelled", "failed", "error"].includes(status)
+          ) {
+            const type: DesktopRunUpdate["type"] =
+              status === "complete"
+                ? "completed"
+                : status === "cancelled"
+                  ? "cancelled"
+                  : "error";
+            const receipt: DesktopRunUpdate = {
+              type,
+              sessionId,
+              run: run as unknown as DesktopRunUpdate["run"],
+            };
+            setRunReceipts((current) =>
+              current[runId]
+                ? current
+                : {
+                    ...current,
+                    [runId]: { latest: receipt, events: [receipt] },
+                  },
+            );
+            continue;
+          }
+          requestSession.current[runId] = sessionId;
+          activeRequestSessionsRef.current[sessionId] = true;
+          setActiveRequests((current) =>
+            current[sessionId] ? current : { ...current, [sessionId]: runId },
+          );
+          setMessages((current) => {
+            const messages = current[sessionId] ?? [];
+            if (messages.some((message) => message.id === `assistant:${runId}`))
+              return current;
+            return {
+              ...current,
+              [sessionId]: [
+                ...messages,
+                {
+                  id: `assistant:${runId}`,
+                  role: "assistant",
+                  content: "",
+                  createdAt:
+                    typeof run.startedAt === "string"
+                      ? run.startedAt
+                      : new Date().toISOString(),
+                  pending: true,
+                },
+              ],
+            };
+          });
+          void window.doolittle
+            .subscribeChat({
+              requestId: runId,
+              after: runCursors.current[runId] ?? 0,
+            })
+            .catch(() => undefined);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      disposed = true;
+    };
+  }, [backend.phase, setMessages]);
 
   const sendMessage = async (
     input: string,
@@ -580,15 +812,15 @@ export function ChatPage({
     contextCapsule: ChatContextCapsule | null = chatContextCapsule,
     composedContentOverride?: string,
   ) => {
-    const visibleContent = input.trim();
+    const visibleContent = chatSubmissionContent(input, attachments.length);
     const content =
       composedContentOverride ??
       composeChatContextMessage(visibleContent, contextCapsule);
     if (
       !content ||
       !sessionId ||
-      activeRequest ||
-      Object.keys(requestSession.current).length > 0 ||
+      activeRequestSessionsRef.current[sessionId] ||
+      activeRequests[sessionId] ||
       backend.phase !== "ready"
     ) {
       return false;
@@ -617,6 +849,7 @@ export function ChatPage({
         }
       : null;
     requestSession.current[requestId] = sessionId;
+    activeRequestSessionsRef.current[sessionId] = true;
     forceTranscriptFollowRef.current = true;
 
     setMessages((current) => ({
@@ -658,8 +891,14 @@ export function ChatPage({
           clearDraftForDispatch(sessionId),
         )
       : null;
-    setProgress("Doolittle is considering the request…");
-    setActiveRequest(requestId);
+    setProgressBySession((current) =>
+      setSessionProgress(
+        current,
+        sessionId,
+        "Doolittle is considering the request…",
+      ),
+    );
+    setActiveRequests((current) => ({ ...current, [sessionId]: requestId }));
     try {
       await window.doolittle.startChat({
         requestId,
@@ -836,6 +1075,7 @@ export function ChatPage({
       });
   }, [
     activeRequest,
+    activeRequests,
     backend.phase,
     queuePaused,
     queuedMessages,
@@ -843,7 +1083,7 @@ export function ChatPage({
   ]);
 
   const queueCurrentDraft = () => {
-    const visibleContent = draft.trim();
+    const visibleContent = chatSubmissionContent(draft, attachedFiles.length);
     const content = composeChatContextMessage(
       visibleContent,
       chatContextCapsule,
@@ -1069,7 +1309,7 @@ export function ChatPage({
       ? "Commands cannot be sent with file context. Remove the attachments or send a normal message."
       : "");
   const canSubmit =
-    Boolean(draft.trim()) &&
+    Boolean(draft.trim() || attachedFiles.length > 0) &&
     backend.phase === "ready" &&
     !composerValidationError;
   const isNewConversation =
@@ -1122,7 +1362,7 @@ export function ChatPage({
               selectedSession={selectedSession}
               selectedUpdatedAt={selectedUpdatedAt}
               selectedUsageError={selectedUsageError}
-              sessionsCount={sessions.length}
+              sessionsCount={sessionsCount}
               workbenchToggleRef={workbenchToggleRef}
               workspacePath={workspacePath}
             />,
@@ -1142,6 +1382,8 @@ export function ChatPage({
           endRef={endRef}
           forkingMessageId={forkingMessageId}
           historyError={historyError}
+          hasEarlierMessages={hasEarlierMessages}
+          loadingEarlierHistory={loadingEarlierHistory === selectedId}
           loading={loadingHistory === selectedId}
           messages={selectedMessages}
           onBranch={(message, mode) => void branchMessage(message, mode)}
@@ -1155,6 +1397,7 @@ export function ChatPage({
           }
           onRead={readMessage}
           onRetryHistory={() => retryHistory(selectedId)}
+          onLoadEarlier={() => loadEarlierHistory(selectedId)}
           onSelectPrompt={setDraft}
           onStopReading={stopSpeaking}
           progress={progress}

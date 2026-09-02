@@ -69,6 +69,19 @@ describe("NewConversationControl", () => {
 
     expect(document.body.textContent).toContain("Alpha");
     expect(document.body.textContent).not.toContain("Archived");
+    const trigger = container.querySelector<HTMLButtonElement>(
+      '[aria-label="New conversation"]',
+    );
+    const popover = document.body.querySelector<HTMLElement>(
+      'section[aria-label="Start a new conversation"]',
+    );
+    const menu = document.body.querySelector<HTMLElement>(
+      '[aria-label="Choose a project for the new conversation"]',
+    );
+    expect(trigger?.getAttribute("aria-haspopup")).toBe("menu");
+    expect(trigger?.getAttribute("aria-controls")).toBe(popover?.id);
+    expect(menu?.querySelectorAll('[role="menuitem"]')).toHaveLength(1);
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     act(() =>
       document.body
         .querySelector<HTMLButtonElement>("button[data-new-chat-choice]")

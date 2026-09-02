@@ -7,7 +7,7 @@ import {
   RefreshCw,
   Search,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type {
   AccountPoolResponse,
   RuntimeModelOption,
@@ -70,6 +70,42 @@ function filteredProviders(
     );
 }
 
+function providerDiscoveryLabel(provider: RuntimeModelProvider): string {
+  if (provider.discovery === "live") return "Live";
+  return provider.ready ? "Configured" : "Setup";
+}
+
+function modelCatalogFallbackNotice({
+  hasConfiguredCatalog,
+  hasLiveCatalog,
+  liveError,
+  liveLoading,
+}: {
+  hasConfiguredCatalog: boolean;
+  hasLiveCatalog: boolean;
+  liveError: string;
+  liveLoading: boolean;
+}): { message: string; tone: "muted" | "warn" | "none" } {
+  if (hasLiveCatalog || !hasConfiguredCatalog) {
+    return { message: "", tone: "none" };
+  }
+  if (liveLoading) {
+    return {
+      message:
+        "Refreshing the live model inventory. Showing the last configured catalog until it arrives.",
+      tone: "muted",
+    };
+  }
+  if (liveError) {
+    return {
+      message:
+        "Live model refresh is unavailable right now. Showing the last configured catalog.",
+      tone: "warn",
+    };
+  }
+  return { message: "", tone: "none" };
+}
+
 function resolvedReasoningEffort(
   model: RuntimeModelOption,
   activeEffort: string | undefined,
@@ -117,6 +153,7 @@ export function ComposerModelSelector({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
+  const popoverId = useId();
   const restoreTriggerFocusRef = useRef(false);
   const configuredModels = useApiResource<RuntimeModelsResponse>(
     active && open ? "/runtime/models?refresh=false" : null,
@@ -146,6 +183,12 @@ export function ComposerModelSelector({
   }, [open]);
 
   const modelCatalog = liveModels.data ?? configuredModels.data;
+  const fallbackNotice = modelCatalogFallbackNotice({
+    hasConfiguredCatalog: Boolean(configuredModels.data),
+    hasLiveCatalog: Boolean(liveModels.data),
+    liveError: liveModels.error,
+    liveLoading: liveModels.loading,
+  });
   const modelsLoading =
     !modelCatalog && (configuredModels.loading || liveModels.loading);
   const modelsError = !modelCatalog
@@ -209,8 +252,8 @@ export function ComposerModelSelector({
     >
       <button
         aria-label={`Choose model. Current route ${runtime?.provider ?? "unknown provider"} ${runtime?.model ?? "unknown model"}${activeEffort ? `, ${activeEffort} reasoning effort` : ""}.`}
+        aria-controls={popoverId}
         aria-expanded={open}
-        aria-haspopup="dialog"
         className={COMPOSER_MODEL_TRIGGER_CLASS}
         disabled={!active}
         onClick={() => setOpen((current) => !current)}
@@ -233,7 +276,7 @@ export function ComposerModelSelector({
         <section
           aria-label="Choose provider and model"
           className={`${COMPOSER_POPOVER_CLASS} max-h-[min(620px,72vh)] w-[min(420px,calc(100vw-44px))]`}
-          role="dialog"
+          id={popoverId}
         >
           <label className={`${COMPOSER_SEARCH_CLASS} m-2 mb-1.25`}>
             <UiIcon icon={Search} size="sm" />
@@ -245,6 +288,17 @@ export function ComposerModelSelector({
               value={query}
             />
           </label>
+          {fallbackNotice.tone !== "none" ? (
+            <p
+              className={`mx-2 mb-1 rounded-[var(--radius-xs)] border px-2.5 py-1.5 text-[10px] ${
+                fallbackNotice.tone === "warn"
+                  ? "border-[color-mix(in_srgb,var(--warn)_28%,var(--border))] bg-[color-mix(in_srgb,var(--warn)_8%,var(--surface-soft))] text-[var(--warn)]"
+                  : "border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] text-[var(--muted)]"
+              }`}
+            >
+              {fallbackNotice.message}
+            </p>
+          ) : null}
           <div className={COMPOSER_MODEL_GROUPS_CLASS}>
             {modelsLoading ? (
               <p className="p-4.5 text-[10px] text-[var(--faint)]">
@@ -284,11 +338,7 @@ export function ComposerModelSelector({
                             : "border-[var(--border)] text-[var(--faint)]"
                         }`}
                       >
-                        {provider.discovery === "live"
-                          ? "Live"
-                          : provider.ready
-                            ? "Ready"
-                            : "Setup"}
+                        {providerDiscoveryLabel(provider)}
                       </small>
                     </button>
                     {!isCollapsed ? (
@@ -438,6 +488,7 @@ export function ComposerModelSelector({
           </div>
           <footer className={COMPOSER_ACTIONS_CLASS}>
             <button
+              aria-label="Refresh model catalog"
               disabled={liveModels.loading}
               onClick={liveModels.reload}
               type="button"
@@ -469,4 +520,8 @@ export function ComposerModelSelector({
   );
 }
 
-export { filteredProviders };
+export {
+  filteredProviders,
+  modelCatalogFallbackNotice,
+  providerDiscoveryLabel,
+};

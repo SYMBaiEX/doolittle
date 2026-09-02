@@ -12,6 +12,10 @@ const repoRoot = process.cwd();
 const desktopRoot = resolve(repoRoot, "apps/desktop");
 type Session = { sessionId: string; preview?: string[]; messageCount: number };
 type StoredMessage = { role: string; text: string };
+type InteractiveTerminalWorkspaceState = {
+  activeTabId: string;
+  tabs: { id: string; output?: string }[];
+};
 
 function normalizeTranscriptText(value: string): string {
   return value.replace(/\s+/gu, " ").trim();
@@ -82,6 +86,20 @@ async function persistedTranscript(
   }, prompt);
 }
 
+async function persistedTerminalOutput(
+  page: Page,
+  workspacePath: string,
+): Promise<string | null> {
+  return page.evaluate((path) => {
+    const key = `doolittle.desktop.interactive-terminal.v2:${encodeURIComponent(path)}`;
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const state = JSON.parse(raw) as InteractiveTerminalWorkspaceState;
+    const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId);
+    return typeof activeTab?.output === "string" ? activeTab.output : null;
+  }, workspacePath);
+}
+
 test.describe("Doolittle desktop offline chat", () => {
   test("submits, persists, and restores an offline chat transcript", async ({
     browserName,
@@ -119,7 +137,7 @@ test.describe("Doolittle desktop offline chat", () => {
       await expect(chatTerminal).toBeVisible();
       await expect(
         page.getByLabel("Chat terminal panel").getByRole("button", {
-          name: "Ctrl+C",
+          name: "Interrupt foreground process",
         }),
       ).toBeVisible({ timeout: 15_000 });
       await expect(
@@ -131,12 +149,7 @@ test.describe("Doolittle desktop offline chat", () => {
       await page.keyboard.type("printf 'DOOLITTLE_%s\\n' INTERACTIVE");
       await page.keyboard.press("Enter");
       await expect
-        .poll(() =>
-          page
-            .getByLabel("Chat terminal panel")
-            .locator(".xterm-rows")
-            .textContent(),
-        )
+        .poll(() => persistedTerminalOutput(page, workspaceDir))
         .toContain("DOOLITTLE_INTERACTIVE");
       await page.keyboard.press(
         process.platform === "darwin" ? "Meta+J" : "Control+J",

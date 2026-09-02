@@ -8,13 +8,24 @@ import {
   ManagedAttachmentError,
   resolveManagedChatAttachments,
 } from "@/services/chat-attachments";
-import { followAbortSignal } from "./lifecycle";
+import type { TaskRunEvent } from "@/services/run-controller-service";
 import type { ChatRequestBody } from "./types";
 
 const RUN_ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
 const PROJECT_ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
 const TURN_FAILURE_MESSAGE =
   "The response could not be completed. Please try again.";
+
+interface PreparedChatRun {
+  body: ChatRequestBody;
+  message: string;
+  attachments: Awaited<ReturnType<typeof resolveManagedChatAttachments>>;
+  workspaceDir: string;
+  runId: string;
+  responseId: string;
+  roomId: string;
+  sessionId: string;
+}
 
 function failedTurnMessage(
   context: AppContext,
@@ -54,7 +65,6 @@ function resolveChatWorkspace(
     context.config.workspaceDir,
   );
   if (!requestedWorkspaceDir) return activeWorkspaceDir;
-
   let canonicalRequestedWorkspaceDir: string;
   try {
     canonicalRequestedWorkspaceDir = resolveRuntimeWorkspacePath(
@@ -84,31 +94,10 @@ function resolveChatWorkspace(
   return activeWorkspaceDir;
 }
 
-function registerWorkspaceRun(
-  context: AppContext,
-  runId: string,
-  workspaceDir: string,
-): (() => void) | Response {
-  try {
-    return context.services.runController.registerWorkspaceRun(
-      runId,
-      workspaceDir,
-    );
-  } catch {
-    return json(
-      {
-        error: "This chat run is already active.",
-        code: "run_already_active",
-      },
-      409,
-    );
-  }
-}
-
-export async function handleChatRoute(
+async function prepareChatRun(
   context: AppContext,
   request: Request,
-): Promise<Response> {
+): Promise<PreparedChatRun | Response> {
   const parsed = await readJsonObjectBody(request);
   if (!parsed.ok) {
     return json(
@@ -122,7 +111,6 @@ export async function handleChatRoute(
     );
   }
   const body = parsed.value as ChatRequestBody;
-
   if (body.stream !== undefined && typeof body.stream !== "boolean") {
     return json({ error: "stream must be a boolean" }, 400);
   }
@@ -140,7 +128,6 @@ export async function handleChatRoute(
   ) {
     return json({ error: "attachmentIds must be an array of strings" }, 400);
   }
-
   if (
     body.projectId !== undefined &&
     (typeof body.projectId !== "string" ||
@@ -148,20 +135,13 @@ export async function handleChatRoute(
   ) {
     return json({ error: "projectId is invalid" }, 400);
   }
-
-  if (typeof body.message !== "string" || !body.message) {
+  if (typeof body.message !== "string" || !body.message.trim()) {
     return json({ error: "message is required" }, 400);
   }
   const message = body.message.trim();
-  if (!message) {
-    return json({ error: "message is required" }, 400);
-  }
-
-  let resolvedAttachments: Awaited<
-    ReturnType<typeof resolveManagedChatAttachments>
-  >;
+  let attachments: Awaited<ReturnType<typeof resolveManagedChatAttachments>>;
   try {
-    resolvedAttachments = await resolveManagedChatAttachments({
+    attachments = await resolveManagedChatAttachments({
       dataDir: context.config.dataDir,
       attachmentIds: body.attachmentIds ?? [],
     });
@@ -172,171 +152,359 @@ export async function handleChatRoute(
     throw error;
   }
   if (
-    resolvedAttachments.length > 0 &&
+    attachments.length > 0 &&
     (message.startsWith("/") || message.startsWith("!"))
   ) {
     return json({ error: "Command messages cannot include attachments." }, 400);
   }
-  const attachments = resolvedAttachments.map((entry) => entry.media);
-  const attachmentDescriptors = resolvedAttachments.map(
-    (entry) => entry.descriptor,
-  );
   const workspaceDir = resolveChatWorkspace(context, body.workspaceDir);
   if (workspaceDir instanceof Response) return workspaceDir;
+  const roomId = resolveRoomId(body);
+  if (!assignProjectForNewSession(context, roomId, body.projectId)) {
+    return json({ error: "project not found or archived" }, 404);
+  }
+  return {
+    body,
+    message,
+    attachments,
+    workspaceDir,
+    runId: resolveRunId(body.runId),
+    responseId: randomUUID(),
+    roomId,
+    sessionId: roomId,
+  };
+}
 
-  if (body.stream) {
-    const responseId = randomUUID();
-    const runId = resolveRunId(body.runId);
-    const roomId = resolveRoomId(body);
-    const requestMessage = message;
-    const sessionId = roomId;
-    if (!assignProjectForNewSession(context, sessionId, body.projectId)) {
-      return json({ error: "project not found or archived" }, 404);
-    }
-    const releaseWorkspace = registerWorkspaceRun(context, runId, workspaceDir);
-    if (releaseWorkspace instanceof Response) return releaseWorkspace;
+function conflictResponse(
+  reason: "run_exists" | "session_active",
+  conflictingRunId?: string,
+): Response {
+  return reason === "run_exists"
+    ? json(
+        { error: "This chat run already exists.", code: "run_already_exists" },
+        409,
+      )
+    : json(
+        {
+          error: "This chat session already has an active run.",
+          code: "session_run_active",
+          conflictingRunId,
+        },
+        409,
+      );
+}
 
-    const controller = new AbortController();
-    const stopFollowingRequest = followAbortSignal(request.signal, controller);
-    return streamSse(
-      async (emit) => {
-        const unregister =
-          context.services.runController.registerAbortController(
-            runId,
-            controller,
-          );
-        await emit("response.created", {
-          id: responseId,
-          run_id: runId,
-          room_id: roomId,
-        });
-        try {
-          const { response } = await executeAgentTurnWithProgress(
-            {
-              message: requestMessage,
-              userId: body.userId ?? "api-user",
-              roomId,
+function startServerOwnedChatRun(
+  context: AppContext,
+  prepared: PreparedChatRun,
+): Response | undefined {
+  const { body, message, runId, responseId, roomId, sessionId, workspaceDir } =
+    prepared;
+  const claim = context.services.runController.claimTaskRun({
+    runId,
+    responseId,
+    roomId,
+    sessionId,
+    source: body.source ?? "api",
+  });
+  if (!claim.accepted) {
+    return conflictResponse(claim.reason, claim.conflictingRunId);
+  }
+
+  let releaseWorkspace: () => void;
+  try {
+    releaseWorkspace = context.services.runController.registerWorkspaceRun(
+      runId,
+      workspaceDir,
+    );
+  } catch {
+    context.services.runController.releaseTaskRun(runId);
+    return conflictResponse("run_exists");
+  }
+
+  const controller = new AbortController();
+  const unregisterController =
+    context.services.runController.registerAbortController(runId, controller);
+  context.services.runController.appendTaskEvent(runId, "response.created", {
+    id: responseId,
+    run_id: runId,
+    room_id: roomId,
+  });
+
+  void (async () => {
+    try {
+      const attachments = prepared.attachments.map((entry) => entry.media);
+      const attachmentDescriptors = prepared.attachments.map(
+        (entry) => entry.descriptor,
+      );
+      const { response } = await executeAgentTurnWithProgress(
+        {
+          message,
+          userId: body.userId ?? "api-user",
+          roomId,
+          runId,
+          source: body.source ?? "api",
+          attachments,
+          attachmentDescriptors,
+        },
+        context,
+        {
+          abortSignal: controller.signal,
+          onProgress: ({ delta }) => {
+            if (!delta) return;
+            context.services.runController.appendTaskEvent(
               runId,
-              source: body.source ?? "api",
-              attachments,
-              attachmentDescriptors,
-            },
-            context,
+              "response.output_text.delta",
+              {
+                id: responseId,
+                delta,
+              },
+            );
+          },
+          onRunUpdate: (event) => {
+            context.services.runController.appendTaskEvent(
+              runId,
+              "agent.run",
+              event,
+            );
+          },
+          onRunEvent: (event, detail) => {
+            context.services.runController.appendTaskEvent(
+              runId,
+              "agent.progress",
+              {
+                event: event.type,
+                detail: `[run] ${detail}`,
+                sessionId: event.sessionId,
+              },
+            );
+          },
+          onNotice: (notice) => {
+            context.services.runController.appendTaskEvent(
+              runId,
+              "response.notice",
+              notice,
+            );
+          },
+        },
+      );
+      if (controller.signal.aborted) {
+        context.services.runController.appendTaskEvent(
+          runId,
+          "response.cancelled",
+          { id: responseId, run_id: runId, room_id: roomId },
+          true,
+        );
+      } else {
+        const failureMessage = failedTurnMessage(context, runId);
+        if (failureMessage) {
+          context.services.runController.appendTaskEvent(
+            runId,
+            "response.failed",
             {
-              abortSignal: controller.signal,
-              onProgress: async ({ delta, response }) => {
-                if (!delta) {
-                  return;
-                }
-                await emit("response.output_text.delta", {
-                  id: responseId,
-                  delta,
-                  response,
-                });
-              },
-              onRunUpdate: async (event) => {
-                await emit("agent.run", event);
-              },
-              onRunEvent: async (event, detail) => {
-                await emit("agent.progress", {
-                  event: event.type,
-                  detail: `[run] ${detail}`,
-                  sessionId: event.sessionId,
-                });
-              },
-              onNotice: async (notice) => {
-                await emit("response.notice", notice);
-              },
-            },
-          );
-          if (controller.signal.aborted) {
-            await emit("response.cancelled", {
-              id: responseId,
-              run_id: runId,
-              room_id: roomId,
-            });
-            return;
-          }
-          const failureMessage = failedTurnMessage(context, runId);
-          if (failureMessage) {
-            await emit("response.failed", {
               id: responseId,
               run_id: runId,
               room_id: roomId,
               message: failureMessage,
-            });
-            return;
-          }
-          await emit("response.completed", {
-            id: responseId,
-            response,
-            character: context.config.agentName,
-            room_id: roomId,
-          });
-        } catch (error) {
-          if (controller.signal.aborted) {
-            await emit("response.cancelled", {
+            },
+            true,
+          );
+        } else {
+          context.services.runController.appendTaskEvent(
+            runId,
+            "response.completed",
+            {
               id: responseId,
-              run_id: runId,
+              response,
+              character: context.config.agentName,
               room_id: roomId,
-            });
-            return;
-          }
-          throw error;
-        } finally {
-          unregister();
-          releaseWorkspace();
-          stopFollowingRequest();
+            },
+            true,
+          );
         }
-      },
-      {
-        onCancel: () => controller.abort(),
-      },
+      }
+    } catch (error) {
+      if (controller.signal.aborted) {
+        context.services.runController.appendTaskEvent(
+          runId,
+          "response.cancelled",
+          { id: responseId, run_id: runId, room_id: roomId },
+          true,
+        );
+      } else {
+        const active = context.services.runController.getActive(sessionId);
+        if (active?.runId === runId) {
+          context.services.runController.finishTurn(
+            sessionId,
+            "error",
+            error instanceof Error ? error.message : String(error),
+          );
+        }
+        context.services.runController.appendTaskEvent(
+          runId,
+          "response.failed",
+          {
+            id: responseId,
+            run_id: runId,
+            room_id: roomId,
+            message: TURN_FAILURE_MESSAGE,
+          },
+          true,
+        );
+      }
+    } finally {
+      const active = context.services.runController.getActive(sessionId);
+      if (controller.signal.aborted && active?.runId === runId) {
+        context.services.runController.finishTurn(sessionId, "cancelled");
+      }
+      unregisterController();
+      releaseWorkspace();
+      context.services.runController.releaseTaskRun(runId);
+    }
+  })();
+  return undefined;
+}
+
+function resolveAfterCursor(request: Request, url?: URL): number {
+  const parsedUrl = url ?? new URL(request.url);
+  const raw =
+    parsedUrl.searchParams.get("after") ?? request.headers.get("last-event-id");
+  const cursor = Number(raw ?? "0");
+  return Number.isSafeInteger(cursor) && cursor >= 0 ? cursor : 0;
+}
+
+export function handleChatRunEventsRoute(
+  context: AppContext,
+  request: Request,
+  runId: string,
+  url?: URL,
+): Response {
+  if (context.services.runController.getTaskEvents(runId).length === 0) {
+    return json({ error: "run not found" }, 404);
+  }
+  const after = resolveAfterCursor(request, url);
+  let detach = false;
+  let wake: (() => void) | undefined;
+  const detachSubscriber = () => {
+    detach = true;
+    wake?.();
+  };
+  if (request.signal.aborted) {
+    detachSubscriber();
+  } else {
+    request.signal.addEventListener("abort", detachSubscriber, { once: true });
+  }
+  return streamSse(
+    async (emit) => {
+      const queue: TaskRunEvent[] = [];
+      const unsubscribe = context.services.runController.onTaskEvent(
+        (event) => {
+          if (event.runId !== runId || event.id <= after) return;
+          queue.push(event);
+          wake?.();
+        },
+      );
+      let cursor = after;
+      const send = async (event: TaskRunEvent): Promise<boolean> => {
+        if (event.id <= cursor) return event.terminal;
+        cursor = event.id;
+        const data =
+          event.data && typeof event.data === "object"
+            ? event.data
+            : { value: event.data };
+        await emit(event.type, { event_id: event.id, ...data });
+        return event.terminal;
+      };
+      try {
+        for (const event of context.services.runController.getTaskEvents(
+          runId,
+          after,
+        )) {
+          if (await send(event)) return;
+        }
+        while (!detach) {
+          while (queue.length > 0) {
+            const event = queue.shift();
+            if (event && (await send(event))) return;
+          }
+          if (context.services.runController.getTerminalTaskEvent(runId))
+            return;
+          await new Promise<void>((resolve) => {
+            wake = resolve;
+          });
+          wake = undefined;
+        }
+      } finally {
+        unsubscribe();
+        request.signal.removeEventListener("abort", detachSubscriber);
+      }
+    },
+    {
+      onCancel: detachSubscriber,
+    },
+  );
+}
+
+async function waitForTerminalEvent(
+  context: AppContext,
+  runId: string,
+): Promise<TaskRunEvent> {
+  const existing = context.services.runController.getTerminalTaskEvent(runId);
+  if (existing) return existing;
+  return new Promise((resolve) => {
+    const unsubscribe = context.services.runController.onTaskEvent((event) => {
+      if (event.runId !== runId || !event.terminal) return;
+      unsubscribe();
+      resolve(event);
+    });
+  });
+}
+
+export async function handleChatSubmitRoute(
+  context: AppContext,
+  request: Request,
+): Promise<Response> {
+  const prepared = await prepareChatRun(context, request);
+  if (prepared instanceof Response) return prepared;
+  const conflict = startServerOwnedChatRun(context, prepared);
+  if (conflict) return conflict;
+  return json(
+    {
+      run_id: prepared.runId,
+      response_id: prepared.responseId,
+      room_id: prepared.roomId,
+      events_url: `/chat/runs/${prepared.runId}/events`,
+    },
+    202,
+  );
+}
+
+export async function handleChatRoute(
+  context: AppContext,
+  request: Request,
+): Promise<Response> {
+  const prepared = await prepareChatRun(context, request);
+  if (prepared instanceof Response) return prepared;
+  const conflict = startServerOwnedChatRun(context, prepared);
+  if (conflict) return conflict;
+  if (prepared.body.stream) {
+    return handleChatRunEventsRoute(
+      context,
+      request,
+      prepared.runId,
+      new URL(request.url),
     );
   }
-
-  const roomId = resolveRoomId(body);
-  const sessionId = roomId;
-  if (!assignProjectForNewSession(context, sessionId, body.projectId)) {
-    return json({ error: "project not found or archived" }, 404);
+  const terminal = await waitForTerminalEvent(context, prepared.runId);
+  if (terminal.type === "response.completed") {
+    const data = terminal.data as { response?: string; character?: string };
+    return json({
+      response: data.response ?? "",
+      character: data.character ?? context.config.agentName,
+    });
   }
-  const runId = resolveRunId(body.runId);
-  const releaseWorkspace = registerWorkspaceRun(context, runId, workspaceDir);
-  if (releaseWorkspace instanceof Response) return releaseWorkspace;
-  const controller = new AbortController();
-  const stopFollowingRequest = followAbortSignal(request.signal, controller);
-  const unregister = context.services.runController.registerAbortController(
-    runId,
-    controller,
-  );
-  let response: string;
-  try {
-    ({ response } = await executeAgentTurnWithProgress(
-      {
-        message,
-        userId: body.userId ?? "api-user",
-        roomId,
-        runId,
-        source: body.source ?? "api",
-        attachments,
-        attachmentDescriptors,
-      },
-      context,
-      { abortSignal: controller.signal },
-    ));
-  } finally {
-    unregister();
-    releaseWorkspace();
-    stopFollowingRequest();
+  if (terminal.type === "response.cancelled") {
+    return json({ error: "run cancelled", code: "run_cancelled" }, 409);
   }
-
-  const failureMessage = failedTurnMessage(context, runId);
-  if (failureMessage) {
-    return json({ error: failureMessage, code: "turn_failed" }, 500);
-  }
-
-  return json({
-    response,
-    character: context.config.agentName,
-  });
+  return json({ error: TURN_FAILURE_MESSAGE, code: "turn_failed" }, 500);
 }
