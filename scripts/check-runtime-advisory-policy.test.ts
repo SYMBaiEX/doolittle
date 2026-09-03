@@ -11,6 +11,16 @@ describe("runtime advisory policy coverage", () => {
             url: "https://github.com/advisories/GHSA-vxpw-j846-p89q",
             vulnerable_versions: "<6.27.0",
           },
+          tomlRecursion: {
+            severity: "high",
+            url: "https://github.com/advisories/GHSA-82x6-q7mm-w9cf",
+            vulnerable_versions: "<4.2.0",
+          },
+          tomlPrototypePollution: {
+            severity: "high",
+            url: "https://github.com/advisories/GHSA-v5mp-jgw5-2x6j",
+            vulnerable_versions: "<4.1.2",
+          },
           low: {
             severity: "low",
             url: "https://github.com/advisories/GHSA-not-reviewed-low",

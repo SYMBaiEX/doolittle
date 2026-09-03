@@ -17,6 +17,7 @@ type AuditReport = {
  */
 export const REVIEWED_RUNTIME_HIGH_ADVISORIES = new Map([
   ["GHSA-3GC7-FJRX-P6MG", "<=1.1.5"],
+  ["GHSA-82X6-Q7MM-W9CF", "<4.2.0"],
   ["GHSA-4CWX-7WF7-3272", ">=7.0.0 <7.29.0 || >=8.0.0 <8.9.0"],
   ["GHSA-5C6J-R48X-RMVQ", "<=7.0.2"],
   ["GHSA-5P2G-FCMC-QVQQ", "<=2.0.2"],
@@ -26,6 +27,7 @@ export const REVIEWED_RUNTIME_HIGH_ADVISORIES = new Map([
   ["GHSA-JMR9-QJV8-65GV", "<=2.0.1"],
   ["GHSA-PH9P-34F9-6G65", "<0.2.6"],
   ["GHSA-R5FR-RJXR-66JC", ">=4.0.0 <=4.17.23"],
+  ["GHSA-V5MP-JGW5-2X6J", "<4.1.2"],
   ["GHSA-V9P9-HFJ2-HCW8", "<6.24.0"],
   ["GHSA-VRM6-8VPV-QV8Q", "<6.24.0"],
   ["GHSA-VXPW-J846-P89Q", "<6.27.0"],
