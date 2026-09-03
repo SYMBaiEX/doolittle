@@ -171,15 +171,62 @@ function createFailingNpm(root: string): string {
 }
 
 function createAuditPassingNpm(root: string): string {
+  return createOfflineNpm(root, "audit-bin");
+}
+
+/**
+ * The publishing script deliberately verifies the tarball through a fresh,
+ * plain consumer.  That is useful production coverage, but a fixture must
+ * not turn it into an npm-registry integration test: npm can spend minutes
+ * retrying metadata requests even when every install target is a local tgz.
+ *
+ * Keep the real `npm pack` step (and force it offline), then install fixture
+ * tarballs with tar.  This preserves the two assertions that matter here:
+ * the staged artifact is packable and Node can import what a consumer gets.
+ */
+function createOfflineNpm(root: string, directory: string, script = ""): string {
   if (process.platform === "win32" || !SYSTEM_NPM) {
     throw new Error("This test fixture requires a POSIX npm executable.");
   }
-  const binPath = join(root, "audit-bin");
+  const binPath = join(root, directory);
   mkdirSync(binPath, { recursive: true });
   const scriptPath = join(binPath, "npm");
   writeFileSync(
     scriptPath,
-    `#!/usr/bin/env sh\nif [ "$1" = audit ]; then exit 0; fi\nexec ${JSON.stringify(SYSTEM_NPM)} "$@"\n`,
+    `#!/usr/bin/env sh
+set -eu
+${script}
+
+if [ "$1" = audit ]; then
+  exit 0
+fi
+
+if [ "$1" = pack ]; then
+  exec ${JSON.stringify(SYSTEM_NPM)} --offline "$@"
+fi
+
+if [ "$1" = install ]; then
+  for argument in "$@"; do
+    if [ -f "$argument" ] && [ "\${argument##*.}" = tgz ]; then
+      extract_path=$(mktemp -d)
+      tar -xzf "$argument" -C "$extract_path"
+      package_name=$(node -e 'console.log(require(process.argv[1]).name)' "$extract_path/package/package.json")
+      destination="$PWD/node_modules/$package_name"
+      mkdir -p "$(dirname "$destination")"
+      if [ -e "$destination" ]; then
+        printf '%s\\n' "fixture destination already exists: $destination" >&2
+        exit 65
+      fi
+      mv "$extract_path/package" "$destination"
+      rmdir "$extract_path"
+    fi
+  done
+  exit 0
+fi
+
+printf '%s\\n' "unexpected npm command: $*" >&2
+exit 64
+`,
     "utf8",
   );
   chmodSync(scriptPath, 0o755);
@@ -187,15 +234,7 @@ function createAuditPassingNpm(root: string): string {
 }
 
 function createRecordingNpm(root: string, script: string): string {
-  if (process.platform === "win32" || !SYSTEM_NPM) {
-    throw new Error("This test fixture requires a POSIX npm executable.");
-  }
-  const binPath = join(root, "recording-bin");
-  mkdirSync(binPath, { recursive: true });
-  const scriptPath = join(binPath, "npm");
-  writeFileSync(scriptPath, `#!/usr/bin/env sh\n${script}\n`, "utf8");
-  chmodSync(scriptPath, 0o755);
-  return binPath;
+  return createOfflineNpm(root, "recording-bin", script);
 }
 
 function createSecretEchoingNpm(root: string): string {
@@ -463,8 +502,7 @@ describe("publish-provider-packages", () => {
       const binPath = createRecordingNpm(
         root,
         `if [ "$1" = install ] && printf '%s' "$PWD" | grep -q doolittle-provider-consumer; then cp package.json ${JSON.stringify(capturedManifest)}; fi
-if [ "$1" = audit ]; then exit 0; fi
-exec ${JSON.stringify(SYSTEM_NPM)} "$@"`,
+`,
       );
 
       const result = runPublish(
@@ -498,7 +536,7 @@ if [ "$1" = audit ]; then
   exit 0
 fi
 if [ "$1" = publish ]; then exit 0; fi
-exec ${JSON.stringify(SYSTEM_NPM)} "$@"`,
+`,
       );
 
       const result = runPublish(
@@ -533,9 +571,8 @@ if [ "$1" = install ] && printf '%s' "$*" | grep -q '@doolittle/plugin-claude-co
 fi
 if [ "$1" = audit ]; then
   if printf '%s' "$PWD" | grep -q doolittle-provider-registry-receipt; then printf '%s\\n' registry-audit >> ${JSON.stringify(eventLog)}; fi
-  exit 0
 fi
-exec ${JSON.stringify(SYSTEM_NPM)} "$@"`,
+`,
       );
 
       const result = runPublish(
@@ -574,8 +611,7 @@ if [ "$1" = install ] && printf '%s' "$*" | grep -q '@doolittle/provider-transpo
   printf '%s\\n' registry-install-failed >> ${JSON.stringify(eventLog)}
   exit 7
 fi
-if [ "$1" = audit ]; then exit 0; fi
-exec ${JSON.stringify(SYSTEM_NPM)} "$@"`,
+`,
       );
 
       const result = runPublish(
