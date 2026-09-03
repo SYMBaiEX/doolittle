@@ -115,7 +115,13 @@ describe("chat chrome density contract", () => {
       "[&_.chat-composer-details]:border-t",
     );
     expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-composer-footer]:grid-cols-[auto_minmax(0,1fr)]",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
       "max-[480px]:[&_.chat-composer-routing]:grid",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-composer-status]:hidden",
     );
     expect(CHAT_WORKSPACE_CLASS).toContain(
       "max-[480px]:[&_.chat-context-meter]:!hidden",
