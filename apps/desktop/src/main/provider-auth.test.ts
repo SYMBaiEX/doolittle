@@ -161,7 +161,7 @@ describe("provider auth", () => {
       codeSubmitted: false,
     });
 
-    const submitted = controller.submitCodeFromClipboard("claude-code");
+    const submitted = await controller.submitCodeFromClipboard("claude-code");
     expect(fixture.submitCode).toHaveBeenCalledWith(
       fixture.handles.claude.sessionId,
       "authorization-code#authorization-state",
@@ -182,9 +182,30 @@ describe("provider auth", () => {
     });
     await controller.start("claude-code");
 
-    expect(() => controller.submitCodeFromClipboard("claude-code")).toThrow(
-      /code#state/,
-    );
+    await expect(
+      controller.submitCodeFromClipboard("claude-code"),
+    ).rejects.toThrow(/code#state/);
+    expect(fixture.submitCode).not.toHaveBeenCalled();
+  });
+
+  it("does not submit a copied code after its flow is cancelled", async () => {
+    const fixture = createFlows();
+    let resolveClipboard: ((value: string) => void) | undefined;
+    const controller = new ProviderAuthController({
+      openExternal: async () => undefined,
+      readClipboardText: () =>
+        new Promise((resolve) => {
+          resolveClipboard = resolve;
+        }),
+      flows: fixture.flows,
+    });
+    await controller.start("claude-code");
+
+    const submission = controller.submitCodeFromClipboard("claude-code");
+    expect(controller.cancel("claude-code").phase).toBe("cancelled");
+    resolveClipboard?.("authorization-code#authorization-state");
+
+    await expect(submission).resolves.toMatchObject({ phase: "cancelled" });
     expect(fixture.submitCode).not.toHaveBeenCalled();
   });
 

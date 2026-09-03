@@ -42,7 +42,7 @@ export interface ProviderAuthFlowDependencies {
 
 export interface ProviderAuthControllerDependencies {
   openExternal: (url: string) => Promise<unknown>;
-  readClipboardText: () => string;
+  readClipboardText: () => string | Promise<string>;
   now?: () => Date;
   flows?: ProviderAuthFlowDependencies;
 }
@@ -155,7 +155,7 @@ function isAnthropicCode(value: string): boolean {
 
 export class ProviderAuthController {
   private readonly openExternal: (url: string) => Promise<unknown>;
-  private readonly readClipboardText: () => string;
+  private readonly readClipboardText: () => string | Promise<string>;
   private readonly now: () => Date;
   private readonly loadFlows: () => Promise<ProviderAuthFlowDependencies>;
   private readonly active = new Map<ProviderAuthProvider, ActiveProviderAuth>();
@@ -272,20 +272,31 @@ export class ProviderAuthController {
     }
   }
 
-  submitCodeFromClipboard(provider: ProviderAuthProvider): ProviderAuthState {
+  async submitCodeFromClipboard(
+    provider: ProviderAuthProvider,
+  ): Promise<ProviderAuthState> {
     const active = this.active.get(provider);
     if (!active?.needsCodeSubmission) {
       throw new Error(
         `${PROVIDERS[provider].label} is not waiting for an authorization code.`,
       );
     }
-    const code = this.readClipboardText().trim();
+    const code = (await this.readClipboardText()).trim();
+    const current = this.active.get(provider);
+    if (current?.sessionId !== active.sessionId) {
+      if (this.getState(provider).phase === "cancelled") {
+        return this.getState(provider);
+      }
+      throw new Error(
+        `${PROVIDERS[provider].label} is not waiting for an authorization code.`,
+      );
+    }
     if (!isAnthropicCode(code)) {
       throw new Error(
         "Copy the complete Claude authorization value in code#state format, then try again.",
       );
     }
-    if (!active.flows.submitCode(active.sessionId, code)) {
+    if (!current.flows.submitCode(current.sessionId, code)) {
       throw new Error("The Claude authorization flow is no longer active.");
     }
     return this.update(provider, {

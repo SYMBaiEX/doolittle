@@ -201,7 +201,7 @@ const runtimeBuild = await build({
   bundle: true,
   platform: "node",
   format: "esm",
-  // Electron 43 embeds Node 24. Keep the packaged runtime syntax compatible
+  // Electron 44 embeds Node 24. Keep the packaged runtime syntax compatible
   // with the Node version that actually executes it, not the repository pin.
   target: "node24",
   minify: true,
