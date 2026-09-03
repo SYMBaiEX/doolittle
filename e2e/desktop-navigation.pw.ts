@@ -334,7 +334,7 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(workspaceUtilities).toBeVisible();
       await workspaceUtilities.getByRole("tab", { name: "Shell" }).click();
       await page
-        .getByRole("button", { name: "Open persistent terminal" })
+        .getByRole("button", { name: "Focus shared terminal" })
         .click();
       const chatTerminal = page.getByLabel("Chat terminal panel");
       await expect(chatTerminal).toHaveAttribute("data-open", "true");
@@ -1347,7 +1347,7 @@ test.describe("Doolittle desktop navigation", () => {
         .click();
       if (!(await chatTerminal.isVisible())) {
         await page
-          .getByRole("button", { name: "Open persistent terminal" })
+          .getByRole("button", { name: "Focus shared terminal" })
           .click();
       }
       await expect(chatTerminal).toHaveAttribute("data-open", "true");
