@@ -301,4 +301,44 @@ describe("PromptLibrary", () => {
     expect(container.querySelector("#chat-prompt-library")).toBeNull();
     expect(document.activeElement).toBe(promptsButton);
   });
+
+  it("focuses, contains, escapes, and restores the quick library dialog", () => {
+    act(() => root.render(<PromptLibraryProbe />));
+    const promptsButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Prompts",
+    );
+    act(() => promptsButton?.click());
+
+    const dialog = container.querySelector<HTMLElement>(
+      '#chat-prompt-library[role="dialog"]',
+    );
+    const titleInput = container.querySelector<HTMLInputElement>(
+      '[aria-label="Saved prompt title"]',
+    );
+    const saveButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Save draft",
+    );
+    expect(dialog?.getAttribute("aria-labelledby")).toBe(
+      "chat-prompt-library-title",
+    );
+    expect(document.activeElement).toBe(titleInput);
+
+    act(() => {
+      saveButton?.focus();
+      saveButton?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Tab" }),
+      );
+    });
+    expect(document.activeElement).toBe(
+      Array.from(dialog?.querySelectorAll("button") ?? []).find((button) =>
+        button.textContent?.includes("Manage all"),
+      ),
+    );
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(container.querySelector("#chat-prompt-library")).toBeNull();
+    expect(document.activeElement).toBe(promptsButton);
+  });
 });

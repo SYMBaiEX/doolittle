@@ -533,6 +533,38 @@ describe("chat presentation components", () => {
     expect(closedMenu).toContain('aria-expanded="false"');
   });
 
+  it("uses non-button options while the composer owns completion focus", () => {
+    window.localStorage.clear();
+    savePromptLibrary(window.localStorage, [
+      {
+        id: "release-review",
+        title: "Release review",
+        content: "Review the release carefully.",
+        createdAt: "2026-08-20T00:00:00.000Z",
+        updatedAt: "2026-08-20T00:00:00.000Z",
+      },
+    ]);
+    const slashMenu = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          draft: "/help",
+          commandSuggestions: [
+            { command: "/help", category: "Help", description: "Show help." },
+          ],
+        })}
+      />,
+    );
+    const dollarMenu = renderToStaticMarkup(
+      <ChatComposer {...composerProps({ draft: "$release" })} />,
+    );
+
+    expect(slashMenu).toMatch(/<div[^>]*role="option"/u);
+    expect(slashMenu).not.toMatch(/<button[^>]*role="option"/u);
+    expect(dollarMenu).toMatch(/<div[^>]*role="option"/u);
+    expect(dollarMenu).not.toMatch(/<button[^>]*role="option"/u);
+    window.localStorage.clear();
+  });
+
   it("renders source handoff as a compact removable capsule", () => {
     const html = renderToStaticMarkup(
       <ChatComposer

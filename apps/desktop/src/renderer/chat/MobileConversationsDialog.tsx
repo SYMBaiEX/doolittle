@@ -57,7 +57,7 @@ export function MobileConversationsDialog({
         type="button"
       />
       <div
-        aria-label="Conversations"
+        aria-labelledby="mobile-conversations-title"
         aria-modal="true"
         className={MOBILE_CONVERSATIONS_DIALOG_CLASS}
         id="mobile-conversations"
@@ -68,7 +68,7 @@ export function MobileConversationsDialog({
         <header>
           <div>
             <span className="eyebrow">{activeProjectName ?? "Workspace"}</span>
-            <h2>Conversations</h2>
+            <h2 id="mobile-conversations-title">Conversations</h2>
           </div>
           <button
             aria-label="Close conversations"

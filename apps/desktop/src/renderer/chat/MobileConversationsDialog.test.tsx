@@ -106,6 +106,16 @@ describe("MobileConversationsDialog", () => {
     expect(document.activeElement).toBe(search);
   });
 
+  it("labels the modal dialog with its visible heading", () => {
+    const dialog = container.querySelector('[role="dialog"]');
+    expect(dialog?.getAttribute("aria-labelledby")).toBe(
+      "mobile-conversations-title",
+    );
+    expect(
+      container.querySelector("#mobile-conversations-title")?.textContent,
+    ).toBe("Conversations");
+  });
+
   it("announces an empty result state without changing dialog controls", () => {
     act(() =>
       root.render(

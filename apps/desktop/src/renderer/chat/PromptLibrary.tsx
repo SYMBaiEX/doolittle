@@ -18,6 +18,7 @@ import {
   useState,
 } from "react";
 import { UiIcon } from "../components/UiIcon";
+import { useModalFocusBoundary } from "../components/useModalFocusBoundary";
 import {
   loadPromptLibrary,
   MAX_PROMPT_LIBRARY_ITEMS,
@@ -61,9 +62,16 @@ export function PromptLibrary({
   );
   const [editingId, setEditingId] = useState("");
   const [editingTitle, setEditingTitle] = useState("");
+  const [restoreComposerOnClose, setRestoreComposerOnClose] = useState(false);
   const renameRef = useRef<HTMLInputElement>(null);
-  const panelRef = useRef<HTMLElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useModalFocusBoundary({
+    active: open,
+    initialFocusSelector: '[aria-label="Saved prompt title"]',
+    onClose: () => setOpen(false),
+    restoreFocus: !restoreComposerOnClose,
+    restoreFocusRef: triggerRef,
+  });
 
   useEffect(() => {
     const storage = browserStorage();
@@ -75,6 +83,12 @@ export function PromptLibrary({
   useEffect(() => {
     if (!activeProject) setScope("general");
   }, [activeProject]);
+
+  useEffect(() => {
+    if (open || !restoreComposerOnClose) return;
+    requestAnimationFrame(() => composerRef.current?.focus());
+    setRestoreComposerOnClose(false);
+  }, [composerRef, open, restoreComposerOnClose]);
 
   useEffect(() => {
     const refresh = () => {
@@ -100,45 +114,20 @@ export function PromptLibrary({
 
   useEffect(() => {
     if (!open) return;
-    const restoreTriggerIfFocusWasLost = (panel: HTMLElement | null) => {
-      requestAnimationFrame(() => {
-        const activeElement = document.activeElement;
-        if (
-          activeElement === document.body ||
-          (activeElement && panel?.contains(activeElement))
-        ) {
-          triggerRef.current?.focus();
-        }
-      });
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      const panel = panelRef.current;
-      setOpen(false);
-      restoreTriggerIfFocusWasLost(panel);
-      requestAnimationFrame(() => triggerRef.current?.focus());
-    };
+    const panel = panelRef.current;
     const closeOutside = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      if (
-        panelRef.current?.contains(target) ||
-        triggerRef.current?.contains(target)
-      ) {
+      if (panel?.contains(target) || triggerRef.current?.contains(target)) {
         return;
       }
-      const panel = panelRef.current;
       setOpen(false);
-      restoreTriggerIfFocusWasLost(panel);
     };
-    document.addEventListener("keydown", closeOnEscape);
     document.addEventListener("pointerdown", closeOutside);
     return () => {
-      document.removeEventListener("keydown", closeOnEscape);
       document.removeEventListener("pointerdown", closeOutside);
     };
-  }, [open]);
+  }, [open, panelRef]);
 
   useEffect(() => {
     if (editingId) renameRef.current?.focus();
@@ -206,6 +195,7 @@ export function PromptLibrary({
 
   const restore = (entry: PromptLibraryEntry) => {
     setDraft(entry.content);
+    setRestoreComposerOnClose(true);
     setOpen(false);
     setManageOpen(false);
     setAnnouncement(`Restored “${entry.title}”.`);
@@ -266,14 +256,19 @@ export function PromptLibrary({
       </button>
       {open ? (
         <section
-          aria-label="Prompt library"
+          aria-labelledby="chat-prompt-library-title"
           className="chat-prompt-library absolute bottom-[calc(100%+10px)] left-0 z-60 grid max-h-[min(440px,62vh)] w-[min(380px,calc(100vw-32px))] gap-2 overflow-auto rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-raised)_98%,var(--bg))] p-3 text-[var(--text-soft)] shadow-[var(--shell-shadow-lg)]"
           id="chat-prompt-library"
           ref={panelRef}
+          role="dialog"
+          tabIndex={-1}
         >
           <header className="flex items-start justify-between gap-3">
             <div className="chat-prompt-library__heading grid min-w-0 gap-0.5">
-              <strong className="text-xs font-semibold text-[var(--text)]">
+              <strong
+                className="text-xs font-semibold text-[var(--text)]"
+                id="chat-prompt-library-title"
+              >
                 Prompt library
               </strong>
               <small className="truncate text-[length:var(--text-meta)] text-[var(--muted)]">

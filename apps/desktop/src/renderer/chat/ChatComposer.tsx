@@ -427,17 +427,23 @@ export function ChatComposer({
           role="listbox"
         >
           {commandSuggestions.map((command, index) => (
-            <ElizaButton
+            <div
+              aria-disabled={command.disabledReason ? true : undefined}
               aria-selected={index === activeCommandIndex}
               className={`!grid !min-h-11 !min-w-0 grid-cols-[minmax(80px,auto)_minmax(0,1fr)_auto] items-center gap-3 !rounded-[var(--radius-sm)] !border-0 !bg-transparent px-2.5 py-2 !text-left text-[var(--text-soft)] hover:!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] hover:!text-[var(--text)] ${index === activeCommandIndex ? "!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] !text-[var(--text)]" : ""}`}
-              disabled={Boolean(command.disabledReason)}
               id={`chat-command-option-${index}`}
               key={command.command}
-              onClick={() => selectCommandSuggestion(command)}
+              onClick={() => {
+                if (!command.disabledReason) selectCommandSuggestion(command);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                if (!command.disabledReason) selectCommandSuggestion(command);
+              }}
+              onMouseDown={(event) => event.preventDefault()}
               role="option"
-              size="sm"
-              type="button"
-              variant="ghost"
+              tabIndex={-1}
             >
               <code className="font-[var(--font-mono)] text-[11px] text-[var(--accent)]">
                 {command.command}
@@ -458,7 +464,7 @@ export function ChatComposer({
               <kbd className="text-[length:var(--text-meta)] text-[var(--muted)]">
                 {index === activeCommandIndex ? "Tab" : "↑↓"}
               </kbd>
-            </ElizaButton>
+            </div>
           ))}
         </div>
       ) : null}
@@ -474,16 +480,20 @@ export function ChatComposer({
             <kbd>$</kbd>
           </div>
           {reusableSuggestions.map((suggestion, index) => (
-            <ElizaButton
+            <div
               aria-selected={index === activeCommandIndex}
               className={`!grid !min-h-11 !min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 !rounded-[var(--radius-sm)] !border-0 !bg-transparent px-2.5 py-2 !text-left text-[var(--text-soft)] hover:!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] hover:!text-[var(--text)] ${index === activeCommandIndex ? "!bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-hover))] !text-[var(--text)]" : ""}`}
               id={`chat-reusable-option-${index}`}
               key={suggestion.id}
               onClick={() => selectReusableSuggestion(suggestion)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                selectReusableSuggestion(suggestion);
+              }}
+              onMouseDown={(event) => event.preventDefault()}
               role="option"
-              size="sm"
-              type="button"
-              variant="ghost"
+              tabIndex={-1}
             >
               <span className="flex min-w-0 flex-col gap-0.5 [&>*]:overflow-hidden [&>*]:text-ellipsis [&>*]:whitespace-nowrap">
                 <strong className="text-[11px] font-semibold text-[var(--text)]">
@@ -496,7 +506,7 @@ export function ChatComposer({
               <small className="rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-1.5 py-0.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--accent)]">
                 {suggestion.scope}
               </small>
-            </ElizaButton>
+            </div>
           ))}
         </div>
       ) : null}
