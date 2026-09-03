@@ -1393,9 +1393,17 @@ test.describe("Doolittle desktop navigation", () => {
       );
       const reviewWorkspace = page.locator(".review-workspace");
       const reviewEmptyState = page.locator(".review-work-overview.is-empty");
-      await expect(
-        page.locator(".review-workspace, .review-work-overview.is-empty"),
-      ).toBeVisible();
+      // A queued review item can coexist with a neutral summary, so these are
+      // not mutually exclusive states. Wait for either surface without a
+      // strict-mode union locator, then exercise each surface that is present.
+      await expect
+        .poll(async () => {
+          return (
+            (await reviewWorkspace.isVisible()) ||
+            (await reviewEmptyState.isVisible())
+          );
+        })
+        .toBe(true);
       if (await reviewWorkspace.isVisible()) {
         await page.setViewportSize({ width: 390, height: 844 });
         const narrowReviewLayout = await page.evaluate(() => {
@@ -1447,7 +1455,8 @@ test.describe("Doolittle desktop navigation", () => {
           path: narrowReviewScreenshot,
         });
         await page.setViewportSize({ width: 1280, height: 900 });
-      } else {
+      }
+      if (await reviewEmptyState.isVisible()) {
         await expect(reviewEmptyState).toContainText("No completed work yet");
       }
 
