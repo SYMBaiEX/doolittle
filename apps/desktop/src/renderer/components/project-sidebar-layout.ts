@@ -34,14 +34,19 @@ export const PROJECT_RAIL_ACTIVE_CLASS =
 export const PROJECT_RAIL_GROUP_CLASS =
   "project-rail-group relative [.desktop-shell.nav-collapsed_&]:px-0.75";
 
-export const PROJECT_RAIL_GROUP_ACTIVE_CLASS =
-  "is-active before:absolute before:top-1.75 before:bottom-1.75 before:-left-3 before:w-0.5 before:bg-[var(--accent)]";
+export const PROJECT_RAIL_GROUP_ACTIVE_CLASS = "is-active";
 
 export const PROJECT_RAIL_ROW_CLASS =
   "project-rail-row grid min-h-10 grid-cols-[16px_minmax(0,1fr)_22px_18px] items-center gap-0.5 rounded-[var(--radius-xs)] border border-transparent py-0.5 pr-1.25 pl-0.25 text-[var(--text-soft)] transition-colors hover:bg-[color-mix(in_srgb,var(--surface-hover)_76%,transparent)] hover:text-[var(--text)] [.desktop-shell.nav-collapsed_&]:min-h-10 [.desktop-shell.nav-collapsed_&]:w-10.5 [.desktop-shell.nav-collapsed_&]:grid-cols-1 [.desktop-shell.nav-collapsed_&]:place-items-center [.desktop-shell.nav-collapsed_&]:p-0";
 
+export const PROJECT_RAIL_ROW_ACTIVE_CLASS =
+  "border-[color-mix(in_srgb,var(--accent)_16%,var(--border))] bg-[color-mix(in_srgb,var(--surface-hover)_34%,transparent)] text-[var(--text)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--surface-hover)_28%,transparent)] [.desktop-shell.nav-collapsed_&]:bg-[color-mix(in_srgb,var(--surface-hover)_42%,transparent)]";
+
 export const PROJECT_RAIL_MAIN_CLASS =
   "project-rail-main grid min-w-0 grid-cols-[28px_minmax(0,1fr)] items-center gap-2 p-0 text-left text-inherit [.desktop-shell.nav-collapsed_&]:w-full [.desktop-shell.nav-collapsed_&]:grid-cols-1 [.desktop-shell.nav-collapsed_&]:place-items-center [&>span:last-child]:grid [&>span:last-child]:min-w-0 [&>span:last-child]:gap-px [.desktop-shell.nav-collapsed_&]:[&>span:last-child]:hidden [&_strong]:truncate [&_strong]:text-xs [&_strong]:font-semibold [&_small]:truncate [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:tracking-[0.01em] [&_small]:text-[var(--muted)]";
+
+export const PROJECT_RAIL_MAIN_ACTIVE_CLASS =
+  "[&_strong]:text-[var(--text)] [&_small]:text-[var(--text-soft)]";
 
 export const PROJECT_RAIL_CHAT_CLASS =
   "project-rail-chat grid min-h-7 grid-cols-[8px_minmax(0,1fr)_auto] items-center gap-1.5 rounded-[var(--radius-xs)] border border-transparent px-1.75 py-1 text-left text-[var(--muted)] transition-colors hover:bg-[color-mix(in_srgb,var(--surface-hover)_82%,transparent)] hover:text-[var(--text)] [&>i]:size-1 [&>i]:rounded-full [&>i]:bg-[var(--border-strong)] [&>span]:truncate [&>span]:text-[length:var(--text-control)] [&>time]:font-[var(--font-mono)] [&>time]:text-[length:var(--text-meta)] [&>time]:text-[var(--faint)]";

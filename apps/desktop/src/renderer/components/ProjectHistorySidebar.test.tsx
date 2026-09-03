@@ -24,6 +24,12 @@ const session: SessionSummary = {
   projectId: "repo",
   sessionId: "session-1",
 };
+const sessionTwo: SessionSummary = {
+  ...session,
+  endedAt: "2026-08-12T11:00:00.000Z",
+  preview: ["Another thread"],
+  sessionId: "session-2",
+};
 
 describe("ProjectHistorySidebar", () => {
   let container: HTMLDivElement;
@@ -48,7 +54,7 @@ describe("ProjectHistorySidebar", () => {
     vi.unstubAllGlobals();
   });
 
-  it("preserves project expansion and session selection actions", () => {
+  it("keeps the project quietly active while only the current chat is selected", () => {
     const onOpenSession = vi.fn();
     const onSelectScope = vi.fn();
     act(() =>
@@ -63,7 +69,7 @@ describe("ProjectHistorySidebar", () => {
           onViewAll={vi.fn()}
           projects={[project]}
           selectedSessionId="session-1"
-          sessions={[session]}
+          sessions={[session, sessionTwo]}
         />,
       ),
     );
@@ -77,18 +83,30 @@ describe("ProjectHistorySidebar", () => {
     act(() => disclosure?.click());
     expect(disclosure?.getAttribute("aria-expanded")).toBe("false");
     act(() => disclosure?.click());
-    const chat = container.querySelector<HTMLButtonElement>(
-      ".project-rail-chat:not(.project-rail-chat-pin)",
+    const chats = Array.from(
+      container.querySelectorAll<HTMLButtonElement>(".project-rail-chat"),
     );
-    act(() => chat?.click());
+    const selectedChat = chats.find(
+      (chat) => chat.getAttribute("aria-current") === "true",
+    );
+    const unselectedChat = chats.find(
+      (chat) => chat.getAttribute("aria-current") !== "true",
+    );
+    act(() => selectedChat?.click());
     expect(onOpenSession).toHaveBeenCalledWith("session-1");
-    expect(chat?.className).toContain("is-selected");
+    expect(selectedChat?.className).toContain("is-selected");
+    expect(unselectedChat?.className).not.toContain("is-selected");
     const group = container.querySelector(".project-rail-group");
     const projectRow = container.querySelector(".project-rail-row");
+    const projectMain =
+      container.querySelector<HTMLButtonElement>(".project-rail-main");
     expect(group?.className).toContain("is-active");
-    expect(group?.className).not.toContain("surface-hover)_76%");
-    expect(projectRow?.className).toContain("surface-hover)_42%");
-    expect(projectRow?.className).toContain("accent)_24%");
+    expect(group?.className).not.toContain("before:bg-[var(--accent)]");
+    expect(projectRow?.className).toContain("surface-hover)_34%");
+    expect(projectRow?.className).toContain("accent)_16%");
+    expect(projectMain?.getAttribute("aria-current")).toBe("page");
+    expect(projectMain?.getAttribute("aria-label")).toBe("Repo chats");
+    expect(projectMain?.getAttribute("title")).toBe("Repo · /work/repo");
   });
 
   it("persists pin actions and exposes pressed state", () => {
@@ -117,6 +135,10 @@ describe("ProjectHistorySidebar", () => {
     expect(pin?.className).toContain("size-6");
     expect(chatRow?.className).toContain("grid-cols-[minmax(0,1fr)_24px]");
     expect(newChat?.className).toContain("size-6");
+    expect(newChat?.className).toContain(
+      "group-focus-within/project-row:opacity-100",
+    );
+    expect(pin?.className).toContain("group-focus-within/chat:opacity-100");
     expect(pin?.getAttribute("aria-pressed")).toBe("false");
     act(() => pin?.click());
     expect(pin?.getAttribute("aria-pressed")).toBe("true");
@@ -147,6 +169,7 @@ describe("ProjectHistorySidebar", () => {
       ".project-rail-group--general .project-rail-main",
     );
     expect(general?.getAttribute("aria-label")).toBe("General chats");
+    expect(general?.getAttribute("aria-current")).toBeNull();
     expect(general?.getAttribute("title")).toBe(
       "General chats (no repository)",
     );
@@ -157,5 +180,33 @@ describe("ProjectHistorySidebar", () => {
     ).toBe("true");
     act(() => general?.click());
     expect(onSelectScope).toHaveBeenCalledWith("unscoped");
+  });
+
+  it("keeps collapsed project buttons labeled even when text is hidden", () => {
+    act(() =>
+      root.render(
+        <div className="desktop-shell nav-collapsed">
+          <ProjectHistorySidebar
+            activeScope="repo"
+            onChooseRepository={vi.fn()}
+            onManageProjects={vi.fn()}
+            onOpenSession={vi.fn()}
+            onSelectScope={vi.fn()}
+            onStartConversation={vi.fn()}
+            onViewAll={vi.fn()}
+            projects={[project]}
+            selectedSessionId="session-1"
+            sessions={[session]}
+          />
+        </div>,
+      ),
+    );
+
+    const projectButton = container.querySelector<HTMLButtonElement>(
+      ".project-rail-group .project-rail-main",
+    );
+    expect(projectButton?.getAttribute("aria-label")).toBe("Repo chats");
+    expect(projectButton?.getAttribute("aria-current")).toBe("page");
+    expect(projectButton?.getAttribute("title")).toBe("Repo · /work/repo");
   });
 });

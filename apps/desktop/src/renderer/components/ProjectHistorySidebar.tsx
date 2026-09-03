@@ -23,7 +23,9 @@ import {
   PROJECT_RAIL_CHAT_SELECTED_CLASS,
   PROJECT_RAIL_GROUP_ACTIVE_CLASS,
   PROJECT_RAIL_GROUP_CLASS,
+  PROJECT_RAIL_MAIN_ACTIVE_CLASS,
   PROJECT_RAIL_MAIN_CLASS,
+  PROJECT_RAIL_ROW_ACTIVE_CLASS,
   PROJECT_RAIL_ROW_CLASS,
   SIDEBAR_PROJECTS_CLASS,
   SIDEBAR_PROJECTS_HEADING_CLASS,
@@ -190,7 +192,7 @@ export function ProjectHistorySidebar({
               <button
                 aria-label={`${pinned ? "Unpin" : "Pin"} ${conversationLabel(session)}`}
                 aria-pressed={pinned}
-                className={`project-rail-chat-pin grid size-6 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--faint)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 group-hover/chat:opacity-100 ${pinned ? "text-[var(--accent)] opacity-100" : ""}`}
+                className={`project-rail-chat-pin grid size-6 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--faint)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 group-hover/chat:opacity-100 group-focus-within/chat:opacity-100 ${pinned ? "text-[var(--accent)] opacity-100" : ""}`}
                 onClick={() => togglePinnedSession(session.sessionId)}
                 title={pinned ? "Unpin conversation" : "Pin conversation"}
                 type="button"
@@ -233,7 +235,7 @@ export function ProjectHistorySidebar({
         key={project.id}
       >
         <div
-          className={`${PROJECT_RAIL_ROW_CLASS} ${isActive ? "border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--surface-hover)_42%,transparent)] text-[var(--text)]" : ""}`}
+          className={`${PROJECT_RAIL_ROW_CLASS} group/project-row ${isActive ? PROJECT_RAIL_ROW_ACTIVE_CLASS : ""}`}
         >
           <button
             aria-expanded={isExpanded}
@@ -245,12 +247,18 @@ export function ProjectHistorySidebar({
             <UiIcon icon={ChevronRight} size="xs" />
           </button>
           <button
-            className={PROJECT_RAIL_MAIN_CLASS}
+            aria-current={isActive ? "page" : undefined}
+            aria-label={`${project.name} chats`}
+            className={`${PROJECT_RAIL_MAIN_CLASS} ${isActive ? PROJECT_RAIL_MAIN_ACTIVE_CLASS : ""}`}
             onClick={() => {
               onSelectScope(project.id);
               setExpanded((current) => new Set([...current, project.id]));
             }}
-            title={project.primaryPath ?? project.name}
+            title={
+              project.primaryPath
+                ? `${project.name} · ${project.primaryPath}`
+                : `${project.name} chats`
+            }
             type="button"
           >
             <ProjectMark project={project} />
@@ -261,7 +269,7 @@ export function ProjectHistorySidebar({
           </button>
           <button
             aria-label={`New chat in ${project.name}`}
-            className="project-rail-new grid size-6 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--muted)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 [.project-rail-row:hover_&]:opacity-100 [.desktop-shell.nav-collapsed_&]:hidden"
+            className="project-rail-new grid size-6 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--muted)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 group-focus-within/project-row:opacity-100 [.project-rail-row:hover_&]:opacity-100 [.desktop-shell.nav-collapsed_&]:hidden"
             onClick={() => onStartConversation(project.id)}
             title={`New chat in ${project.name}`}
             type="button"
@@ -345,7 +353,7 @@ export function ProjectHistorySidebar({
             className={`${PROJECT_RAIL_GROUP_CLASS} project-rail-group--general ${activeScope === "unscoped" ? PROJECT_RAIL_GROUP_ACTIVE_CLASS : ""}`}
           >
             <div
-              className={`${PROJECT_RAIL_ROW_CLASS} ${activeScope === "unscoped" ? "border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--surface-hover)_42%,transparent)] text-[var(--text)]" : ""}`}
+              className={`${PROJECT_RAIL_ROW_CLASS} group/project-row ${activeScope === "unscoped" ? PROJECT_RAIL_ROW_ACTIVE_CLASS : ""}`}
             >
               <button
                 aria-expanded={expanded.has("unscoped")}
@@ -358,7 +366,8 @@ export function ProjectHistorySidebar({
               </button>
               <button
                 aria-label="General chats"
-                className={PROJECT_RAIL_MAIN_CLASS}
+                aria-current={activeScope === "unscoped" ? "page" : undefined}
+                className={`${PROJECT_RAIL_MAIN_CLASS} ${activeScope === "unscoped" ? PROJECT_RAIL_MAIN_ACTIVE_CLASS : ""}`}
                 onClick={() => onSelectScope("unscoped")}
                 title="General chats (no repository)"
                 type="button"
@@ -376,7 +385,7 @@ export function ProjectHistorySidebar({
               </button>
               <button
                 aria-label="New general chat"
-                className="project-rail-new grid size-6 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--muted)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 [.project-rail-row:hover_&]:opacity-100 [.desktop-shell.nav-collapsed_&]:hidden"
+                className="project-rail-new grid size-6 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--muted)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 group-focus-within/project-row:opacity-100 [.project-rail-row:hover_&]:opacity-100 [.desktop-shell.nav-collapsed_&]:hidden"
                 onClick={() => onStartConversation("unscoped")}
                 title="New general chat"
                 type="button"
