@@ -25,6 +25,7 @@ import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
 import { ChatTranscript } from "./chat/ChatTranscript";
 import { isChatNearBottom, scheduleChatScroll } from "./chat/chat-scroll";
 import { handleFailedChatTerminalEvent } from "./chat/chat-terminal-events";
+import { addUnreadMessageIds, appendedMessageIds } from "./chat/chat-unread";
 import { snapshotDraftForDispatch } from "./chat/draft-dispatch-recovery";
 import {
   CHAT_WORKSPACE_CLASS,
@@ -274,6 +275,7 @@ export function ChatPage({
   const {
     draft,
     draftAttachments,
+    draftAttachmentCleanup,
     chatContextCapsule,
     clearDraftForDispatch,
     hasEarlierMessages,
@@ -313,6 +315,9 @@ export function ChatPage({
     loadInspectorVisibility,
   );
   const isNarrowWorkbench = useMediaQuery(NARROW_WORKBENCH_QUERY);
+  const prefersReducedMotion = useMediaQuery(
+    "(prefers-reduced-motion: reduce)",
+  );
   const attachedFiles = draftAttachments;
   const recoveredQueue = useMemo(() => loadConversationQueue(localStorage), []);
   const [queuedMessages, setQueuedMessages] =
@@ -336,6 +341,11 @@ export function ChatPage({
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
   const [attachmentValidationError, setAttachmentValidationError] =
     useState("");
+  const [attachmentImportPending, setAttachmentImportPending] = useState(false);
+  const attachmentRevisionRef = useRef(0);
+  const [unreadMessageIdsBySession, setUnreadMessageIdsBySession] = useState<
+    Record<string, string[]>
+  >({});
   const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
   const [commandSelection, setCommandSelection] = useState(0);
   const [commandMenuDismissed, setCommandMenuDismissed] = useState(false);
@@ -343,6 +353,10 @@ export function ChatPage({
   const transcriptFollowRef = useRef(true);
   const forceTranscriptFollowRef = useRef(false);
   const scheduledForceTranscriptFollowRef = useRef(false);
+  const selectedIdRef = useRef(selectedId);
+  // A dialog can settle between this render and the selected-session effect.
+  selectedIdRef.current = selectedId;
+  const knownMessageIdsBySession = useRef<Record<string, string[]>>({});
   const scheduleTranscriptScrollRef = useRef<(() => void) | null>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const mobileConversationsButtonRef = useRef<HTMLButtonElement>(null);
@@ -415,17 +429,69 @@ export function ChatPage({
   );
 
   useEffect(() => {
+    selectedIdRef.current = selectedId;
+    attachmentRevisionRef.current += 1;
     const container = endRef.current?.parentElement;
     if (!container) return;
     transcriptFollowRef.current = isChatNearBottom(container);
     const handleScroll = () => {
       transcriptFollowRef.current = isChatNearBottom(container);
+      if (transcriptFollowRef.current) {
+        const sessionId = selectedIdRef.current;
+        setUnreadMessageIdsBySession((current) =>
+          current[sessionId]?.length
+            ? { ...current, [sessionId]: [] }
+            : current,
+        );
+      }
     };
     container.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
       container.removeEventListener("scroll", handleScroll);
     };
-  }, []);
+  }, [selectedId]);
+
+  const cleanupManagedAttachments = async (
+    ids: readonly string[],
+    attachmentCleanup: Readonly<Record<string, string>>,
+  ) => {
+    const byCapability = new Map<string, string[]>();
+    for (const id of ids) {
+      const capability = attachmentCleanup[id];
+      if (!capability) continue;
+      const entries = byCapability.get(capability) ?? [];
+      entries.push(id);
+      byCapability.set(capability, entries);
+    }
+    for (const [cleanupCapability, attachmentIds] of byCapability) {
+      await window.doolittle.discardChatAttachments({
+        attachmentIds,
+        cleanupCapability,
+      });
+    }
+  };
+
+  useEffect(() => {
+    const currentIds = selectedMessages.map((message) => message.id);
+    const previousIds = knownMessageIdsBySession.current[selectedId];
+    knownMessageIdsBySession.current[selectedId] = currentIds;
+    if (!previousIds || loadingHistory === selectedId) return;
+
+    if (forceTranscriptFollowRef.current || transcriptFollowRef.current) {
+      setUnreadMessageIdsBySession((current) =>
+        current[selectedId]?.length
+          ? { ...current, [selectedId]: [] }
+          : current,
+      );
+      return;
+    }
+
+    const appendedIds = appendedMessageIds(previousIds, currentIds);
+    if (appendedIds.length === 0) return;
+    setUnreadMessageIdsBySession((current) =>
+      addUnreadMessageIds(current, selectedId, appendedIds),
+    );
+  }, [loadingHistory, selectedId, selectedMessages]);
 
   useEffect(() => {
     if (!latestSelectedMessage) return;
@@ -444,15 +510,15 @@ export function ChatPage({
         () => {
           const forceFollow = scheduledForceTranscriptFollowRef.current;
           scheduledForceTranscriptFollowRef.current = false;
-          if (!transcriptFollowRef.current && !forceFollow) {
-            return;
-          }
-          endRef.current?.scrollIntoView({ behavior: "smooth" });
+          if (!transcriptFollowRef.current && !forceFollow) return;
+          endRef.current?.scrollIntoView({
+            behavior: prefersReducedMotion ? "auto" : "smooth",
+          });
         },
       );
     }
     scheduleTranscriptScrollRef.current();
-  }, [latestSelectedMessage]);
+  }, [latestSelectedMessage, prefersReducedMotion]);
 
   useEffect(() => {
     saveConversationQueue(localStorage, queuedMessages);
@@ -671,12 +737,19 @@ export function ChatPage({
       }
       return;
     }
-    if (event.event === "agent.progress" || event.event === "response.notice") {
+    if (
+      event.event === "agent.progress" ||
+      event.event === "response.notice" ||
+      event.event === "attachment.warning"
+    ) {
       setProgressBySession((current) =>
         setSessionProgress(
           current,
           sessionId,
-          eventText(event.data) || "Doolittle is working…",
+          eventText(event.data) ||
+            (event.event === "attachment.warning"
+              ? "Attachment cleanup needs attention. Your response is still running."
+              : "Doolittle is working…"),
         ),
       );
       return;
@@ -695,6 +768,7 @@ export function ChatPage({
       finishRequest(event.requestId);
       return;
     }
+    flushPendingDeltas();
     if (
       handleFailedChatTerminalEvent(
         event,
@@ -703,7 +777,6 @@ export function ChatPage({
         finishRequest,
       )
     ) {
-      flushPendingDeltas();
       return;
     }
     if (event.event === "cancelled" || event.event === "response.cancelled") {
@@ -805,6 +878,7 @@ export function ChatPage({
   const sendMessage = async (
     input: string,
     attachments = attachedFiles,
+    attachmentCleanup = draftAttachmentCleanup,
     sessionId = selectedId,
     clearComposer = true,
     memoryMatchOverride?: MemoryMatchSnapshot,
@@ -812,6 +886,12 @@ export function ChatPage({
     contextCapsule: ChatContextCapsule | null = chatContextCapsule,
     composedContentOverride?: string,
   ) => {
+    if (attachmentImportPending) {
+      setAttachmentValidationError(
+        "Wait for file import to finish before sending this message.",
+      );
+      return false;
+    }
     const visibleContent = chatSubmissionContent(input, attachments.length);
     const content =
       composedContentOverride ??
@@ -845,13 +925,14 @@ export function ChatPage({
       ? {
           text: input,
           attachments: messageAttachments,
+          attachmentCleanup,
           capsule: contextCapsule,
         }
       : null;
     requestSession.current[requestId] = sessionId;
     activeRequestSessionsRef.current[sessionId] = true;
+    // A user's own dispatch should remain visible even if they were reading history.
     forceTranscriptFollowRef.current = true;
-
     setMessages((current) => ({
       ...current,
       [sessionId]: [
@@ -906,6 +987,9 @@ export function ChatPage({
         roomId: sessionId,
         workspacePath,
         attachmentIds: messageAttachments.map((attachment) => attachment.id),
+        ...(Object.keys(attachmentCleanup).length > 0
+          ? { attachmentCleanup }
+          : {}),
         ...(requestProjectId ? { projectId: requestProjectId } : {}),
       } as Parameters<typeof window.doolittle.startChat>[0]);
       return true;
@@ -919,7 +1003,13 @@ export function ChatPage({
       }));
       finishRequest(requestId);
       if (dispatchRecovery) {
-        restoreDraftAfterRejectedDispatch(dispatchRecovery);
+        const restored = restoreDraftAfterRejectedDispatch(dispatchRecovery);
+        if (!restored && Object.keys(attachmentCleanup).length > 0) {
+          void cleanupManagedAttachments(
+            messageAttachments.map((attachment) => attachment.id),
+            attachmentCleanup,
+          ).catch(() => undefined);
+        }
       }
       return false;
     }
@@ -988,6 +1078,7 @@ export function ChatPage({
         const accepted = await sendMessage(
           retryPrompt.content,
           retryPrompt.attachments ?? [],
+          {},
           fork.sessionId,
           false,
           retryPrompt.memoryMatch,
@@ -1051,6 +1142,7 @@ export function ChatPage({
     void sendMessage(
       next.content,
       next.attachments,
+      next.attachmentCleanup ?? {},
       next.sessionId,
       false,
       next.memoryMatch,
@@ -1082,7 +1174,13 @@ export function ChatPage({
     workspacePath,
   ]);
 
-  const queueCurrentDraft = () => {
+  const queueCurrentDraft = async () => {
+    if (attachmentImportPending) {
+      setAttachmentValidationError(
+        "Wait for file import to finish before queueing this message.",
+      );
+      return;
+    }
     const visibleContent = chatSubmissionContent(draft, attachedFiles.length);
     const content = composeChatContextMessage(
       visibleContent,
@@ -1105,13 +1203,16 @@ export function ChatPage({
         content: visibleContent,
         ...(chatContextCapsule ? { capsule: chatContextCapsule } : {}),
         attachments: attachedFiles,
+        ...(Object.keys(draftAttachmentCleanup).length > 0
+          ? { attachmentCleanup: draftAttachmentCleanup }
+          : {}),
         memoryMatch: freezeMemoryMatchSnapshot(content, memoryMatches),
       },
     ]);
     setQueuePaused(false);
     setQueueAnnouncement("Message added to the queue.");
     setDraft("");
-    setDraftAttachments([]);
+    setDraftAttachments([], {});
     setChatContextCapsule(null);
     composerRef.current?.focus();
   };
@@ -1150,8 +1251,14 @@ export function ChatPage({
 
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
+    if (attachmentImportPending) {
+      setAttachmentValidationError(
+        "Wait for file import to finish before sending.",
+      );
+      return;
+    }
     if (activeRequest) {
-      queueCurrentDraft();
+      await queueCurrentDraft();
       return;
     }
     await sendMessage(draft);
@@ -1163,11 +1270,42 @@ export function ChatPage({
     onSelect(id);
   };
 
+  const unreadMessageCount = unreadMessageIdsBySession[selectedId]?.length ?? 0;
+  const jumpToLatestMessages = useCallback(() => {
+    transcriptFollowRef.current = true;
+    setUnreadMessageIdsBySession((current) =>
+      current[selectedId]?.length ? { ...current, [selectedId]: [] } : current,
+    );
+    endRef.current?.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
+  }, [prefersReducedMotion, selectedId]);
+
   const pickContextFiles = async () => {
+    if (attachmentImportPending) return;
+    const sessionId = selectedId;
+    const revision = attachmentRevisionRef.current;
+    setAttachmentImportPending(true);
     try {
       const result = await window.doolittle.pickChatAttachments();
       if (result.canceled || result.attachments.length === 0) return;
+      const cleanupCapability = result.cleanupCapability;
+      const isCurrentDraft =
+        selectedIdRef.current === sessionId &&
+        attachmentRevisionRef.current === revision;
+      if (!isCurrentDraft) {
+        if (cleanupCapability) {
+          await window.doolittle.discardChatAttachments({
+            attachmentIds: result.attachments.map(
+              (attachment) => attachment.id,
+            ),
+            cleanupCapability,
+          });
+        }
+        return;
+      }
       const next = [...attachedFiles];
+      const nextCleanup = { ...draftAttachmentCleanup };
       let totalBytes = next.reduce(
         (sum, attachment) => sum + attachment.sizeBytes,
         0,
@@ -1184,8 +1322,24 @@ export function ChatPage({
         }
         next.push(attachment);
         totalBytes += attachment.sizeBytes;
+        if (cleanupCapability) {
+          nextCleanup[attachment.id] = cleanupCapability;
+        }
       }
-      setDraftAttachments(next);
+      const acceptedIds = new Set(next.map((attachment) => attachment.id));
+      const rejectedIds = result.attachments
+        .map((attachment) => attachment.id)
+        .filter((id) => !acceptedIds.has(id));
+      if (cleanupCapability) {
+        if (rejectedIds.length > 0) {
+          await window.doolittle.discardChatAttachments({
+            attachmentIds: rejectedIds,
+            cleanupCapability,
+          });
+        }
+      }
+      attachmentRevisionRef.current += 1;
+      setDraftAttachments(next, nextCleanup);
       if (skipped > 0) {
         setAttachmentValidationError(
           `Attachment limit reached. Up to ${MAX_MESSAGE_ATTACHMENTS} files and 50 MB total are allowed.`,
@@ -1197,6 +1351,8 @@ export function ChatPage({
       setAttachmentValidationError(
         `Could not add file context: ${errorMessage(error)}`,
       );
+    } finally {
+      setAttachmentImportPending(false);
     }
   };
 
@@ -1257,13 +1413,28 @@ export function ChatPage({
   );
 
   const removeContextFile = (id: string) => {
-    setDraftAttachments(attachedFiles.filter((entry) => entry.id !== id));
+    attachmentRevisionRef.current += 1;
+    const nextAttachments = attachedFiles.filter((entry) => entry.id !== id);
+    const nextCleanup = Object.fromEntries(
+      Object.entries(draftAttachmentCleanup).filter(
+        ([attachmentId]) => attachmentId !== id,
+      ),
+    );
+    setDraftAttachments(nextAttachments, nextCleanup);
     setAttachmentValidationError("");
+    void cleanupManagedAttachments([id], draftAttachmentCleanup).catch(
+      (error) => {
+        setAttachmentValidationError(
+          `Could not remove file context: ${errorMessage(error)}`,
+        );
+      },
+    );
   };
 
   const removeQueuedMessage = (id: string) => {
     const index = queuedMessages.findIndex((message) => message.id === id);
     if (index < 0) return;
+    const removed = queuedMessages[index];
     const remaining = queuedMessages.filter((message) => message.id !== id);
     setQueuedMessages(remaining);
     setQueueAnnouncement(
@@ -1271,6 +1442,10 @@ export function ChatPage({
         remaining.length === 1 ? "message remains" : "messages remain"
       }.`,
     );
+    void cleanupManagedAttachments(
+      removed?.attachments.map((attachment) => attachment.id) ?? [],
+      removed?.attachmentCleanup ?? {},
+    ).catch(() => undefined);
     requestAnimationFrame(() => {
       const buttons = queueRef.current?.querySelectorAll<HTMLButtonElement>(
         "[data-queue-remove]",
@@ -1284,11 +1459,18 @@ export function ChatPage({
   const clearQueuedMessages = () => {
     const count = queuedMessages.length;
     if (!count) return;
+    const removed = [...queuedMessages];
     setQueuedMessages([]);
     setQueuePaused(false);
     setQueueAnnouncement(
       `${count} queued ${count === 1 ? "message" : "messages"} cleared.`,
     );
+    for (const message of removed) {
+      void cleanupManagedAttachments(
+        message.attachments.map((attachment) => attachment.id),
+        message.attachmentCleanup ?? {},
+      ).catch(() => undefined);
+    }
     requestAnimationFrame(() => composerRef.current?.focus());
   };
 
@@ -1311,6 +1493,7 @@ export function ChatPage({
   const canSubmit =
     Boolean(draft.trim() || attachedFiles.length > 0) &&
     backend.phase === "ready" &&
+    !attachmentImportPending &&
     !composerValidationError;
   const isNewConversation =
     selectedMessages.length === 0 &&
@@ -1406,6 +1589,18 @@ export function ChatPage({
           speakingMessageId={speakingMessageId}
           speechSupported={speechSupported}
         />
+        {unreadMessageCount > 0 ? (
+          <button
+            aria-label={`Jump to latest messages (${unreadMessageCount} new)`}
+            className="chat-jump-to-latest"
+            onClick={jumpToLatestMessages}
+            type="button"
+          >
+            {unreadMessageCount} new{" "}
+            {unreadMessageCount === 1 ? "message" : "messages"}
+            <span aria-hidden="true"> · Jump to latest</span>
+          </button>
+        ) : null}
         {storageWarning ? (
           <div
             aria-live="polite"
@@ -1444,6 +1639,7 @@ export function ChatPage({
           clearQueuedMessages={clearQueuedMessages}
           removeQueuedMessage={removeQueuedMessage}
           attachedFiles={attachedFiles}
+          attachmentImporting={attachmentImportPending}
           chatContextCapsule={chatContextCapsule}
           removeChatContext={() => setChatContextCapsule(null)}
           attachmentTotalBytes={attachmentTotalBytes}

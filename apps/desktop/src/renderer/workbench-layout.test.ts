@@ -130,13 +130,18 @@ describe("thread workbench viewport layout contract", () => {
   });
 
   it("keeps the compact tab strip inside a narrow sidebar", () => {
-    expect(WORKBENCH_TABS_CLASS).toContain("grid-cols-7");
+    expect(WORKBENCH_TABS_CLASS).toContain("flex");
     expect(WORKBENCH_TABS_CLASS).toContain("min-w-0");
-    expect(WORKBENCH_TABS_CLASS).toContain("overflow-hidden");
+    expect(WORKBENCH_TABS_CLASS).toContain("overflow-x-auto");
+    expect(WORKBENCH_TABS_CLASS).toContain("[scrollbar-width:none]");
+    expect(WORKBENCH_TAB_CLASS).toContain("min-w-[3rem]");
+    expect(WORKBENCH_TAB_CLASS).toContain("flex-1");
     expect(WORKBENCH_TAB_CLASS).toContain("place-items-center");
     expect(WORKBENCH_RAIL_CLASS).toContain(
-      "max-[1180px]:min-w-[min(var(--thread-workbench-width),42vw)]",
+      "w-[min(var(--thread-workbench-width),34vw)]",
     );
+    expect(WORKBENCH_RAIL_CLASS).toContain("max-[1280px]:min-w-[16rem]");
+    expect(WORKBENCH_RAIL_CLASS).toContain("max-[960px]:max-w-[20rem]");
   });
 
   it("keeps workbench surfaces theme-responsive and keyboard-visible", () => {

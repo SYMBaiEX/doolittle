@@ -14,8 +14,8 @@ import {
   THEME_CHANGE_EVENT,
 } from "../desktop-theme";
 import {
+  acquireMonacoProjectDiagnosticsLease,
   acquireMonacoProjectSupport,
-  setMonacoProjectDiagnosticsPending,
 } from "../editor-project-support";
 import { doolittleEditorTheme } from "./code-editor-theme";
 
@@ -147,6 +147,7 @@ export function CodeEditor({
   const modelRef = useRef<monaco.editor.ITextModel | null>(null);
   const valueRef = useRef(value);
   const disabledRef = useRef(disabled);
+  const projectDiagnosticsReleaseRef = useRef<(() => void) | null>(null);
   const projectSupportReleaseRef = useRef<(() => void) | null>(null);
   const projectSupportRequestRef = useRef(0);
   const projectRevisionRef = useRef("");
@@ -168,8 +169,10 @@ export function CodeEditor({
     defineDoolittleTheme(loadStoredDesktopTheme());
 
     const supportLanguage = resolveProjectLanguage(language.id);
-    if (workspacePath && supportLanguage) {
-      setMonacoProjectDiagnosticsPending(supportLanguage, true);
+    if (supportLanguage) {
+      projectDiagnosticsReleaseRef.current?.();
+      projectDiagnosticsReleaseRef.current =
+        acquireMonacoProjectDiagnosticsLease(supportLanguage);
     }
 
     const uri = modelUri(path, workspacePath);
@@ -276,9 +279,8 @@ export function CodeEditor({
       for (const disposable of stateDisposables) disposable.dispose();
       editor.dispose();
       model.dispose();
-      if (supportLanguage) {
-        setMonacoProjectDiagnosticsPending(supportLanguage, false);
-      }
+      projectDiagnosticsReleaseRef.current?.();
+      projectDiagnosticsReleaseRef.current = null;
       editorRef.current = null;
       modelRef.current = null;
     };
@@ -327,17 +329,21 @@ export function CodeEditor({
       projectSupportReleaseRef.current = null;
       projectRevisionRef.current = "";
       setProjectSupportNotice("");
-      const unsupportedLanguage = resolveProjectLanguage(language.id);
-      if (unsupportedLanguage) {
-        setMonacoProjectDiagnosticsPending(unsupportedLanguage, false);
-      }
+      projectDiagnosticsReleaseRef.current?.();
+      projectDiagnosticsReleaseRef.current = null;
       return;
     }
 
     const projectLanguage = language.id;
     const requestId = projectSupportRequestRef.current + 1;
     projectSupportRequestRef.current = requestId;
-    setMonacoProjectDiagnosticsPending(projectLanguage, true);
+    if (!projectDiagnosticsReleaseRef.current) {
+      projectDiagnosticsReleaseRef.current =
+        acquireMonacoProjectDiagnosticsLease(projectLanguage);
+    }
+    projectSupportReleaseRef.current?.();
+    projectSupportReleaseRef.current = null;
+    projectRevisionRef.current = "";
     const refreshDelay = 0;
     const timer = window.setTimeout(() => {
       const content = valueRef.current;
@@ -356,6 +362,8 @@ export function CodeEditor({
             projectLanguage,
           );
           projectRevisionRef.current = context.revision;
+          projectDiagnosticsReleaseRef.current?.();
+          projectDiagnosticsReleaseRef.current = null;
           if (context.truncated) {
             setProjectSupportNotice(
               `Project types partial · ${context.supportFiles.length} files · ${(context.supportBytes / 1_000_000).toFixed(1)} MB`,
@@ -372,7 +380,8 @@ export function CodeEditor({
           if (projectSupportRequestRef.current !== requestId) return;
           projectSupportReleaseRef.current?.();
           projectSupportReleaseRef.current = null;
-          setMonacoProjectDiagnosticsPending(projectLanguage, false);
+          projectDiagnosticsReleaseRef.current?.();
+          projectDiagnosticsReleaseRef.current = null;
           setProjectSupportNotice("Project types unavailable");
           editorLogger.warn(
             {

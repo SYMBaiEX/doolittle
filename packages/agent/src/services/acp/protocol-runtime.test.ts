@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import type { EnvConfig, SessionSummary, StoredMessage } from "@/types";
 import { DOOLITTLE_VERSION } from "@/version";
 import type { RunUpdateEvent } from "../run-controller-service";
+import { AcpSessionNotFoundError } from "./protocol-runtime";
 import { AcpService } from "./service";
 import type { AcpProtocolHost } from "./types";
 
@@ -442,6 +443,83 @@ describe("official ACP protocol runtime", () => {
       expect(noisyUpdates.updates[0]?.cursor).toBe(2);
       expect(quietUpdates.updates).toHaveLength(1);
       expect(quietUpdates.updates[0]?.cursor).toBe(1);
+    } finally {
+      fixture.dispose();
+    }
+  });
+
+  it("rejects updates from a session lost after an ACP runtime restart", () => {
+    const fixture = createFixture();
+
+    try {
+      expect(() =>
+        fixture.service.protocolUpdates("acp:previous-runtime", 42),
+      ).toThrow(AcpSessionNotFoundError);
+      try {
+        fixture.service.protocolUpdates("acp:previous-runtime", 42);
+      } catch (error) {
+        expect(error).toMatchObject({
+          code: "ACP_SESSION_NOT_FOUND",
+          sessionId: "acp:previous-runtime",
+        });
+      }
+    } finally {
+      fixture.dispose();
+    }
+  });
+
+  it("rejects cancellation from a session lost after an ACP runtime restart", async () => {
+    const fixture = createFixture();
+
+    try {
+      await expect(
+        fixture.service.cancelProtocolSession("acp:previous-runtime"),
+      ).rejects.toMatchObject({
+        code: "ACP_SESSION_NOT_FOUND",
+        sessionId: "acp:previous-runtime",
+      });
+    } finally {
+      fixture.dispose();
+    }
+  });
+
+  it("allows cancellation for a live ACP session", async () => {
+    const fixture = createFixture();
+    fixture.service.bindProtocolHost(createHost(fixture.root));
+
+    try {
+      const session = await fixture.service.newProtocolSession();
+      await expect(
+        fixture.service.cancelProtocolSession(session.sessionId),
+      ).resolves.toBeUndefined();
+    } finally {
+      fixture.dispose();
+    }
+  });
+
+  it("continues returning only newer updates for a live session", async () => {
+    const fixture = createFixture();
+    fixture.service.bindProtocolHost(createHost(fixture.root));
+
+    try {
+      const session = await fixture.service.newProtocolSession();
+      await fixture.service.promptProtocolSession({
+        sessionId: session.sessionId,
+        prompt: [{ type: "text", text: "first" }],
+      });
+      const first = fixture.service.protocolUpdates(session.sessionId);
+      await fixture.service.promptProtocolSession({
+        sessionId: session.sessionId,
+        prompt: [{ type: "text", text: "second" }],
+      });
+
+      const continued = fixture.service.protocolUpdates(
+        session.sessionId,
+        first.cursor,
+      );
+      expect(continued.updates).toHaveLength(1);
+      expect(continued.updates[0]?.cursor).toBe(first.cursor + 1);
+      expect(continued.cursor).toBe(first.cursor + 1);
     } finally {
       fixture.dispose();
     }

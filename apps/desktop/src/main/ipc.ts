@@ -29,6 +29,8 @@ import type {
 import {
   assertChatRequest,
   MAX_WORKSPACE_PATH_LENGTH,
+  validateAttachmentCleanupRequest,
+  validateChatAttachmentCleanup,
   validateChatAttachmentIds,
   validateProviderAuthProvider,
   validateProviderAuthStartOptions,
@@ -56,6 +58,8 @@ export {
   MAX_WORKSPACE_PATH_LENGTH,
   MIN_INTERACTIVE_TERMINAL_COLUMNS,
   MIN_INTERACTIVE_TERMINAL_ROWS,
+  validateAttachmentCleanupRequest,
+  validateChatAttachmentCleanup,
   validateChatAttachmentIds,
   validateDesktopCommandRequest,
   validateInteractiveTerminalDimension,
@@ -75,6 +79,18 @@ export {
 
 const API_TIMEOUT_MS = 15_000;
 const MAX_SENSITIVE_RESPONSE_BYTES = 2_000_000;
+const CHAT_STREAM_MAX_ATTEMPTS = 3;
+const CHAT_STREAM_RETRY_DELAY_MS = 25;
+
+class ChatStreamResponseError extends Error {
+  constructor(
+    message: string,
+    readonly retryable: boolean,
+  ) {
+    super(message);
+    this.name = "ChatStreamResponseError";
+  }
+}
 
 export function isTrustedDesktopIpcSender(
   event: Pick<IpcMainInvokeEvent, "sender">,
@@ -155,6 +171,8 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     }),
     importRecordedAudio,
     discardRecordedAudio,
+    discardChatAttachments,
+    commitChatAttachments,
     desktopControls,
   } = dependencies;
   const { event: eventChannels, invoke: invokeChannels } = desktopIpcChannels;
@@ -284,6 +302,24 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         throw new Error("Recording ID is invalid.");
       }
       discardRecordedAudio(recordingId);
+    },
+  );
+  registerHandler(
+    invokeChannels.chatDiscardAttachments,
+    (_event, request: unknown) => {
+      if (!discardChatAttachments) {
+        throw new Error("Attachment cleanup is unavailable.");
+      }
+      discardChatAttachments(validateAttachmentCleanupRequest(request));
+    },
+  );
+  registerHandler(
+    invokeChannels.chatCommitAttachments,
+    (_event, request: unknown) => {
+      if (!commitChatAttachments) {
+        throw new Error("Attachment commit is unavailable.");
+      }
+      commitChatAttachments(validateAttachmentCleanupRequest(request));
     },
   );
   if (desktopControls) {
@@ -533,6 +569,11 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
     invokeChannels.chatStart,
     async (event, request: ChatRequest) => {
       assertChatRequest(request);
+      const attachmentIds = validateChatAttachmentIds(request.attachmentIds);
+      const attachmentCleanup = validateChatAttachmentCleanup(
+        request.attachmentCleanup,
+        attachmentIds,
+      );
       const state = backend.getState();
       if (state.phase !== "ready" || !state.url) {
         throw new Error("The local runtime is not ready.");
@@ -550,6 +591,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
 
       const controller = new AbortController();
       let terminalEventEmitted = false;
+      let lastReceivedEventId = 0;
       const emitEvent = (
         payload: { event: string; data: unknown },
         eventId?: number,
@@ -605,12 +647,17 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       activeChats.set(key, { controller });
       stopTrackingSender = trackSenderCleanup(event.sender, cleanup);
 
-      const streamEvents = async (after = 0) => {
+      const streamEvents = async () => {
         const response = await sensitiveFetch(
-          `${state.url}/chat/runs/${encodeURIComponent(request.requestId)}/events?after=${after}`,
+          `${state.url}/chat/runs/${encodeURIComponent(request.requestId)}/events?after=${lastReceivedEventId}`,
           { signal: controller.signal },
         );
-        if (!response.ok) throw new Error(await parseRequestError(response));
+        if (!response.ok) {
+          throw new ChatStreamResponseError(
+            await parseRequestError(response),
+            response.status >= 500,
+          );
+        }
         if (!response.body)
           throw new Error("The runtime returned an empty stream.");
         const parser = new SseParser();
@@ -624,6 +671,10 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             Number.isSafeInteger((data as { event_id?: unknown }).event_id)
               ? Number((data as { event_id: number }).event_id)
               : undefined;
+          if (eventId !== undefined) {
+            if (eventId <= lastReceivedEventId) return;
+            lastReceivedEventId = eventId;
+          }
           if (emitChatEvent(payload, eventId)) {
             notifyChatTerminalEvent(payload.event);
           }
@@ -639,6 +690,11 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         }
         for (const frame of parser.push(decoder.decode())) consume(frame);
         for (const frame of parser.finish()) consume(frame);
+        if (!terminalEventEmitted) {
+          throw new Error(
+            "The runtime closed the chat stream before completing the response.",
+          );
+        }
       };
 
       try {
@@ -655,7 +711,7 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             source: "desktop",
             workspaceDir: request.workspacePath,
             projectId: request.projectId,
-            attachmentIds: validateChatAttachmentIds(request.attachmentIds),
+            attachmentIds,
           }),
           signal: controller.signal,
         });
@@ -670,11 +726,56 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         if (!isRecord(submitted) || submitted.run_id !== request.requestId) {
           throw new Error("The runtime returned an invalid chat run receipt.");
         }
-        await streamEvents();
-        if (!terminalEventEmitted) {
-          throw new Error(
-            "The runtime closed the chat stream before completing the response.",
-          );
+        // The runtime receives IDs only. Commit the local lease after its POST
+        // receipt, so a desktop crash during streaming cannot orphan an import.
+        if (commitChatAttachments) {
+          for (const cleanup of attachmentCleanup) {
+            try {
+              commitChatAttachments(cleanup);
+            } catch {
+              // The server has accepted this turn. Never turn a committed chat
+              // into an apparent rejection because local finalization failed.
+              // Surface this explicitly: the persisted lease remains available
+              // for a later cleanup attempt rather than deleting user data.
+              emitEvent({
+                event: "attachment.warning",
+                data: {
+                  message:
+                    "Attachment cleanup needs attention. Your response is still running.",
+                },
+              });
+            }
+          }
+        }
+        let lastStreamError: unknown;
+        for (
+          let attempt = 0;
+          attempt < CHAT_STREAM_MAX_ATTEMPTS;
+          attempt += 1
+        ) {
+          try {
+            await streamEvents();
+            break;
+          } catch (error) {
+            if (
+              terminalEventEmitted ||
+              controller.signal.aborted ||
+              (error instanceof ChatStreamResponseError && !error.retryable)
+            ) {
+              throw error;
+            }
+            lastStreamError = error;
+            if (attempt === CHAT_STREAM_MAX_ATTEMPTS - 1) {
+              throw new Error(
+                `Unable to reconnect to the chat response after ${CHAT_STREAM_MAX_ATTEMPTS - 1} retries. Please try again.`,
+                { cause: lastStreamError },
+              );
+            }
+            await new Promise<void>((resolve) => {
+              setTimeout(resolve, CHAT_STREAM_RETRY_DELAY_MS * (attempt + 1));
+            });
+            if (controller.signal.aborted) throw lastStreamError;
+          }
         }
       } catch (error) {
         // A terminal event is authoritative. A transport failure after it
@@ -730,7 +831,8 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       const key = chatKey(event, requestId);
       if (activeChats.has(key)) return;
       const controller = new AbortController();
-      let terminal = false;
+      let terminalEventEmitted = false;
+      let lastReceivedEventId = typeof after === "number" ? after : 0;
       let stopTrackingSender: () => void = () => undefined;
       const cleanup = () => {
         activeChats.delete(key);
@@ -739,12 +841,17 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
       };
       activeChats.set(key, { controller });
       stopTrackingSender = trackSenderCleanup(event.sender, cleanup);
-      try {
+      const streamEvents = async () => {
         const response = await sensitiveFetch(
-          `${state.url}/chat/runs/${encodeURIComponent(requestId)}/events?after=${typeof after === "number" ? after : 0}`,
+          `${state.url}/chat/runs/${encodeURIComponent(requestId)}/events?after=${lastReceivedEventId}`,
           { signal: controller.signal },
         );
-        if (!response.ok) throw new Error(await parseRequestError(response));
+        if (!response.ok) {
+          throw new ChatStreamResponseError(
+            await parseRequestError(response),
+            response.status >= 500,
+          );
+        }
         if (!response.body)
           throw new Error("The runtime returned an empty stream.");
         const parser = new SseParser();
@@ -758,13 +865,19 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
             Number.isSafeInteger((data as { event_id?: unknown }).event_id)
               ? Number((data as { event_id: number }).event_id)
               : undefined;
-          terminal ||= [
+          if (eventId !== undefined) {
+            if (eventId <= lastReceivedEventId) return;
+            lastReceivedEventId = eventId;
+          }
+          const terminal = [
             "response.completed",
             "response.failed",
             "response.cancelled",
             "cancelled",
             "error",
           ].includes(frame.event);
+          if (terminal && terminalEventEmitted) return;
+          if (terminal) terminalEventEmitted = true;
           if (!event.sender.isDestroyed())
             event.sender.send(eventChannels.chatEvent, {
               requestId,
@@ -782,9 +895,46 @@ export function registerIpc(dependencies: RegisterIpcDependencies): () => void {
         }
         for (const frame of parser.push(decoder.decode())) consume(frame);
         for (const frame of parser.finish()) consume(frame);
+        if (!terminalEventEmitted) {
+          throw new Error(
+            "The runtime closed the chat stream before completing the response.",
+          );
+        }
+      };
+      try {
+        let lastStreamError: unknown;
+        for (
+          let attempt = 0;
+          attempt < CHAT_STREAM_MAX_ATTEMPTS;
+          attempt += 1
+        ) {
+          try {
+            await streamEvents();
+            break;
+          } catch (error) {
+            if (
+              terminalEventEmitted ||
+              controller.signal.aborted ||
+              (error instanceof ChatStreamResponseError && !error.retryable)
+            ) {
+              throw error;
+            }
+            lastStreamError = error;
+            if (attempt === CHAT_STREAM_MAX_ATTEMPTS - 1) {
+              throw new Error(
+                `Unable to reconnect to the chat response after ${CHAT_STREAM_MAX_ATTEMPTS - 1} retries. Please try again.`,
+                { cause: lastStreamError },
+              );
+            }
+            await new Promise<void>((resolve) => {
+              setTimeout(resolve, CHAT_STREAM_RETRY_DELAY_MS * (attempt + 1));
+            });
+            if (controller.signal.aborted) throw lastStreamError;
+          }
+        }
       } catch (error) {
         if (
-          !terminal &&
+          !terminalEventEmitted &&
           !controller.signal.aborted &&
           !event.sender.isDestroyed()
         ) {

@@ -2,7 +2,9 @@ import ts from "typescript-legacy";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { compilerOptionsForMonaco } from "./editor-project-compiler-options";
 import {
+  acquireMonacoProjectDiagnosticsLease,
   acquireMonacoProjectSupport,
+  resetMonacoProjectSupportTestState,
   setMonacoProjectDiagnosticsPending,
 } from "./editor-project-support";
 
@@ -33,6 +35,7 @@ vi.mock("monaco-editor", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetMonacoProjectSupportTestState();
 });
 
 describe("compilerOptionsForMonaco", () => {
@@ -125,6 +128,48 @@ describe("acquireMonacoProjectSupport", () => {
     expect(
       languageDefaults.typescript.setDiagnosticsOptions,
     ).toHaveBeenLastCalledWith({
+      noSemanticValidation: false,
+      noSuggestionDiagnostics: false,
+      noSyntaxValidation: false,
+      onlyVisible: false,
+    });
+  });
+
+  it("keeps diagnostics pending until the last in-flight project request settles", () => {
+    const releaseFirst = acquireMonacoProjectDiagnosticsLease("typescript");
+    const releaseSecond = acquireMonacoProjectDiagnosticsLease("typescript");
+
+    expect(
+      languageDefaults.typescript.setDiagnosticsOptions,
+    ).toHaveBeenNthCalledWith(1, {
+      noSemanticValidation: true,
+      noSuggestionDiagnostics: true,
+      noSyntaxValidation: false,
+      onlyVisible: false,
+    });
+    expect(
+      languageDefaults.typescript.setDiagnosticsOptions,
+    ).toHaveBeenNthCalledWith(2, {
+      noSemanticValidation: true,
+      noSuggestionDiagnostics: true,
+      noSyntaxValidation: false,
+      onlyVisible: false,
+    });
+
+    releaseFirst();
+    expect(
+      languageDefaults.typescript.setDiagnosticsOptions,
+    ).toHaveBeenNthCalledWith(3, {
+      noSemanticValidation: true,
+      noSuggestionDiagnostics: true,
+      noSyntaxValidation: false,
+      onlyVisible: false,
+    });
+
+    releaseSecond();
+    expect(
+      languageDefaults.typescript.setDiagnosticsOptions,
+    ).toHaveBeenNthCalledWith(4, {
       noSemanticValidation: false,
       noSuggestionDiagnostics: false,
       noSyntaxValidation: false,

@@ -109,6 +109,28 @@ const interfaceModes = [
   { appearance: "light", density: "compact", controlHeight: 28 },
 ] as const;
 
+const importedThemeBundle = {
+  kind: "doolittle.theme",
+  version: 1,
+  appearance: "light",
+  density: "compact",
+  theme: {
+    name: "profile-sweep-violet",
+    label: "Profile sweep violet",
+    tagline: "An end-to-end imported theme probe.",
+    primary: "#6d28d9",
+    secondary: "#a855f7",
+    amberGlow: "#c084fc",
+    greenGlow: "#4d7c0f",
+    cyanGlow: "#0891b2",
+    magentaGlow: "#db2777",
+    muted: "#6b7280",
+    baseBg: "#101828",
+    baseFg: "#e2e8f0",
+    panelBg: "#172554",
+  },
+} as const;
+
 async function applyInterfaceMode(
   page: Page,
   mode: (typeof interfaceModes)[number],
@@ -217,6 +239,214 @@ async function auditInterfaceModes(
     await expectElectronViewport(page, desktopViewport);
   }
   expect(auditedControls).toBeGreaterThan(0);
+}
+
+async function setNativeTheme(
+  app: ElectronApplication,
+  source: "dark" | "light" | "system",
+): Promise<void> {
+  await app.evaluate(({ nativeTheme }, nextSource) => {
+    nativeTheme.themeSource = nextSource;
+  }, source);
+}
+
+async function expectThemeSurfaces(
+  page: Page,
+  expected: {
+    appearance: "dark" | "light";
+    theme?: string;
+    accent?: string;
+    require?: Array<"composer" | "editor" | "shell" | "terminal">;
+  },
+): Promise<void> {
+  const surfaces = await page.evaluate(() => {
+    const resolveColor = (property: string) => {
+      const probe = document.createElement("i");
+      probe.style.color = `var(${property})`;
+      probe.hidden = true;
+      document.body.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    };
+    const read = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) return null;
+      const style = getComputedStyle(element);
+      return {
+        background: style.backgroundColor,
+        border: style.borderColor,
+        color: style.color,
+      };
+    };
+    const root = document.documentElement;
+    return {
+      appearance: root.dataset.appearance,
+      appearancePreference: root.dataset.appearancePreference,
+      accent: resolveColor("--accent"),
+      background: resolveColor("--bg"),
+      canvas: resolveColor("--canvas-bg"),
+      text: resolveColor("--canvas-text"),
+      theme: root.dataset.theme,
+      shell: read(".desktop-shell"),
+      composer: read(".chat-composer"),
+      editor: read(".doolittle-code-editor"),
+      terminal: read("[aria-label='Terminal output'] .xterm-viewport"),
+    };
+  });
+
+  expect(surfaces.appearance).toBe(expected.appearance);
+  const required = new Set(expected.require ?? []);
+  if (required.has("shell")) {
+    expect(surfaces.shell, "desktop shell is mounted").not.toBeNull();
+    expect(surfaces.shell?.background).toBe(surfaces.background);
+  }
+  if (required.has("composer")) {
+    expect(surfaces.composer, "chat composer is mounted").not.toBeNull();
+    expect(surfaces.composer?.background).not.toBe("rgba(0, 0, 0, 0)");
+    expect(surfaces.composer?.border).not.toBe("rgba(0, 0, 0, 0)");
+  }
+  if (required.has("editor")) {
+    expect(surfaces.editor, "Monaco host is mounted").not.toBeNull();
+    expect(surfaces.editor?.background).toBe(surfaces.canvas);
+  }
+  if (required.has("terminal")) {
+    expect(surfaces.terminal, "xterm viewport is mounted").not.toBeNull();
+    expect(surfaces.terminal?.background).toBe(surfaces.canvas);
+    expect(surfaces.terminal?.color).toBe(surfaces.text);
+  }
+  if (expected.theme) expect(surfaces.theme).toBe(expected.theme);
+  if (expected.accent) expect(surfaces.accent).toBe(expected.accent);
+}
+
+async function auditThemeResponsiveness(
+  app: ElectronApplication,
+  page: Page,
+): Promise<void> {
+  await resizeElectronWindow(app, desktopViewport);
+  await navigateToRoute(page, "chat");
+  await expect(page.locator(".chat-composer")).toBeVisible();
+
+  // Open one real terminal and one real Monaco editor before changing themes.
+  // This proves their canvas surfaces react to the same live token changes as
+  // the shell and composer, rather than only proving static CSS contracts.
+  await page.getByRole("textbox", { name: "Message Doolittle" }).focus();
+  await page.keyboard.press(
+    process.platform === "darwin" ? "Meta+J" : "Control+J",
+  );
+  await expect(page.getByLabel("Chat terminal panel")).toBeVisible();
+  await expect(
+    page.locator("[aria-label='Terminal output'] .xterm-viewport"),
+  ).toBeVisible({ timeout: 15_000 });
+
+  // Explicit appearances must remain deterministic regardless of the OS.
+  await applyInterfaceMode(page, interfaceModes[0]);
+  await expectThemeSurfaces(page, {
+    appearance: "dark",
+    require: ["shell", "composer", "terminal"],
+  });
+  await applyInterfaceMode(page, interfaceModes[2]);
+  await expectThemeSurfaces(page, {
+    appearance: "light",
+    require: ["shell", "composer", "terminal"],
+  });
+
+  await navigateToRoute(page, "code");
+  const workspaceTree = page.getByRole("tree", { name: "Workspace files" });
+  await expect(workspaceTree).toBeVisible({ timeout: 15_000 });
+  const fixtureFile = workspaceTree.getByRole("treeitem", {
+    name: "theme-sweep.ts",
+    exact: true,
+  });
+  const firstWorkspaceFile = workspaceTree
+    .getByRole("treeitem")
+    .filter({ hasNot: page.locator("[aria-expanded]") })
+    .first();
+  if (await fixtureFile.isVisible()) await fixtureFile.click();
+  else await firstWorkspaceFile.click();
+  await expect(
+    page.locator(".doolittle-code-editor .monaco-editor"),
+  ).toBeVisible({ timeout: 15_000 });
+
+  // Electron's nativeTheme drives the actual renderer media query. Confirm
+  // System mode follows both transitions rather than trusting a dispatched
+  // appearance event alone.
+  await page.evaluate(() => {
+    window.dispatchEvent(
+      new CustomEvent("doolittle:appearance-change", { detail: "system" }),
+    );
+  });
+  await setNativeTheme(app, "dark");
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        appearance: document.documentElement.dataset.appearance,
+        prefersDark: window.matchMedia("(prefers-color-scheme: dark)").matches,
+      })),
+    )
+    .toEqual({ appearance: "dark", prefersDark: true });
+  await expectThemeSurfaces(page, {
+    appearance: "dark",
+    require: ["shell", "editor", "terminal"],
+  });
+  await setNativeTheme(app, "light");
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        appearance: document.documentElement.dataset.appearance,
+        prefersDark: window.matchMedia("(prefers-color-scheme: dark)").matches,
+      })),
+    )
+    .toEqual({ appearance: "light", prefersDark: false });
+
+  await navigateToRoute(page, "settings");
+  const importInput = page.getByLabel("Import Doolittle theme file");
+  await expect(importInput).toBeAttached();
+  await importInput.setInputFiles({
+    name: "profile-sweep.doolittle-theme.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(importedThemeBundle)),
+  });
+  await expect(
+    page.getByText("Profile sweep violet was imported and applied."),
+  ).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-theme",
+    importedThemeBundle.theme.name,
+  );
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-appearance",
+    "light",
+  );
+  await expect(page.locator("html")).toHaveAttribute("data-density", "compact");
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        localStorage.getItem("doolittle.desktop.theme-source"),
+      ),
+    )
+    .toBe("imported");
+
+  await navigateToRoute(page, "code");
+  await waitForViewportLayout(page);
+  await expect(
+    page.locator(".doolittle-code-editor .monaco-editor"),
+  ).toBeVisible({ timeout: 15_000 });
+  await expectThemeSurfaces(page, {
+    appearance: "light",
+    theme: importedThemeBundle.theme.name,
+    accent: "rgb(109, 40, 217)",
+    require: ["shell", "editor", "terminal"],
+  });
+  await navigateToRoute(page, "chat");
+  await waitForViewportLayout(page);
+  await expectThemeSurfaces(page, {
+    appearance: "light",
+    theme: importedThemeBundle.theme.name,
+    accent: "rgb(109, 40, 217)",
+    require: ["shell", "composer", "terminal"],
+  });
+  await setNativeTheme(app, "system");
 }
 
 async function auditResponsiveRoutes(
@@ -763,6 +993,11 @@ function createScrubbedProfile(): { profileDir: string; workspaceDir: string } {
     mkdtempSync(join(tmpdir(), "doolittle-packaged-workspace-")),
   );
   writeFileSync(
+    join(workspaceDir, "theme-sweep.ts"),
+    "export const themeSweep = 'semantic surfaces';\n",
+    "utf8",
+  );
+  writeFileSync(
     join(profileDir, "workspace-state.json"),
     `${JSON.stringify({
       currentPath: workspaceDir,
@@ -1015,6 +1250,7 @@ test.describe("Doolittle packaged-profile control sweep", () => {
       await resizeElectronWindow(app, desktopViewport);
       await auditInterfaceModes(app, page);
       await auditResponsiveRoutes(app, page);
+      await auditThemeResponsiveness(app, page);
       expect(pageErrors, pageErrors.join("\n\n")).toEqual([]);
       expect(consoleErrors, consoleErrors.join("\n\n")).toEqual([]);
 

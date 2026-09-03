@@ -107,11 +107,9 @@ describe("chat chrome density contract", () => {
   });
 
   it("keeps the narrow composer to two compact bands", () => {
+    expect(CHAT_WORKSPACE_CLASS).toContain("[&_.chat-composer-footer]:flex");
     expect(CHAT_WORKSPACE_CLASS).toContain(
-      "max-[480px]:[&_.chat-composer]:grid-cols-[auto_minmax(0,1fr)_auto]",
-    );
-    expect(CHAT_WORKSPACE_CLASS).toContain(
-      "max-[480px]:[&_.chat-composer-routing]:!order-20",
+      "max-[480px]:[&_.chat-composer-routing]:grid",
     );
     expect(CHAT_WORKSPACE_CLASS).toContain(
       "max-[480px]:[&_.chat-context-meter]:!hidden",
@@ -130,10 +128,10 @@ describe("chat chrome density contract", () => {
     expect(CHAT_WORKSPACE_CLASS).toContain(
       "[&_.chat-message.user_.chat-message-body]:py-2",
     );
-    expect(MESSAGE_RESPONSE_CLASS).toContain("[&_p]:!my-[0.48em]");
-    expect(MESSAGE_RESPONSE_CLASS).toContain("!max-h-[280px]");
+    expect(MESSAGE_RESPONSE_CLASS).toContain("[&_p]:!my-[0.42em]");
+    expect(MESSAGE_RESPONSE_CLASS).toContain("!max-h-[260px]");
     expect(MESSAGE_RESPONSE_CLASS).toContain(
-      "max-[480px]:[&_[data-streamdown=code-block-body]]:!max-h-[220px]",
+      "max-[480px]:[&_[data-streamdown=code-block-body]]:!max-h-[210px]",
     );
   });
 

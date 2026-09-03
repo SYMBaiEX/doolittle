@@ -49,6 +49,7 @@ export type {
   StoredMessage,
 } from "./contracts/conversations";
 export type {
+  AttachmentCleanupRequest,
   AttachmentSelection,
   DesktopCommand,
   DesktopCommandRequest,

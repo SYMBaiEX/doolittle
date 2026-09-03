@@ -20,7 +20,8 @@ describe("coding terminal routing", () => {
       'import { InteractiveTerminal } from "../components/InteractiveTerminal"',
     );
     expect(utilitySource).toContain("onOpenTerminal");
-    expect(utilitySource).toContain("Terminal lives with Chat");
+    expect(utilitySource).toContain("persistent Chat terminal");
+    expect(utilitySource).toContain("Focus shared terminal");
     expect(pageSource).toContain(
       'if (nextPane === "terminal") onOpenChatTerminal();',
     );

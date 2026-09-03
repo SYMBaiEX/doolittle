@@ -1,5 +1,6 @@
 import type { BackendState } from "./backend";
 import type {
+  AttachmentCleanupRequest,
   AttachmentSelection,
   DesktopCommand,
   DesktopCommandRequest,
@@ -71,6 +72,8 @@ export interface DoolittleDesktopBridge {
   pickProjectFiles(): Promise<ProjectResourceSelection>;
   pickProjectFolders(): Promise<ProjectResourceSelection>;
   pickChatAttachments(): Promise<AttachmentSelection>;
+  discardChatAttachments(request: AttachmentCleanupRequest): Promise<void>;
+  commitChatAttachments(request: AttachmentCleanupRequest): Promise<void>;
   importRecordedAudio(
     request: RecordedAudioImportRequest,
   ): Promise<ManagedAttachmentDescriptor>;

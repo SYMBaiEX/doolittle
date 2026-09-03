@@ -383,10 +383,10 @@ export function InteractiveTerminal({
       convertEol: false,
       fastScrollSensitivity: 5,
       fontFamily: "var(--font-mono)",
-      fontSize: 11.5,
+      fontSize: 11.25,
       fontWeight: 500,
       letterSpacing: 0,
-      lineHeight: 1.16,
+      lineHeight: 1.12,
       macOptionClickForcesSelection: true,
       minimumContrastRatio: 4.5,
       rightClickSelectsWord: true,
@@ -923,7 +923,7 @@ export function InteractiveTerminal({
             }),
           )
           .catch((error) => setNotice(errorMessage(error)));
-      }, 56);
+      }, 28);
     });
     observer.observe(viewport);
     return () => {

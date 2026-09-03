@@ -30,6 +30,104 @@ describe("safeMessageUrl", () => {
 });
 
 describe("MessageContent", () => {
+  it("renders the chat Markdown vocabulary with semantic theme surfaces", () => {
+    const html = renderToStaticMarkup(
+      <MessageContent
+        content={[
+          "# Plan",
+          "",
+          "A `src/index.ts` update with [safe docs](https://example.com/docs).",
+          "",
+          "> Keep the response focused.",
+          "",
+          "- inspect the project",
+          "- make the change",
+          "",
+          "1. run tests",
+          "2. report the result",
+          "",
+          "```ts",
+          "const ready: boolean = true;",
+          "```",
+          "",
+          "```bash",
+          "nub run test",
+          "```",
+        ].join("\n")}
+      />,
+    );
+
+    expect(html).toContain("<h1");
+    expect(html).toContain("<blockquote");
+    expect(html).toContain("<ul");
+    expect(html).toContain("<ol");
+    expect(html).toContain('data-streamdown="inline-code"');
+    // Streamdown renders links as an interactive button during SSR, then
+    // supplies the destination at hydration time. `safeMessageUrl` above
+    // covers the URL policy independently.
+    expect(html).toContain('data-streamdown="link"');
+    expect(html).toContain(">safe docs</button>");
+    expect(html.match(/data-streamdown="code-block"/gu)).toHaveLength(2);
+    expect(html).toContain("--accent");
+    expect(html).toContain("--surface-soft");
+    expect(html).toContain("--canvas-bg");
+    expect(html).not.toContain("bg-black");
+  });
+
+  it("keeps partial streamed Markdown readable until its fence and table complete", () => {
+    const html = renderToStaticMarkup(
+      <MessageContent
+        pending
+        content={[
+          "## Working",
+          "",
+          "```tsx",
+          "export const Draft = () => <section>partial",
+          "",
+          "| Status | Value |",
+          "| --- | --- |",
+          "| streaming |",
+        ].join("\n")}
+      />,
+    );
+
+    expect(html).toContain("Working");
+    expect(html).toContain("partial");
+    expect(html).toContain("Status");
+    expect(html).toContain("streaming");
+    expect(html).toContain('data-streamdown="code-block"');
+    expect(html).not.toContain("<script");
+  });
+
+  it("preserves long unbroken output inside an overflow-safe response surface", () => {
+    const token = "x".repeat(4_096);
+    const html = renderToStaticMarkup(
+      <MessageContent
+        content={`Result: ${token}\n\n\`\`\`text\n${token}\n\`\`\``}
+      />,
+    );
+
+    expect(html).toContain(token);
+    expect(html).toContain("min-w-0");
+    expect(html).toContain("[overflow-wrap:anywhere]");
+    expect(html).toContain("!overflow-auto");
+    expect(html).toContain("!whitespace-pre");
+  });
+
+  it("does not render unsafe Markdown links or embedded image sources", () => {
+    const html = renderToStaticMarkup(
+      <MessageContent
+        content={
+          "[bad](javascript:alert(1)) [file](file:///private/secret) ![embedded](data:image/svg+xml;base64,PHN2Zz4=)"
+        }
+      />,
+    );
+
+    expect(html).not.toContain("javascript:");
+    expect(html).not.toContain("file:///private/secret");
+    expect(html).not.toContain("data:image/svg+xml");
+  });
+
   it("renders sanitized HTML and rich Markdown without executable markup", () => {
     const html = renderToStaticMarkup(
       <MessageContent
@@ -53,9 +151,9 @@ describe("MessageContent", () => {
 
     expect(html).toContain('data-streamdown="code-block"');
     expect(html).toContain('data-streamdown="code-block-body"');
-    expect(html).toContain("!max-h-[280px]");
+    expect(html).toContain("!max-h-[260px]");
     expect(html).toContain(
-      "max-[480px]:[&amp;_[data-streamdown=code-block-body]]:!max-h-[220px]",
+      "max-[480px]:[&amp;_[data-streamdown=code-block-body]]:!max-h-[210px]",
     );
     expect(html).toContain("[contain-intrinsic-size:none]!");
     expect(html).toContain("[content-visibility:visible]!");

@@ -7,6 +7,10 @@ import type { SessionSummary } from "../../shared/contracts";
 import type { ProjectLike } from "../project-manager/models";
 import { ProjectHistorySidebar } from "./ProjectHistorySidebar";
 
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
 const project: ProjectLike = {
   id: "repo",
   name: "Repo",
@@ -116,5 +120,42 @@ describe("ProjectHistorySidebar", () => {
     expect(pin?.getAttribute("aria-pressed")).toBe("false");
     act(() => pin?.click());
     expect(pin?.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("labels and selects General chats when navigation is collapsed", () => {
+    const onSelectScope = vi.fn();
+    act(() =>
+      root.render(
+        <div className="desktop-shell nav-collapsed">
+          <ProjectHistorySidebar
+            activeScope="all"
+            onChooseRepository={vi.fn()}
+            onManageProjects={vi.fn()}
+            onOpenSession={vi.fn()}
+            onSelectScope={onSelectScope}
+            onStartConversation={vi.fn()}
+            onViewAll={vi.fn()}
+            projects={[project]}
+            selectedSessionId=""
+            sessions={[{ ...session, projectId: undefined }]}
+          />
+        </div>,
+      ),
+    );
+
+    const general = container.querySelector<HTMLButtonElement>(
+      ".project-rail-group--general .project-rail-main",
+    );
+    expect(general?.getAttribute("aria-label")).toBe("General chats");
+    expect(general?.getAttribute("title")).toBe(
+      "General chats (no repository)",
+    );
+    expect(
+      general
+        ?.querySelector(".project-rail-general-mark")
+        ?.getAttribute("aria-hidden"),
+    ).toBe("true");
+    act(() => general?.click());
+    expect(onSelectScope).toHaveBeenCalledWith("unscoped");
   });
 });

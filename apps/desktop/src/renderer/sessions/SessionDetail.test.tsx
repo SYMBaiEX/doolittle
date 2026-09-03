@@ -21,7 +21,7 @@ describe("SessionTranscriptMessage", () => {
     );
 
     expect(html).toContain('data-streamdown="strong">Repository summary');
-    expect(html).toContain('data-streamdown="inline-code">src/</code>');
+    expect(html).toMatch(/data-streamdown="inline-code"[^>]*>src\/<\/code>/);
     expect(html).not.toContain("**Repository summary**");
     expect(html).toContain('data-message-content="true"');
   });

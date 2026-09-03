@@ -253,7 +253,7 @@ export function PromptLibrary({
       <button
         aria-controls="chat-prompt-library"
         aria-expanded={open}
-        className="secondary-button !min-h-[30px] rounded-[7px] px-[8px] py-[5px] text-[10px] font-semibold max-[480px]:!min-h-10 max-[480px]:px-2.5"
+        className="secondary-button !min-h-[28px] rounded-[7px] px-[8px] py-[4px] text-[10px] font-semibold max-[480px]:!min-h-10 max-[480px]:px-2.5"
         onClick={() => setOpen((current) => !current)}
         ref={triggerRef}
         type="button"

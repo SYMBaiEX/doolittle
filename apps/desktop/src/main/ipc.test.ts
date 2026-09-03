@@ -67,6 +67,10 @@ describe("sensitive desktop actions", () => {
     fetch?: typeof fetch;
     durableFetch?: typeof fetch;
     notify?: (notification: { title: string; body: string }) => void;
+    commitChatAttachments?: (request: {
+      attachmentIds: string[];
+      cleanupCapability: string;
+    }) => void;
     senderAuthorized?: boolean;
   }) {
     const confirmations: unknown[] = [];
@@ -125,6 +129,7 @@ describe("sensitive desktop actions", () => {
       getMainWindow: () => null,
       authorizeSender: () => options.senderAuthorized ?? true,
       pickFiles: async () => ({ canceled: true, paths: [] }),
+      commitChatAttachments: options.commitChatAttachments,
       workspace: {
         getState: () => ({ currentPath: "/workspace", recentPaths: [] }),
         pickWorkspace: async () => ({
@@ -551,9 +556,117 @@ describe("sensitive desktop actions", () => {
     harness.dispose();
   });
 
-  it("submits once and resumes its durable event feed without server cancellation", async () => {
+  it("commits opaque attachment leases once the runtime accepts a turn", async () => {
+    const commits: Array<{
+      attachmentIds: string[];
+      cleanupCapability: string;
+    }> = [];
+    const attachmentId = "62df6968-19be-4ea6-b7a1-479a57fa3b7c";
+    const cleanupCapability = "08b30dcb-5036-4a5e-a697-7ba99d5e5d58";
+    const harness = createHarness({
+      confirmed: true,
+      commitChatAttachments: (request) => commits.push(request),
+      durableFetch: async (input) => {
+        const url = String(input);
+        if (url.endsWith("/chat/runs")) {
+          return Response.json(
+            { run_id: "chat:commit-lease" },
+            { status: 202 },
+          );
+        }
+        return new Response(
+          'event: response.completed\ndata: {"event_id":1,"response":"done"}\n\n',
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      },
+    });
+    const sender = {
+      id: 86,
+      isDestroyed: () => false,
+      send: () => undefined,
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+
+    await expect(
+      harness.handlers.get("chat:start")?.(
+        { sender },
+        {
+          requestId: "chat:commit-lease",
+          message: "Review this file",
+          roomId: "desktop:room-1",
+          workspacePath: "/workspace",
+          attachmentIds: [attachmentId],
+          attachmentCleanup: { [attachmentId]: cleanupCapability },
+        },
+      ),
+    ).resolves.toBeUndefined();
+    expect(commits).toEqual([
+      { attachmentIds: [attachmentId], cleanupCapability },
+    ]);
+    harness.dispose();
+  });
+
+  it("keeps an accepted chat alive when attachment finalization fails", async () => {
+    const attachmentId = "62df6968-19be-4ea6-b7a1-479a57fa3b7c";
+    const emitted: Array<Record<string, unknown>> = [];
+    const harness = createHarness({
+      confirmed: true,
+      commitChatAttachments: () => {
+        throw new Error("lease store unavailable");
+      },
+      durableFetch: async (input) => {
+        if (String(input).endsWith("/chat/runs")) {
+          return Response.json(
+            { run_id: "chat:commit-failure" },
+            { status: 202 },
+          );
+        }
+        return new Response(
+          'event: response.completed\ndata: {"event_id":1,"response":"done"}\n\n',
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      },
+    });
+    const sender = {
+      id: 87,
+      isDestroyed: () => false,
+      send: (_channel: string, event: Record<string, unknown>) =>
+        emitted.push(event),
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+
+    await expect(
+      harness.handlers.get("chat:start")?.(
+        { sender },
+        {
+          requestId: "chat:commit-failure",
+          message: "Review this file",
+          roomId: "desktop:room-1",
+          workspacePath: "/workspace",
+          attachmentIds: [attachmentId],
+          attachmentCleanup: {
+            [attachmentId]: "08b30dcb-5036-4a5e-a697-7ba99d5e5d58",
+          },
+        },
+      ),
+    ).resolves.toBeUndefined();
+    expect(emitted).toContainEqual({
+      requestId: "chat:commit-failure",
+      event: "attachment.warning",
+      data: {
+        message:
+          "Attachment cleanup needs attention. Your response is still running.",
+      },
+    });
+    harness.dispose();
+  });
+
+  it("submits once and reconnects its durable event feed after EOF without replaying events", async () => {
     const requests: string[] = [];
     const emitted: Array<Record<string, unknown>> = [];
+    let eventFeedAttempts = 0;
     const harness = createHarness({
       confirmed: true,
       durableFetch: async (input, init) => {
@@ -566,8 +679,20 @@ describe("sensitive desktop actions", () => {
             headers: { "content-type": "application/json" },
           });
         }
+        eventFeedAttempts += 1;
+        if (eventFeedAttempts === 1) {
+          return new Response(
+            'event: response.output_text.delta\ndata: {"event_id":7,"delta":"first"}\n\n',
+            { headers: { "content-type": "text/event-stream" } },
+          );
+        }
         return new Response(
-          'event: response.completed\ndata: {"event_id":7,"response":"done"}\n\n',
+          [
+            'event: response.output_text.delta\ndata: {"event_id":7,"delta":"first"}',
+            'event: response.output_text.delta\ndata: {"event_id":8,"delta":"second"}',
+            'event: response.completed\ndata: {"event_id":9,"response":"done"}',
+            "",
+          ].join("\n\n"),
           { headers: { "content-type": "text/event-stream" } },
         );
       },
@@ -594,13 +719,367 @@ describe("sensitive desktop actions", () => {
     expect(requests).toEqual([
       "http://127.0.0.1:4555/chat/runs",
       "http://127.0.0.1:4555/chat/runs/chat%3Adurable/events?after=0",
+      "http://127.0.0.1:4555/chat/runs/chat%3Adurable/events?after=7",
     ]);
-    expect(emitted).toContainEqual({
-      requestId: "chat:durable",
-      event: "response.completed",
-      eventId: 7,
-      data: { event_id: 7, response: "done" },
+    expect(emitted).toEqual([
+      {
+        requestId: "chat:durable",
+        event: "response.output_text.delta",
+        eventId: 7,
+        data: { event_id: 7, delta: "first" },
+      },
+      {
+        requestId: "chat:durable",
+        event: "response.output_text.delta",
+        eventId: 8,
+        data: { event_id: 8, delta: "second" },
+      },
+      {
+        requestId: "chat:durable",
+        event: "response.completed",
+        eventId: 9,
+        data: { event_id: 9, response: "done" },
+      },
+    ]);
+    harness.dispose();
+  });
+
+  it("reconnects a durable event feed after a transient fetch failure", async () => {
+    const requests: string[] = [];
+    let eventFeedAttempts = 0;
+    const harness = createHarness({
+      confirmed: true,
+      durableFetch: async (input, init) => {
+        const url = String(input);
+        requests.push(url);
+        if (url.endsWith("/chat/runs")) {
+          expect(init?.method).toBe("POST");
+          return Response.json({ run_id: "chat:fetch-retry" }, { status: 202 });
+        }
+        eventFeedAttempts += 1;
+        if (eventFeedAttempts === 1)
+          throw new Error("temporary network failure");
+        return new Response(
+          'event: response.completed\ndata: {"event_id":1,"response":"done"}\n\n',
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      },
     });
+    const sender = {
+      id: 89,
+      isDestroyed: () => false,
+      send: () => undefined,
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+
+    await expect(
+      harness.handlers.get("chat:start")?.(
+        { sender },
+        {
+          requestId: "chat:fetch-retry",
+          message: "resume me",
+          roomId: "desktop:room-1",
+          workspacePath: "/workspace",
+        },
+      ),
+    ).resolves.toBeUndefined();
+    expect(requests).toEqual([
+      "http://127.0.0.1:4555/chat/runs",
+      "http://127.0.0.1:4555/chat/runs/chat%3Afetch-retry/events?after=0",
+      "http://127.0.0.1:4555/chat/runs/chat%3Afetch-retry/events?after=0",
+    ]);
+    harness.dispose();
+  });
+
+  it("reconnects a restored chat after EOF without replaying cursor overlap", async () => {
+    const requests: string[] = [];
+    const emitted: Array<Record<string, unknown>> = [];
+    let attempts = 0;
+    const harness = createHarness({
+      confirmed: true,
+      durableFetch: async (input) => {
+        requests.push(String(input));
+        attempts += 1;
+        return new Response(
+          attempts === 1
+            ? 'event: response.output_text.delta\ndata: {"event_id":5,"delta":"first"}\n\n'
+            : [
+                'event: response.output_text.delta\ndata: {"event_id":5,"delta":"first"}',
+                'event: response.completed\ndata: {"event_id":6,"response":"done"}',
+                "",
+              ].join("\n\n"),
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      },
+    });
+    const sender = {
+      id: 90,
+      isDestroyed: () => false,
+      send: (_channel: string, payload: Record<string, unknown>) =>
+        emitted.push(payload),
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+
+    await expect(
+      harness.handlers.get("chat:subscribe")?.(
+        { sender },
+        { requestId: "chat:restored-eof", after: 4 },
+      ),
+    ).resolves.toBeUndefined();
+    expect(requests).toEqual([
+      "http://127.0.0.1:4555/chat/runs/chat%3Arestored-eof/events?after=4",
+      "http://127.0.0.1:4555/chat/runs/chat%3Arestored-eof/events?after=5",
+    ]);
+    expect(emitted).toEqual([
+      {
+        requestId: "chat:restored-eof",
+        event: "response.output_text.delta",
+        eventId: 5,
+        data: { event_id: 5, delta: "first" },
+      },
+      {
+        requestId: "chat:restored-eof",
+        event: "response.completed",
+        eventId: 6,
+        data: { event_id: 6, response: "done" },
+      },
+    ]);
+    harness.dispose();
+  });
+
+  it("reconnects a restored chat after transient fetch and reader failures", async () => {
+    const requests: string[] = [];
+    const encoder = new TextEncoder();
+    let attempts = 0;
+    const harness = createHarness({
+      confirmed: true,
+      durableFetch: async (input) => {
+        requests.push(String(input));
+        attempts += 1;
+        if (attempts === 1) throw new Error("temporary network failure");
+        if (attempts === 2) {
+          let reads = 0;
+          return {
+            ok: true,
+            body: {
+              getReader: () => ({
+                read: async () => {
+                  if (reads++ === 0) {
+                    return {
+                      done: false,
+                      value: encoder.encode(
+                        'event: response.output_text.delta\ndata: {"event_id":2,"delta":"partial"}\n\n',
+                      ),
+                    };
+                  }
+                  throw new Error("temporary read failure");
+                },
+              }),
+            },
+          } as unknown as Response;
+        }
+        return new Response(
+          'event: response.completed\ndata: {"event_id":3,"response":"done"}\n\n',
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      },
+    });
+    const sender = {
+      id: 91,
+      isDestroyed: () => false,
+      send: () => undefined,
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+
+    await expect(
+      harness.handlers.get("chat:subscribe")?.(
+        { sender },
+        { requestId: "chat:restored-transient" },
+      ),
+    ).resolves.toBeUndefined();
+    expect(requests).toEqual([
+      "http://127.0.0.1:4555/chat/runs/chat%3Arestored-transient/events?after=0",
+      "http://127.0.0.1:4555/chat/runs/chat%3Arestored-transient/events?after=0",
+      "http://127.0.0.1:4555/chat/runs/chat%3Arestored-transient/events?after=2",
+    ]);
+    harness.dispose();
+  });
+
+  it("surfaces one restored-chat error after retry exhaustion and cleans up", async () => {
+    const emitted: Array<Record<string, unknown>> = [];
+    let attempts = 0;
+    const harness = createHarness({
+      confirmed: true,
+      durableFetch: async () => {
+        attempts += 1;
+        if (attempts <= 3) throw new Error("network unavailable");
+        return new Response(
+          'event: response.completed\ndata: {"event_id":1,"response":"recovered"}\n\n',
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      },
+    });
+    const sender = {
+      id: 92,
+      isDestroyed: () => false,
+      send: (_channel: string, payload: Record<string, unknown>) =>
+        emitted.push(payload),
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+    const request = { requestId: "chat:restored-exhaustion" };
+
+    await expect(
+      harness.handlers.get("chat:subscribe")?.({ sender }, request),
+    ).rejects.toThrow(
+      /unable to reconnect to the chat response after 2 retries/i,
+    );
+    expect(emitted).toEqual([
+      {
+        requestId: "chat:restored-exhaustion",
+        event: "error",
+        data: {
+          message:
+            "Unable to reconnect to the chat response after 2 retries. Please try again.",
+        },
+      },
+    ]);
+    await expect(
+      harness.handlers.get("chat:subscribe")?.({ sender }, request),
+    ).resolves.toBeUndefined();
+    expect(attempts).toBe(4);
+    harness.dispose();
+  });
+
+  it("does not retry a definitive restored-chat response error", async () => {
+    const requests: string[] = [];
+    const emitted: Array<Record<string, unknown>> = [];
+    const harness = createHarness({
+      confirmed: true,
+      durableFetch: async (input) => {
+        requests.push(String(input));
+        return new Response(JSON.stringify({ error: "Run not found" }), {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    });
+    const sender = {
+      id: 93,
+      isDestroyed: () => false,
+      send: (_channel: string, payload: Record<string, unknown>) =>
+        emitted.push(payload),
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+
+    await expect(
+      harness.handlers.get("chat:subscribe")?.(
+        { sender },
+        { requestId: "chat:restored-missing" },
+      ),
+    ).rejects.toThrow(/run not found/i);
+    expect(requests).toHaveLength(1);
+    expect(emitted).toEqual([
+      {
+        requestId: "chat:restored-missing",
+        event: "error",
+        data: { message: "Run not found" },
+      },
+    ]);
+    harness.dispose();
+  });
+
+  it("does not reconnect a restored chat after explicit cancellation", async () => {
+    const requests: string[] = [];
+    let markStreamRequested: () => void = () => undefined;
+    const streamRequested = new Promise<void>((resolve) => {
+      markStreamRequested = resolve;
+    });
+    const harness = createHarness({
+      confirmed: true,
+      durableFetch: async (input) => {
+        const url = String(input);
+        requests.push(url);
+        if (url.endsWith("/cancel")) {
+          return Response.json({
+            accepted: true,
+            run: {
+              runId: "chat:restored-cancel",
+              sessionId: "desktop:room-1",
+              status: "cancelled",
+              terminalReason: "cancelled",
+            },
+          });
+        }
+        markStreamRequested();
+        return new Response(
+          'event: response.output_text.delta\ndata: {"event_id":1,"delta":"partial"}\n\n',
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      },
+    });
+    const sender = {
+      id: 93,
+      isDestroyed: () => false,
+      send: () => undefined,
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+    const start = harness.handlers.get("chat:subscribe")?.(
+      { sender },
+      { requestId: "chat:restored-cancel" },
+    ) as Promise<unknown>;
+
+    await streamRequested;
+    await expect(
+      harness.handlers.get("chat:cancel")?.({ sender }, "chat:restored-cancel"),
+    ).resolves.toBeUndefined();
+    await expect(start).resolves.toBeUndefined();
+    expect(requests.filter((url) => url.includes("/events?")).length).toBe(1);
+    harness.dispose();
+  });
+
+  it("forwards only one terminal event for a restored chat", async () => {
+    const emitted: Array<Record<string, unknown>> = [];
+    const harness = createHarness({
+      confirmed: true,
+      durableFetch: async () =>
+        new Response(
+          [
+            'event: response.completed\ndata: {"event_id":1,"response":"first"}',
+            'event: response.completed\ndata: {"event_id":2,"response":"duplicate"}',
+            "",
+          ].join("\n\n"),
+          { headers: { "content-type": "text/event-stream" } },
+        ),
+    });
+    const sender = {
+      id: 94,
+      isDestroyed: () => false,
+      send: (_channel: string, payload: Record<string, unknown>) =>
+        emitted.push(payload),
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+
+    await expect(
+      harness.handlers.get("chat:subscribe")?.(
+        { sender },
+        { requestId: "chat:restored-terminal" },
+      ),
+    ).resolves.toBeUndefined();
+    expect(emitted).toEqual([
+      {
+        requestId: "chat:restored-terminal",
+        event: "response.completed",
+        eventId: 1,
+        data: { event_id: 1, response: "first" },
+      },
+    ]);
     harness.dispose();
   });
 
@@ -611,7 +1090,7 @@ describe("sensitive desktop actions", () => {
       confirmed: true,
       fetch: async () =>
         new Response(
-          'event: response.output_text.delta\ndata: {"delta":"partial"}\n\n',
+          'event: response.output_text.delta\ndata: {"event_id":1,"delta":"partial"}\n\n',
           { headers: { "content-type": "text/event-stream" } },
         ),
     });
@@ -634,20 +1113,23 @@ describe("sensitive desktop actions", () => {
           workspacePath: "/workspace",
         },
       ),
-    ).rejects.toThrow(/closed the chat stream before completing/i);
+    ).rejects.toThrow(
+      /unable to reconnect to the chat response after 2 retries/i,
+    );
 
     expect(events).toEqual([
       {
         requestId: "chat:eof",
         event: "response.output_text.delta",
-        data: { delta: "partial" },
+        eventId: 1,
+        data: { event_id: 1, delta: "partial" },
       },
       {
         requestId: "chat:eof",
         event: "error",
         data: {
           message:
-            "The runtime closed the chat stream before completing the response.",
+            "Unable to reconnect to the chat response after 2 retries. Please try again.",
         },
       },
     ]);
@@ -1031,6 +1513,73 @@ describe("sensitive desktop actions", () => {
         body: "A response stopped with an error.",
       },
     ]);
+    harness.dispose();
+  });
+
+  it("does not reconnect a durable event feed after explicit cancellation", async () => {
+    const requests: string[] = [];
+    let markInitialStreamRequested: () => void = () => undefined;
+    const initialStreamRequested = new Promise<void>((resolve) => {
+      markInitialStreamRequested = resolve;
+    });
+    const harness = createHarness({
+      confirmed: true,
+      durableFetch: async (input, init) => {
+        const url = String(input);
+        requests.push(url);
+        if (url.endsWith("/chat/runs")) {
+          return Response.json(
+            { run_id: "chat:cancel-no-reconnect" },
+            {
+              status: 202,
+            },
+          );
+        }
+        if (url.endsWith("/cancel")) {
+          expect(init?.method).toBe("POST");
+          return Response.json({
+            accepted: true,
+            run: {
+              runId: "chat:cancel-no-reconnect",
+              sessionId: "desktop:room-1",
+              status: "cancelled",
+              terminalReason: "cancelled",
+            },
+          });
+        }
+        markInitialStreamRequested();
+        return new Response(
+          'event: response.output_text.delta\ndata: {"event_id":1,"delta":"partial"}\n\n',
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      },
+    });
+    const sender = {
+      id: 745,
+      isDestroyed: () => false,
+      send: () => undefined,
+      once: () => undefined,
+      removeListener: () => undefined,
+    };
+    const start = harness.handlers.get("chat:start")?.(
+      { sender },
+      {
+        requestId: "chat:cancel-no-reconnect",
+        message: "stop this response",
+        roomId: "desktop:room-1",
+        workspacePath: "/workspace",
+      },
+    ) as Promise<unknown>;
+
+    await initialStreamRequested;
+    await expect(
+      harness.handlers.get("chat:cancel")?.(
+        { sender },
+        "chat:cancel-no-reconnect",
+      ),
+    ).resolves.toBeUndefined();
+    await expect(start).resolves.toBeUndefined();
+    expect(requests.filter((url) => url.includes("/events?")).length).toBe(1);
     harness.dispose();
   });
 

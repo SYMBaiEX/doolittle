@@ -56,10 +56,12 @@ export function safeSetStorageItem(
 }
 
 export type ConversationPins = Record<string, boolean>;
+export type AttachmentCleanupMap = Record<string, string>;
 export interface ConversationDraft {
   text: string;
   capsule: ChatContextCapsule | null;
   attachments: ManagedAttachmentDescriptor[];
+  attachmentCleanup?: AttachmentCleanupMap;
 }
 
 export type ConversationDrafts = Record<string, ConversationDraft>;
@@ -74,6 +76,7 @@ export interface PersistedQueuedMessage {
   /** Hidden source context, kept separate from the queue's visible prompt. */
   capsule?: ChatContextCapsule;
   attachments: ManagedAttachmentDescriptor[];
+  attachmentCleanup?: AttachmentCleanupMap;
   memoryMatch?: MemoryMatchSnapshot;
 }
 
@@ -178,6 +181,29 @@ function validAttachments(
   );
 }
 
+function sanitizeAttachmentCleanup(
+  value: unknown,
+  attachments: readonly ManagedAttachmentDescriptor[],
+): AttachmentCleanupMap {
+  const record = objectValue(value);
+  if (!record || attachments.length === 0) return {};
+  const attachmentIds = new Set(attachments.map((attachment) => attachment.id));
+  return Object.fromEntries(
+    Object.entries(record).flatMap(([attachmentId, cleanupCapability]) =>
+      attachmentIds.has(attachmentId) &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+        attachmentId,
+      ) &&
+      typeof cleanupCapability === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+        cleanupCapability,
+      )
+        ? [[attachmentId, cleanupCapability]]
+        : [],
+    ),
+  );
+}
+
 function validMemoryMatch(value: unknown): value is MemoryMatchSnapshot {
   const record = objectValue(value);
   return Boolean(
@@ -241,7 +267,16 @@ function sanitizeConversationDraft(value: unknown): ConversationDraft | null {
   ) {
     return null;
   }
-  return { text: record.text, capsule, attachments };
+  const attachmentCleanup = sanitizeAttachmentCleanup(
+    record.attachmentCleanup,
+    attachments,
+  );
+  return {
+    text: record.text,
+    capsule,
+    attachments,
+    ...(Object.keys(attachmentCleanup).length > 0 ? { attachmentCleanup } : {}),
+  };
 }
 
 function sanitizePromptLibraryEntry(value: unknown): PromptLibraryEntry | null {
@@ -376,6 +411,10 @@ export function loadConversationQueue(
         ? legacyContext?.capsule
         : sanitizeChatContextCapsule(record.capsule);
     const content = legacyContext?.prompt ?? record?.content;
+    const attachmentCleanup = sanitizeAttachmentCleanup(
+      record?.attachmentCleanup,
+      Array.isArray(record?.attachments) ? record.attachments : [],
+    );
     if (
       !record ||
       !validSessionId(record.id) ||
@@ -406,6 +445,9 @@ export function loadConversationQueue(
       content,
       ...(capsule ? { capsule } : {}),
       attachments: record.attachments,
+      ...(Object.keys(attachmentCleanup).length > 0
+        ? { attachmentCleanup }
+        : {}),
       ...(record.memoryMatch
         ? { memoryMatch: record.memoryMatch as MemoryMatchSnapshot }
         : {}),

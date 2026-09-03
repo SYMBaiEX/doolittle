@@ -18,6 +18,7 @@ import {
 } from "../chat-context-handoff";
 import { newConversationId } from "../conversation-id";
 import {
+  type AttachmentCleanupMap,
   CONVERSATION_PINS_EVENT,
   type ConversationDraft,
   loadConversationDrafts,
@@ -53,6 +54,19 @@ type PagedSessionMessagesResponse = SessionMessagesResponse & {
 interface HistoryPageState {
   hasEarlier: boolean;
   nextOffset: number;
+}
+
+function pruneAttachmentCleanup(
+  attachments: readonly ManagedAttachmentDescriptor[],
+  attachmentCleanup?: AttachmentCleanupMap,
+): AttachmentCleanupMap {
+  if (!attachmentCleanup) return {};
+  const attachmentIds = new Set(attachments.map((attachment) => attachment.id));
+  return Object.fromEntries(
+    Object.entries(attachmentCleanup).filter(([attachmentId]) =>
+      attachmentIds.has(attachmentId),
+    ),
+  );
 }
 
 function boundedStoredMessages(
@@ -199,10 +213,38 @@ export function reconcileOrphanedPendingMessages(
   history: readonly DisplayMessage[],
   activeRequestIds: ReadonlySet<string>,
 ): DisplayMessage[] {
-  const hasRemoteAssistant = history.some(
-    (message) => message.role === "assistant",
+  return reconcilePendingMessages(
+    localMessages,
+    history,
+    activeRequestIds,
+    new Map(),
   );
-  return localMessages.flatMap((message) => {
+}
+
+function hasCanonicalReplyAfter(
+  history: readonly DisplayMessage[],
+  matchedUserIndex: number,
+): boolean {
+  for (let index = matchedUserIndex + 1; index < history.length; index += 1) {
+    if (history[index]?.role === "assistant") return true;
+    // A later user turn makes a later assistant reply ambiguous. Keep the
+    // synthetic row retryable rather than silently attributing that reply.
+    if (history[index]?.role === "user") return false;
+  }
+  return false;
+}
+
+function reconcilePendingMessages(
+  localMessages: readonly DisplayMessage[],
+  history: readonly DisplayMessage[],
+  activeRequestIds: ReadonlySet<string>,
+  matchedHistoryByLocalIndex: ReadonlyMap<number, number>,
+  excludeMatchedLocalRows = false,
+): DisplayMessage[] {
+  return localMessages.flatMap((message, index) => {
+    if (excludeMatchedLocalRows && matchedHistoryByLocalIndex.has(index)) {
+      return [];
+    }
     if (
       message.role !== "assistant" ||
       !message.pending ||
@@ -211,12 +253,40 @@ export function reconcileOrphanedPendingMessages(
       return [message];
     }
     const requestId = message.id.slice("assistant:".length);
+    const preceding = localMessages[index - 1];
+    const matchedUserIndex =
+      preceding?.role === "user"
+        ? matchedHistoryByLocalIndex.get(index - 1)
+        : undefined;
+    // Only a canonical assistant belonging to this exact, one-to-one matched
+    // user turn may supersede the placeholder. A completed older turn is not
+    // evidence that the latest synthetic response completed.
+    if (
+      matchedUserIndex !== undefined &&
+      hasCanonicalReplyAfter(history, matchedUserIndex)
+    ) {
+      return [];
+    }
+    // Canonical history is the completed source of truth. It must supersede a
+    // locally active placeholder as well; otherwise a late history refresh
+    // visibly renders the same assistant turn twice. A still-active request
+    // remains pending only when no canonical assistant has completed its turn.
     if (activeRequestIds.has(requestId)) return [message];
-    // A real remote assistant row supersedes the synthetic placeholder.
-    if (hasRemoteAssistant) return [];
+    const matchedUserCreatedAt =
+      matchedUserIndex === undefined
+        ? undefined
+        : history[matchedUserIndex]?.createdAt;
     return [
       {
         ...message,
+        // History can arrive with a canonical user timestamp a few
+        // milliseconds newer than the optimistic row. Keep a retryable
+        // placeholder after its matched user in the rendered transcript.
+        createdAt:
+          matchedUserCreatedAt &&
+          message.createdAt.localeCompare(matchedUserCreatedAt) < 0
+            ? matchedUserCreatedAt
+            : message.createdAt,
         content:
           "This response was interrupted before it finished. Retry it to continue.",
         pending: false,
@@ -259,24 +329,14 @@ function messageDistance(left: DisplayMessage, right: DisplayMessage): number {
   return Math.abs(leftTime - rightTime);
 }
 
-/**
- * Replace optimistic desktop rows with the server-authoritative transcript.
- * IDs differ by design, so reconcile one-to-one by payload and timestamp. The
- * one-to-one match preserves intentionally repeated prompts while preventing a
- * completed turn from rendering twice when history refreshes.
- */
-export function mergeConversationHistory(
+function matchLocalRowsToHistory(
   localMessages: readonly DisplayMessage[],
   history: readonly DisplayMessage[],
-  activeRequestIds: ReadonlySet<string>,
-): DisplayMessage[] {
-  const historyIds = new Set(history.map((message) => message.id));
+): Map<number, number> {
   const availableHistory = new Set(history.map((_, index) => index));
-  const localOnly = localMessages.filter(
-    (message) => !historyIds.has(message.id),
-  );
-  const unmatchedLocal = localOnly.filter((local) => {
-    if (local.pending || !local.content) return true;
+  const matchedHistoryByLocalIndex = new Map<number, number>();
+  for (const [localIndex, local] of localMessages.entries()) {
+    if (local.pending || !local.content) continue;
     const maximumDistance =
       local.role === "assistant" && local.id.startsWith("assistant:")
         ? 24 * 60 * 60 * 1_000
@@ -296,17 +356,41 @@ export function mergeConversationHistory(
       }))
       .filter(({ distance }) => distance <= maximumDistance)
       .sort((left, right) => left.distance - right.distance)[0];
-    if (!match) return true;
+    if (!match) continue;
     availableHistory.delete(match.index);
-    return false;
-  });
+    matchedHistoryByLocalIndex.set(localIndex, match.index);
+  }
+  return matchedHistoryByLocalIndex;
+}
+
+/**
+ * Replace optimistic desktop rows with the server-authoritative transcript.
+ * IDs differ by design, so reconcile one-to-one by payload and timestamp. The
+ * one-to-one match preserves intentionally repeated prompts while preventing a
+ * completed turn from rendering twice when history refreshes.
+ */
+export function mergeConversationHistory(
+  localMessages: readonly DisplayMessage[],
+  history: readonly DisplayMessage[],
+  activeRequestIds: ReadonlySet<string>,
+): DisplayMessage[] {
+  const historyIds = new Set(history.map((message) => message.id));
+  const localOnly = localMessages.filter(
+    (message) => !historyIds.has(message.id),
+  );
+  const matchedHistoryByLocalIndex = matchLocalRowsToHistory(
+    localOnly,
+    history,
+  );
 
   return [
     ...history,
-    ...reconcileOrphanedPendingMessages(
-      unmatchedLocal,
+    ...reconcilePendingMessages(
+      localOnly,
       history,
       activeRequestIds,
+      matchedHistoryByLocalIndex,
+      true,
     ),
   ].sort((left, right) => left.createdAt.localeCompare(right.createdAt));
 }
@@ -424,10 +508,15 @@ export function useChatConversationState({
     text: "",
     capsule: null,
     attachments: [],
+    attachmentCleanup: {},
   };
   const draft = draftState.text;
   const chatContextCapsule = draftState.capsule;
   const draftAttachments = draftState.attachments;
+  const draftAttachmentCleanup = pruneAttachmentCleanup(
+    draftAttachments,
+    draftState.attachmentCleanup,
+  );
   const setDraft = useCallback(
     (nextValue: SetStateAction<string>) => {
       bumpDraftRevision(draftSessionId);
@@ -436,6 +525,7 @@ export function useChatConversationState({
           text: "",
           capsule: null,
           attachments: [],
+          attachmentCleanup: {},
         };
         const next =
           typeof nextValue === "function"
@@ -461,11 +551,26 @@ export function useChatConversationState({
       sessionId: string,
       value: string,
       attachments: ManagedAttachmentDescriptor[] = [],
+      attachmentCleanup: AttachmentCleanupMap = {},
     ) => {
       bumpDraftRevision(sessionId);
       setConversationDrafts((current) => ({
         ...current,
-        [sessionId]: { text: value, capsule: null, attachments },
+        [sessionId]: {
+          text: value,
+          capsule: null,
+          attachments,
+          ...(Object.keys(
+            pruneAttachmentCleanup(attachments, attachmentCleanup),
+          ).length > 0
+            ? {
+                attachmentCleanup: pruneAttachmentCleanup(
+                  attachments,
+                  attachmentCleanup,
+                ),
+              }
+            : {}),
+        },
       }));
     },
     [bumpDraftRevision],
@@ -479,6 +584,7 @@ export function useChatConversationState({
           text: "",
           capsule: null,
           attachments: [],
+          attachmentCleanup: {},
         };
         if (!previous.text && !capsule && previous.attachments.length === 0) {
           if (!Object.hasOwn(current, draftSessionId)) return current;
@@ -496,13 +602,17 @@ export function useChatConversationState({
   );
 
   const setDraftAttachments = useCallback(
-    (attachments: ManagedAttachmentDescriptor[]) => {
+    (
+      attachments: ManagedAttachmentDescriptor[],
+      attachmentCleanup?: AttachmentCleanupMap,
+    ) => {
       bumpDraftRevision(draftSessionId);
       setConversationDrafts((current) => {
         const previous = current[draftSessionId] ?? {
           text: "",
           capsule: null,
           attachments: [],
+          attachmentCleanup: {},
         };
         if (!previous.text && !previous.capsule && attachments.length === 0) {
           if (!Object.hasOwn(current, draftSessionId)) return current;
@@ -510,9 +620,19 @@ export function useChatConversationState({
           delete updated[draftSessionId];
           return updated;
         }
+        const nextCleanup = pruneAttachmentCleanup(
+          attachments,
+          attachmentCleanup ?? previous.attachmentCleanup,
+        );
         return {
           ...current,
-          [draftSessionId]: { ...previous, attachments },
+          [draftSessionId]: {
+            ...previous,
+            attachments,
+            ...(Object.keys(nextCleanup).length > 0
+              ? { attachmentCleanup: nextCleanup }
+              : { attachmentCleanup: undefined }),
+          },
         };
       });
     },
@@ -859,6 +979,7 @@ export function useChatConversationState({
     clearDraftForDispatch,
     draft,
     draftAttachments,
+    draftAttachmentCleanup,
     historyError: historyErrors[selectedId] ?? "",
     hasEarlierMessages: Boolean(historyPages[selectedId]?.hasEarlier),
     loadingHistory,

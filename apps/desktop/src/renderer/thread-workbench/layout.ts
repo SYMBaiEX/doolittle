@@ -1,11 +1,11 @@
 export const WORKBENCH_RAIL_CLASS =
-  "thread-workbench relative grid h-full max-h-full min-h-0 w-[var(--thread-workbench-width)] min-w-[min(var(--thread-workbench-width),46vw)] max-w-[min(var(--thread-workbench-width),46vw)] flex-[0_0_var(--thread-workbench-width)] grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden border-[color-mix(in_srgb,var(--border)_82%,transparent)] border-l bg-[color-mix(in_srgb,var(--surface)_98%,var(--bg))] text-[var(--text)] shadow-[-6px_0_20px_color-mix(in_srgb,var(--shadow)_18%,transparent)] [--thread-workbench-accent:var(--accent)] [--thread-workbench-accent-soft:color-mix(in_srgb,var(--accent)_14%,transparent)] [&>*]:min-w-0 [&_.loading-block]:m-0 [&_.loading-block]:rounded-[5px] [&_.loading-block]:px-2 [&_.loading-block]:py-1.75 [&_.loading-block_span]:[overflow-wrap:anywhere] [&_.empty-block]:m-0 [&_.empty-block]:min-h-20 [&_.empty-block]:rounded-[5px] [&_.empty-block]:px-2 [&_.empty-block]:py-2 [&_.empty-block_span]:[overflow-wrap:anywhere] [&_.notice]:m-0 [&_.notice]:rounded-[5px] [&_.notice]:px-2 [&_.notice]:py-1.75 [&_.notice_span]:[overflow-wrap:anywhere] [&_.notice_p]:[overflow-wrap:anywhere] max-[1180px]:min-w-[min(var(--thread-workbench-width),42vw)] max-[1180px]:max-w-[min(var(--thread-workbench-width),42vw)] max-[960px]:min-w-[min(var(--thread-workbench-width),38vw)] max-[960px]:max-w-[min(var(--thread-workbench-width),38vw)] max-[720px]:w-full max-[720px]:min-w-0 max-[720px]:max-w-none max-[720px]:flex-1 max-[720px]:shadow-none";
+  "thread-workbench relative grid h-full max-h-full min-h-0 w-[min(var(--thread-workbench-width),34vw)] min-w-[18rem] max-w-[34rem] flex-[0_0_min(var(--thread-workbench-width),34vw)] grid-rows-[auto_auto_minmax(0,1fr)_auto] overflow-hidden border-[color-mix(in_srgb,var(--border)_82%,transparent)] border-l bg-[color-mix(in_srgb,var(--surface)_98%,var(--bg))] text-[var(--text)] shadow-[-6px_0_20px_color-mix(in_srgb,var(--shadow)_18%,transparent)] [--thread-workbench-accent:var(--accent)] [--thread-workbench-accent-soft:color-mix(in_srgb,var(--accent)_14%,transparent)] [&>*]:min-w-0 [&_.loading-block]:m-0 [&_.loading-block]:rounded-[5px] [&_.loading-block]:px-2 [&_.loading-block]:py-1.75 [&_.loading-block_span]:[overflow-wrap:anywhere] [&_.empty-block]:m-0 [&_.empty-block]:min-h-20 [&_.empty-block]:rounded-[5px] [&_.empty-block]:px-2 [&_.empty-block]:py-2 [&_.empty-block_span]:[overflow-wrap:anywhere] [&_.notice]:m-0 [&_.notice]:rounded-[5px] [&_.notice]:px-2 [&_.notice]:py-1.75 [&_.notice_span]:[overflow-wrap:anywhere] [&_.notice_p]:[overflow-wrap:anywhere] max-[1280px]:w-[min(var(--thread-workbench-width),32vw)] max-[1280px]:min-w-[16rem] max-[1280px]:max-w-[24rem] max-[960px]:w-[min(var(--thread-workbench-width),38vw)] max-[960px]:min-w-[14rem] max-[960px]:max-w-[20rem] max-[720px]:w-full max-[720px]:min-w-0 max-[720px]:max-w-none max-[720px]:flex-1 max-[720px]:shadow-none";
 
 export const WORKBENCH_RESIZER_CLASS =
   "thread-workbench-resizer top-0 bottom-0 left-[-5px] max-[720px]:hidden";
 
 export const WORKBENCH_HEADER_CLASS =
-  "thread-workbench-header grid gap-1.25 border-[color-mix(in_srgb,currentColor_9%,transparent)] border-b bg-[color-mix(in_srgb,var(--surface-raised)_58%,transparent)] px-1.75 py-1.5";
+  "thread-workbench-header grid gap-1 border-[color-mix(in_srgb,currentColor_9%,transparent)] border-b bg-[color-mix(in_srgb,var(--surface-raised)_58%,transparent)] px-1.5 py-1.25";
 
 export const WORKBENCH_HEADING_CLASS =
   "thread-workbench-heading flex items-center justify-between";
@@ -20,7 +20,7 @@ export const WORKBENCH_KICKER_CLASS =
   "thread-workbench-kicker font-[var(--font-mono)] text-[length:var(--text-meta)] font-[750] tracking-[0.12em] text-[var(--accent)] uppercase";
 
 export const WORKBENCH_ICON_BUTTON_CLASS =
-  "thread-workbench-icon-button inline-flex size-6.5 cursor-pointer items-center justify-center rounded-[7px] border-0 bg-transparent p-0 text-[color-mix(in_srgb,currentColor_62%,transparent)] hover:bg-[color-mix(in_srgb,currentColor_8%,transparent)] hover:text-[var(--text)] focus-visible:bg-[color-mix(in_srgb,currentColor_8%,transparent)] focus-visible:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[var(--accent-border)] max-[720px]:size-7.5";
+  "thread-workbench-icon-button inline-flex size-5.75 cursor-pointer items-center justify-center rounded-[7px] border-0 bg-transparent p-0 text-[color-mix(in_srgb,currentColor_62%,transparent)] hover:bg-[color-mix(in_srgb,currentColor_8%,transparent)] hover:text-[var(--text)] focus-visible:bg-[color-mix(in_srgb,currentColor_8%,transparent)] focus-visible:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[var(--accent-border)] max-[720px]:size-6.5";
 
 export const WORKBENCH_CONTEXT_ROW_CLASS =
   "thread-workbench-context-row flex min-w-0 items-center justify-between gap-1.75 border-[color-mix(in_srgb,currentColor_8%,transparent)] border-t px-0 pt-1.5";
@@ -38,10 +38,10 @@ export const WORKBENCH_CONTEXT_META_CLASS =
   "thread-workbench-context-meta flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2 font-[var(--font-mono)] text-[length:var(--text-meta)] leading-none tracking-[0.06em] text-[color-mix(in_srgb,currentColor_42%,transparent)] uppercase [&>.badge]:mr-0.5 [&>span]:inline-flex [&>span]:min-w-0 [&>span]:items-center [&>span]:gap-1.25 [&>span]:truncate [&>span:first-of-type]:text-[color-mix(in_srgb,currentColor_65%,transparent)] [&>span:not(:last-child)]:after:ml-0.75 [&>span:not(:last-child)]:after:text-[color-mix(in_srgb,currentColor_26%,transparent)] [&>span:not(:last-child)]:after:content-['/'] [&_i]:size-1.25 [&_i]:rounded-full [&_i]:bg-[var(--good)] [&_i]:shadow-[0_0_6px_color-mix(in_srgb,var(--good)_60%,transparent)] max-[960px]:justify-start";
 
 export const WORKBENCH_TABS_CLASS =
-  "thread-workbench-tabs grid min-w-0 grid-cols-7 gap-0.5 overflow-hidden border-[color-mix(in_srgb,currentColor_9%,transparent)] border-b bg-[color-mix(in_srgb,var(--surface-raised)_32%,transparent)] px-0.75 py-0.75";
+  "thread-workbench-tabs flex min-w-0 items-stretch gap-0.5 overflow-x-auto border-[color-mix(in_srgb,currentColor_9%,transparent)] border-b bg-[color-mix(in_srgb,var(--surface-raised)_32%,transparent)] px-0.75 py-0.75 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 export const WORKBENCH_TAB_CLASS =
-  "relative grid min-h-7.25 min-w-0 cursor-pointer place-items-center rounded-[4px] border border-transparent bg-transparent p-0.75 text-[color-mix(in_srgb,currentColor_48%,transparent)] hover:bg-[color-mix(in_srgb,currentColor_5%,transparent)] hover:text-[var(--text)] focus-visible:bg-[color-mix(in_srgb,currentColor_5%,transparent)] focus-visible:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[var(--accent-border)]";
+  "relative grid min-h-7.25 min-w-[3rem] flex-1 basis-0 cursor-pointer place-items-center rounded-[4px] border border-transparent bg-transparent p-0.75 text-[color-mix(in_srgb,currentColor_48%,transparent)] hover:bg-[color-mix(in_srgb,currentColor_5%,transparent)] hover:text-[var(--text)] focus-visible:bg-[color-mix(in_srgb,currentColor_5%,transparent)] focus-visible:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-[var(--accent-border)] max-[1040px]:min-w-[2.625rem]";
 
 export const WORKBENCH_TAB_SELECTED_CLASS =
   "border-[color-mix(in_srgb,var(--accent)_23%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-soft))] text-[var(--accent)]";
@@ -53,7 +53,7 @@ export const WORKBENCH_TAB_SIGNAL_CLASS =
   "thread-workbench-tab-signal absolute right-1 bottom-1 size-0.75 rounded-full bg-transparent group-aria-selected:bg-[var(--accent)] group-aria-selected:shadow-[0_0_6px_color-mix(in_srgb,var(--accent)_72%,transparent)]";
 
 export const WORKBENCH_PANEL_CLASS =
-  "thread-workbench-panel grid min-h-0 min-w-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-0.75 overflow-hidden p-1.25 focus:outline-none";
+  "thread-workbench-panel grid min-h-0 min-w-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-0.75 overflow-hidden p-1 focus:outline-none";
 
 export const WORKBENCH_PANEL_HEADING_CLASS =
   "thread-workbench-panel-heading flex min-h-6.5 shrink-0 items-center justify-between gap-1.75 border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-b px-0.75 py-0.75 [&>div]:flex [&>div]:min-w-0 [&>div]:items-baseline [&>div]:gap-1.5 [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:leading-[1.2] [&_small]:text-[color-mix(in_srgb,currentColor_50%,transparent)]";

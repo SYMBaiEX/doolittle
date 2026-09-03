@@ -405,34 +405,52 @@ describe("chat history concurrency", () => {
     act(() => render("remote"));
     act(() => {
       latest?.setDraft("First chat");
-      latest?.setDraftAttachments([attachment]);
+      latest?.setDraftAttachments([attachment], {
+        [attachment.id]: "123e4567-e89b-42d3-a456-426614174001",
+      });
     });
     expect(latest?.draftAttachments).toEqual([attachment]);
+    expect(latest?.draftAttachmentCleanup).toEqual({
+      [attachment.id]: "123e4567-e89b-42d3-a456-426614174001",
+    });
 
     act(() => render("second"));
     expect(latest?.draftAttachments).toEqual([]);
     act(() => {
       latest?.setDraft("Second chat");
-      latest?.setDraftAttachments([attachment]);
+      latest?.setDraftAttachments([attachment], {
+        [attachment.id]: "123e4567-e89b-42d3-a456-426614174001",
+      });
     });
 
     act(() => render("remote"));
     expect(latest?.draft).toBe("First chat");
     expect(latest?.draftAttachments).toEqual([attachment]);
+    expect(latest?.draftAttachmentCleanup).toEqual({
+      [attachment.id]: "123e4567-e89b-42d3-a456-426614174001",
+    });
     act(() => {
       latest?.setDraft("");
-      latest?.setDraftAttachments([]);
+      latest?.setDraftAttachments([], {});
     });
 
     act(() => render("second"));
     expect(latest?.draft).toBe("Second chat");
     expect(latest?.draftAttachments).toEqual([attachment]);
+    expect(latest?.draftAttachmentCleanup).toEqual({
+      [attachment.id]: "123e4567-e89b-42d3-a456-426614174001",
+    });
     act(() =>
-      latest?.setDraftForSession("forked", "Edited branch", [attachment]),
+      latest?.setDraftForSession("forked", "Edited branch", [attachment], {
+        [attachment.id]: "123e4567-e89b-42d3-a456-426614174001",
+      }),
     );
     act(() => render("forked"));
     expect(latest?.draft).toBe("Edited branch");
     expect(latest?.draftAttachments).toEqual([attachment]);
+    expect(latest?.draftAttachmentCleanup).toEqual({
+      [attachment.id]: "123e4567-e89b-42d3-a456-426614174001",
+    });
     expect(setItem).toHaveBeenCalledWith(
       "doolittle.desktop.conversation.drafts.v1",
       expect.not.stringContaining("First chat"),
@@ -465,7 +483,9 @@ describe("chat history concurrency", () => {
     );
     act(() => {
       latest?.setDraft("Explain the failure");
-      latest?.setDraftAttachments([attachment]);
+      latest?.setDraftAttachments([attachment], {
+        [attachment.id]: "123e4567-e89b-42d3-a456-426614174001",
+      });
       latest?.setChatContextCapsule(capsule);
     });
 
@@ -477,6 +497,7 @@ describe("chat history concurrency", () => {
         {
           text: latest.draft,
           attachments: latest.draftAttachments,
+          attachmentCleanup: latest.draftAttachmentCleanup,
           capsule: latest.chatContextCapsule,
         },
         latest.clearDraftForDispatch("remote"),
@@ -484,6 +505,7 @@ describe("chat history concurrency", () => {
     });
     expect(latest?.draft).toBe("");
     expect(latest?.draftAttachments).toEqual([]);
+    expect(latest?.draftAttachmentCleanup).toEqual({});
     expect(latest?.chatContextCapsule).toBeNull();
     if (!recovery) throw new Error("Expected a failed-dispatch draft snapshot");
 
@@ -492,6 +514,9 @@ describe("chat history concurrency", () => {
     });
     expect(latest?.draft).toBe("Explain the failure");
     expect(latest?.draftAttachments).toEqual([attachment]);
+    expect(latest?.draftAttachmentCleanup).toEqual({
+      [attachment.id]: "123e4567-e89b-42d3-a456-426614174001",
+    });
     expect(latest?.chatContextCapsule).toEqual(capsule);
     expect(
       composeChatContextMessage(
@@ -509,6 +534,7 @@ describe("chat history concurrency", () => {
         {
           text: latest.draft,
           attachments: latest.draftAttachments,
+          attachmentCleanup: latest.draftAttachmentCleanup,
           capsule: latest.chatContextCapsule,
         },
         latest.clearDraftForDispatch("remote"),
@@ -521,6 +547,7 @@ describe("chat history concurrency", () => {
     });
     expect(latest?.draft).toBe("A newer draft");
     expect(latest?.draftAttachments).toEqual([]);
+    expect(latest?.draftAttachmentCleanup).toEqual({});
     expect(latest?.chatContextCapsule).toBeNull();
   });
 
@@ -861,6 +888,252 @@ describe("chat history concurrency", () => {
           "This response was interrupted before it finished. Retry it to continue.",
         error: true,
         pending: false,
+      },
+    ]);
+  });
+
+  it("keeps the newest orphan retryable when history contains an older completed turn", () => {
+    const local = [
+      {
+        id: "local-old-user",
+        role: "user" as const,
+        content: "Earlier prompt",
+        createdAt: "2026-08-20T08:00:00.000Z",
+      },
+      {
+        id: "local-new-user",
+        role: "user" as const,
+        content: "Newest interrupted prompt",
+        createdAt: "2026-08-20T08:02:00.000Z",
+      },
+      {
+        id: "assistant:request-newest",
+        role: "assistant" as const,
+        content: "",
+        createdAt: "2026-08-20T08:02:00.000Z",
+        pending: true,
+      },
+    ];
+    const history = [
+      {
+        id: "remote-old-user",
+        role: "user" as const,
+        content: "Earlier prompt",
+        createdAt: "2026-08-20T08:00:00.000Z",
+      },
+      {
+        id: "remote-old-assistant",
+        role: "assistant" as const,
+        content: "Earlier completed reply",
+        createdAt: "2026-08-20T08:00:01.000Z",
+      },
+    ];
+
+    expect(mergeConversationHistory(local, history, new Set())).toMatchObject([
+      ...history,
+      {
+        id: "local-new-user",
+        content: "Newest interrupted prompt",
+      },
+      {
+        id: "assistant:request-newest",
+        content:
+          "This response was interrupted before it finished. Retry it to continue.",
+        error: true,
+        pending: false,
+      },
+    ]);
+  });
+
+  it("removes a persisted synthetic reply once when its matched user has a canonical final", () => {
+    const local = [
+      {
+        id: "local-user",
+        role: "user" as const,
+        content: "Recover this turn",
+        createdAt: "2026-08-20T08:00:00.000Z",
+      },
+      {
+        id: "assistant:request-recovered",
+        role: "assistant" as const,
+        content: "",
+        createdAt: "2026-08-20T08:00:00.000Z",
+        pending: true,
+      },
+    ];
+    const history = [
+      {
+        id: "remote-user",
+        role: "user" as const,
+        content: "Recover this turn",
+        createdAt: "2026-08-20T08:00:00.010Z",
+      },
+      {
+        id: "remote-assistant",
+        role: "assistant" as const,
+        content: "Recovered final",
+        createdAt: "2026-08-20T08:00:01.000Z",
+      },
+    ];
+
+    const merged = mergeConversationHistory(local, history, new Set());
+    expect(merged).toEqual(history);
+    expect(
+      merged.filter((message) => message.id === "assistant:request-recovered"),
+    ).toHaveLength(0);
+  });
+
+  it("does not cross-correlate repeated prompt text when the newer turn has no final", () => {
+    const local = [
+      {
+        id: "local-user-old",
+        role: "user" as const,
+        content: "Repeat this prompt",
+        createdAt: "2026-08-20T08:00:00.000Z",
+      },
+      {
+        id: "local-user-new",
+        role: "user" as const,
+        content: "Repeat this prompt",
+        createdAt: "2026-08-20T08:05:00.000Z",
+      },
+      {
+        id: "assistant:request-new",
+        role: "assistant" as const,
+        content: "",
+        createdAt: "2026-08-20T08:05:00.000Z",
+        pending: true,
+      },
+    ];
+    const history = [
+      {
+        id: "remote-user-old",
+        role: "user" as const,
+        content: "Repeat this prompt",
+        createdAt: "2026-08-20T08:00:00.010Z",
+      },
+      {
+        id: "remote-assistant-old",
+        role: "assistant" as const,
+        content: "Older reply",
+        createdAt: "2026-08-20T08:00:01.000Z",
+      },
+      {
+        id: "remote-user-new",
+        role: "user" as const,
+        content: "Repeat this prompt",
+        createdAt: "2026-08-20T08:05:00.010Z",
+      },
+    ];
+
+    const merged = mergeConversationHistory(local, history, new Set());
+    expect(merged.map((message) => message.id)).toEqual([
+      "remote-user-old",
+      "remote-assistant-old",
+      "remote-user-new",
+      "assistant:request-new",
+    ]);
+    expect(merged[3]).toMatchObject({
+      createdAt: "2026-08-20T08:05:00.010Z",
+      error: true,
+      id: "assistant:request-new",
+      pending: false,
+    });
+  });
+
+  it("uses the canonical final as the only assistant row during an active-stream history race", () => {
+    const local = [
+      {
+        id: "local-user",
+        role: "user" as const,
+        content: "Still streaming",
+        createdAt: "2026-08-20T08:00:00.000Z",
+      },
+      {
+        id: "assistant:request-active",
+        role: "assistant" as const,
+        content: "partial",
+        createdAt: "2026-08-20T08:00:01.000Z",
+        pending: true,
+      },
+    ];
+    const history = [
+      {
+        id: "remote-user",
+        role: "user" as const,
+        content: "Still streaming",
+        createdAt: "2026-08-20T08:00:00.010Z",
+      },
+      {
+        id: "remote-assistant",
+        role: "assistant" as const,
+        content: "Finished response",
+        createdAt: "2026-08-20T08:00:02.000Z",
+      },
+    ];
+
+    const merged = mergeConversationHistory(
+      local,
+      history,
+      new Set(["request-active"]),
+    );
+    expect(merged).toEqual(history);
+    expect(merged.filter((message) => message.role === "assistant")).toEqual([
+      history[1],
+    ]);
+    expect(
+      merged.some((message) => message.id === "assistant:request-active"),
+    ).toBe(false);
+  });
+
+  it("preserves a new active pair when an out-of-order history response lacks it", () => {
+    const local = [
+      {
+        id: "local-old-user",
+        role: "user" as const,
+        content: "Earlier prompt",
+        createdAt: "2026-08-20T08:00:00.000Z",
+      },
+      {
+        id: "local-new-user",
+        role: "user" as const,
+        content: "New prompt after refresh started",
+        createdAt: "2026-08-20T08:03:00.000Z",
+      },
+      {
+        id: "assistant:request-new",
+        role: "assistant" as const,
+        content: "",
+        createdAt: "2026-08-20T08:03:00.000Z",
+        pending: true,
+      },
+    ];
+    const history = [
+      {
+        id: "remote-old-user",
+        role: "user" as const,
+        content: "Earlier prompt",
+        createdAt: "2026-08-20T08:00:00.010Z",
+      },
+      {
+        id: "remote-old-assistant",
+        role: "assistant" as const,
+        content: "Earlier response",
+        createdAt: "2026-08-20T08:00:01.000Z",
+      },
+    ];
+
+    expect(
+      mergeConversationHistory(local, history, new Set(["request-new"])),
+    ).toMatchObject([
+      ...history,
+      {
+        id: "local-new-user",
+        content: "New prompt after refresh started",
+      },
+      {
+        id: "assistant:request-new",
+        pending: true,
       },
     ]);
   });

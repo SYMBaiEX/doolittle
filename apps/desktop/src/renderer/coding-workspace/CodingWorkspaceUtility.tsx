@@ -132,14 +132,14 @@ export function CodingWorkspaceUtility({
                 onClick={onOpenTerminal}
                 type="button"
               >
-                Open persistent terminal
+                Focus shared terminal
               </button>
             }
             density="compact"
-            title="Terminal lives with Chat"
+            title="Shared terminal dock"
           >
-            Use the shared Chat terminal for this workspace. It stays open while
-            you switch between Chat, Code, and Work.
+            Jump straight into the persistent Chat terminal for this workspace.
+            It stays mounted while you move between Chat, Code, and Work.
           </EmptyBlock>
         ) : null}
 

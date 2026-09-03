@@ -24,6 +24,10 @@ import { MessageActions } from "./MessageActions";
 import { RunReceiptView, runReceiptState } from "./RunReceiptView";
 import { Welcome } from "./Welcome";
 
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
 const composerStorage = new Map<string, string>();
 Object.defineProperty(globalThis, "localStorage", {
   configurable: true,
@@ -86,6 +90,7 @@ function composerProps(
     clearQueuedMessages: () => undefined,
     removeQueuedMessage: () => undefined,
     attachedFiles: [],
+    attachmentImporting: false,
     chatContextCapsule: null,
     removeChatContext: () => undefined,
     attachmentTotalBytes: 0,
@@ -153,6 +158,8 @@ describe("chat presentation components", () => {
     const props = composerProps();
     const html = renderToStaticMarkup(<ChatComposer {...props} />);
     expect(html).toContain('class="chat-composer"');
+    expect(html).toContain("chat-composer-main");
+    expect(html).toContain("chat-composer-footer");
     expect(html).toContain("chat-composer-routing");
     expect(html).not.toContain('data-has-project="true"');
     expect(html).toContain('aria-label="Attach multiple files"');
@@ -160,6 +167,48 @@ describe("chat presentation components", () => {
     expect(html).toContain('aria-label="Message Doolittle"');
     expect(html).toContain('class="chat-context-meter neutral"');
     expect(html).toContain('aria-label="Send message"');
+  });
+
+  it("keeps selected files available while the parent owns native import state", async () => {
+    const pickContextFiles = vi.fn();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+
+    await act(async () =>
+      root.render(
+        <ChatComposer
+          {...composerProps({
+            attachedFiles: [
+              {
+                id: "file-1",
+                name: "already-selected.md",
+                kind: "document",
+                mimeType: "text/markdown",
+                sizeBytes: 1024,
+                sha256: "a".repeat(64),
+              },
+            ],
+            attachmentTotalBytes: 1024,
+            attachmentImporting: true,
+            pickContextFiles,
+          })}
+        />,
+      ),
+    );
+    const attach = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Attach multiple files"]',
+    );
+
+    act(() => attach?.click());
+    expect(pickContextFiles).not.toHaveBeenCalled();
+    expect(attach?.disabled).toBe(true);
+    expect(attach?.getAttribute("aria-busy")).toBe("true");
+    expect(container.textContent).toContain("Importing file context…");
+    expect(container.textContent).toContain("already-selected.md");
+
+    act(() => root.unmount());
+    container.remove();
   });
 
   it("groups project and model routing into one responsive composer row", () => {

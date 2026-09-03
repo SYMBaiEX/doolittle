@@ -1,5 +1,6 @@
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
 import type {
+  AttachmentCleanupRequest,
   AttachmentSelection,
   ChatRequest,
   DesktopCommandRequest,
@@ -98,7 +99,27 @@ export interface RegisterIpcDependencies {
     request: RecordedAudioImportRequest,
   ) => AttachmentSelection["attachments"][number];
   discardRecordedAudio?: (recordingId: string) => void;
+  discardChatAttachments?: (request: AttachmentCleanupRequest) => void;
+  commitChatAttachments?: (request: AttachmentCleanupRequest) => void;
   desktopControls?: DesktopControlIpcDependencies;
+}
+
+export function validateAttachmentCleanupRequest(
+  value: unknown,
+): AttachmentCleanupRequest {
+  if (!isRecord(value) || !Array.isArray(value.attachmentIds)) {
+    throw new Error("An attachment cleanup request is required.");
+  }
+  const attachmentIds = validateChatAttachmentIds(value.attachmentIds);
+  if (
+    typeof value.cleanupCapability !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      value.cleanupCapability,
+    )
+  ) {
+    throw new Error("Attachment cleanup capability is invalid.");
+  }
+  return { attachmentIds, cleanupCapability: value.cleanupCapability };
 }
 
 function serializedByteLength(value: unknown): number {
@@ -448,6 +469,30 @@ export function validateChatAttachmentIds(value: unknown): string[] {
   return ids;
 }
 
+export function validateChatAttachmentCleanup(
+  value: unknown,
+  attachmentIds: readonly string[],
+): AttachmentCleanupRequest[] {
+  if (value === undefined) return [];
+  if (!isRecord(value)) throw new Error("Chat attachment cleanup is invalid.");
+  const knownIds = new Set(attachmentIds);
+  const byCapability = new Map<string, string[]>();
+  for (const [attachmentId, cleanupCapability] of Object.entries(value)) {
+    if (!knownIds.has(attachmentId) || typeof cleanupCapability !== "string") {
+      throw new Error("Chat attachment cleanup is invalid.");
+    }
+    const group = byCapability.get(cleanupCapability) ?? [];
+    group.push(attachmentId);
+    byCapability.set(cleanupCapability, group);
+  }
+  return [...byCapability].map(([cleanupCapability, ids]) =>
+    validateAttachmentCleanupRequest({
+      attachmentIds: ids,
+      cleanupCapability,
+    }),
+  );
+}
+
 export function assertChatRequest(
   request: ChatRequest,
 ): asserts request is ChatRequest & {
@@ -483,6 +528,7 @@ export function assertChatRequest(
     throw new Error("A project id is invalid.");
   }
   const attachmentIds = validateChatAttachmentIds(request.attachmentIds);
+  validateChatAttachmentCleanup(request.attachmentCleanup, attachmentIds);
   if (
     attachmentIds.length > 0 &&
     (message.startsWith("/") || message.startsWith("!"))

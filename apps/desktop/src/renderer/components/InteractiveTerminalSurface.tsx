@@ -26,7 +26,7 @@ export function InteractiveTerminalSurface({
     <div className="relative min-h-0 min-w-0 overflow-hidden bg-[var(--canvas-bg)]">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-3 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--accent)_2.5%,transparent),transparent_32%),repeating-linear-gradient(0deg,transparent_0,transparent_3px,color-mix(in_srgb,var(--canvas-text)_1.4%,transparent)_4px)]"
+        className="pointer-events-none absolute inset-0 z-3 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--accent)_2.25%,transparent),transparent_24%),repeating-linear-gradient(0deg,transparent_0,transparent_3px,color-mix(in_srgb,var(--canvas-text)_1.15%,transparent)_4px)]"
       />
       <div
         aria-label="Terminal output"
@@ -34,7 +34,7 @@ export function InteractiveTerminalSurface({
           activeTab ? terminalTabLabelId(activeTab.id) : undefined
         }
         aria-live="off"
-        className="absolute inset-0 z-2 m-0 min-h-0 min-w-0 overflow-hidden border-0 bg-transparent p-0 font-mono text-[var(--canvas-text)] outline-0 [scrollbar-color:var(--accent-border)_transparent] [scrollbar-width:thin] focus-visible:shadow-[inset_2px_0_var(--accent)] [&_.xterm]:h-full [&_.xterm]:px-1.5 [&_.xterm]:py-1 [&_.xterm-helper-textarea]:opacity-[0.01] [&_.xterm-screen]:will-change-auto [&_.xterm-viewport]:!bg-[var(--canvas-bg)] [&_.xterm-viewport]:overscroll-contain [&_.xterm-viewport]:[scrollbar-color:var(--accent-border)_transparent] [&_.xterm-viewport]:[scrollbar-width:thin]"
+        className="absolute inset-0 z-2 m-0 min-h-0 min-w-0 overflow-hidden border-0 bg-transparent p-0 font-mono text-[var(--canvas-text)] outline-0 [scrollbar-color:var(--accent-border)_transparent] [scrollbar-width:thin] focus-visible:shadow-[inset_2px_0_var(--accent)] [&_.xterm]:h-full [&_.xterm]:px-1 [&_.xterm]:py-0.5 [&_.xterm-helper-textarea]:opacity-[0.01] [&_.xterm-screen]:will-change-auto [&_.xterm-viewport]:!bg-[var(--canvas-bg)] [&_.xterm-viewport]:overscroll-contain [&_.xterm-viewport]:[scrollbar-color:var(--accent-border)_transparent] [&_.xterm-viewport]:[scrollbar-width:thin]"
         id={
           activeTab ? `interactive-terminal-${activeTab.id}-panel` : undefined
         }
@@ -65,7 +65,7 @@ export function InteractiveTerminalSurface({
       ) : null}
       {notice || activeTab?.stale ? (
         <p
-          className="absolute bottom-2 left-2 z-4 m-0 max-w-[min(34rem,calc(100%-1rem))] truncate rounded-[var(--radius-xs)] border border-[color-mix(in_srgb,var(--warn)_30%,var(--border))] bg-[var(--warn-soft)] px-2 py-1 font-mono text-[10px] text-[var(--warn)]"
+          className="absolute right-1.5 bottom-1.5 z-4 m-0 max-w-[min(30rem,calc(100%-1rem))] truncate rounded-[var(--radius-xs)] border border-[color-mix(in_srgb,var(--warn)_28%,var(--border))] bg-[color-mix(in_srgb,var(--warn-soft)_92%,var(--canvas-bg))] px-1.75 py-0.75 font-mono text-[10px] text-[var(--warn)] shadow-[var(--shell-shadow-md)]"
           role="status"
           title={notice}
         >

@@ -56,6 +56,8 @@ export interface ChatRequest {
   workspacePath: string;
   projectId?: string;
   attachmentIds?: string[];
+  /** Opaque desktop-only cleanup leases. Never forwarded to the runtime. */
+  attachmentCleanup?: Record<string, string>;
 }
 
 /** Resume the event feed for an already-submitted, server-owned chat run. */
@@ -133,6 +135,7 @@ export interface ChatEvent {
     | "agent.run"
     | "agent.progress"
     | "response.notice"
+    | "attachment.warning"
     | "response.completed"
     | "response.failed"
     | "response.cancelled"

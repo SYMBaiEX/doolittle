@@ -357,8 +357,10 @@ export function ProjectHistorySidebar({
                 <UiIcon icon={ChevronRight} size="xs" />
               </button>
               <button
+                aria-label="General chats"
                 className={PROJECT_RAIL_MAIN_CLASS}
                 onClick={() => onSelectScope("unscoped")}
+                title="General chats (no repository)"
                 type="button"
               >
                 <span

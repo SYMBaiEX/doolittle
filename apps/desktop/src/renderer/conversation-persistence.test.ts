@@ -198,6 +198,9 @@ describe("conversation persistence", () => {
         text: "Review this",
         capsule: null,
         attachments: [attachment],
+        attachmentCleanup: {
+          [attachment.id]: "123e4567-e89b-42d3-a456-426614174001",
+        },
       },
       compact: { text: "No metadata", capsule: null, attachments: [] },
     });
@@ -211,6 +214,9 @@ describe("conversation persistence", () => {
         text: "Review this",
         capsule: null,
         attachments: [attachment],
+        attachmentCleanup: {
+          [attachment.id]: "123e4567-e89b-42d3-a456-426614174001",
+        },
       },
       compact: { text: "No metadata", capsule: null, attachments: [] },
     });

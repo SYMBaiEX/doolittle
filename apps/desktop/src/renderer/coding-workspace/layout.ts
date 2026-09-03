@@ -1,5 +1,5 @@
 export const CODING_WORKSPACE_PAGE_CLASS =
-  "page coding-workspace-page m-0 flex h-full min-h-0 w-full min-w-0 flex-col gap-1.5 overflow-hidden px-2.25 pt-1.75 pb-2.25 max-[1320px]:h-auto max-[1320px]:min-h-full max-[1320px]:overflow-auto max-[760px]:p-1.5 [&_.badge]:rounded-[3px] [&_.badge]:px-1.25 [&_.badge]:py-0.5 [&_.badge]:text-[length:var(--text-meta)] [&_.empty-block_h3]:text-[15px] [&_.empty-block_p]:text-[13px] [&_.empty-block_p]:leading-[1.55] [&_.notice_span]:text-[13px] [&_.notice_span]:leading-[1.55] [&_.loading-block_span]:text-[11px] [&_.primary-button]:text-[11px] [&_.secondary-button]:text-[11px]";
+  "page coding-workspace-page m-0 flex h-full min-h-0 w-full min-w-0 flex-col gap-1.25 overflow-hidden px-1.5 pt-1.25 pb-1.5 max-[1320px]:h-auto max-[1320px]:min-h-full max-[1320px]:overflow-auto max-[760px]:p-1 [&_.badge]:rounded-[3px] [&_.badge]:px-1.25 [&_.badge]:py-0.5 [&_.badge]:text-[length:var(--text-meta)] [&_.empty-block_h3]:text-[15px] [&_.empty-block_p]:text-[13px] [&_.empty-block_p]:leading-[1.55] [&_.notice_span]:text-[13px] [&_.notice_span]:leading-[1.55] [&_.loading-block_span]:text-[11px] [&_.primary-button]:text-[11px] [&_.secondary-button]:text-[11px]";
 
 export const CODING_WORKSPACE_ZEN_CLASS = "!p-0";
 
@@ -7,13 +7,13 @@ const CODING_GRID_BASE =
   "coding-grid grid min-h-0 min-w-0 flex-1 overflow-hidden rounded-none border border-[var(--border)] bg-[var(--surface)] shadow-none [&>.coding-editor:last-child]:border-r-0 max-[1320px]:flex-none max-[1320px]:grid-cols-1 max-[1320px]:grid-rows-[auto_minmax(15rem,1fr)_auto] max-[1320px]:overflow-visible";
 
 const fullGrid =
-  "[grid-template-columns:var(--coding-explorer-width)_minmax(390px,1fr)_var(--coding-utility-width)] max-[1320px]:[grid-template-columns:1fr]";
+  "[grid-template-columns:minmax(220px,var(--coding-explorer-width))_minmax(0,1fr)_minmax(220px,var(--coding-utility-width))] max-[1320px]:[grid-template-columns:1fr]";
 
 const explorerHiddenGrid =
-  "[grid-template-columns:minmax(390px,1fr)_var(--coding-utility-width)] max-[1320px]:[grid-template-columns:1fr]";
+  "[grid-template-columns:minmax(0,1fr)_minmax(220px,var(--coding-utility-width))] max-[1320px]:[grid-template-columns:1fr]";
 
 const utilityHiddenGrid =
-  "[grid-template-columns:var(--coding-explorer-width)_minmax(390px,1fr)] max-[1320px]:[grid-template-columns:1fr]";
+  "[grid-template-columns:minmax(220px,var(--coding-explorer-width))_minmax(0,1fr)] max-[1320px]:[grid-template-columns:1fr]";
 
 const editorOnlyGrid = "[grid-template-columns:minmax(0,1fr)]";
 
@@ -90,7 +90,7 @@ export const CODING_UTILITY_RESIZER_CLASS =
   "coding-utility-resizer top-0 bottom-0 left-[-5px] max-[1320px]:hidden";
 
 export const CODING_TABS_CLASS =
-  "coding-tabs flex min-h-8 shrink-0 items-stretch gap-px border-[var(--border)] border-b bg-[var(--surface)] px-1 pt-0.5 pb-0";
+  "coding-tabs flex min-h-8 shrink-0 items-stretch gap-px overflow-x-auto border-[var(--border)] border-b bg-[var(--surface)] px-1 pt-0.5 pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 export const CODING_TAB_BUTTON_CLASS =
   "relative inline-flex min-w-0 items-center justify-center gap-1 rounded-none border-0 bg-transparent px-1.5 pt-1.25 pb-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold tracking-[0.055em] text-[var(--muted)] uppercase hover:bg-[var(--surface-hover)] hover:text-[var(--text-soft)] [&>.coding-tab-label]:truncate [&>.coding-tab-count]:inline-grid [&>.coding-tab-count]:h-3.75 [&>.coding-tab-count]:min-w-3.75 [&>.coding-tab-count]:place-items-center [&>.coding-tab-count]:rounded-full [&>.coding-tab-count]:bg-[var(--surface-soft)] [&>.coding-tab-count]:px-0.75 [&>.coding-tab-count]:text-[10px] [&>.coding-tab-count]:text-[var(--muted)]";
@@ -158,10 +158,10 @@ export const CODING_DIFF_SOURCE_SELECTED_CLASS =
   "selected border-[var(--accent-border)]! bg-[var(--accent-soft)]! text-[var(--accent)]!";
 
 export const CODING_EDITOR_SURFACE_CLASS =
-  "coding-editor-surface relative flex min-h-0 min-w-0 flex-1 flex-col overflow-auto bg-[var(--bg)] [scrollbar-color:var(--border-strong)_transparent] [scrollbar-width:thin] [&>.loading-block]:m-auto [&>.notice]:m-auto [&>.empty-block]:m-auto [&>.coding-inline-state]:mt-2.25 [&>.coding-inline-state]:mr-2.25 [&>.coding-inline-state]:ml-13.25";
+  "coding-editor-surface relative flex min-h-0 min-w-0 flex-1 flex-col overflow-auto bg-[var(--bg)] [scrollbar-color:var(--border-strong)_transparent] [scrollbar-width:thin] [&>.loading-block]:m-auto [&>.notice]:m-auto [&>.empty-block]:m-auto [&>.coding-inline-state]:mt-2 [&>.coding-inline-state]:mr-2 [&>.coding-inline-state]:ml-10";
 
 export const CODING_ACTION_NOTICE_CLASS =
-  "coding-action-notice absolute top-2 right-5 left-14.5 z-5 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-raised)] px-2.25 py-1.75 text-[11px] leading-[1.45] text-[var(--text-soft)]";
+  "coding-action-notice absolute top-1.5 right-3 left-11 z-5 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-raised)] px-2 py-1.5 text-[11px] leading-[1.45] text-[var(--text-soft)]";
 
 export function codingActionNoticeTone(tone: string): string {
   if (tone === "good")
@@ -174,7 +174,7 @@ export function codingActionNoticeTone(tone: string): string {
 }
 
 export const CODING_SOURCE_CLASS =
-  "coding-source m-0 min-h-full min-w-max border-0 bg-transparent pt-4.5 pr-6 pb-11 pl-14.5 font-[var(--font-mono)] text-xs leading-[var(--line-body)] text-[var(--text-soft)] [tab-size:2] whitespace-pre outline-offset-[-3px]";
+  "coding-source m-0 min-h-full min-w-0 border-0 bg-transparent pt-3 pr-4 pb-8 pl-10 font-[var(--font-mono)] text-xs leading-[var(--line-body)] text-[var(--text-soft)] [tab-size:2] whitespace-pre-wrap break-words outline-offset-[-3px]";
 
 export const CODING_PATCH_CLASS =
   "coding-patch text-[color-mix(in_srgb,var(--text-soft)_94%,var(--accent))]";

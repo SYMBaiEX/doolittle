@@ -155,6 +155,109 @@ describe("handleAcpRoutes", () => {
     });
   });
 
+  it("returns a stable conflict response when updates target a session lost after restart", async () => {
+    const context = createContext();
+    vi.spyOn(context.services.acp, "protocolUpdates").mockImplementation(() => {
+      throw new AcpSessionNotFoundError("acp:previous-runtime");
+    });
+
+    const response = await handleAcpRoutes(
+      context,
+      new Request(
+        "http://localhost/acp/session/updates?sessionId=acp%3Aprevious-runtime&cursor=7",
+      ),
+      new URL(
+        "http://localhost/acp/session/updates?sessionId=acp%3Aprevious-runtime&cursor=7",
+      ),
+    );
+
+    expect(response?.status).toBe(409);
+    await expect(response?.json()).resolves.toEqual({
+      error: "ACP session not found: acp:previous-runtime",
+      code: "ACP_SESSION_NOT_FOUND",
+    });
+  });
+
+  it("returns a stable conflict response when cancellation targets a session lost after restart", async () => {
+    const context = createContext();
+    vi.spyOn(context.services.acp, "cancelProtocolSession").mockRejectedValue(
+      new AcpSessionNotFoundError("acp:previous-runtime"),
+    );
+
+    const response = await handleAcpRoutes(
+      context,
+      jsonRequest("/acp/session/cancel", {
+        sessionId: "acp:previous-runtime",
+      }),
+      new URL("http://localhost/acp/session/cancel"),
+    );
+
+    expect(response?.status).toBe(409);
+    await expect(response?.json()).resolves.toEqual({
+      error: "ACP session not found: acp:previous-runtime",
+      code: "ACP_SESSION_NOT_FOUND",
+    });
+  });
+
+  it("cancels a live ACP session", async () => {
+    const context = createContext();
+    const cancelProtocolSession = vi.spyOn(
+      context.services.acp,
+      "cancelProtocolSession",
+    );
+
+    const response = await handleAcpRoutes(
+      context,
+      jsonRequest("/acp/session/cancel", { sessionId: "acp:1" }),
+      new URL("http://localhost/acp/session/cancel"),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(cancelProtocolSession).toHaveBeenCalledWith("acp:1");
+    await expect(response?.json()).resolves.toEqual({ cancelled: true });
+  });
+
+  it("returns a valid session update snapshot without replaying older cursors", async () => {
+    const context = createContext();
+    const protocolUpdates = vi
+      .spyOn(context.services.acp, "protocolUpdates")
+      .mockReturnValue({
+        sessionId: "acp:1",
+        cursor: 3,
+        updates: [
+          {
+            cursor: 3,
+            sessionId: "acp:1",
+            receivedAt: "2026-09-03T00:00:00.000Z",
+            update: {
+              sessionUpdate: "agent_message_chunk",
+              content: { type: "text", text: "new update" },
+            },
+          },
+        ],
+      });
+
+    const response = await handleAcpRoutes(
+      context,
+      new Request(
+        "http://localhost/acp/session/updates?sessionId=acp%3A1&cursor=2",
+      ),
+      new URL(
+        "http://localhost/acp/session/updates?sessionId=acp%3A1&cursor=2",
+      ),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(protocolUpdates).toHaveBeenCalledWith("acp:1", 2);
+    await expect(response?.json()).resolves.toMatchObject({
+      snapshot: {
+        sessionId: "acp:1",
+        cursor: 3,
+        updates: [{ cursor: 3 }],
+      },
+    });
+  });
+
   it("validates required ACP inputs", async () => {
     const missingImport = await handleAcpRoutes(
       createContext(),

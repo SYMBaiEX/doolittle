@@ -50,8 +50,8 @@ import {
   reusableCompletions,
 } from "./reusable-completion";
 
-export const CHAT_COMPOSER_MIN_HEIGHT = 46;
-export const CHAT_COMPOSER_MAX_HEIGHT = 180;
+export const CHAT_COMPOSER_MIN_HEIGHT = 42;
+export const CHAT_COMPOSER_MAX_HEIGHT = 156;
 
 /** Keep the composer readable while preventing a long draft from taking over the chat view. */
 export function chatComposerHeight(scrollHeight: number): number {
@@ -93,6 +93,7 @@ export interface ChatComposerProps {
   clearQueuedMessages: () => void;
   removeQueuedMessage: (id: string) => void;
   attachedFiles: ManagedAttachmentDescriptor[];
+  attachmentImporting: boolean;
   chatContextCapsule: ChatContextCapsule | null;
   removeChatContext: () => void;
   attachmentTotalBytes: number;
@@ -152,6 +153,7 @@ export function ChatComposer({
   clearQueuedMessages,
   removeQueuedMessage,
   attachedFiles,
+  attachmentImporting,
   chatContextCapsule,
   removeChatContext,
   attachmentTotalBytes,
@@ -267,6 +269,9 @@ export function ChatComposer({
       onOpenProjectManager &&
       onSelectProjectForNewChat,
   );
+  const importContextFiles = async () => {
+    if (!attachmentImporting) await pickContextFiles();
+  };
 
   return (
     <form className="chat-composer" onSubmit={onSubmit}>
@@ -500,149 +505,165 @@ export function ChatComposer({
           {skillsError}
         </div>
       ) : null}
-      <div className="chat-composer-tools flex min-w-0 flex-wrap items-center gap-1.5">
-        <ElizaButton
-          aria-label="Attach multiple files"
-          className="!min-h-[30px] rounded-[7px] px-[7px] py-[5px] text-[10px] font-semibold max-[480px]:!min-h-10 max-[480px]:px-2.5"
-          onClick={pickContextFiles}
-          size="sm"
-          type="button"
-          variant="secondary"
-        >
-          <UiIcon icon={Paperclip} size="xs" />
-          <span className="chat-composer-control-label">
-            {attachedFiles.length > 0 ? "Add files" : "Attach files"}
-          </span>
-        </ElizaButton>
-        <VoiceComposerButton
+      <div className="chat-composer-main">
+        <ElizaTextarea
+          className="chat-composer-input !max-h-[156px] !min-h-[42px] !w-full !resize-none !rounded-none !border-0 !bg-transparent px-0.75 pt-0.5 pb-0.5 text-[13px] leading-[1.5] [box-shadow:none]! focus-visible:!outline-none max-[720px]:!max-h-[132px] max-[480px]:!max-h-[112px] max-[480px]:!min-h-10 max-[480px]:!px-0 max-[480px]:!py-0.5 max-[480px]:text-[13px]"
+          aria-activedescendant={activeCommandId}
+          aria-autocomplete="list"
+          aria-describedby={
+            composerValidationError ? "chat-composer-validation" : undefined
+          }
+          aria-controls={
+            commandMenuOpen
+              ? "chat-command-completions"
+              : reusableMenuOpen
+                ? "chat-reusable-completions"
+                : undefined
+          }
+          aria-errormessage={
+            composerValidationError ? "chat-composer-validation" : undefined
+          }
+          aria-expanded={commandMenuOpen || reusableMenuOpen}
+          aria-haspopup="listbox"
+          aria-invalid={composerValidationError ? true : undefined}
+          aria-label="Message Doolittle"
           disabled={backend.phase !== "ready"}
-          importAndTranscribe={importAndTranscribeRecording}
-          onTranscript={insertDictationTranscript}
-        />
-        <PromptLibrary
-          activeProject={activeProject}
-          composerRef={composerRef}
-          draft={draft}
-          setAnnouncement={setQueueAnnouncement}
-          setDraft={setDraft}
-        />
-      </div>
-      <div
-        className="chat-composer-routing flex min-w-0 items-center justify-end gap-1.5"
-        data-has-project={showProjectSelector ? "true" : undefined}
-      >
-        {showProjectSelector &&
-        projects &&
-        onChooseRepository &&
-        onOpenProjectManager &&
-        onSelectProjectForNewChat ? (
-          <ComposerProjectSelector
-            activeProjectId={activeProject?.id}
-            onChooseRepository={onChooseRepository}
-            onManageProjects={onOpenProjectManager}
-            onSelectProject={onSelectProjectForNewChat}
-            projects={projects}
-          />
-        ) : null}
-        <ComposerModelSelector
-          active={backend.phase === "ready"}
-          onOpenModelsPage={onOpenModelsPage}
-          onOpenProvidersPage={onOpenProvidersPage}
-          refreshRuntime={refreshRuntime}
-          runtime={runtime}
-        />
-      </div>
-      <ElizaTextarea
-        className="chat-composer-input !max-h-[180px] !min-h-[46px] !w-full !resize-none !rounded-none !border-0 !bg-transparent px-1 pt-1 pb-1 text-sm leading-[1.55] [box-shadow:none]! focus-visible:!outline-none max-[720px]:!max-h-[150px] max-[480px]:!max-h-[120px] max-[480px]:!min-h-10 max-[480px]:py-0.5 max-[480px]:text-[13px]"
-        aria-activedescendant={activeCommandId}
-        aria-autocomplete="list"
-        aria-describedby={
-          composerValidationError ? "chat-composer-validation" : undefined
-        }
-        aria-controls={
-          commandMenuOpen
-            ? "chat-command-completions"
-            : reusableMenuOpen
-              ? "chat-reusable-completions"
-              : undefined
-        }
-        aria-errormessage={
-          composerValidationError ? "chat-composer-validation" : undefined
-        }
-        aria-expanded={commandMenuOpen || reusableMenuOpen}
-        aria-haspopup="listbox"
-        aria-invalid={composerValidationError ? true : undefined}
-        aria-label="Message Doolittle"
-        disabled={backend.phase !== "ready"}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          setCommandMenuDismissed(false);
-          setCommandSelection(0);
-        }}
-        onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
-          if (event.nativeEvent.isComposing) return;
-          if (completionCount > 0) {
-            if (event.key === "ArrowDown") {
-              event.preventDefault();
-              setCommandSelection((current) =>
-                Math.min(current + 1, completionCount - 1),
-              );
-              return;
-            }
-            if (event.key === "ArrowUp") {
-              event.preventDefault();
-              setCommandSelection((current) => Math.max(current - 1, 0));
-              return;
-            }
-            if (
-              event.key === "Tab" ||
-              (event.key === "Enter" && reusableMenuOpen)
-            ) {
-              event.preventDefault();
-              const selection = Math.min(commandSelection, completionCount - 1);
-              if (commandMenuOpen) {
-                const selected = commandSuggestions[selection];
-                if (selected) selectCommandSuggestion(selected);
-              } else {
-                const selected = reusableSuggestions[selection];
-                if (selected) selectReusableSuggestion(selected);
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setCommandMenuDismissed(false);
+            setCommandSelection(0);
+          }}
+          onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
+            if (event.nativeEvent.isComposing) return;
+            if (completionCount > 0) {
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setCommandSelection((current) =>
+                  Math.min(current + 1, completionCount - 1),
+                );
+                return;
               }
-              return;
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setCommandSelection((current) => Math.max(current - 1, 0));
+                return;
+              }
+              if (
+                event.key === "Tab" ||
+                (event.key === "Enter" && reusableMenuOpen)
+              ) {
+                event.preventDefault();
+                const selection = Math.min(
+                  commandSelection,
+                  completionCount - 1,
+                );
+                if (commandMenuOpen) {
+                  const selected = commandSuggestions[selection];
+                  if (selected) selectCommandSuggestion(selected);
+                } else {
+                  const selected = reusableSuggestions[selection];
+                  if (selected) selectReusableSuggestion(selected);
+                }
+                return;
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setCommandMenuDismissed(true);
+                return;
+              }
             }
-            if (event.key === "Escape") {
+            if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
-              setCommandMenuDismissed(true);
-              return;
+              void onSubmit();
             }
+          }}
+          placeholder={
+            backend.phase === "ready"
+              ? activeProject
+                ? `Message ${activeProject.name}…`
+                : "Message Doolittle…"
+              : "Waiting for the local runtime…"
           }
-          if (event.key === "Enter" && !event.shiftKey) {
-            event.preventDefault();
-            void onSubmit();
-          }
-        }}
-        placeholder={
-          backend.phase === "ready"
-            ? activeProject
-              ? `Message ${activeProject.name}…`
-              : "Message Doolittle…"
-            : "Waiting for the local runtime…"
-        }
-        ref={composerRef}
-        rows={1}
-        variant="default"
-        density="compact"
-        value={draft}
-      />
-      <ElizaButton
-        aria-label={activeRequest ? "Queue message" : "Send message"}
-        className="chat-composer-submit !size-[34px] !min-h-[34px] !min-w-[34px] !rounded-[9px] !border-0 !bg-[var(--accent)] !p-0 !text-[var(--accent-ink)] hover:!bg-[color-mix(in_srgb,var(--accent)_86%,var(--text))] disabled:!bg-[var(--surface-soft)] disabled:!text-[var(--muted)] disabled:opacity-60 motion-reduce:transition-none max-[480px]:!size-10 max-[480px]:!min-h-10 max-[480px]:!min-w-10"
-        disabled={!canSubmit}
-        size="icon-sm"
-        type="submit"
-        variant="default"
-      >
-        <UiIcon icon={ArrowUp} size="md" />
-      </ElizaButton>
+          ref={composerRef}
+          rows={1}
+          variant="default"
+          density="compact"
+          value={draft}
+        />
+        <ElizaButton
+          aria-label={activeRequest ? "Queue message" : "Send message"}
+          className="chat-composer-submit !size-[32px] !min-h-[32px] !min-w-[32px] !self-end !rounded-[8px] !border-0 !bg-[var(--accent)] !p-0 !text-[var(--accent-ink)] hover:!bg-[color-mix(in_srgb,var(--accent)_86%,var(--text))] disabled:!bg-[var(--surface-soft)] disabled:!text-[var(--muted)] disabled:opacity-60 motion-reduce:transition-none max-[480px]:!size-9.5 max-[480px]:!min-h-9.5 max-[480px]:!min-w-9.5"
+          disabled={!canSubmit}
+          size="icon-sm"
+          type="submit"
+          variant="default"
+        >
+          <UiIcon icon={ArrowUp} size="md" />
+        </ElizaButton>
+      </div>
+      <div className="chat-composer-footer">
+        <div className="chat-composer-tools flex min-w-0 flex-wrap items-center gap-1.5">
+          <ElizaButton
+            aria-label="Attach multiple files"
+            aria-busy={attachmentImporting || undefined}
+            className="!min-h-[28px] rounded-[7px] px-[7px] py-[4px] text-[10px] font-semibold max-[480px]:!min-h-9.5 max-[480px]:px-2"
+            disabled={attachmentImporting}
+            onClick={() => void importContextFiles()}
+            size="sm"
+            type="button"
+            variant="secondary"
+          >
+            <UiIcon icon={Paperclip} size="xs" />
+            <span className="chat-composer-control-label">
+              {attachmentImporting
+                ? "Importing files"
+                : attachedFiles.length > 0
+                  ? "Add files"
+                  : "Attach files"}
+            </span>
+          </ElizaButton>
+          <span aria-live="polite" className="sr-only" role="status">
+            {attachmentImporting ? "Importing file context…" : ""}
+          </span>
+          <VoiceComposerButton
+            disabled={backend.phase !== "ready"}
+            importAndTranscribe={importAndTranscribeRecording}
+            onTranscript={insertDictationTranscript}
+          />
+          <PromptLibrary
+            activeProject={activeProject}
+            composerRef={composerRef}
+            draft={draft}
+            setAnnouncement={setQueueAnnouncement}
+            setDraft={setDraft}
+          />
+        </div>
+        <div
+          className="chat-composer-routing flex min-w-0 items-center justify-end gap-1.5"
+          data-has-project={showProjectSelector ? "true" : undefined}
+        >
+          {showProjectSelector &&
+          projects &&
+          onChooseRepository &&
+          onOpenProjectManager &&
+          onSelectProjectForNewChat ? (
+            <ComposerProjectSelector
+              activeProjectId={activeProject?.id}
+              onChooseRepository={onChooseRepository}
+              onManageProjects={onOpenProjectManager}
+              onSelectProject={onSelectProjectForNewChat}
+              projects={projects}
+            />
+          ) : null}
+          <ComposerModelSelector
+            active={backend.phase === "ready"}
+            onOpenModelsPage={onOpenModelsPage}
+            onOpenProvidersPage={onOpenProvidersPage}
+            refreshRuntime={refreshRuntime}
+            runtime={runtime}
+          />
+        </div>
+      </div>
       <small className="chat-composer-hint">
         {activeRequest ? "Enter to queue" : "Enter to send"} · Shift Enter for a
         new line

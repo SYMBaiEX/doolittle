@@ -1,5 +1,5 @@
 export const DESKTOP_SHELL_CLASS =
-  "desktop-shell grid h-full w-full overflow-hidden bg-[var(--bg)] font-[var(--font-sans)] text-[length:var(--text-body)] text-[var(--text)] transition-[grid-template-columns] duration-200 ease-[var(--ease-out)]";
+  "desktop-shell grid h-full w-full overflow-hidden bg-[var(--bg)] font-[var(--font-sans)] text-[length:var(--text-body)] text-[var(--text)] transition-[grid-template-columns] duration-200 ease-[var(--ease-out)] motion-reduce:transition-none motion-reduce:duration-0";
 
 export const APP_MAIN_CLASS =
   "app-main relative flex min-h-0 min-w-0 flex-col overflow-hidden";

@@ -178,11 +178,13 @@ export class AcpProtocolRuntime {
   }
 
   cancel(sessionId: string): void {
-    this.sessions.get(sessionId)?.pendingPrompt?.abort();
+    const session = this.requireSession(sessionId);
+    session.pendingPrompt?.abort();
     this.recordTelemetry("session.cancel", { sessionId });
   }
 
   async notifyCancel(sessionId: string): Promise<void> {
+    this.requireSession(sessionId);
     await this.hostProxy
       .connection()
       .agent.notify(methods.agent.session.cancel, {
@@ -233,6 +235,7 @@ export class AcpProtocolRuntime {
   }
 
   sessionUpdates(sessionId: string, cursor = 0): AcpProtocolSnapshot {
+    this.requireSession(sessionId);
     const matching = (this.updates.get(sessionId) ?? []).filter(
       (entry) => entry.cursor > cursor,
     );

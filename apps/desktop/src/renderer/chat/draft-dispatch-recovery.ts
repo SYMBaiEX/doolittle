@@ -22,6 +22,9 @@ export function snapshotDraftForDispatch(
       text: draft.text,
       capsule: draft.capsule ? { ...draft.capsule } : null,
       attachments: [...draft.attachments],
+      ...(draft.attachmentCleanup
+        ? { attachmentCleanup: { ...draft.attachmentCleanup } }
+        : {}),
     },
   };
 }

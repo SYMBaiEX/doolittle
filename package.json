@@ -134,7 +134,7 @@
     "@elizaos/skills": "2.0.3-beta.7",
     "@elizaos/vault": "2.0.3-beta.7",
     "dotenv": "^17.4.2",
-    "puppeteer-core": "25.9.0",
+    "puppeteer-core": "25.10.0",
     "shell-quote": "1.10.0",
     "elizaos": "2.0.3-beta.7",
     "zod": "^4.4.3"
@@ -170,12 +170,12 @@
     "@elizaos/vault": "2.0.3-beta.7",
     "fast-uri": "3.1.6",
     "@elizaos/plugin-computeruse": {
-      "puppeteer-core": "25.9.0"
+      "puppeteer-core": "25.10.0"
     },
     "@elizaos/plugin-elizacloud>undici": "8.10.0",
     "@elizaos/app-core>undici": "8.10.0",
     "@elizaos/plugin-discord>undici": "8.10.0",
-    "@elizaos/plugin-computeruse>puppeteer-core": "25.9.0",
+    "@elizaos/plugin-computeruse>puppeteer-core": "25.10.0",
     "cytoscape": "3.34.0",
     "dompurify": "3.4.14",
     "elizaos": "2.0.3-beta.7",
@@ -183,15 +183,15 @@
     "tar": "7.5.22"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.9",
+    "@biomejs/biome": "2.5.12",
     "@nubjs/nub": "0.7.5",
     "@playwright/test": "^1.62.1",
     "@types/blessed": "^0.1.27",
     "@types/node": "^26.2.0",
     "blessed": "^0.1.81",
     "esbuild": "0.28.2",
-    "knip": "6.32.2",
-    "scriptc": "0.0.33",
+    "knip": "6.34.0",
+    "scriptc": "0.0.36",
     "typescript": "^7.0.2",
     "vitest": "4.1.11"
   },

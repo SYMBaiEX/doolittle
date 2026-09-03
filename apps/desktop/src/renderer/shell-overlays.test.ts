@@ -33,6 +33,9 @@ describe("desktop shell overlay Tailwind ownership", () => {
     expect(DESKTOP_SHELL_CLASS).toContain("grid");
     expect(DESKTOP_SHELL_CLASS).toContain("font-[var(--font-sans)]");
     expect(DESKTOP_SHELL_CLASS).toContain("text-[length:var(--text-body)]");
+    expect(DESKTOP_SHELL_CLASS).toContain("transition-[grid-template-columns]");
+    expect(DESKTOP_SHELL_CLASS).toContain("motion-reduce:transition-none");
+    expect(DESKTOP_SHELL_CLASS).toContain("motion-reduce:duration-0");
     expect(APP_SIDEBAR_CLASS).not.toContain("relative");
     expect(APP_SIDEBAR_CLASS).not.toContain("fixed");
     expect(APP_SIDEBAR_DESKTOP_CLASS).toBe("relative");

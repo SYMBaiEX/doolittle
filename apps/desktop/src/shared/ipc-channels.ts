@@ -21,6 +21,8 @@ export const desktopIpcChannels = {
     dialogPickProjectFiles: "dialog:pick-project-files",
     dialogPickProjectFolders: "dialog:pick-project-folders",
     dialogPickChatAttachments: "dialog:pick-chat-attachments",
+    chatDiscardAttachments: "chat:discard-attachments",
+    chatCommitAttachments: "chat:commit-attachments",
     chatImportRecordedAudio: "chat:import-recorded-audio",
     chatDiscardRecordedAudio: "chat:discard-recorded-audio",
     providerAuthStart: "provider-auth:start",

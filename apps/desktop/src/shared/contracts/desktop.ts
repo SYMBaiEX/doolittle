@@ -24,6 +24,12 @@ export interface ManagedAttachmentDescriptor {
 export interface AttachmentSelection {
   canceled: boolean;
   attachments: ManagedAttachmentDescriptor[];
+  /** Opaque main-process lease for uncommitted standard attachment cleanup. */
+  cleanupCapability?: string;
+}
+export interface AttachmentCleanupRequest {
+  attachmentIds: string[];
+  cleanupCapability: string;
 }
 export type SupportedRecordedAudioMime =
   | "audio/mp4"

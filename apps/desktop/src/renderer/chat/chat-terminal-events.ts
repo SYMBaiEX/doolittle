@@ -13,6 +13,26 @@ function terminalFailureText(data: unknown): string {
   return typeof record.message === "string" ? record.message : "";
 }
 
+function terminalFailureNotice(data: unknown): string {
+  const detail = terminalFailureText(data)
+    .replace(/\s+/gu, " ")
+    .trim()
+    .slice(0, 240);
+  const summary = detail
+    ? `Response interrupted: ${detail}`
+    : "Response interrupted.";
+  return `${summary} Retry to continue.`;
+}
+
+function failedResponseContent(content: string, data: unknown): string {
+  const notice = terminalFailureNotice(data);
+  if (!content.trim()) return notice;
+
+  // A replayed terminal event must not turn a useful partial response into a
+  // stack of identical failure notices.
+  return content.endsWith(notice) ? content : `${content}\n\n${notice}`;
+}
+
 export function handleFailedChatTerminalEvent(
   event: ChatEvent,
   sessionId: string,
@@ -24,8 +44,7 @@ export function handleFailedChatTerminalEvent(
   }
   updateAssistant(sessionId, event.requestId, (message) => ({
     ...message,
-    content:
-      terminalFailureText(event.data) || "The response could not be completed.",
+    content: failedResponseContent(message.content, event.data),
     pending: false,
     error: true,
   }));

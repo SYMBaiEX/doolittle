@@ -25,6 +25,10 @@ type SupportFileRegistryEntry = {
 };
 
 const supportFiles = new Map<string, SupportFileRegistryEntry>();
+const diagnosticsPendingCounts: Record<MonacoProjectLanguage, number> = {
+  javascript: 0,
+  typescript: 0,
+};
 export type MonacoProjectLanguage = "javascript" | "typescript";
 
 function defaultsFor(language: MonacoProjectLanguage) {
@@ -65,6 +69,36 @@ export function setMonacoProjectDiagnosticsPending(
     noSyntaxValidation: false,
     onlyVisible: false,
   });
+}
+
+function syncMonacoProjectDiagnostics(language: MonacoProjectLanguage): void {
+  setMonacoProjectDiagnosticsPending(
+    language,
+    diagnosticsPendingCounts[language] > 0,
+  );
+}
+
+export function acquireMonacoProjectDiagnosticsLease(
+  language: MonacoProjectLanguage,
+): () => void {
+  diagnosticsPendingCounts[language] += 1;
+  syncMonacoProjectDiagnostics(language);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    diagnosticsPendingCounts[language] = Math.max(
+      0,
+      diagnosticsPendingCounts[language] - 1,
+    );
+    syncMonacoProjectDiagnostics(language);
+  };
+}
+
+export function resetMonacoProjectSupportTestState(): void {
+  diagnosticsPendingCounts.javascript = 0;
+  diagnosticsPendingCounts.typescript = 0;
+  supportFiles.clear();
 }
 
 function supportKey(language: MonacoProjectLanguage, path: string): string {

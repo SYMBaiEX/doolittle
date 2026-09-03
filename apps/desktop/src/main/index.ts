@@ -22,6 +22,7 @@ import {
   findRepoRoot,
   sourceRuntimeTarget,
 } from "./backend";
+import { ChatAttachmentLifecycle } from "./chat-attachment-lifecycle";
 import {
   configureDesktopSingleInstance,
   DEFAULT_DESKTOP_LIFECYCLE_STATE,
@@ -176,7 +177,10 @@ async function pickProjectFolders() {
   };
 }
 
-async function pickChatAttachments(runtimeDataDir: string) {
+async function pickChatAttachments(
+  runtimeDataDir: string,
+  lifecycle: ChatAttachmentLifecycle,
+) {
   const options = {
     title: "Attach files to this message",
     buttonLabel: "Attach",
@@ -193,9 +197,14 @@ async function pickChatAttachments(runtimeDataDir: string) {
   if (result.canceled || result.filePaths.length === 0) {
     return { canceled: true, attachments: [] };
   }
+  const attachments = importSelectedAttachments(
+    result.filePaths,
+    runtimeDataDir,
+  );
   return {
     canceled: false,
-    attachments: importSelectedAttachments(result.filePaths, runtimeDataDir),
+    attachments,
+    cleanupCapability: lifecycle.lease(attachments),
   };
 }
 
@@ -631,6 +640,7 @@ if (ownsSingleInstance)
           ),
     });
     const runtimeDataDir = resolve(app.getPath("userData"), "runtime");
+    const chatAttachmentLifecycle = new ChatAttachmentLifecycle(runtimeDataDir);
     // Eliza's OAuth/account-storage helpers resolve their state root from
     // ELIZA_HOME. Bind the desktop main process to the same private data root
     // passed to the backend so newly saved accounts appear in the live pool.
@@ -704,13 +714,18 @@ if (ownsSingleInstance)
           workspaceState?.subscribe(listener) ?? (() => undefined),
       },
       sensitiveActionDependencies: { notify: showBackgroundNotification },
-      pickChatAttachments: () => pickChatAttachments(runtimeDataDir),
+      pickChatAttachments: () =>
+        pickChatAttachments(runtimeDataDir, chatAttachmentLifecycle),
       pickProjectFiles,
       pickProjectFolders,
       importRecordedAudio: (request) =>
         importRecordedAudio(request, runtimeDataDir),
       discardRecordedAudio: (recordingId) =>
         discardRecordedAudioImport(runtimeDataDir, recordingId),
+      discardChatAttachments: ({ attachmentIds, cleanupCapability }) =>
+        chatAttachmentLifecycle.discard(attachmentIds, cleanupCapability),
+      commitChatAttachments: ({ attachmentIds, cleanupCapability }) =>
+        chatAttachmentLifecycle.commit(attachmentIds, cleanupCapability),
       desktopControls: {
         getLifecycleState: () =>
           desktopPreferences?.getState() ?? { keepRunningInBackground: false },
