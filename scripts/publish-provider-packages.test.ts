@@ -184,7 +184,11 @@ function createAuditPassingNpm(root: string): string {
  * tarballs with tar.  This preserves the two assertions that matter here:
  * the staged artifact is packable and Node can import what a consumer gets.
  */
-function createOfflineNpm(root: string, directory: string, script = ""): string {
+function createOfflineNpm(
+  root: string,
+  directory: string,
+  script = "",
+): string {
   if (process.platform === "win32" || !SYSTEM_NPM) {
     throw new Error("This test fixture requires a POSIX npm executable.");
   }
