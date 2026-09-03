@@ -73,6 +73,15 @@ type AuditAdvisory = {
   findings?: unknown;
 };
 
+/**
+ * `nub audit` normally completes quickly, but a registry connection can keep
+ * its process alive after it has otherwise done its work. Packaging must not
+ * inherit an unbounded network wait: a release either receives a complete,
+ * current audit report or fails closed.
+ */
+export const DESKTOP_AUDIT_TIMEOUT_MS = 30_000;
+export const DESKTOP_AUDIT_MAX_ATTEMPTS = 2;
+
 function sha256(value: string | Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -325,28 +334,69 @@ export function assertDesktopArtifactAuditReport(
   }
 }
 
-function runDesktopAudit(repoRoot: string): unknown {
-  const result = spawnSync(
-    "nub",
-    ["audit", "--audit-level", "high", "--json"],
-    {
-      cwd: repoRoot,
-      encoding: "utf8",
-      maxBuffer: 32 * 1024 * 1024,
-    },
-  );
-  if (!result.stdout.trim()) {
+function auditTimedOut(result: ReturnType<typeof spawnSync>): boolean {
+  const error = result.error as NodeJS.ErrnoException | undefined;
+  return error?.code === "ETIMEDOUT" || result.signal === "SIGKILL";
+}
+
+function auditDiagnostic(stderr: string): string {
+  const detail = stderr.trim().slice(0, 4_096);
+  return detail ? ` ${detail}` : "";
+}
+
+function auditText(value: string | NodeJS.ArrayBufferView | undefined): string {
+  return typeof value === "string" ? value : (value?.toString() ?? "");
+}
+
+function parseDesktopAudit(result: ReturnType<typeof spawnSync>): unknown {
+  const stdout = auditText(result.stdout);
+  const stderr = auditText(result.stderr);
+  if (!stdout.trim()) {
     throw new Error(
-      `Desktop dependency audit produced no JSON.${result.stderr.trim() ? ` ${result.stderr.trim()}` : ""}`,
+      `Desktop dependency audit produced no JSON.${auditDiagnostic(stderr)}`,
     );
   }
   try {
-    return JSON.parse(result.stdout);
+    return JSON.parse(stdout);
   } catch (error) {
     throw new Error("Desktop dependency audit produced invalid JSON.", {
       cause: error,
     });
   }
+}
+
+export function runDesktopAudit(repoRoot: string): unknown {
+  let lastTimedOutResult: ReturnType<typeof spawnSync> | undefined;
+  for (let attempt = 1; attempt <= DESKTOP_AUDIT_MAX_ATTEMPTS; attempt += 1) {
+    const result = spawnSync(
+      "nub",
+      ["audit", "--audit-level", "high", "--json"],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+        maxBuffer: 32 * 1024 * 1024,
+        timeout: DESKTOP_AUDIT_TIMEOUT_MS,
+        // SIGKILL guarantees an audit process which is stuck in a registry
+        // connection cannot keep the synchronous packaging process alive.
+        killSignal: "SIGKILL",
+      },
+    );
+    if (!auditTimedOut(result)) return parseDesktopAudit(result);
+    // Nub can leave a registry socket open after it has written a complete
+    // report. A complete, parseable JSON report is still a real audit result;
+    // accepting it avoids turning a verified release check into a false
+    // failure solely because process teardown stalled.
+    try {
+      return parseDesktopAudit(result);
+    } catch {
+      // There is no complete report to verify, so retry once before failing
+      // closed. The retry remains independently time-bounded.
+    }
+    lastTimedOutResult = result;
+  }
+  throw new Error(
+    `Desktop dependency audit timed out after ${DESKTOP_AUDIT_TIMEOUT_MS}ms across ${DESKTOP_AUDIT_MAX_ATTEMPTS} attempts.${auditDiagnostic(auditText(lastTimedOutResult?.stderr))}`,
+  );
 }
 
 function electronSources(desktopRoot: string): {
