@@ -167,7 +167,10 @@ test.describe("Doolittle desktop offline chat", () => {
       const assistantMessage = page.locator(".chat-message.assistant").last();
       await expect(assistantMessage).toBeVisible({ timeout: 45_000 });
       await expect(
-        page.getByLabel("Conversation detail").getByRole("status"),
+        page
+          .getByLabel("Conversation detail")
+          .getByRole("status")
+          .filter({ hasText: "Doolittle replied." }),
       ).toContainText("Doolittle replied.", { timeout: 45_000 });
       await expect(assistantMessage.locator(".thinking")).toHaveCount(0, {
         timeout: 45_000,
