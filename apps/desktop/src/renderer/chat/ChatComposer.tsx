@@ -1,7 +1,7 @@
 import { Button as ElizaButton } from "@elizaos/ui/components/ui/button";
 import { StatusBadge } from "@elizaos/ui/components/ui/status-badge";
 import { Textarea as ElizaTextarea } from "@elizaos/ui/components/ui/textarea";
-import { ArrowUp, FileText, Paperclip, X } from "lucide-react";
+import { ArrowUp, ChevronDown, FileText, Paperclip, X } from "lucide-react";
 import type {
   Dispatch,
   FormEvent,
@@ -186,6 +186,7 @@ export function ChatComposer({
   const [promptEntries, setPromptEntries] = useState(() =>
     typeof window === "undefined" ? [] : loadPromptLibrary(window.localStorage),
   );
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     const refresh = () => setPromptEntries(loadPromptLibrary(localStorage));
@@ -243,6 +244,26 @@ export function ChatComposer({
 
   const commandMenuOpen = commandSuggestions.length > 0;
   const reusableMenuOpen = reusableSuggestions.length > 0;
+  const hasMemoryMatches =
+    memoryMatches.status === "ready" && memoryMatches.matches.length > 0;
+  const contextSummary = selectedContext
+    ? contextPressureLabel(selectedContext)
+    : usageLoading === selectedId
+      ? "Measuring…"
+      : selectedUsageError
+        ? "Unavailable"
+        : "0%";
+  const hasContextDetails = Boolean(
+    selectedContext || selectedUsageError || usageLoading === selectedId,
+  );
+  const detailsLabel =
+    hasMemoryMatches && hasContextDetails
+      ? `${memoryMatches.matches.length} memory · ${contextSummary}`
+      : hasMemoryMatches
+        ? `${memoryMatches.matches.length} memory ${memoryMatches.matches.length === 1 ? "match" : "matches"}`
+        : hasContextDetails
+          ? `${contextSummary} context`
+          : "Details";
   const completionCount = commandMenuOpen
     ? commandSuggestions.length
     : reusableSuggestions.length;
@@ -269,6 +290,11 @@ export function ChatComposer({
       onOpenProjectManager &&
       onSelectProjectForNewChat,
   );
+
+  useEffect(() => {
+    if (hasMemoryMatches || hasContextDetails) return;
+    setDetailsOpen(false);
+  }, [hasContextDetails, hasMemoryMatches]);
   const importContextFiles = async () => {
     if (!attachmentImporting) await pickContextFiles();
   };
@@ -392,27 +418,6 @@ export function ChatComposer({
         >
           {composerValidationError}
         </div>
-      ) : null}
-      {memoryMatches.status === "ready" && memoryMatches.matches.length > 0 ? (
-        <section
-          aria-label={`${memoryMatches.matches.length} saved profile matches`}
-          className="chat-memory-matches"
-          data-status="ready"
-        >
-          <strong>
-            Memory matches <span>· saved profile</span>
-          </strong>
-          <ul>
-            {memoryMatches.matches.map((match) => (
-              <li key={`${match.kind}:${match.value}`}>
-                <small className="chat-memory-matches__kind">
-                  {match.kind}
-                </small>
-                <span title={match.value}>{match.value}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
       ) : null}
       {commandSuggestions.length > 0 ? (
         <div
@@ -638,113 +643,164 @@ export function ChatComposer({
             setDraft={setDraft}
           />
         </div>
-        <div
-          className="chat-composer-routing flex min-w-0 items-center justify-end gap-1.5"
-          data-has-project={showProjectSelector ? "true" : undefined}
-        >
-          {showProjectSelector &&
-          projects &&
-          onChooseRepository &&
-          onOpenProjectManager &&
-          onSelectProjectForNewChat ? (
-            <ComposerProjectSelector
-              activeProjectId={activeProject?.id}
-              onChooseRepository={onChooseRepository}
-              onManageProjects={onOpenProjectManager}
-              onSelectProject={onSelectProjectForNewChat}
-              projects={projects}
+        <div className="chat-composer-footer-right">
+          <div
+            className="chat-composer-routing flex min-w-0 items-center justify-end gap-1.5"
+            data-has-project={showProjectSelector ? "true" : undefined}
+          >
+            {showProjectSelector &&
+            projects &&
+            onChooseRepository &&
+            onOpenProjectManager &&
+            onSelectProjectForNewChat ? (
+              <ComposerProjectSelector
+                activeProjectId={activeProject?.id}
+                onChooseRepository={onChooseRepository}
+                onManageProjects={onOpenProjectManager}
+                onSelectProject={onSelectProjectForNewChat}
+                projects={projects}
+              />
+            ) : null}
+            <ComposerModelSelector
+              active={backend.phase === "ready"}
+              onOpenModelsPage={onOpenModelsPage}
+              onOpenProvidersPage={onOpenProvidersPage}
+              refreshRuntime={refreshRuntime}
+              runtime={runtime}
             />
+          </div>
+          <div className="chat-composer-status">
+            <StatusBadge
+              className="chat-status-badge !inline-flex !min-h-[18px] items-center !border-0 !bg-transparent px-[5px] py-px !font-[inherit] !text-[length:var(--text-meta)] !tracking-normal !text-[var(--text-soft)] normal-case"
+              label={
+                activeRequest
+                  ? "Working"
+                  : backend.phase === "ready"
+                    ? "Ready"
+                    : backend.phase
+              }
+              pulse={Boolean(activeRequest)}
+              tone={
+                activeRequest
+                  ? "processing"
+                  : backend.phase === "ready"
+                    ? "success"
+                    : backend.phase === "booting"
+                      ? "warning"
+                      : backend.phase === "degraded"
+                        ? "danger"
+                        : "muted"
+              }
+              withDot
+            />
+            <small>{modelRouteLabel}</small>
+            {runningTasks > 0 ? <small>{runningTasks} active</small> : null}
+            {pendingApprovals > 0 ? (
+              <small className="warning">
+                {pendingApprovals} approval
+                {pendingApprovals === 1 ? "" : "s"}
+              </small>
+            ) : null}
+          </div>
+          {hasMemoryMatches || hasContextDetails ? (
+            <ElizaButton
+              aria-controls="chat-composer-details"
+              aria-expanded={detailsOpen}
+              className="chat-composer-meta-toggle !min-h-[28px] rounded-[7px] px-[8px] py-[4px] text-[10px] font-semibold"
+              onClick={() => setDetailsOpen((current) => !current)}
+              size="sm"
+              type="button"
+              variant="secondary"
+            >
+              <span className="chat-composer-meta-toggle__label">
+                {detailsLabel}
+              </span>
+              <UiIcon
+                className={detailsOpen ? "rotate-180" : undefined}
+                icon={ChevronDown}
+                size="xs"
+              />
+            </ElizaButton>
           ) : null}
-          <ComposerModelSelector
-            active={backend.phase === "ready"}
-            onOpenModelsPage={onOpenModelsPage}
-            onOpenProvidersPage={onOpenProvidersPage}
-            refreshRuntime={refreshRuntime}
-            runtime={runtime}
-          />
         </div>
       </div>
       <small className="chat-composer-hint">
         {activeRequest ? "Enter to queue" : "Enter to send"} · Shift Enter for a
         new line
       </small>
-      <div
-        aria-label={
-          selectedContext
-            ? `Estimated context usage ${Math.round(
-                selectedContextPercent,
-              )} percent`
-            : "Estimated context usage unavailable"
-        }
-        aria-valuemax={100}
-        aria-valuemin={0}
-        aria-valuenow={
-          selectedContext ? Math.round(selectedContextPercent) : undefined
-        }
-        className={`chat-context-meter ${selectedContextTone}`}
-        role="progressbar"
-        title={
-          selectedContext
-            ? `Estimated for ${selectedContext.provider ?? runtime?.provider ?? "current provider"} · ${
-                selectedContext.model ?? runtime?.model ?? "current model"
-              }`
-            : selectedUsageError
-        }
-      >
-        <span className="chat-status-runtime flex min-w-0 items-center gap-1.5 whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] [&_small]:max-w-[170px] [&_small]:overflow-hidden [&_small]:text-ellipsis">
-          <StatusBadge
-            className="chat-status-badge !inline-flex !min-h-[18px] items-center !border-0 !bg-transparent px-[5px] py-px !font-[inherit] !text-[length:var(--text-meta)] !tracking-normal !text-[var(--text-soft)] normal-case"
-            label={
-              activeRequest
-                ? "Working"
-                : backend.phase === "ready"
-                  ? "Ready"
-                  : backend.phase
-            }
-            pulse={Boolean(activeRequest)}
-            tone={
-              activeRequest
-                ? "processing"
-                : backend.phase === "ready"
-                  ? "success"
-                  : backend.phase === "booting"
-                    ? "warning"
-                    : backend.phase === "degraded"
-                      ? "danger"
-                      : "muted"
-            }
-            withDot
-          />
-          <small>{modelRouteLabel}</small>
-          {runningTasks > 0 ? <small>{runningTasks} active</small> : null}
-          {pendingApprovals > 0 ? (
-            <small className="warning">
-              {pendingApprovals} approval
-              {pendingApprovals === 1 ? "" : "s"}
-            </small>
+      {detailsOpen && (hasMemoryMatches || hasContextDetails) ? (
+        <div className="chat-composer-details" id="chat-composer-details">
+          {hasMemoryMatches ? (
+            <section
+              aria-label={`${memoryMatches.matches.length} saved profile matches`}
+              className="chat-memory-matches"
+              data-status="ready"
+            >
+              <strong>
+                Memory matches <span>· saved profile</span>
+              </strong>
+              <ul>
+                {memoryMatches.matches.map((match) => (
+                  <li key={`${match.kind}:${match.value}`}>
+                    <small className="chat-memory-matches__kind">
+                      {match.kind}
+                    </small>
+                    <span title={match.value}>{match.value}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ) : null}
-        </span>
-        <span className="chat-context-track" aria-hidden="true">
-          <i
-            className="chat-context-fill"
-            style={{ width: `${selectedContextPercent}%` }}
-          />
-        </span>
-        <span>
-          <strong>Context</strong>
-          <small>
-            {selectedContext
-              ? `${contextPressureLabel(selectedContext)} · ${fileName(
-                  workspacePath,
-                )}`
-              : usageLoading === selectedId
-                ? "Measuring…"
+          <div
+            aria-label={
+              selectedContext
+                ? `Estimated context usage ${Math.round(
+                    selectedContextPercent,
+                  )} percent`
+                : "Estimated context usage unavailable"
+            }
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={
+              selectedContext ? Math.round(selectedContextPercent) : undefined
+            }
+            className={`chat-context-meter ${selectedContextTone}`}
+            role="progressbar"
+            title={
+              selectedContext
+                ? `Estimated for ${selectedContext.provider ?? runtime?.provider ?? "current provider"} · ${
+                    selectedContext.model ?? runtime?.model ?? "current model"
+                  }`
                 : selectedUsageError
-                  ? "Unavailable"
-                  : `0% · ${fileName(workspacePath)}`}
-          </small>
-        </span>
-      </div>
+            }
+          >
+            <span className="chat-status-runtime flex min-w-0 items-center gap-1.5 whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] [&_small]:max-w-[170px] [&_small]:overflow-hidden [&_small]:text-ellipsis">
+              <small>Runtime</small>
+              <small>{modelRouteLabel}</small>
+            </span>
+            <span className="chat-context-track" aria-hidden="true">
+              <i
+                className="chat-context-fill"
+                style={{ width: `${selectedContextPercent}%` }}
+              />
+            </span>
+            <span>
+              <strong>Context</strong>
+              <small>
+                {selectedContext
+                  ? `${contextPressureLabel(selectedContext)} · ${fileName(
+                      workspacePath,
+                    )}`
+                  : usageLoading === selectedId
+                    ? "Measuring…"
+                    : selectedUsageError
+                      ? "Unavailable"
+                      : `0% · ${fileName(workspacePath)}`}
+              </small>
+            </span>
+          </div>
+        </div>
+      ) : null}
     </form>
   );
 }

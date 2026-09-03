@@ -154,19 +154,82 @@ describe("chat presentation components", () => {
     expect(chatComposerHeight(0)).toBe(CHAT_COMPOSER_MIN_HEIGHT);
   });
 
-  it("keeps composer controls, attachment affordance, and context meter together", () => {
+  it("keeps composer controls compact by default while preserving primary actions", () => {
     const props = composerProps();
     const html = renderToStaticMarkup(<ChatComposer {...props} />);
     expect(html).toContain('class="chat-composer"');
     expect(html).toContain("chat-composer-main");
     expect(html).toContain("chat-composer-footer");
+    expect(html).toContain("chat-composer-footer-right");
     expect(html).toContain("chat-composer-routing");
+    expect(html).toContain("chat-composer-status");
     expect(html).not.toContain('data-has-project="true"');
     expect(html).toContain('aria-label="Attach multiple files"');
     expect(html).toContain("Attach files");
     expect(html).toContain('aria-label="Message Doolittle"');
-    expect(html).toContain('class="chat-context-meter neutral"');
+    expect(html).not.toContain('class="chat-context-meter neutral"');
+    expect(html).not.toContain("chat-composer-details");
     expect(html).toContain('aria-label="Send message"');
+  });
+
+  it("reveals memory and context details on demand without stacking them by default", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+
+    await act(async () =>
+      root.render(
+        <ChatComposer
+          {...composerProps({
+            memoryMatches: {
+              query: "profile",
+              status: "ready",
+              matches: [{ kind: "preference", value: "Use Bun" }],
+            },
+            selectedContext: {
+              provider: "openai",
+              model: "gpt-5.6",
+              estimatedTokens: 1200,
+              contextWindowTokens: 128000,
+              usageFraction: 0.009375,
+              percent: 1,
+              overThreshold: false,
+              estimated: true,
+              sampledMessages: 4,
+              totalMessages: 4,
+              truncated: false,
+            },
+            selectedContextPercent: 1,
+            selectedContextTone: "neutral",
+            workspacePath: "/workspace/doolittle",
+          })}
+        />,
+      ),
+    );
+
+    expect(container.textContent).toContain("1 memory · 1% · 1.2k / 128k");
+    expect(container.querySelector("#chat-composer-details")).toBeNull();
+    expect(container.querySelector(".chat-context-meter")).toBeNull();
+
+    const toggle = container.querySelector<HTMLButtonElement>(
+      '[aria-controls="chat-composer-details"]',
+    );
+    expect(toggle?.getAttribute("aria-expanded")).toBe("false");
+
+    act(() => toggle?.click());
+
+    expect(toggle?.getAttribute("aria-expanded")).toBe("true");
+    expect(container.querySelector("#chat-composer-details")).not.toBeNull();
+    expect(
+      container.querySelector(".chat-context-meter.neutral"),
+    ).not.toBeNull();
+    expect(container.textContent).toContain("Memory matches");
+    expect(container.textContent).toContain("Use Bun");
+    expect(container.textContent).toContain("Runtime");
+    expect(container.textContent).toContain("Context");
+
+    act(() => root.unmount());
+    container.remove();
   });
 
   it("keeps selected files available while the parent owns native import state", async () => {
