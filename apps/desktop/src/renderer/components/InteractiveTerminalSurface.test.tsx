@@ -24,8 +24,11 @@ describe("InteractiveTerminalSurface", () => {
     );
     expect(markup).toContain('role="tabpanel"');
     expect(markup).toContain('aria-label="Terminal output"');
-    expect(markup).toContain("[&amp;_.xterm]:px-1");
-    expect(markup).toContain("[&amp;_.xterm]:py-0.5");
+    expect(markup).toContain("[&amp;_.xterm]:box-border");
+    expect(markup).toContain("[&amp;_.xterm]:px-1.5");
+    expect(markup).toContain("[&amp;_.xterm]:pb-1.25");
+    expect(markup).toContain("[&amp;_.xterm-screen]:pb-1");
+    expect(markup).toContain("[&amp;_.xterm-viewport]:pr-0.5");
     expect(markup).not.toContain("Terminal state is preserved");
     expect(markup).not.toContain('aria-label="Clear terminal view"');
     expect(markup).not.toContain("Add to chat");

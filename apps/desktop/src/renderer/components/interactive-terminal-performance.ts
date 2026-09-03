@@ -1,5 +1,5 @@
-export const TERMINAL_ACTIVE_POLL_MS = 24;
-export const TERMINAL_IDLE_POLL_MS = 72;
+export const TERMINAL_ACTIVE_POLL_MS = 16;
+export const TERMINAL_IDLE_POLL_MS = 56;
 export const TERMINAL_HIDDEN_POLL_MS = 500;
 export const TERMINAL_PERSIST_DEBOUNCE_MS = 420;
 

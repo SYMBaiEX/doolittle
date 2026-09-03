@@ -7,11 +7,11 @@ import {
 } from "./interactive-terminal-performance";
 
 describe("interactive terminal performance", () => {
-  it("uses a 30 Hz output cadence while data is flowing", () => {
+  it("uses a near-frame output cadence while data is flowing", () => {
     expect(
       interactiveTerminalPollDelay({ hadOutput: true, visible: true }),
     ).toBe(TERMINAL_ACTIVE_POLL_MS);
-    expect(TERMINAL_ACTIVE_POLL_MS).toBeLessThanOrEqual(34);
+    expect(TERMINAL_ACTIVE_POLL_MS).toBeLessThanOrEqual(16);
   });
 
   it("backs off when idle or hidden", () => {

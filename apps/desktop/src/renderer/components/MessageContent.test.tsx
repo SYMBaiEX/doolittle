@@ -110,8 +110,10 @@ describe("MessageContent", () => {
     expect(html).toContain(token);
     expect(html).toContain("min-w-0");
     expect(html).toContain("[overflow-wrap:anywhere]");
-    expect(html).toContain("!overflow-auto");
+    expect(html).toContain("!overflow-y-auto");
+    expect(html).toContain("!overflow-x-auto");
     expect(html).toContain("!whitespace-pre");
+    expect(html).toContain("!w-max");
   });
 
   it("does not render unsafe Markdown links or embedded image sources", () => {
@@ -140,6 +142,8 @@ describe("MessageContent", () => {
     expect(html).toContain("<h1");
     expect(html).toContain(">Safe HTML</span>");
     expect(html).toContain("<table");
+    expect(html).toContain("overflow-x-auto");
+    expect(html).toContain("w-max");
     expect(html).not.toContain("<script");
     expect(html).not.toContain("onclick");
   });
@@ -151,15 +155,47 @@ describe("MessageContent", () => {
 
     expect(html).toContain('data-streamdown="code-block"');
     expect(html).toContain('data-streamdown="code-block-body"');
-    expect(html).toContain("!max-h-[260px]");
+    expect(html).toContain("!max-h-[220px]");
     expect(html).toContain(
-      "max-[480px]:[&amp;_[data-streamdown=code-block-body]]:!max-h-[210px]",
+      "max-[480px]:[&amp;_[data-streamdown=code-block-body]]:!max-h-[180px]",
     );
     expect(html).toContain("[contain-intrinsic-size:none]!");
     expect(html).toContain("[content-visibility:visible]!");
     expect(html).toContain("[&amp;_hr]:!hidden");
     expect(html).toContain("!rounded-[var(--radius-xs)]");
     expect(html).toContain("!bg-[var(--canvas-bg)]");
+    expect(html).toContain("!overflow-x-auto");
+    expect(html).toContain("overflow-x-auto");
+  });
+
+  it("keeps raw tool payloads horizontally inspectable instead of force-wrapping", () => {
+    const longPath = `/Users/symbiex/${"very-long-segment/".repeat(24)}artifact.log`;
+    const content = [
+      JSON.stringify({
+        type: "tool_call",
+        toolCall: {
+          id: "call-raw-1",
+          name: "READ_FILE",
+          arguments: { path: longPath },
+          status: "completed",
+        },
+        messageId: "message-raw-1",
+      }),
+      JSON.stringify({
+        type: "tool_result",
+        toolCallId: "call-raw-1",
+        result: { path: longPath, ok: true },
+      }),
+    ].join("");
+
+    const html = renderToStaticMarkup(
+      <MessageContent content={content} separateAgentEvents />,
+    );
+
+    expect(html).toContain("whitespace-pre");
+    expect(html).toContain("overflow-auto");
+    expect(html).toContain("[scrollbar-gutter:stable_both-edges]");
+    expect(html).toContain(longPath);
   });
 
   it("renders one tool call as one compact collapsed disclosure row", () => {
