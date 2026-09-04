@@ -43,6 +43,9 @@ const SYSTEM_NPM = spawnSync("which", ["npm"], {
   encoding: "utf8",
 }).stdout.trim();
 const itWithPosixNpm = process.platform === "win32" ? it.skip : it;
+// Vitest cannot preempt a synchronous subprocess. Bound this test harness so
+// a stalled package manager produces a useful failure inside the test budget.
+const PUBLISH_TEST_PROCESS_TIMEOUT_MS = 10_000;
 
 function runGit(cwd: string, args: string[]): string {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
@@ -142,11 +145,14 @@ function runPublish(
       ...environmentOverrides,
     },
     stdio: ["ignore", "pipe", "pipe"],
+    timeout: PUBLISH_TEST_PROCESS_TIMEOUT_MS,
   });
   return {
     status: result.status,
     stdout: result.stdout.toString(),
-    stderr: result.stderr.toString(),
+    stderr: [result.stderr.toString(), result.error?.message]
+      .filter(Boolean)
+      .join("\n"),
   };
 }
 
@@ -188,6 +194,7 @@ function createOfflineNpm(
   root: string,
   directory: string,
   script = "",
+  useFixturePack = false,
 ): string {
   if (process.platform === "win32" || !SYSTEM_NPM) {
     throw new Error("This test fixture requires a POSIX npm executable.");
@@ -206,6 +213,26 @@ if [ "$1" = audit ]; then
 fi
 
 if [ "$1" = pack ]; then
+  if [ ${useFixturePack ? "true" : "false"} = true ]; then
+    archive_path=""
+    previous=""
+    package_path=""
+    for argument in "$@"; do
+      if [ "$previous" = --pack-destination ]; then archive_path="$argument"; fi
+      previous="$argument"
+      package_path="$argument"
+    done
+    package_metadata=$(node -e 'const pkg = require(process.argv[1]); console.log(JSON.stringify([pkg.name, pkg.version]))' "$package_path/package.json")
+    filename=$(node -e 'const [name, version] = JSON.parse(process.argv[1]); console.log(name.replace(/^@/, "").replace("/", "-") + "-" + version + ".tgz")' "$package_metadata")
+    fixture_path=$(mktemp -d)
+    mkdir -p "$fixture_path/package"
+    cp -R "$package_path"/. "$fixture_path/package"
+    files=$(cd "$fixture_path" && find package -type f -print)
+    tar -czf "$archive_path/$filename" -C "$fixture_path" $files
+    rm -rf "$fixture_path"
+    printf '[{"filename":"%s"}]\\n' "$filename"
+    exit 0
+  fi
   exec ${JSON.stringify(SYSTEM_NPM)} --offline "$@"
 fi
 
@@ -237,8 +264,12 @@ exit 64
   return binPath;
 }
 
-function createRecordingNpm(root: string, script: string): string {
-  return createOfflineNpm(root, "recording-bin", script);
+function createRecordingNpm(
+  root: string,
+  script: string,
+  useFixturePack = false,
+): string {
+  return createOfflineNpm(root, "recording-bin", script, useFixturePack);
 }
 
 function createSecretEchoingNpm(root: string): string {
@@ -507,6 +538,10 @@ describe("publish-provider-packages", () => {
         root,
         `if [ "$1" = install ] && printf '%s' "$PWD" | grep -q doolittle-provider-consumer; then cp package.json ${JSON.stringify(capturedManifest)}; fi
 `,
+        // This assertion is about the generated consumer manifest, not npm's
+        // pack implementation. Keep the integration pack coverage in the
+        // preceding test and avoid a second nested package-manager process.
+        true,
       );
 
       const result = runPublish(
