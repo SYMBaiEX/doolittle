@@ -364,6 +364,19 @@ async function auditThemeResponsiveness(
   });
 
   await navigateToRoute(page, "code");
+  // The prior control sweep intentionally exercises every Explorer view. Code
+  // preserves that selection, so enter Files explicitly before requiring its
+  // real workspace tree rather than depending on cross-sweep tab state.
+  const explorerViews = page.getByRole("tablist", { name: "Explorer views" });
+  const filesTab = explorerViews.getByRole("tab", {
+    name: "Files",
+    exact: true,
+  });
+  await expect(explorerViews).toBeVisible();
+  if ((await filesTab.getAttribute("aria-selected")) !== "true") {
+    await filesTab.click();
+  }
+  await expect(filesTab).toHaveAttribute("aria-selected", "true");
   const workspaceTree = page.getByRole("tree", { name: "Workspace files" });
   await expect(workspaceTree).toBeVisible({ timeout: 15_000 });
   const fixtureFile = workspaceTree.getByRole("treeitem", {
