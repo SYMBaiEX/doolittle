@@ -193,7 +193,10 @@ export function getLinkedProviderConnectAdvice(
   provider: LinkedProviderName,
   homePath?: string,
 ): LinkedProviderConnectAdvice {
-  const snapshot = getLinkedProviderAccountsSnapshot(homePath);
+  // Connect advice only renders one provider. Avoid probing unrelated local CLIs
+  // here: those probes can be slow or interactive, and should not delay opening
+  // a provider-specific connect surface.
+  const snapshot = getLinkedProviderAccountsSnapshot(homePath, [provider]);
   const status =
     provider === "codex"
       ? snapshot.codex

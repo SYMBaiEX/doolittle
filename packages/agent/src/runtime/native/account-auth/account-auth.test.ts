@@ -544,7 +544,7 @@ exit 0
       const script = `
         import { getLinkedProviderAccountsSnapshot, getLinkedProviderConnectAdvice } from ${JSON.stringify(join(moduleDir, "index.ts"))};
         const homePath = process.env.TEST_HOME_PATH;
-        const snapshot = getLinkedProviderAccountsSnapshot(homePath);
+        const snapshot = getLinkedProviderAccountsSnapshot(homePath, ["claude-code"]);
         const advice = getLinkedProviderConnectAdvice("claude-code", homePath);
         console.log(JSON.stringify({ snapshot, advice }));
       `;
