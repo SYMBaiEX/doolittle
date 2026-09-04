@@ -118,6 +118,15 @@ describe("chat chrome density contract", () => {
       "max-[480px]:[&_.chat-composer-footer]:grid-cols-[auto_minmax(0,1fr)]",
     );
     expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-composer-footer]:pt-[3px]",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-composer]:pt-[4px]",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-composer]:pb-[3px]",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
       "max-[480px]:[&_.chat-composer-routing]:grid",
     );
     expect(CHAT_WORKSPACE_CLASS).toContain(
