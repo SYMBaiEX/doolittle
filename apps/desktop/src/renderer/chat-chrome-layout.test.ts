@@ -133,6 +133,18 @@ describe("chat chrome density contract", () => {
       "max-[480px]:[&_.chat-composer-status]:hidden",
     );
     expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-composer-footer-right]:flex-nowrap",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-composer-routing]:flex-1",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-composer-meta-toggle]:!size-10",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[480px]:[&_.chat-composer-meta-toggle__label]:hidden",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
       "max-[480px]:[&_.chat-context-meter]:!hidden",
     );
     expect(CHAT_WORKSPACE_CLASS).toContain(
