@@ -244,9 +244,13 @@ async function auditInterfaceModes(
 async function setNativeTheme(
   app: ElectronApplication,
   source: "dark" | "light" | "system",
-): Promise<void> {
-  await app.evaluate(({ nativeTheme }, nextSource) => {
+): Promise<{ shouldUseDarkColors: boolean; source: string }> {
+  return app.evaluate(({ nativeTheme }, nextSource) => {
     nativeTheme.themeSource = nextSource;
+    return {
+      shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
+      source: nativeTheme.themeSource,
+    };
   }, source);
 }
 
@@ -393,15 +397,24 @@ async function auditThemeResponsiveness(
     page.locator(".doolittle-code-editor .monaco-editor"),
   ).toBeVisible({ timeout: 15_000 });
 
-  // Electron's nativeTheme drives the actual renderer media query. Confirm
-  // System mode follows both transitions rather than trusting a dispatched
-  // appearance event alone.
+  // Electron's nativeTheme drives the actual renderer media query. Playwright
+  // starts Electron pages with an emulated light scheme, which masks that
+  // native signal; remove the harness override before proving System mode
+  // follows native dark and light transitions.
+  await page.emulateMedia({ colorScheme: null });
   await page.evaluate(() => {
     window.dispatchEvent(
       new CustomEvent("doolittle:appearance-change", { detail: "system" }),
     );
   });
-  await setNativeTheme(app, "dark");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-appearance-preference",
+    "system",
+  );
+  expect(await setNativeTheme(app, "dark")).toEqual({
+    shouldUseDarkColors: true,
+    source: "dark",
+  });
   await expect
     .poll(() =>
       page.evaluate(() => ({
@@ -414,7 +427,10 @@ async function auditThemeResponsiveness(
     appearance: "dark",
     require: ["shell", "editor", "terminal"],
   });
-  await setNativeTheme(app, "light");
+  expect(await setNativeTheme(app, "light")).toEqual({
+    shouldUseDarkColors: false,
+    source: "light",
+  });
   await expect
     .poll(() =>
       page.evaluate(() => ({
