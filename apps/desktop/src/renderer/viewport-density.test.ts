@@ -24,6 +24,9 @@ describe("wide route viewport density", () => {
     expect(CHAT_WORKSPACE_CLASS).toContain("w-[min(100%,920px)]");
     expect(CHAT_WORKSPACE_CLASS).toContain("w-[min(calc(100%_-_24px),960px)]");
     expect(CHAT_WORKSPACE_CLASS).toContain(
+      "max-[720px]:[&_.chat-composer]:w-[calc(100%_-_12px)]",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
       "max-[480px]:[&_.chat-composer]:w-[calc(100%_-_8px)]",
     );
   });
