@@ -330,11 +330,23 @@ async function auditThemeResponsiveness(
   // Open one real terminal and one real Monaco editor before changing themes.
   // This proves their canvas surfaces react to the same live token changes as
   // the shell and composer, rather than only proving static CSS contracts.
-  await page.getByRole("textbox", { name: "Message Doolittle" }).focus();
-  await page.keyboard.press(
-    process.platform === "darwin" ? "Meta+J" : "Control+J",
-  );
-  await expect(page.getByLabel("Chat terminal panel")).toBeVisible();
+  // Earlier route sweeps can leave the terminal open. Its close transition
+  // intentionally keeps the panel mounted for 210ms, so blindly toggling it
+  // here can sample the outgoing terminal instead of opening one. Inspect
+  // the semantic state first, then assert the live panel is open before
+  // asserting xterm's canvas surface.
+  const chatTerminalPanel = page.getByLabel("Chat terminal panel");
+  const terminalAlreadyOpen =
+    (await chatTerminalPanel.count()) > 0 &&
+    (await chatTerminalPanel.getAttribute("data-open")) === "true";
+  if (!terminalAlreadyOpen) {
+    await page.getByRole("textbox", { name: "Message Doolittle" }).focus();
+    await page.keyboard.press(
+      process.platform === "darwin" ? "Meta+J" : "Control+J",
+    );
+  }
+  await expect(chatTerminalPanel).toHaveAttribute("data-open", "true");
+  await expect(chatTerminalPanel).toBeVisible();
   await expect(
     page.locator("[aria-label='Terminal output'] .xterm-viewport"),
   ).toBeVisible({ timeout: 15_000 });
