@@ -38,7 +38,22 @@ import {
   useApiResource,
 } from "./lib";
 import { DesktopSettingsPanel } from "./settings/DesktopSettingsPanel";
-import { LazyConnectionsPage, LazyModelsPage } from "./settings/lazy-panels";
+import {
+  LazyCompatibilityPage,
+  LazyConnectionsPage,
+  LazyDocsPage,
+  LazyKeysPage,
+  LazyLogsPage,
+  LazyMemoryPage,
+  LazyModelsPage,
+  LazyPluginsPage,
+  LazyProfilesPage,
+  LazyRegistryPage,
+  LazyRuntimePage,
+  LazySetupPage,
+  LazySkillsPage,
+  LazyToolsPage,
+} from "./settings/lazy-panels";
 import { SettingsAppearancePanel } from "./settings/SettingsAppearancePanel";
 import { SettingsExecutionStatusPanel } from "./settings/SettingsExecutionStatusPanel";
 import {
@@ -54,7 +69,11 @@ import {
   SETTINGS_LAYOUT_CLASS,
   SETTINGS_PAGE_CLASS,
 } from "./settings/settings-layout";
-import type { SettingsShellSection } from "./settings/settings-sections";
+import {
+  isEmbeddedSettingsFeature,
+  SETTINGS_SHELL_SECTIONS,
+  type SettingsShellSection,
+} from "./settings/settings-sections";
 import type { SettingsResponse } from "./settings/settings-types";
 
 interface ThemeResponse {
@@ -81,7 +100,9 @@ export function settingsResourcePolicy(
   active: boolean,
 ): SettingsResourcePolicy {
   return {
-    settings: active,
+    // Embedded feature pages own their resources. The shell only reads the
+    // settings document for its native configuration panels.
+    settings: active && !isEmbeddedSettingsFeature(category),
     themes: active && category === "appearance",
     // Lifecycle and update controls belong to the Electron shell, so they
     // remain usable even when the local agent runtime is stopped.
@@ -98,12 +119,14 @@ export function SettingsPage({
   active,
   section,
   onSectionChange,
+  writesAllowed = active,
   runtime,
   refreshRuntime,
 }: {
   active: boolean;
   section?: SettingsShellSection;
   onSectionChange?: (section: SettingsShellSection) => void;
+  writesAllowed?: boolean;
   runtime?: RuntimeStatus | null;
   refreshRuntime?: () => void;
 }) {
@@ -122,6 +145,7 @@ export function SettingsPage({
     [resourcePolicy.execution],
   );
   const [query, setQuery] = useState("");
+  const [sectionQuery, setSectionQuery] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
   const [appearance, setAppearance] = useState<DesktopAppearance>(
     loadAppearancePreference,
@@ -140,6 +164,7 @@ export function SettingsPage({
     if (!section) return;
     setCategory(section);
     setQuery("");
+    setSectionQuery("");
   }, [section]);
   useEffect(() => {
     if (!resourcePolicy.desktop) return;
@@ -175,24 +200,17 @@ export function SettingsPage({
   );
   const rawCategories = [...new Set(fields.map((field) => field.category))];
   const categories = [
-    {
-      id: "appearance",
-      label: "Appearance",
-      description: "Theme and display",
-    },
-    {
-      id: "desktop",
-      label: "Desktop",
-      description: "Updates and lifecycle",
-    },
-    {
-      id: "accounts",
-      label: "Providers & accounts",
-      description: "Sign in and manage provider accounts",
-    },
+    ...SETTINGS_SHELL_SECTIONS,
     ...rawCategories
       .filter(
-        (value) => !["ui", "providers", "desktop", "advanced"].includes(value),
+        (value) =>
+          ![
+            "ui",
+            "providers",
+            "desktop",
+            "advanced",
+            ...SETTINGS_SHELL_SECTIONS.map((section) => section.id),
+          ].includes(value),
       )
       .map((value) => ({
         id: value,
@@ -203,12 +221,8 @@ export function SettingsPage({
             : value === "execution"
               ? "Permissions and tools"
               : "Runtime preferences",
+        group: "Runtime",
       })),
-    {
-      id: "advanced",
-      label: "Advanced",
-      description: "Every runtime field",
-    },
   ];
   const fieldCategory =
     category === "appearance"
@@ -226,9 +240,9 @@ export function SettingsPage({
   });
   const activeCategory =
     categories.find((entry) => entry.id === category) ?? categories[0];
-  const categorySupportsSearch = !["appearance", "desktop", "model"].includes(
-    category,
-  );
+  const categorySupportsSearch =
+    !["appearance", "desktop"].includes(category) &&
+    !isEmbeddedSettingsFeature(category);
 
   const changeTheme = async (theme: string) => {
     if (!active) return;
@@ -355,7 +369,7 @@ export function SettingsPage({
         actions={
           <button
             className="secondary-button"
-            disabled={!active}
+            disabled={!resourcePolicy.settings}
             onClick={reloadSettings}
             type="button"
           >
@@ -373,6 +387,8 @@ export function SettingsPage({
           <SettingsNavigation
             categories={categories}
             category={category}
+            query={sectionQuery}
+            onQueryChange={setSectionQuery}
             onSelect={(id) => {
               setCategory(id);
               setQuery("");
@@ -428,10 +444,8 @@ export function SettingsPage({
                   embedded
                   refreshRuntime={() => {
                     refreshRuntime?.();
-                    settings.reload();
                   }}
                   runtime={runtime ?? null}
-                  settingsResource={settings}
                 />
               </Suspense>
             ) : null}
@@ -440,6 +454,81 @@ export function SettingsPage({
                 fallback={<LoadingBlock label="Loading provider accounts…" />}
               >
                 <LazyConnectionsPage active={active} embedded />
+              </Suspense>
+            ) : null}
+            {!runtimeCategoryOffline && category === "credentials" ? (
+              <Suspense
+                fallback={<LoadingBlock label="Loading credentials…" />}
+              >
+                <LazyKeysPage active={active} embedded />
+              </Suspense>
+            ) : null}
+            {!runtimeCategoryOffline && category === "tools" ? (
+              <Suspense fallback={<LoadingBlock label="Loading tools…" />}>
+                <LazyToolsPage active={active} embedded />
+              </Suspense>
+            ) : null}
+            {!runtimeCategoryOffline && category === "skills" ? (
+              <Suspense fallback={<LoadingBlock label="Loading skills…" />}>
+                <LazySkillsPage active={active} embedded />
+              </Suspense>
+            ) : null}
+            {!runtimeCategoryOffline && category === "plugins" ? (
+              <Suspense fallback={<LoadingBlock label="Loading plugins…" />}>
+                <LazyPluginsPage active={active} embedded />
+              </Suspense>
+            ) : null}
+            {!runtimeCategoryOffline && category === "memory" ? (
+              <Suspense fallback={<LoadingBlock label="Loading memory…" />}>
+                <LazyMemoryPage active={active} embedded />
+              </Suspense>
+            ) : null}
+            {!runtimeCategoryOffline && category === "profiles" ? (
+              <Suspense fallback={<LoadingBlock label="Loading profiles…" />}>
+                <LazyProfilesPage active={active} embedded />
+              </Suspense>
+            ) : null}
+            {!runtimeCategoryOffline && category === "logs" ? (
+              <Suspense fallback={<LoadingBlock label="Loading logs…" />}>
+                <LazyLogsPage active={active} embedded />
+              </Suspense>
+            ) : null}
+            {!runtimeCategoryOffline && category === "runtime" ? (
+              <Suspense fallback={<LoadingBlock label="Loading runtime…" />}>
+                <LazyRuntimePage
+                  active={active}
+                  embedded
+                  onOpenProviders={() => onSectionChange?.("accounts")}
+                  readOnly={!writesAllowed}
+                />
+              </Suspense>
+            ) : null}
+            {!runtimeCategoryOffline && category === "compatibility" ? (
+              <Suspense
+                fallback={<LoadingBlock label="Loading compatibility…" />}
+              >
+                <LazyCompatibilityPage active={active} embedded />
+              </Suspense>
+            ) : null}
+            {!runtimeCategoryOffline && category === "registry" ? (
+              <Suspense fallback={<LoadingBlock label="Loading registry…" />}>
+                <LazyRegistryPage active={active} embedded />
+              </Suspense>
+            ) : null}
+            {!runtimeCategoryOffline && category === "setup" ? (
+              <Suspense fallback={<LoadingBlock label="Loading setup…" />}>
+                <LazySetupPage
+                  active={active}
+                  embedded
+                  onOpenProviders={() => onSectionChange?.("accounts")}
+                />
+              </Suspense>
+            ) : null}
+            {!runtimeCategoryOffline && category === "about" ? (
+              <Suspense
+                fallback={<LoadingBlock label="Loading documentation…" />}
+              >
+                <LazyDocsPage active={active} embedded />
               </Suspense>
             ) : null}
             {!runtimeCategoryOffline && category === "desktop" ? (
@@ -453,9 +542,9 @@ export function SettingsPage({
                 updateBusy={updateBusy}
               />
             ) : null}
-            {!["desktop", "appearance", "model", "accounts"].includes(
-              category,
-            ) && !runtimeCategoryOffline ? (
+            {!["desktop", "appearance"].includes(category) &&
+            !isEmbeddedSettingsFeature(category) &&
+            !runtimeCategoryOffline ? (
               <section className={SETTINGS_GROUP_CLASS}>
                 <div className="settings-group-heading">
                   <div>
