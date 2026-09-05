@@ -38,7 +38,7 @@ import {
   useApiResource,
 } from "./lib";
 import { DesktopSettingsPanel } from "./settings/DesktopSettingsPanel";
-import { LazyModelsPage } from "./settings/lazy-panels";
+import { LazyConnectionsPage, LazyModelsPage } from "./settings/lazy-panels";
 import { SettingsAppearancePanel } from "./settings/SettingsAppearancePanel";
 import { SettingsExecutionStatusPanel } from "./settings/SettingsExecutionStatusPanel";
 import {
@@ -54,10 +54,8 @@ import {
   SETTINGS_LAYOUT_CLASS,
   SETTINGS_PAGE_CLASS,
 } from "./settings/settings-layout";
-
-interface SettingsResponse {
-  settings?: UnknownRecord;
-}
+import type { SettingsShellSection } from "./settings/settings-sections";
+import type { SettingsResponse } from "./settings/settings-types";
 
 interface ThemeResponse {
   active?: string;
@@ -70,7 +68,6 @@ export interface SettingsResourcePolicy {
   themes: boolean;
   desktop: boolean;
   execution: boolean;
-  runtime: boolean;
 }
 
 /**
@@ -90,7 +87,6 @@ export function settingsResourcePolicy(
     // remain usable even when the local agent runtime is stopped.
     desktop: category === "desktop",
     execution: active && category === "execution",
-    runtime: active && category === "model",
   };
 }
 
@@ -98,8 +94,20 @@ export function settingsCategoryOffline(category: string, active: boolean) {
   return !active && !["appearance", "desktop"].includes(category);
 }
 
-export function SettingsPage({ active }: { active: boolean }) {
-  const [category, setCategory] = useState("appearance");
+export function SettingsPage({
+  active,
+  section,
+  onSectionChange,
+  runtime,
+  refreshRuntime,
+}: {
+  active: boolean;
+  section?: SettingsShellSection;
+  onSectionChange?: (section: SettingsShellSection) => void;
+  runtime?: RuntimeStatus | null;
+  refreshRuntime?: () => void;
+}) {
+  const [category, setCategory] = useState<string>(section ?? "appearance");
   const resourcePolicy = settingsResourcePolicy(category, active);
   const settings = useApiResource<SettingsResponse>(
     resourcePolicy.settings ? "/settings" : null,
@@ -112,10 +120,6 @@ export function SettingsPage({ active }: { active: boolean }) {
   const execution = useApiResource<Record<string, unknown>>(
     resourcePolicy.execution ? "/execution/status" : null,
     [resourcePolicy.execution],
-  );
-  const runtime = useApiResource<RuntimeStatus>(
-    resourcePolicy.runtime ? "/runtime/status" : null,
-    [resourcePolicy.runtime],
   );
   const [query, setQuery] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
@@ -132,6 +136,11 @@ export function SettingsPage({ active }: { active: boolean }) {
   const [update, setUpdate] = useState<DesktopUpdateState | null>(null);
   const [updateBusy, setUpdateBusy] = useState(false);
   const installInFlightRef = useRef(false);
+  useEffect(() => {
+    if (!section) return;
+    setCategory(section);
+    setQuery("");
+  }, [section]);
   useEffect(() => {
     if (!resourcePolicy.desktop) return;
     let disposed = false;
@@ -175,6 +184,11 @@ export function SettingsPage({ active }: { active: boolean }) {
       id: "desktop",
       label: "Desktop",
       description: "Updates and lifecycle",
+    },
+    {
+      id: "accounts",
+      label: "Providers & accounts",
+      description: "Sign in and manage provider accounts",
     },
     ...rawCategories
       .filter(
@@ -362,6 +376,7 @@ export function SettingsPage({ active }: { active: boolean }) {
             onSelect={(id) => {
               setCategory(id);
               setQuery("");
+              onSectionChange?.(id as SettingsShellSection);
             }}
           />
           <section className={SETTINGS_CONTENT_CLASS}>
@@ -412,11 +427,19 @@ export function SettingsPage({ active }: { active: boolean }) {
                   active={active}
                   embedded
                   refreshRuntime={() => {
-                    runtime.reload();
+                    refreshRuntime?.();
                     settings.reload();
                   }}
-                  runtime={runtime.data ?? null}
+                  runtime={runtime ?? null}
+                  settingsResource={settings}
                 />
+              </Suspense>
+            ) : null}
+            {!runtimeCategoryOffline && category === "accounts" ? (
+              <Suspense
+                fallback={<LoadingBlock label="Loading provider accounts…" />}
+              >
+                <LazyConnectionsPage active={active} embedded />
               </Suspense>
             ) : null}
             {!runtimeCategoryOffline && category === "desktop" ? (
@@ -430,8 +453,9 @@ export function SettingsPage({ active }: { active: boolean }) {
                 updateBusy={updateBusy}
               />
             ) : null}
-            {!["desktop", "appearance", "model"].includes(category) &&
-            !runtimeCategoryOffline ? (
+            {!["desktop", "appearance", "model", "accounts"].includes(
+              category,
+            ) && !runtimeCategoryOffline ? (
               <section className={SETTINGS_GROUP_CLASS}>
                 <div className="settings-group-heading">
                   <div>

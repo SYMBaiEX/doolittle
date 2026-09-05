@@ -68,4 +68,12 @@ describe("personality profile presentation", () => {
     expect(activeDescription?.[1]).not.toContain("line-clamp");
     expect(activeDescription?.[1]).not.toContain("max-h-");
   });
+
+  it("supports Settings embedding without replacing profile data ownership", () => {
+    expect(profilesPageSource).toContain("embedded = false");
+    expect(profilesPageSource).toContain("settings-profiles-section");
+    expect(profilesPageSource).toContain("settings-section-header");
+    expect(profilesPageSource).toContain("useApiResource<PersonalityResponse>");
+    expect(profilesPageSource).toContain('active ? "/personality" : null');
+  });
 });

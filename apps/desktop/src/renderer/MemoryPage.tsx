@@ -43,7 +43,13 @@ const MEMORY_SECTIONS: Array<{
   },
 ];
 
-export function MemoryPage({ active }: { active: boolean }) {
+export function MemoryPage({
+  active,
+  embedded = false,
+}: {
+  active: boolean;
+  embedded?: boolean;
+}) {
   const [section, setSection] = useState<MemorySection>("shared");
   const policy = memoryResourcePolicy(section, active);
   const sharedMemory = useApiResource<MemoryResponse>(
@@ -75,9 +81,19 @@ export function MemoryPage({ active }: { active: boolean }) {
 
   if (!active) {
     return (
-      <PagePanel className={MEMORY_PAGE_CLASS} variant="workspace">
-        <PageHeader
-          actions={
+      <PagePanel
+        className={
+          embedded ? "settings-memory-section gap-2" : MEMORY_PAGE_CLASS
+        }
+        variant={embedded ? "section" : "workspace"}
+      >
+        {embedded ? (
+          <header className="settings-section-header">
+            <div>
+              <span className="eyebrow">Workspace knowledge</span>
+              <h2>Memory & recall</h2>
+              <p>Inspect memory and profile recall.</p>
+            </div>
             <Button
               className="secondary-button"
               disabled
@@ -87,11 +103,25 @@ export function MemoryPage({ active }: { active: boolean }) {
             >
               Refresh memory
             </Button>
-          }
-          description="Inspect memory and profile recall."
-          eyebrow="Operator Workspace"
-          title="Memory"
-        />
+          </header>
+        ) : (
+          <PageHeader
+            actions={
+              <Button
+                className="secondary-button"
+                disabled
+                onClick={reloadVisibleSection}
+                type="button"
+                variant="secondary"
+              >
+                Refresh memory
+              </Button>
+            }
+            description="Inspect memory and profile recall."
+            eyebrow="Operator Workspace"
+            title="Memory"
+          />
+        )}
         <OfflineRouteState>
           Memory snapshots and profile recall are unavailable until the local
           runtime is ready.
@@ -101,9 +131,17 @@ export function MemoryPage({ active }: { active: boolean }) {
   }
 
   return (
-    <PagePanel className={MEMORY_PAGE_CLASS} variant="workspace">
-      <PageHeader
-        actions={
+    <PagePanel
+      className={embedded ? "settings-memory-section gap-2" : MEMORY_PAGE_CLASS}
+      variant={embedded ? "section" : "workspace"}
+    >
+      {embedded ? (
+        <header className="settings-section-header">
+          <div>
+            <span className="eyebrow">Workspace knowledge</span>
+            <h2>Memory & recall</h2>
+            <p>Inspect shared knowledge, saved details, and profile recall.</p>
+          </div>
           <Button
             className="secondary-button"
             disabled={!active}
@@ -117,11 +155,29 @@ export function MemoryPage({ active }: { active: boolean }) {
                 ?.refreshLabel
             }
           </Button>
-        }
-        description="Inspect shared knowledge, saved details, and profile recall."
-        eyebrow="Operator Workspace"
-        title="Memory"
-      />
+        </header>
+      ) : (
+        <PageHeader
+          actions={
+            <Button
+              className="secondary-button"
+              disabled={!active}
+              onClick={reloadVisibleSection}
+              type="button"
+              variant="secondary"
+            >
+              Refresh{" "}
+              {
+                MEMORY_SECTIONS.find((entry) => entry.id === section)
+                  ?.refreshLabel
+              }
+            </Button>
+          }
+          description="Inspect shared knowledge, saved details, and profile recall."
+          eyebrow="Operator Workspace"
+          title="Memory"
+        />
+      )}
       <Tabs
         className="grid min-h-0 content-start gap-2.5"
         onValueChange={(value) => setSection(value as MemorySection)}

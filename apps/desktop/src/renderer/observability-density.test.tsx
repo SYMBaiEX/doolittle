@@ -114,6 +114,24 @@ describe("observability route density", () => {
     expect(requestedPaths).toContain("/terminal/history");
   });
 
+  it("keeps log resources and controls when embedded in Settings", () => {
+    useApiResourceMock.mockImplementation((path: string | null) => {
+      if (path?.startsWith("/logs?")) return resource({ logs: [] });
+      return resource(null);
+    });
+
+    act(() => root.render(<LogsPage active embedded />));
+
+    expect(container.querySelector(".settings-logs-section")).not.toBeNull();
+    expect(container.querySelector(".settings-section-header")).not.toBeNull();
+    expect(container.querySelector(".page-header")).toBeNull();
+    expect(container.textContent).toContain("Redacted runtime events");
+    expect(useApiResourceMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/logs\?/u),
+      [true, "all", ""],
+    );
+  });
+
   it("keeps Analytics local-truth labels while removing metric footnotes", () => {
     useApiResourceMock.mockReturnValue(
       resource({

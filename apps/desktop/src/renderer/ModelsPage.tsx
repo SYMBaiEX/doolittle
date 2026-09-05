@@ -8,6 +8,7 @@ import { OfflineRouteState } from "./components/OfflineRouteState";
 import { ResourceStatusBar } from "./components/ResourceStatusBar";
 import {
   type ActionFeedback,
+  type ApiResource,
   asRecord,
   asString,
   Badge,
@@ -35,19 +36,7 @@ import {
   MODELS_WORKSPACE_CLASS,
 } from "./models/models-layout";
 import { modelRequests } from "./resource-request-policy";
-
-interface SettingsResponse {
-  settings?: {
-    model?: {
-      provider?: string;
-      model?: string;
-      baseUrl?: string;
-      temperature?: number;
-      maxTokens?: number;
-      reasoningEffort?: RuntimeReasoningEffort;
-    };
-  };
-}
+import type { SettingsResponse } from "./settings/settings-types";
 
 interface AccountsResponse {
   activeProvider?: string;
@@ -91,20 +80,23 @@ export function ModelsPage({
   runtime,
   refreshRuntime,
   embedded = false,
+  settingsResource,
 }: {
   active: boolean;
   runtime: RuntimeStatus | null;
   refreshRuntime: () => void;
   embedded?: boolean;
+  settingsResource?: ApiResource<SettingsResponse>;
 }) {
   const [readinessOpen, setReadinessOpen] = useState(false);
   const [tuningOpen, setTuningOpen] = useState(false);
   const [liveDiscovery, setLiveDiscovery] = useState(false);
   const resourcePolicy = modelRequests({ active, readinessOpen });
-  const settings = useApiResource<SettingsResponse>(
-    resourcePolicy.primary ? "/settings" : null,
-    [resourcePolicy.primary],
+  const ownedSettings = useApiResource<SettingsResponse>(
+    !settingsResource && resourcePolicy.primary ? "/settings" : null,
+    [Boolean(settingsResource), resourcePolicy.primary],
   );
+  const settings = settingsResource ?? ownedSettings;
   const accounts = useApiResource<AccountsResponse>(
     resourcePolicy.accounts ? "/runtime/accounts" : null,
     [resourcePolicy.accounts],

@@ -221,6 +221,19 @@ describe("runtime-state route density", () => {
     ]);
   });
 
+  it("keeps memory data ownership while using Settings section chrome", () => {
+    act(() => root.render(<MemoryPage active embedded />));
+
+    expect(container.firstElementChild?.classList.contains("page")).toBe(false);
+    expect(container.querySelector(".settings-memory-section")).not.toBeNull();
+    expect(container.querySelector(".settings-section-header")).not.toBeNull();
+    expect(container.querySelector(".page-header")).toBeNull();
+    expect(container.textContent).toContain("Memory & recall");
+    expect(useApiResourceMock).toHaveBeenCalledWith("/memory?target=memory", [
+      true,
+    ]);
+  });
+
   it("loads only the selected compact runtime section", () => {
     act(() => root.render(<RuntimePage active />));
 

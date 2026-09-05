@@ -35,7 +35,13 @@ interface TerminalHistoryResponse {
   commands?: unknown[];
 }
 
-export function LogsPage({ active }: { active: boolean }) {
+export function LogsPage({
+  active,
+  embedded = false,
+}: {
+  active: boolean;
+  embedded?: boolean;
+}) {
   const [level, setLevel] = useState("all");
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query.trim());
@@ -77,12 +83,19 @@ export function LogsPage({ active }: { active: boolean }) {
 
   if (!active) {
     return (
-      <PagePanel className={OBSERVABILITY_PAGE_CLASS} variant="workspace">
-        <PageHeader
-          eyebrow="Operations"
-          title="Logs"
-          description="Redacted runtime events and local operational traces."
-          actions={
+      <PagePanel
+        className={
+          embedded ? "settings-logs-section" : OBSERVABILITY_PAGE_CLASS
+        }
+        variant={embedded ? "section" : "workspace"}
+      >
+        {embedded ? (
+          <header className="settings-section-header">
+            <div>
+              <span className="eyebrow">Operations</span>
+              <h2>Logs</h2>
+              <p>Redacted runtime events and local operational traces.</p>
+            </div>
             <Button
               disabled
               onClick={refresh}
@@ -91,8 +104,24 @@ export function LogsPage({ active }: { active: boolean }) {
             >
               Refresh
             </Button>
-          }
-        />
+          </header>
+        ) : (
+          <PageHeader
+            eyebrow="Operations"
+            title="Logs"
+            description="Redacted runtime events and local operational traces."
+            actions={
+              <Button
+                disabled
+                onClick={refresh}
+                type="button"
+                variant="secondary"
+              >
+                Refresh
+              </Button>
+            }
+          />
+        )}
         <OfflineRouteState>
           Runtime logs and secondary traces are unavailable until the local
           runtime is ready.
@@ -102,17 +131,33 @@ export function LogsPage({ active }: { active: boolean }) {
   }
 
   return (
-    <PagePanel className={OBSERVABILITY_PAGE_CLASS} variant="workspace">
-      <PageHeader
-        eyebrow="Operations"
-        title="Logs"
-        description="Redacted runtime events and local operational traces."
-        actions={
+    <PagePanel
+      className={embedded ? "settings-logs-section" : OBSERVABILITY_PAGE_CLASS}
+      variant={embedded ? "section" : "workspace"}
+    >
+      {embedded ? (
+        <header className="settings-section-header">
+          <div>
+            <span className="eyebrow">Operations</span>
+            <h2>Logs</h2>
+            <p>Redacted runtime events and local operational traces.</p>
+          </div>
           <Button onClick={refresh} type="button" variant="secondary">
             Refresh
           </Button>
-        }
-      />
+        </header>
+      ) : (
+        <PageHeader
+          eyebrow="Operations"
+          title="Logs"
+          description="Redacted runtime events and local operational traces."
+          actions={
+            <Button onClick={refresh} type="button" variant="secondary">
+              Refresh
+            </Button>
+          }
+        />
+      )}
       <CompactStatStrip
         label="Operations summary"
         stats={[

@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { settingsResourcePolicy } from "./SettingsPage";
+import {
+  settingsSectionForView,
+  settingsViewForSection,
+} from "./settings/settings-sections";
 
 const settingsPageSource = readFileSync(
   new URL("./SettingsPage.tsx", import.meta.url),
@@ -8,6 +12,10 @@ const settingsPageSource = readFileSync(
 );
 const settingsNavigationSource = readFileSync(
   new URL("./settings/SettingsNavigation.tsx", import.meta.url),
+  "utf8",
+);
+const modelsPageSource = readFileSync(
+  new URL("./ModelsPage.tsx", import.meta.url),
   "utf8",
 );
 
@@ -18,14 +26,12 @@ describe("settings resource policy", () => {
       themes: false,
       desktop: false,
       execution: false,
-      runtime: false,
     });
     expect(settingsResourcePolicy("advanced", false)).toEqual({
       settings: false,
       themes: false,
       desktop: false,
       execution: false,
-      runtime: false,
     });
   });
 
@@ -35,42 +41,39 @@ describe("settings resource policy", () => {
       themes: true,
       desktop: false,
       execution: false,
-      runtime: false,
     });
     expect(settingsResourcePolicy("execution", true)).toMatchObject({
       settings: true,
       themes: false,
       desktop: false,
       execution: true,
-      runtime: false,
     });
     expect(settingsResourcePolicy("model", true)).toMatchObject({
       settings: true,
       themes: false,
       desktop: false,
       execution: false,
-      runtime: true,
     });
     expect(settingsResourcePolicy("desktop", true)).toEqual({
       settings: true,
       themes: false,
       desktop: true,
       execution: false,
-      runtime: false,
     });
     expect(settingsResourcePolicy("advanced", true)).toEqual({
       settings: true,
       themes: false,
       desktop: false,
       execution: false,
-      runtime: false,
     });
   });
 
   it("keeps the category rail concise without repeating page-level copy", () => {
-    expect(settingsPageSource).toContain('useState("appearance")');
-    expect(settingsPageSource).not.toContain('id: "providers"');
-    expect(settingsPageSource).not.toContain("ConnectionsPage");
+    expect(settingsPageSource).toContain(
+      'useState<string>(section ?? "appearance")',
+    );
+    expect(settingsPageSource).toContain('id: "accounts"');
+    expect(settingsPageSource).toContain("LazyConnectionsPage");
     expect(settingsPageSource).not.toContain('from "./ModelsPage"');
     expect(settingsPageSource).toContain("LazyModelsPage");
     expect(settingsPageSource).not.toContain("settings-nav-title");
@@ -93,6 +96,28 @@ describe("settings resource policy", () => {
     expect(settingsPageSource).toContain("fallback={<LoadingBlock");
     expect(settingsPageSource).toContain('label="Loading model settings…"');
     expect(settingsPageSource).toContain("<LazyModelsPage");
+    expect(settingsPageSource).toContain("settingsResource={settings}");
+    expect(settingsPageSource).toContain("<LazyConnectionsPage");
+  });
+
+  it("maps the existing canonical settings destinations into one shell", () => {
+    expect(settingsSectionForView("settings")).toBeUndefined();
+    expect(settingsSectionForView("models")).toBe("model");
+    expect(settingsSectionForView("connections")).toBe("accounts");
+    expect(settingsSectionForView("tools")).toBeUndefined();
+    expect(settingsViewForSection("model")).toBe("models");
+    expect(settingsViewForSection("accounts")).toBe("connections");
+    expect(settingsViewForSection("execution")).toBe("settings");
+  });
+
+  it("lets the model panel share the shell settings resource", () => {
+    expect(modelsPageSource).toContain(
+      "settingsResource?: ApiResource<SettingsResponse>",
+    );
+    expect(modelsPageSource).toContain(
+      "!settingsResource && resourcePolicy.primary",
+    );
+    expect(modelsPageSource).toContain("settingsResource ?? ownedSettings");
   });
 
   it("offers search only for categories backed by runtime fields", () => {

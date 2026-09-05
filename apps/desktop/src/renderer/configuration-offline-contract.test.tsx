@@ -127,14 +127,12 @@ describe("configuration routes when the local runtime is inactive", () => {
       themes: false,
       desktop: false,
       execution: false,
-      runtime: false,
     });
     expect(settingsResourcePolicy("desktop", false)).toEqual({
       settings: false,
       themes: false,
       desktop: true,
       execution: false,
-      runtime: false,
     });
 
     const markup = renderToStaticMarkup(<SettingsPage active={false} />);
