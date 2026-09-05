@@ -11,7 +11,9 @@ describe("Code preview surface wiring", () => {
     expect(pageSource).toContain(
       'const [localSurface, setLocalSurface] = useState<CodeSurface>("workspace")',
     );
-    expect(pageSource).toContain("const surface = controlledSurface ?? localSurface");
+    expect(pageSource).toContain(
+      "const surface = controlledSurface ?? localSurface",
+    );
     expect(pageSource).toContain('hidden={surface !== "preview"}');
     expect(pageSource).toContain('inert={surface !== "preview"}');
     expect(pageSource).toContain('active={active && surface === "preview"}');

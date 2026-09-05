@@ -16,7 +16,9 @@ describe("keys workspace layout", () => {
 
   it("supports the Settings presentation without its standalone page header", () => {
     expect(keysPage).toContain("embedded = false");
-    expect(keysPage).toContain('"settings-keys-section flex min-w-0 flex-col gap-2"');
+    expect(keysPage).toContain(
+      '"settings-keys-section flex min-w-0 flex-col gap-2"',
+    );
     expect(keysPage).toContain('<header className="settings-section-header">');
   });
 

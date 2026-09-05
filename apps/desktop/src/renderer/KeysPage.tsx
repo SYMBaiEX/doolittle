@@ -155,7 +155,9 @@ export function KeysPage({
           <div>
             <span className="eyebrow">Credentials</span>
             <h2>Secret store</h2>
-            <p>Inspect, reveal, and update credentials in the local secret store.</p>
+            <p>
+              Inspect, reveal, and update credentials in the local secret store.
+            </p>
           </div>
           <Button
             disabled={!active}

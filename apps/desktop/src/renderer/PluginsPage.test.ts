@@ -57,7 +57,9 @@ describe("PluginsPage density", () => {
 
   it("supports Settings embedding without the standalone workspace shell", () => {
     expect(source).toContain("embedded = false");
-    expect(source).toContain('className={embedded ? "settings-plugins-section"');
+    expect(source).toContain(
+      'className={embedded ? "settings-plugins-section"',
+    );
     expect(source).toContain('variant={embedded ? "section" : "workspace"}');
     expect(source).toContain('<header className="settings-section-header">');
   });

@@ -86,7 +86,9 @@ export function SkillsPage({
             <div>
               <span className="eyebrow">Agent</span>
               <h2>Skill catalog</h2>
-              <p>Browse reusable skills or review proposals before activation.</p>
+              <p>
+                Browse reusable skills or review proposals before activation.
+              </p>
             </div>
             <button
               className="secondary-button"

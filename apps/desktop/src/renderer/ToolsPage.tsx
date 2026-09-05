@@ -134,7 +134,9 @@ export function ToolsPage({
             <div>
               <span className="eyebrow">Agent</span>
               <h2>Tool registry</h2>
-              <p>Search runtime capabilities and inspect integration bridges.</p>
+              <p>
+                Search runtime capabilities and inspect integration bridges.
+              </p>
             </div>
             <button
               className="secondary-button"
