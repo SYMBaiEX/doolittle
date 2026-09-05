@@ -4,43 +4,26 @@ import type {
   RefObject,
 } from "react";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
-import { UtilityDrawer } from "../components/UtilityDrawer";
-import {
-  type NavigationSectionId,
-  navigation,
-  VIEW_DESCRIPTIONS,
-  type View,
-} from "../desktop-navigation";
 import { Icon } from "../lib";
 import { UTILITY_DRAWER_WIDTH } from "../panel-layout";
 
 export interface DesktopUtilityLayerProps {
-  activeView: View;
   activity: ReactNode;
-  openSections: ReadonlySet<NavigationSectionId>;
   utilityDrawerWidth: number;
   utilityRef: RefObject<HTMLElement | null>;
   mobileModal: boolean;
   onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => void;
   onClose: () => void;
-  onPreload: (view: View) => void;
-  onSelect: (view: View) => void;
-  onToggleSection: (sectionId: NavigationSectionId) => void;
   onResize: (width: number) => void;
 }
 
 export function DesktopUtilityLayer({
-  activeView,
   activity,
-  openSections,
   utilityDrawerWidth,
   utilityRef,
   mobileModal,
   onKeyDown,
   onClose,
-  onPreload,
-  onSelect,
-  onToggleSection,
   onResize,
 }: DesktopUtilityLayerProps) {
   const accessibility = mobileModal
@@ -51,7 +34,7 @@ export function DesktopUtilityLayer({
     <>
       {mobileModal ? (
         <button
-          aria-label="Close tools and settings"
+          aria-label="Close Activity"
           className="fixed inset-0 z-119 block h-svh w-screen border-0 bg-[color-mix(in_srgb,var(--shadow)_24%,transparent)] p-0"
           data-utility-backdrop=""
           onClick={onClose}
@@ -68,7 +51,7 @@ export function DesktopUtilityLayer({
         data-utility-layer=""
       >
         <aside
-          aria-label="Tools and settings"
+          aria-label="Activity"
           className={`relative flex h-full min-w-0 flex-col bg-[var(--surface)] text-[var(--text)] ${
             mobileModal
               ? "border-[var(--line-subtle)] border-l shadow-[-8px_0_28px_color-mix(in_srgb,var(--shadow)_18%,transparent)]"
@@ -80,36 +63,50 @@ export function DesktopUtilityLayer({
           tabIndex={-1}
           {...accessibility}
         >
-          <UtilityDrawer
-            activeView={activeView}
-            activity={activity}
-            onClose={onClose}
-            onPreload={onPreload}
-            onSelect={onSelect}
-            onToggleSection={(sectionId) =>
-              onToggleSection(sectionId as NavigationSectionId)
-            }
-            openSections={openSections}
-            sections={navigation.map((section) => ({
-              ...section,
-              items: section.items.map((item) => ({
-                ...item,
-                description: VIEW_DESCRIPTIONS[item.id],
-                icon: (
-                  <Icon name={item.id === "gateway" ? "activity" : item.id} />
-                ),
-              })),
-            }))}
-          >
-            <PanelResizeHandle
-              bounds={UTILITY_DRAWER_WIDTH}
-              className="inset-y-0 -left-1.25 z-4 max-[700px]:hidden"
-              direction="grow-left"
-              label="Resize tools and settings panel"
-              onResize={onResize}
-              value={utilityDrawerWidth}
-            />
-          </UtilityDrawer>
+          <header className="flex min-h-16 items-center justify-between gap-3 border-[var(--line-subtle)] border-b bg-[var(--surface-soft)] px-3 py-2.5">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="grid size-7 shrink-0 place-items-center rounded-[7px] border border-[color-mix(in_srgb,var(--accent)_27%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface))] text-[var(--accent)]">
+                <Icon name="activity" />
+              </span>
+              <div className="grid min-w-0 gap-px">
+                <span className="eyebrow">Runtime {"//"}</span>
+                <h2
+                  className="m-0 font-semibold text-sm text-[var(--text)] tracking-[-0.015em] [font-family:var(--font-display)]"
+                  id="utility-drawer-title"
+                >
+                  Activity
+                </h2>
+              </div>
+            </div>
+            <button
+              aria-label="Close Activity"
+              className="grid size-6.5 place-items-center rounded-[var(--radius-sm)] border border-transparent bg-transparent text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent-border)]"
+              onClick={onClose}
+              type="button"
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 pt-1.75 pb-3 [scrollbar-gutter:stable]">
+            {activity}
+          </div>
+          <footer className="shrink-0 border-[var(--line-subtle)] border-t px-3 py-2">
+            <a
+              className="inline-flex min-h-7 items-center rounded-[var(--radius-sm)] px-1.5 text-xs font-semibold text-[var(--accent)] hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--accent-border)]"
+              href="#/home/activity"
+              onClick={onClose}
+            >
+              View all
+            </a>
+          </footer>
+          <PanelResizeHandle
+            bounds={UTILITY_DRAWER_WIDTH}
+            className="inset-y-0 -left-1.25 z-4 max-[700px]:hidden"
+            direction="grow-left"
+            label="Resize Activity panel"
+            onResize={onResize}
+            value={utilityDrawerWidth}
+          />
         </aside>
       </div>
     </>

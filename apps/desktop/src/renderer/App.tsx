@@ -65,12 +65,9 @@ import { newConversationId } from "./conversation-id";
 import {
   collectSidebarFocusables,
   desktopHashForView,
-  loadOpenSections,
   loadProjectScope,
   MOBILE_SIDEBAR_QUERY,
   NAV_COLLAPSED_KEY,
-  NAV_SECTIONS_KEY,
-  type NavigationSectionId,
   navigation,
   PROJECT_SCOPE_KEY,
   primaryViewForView,
@@ -343,8 +340,6 @@ export function App() {
   const [chatTerminalHeight, setChatTerminalHeight] = useState(() =>
     loadPanelSize(localStorage, CHAT_TERMINAL_HEIGHT_KEY, CHAT_TERMINAL_HEIGHT),
   );
-  const [openSections, setOpenSections] =
-    useState<Set<NavigationSectionId>>(loadOpenSections);
   const [projectScope, setProjectScope] =
     useState<ProjectScope>(loadProjectScope);
   const [projectManagerOpen, setProjectManagerOpen] = useState(false);
@@ -484,6 +479,10 @@ export function App() {
   }, [setMobileSidebarOpen]);
 
   const openCommandPalette = useCallback(() => {
+    if (utilityOpen && utilityModalMode) {
+      setUtilityOpen(false);
+      return;
+    }
     paletteReturnFocusRef.current =
       document.activeElement instanceof HTMLElement &&
       document.activeElement !== document.body
@@ -492,7 +491,7 @@ export function App() {
     void preloadCommandPalette();
     setPaletteMounted(true);
     setPaletteOpen(true);
-  }, []);
+  }, [utilityModalMode, utilityOpen]);
 
   const closeUtilities = useCallback(() => {
     setUtilityOpen(false);
@@ -531,6 +530,10 @@ export function App() {
   }, []);
 
   const openChatTerminal = useCallback(() => {
+    if (utilityOpen && utilityModalMode) {
+      closeUtilities();
+      return;
+    }
     chatTerminalReturnFocusRef.current =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
@@ -538,7 +541,7 @@ export function App() {
     setMobileSidebarOpen(false);
     setChatTerminalMounted(true);
     setChatTerminalOpen(true);
-  }, [setMobileSidebarOpen]);
+  }, [closeUtilities, setMobileSidebarOpen, utilityModalMode, utilityOpen]);
 
   const toggleChatTerminal = useCallback(() => {
     if (chatTerminalOpen) closeChatTerminal();
@@ -584,15 +587,6 @@ export function App() {
       setViewState(next);
       setMobileSidebarOpen(false);
       if (utilityModalMode) closeUtilities();
-      const section = navigation.find((entry) =>
-        entry.items.some((item) => item.id === next),
-      );
-      if (section) {
-        setOpenSections((current) => {
-          if (current.has(section.id)) return current;
-          return new Set([...current, section.id]);
-        });
-      }
       return true;
     },
     [
@@ -706,15 +700,6 @@ export function App() {
 
   const toggleInspector = useCallback(() => {
     window.dispatchEvent(new CustomEvent("doolittle:toggle-inspector"));
-  }, []);
-
-  const toggleSection = useCallback((id: NavigationSectionId) => {
-    setOpenSections((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   }, []);
 
   const {
@@ -934,10 +919,6 @@ export function App() {
       CHAT_TERMINAL_HEIGHT,
     );
   }, [chatTerminalHeight]);
-
-  useEffect(() => {
-    localStorage.setItem(NAV_SECTIONS_KEY, JSON.stringify([...openSections]));
-  }, [openSections]);
 
   useEffect(() => {
     if (!utilityOpen || !utilityModalMode) return;
@@ -1411,7 +1392,6 @@ export function App() {
           projectCards={projectCards}
           sessions={sessions}
           selectedSession={selectedSession}
-          view={view}
           navigationView={navigationView}
           workspacePath={workspace.currentPath}
           resolvedAppearance={resolvedAppearance}
@@ -1435,8 +1415,6 @@ export function App() {
           onSelectScope={selectProjectScope}
           onViewAll={() => setView("sessions")}
           onSetView={setView}
-          onToggleUtilities={toggleUtilities}
-          utilityOpen={utilityOpen}
           onToggleAppearance={toggleAppearance}
         />
       </Suspense>
@@ -1561,7 +1539,6 @@ export function App() {
       {utilityOpen ? (
         <Suspense fallback={null}>
           <DesktopUtilityLayer
-            activeView={view}
             activity={
               <Suspense fallback={null}>
                 <ActivityCenter
@@ -1576,13 +1553,7 @@ export function App() {
             }
             onClose={closeUtilities}
             onKeyDown={handleUtilityKeyDown}
-            onPreload={(next) =>
-              preloadDesktopRoute(next, backend.phase, workspace.currentPath)
-            }
             onResize={setUtilityDrawerWidth}
-            onSelect={setView}
-            onToggleSection={toggleSection}
-            openSections={openSections}
             utilityDrawerWidth={utilityDrawerWidth}
             utilityRef={utilityRef}
             mobileModal={utilityModalMode}

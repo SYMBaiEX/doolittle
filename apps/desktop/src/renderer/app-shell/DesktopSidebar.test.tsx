@@ -39,7 +39,7 @@ describe("DesktopSidebar", () => {
             mobileSidebarOpen={false}
             navCollapsed
             newConversationMenuOpen={false}
-            navigationView="code"
+            navigationView="settings"
             onChooseRepository={vi.fn()}
             onClose={vi.fn()}
             onManageProjects={vi.fn()}
@@ -54,7 +54,6 @@ describe("DesktopSidebar", () => {
             onStartConversation={vi.fn()}
             onToggleAppearance={vi.fn()}
             onToggleNavigation={vi.fn()}
-            onToggleUtilities={vi.fn()}
             onViewAll={onViewAll}
             platform="darwin"
             projectCards={[]}
@@ -65,8 +64,6 @@ describe("DesktopSidebar", () => {
             sidebarOpen
             sidebarRef={{ current: null }}
             sidebarWidth={264}
-            utilityOpen={false}
-            view="chat"
             workspacePath="/workspace/doolittle"
           />
         </main>,
@@ -88,8 +85,10 @@ describe("DesktopSidebar", () => {
       container.querySelector("button[aria-label='Open settings']"),
     ).not.toBeNull();
     expect(
-      container.querySelector("button[aria-current='page']"),
-    ).not.toBeNull();
+      container
+        .querySelector("button[aria-label='Open settings']")
+        ?.getAttribute("aria-current"),
+    ).toBe("page");
 
     const history = container.querySelector<HTMLButtonElement>(
       "button[aria-label='Open conversation history']",
@@ -103,7 +102,6 @@ describe("DesktopSidebar", () => {
     act(() => home?.click());
     expect(onSetView).toHaveBeenCalledWith("dashboard");
 
-    const utilityMark = container.querySelector(".sidebar-utility-mark");
-    expect(utilityMark?.className).toContain("[&>svg]:size-3.5");
+    expect(container.textContent).not.toContain("Tools & settings");
   });
 });

@@ -77,14 +77,33 @@ describe("ChatHeaderChrome", () => {
     const history = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent === "History",
     );
-    const media = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Media",
+    const media = container.querySelector<HTMLButtonElement>(
+      ".chat-mobile-media-button",
     );
     expect(history?.getAttribute("aria-pressed")).toBe("true");
     expect(media?.getAttribute("aria-pressed")).toBe("false");
 
     act(() => media?.click());
     expect(handlers.onSurfaceChange).toHaveBeenCalledWith("media");
+  });
+
+  it("keeps a narrow Media toggle beside History and returns to Chat", () => {
+    render();
+
+    const media = container.querySelector<HTMLButtonElement>(
+      ".chat-mobile-media-button",
+    );
+    expect(media?.className).toContain("chat-mobile-media-button");
+    act(() => media?.click());
+    expect(handlers.onSurfaceChange).toHaveBeenCalledWith("media");
+
+    render({ surface: "media" });
+    const chat = container.querySelector<HTMLButtonElement>(
+      ".chat-mobile-media-button",
+    );
+    expect(chat?.className).toContain("chat-mobile-media-button");
+    act(() => chat?.click());
+    expect(handlers.onSurfaceChange).toHaveBeenLastCalledWith("conversation");
   });
 
   it("reveals conversation state and forwards the compact actions", () => {

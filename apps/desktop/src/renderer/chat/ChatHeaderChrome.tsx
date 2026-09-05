@@ -200,6 +200,25 @@ export function ChatHeaderChrome({
             <span>History</span>
             <small>{sessionsCount}</small>
           </button>
+          {onSurfaceChange ? (
+            <button
+              aria-controls={
+                surface === "media"
+                  ? "chat-context-conversation"
+                  : "chat-context-media"
+              }
+              aria-pressed={surface === "media"}
+              className="chat-mobile-media-button secondary-button"
+              onClick={() =>
+                onSurfaceChange(
+                  surface === "media" ? "conversation" : "media",
+                )
+              }
+              type="button"
+            >
+              {surface === "media" ? "Chat" : "Media"}
+            </button>
+          ) : null}
           {activeRequest ? (
             <button
               className="secondary-button chat-stop-response"

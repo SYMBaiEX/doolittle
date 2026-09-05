@@ -6,7 +6,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Search,
-  SlidersHorizontal,
   Sun,
 } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
@@ -60,12 +59,6 @@ import {
   SIDEBAR_SCRIM_CLASS,
   SIDEBAR_SCRIM_HIDDEN_CLASS,
   SIDEBAR_SCRIM_VISIBLE_CLASS,
-  SIDEBAR_UTILITY_BUTTON_CLASS,
-  SIDEBAR_UTILITY_BUTTON_OPEN_CLASS,
-  SIDEBAR_UTILITY_COPY_CLASS,
-  SIDEBAR_UTILITY_MARK_CLASS,
-  SIDEBAR_UTILITY_MARK_OPEN_CLASS,
-  SIDEBAR_UTILITY_SHORTCUT_CLASS,
 } from "./shell-layout";
 
 type DesktopPlatform = DoolittleDesktopBridge["platform"];
@@ -81,7 +74,6 @@ export interface DesktopSidebarProps {
   projectCards: readonly ProjectLike[];
   sessions: readonly SessionSummary[];
   selectedSession: string;
-  view: View;
   navigationView: View;
   workspacePath: string;
   resolvedAppearance: "dark" | "light";
@@ -101,8 +93,6 @@ export interface DesktopSidebarProps {
   onViewAll: () => void;
   onPreloadView: (view: View) => void;
   onSetView: (view: View) => void;
-  onToggleUtilities: () => void;
-  utilityOpen: boolean;
   onToggleAppearance: () => void;
 }
 
@@ -117,7 +107,6 @@ export function DesktopSidebar({
   projectCards,
   sessions,
   selectedSession,
-  view,
   navigationView,
   workspacePath,
   resolvedAppearance,
@@ -137,8 +126,6 @@ export function DesktopSidebar({
   onViewAll,
   onPreloadView,
   onSetView,
-  onToggleUtilities,
-  utilityOpen,
   onToggleAppearance,
 }: DesktopSidebarProps) {
   const compact = navCollapsed && !isMobileSidebarMode;
@@ -323,37 +310,18 @@ export function DesktopSidebar({
               </button>
             ))}
           </fieldset>
-          <button
-            aria-expanded={utilityOpen}
-            className={`${SIDEBAR_UTILITY_BUTTON_CLASS}${
-              utilityOpen ? ` ${SIDEBAR_UTILITY_BUTTON_OPEN_CLASS}` : ""
-            }`}
-            onClick={onToggleUtilities}
-            title="Open every Doolittle tool and setting"
-            type="button"
-          >
-            <span
-              aria-hidden="true"
-              className={`${SIDEBAR_UTILITY_MARK_CLASS}${
-                utilityOpen ? ` ${SIDEBAR_UTILITY_MARK_OPEN_CLASS}` : ""
-              }`}
-            >
-              <UiIcon icon={SlidersHorizontal} size="sm" />
-            </span>
-            <span className={SIDEBAR_UTILITY_COPY_CLASS}>
-              <strong>Tools & settings</strong>
-              <small>Models · runtime · skills</small>
-            </span>
-            <kbd className={SIDEBAR_UTILITY_SHORTCUT_CLASS}>⌘</kbd>
-          </button>
         </nav>
         <div className={SIDEBAR_FOOTER_CLASS}>
           <div className={SIDEBAR_FOOTER_ACTIONS_CLASS}>
             <button
-              aria-current={view === "settings" ? "page" : undefined}
+              aria-current={
+                navigationView === "settings" ? "page" : undefined
+              }
               aria-label="Open settings"
               className={`${SIDEBAR_ACCOUNT_CLASS}${
-                view === "settings" ? ` ${SIDEBAR_ACCOUNT_SELECTED_CLASS}` : ""
+                navigationView === "settings"
+                  ? ` ${SIDEBAR_ACCOUNT_SELECTED_CLASS}`
+                  : ""
               }`}
               onClick={() => onSetView("settings")}
               onFocus={() => onPreloadView("settings")}

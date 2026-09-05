@@ -383,11 +383,6 @@ export const VIEW_DESCRIPTIONS: Record<View, string> = {
   operatorSetup: "Complete local setup",
 };
 
-export const DEFAULT_OPEN_SECTIONS: NavigationSectionId[] = [
-  "work",
-  "settings",
-];
-export const NAV_SECTIONS_KEY = "doolittle.desktop.nav-sections.v2";
 export const NAV_COLLAPSED_KEY = "doolittle.desktop.nav-collapsed.v1";
 export const MOBILE_SIDEBAR_QUERY = "(max-width: 940px)";
 export const PROJECT_SCOPE_KEY = "doolittle.desktop.project-scope.v1";
@@ -406,25 +401,6 @@ export const PRIMARY_NAV_ITEMS: Array<{
     description: "Agent work and review",
   },
 ];
-
-export function loadOpenSections(
-  storage: Pick<Storage, "getItem"> = localStorage,
-): Set<NavigationSectionId> {
-  try {
-    const parsed = JSON.parse(
-      storage.getItem(NAV_SECTIONS_KEY) ?? "null",
-    ) as unknown;
-    if (!Array.isArray(parsed)) return new Set(DEFAULT_OPEN_SECTIONS);
-    const valid = parsed.filter(
-      (id): id is NavigationSectionId =>
-        typeof id === "string" &&
-        navigation.some((section) => section.id === id),
-    );
-    return new Set(valid.length ? valid : DEFAULT_OPEN_SECTIONS);
-  } catch {
-    return new Set(DEFAULT_OPEN_SECTIONS);
-  }
-}
 
 export function loadProjectScope(
   storage: Pick<Storage, "getItem"> = localStorage,

@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_OPEN_SECTIONS,
-  loadOpenSections,
   loadProjectScope,
   navigation,
   primaryViewForView,
@@ -37,27 +35,13 @@ describe("desktop navigation descriptors", () => {
       view: "models",
     });
     expect(primaryViewForView("browser")).toBe("code");
+    expect(primaryViewForView("models")).toBe("settings");
     expect(primaryViewForView("runtime")).toBe("settings");
     expect(renderedViewForView("sessions")).toBe("chat");
     expect(renderedViewForView("browser")).toBe("code");
     expect(renderedViewForView("automations")).toBe("orchestration");
     expect(renderedViewForView("runtime")).toBe("settings");
     expect(renderedViewForView("activity")).toBe("activity");
-  });
-
-  it("loads only known persisted sections and falls back when storage is invalid", () => {
-    expect(
-      loadOpenSections(
-        storage({
-          "doolittle.desktop.nav-sections.v2": '["settings","unknown","home"]',
-        }),
-      ),
-    ).toEqual(new Set(["settings", "home"]));
-    expect(
-      loadOpenSections(
-        storage({ "doolittle.desktop.nav-sections.v2": "not-json" }),
-      ),
-    ).toEqual(new Set(DEFAULT_OPEN_SECTIONS));
   });
 
   it("normalizes project scope and workspace/session labels", () => {

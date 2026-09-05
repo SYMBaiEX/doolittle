@@ -65,6 +65,15 @@ describe("desktop shell overlay Tailwind ownership", () => {
     );
   });
 
+  it("closes a modal Activity drawer before secondary keyboard overlays open", () => {
+    expect(appSource).toMatch(
+      /const openCommandPalette = useCallback\(\(\) => \{\s*if \(utilityOpen && utilityModalMode\) \{\s*setUtilityOpen\(false\);\s*return;/u,
+    );
+    expect(appSource).toMatch(
+      /const openChatTerminal = useCallback\(\(\) => \{\s*if \(utilityOpen && utilityModalMode\) \{\s*closeUtilities\(\);\s*return;/u,
+    );
+  });
+
   it("uses Tailwind contracts for the loading fallback", () => {
     expect(COMMAND_PALETTE_LOADING_BACKDROP_CLASS).toContain("fixed inset-0");
     expect(COMMAND_PALETTE_LOADING_BACKDROP_CLASS).toContain(

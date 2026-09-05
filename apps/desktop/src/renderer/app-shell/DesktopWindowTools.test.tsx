@@ -25,17 +25,17 @@ describe("DesktopWindowTools", () => {
   it("renders a responsive icon-and-label utility control", () => {
     const markup = renderTools(false);
 
-    expect(markup).toContain('aria-label="Open tools and settings"');
+    expect(markup).toContain('aria-label="Open Activity"');
     expect(markup).toContain('aria-expanded="false"');
-    expect(markup).toContain("sliders-horizontal");
-    expect(markup).toContain("<span>Tools</span>");
+    expect(markup).toContain("activity");
+    expect(markup).toContain("<span>Activity</span>");
   });
 
   it("announces the close action while the utility drawer is expanded", () => {
     const markup = renderTools(true);
 
-    expect(markup).toContain('aria-label="Close tools and settings"');
+    expect(markup).toContain('aria-label="Close Activity"');
     expect(markup).toContain('aria-expanded="true"');
-    expect(markup).toContain('title="Close tools and settings"');
+    expect(markup).toContain('title="Close Activity"');
   });
 });

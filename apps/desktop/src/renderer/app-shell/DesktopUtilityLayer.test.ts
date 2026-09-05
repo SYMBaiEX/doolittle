@@ -4,16 +4,11 @@ import { describe, expect, it } from "vitest";
 import { DesktopUtilityLayer } from "./DesktopUtilityLayer";
 
 const props = {
-  activeView: "settings" as const,
   activity: null,
   mobileModal: true,
   onClose: () => undefined,
   onKeyDown: () => undefined,
-  onPreload: () => undefined,
   onResize: () => undefined,
-  onSelect: () => undefined,
-  onToggleSection: () => undefined,
-  openSections: new Set<string>(),
   utilityDrawerWidth: 360,
   utilityRef: { current: null },
 };
@@ -28,7 +23,13 @@ describe("DesktopUtilityLayer", () => {
     expect(markup).toContain('tabindex="-1"');
     expect(markup).toContain('aria-modal="true"');
     expect(markup).toContain('role="dialog"');
-    expect(markup).toContain('aria-label="Tools and settings"');
+    expect(markup).toContain('aria-label="Activity"');
+    expect(markup).toContain("Activity");
+    expect(markup).toContain('aria-label="Close Activity"');
+    expect(markup).toContain('href="#/home/activity"');
+    expect(markup).toContain(">View all<");
+    expect(markup).not.toContain("Search tools");
+    expect(markup).not.toContain("All Doolittle tools and settings");
   });
 
   it("keeps the wide utility pane non-modal", () => {
@@ -40,6 +41,6 @@ describe("DesktopUtilityLayer", () => {
     expect(markup).not.toContain('aria-modal="true"');
     expect(markup).not.toContain('role="dialog"');
     expect(markup).toContain('role="complementary"');
-    expect(markup).toContain('aria-label="Tools and settings"');
+    expect(markup).toContain('aria-label="Activity"');
   });
 });

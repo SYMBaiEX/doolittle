@@ -3,8 +3,9 @@
 This checklist is the durable implementation record for simplifying Doolittle
 Desktop without removing product capability. The target is five stable
 destinations: **Home**, **Chat**, **Code**, **Work**, and **Settings**. Activity
-is globally available as a drawer and its full observability views live under
-Home; help and other short-lived surfaces are overlays or contextual panels.
+is globally available through an Activity-only drawer and its full observability
+views live under Home; help and other short-lived surfaces are overlays or
+contextual panels.
 
 Update this file as implementation evidence changes. A checked item means the
 behavior exists in the current checkout and has the listed proof, not merely
@@ -29,8 +30,15 @@ that code was written for it.
 - [x] `OVERLAY-01` Present Activity as a global drawer (with its full views
   nested under Home) and Help/About as an overlay or Settings section instead
   of workspace destinations.
-- [x] `DENSITY-01` Prevent the sidebar, Tools, and Workbench from starving the
+- [x] `SURFACE-01` Keep the responsive drawer shell Activity-only: its literal
+  Activity heading, close control, Activity Center, and `#/home/activity`
+  full-view link are the entire surface.
+- [x] `OWNER-01` Keep ActivityPage and AnalyticsPage as separate Home route
+  owners; Activity drawer navigation does not own or enumerate destinations.
+- [x] `DENSITY-01` Prevent the sidebar, Activity drawer, and Workbench from starving the
   primary canvas; preserve a stable History affordance in both sidebar modes.
+- [x] `CLEANUP-01` Delete the generic UtilityDrawer and its persisted expanded
+  section state; command palette and destination-local controls own navigation.
 - [x] `CLEANUP-01` Remove only architecture helpers proven redundant. Retain
   route prefetch cancellation and project-navigation intent until their
   protected behavior has a replacement.
@@ -79,8 +87,10 @@ that code was written for it.
 
 - [x] Keep Activity globally reachable while nesting its full view under Home.
 - [x] Move Help/About to Settings and retain a direct keyboard/search action.
-- [x] Make Tools modal or overlay before a docked Workbench would squeeze the
+- [x] Make Activity modal or overlay before a docked Workbench would squeeze the
   canvas below its usable width.
+- [x] Keep the narrow Chat header's History control and adjacent Chat/Media
+  toggle visible at 980px and below, so Media never strands the user.
 - [x] Close or replace competing secondary panels when context changes.
 - [x] Verify keyboard focus return, escape behavior, narrow viewports, and
   reduced-motion behavior.
