@@ -14,6 +14,12 @@ describe("keys workspace layout", () => {
     expect(keysPage).not.toContain("pb-[54px]");
   });
 
+  it("supports the Settings presentation without its standalone page header", () => {
+    expect(keysPage).toContain("embedded = false");
+    expect(keysPage).toContain('"settings-keys-section flex min-w-0 flex-col gap-2"');
+    expect(keysPage).toContain('<header className="settings-section-header">');
+  });
+
   it("removes the unused inventory column only after an empty response", () => {
     expect(keysPage).toContain(
       "!secrets.loading && !secrets.error && keys.length === 0",

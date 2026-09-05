@@ -24,4 +24,13 @@ describe("ToolsPage density", () => {
     expect(markup).toContain("Loading MCP workspace…");
     expect(markup).toContain("Server and tool reads begin");
   });
+
+  it("uses the Settings section presentation without route chrome when embedded", () => {
+    const markup = renderToStaticMarkup(<ToolsPage active embedded />);
+
+    expect(markup).toContain('class="settings-tools-section flex');
+    expect(markup).toContain('class="settings-section-header"');
+    expect(markup).toContain("Tool registry");
+    expect(markup).not.toContain('class="page page-tools gap-3"');
+  });
 });

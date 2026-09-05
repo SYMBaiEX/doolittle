@@ -48,7 +48,13 @@ export function skillsSectionForKey(
   return undefined;
 }
 
-export function SkillsPage({ active }: { active: boolean }) {
+export function SkillsPage({
+  active,
+  embedded = false,
+}: {
+  active: boolean;
+  embedded?: boolean;
+}) {
   const skills = useApiResource<SkillsResponse>(active ? "/skills" : null, [
     active,
   ]);
@@ -68,9 +74,20 @@ export function SkillsPage({ active }: { active: boolean }) {
   });
   if (!active) {
     return (
-      <div className="page page-skills gap-3">
-        <PageHeader
-          actions={
+      <div
+        className={
+          embedded
+            ? "settings-skills-section flex min-w-0 flex-col gap-2"
+            : "page page-skills gap-3"
+        }
+      >
+        {embedded ? (
+          <header className="settings-section-header">
+            <div>
+              <span className="eyebrow">Agent</span>
+              <h2>Skill catalog</h2>
+              <p>Browse reusable skills or review proposals before activation.</p>
+            </div>
             <button
               className="secondary-button"
               disabled
@@ -79,11 +96,24 @@ export function SkillsPage({ active }: { active: boolean }) {
             >
               Refresh
             </button>
-          }
-          description="Browse reusable skills or review proposals before activation."
-          eyebrow="Agent"
-          title="Skills"
-        />
+          </header>
+        ) : (
+          <PageHeader
+            actions={
+              <button
+                className="secondary-button"
+                disabled
+                onClick={refresh}
+                type="button"
+              >
+                Refresh
+              </button>
+            }
+            description="Browse reusable skills or review proposals before activation."
+            eyebrow="Agent"
+            title="Skills"
+          />
+        )}
         <OfflineRouteState>
           Skill catalog and proposal review are unavailable until the local
           runtime is ready.
@@ -124,12 +154,20 @@ export function SkillsPage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className="page page-skills gap-3">
-      <PageHeader
-        eyebrow="Agent"
-        title="Skills"
-        description="Browse reusable skills or review proposals before activation."
-        actions={
+    <div
+      className={
+        embedded
+          ? "settings-skills-section flex min-w-0 flex-col gap-2"
+          : "page page-skills gap-3"
+      }
+    >
+      {embedded ? (
+        <header className="settings-section-header">
+          <div>
+            <span className="eyebrow">Agent</span>
+            <h2>Skill catalog</h2>
+            <p>Browse reusable skills or review proposals before activation.</p>
+          </div>
           <button
             className="secondary-button"
             disabled={!active}
@@ -138,8 +176,24 @@ export function SkillsPage({ active }: { active: boolean }) {
           >
             Refresh
           </button>
-        }
-      />
+        </header>
+      ) : (
+        <PageHeader
+          eyebrow="Agent"
+          title="Skills"
+          description="Browse reusable skills or review proposals before activation."
+          actions={
+            <button
+              className="secondary-button"
+              disabled={!active}
+              onClick={refresh}
+              type="button"
+            >
+              Refresh
+            </button>
+          }
+        />
+      )}
       <CompactStatStrip
         label="Skill catalog summary"
         stats={[

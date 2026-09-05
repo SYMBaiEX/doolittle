@@ -39,7 +39,13 @@ interface SecretValueResponse {
   value?: string | null;
 }
 
-export function KeysPage({ active }: { active: boolean }) {
+export function KeysPage({
+  active,
+  embedded = false,
+}: {
+  active: boolean;
+  embedded?: boolean;
+}) {
   const secrets = useApiResource<SecretsResponse>(active ? "/secrets" : null, [
     active,
   ]);
@@ -137,12 +143,20 @@ export function KeysPage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className={KEYS_PAGE_CLASS}>
-      <PageHeader
-        eyebrow="Credentials"
-        title="Keys"
-        description="Inspect, reveal, and update credentials in the local secret store."
-        actions={
+    <div
+      className={
+        embedded
+          ? "settings-keys-section flex min-w-0 flex-col gap-2"
+          : KEYS_PAGE_CLASS
+      }
+    >
+      {embedded ? (
+        <header className="settings-section-header">
+          <div>
+            <span className="eyebrow">Credentials</span>
+            <h2>Secret store</h2>
+            <p>Inspect, reveal, and update credentials in the local secret store.</p>
+          </div>
           <Button
             disabled={!active}
             onClick={secrets.reload}
@@ -151,8 +165,24 @@ export function KeysPage({ active }: { active: boolean }) {
           >
             Refresh
           </Button>
-        }
-      />
+        </header>
+      ) : (
+        <PageHeader
+          eyebrow="Credentials"
+          title="Keys"
+          description="Inspect, reveal, and update credentials in the local secret store."
+          actions={
+            <Button
+              disabled={!active}
+              onClick={secrets.reload}
+              type="button"
+              variant="secondary"
+            >
+              Refresh
+            </Button>
+          }
+        />
+      )}
       {active && feedback ? (
         <Notice tone={feedback.tone}>{feedback.message}</Notice>
       ) : null}

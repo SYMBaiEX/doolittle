@@ -20,7 +20,7 @@ const catalogBrowserLayout = readFileSync(
 
 describe("PluginsPage density", () => {
   it("keeps the plugin search as the primary desktop control with a bounded category rail", () => {
-    expect(source).toContain('className="page plugins-page"');
+    expect(source).toContain(': "page plugins-page"');
     expect(source).toContain(
       'className="plugins-catalog-controls grid grid-cols-[minmax(520px,1fr)_minmax(460px,0.78fr)]',
     );
@@ -53,5 +53,12 @@ describe("PluginsPage density", () => {
     expect(workspace).toContain("selected.description");
     expect(workspace).toContain("selected.packageName");
     expect(workspace).not.toContain("CompactCatalogList");
+  });
+
+  it("supports Settings embedding without the standalone workspace shell", () => {
+    expect(source).toContain("embedded = false");
+    expect(source).toContain('className={embedded ? "settings-plugins-section"');
+    expect(source).toContain('variant={embedded ? "section" : "workspace"}');
+    expect(source).toContain('<header className="settings-section-header">');
   });
 });

@@ -25,7 +25,13 @@ import {
 import { PluginCatalogWorkspace } from "./plugins/PluginCatalogWorkspace";
 import { buildPluginCatalogEntries } from "./plugins/plugin-catalog-model";
 
-export function PluginsPage({ active }: { active: boolean }) {
+export function PluginsPage({
+  active,
+  embedded = false,
+}: {
+  active: boolean;
+  embedded?: boolean;
+}) {
   const resource = useApiResource<PluginsResponse>(
     active ? "/runtime/plugins?view=catalog" : null,
     [active],
@@ -62,12 +68,17 @@ export function PluginsPage({ active }: { active: boolean }) {
   const enabled = entries.filter((entry) => entry.enabled).length;
 
   return (
-    <PagePanel className="page plugins-page" variant="workspace">
-      <PageHeader
-        eyebrow="Agent"
-        title="Plugins"
-        description="Inspect the ElizaOS packages assembled into this runtime."
-        actions={
+    <PagePanel
+      className={embedded ? "settings-plugins-section" : "page plugins-page"}
+      variant={embedded ? "section" : "workspace"}
+    >
+      {embedded ? (
+        <header className="settings-section-header">
+          <div>
+            <span className="eyebrow">Agent</span>
+            <h2>Plugin catalog</h2>
+            <p>Inspect the ElizaOS packages assembled into this runtime.</p>
+          </div>
           <Button
             className="secondary-button"
             disabled={!active}
@@ -77,8 +88,25 @@ export function PluginsPage({ active }: { active: boolean }) {
           >
             Refresh
           </Button>
-        }
-      />
+        </header>
+      ) : (
+        <PageHeader
+          eyebrow="Agent"
+          title="Plugins"
+          description="Inspect the ElizaOS packages assembled into this runtime."
+          actions={
+            <Button
+              className="secondary-button"
+              disabled={!active}
+              onClick={resource.reload}
+              type="button"
+              variant="secondary"
+            >
+              Refresh
+            </Button>
+          }
+        />
+      )}
       {!active ? (
         <OfflineRouteState>
           Plugin assembly is unavailable until the local runtime is ready.

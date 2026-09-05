@@ -24,4 +24,13 @@ describe("SkillsPage density", () => {
     expect(skillsSectionForKey("catalog", "End")).toBe("workshop");
     expect(skillsSectionForKey("catalog", "Enter")).toBeUndefined();
   });
+
+  it("uses the Settings section presentation without route chrome when embedded", () => {
+    const markup = renderToStaticMarkup(<SkillsPage active embedded />);
+
+    expect(markup).toContain('class="settings-skills-section flex');
+    expect(markup).toContain('class="settings-section-header"');
+    expect(markup).toContain("Skill catalog");
+    expect(markup).not.toContain('class="page page-skills gap-3"');
+  });
 });

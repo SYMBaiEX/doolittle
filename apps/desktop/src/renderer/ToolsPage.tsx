@@ -92,7 +92,13 @@ export function McpControlPanelFallback() {
   );
 }
 
-export function ToolsPage({ active }: { active: boolean }) {
+export function ToolsPage({
+  active,
+  embedded = false,
+}: {
+  active: boolean;
+  embedded?: boolean;
+}) {
   const [profile, setProfile] = useState<ToolProfile>("full");
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
   const toolsPath = active ? `/tools?profile=${profile}` : null;
@@ -116,9 +122,20 @@ export function ToolsPage({ active }: { active: boolean }) {
   const [category, setCategory] = useState("all");
   if (!active) {
     return (
-      <div className="page page-tools gap-3">
-        <PageHeader
-          actions={
+      <div
+        className={
+          embedded
+            ? "settings-tools-section flex min-w-0 flex-col gap-2"
+            : "page page-tools gap-3"
+        }
+      >
+        {embedded ? (
+          <header className="settings-section-header">
+            <div>
+              <span className="eyebrow">Agent</span>
+              <h2>Tool registry</h2>
+              <p>Search runtime capabilities and inspect integration bridges.</p>
+            </div>
             <button
               className="secondary-button"
               disabled
@@ -127,11 +144,24 @@ export function ToolsPage({ active }: { active: boolean }) {
             >
               Refresh
             </button>
-          }
-          description="Search runtime capabilities and inspect integration bridges."
-          eyebrow="Agent"
-          title="Tools"
-        />
+          </header>
+        ) : (
+          <PageHeader
+            actions={
+              <button
+                className="secondary-button"
+                disabled
+                onClick={refresh}
+                type="button"
+              >
+                Refresh
+              </button>
+            }
+            description="Search runtime capabilities and inspect integration bridges."
+            eyebrow="Agent"
+            title="Tools"
+          />
+        )}
         <OfflineRouteState>
           Tool inventory and integration bridges are unavailable until the local
           runtime is ready.
@@ -145,12 +175,20 @@ export function ToolsPage({ active }: { active: boolean }) {
   const totals = catalogData?.summary ?? {};
 
   return (
-    <div className="page page-tools gap-3">
-      <PageHeader
-        eyebrow="Agent"
-        title="Tools"
-        description="Search runtime capabilities and inspect integration bridges."
-        actions={
+    <div
+      className={
+        embedded
+          ? "settings-tools-section flex min-w-0 flex-col gap-2"
+          : "page page-tools gap-3"
+      }
+    >
+      {embedded ? (
+        <header className="settings-section-header">
+          <div>
+            <span className="eyebrow">Agent</span>
+            <h2>Tool registry</h2>
+            <p>Search runtime capabilities and inspect integration bridges.</p>
+          </div>
           <button
             className="secondary-button"
             disabled={!active}
@@ -159,8 +197,24 @@ export function ToolsPage({ active }: { active: boolean }) {
           >
             Refresh
           </button>
-        }
-      />
+        </header>
+      ) : (
+        <PageHeader
+          eyebrow="Agent"
+          title="Tools"
+          description="Search runtime capabilities and inspect integration bridges."
+          actions={
+            <button
+              className="secondary-button"
+              disabled={!active}
+              onClick={refresh}
+              type="button"
+            >
+              Refresh
+            </button>
+          }
+        />
+      )}
       <CompactStatStrip
         label="Tool catalog summary"
         stats={[
