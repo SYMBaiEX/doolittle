@@ -14,13 +14,10 @@ import type { DesktopNavigationIntent } from "../desktop-navigation-intent";
 import type { ApiResource } from "../lib";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import {
-import {
   settingsSectionForView,
   settingsViewForSection,
 } from "../settings/settings-sections";
-  canRenderDesktopRoute,
-  desktopRouteCapabilities,
-} from "./desktop-route-capabilities";
+import { desktopRouteCapabilities } from "./desktop-route-capabilities";
 import { getDesktopRouteComponent } from "./desktop-route-registry";
 import {
   type CodingWorkspaceFocusState,
@@ -109,7 +106,8 @@ export function DesktopRouteContent({
   view,
   workspacePath,
 }: DesktopRouteContentProps): ReactNode {
-  const active = canRenderDesktopRoute(view, backend.phase);
+  const routeCapabilities = desktopRouteCapabilities(view, backend.phase);
+  const active = routeCapabilities.apiRead;
   const settingsSection = settingsSectionForView(view);
   const Route = getDesktopRouteComponent(settingsSection ? "settings" : view);
   const focusScope = desktopRouteFocusScope(workspacePath, projectScope);
@@ -305,9 +303,7 @@ export function DesktopRouteContent({
         return (
           <Route
             active={backend.phase === "ready" || backend.phase === "degraded"}
-            readOnly={
-              !desktopRouteCapabilities("runtime", backend.phase).writes
-            }
+            readOnly={!routeCapabilities.writes}
             onOpenProviders={() => navigation.setView("connections")}
           />
         );

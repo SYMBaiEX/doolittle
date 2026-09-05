@@ -86,13 +86,12 @@ describe("desktop route preloaders", () => {
   });
 
   test("derives route activity from the shared backend capability policy", () => {
-    expect(routeContentSource).toContain("canRenderDesktopRoute,");
+    expect(routeContentSource).toContain("desktopRouteCapabilities");
     expect(routeContentSource).toContain(
-      "const active = canRenderDesktopRoute(view, backend.phase);",
+      "const active = routeCapabilities.apiRead;",
     );
   });
 
-  test("keeps Work tabs compatible with their standalone legacy routes", () => {
   test("uses the Settings shell for canonical model and account destinations", () => {
     expect(routeContentSource).toContain("settingsSectionForView(view)");
     expect(routeContentSource).toContain('settingsSection ? "settings" : view');
@@ -101,6 +100,7 @@ describe("desktop route preloaders", () => {
     expect(routeContentSource).toContain('case "connections":');
   });
 
+  test("keeps Work tabs compatible with their standalone legacy routes", () => {
     expect(routeContentSource).toContain('section === "review"');
     expect(routeContentSource).toContain('section === "automations"');
     expect(routeContentSource).toContain('section === "inbox"');
