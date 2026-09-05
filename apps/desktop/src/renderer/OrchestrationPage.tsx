@@ -168,7 +168,11 @@ export function OrchestrationPage({
     } else if (reviewMode) {
       setActiveTab("review");
     } else {
-      setActiveTab((current) => (current === "review" ? "tasks" : current));
+      setActiveTab((current) =>
+        ["review", "automations", "inbox"].includes(current)
+          ? "tasks"
+          : current,
+      );
     }
   }, [requestedTab, reviewMode]);
 

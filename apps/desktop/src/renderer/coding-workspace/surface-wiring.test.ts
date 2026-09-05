@@ -9,8 +9,9 @@ const pageSource = readFileSync(
 describe("Code preview surface wiring", () => {
   it("keeps the Browser mounted but inactive and inert until Preview is selected", () => {
     expect(pageSource).toContain(
-      'const [surface, setSurface] = useState<CodeSurface>("workspace")',
+      'const [localSurface, setLocalSurface] = useState<CodeSurface>("workspace")',
     );
+    expect(pageSource).toContain("const surface = controlledSurface ?? localSurface");
     expect(pageSource).toContain('hidden={surface !== "preview"}');
     expect(pageSource).toContain('inert={surface !== "preview"}');
     expect(pageSource).toContain('active={active && surface === "preview"}');

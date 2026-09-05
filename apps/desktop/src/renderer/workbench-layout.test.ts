@@ -42,7 +42,8 @@ describe("thread workbench viewport layout contract", () => {
     expect(chatPage).toContain('role: "dialog" as const');
     expect(chatPage).toContain('role: "region" as const');
     expect(chatPage).toContain("{...workbenchAccessibilityProps}");
-    expect(chatPage).toContain("inert={inspectorVisible && isNarrowWorkbench}");
+    expect(chatPage).toContain("inspectorVisible && isNarrowWorkbench");
+    expect(chatPage).toContain('surface !== "conversation"');
     expect(chatPage).toContain(
       "const workbenchDialogRef = useModalFocusBoundary({",
     );
