@@ -34,7 +34,7 @@ describe("settings layout density", () => {
     expect(SETTINGS_LAYOUT_CLASS).toContain("grid-cols-[212px_minmax(0,1fr)]");
     expect(SETTINGS_NAV_GROUP_CLASS).toContain("grid");
     expect(SETTINGS_NAV_GROUP_CLASS).toContain(
-      "max-[980px]:[&:not([open])>div]:grid",
+      "max-[1180px]:[&:not([open])>div]:grid",
     );
     expect(SETTINGS_NAV_BUTTON_CLASS).toContain("w-full");
     expect(SETTINGS_NAV_BUTTON_CLASS).toContain("[&.selected]:bg-");

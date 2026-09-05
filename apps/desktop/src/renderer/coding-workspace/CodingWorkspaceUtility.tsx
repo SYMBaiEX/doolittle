@@ -139,7 +139,7 @@ export function CodingWorkspaceUtility({
             title="Shared terminal dock"
           >
             Jump straight into the persistent Chat terminal for this workspace.
-            It stays mounted while you move between Chat, Code, and Work.
+            It stays mounted while you move between Chat, Code, and Tasks.
           </EmptyBlock>
         ) : null}
 

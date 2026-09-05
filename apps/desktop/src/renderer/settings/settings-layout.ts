@@ -9,19 +9,19 @@ export const SETTINGS_PAGE_CLASS = [
 ].join(" ");
 
 export const SETTINGS_LAYOUT_CLASS =
-  "settings-layout grid min-h-0 flex-1 content-start items-start grid-cols-[212px_minmax(0,1fr)] gap-4 max-[980px]:grid-cols-1 max-[980px]:gap-2.5";
+  "settings-layout grid min-h-0 flex-1 content-start items-start grid-cols-[212px_minmax(0,1fr)] gap-4 max-[1180px]:grid-cols-1 max-[1180px]:gap-2.5";
 
 export const SETTINGS_NAV_CLASS =
-  "settings-nav sticky top-0 grid max-h-full min-w-0 self-start content-start gap-2.5 overflow-auto pr-2 [scrollbar-gutter:stable] [scrollbar-width:thin] max-[980px]:static max-[980px]:flex max-[980px]:max-h-none max-[980px]:items-start max-[980px]:gap-2 max-[980px]:overflow-x-auto max-[980px]:pr-0";
+  "settings-nav sticky top-0 grid max-h-full min-w-0 self-start content-start gap-2.5 overflow-auto pr-2 [scrollbar-gutter:stable] [scrollbar-width:thin] max-[1180px]:static max-[1180px]:flex max-[1180px]:max-h-none max-[1180px]:items-start max-[1180px]:gap-2 max-[1180px]:overflow-x-auto max-[1180px]:pr-0";
 
 export const SETTINGS_NAV_SEARCH_CLASS =
-  "settings-section-search block min-w-0 max-[980px]:w-52 max-[980px]:shrink-0 [&>input]:h-8 [&>input]:min-w-0 [&>input]:py-1.5";
+  "settings-section-search block min-w-0 max-[1180px]:w-52 max-[1180px]:shrink-0 [&>input]:h-8 [&>input]:min-w-0 [&>input]:py-1.5";
 
 export const SETTINGS_NAV_GROUP_CLASS =
-  "settings-nav-group min-w-0 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:px-2 [&>summary]:py-1 [&>summary]:text-[length:var(--text-meta)] [&>summary]:font-semibold [&>summary]:text-[var(--muted)] [&>div]:grid [&>div]:content-start [&>div]:gap-0.5 max-[980px]:shrink-0 max-[980px]:[&>summary]:hidden max-[980px]:[&:not([open])>div]:grid max-[980px]:[&>div]:grid-flow-col max-[980px]:[&>div]:auto-cols-max max-[980px]:[&>div]:items-center max-[980px]:[&>div]:gap-1";
+  "settings-nav-group min-w-0 [&>summary]:cursor-pointer [&>summary]:list-none [&>summary]:px-2 [&>summary]:py-1 [&>summary]:text-[length:var(--text-meta)] [&>summary]:font-semibold [&>summary]:text-[var(--muted)] [&>div]:grid [&>div]:content-start [&>div]:gap-0.5 max-[1180px]:shrink-0 max-[1180px]:[&>summary]:hidden max-[1180px]:[&:not([open])>div]:grid max-[1180px]:[&>div]:grid-flow-col max-[1180px]:[&>div]:auto-cols-max max-[1180px]:[&>div]:items-center max-[1180px]:[&>div]:gap-1";
 
 export const SETTINGS_NAV_BUTTON_CLASS =
-  "relative flex min-h-8 w-full min-w-0 items-center rounded-[var(--radius-xs)] border border-transparent px-2 py-1.25 text-left text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&.selected]:border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] [&.selected]:bg-[var(--accent-soft)] [&.selected]:text-[var(--text)] [&.selected]:shadow-[inset_2px_0_var(--accent)] max-[980px]:w-auto max-[980px]:shrink-0 [&>strong]:truncate [&>strong]:text-[length:var(--text-meta)]";
+  "relative flex min-h-8 w-full min-w-0 items-center rounded-[var(--radius-xs)] border border-transparent px-2 py-1.25 text-left text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&.selected]:border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] [&.selected]:bg-[var(--accent-soft)] [&.selected]:text-[var(--text)] [&.selected]:shadow-[inset_2px_0_var(--accent)] max-[1180px]:w-auto max-[1180px]:shrink-0 [&>strong]:truncate [&>strong]:text-[length:var(--text-meta)]";
 
 export const SETTINGS_CONTENT_CLASS =
   "settings-content grid min-h-0 min-w-0 content-start self-start gap-2.5";
