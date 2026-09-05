@@ -113,7 +113,7 @@ describe("chat chrome density contract", () => {
       "max-[480px]:[&_.secondary-button]:min-h-10",
     );
     expect(CHAT_HEADER_CONTENT_CLASS).toContain(
-      "max-[980px]:[&_.chat-surface-controls]:hidden",
+      "max-[980px]:[&_.chat-surface-controls]:!hidden",
     );
     expect(CHAT_HEADER_CONTENT_CLASS).toContain("whitespace-nowrap");
   });
