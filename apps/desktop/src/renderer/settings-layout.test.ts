@@ -4,6 +4,9 @@ import {
   SETTINGS_CONTENT_CLASS,
   SETTINGS_CONTENT_HEADER_CLASS,
   SETTINGS_LAYOUT_CLASS,
+  SETTINGS_NAV_BUTTON_CLASS,
+  SETTINGS_NAV_GROUP_CLASS,
+  SETTINGS_NAV_SEARCH_CLASS,
   SETTINGS_PAGE_CLASS,
   SETTINGS_ROW_LAYOUT_CLASS,
 } from "./settings/settings-layout";
@@ -22,9 +25,17 @@ describe("settings layout density", () => {
   });
 
   it("keeps category headers, rows, and panels on the compact rhythm", () => {
-    expect(SETTINGS_CONTENT_HEADER_CLASS).toContain("min-h-8.5");
+    expect(SETTINGS_CONTENT_HEADER_CLASS).toContain("min-h-10");
     expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("min-h-9");
     expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("py-1.5");
+  });
+
+  it("keeps the settings rail vertical, readable, and independently sized", () => {
+    expect(SETTINGS_LAYOUT_CLASS).toContain("grid-cols-[212px_minmax(0,1fr)]");
+    expect(SETTINGS_NAV_GROUP_CLASS).toContain("grid");
+    expect(SETTINGS_NAV_BUTTON_CLASS).toContain("w-full");
+    expect(SETTINGS_NAV_BUTTON_CLASS).toContain("[&.selected]:bg-");
+    expect(SETTINGS_NAV_SEARCH_CLASS).toContain("min-w-0");
   });
 
   it("keeps embedded section headings below the page hierarchy", () => {

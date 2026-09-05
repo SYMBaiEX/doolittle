@@ -47,6 +47,8 @@ describe("SettingsNavigation", () => {
     );
 
     expect(markup).toContain('aria-label="Agent"');
+    expect(markup).toContain("settings-nav-group");
+    expect(markup).toContain("settings-section-search");
     expect(markup).toContain("Search settings sections");
     expect(markup).toContain("Credentials");
     expect(markup).not.toContain(">Logs<");

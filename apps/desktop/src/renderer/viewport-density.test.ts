@@ -50,7 +50,7 @@ describe("wide route viewport density", () => {
     const profilesPage = source("./ProfilesPage.tsx");
 
     expect(settingsPage).toContain("SETTINGS_PAGE_CLASS");
-    expect(settingsLayout).toContain("grid-cols-[156px_minmax(0,1fr)]");
+    expect(settingsLayout).toContain("grid-cols-[212px_minmax(0,1fr)]");
     expect(settingsLayout).toContain("max-[980px]:grid-cols-1");
     expect(profilesPage).toContain(
       "min-[701px]:grid-cols-[minmax(18rem,0.42fr)_minmax(0,0.58fr)]",

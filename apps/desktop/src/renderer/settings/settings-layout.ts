@@ -9,40 +9,46 @@ export const SETTINGS_PAGE_CLASS = [
 ].join(" ");
 
 export const SETTINGS_LAYOUT_CLASS =
-  "settings-layout grid min-h-0 flex-1 content-start items-start grid-cols-[156px_minmax(0,1fr)] gap-2 max-[980px]:grid-cols-1 max-[980px]:gap-1.5";
+  "settings-layout grid min-h-0 flex-1 content-start items-start grid-cols-[212px_minmax(0,1fr)] gap-4 max-[980px]:grid-cols-1 max-[980px]:gap-2.5";
 
 export const SETTINGS_NAV_CLASS =
-  "settings-nav sticky top-0 grid max-h-full self-start overflow-auto p-0.25 [scrollbar-gutter:stable] max-[980px]:static max-[980px]:flex max-[980px]:max-h-none max-[980px]:flex-row max-[980px]:overflow-x-auto [scrollbar-width:thin]";
+  "settings-nav sticky top-0 grid max-h-full min-w-0 self-start content-start gap-2.5 overflow-auto pr-2 [scrollbar-gutter:stable] [scrollbar-width:thin] max-[980px]:static max-[980px]:flex max-[980px]:max-h-none max-[980px]:items-start max-[980px]:gap-2 max-[980px]:overflow-x-auto max-[980px]:pr-0";
+
+export const SETTINGS_NAV_SEARCH_CLASS =
+  "settings-section-search block min-w-0 max-[980px]:w-52 max-[980px]:shrink-0 [&>input]:h-8 [&>input]:min-w-0 [&>input]:py-1.5";
+
+export const SETTINGS_NAV_GROUP_CLASS =
+  "settings-nav-group grid min-w-0 content-start gap-0.5 [&>.eyebrow]:mb-1 [&>.eyebrow]:px-2 max-[980px]:shrink-0 max-[980px]:grid-flow-col max-[980px]:auto-cols-max max-[980px]:items-center max-[980px]:gap-1 max-[980px]:[&>.eyebrow]:mb-0 max-[980px]:[&>.eyebrow]:px-1";
 
 export const SETTINGS_NAV_BUTTON_CLASS =
-  "relative min-h-7.25 px-1.75 py-1.25 pl-2.25 text-left max-[980px]:shrink-0 [&>strong]:truncate [&>strong]:text-[10px]";
+  "relative flex min-h-8 w-full min-w-0 items-center rounded-[var(--radius-xs)] border border-transparent px-2 py-1.25 text-left text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&.selected]:border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] [&.selected]:bg-[var(--accent-soft)] [&.selected]:text-[var(--text)] [&.selected]:shadow-[inset_2px_0_var(--accent)] max-[980px]:w-auto max-[980px]:shrink-0 [&>strong]:truncate [&>strong]:text-[length:var(--text-meta)]";
 
 export const SETTINGS_CONTENT_CLASS =
-  "settings-content grid min-h-0 content-start self-start gap-1.25";
+  "settings-content grid min-h-0 min-w-0 content-start self-start gap-2.5";
 
 export const SETTINGS_CONTENT_HEADER_CLASS =
-  "settings-content-header flex min-h-8.5 items-center justify-between gap-3 pb-0.5 [&_h2]:mt-0.25 [&_h2]:mb-0 [&_h2]:text-sm [&_p]:m-0 [&_p]:text-[length:var(--text-meta)] [&_p]:text-[var(--muted)]";
+  "settings-content-header flex min-h-10 items-center justify-between gap-3 pb-1 [&_h2]:mt-0.25 [&_h2]:mb-0.5 [&_h2]:text-sm [&_p]:m-0 [&_p]:text-[length:var(--text-meta)] [&_p]:text-[var(--muted)]";
 
 export const SETTINGS_GROUP_CLASS =
-  "settings-group grid content-start gap-1 rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[var(--surface)] px-2 py-1.75";
+  "settings-group grid min-w-0 content-start gap-2.5 rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface)_94%,var(--bg))] p-3";
 
 export const SETTINGS_APPEARANCE_CLASS =
-  "appearance-segmented grid grid-cols-3 gap-1.25 max-[620px]:grid-cols-1";
+  "appearance-segmented grid grid-cols-3 gap-1.5 max-[620px]:grid-cols-1";
 
 export const SETTINGS_APPEARANCE_BUTTON_CLASS =
-  "grid min-h-9 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 px-2 py-1.25 [&>svg]:mx-0.75 [&>svg]:text-[var(--muted)] [&.selected>svg]:text-[var(--accent)] [&>strong]:truncate [&>strong]:text-[10px]";
+  "grid min-h-11 grid-cols-[auto_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-xs)] border border-[var(--line-subtle)] bg-[var(--surface-soft)] px-2.5 py-1.75 text-left text-[var(--text-soft)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] [&.selected]:border-[var(--accent-border)] [&.selected]:bg-[var(--accent-soft)] [&.selected]:text-[var(--text)] [&>svg]:mx-0.5 [&>svg]:text-[var(--muted)] [&.selected>svg]:text-[var(--accent)] [&>strong]:truncate [&>strong]:text-[length:var(--text-control)]";
 
 export const SETTINGS_INLINE_CHOICE_CLASS =
-  "settings-inline-choice mt-0 flex min-h-9 items-center justify-between gap-3 px-1.5 py-1.25 max-[620px]:items-stretch max-[620px]:flex-col [&>div:first-child]:grid [&>div:first-child]:gap-0.25 [&>div:first-child_small]:text-[length:var(--text-meta)] max-[620px]:[&>fieldset]:w-full [&>fieldset]:flex [&>fieldset]:p-0.5 [&>fieldset_button]:min-h-6 [&>fieldset_button]:px-1.75 [&>fieldset_button]:py-0.75 max-[620px]:[&>fieldset_button]:flex-1";
+  "settings-inline-choice mt-0 flex min-h-11 items-center justify-between gap-3 rounded-[var(--radius-xs)] bg-[var(--surface-soft)] px-2.5 py-1.75 max-[620px]:items-stretch max-[620px]:flex-col [&>div:first-child]:grid [&>div:first-child]:gap-0.5 [&>div:first-child_small]:text-[length:var(--text-meta)] [&>div:first-child_small]:text-[var(--muted)] max-[620px]:[&>fieldset]:w-full [&>fieldset]:flex [&>fieldset]:gap-0.5 [&>fieldset]:rounded-[var(--radius-xs)] [&>fieldset]:bg-[var(--bg)] [&>fieldset]:p-0.5 [&>fieldset_button]:min-h-7 [&>fieldset_button]:rounded-[var(--radius-xs)] [&>fieldset_button]:px-2 [&>fieldset_button]:py-0.75 [&>fieldset_button]:text-[length:var(--text-meta)] [&>fieldset_button]:text-[var(--text-soft)] [&>fieldset_button:hover]:bg-[var(--surface-hover)] [&>fieldset_button.selected]:bg-[var(--accent-soft)] [&>fieldset_button.selected]:text-[var(--text)] max-[620px]:[&>fieldset_button]:flex-1";
 
 export const SETTINGS_THEME_GRID_CLASS =
-  "theme-grid grid grid-cols-[repeat(auto-fit,minmax(142px,1fr))] gap-1.25 max-[620px]:grid-cols-2";
+  "theme-grid grid grid-cols-4 gap-1.5 max-[1280px]:grid-cols-3 max-[760px]:grid-cols-2 max-[480px]:grid-cols-1";
 
 export const SETTINGS_THEME_BUTTON_CLASS =
-  "grid min-h-9 grid-cols-[25px_minmax(0,1fr)_12px] items-center gap-1.5 px-1.5 py-1.25 [&>strong]:truncate [&>strong]:text-[length:var(--text-meta)]";
+  "grid min-h-11 grid-cols-[28px_minmax(0,1fr)_12px] items-center gap-2 rounded-[var(--radius-xs)] border border-[var(--line-subtle)] bg-[var(--surface-soft)] px-2 py-1.5 text-left text-[var(--text-soft)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] [&.selected]:border-[var(--accent-border)] [&.selected]:bg-[var(--accent-soft)] [&.selected]:text-[var(--text)] [&.selected>svg]:text-[var(--accent)] [&>strong]:truncate [&>strong]:text-[length:var(--text-meta)]";
 
 export const SETTINGS_THEME_SIGNAL_CLASS =
-  "theme-card-signal grid size-6.25 grid-cols-3 gap-0.5 p-1 [&>i]:h-2 [&>i]:w-1";
+  "theme-card-signal grid size-7 grid-cols-3 gap-0.5 rounded-[var(--radius-xs)] border border-[color-mix(in_srgb,currentColor_14%,transparent)] p-1 [&>i]:h-2.5 [&>i]:w-1.25";
 
 export const SETTINGS_ROW_LAYOUT_CLASS =
   "setting-row grid min-h-9 grid-cols-[minmax(160px,0.5fr)_minmax(240px,1fr)] gap-2.5 rounded-[var(--radius-xs)] px-0.75 py-1.5 max-[700px]:grid-cols-1";

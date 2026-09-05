@@ -31,7 +31,7 @@ export function SettingsNavigation({
   return (
     <aside className={SETTINGS_NAV_CLASS} aria-label="Settings categories">
       {onQueryChange ? (
-        <label className="search-field settings-section-search">
+        <label className={SETTINGS_NAV_SEARCH_CLASS}>
           <span className="sr-only">Search settings sections</span>
           <input
             onChange={(event) => onQueryChange(event.target.value)}
@@ -42,7 +42,11 @@ export function SettingsNavigation({
         </label>
       ) : null}
       {groups.map((group) => (
-        <section aria-label={group ?? "Settings"} key={group ?? "settings"}>
+        <section
+          aria-label={group ?? "Settings"}
+          className={SETTINGS_NAV_GROUP_CLASS}
+          key={group ?? "settings"}
+        >
           {group ? <span className="eyebrow">{group}</span> : null}
           {visibleCategories
             .filter((entry) => entry.group === group)
@@ -70,4 +74,6 @@ export function SettingsNavigation({
 import {
   SETTINGS_NAV_BUTTON_CLASS,
   SETTINGS_NAV_CLASS,
+  SETTINGS_NAV_GROUP_CLASS,
+  SETTINGS_NAV_SEARCH_CLASS,
 } from "./settings-layout";
