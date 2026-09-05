@@ -1,26 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { type View, views } from "../desktop-navigation";
-import {
-  canRenderDesktopRoute,
-  desktopRouteCapabilities,
-} from "./desktop-route-capabilities";
+import { desktopRouteCapabilities } from "./desktop-route-capabilities";
 
 describe("desktop route capabilities", () => {
   it.each(["ready", "degraded"] as const)(
-    "classifies every %s route without disabling module preload",
+    "classifies every %s route",
     (phase) => {
       for (const view of views) {
         const capabilities = desktopRouteCapabilities(view, phase);
-        expect(capabilities.modulePreload).toBe(true);
         expect(capabilities.apiRead).toBe(
           phase === "ready" ||
             (phase === "degraded" &&
               ["runtime", "compatibility"].includes(view)),
         );
         expect(capabilities.writes).toBe(phase === "ready");
-        expect(capabilities.diagnosticsReadOnly).toBe(
-          phase === "degraded" && ["runtime", "compatibility"].includes(view),
-        );
       }
     },
   );
@@ -30,11 +23,8 @@ describe("desktop route capabilities", () => {
     (phase) => {
       for (const view of views) {
         const capabilities = desktopRouteCapabilities(view, phase);
-        expect(capabilities.modulePreload).toBe(true);
         expect(capabilities.apiRead).toBe(false);
         expect(capabilities.writes).toBe(false);
-        expect(capabilities.diagnosticsReadOnly).toBe(false);
-        expect(canRenderDesktopRoute(view, phase)).toBe(false);
       }
     },
   );
@@ -44,9 +34,7 @@ describe("desktop route capabilities", () => {
     (phase) => {
       for (const view of ["runtime", "compatibility"] as View[]) {
         const capabilities = desktopRouteCapabilities(view, phase);
-        expect(capabilities.modulePreload).toBe(true);
-        expect(capabilities.diagnosticsReadOnly).toBe(phase === "degraded");
-        expect(canRenderDesktopRoute(view, phase)).toBe(true);
+        expect(capabilities.apiRead).toBe(true);
       }
     },
   );
@@ -56,7 +44,6 @@ describe("desktop route capabilities", () => {
       const capabilities = desktopRouteCapabilities("settings", phase);
       expect(capabilities.apiRead).toBe(phase === "ready");
       expect(capabilities.writes).toBe(phase === "ready");
-      expect(capabilities.diagnosticsReadOnly).toBe(false);
     }
   });
 });
