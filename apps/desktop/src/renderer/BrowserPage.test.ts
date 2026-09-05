@@ -1,7 +1,11 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { BrowserEmptyEvidence, isLocalPreviewUrl } from "./BrowserPage";
+import {
+  BrowserEmptyEvidence,
+  BrowserPage,
+  isLocalPreviewUrl,
+} from "./BrowserPage";
 
 describe("isLocalPreviewUrl", () => {
   it("permits only localhost preview hosts", () => {
@@ -24,5 +28,16 @@ describe("isLocalPreviewUrl", () => {
       "Evidence appears here after an inspect, capture, or analysis.",
     );
     expect(markup).not.toContain("empty-block");
+  });
+
+  it("keeps browser controls and evidence tools in contextual Code preview", () => {
+    const markup = renderToStaticMarkup(
+      createElement(BrowserPage, { active: true, contextual: true }),
+    );
+
+    expect(markup).toContain('aria-label="Preview URL"');
+    expect(markup).toContain('data-browser-action="capture"');
+    expect(markup).toContain("Compare versions");
+    expect(markup).not.toContain("Browser &amp; preview");
   });
 });

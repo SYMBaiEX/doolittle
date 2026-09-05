@@ -16,7 +16,9 @@ import { submitAcpEditorTask } from "./coding-workspace/acp-task";
 import { CodingWorkspaceEditor } from "./coding-workspace/CodingWorkspaceEditor";
 import { CodingWorkspaceExplorer } from "./coding-workspace/CodingWorkspaceExplorer";
 import { CodingWorkspaceHeader } from "./coding-workspace/CodingWorkspaceHeader";
+import type { CodeSurface } from "./coding-workspace/CodingWorkspaceHeader";
 import { CodingWorkspaceUtility } from "./coding-workspace/CodingWorkspaceUtility";
+import { BrowserPage } from "./BrowserPage";
 import {
   CODING_WORKSPACE_PAGE_CLASS,
   CODING_WORKSPACE_ZEN_CLASS,
@@ -126,6 +128,7 @@ export function CodingWorkspacePage({
     initialLayout.explorerWidth,
   );
   const [utilityWidth, setUtilityWidth] = useState(initialLayout.utilityWidth);
+  const [surface, setSurface] = useState<CodeSurface>("workspace");
   const layoutScopeRef = useRef(workspaceLayoutScope(workspacePath));
   const hydratingLayoutRef = useRef(false);
   const [leftPane, setLeftPane] = useState<LeftPane>(
@@ -675,8 +678,10 @@ export function CodingWorkspacePage({
         <CodingWorkspaceHeader
           active={active}
           explorerVisible={explorerVisible}
+          surface={surface}
           onRefresh={refreshAll}
           onRetrySummary={summaryResource.reload}
+          onSurfaceChange={setSurface}
           onToggleExplorer={() => setExplorerVisible((current) => !current)}
           onToggleUtility={() => setUtilityVisible((current) => !current)}
           onToggleZen={() => setZenMode((current) => !current)}
@@ -689,6 +694,12 @@ export function CodingWorkspacePage({
         />
       ) : null}
       <div
+        aria-label="Code workspace"
+        aria-hidden={surface !== "workspace"}
+        hidden={surface !== "workspace"}
+        id="coding-workspace-surface"
+        inert={surface !== "workspace"}
+        role="tabpanel"
         className={codingGridClass(explorerVisible, utilityVisible, zenMode)}
         style={
           {
@@ -780,6 +791,23 @@ export function CodingWorkspacePage({
             worktreeResource={worktreeResource}
           />
         ) : null}
+      </div>
+      <div
+        aria-label="Local preview"
+        aria-hidden={surface !== "preview"}
+        className="flex min-h-0 min-w-0 flex-1"
+        hidden={surface !== "preview"}
+        inert={surface !== "preview"}
+        role="tabpanel"
+      >
+        <BrowserPage
+          active={active && surface === "preview"}
+          contextual
+          onSendToChat={(text) => {
+            onSendToChat({ text, workspacePath, projectScope });
+            return true;
+          }}
+        />
       </div>
     </div>
   );

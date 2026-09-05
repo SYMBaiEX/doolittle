@@ -18,9 +18,12 @@ import {
 } from "./layout";
 import type { RepositorySummary } from "./models";
 
+export type CodeSurface = "workspace" | "preview";
+
 export function CodingWorkspaceHeader({
   active,
   explorerVisible,
+  surface,
   utilityVisible,
   zenMode,
   summary,
@@ -32,9 +35,11 @@ export function CodingWorkspaceHeader({
   onToggleUtility,
   onToggleZen,
   onRetrySummary,
+  onSurfaceChange,
 }: {
   active: boolean;
   explorerVisible: boolean;
+  surface: CodeSurface;
   utilityVisible: boolean;
   zenMode: boolean;
   summary: RepositorySummary;
@@ -46,6 +51,7 @@ export function CodingWorkspaceHeader({
   onToggleUtility: () => void;
   onToggleZen: () => void;
   onRetrySummary: () => void;
+  onSurfaceChange: (surface: CodeSurface) => void;
 }) {
   return (
     <>
@@ -112,6 +118,28 @@ export function CodingWorkspaceHeader({
             className={CODING_LAYOUT_CONTROLS_CLASS}
             role="toolbar"
           >
+            <div
+              aria-label="Code surface"
+              className={CODING_LAYOUT_CONTROLS_CLASS}
+              role="toolbar"
+            >
+              <button
+                aria-pressed={surface === "workspace"}
+                className={`${CODING_LAYOUT_BUTTON_CLASS} ${surface === "workspace" ? CODING_LAYOUT_BUTTON_SELECTED_CLASS : ""}`}
+                onClick={() => onSurfaceChange("workspace")}
+                type="button"
+              >
+                Code
+              </button>
+              <button
+                aria-pressed={surface === "preview"}
+                className={`${CODING_LAYOUT_BUTTON_CLASS} ${surface === "preview" ? CODING_LAYOUT_BUTTON_SELECTED_CLASS : ""}`}
+                onClick={() => onSurfaceChange("preview")}
+                type="button"
+              >
+                Preview
+              </button>
+            </div>
             <button
               aria-pressed={explorerVisible}
               className={`${CODING_LAYOUT_BUTTON_CLASS} ${explorerVisible ? CODING_LAYOUT_BUTTON_SELECTED_CLASS : ""}`}

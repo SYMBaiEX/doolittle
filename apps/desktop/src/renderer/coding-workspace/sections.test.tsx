@@ -25,12 +25,14 @@ describe("coding workspace presentational sections", () => {
         hasSummary: true,
         onRefresh: vi.fn(),
         onRetrySummary: vi.fn(),
+        onSurfaceChange: vi.fn(),
         onToggleExplorer: vi.fn(),
         onToggleUtility: vi.fn(),
         onToggleZen: vi.fn(),
         summary,
         summaryError: "",
         summaryLoading: false,
+        surface: "workspace",
         utilityVisible: true,
         zenMode: false,
       }),
@@ -39,7 +41,36 @@ describe("coding workspace presentational sections", () => {
     expect(markup).toContain('aria-label="Repository status"');
     expect(markup).toContain("main");
     expect(markup).toContain('aria-label="Workspace layout"');
+    expect(markup).toContain('aria-label="Code surface"');
+    expect(markup).toContain('aria-pressed="true"');
+    expect(markup).toContain(">Code<");
+    expect(markup).toContain(">Preview<");
     expect(markup).toContain('title="Toggle focus mode (⌘/Ctrl Shift Z)"');
+  });
+
+  it("marks Preview as the selected contextual surface", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CodingWorkspaceHeader, {
+        active: true,
+        explorerVisible: true,
+        hasSummary: true,
+        onRefresh: vi.fn(),
+        onRetrySummary: vi.fn(),
+        onSurfaceChange: vi.fn(),
+        onToggleExplorer: vi.fn(),
+        onToggleUtility: vi.fn(),
+        onToggleZen: vi.fn(),
+        summary,
+        summaryError: "",
+        summaryLoading: false,
+        surface: "preview",
+        utilityVisible: true,
+        zenMode: false,
+      }),
+    );
+
+    expect(markup).toMatch(/aria-pressed="false"[^>]*>Code<\/button>/u);
+    expect(markup).toMatch(/aria-pressed="true"[^>]*>Preview<\/button>/u);
   });
 
   it("renders tab semantics, counts, and roving tab indexes", () => {

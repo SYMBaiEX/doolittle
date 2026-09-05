@@ -1,6 +1,10 @@
 export const BROWSER_PAGE_CLASS =
   "page h-full gap-2 overflow-hidden px-2.5 pt-2 pb-2.5 max-[1080px]:h-auto max-[1080px]:min-h-full max-[1080px]:overflow-auto";
 
+/** Browser chrome when it is shown within the Code workspace. */
+export const BROWSER_EMBEDDED_PAGE_CLASS =
+  "flex h-full min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden p-1 max-[1080px]:h-auto max-[1080px]:min-h-full max-[1080px]:overflow-auto";
+
 export const BROWSER_HEADER_CLASS =
   "flex min-h-12 shrink-0 items-center justify-between gap-5 [&_h1]:mt-0.75 [&_h1]:mb-0.5 [&_h1]:font-[var(--font-display)] [&_h1]:text-base [&_h1]:tracking-[-0.025em] [&_p]:m-0 [&_p]:text-[10px] [&_p]:text-[var(--muted)] max-[780px]:[&_p]:hidden";
 

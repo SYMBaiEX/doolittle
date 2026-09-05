@@ -16,6 +16,7 @@ import {
   BROWSER_CANVAS_CLASS,
   BROWSER_CANVAS_TOOLBAR_CLASS,
   BROWSER_COMPARE_SUMMARY_CLASS,
+  BROWSER_EMBEDDED_PAGE_CLASS,
   BROWSER_FRAME_STAGE_CLASS,
   BROWSER_HEADER_CLASS,
   BROWSER_NAV_BUTTON_CLASS,
@@ -51,9 +52,12 @@ export function BrowserEmptyEvidence() {
 
 export function BrowserPage({
   active,
+  contextual = false,
   onSendToChat,
 }: {
   active: boolean;
+  /** Render browser chrome inside the Code workspace instead of as a route. */
+  contextual?: boolean;
   onSendToChat?: (text: string) => boolean | Promise<boolean>;
 }) {
   const browser = useBrowserWorkspace(active);
@@ -89,27 +93,33 @@ export function BrowserPage({
 
   if (!active) {
     return (
-      <div className={BROWSER_PAGE_CLASS}>
-        <header className={BROWSER_HEADER_CLASS}>
-          <div>
-            <span className="eyebrow">Build and verify</span>
-            <h1>Browser &amp; preview</h1>
-            <p>Preview localhost. Capture evidence from any URL.</p>
-          </div>
-          <div className={BROWSER_STATUS_CLASS}>
-            <i className="size-1.75 rounded-full bg-[var(--bad)]" />
-            <strong>Offline</strong>
-            <Button
-              disabled
-              onClick={refreshStatus}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              Refresh
-            </Button>
-          </div>
-        </header>
+      <div
+        className={
+          contextual ? BROWSER_EMBEDDED_PAGE_CLASS : BROWSER_PAGE_CLASS
+        }
+      >
+        {!contextual ? (
+          <header className={BROWSER_HEADER_CLASS}>
+            <div>
+              <span className="eyebrow">Build and verify</span>
+              <h1>Browser &amp; preview</h1>
+              <p>Preview localhost. Capture evidence from any URL.</p>
+            </div>
+            <div className={BROWSER_STATUS_CLASS}>
+              <i className="size-1.75 rounded-full bg-[var(--bad)]" />
+              <strong>Offline</strong>
+              <Button
+                disabled
+                onClick={refreshStatus}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                Refresh
+              </Button>
+            </div>
+          </header>
+        ) : null}
         <OfflineRouteState>
           Browser preview and evidence capture are unavailable until the local
           runtime is ready.
@@ -119,36 +129,40 @@ export function BrowserPage({
   }
 
   return (
-    <div className={BROWSER_PAGE_CLASS}>
+    <div
+      className={contextual ? BROWSER_EMBEDDED_PAGE_CLASS : BROWSER_PAGE_CLASS}
+    >
       <div aria-live="polite" className="sr-only" role="status">
         {resultStatusMessage}
       </div>
-      <header className={BROWSER_HEADER_CLASS}>
-        <div>
-          <span className="eyebrow">Build and verify</span>
-          <h1>Browser & preview</h1>
-          <p>Preview localhost. Capture evidence from any URL.</p>
-        </div>
-        <div className={BROWSER_STATUS_CLASS}>
-          <i
-            className={`size-1.75 rounded-full ${
-              status.error
-                ? "bg-[var(--bad)]"
-                : "bg-[var(--good)] shadow-[0_0_10px_color-mix(in_srgb,var(--good)_42%,transparent)]"
-            }`}
-          />
-          <strong>{status.error ? "Unavailable" : statusLabel}</strong>
-          <Button
-            disabled={!active}
-            onClick={refreshStatus}
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            Refresh
-          </Button>
-        </div>
-      </header>
+      {!contextual ? (
+        <header className={BROWSER_HEADER_CLASS}>
+          <div>
+            <span className="eyebrow">Build and verify</span>
+            <h1>Browser & preview</h1>
+            <p>Preview localhost. Capture evidence from any URL.</p>
+          </div>
+          <div className={BROWSER_STATUS_CLASS}>
+            <i
+              className={`size-1.75 rounded-full ${
+                status.error
+                  ? "bg-[var(--bad)]"
+                  : "bg-[var(--good)] shadow-[0_0_10px_color-mix(in_srgb,var(--good)_42%,transparent)]"
+              }`}
+            />
+            <strong>{status.error ? "Unavailable" : statusLabel}</strong>
+            <Button
+              disabled={!active}
+              onClick={refreshStatus}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              Refresh
+            </Button>
+          </div>
+        </header>
+      ) : null}
 
       <form
         className={BROWSER_ADDRESS_CLASS}
