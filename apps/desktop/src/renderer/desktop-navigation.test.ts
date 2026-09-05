@@ -4,8 +4,10 @@ import {
   navigation,
   primaryViewForView,
   renderedViewForView,
+  desktopHashForView,
   resolveDesktopHash,
   sessionLabel,
+  views,
   viewFromHash,
   workspaceName,
 } from "./desktop-navigation";
@@ -42,6 +44,28 @@ describe("desktop navigation descriptors", () => {
     expect(renderedViewForView("automations")).toBe("orchestration");
     expect(renderedViewForView("runtime")).toBe("settings");
     expect(renderedViewForView("activity")).toBe("activity");
+  });
+
+  it("canonicalizes every supported legacy view alias", () => {
+    for (const view of views) {
+      const resolved = resolveDesktopHash(`#/${view}`);
+      expect(resolved.view).toBe(view);
+      expect(resolved.canonicalHash).toBe(desktopHashForView(view));
+      if (["chat", "code", "settings"].includes(view)) {
+        expect(resolved.legacy).toBe(false);
+      } else {
+        expect(resolved.legacy).toBe(true);
+      }
+    }
+  });
+
+  it("maps each route to one semantic rendered owner", () => {
+    const owners = [...views].map((view) => renderedViewForView(view));
+    expect(owners).toHaveLength(views.size);
+    expect(owners.every((owner) => views.has(owner))).toBe(true);
+    expect(new Set(owners)).toEqual(
+      new Set(["dashboard", "activity", "analytics", "chat", "code", "orchestration", "settings"]),
+    );
   });
 
   it("normalizes project scope and workspace/session labels", () => {
