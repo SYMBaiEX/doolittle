@@ -118,7 +118,7 @@ export function PluginsPage({
         </OfflineRouteState>
       ) : null}
       {active ? (
-        <div className="plugins-catalog-controls grid grid-cols-[minmax(520px,1fr)_minmax(460px,0.78fr)] items-stretch gap-2 max-[1180px]:grid-cols-1 [&>.compact-stat-strip]:min-w-0 [&>.compact-stat-strip]:rounded-[var(--radius-sm)] [&>.compact-stat-strip]:border [&>.compact-stat-strip]:border-[var(--border)] [&>.compact-stat-strip]:bg-[color-mix(in_srgb,var(--surface)_78%,transparent)]">
+        <div className="plugins-catalog-controls grid grid-cols-[minmax(0,1fr)_minmax(360px,0.78fr)] items-stretch gap-2 max-[1180px]:grid-cols-1 [&>.compact-stat-strip]:min-w-0 [&>.compact-stat-strip]:rounded-[var(--radius-sm)] [&>.compact-stat-strip]:border [&>.compact-stat-strip]:border-[var(--border)] [&>.compact-stat-strip]:bg-[color-mix(in_srgb,var(--surface)_78%,transparent)]">
           <CompactStatStrip
             label="Plugin catalog summary"
             stats={[

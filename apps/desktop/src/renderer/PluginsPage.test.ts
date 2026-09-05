@@ -22,7 +22,7 @@ describe("PluginsPage density", () => {
   it("keeps the plugin search as the primary desktop control with a bounded category rail", () => {
     expect(source).toContain(': "page plugins-page"');
     expect(source).toContain(
-      'className="plugins-catalog-controls grid grid-cols-[minmax(520px,1fr)_minmax(460px,0.78fr)]',
+      'className="plugins-catalog-controls grid grid-cols-[minmax(0,1fr)_minmax(360px,0.78fr)]',
     );
     expect(source).toContain('label="Plugin catalog summary"');
     expect(source).toContain(
