@@ -3,6 +3,7 @@ import {
   type ControlDeckMode,
   installTuiControlDeck,
 } from "@/cli/tui-control-deck";
+import { controlDeckLabel } from "@/cli/tui-control-deck/label";
 
 function createBox() {
   let label = "";
@@ -32,6 +33,14 @@ function deferred<T>() {
 }
 
 describe("installTuiControlDeck", () => {
+  it("uses direct section labels", () => {
+    expect(controlDeckLabel("ecosystem")).toBe(" Ecosystem ");
+    expect(controlDeckLabel("gateway")).toBe(" Gateway ");
+    expect(controlDeckLabel("jobs")).toBe(" Jobs ");
+    expect(controlDeckLabel("responses")).toBe(" Responses ");
+    expect(controlDeckLabel("assist")).toBe(" Commands ");
+  });
+
   it("updates footer hints from the current focus and mode", () => {
     const responsePane = {};
     const activityPane = {};
@@ -166,7 +175,7 @@ describe("installTuiControlDeck", () => {
     gatewayContent.resolve("gateway");
     await pendingRender;
 
-    expect(assistBox.readLabel()).toBe(" Control Deck · Assist ");
+    expect(assistBox.readLabel()).toBe(" Commands ");
     expect(assistBox.readContent()).toBe("assist:hello");
   });
 });

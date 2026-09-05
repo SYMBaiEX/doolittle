@@ -57,5 +57,30 @@ describe("createTuiWidgets", () => {
     expect(stub.textboxes).toHaveLength(2);
     expect(stub.textareas).toHaveLength(1);
     expect(stub.lists).toHaveLength(1);
+    expect(stub.textboxes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: " Input " }),
+        expect.objectContaining({ label: " Search " }),
+      ]),
+    );
+    expect(stub.textareas).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: " Input (Ctrl-S submit, Esc close) " }),
+      ]),
+    );
+    expect(stub.boxes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: " Conversation " }),
+        expect.objectContaining({ label: " Status " }),
+        expect.objectContaining({ label: " Transports " }),
+        expect.objectContaining({ label: " Execution " }),
+        expect.objectContaining({ label: " Controls " }),
+        expect.objectContaining({ label: " Commands " }),
+        expect.objectContaining({ label: " Multiline input " }),
+      ]),
+    );
+    expect(stub.logs).toEqual([
+      expect.objectContaining({ label: " Activity " }),
+    ]);
   });
 });

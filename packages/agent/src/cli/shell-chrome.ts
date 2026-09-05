@@ -206,7 +206,7 @@ export function buildCliOperatorSnapshot(
   const nextCockpitHint = activeRun
     ? `${macAwareKeyLabel("Ctrl-S")} focuses the live response. ${normalizeSlashCommandSyntax("/progress")} gives the structured run view.`
     : !startup.deferredReady || !startup.hotPathReady
-      ? `Background services are hydrating. Stay on the signal rail or run ${normalizeSlashCommandSyntax("/status")}.`
+      ? `Background services are hydrating. Check Status or run ${normalizeSlashCommandSyntax("/status")}.`
       : transportControl.totals.gatewayEnabled > 0 &&
           transportControl.totals.operationalTransports === 0
         ? `${macAwareKeyLabel("Ctrl-G")} opens gateway detail. ${normalizeSlashCommandSyntax("/gateway readiness")} explains what is missing.`

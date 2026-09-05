@@ -208,12 +208,18 @@ describe("tui render helpers", () => {
 
     expect(busyFooter).toContain("processing");
     expect(busyFooter).toContain("queue:2");
-    expect(busyFooter).toContain("cap:8");
-    expect(busyFooter).toContain("prog:compact");
     expect(busyFooter).toContain("Esc palette");
+    expect(busyFooter).toContain("Ctrl-P");
+    expect(busyFooter).toContain("commands");
+    expect(busyFooter).toContain("Ctrl-Q");
+    expect(busyFooter).toContain("quit");
+    expect(busyFooter).toContain("gpt-5.4-mini");
+    expect(busyFooter).not.toContain("cap:");
+    expect(busyFooter).not.toContain("prog:");
+    expect(busyFooter).not.toContain("// cockpit");
 
     expect(idleFooter).toContain("ready");
     expect(idleFooter).toContain("queue:0");
-    expect(idleFooter).toContain("Doolittle // cockpit");
+    expect(idleFooter).toContain("Doolittle");
   });
 });

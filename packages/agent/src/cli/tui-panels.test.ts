@@ -109,6 +109,6 @@ describe("installTuiPanels", () => {
 
     expect(statusRenders).toBe(2);
     expect(activities).toHaveLength(1);
-    expect(sidebar.readContent()).toContain("temporarily unavailable");
+    expect(sidebar.readContent()).toContain("Status unavailable");
   });
 });

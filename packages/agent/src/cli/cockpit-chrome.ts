@@ -14,13 +14,13 @@ export function buildHeaderContent(
 }
 
 export function buildCockpitBootMessage(agentName: string): string {
-  return `${agentName} cockpit online. Type /help for shortcuts, or stay in the plain shell for everyday paired work.`;
+  return `${agentName} is ready. Type /help for shortcuts, or stay in the plain shell for everyday paired work.`;
 }
 
 export function buildCockpitTipMessage(): string {
-  return `Use ${macAwareKeyLabel("Ctrl-E")} for longform drafts, start a shell action with !, and use ${normalizeSlashCommandSyntax("/theme list")} to shift the operator palette.`;
+  return `Use ${macAwareKeyLabel("Ctrl-E")} for multiline input, start a shell action with !, and use ${normalizeSlashCommandSyntax("/theme list")} to change the theme.`;
 }
 
 export function buildCockpitWelcomeMessage(): string {
-  return `You are live in the Doolittle cockpit.\n\nStay here when you want dialogue plus observability, task supervision, and transport state. Drop back to the plain shell when you want the fastest daily coding loop.\n\nTalk to me normally, run !git status, or check ${normalizeSlashCommandSyntax("/status")}, ${normalizeSlashCommandSyntax("/mode")}, ${normalizeSlashCommandSyntax("/progress")}, ${normalizeSlashCommandSyntax("/accounts")}, or ${normalizeSlashCommandSyntax("/gateway readiness")}.`;
+  return `Doolittle is ready.\n\nUse this view for conversation, task progress, and transport status. Use the plain shell for the fastest daily coding loop.\n\nTalk to me normally, run !git status, or check ${normalizeSlashCommandSyntax("/status")}, ${normalizeSlashCommandSyntax("/mode")}, ${normalizeSlashCommandSyntax("/progress")}, ${normalizeSlashCommandSyntax("/accounts")}, or ${normalizeSlashCommandSyntax("/gateway readiness")}.`;
 }

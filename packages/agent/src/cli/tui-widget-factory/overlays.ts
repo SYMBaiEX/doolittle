@@ -53,7 +53,7 @@ function createPaletteWidgets({
     {
       width: "72%",
       height: "68%",
-      label: " Command Deck ",
+      label: " Commands ",
       accent: theme.magentaGlow,
     },
   );
@@ -121,7 +121,7 @@ function createComposerWidgets({
     {
       width: "78%",
       height: "72%",
-      label: " Longform Composer ",
+      label: " Multiline input ",
       accent: theme.greenGlow,
     },
   );
@@ -137,7 +137,7 @@ function createComposerWidgets({
     mouse: false,
     vi: true,
     border: "line",
-    label: " Compose (Ctrl-S submit, Esc close) ",
+    label: " Input (Ctrl-S submit, Esc close) ",
     style: {
       border: { fg: theme.greenGlow },
       label: { fg: theme.greenGlow, bold: true },

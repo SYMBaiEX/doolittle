@@ -39,7 +39,7 @@ function createInputBox({
     left: 0,
     width: "100%",
     height: 3,
-    label: " Transmit / Command ",
+    label: " Input ",
     inputOnFocus: false,
     border: "line",
     mouse: false,

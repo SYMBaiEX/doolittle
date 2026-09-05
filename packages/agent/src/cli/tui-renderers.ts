@@ -103,22 +103,13 @@ export function renderFooter(
   const settings = context.services.settings.get();
   const theme = getTuiTheme(settings.ui.theme);
   return [
-    `${theme.sigil} ${context.config.agentName} // cockpit`,
+    `${theme.sigil} ${context.config.agentName}`,
     busy
       ? `{yellow-fg}${escapeBlessed(busyFrame)} processing{/}`
       : `{green-fg}${escapeBlessed(theme.idleFace)} ready{/}`,
     queueDepth > 0 ? `{cyan-fg}queue:${queueDepth}{/}` : "{gray-fg}queue:0{/}",
     `{cyan-fg}${escapeBlessed(shortModelId(settings.model.model))}{/}`,
-    `{yellow-fg}${escapeBlessed(String(settings.agent.runDepth))}{/}`,
-    `cap:${settings.agent.maxIterations}`,
-    `prog:${escapeBlessed(settings.agent.toolProgressMode)}`,
-    "{magenta-fg}Tab{/} cycle",
     `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-P"))}{/} commands`,
-    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-E"))}{/} draft`,
-    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-O"))}{/} activity`,
-    "{cyan-fg}!cmd{/} shell",
-    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-T"))}{/} theme`,
-    `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Alt-1..4"))}{/} decks`,
     hint,
     `{cyan-fg}${escapeBlessed(macAwareKeyLabel("Ctrl-Q"))}{/} quit`,
   ].join("  |  ");

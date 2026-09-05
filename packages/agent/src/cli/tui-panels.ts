@@ -71,7 +71,7 @@ export function installTuiPanels(
     } catch (error) {
       notePanelFailure("status", error);
       sidebar.setContent(
-        `{bold}Session Rail{/}\n{yellow-fg}Status temporarily unavailable{/}\n\n${escapeBlessed(formatRecoverableProviderError(error))}`,
+        `{bold}Status{/}\n{yellow-fg}Status unavailable{/}\n\n${escapeBlessed(formatRecoverableProviderError(error))}`,
       );
     }
     if (!transportBox.hidden) {
@@ -99,7 +99,7 @@ export function installTuiPanels(
     } catch (error) {
       notePanelFailure("launchpad", error);
       assistBox.setContent(
-        `{bold}Launchpad{/}\n{yellow-fg}Control deck unavailable{/}\n\n${escapeBlessed(formatRecoverableProviderError(error))}`,
+        `{bold}Commands{/}\n{yellow-fg}Commands unavailable{/}\n\n${escapeBlessed(formatRecoverableProviderError(error))}`,
       );
     }
     footer.setContent(renderFooterContent());

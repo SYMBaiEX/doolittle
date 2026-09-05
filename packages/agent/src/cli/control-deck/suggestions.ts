@@ -11,7 +11,7 @@ export function renderSuggestionsContent(
   const suggestions = suggestCommands(value, 8, workspaceDir);
 
   return [
-    "{bold}Command Suggestions{/}",
+    "{bold}Commands{/}",
     suggestions.length
       ? `Query: {cyan-fg}${escapeBlessed(value || "all")}{/}`
       : "{gray-fg}No matching commands yet.{/}",
