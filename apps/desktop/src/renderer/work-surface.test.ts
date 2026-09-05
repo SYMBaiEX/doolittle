@@ -8,6 +8,8 @@ describe("consolidated work surface", () => {
       { id: "agents", label: "Agents" },
       { id: "plans", label: "Plans" },
       { id: "runs", label: "Build & research" },
+      { id: "automations", label: "Automations" },
+      { id: "inbox", label: "Inbox" },
       { id: "review", label: "Review" },
     ]);
   });

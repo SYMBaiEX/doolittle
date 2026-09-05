@@ -37,7 +37,14 @@ export function codingWorkspaceRequests(state: CodingWorkspaceRequestState) {
   };
 }
 
-export type OrchestrationTab = "tasks" | "agents" | "plans" | "runs" | "review";
+export type OrchestrationTab =
+  | "tasks"
+  | "agents"
+  | "plans"
+  | "runs"
+  | "automations"
+  | "inbox"
+  | "review";
 
 export function orchestrationRequests({
   active,

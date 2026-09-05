@@ -152,6 +152,26 @@ describe("orchestration request policy", () => {
       plans: true,
     });
   });
+
+  it("keeps orchestration resources inactive for embedded operations tabs", () => {
+    for (const activeTab of ["automations", "inbox"] as const) {
+      expect(
+        orchestrationRequests({
+          active: true,
+          activeTab,
+          hasSelectedWorkflow: false,
+          hasSelectedRun: false,
+        }),
+      ).toMatchObject({
+        overview: true,
+        tasks: false,
+        workers: false,
+        codegenRuntime: false,
+        codegenWorkflows: false,
+        codegenRuns: false,
+      });
+    }
+  });
 });
 
 describe("review request policy", () => {

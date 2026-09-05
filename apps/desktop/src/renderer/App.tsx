@@ -64,6 +64,7 @@ import { useModalFocusBoundary } from "./components/useModalFocusBoundary";
 import { newConversationId } from "./conversation-id";
 import {
   collectSidebarFocusables,
+  desktopHashForView,
   loadOpenSections,
   loadProjectScope,
   MOBILE_SIDEBAR_QUERY,
@@ -71,9 +72,10 @@ import {
   NAV_SECTIONS_KEY,
   type NavigationSectionId,
   navigation,
+  primaryViewForView,
   PROJECT_SCOPE_KEY,
+  resolveDesktopHash,
   type View,
-  viewFromHash,
 } from "./desktop-navigation";
 import {
   announceAppearanceApplied,
@@ -100,6 +102,7 @@ import {
   loadPanelSize,
   loadPanelWidth,
   minimumDockedUtilityViewportWidth,
+  resolveUtilityPanelLayout,
   savePanelSize,
   savePanelWidth,
   UTILITY_DRAWER_WIDTH,
@@ -313,7 +316,9 @@ export function CommandPaletteLoadingFallback({
 export function App() {
   const initialConversation = useMemo(newConversationId, []);
   const routeFocus = useRef<DesktopRouteFocusStore>(new Map());
-  const [view, setViewState] = useState<View>(viewFromHash);
+  const [view, setViewState] = useState<View>(
+    () => resolveDesktopHash().view,
+  );
   const [routeRetryNonce, setRouteRetryNonce] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarReady, setSidebarReady] = useState(false);
@@ -429,16 +434,34 @@ export function App() {
   const chatTerminalReturnFocusRef = useRef<HTMLElement | null>(null);
   const isMobileSidebarMode = useMediaQuery(MOBILE_SIDEBAR_QUERY);
   const mobileSidebarOpen = sidebarOpen && isMobileSidebarMode;
-  const minimumUtilityDockWidth = minimumDockedUtilityViewportWidth({
-    navCollapsed,
+  const minimumExpandedUtilityDockWidth = minimumDockedUtilityViewportWidth({
+    navCollapsed: false,
     sidebarWidth,
     utilityWidth: utilityDrawerWidth,
   });
-  const hasUtilityDockSpace = useMediaQuery(
-    `(min-width: ${minimumUtilityDockWidth}px)`,
+  const minimumCollapsedUtilityDockWidth = minimumDockedUtilityViewportWidth({
+    navCollapsed: true,
+    sidebarWidth,
+    utilityWidth: utilityDrawerWidth,
+  });
+  const canDockWithExpandedNavigation = useMediaQuery(
+    `(min-width: ${minimumExpandedUtilityDockWidth}px)`,
   );
-  const utilityModalMode = isMobileSidebarMode || !hasUtilityDockSpace;
-  const utilityDocked = utilityOpen && !utilityModalMode;
+  const canDockWithCollapsedNavigation = useMediaQuery(
+    `(min-width: ${minimumCollapsedUtilityDockWidth}px)`,
+  );
+  const {
+    effectiveNavCollapsed,
+    navigationAutoCollapsed,
+    utilityModalMode,
+    utilityDocked,
+  } = resolveUtilityPanelLayout({
+    isMobileSidebarMode,
+    utilityOpen,
+    navCollapsed,
+    canDockWithExpandedNavigation,
+    canDockWithCollapsedNavigation,
+  });
 
   const setMobileSidebarOpen = useCallback(
     (open: boolean, restoreFocus = true) => {
@@ -594,7 +617,7 @@ export function App() {
       if (options?.skipDirtyCheck) {
         if (!applyViewTransition(next, options)) return false;
       } else if (!applyViewTransition(next)) return false;
-      window.location.hash = `/${next}`;
+      window.location.hash = desktopHashForView(next);
       return true;
     },
     [applyViewTransition],
@@ -972,17 +995,22 @@ export function App() {
 
   useEffect(() => {
     const onHashChange = () => {
-      const next = viewFromHash();
+      const resolved = resolveDesktopHash();
+      const next = resolved.view;
       const current = hashNavigationRef.current;
       if (
         !current.applyViewTransition(next) &&
-        window.location.hash !== `#/${current.view}`
+        window.location.hash !== desktopHashForView(current.view)
       ) {
-        window.location.hash = `/${current.view}`;
+        window.history.replaceState(null, "", desktopHashForView(current.view));
+        return;
+      }
+      if (window.location.hash !== resolved.canonicalHash) {
+        window.history.replaceState(null, "", resolved.canonicalHash);
       }
     };
     window.addEventListener("hashchange", onHashChange);
-    if (!window.location.hash) window.location.hash = "/chat";
+    if (!window.location.hash) window.location.hash = desktopHashForView("chat");
     else onHashChange();
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
@@ -1109,12 +1137,12 @@ export function App() {
     backend.phase === "ready",
   );
 
-  const navigationView = view === "review" ? "orchestration" : view;
+  const navigationView = primaryViewForView(view);
   const activeSection = navigation.find((section) =>
-    section.items.some((item) => item.id === navigationView),
+    section.items.some((item) => item.id === view),
   );
   const activeItem = activeSection?.items.find(
-    (item) => item.id === navigationView,
+    (item) => item.id === view,
   );
   const pendingApprovals = asArray(approvalsResource.data?.approvals).length;
   const runningTasks = asArray(tasksResource.data?.tasks).length;
@@ -1264,7 +1292,7 @@ export function App() {
   return (
     <main
       className={`${DESKTOP_SHELL_CLASS} platform-${window.doolittle.platform}${
-        navCollapsed ? " nav-collapsed" : ""
+        effectiveNavCollapsed ? " nav-collapsed" : ""
       }`}
       style={
         {
@@ -1272,7 +1300,7 @@ export function App() {
           "--utility-drawer-width": `${utilityDrawerWidth}px`,
           gridTemplateColumns: isMobileSidebarMode
             ? "minmax(0, 1fr)"
-            : `${navCollapsed ? "var(--sidebar-compact-width)" : "var(--sidebar-width)"} minmax(0, 1fr) ${
+            : `${effectiveNavCollapsed ? "var(--sidebar-compact-width)" : "var(--sidebar-width)"} minmax(0, 1fr) ${
                 utilityDocked
                   ? "minmax(292px, min(var(--utility-drawer-width), 44vw))"
                   : "0"
@@ -1296,7 +1324,7 @@ export function App() {
           <LazyCommandPalette
             backendPhase={backend.phase}
             isOpen={paletteOpen}
-            navCollapsed={navCollapsed}
+            navCollapsed={effectiveNavCollapsed}
             onChooseRepository={chooseRepositoryForConversation}
             onClose={() => {
               setPaletteOpen(false);
@@ -1376,7 +1404,7 @@ export function App() {
         <LazyDesktopSidebar
           isMobileSidebarMode={isMobileSidebarMode}
           mobileSidebarOpen={mobileSidebarOpen}
-          navCollapsed={navCollapsed}
+          navCollapsed={effectiveNavCollapsed}
           sidebarOpen={sidebarOpen}
           projectScope={projectScope}
           newConversationMenuOpen={newConversationMenuOpen}
@@ -1393,7 +1421,9 @@ export function App() {
           onSidebarKeyDown={handleSidebarKeyDown}
           onClose={() => setMobileSidebarOpen(false)}
           onResize={setSidebarWidth}
-          onToggleNavigation={toggleNavigation}
+          onToggleNavigation={
+            navigationAutoCollapsed ? closeUtilities : toggleNavigation
+          }
           onSetNewConversationMenuOpen={setNewConversationMenuOpen}
           onOpenPalette={openCommandPalette}
           onChooseRepository={chooseRepositoryForConversation}
@@ -1424,7 +1454,7 @@ export function App() {
             <DesktopMobileMenuButton onOpen={openSidebarForMobile} />
             <div
               className={`${WINDOW_CONTEXT_CLASS}${
-                navCollapsed ? " min-[941px]:hidden" : ""
+                effectiveNavCollapsed ? " min-[941px]:hidden" : ""
               }`}
             >
               <DesktopWindowContext

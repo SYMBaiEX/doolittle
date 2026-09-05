@@ -51,4 +51,10 @@ describe("GatewayPage density", () => {
     expect(layoutSource).toContain("min-h-14.5");
     expect(timelineSource).toContain("motion-reduce:animate-none");
   });
+
+  it("supports an embedded Work-tab presentation without the route header", () => {
+    expect(source).toContain("embedded = false");
+    expect(source).toContain("{!embedded ? (");
+    expect(source).toContain('<div className="flex justify-end">');
+  });
 });

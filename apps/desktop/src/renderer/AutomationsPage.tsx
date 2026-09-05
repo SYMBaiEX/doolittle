@@ -35,7 +35,13 @@ interface CronResponse {
   runs?: unknown[];
 }
 
-export function AutomationsPage({ active }: { active: boolean }) {
+export function AutomationsPage({
+  active,
+  embedded = false,
+}: {
+  active: boolean;
+  embedded?: boolean;
+}) {
   const [runsOpen, setRunsOpen] = useState(false);
   const resourcePolicy = automationRequests({ active, runsOpen });
   const jobs = useApiResource<CronResponse>(
@@ -141,23 +147,37 @@ export function AutomationsPage({ active }: { active: boolean }) {
 
   return (
     <div className={AUTOMATION_PAGE_CLASS}>
-      <PageHeader
-        eyebrow="Operations"
-        title="Automations"
-        description="Build local workflows from explicit triggers, conditions, and actions."
-        actions={
-          showHeaderAction ? (
-            <Button
-              disabled={!active}
-              onClick={() => setShowCreate((value) => !value)}
-              type="button"
-              variant={showCreate ? "secondary" : "default"}
-            >
-              {showCreate ? "Close builder" : "New automation"}
-            </Button>
-          ) : null
-        }
-      />
+      {!embedded ? (
+        <PageHeader
+          eyebrow="Operations"
+          title="Automations"
+          description="Build local workflows from explicit triggers, conditions, and actions."
+          actions={
+            showHeaderAction ? (
+              <Button
+                disabled={!active}
+                onClick={() => setShowCreate((value) => !value)}
+                type="button"
+                variant={showCreate ? "secondary" : "default"}
+              >
+                {showCreate ? "Close builder" : "New automation"}
+              </Button>
+            ) : null
+          }
+        />
+      ) : null}
+      {embedded && showHeaderAction ? (
+        <div className="flex justify-end">
+          <Button
+            disabled={!active}
+            onClick={() => setShowCreate((value) => !value)}
+            type="button"
+            variant={showCreate ? "secondary" : "default"}
+          >
+            {showCreate ? "Close builder" : "New automation"}
+          </Button>
+        </div>
+      ) : null}
 
       {!active ? (
         <OfflineRouteState>

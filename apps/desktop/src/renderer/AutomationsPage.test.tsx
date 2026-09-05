@@ -186,6 +186,21 @@ describe("AutomationsPage", () => {
     ).toContain("current workspace");
   });
 
+  it("keeps its page header out of the embedded Work tab", () => {
+    useApiResourceMock.mockImplementation((path: string | null) => {
+      if (path === "/cron/jobs") return buildResource({ jobs: [] });
+      return buildResource(null);
+    });
+
+    act(() => root.render(<AutomationsPage active embedded />));
+
+    expect(container.textContent).not.toContain("Operations");
+    expect(container.textContent).not.toContain(
+      "Build local workflows from explicit triggers, conditions, and actions.",
+    );
+    expect(container.textContent).toContain("Build your first workflow");
+  });
+
   it("loads trace receipts only after the operator opens the drawer", () => {
     const requestedPaths: Array<string | null> = [];
     useApiResourceMock.mockImplementation((path: string | null) => {

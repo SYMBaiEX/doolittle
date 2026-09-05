@@ -28,4 +28,15 @@ describe("orchestration runs loading boundary", () => {
     expect(source).toContain('activeTab === "review"');
     expect(source).toContain("Loading review tools…");
   });
+
+  it("loads operations pages only when their Work tabs are selected", () => {
+    expect(source).toContain("const AutomationsPage = lazy(() =>");
+    expect(source).toContain('import("./AutomationsPage")');
+    expect(source).toContain('activeTab === "automations"');
+    expect(source).toContain("<AutomationsPage active={active} embedded />");
+    expect(source).toContain("const GatewayPage = lazy(() =>");
+    expect(source).toContain('import("./GatewayPage")');
+    expect(source).toContain('activeTab === "inbox"');
+    expect(source).toContain("<GatewayPage active={active} embedded />");
+  });
 });

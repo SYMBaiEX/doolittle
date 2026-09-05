@@ -7,6 +7,7 @@ import {
   loadPanelSize,
   loadPanelWidth,
   minimumDockedUtilityViewportWidth,
+  resolveUtilityPanelLayout,
   savePanelSize,
   savePanelWidth,
   UTILITY_DRAWER_WIDTH,
@@ -46,6 +47,57 @@ describe("panel layout persistence", () => {
         utilityWidth: UTILITY_DRAWER_WIDTH.default,
       }),
     ).toBe(1_388);
+  });
+
+  it("borrows the compact rail only in the middle utility docking band", () => {
+    expect(
+      resolveUtilityPanelLayout({
+        isMobileSidebarMode: false,
+        utilityOpen: true,
+        navCollapsed: false,
+        canDockWithExpandedNavigation: false,
+        canDockWithCollapsedNavigation: true,
+      }),
+    ).toEqual({
+      effectiveNavCollapsed: true,
+      navigationAutoCollapsed: true,
+      utilityModalMode: false,
+      utilityDocked: true,
+    });
+  });
+
+  it("keeps Tools modal when neither navigation width leaves enough canvas", () => {
+    expect(
+      resolveUtilityPanelLayout({
+        isMobileSidebarMode: false,
+        utilityOpen: true,
+        navCollapsed: false,
+        canDockWithExpandedNavigation: false,
+        canDockWithCollapsedNavigation: false,
+      }),
+    ).toMatchObject({
+      effectiveNavCollapsed: false,
+      navigationAutoCollapsed: false,
+      utilityModalMode: true,
+      utilityDocked: false,
+    });
+  });
+
+  it("never changes the saved collapsed preference", () => {
+    expect(
+      resolveUtilityPanelLayout({
+        isMobileSidebarMode: true,
+        utilityOpen: true,
+        navCollapsed: true,
+        canDockWithExpandedNavigation: true,
+        canDockWithCollapsedNavigation: true,
+      }),
+    ).toEqual({
+      effectiveNavCollapsed: true,
+      navigationAutoCollapsed: false,
+      utilityModalMode: true,
+      utilityDocked: false,
+    });
   });
 
   it("clamps invalid and out-of-range widths", () => {

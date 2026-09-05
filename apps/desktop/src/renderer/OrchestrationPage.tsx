@@ -40,13 +40,30 @@ const OrchestrationRunsPanel = lazy(() =>
 const ReviewPage = lazy(() =>
   import("./ReviewPage").then((module) => ({ default: module.ReviewPage })),
 );
+const AutomationsPage = lazy(() =>
+  import("./AutomationsPage").then((module) => ({
+    default: module.AutomationsPage,
+  })),
+);
+const GatewayPage = lazy(() =>
+  import("./GatewayPage").then((module) => ({ default: module.GatewayPage })),
+);
 
-export type WorkTabId = "tasks" | "agents" | "plans" | "runs" | "review";
+export type WorkTabId =
+  | "tasks"
+  | "agents"
+  | "plans"
+  | "runs"
+  | "automations"
+  | "inbox"
+  | "review";
 export const WORK_TABS: ReadonlyArray<{ id: WorkTabId; label: string }> = [
   { id: "tasks", label: "Queue" },
   { id: "agents", label: "Agents" },
   { id: "plans", label: "Plans" },
   { id: "runs", label: "Build & research" },
+  { id: "automations", label: "Automations" },
+  { id: "inbox", label: "Inbox" },
   { id: "review", label: "Review" },
 ];
 
@@ -117,6 +134,8 @@ export function OrchestrationPage({
     agents: null,
     plans: null,
     runs: null,
+    automations: null,
+    inbox: null,
     review: null,
   });
   const consumedNavigationIntents = useRef(new Set<string>());
@@ -757,6 +776,36 @@ export function OrchestrationPage({
               projectScope={projectScope}
               workspacePath={workspacePath ?? ""}
             />
+          </Suspense>
+        ) : null}
+        {activeTab === "automations" ? (
+          <Suspense
+            fallback={
+              <div
+                aria-live="polite"
+                className={oc("orchestration-loading")}
+                role="status"
+              >
+                Loading automations…
+              </div>
+            }
+          >
+            <AutomationsPage active={active} embedded />
+          </Suspense>
+        ) : null}
+        {activeTab === "inbox" ? (
+          <Suspense
+            fallback={
+              <div
+                aria-live="polite"
+                className={oc("orchestration-loading")}
+                role="status"
+              >
+                Loading inbox…
+              </div>
+            }
+          >
+            <GatewayPage active={active} embedded />
           </Suspense>
         ) : null}
         {activeTab === "tasks" ? (

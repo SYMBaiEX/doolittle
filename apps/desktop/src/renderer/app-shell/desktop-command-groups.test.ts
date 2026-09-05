@@ -86,7 +86,11 @@ describe("desktop command groups", () => {
     const terminal = commands.find((item) => item.id === "toggle-terminal");
 
     expect(groups.some((group) => group.id === "workspaces")).toBe(true);
-    expect(groups.some((group) => group.id === "workspace")).toBe(true);
+    expect(
+      ["home", "chat", "code", "work", "settings"].every((id) =>
+        groups.some((group) => group.id === id),
+      ),
+    ).toBe(true);
     expect(terminal?.shortcuts).toEqual(["⌘ J"]);
     terminal?.onSelect?.(terminal);
     expect(onToggleTerminal).toHaveBeenCalledOnce();

@@ -4,6 +4,8 @@ import {
   loadOpenSections,
   loadProjectScope,
   navigation,
+  primaryViewForView,
+  resolveDesktopHash,
   sessionLabel,
   viewFromHash,
   workspaceName,
@@ -16,24 +18,39 @@ function storage(values: Record<string, string>): Pick<Storage, "getItem"> {
 }
 
 describe("desktop navigation descriptors", () => {
-  it("keeps the shell route fallback and review alias deterministic", () => {
+  it("parses canonical destination hashes and legacy route aliases", () => {
     expect(viewFromHash("#/chat")).toBe("chat");
+    expect(viewFromHash("#/chat/history")).toBe("sessions");
+    expect(viewFromHash("#/work/review")).toBe("review");
+    expect(viewFromHash("#/settings/models")).toBe("models");
     expect(viewFromHash("#/orchestration")).toBe("orchestration");
     expect(viewFromHash("#/not-a-view")).toBe("chat");
+    expect(resolveDesktopHash("#/orchestration")).toMatchObject({
+      canonicalHash: "#/work",
+      legacy: true,
+      view: "orchestration",
+    });
+    expect(resolveDesktopHash("#/settings/models")).toMatchObject({
+      canonicalHash: "#/settings/models",
+      legacy: false,
+      view: "models",
+    });
+    expect(primaryViewForView("browser")).toBe("code");
+    expect(primaryViewForView("runtime")).toBe("settings");
   });
 
   it("loads only known persisted sections and falls back when storage is invalid", () => {
     expect(
       loadOpenSections(
         storage({
-          "doolittle.desktop.nav-sections.v1":
-            '["manage","unknown","workspace"]',
+          "doolittle.desktop.nav-sections.v2":
+            '["settings","unknown","home"]',
         }),
       ),
-    ).toEqual(new Set(["manage", "workspace"]));
+    ).toEqual(new Set(["settings", "home"]));
     expect(
       loadOpenSections(
-        storage({ "doolittle.desktop.nav-sections.v1": "not-json" }),
+        storage({ "doolittle.desktop.nav-sections.v2": "not-json" }),
       ),
     ).toEqual(new Set(DEFAULT_OPEN_SECTIONS));
   });
@@ -67,11 +84,11 @@ describe("desktop navigation descriptors", () => {
 
   it("exposes stable grouped navigation for the shell and utility drawer", () => {
     expect(navigation.map((section) => section.id)).toEqual([
-      "workspace",
-      "create",
-      "observe",
-      "agent",
-      "manage",
+      "home",
+      "chat",
+      "code",
+      "work",
+      "settings",
     ]);
     expect(
       navigation

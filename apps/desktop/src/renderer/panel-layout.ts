@@ -60,6 +60,52 @@ export function minimumDockedUtilityViewportWidth({
   );
 }
 
+export interface UtilityPanelLayoutInput {
+  isMobileSidebarMode: boolean;
+  utilityOpen: boolean;
+  navCollapsed: boolean;
+  canDockWithExpandedNavigation: boolean;
+  canDockWithCollapsedNavigation: boolean;
+}
+
+export interface UtilityPanelLayout {
+  effectiveNavCollapsed: boolean;
+  navigationAutoCollapsed: boolean;
+  utilityModalMode: boolean;
+  utilityDocked: boolean;
+}
+
+/**
+ * Arbitrate shell width without overwriting the operator's saved navigation
+ * preference. In the middle width band, Tools can borrow the compact rail and
+ * return that space as soon as it closes.
+ */
+export function resolveUtilityPanelLayout({
+  isMobileSidebarMode,
+  utilityOpen,
+  navCollapsed,
+  canDockWithExpandedNavigation,
+  canDockWithCollapsedNavigation,
+}: UtilityPanelLayoutInput): UtilityPanelLayout {
+  const navigationAutoCollapsed =
+    utilityOpen &&
+    !isMobileSidebarMode &&
+    !navCollapsed &&
+    !canDockWithExpandedNavigation &&
+    canDockWithCollapsedNavigation;
+  const effectiveNavCollapsed = navCollapsed || navigationAutoCollapsed;
+  const canDock = effectiveNavCollapsed
+    ? canDockWithCollapsedNavigation
+    : canDockWithExpandedNavigation;
+  const utilityModalMode = isMobileSidebarMode || !canDock;
+  return {
+    effectiveNavCollapsed,
+    navigationAutoCollapsed,
+    utilityModalMode,
+    utilityDocked: utilityOpen && !utilityModalMode,
+  };
+}
+
 export interface PanelWidthStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
