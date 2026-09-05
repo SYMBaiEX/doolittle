@@ -65,12 +65,15 @@ describe("desktop shell overlay Tailwind ownership", () => {
     );
   });
 
-  it("closes a modal Activity drawer before secondary keyboard overlays open", () => {
+  it("hands modal Activity and secondary overlay state off in either direction", () => {
     expect(appSource).toMatch(
-      /const openCommandPalette = useCallback\(\(\) => \{\s*if \(utilityOpen && utilityModalMode\) \{\s*setUtilityOpen\(false\);\s*return;/u,
+      /const openCommandPalette = useCallback\(\(\) => \{\s*if \(utilityOpen && utilityModalMode\) \{\s*setUtilityOpen\(false\);\s*\}\s*paletteReturnFocusRef/u,
     );
     expect(appSource).toMatch(
-      /const openChatTerminal = useCallback\(\(\) => \{\s*if \(utilityOpen && utilityModalMode\) \{\s*closeUtilities\(\);\s*return;/u,
+      /const openChatTerminal = useCallback\(\(\) => \{\s*if \(utilityOpen && utilityModalMode\) \{\s*setUtilityOpen\(false\);\s*\}\s*chatTerminalReturnFocusRef/u,
+    );
+    expect(appSource).toMatch(
+      /const openUtilities = useCallback\(\(\) => \{\s*if \(utilityModalMode\) \{\s*setPaletteOpen\(false\);\s*setPaletteQuery\(""\);\s*setChatTerminalOpen\(false\);/u,
     );
   });
 

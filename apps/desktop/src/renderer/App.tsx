@@ -481,7 +481,6 @@ export function App() {
   const openCommandPalette = useCallback(() => {
     if (utilityOpen && utilityModalMode) {
       setUtilityOpen(false);
-      return;
     }
     paletteReturnFocusRef.current =
       document.activeElement instanceof HTMLElement &&
@@ -503,6 +502,11 @@ export function App() {
   }, []);
 
   const openUtilities = useCallback(() => {
+    if (utilityModalMode) {
+      setPaletteOpen(false);
+      setPaletteQuery("");
+      setChatTerminalOpen(false);
+    }
     utilityReturnFocusRef.current = utilityReturnFocusTarget({
       activeElement:
         document.activeElement instanceof HTMLElement
@@ -513,7 +517,7 @@ export function App() {
     });
     setMobileSidebarOpen(false, !mobileSidebarOpen);
     setUtilityOpen(true);
-  }, [mobileSidebarOpen, setMobileSidebarOpen]);
+  }, [mobileSidebarOpen, setMobileSidebarOpen, utilityModalMode]);
 
   const toggleUtilities = useCallback(() => {
     if (utilityOpen) closeUtilities();
@@ -531,8 +535,7 @@ export function App() {
 
   const openChatTerminal = useCallback(() => {
     if (utilityOpen && utilityModalMode) {
-      closeUtilities();
-      return;
+      setUtilityOpen(false);
     }
     chatTerminalReturnFocusRef.current =
       document.activeElement instanceof HTMLElement
@@ -541,7 +544,7 @@ export function App() {
     setMobileSidebarOpen(false);
     setChatTerminalMounted(true);
     setChatTerminalOpen(true);
-  }, [closeUtilities, setMobileSidebarOpen, utilityModalMode, utilityOpen]);
+  }, [setMobileSidebarOpen, utilityModalMode, utilityOpen]);
 
   const toggleChatTerminal = useCallback(() => {
     if (chatTerminalOpen) closeChatTerminal();
