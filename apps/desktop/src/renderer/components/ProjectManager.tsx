@@ -51,10 +51,18 @@ export function ProjectManager(props: ProjectManagerProps) {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   const dialogRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const searchId = useId();
-  useDialogFocus(isOpen, dialogRef, closeButtonRef, onClose, Boolean(editing));
+  useDialogFocus(
+    isOpen,
+    dialogRef,
+    closeButtonRef,
+    onClose,
+    Boolean(editing),
+    backdropRef,
+  );
 
   useEffect(() => {
     if (!isOpen) {
@@ -119,7 +127,11 @@ export function ProjectManager(props: ProjectManagerProps) {
 
   if (!isOpen) return null;
   return (
-    <div className={PROJECT_MANAGER_BACKDROP_CLASS} role="presentation">
+    <div
+      className={PROJECT_MANAGER_BACKDROP_CLASS}
+      ref={backdropRef}
+      role="presentation"
+    >
       <div
         className={`${PROJECT_MANAGER_CLASS} ${className}`}
         role="dialog"

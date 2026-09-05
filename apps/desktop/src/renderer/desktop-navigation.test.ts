@@ -43,8 +43,7 @@ describe("desktop navigation descriptors", () => {
     expect(
       loadOpenSections(
         storage({
-          "doolittle.desktop.nav-sections.v2":
-            '["settings","unknown","home"]',
+          "doolittle.desktop.nav-sections.v2": '["settings","unknown","home"]',
         }),
       ),
     ).toEqual(new Set(["settings", "home"]));
@@ -95,5 +94,10 @@ describe("desktop navigation descriptors", () => {
         .flatMap((section) => section.items)
         .some((item) => item.id === "orchestration"),
     ).toBe(true);
+    expect(navigation.find((section) => section.id === "home")?.items).toEqual([
+      { id: "dashboard", label: "Home" },
+      { id: "activity", label: "Activity" },
+      { id: "analytics", label: "Insights" },
+    ]);
   });
 });

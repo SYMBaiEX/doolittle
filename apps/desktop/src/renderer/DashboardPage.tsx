@@ -10,6 +10,7 @@ import { DashboardActivityPanels } from "./dashboard/DashboardActivityPanels";
 import { DashboardPriorityPanel } from "./dashboard/DashboardPriorityPanel";
 import { DashboardRuntimeDetails } from "./dashboard/DashboardRuntimeDetails";
 import { DASHBOARD_PAGE_CLASS } from "./dashboard/dashboard-layout";
+import { HomeObservabilityLinks } from "./dashboard/HomeObservabilityLinks";
 import {
   buildNextActions,
   countOwnershipSignals,
@@ -226,6 +227,8 @@ export function DashboardPage({
         tasksError={tasks.error}
         tasksLoading={tasks.loading}
       />
+
+      <HomeObservabilityLinks />
 
       <DashboardRuntimeDetails
         accountPool={accountPoolSummary}

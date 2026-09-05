@@ -61,12 +61,7 @@ export const views = new Set<View>([
   "operatorSetup",
 ]);
 
-export type DesktopDestination =
-  | "home"
-  | "chat"
-  | "code"
-  | "work"
-  | "settings";
+export type DesktopDestination = "home" | "chat" | "code" | "work" | "settings";
 
 export type DesktopSection =
   | "activity"
@@ -292,6 +287,7 @@ export const navigation: NavigationSection[] = [
     label: "Home",
     items: [
       { id: "dashboard", label: "Home" },
+      { id: "activity", label: "Activity" },
       { id: "analytics", label: "Insights" },
     ],
   },
