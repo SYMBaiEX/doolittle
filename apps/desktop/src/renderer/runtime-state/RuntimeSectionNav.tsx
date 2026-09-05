@@ -16,7 +16,10 @@ export function RuntimeSectionNav<Section extends string>({
   return (
     <TabsList
       aria-label={ariaLabel}
-      className="runtime-section-nav inline-grid h-auto w-fit max-w-full grid-flow-col auto-cols-[minmax(112px,auto)] gap-0 overflow-x-auto rounded-sm border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface)_88%,transparent)] p-0.5 [scrollbar-width:none] max-[620px]:grid max-[620px]:w-full max-[620px]:auto-cols-[minmax(104px,1fr)] [&::-webkit-scrollbar]:hidden"
+      className="runtime-section-nav grid h-auto w-full max-w-[420px] gap-0 overflow-hidden rounded-sm border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface)_88%,transparent)] p-0.5"
+      style={{
+        gridTemplateColumns: `repeat(${sections.length}, minmax(0, 1fr))`,
+      }}
     >
       {sections.map((section) => (
         <TabsTrigger
