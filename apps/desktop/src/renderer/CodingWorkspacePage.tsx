@@ -10,15 +10,15 @@ import {
 } from "react";
 import type { WorkspacePickResult } from "../shared/contracts";
 import type { CodingWorkspaceFocusState } from "./app-shell/route-focus-state";
+import { BrowserPage } from "./BrowserPage";
 import type { ChatContextRequest } from "./chat-context-handoff";
 import { detectCodeLanguage } from "./code-language";
 import { submitAcpEditorTask } from "./coding-workspace/acp-task";
 import { CodingWorkspaceEditor } from "./coding-workspace/CodingWorkspaceEditor";
 import { CodingWorkspaceExplorer } from "./coding-workspace/CodingWorkspaceExplorer";
-import { CodingWorkspaceHeader } from "./coding-workspace/CodingWorkspaceHeader";
 import type { CodeSurface } from "./coding-workspace/CodingWorkspaceHeader";
+import { CodingWorkspaceHeader } from "./coding-workspace/CodingWorkspaceHeader";
 import { CodingWorkspaceUtility } from "./coding-workspace/CodingWorkspaceUtility";
-import { BrowserPage } from "./BrowserPage";
 import {
   CODING_WORKSPACE_PAGE_CLASS,
   CODING_WORKSPACE_ZEN_CLASS,
@@ -91,6 +91,8 @@ export function CodingWorkspacePage({
   focusState,
   onFocusStateChange,
   projectScope,
+  surface: controlledSurface,
+  onSurfaceChange,
   workspacePath,
 }: {
   active: boolean;
@@ -105,6 +107,8 @@ export function CodingWorkspacePage({
   focusState?: CodingWorkspaceFocusState;
   onFocusStateChange?: (state: CodingWorkspaceFocusState) => void;
   projectScope: ProjectScope;
+  surface?: CodeSurface;
+  onSurfaceChange?: (surface: CodeSurface) => void;
   workspacePath: string;
 }) {
   const initialLayoutRef = useRef<ReturnType<
@@ -128,7 +132,15 @@ export function CodingWorkspacePage({
     initialLayout.explorerWidth,
   );
   const [utilityWidth, setUtilityWidth] = useState(initialLayout.utilityWidth);
-  const [surface, setSurface] = useState<CodeSurface>("workspace");
+  const [localSurface, setLocalSurface] = useState<CodeSurface>("workspace");
+  const surface = controlledSurface ?? localSurface;
+  const setSurface = useCallback(
+    (next: CodeSurface) => {
+      setLocalSurface(next);
+      onSurfaceChange?.(next);
+    },
+    [onSurfaceChange],
+  );
   const layoutScopeRef = useRef(workspaceLayoutScope(workspacePath));
   const hydratingLayoutRef = useRef(false);
   const [leftPane, setLeftPane] = useState<LeftPane>(

@@ -72,8 +72,9 @@ import {
   NAV_SECTIONS_KEY,
   type NavigationSectionId,
   navigation,
-  primaryViewForView,
   PROJECT_SCOPE_KEY,
+  primaryViewForView,
+  renderedViewForView,
   resolveDesktopHash,
   type View,
 } from "./desktop-navigation";
@@ -316,9 +317,7 @@ export function CommandPaletteLoadingFallback({
 export function App() {
   const initialConversation = useMemo(newConversationId, []);
   const routeFocus = useRef<DesktopRouteFocusStore>(new Map());
-  const [view, setViewState] = useState<View>(
-    () => resolveDesktopHash().view,
-  );
+  const [view, setViewState] = useState<View>(() => resolveDesktopHash().view);
   const [routeRetryNonce, setRouteRetryNonce] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarReady, setSidebarReady] = useState(false);
@@ -555,8 +554,8 @@ export function App() {
   const confirmViewChange = useCallback(
     (next: View) => {
       if (
-        view === "code" &&
-        next !== "code" &&
+        primaryViewForView(view) === "code" &&
+        primaryViewForView(next) !== "code" &&
         !confirmDirtyNavigation({
           dirty: codeWorkspaceDirty,
           confirm: () =>
@@ -1010,7 +1009,8 @@ export function App() {
       }
     };
     window.addEventListener("hashchange", onHashChange);
-    if (!window.location.hash) window.location.hash = desktopHashForView("chat");
+    if (!window.location.hash)
+      window.location.hash = desktopHashForView("chat");
     else onHashChange();
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
@@ -1138,12 +1138,11 @@ export function App() {
   );
 
   const navigationView = primaryViewForView(view);
+  const renderedView = renderedViewForView(view);
   const activeSection = navigation.find((section) =>
     section.items.some((item) => item.id === view),
   );
-  const activeItem = activeSection?.items.find(
-    (item) => item.id === view,
-  );
+  const activeItem = activeSection?.items.find((item) => item.id === view);
   const pendingApprovals = asArray(approvalsResource.data?.approvals).length;
   const runningTasks = asArray(tasksResource.data?.tasks).length;
   const activeProject =
@@ -1506,18 +1505,19 @@ export function App() {
         </Suspense>
         <div
           className={`${VIEW_CONTAINER_CLASS} view-${view}${
-            ["chat", "code", "orchestration", "review"].includes(view)
+            ["chat", "code", "orchestration"].includes(renderedView)
               ? ` ${VIEW_CONTAINER_WORKSPACE_CLASS}`
               : ""
           }`}
           data-view={view}
-          key={view}
+          data-view-owner={renderedView}
+          key={renderedView}
         >
           <DesktopRouteErrorBoundary
             label={activeItem?.label ?? "View"}
             onReturnToChat={() => setView("chat")}
             onRetry={() => {
-              resetDesktopRoute(view);
+              resetDesktopRoute(renderedView);
               setRouteRetryNonce((current) => current + 1);
             }}
             resetKey={`${view}\u0000${projectScope}\u0000${workspace.currentPath}\u0000${routeRetryNonce}`}

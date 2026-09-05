@@ -245,6 +245,17 @@ export function primaryViewForView(
   return DESKTOP_ROUTE_LOCATIONS[view].primaryView;
 }
 
+/**
+ * Return the lazy route that owns a location. Home keeps its two observability
+ * pages as independent section owners; Chat, Code, Work, and Settings keep one
+ * mounted owner while their contextual section changes.
+ */
+export function renderedViewForView(view: View): View {
+  const primary = primaryViewForView(view);
+  if (primary === "dashboard" && view !== "dashboard") return view;
+  return primary;
+}
+
 export function resolveDesktopHash(
   hash = window.location.hash,
 ): ResolvedDesktopHash {

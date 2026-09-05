@@ -116,7 +116,7 @@ describe("settings resource policy", () => {
   });
 
   it("maps the existing canonical settings destinations into one shell", () => {
-    expect(settingsSectionForView("settings")).toBeUndefined();
+    expect(settingsSectionForView("settings")).toBe("appearance");
     expect(settingsSectionForView("models")).toBe("model");
     expect(settingsSectionForView("connections")).toBe("accounts");
     expect(settingsSectionForView("keys")).toBe("credentials");

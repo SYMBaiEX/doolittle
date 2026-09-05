@@ -47,41 +47,39 @@ imitating a stream through this adapter.
 
 ## Operator surfaces
 
-The desktop organizes everyday agent work around four operator areas while
+The desktop organizes everyday agent work around five stable destinations while
 keeping Doolittle's native runtime and cross-platform Electron boundary:
 
-- **Workspace:** streaming chat, searchable sessions, a conflict-aware code
-  editor, queued follow-up messages, managed chat attachments, inline
-  tool/action/mutation run receipts, confirmed terminal commands with safe
-  test/build/status presets, an interactive xterm PTY, Git changes, local
-  recovery checkpoints, and confirmed create-only worktrees, a
-  sandboxed localhost browser preview with history and responsive device
-  widths, structured browser evidence, human-in-the-loop review, secure
-  generated-artifact viewers, and task/agent/run orchestration.
+- **Home:** runtime and repository readiness, recent work, approvals, plus
+  gateways to the complete Activity and Insights sections.
+- **Chat:** streaming conversations, searchable history, queued follow-up
+  messages, managed attachments, inline tool/action/mutation receipts, and
+  contextual media tools. Conversation, History, and Media share one mounted
+  workspace so changing sections does not discard drafts or live run state.
+- **Code:** a conflict-aware editor, Git changes, local recovery checkpoints,
+  confirmed create-only worktrees, and a sandboxed localhost Preview with
+  responsive widths and structured browser evidence. Code and Preview share
+  one mounted workspace and the persistent terminal remains available across
+  destinations.
+- **Work:** tasks, agents, plans, build/research runs, automations, gateway
+  Inbox, human-in-the-loop Review, and secure generated-artifact viewers.
   Coding tasks start only from an active, selected Git worktree: the desktop
   verifies its branch with the local runtime, creates the official Eliza
   orchestrator task, starts its ACP session, and carries the resulting session
   receipt into Queue and branch context into Review. Retried launch requests
   reuse their durable task instead of starting another session.
-- **Create and observe:** media generation, scheduled automations, local-only
-  usage analytics, and one searchable activity trail across approvals,
-  workspace changes, delegated tasks, generation runs, terminal commands,
-  deliveries, and logs. The trail deliberately reports bounded, server-owned
-  summaries: it omits commands, prompts, paths, raw log output, and secrets.
-- **Agent:** model selection, provider connections, tool and skill catalogs,
-  plugin inventory, scheduled automations, personality profiles, and explicit
-  controls for Eliza's native autonomous reasoning loop.
-- **Manage:** filtered runtime logs, every persisted non-secret setting,
-  appearance profiles, execution-backend status, doctor checks, setup state,
-  architecture details, local recovery commands, runtime/plugin diagnostics,
-  compatibility checks, registry search, and onboarding readiness.
+- **Settings:** appearance and desktop preferences, models, provider accounts,
+  credentials, tools, skills, plugins, memory, profiles, filtered logs, runtime
+  and compatibility diagnostics, registry search, setup, and About. Its
+  searchable section rail replaces separate top-level capability pages while
+  legacy links remain accepted for one compatibility release.
 
 The default Home surface is a live mission-control view over runtime health,
 repository state, setup readiness, recent sessions, pending approvals, and
 delegated work. A persistent status strip and `Cmd/Ctrl+K` palette keep
-workspace, route, tasks, approvals, conversations, files, and logs reachable
-without navigating through settings. Chat includes an in-context route switcher
-for local and linked providers. Native completion notifications are shown only
+workspace, destination, tasks, approvals, conversations, files, and logs
+reachable without expanding the Settings rail. Chat includes an in-context
+provider switcher for local and linked providers. Native completion notifications are shown only
 while the app is in the background and deliberately omit prompts, responses,
 paths, commands, and other private task content.
 
@@ -98,7 +96,7 @@ registry presence as cryptographic trust.
 
 ### Gateway pairing approvals
 
-The Gateway page is a local operator surface for the official Eliza
+Work > Inbox is a local operator surface for the official Eliza
 `PairingService`. It lists pending sender requests by platform and sender ID,
 requires a second confirmation before approve, deny, or revoke, and shows the
 approved allowlist when the service exposes it. The API caps lists at 500
@@ -140,7 +138,7 @@ unknown keys when it is exported again.
 
 ### MCP marketplace discovery
 
-The Tools page separates configured MCP connections from the official MCP
+Settings > Tools separates configured MCP connections from the official MCP
 Registry exposed through Eliza. Marketplace search and server detail requests
 use only `@elizaos/agent/services/mcp-marketplace`; the renderer may search
 bounded text and select a registry server name, but it cannot supply a URL,
@@ -400,8 +398,8 @@ fails closed on a missing, empty, stale, or mismatched input. Run
 `nub run desktop:runtime:install` before a source package build when Electron's
 local distribution has not yet been downloaded.
 
-Capture full-page visual evidence for every packaged-app route at deterministic
-desktop and narrow widths:
+Capture full-page visual evidence for the five destinations, their canonical
+sections, and compatibility links at deterministic desktop and narrow widths:
 
 ```bash
 nub run test:e2e:desktop-visual

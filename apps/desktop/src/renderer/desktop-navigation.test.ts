@@ -5,6 +5,7 @@ import {
   loadProjectScope,
   navigation,
   primaryViewForView,
+  renderedViewForView,
   resolveDesktopHash,
   sessionLabel,
   viewFromHash,
@@ -37,6 +38,11 @@ describe("desktop navigation descriptors", () => {
     });
     expect(primaryViewForView("browser")).toBe("code");
     expect(primaryViewForView("runtime")).toBe("settings");
+    expect(renderedViewForView("sessions")).toBe("chat");
+    expect(renderedViewForView("browser")).toBe("code");
+    expect(renderedViewForView("automations")).toBe("orchestration");
+    expect(renderedViewForView("runtime")).toBe("settings");
+    expect(renderedViewForView("activity")).toBe("activity");
   });
 
   it("loads only known persisted sections and falls back when storage is invalid", () => {

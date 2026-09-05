@@ -27,6 +27,11 @@ describe("desktop view transitions", () => {
     );
     expect(appSource).toContain("if (utilityModalMode) closeUtilities();");
     expect(appSource).toContain("mobileModal={utilityModalMode}");
+    expect(appSource).toContain("const renderedView = renderedViewForView(view)");
+    expect(appSource).toContain("key={renderedView}");
+    expect(appSource).toContain("resetDesktopRoute(renderedView)");
+    expect(appSource).toContain('primaryViewForView(view) === "code"');
+    expect(appSource).toContain('primaryViewForView(next) !== "code"');
   });
 
   it("only dismisses the terminal after an accepted context handoff", () => {

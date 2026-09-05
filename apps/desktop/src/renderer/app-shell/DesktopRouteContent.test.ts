@@ -92,12 +92,17 @@ describe("desktop route preloaders", () => {
     );
   });
 
-  test("uses the Settings shell for canonical model and account destinations", () => {
+  test("uses stable destination owners for contextual sections", () => {
     expect(routeContentSource).toContain("settingsSectionForView(view)");
-    expect(routeContentSource).toContain('settingsSection ? "settings" : view');
+    expect(routeContentSource).toContain("renderedViewForView(view)");
     expect(routeContentSource).toContain("settingsViewForSection(section)");
     expect(routeContentSource).toContain('case "models":');
     expect(routeContentSource).toContain('case "connections":');
+    expect(routeContentSource).toContain('case "sessions":');
+    expect(routeContentSource).toContain('case "media":');
+    expect(routeContentSource).toContain('case "browser":');
+    expect(routeContentSource).toContain('surface={view === "browser"');
+    expect(routeContentSource).toContain("requestedTab={");
   });
 
   test("keeps Work tabs compatible with their standalone legacy routes", () => {

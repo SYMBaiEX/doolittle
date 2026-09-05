@@ -92,6 +92,7 @@ export function OrchestrationPage({
   onSendToChat,
   onOpenWorkspaceFile,
   projectScope = "all",
+  requestedTab,
   reviewMode = false,
   focusState,
   onFocusStateChange,
@@ -105,6 +106,7 @@ export function OrchestrationPage({
   onSendToChat: (request: ChatContextRequest) => void;
   onOpenWorkspaceFile?: (path: string) => void;
   projectScope?: string;
+  requestedTab?: WorkTabId;
   reviewMode?: boolean;
   focusState?: OrchestrationFocusState;
   onFocusStateChange?: (state: OrchestrationFocusState) => void;
@@ -112,7 +114,8 @@ export function OrchestrationPage({
   workspacePath?: string;
 }) {
   const [activeTab, setActiveTab] = useState<WorkTabId>(
-    reviewMode ? "review" : (focusState?.activeTab ?? "tasks"),
+    requestedTab ??
+      (reviewMode ? "review" : (focusState?.activeTab ?? "tasks")),
   );
   const [selectedTaskId, setSelectedTaskId] = useState(
     () => focusState?.selectedTaskId ?? "",
@@ -160,12 +163,14 @@ export function OrchestrationPage({
   ]);
 
   useEffect(() => {
-    if (reviewMode) {
+    if (requestedTab) {
+      setActiveTab(requestedTab);
+    } else if (reviewMode) {
       setActiveTab("review");
     } else {
       setActiveTab((current) => (current === "review" ? "tasks" : current));
     }
-  }, [reviewMode]);
+  }, [requestedTab, reviewMode]);
 
   const {
     overviewResource,

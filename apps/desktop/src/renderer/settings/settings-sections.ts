@@ -170,6 +170,8 @@ export function settingsSectionForView(
   view: View,
 ): SettingsShellSection | undefined {
   switch (view) {
+    case "settings":
+      return "appearance";
     case "models":
       return "model";
     case "connections":
