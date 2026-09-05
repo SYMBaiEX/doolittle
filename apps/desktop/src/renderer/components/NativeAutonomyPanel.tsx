@@ -98,7 +98,7 @@ export function NativeAutonomyPanel({
             </div>
           </div>
           <div
-            className="runtime-autonomy-controls grid grid-cols-1 items-end gap-2 min-[521px]:max-[760px]:grid-cols-[minmax(140px,0.7fr)_minmax(180px,1fr)] min-[921px]:grid-cols-[minmax(148px,0.65fr)_minmax(190px,auto)]"
+            className="runtime-autonomy-controls grid grid-cols-[repeat(auto-fit,minmax(min(180px,100%),1fr))] items-end gap-2"
             data-runtime-controls="autonomy"
           >
             <label className="grid min-w-0 gap-1">

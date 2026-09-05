@@ -39,9 +39,9 @@ describe("runtime overview layout", () => {
       "min-[761px]:max-[1080px]:[&>:last-child]:col-span-full",
     );
     expect(autonomy).toContain(
-      "min-[921px]:grid-cols-[minmax(148px,0.65fr)_minmax(190px,auto)]",
+      "grid-cols-[repeat(auto-fit,minmax(min(180px,100%),1fr))]",
     );
-    expect(autonomy).toContain("grid grid-cols-1 items-end gap-2");
+    expect(autonomy).toContain("items-end gap-2");
   });
 
   it("supports an embedded Settings presentation without another page frame", () => {
