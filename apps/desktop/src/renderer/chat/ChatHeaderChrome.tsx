@@ -1,5 +1,6 @@
 import { PanelRight, Pin } from "lucide-react";
 import type { RefObject } from "react";
+import type { ChatSurface } from "../ChatPage";
 import { UiIcon } from "../components/UiIcon";
 import type { ContextPressureTone } from "../context-pressure";
 import { displayTimestamp } from "../lib";
@@ -19,6 +20,7 @@ export interface ChatHeaderChromeProps {
   onOpenRouteControls: () => void;
   onOpenWorkspace: () => void;
   onPrepareCompression: () => void;
+  onSurfaceChange?: (surface: ChatSurface) => void;
   onToggleInspector: () => void;
   onTogglePin: () => void;
   selectedContextLabel: string;
@@ -29,6 +31,7 @@ export interface ChatHeaderChromeProps {
   selectedUpdatedAt?: string;
   selectedUsageError?: string;
   sessionsCount: number;
+  surface: ChatSurface;
   workbenchToggleRef: RefObject<HTMLButtonElement | null>;
   workspacePath: string;
 }
@@ -45,6 +48,7 @@ export function ChatHeaderChrome({
   onOpenRouteControls,
   onOpenWorkspace,
   onPrepareCompression,
+  onSurfaceChange,
   onToggleInspector,
   onTogglePin,
   selectedContextLabel,
@@ -55,6 +59,7 @@ export function ChatHeaderChrome({
   selectedUpdatedAt,
   selectedUsageError,
   sessionsCount,
+  surface,
   workbenchToggleRef,
   workspacePath,
 }: ChatHeaderChromeProps) {
@@ -161,6 +166,29 @@ export function ChatHeaderChrome({
           >
             <strong>{modelRouteLabel}</strong>
           </button>
+          {onSurfaceChange ? (
+            <fieldset className="chat-surface-controls">
+              <legend className="sr-only">Chat surfaces</legend>
+              {(
+                [
+                  ["conversation", "Chat"],
+                  ["history", "History"],
+                  ["media", "Media"],
+                ] as const
+              ).map(([nextSurface, label]) => (
+                <button
+                  aria-controls={`chat-context-${nextSurface}`}
+                  aria-pressed={surface === nextSurface}
+                  className="secondary-button chat-surface-control"
+                  key={nextSurface}
+                  onClick={() => onSurfaceChange(nextSurface)}
+                  type="button"
+                >
+                  {label}
+                </button>
+              ))}
+            </fieldset>
+          ) : null}
           <button
             aria-controls="mobile-conversations"
             aria-expanded={mobileConversationsOpen}

@@ -23,6 +23,14 @@ describe("media and browser workspace density", () => {
     expect(html).not.toContain("Run model analysis");
   });
 
+  it("drops the standalone heading when Media is embedded in Chat", () => {
+    const html = renderToStaticMarkup(<MediaPage active embedded />);
+
+    expect(html).not.toContain("Operator");
+    expect(html).not.toContain(">Media<");
+    expect(html).toContain('aria-label="Media action tabs"');
+  });
+
   it("renders compact browser actions and a collapsed comparison workflow", () => {
     const html = renderToStaticMarkup(<BrowserPage active />);
 

@@ -25,6 +25,7 @@ export function SessionsPage({
   openChat,
   onNewConversation,
   projectId,
+  embedded = false,
 }: {
   active: boolean;
   sessions: SessionSummary[];
@@ -32,6 +33,7 @@ export function SessionsPage({
   openChat: (sessionId: string) => void;
   onNewConversation: () => void;
   projectId?: string | null;
+  embedded?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(sessions[0]?.sessionId ?? "");
@@ -53,51 +55,63 @@ export function SessionsPage({
   const showEmptyLanding =
     active && shouldShowSessionEmptyLanding(sessions.length, query);
 
-  return (
-    <div className={SESSIONS_PAGE_CLASS} data-sessions-page="true">
-      <PageHeader
-        eyebrow="Workspace"
-        title="Sessions"
-        description={
-          projectId === null
-            ? "Search, inspect, rename, and resume unscoped local conversations."
-            : projectId
-              ? "Search, inspect, rename, and resume conversations in this project."
-              : "Search, inspect, rename, and resume every conversation stored by the local runtime."
-        }
-        actions={
-          <>
-            <input
-              accept=".json,.doolittle.json,application/json"
-              aria-label="Choose a Doolittle session archive"
-              hidden
-              onChange={transfer.importArchive}
-              ref={transfer.archiveInputRef}
-              type="file"
-            />
-            {!showEmptyLanding ? (
-              <Button
-                disabled={!active || transfer.transferring}
-                onClick={() => transfer.archiveInputRef.current?.click()}
-                size="sm"
-                type="button"
-                variant="secondary"
-              >
-                Import archive
-              </Button>
-            ) : null}
-            <Button
-              disabled={!active}
-              onClick={refresh}
-              size="sm"
-              type="button"
-              variant="secondary"
-            >
-              Refresh
-            </Button>
-          </>
-        }
+  const actions = (
+    <>
+      <input
+        accept=".json,.doolittle.json,application/json"
+        aria-label="Choose a Doolittle session archive"
+        hidden
+        onChange={transfer.importArchive}
+        ref={transfer.archiveInputRef}
+        type="file"
       />
+      {!showEmptyLanding ? (
+        <Button
+          disabled={!active || transfer.transferring}
+          onClick={() => transfer.archiveInputRef.current?.click()}
+          size="sm"
+          type="button"
+          variant="secondary"
+        >
+          Import archive
+        </Button>
+      ) : null}
+      <Button
+        disabled={!active}
+        onClick={refresh}
+        size="sm"
+        type="button"
+        variant="secondary"
+      >
+        Refresh
+      </Button>
+    </>
+  );
+
+  return (
+    <div
+      className={SESSIONS_PAGE_CLASS}
+      data-sessions-embedded={embedded || undefined}
+      data-sessions-page="true"
+    >
+      {embedded ? (
+        <div className="flex justify-end gap-2 border-b border-[var(--border)] px-3 py-2">
+          {actions}
+        </div>
+      ) : (
+        <PageHeader
+          eyebrow="Workspace"
+          title="Sessions"
+          description={
+            projectId === null
+              ? "Search, inspect, rename, and resume unscoped local conversations."
+              : projectId
+                ? "Search, inspect, rename, and resume conversations in this project."
+                : "Search, inspect, rename, and resume every conversation stored by the local runtime."
+          }
+          actions={actions}
+        />
+      )}
       {active && transfer.transferStatus ? (
         <div aria-live="polite" className="notice neutral" role="status">
           {transfer.transferStatus}

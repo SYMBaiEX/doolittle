@@ -13,6 +13,7 @@ const handlers = {
   onOpenRouteControls: vi.fn(),
   onOpenWorkspace: vi.fn(),
   onPrepareCompression: vi.fn(),
+  onSurfaceChange: vi.fn(),
   onToggleInspector: vi.fn(),
   onTogglePin: vi.fn(),
 };
@@ -30,6 +31,7 @@ const baseProps: ChatHeaderChromeProps = {
   selectedContextTone: "neutral",
   selectedMessageCount: 0,
   sessionsCount: 3,
+  surface: "conversation",
   workbenchToggleRef: { current: null },
   workspacePath: "/workspace",
 };
@@ -67,6 +69,22 @@ describe("ChatHeaderChrome", () => {
     expect(
       container.querySelector('[aria-label="Pin conversation"]'),
     ).toBeNull();
+  });
+
+  it("exposes desktop chat surfaces with their current state", () => {
+    render({ surface: "history" });
+
+    const history = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "History",
+    );
+    const media = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Media",
+    );
+    expect(history?.getAttribute("aria-pressed")).toBe("true");
+    expect(media?.getAttribute("aria-pressed")).toBe("false");
+
+    act(() => media?.click());
+    expect(handlers.onSurfaceChange).toHaveBeenCalledWith("media");
   });
 
   it("reveals conversation state and forwards the compact actions", () => {

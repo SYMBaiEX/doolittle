@@ -62,6 +62,12 @@ describe("chat chrome density contract", () => {
     expect(chatHeader).toMatch(
       /chat-mobile-conversations-button[\s\S]*?History[\s\S]*?chat-workbench-toggle[\s\S]*?Workbench/,
     );
+    expect(chatHeader).toContain("Chat surfaces");
+    expect(chatPage).toContain('id="chat-context-history"');
+    expect(chatPage).toContain('id="chat-context-media"');
+    expect(chatPage).toContain('hidden={surface !== "conversation"}');
+    expect(chatPage).toContain('inert={surface !== "history"}');
+    expect(chatPage).toContain('inert={surface !== "media"}');
     expect(WINDOW_DRAGBAR_CHAT_CLASS).toContain("basis-10");
     expect(WINDOW_DRAGBAR_PRIMARY_CLASS).toContain("min-h-10");
     expect(CHAT_CHROME_HOST_CLASS).toContain("min-w-0");
@@ -102,6 +108,9 @@ describe("chat chrome density contract", () => {
     );
     expect(CHAT_HEADER_CONTENT_CLASS).toContain(
       "max-[480px]:[&_.secondary-button]:min-h-10",
+    );
+    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
+      "max-[980px]:[&_.chat-surface-controls]:hidden",
     );
     expect(CHAT_HEADER_CONTENT_CLASS).toContain("whitespace-nowrap");
   });

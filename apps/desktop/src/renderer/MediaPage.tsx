@@ -16,7 +16,13 @@ const MEDIA_TABS = [
 
 type MediaTabId = (typeof MEDIA_TABS)[number]["id"];
 
-export function MediaPage({ active }: { active: boolean }) {
+export function MediaPage({
+  active,
+  embedded = false,
+}: {
+  active: boolean;
+  embedded?: boolean;
+}) {
   const [activeTab, setActiveTab] = useState<MediaTabId>("inspect-analyze");
   const tabRefs = useRef<Record<MediaTabId, HTMLButtonElement | null>>({
     "inspect-analyze": null,
@@ -34,12 +40,14 @@ export function MediaPage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className="page gap-3.5">
-      <PageHeader
-        description="Inspect, transcribe, and generate with Eliza media services."
-        eyebrow="Operator"
-        title="Media"
-      />
+    <div className={embedded ? "h-full min-h-0 w-full" : "page gap-3.5"}>
+      {embedded ? null : (
+        <PageHeader
+          description="Inspect, transcribe, and generate with Eliza media services."
+          eyebrow="Operator"
+          title="Media"
+        />
+      )}
 
       {!active ? (
         <OfflineRouteState>

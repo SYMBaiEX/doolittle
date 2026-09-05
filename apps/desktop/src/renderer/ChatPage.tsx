@@ -69,16 +69,20 @@ import {
   saveConversationQueue,
 } from "./conversation-persistence";
 import { desktopRequest, errorMessage } from "./lib";
+import { MediaPage } from "./MediaPage";
 import {
   freezeMemoryMatchSnapshot,
   type MemoryMatchSnapshot,
 } from "./memory-matches";
 import type { ProjectLike, ProjectScope } from "./project-manager/models";
+import { SessionsPage } from "./sessions/SessionsPage";
 
 const INSPECTOR_STORAGE_KEY = "doolittle.desktop.chat-inspector-visible.v1";
 const RUN_CURSOR_STORAGE_KEY = "doolittle.desktop.chat-run-cursors.v1";
 const NARROW_WORKBENCH_QUERY = "(max-width: 720px)";
 const ATTACHMENT_ONLY_MESSAGE = "Review the attached files.";
+
+export type ChatSurface = "conversation" | "history" | "media";
 
 /** The transcript needs a useful user intent even when file context is the only input. */
 export function chatSubmissionContent(
@@ -237,6 +241,8 @@ export function ChatPage({
   pendingContextHandoff,
   runningTasks,
   chromeHost,
+  surface = "conversation",
+  onSurfaceChange,
 }: {
   backend: BackendState;
   runtime: RuntimeStatus | null;
@@ -265,6 +271,8 @@ export function ChatPage({
   pendingContextHandoff: ChatContextHandoff | null;
   runningTasks: number;
   chromeHost: HTMLElement | null;
+  surface?: ChatSurface;
+  onSurfaceChange?: (surface: ChatSurface) => void;
 }) {
   const [activeRequests, setActiveRequests] = useState<Record<string, string>>(
     {},
@@ -1538,6 +1546,7 @@ export function ChatPage({
               }}
               onToggleInspector={toggleInspector}
               onTogglePin={() => togglePin(selectedId)}
+              onSurfaceChange={onSurfaceChange}
               selectedContextLabel={selectedContextLabel}
               selectedContextPercent={selectedContextPercent}
               selectedContextTone={selectedContextTone}
@@ -1546,6 +1555,7 @@ export function ChatPage({
               selectedUpdatedAt={selectedUpdatedAt}
               selectedUsageError={selectedUsageError}
               sessionsCount={sessionsCount}
+              surface={surface}
               workbenchToggleRef={workbenchToggleRef}
               workspacePath={workspacePath}
             />,
@@ -1553,10 +1563,18 @@ export function ChatPage({
           )
         : null}
       <section
-        aria-hidden={inspectorVisible && isNarrowWorkbench ? "true" : undefined}
+        aria-hidden={
+          (inspectorVisible && isNarrowWorkbench) || surface !== "conversation"
+            ? "true"
+            : undefined
+        }
         aria-label="Conversation detail"
         className="chat-conversation"
-        inert={inspectorVisible && isNarrowWorkbench}
+        hidden={surface !== "conversation"}
+        id="chat-context-conversation"
+        inert={
+          (inspectorVisible && isNarrowWorkbench) || surface !== "conversation"
+        }
       >
         <ChatTranscript
           activeRequest={activeRequest}
@@ -1666,6 +1684,46 @@ export function ChatPage({
           workspacePath={workspacePath}
           pendingApprovals={pendingApprovals}
           runningTasks={runningTasks}
+        />
+      </section>
+      <section
+        aria-hidden={surface !== "history" ? "true" : undefined}
+        aria-label="Conversation history"
+        className="chat-context-surface"
+        hidden={surface !== "history"}
+        id="chat-context-history"
+        inert={surface !== "history"}
+      >
+        <SessionsPage
+          active={backend.phase === "ready" && surface === "history"}
+          embedded
+          onNewConversation={() => {
+            if (onRequestNewConversation) onRequestNewConversation();
+            else createConversation();
+            onSurfaceChange?.("conversation");
+            requestAnimationFrame(() => composerRef.current?.focus());
+          }}
+          openChat={(sessionId) => {
+            onSelect(sessionId);
+            onSurfaceChange?.("conversation");
+            requestAnimationFrame(() => composerRef.current?.focus());
+          }}
+          projectId={activeProject?.id}
+          refresh={refreshRuntime}
+          sessions={sessions}
+        />
+      </section>
+      <section
+        aria-hidden={surface !== "media" ? "true" : undefined}
+        aria-label="Media tools"
+        className="chat-context-surface"
+        hidden={surface !== "media"}
+        id="chat-context-media"
+        inert={surface !== "media"}
+      >
+        <MediaPage
+          active={backend.phase === "ready" && surface === "media"}
+          embedded
         />
       </section>
       {mobileConversationsOpen ? (

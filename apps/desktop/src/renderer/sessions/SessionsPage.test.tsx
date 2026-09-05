@@ -77,4 +77,24 @@ describe("SessionsPage", () => {
     act(() => actions[1]?.click());
     expect(clickArchiveInput).toHaveBeenCalledTimes(1);
   });
+
+  it("uses compact controls when embedded in Chat", () => {
+    act(() => {
+      root.render(
+        <SessionsPage
+          active
+          embedded
+          onNewConversation={vi.fn()}
+          openChat={vi.fn()}
+          refresh={vi.fn()}
+          sessions={[]}
+        />,
+      );
+    });
+
+    expect(
+      container.querySelector('[data-sessions-embedded="true"]'),
+    ).not.toBeNull();
+    expect(container.textContent).not.toContain("Search, inspect, rename");
+  });
 });
