@@ -1,8 +1,5 @@
 import { describe, expect, test } from "vitest";
-import {
-  shouldShowWorkResourceStatus,
-  WORK_TABS,
-} from "./OrchestrationPage";
+import { shouldShowWorkResourceStatus, WORK_TABS } from "./OrchestrationPage";
 
 describe("consolidated work surface", () => {
   test("presents one lifecycle from queued work through review", () => {

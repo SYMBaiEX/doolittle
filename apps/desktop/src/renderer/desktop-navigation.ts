@@ -321,9 +321,9 @@ export const navigation: NavigationSection[] = [
   },
   {
     id: "work",
-    label: "Work",
+    label: "Tasks",
     items: [
-      { id: "orchestration", label: "Tasks & agents" },
+      { id: "orchestration", label: "Tasks" },
       { id: "review", label: "Review" },
       { id: "automations", label: "Automations" },
       { id: "gateway", label: "Inbox" },
@@ -397,8 +397,8 @@ export const PRIMARY_NAV_ITEMS: Array<{
   { id: "code", label: "Code", description: "Workspace" },
   {
     id: "orchestration",
-    label: "Work",
-    description: "Agent work and review",
+    label: "Tasks",
+    description: "Runs, agents, and review",
   },
 ];
 

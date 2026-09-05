@@ -73,7 +73,7 @@ describe("DesktopSidebar", () => {
     const modeSwitch = container.querySelector(".sidebar-mode-switch");
     expect(modeSwitch?.className).toContain("nav-collapsed_&]:grid-cols-1");
 
-    for (const label of ["Chat", "Code", "Work"]) {
+    for (const label of ["Chat", "Code", "Tasks"]) {
       expect(
         container.querySelector(`button[aria-label="${label}"]`),
       ).not.toBeNull();

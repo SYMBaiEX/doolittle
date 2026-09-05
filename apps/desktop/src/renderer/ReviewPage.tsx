@@ -574,8 +574,8 @@ export function ReviewPage({
                 Refresh
               </button>
             }
-            description="Inspect work, changes, verification, and decisions."
-            eyebrow="Agent work"
+            description="Inspect outcomes, changes, checks, and decisions."
+            eyebrow="Tasks"
             title="Review"
           />
         ) : null}

@@ -46,11 +46,11 @@ export function ReviewHeader({
   return (
     <header className={REVIEW_HEADER_CLASS}>
       <div>
-        <span className="eyebrow">Agent work</span>
-        <h1>Review what Doolittle did</h1>
+        <span className="eyebrow">Tasks</span>
+        <h1>Review completed work</h1>
         <p>
-          Inspect the outcome, changed files, verification, and decisions from
-          completed work without reconstructing the agent’s entire chat.
+          Inspect outcomes, changed files, checks, and decisions without
+          reconstructing the entire conversation.
         </p>
       </div>
       <div className={REVIEW_HEADER_STATUS_CLASS}>

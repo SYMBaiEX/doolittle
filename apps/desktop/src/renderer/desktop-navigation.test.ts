@@ -121,5 +121,14 @@ describe("desktop navigation descriptors", () => {
       { id: "activity", label: "Activity" },
       { id: "analytics", label: "Insights" },
     ]);
+    expect(navigation.find((section) => section.id === "work")).toMatchObject({
+      label: "Tasks",
+      items: [
+        { id: "orchestration", label: "Tasks" },
+        { id: "review", label: "Review" },
+        { id: "automations", label: "Automations" },
+        { id: "gateway", label: "Inbox" },
+      ],
+    });
   });
 });
