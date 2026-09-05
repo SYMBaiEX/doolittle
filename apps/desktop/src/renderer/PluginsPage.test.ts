@@ -28,9 +28,8 @@ describe("PluginsPage density", () => {
     expect(source).toContain(
       'className="filter-bar plugins-filter-bar grid min-w-0 grid-cols-[minmax(0,1fr)_clamp(176px,22vw,240px)]',
     );
-    expect(source).toContain(
-      'className="plugins-filter-label font-[var(--font-mono)]',
-    );
+    expect(source).toContain('"plugins-filter-label font-[var(--font-mono)]');
+    expect(source).toContain("className={FILTER_LABEL_CLASS}");
     expect(source).toContain('id="plugin-category-label"');
     expect(source).toContain(
       'className="plugins-category-trigger w-full min-w-0"',

@@ -25,6 +25,11 @@ import {
 import { PluginCatalogWorkspace } from "./plugins/PluginCatalogWorkspace";
 import { buildPluginCatalogEntries } from "./plugins/plugin-catalog-model";
 
+const PLUGIN_DESCRIPTION =
+  "Inspect the ElizaOS packages assembled into this runtime.";
+const FILTER_LABEL_CLASS =
+  "plugins-filter-label font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase";
+
 export function PluginsPage({
   active,
   embedded = false,
@@ -77,7 +82,7 @@ export function PluginsPage({
           <div>
             <span className="eyebrow">Agent</span>
             <h2>Plugin catalog</h2>
-            <p>Inspect the ElizaOS packages assembled into this runtime.</p>
+            <p>{PLUGIN_DESCRIPTION}</p>
           </div>
           <Button
             className="secondary-button"
@@ -93,7 +98,7 @@ export function PluginsPage({
         <PageHeader
           eyebrow="Agent"
           title="Plugins"
-          description="Inspect the ElizaOS packages assembled into this runtime."
+          description={PLUGIN_DESCRIPTION}
           actions={
             <Button
               className="secondary-button"
@@ -132,9 +137,7 @@ export function PluginsPage({
               className="search-field plugins-filter-control plugins-filter-search grid min-w-0 grow gap-1"
               htmlFor="plugin-search"
             >
-              <span className="plugins-filter-label font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase">
-                Search
-              </span>
+              <span className={FILTER_LABEL_CLASS}>Search</span>
               <Input
                 id="plugin-search"
                 placeholder="Search plugins"
@@ -144,10 +147,7 @@ export function PluginsPage({
               />
             </label>
             <div className="plugins-filter-control plugins-filter-category grid min-w-0 gap-1">
-              <span
-                className="plugins-filter-label font-[var(--font-mono)] text-[length:var(--text-meta)] tracking-[0.08em] text-[var(--muted)] uppercase"
-                id="plugin-category-label"
-              >
+              <span className={FILTER_LABEL_CLASS} id="plugin-category-label">
                 Category
               </span>
               <Select value={category} onValueChange={setCategory}>
