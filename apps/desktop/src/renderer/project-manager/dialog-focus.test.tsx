@@ -65,7 +65,8 @@ describe("useDialogFocus", () => {
     const onClose = vi.fn();
     act(() => root.render(<DialogProbe open={false} onClose={onClose} />));
     const trigger = container.querySelector<HTMLButtonElement>("button");
-    act(() => trigger?.focus());
+    if (!trigger) throw new Error("Expected the project dialog trigger");
+    act(() => trigger.focus());
     act(() => root.render(<DialogProbe open onClose={onClose} />));
 
     const [, close, last] = Array.from(
