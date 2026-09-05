@@ -31,6 +31,10 @@ import {
   shouldShowOrchestrationSummary,
 } from "./orchestration-helpers";
 import { useOrchestrationResources } from "./orchestration-resources";
+import {
+  type ResourceStatusItem,
+  summarizeResourceStatuses,
+} from "./resource-status";
 
 const OrchestrationRunsPanel = lazy(() =>
   import("./orchestration/OrchestrationRunsPanel").then((module) => ({
@@ -59,13 +63,21 @@ export type WorkTabId =
   | "review";
 export const WORK_TABS: ReadonlyArray<{ id: WorkTabId; label: string }> = [
   { id: "tasks", label: "Queue" },
+  { id: "runs", label: "Runs" },
+  { id: "review", label: "Review" },
   { id: "agents", label: "Agents" },
   { id: "plans", label: "Plans" },
-  { id: "runs", label: "Build & research" },
   { id: "automations", label: "Automations" },
   { id: "inbox", label: "Inbox" },
-  { id: "review", label: "Review" },
 ];
+
+/** Keep healthy runtime plumbing out of the task workspace; surface only work. */
+export function shouldShowWorkResourceStatus(
+  resources: readonly ResourceStatusItem[],
+): boolean {
+  const status = summarizeResourceStatuses(resources).status;
+  return status === "loading" || status === "refreshing" || status === "error";
+}
 
 function SummaryChip({
   label,
@@ -211,7 +223,7 @@ export function OrchestrationPage({
     platform: window.doolittle.platform,
   });
 
-  const statusResources = useMemo(() => {
+  const statusResources = useMemo<ReadonlyArray<ResourceStatusItem>>(() => {
     const entries = [
       { label: "orchestration overview", resource: overviewResource },
       { label: "plans", resource: plansResource },
@@ -274,6 +286,7 @@ export function OrchestrationPage({
     codegenRunsResource,
     worktreesResource,
   ]);
+  const showResourceStatus = shouldShowWorkResourceStatus(statusResources);
 
   const selectedTaskSummary =
     tasks.find((entry) => asString(entry.id) === selectedTaskId) ?? tasks[0];
@@ -547,9 +560,9 @@ export function OrchestrationPage({
     <div className={oc("orchestration-page")}>
       <header className={oc("orchestration-header")}>
         <div>
-          <h1>Agent work</h1>
+          <h1>Tasks</h1>
           <p>
-            Tasks, active runs, and completed changes
+            Run agents, review changes, and manage scheduled work
             {projectScope === "all"
               ? " across every project."
               : ` for ${workspaceLabel || "the selected project"}.`}
@@ -581,7 +594,9 @@ export function OrchestrationPage({
         </div>
       </header>
 
-      <ResourceStatusBar resources={statusResources} />
+      {showResourceStatus ? (
+        <ResourceStatusBar resources={statusResources} />
+      ) : null}
 
       {notices.length > 0 ? (
         <div aria-live="polite" className={oc("orchestration-notices")}>

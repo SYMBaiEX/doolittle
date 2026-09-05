@@ -84,9 +84,10 @@ describe("wide route viewport density", () => {
 
     expect(orchestration).toContain("shouldShowOrchestrationSummary");
     expect(orchestration).toContain("tasks.length > 0 ? (");
-    expect(orchestrationLayout).toContain("w-[min(calc(100%_-_24px),920px)]");
-    expect(orchestrationLayout).toContain("mt-[clamp(12px,6vh,72px)]");
-    expect(orchestrationLayout).toContain("mx-auto");
+    expect(orchestrationLayout).toContain("mx-3 mt-3 mb-2");
+    expect(orchestrationLayout).toContain("max-w-[640px]");
+    expect(orchestrationLayout).not.toContain("mt-[clamp(12px,6vh,72px)]");
+    expect(orchestrationLayout).not.toContain("w-[min(calc(100%_-_24px),920px)]");
     expect(reviewLayout).toContain("w-[min(100%,920px)]");
     expect(reviewLayout).toContain("self-center");
     expect(reviewLayout).toContain("mt-[clamp(12px,6vh,72px)]");
