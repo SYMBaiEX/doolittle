@@ -314,9 +314,7 @@ export function DesktopSidebar({
         <div className={SIDEBAR_FOOTER_CLASS}>
           <div className={SIDEBAR_FOOTER_ACTIONS_CLASS}>
             <button
-              aria-current={
-                navigationView === "settings" ? "page" : undefined
-              }
+              aria-current={navigationView === "settings" ? "page" : undefined}
               aria-label="Open settings"
               className={`${SIDEBAR_ACCOUNT_CLASS}${
                 navigationView === "settings"

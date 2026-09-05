@@ -9,6 +9,7 @@ const props = {
   onClose: () => undefined,
   onKeyDown: () => undefined,
   onResize: () => undefined,
+  onViewAll: () => undefined,
   utilityDrawerWidth: 360,
   utilityRef: { current: null },
 };
@@ -26,7 +27,7 @@ describe("DesktopUtilityLayer", () => {
     expect(markup).toContain('aria-label="Activity"');
     expect(markup).toContain("Activity");
     expect(markup).toContain('aria-label="Close Activity"');
-    expect(markup).toContain('href="#/home/activity"');
+    expect(markup).toContain('type="button"');
     expect(markup).toContain(">View all<");
     expect(markup).not.toContain("Search tools");
     expect(markup).not.toContain("All Doolittle tools and settings");

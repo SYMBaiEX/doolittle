@@ -210,9 +210,7 @@ export function ChatHeaderChrome({
               aria-pressed={surface === "media"}
               className="chat-mobile-media-button secondary-button"
               onClick={() =>
-                onSurfaceChange(
-                  surface === "media" ? "conversation" : "media",
-                )
+                onSurfaceChange(surface === "media" ? "conversation" : "media")
               }
               type="button"
             >

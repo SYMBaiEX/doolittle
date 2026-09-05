@@ -65,7 +65,9 @@ describe("createTuiWidgets", () => {
     );
     expect(stub.textareas).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: " Input (Ctrl-S submit, Esc close) " }),
+        expect.objectContaining({
+          label: " Input (Ctrl-S submit, Esc close) ",
+        }),
       ]),
     );
     expect(stub.boxes).toEqual(

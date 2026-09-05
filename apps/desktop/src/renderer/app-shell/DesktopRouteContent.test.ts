@@ -38,9 +38,13 @@ describe("desktop route preloaders", () => {
   });
 
   test("registers each consolidated destination owner for every contextual alias", () => {
-    expect(DESKTOP_ROUTE_PRELOADERS.chat).toBe(DESKTOP_ROUTE_PRELOADERS.sessions);
+    expect(DESKTOP_ROUTE_PRELOADERS.chat).toBe(
+      DESKTOP_ROUTE_PRELOADERS.sessions,
+    );
     expect(DESKTOP_ROUTE_PRELOADERS.chat).toBe(DESKTOP_ROUTE_PRELOADERS.media);
-    expect(DESKTOP_ROUTE_PRELOADERS.code).toBe(DESKTOP_ROUTE_PRELOADERS.browser);
+    expect(DESKTOP_ROUTE_PRELOADERS.code).toBe(
+      DESKTOP_ROUTE_PRELOADERS.browser,
+    );
     expect(DESKTOP_ROUTE_PRELOADERS.orchestration).toBe(
       DESKTOP_ROUTE_PRELOADERS.gateway,
     );

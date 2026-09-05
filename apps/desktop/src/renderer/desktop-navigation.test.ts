@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  desktopHashForView,
   loadProjectScope,
   navigation,
   primaryViewForView,
   renderedViewForView,
-  desktopHashForView,
   resolveDesktopHash,
   sessionLabel,
-  views,
   viewFromHash,
+  views,
   workspaceName,
 } from "./desktop-navigation";
 
@@ -64,7 +64,15 @@ describe("desktop navigation descriptors", () => {
     expect(owners).toHaveLength(views.size);
     expect(owners.every((owner) => views.has(owner))).toBe(true);
     expect(new Set(owners)).toEqual(
-      new Set(["dashboard", "activity", "analytics", "chat", "code", "orchestration", "settings"]),
+      new Set([
+        "dashboard",
+        "activity",
+        "analytics",
+        "chat",
+        "code",
+        "orchestration",
+        "settings",
+      ]),
     );
   });
 
@@ -95,7 +103,7 @@ describe("desktop navigation descriptors", () => {
     ).toBe("Read package.json");
   });
 
-  it("exposes stable grouped navigation for the shell and utility drawer", () => {
+  it("exposes stable grouped navigation for the shell and command palette", () => {
     expect(navigation.map((section) => section.id)).toEqual([
       "home",
       "chat",

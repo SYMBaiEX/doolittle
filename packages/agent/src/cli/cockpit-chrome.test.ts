@@ -10,7 +10,9 @@ describe("cockpit chrome", () => {
     expect(buildCockpitBootMessage("Doolittle")).toContain(
       "Doolittle is ready.",
     );
-    expect(buildCockpitBootMessage("Doolittle")).not.toContain("cockpit online");
+    expect(buildCockpitBootMessage("Doolittle")).not.toContain(
+      "cockpit online",
+    );
     expect(buildCockpitTipMessage()).toContain("multiline input");
     expect(buildCockpitTipMessage()).not.toContain("longform");
     expect(buildCockpitWelcomeMessage()).toContain("conversation");
