@@ -20,9 +20,7 @@ import type {
   SessionForkResponse,
   SessionSummary,
 } from "../shared/contracts";
-import { ChatComposer } from "./chat/ChatComposer";
 import { ChatHeaderChrome } from "./chat/ChatHeaderChrome";
-import { ChatTranscript } from "./chat/ChatTranscript";
 import { isChatNearBottom, scheduleChatScroll } from "./chat/chat-scroll";
 import { handleFailedChatTerminalEvent } from "./chat/chat-terminal-events";
 import { addUnreadMessageIds, appendedMessageIds } from "./chat/chat-unread";
@@ -69,13 +67,11 @@ import {
   saveConversationQueue,
 } from "./conversation-persistence";
 import { desktopRequest, errorMessage } from "./lib";
-import { MediaPage } from "./MediaPage";
 import {
   freezeMemoryMatchSnapshot,
   type MemoryMatchSnapshot,
 } from "./memory-matches";
 import type { ProjectLike, ProjectScope } from "./project-manager/models";
-import { SessionsPage } from "./sessions/SessionsPage";
 
 const INSPECTOR_STORAGE_KEY = "doolittle.desktop.chat-inspector-visible.v1";
 const RUN_CURSOR_STORAGE_KEY = "doolittle.desktop.chat-run-cursors.v1";
@@ -143,6 +139,22 @@ function saveRunCursors(cursors: Record<string, number>): void {
 const ThreadWorkbenchRail = lazy(async () => {
   const module = await import("./components/ThreadWorkbenchRail");
   return { default: module.ThreadWorkbenchRail };
+});
+const ChatComposer = lazy(async () => {
+  const module = await import("./chat/ChatComposer");
+  return { default: module.ChatComposer };
+});
+const ChatTranscript = lazy(async () => {
+  const module = await import("./chat/ChatTranscript");
+  return { default: module.ChatTranscript };
+});
+const MediaPage = lazy(async () => {
+  const module = await import("./MediaPage");
+  return { default: module.MediaPage };
+});
+const SessionsPage = lazy(async () => {
+  const module = await import("./sessions/SessionsPage");
+  return { default: module.SessionsPage };
 });
 const MobileConversationsDialog = lazy(async () => {
   const module = await import("./chat/MobileConversationsDialog");
