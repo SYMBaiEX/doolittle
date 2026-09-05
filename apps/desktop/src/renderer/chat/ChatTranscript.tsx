@@ -126,6 +126,12 @@ export function ChatTranscript({
   loadingEarlierHistory = false,
   onLoadEarlier,
 }: ChatTranscriptProps) {
+  const latestMessage = messages.at(-1);
+  const latestRunReceipt = latestMessage?.id.startsWith("assistant:")
+    ? runReceipts[latestMessage.id.slice("assistant:".length)]
+    : undefined;
+  const showStandaloneProgress = Boolean(progress && !latestRunReceipt);
+
   return (
     <div
       aria-busy={loading || Boolean(activeRequest)}
@@ -205,7 +211,7 @@ export function ChatTranscript({
       ) : (
         <Welcome onSelect={onSelectPrompt} projectName={projectName} />
       )}
-      {progress ? (
+      {showStandaloneProgress ? (
         <div aria-live="polite" className="chat-progress" role="status">
           <i />
           <span>{progress}</span>
