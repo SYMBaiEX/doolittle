@@ -113,4 +113,15 @@ describe("SetupPage projections", () => {
 
     expect(selectPrimarySetupSnapshot(rows)).toEqual(rows);
   });
+
+  it("can render inside Settings without a duplicate setup page header", () => {
+    const source = readFileSync(
+      new URL("./SetupPage.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(source).toContain("embedded = false");
+    expect(source).toContain('className="settings-section-header"');
+    expect(source).toContain("data-settings-embedded={embedded || undefined}");
+  });
 });

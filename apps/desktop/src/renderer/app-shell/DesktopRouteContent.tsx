@@ -14,6 +14,10 @@ import type { DesktopNavigationIntent } from "../desktop-navigation-intent";
 import type { ApiResource } from "../lib";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
 import {
+import {
+  settingsSectionForView,
+  settingsViewForSection,
+} from "../settings/settings-sections";
   canRenderDesktopRoute,
   desktopRouteCapabilities,
 } from "./desktop-route-capabilities";
@@ -106,7 +110,8 @@ export function DesktopRouteContent({
   workspacePath,
 }: DesktopRouteContentProps): ReactNode {
   const active = canRenderDesktopRoute(view, backend.phase);
-  const Route = getDesktopRouteComponent(view);
+  const settingsSection = settingsSectionForView(view);
+  const Route = getDesktopRouteComponent(settingsSection ? "settings" : view);
   const focusScope = desktopRouteFocusScope(workspacePath, projectScope);
   const focusForScope = routeFocus.get(focusScope);
 
@@ -264,16 +269,6 @@ export function DesktopRouteContent({
         );
       case "media":
         return <Route active={active} />;
-      case "models":
-        return (
-          <Route
-            active={active}
-            refreshRuntime={refreshRuntime}
-            runtime={runtime}
-          />
-        );
-      case "connections":
-        return <Route active={active} />;
       case "tools":
         return <Route active={active} />;
       case "skills":
@@ -289,7 +284,19 @@ export function DesktopRouteContent({
       case "logs":
         return <Route active={active} />;
       case "settings":
-        return <Route active={active} />;
+      case "models":
+      case "connections":
+        return (
+          <Route
+            active={active}
+            onSectionChange={(section: string) =>
+              navigation.setView(settingsViewForSection(section))
+            }
+            refreshRuntime={refreshRuntime}
+            runtime={runtime}
+            section={settingsSection}
+          />
+        );
       case "keys":
         return <Route active={active} />;
       case "docs":

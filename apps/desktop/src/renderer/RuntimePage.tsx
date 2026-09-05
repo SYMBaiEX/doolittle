@@ -1,7 +1,7 @@
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { Tabs, TabsContent } from "@elizaos/ui/components/ui/tabs";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import type {
   AccountPoolResponse,
   PluginsResponse,
@@ -32,12 +32,67 @@ const RUNTIME_SECTIONS: Array<{
   { id: "inventory", label: "Inventory", detail: "Plugins and ecosystem" },
 ];
 
+function RuntimePageFrame({
+  children,
+  embedded,
+}: {
+  children: ReactNode;
+  embedded: boolean;
+}) {
+  if (embedded) {
+    return (
+      <div className="settings-embedded-section" data-settings-embedded="true">
+        {children}
+      </div>
+    );
+  }
+
+  return (
+    <PagePanel className={RUNTIME_PAGE_CLASS} variant="workspace">
+      {children}
+    </PagePanel>
+  );
+}
+
+function RuntimePageHeader({
+  actions,
+  embedded,
+}: {
+  actions: ReactNode;
+  embedded: boolean;
+}) {
+  if (embedded) {
+    return (
+      <header className="settings-section-header">
+        <div>
+          <span className="eyebrow">Runtime</span>
+          <h2>Runtime</h2>
+          <p>Inspect the model, services, gateway, and capabilities.</p>
+        </div>
+        {actions}
+      </header>
+    );
+  }
+
+  return (
+    <PageHeader
+      actions={actions}
+      description="Inspect the model, services, gateway, and capabilities."
+      eyebrow="Runtime"
+      title="Runtime"
+    />
+  );
+}
+
 export function RuntimePage({
   active,
+  embedded = false,
   readOnly = false,
   onOpenProviders,
 }: {
   active: boolean;
+  /** Render inside the Settings content pane without a second page frame. */
+  embedded?: boolean;
   readOnly?: boolean;
   onOpenProviders?: () => void;
 }) {
@@ -90,11 +145,8 @@ export function RuntimePage({
 
   if (!active) {
     return (
-      <PagePanel className={RUNTIME_PAGE_CLASS} variant="workspace">
-        <PageHeader
-          eyebrow="Runtime"
-          title="Runtime"
-          description="Inspect the model, services, gateway, and capabilities."
+      <RuntimePageFrame embedded={embedded}>
+        <RuntimePageHeader
           actions={
             <Button
               className="text-button"
@@ -106,21 +158,19 @@ export function RuntimePage({
               Refresh
             </Button>
           }
+          embedded={embedded}
         />
         <OfflineRouteState>
           Runtime diagnostics and capability inventory are unavailable until the
           local runtime is ready.
         </OfflineRouteState>
-      </PagePanel>
+      </RuntimePageFrame>
     );
   }
 
   return (
-    <PagePanel className={RUNTIME_PAGE_CLASS} variant="workspace">
-      <PageHeader
-        eyebrow="Runtime"
-        title="Runtime"
-        description="Inspect the model, services, gateway, and capabilities."
+    <RuntimePageFrame embedded={embedded}>
+      <RuntimePageHeader
         actions={
           <Button
             className="text-button"
@@ -133,6 +183,7 @@ export function RuntimePage({
             {RUNTIME_SECTIONS.find((entry) => entry.id === section)?.label}
           </Button>
         }
+        embedded={embedded}
       />
 
       <Tabs
@@ -171,6 +222,6 @@ export function RuntimePage({
           />
         </TabsContent>
       </Tabs>
-    </PagePanel>
+    </RuntimePageFrame>
   );
 }

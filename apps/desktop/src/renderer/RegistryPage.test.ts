@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   normalizeRegistryEntries,
@@ -109,5 +110,16 @@ describe("normalizeRegistryEntries", () => {
     expect(registryResultLabel({ count: 12, error: "", loading: false })).toBe(
       "12 results",
     );
+  });
+
+  it("can render inside Settings without duplicating the registry page frame", () => {
+    const source = readFileSync(
+      new URL("./RegistryPage.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(source).toContain("embedded = false");
+    expect(source).toContain('className="settings-section-header"');
+    expect(source).toContain("data-settings-embedded={embedded || undefined}");
   });
 });

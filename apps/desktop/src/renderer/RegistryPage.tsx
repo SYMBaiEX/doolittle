@@ -34,7 +34,14 @@ const LazyRegistryCatalogWorkspace = lazy(async () => ({
     .RegistryCatalogWorkspace,
 }));
 
-export function RegistryPage({ active }: { active: boolean }) {
+export function RegistryPage({
+  active,
+  embedded = false,
+}: {
+  active: boolean;
+  /** Render inside the Settings content pane without a second page frame. */
+  embedded?: boolean;
+}) {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query.trim());
   const [refreshRequest, setRefreshRequest] = useState<{
@@ -112,12 +119,21 @@ export function RegistryPage({ active }: { active: boolean }) {
     }
   };
   return (
-    <div className="page page-registry gap-3">
-      <PageHeader
-        eyebrow="Runtime"
-        title="Plugin registry"
-        description="Search Eliza plugins, review provenance, and approve eligible installs."
-        actions={
+    <div
+      className={
+        embedded
+          ? "settings-embedded-section gap-3"
+          : "page page-registry gap-3"
+      }
+      data-settings-embedded={embedded || undefined}
+    >
+      {embedded ? (
+        <header className="settings-section-header">
+          <div>
+            <span className="eyebrow">Runtime</span>
+            <h2>Plugin registry</h2>
+            <p>Review provenance before approving eligible installs.</p>
+          </div>
           <button
             className="text-button"
             disabled={!active}
@@ -126,8 +142,24 @@ export function RegistryPage({ active }: { active: boolean }) {
           >
             Refresh registry
           </button>
-        }
-      />
+        </header>
+      ) : (
+        <PageHeader
+          eyebrow="Runtime"
+          title="Plugin registry"
+          description="Search Eliza plugins, review provenance, and approve eligible installs."
+          actions={
+            <button
+              className="text-button"
+              disabled={!active}
+              onClick={refreshRegistry}
+              type="button"
+            >
+              Refresh registry
+            </button>
+          }
+        />
+      )}
       {active ? (
         <CatalogFilterBar
           onQueryChange={setQuery}

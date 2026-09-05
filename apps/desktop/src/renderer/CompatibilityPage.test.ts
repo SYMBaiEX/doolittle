@@ -57,8 +57,19 @@ describe("compatibilityCatalogEntries", () => {
     );
 
     expect(source).toContain("<CompatibilityEmptyState");
-    expect(source).toContain('className="page compatibility-page"');
+    expect(source).toContain('"page compatibility-page"');
     expect(layout).toContain("min-h-[52px]");
     expect(layout).toContain("grid-cols-[auto_minmax(0,1fr)_auto]");
+  });
+
+  it("can render inside Settings without a second standalone page header", () => {
+    const source = readFileSync(
+      new URL("./CompatibilityPage.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(source).toContain("embedded = false");
+    expect(source).toContain('className="settings-section-header"');
+    expect(source).toContain("data-settings-embedded={embedded || undefined}");
   });
 });

@@ -93,6 +93,14 @@ describe("desktop route preloaders", () => {
   });
 
   test("keeps Work tabs compatible with their standalone legacy routes", () => {
+  test("uses the Settings shell for canonical model and account destinations", () => {
+    expect(routeContentSource).toContain("settingsSectionForView(view)");
+    expect(routeContentSource).toContain('settingsSection ? "settings" : view');
+    expect(routeContentSource).toContain("settingsViewForSection(section)");
+    expect(routeContentSource).toContain('case "models":');
+    expect(routeContentSource).toContain('case "connections":');
+  });
+
     expect(routeContentSource).toContain('section === "review"');
     expect(routeContentSource).toContain('section === "automations"');
     expect(routeContentSource).toContain('section === "inbox"');

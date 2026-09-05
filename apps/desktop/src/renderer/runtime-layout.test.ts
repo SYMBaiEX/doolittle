@@ -43,4 +43,13 @@ describe("runtime overview layout", () => {
     );
     expect(autonomy).toContain("grid grid-cols-1 items-end gap-2");
   });
+
+  it("supports an embedded Settings presentation without another page frame", () => {
+    const runtimePage = read("./RuntimePage.tsx");
+
+    expect(runtimePage).toContain("embedded = false");
+    expect(runtimePage).toContain("RuntimePageFrame");
+    expect(runtimePage).toContain('data-settings-embedded="true"');
+    expect(runtimePage).toContain('className="settings-section-header"');
+  });
 });

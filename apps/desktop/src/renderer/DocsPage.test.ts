@@ -75,4 +75,12 @@ describe("DocsPage diagnostics projection", () => {
     expect(docsPageSource).toContain("No diagnostic results were returned.");
     expect(docsPageSource).toContain("Run again to retry the local probe.");
   });
+
+  it("can render inside Settings without repeating the standalone page header", () => {
+    expect(docsPageSource).toContain("embedded = false");
+    expect(docsPageSource).toContain('className="settings-section-header"');
+    expect(docsPageSource).toContain(
+      "data-settings-embedded={embedded || undefined}",
+    );
+  });
 });
