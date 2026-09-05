@@ -38,7 +38,7 @@ export function formatRendererDiagnostic(
   return [
     "Doolittle desktop renderer recovery report",
     `Platform: ${window.doolittle.platform}`,
-    `Route: ${window.location.hash || "#/dashboard"}`,
+    `Route: ${window.location.hash || "#/home"}`,
     `Time: ${new Date().toISOString()}`,
     "",
     stack,
@@ -82,7 +82,7 @@ export class DesktopErrorBoundary extends Component<
   };
 
   private returnHome = (): void => {
-    window.location.hash = "#/dashboard";
+    window.location.hash = "#/home";
     window.location.reload();
   };
 

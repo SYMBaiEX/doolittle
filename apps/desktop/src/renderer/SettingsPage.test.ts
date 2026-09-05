@@ -165,6 +165,16 @@ describe("settings resource policy", () => {
     );
   });
 
+  it("omits duplicate settings chrome for embedded feature categories", () => {
+    expect(settingsPageSource).toContain(
+      "const embeddedFeature = isEmbeddedSettingsFeature(category);",
+    );
+    expect(settingsPageSource).toContain("{!embeddedFeature ? (");
+    expect(settingsPageSource).toContain(
+      "!runtimeCategoryOffline && !embeddedFeature",
+    );
+  });
+
   it("keeps advanced focused on grouped runtime fields instead of duplicating other settings panels", () => {
     expect(settingsPageSource).toContain('advanced={category === "advanced"}');
     expect(settingsPageSource).not.toContain(

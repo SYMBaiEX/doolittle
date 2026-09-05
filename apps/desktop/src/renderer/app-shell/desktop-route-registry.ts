@@ -79,34 +79,19 @@ export const DashboardPage = lazyNamedRoute(
   "DashboardPage",
 );
 export const ChatPage = lazyNamedRoute(
-  ["chat"],
+  ["chat", "sessions", "media"],
   () => import("../ChatPage"),
   "ChatPage",
 );
 export const CodingWorkspacePage = lazyNamedRoute(
-  ["code"],
+  ["code", "browser"],
   () => import("../CodingWorkspacePage"),
   "CodingWorkspacePage",
 );
-export const BrowserPage = lazyNamedRoute(
-  ["browser"],
-  () => import("../BrowserPage"),
-  "BrowserPage",
-);
-export const GatewayPage = lazyNamedRoute(
-  ["gateway"],
-  () => import("../GatewayPage"),
-  "GatewayPage",
-);
 export const OrchestrationPage = lazyNamedRoute(
-  ["review", "orchestration"],
+  ["gateway", "review", "orchestration", "automations"],
   () => import("../OrchestrationPage"),
   "OrchestrationPage",
-);
-export const SessionsPage = lazyNamedRoute(
-  ["sessions"],
-  () => import("../sessions/SessionsPage"),
-  "SessionsPage",
 );
 export const AnalyticsPage = lazyNamedRoute(
   ["analytics"],
@@ -118,90 +103,26 @@ export const ActivityPage = lazyNamedRoute(
   () => import("../ActivityPage"),
   "ActivityPage",
 );
-export const MediaPage = lazyNamedRoute(
-  ["media"],
-  () => import("../MediaPage"),
-  "MediaPage",
-);
-export const MemoryPage = lazyNamedRoute(
-  ["memory"],
-  () => import("../MemoryPage"),
-  "MemoryPage",
-);
-export const ModelsPage = lazyNamedRoute(
-  ["models"],
-  () => import("../ModelsPage"),
-  "ModelsPage",
-);
-export const ConnectionsPage = lazyNamedRoute(
-  ["connections"],
-  () => import("../ConnectionsPage"),
-  "ConnectionsPage",
-);
-export const ToolsPage = lazyNamedRoute(
-  ["tools"],
-  () => import("../ToolsPage"),
-  "ToolsPage",
-);
-export const SkillsPage = lazyNamedRoute(
-  ["skills"],
-  () => import("../SkillsPage"),
-  "SkillsPage",
-);
-export const PluginsPage = lazyNamedRoute(
-  ["plugins"],
-  () => import("../PluginsPage"),
-  "PluginsPage",
-);
-export const ProfilesPage = lazyNamedRoute(
-  ["profiles"],
-  () => import("../ProfilesPage"),
-  "ProfilesPage",
-);
-export const AutomationsPage = lazyNamedRoute(
-  ["automations"],
-  () => import("../AutomationsPage"),
-  "AutomationsPage",
-);
-export const LogsPage = lazyNamedRoute(
-  ["logs"],
-  () => import("../LogsPage"),
-  "LogsPage",
-);
 export const SettingsPage = lazyNamedRoute(
-  ["settings"],
+  [
+    "settings",
+    "models",
+    "connections",
+    "tools",
+    "skills",
+    "plugins",
+    "memory",
+    "profiles",
+    "logs",
+    "keys",
+    "docs",
+    "runtime",
+    "compatibility",
+    "registry",
+    "operatorSetup",
+  ],
   () => import("../SettingsPage"),
   "SettingsPage",
-);
-export const KeysPage = lazyNamedRoute(
-  ["keys"],
-  () => import("../KeysPage"),
-  "KeysPage",
-);
-export const DocsPage = lazyNamedRoute(
-  ["docs"],
-  () => import("../DocsPage"),
-  "DocsPage",
-);
-export const RuntimePage = lazyNamedRoute(
-  ["runtime"],
-  () => import("../RuntimePage"),
-  "RuntimePage",
-);
-export const CompatibilityPage = lazyNamedRoute(
-  ["compatibility"],
-  () => import("../CompatibilityPage"),
-  "CompatibilityPage",
-);
-export const RegistryPage = lazyNamedRoute(
-  ["registry"],
-  () => import("../RegistryPage"),
-  "RegistryPage",
-);
-export const SetupPage = lazyNamedRoute(
-  ["operatorSetup"],
-  () => import("../SetupPage"),
-  "SetupPage",
 );
 
 function completeRouteLoaderRegistry(): Readonly<Record<View, RouteLoader>> {

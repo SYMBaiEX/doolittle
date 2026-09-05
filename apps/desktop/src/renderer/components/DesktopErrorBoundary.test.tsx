@@ -1,6 +1,11 @@
+// @vitest-environment jsdom
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { DesktopErrorBoundary } from "./DesktopErrorBoundary";
+import {
+  DesktopErrorBoundary,
+  formatRendererDiagnostic,
+} from "./DesktopErrorBoundary";
 
 describe("DesktopErrorBoundary recovery semantics", () => {
   it("announces the failure once without making its recovery controls assertive", () => {
@@ -21,5 +26,19 @@ describe("DesktopErrorBoundary recovery semantics", () => {
     );
     expect(markup).toContain("Reload Doolittle");
     expect(markup).toContain("Return home");
+  });
+});
+
+describe("DesktopErrorBoundary canonical recovery route", () => {
+  it("uses home as the diagnostic and recovery fallback", () => {
+    Object.defineProperty(window, "doolittle", {
+      configurable: true,
+      value: { platform: "darwin" },
+    });
+    expect(formatRendererDiagnostic(new Error("Renderer failed"))).toContain(
+      "Route: #/home",
+    );
+    expect(DesktopErrorBoundary.toString()).toContain('"#/home"');
+    expect(DesktopErrorBoundary.toString()).not.toContain('"#/dashboard"');
   });
 });

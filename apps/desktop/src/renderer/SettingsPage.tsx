@@ -359,24 +359,27 @@ export function SettingsPage({
     });
   };
   const runtimeCategoryOffline = settingsCategoryOffline(category, active);
+  const embeddedFeature = isEmbeddedSettingsFeature(category);
 
   return (
     <div className={SETTINGS_PAGE_CLASS}>
-      <PageHeader
-        eyebrow="Doolittle"
-        title="Settings"
-        description="Local preferences and runtime controls."
-        actions={
-          <button
-            className="secondary-button"
-            disabled={!resourcePolicy.settings}
-            onClick={reloadSettings}
-            type="button"
-          >
-            Reload
-          </button>
-        }
-      />
+      {!embeddedFeature ? (
+        <PageHeader
+          eyebrow="Doolittle"
+          title="Settings"
+          description="Local preferences and runtime controls."
+          actions={
+            <button
+              className="secondary-button"
+              disabled={!resourcePolicy.settings}
+              onClick={reloadSettings}
+              type="button"
+            >
+              Reload
+            </button>
+          }
+        />
+      ) : null}
       {savedMessage ? <Notice>{savedMessage}</Notice> : null}
       {active && settings.loading ? (
         <LoadingBlock label="Loading runtime configuration…" />
@@ -402,7 +405,7 @@ export function SettingsPage({
                 until the local runtime is ready.
               </OfflineRouteState>
             ) : null}
-            {!runtimeCategoryOffline ? (
+            {!runtimeCategoryOffline && !embeddedFeature ? (
               <header className={SETTINGS_CONTENT_HEADER_CLASS}>
                 <div>
                   <h2>{activeCategory?.label ?? "Settings"}</h2>

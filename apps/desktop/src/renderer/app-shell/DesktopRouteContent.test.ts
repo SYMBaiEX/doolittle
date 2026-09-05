@@ -37,6 +37,41 @@ describe("desktop route preloaders", () => {
     expect(getDesktopRouteComponent("connections")).not.toBe(before);
   });
 
+  test("registers each consolidated destination owner for every contextual alias", () => {
+    expect(DESKTOP_ROUTE_PRELOADERS.chat).toBe(DESKTOP_ROUTE_PRELOADERS.sessions);
+    expect(DESKTOP_ROUTE_PRELOADERS.chat).toBe(DESKTOP_ROUTE_PRELOADERS.media);
+    expect(DESKTOP_ROUTE_PRELOADERS.code).toBe(DESKTOP_ROUTE_PRELOADERS.browser);
+    expect(DESKTOP_ROUTE_PRELOADERS.orchestration).toBe(
+      DESKTOP_ROUTE_PRELOADERS.gateway,
+    );
+    expect(DESKTOP_ROUTE_PRELOADERS.orchestration).toBe(
+      DESKTOP_ROUTE_PRELOADERS.automations,
+    );
+    expect(DESKTOP_ROUTE_PRELOADERS.settings).toBe(
+      DESKTOP_ROUTE_PRELOADERS.connections,
+    );
+    expect(DESKTOP_ROUTE_PRELOADERS.settings).toBe(
+      DESKTOP_ROUTE_PRELOADERS.operatorSetup,
+    );
+    expect(DESKTOP_ROUTE_PRELOADERS.dashboard).not.toBe(
+      DESKTOP_ROUTE_PRELOADERS.activity,
+    );
+    expect(DESKTOP_ROUTE_PRELOADERS.dashboard).not.toBe(
+      DESKTOP_ROUTE_PRELOADERS.analytics,
+    );
+  });
+
+  test("resets the owner lazy component for every contextual alias", () => {
+    const before = getDesktopRouteComponent("sessions");
+
+    resetDesktopRoute("media");
+
+    expect(getDesktopRouteComponent("chat")).not.toBe(before);
+    expect(getDesktopRouteComponent("sessions")).toBe(
+      getDesktopRouteComponent("media"),
+    );
+  });
+
   test("warms the default resource keys for latency-sensitive routes", () => {
     expect(DESKTOP_ROUTE_RESOURCE_PREFETCHES.connections).toEqual([
       { path: "/runtime/accounts", dependencies: [true] },
