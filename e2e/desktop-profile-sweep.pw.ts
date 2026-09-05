@@ -16,6 +16,7 @@ import {
   test,
 } from "@playwright/test";
 import {
+  desktopHashForView,
   type View,
   views,
 } from "../apps/desktop/src/renderer/desktop-navigation";
@@ -522,7 +523,7 @@ async function auditResponsiveRoutes(
             timeout: 15_000,
           },
         )
-        .toEqual({ activeView: route, hash: `#/${route}` });
+        .toEqual({ activeView: route, hash: desktopHashForView(route) });
       await expect(view).toBeVisible();
       await expect(page.locator(".recovery-shell")).toHaveCount(0);
       await expect(
