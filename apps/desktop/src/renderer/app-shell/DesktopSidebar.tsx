@@ -275,8 +275,7 @@ export function DesktopSidebar({
         />
         <nav className={SIDEBAR_FOCUS_NAV_CLASS} aria-label="Primary workspace">
           <div aria-hidden="true" className={SIDEBAR_DOCK_HEADING_CLASS}>
-            <span>Operator deck</span>
-            <i>{"//"}</i>
+            <span>Workspace</span>
           </div>
           <fieldset className={SIDEBAR_MODE_SWITCH_CLASS}>
             <legend className="sr-only">Workspace modes</legend>

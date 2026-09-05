@@ -237,7 +237,7 @@ export function ChatHeaderChrome({
             type="button"
           >
             <UiIcon icon={PanelRight} size="xs" />
-            Workbench
+            Context
           </button>
         </div>
       </div>

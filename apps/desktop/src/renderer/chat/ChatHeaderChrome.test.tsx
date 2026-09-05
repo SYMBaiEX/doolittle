@@ -62,7 +62,7 @@ describe("ChatHeaderChrome", () => {
     expect(container.textContent).toContain("New conversation");
     expect(container.textContent).toContain("Code");
     expect(container.textContent).toContain("ollama · granite4.1:3b");
-    expect(container.textContent).toContain("Workbench");
+    expect(container.textContent).toContain("Context");
     expect(container.textContent).not.toContain("0 messages");
     expect(container.textContent).not.toContain("Not started");
     expect(container.textContent).not.toContain("0%");

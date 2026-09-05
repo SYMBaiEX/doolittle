@@ -60,7 +60,7 @@ describe("chat chrome density contract", () => {
       /className="chat-model-route"[\s\S]*?onOpenRouteControls/,
     );
     expect(chatHeader).toMatch(
-      /chat-mobile-conversations-button[\s\S]*?History[\s\S]*?chat-workbench-toggle[\s\S]*?Workbench/,
+      /chat-mobile-conversations-button[\s\S]*?History[\s\S]*?chat-workbench-toggle[\s\S]*?Context/,
     );
     expect(chatHeader).toContain("Chat surfaces");
     expect(chatPage).toContain('id="chat-context-history"');

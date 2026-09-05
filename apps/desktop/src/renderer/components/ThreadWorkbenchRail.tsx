@@ -133,7 +133,7 @@ export function ThreadWorkbenchRail({
 
   return (
     <aside
-      aria-label="Thread workbench"
+      aria-label="Thread context"
       className={WORKBENCH_RAIL_CLASS}
       data-thread-workbench="rail"
       style={
@@ -148,7 +148,7 @@ export function ThreadWorkbenchRail({
         }}
         className={WORKBENCH_RESIZER_CLASS}
         direction="grow-left"
-        label="Resize thread workbench"
+        label="Resize thread context"
         onResize={(railWidth) =>
           setModel((current) => ({
             ...current,
@@ -166,16 +166,16 @@ export function ThreadWorkbenchRail({
               <span>WB</span>
             </span>
             <div>
-              <span className={WORKBENCH_KICKER_CLASS}>Workbench {"//"}</span>
+              <span className={WORKBENCH_KICKER_CLASS}>Thread context</span>
               <strong>{model.workspaceName}</strong>
-              <small>Thread-bound operator surface</small>
+              <small>Files, changes, and run context</small>
             </div>
           </div>
           <button
-            aria-label="Close thread workbench"
+            aria-label="Close thread context"
             className={WORKBENCH_ICON_BUTTON_CLASS}
             onClick={onRequestClose}
-            title="Close workbench"
+            title="Close context"
             type="button"
           >
             <UiIcon icon={X} size="sm" />
@@ -201,7 +201,7 @@ export function ThreadWorkbenchRail({
           <div
             className={WORKBENCH_CONTEXT_META_CLASS}
             data-thread-workbench="status"
-            aria-label="Workbench status"
+            aria-label="Thread context status"
             role="status"
           >
             <Badge
@@ -227,7 +227,7 @@ export function ThreadWorkbenchRail({
       </header>
 
       <div
-        aria-label="Thread workbench views"
+        aria-label="Thread context views"
         className={WORKBENCH_TABS_CLASS}
         role="tablist"
       >
@@ -271,7 +271,7 @@ export function ThreadWorkbenchRail({
           {copiedLabel || `${model.environment} · ${model.lifecycle}`}
         </span>
         <button
-          aria-label="Refresh current workbench view"
+          aria-label="Refresh current context view"
           className={WORKBENCH_ICON_BUTTON_CLASS}
           onClick={refreshCurrent}
           title="Refresh"

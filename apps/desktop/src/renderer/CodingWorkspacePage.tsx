@@ -641,7 +641,7 @@ export function CodingWorkspacePage({
             </button>
           }
           description="Inspect files, changes, and workspace operations without leaving the desktop."
-          eyebrow="Agentic workspace"
+          eyebrow="Workspace"
           title="Code"
         />
         <OfflineRouteState>
@@ -659,7 +659,7 @@ export function CodingWorkspacePage({
       >
         <PageHeader
           description="Inspect files, changes, and workspace operations without leaving the desktop."
-          eyebrow="Agentic workspace"
+          eyebrow="Workspace"
           title="Code"
         />
         <EmptyBlock

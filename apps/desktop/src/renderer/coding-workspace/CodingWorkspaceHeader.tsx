@@ -61,7 +61,7 @@ export function CodingWorkspaceHeader({
             &gt;_
           </div>
           <div>
-            <span className="eyebrow">Agentic workspace</span>
+            <span className="eyebrow">Workspace</span>
             <div className={CODING_REPO_TITLE_CLASS}>
               <h1>{summary.branch || "Workspace"}</h1>
               {summary.head ? <code>{summary.head}</code> : null}
