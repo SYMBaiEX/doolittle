@@ -21,6 +21,7 @@ export function SettingsNavigation({
   const normalizedQuery = query.trim().toLowerCase();
   const visibleCategories = categories.filter(
     (entry) =>
+      entry.id === category ||
       !normalizedQuery ||
       `${entry.label} ${entry.description}`
         .toLowerCase()
@@ -41,32 +42,41 @@ export function SettingsNavigation({
           />
         </label>
       ) : null}
-      {groups.map((group) => (
-        <section
-          aria-label={group ?? "Settings"}
-          className={SETTINGS_NAV_GROUP_CLASS}
-          key={group ?? "settings"}
-        >
-          {group ? <span className="eyebrow">{group}</span> : null}
-          {visibleCategories
-            .filter((entry) => entry.group === group)
-            .map((entry) => (
-              <button
-                aria-label={`${entry.label}: ${entry.description}`}
-                className={`${SETTINGS_NAV_BUTTON_CLASS} ${
-                  category === entry.id ? "selected" : ""
-                }`}
-                key={entry.id}
-                onClick={() => onSelect(entry.id)}
-                title={entry.description}
-                aria-current={category === entry.id ? "page" : undefined}
-                type="button"
-              >
-                <strong>{entry.label}</strong>
-              </button>
-            ))}
-        </section>
-      ))}
+      {groups.map((group) => {
+        const entries = visibleCategories.filter(
+          (entry) => entry.group === group,
+        );
+        const isOpen =
+          Boolean(normalizedQuery) ||
+          entries.some((entry) => entry.id === category);
+
+        return (
+          <details
+            className={SETTINGS_NAV_GROUP_CLASS}
+            key={group ?? "settings"}
+            open={isOpen}
+          >
+            <summary>{group ?? "Settings"}</summary>
+            <div>
+              {entries.map((entry) => (
+                <button
+                  aria-label={`${entry.label}: ${entry.description}`}
+                  className={`${SETTINGS_NAV_BUTTON_CLASS} ${
+                    category === entry.id ? "selected" : ""
+                  }`}
+                  key={entry.id}
+                  onClick={() => onSelect(entry.id)}
+                  title={entry.description}
+                  aria-current={category === entry.id ? "page" : undefined}
+                  type="button"
+                >
+                  <strong>{entry.label}</strong>
+                </button>
+              ))}
+            </div>
+          </details>
+        );
+      })}
     </aside>
   );
 }

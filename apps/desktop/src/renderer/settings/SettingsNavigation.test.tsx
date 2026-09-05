@@ -22,7 +22,7 @@ describe("SettingsNavigation", () => {
     expect(markup).toContain('aria-current="page"');
   });
 
-  it("groups and filters stable settings sections", () => {
+  it("opens matching groups and keeps the active selection visible while filtering", () => {
     const markup = renderToStaticMarkup(
       <SettingsNavigation
         categories={[
@@ -42,15 +42,18 @@ describe("SettingsNavigation", () => {
         category="credentials"
         onSelect={vi.fn()}
         onQueryChange={vi.fn()}
-        query="credential"
+        query="runtime"
       />,
     );
 
-    expect(markup).toContain('aria-label="Agent"');
+    expect(markup).toContain("<details");
+    expect(markup).toContain("<summary>Agent</summary>");
+    expect(markup).toContain("<summary>Operations</summary>");
+    expect(markup.match(/<details[^>]* open=""/gu)).toHaveLength(2);
     expect(markup).toContain("settings-nav-group");
     expect(markup).toContain("settings-section-search");
     expect(markup).toContain("Search settings sections");
     expect(markup).toContain("Credentials");
-    expect(markup).not.toContain(">Logs<");
+    expect(markup).toContain("Logs");
   });
 });

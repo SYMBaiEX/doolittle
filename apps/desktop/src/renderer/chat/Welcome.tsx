@@ -7,35 +7,29 @@ export function Welcome({
 }) {
   const prompts = [
     {
-      prompt: "Review a difficult decision",
-      detail: "Pressure-test the tradeoffs",
+      prompt: "Explain this project",
+      detail: "Summarize its structure and important files",
     },
     {
-      prompt: "Plan the next piece of work",
-      detail: "Turn the ambiguity into action",
+      prompt: "Plan a change",
+      detail: "Break a feature or refactor into concrete steps",
     },
     {
-      prompt: "Investigate a technical question",
-      detail: "Trace the answer from evidence",
+      prompt: "Investigate a bug",
+      detail: "Trace a failure from evidence to a likely cause",
     },
   ];
   return (
     <div className="chat-welcome">
-      <span className="eyebrow">{"PRIVATE LOCAL RUNTIME"}</span>
-      <h1>
-        What are you
-        <br />
-        <em>working through?</em>
-      </h1>
+      <h1>Start a task</h1>
       <p>
         {projectName
-          ? `A focused conversation for ${projectName}. Project context stays attached.`
-          : "Think clearly, investigate deeply, and turn ideas into working software."}
+          ? `Doolittle will use the open ${projectName} project as context.`
+          : "Choose a coding task to give Doolittle a clear starting point."}
       </p>
       <div className="starter-grid">
-        {prompts.map(({ prompt, detail }, index) => (
+        {prompts.map(({ prompt, detail }) => (
           <button key={prompt} onClick={() => onSelect(prompt)} type="button">
-            <span>{String(index + 1).padStart(2, "0")}</span>
             <strong>{prompt}</strong>
             <small>{detail}</small>
             <UiIcon icon={ArrowUpRight} size="sm" />

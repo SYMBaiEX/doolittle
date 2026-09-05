@@ -33,6 +33,9 @@ describe("settings layout density", () => {
   it("keeps the settings rail vertical, readable, and independently sized", () => {
     expect(SETTINGS_LAYOUT_CLASS).toContain("grid-cols-[212px_minmax(0,1fr)]");
     expect(SETTINGS_NAV_GROUP_CLASS).toContain("grid");
+    expect(SETTINGS_NAV_GROUP_CLASS).toContain(
+      "max-[980px]:[&:not([open])>div]:grid",
+    );
     expect(SETTINGS_NAV_BUTTON_CLASS).toContain("w-full");
     expect(SETTINGS_NAV_BUTTON_CLASS).toContain("[&.selected]:bg-");
     expect(SETTINGS_NAV_SEARCH_CLASS).toContain("min-w-0");

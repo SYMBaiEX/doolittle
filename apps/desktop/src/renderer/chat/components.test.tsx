@@ -738,12 +738,17 @@ describe("chat presentation components", () => {
     );
   });
 
-  it("keeps the welcome prompts and project-specific copy intact", () => {
+  it("offers direct task starts with attached project context", () => {
     const html = renderToStaticMarkup(
       <Welcome onSelect={() => undefined} projectName="Doolittle" />,
     );
     expect(html).toContain('class="chat-welcome"');
-    expect(html).toContain("A focused conversation for Doolittle.");
+    expect(html).toContain("Start a task");
+    expect(html).toContain("open Doolittle project as context");
+    expect(html).toContain("Explain this project");
+    expect(html).toContain("Plan a change");
+    expect(html).toContain("Investigate a bug");
+    expect(html).not.toContain("PRIVATE LOCAL RUNTIME");
     expect(html.match(/class="starter-grid"/gu)).toHaveLength(1);
     expect(html.match(/type="button"/gu)).toHaveLength(3);
   });
@@ -935,7 +940,7 @@ describe("chat presentation components", () => {
     expect(html).not.toContain('aria-live="polite"');
     expect(html).not.toContain('aria-relevant="additions text"');
     expect(html).toContain('aria-label="Conversation"');
-    expect(html).toContain("What are you");
+    expect(html).toContain("Start a task");
   });
 
   it("marks the transcript busy while history or a live request is active", () => {
