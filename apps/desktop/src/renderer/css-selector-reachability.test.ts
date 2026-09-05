@@ -100,6 +100,10 @@ const unreachableLegacySelectors = [
   "settings-nav-title",
   "settings-nav-note",
   "review-repository-ribbon",
+  "chat-prompt-library__heading",
+  "chat-prompt-library__scope",
+  "chat-prompt-library__save",
+  "chat-prompt-library__restore",
 ] as const;
 
 const unreachableWorkspaceSelectors = [
@@ -191,7 +195,27 @@ describe("Tailwind contract reachability", () => {
     expect(elizaTailwindCss).toContain(
       '@source "../../../../node_modules/@elizaos/ui/components/composites/page-panel"',
     );
-    expect(elizaTailwindCss).toContain(
+    for (const primitive of [
+      "badge",
+      "button",
+      "checkbox",
+      "dialog",
+      "dropdown-menu",
+      "empty-state",
+      "input",
+      "label",
+      "scroll-area",
+      "select",
+      "spinner",
+      "status-badge",
+      "tabs",
+      "textarea",
+    ]) {
+      expect(elizaTailwindCss).toContain(
+        `@source "../../../../node_modules/@elizaos/ui/components/ui/${primitive}.js"`,
+      );
+    }
+    expect(elizaTailwindCss).not.toContain(
       '@source "../../../../node_modules/@elizaos/ui/components/ui"',
     );
   });

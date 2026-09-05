@@ -223,7 +223,7 @@ export function ProjectDetail({
                 key={resource.id}
               >
                 <span
-                  className={`project-manager__resource-kind project-manager__resource-kind--${resource.kind} inline-flex items-center justify-center ${resource.kind === "folder" ? "text-[var(--warn)]" : "text-[var(--accent)]"}`}
+                  className={`inline-flex items-center justify-center ${resource.kind === "folder" ? "text-[var(--warn)]" : "text-[var(--accent)]"}`}
                   aria-hidden="true"
                 >
                   <UiIcon

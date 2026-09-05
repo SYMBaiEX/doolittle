@@ -617,7 +617,7 @@ export function ChatComposer({
         </ElizaButton>
       </div>
       <div className="chat-composer-footer">
-        <div className="chat-composer-tools flex min-w-0 flex-wrap items-center gap-1.5">
+        <div className="chat-composer-tools flex items-center gap-1.5">
           <ElizaButton
             aria-label="Attach multiple files"
             aria-busy={attachmentImporting || undefined}
@@ -655,7 +655,7 @@ export function ChatComposer({
         </div>
         <div className="chat-composer-footer-right">
           <div
-            className="chat-composer-routing flex min-w-0 items-center justify-end gap-1.5"
+            className="chat-composer-routing flex items-center justify-end gap-1.5"
             data-has-project={showProjectSelector ? "true" : undefined}
           >
             {showProjectSelector &&

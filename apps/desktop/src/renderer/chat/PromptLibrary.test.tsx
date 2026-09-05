@@ -140,7 +140,7 @@ describe("PromptLibrary", () => {
     ).toBe("");
 
     const restoreButton = container.querySelector<HTMLButtonElement>(
-      ".chat-prompt-library__restore",
+      'button[title="Review this repository carefully."]',
     );
     act(() => restoreButton?.click());
     expect(

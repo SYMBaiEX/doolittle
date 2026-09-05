@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_INITIAL_STYLESHEET_BYTES,
   MAX_RENDERER_JAVASCRIPT_BYTES,
   rendererBundleBudgetFailures,
+  rendererStylesheetBudgetFailures,
 } from "./renderer-bundle-budget";
 
 const healthy = [
@@ -60,5 +62,21 @@ describe("renderer bundle budget", () => {
         ),
       ]),
     );
+  });
+
+  it("budgets the generated initial stylesheet", () => {
+    expect(
+      rendererStylesheetBudgetFailures([
+        { name: "index-hash.css", bytes: MAX_INITIAL_STYLESHEET_BYTES },
+      ]),
+    ).toEqual([]);
+    expect(rendererStylesheetBudgetFailures([])).toEqual([
+      "initial renderer stylesheet was not emitted",
+    ]);
+    expect(
+      rendererStylesheetBudgetFailures([
+        { name: "index-hash.css", bytes: MAX_INITIAL_STYLESHEET_BYTES + 1 },
+      ]),
+    ).toEqual([expect.stringContaining("initial renderer stylesheet")]);
   });
 });

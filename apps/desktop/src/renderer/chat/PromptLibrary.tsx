@@ -243,7 +243,7 @@ export function PromptLibrary({
       <button
         aria-controls="chat-prompt-library"
         aria-expanded={open}
-        className="secondary-button !min-h-[28px] rounded-[7px] px-[8px] py-[4px] text-[10px] font-semibold max-[480px]:!min-h-10 max-[480px]:px-2.5"
+        className="secondary-button !min-h-7 max-[480px]:!min-h-10"
         onClick={() => setOpen((current) => !current)}
         ref={triggerRef}
         type="button"
@@ -264,7 +264,7 @@ export function PromptLibrary({
           tabIndex={-1}
         >
           <header className="flex items-start justify-between gap-3">
-            <div className="chat-prompt-library__heading grid min-w-0 gap-0.5">
+            <div className="grid min-w-0 gap-0.5">
               <strong
                 className="text-xs font-semibold text-[var(--text)]"
                 id="chat-prompt-library-title"
@@ -309,7 +309,7 @@ export function PromptLibrary({
           {activeProject ? (
             <fieldset
               aria-label="Prompt library scope"
-              className="chat-prompt-library__scope flex gap-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] p-1"
+              className="flex gap-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] p-1"
             >
               <legend className="sr-only">Prompt library scope</legend>
               <button
@@ -330,7 +330,7 @@ export function PromptLibrary({
               </button>
             </fieldset>
           ) : null}
-          <div className="chat-prompt-library__save grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
             <ElizaInput
               aria-label="Saved prompt title"
               className="!h-8 !min-h-8 !rounded-[var(--radius-sm)] !border-[var(--border)] !bg-[var(--surface-soft)] px-2 text-[11px]"
@@ -376,7 +376,7 @@ export function PromptLibrary({
                     />
                   ) : (
                     <button
-                      className="chat-prompt-library__restore grid min-w-0 gap-0.5 border-0 bg-transparent p-0 text-left"
+                      className="grid min-w-0 gap-0.5 border-0 bg-transparent p-0 text-left"
                       onClick={() => restore(entry)}
                       title={entry.content}
                       type="button"

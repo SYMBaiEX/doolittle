@@ -26,8 +26,10 @@ describe("PluginsPage density", () => {
     );
     expect(source).toContain('label="Plugin catalog summary"');
     expect(source).toContain(
-      'className="filter-bar plugins-filter-bar grid min-w-0 grid-cols-[minmax(0,1fr)_clamp(176px,22vw,240px)]',
+      'className="plugins-filter-bar grid min-w-0 grid-cols-[minmax(0,1fr)_clamp(176px,22vw,240px)]',
     );
+    expect(source).not.toContain('className="filter-bar plugins-filter-bar');
+    expect(source).not.toContain('className="search-field plugins-filter');
     expect(source).toContain('"plugins-filter-label font-[var(--font-mono)]');
     expect(source).toContain("className={FILTER_LABEL_CLASS}");
     expect(source).toContain('id="plugin-category-label"');

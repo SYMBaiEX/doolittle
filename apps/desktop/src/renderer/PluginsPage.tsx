@@ -132,9 +132,9 @@ export function PluginsPage({
               { label: "Categories", value: categories.length - 1 },
             ]}
           />
-          <div className="filter-bar plugins-filter-bar grid min-w-0 grid-cols-[minmax(0,1fr)_clamp(176px,22vw,240px)] items-end gap-x-2.5 gap-y-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_78%,transparent)] px-2 py-1.5 max-[680px]:grid-cols-1">
+          <div className="plugins-filter-bar grid min-w-0 grid-cols-[minmax(0,1fr)_clamp(176px,22vw,240px)] items-end gap-x-2.5 gap-y-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_78%,transparent)] px-2 py-1.5 max-[680px]:grid-cols-1">
             <label
-              className="search-field plugins-filter-control plugins-filter-search grid min-w-0 grow gap-1"
+              className="plugins-filter-control plugins-filter-search grid min-w-0 gap-1"
               htmlFor="plugin-search"
             >
               <span className={FILTER_LABEL_CLASS}>Search</span>

@@ -9,4 +9,17 @@
 
 @source "../../../../node_modules/@elizaos/ui/components/accounts";
 @source "../../../../node_modules/@elizaos/ui/components/composites/page-panel";
-@source "../../../../node_modules/@elizaos/ui/components/ui";
+@source "../../../../node_modules/@elizaos/ui/components/ui/badge.js";
+@source "../../../../node_modules/@elizaos/ui/components/ui/button.js";
+@source "../../../../node_modules/@elizaos/ui/components/ui/checkbox.js";
+@source "../../../../node_modules/@elizaos/ui/components/ui/dialog.js";
+@source "../../../../node_modules/@elizaos/ui/components/ui/dropdown-menu.js";
+@source "../../../../node_modules/@elizaos/ui/components/ui/empty-state.js";
+@source "../../../../node_modules/@elizaos/ui/components/ui/input.js";
+@source "../../../../node_modules/@elizaos/ui/components/ui/label.js";
+@source "../../../../node_modules/@elizaos/ui/components/ui/scroll-area.js";
+@source "../../../../node_modules/@elizaos/ui/components/ui/select.js";
+@source "../../../../node_modules/@elizaos/ui/components/ui/spinner.js";
+@source "../../../../node_modules/@elizaos/ui/components/ui/status-badge.js";
+@source "../../../../node_modules/@elizaos/ui/components/ui/tabs.js";
+@source "../../../../node_modules/@elizaos/ui/components/ui/textarea.js";

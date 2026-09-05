@@ -172,7 +172,7 @@ export function SessionsPage({
                   setSelectedSearchSession(session);
                 }}
               />
-              <section className="detail-panel min-h-0 overflow-auto px-4 pt-3.5 [scrollbar-gutter:stable]">
+              <section className="detail-panel [scrollbar-gutter:stable]">
                 {!selected ? (
                   <EmptyBlock title="No sessions yet">
                     Your saved conversations will appear here.

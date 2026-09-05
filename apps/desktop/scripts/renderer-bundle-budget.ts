@@ -15,6 +15,7 @@ interface BundleBudget {
 }
 
 export const MAX_RENDERER_JAVASCRIPT_BYTES = 20_000_000;
+export const MAX_INITIAL_STYLESHEET_BYTES = 600_000;
 
 export const RENDERER_BUNDLE_BUDGETS: readonly BundleBudget[] = [
   {
@@ -131,13 +132,33 @@ export function rendererBundleBudgetFailures(
   return failures;
 }
 
-function collectJavaScript(directory: string): RendererBundleEntry[] {
+export function rendererStylesheetBudgetFailures(
+  entries: readonly RendererBundleEntry[],
+): string[] {
+  const initialStylesheets = entries.filter((entry) =>
+    /^index-[^.]+\.css$/u.test(entry.name),
+  );
+  if (initialStylesheets.length === 0) {
+    return ["initial renderer stylesheet was not emitted"];
+  }
+  return initialStylesheets
+    .filter((entry) => entry.bytes > MAX_INITIAL_STYLESHEET_BYTES)
+    .map(
+      (entry) =>
+        `initial renderer stylesheet ${entry.name} is ${entry.bytes} bytes; limit ${MAX_INITIAL_STYLESHEET_BYTES}`,
+    );
+}
+
+function collectAssets(
+  directory: string,
+  extension: ".css" | ".js",
+): RendererBundleEntry[] {
   const entries: RendererBundleEntry[] = [];
   const visit = (current: string) => {
     for (const item of readdirSync(current, { withFileTypes: true })) {
       const path = join(current, item.name);
       if (item.isDirectory()) visit(path);
-      else if (item.isFile() && item.name.endsWith(".js")) {
+      else if (item.isFile() && item.name.endsWith(extension)) {
         entries.push({ name: basename(path), bytes: statSync(path).size });
       }
     }
@@ -149,8 +170,12 @@ function collectJavaScript(directory: string): RendererBundleEntry[] {
 function main() {
   const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
   const assetsDir = resolve(desktopRoot, "dist/renderer/assets");
-  const entries = collectJavaScript(assetsDir);
-  const failures = rendererBundleBudgetFailures(entries);
+  const entries = collectAssets(assetsDir, ".js");
+  const stylesheets = collectAssets(assetsDir, ".css");
+  const failures = [
+    ...rendererBundleBudgetFailures(entries),
+    ...rendererStylesheetBudgetFailures(stylesheets),
+  ];
   if (failures.length > 0) {
     throw new Error(
       `Renderer bundle budget failed:\n- ${failures.join("\n- ")}`,
@@ -158,7 +183,7 @@ function main() {
   }
   const total = entries.reduce((sum, entry) => sum + entry.bytes, 0);
   console.log(
-    `Renderer bundle budget passed: ${entries.length} JavaScript assets, ${(total / 1_000_000).toFixed(2)} MB total.`,
+    `Renderer bundle budget passed: ${entries.length} JavaScript assets (${(total / 1_000_000).toFixed(2)} MB) and ${stylesheets.length} stylesheets.`,
   );
 }
 

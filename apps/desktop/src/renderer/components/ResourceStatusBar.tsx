@@ -64,11 +64,7 @@ export function ResourceStatusBar({
       {failed || children ? (
         <div className="ml-auto flex flex-wrap items-center gap-1 max-[640px]:ml-0">
           {failed && !hasCustomRetry ? (
-            <button
-              className="text-button min-h-6 px-[5px] py-0.5 text-[10px] text-[var(--accent-hover)]"
-              onClick={retry}
-              type="button"
-            >
+            <button className="text-button" onClick={retry} type="button">
               Retry failed
             </button>
           ) : null}
