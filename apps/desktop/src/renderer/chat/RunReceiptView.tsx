@@ -29,6 +29,7 @@ export function runReceiptState(receipt: RunReceipt): {
 }
 
 export function RunReceiptView({
+  pending,
   receipt,
 }: {
   pending: boolean;
@@ -53,8 +54,16 @@ export function RunReceiptView({
           latest.run.status;
 
   return (
-    <details className="group chat-run-receipt mb-0.75 overflow-hidden border-0 border-[color-mix(in_srgb,var(--border)_62%,transparent)] border-t bg-transparent whitespace-normal text-[var(--text-soft)] open:border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] open:bg-[color-mix(in_srgb,var(--surface-soft)_24%,transparent)]">
-      <summary className="grid min-h-6 cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.5 bg-transparent px-0.75 py-0.5 [&::-webkit-details-marker]:hidden">
+    <details
+      aria-live={pending ? "polite" : undefined}
+      className={`group chat-run-receipt mb-1.5 overflow-hidden rounded-[var(--radius-sm)] border whitespace-normal text-[var(--text-soft)] ${
+        pending
+          ? "border-[color-mix(in_srgb,var(--accent)_30%,var(--border))] border-l-2 border-l-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] shadow-[0_4px_16px_color-mix(in_srgb,var(--shadow)_10%,transparent)]"
+          : "border-[color-mix(in_srgb,var(--border)_62%,transparent)] bg-transparent"
+      } open:border-[color-mix(in_srgb,var(--accent)_32%,var(--border))] open:bg-[color-mix(in_srgb,var(--surface-soft)_72%,transparent)]`}
+      data-pending={pending ? "true" : "false"}
+    >
+      <summary className="grid min-h-8 cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 bg-transparent px-2.5 py-1.25 [&::-webkit-details-marker]:hidden">
         <span
           className={`chat-run-state block size-1.5 shrink-0 rounded-full ${
             state.tone === "good"
@@ -63,7 +72,7 @@ export function RunReceiptView({
                 ? "bg-[var(--warn)]"
                 : state.tone === "bad"
                   ? "bg-[var(--bad)]"
-                  : "bg-[var(--muted)]"
+                  : `bg-[var(--accent)] ${pending ? "animate-pulse motion-reduce:animate-none" : ""}`
           }`}
           aria-hidden="true"
         />

@@ -763,6 +763,41 @@ describe("chat presentation components", () => {
     expect(html.match(/<li(?:\s|>)/gu)).toHaveLength(1);
   });
 
+  it("makes an active run visibly and accessibly live", () => {
+    const working = runUpdate();
+    working.run.status = "thinking";
+    working.run.terminalReason = undefined;
+    const html = renderToStaticMarkup(
+      <RunReceiptView
+        pending
+        receipt={{ latest: working, events: [working] }}
+      />,
+    );
+
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('data-pending="true"');
+    expect(html).toContain("Working");
+    expect(html).toContain("animate-pulse");
+  });
+
+  it("uses a live working state before the first assistant token arrives", () => {
+    const html = renderToStaticMarkup(
+      <ChatMessage
+        actions={null}
+        message={{
+          content: "",
+          createdAt: "2026-08-09T10:00:01.000Z",
+          id: "assistant-pending",
+          pending: true,
+          role: "assistant",
+        }}
+      />,
+    );
+
+    expect(html).toContain('role="status"');
+    expect(html).toContain("Doolittle is working");
+  });
+
   it("labels working, terminal, and approval-required run receipts accurately", () => {
     const receipt = (overrides: Partial<DesktopRunUpdate["run"]> = {}) => ({
       latest: { ...runUpdate(), run: { ...runUpdate().run, ...overrides } },
@@ -930,6 +965,36 @@ describe("chat presentation components", () => {
 
     expect(html).toContain('aria-busy="true"');
     expect(html).toContain('aria-label="Doolittle conversation"');
+  });
+
+  it("announces meaningful runtime progress inside the transcript", () => {
+    const html = renderToStaticMarkup(
+      <ChatTranscript
+        activeRequest="run-1"
+        backendReady
+        copyStates={{}}
+        endRef={{ current: null }}
+        forkingMessageId=""
+        historyError=""
+        loading={false}
+        messages={[]}
+        onBranch={() => undefined}
+        onCopy={() => undefined}
+        onRead={() => undefined}
+        onRetryHistory={() => undefined}
+        onSelectPrompt={() => undefined}
+        onStopReading={() => undefined}
+        progress="Reading workspace files"
+        runReceipts={{}}
+        speakingMessageId=""
+        speechSupported={false}
+      />,
+    );
+
+    expect(html).toContain('class="chat-progress"');
+    expect(html).toContain('role="status"');
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain("Reading workspace files");
   });
 
   it("offers retry when conversation history is unavailable", () => {

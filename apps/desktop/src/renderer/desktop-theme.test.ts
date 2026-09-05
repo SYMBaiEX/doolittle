@@ -258,13 +258,13 @@ describe("desktop theme", () => {
     expect(storage.get("style:--page-pad-block")).toBe("16px 24px");
     expect(storage.get("style:--page-header-min-height")).toBe("56px");
     expect(storage.get("style:--page-title-size")).toBe(
-      "clamp(17px, 1.2vw, 19px)",
+      "clamp(19px, 1.35vw, 22px)",
     );
     expect(storage.get("style:--chat-welcome-title-size")).toBe(
-      "clamp(18px, 1.6vw, 21px)",
+      "clamp(22px, 2vw, 28px)",
     );
-    expect(storage.get("style:--text-body")).toBe("13px");
-    expect(storage.get("style:--text-control")).toBe("11px");
+    expect(storage.get("style:--text-body")).toBe("14px");
+    expect(storage.get("style:--text-control")).toBe("12px");
     expect(storage.get("style:--card-pad")).toBe("12px");
     expect(storage.get("style:--control-height")).toBe("32px");
 
@@ -272,13 +272,13 @@ describe("desktop theme", () => {
     expect(storage.get("style:--page-pad-block")).toBe("12px 18px");
     expect(storage.get("style:--page-header-min-height")).toBe("48px");
     expect(storage.get("style:--page-title-size")).toBe(
-      "clamp(16px, 1.1vw, 18px)",
+      "clamp(18px, 1.2vw, 20px)",
     );
     expect(storage.get("style:--chat-welcome-title-size")).toBe(
-      "clamp(17px, 1.4vw, 19px)",
+      "clamp(20px, 1.7vw, 24px)",
     );
-    expect(storage.get("style:--text-body")).toBe("12px");
-    expect(storage.get("style:--text-control")).toBe("10px");
+    expect(storage.get("style:--text-body")).toBe("13px");
+    expect(storage.get("style:--text-control")).toBe("11px");
     expect(storage.get("style:--card-pad")).toBe("10px");
     expect(storage.get("style:--control-height")).toBe("28px");
   });

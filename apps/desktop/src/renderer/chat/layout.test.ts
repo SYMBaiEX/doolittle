@@ -17,5 +17,11 @@ describe("chat layout", () => {
     expect(CHAT_WORKSPACE_CLASS).toContain(
       "[&_.chat-composer-details]:border-t",
     );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "[&_.chat-progress]:border-l-[var(--accent)]",
+    );
+    expect(CHAT_WORKSPACE_CLASS).toContain(
+      "motion-reduce:[&_.thinking]:before:animate-none",
+    );
   });
 });

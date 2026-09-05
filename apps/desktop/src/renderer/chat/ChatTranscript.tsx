@@ -206,9 +206,9 @@ export function ChatTranscript({
         <Welcome onSelect={onSelectPrompt} projectName={projectName} />
       )}
       {progress ? (
-        <div className="chat-progress">
+        <div aria-live="polite" className="chat-progress" role="status">
           <i />
-          {progress}
+          <span>{progress}</span>
         </div>
       ) : null}
       <div ref={endRef} />

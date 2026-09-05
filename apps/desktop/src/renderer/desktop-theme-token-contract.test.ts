@@ -103,7 +103,7 @@ describe("desktop theme token contract", () => {
     expect(violations).toEqual([]);
   });
 
-  it("keeps visible metadata at the shared 10px floor", () => {
+  it("keeps visible metadata at the shared readable floor", () => {
     const pixelText = /\btext-\[(\d+(?:\.\d+)?)px\]/gu;
     const violations = rendererSourceEntries().flatMap(({ path, source }) =>
       [...source.matchAll(pixelText)]
@@ -116,9 +116,9 @@ describe("desktop theme token contract", () => {
       join(RENDERER_ROOT, "desktop-theme.ts"),
       "utf8",
     );
-    expect(themeSource).toContain('"--text-meta": "10px"');
-    expect(themeSource).toContain('"--line-meta": "14px"');
-    expect(themeSource).toContain('"--line-body": "19px"');
+    expect(themeSource).toContain('"--text-meta": "11px"');
+    expect(themeSource).toContain('"--line-meta": "15px"');
+    expect(themeSource).toContain('"--line-body": "21px"');
   });
 
   it("keeps renderer surfaces on theme tokens instead of fixed Tailwind colors", () => {

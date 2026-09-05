@@ -68,7 +68,9 @@ export function ChatMessage({
             separateAgentEvents={message.role === "assistant"}
           />
         ) : message.pending && !receipt ? (
-          <span className="thinking">Thinking</span>
+          <span aria-live="polite" className="thinking" role="status">
+            Doolittle is working
+          </span>
         ) : null}
         <MessageAttachmentList attachments={message.attachments} />
         {message.role === "user" && message.contextCapsule ? (
