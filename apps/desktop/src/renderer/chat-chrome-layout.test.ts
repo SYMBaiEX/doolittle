@@ -107,6 +107,9 @@ describe("chat chrome density contract", () => {
       "max-[480px]:[&_.chat-header-top-actions]:grid",
     );
     expect(CHAT_HEADER_CONTENT_CLASS).toContain(
+      "max-[480px]:[&_.chat-header-top-actions]:grid-cols-[repeat(3,minmax(0,1fr))]",
+    );
+    expect(CHAT_HEADER_CONTENT_CLASS).toContain(
       "max-[480px]:[&_.secondary-button]:min-h-10",
     );
     expect(CHAT_HEADER_CONTENT_CLASS).toContain(
