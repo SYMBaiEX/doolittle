@@ -19,7 +19,7 @@ that code was written for it.
 - [ ] `SETTINGS-01` Consolidate models, providers, credentials, tools, skills,
   plugins, memory, profiles, registry, runtime, logs, compatibility, setup, and
   About under searchable Settings sections.
-- [ ] `WORK-01` Consolidate review, automations, and the gateway inbox into Work
+- [x] `WORK-01` Consolidate review, automations, and the gateway inbox into Work
   alongside tasks, agents, plans, and runs.
 - [ ] `CHAT-01` Consolidate sessions into Chat history and make Media a Chat
   action or contextual artifact surface.
@@ -27,9 +27,9 @@ that code was written for it.
   localhost evidence capture and send-to-chat behavior.
 - [ ] `OVERLAY-01` Present Activity as a global drawer and Help/About as an
   overlay or Settings section instead of workspace destinations.
-- [ ] `DENSITY-01` Prevent the sidebar, Tools, and Workbench from starving the
+- [x] `DENSITY-01` Prevent the sidebar, Tools, and Workbench from starving the
   primary canvas; preserve a stable History affordance in both sidebar modes.
-- [ ] `CLEANUP-01` Remove only architecture helpers proven redundant. Retain
+- [x] `CLEANUP-01` Remove only architecture helpers proven redundant. Retain
   route prefetch cancellation and project-navigation intent until their
   protected behavior has a replacement.
 - [ ] `DOCS-01` Update the desktop guide, command descriptions, screenshots, and
@@ -43,11 +43,11 @@ that code was written for it.
 
 ### 1. Navigation foundation
 
-- [ ] Introduce a typed desktop location with destination and optional section.
-- [ ] Parse both canonical nested hashes and every legacy route hash.
-- [ ] Serialize only canonical hashes for new navigation.
-- [ ] Preserve dirty-editor confirmation across destination and section changes.
-- [ ] Update command-palette, activity, project, and deep-link navigation.
+- [x] Introduce a typed desktop location with destination and optional section.
+- [x] Parse both canonical nested hashes and every legacy route hash.
+- [x] Serialize only canonical hashes for new navigation.
+- [x] Preserve dirty-editor confirmation across destination and section changes.
+- [x] Update command-palette, activity, project, and deep-link navigation.
 - [ ] Add parser, serializer, redirect, history, and dirty-navigation tests.
 
 ### 2. Settings consolidation
@@ -60,10 +60,10 @@ that code was written for it.
 
 ### 3. Work consolidation
 
-- [ ] Remove the separate Review route wrapper and keep Review as a Work tab.
-- [ ] Add Automations and Inbox tabs using the existing feature components.
-- [ ] Route dashboard approvals, task links, and activity targets to exact tabs.
-- [ ] Preserve project-scoped focus state and lazy resource activation.
+- [x] Remove the separate Review route wrapper and keep Review as a Work tab.
+- [x] Add Automations and Inbox tabs using the existing feature components.
+- [x] Route dashboard approvals, task links, and activity targets to exact tabs.
+- [x] Preserve project-scoped focus state and lazy resource activation.
 
 ### 4. Chat and Code consolidation
 
@@ -77,7 +77,7 @@ that code was written for it.
 
 - [ ] Keep Activity globally reachable without a standalone route.
 - [ ] Move Help/About to Settings and retain a direct keyboard/search action.
-- [ ] Make Tools modal or overlay before a docked Workbench would squeeze the
+- [x] Make Tools modal or overlay before a docked Workbench would squeeze the
   canvas below its usable width.
 - [ ] Close or replace competing secondary panels when context changes.
 - [ ] Verify keyboard focus return, escape behavior, narrow viewports, and
@@ -85,10 +85,10 @@ that code was written for it.
 
 ### 6. Evidence-backed cleanup
 
-- [ ] Simplify redundant route-capability fields and the tautological render
+- [x] Simplify redundant route-capability fields and the tautological render
   helper while preserving `apiRead` and `writes` behavior.
-- [ ] Delete the unused `WorkspacePages.tsx` compatibility export.
-- [ ] Replace the one-use `ProjectSidebar.tsx` barrel with direct imports.
+- [x] Delete the unused `WorkspacePages.tsx` compatibility export.
+- [x] Replace the one-use `ProjectSidebar.tsx` barrel with direct imports.
 - [ ] Re-run dependency and residual-reference scans after route wrappers leave.
 - [ ] Profile before changing route resource prefetch behavior.
 
@@ -113,4 +113,3 @@ that code was written for it.
   migration replaces all three protected flows together.
 - Legacy route hashes remain accepted for one release, but newly generated
   links use the canonical destination and section format.
-

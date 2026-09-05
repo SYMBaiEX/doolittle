@@ -15,10 +15,8 @@ import type {
   SessionSummary,
 } from "../../shared/contracts";
 import { PanelResizeHandle } from "../components/PanelResizeHandle";
-import {
-  NewConversationControl,
-  ProjectHistorySidebar,
-} from "../components/ProjectSidebar";
+import { ProjectHistorySidebar } from "../components/ProjectHistorySidebar";
+import { NewConversationControl } from "../components/ProjectSidebarControls";
 import { UiIcon } from "../components/UiIcon";
 import {
   PRIMARY_NAV_ITEMS,
