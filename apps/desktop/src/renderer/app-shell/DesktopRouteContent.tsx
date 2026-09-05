@@ -218,11 +218,15 @@ export function DesktopRouteContent({
             navigationIntent={pendingNavigationIntent}
             onAcknowledgeNavigationIntent={navigation.consumeNavigationIntent}
             onSectionChange={(section: string) => {
-              if (section === "review" && view !== "review") {
-                navigation.setView("review");
-              } else if (section !== "review" && view === "review") {
-                navigation.setView("orchestration");
-              }
+              const targetView =
+                section === "review"
+                  ? "review"
+                  : section === "automations"
+                    ? "automations"
+                    : section === "inbox"
+                      ? "gateway"
+                      : "orchestration";
+              if (targetView !== view) navigation.setView(targetView);
             }}
             onSendToChat={navigation.openChatWithContext}
             onOpenWorkspaceFile={navigation.openWorkspaceFile}

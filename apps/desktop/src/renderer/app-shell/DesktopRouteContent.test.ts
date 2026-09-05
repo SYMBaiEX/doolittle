@@ -91,4 +91,13 @@ describe("desktop route preloaders", () => {
       "const active = canRenderDesktopRoute(view, backend.phase);",
     );
   });
+
+  test("keeps Work tabs compatible with their standalone legacy routes", () => {
+    expect(routeContentSource).toContain('section === "review"');
+    expect(routeContentSource).toContain('section === "automations"');
+    expect(routeContentSource).toContain('section === "inbox"');
+    expect(routeContentSource).toContain('"automations"');
+    expect(routeContentSource).toContain('"gateway"');
+    expect(routeContentSource).toContain('"orchestration"');
+  });
 });
