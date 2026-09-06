@@ -669,10 +669,7 @@ export function OrchestrationPage({
                   }
                   if (event.key === "End") {
                     event.preventDefault();
-                    selectTab(
-                      PRIMARY_WORK_TABS.at(-1)?.id ?? "review",
-                      true,
-                    );
+                    selectTab(PRIMARY_WORK_TABS.at(-1)?.id ?? "review", true);
                   }
                 }}
               >
