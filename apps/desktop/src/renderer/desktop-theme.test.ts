@@ -255,8 +255,8 @@ describe("desktop theme", () => {
 
   it("uses density tokens for route headers, titles, cards, and controls", () => {
     applyDesktopDensity("comfortable");
-    expect(storage.get("style:--page-pad-block")).toBe("16px 24px");
-    expect(storage.get("style:--page-header-min-height")).toBe("56px");
+    expect(storage.get("style:--page-pad-block")).toBe("12px 18px");
+    expect(storage.get("style:--page-header-min-height")).toBe("48px");
     expect(storage.get("style:--page-title-size")).toBe(
       "clamp(19px, 1.35vw, 22px)",
     );
@@ -269,8 +269,8 @@ describe("desktop theme", () => {
     expect(storage.get("style:--control-height")).toBe("32px");
 
     applyDesktopDensity("compact");
-    expect(storage.get("style:--page-pad-block")).toBe("12px 18px");
-    expect(storage.get("style:--page-header-min-height")).toBe("48px");
+    expect(storage.get("style:--page-pad-block")).toBe("10px 14px");
+    expect(storage.get("style:--page-header-min-height")).toBe("40px");
     expect(storage.get("style:--page-title-size")).toBe(
       "clamp(18px, 1.2vw, 20px)",
     );

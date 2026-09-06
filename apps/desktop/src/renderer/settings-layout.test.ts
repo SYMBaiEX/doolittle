@@ -25,13 +25,13 @@ describe("settings layout density", () => {
   });
 
   it("keeps category headers, rows, and panels on the compact rhythm", () => {
-    expect(SETTINGS_CONTENT_HEADER_CLASS).toContain("min-h-10");
-    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("min-h-9");
-    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("py-1.5");
+    expect(SETTINGS_CONTENT_HEADER_CLASS).toContain("min-h-8");
+    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("min-h-8");
+    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("py-1.25");
   });
 
   it("keeps the settings rail vertical, readable, and independently sized", () => {
-    expect(SETTINGS_LAYOUT_CLASS).toContain("grid-cols-[212px_minmax(0,1fr)]");
+    expect(SETTINGS_LAYOUT_CLASS).toContain("grid-cols-[190px_minmax(0,1fr)]");
     expect(SETTINGS_NAV_GROUP_CLASS).toContain("grid");
     expect(SETTINGS_NAV_GROUP_CLASS).toContain(
       "max-[1180px]:[&:not([open])>div]:grid",

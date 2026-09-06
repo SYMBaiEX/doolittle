@@ -15,7 +15,7 @@ describe("SetupPage projections", () => {
     );
 
     expect(layout).toContain("min-h-11");
-    expect(layout).toContain("min-h-[46px]");
+    expect(layout).toContain("min-h-9");
     expect(layout).toContain("SETUP_READINESS_HEADING_CLASS");
   });
 

@@ -42,8 +42,8 @@ describe("wide route viewport density", () => {
     expect(dashboardLayout).not.toContain("mx-auto");
     expect(dashboardLayout).not.toContain("w-[min(100%,1320px)]");
     expect(dashboardLayout).toContain("max-[980px]:grid-cols-1");
-    expect(observabilityLayout).toContain("mx-auto");
-    expect(observabilityLayout).toContain("max-w-[1280px]");
+    expect(observabilityLayout).not.toContain("mx-auto");
+    expect(observabilityLayout).not.toContain("max-w-");
   });
 
   it("keeps settings compact and profile choices side by side until mobile", () => {
@@ -52,7 +52,7 @@ describe("wide route viewport density", () => {
     const profilesPage = source("./ProfilesPage.tsx");
 
     expect(settingsPage).toContain("SETTINGS_PAGE_CLASS");
-    expect(settingsLayout).toContain("grid-cols-[212px_minmax(0,1fr)]");
+    expect(settingsLayout).toContain("grid-cols-[190px_minmax(0,1fr)]");
     expect(settingsLayout).toContain("max-[1180px]:grid-cols-1");
     expect(profilesPage).toContain(
       "min-[701px]:grid-cols-[minmax(18rem,0.42fr)_minmax(0,0.58fr)]",

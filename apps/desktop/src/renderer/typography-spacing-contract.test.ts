@@ -56,7 +56,7 @@ describe("desktop typography and spacing rhythm", () => {
 
   it("keeps repeated controls and empty states dense without microtype", () => {
     expect(COMMAND_PALETTE_ITEM_CLASS).toContain("min-h-9.5");
-    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("min-h-9");
+    expect(SETTINGS_ROW_LAYOUT_CLASS).toContain("min-h-8");
     expect(SETTINGS_PAGE_CLASS).toContain(
       "[&_.settings-section-header]:min-h-8.5",
     );

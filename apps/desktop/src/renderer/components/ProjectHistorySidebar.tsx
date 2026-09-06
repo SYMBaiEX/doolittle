@@ -15,7 +15,7 @@ import {
   saveConversationPins,
 } from "../conversation-persistence";
 import type { ProjectLike, ProjectScope } from "../project-manager/models";
-import { ProjectMark, projectLocationLabel } from "./ProjectSidebarControls";
+import { ProjectMark } from "./ProjectSidebarControls";
 import {
   PROJECT_RAIL_ACTIVE_CLASS,
   PROJECT_RAIL_ALL_CLASS,
@@ -264,7 +264,6 @@ export function ProjectHistorySidebar({
             <ProjectMark project={project} />
             <span>
               <strong>{project.name}</strong>
-              <small>{projectLocationLabel(project)}</small>
             </span>
           </button>
           <button
@@ -379,7 +378,6 @@ export function ProjectHistorySidebar({
                 </span>
                 <span>
                   <strong>General</strong>
-                  <small>No repository</small>
                 </span>
               </button>
               <button

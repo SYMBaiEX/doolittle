@@ -107,6 +107,7 @@ describe("ProjectHistorySidebar", () => {
     expect(projectMain?.getAttribute("aria-current")).toBe("page");
     expect(projectMain?.getAttribute("aria-label")).toBe("Repo chats");
     expect(projectMain?.getAttribute("title")).toBe("Repo · /work/repo");
+    expect(projectMain?.querySelector("small")).toBeNull();
   });
 
   it("persists pin actions and exposes pressed state", () => {

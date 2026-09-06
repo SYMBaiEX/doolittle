@@ -37,13 +37,13 @@ export const PROJECT_RAIL_GROUP_CLASS =
 export const PROJECT_RAIL_GROUP_ACTIVE_CLASS = "is-active";
 
 export const PROJECT_RAIL_ROW_CLASS =
-  "project-rail-row grid min-h-8.5 grid-cols-[14px_minmax(0,1fr)_20px_18px] items-center gap-px rounded-[var(--radius-xs)] border border-transparent py-0.25 pr-1 pl-0.25 text-[var(--text-soft)] transition-colors hover:bg-[color-mix(in_srgb,var(--surface-hover)_62%,transparent)] hover:text-[var(--text)] [.desktop-shell.nav-collapsed_&]:min-h-10 [.desktop-shell.nav-collapsed_&]:w-10.5 [.desktop-shell.nav-collapsed_&]:grid-cols-1 [.desktop-shell.nav-collapsed_&]:place-items-center [.desktop-shell.nav-collapsed_&]:p-0";
+  "project-rail-row grid min-h-7.5 grid-cols-[14px_minmax(0,1fr)_20px_18px] items-center gap-px rounded-[var(--radius-xs)] border border-transparent py-0.25 pr-1 pl-0.25 text-[var(--text-soft)] transition-colors hover:bg-[color-mix(in_srgb,var(--surface-hover)_62%,transparent)] hover:text-[var(--text)] [.desktop-shell.nav-collapsed_&]:min-h-10 [.desktop-shell.nav-collapsed_&]:w-10.5 [.desktop-shell.nav-collapsed_&]:grid-cols-1 [.desktop-shell.nav-collapsed_&]:place-items-center [.desktop-shell.nav-collapsed_&]:p-0";
 
 export const PROJECT_RAIL_ROW_ACTIVE_CLASS =
   "bg-[color-mix(in_srgb,var(--surface-hover)_46%,transparent)] text-[var(--text)] shadow-[inset_2px_0_0_color-mix(in_srgb,var(--accent)_58%,transparent)] [.desktop-shell.nav-collapsed_&]:bg-[color-mix(in_srgb,var(--surface-hover)_42%,transparent)]";
 
 export const PROJECT_RAIL_MAIN_CLASS =
-  "project-rail-main grid min-w-0 grid-cols-[24px_minmax(0,1fr)] items-center gap-1.5 p-0 text-left text-inherit [.desktop-shell.nav-collapsed_&]:w-full [.desktop-shell.nav-collapsed_&]:grid-cols-1 [.desktop-shell.nav-collapsed_&]:place-items-center [&>span:last-child]:grid [&>span:last-child]:min-w-0 [&>span:last-child]:gap-0 [.desktop-shell.nav-collapsed_&]:[&>span:last-child]:hidden [&_strong]:truncate [&_strong]:text-[length:var(--text-control)] [&_strong]:font-semibold [&_small]:truncate [&_small]:font-[var(--font-mono)] [&_small]:text-[length:var(--text-meta)] [&_small]:leading-tight [&_small]:text-[var(--muted)]";
+  "project-rail-main grid min-w-0 grid-cols-[24px_minmax(0,1fr)] items-center gap-1.5 p-0 text-left text-inherit [.desktop-shell.nav-collapsed_&]:w-full [.desktop-shell.nav-collapsed_&]:grid-cols-1 [.desktop-shell.nav-collapsed_&]:place-items-center [&>span:last-child]:min-w-0 [.desktop-shell.nav-collapsed_&]:[&>span:last-child]:hidden [&_strong]:block [&_strong]:truncate [&_strong]:text-[length:var(--text-control)] [&_strong]:font-semibold";
 
 export const PROJECT_RAIL_MAIN_ACTIVE_CLASS =
   "[&_strong]:text-[var(--text)] [&_small]:text-[var(--text-soft)]";
