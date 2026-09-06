@@ -1,8 +1,27 @@
 import { describe, expect, test } from "vitest";
-import { shouldShowWorkResourceStatus, WORK_TABS } from "./OrchestrationPage";
+import {
+  PRIMARY_WORK_TABS,
+  SECONDARY_WORK_TABS,
+  shouldShowWorkResourceStatus,
+  WORK_TABS,
+} from "./OrchestrationPage";
 
 describe("consolidated work surface", () => {
   test("presents one lifecycle from queued work through review", () => {
+    expect(PRIMARY_WORK_TABS).toEqual([
+      { id: "tasks", label: "Queue" },
+      { id: "runs", label: "Runs" },
+      { id: "review", label: "Review" },
+    ]);
+  });
+
+  test("keeps setup and maintenance behind one secondary control", () => {
+    expect(SECONDARY_WORK_TABS).toEqual([
+      { id: "agents", label: "Agents" },
+      { id: "plans", label: "Plans" },
+      { id: "automations", label: "Automations" },
+      { id: "inbox", label: "Inbox" },
+    ]);
     expect(WORK_TABS).toEqual([
       { id: "tasks", label: "Queue" },
       { id: "runs", label: "Runs" },

@@ -61,15 +61,27 @@ export type WorkTabId =
   | "automations"
   | "inbox"
   | "review";
-export const WORK_TABS: ReadonlyArray<{ id: WorkTabId; label: string }> = [
+export const PRIMARY_WORK_TABS: ReadonlyArray<{
+  id: WorkTabId;
+  label: string;
+}> = [
   { id: "tasks", label: "Queue" },
   { id: "runs", label: "Runs" },
   { id: "review", label: "Review" },
+];
+export const SECONDARY_WORK_TABS: ReadonlyArray<{
+  id: WorkTabId;
+  label: string;
+}> = [
   { id: "agents", label: "Agents" },
   { id: "plans", label: "Plans" },
   { id: "automations", label: "Automations" },
   { id: "inbox", label: "Inbox" },
 ];
+export const WORK_TABS = [
+  ...PRIMARY_WORK_TABS,
+  ...SECONDARY_WORK_TABS,
+] as const;
 
 /** Keep healthy runtime plumbing out of the task workspace; surface only work. */
 export function shouldShowWorkResourceStatus(
@@ -144,15 +156,11 @@ export function OrchestrationPage({
   const [selectedRunId, setSelectedRunId] = useState(
     () => focusState?.selectedRunId ?? "",
   );
-  const tabRefs = useRef<Record<WorkTabId, HTMLButtonElement | null>>({
-    tasks: null,
-    agents: null,
-    plans: null,
-    runs: null,
-    automations: null,
-    inbox: null,
-    review: null,
-  });
+  const tabRefs = useRef<Partial<Record<WorkTabId, HTMLButtonElement | null>>>(
+    {},
+  );
+  const manageMenuRef = useRef<HTMLDetailsElement | null>(null);
+  const manageTriggerRef = useRef<HTMLElement | null>(null);
   const consumedNavigationIntents = useRef(new Set<string>());
 
   useEffect(() => {
@@ -543,17 +551,32 @@ export function OrchestrationPage({
     completed: completedCount,
   });
 
-  const selectTab = (tab: WorkTabId) => {
+  const selectTab = (tab: WorkTabId, focus = false) => {
     setActiveTab(tab);
     onSectionChange?.(tab);
-    requestAnimationFrame(() => tabRefs.current[tab]?.focus());
+    if (focus) requestAnimationFrame(() => tabRefs.current[tab]?.focus());
   };
 
-  const moveTab = (direction: -1 | 1) => {
-    const index = WORK_TABS.findIndex((entry) => entry.id === activeTab);
+  const movePrimaryTab = (direction: -1 | 1) => {
+    const index = PRIMARY_WORK_TABS.findIndex(
+      (entry) => entry.id === activeTab,
+    );
     const next =
-      WORK_TABS[(index + direction + WORK_TABS.length) % WORK_TABS.length];
-    selectTab(next.id);
+      PRIMARY_WORK_TABS[
+        (index + direction + PRIMARY_WORK_TABS.length) %
+          PRIMARY_WORK_TABS.length
+      ];
+    selectTab(next.id, true);
+  };
+
+  const activeSecondaryTab = SECONDARY_WORK_TABS.find(
+    (entry) => entry.id === activeTab,
+  );
+
+  const selectSecondaryTab = (tab: WorkTabId) => {
+    selectTab(tab);
+    if (manageMenuRef.current) manageMenuRef.current.open = false;
+    requestAnimationFrame(() => manageTriggerRef.current?.focus());
   };
 
   return (
@@ -610,63 +633,94 @@ export function OrchestrationPage({
       ) : null}
 
       <div className={oc("orchestration-nav-row")}>
-        <div
-          role="tablist"
-          aria-label="Orchestration sections"
-          className={oc("orchestration-tabs")}
-        >
-          {WORK_TABS.map((entry) => (
-            <button
-              key={entry.id}
-              ref={(element) => {
-                tabRefs.current[entry.id] = element;
-              }}
-              id={`orchestration-tab-${entry.id}`}
-              role="tab"
-              type="button"
-              aria-controls={`orchestration-panel-${entry.id}`}
-              aria-selected={entry.id === activeTab}
-              disabled={!active}
-              tabIndex={entry.id === activeTab ? 0 : -1}
-              className={oc(entry.id === activeTab && "selected")}
-              onClick={() => selectTab(entry.id)}
-              onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
-                if (event.key === "ArrowLeft") {
-                  event.preventDefault();
-                  moveTab(-1);
-                }
-                if (event.key === "ArrowRight") {
-                  event.preventDefault();
-                  moveTab(1);
-                }
-                if (event.key === "Home") {
-                  event.preventDefault();
-                  selectTab(WORK_TABS[0].id);
-                }
-                if (event.key === "End") {
-                  event.preventDefault();
-                  selectTab(WORK_TABS.at(-1)?.id ?? "review");
-                }
-              }}
+        <div className={oc("orchestration-nav-main")}>
+          <div
+            role="tablist"
+            aria-label="Task workflow"
+            className={oc("orchestration-tabs")}
+          >
+            {PRIMARY_WORK_TABS.map((entry) => (
+              <button
+                key={entry.id}
+                ref={(element) => {
+                  tabRefs.current[entry.id] = element;
+                }}
+                id={`orchestration-tab-${entry.id}`}
+                role="tab"
+                type="button"
+                aria-controls={`orchestration-panel-${entry.id}`}
+                aria-selected={entry.id === activeTab}
+                disabled={!active}
+                tabIndex={entry.id === activeTab ? 0 : -1}
+                className={oc(entry.id === activeTab && "selected")}
+                onClick={() => selectTab(entry.id)}
+                onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
+                  if (event.key === "ArrowLeft") {
+                    event.preventDefault();
+                    movePrimaryTab(-1);
+                  }
+                  if (event.key === "ArrowRight") {
+                    event.preventDefault();
+                    movePrimaryTab(1);
+                  }
+                  if (event.key === "Home") {
+                    event.preventDefault();
+                    selectTab(PRIMARY_WORK_TABS[0].id, true);
+                  }
+                  if (event.key === "End") {
+                    event.preventDefault();
+                    selectTab(
+                      PRIMARY_WORK_TABS.at(-1)?.id ?? "review",
+                      true,
+                    );
+                  }
+                }}
+              >
+                {entry.label}
+                {entry.id === "tasks" && tasks.length > 0 ? (
+                  <span>{tasks.length}</span>
+                ) : null}
+                {entry.id === "runs" && runs.length > 0 ? (
+                  <span>{runs.length}</span>
+                ) : null}
+                {entry.id === "review" && approvalCount > 0 ? (
+                  <span>{approvalCount}</span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+          <details
+            ref={manageMenuRef}
+            className={oc("orchestration-section-menu")}
+          >
+            <summary
+              ref={manageTriggerRef}
+              id="orchestration-tab-manage"
+              aria-current={activeSecondaryTab ? "page" : undefined}
             >
-              {entry.label}
-              {entry.id === "tasks" && tasks.length > 0 ? (
-                <span>{tasks.length}</span>
-              ) : null}
-              {entry.id === "agents" && workers.length > 0 ? (
-                <span>{workers.length}</span>
-              ) : null}
-              {entry.id === "plans" && plans.length > 0 ? (
-                <span>{plans.length}</span>
-              ) : null}
-              {entry.id === "runs" && runs.length > 0 ? (
-                <span>{runs.length}</span>
-              ) : null}
-              {entry.id === "review" && approvalCount > 0 ? (
-                <span>{approvalCount}</span>
-              ) : null}
-            </button>
-          ))}
+              {activeSecondaryTab?.label ?? "Manage"}
+            </summary>
+            <div className={oc("orchestration-section-menu__body")}>
+              {SECONDARY_WORK_TABS.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  aria-current={entry.id === activeTab ? "page" : undefined}
+                  className={oc(entry.id === activeTab && "selected")}
+                  disabled={!active}
+                  onClick={() => selectSecondaryTab(entry.id)}
+                >
+                  <span>{entry.label}</span>
+                  {entry.id === "agents" && workers.length > 0 ? (
+                    <small>{workers.length}</small>
+                  ) : null}
+                  {entry.id === "plans" && plans.length > 0 ? (
+                    <small>{plans.length}</small>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </details>
         </div>
         <div className={oc("orchestration-command-bar")}>
           {activeTab === "tasks" ? (
@@ -777,7 +831,11 @@ export function OrchestrationPage({
       <section
         id={`orchestration-panel-${activeTab}`}
         role="tabpanel"
-        aria-labelledby={`orchestration-tab-${activeTab}`}
+        aria-labelledby={
+          activeSecondaryTab
+            ? "orchestration-tab-manage"
+            : `orchestration-tab-${activeTab}`
+        }
         className={oc("orchestration-panel")}
       >
         {activeTab === "review" ? (
