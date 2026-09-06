@@ -17,6 +17,12 @@ import {
   generateMediaSpeechArtifact,
 } from "./generation";
 import { MediaInspectionSupport } from "./inspection/service";
+import {
+  listMediaLibraryAssets,
+  type MediaLibraryAsset,
+  type MediaLibraryAssetPayload,
+  readMediaLibraryAsset,
+} from "./library";
 import { buildOfflineMediaTextResponse } from "./requests/backends";
 import { executeMediaTranscription } from "./transcription";
 import type {
@@ -56,6 +62,14 @@ export class MediaService {
   bindRuntime(runtime: IAgentRuntime): void {
     this.runtime = runtime;
     this.textAnalysisPort?.bindRuntime(runtime);
+  }
+
+  listLibraryAssets(): MediaLibraryAsset[] {
+    return listMediaLibraryAssets(this.outputDir);
+  }
+
+  readLibraryAsset(id: string): MediaLibraryAssetPayload {
+    return readMediaLibraryAsset(this.outputDir, id);
   }
 
   private requestTextAnalysis(

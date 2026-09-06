@@ -2,6 +2,7 @@ import type { AppContext } from "@/runtime/bootstrap";
 import { getNativeMediaControlPlane } from "@/runtime/native/service-bridge/control-planes";
 import { readJsonObjectBody } from "@/server/request-body";
 import { json } from "@/server/responses";
+import { MediaLibraryError } from "@/services/media/library";
 
 async function readMediaBody(
   request: Request,
@@ -26,6 +27,22 @@ export async function handleMediaRoutes(
   request: Request,
   url: URL,
 ): Promise<Response | null> {
+  if (request.method === "GET" && url.pathname === "/media/library") {
+    return json({ assets: context.services.media.listLibraryAssets() });
+  }
+
+  if (request.method === "GET" && url.pathname.startsWith("/media/library/")) {
+    const id = url.pathname.slice("/media/library/".length);
+    try {
+      return json(context.services.media.readLibraryAsset(id));
+    } catch (error) {
+      if (error instanceof MediaLibraryError) {
+        return json({ error: error.message }, error.status);
+      }
+      throw error;
+    }
+  }
+
   if (request.method === "GET" && url.pathname === "/media/inspect") {
     const path = url.searchParams.get("path");
     if (!path) {

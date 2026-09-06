@@ -391,6 +391,11 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     },
     { exact: "/memory", allowedQueries: ["target"] },
     { exact: "/memory/summary", allowedQueries: ["target"] },
+    { exact: "/media/library" },
+    {
+      predicate: (pathname) =>
+        /^\/media\/library\/[a-z0-9][a-z0-9-]{0,180}$/u.test(pathname),
+    },
     { exact: "/media/inspect", allowedQueries: ["path"] },
     { exact: "/runtime/media" },
     { exact: "/secrets" },
@@ -1140,7 +1145,9 @@ export function apiResponseLimit(path: string): number {
   if (path.startsWith("/sessions/export?")) {
     return MAX_SESSION_ARCHIVE_RESPONSE_BYTES;
   }
-  return /^\/codegen\/runs\/[^/]+\/artifacts\/(?:0|[1-9]\d*)$/u.test(path)
+  return /^(?:\/codegen\/runs\/[^/]+\/artifacts\/(?:0|[1-9]\d*)|\/media\/library\/[a-z0-9][a-z0-9-]{0,180})$/u.test(
+    path,
+  )
     ? MAX_ARTIFACT_API_RESPONSE_BYTES
     : MAX_API_RESPONSE_BYTES;
 }

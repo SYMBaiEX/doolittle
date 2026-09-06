@@ -24,7 +24,13 @@ interface GenerateResponse {
   generation?: UnknownRecord;
 }
 
-export function ImageTab({ active }: { active: boolean }) {
+export function ImageTab({
+  active,
+  onAssetCreated,
+}: {
+  active: boolean;
+  onAssetCreated?: () => void;
+}) {
   const [prompt, setPrompt] = useState("");
   const [name, setName] = useState("");
   const [size, setSize] = useState("");
@@ -58,7 +64,10 @@ export function ImageTab({ active }: { active: boolean }) {
           signal,
         ),
       );
-      if (payload) setResult(payload.generation ?? {});
+      if (payload) {
+        setResult(payload.generation ?? {});
+        onAssetCreated?.();
+      }
     } catch (caught) {
       setError(errorMessage(caught));
     }

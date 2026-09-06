@@ -28,6 +28,8 @@ function createContext(): AppContext {
           captionPath: `${path}.vtt`,
           captionPreview: `caption:${path}`,
         }),
+        listLibraryAssets: () => [{ id: "asset-1" }],
+        readLibraryAsset: (id: string) => ({ id, content: "cHJldmlldw==" }),
         speakWithModel: async (
           text: string,
           options?: Record<string, unknown>,
@@ -50,6 +52,26 @@ function createContext(): AppContext {
 }
 
 describe("handleMediaRoutes", () => {
+  it("serves the generated asset library and individual previews", async () => {
+    const context = createContext();
+    const library = await handleMediaRoutes(
+      context,
+      new Request("http://localhost/media/library"),
+      new URL("http://localhost/media/library"),
+    );
+    const asset = await handleMediaRoutes(
+      context,
+      new Request("http://localhost/media/library/asset-1"),
+      new URL("http://localhost/media/library/asset-1"),
+    );
+
+    expect(await library?.json()).toEqual({ assets: [{ id: "asset-1" }] });
+    expect(await asset?.json()).toEqual({
+      id: "asset-1",
+      content: "cHJldmlldw==",
+    });
+  });
+
   it("validates required media query parameters", async () => {
     const response = await handleMediaRoutes(
       createContext(),

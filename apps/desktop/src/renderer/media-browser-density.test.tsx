@@ -8,27 +8,24 @@ import {
 import { MediaPage } from "./MediaPage";
 
 describe("media and browser workspace density", () => {
-  it("keeps one primary media workflow visible and defers optional settings", () => {
+  it("makes generated assets primary and keeps creation tools secondary", () => {
     const html = renderToStaticMarkup(<MediaPage active />);
 
-    expect(html.match(/role="tabpanel"/g)).toHaveLength(4);
-    expect(html.match(/hidden=""/g)).toHaveLength(3);
-    expect(html).toContain("Inspect file");
-    expect(html).toContain("Analysis settings");
-    expect(html).toContain(
-      'class="col-span-full mb-[11px] grid grid-cols-[minmax(0,1fr)_auto]',
-    );
-    expect(html).not.toContain("Local media");
-    expect(html).toContain('aria-labelledby="media-tab-inspect-analyze"');
-    expect(html).not.toContain("Run model analysis");
+    expect(html).toContain(">Assets<");
+    expect(html).toContain('aria-label="Asset workspace"');
+    expect(html).toContain('aria-labelledby="media-tab-library"');
+    expect(html).toContain("Generated work, in one place");
+    expect(html).toContain("durable output automatically");
+    expect(html).toContain('aria-label="Media tools"');
+    expect(html).toContain("Inspect / Analyze");
   });
 
   it("drops the standalone heading when Media is embedded in Chat", () => {
     const html = renderToStaticMarkup(<MediaPage active embedded />);
 
     expect(html).not.toContain("Operator");
-    expect(html).not.toContain(">Media<");
-    expect(html).toContain('aria-label="Media action tabs"');
+    expect(html).not.toContain(">Assets<");
+    expect(html).toContain('aria-label="Asset workspace"');
   });
 
   it("renders compact browser actions and a collapsed comparison workflow", () => {

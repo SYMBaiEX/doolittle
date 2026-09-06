@@ -308,7 +308,7 @@ export const navigation: NavigationSection[] = [
     items: [
       { id: "chat", label: "Conversation" },
       { id: "sessions", label: "History" },
-      { id: "media", label: "Media" },
+      { id: "media", label: "Assets" },
     ],
   },
   {
@@ -364,7 +364,7 @@ export const VIEW_DESCRIPTIONS: Record<View, string> = {
   sessions: "Search and inspect conversation history",
   activity: "Review deliveries, commands, and runtime events",
   analytics: "Understand local usage and activity",
-  media: "Analyze, transcribe, speak, and generate",
+  media: "Browse generated assets and open media tools",
   models: "Choose models and inference providers",
   connections: "Sign in and connect provider accounts",
   tools: "Inspect callable tools",

@@ -25,7 +25,13 @@ interface SpeakResponse {
   speech?: UnknownRecord;
 }
 
-export function SpeechTab({ active }: { active: boolean }) {
+export function SpeechTab({
+  active,
+  onAssetCreated,
+}: {
+  active: boolean;
+  onAssetCreated?: () => void;
+}) {
   const [text, setText] = useState("");
   const [name, setName] = useState("");
   const [voice, setVoice] = useState("");
@@ -59,7 +65,10 @@ export function SpeechTab({ active }: { active: boolean }) {
           signal,
         ),
       );
-      if (payload) setResult(payload.speech ?? {});
+      if (payload) {
+        setResult(payload.speech ?? {});
+        onAssetCreated?.();
+      }
     } catch (caught) {
       setError(errorMessage(caught));
     }

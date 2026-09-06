@@ -31,6 +31,9 @@ describe("apiResponseLimit", () => {
     expect(apiResponseLimit("/codegen/runs/run-123/artifacts/01")).toBe(
       2_000_000,
     );
+    expect(apiResponseLimit("/media/library/diagram-generation")).toBe(
+      8_000_000,
+    );
   });
 });
 
@@ -145,6 +148,16 @@ describe("parseApiPath", () => {
       "/chat/runs/chat:run-1",
     );
     expect(parseApiPath("/runtime/media", "GET")).toBe("/runtime/media");
+    expect(parseApiPath("/media/library", "GET")).toBe("/media/library");
+    expect(parseApiPath("/media/library/diagram-generation", "GET")).toBe(
+      "/media/library/diagram-generation",
+    );
+    expect(() => parseApiPath("/media/library/../secrets", "GET")).toThrow(
+      /not available|unsafe traversal/,
+    );
+    expect(() =>
+      parseApiPath("/media/library/diagram-generation/extra", "GET"),
+    ).toThrow(/not available/);
     expect(parseApiPath("/pairing/pending?platform=telegram", "GET")).toBe(
       "/pairing/pending?platform=telegram",
     );
