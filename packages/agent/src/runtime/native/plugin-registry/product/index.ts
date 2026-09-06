@@ -24,6 +24,7 @@ import {
   createCommandShortcut,
 } from "@/actions/command-action";
 import { createFileActions } from "@/actions/file-action";
+import { createMediaActions } from "@/actions/media-action";
 import { createRepositoryAction } from "@/actions/repository-action";
 import { createResearchAction } from "@/actions/research-action";
 import { createSessionSearchAction } from "@/actions/session-search-action";
@@ -79,6 +80,7 @@ export function createDoolittleProductPlugin(
     createShortcutCompatibleWebSearchAction(),
     webFetch,
     createResearchAction(),
+    ...createMediaActions(services),
   ]);
   const providers: Provider[] = [
     ...getSessionProviders(),

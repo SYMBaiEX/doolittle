@@ -42,6 +42,10 @@ describe("native Doolittle product plugin", () => {
         "WEB_FETCH",
         "DOOLITTLE_COMMAND",
         "DOOLITTLE_SHELL_SHORTCUT",
+        "DOOLITTLE_GENERATE_IMAGE",
+        "DOOLITTLE_GENERATE_SPEECH",
+        "DOOLITTLE_TRANSCRIBE_MEDIA",
+        "DOOLITTLE_ANALYZE_MEDIA",
       ]),
     );
     expect(

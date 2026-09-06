@@ -8,16 +8,15 @@ import {
 import { MediaPage } from "./MediaPage";
 
 describe("media and browser workspace density", () => {
-  it("makes generated assets primary and keeps creation tools secondary", () => {
+  it("keeps generated assets as a focused automatic library", () => {
     const html = renderToStaticMarkup(<MediaPage active />);
 
     expect(html).toContain(">Assets<");
-    expect(html).toContain('aria-label="Asset workspace"');
-    expect(html).toContain('aria-labelledby="media-tab-library"');
+    expect(html).toContain('aria-label="Generated assets"');
     expect(html).toContain("Generated work, in one place");
-    expect(html).toContain("durable output automatically");
-    expect(html).toContain('aria-label="Media tools"');
-    expect(html).toContain("Inspect / Analyze");
+    expect(html).toContain("native actions record");
+    expect(html).not.toContain('aria-label="Media tools"');
+    expect(html).not.toContain("Inspect / Analyze");
   });
 
   it("drops the standalone heading when Media is embedded in Chat", () => {
@@ -25,7 +24,7 @@ describe("media and browser workspace density", () => {
 
     expect(html).not.toContain("Operator");
     expect(html).not.toContain(">Assets<");
-    expect(html).toContain('aria-label="Asset workspace"');
+    expect(html).toContain('aria-label="Generated assets"');
   });
 
   it("renders compact browser actions and a collapsed comparison workflow", () => {

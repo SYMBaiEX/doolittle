@@ -101,11 +101,10 @@ export function MediaLibraryTab({
 
   return (
     <section
-      aria-labelledby="media-tab-library"
+      aria-label="Generated assets"
       className="grid min-h-0 flex-1 grid-cols-[minmax(240px,320px)_minmax(0,1fr)] overflow-hidden max-[760px]:flex max-[760px]:flex-col max-[760px]:overflow-auto"
       hidden={!active}
       id="media-panel-library"
-      role="tabpanel"
     >
       <aside className="flex min-h-0 flex-col border-r border-[var(--border)] bg-[var(--surface)] max-[760px]:max-h-[42vh] max-[760px]:min-h-64 max-[760px]:border-r-0 max-[760px]:border-b">
         <div className="grid gap-2 border-b border-[var(--border)] p-2.5">
@@ -207,8 +206,9 @@ export function MediaLibraryTab({
             <span className="eyebrow">Asset library</span>
             <h2 className="m-0 text-sm">Generated work, in one place</h2>
             <p className="m-0 text-[11px] leading-[1.55] text-[var(--muted)]">
-              Create an image or speech asset in Tools. Doolittle records its
-              prompt, model, provider, and durable output automatically.
+              Ask Doolittle in chat to create an image or recording. Its native
+              actions record the prompt, model, provider, and durable output
+              here automatically.
             </p>
           </div>
         ) : (
