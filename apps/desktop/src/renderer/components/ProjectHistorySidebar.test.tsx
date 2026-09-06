@@ -77,7 +77,7 @@ describe("ProjectHistorySidebar", () => {
     const disclosure = container.querySelector<HTMLButtonElement>(
       ".project-rail-disclosure",
     );
-    expect(disclosure?.className).toContain("size-6");
+    expect(disclosure?.className).toContain("size-5.5");
     expect(disclosure?.className).not.toContain("w-4.25");
     expect(disclosure?.getAttribute("aria-expanded")).toBe("true");
     act(() => disclosure?.click());
@@ -102,8 +102,8 @@ describe("ProjectHistorySidebar", () => {
       container.querySelector<HTMLButtonElement>(".project-rail-main");
     expect(group?.className).toContain("is-active");
     expect(group?.className).not.toContain("before:bg-[var(--accent)]");
-    expect(projectRow?.className).toContain("surface-hover)_34%");
-    expect(projectRow?.className).toContain("accent)_16%");
+    expect(projectRow?.className).toContain("surface-hover)_46%");
+    expect(projectRow?.className).toContain("inset_2px_0_0");
     expect(projectMain?.getAttribute("aria-current")).toBe("page");
     expect(projectMain?.getAttribute("aria-label")).toBe("Repo chats");
     expect(projectMain?.getAttribute("title")).toBe("Repo · /work/repo");
@@ -132,9 +132,9 @@ describe("ProjectHistorySidebar", () => {
     const chatRow = container.querySelector(".project-rail-chat-row");
     const newChat =
       container.querySelector<HTMLButtonElement>(".project-rail-new");
-    expect(pin?.className).toContain("size-6");
-    expect(chatRow?.className).toContain("grid-cols-[minmax(0,1fr)_24px]");
-    expect(newChat?.className).toContain("size-6");
+    expect(pin?.className).toContain("size-5.5");
+    expect(chatRow?.className).toContain("grid-cols-[minmax(0,1fr)_22px]");
+    expect(newChat?.className).toContain("size-5.5");
     expect(newChat?.className).toContain(
       "group-focus-within/project-row:opacity-100",
     );

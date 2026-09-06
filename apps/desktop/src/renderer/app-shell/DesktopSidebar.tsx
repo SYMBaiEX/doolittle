@@ -1,6 +1,5 @@
 import {
   ChevronRight,
-  FolderClosed,
   History,
   Moon,
   PanelLeftClose,
@@ -45,7 +44,6 @@ import {
   SIDEBAR_APPEARANCE_CLASS,
   SIDEBAR_COLLAPSE_CLASS,
   SIDEBAR_COLLAPSE_COLLAPSED_CLASS,
-  SIDEBAR_DOCK_HEADING_CLASS,
   SIDEBAR_FOCUS_NAV_CLASS,
   SIDEBAR_FOOTER_ACTIONS_CLASS,
   SIDEBAR_FOOTER_CLASS,
@@ -239,16 +237,6 @@ export function DesktopSidebar({
             <strong>Search</strong>
             <kbd>{platform === "darwin" ? "⌘K" : "Ctrl K"}</kbd>
           </button>
-          <button
-            aria-label="Choose repository for a new conversation"
-            onClick={() => void onChooseRepository()}
-            title={workspacePath || "Choose a project folder"}
-            type="button"
-          >
-            <UiIcon icon={FolderClosed} size="md" />
-            <strong>Projects</strong>
-            <kbd>{platform === "darwin" ? "⌘O" : "Ctrl O"}</kbd>
-          </button>
           {compact ? (
             <button
               aria-label="Open conversation history"
@@ -261,22 +249,7 @@ export function DesktopSidebar({
             </button>
           ) : null}
         </div>
-        <ProjectHistorySidebar
-          activeScope={projectScope}
-          onChooseRepository={onChooseRepository}
-          onManageProjects={onManageProjects}
-          onOpenSession={onOpenSession}
-          onSelectScope={onSelectScope}
-          onStartConversation={onStartConversation}
-          onViewAll={onViewAll}
-          projects={projectCards}
-          selectedSessionId={selectedSession}
-          sessions={sessions}
-        />
         <nav className={SIDEBAR_FOCUS_NAV_CLASS} aria-label="Primary workspace">
-          <div aria-hidden="true" className={SIDEBAR_DOCK_HEADING_CLASS}>
-            <span>Workspace</span>
-          </div>
           <fieldset className={SIDEBAR_MODE_SWITCH_CLASS}>
             <legend className="sr-only">Workspace modes</legend>
             {PRIMARY_NAV_ITEMS.map((item) => (
@@ -310,6 +283,18 @@ export function DesktopSidebar({
             ))}
           </fieldset>
         </nav>
+        <ProjectHistorySidebar
+          activeScope={projectScope}
+          onChooseRepository={onChooseRepository}
+          onManageProjects={onManageProjects}
+          onOpenSession={onOpenSession}
+          onSelectScope={onSelectScope}
+          onStartConversation={onStartConversation}
+          onViewAll={onViewAll}
+          projects={projectCards}
+          selectedSessionId={selectedSession}
+          sessions={sessions}
+        />
         <div className={SIDEBAR_FOOTER_CLASS}>
           <div className={SIDEBAR_FOOTER_ACTIONS_CLASS}>
             <button

@@ -171,7 +171,7 @@ export function ProjectHistorySidebar({
           const pinned = Boolean(pinnedSessions[session.sessionId]);
           return (
             <div
-              className={`project-rail-chat-row group/chat grid grid-cols-[minmax(0,1fr)_24px] items-center ${selected ? "is-selected" : ""} ${pinned ? "is-pinned" : ""}`}
+              className={`project-rail-chat-row group/chat grid grid-cols-[minmax(0,1fr)_22px] items-center ${selected ? "is-selected" : ""} ${pinned ? "is-pinned" : ""}`}
               key={session.sessionId}
             >
               <button
@@ -192,7 +192,7 @@ export function ProjectHistorySidebar({
               <button
                 aria-label={`${pinned ? "Unpin" : "Pin"} ${conversationLabel(session)}`}
                 aria-pressed={pinned}
-                className={`project-rail-chat-pin grid size-6 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--faint)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 group-hover/chat:opacity-100 group-focus-within/chat:opacity-100 ${pinned ? "text-[var(--accent)] opacity-100" : ""}`}
+                className={`project-rail-chat-pin grid size-5.5 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--faint)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 group-hover/chat:opacity-100 group-focus-within/chat:opacity-100 ${pinned ? "text-[var(--accent)] opacity-100" : ""}`}
                 onClick={() => togglePinnedSession(session.sessionId)}
                 title={pinned ? "Unpin conversation" : "Pin conversation"}
                 type="button"
@@ -240,7 +240,7 @@ export function ProjectHistorySidebar({
           <button
             aria-expanded={isExpanded}
             aria-label={`${isExpanded ? "Collapse" : "Expand"} ${project.name} chats`}
-            className="project-rail-disclosure grid size-6 place-items-center p-0 text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden [&>svg]:transition-transform [&>svg]:duration-120 motion-reduce:[&>svg]:transition-none aria-expanded:[&>svg]:rotate-90"
+            className="project-rail-disclosure grid size-5.5 place-items-center p-0 text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden [&>svg]:transition-transform [&>svg]:duration-120 motion-reduce:[&>svg]:transition-none aria-expanded:[&>svg]:rotate-90"
             onClick={() => toggleExpanded(project.id)}
             type="button"
           >
@@ -269,7 +269,7 @@ export function ProjectHistorySidebar({
           </button>
           <button
             aria-label={`New chat in ${project.name}`}
-            className="project-rail-new grid size-6 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--muted)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 group-focus-within/project-row:opacity-100 [.project-rail-row:hover_&]:opacity-100 [.desktop-shell.nav-collapsed_&]:hidden"
+            className="project-rail-new grid size-5.5 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--muted)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 group-focus-within/project-row:opacity-100 [.project-rail-row:hover_&]:opacity-100 [.desktop-shell.nav-collapsed_&]:hidden"
             onClick={() => onStartConversation(project.id)}
             title={`New chat in ${project.name}`}
             type="button"
@@ -281,7 +281,7 @@ export function ProjectHistorySidebar({
           </small>
         </div>
         {isExpanded ? (
-          <div className="project-rail-chats grid gap-px pt-0.75 pb-1.5 pl-8 [.desktop-shell.nav-collapsed_&]:hidden">
+          <div className="project-rail-chats grid gap-px pt-0.5 pb-1 pl-6.5 [.desktop-shell.nav-collapsed_&]:hidden">
             {renderSessions(chats, project.id, chatCount)}
           </div>
         ) : null}
@@ -300,7 +300,7 @@ export function ProjectHistorySidebar({
         </span>
         <div>
           <button
-            className="grid size-6.5 place-items-center rounded-[var(--radius-xs)] border border-transparent p-0 text-sm text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+            className="grid size-5.5 place-items-center rounded-[var(--radius-xs)] border border-transparent p-0 text-sm text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
             aria-label="Choose a repository"
             onClick={() => void onChooseRepository()}
             title="Choose a repository"
@@ -309,7 +309,7 @@ export function ProjectHistorySidebar({
             <UiIcon icon={Plus} size="sm" />
           </button>
           <button
-            className="grid size-6.5 place-items-center rounded-[var(--radius-xs)] border border-transparent p-0 text-sm text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&>span]:text-[length:var(--text-meta)] [&>span]:tracking-[-0.16em]"
+            className="grid size-5.5 place-items-center rounded-[var(--radius-xs)] border border-transparent p-0 text-sm text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&>span]:text-[length:var(--text-meta)] [&>span]:tracking-[-0.16em]"
             aria-label="Manage projects"
             onClick={onManageProjects}
             title="Manage projects"
@@ -329,7 +329,6 @@ export function ProjectHistorySidebar({
         <UiIcon icon={History} size="sm" />
         <span>
           <strong>All conversations</strong>
-          <em>Browse recent and pinned chats</em>
         </span>
         <small>{sessions.length}</small>
       </button>
@@ -358,7 +357,7 @@ export function ProjectHistorySidebar({
               <button
                 aria-expanded={expanded.has("unscoped")}
                 aria-label={`${expanded.has("unscoped") ? "Collapse" : "Expand"} general chats`}
-                className="project-rail-disclosure grid size-6 place-items-center p-0 text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden [&>svg]:transition-transform [&>svg]:duration-120 motion-reduce:[&>svg]:transition-none aria-expanded:[&>svg]:rotate-90"
+                className="project-rail-disclosure grid size-5.5 place-items-center p-0 text-[var(--faint)] [.desktop-shell.nav-collapsed_&]:hidden [&>svg]:transition-transform [&>svg]:duration-120 motion-reduce:[&>svg]:transition-none aria-expanded:[&>svg]:rotate-90"
                 onClick={() => toggleExpanded("unscoped")}
                 type="button"
               >
@@ -374,7 +373,7 @@ export function ProjectHistorySidebar({
               >
                 <span
                   aria-hidden="true"
-                  className="project-rail-general-mark grid size-7 shrink-0 place-items-center rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] font-[var(--font-mono)] text-[10px] font-bold text-[var(--muted)] [.desktop-shell.nav-collapsed_&]:size-6.5 [.desktop-shell.nav-collapsed_&]:rounded-[7px]"
+                  className="project-rail-general-mark grid size-6 shrink-0 place-items-center rounded-[7px] border border-[var(--border)] bg-[var(--surface-soft)] font-[var(--font-mono)] text-[length:var(--text-meta)] font-bold text-[var(--muted)] [.desktop-shell.nav-collapsed_&]:size-6.5"
                 >
                   <UiIcon icon={MessageCircle} size="sm" />
                 </span>
@@ -385,7 +384,7 @@ export function ProjectHistorySidebar({
               </button>
               <button
                 aria-label="New general chat"
-                className="project-rail-new grid size-6 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--muted)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 group-focus-within/project-row:opacity-100 [.project-rail-row:hover_&]:opacity-100 [.desktop-shell.nav-collapsed_&]:hidden"
+                className="project-rail-new grid size-5.5 place-items-center rounded-[var(--radius-xs)] p-0 text-[var(--muted)] opacity-0 hover:bg-[color-mix(in_srgb,var(--accent)_9%,var(--surface-soft))] hover:text-[var(--accent)] focus-visible:opacity-100 group-focus-within/project-row:opacity-100 [.project-rail-row:hover_&]:opacity-100 [.desktop-shell.nav-collapsed_&]:hidden"
                 onClick={() => onStartConversation("unscoped")}
                 title="New general chat"
                 type="button"
@@ -397,7 +396,7 @@ export function ProjectHistorySidebar({
               </small>
             </div>
             {expanded.has("unscoped") ? (
-              <div className="project-rail-chats grid gap-px pt-0.75 pb-1.5 pl-8 [.desktop-shell.nav-collapsed_&]:hidden">
+              <div className="project-rail-chats grid gap-px pt-0.5 pb-1 pl-6.5 [.desktop-shell.nav-collapsed_&]:hidden">
                 {renderSessions(
                   model.unscopedSessions,
                   "unscoped",

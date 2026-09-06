@@ -105,4 +105,59 @@ describe("DesktopSidebar", () => {
 
     expect(container.textContent).not.toContain("Tools & settings");
   });
+
+  it("keeps workspace modes near the primary actions without duplicating project selection", () => {
+    act(() =>
+      root.render(
+        <DesktopSidebar
+          isMobileSidebarMode={false}
+          mobileSidebarOpen={false}
+          navCollapsed={false}
+          newConversationMenuOpen={false}
+          navigationView="chat"
+          onChooseRepository={vi.fn()}
+          onClose={vi.fn()}
+          onManageProjects={vi.fn()}
+          onOpenPalette={vi.fn()}
+          onOpenSession={vi.fn()}
+          onPreloadView={vi.fn()}
+          onResize={vi.fn()}
+          onSelectScope={vi.fn()}
+          onSetNewConversationMenuOpen={vi.fn()}
+          onSetView={vi.fn()}
+          onSidebarKeyDown={vi.fn()}
+          onStartConversation={vi.fn()}
+          onToggleAppearance={vi.fn()}
+          onToggleNavigation={vi.fn()}
+          onViewAll={vi.fn()}
+          platform="darwin"
+          projectCards={[]}
+          projectScope="all"
+          resolvedAppearance="dark"
+          selectedSession=""
+          sessions={[]}
+          sidebarOpen
+          sidebarRef={{ current: null }}
+          sidebarWidth={264}
+          workspacePath="/workspace/doolittle"
+        />,
+      ),
+    );
+
+    const modeNav = container.querySelector(".sidebar-focus-nav");
+    const projects = container.querySelector(".sidebar-projects");
+    expect(
+      modeNav?.compareDocumentPosition(projects as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      container.querySelector(
+        'button[aria-label="Choose repository for a new conversation"]',
+      ),
+    ).toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Choose a repository"]'),
+    ).not.toBeNull();
+    expect(container.textContent).not.toContain("Workspace modesWorkspace");
+  });
 });
