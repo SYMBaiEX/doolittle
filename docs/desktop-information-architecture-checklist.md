@@ -1,11 +1,11 @@
 # Desktop information architecture consolidation
 
 This checklist is the durable implementation record for simplifying Doolittle
-Desktop without removing product capability. The target is five stable
-destinations: **Home**, **Chat**, **Code**, **Work**, and **Settings**. Activity
-is globally available through an Activity-only drawer and its full observability
-views live under Home; help and other short-lived surfaces are overlays or
-contextual panels.
+Desktop without removing product capability. The visible product shell has
+three stable destinations: **Chat**, **Code**, and **Settings**. Activity is a
+global drawer. Task, review, automation, inbox, dashboard, and analytics routes
+remain contextual or compatibility entry points instead of permanent modes;
+help and other short-lived surfaces are overlays or contextual panels.
 
 Update this file as implementation evidence changes. A checked item means the
 behavior exists in the current checkout and has the listed proof, not merely
@@ -18,23 +18,26 @@ that code was written for it.
 - [x] `NAV-01` Replace the flat route-first navigation model with semantic
   destinations and nested sections while preserving old hashes through
   redirects for one release.
+- [x] `NAV-02` Reduce the permanent rail to Chat and Code plus the Settings
+  footer; make the Doolittle brand return to the Chat home.
 - [x] `SETTINGS-01` Consolidate models, providers, credentials, tools, skills,
   plugins, memory, profiles, registry, runtime, logs, compatibility, setup, and
   About under searchable Settings sections.
-- [x] `WORK-01` Consolidate review, automations, and the gateway inbox into Work
-  alongside tasks, agents, plans, and runs.
+- [x] `WORK-01` Keep review, automations, the gateway inbox, tasks, agents,
+  plans, and runs in one contextual operations workspace without promoting it
+  as a permanent destination.
 - [x] `CHAT-01` Consolidate sessions into Chat history and make Media a Chat
   action or contextual artifact surface.
 - [x] `CODE-01` Consolidate browser and preview into Code while preserving
   localhost evidence capture and send-to-chat behavior.
-- [x] `OVERLAY-01` Present Activity as a global drawer (with its full views
-  nested under Home) and Help/About as an overlay or Settings section instead
-  of workspace destinations.
+- [x] `OVERLAY-01` Present Activity as the global activity surface and
+  Help/About as an overlay or Settings section instead of workspace
+  destinations.
 - [x] `SURFACE-01` Keep the responsive drawer shell Activity-only: its literal
-  Activity heading, close control, Activity Center, and `#/home/activity`
-  full-view link are the entire surface.
-- [x] `OWNER-01` Keep ActivityPage and AnalyticsPage as separate Home route
-  owners; Activity drawer navigation does not own or enumerate destinations.
+  Activity heading, close control, and expandable Activity Center are the
+  entire surface.
+- [x] `OWNER-01` Retain ActivityPage and AnalyticsPage only as compatibility
+  route owners; the Activity drawer does not own or enumerate destinations.
 - [x] `DENSITY-01` Prevent the sidebar, Activity drawer, and Workbench from starving the
   primary canvas; preserve a stable History affordance in both sidebar modes.
 - [x] `CLEANUP-01` Delete the generic UtilityDrawer and its persisted expanded
@@ -85,7 +88,7 @@ that code was written for it.
 
 ### 5. Overlays and shell density
 
-- [x] Keep Activity globally reachable while nesting its full view under Home.
+- [x] Keep Activity globally reachable in one expandable drawer.
 - [x] Move Help/About to Settings and retain a direct keyboard/search action.
 - [x] Make Activity modal or overlay before a docked Workbench would squeeze the
   canvas below its usable width.
@@ -108,8 +111,8 @@ that code was written for it.
 
 - [x] Run the focused desktop navigation and layout tests.
 - [x] Run every repository gate listed in `AGENTS.md`.
-- [x] Exercise Home, Chat, Code, Work, Settings, legacy links, offline Settings,
-  and narrow layouts in the built application.
+- [x] Exercise Chat, Code, Settings, contextual operations, legacy links,
+  offline Settings, and narrow layouts in the built application.
 - [x] Package and install the macOS application from the verified checkout.
 - [x] Record remaining external-only or manual checks explicitly.
 

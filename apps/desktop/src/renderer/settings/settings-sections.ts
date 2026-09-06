@@ -25,7 +25,13 @@ export interface SettingsShellSectionDefinition {
   id: SettingsShellSection;
   label: string;
   description: string;
-  group: "Preferences" | "Agent" | "Operations";
+  group:
+    | "Appearance & desktop"
+    | "Models & accounts"
+    | "Capabilities"
+    | "Personalization"
+    | "Runtime & diagnostics"
+    | "Setup & support";
 }
 
 /**
@@ -39,109 +45,109 @@ export const SETTINGS_SHELL_SECTIONS: readonly SettingsShellSectionDefinition[] 
       id: "appearance",
       label: "Appearance",
       description: "Theme and display",
-      group: "Preferences",
+      group: "Appearance & desktop",
     },
     {
       id: "desktop",
       label: "Desktop",
       description: "Updates and lifecycle",
-      group: "Preferences",
-    },
-    {
-      id: "execution",
-      label: "Execution",
-      description: "Permissions and tools",
-      group: "Preferences",
-    },
-    {
-      id: "advanced",
-      label: "Advanced",
-      description: "Every runtime field",
-      group: "Preferences",
+      group: "Appearance & desktop",
     },
     {
       id: "model",
       label: "Models",
       description: "Models and inference",
-      group: "Agent",
+      group: "Models & accounts",
     },
     {
       id: "accounts",
       label: "Providers & accounts",
       description: "Sign in and manage provider accounts",
-      group: "Agent",
+      group: "Models & accounts",
     },
     {
       id: "credentials",
       label: "Credentials",
       description: "API keys and credentials",
-      group: "Agent",
+      group: "Models & accounts",
     },
     {
       id: "tools",
       label: "Tools",
       description: "Installed tools",
-      group: "Agent",
+      group: "Capabilities",
     },
     {
       id: "skills",
       label: "Skills",
       description: "Agent skills",
-      group: "Agent",
+      group: "Capabilities",
     },
     {
       id: "plugins",
       label: "Plugins",
       description: "Installed plugins",
-      group: "Agent",
+      group: "Capabilities",
     },
     {
       id: "memory",
       label: "Memory",
       description: "Stored memory",
-      group: "Agent",
+      group: "Personalization",
     },
     {
       id: "profiles",
       label: "Profiles",
       description: "Agent profiles",
-      group: "Agent",
+      group: "Personalization",
+    },
+    {
+      id: "execution",
+      label: "Execution",
+      description: "Permissions and tools",
+      group: "Runtime & diagnostics",
+    },
+    {
+      id: "advanced",
+      label: "Advanced",
+      description: "Every runtime field",
+      group: "Runtime & diagnostics",
     },
     {
       id: "logs",
       label: "Logs",
       description: "Runtime logs",
-      group: "Operations",
+      group: "Runtime & diagnostics",
     },
     {
       id: "runtime",
       label: "Runtime",
       description: "Runtime status and autonomy",
-      group: "Operations",
+      group: "Runtime & diagnostics",
     },
     {
       id: "compatibility",
       label: "Compatibility",
       description: "Compatibility diagnostics",
-      group: "Operations",
+      group: "Runtime & diagnostics",
     },
     {
       id: "registry",
       label: "Registry",
       description: "Registry and package sources",
-      group: "Operations",
+      group: "Setup & support",
     },
     {
       id: "setup",
       label: "Setup",
       description: "Operator setup",
-      group: "Operations",
+      group: "Setup & support",
     },
     {
       id: "about",
       label: "About",
       description: "Docs and support",
-      group: "Operations",
+      group: "Setup & support",
     },
   ];
 

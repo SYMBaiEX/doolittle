@@ -221,7 +221,7 @@ export function SettingsPage({
             : value === "execution"
               ? "Permissions and tools"
               : "Runtime preferences",
-        group: "Runtime",
+        group: "Runtime & diagnostics",
       })),
   ];
   const fieldCategory =

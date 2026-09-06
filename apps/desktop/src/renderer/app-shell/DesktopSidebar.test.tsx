@@ -73,11 +73,12 @@ describe("DesktopSidebar", () => {
     const modeSwitch = container.querySelector(".sidebar-mode-switch");
     expect(modeSwitch?.className).toContain("nav-collapsed_&]:grid-cols-1");
 
-    for (const label of ["Chat", "Code", "Tasks"]) {
+    for (const label of ["Chat", "Code"]) {
       expect(
         container.querySelector(`button[aria-label="${label}"]`),
       ).not.toBeNull();
     }
+    expect(container.querySelector('button[aria-label="Tasks"]')).toBeNull();
     expect(
       container.querySelector("button[aria-label='Open conversation history']"),
     ).not.toBeNull();
@@ -97,10 +98,10 @@ describe("DesktopSidebar", () => {
     expect(onViewAll).toHaveBeenCalledOnce();
 
     const home = container.querySelector<HTMLButtonElement>(
-      "button[aria-label='Go to Home']",
+      "button[aria-label='Go to Chat home']",
     );
     act(() => home?.click());
-    expect(onSetView).toHaveBeenCalledWith("dashboard");
+    expect(onSetView).toHaveBeenCalledWith("chat");
 
     expect(container.textContent).not.toContain("Tools & settings");
   });

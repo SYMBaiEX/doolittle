@@ -182,10 +182,10 @@ export function DesktopSidebar({
           }`}
         >
           <button
-            aria-label="Go to Home"
+            aria-label="Go to Chat home"
             className={APP_BRAND_HOME_CLASS}
-            onClick={() => onSetView("dashboard")}
-            title="Home"
+            onClick={() => onSetView("chat")}
+            title="Chat home"
             type="button"
           >
             <span className={APP_BRAND_MARK_CLASS} aria-hidden="true">

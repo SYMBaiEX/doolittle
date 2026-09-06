@@ -94,6 +94,19 @@ describe("settings resource policy", () => {
     );
   });
 
+  it("groups detailed settings into six operator-facing areas", () => {
+    expect([
+      ...new Set(SETTINGS_SHELL_SECTIONS.map((section) => section.group)),
+    ]).toEqual([
+      "Appearance & desktop",
+      "Models & accounts",
+      "Capabilities",
+      "Personalization",
+      "Runtime & diagnostics",
+      "Setup & support",
+    ]);
+  });
+
   it("loads embedded feature panels behind accessible suspense boundaries", () => {
     expect(settingsPageSource).toContain("import { Suspense");
     expect(settingsPageSource).toContain("fallback={<LoadingBlock");

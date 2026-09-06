@@ -47,11 +47,9 @@ imitating a stream through this adapter.
 
 ## Operator surfaces
 
-The desktop organizes everyday agent work around five stable destinations while
-keeping Doolittle's native runtime and cross-platform Electron boundary:
+The desktop organizes everyday agent work around three stable destinations
+while keeping Doolittle's native runtime and cross-platform Electron boundary:
 
-- **Home:** runtime and repository readiness, recent work, approvals, plus
-  gateways to the complete Activity and Insights sections.
 - **Chat:** streaming conversations, searchable history, queued follow-up
   messages, managed attachments, inline tool/action/mutation receipts, and
   contextual media tools. Conversation, History, and Media share one mounted
@@ -61,22 +59,25 @@ keeping Doolittle's native runtime and cross-platform Electron boundary:
   responsive widths and structured browser evidence. Code and Preview share
   one mounted workspace and the persistent terminal remains available across
   destinations.
-- **Work:** tasks, agents, plans, build/research runs, automations, gateway
-  Inbox, human-in-the-loop Review, and secure generated-artifact viewers.
-  Coding tasks start only from an active, selected Git worktree: the desktop
-  verifies its branch with the local runtime, creates the official Eliza
-  orchestrator task, starts its ACP session, and carries the resulting session
-  receipt into Queue and branch context into Review. Retried launch requests
-  reuse their durable task instead of starting another session.
 - **Settings:** appearance and desktop preferences, models, provider accounts,
   credentials, tools, skills, plugins, memory, profiles, filtered logs, runtime
   and compatibility diagnostics, registry search, setup, and About. Its
   searchable section rail replaces separate top-level capability pages while
   legacy links remain accepted for one compatibility release.
 
-The default Home surface is a live mission-control view over runtime health,
-repository state, setup readiness, recent sessions, pending approvals, and
-delegated work. A persistent status strip and `Cmd/Ctrl+K` palette keep
+Activity is a global drawer rather than a destination. Tasks, agents, plans,
+build/research runs, automations, gateway Inbox, human review, dashboards, and
+analytics remain available as contextual drill-downs from Chat, Code, Activity,
+search, and notifications. Coding tasks still start only from an active,
+selected Git worktree: the desktop verifies its branch with the local runtime,
+creates the official Eliza orchestrator task, starts its ACP session, and
+carries the session receipt into run details and branch context into Review.
+Retried launch requests reuse their durable task instead of starting another
+session.
+
+The default surface is Chat: the project rail and conversation history provide
+new/resume work without an intermediate dashboard. A persistent status strip,
+the global Activity drawer, and the `Cmd/Ctrl+K` palette keep
 workspace, destination, tasks, approvals, conversations, files, and logs
 reachable without expanding the Settings rail. Chat includes an in-context
 provider switcher for local and linked providers. Native completion notifications are shown only
@@ -398,8 +399,9 @@ fails closed on a missing, empty, stale, or mismatched input. Run
 `nub run desktop:runtime:install` before a source package build when Electron's
 local distribution has not yet been downloaded.
 
-Capture full-page visual evidence for the five destinations, their canonical
-sections, and compatibility links at deterministic desktop and narrow widths:
+Capture full-page visual evidence for the three visible destinations, their
+contextual surfaces, and compatibility links at deterministic desktop and
+narrow widths:
 
 ```bash
 nub run test:e2e:desktop-visual

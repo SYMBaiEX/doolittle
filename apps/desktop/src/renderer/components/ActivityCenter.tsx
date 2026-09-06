@@ -66,7 +66,7 @@ const TARGET_LABELS: Record<ActivityCenterTarget, string> = {
   chat: "Open chat",
   review: "Open review",
   automations: "Open automations",
-  orchestration: "Open tasks",
+  orchestration: "Open run details",
   terminal: "Open workspace",
   workspace: "Open workspace",
   codegen: "Open code generation",

@@ -30,13 +30,13 @@ describe("SettingsNavigation", () => {
             id: "credentials",
             label: "Credentials",
             description: "API keys and credentials",
-            group: "Agent",
+            group: "Models & accounts",
           },
           {
             id: "logs",
             label: "Logs",
             description: "Runtime logs",
-            group: "Operations",
+            group: "Runtime & diagnostics",
           },
         ]}
         category="credentials"
@@ -47,8 +47,8 @@ describe("SettingsNavigation", () => {
     );
 
     expect(markup).toContain("<details");
-    expect(markup).toContain("<summary>Agent</summary>");
-    expect(markup).toContain("<summary>Operations</summary>");
+    expect(markup).toContain("<summary>Models &amp; accounts</summary>");
+    expect(markup).toContain("<summary>Runtime &amp; diagnostics</summary>");
     expect(markup.match(/<details[^>]* open=""/gu)).toHaveLength(2);
     expect(markup).toContain("settings-nav-group");
     expect(markup).toContain("settings-section-search");

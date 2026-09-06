@@ -87,10 +87,11 @@ describe("desktop command groups", () => {
 
     expect(groups.some((group) => group.id === "workspaces")).toBe(true);
     expect(
-      ["home", "chat", "code", "work", "settings"].every((id) =>
+      ["chat", "code", "work", "settings"].every((id) =>
         groups.some((group) => group.id === id),
       ),
     ).toBe(true);
+    expect(groups.some((group) => group.id === "home")).toBe(false);
     expect(terminal?.shortcuts).toEqual(["⌘ J"]);
     terminal?.onSelect?.(terminal);
     expect(onToggleTerminal).toHaveBeenCalledOnce();

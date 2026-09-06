@@ -3,6 +3,7 @@ import {
   desktopHashForView,
   loadProjectScope,
   navigation,
+  PRIMARY_NAV_ITEMS,
   primaryViewForView,
   renderedViewForView,
   resolveDesktopHash,
@@ -104,6 +105,10 @@ describe("desktop navigation descriptors", () => {
   });
 
   it("exposes stable grouped navigation for the shell and command palette", () => {
+    expect(PRIMARY_NAV_ITEMS.map((item) => item.label)).toEqual([
+      "Chat",
+      "Code",
+    ]);
     expect(navigation.map((section) => section.id)).toEqual([
       "home",
       "chat",
@@ -122,9 +127,9 @@ describe("desktop navigation descriptors", () => {
       { id: "analytics", label: "Insights" },
     ]);
     expect(navigation.find((section) => section.id === "work")).toMatchObject({
-      label: "Tasks",
+      label: "Operations",
       items: [
-        { id: "orchestration", label: "Tasks" },
+        { id: "orchestration", label: "Runs" },
         { id: "review", label: "Review" },
         { id: "automations", label: "Automations" },
         { id: "gateway", label: "Inbox" },

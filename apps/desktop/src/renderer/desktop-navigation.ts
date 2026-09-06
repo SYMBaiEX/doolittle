@@ -98,8 +98,8 @@ interface DesktopRouteLocation extends DesktopLocation {
 
 /**
  * Compatibility boundary between the former page-per-capability model and the
- * destination-first desktop. Internal feature pages remain lazy while links,
- * history, and navigation expose only five stable destinations.
+ * destination-first desktop. Internal feature pages remain lazy while the
+ * visible shell stays focused on Chat, Code, and Settings.
  */
 export const DESKTOP_ROUTE_LOCATIONS: Readonly<
   Record<View, DesktopRouteLocation>
@@ -321,9 +321,9 @@ export const navigation: NavigationSection[] = [
   },
   {
     id: "work",
-    label: "Tasks",
+    label: "Operations",
     items: [
-      { id: "orchestration", label: "Tasks" },
+      { id: "orchestration", label: "Runs" },
       { id: "review", label: "Review" },
       { id: "automations", label: "Automations" },
       { id: "gateway", label: "Inbox" },
@@ -364,7 +364,7 @@ export const VIEW_DESCRIPTIONS: Record<View, string> = {
   sessions: "Search and inspect conversation history",
   activity: "Review deliveries, commands, and runtime events",
   analytics: "Understand local usage and activity",
-  media: "Browse generated assets and open media tools",
+  media: "Browse assets created or attached in conversations",
   models: "Choose models and inference providers",
   connections: "Sign in and connect provider accounts",
   tools: "Inspect callable tools",
@@ -389,17 +389,12 @@ export const PROJECT_SCOPE_KEY = "doolittle.desktop.project-scope.v1";
 export const PROJECT_SWITCH_DEBOUNCE_MS = 120;
 
 export const PRIMARY_NAV_ITEMS: Array<{
-  id: "chat" | "code" | "orchestration";
+  id: "chat" | "code";
   label: string;
   description: string;
 }> = [
   { id: "chat", label: "Chat", description: "Conversations" },
   { id: "code", label: "Code", description: "Workspace" },
-  {
-    id: "orchestration",
-    label: "Tasks",
-    description: "Runs, agents, and review",
-  },
 ];
 
 export function loadProjectScope(

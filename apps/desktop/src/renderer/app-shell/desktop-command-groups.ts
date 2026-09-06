@@ -121,7 +121,7 @@ export function buildDesktopCommandGroups({
     },
     {
       id: "open-live-tasks",
-      label: "Open live tasks",
+      label: "Open active runs",
       description:
         runningTasks > 0
           ? `${runningTasks} running task${runningTasks === 1 ? "" : "s"}`
@@ -219,16 +219,18 @@ export function buildDesktopCommandGroups({
         },
       ],
     },
-    ...navigation.map((section) => ({
-      id: section.id,
-      label: section.label,
-      items: section.items.map((item) => ({
-        id: `view-${item.id}`,
-        label: item.label,
-        description: VIEW_DESCRIPTIONS[item.id],
-        keywords: [section.label, item.id],
-        onSelect: () => onSetView(item.id),
+    ...navigation
+      .filter((section) => section.id !== "home")
+      .map((section) => ({
+        id: section.id,
+        label: section.label,
+        items: section.items.map((item) => ({
+          id: `view-${item.id}`,
+          label: item.label,
+          description: VIEW_DESCRIPTIONS[item.id],
+          keywords: [section.label, item.id],
+          onSelect: () => onSetView(item.id),
+        })),
       })),
-    })),
   ];
 }

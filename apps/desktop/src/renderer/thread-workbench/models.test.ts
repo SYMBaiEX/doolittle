@@ -29,7 +29,12 @@ describe("thread workbench presentation models", () => {
     expect(TAB_LABELS.preview).toBe("Preview");
     expect(FULL_VIEW.changes).toBe("review");
     expect(FULL_VIEW.brief).toBeUndefined();
-    expect(QUICK_NAVIGATION).toHaveLength(8);
+    expect(QUICK_NAVIGATION.map((item) => item.label)).toEqual([
+      "Workspace",
+      "Review",
+      "Runs",
+      "Settings",
+    ]);
   });
 
   it("keeps panel metadata concise and domain-specific", () => {

@@ -50,7 +50,7 @@ describe("ActivityCenter helpers", () => {
     expect(activityTargetLabel("chat")).toBe("Open chat");
     expect(activityTargetLabel("review")).toBe("Open review");
     expect(activityTargetLabel("automations")).toBe("Open automations");
-    expect(activityTargetLabel("orchestration")).toBe("Open tasks");
+    expect(activityTargetLabel("orchestration")).toBe("Open run details");
 
     expect(
       activityNeedsAttention(

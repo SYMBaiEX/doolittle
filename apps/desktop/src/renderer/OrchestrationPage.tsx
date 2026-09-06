@@ -583,7 +583,7 @@ export function OrchestrationPage({
     <div className={oc("orchestration-page")}>
       <header className={oc("orchestration-header")}>
         <div>
-          <h1>Tasks</h1>
+          <h1>Operations</h1>
           <p>
             Run agents, review changes, and manage scheduled work
             {projectScope === "all"

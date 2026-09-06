@@ -14,7 +14,6 @@ export interface DesktopUtilityLayerProps {
   mobileModal: boolean;
   onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => void;
   onClose: () => void;
-  onViewAll: () => void;
   onResize: (width: number) => void;
 }
 
@@ -25,7 +24,6 @@ export function DesktopUtilityLayer({
   mobileModal,
   onKeyDown,
   onClose,
-  onViewAll,
   onResize,
 }: DesktopUtilityLayerProps) {
   const accessibility = mobileModal
@@ -92,15 +90,6 @@ export function DesktopUtilityLayer({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 pt-1.75 pb-3 [scrollbar-gutter:stable]">
             {activity}
           </div>
-          <footer className="shrink-0 border-[var(--line-subtle)] border-t px-3 py-2">
-            <button
-              className="inline-flex min-h-7 items-center rounded-[var(--radius-sm)] px-1.5 text-xs font-semibold text-[var(--accent)] hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--accent-border)]"
-              onClick={onViewAll}
-              type="button"
-            >
-              View all
-            </button>
-          </footer>
           <PanelResizeHandle
             bounds={UTILITY_DRAWER_WIDTH}
             className="inset-y-0 -left-1.25 z-4 max-[700px]:hidden"

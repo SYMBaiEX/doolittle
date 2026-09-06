@@ -1557,10 +1557,6 @@ export function App() {
             onClose={closeUtilities}
             onKeyDown={handleUtilityKeyDown}
             onResize={setUtilityDrawerWidth}
-            onViewAll={() => {
-              closeUtilities();
-              setView("activity");
-            }}
             utilityDrawerWidth={utilityDrawerWidth}
             utilityRef={utilityRef}
             mobileModal={utilityModalMode}

@@ -93,39 +93,19 @@ export const QUICK_NAVIGATION: NavigationCard[] = [
     blurb: "Open the coding workspace.",
   },
   {
-    label: "Reviews",
+    label: "Review",
     view: "review",
     blurb: "Open the review panel for changes and diffs.",
   },
   {
-    label: "Tasks",
+    label: "Runs",
     view: "orchestration",
-    blurb: "Open orchestration and delegation status.",
-  },
-  {
-    label: "Browser",
-    view: "browser",
-    blurb: "Open local preview and capture tools.",
+    blurb: "Open active and delegated run details.",
   },
   {
     label: "Settings",
     view: "settings",
     blurb: "Go to runtime and model settings.",
-  },
-  {
-    label: "Models",
-    view: "models",
-    blurb: "Adjust model providers and routing.",
-  },
-  {
-    label: "Automations",
-    view: "automations",
-    blurb: "Open automations and schedules.",
-  },
-  {
-    label: "Runtime",
-    view: "runtime",
-    blurb: "Inspect runtime health and diagnostics.",
   },
 ];
 
