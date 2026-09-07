@@ -1,7 +1,7 @@
 import { builtinModules } from "node:module";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
-import { desktopBuildInventoryPlugin } from "./scripts/desktop-build-inventory";
+import { desktopBuildInventoryPlugin } from "./scripts/desktop-build-inventory.ts";
 
 const desktopRoot = fileURLToPath(new URL(".", import.meta.url));
 

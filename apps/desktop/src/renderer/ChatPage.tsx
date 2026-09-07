@@ -393,7 +393,7 @@ export function ChatPage({
   });
   const workbenchDialogRef = useModalFocusBoundary({
     active: inspectorVisible && isNarrowWorkbench,
-    initialFocusSelector: '[aria-label="Close thread workbench"]',
+    initialFocusSelector: '[aria-label="Close thread context"]',
     isolateBackground: true,
     onClose: () => setInspectorVisible(false),
     restoreFocus: !inspectorVisible,

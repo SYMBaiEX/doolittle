@@ -146,8 +146,10 @@ describe("DesktopSidebar", () => {
 
     const modeNav = container.querySelector(".sidebar-focus-nav");
     const projects = container.querySelector(".sidebar-projects");
+    expect(modeNav).not.toBeNull();
+    expect(projects).not.toBeNull();
     expect(
-      modeNav?.compareDocumentPosition(projects as Node) &
+      (modeNav as Element).compareDocumentPosition(projects as Node) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(

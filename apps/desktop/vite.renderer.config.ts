@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
-import { desktopBuildInventoryPlugin } from "./scripts/desktop-build-inventory";
+import { desktopBuildInventoryPlugin } from "./scripts/desktop-build-inventory.ts";
 
 const desktopRoot = fileURLToPath(new URL(".", import.meta.url));
 
