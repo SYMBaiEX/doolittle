@@ -10,6 +10,7 @@ import {
 const handlers = {
   onCancelRequest: vi.fn(),
   onOpenMobileConversations: vi.fn(),
+  onOpenProjectManager: vi.fn(),
   onOpenRouteControls: vi.fn(),
   onOpenWorkspace: vi.fn(),
   onPrepareCompression: vi.fn(),
@@ -60,7 +61,7 @@ describe("ChatHeaderChrome", () => {
     render();
 
     expect(container.textContent).toContain("New conversation");
-    expect(container.textContent).toContain("Code");
+    expect(container.textContent).toContain("Workspace");
     expect(container.textContent).toContain("ollama · granite4.1:3b");
     expect(container.textContent).toContain("Context");
     expect(container.textContent).not.toContain("0 messages");
@@ -69,6 +70,31 @@ describe("ChatHeaderChrome", () => {
     expect(
       container.querySelector('[aria-label="Pin conversation"]'),
     ).toBeNull();
+  });
+
+  it("renders a compact, navigable conversation breadcrumb", () => {
+    render({ projectName: "doolittle" });
+
+    const breadcrumb = container.querySelector(
+      'nav[aria-label="Conversation breadcrumb"]',
+    );
+    expect(breadcrumb?.textContent).toContain("Chat");
+    expect(breadcrumb?.textContent).toContain("doolittle");
+    expect(breadcrumb?.textContent).toContain("New conversation");
+    expect(breadcrumb?.querySelector('[aria-current="page"]')).not.toBeNull();
+
+    act(() =>
+      Array.from(breadcrumb?.querySelectorAll("button") ?? [])
+        .at(0)
+        ?.click(),
+    );
+    act(() =>
+      Array.from(breadcrumb?.querySelectorAll("button") ?? [])
+        .at(1)
+        ?.click(),
+    );
+    expect(handlers.onSurfaceChange).toHaveBeenCalledWith("conversation");
+    expect(handlers.onOpenProjectManager).toHaveBeenCalledTimes(1);
   });
 
   it("exposes desktop chat surfaces with their current state", () => {

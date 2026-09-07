@@ -10,14 +10,16 @@ const props = {
 };
 
 describe("DesktopWindowContext", () => {
-  it("keeps only the project scope on ordinary routes", () => {
+  it("keeps the current page and project scope on ordinary routes", () => {
     const markup = renderToStaticMarkup(
       <DesktopWindowContext {...props} showRouteContext={false} />,
     );
 
     expect(markup).not.toContain("Manage");
-    expect(markup).not.toContain("Settings");
+    expect(markup).toContain("Settings");
     expect(markup).toContain("doolittle");
+    expect(markup).toContain('aria-label="Workspace breadcrumb"');
+    expect(markup).toContain('aria-current="page"');
   });
 
   it("shows route context for workspace routes", () => {

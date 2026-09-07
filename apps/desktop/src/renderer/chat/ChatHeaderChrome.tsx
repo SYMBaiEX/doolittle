@@ -1,4 +1,4 @@
-import { PanelRight, Pin } from "lucide-react";
+import { ChevronDown, Code2, PanelRight, Pin } from "lucide-react";
 import type { RefObject } from "react";
 import type { ChatSurface } from "../ChatPage";
 import { UiIcon } from "../components/UiIcon";
@@ -17,6 +17,7 @@ export interface ChatHeaderChromeProps {
   modelRouteLabel: string;
   onCancelRequest: (requestId: string) => void;
   onOpenMobileConversations: () => void;
+  onOpenProjectManager?: () => void;
   onOpenRouteControls: () => void;
   onOpenWorkspace: () => void;
   onPrepareCompression: () => void;
@@ -27,6 +28,7 @@ export interface ChatHeaderChromeProps {
   selectedContextPercent: number;
   selectedContextTone: ContextPressureTone;
   selectedMessageCount: number;
+  projectName?: string;
   selectedSession?: ChatSessionForRender;
   selectedUpdatedAt?: string;
   selectedUsageError?: string;
@@ -45,6 +47,7 @@ export function ChatHeaderChrome({
   modelRouteLabel,
   onCancelRequest,
   onOpenMobileConversations,
+  onOpenProjectManager,
   onOpenRouteControls,
   onOpenWorkspace,
   onPrepareCompression,
@@ -55,6 +58,7 @@ export function ChatHeaderChrome({
   selectedContextPercent,
   selectedContextTone,
   selectedMessageCount,
+  projectName,
   selectedSession,
   selectedUpdatedAt,
   selectedUsageError,
@@ -68,15 +72,37 @@ export function ChatHeaderChrome({
     ? compactSessionPreview(selectedSession.title ?? "") ||
       "Untitled conversation"
     : "New conversation";
+  const scopeLabel = projectName?.trim() || "General";
 
   return (
     <div className={CHAT_HEADER_CONTENT_CLASS}>
       <div className="chat-header-mainline">
-        <div className="chat-header-title-wrap">
-          <h2 title={selectedSession ? conversationTitle : undefined}>
-            {conversationTitle}
-          </h2>
-        </div>
+        <nav aria-label="Conversation breadcrumb" className="chat-breadcrumbs">
+          <ol>
+            <li>
+              <button
+                onClick={() => onSurfaceChange?.("conversation")}
+                type="button"
+              >
+                Chat
+              </button>
+            </li>
+            <li className="chat-breadcrumb-project">
+              <button
+                onClick={onOpenProjectManager}
+                title={`Current project scope: ${scopeLabel}. Change project.`}
+                type="button"
+              >
+                {scopeLabel}
+              </button>
+            </li>
+            <li aria-current="page" className="chat-breadcrumb-current">
+              <h2 title={selectedSession ? conversationTitle : undefined}>
+                {conversationTitle}
+              </h2>
+            </li>
+          </ol>
+        </nav>
         <div className="chat-session-meta-wrap">
           <div className="chat-session-meta">
             {selectedSession?.parentSessionId ? (
@@ -98,7 +124,8 @@ export function ChatHeaderChrome({
               title={workspacePath || "Open the current coding workspace"}
               type="button"
             >
-              Code
+              <UiIcon icon={Code2} size="xs" />
+              Workspace
             </button>
             {selectedUpdatedAt ? (
               <span className="chat-session-meta-pill chat-meta-updated">
@@ -165,6 +192,7 @@ export function ChatHeaderChrome({
             type="button"
           >
             <strong>{modelRouteLabel}</strong>
+            <UiIcon icon={ChevronDown} size="xs" />
           </button>
           {onSurfaceChange ? (
             <fieldset className="chat-surface-controls">

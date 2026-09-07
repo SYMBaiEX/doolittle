@@ -14,13 +14,13 @@ export const WINDOW_DRAGBAR_PRIMARY_CLASS =
   "window-dragbar-primary flex min-h-10 min-w-0 flex-1 items-center gap-2.5 px-3 pl-4";
 
 export const WINDOW_CONTEXT_CLASS =
-  "window-context flex min-w-0 flex-[0_1_auto] items-baseline gap-2 [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:font-bold [&>span]:tracking-[0.11em] [&>span]:text-[var(--faint)] [&>span]:uppercase [&>strong]:text-xs [&>strong]:font-semibold [&>strong]:tracking-[0.02em] [&>strong]:text-[var(--text)] max-[480px]:[&>span]:hidden";
+  "window-context min-w-0 flex-[1_1_auto] overflow-hidden [&>nav]:min-w-0 [&_ol]:m-0 [&_ol]:flex [&_ol]:min-w-0 [&_ol]:list-none [&_ol]:items-center [&_ol]:gap-0 [&_ol]:p-0 [&_li]:flex [&_li]:min-w-0 [&_li]:items-center [&_li+li]:before:mx-1.5 [&_li+li]:before:text-[var(--border-strong)] [&_li+li]:before:content-['/'] [&_.window-breadcrumb-section]:shrink-0 [&_.window-breadcrumb-section]:font-[var(--font-mono)] [&_.window-breadcrumb-section]:text-[length:var(--text-meta)] [&_.window-breadcrumb-section]:font-bold [&_.window-breadcrumb-section]:tracking-[0.1em] [&_.window-breadcrumb-section]:text-[var(--faint)] [&_.window-breadcrumb-section]:uppercase [&_.window-breadcrumb-current]:truncate [&_.window-breadcrumb-current]:text-xs [&_.window-breadcrumb-current]:font-semibold [&_.window-breadcrumb-current]:text-[var(--text)] [&_.window-breadcrumb-project]:shrink-0 max-[720px]:[&_.window-breadcrumb-section]:hidden";
 
 export const WINDOW_TOOLS_CLASS =
-  "window-tools ml-auto flex shrink-0 items-center gap-1.25 [-webkit-app-region:no-drag]";
+  "window-tools ml-auto flex shrink-0 items-center gap-1.25 [-webkit-app-region:no-drag] before:mr-1.25 before:h-4 before:w-px before:bg-[var(--line-subtle)] max-[760px]:before:hidden";
 
 export const CHAT_CHROME_HOST_CLASS =
-  "chat-chrome-host relative flex min-h-0 min-w-0 flex-[1_1_420px] gap-0 overflow-hidden px-2 pr-2 pl-3 [-webkit-app-region:drag] max-[760px]:min-h-0 max-[760px]:p-0";
+  "chat-chrome-host relative flex min-h-0 min-w-0 flex-[1_1_560px] gap-0 overflow-hidden pr-2 [-webkit-app-region:drag] max-[760px]:min-h-0 max-[760px]:p-0";
 
 export const VIEW_CONTAINER_CLASS =
   "view-container min-h-0 min-w-0 flex-1 overflow-y-auto bg-[linear-gradient(90deg,var(--operator-glow),transparent_18%)] bg-no-repeat";
@@ -104,7 +104,7 @@ export const SIDEBAR_APPEARANCE_CLASS =
   "sidebar-appearance-toggle size-7.5 self-center rounded-[var(--radius-xs)] [.desktop-shell.nav-collapsed_&]:size-10";
 
 export const WINDOW_PROJECT_SCOPE_CLASS =
-  "window-project-scope min-h-5.5 max-w-33 truncate rounded-[11px] border border-[var(--line-subtle)] bg-[var(--surface-soft)] px-1.75 py-0.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)] [-webkit-app-region:no-drag] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]";
+  "window-project-scope max-w-33 truncate border-0 bg-transparent p-0 font-[var(--font-sans)] text-[length:var(--text-meta)] font-medium text-[var(--muted)] [-webkit-app-region:no-drag] hover:text-[var(--text)] focus-visible:rounded-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-border)]";
 export const WINDOW_COMMAND_BUTTON_CLASS =
   "window-command-button flex min-h-7.5 w-[min(260px,27vw)] items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-[var(--line-subtle)] bg-[color-mix(in_srgb,var(--surface-soft)_82%,transparent)] px-2 py-1 pl-2.5 text-left text-[length:var(--text-control)] text-[var(--muted)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-soft)] [&_kbd]:rounded [&_kbd]:border [&_kbd]:border-[var(--border)] [&_kbd]:bg-[var(--surface-raised)] [&_kbd]:px-1 [&_kbd]:py-0.5 [&_kbd]:font-[var(--font-mono)] [&_kbd]:text-[length:var(--text-meta)] [&_kbd]:text-[var(--faint)] max-[1180px]:w-47.5 max-[940px]:hidden";
 export const WINDOW_COMMAND_BUTTON_COMPACT_CLASS =

@@ -220,9 +220,9 @@ test.describe("Doolittle desktop navigation", () => {
         alternateWorkspace,
       );
       expect(liveWorkspaceHandoff.restoredHealth.workspaceDir).toBe(repoRoot);
-      await expect(page.locator(".window-context strong")).toHaveText(
-        "Conversation",
-      );
+      await expect(
+        page.getByRole("navigation", { name: "Conversation breadcrumb" }),
+      ).toBeVisible();
       await page.getByRole("button", { name: "Collapse navigation" }).click();
       await expect(page.locator(".desktop-shell")).toHaveClass(/nav-collapsed/);
       await page.getByRole("button", { name: "Expand navigation" }).click();
@@ -275,7 +275,7 @@ test.describe("Doolittle desktop navigation", () => {
       await page.evaluate(() => {
         window.location.hash = "#/code";
       });
-      await expect(page.locator(".window-context strong")).toHaveText(
+      await expect(page.locator(".window-breadcrumb-current")).toHaveText(
         "Workspace",
       );
       await page.locator(".project-rail-all").click();
@@ -396,13 +396,15 @@ test.describe("Doolittle desktop navigation", () => {
       await newConversationMenu
         .getByRole("menuitem", { name: /General chat/ })
         .click();
-      await expect(page.locator(".window-context strong")).toHaveText(
-        "Conversation",
-      );
+      await expect(
+        page
+          .getByRole("navigation", { name: "Conversation breadcrumb" })
+          .getByRole("heading", { name: "New conversation" }),
+      ).toBeVisible();
       await page.evaluate(() => {
         window.location.hash = "#/code";
       });
-      await expect(page.locator(".window-context strong")).toHaveText(
+      await expect(page.locator(".window-breadcrumb-current")).toHaveText(
         "Workspace",
       );
       await expect
@@ -1376,7 +1378,7 @@ test.describe("Doolittle desktop navigation", () => {
       await page.evaluate(() => {
         window.location.hash = "#/code";
       });
-      await expect(page.locator(".window-context strong")).toHaveText(
+      await expect(page.locator(".window-breadcrumb-current")).toHaveText(
         "Workspace",
       );
       // The prior terminal-output handoff closes the global terminal by design. Open

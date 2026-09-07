@@ -1432,24 +1432,21 @@ export function App() {
         >
           <div className={WINDOW_DRAGBAR_PRIMARY_CLASS}>
             <DesktopMobileMenuButton onOpen={openSidebarForMobile} />
-            <div
-              className={`${WINDOW_CONTEXT_CLASS}${
-                effectiveNavCollapsed ? " min-[941px]:hidden" : ""
-              }`}
-            >
-              <DesktopWindowContext
-                itemLabel={activeItem?.label ?? "Desktop"}
-                onOpenProjectManager={openProjectManager}
-                projectScopeLabel={projectScopeLabel}
-                sectionLabel={activeSection?.label ?? "Doolittle"}
-                showRouteContext={
-                  view === "chat" ||
-                  view === "code" ||
-                  view === "review" ||
-                  view === "orchestration"
-                }
-              />
-            </div>
+            {view !== "chat" ? (
+              <div
+                className={`${WINDOW_CONTEXT_CLASS}${
+                  effectiveNavCollapsed ? " min-[941px]:hidden" : ""
+                }`}
+              >
+                <DesktopWindowContext
+                  itemLabel={activeItem?.label ?? "Desktop"}
+                  onOpenProjectManager={openProjectManager}
+                  projectScopeLabel={projectScopeLabel}
+                  sectionLabel={activeSection?.label ?? "Doolittle"}
+                  showRouteContext
+                />
+              </div>
+            ) : null}
             <span aria-live="polite" className="sr-only">
               {`${activeItem?.label ?? "Desktop"} opened for ${projectScopeLabel}`}
             </span>
