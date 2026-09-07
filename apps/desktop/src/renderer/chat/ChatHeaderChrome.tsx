@@ -4,7 +4,6 @@ import type { ChatSurface } from "../ChatPage";
 import { UiIcon } from "../components/UiIcon";
 import type { ContextPressureTone } from "../context-pressure";
 import { displayTimestamp } from "../lib";
-import { compactSessionPreview } from "../session-preview";
 import { CHAT_HEADER_CONTENT_CLASS } from "./layout";
 import type { ChatSessionForRender } from "./useChatConversationState";
 
@@ -17,7 +16,6 @@ export interface ChatHeaderChromeProps {
   modelRouteLabel: string;
   onCancelRequest: (requestId: string) => void;
   onOpenMobileConversations: () => void;
-  onOpenProjectManager?: () => void;
   onOpenRouteControls: () => void;
   onOpenWorkspace: () => void;
   onPrepareCompression: () => void;
@@ -28,7 +26,6 @@ export interface ChatHeaderChromeProps {
   selectedContextPercent: number;
   selectedContextTone: ContextPressureTone;
   selectedMessageCount: number;
-  projectName?: string;
   selectedSession?: ChatSessionForRender;
   selectedUpdatedAt?: string;
   selectedUsageError?: string;
@@ -47,7 +44,6 @@ export function ChatHeaderChrome({
   modelRouteLabel,
   onCancelRequest,
   onOpenMobileConversations,
-  onOpenProjectManager,
   onOpenRouteControls,
   onOpenWorkspace,
   onPrepareCompression,
@@ -58,7 +54,6 @@ export function ChatHeaderChrome({
   selectedContextPercent,
   selectedContextTone,
   selectedMessageCount,
-  projectName,
   selectedSession,
   selectedUpdatedAt,
   selectedUsageError,
@@ -68,41 +63,9 @@ export function ChatHeaderChrome({
   workspacePath,
 }: ChatHeaderChromeProps) {
   const showConversationState = !isNewConversation;
-  const conversationTitle = selectedSession
-    ? compactSessionPreview(selectedSession.title ?? "") ||
-      "Untitled conversation"
-    : "New conversation";
-  const scopeLabel = projectName?.trim() || "General";
-
   return (
     <div className={CHAT_HEADER_CONTENT_CLASS}>
       <div className="chat-header-mainline">
-        <nav aria-label="Conversation breadcrumb" className="chat-breadcrumbs">
-          <ol>
-            <li>
-              <button
-                onClick={() => onSurfaceChange?.("conversation")}
-                type="button"
-              >
-                Chat
-              </button>
-            </li>
-            <li className="chat-breadcrumb-project">
-              <button
-                onClick={onOpenProjectManager}
-                title={`Current project scope: ${scopeLabel}. Change project.`}
-                type="button"
-              >
-                {scopeLabel}
-              </button>
-            </li>
-            <li aria-current="page" className="chat-breadcrumb-current">
-              <h2 title={selectedSession ? conversationTitle : undefined}>
-                {conversationTitle}
-              </h2>
-            </li>
-          </ol>
-        </nav>
         <div className="chat-session-meta-wrap">
           <div className="chat-session-meta">
             {selectedSession?.parentSessionId ? (

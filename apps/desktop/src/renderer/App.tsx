@@ -31,6 +31,11 @@ import { DesktopMobileMenuButton } from "./app-shell/DesktopMobileMenuButton";
 import { DesktopRouteLoadingFallback } from "./app-shell/DesktopRouteLoadingFallback";
 import { DesktopWindowContext } from "./app-shell/DesktopWindowContext";
 import {
+  createDesktopNavigationHistory,
+  desktopNavigationTarget,
+  pushDesktopNavigationHistory,
+} from "./app-shell/desktop-navigation-history";
+import {
   preloadDesktopRoute,
   resetDesktopRoute,
   warmDesktopRoute,
@@ -108,6 +113,7 @@ import {
 } from "./panel-layout";
 import type { ProjectLike, ProjectScope } from "./project-manager/models";
 import { projectNavigationTarget } from "./project-navigation";
+import { compactSessionPreview } from "./session-preview";
 import {
   isCommandPaletteShortcut,
   shouldHandleGlobalChatTerminalShortcut,
@@ -315,6 +321,9 @@ export function App() {
   const initialConversation = useMemo(newConversationId, []);
   const routeFocus = useRef<DesktopRouteFocusStore>(new Map());
   const [view, setViewState] = useState<View>(() => resolveDesktopHash().view);
+  const [navigationHistory, setNavigationHistory] = useState(() =>
+    createDesktopNavigationHistory(resolveDesktopHash().view),
+  );
   const [routeRetryNonce, setRouteRetryNonce] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarReady, setSidebarReady] = useState(false);
@@ -606,17 +615,33 @@ export function App() {
   // it on every view render leaves a narrow gap where rapid browser history or
   // compact-layout navigation can update the hash without updating the view.
   const hashNavigationRef = useRef({ applyViewTransition, view });
-  hashNavigationRef.current = { applyViewTransition, view };
+  const recordNavigation = useCallback((next: View) => {
+    setNavigationHistory((current) =>
+      pushDesktopNavigationHistory(current, next),
+    );
+  }, []);
+  hashNavigationRef.current = { applyViewTransition, recordNavigation, view };
 
   const setView = useCallback(
     (next: View, options?: { readonly skipDirtyCheck?: boolean }) => {
       if (options?.skipDirtyCheck) {
         if (!applyViewTransition(next, options)) return false;
       } else if (!applyViewTransition(next)) return false;
+      recordNavigation(next);
       window.location.hash = desktopHashForView(next);
       return true;
     },
-    [applyViewTransition],
+    [applyViewTransition, recordNavigation],
+  );
+
+  const traverseNavigationHistory = useCallback(
+    (offset: -1 | 1) => {
+      const target = desktopNavigationTarget(navigationHistory, offset);
+      if (!target || !applyViewTransition(target.view)) return;
+      setNavigationHistory(target.history);
+      window.history.replaceState(null, "", desktopHashForView(target.view));
+    },
+    [applyViewTransition, navigationHistory],
   );
 
   const openSidebarForMobile = useCallback(() => {
@@ -988,6 +1013,7 @@ export function App() {
         window.history.replaceState(null, "", desktopHashForView(current.view));
         return;
       }
+      current.recordNavigation(next);
       if (window.location.hash !== resolved.canonicalHash) {
         window.history.replaceState(null, "", resolved.canonicalHash);
       }
@@ -1127,6 +1153,15 @@ export function App() {
     section.items.some((item) => item.id === view),
   );
   const activeItem = activeSection?.items.find((item) => item.id === view);
+  const labelForView = useCallback(
+    (target?: View) =>
+      target
+        ? navigation
+            .flatMap((section) => section.items)
+            .find((item) => item.id === target)?.label
+        : undefined,
+    [],
+  );
   const pendingApprovals = asArray(approvalsResource.data?.approvals).length;
   const runningTasks = asArray(tasksResource.data?.tasks).length;
   const activeProject =
@@ -1207,6 +1242,14 @@ export function App() {
       ?.projectId ??
     activeProject?.id ??
     null;
+  const selectedSessionSummary = sessions.find(
+    (session) => session.sessionId === selectedSession,
+  );
+  const currentRouteLabel =
+    view === "chat"
+      ? compactSessionPreview(selectedSessionSummary?.title ?? "") ||
+        "New conversation"
+      : (activeItem?.label ?? "Desktop");
   const sidebarSessions = useMemo(() => {
     const items = [...scopedSessions]
       .sort((left, right) =>
@@ -1422,35 +1465,43 @@ export function App() {
         />
       </Suspense>
       <section
-        className={`${APP_MAIN_CLASS}${view === "chat" ? " app-main--chat" : ""}`}
+        className={`${APP_MAIN_CLASS}${renderedView === "chat" ? " app-main--chat" : ""}`}
         ref={appMainRef}
       >
         <div
           className={`${WINDOW_DRAGBAR_CLASS}${
-            view === "chat" ? ` ${WINDOW_DRAGBAR_CHAT_CLASS}` : ""
+            renderedView === "chat" ? ` ${WINDOW_DRAGBAR_CHAT_CLASS}` : ""
           }`}
         >
           <div className={WINDOW_DRAGBAR_PRIMARY_CLASS}>
             <DesktopMobileMenuButton onOpen={openSidebarForMobile} />
-            {view !== "chat" ? (
-              <div
-                className={`${WINDOW_CONTEXT_CLASS}${
-                  effectiveNavCollapsed ? " min-[941px]:hidden" : ""
-                }`}
-              >
-                <DesktopWindowContext
-                  itemLabel={activeItem?.label ?? "Desktop"}
-                  onOpenProjectManager={openProjectManager}
-                  projectScopeLabel={projectScopeLabel}
-                  sectionLabel={activeSection?.label ?? "Doolittle"}
-                  showRouteContext
-                />
-              </div>
-            ) : null}
+            <div className={WINDOW_CONTEXT_CLASS}>
+              <DesktopWindowContext
+                backLabel={labelForView(
+                  navigationHistory.entries[navigationHistory.index - 1],
+                )}
+                canGoBack={navigationHistory.index > 0}
+                canGoForward={
+                  navigationHistory.index < navigationHistory.entries.length - 1
+                }
+                forwardLabel={labelForView(
+                  navigationHistory.entries[navigationHistory.index + 1],
+                )}
+                itemLabel={currentRouteLabel}
+                onBack={() => traverseNavigationHistory(-1)}
+                onForward={() => traverseNavigationHistory(1)}
+                onOpenProjectManager={openProjectManager}
+                onOpenSection={() =>
+                  setView(activeSection?.items[0]?.id ?? "dashboard")
+                }
+                projectScopeLabel={projectScopeLabel}
+                sectionLabel={activeSection?.label ?? "Doolittle"}
+              />
+            </div>
             <span aria-live="polite" className="sr-only">
-              {`${activeItem?.label ?? "Desktop"} opened for ${projectScopeLabel}`}
+              {`${currentRouteLabel} opened for ${projectScopeLabel}`}
             </span>
-            {view === "chat" ? (
+            {renderedView === "chat" ? (
               <div
                 aria-label="Conversation controls"
                 className={CHAT_CHROME_HOST_CLASS}
@@ -1462,7 +1513,7 @@ export function App() {
               <Suspense fallback={null}>
                 <DesktopWindowTools
                   backend={backend}
-                  compactCommand={view === "chat"}
+                  compactCommand={renderedView === "chat"}
                   onOpenPalette={openCommandPalette}
                   onRefresh={() => void refreshWithFeedback()}
                   onToggleUtilities={toggleUtilities}

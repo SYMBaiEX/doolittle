@@ -10,7 +10,6 @@ import {
 const handlers = {
   onCancelRequest: vi.fn(),
   onOpenMobileConversations: vi.fn(),
-  onOpenProjectManager: vi.fn(),
   onOpenRouteControls: vi.fn(),
   onOpenWorkspace: vi.fn(),
   onPrepareCompression: vi.fn(),
@@ -60,7 +59,6 @@ describe("ChatHeaderChrome", () => {
   it("keeps a new draft quiet while retaining primary actions", () => {
     render();
 
-    expect(container.textContent).toContain("New conversation");
     expect(container.textContent).toContain("Workspace");
     expect(container.textContent).toContain("ollama · granite4.1:3b");
     expect(container.textContent).toContain("Context");
@@ -72,29 +70,13 @@ describe("ChatHeaderChrome", () => {
     ).toBeNull();
   });
 
-  it("renders a compact, navigable conversation breadcrumb", () => {
-    render({ projectName: "doolittle" });
+  it("leaves route hierarchy to the stable shell navigation", () => {
+    render();
 
-    const breadcrumb = container.querySelector(
-      'nav[aria-label="Conversation breadcrumb"]',
-    );
-    expect(breadcrumb?.textContent).toContain("Chat");
-    expect(breadcrumb?.textContent).toContain("doolittle");
-    expect(breadcrumb?.textContent).toContain("New conversation");
-    expect(breadcrumb?.querySelector('[aria-current="page"]')).not.toBeNull();
-
-    act(() =>
-      Array.from(breadcrumb?.querySelectorAll("button") ?? [])
-        .at(0)
-        ?.click(),
-    );
-    act(() =>
-      Array.from(breadcrumb?.querySelectorAll("button") ?? [])
-        .at(1)
-        ?.click(),
-    );
-    expect(handlers.onSurfaceChange).toHaveBeenCalledWith("conversation");
-    expect(handlers.onOpenProjectManager).toHaveBeenCalledTimes(1);
+    expect(
+      container.querySelector('nav[aria-label="Conversation breadcrumb"]'),
+    ).toBeNull();
+    expect(container.textContent).toContain("Workspace");
   });
 
   it("exposes desktop chat surfaces with their current state", () => {
@@ -192,12 +174,6 @@ describe("ChatHeaderChrome", () => {
       },
     });
 
-    expect(container.querySelector("h2")?.textContent).toBe(
-      "Referenced package.json",
-    );
-    expect(container.querySelector("h2")?.getAttribute("title")).toBe(
-      "Referenced package.json",
-    );
     expect(container.textContent).not.toContain(
       "/Users/symbiex/dev/test/package.json",
     );

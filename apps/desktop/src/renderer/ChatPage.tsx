@@ -1548,7 +1548,6 @@ export function ChatPage({
               modelRouteLabel={modelRouteLabel}
               onCancelRequest={(requestId) => void cancelRequest(requestId)}
               onOpenMobileConversations={() => setMobileConversationsOpen(true)}
-              onOpenProjectManager={onOpenProjectManager}
               onOpenRouteControls={() => setRouteDialogOpen(true)}
               onOpenWorkspace={() => onOpenWorkspaceView("code")}
               onPrepareCompression={() => {
@@ -1564,7 +1563,6 @@ export function ChatPage({
               selectedContextPercent={selectedContextPercent}
               selectedContextTone={selectedContextTone}
               selectedMessageCount={selectedMessageCount}
-              projectName={activeProject?.name}
               selectedSession={selectedSession}
               selectedUpdatedAt={selectedUpdatedAt}
               selectedUsageError={selectedUsageError}
