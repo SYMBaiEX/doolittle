@@ -263,7 +263,15 @@ export function ChatComposer({
         ? "Unavailable"
         : "0%";
   const hasContextDetails = Boolean(
-    selectedContext || selectedUsageError || usageLoading === selectedId,
+    (selectedContext && selectedContextPercent > 0) ||
+      selectedUsageError ||
+      usageLoading === selectedId,
+  );
+  const showOperationalStatus = Boolean(
+    activeRequest ||
+      backend.phase !== "ready" ||
+      runningTasks > 0 ||
+      pendingApprovals > 0,
   );
   const detailsLabel =
     hasMemoryMatches && hasContextDetails
@@ -531,7 +539,7 @@ export function ChatComposer({
       ) : null}
       <div className="chat-composer-main">
         <ElizaTextarea
-          className="chat-composer-input !max-h-[156px] !min-h-[42px] !w-full !resize-none !rounded-none !border-0 !bg-transparent px-0.75 pt-0.5 pb-0.5 text-[13px] leading-[1.5] [box-shadow:none]! focus-visible:!outline-none max-[720px]:!max-h-[132px] max-[480px]:!max-h-[112px] max-[480px]:!min-h-10 max-[480px]:!px-0 max-[480px]:!py-0.5 max-[480px]:text-[13px]"
+          className="chat-composer-input !max-h-[156px] !min-h-[46px] !w-full !resize-none !rounded-none !border-0 !bg-transparent px-1 py-1 text-[14px] leading-[1.5] text-[var(--text)] [box-shadow:none]! placeholder:text-[var(--faint)] focus-visible:!outline-none max-[720px]:!max-h-[132px] max-[480px]:!max-h-[112px] max-[480px]:!min-h-10 max-[480px]:!px-0.5 max-[480px]:!py-0.5 max-[480px]:text-[14px]"
           aria-activedescendant={activeCommandId}
           aria-autocomplete="list"
           aria-describedby={
@@ -619,44 +627,22 @@ export function ChatComposer({
           density="compact"
           value={draft}
         />
-        <ElizaButton
-          aria-label={activeRequest ? "Stop response" : "Send message"}
-          aria-keyshortcuts={activeRequest ? "Escape" : undefined}
-          className={`chat-composer-submit !size-[32px] !min-h-[32px] !min-w-[32px] !self-end !rounded-[8px] !p-0 motion-reduce:transition-none max-[480px]:!size-9.5 max-[480px]:!min-h-9.5 max-[480px]:!min-w-9.5 ${
-            activeRequest
-              ? "!border !border-[color-mix(in_srgb,var(--bad)_40%,var(--border))] !bg-[color-mix(in_srgb,var(--bad)_10%,var(--surface-soft))] !text-[var(--bad)] hover:!bg-[color-mix(in_srgb,var(--bad)_18%,var(--surface-hover))]"
-              : "!border-0 !bg-[var(--accent)] !text-[var(--accent-ink)] hover:!bg-[color-mix(in_srgb,var(--accent)_86%,var(--text))] disabled:!bg-[var(--surface-soft)] disabled:!text-[var(--muted)] disabled:opacity-60"
-          }`}
-          disabled={!activeRequest && !canSubmit}
-          onClick={
-            activeRequest ? () => onCancelRequest(activeRequest) : undefined
-          }
-          size="icon-sm"
-          title={
-            activeRequest
-              ? "Stop the current response (Escape)"
-              : "Send message (Enter)"
-          }
-          type={activeRequest ? "button" : "submit"}
-          variant="default"
-        >
-          <UiIcon icon={activeRequest ? Square : ArrowUp} size="md" />
-        </ElizaButton>
       </div>
       <div className="chat-composer-footer">
         <div className="chat-composer-tools flex items-center gap-1.5">
           <ElizaButton
             aria-label="Attach multiple files"
             aria-busy={attachmentImporting || undefined}
-            className="!min-h-[28px] rounded-[7px] px-[7px] py-[4px] text-[10px] font-semibold max-[480px]:!min-h-9.5 max-[480px]:px-2"
+            className="!size-7.5 !min-h-7.5 !min-w-7.5 !justify-center rounded-[7px] !border-transparent !bg-transparent !p-0 text-[var(--text-soft)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)] max-[480px]:!size-10 max-[480px]:!min-h-10 max-[480px]:!min-w-10"
             disabled={attachmentImporting}
             onClick={() => void importContextFiles()}
             size="sm"
+            title={attachmentImporting ? "Importing files" : "Attach files"}
             type="button"
             variant="secondary"
           >
             <UiIcon icon={Paperclip} size="xs" />
-            <span className="chat-composer-control-label">
+            <span className="sr-only">
               {attachmentImporting
                 ? "Importing files"
                 : attachedFiles.length > 0
@@ -706,43 +692,37 @@ export function ChatComposer({
               runtime={runtime}
             />
           </div>
-          <div className="chat-composer-status">
-            <StatusBadge
-              className="chat-status-badge !inline-flex !min-h-[18px] items-center !border-0 !bg-transparent px-[5px] py-px !font-[inherit] !text-[length:var(--text-meta)] !tracking-normal !text-[var(--text-soft)] normal-case"
-              label={
-                activeRequest
-                  ? "Working"
-                  : backend.phase === "ready"
-                    ? "Ready"
-                    : backend.phase
-              }
-              pulse={Boolean(activeRequest)}
-              tone={
-                activeRequest
-                  ? "processing"
-                  : backend.phase === "ready"
-                    ? "success"
+          {showOperationalStatus ? (
+            <div className="chat-composer-status">
+              <StatusBadge
+                className="chat-status-badge !inline-flex !min-h-[18px] items-center !border-0 !bg-transparent px-[5px] py-px !font-[inherit] !text-[length:var(--text-meta)] !tracking-normal !text-[var(--text-soft)] normal-case"
+                label={activeRequest ? "Working" : backend.phase}
+                pulse={Boolean(activeRequest)}
+                tone={
+                  activeRequest
+                    ? "processing"
                     : backend.phase === "booting"
                       ? "warning"
                       : backend.phase === "degraded"
                         ? "danger"
                         : "muted"
-              }
-              withDot
-            />
-            {runningTasks > 0 ? <small>{runningTasks} active</small> : null}
-            {pendingApprovals > 0 ? (
-              <small className="warning">
-                {pendingApprovals} approval
-                {pendingApprovals === 1 ? "" : "s"}
-              </small>
-            ) : null}
-          </div>
+                }
+                withDot
+              />
+              {runningTasks > 0 ? <small>{runningTasks} active</small> : null}
+              {pendingApprovals > 0 ? (
+                <small className="warning">
+                  {pendingApprovals} approval
+                  {pendingApprovals === 1 ? "" : "s"}
+                </small>
+              ) : null}
+            </div>
+          ) : null}
           {hasMemoryMatches || hasContextDetails ? (
             <ElizaButton
               aria-controls="chat-composer-details"
               aria-expanded={detailsOpen}
-              className="chat-composer-meta-toggle !min-h-[28px] rounded-[7px] px-[8px] py-[4px] text-[10px] font-semibold"
+              className="chat-composer-meta-toggle !min-h-[30px] rounded-[7px] !border-transparent !bg-transparent px-2 py-1 text-[10px] font-semibold text-[var(--muted)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)]"
               onClick={() => setDetailsOpen((current) => !current)}
               size="sm"
               type="button"
@@ -758,6 +738,29 @@ export function ChatComposer({
               />
             </ElizaButton>
           ) : null}
+          <ElizaButton
+            aria-label={activeRequest ? "Stop response" : "Send message"}
+            aria-keyshortcuts={activeRequest ? "Escape" : undefined}
+            className={`chat-composer-submit !size-[30px] !min-h-[30px] !min-w-[30px] !rounded-full !p-0 motion-reduce:transition-none max-[480px]:!size-9.5 max-[480px]:!min-h-9.5 max-[480px]:!min-w-9.5 ${
+              activeRequest
+                ? "!border !border-[color-mix(in_srgb,var(--bad)_40%,var(--border))] !bg-[color-mix(in_srgb,var(--bad)_10%,var(--surface-soft))] !text-[var(--bad)] hover:!bg-[color-mix(in_srgb,var(--bad)_18%,var(--surface-hover))]"
+                : "!border-0 !bg-[var(--accent)] !text-[var(--accent-ink)] hover:!bg-[color-mix(in_srgb,var(--accent)_86%,var(--text))] disabled:!bg-[var(--surface-soft)] disabled:!text-[var(--faint)] disabled:opacity-70"
+            }`}
+            disabled={!activeRequest && !canSubmit}
+            onClick={
+              activeRequest ? () => onCancelRequest(activeRequest) : undefined
+            }
+            size="icon-sm"
+            title={
+              activeRequest
+                ? "Stop the current response (Escape)"
+                : "Send message (Enter)"
+            }
+            type={activeRequest ? "button" : "submit"}
+            variant="default"
+          >
+            <UiIcon icon={activeRequest ? Square : ArrowUp} size="sm" />
+          </ElizaButton>
         </div>
       </div>
       <small className="chat-composer-hint">

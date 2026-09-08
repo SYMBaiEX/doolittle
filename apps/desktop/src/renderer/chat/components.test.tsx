@@ -161,14 +161,14 @@ describe("chat presentation components", () => {
   });
 
   it("keeps composer controls compact by default while preserving primary actions", () => {
-    const props = composerProps();
+    const props = composerProps({ backend: { phase: "ready", message: "" } });
     const html = renderToStaticMarkup(<ChatComposer {...props} />);
     expect(html).toContain('class="chat-composer"');
     expect(html).toContain("chat-composer-main");
     expect(html).toContain("chat-composer-footer");
     expect(html).toContain("chat-composer-footer-right");
     expect(html).toContain("chat-composer-routing");
-    expect(html).toContain("chat-composer-status");
+    expect(html).not.toContain("chat-composer-status");
     expect(html).not.toContain('data-has-project="true"');
     expect(html).toContain('aria-label="Attach multiple files"');
     expect(html).toContain("Attach files");

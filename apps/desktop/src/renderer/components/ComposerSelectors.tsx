@@ -247,7 +247,7 @@ export function ComposerModelSelector({
 
   return (
     <div
-      className={`${COMPOSER_SELECTOR_ROOT_CLASS} ml-auto min-w-0 max-[720px]:w-full`}
+      className={`${COMPOSER_SELECTOR_ROOT_CLASS} ml-auto min-w-0`}
       ref={rootRef}
     >
       <button
@@ -269,7 +269,6 @@ export function ComposerModelSelector({
             {activeEffort}
           </span>
         ) : null}
-        <small>{runtime?.provider ?? "provider"}</small>
         <UiIcon icon={ChevronUp} size="xs" />
       </button>
       {open ? (

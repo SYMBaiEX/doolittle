@@ -243,13 +243,15 @@ export function PromptLibrary({
       <button
         aria-controls="chat-prompt-library"
         aria-expanded={open}
-        className="secondary-button !min-h-7 max-[480px]:!min-h-10"
+        aria-label="Open prompt library"
+        className="secondary-button !size-7.5 !min-h-7.5 !min-w-7.5 !justify-center !rounded-[7px] !p-0 max-[480px]:!size-10 max-[480px]:!min-h-10 max-[480px]:!min-w-10"
         onClick={() => setOpen((current) => !current)}
         ref={triggerRef}
+        title="Prompt library ($)"
         type="button"
       >
         <UiIcon icon={BookOpen} size="sm" />
-        <span className="chat-composer-control-label">
+        <span className="sr-only">
           Prompts
           {visibleEntries.length > 0 ? ` · ${visibleEntries.length}` : ""}
         </span>
