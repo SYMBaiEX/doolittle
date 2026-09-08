@@ -18,10 +18,15 @@ import {
   type ChatComposerProps,
   chatComposerHeight,
 } from "./ChatComposer";
-import { ChatMessage } from "./ChatMessage";
+import { ChatMessage, messageContentAfterReceipt } from "./ChatMessage";
 import { ChatTranscript } from "./ChatTranscript";
 import { MessageActions } from "./MessageActions";
-import { RunReceiptView, runReceiptState } from "./RunReceiptView";
+import {
+  formatRunElapsed,
+  RunReceiptView,
+  runActivityItems,
+  runReceiptState,
+} from "./RunReceiptView";
 import { Welcome } from "./Welcome";
 
 (
@@ -764,8 +769,36 @@ describe("chat presentation components", () => {
     );
     expect(html).toContain("chat-run-receipt");
     expect(html).toContain("Run complete");
-    expect(html).toContain("run-1");
-    expect(html.match(/<li(?:\s|>)/gu)).toHaveLength(1);
+    expect(html).toContain("Doolittle");
+    expect(html).toContain("1 actions · 1s");
+    expect(
+      runActivityItems({ latest: completed, events: [heartbeat, completed] }),
+    ).toHaveLength(1);
+  });
+
+  it("collapses matching action starts into their completed activity row", () => {
+    const started = runUpdate("action-started");
+    started.run.status = "acting";
+    started.run.activeAction = "READ_FILE";
+    started.run.terminalReason = undefined;
+    const completed = runUpdate("action-completed");
+    completed.run.lastAction = "READ_FILE";
+
+    const items = runActivityItems({
+      latest: completed,
+      events: [started, completed],
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      label: "READ_FILE",
+      status: "complete",
+    });
+  });
+
+  it("formats short and multi-minute run durations", () => {
+    expect(formatRunElapsed(11_900)).toBe("11s");
+    expect(formatRunElapsed(604_000)).toBe("10m 4s");
   });
 
   it("makes an active run visibly and accessibly live", () => {
@@ -849,7 +882,7 @@ describe("chat presentation components", () => {
 
     expect(html).toContain("The workspace is ready.");
     expect(html).toContain("chat-run-receipt");
-    expect(html).toContain("<details");
+    expect(html).toContain('aria-expanded="false"');
     expect(html).toContain("1 actions");
   });
 
@@ -878,6 +911,28 @@ describe("chat presentation components", () => {
     expect(html).toContain("Retry");
     expect(html).not.toContain('disabled=""');
     expect(html).not.toContain("Read");
+  });
+
+  it("lets a failed run card own duplicate failure copy without hiding partial work", () => {
+    const failed = runUpdate("error");
+    failed.run.status = "error";
+    failed.run.terminalReason = "error";
+    failed.run.errorMessage = "Build timed out after 30 seconds.";
+    const receipt = { latest: failed, events: [failed] };
+
+    expect(
+      messageContentAfterReceipt(
+        {
+          id: "assistant:run-1",
+          role: "assistant",
+          content:
+            "I created the files.\n\nBuild timed out after 30 seconds.\n\nResponse interrupted. Retry to continue.",
+          createdAt: failed.run.updatedAt,
+          error: true,
+        },
+        receipt,
+      ),
+    ).toBe("I created the files.");
   });
 
   it("renders message attachments and delegates action controls", () => {

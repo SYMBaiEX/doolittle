@@ -614,12 +614,16 @@ export function App() {
   // Keep one hashchange listener for the lifetime of the shell. Re-registering
   // it on every view render leaves a narrow gap where rapid browser history or
   // compact-layout navigation can update the hash without updating the view.
-  const hashNavigationRef = useRef({ applyViewTransition, view });
   const recordNavigation = useCallback((next: View) => {
     setNavigationHistory((current) =>
       pushDesktopNavigationHistory(current, next),
     );
   }, []);
+  const hashNavigationRef = useRef({
+    applyViewTransition,
+    recordNavigation,
+    view,
+  });
   hashNavigationRef.current = { applyViewTransition, recordNavigation, view };
 
   const setView = useCallback(

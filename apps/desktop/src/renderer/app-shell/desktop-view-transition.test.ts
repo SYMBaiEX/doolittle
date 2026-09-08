@@ -14,7 +14,7 @@ describe("desktop view transitions", () => {
       "if (!applyViewTransition(next)) return false;",
     );
     expect(appSource).toContain(
-      "const hashNavigationRef = useRef({ applyViewTransition, view });",
+      "const hashNavigationRef = useRef({\n    applyViewTransition,\n    recordNavigation,\n    view,\n  });",
     );
     expect(appSource).toContain("!current.applyViewTransition(next) &&");
     expect(appSource).toContain("}, []);");

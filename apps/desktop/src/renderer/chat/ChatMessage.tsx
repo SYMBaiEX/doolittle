@@ -10,6 +10,27 @@ import { MessageAttachmentList } from "./MessageAttachmentList";
 import type { DisplayMessage, RunReceipt } from "./models";
 import { RunReceiptView } from "./RunReceiptView";
 
+const FAILURE_BOILERPLATE = [
+  /Something went wrong while I was working on that\.?/giu,
+  /Please try again,? and I(?:'|’)ll pick it back up\.?/giu,
+  /Response interrupted(?::[^\n]+)?\.?/giu,
+  /Retry to continue\.?/giu,
+];
+
+/** Keep useful partial output while removing errors already explained by the run card. */
+export function messageContentAfterReceipt(
+  message: DisplayMessage,
+  receipt?: RunReceipt,
+): string {
+  if (!message.error || !receipt?.latest.run.errorMessage) {
+    return message.content;
+  }
+  let content = message.content.replace(receipt.latest.run.errorMessage, "");
+  for (const pattern of FAILURE_BOILERPLATE)
+    content = content.replace(pattern, "");
+  return content.replace(/\s{2,}/gu, " ").trim();
+}
+
 export function ChatMessage({
   message,
   receipt,
@@ -39,6 +60,7 @@ export function ChatMessage({
         (!hasToolActivity &&
           (message.pending || receipt.latest.run.localMutations.length > 0))),
   );
+  const visibleContent = messageContentAfterReceipt(message, receipt);
 
   return (
     <article
@@ -60,9 +82,9 @@ export function ChatMessage({
             receipt={receipt}
           />
         ) : null}
-        {message.content ? (
+        {visibleContent ? (
           <MessageContent
-            content={message.content}
+            content={visibleContent}
             parsedAgentMessage={parsedAgentMessage}
             pending={message.pending}
             separateAgentEvents={message.role === "assistant"}
