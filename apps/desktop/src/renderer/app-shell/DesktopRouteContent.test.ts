@@ -163,6 +163,9 @@ describe("desktop route preloaders", () => {
     );
     expect(appSource).toContain("hidden={!chatRouteActive}");
     expect(appSource).toContain("inert={!chatRouteActive}");
+    expect(appSource).toContain(
+      "data-view={chatRouteActive ? persistentChatView : undefined}",
+    );
     expect(appSource).toContain("{routeContent(persistentChatView)}");
     expect(appSource).toContain("{!chatRouteActive ? (");
   });
