@@ -12,6 +12,7 @@ import { RouteControlDialog } from "./RouteControlDialog";
 const { desktopRequestMock, scenario } = vi.hoisted(() => ({
   desktopRequestMock: vi.fn(),
   scenario: {
+    loading: false,
     modelsError: "",
     modelsReload: vi.fn(),
     model: {
@@ -72,7 +73,7 @@ vi.mock("../lib", async () => {
               : null,
       error:
         path === "/runtime/models?refresh=false" ? scenario.modelsError : "",
-      loading: false,
+      loading: scenario.loading,
       reload:
         path === "/runtime/models?refresh=false"
           ? scenario.modelsReload
@@ -96,6 +97,7 @@ describe("RouteControlDialog reasoning effort", () => {
     desktopRequestMock.mockReset();
     desktopRequestMock.mockResolvedValue({});
     scenario.modelsError = "";
+    scenario.loading = false;
     scenario.modelsReload.mockReset();
     scenario.model = {
       model: "gpt-5.6-terra",
@@ -240,19 +242,25 @@ describe("RouteControlDialog reasoning effort", () => {
     );
   });
 
-  it("shows a retryable catalog error instead of remaining in a loading state", () => {
+  it("keeps the route usable when the catalog is unavailable", () => {
     scenario.modelsError = "Model catalog is unavailable";
     renderDialog();
 
-    expect(container.textContent).toContain("Could not load this view.");
-    expect(container.textContent).not.toContain("Loading route controls…");
-    const retry = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Try again",
+    expect(container.textContent).toContain(
+      "Some route details are unavailable",
     );
-    expect(retry).toBeDefined();
+    expect(container.querySelector("form")).not.toBeNull();
+    expect(container.textContent).toContain("gpt-5.6-terra");
+  });
 
-    act(() => retry?.click());
-    expect(scenario.modelsReload).toHaveBeenCalledOnce();
+  it("renders the current route immediately while discovery is loading", () => {
+    scenario.loading = true;
+    renderDialog();
+
+    expect(container.querySelector("form")).not.toBeNull();
+    expect(container.textContent).toContain("codex · gpt-5.6-terra");
+    expect(container.textContent).toContain("Updating model list");
+    expect(container.textContent).not.toContain("Loading route controls");
   });
 
   it("preserves supported effort for a whitespace-pasted model and saves its trimmed ID", async () => {

@@ -13,7 +13,6 @@ import {
   ROUTE_DIALOG_HEADER_CLASS,
   ROUTE_DIALOG_STATUS_CLASS,
   ROUTE_FIELD_GRID_CLASS,
-  ROUTE_FIELD_SPAN_CLASS,
   ROUTE_PROVIDER_CARD_CLASS,
   ROUTE_PROVIDER_CARD_SELECTED_CLASS,
   ROUTE_PROVIDER_GRID_CLASS,
@@ -27,9 +26,7 @@ import {
   asString,
   Badge,
   desktopRequest,
-  ErrorBlock,
   errorMessage,
-  LoadingBlock,
   Notice,
   useApiResource,
 } from "../lib";
@@ -88,26 +85,6 @@ function draftFromSettings(
   };
 }
 
-function parseOptionalNumber(
-  value: string,
-  fallback: number | undefined,
-): number | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return fallback;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function parseOptionalInteger(
-  value: string,
-  fallback: number | undefined,
-): number | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return fallback;
-  const parsed = Number.parseInt(trimmed, 10);
-  return Number.isSafeInteger(parsed) ? parsed : fallback;
-}
-
 export function RouteControlDialog({
   isOpen,
   onClose,
@@ -145,12 +122,6 @@ export function RouteControlDialog({
   });
 
   useEffect(() => {
-    if (!isOpen) return;
-    if (settings.loading || settings.error || draft) return;
-    setDraft(draftFromSettings(settings.data, runtime));
-  }, [draft, isOpen, runtime, settings.data, settings.error, settings.loading]);
-
-  useEffect(() => {
     if (!isOpen) {
       setDraft(null);
       setFeedback(null);
@@ -164,20 +135,21 @@ export function RouteControlDialog({
     [accounts.data?.accounts],
   );
 
-  const activeProvider = draft?.provider ?? runtime?.provider ?? "ollama";
+  const effectiveDraft = draft ?? draftFromSettings(settings.data, runtime);
+  const activeProvider = effectiveDraft.provider;
   const readiness = providerReadiness(activeProvider, linkedAccounts);
   const selectedModel = useMemo(
     () =>
       models.data?.providers
-        .find((provider) => provider.id === draft?.provider)
-        ?.models.find((model) => model.id === draft?.model.trim()),
-    [draft?.model, draft?.provider, models.data?.providers],
+        .find((provider) => provider.id === effectiveDraft.provider)
+        ?.models.find((model) => model.id === effectiveDraft.model.trim()),
+    [effectiveDraft.model, effectiveDraft.provider, models.data?.providers],
   );
   const reasoningOptions = selectedModel?.reasoning?.options ?? [];
   const resolvedReasoningEffort = reasoningOptions.some(
-    (option) => option.id === draft?.reasoningEffort,
+    (option) => option.id === effectiveDraft.reasoningEffort,
   )
-    ? (draft?.reasoningEffort as RuntimeReasoningEffort)
+    ? (effectiveDraft.reasoningEffort as RuntimeReasoningEffort)
     : (selectedModel?.reasoning?.default ?? reasoningOptions[0]?.id);
   const selectedReasoningOption = reasoningOptions.find(
     (option) => option.id === resolvedReasoningEffort,
@@ -207,38 +179,18 @@ export function RouteControlDialog({
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    if (!draft) return;
-    const current = settings.data?.settings?.model;
+    const submittedDraft = effectiveDraft;
     setSaving(true);
     setFeedback(null);
     try {
-      const resolvedTemperature = parseOptionalNumber(
-        draft.temperature,
-        current?.temperature,
-      );
-      const resolvedMaxTokens = parseOptionalInteger(
-        draft.maxTokens,
-        current?.maxTokens,
-      );
-
       const changes: Array<{ path: string; value: string | number | null }> = [
-        { path: "model.provider", value: draft.provider },
-        { path: "model.model", value: draft.model.trim() },
-        { path: "model.baseUrl", value: draft.baseUrl.trim() },
+        { path: "model.provider", value: submittedDraft.provider },
+        { path: "model.model", value: submittedDraft.model.trim() },
         {
           path: "model.reasoningEffort",
           value: reasoningOptions.length ? resolvedReasoningEffort : null,
         },
       ];
-      if (resolvedTemperature !== undefined) {
-        changes.push({
-          path: "model.temperature",
-          value: resolvedTemperature,
-        });
-      }
-      if (resolvedMaxTokens !== undefined) {
-        changes.push({ path: "model.maxTokens", value: resolvedMaxTokens });
-      }
 
       await desktopRequest("/settings", "POST", { changes });
 
@@ -279,8 +231,8 @@ export function RouteControlDialog({
         <div className={ROUTE_DIALOG_HEADER_CLASS}>
           <div>
             <span className="eyebrow">Conversation route</span>
-            <h2 id="route-control-title">Model route</h2>
-            <p>Applies to new turns; existing messages stay unchanged.</p>
+            <h2 id="route-control-title">Choose model</h2>
+            <p>Switch the route for new messages in this conversation.</p>
           </div>
           <button
             aria-label="Close route controls"
@@ -292,166 +244,124 @@ export function RouteControlDialog({
           </button>
         </div>
 
-        {settings.loading || accounts.loading || models.loading ? (
-          <LoadingBlock label="Loading route controls…" />
-        ) : settings.error ? (
-          <ErrorBlock error={settings.error} retry={settings.reload} />
-        ) : accounts.error ? (
-          <ErrorBlock error={accounts.error} retry={accounts.reload} />
-        ) : models.error ? (
-          <ErrorBlock error={models.error} retry={models.reload} />
-        ) : !draft ? (
-          <LoadingBlock label="Loading route controls…" />
-        ) : (
-          <form className={ROUTE_DIALOG_FORM_CLASS} onSubmit={save}>
-            <div className={ROUTE_DIALOG_STATUS_CLASS}>
-              <Badge tone={readiness.tone}>
-                {readiness.ready ? "Ready now" : "Needs setup"}
-              </Badge>
-              <strong>
-                {asString(runtime?.provider, draft.provider)} ·{" "}
-                {asString(runtime?.model, draft.model)}
-              </strong>
-              <small>{readiness.detail}</small>
-            </div>
+        <form className={ROUTE_DIALOG_FORM_CLASS} onSubmit={save}>
+          <div className={ROUTE_DIALOG_STATUS_CLASS}>
+            <Badge tone={readiness.tone}>
+              {readiness.ready ? "Ready now" : "Needs setup"}
+            </Badge>
+            <strong>
+              {asString(runtime?.provider, effectiveDraft.provider)} ·{" "}
+              {asString(runtime?.model, effectiveDraft.model)}
+            </strong>
+            <small>
+              {accounts.loading
+                ? "Checking linked accounts…"
+                : readiness.detail}
+            </small>
+          </div>
 
-            <div className={ROUTE_PROVIDER_GRID_CLASS}>
-              {ROUTE_PROVIDER_OPTIONS.map((option) => {
-                const summary = providerReadiness(option.id, linkedAccounts);
-                const selected = draft.provider === option.id;
-                return (
-                  <button
-                    aria-pressed={selected}
-                    className={`${ROUTE_PROVIDER_CARD_CLASS} ${selected ? ROUTE_PROVIDER_CARD_SELECTED_CLASS : ""}`}
-                    key={option.id}
-                    onClick={() => chooseProvider(option.id)}
-                    type="button"
+          <div className={ROUTE_PROVIDER_GRID_CLASS}>
+            {ROUTE_PROVIDER_OPTIONS.map((option) => {
+              const summary = providerReadiness(option.id, linkedAccounts);
+              const selected = effectiveDraft.provider === option.id;
+              return (
+                <button
+                  aria-pressed={selected}
+                  className={`${ROUTE_PROVIDER_CARD_CLASS} ${selected ? ROUTE_PROVIDER_CARD_SELECTED_CLASS : ""}`}
+                  key={option.id}
+                  onClick={() => chooseProvider(option.id)}
+                  type="button"
+                >
+                  <span>{option.eyebrow}</span>
+                  <strong>{option.label}</strong>
+                  <small>{option.description}</small>
+                  <i
+                    className={`${ROUTE_PROVIDER_READINESS_CLASS} ${ROUTE_PROVIDER_READINESS_TONE[summary.tone]}`}
                   >
-                    <span>{option.eyebrow}</span>
-                    <strong>{option.label}</strong>
-                    <small>{option.description}</small>
-                    <i
-                      className={`${ROUTE_PROVIDER_READINESS_CLASS} ${ROUTE_PROVIDER_READINESS_TONE[summary.tone]}`}
-                    >
-                      {summary.ready ? "Ready" : "Manual"}
-                    </i>
-                  </button>
-                );
-              })}
-            </div>
+                    {accounts.loading
+                      ? "Checking"
+                      : summary.ready
+                        ? "Ready"
+                        : "Manual"}
+                  </i>
+                </button>
+              );
+            })}
+          </div>
 
-            <div className={ROUTE_FIELD_GRID_CLASS}>
+          <div className={ROUTE_FIELD_GRID_CLASS}>
+            <label>
+              <span>Model</span>
+              <input
+                aria-label="Model"
+                list="route-model-options"
+                onChange={(event) =>
+                  setDraft({ ...effectiveDraft, model: event.target.value })
+                }
+                placeholder="granite4.1:3b"
+                value={effectiveDraft.model}
+              />
+              <datalist id="route-model-options">
+                {models.data?.providers
+                  .find((provider) => provider.id === effectiveDraft.provider)
+                  ?.models.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label}
+                    </option>
+                  ))}
+              </datalist>
+              {models.loading ? <small>Updating model list…</small> : null}
+            </label>
+            {reasoningOptions.length ? (
               <label>
-                <span>Provider</span>
-                <input readOnly value={draft.provider} />
-              </label>
-              <label>
-                <span>Model</span>
-                <input
+                <span>Reasoning effort</span>
+                <select
+                  aria-label="Reasoning effort"
                   onChange={(event) =>
-                    setDraft((current) =>
-                      current
-                        ? { ...current, model: event.target.value }
-                        : current,
-                    )
+                    setDraft({
+                      ...effectiveDraft,
+                      reasoningEffort: event.target.value,
+                    })
                   }
-                  placeholder="granite4.1:3b"
-                  value={draft.model}
-                />
+                  value={resolvedReasoningEffort ?? ""}
+                >
+                  {reasoningOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {selectedReasoningOption?.description ? (
+                  <small>{selectedReasoningOption.description}</small>
+                ) : null}
               </label>
-              {reasoningOptions.length ? (
-                <label>
-                  <span>Reasoning effort</span>
-                  <select
-                    aria-label="Reasoning effort"
-                    onChange={(event) =>
-                      setDraft((current) =>
-                        current
-                          ? { ...current, reasoningEffort: event.target.value }
-                          : current,
-                      )
-                    }
-                    value={resolvedReasoningEffort ?? ""}
-                  >
-                    {reasoningOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedReasoningOption?.description ? (
-                    <small>{selectedReasoningOption.description}</small>
-                  ) : null}
-                </label>
-              ) : null}
-              <label className={ROUTE_FIELD_SPAN_CLASS}>
-                <span>Base URL</span>
-                <input
-                  onChange={(event) =>
-                    setDraft((current) =>
-                      current
-                        ? { ...current, baseUrl: event.target.value }
-                        : current,
-                    )
-                  }
-                  placeholder="Optional override"
-                  value={draft.baseUrl}
-                />
-              </label>
-              <label>
-                <span>Temperature</span>
-                <input
-                  inputMode="decimal"
-                  onChange={(event) =>
-                    setDraft((current) =>
-                      current
-                        ? { ...current, temperature: event.target.value }
-                        : current,
-                    )
-                  }
-                  placeholder="Leave unchanged"
-                  value={draft.temperature}
-                />
-              </label>
-              <label>
-                <span>Maximum tokens</span>
-                <input
-                  inputMode="numeric"
-                  onChange={(event) =>
-                    setDraft((current) =>
-                      current
-                        ? { ...current, maxTokens: event.target.value }
-                        : current,
-                    )
-                  }
-                  placeholder="Leave unchanged"
-                  value={draft.maxTokens}
-                />
-              </label>
-            </div>
-
-            {feedback ? (
-              <Notice tone={feedback.tone}>{feedback.message}</Notice>
             ) : null}
+          </div>
 
-            <div className={ROUTE_DIALOG_ACTIONS_CLASS}>
-              <button
-                className="secondary-button"
-                onClick={onOpenModelsPage}
-                type="button"
-              >
-                Full model settings
-              </button>
-              <button
-                className="primary-button"
-                disabled={saving}
-                type="submit"
-              >
-                {saving ? "Applying…" : "Apply route"}
-              </button>
-            </div>
-          </form>
-        )}
+          {settings.error || accounts.error || models.error ? (
+            <Notice tone="warn">
+              Some route details are unavailable. You can still use the current
+              route or open advanced settings.
+            </Notice>
+          ) : null}
+
+          {feedback ? (
+            <Notice tone={feedback.tone}>{feedback.message}</Notice>
+          ) : null}
+
+          <div className={ROUTE_DIALOG_ACTIONS_CLASS}>
+            <button
+              className="secondary-button"
+              onClick={onOpenModelsPage}
+              type="button"
+            >
+              Advanced settings
+            </button>
+            <button className="primary-button" disabled={saving} type="submit">
+              {saving ? "Applying…" : "Apply route"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

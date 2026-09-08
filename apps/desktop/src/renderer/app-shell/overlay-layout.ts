@@ -47,20 +47,20 @@ export const COMMAND_SHORTCUT_KEY_CLASS =
 export const ROUTE_DIALOG_BACKDROP_CLASS =
   "dialog-backdrop fixed inset-0 z-1000 grid place-items-center overflow-auto bg-[color-mix(in_srgb,var(--shadow)_78%,transparent)] p-[clamp(12px,3vw,32px)] max-[760px]:items-end max-[760px]:p-2.5";
 export const ROUTE_DIALOG_CLASS =
-  "route-control-dialog w-[min(920px,100%)] max-h-[min(88svh,860px)] overflow-auto rounded-[var(--radius-md)] border border-[color-mix(in_srgb,var(--accent)_28%,var(--border))] bg-[radial-gradient(circle_at_82%_0%,color-mix(in_srgb,var(--accent)_10%,transparent),transparent_34%),var(--surface-raised)] p-[clamp(14px,2vw,24px)] shadow-[0_30px_90px_color-mix(in_srgb,var(--shadow)_78%,transparent),0_0_0_1px_color-mix(in_srgb,var(--accent)_7%,transparent)] outline-none max-[760px]:max-h-[calc(100svh-20px)] max-[760px]:rounded-[var(--radius-md)_var(--radius-md)_var(--radius-xs)_var(--radius-xs)]";
+  "route-control-dialog w-[min(720px,100%)] max-h-[min(86svh,720px)] overflow-auto rounded-[var(--radius-md)] border border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[var(--surface-raised)] p-[clamp(14px,2vw,24px)] shadow-[var(--shell-shadow-lg)] outline-none max-[760px]:max-h-[calc(100svh-20px)] max-[760px]:rounded-[var(--radius-md)_var(--radius-md)_var(--radius-xs)_var(--radius-xs)]";
 export const ROUTE_DIALOG_HEADER_CLASS =
   "route-control-header flex items-start justify-between gap-4 pb-1.5 [&_h2]:mt-1 [&_h2]:mb-1 [&_h2]:text-[clamp(15px,1.2vw,18px)] [&_h2]:leading-[var(--line-title)] [&_p]:m-0 [&_p]:max-w-140 [&_p]:leading-[var(--line-body)] [&_p]:text-[var(--muted)]";
-export const ROUTE_DIALOG_FORM_CLASS = "route-control-form grid gap-3.5 pt-3";
+export const ROUTE_DIALOG_FORM_CLASS = "route-control-form grid gap-2.5 pt-2.5";
 export const ROUTE_DIALOG_STATUS_CLASS =
-  "route-control-status grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2.5 gap-y-1 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--accent)_14%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_5%,var(--surface-soft))] p-3 max-[760px]:grid-cols-1 [&>small]:col-start-2 [&>small]:text-[var(--muted)] max-[760px]:[&>small]:col-start-1 [&>strong]:overflow-hidden [&>strong]:text-ellipsis [&>strong]:whitespace-nowrap [&>strong]:text-[13px]";
+  "route-control-status grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-0.5 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--accent)_12%,var(--border))] bg-[var(--surface-soft)] px-2.5 py-2 max-[760px]:grid-cols-1 [&>small]:col-start-2 [&>small]:text-[var(--muted)] max-[760px]:[&>small]:col-start-1 [&>strong]:overflow-hidden [&>strong]:text-ellipsis [&>strong]:whitespace-nowrap [&>strong]:text-[12px]";
 export const ROUTE_PROVIDER_GRID_CLASS =
-  "route-provider-grid grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-2.5 max-[760px]:grid-cols-2 max-[480px]:grid-cols-1";
+  "route-provider-grid grid grid-cols-3 gap-1.5 max-[620px]:grid-cols-2 max-[480px]:grid-cols-1";
 export const ROUTE_PROVIDER_CARD_CLASS =
-  "route-provider-card relative grid min-h-32 content-start gap-1.25 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface-soft)_96%,transparent)] p-3 text-left text-[var(--text-soft)] transition-[color,background-color,border-color,transform,box-shadow] hover:-translate-y-px hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&>small]:text-[10px] [&>small]:leading-[1.45] [&>small]:text-[var(--muted)] [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:tracking-[0.08em] [&>span]:text-[var(--accent)] [&>span]:uppercase [&>strong]:text-[13px]";
+  "route-provider-card relative grid min-h-22 content-start gap-0.75 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] p-2.25 text-left text-[var(--text-soft)] transition-[color,background-color,border-color,transform] hover:-translate-y-px hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] [&>small]:line-clamp-1 [&>small]:text-[10px] [&>small]:leading-[1.35] [&>small]:text-[var(--muted)] [&>span]:font-[var(--font-mono)] [&>span]:text-[length:var(--text-meta)] [&>span]:tracking-[0.06em] [&>span]:text-[var(--accent)] [&>span]:uppercase [&>strong]:text-[12px]";
 export const ROUTE_PROVIDER_CARD_SELECTED_CLASS =
   "selected border-[color-mix(in_srgb,var(--accent)_58%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-soft))] text-[var(--text)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_10%,transparent)]";
 export const ROUTE_PROVIDER_READINESS_CLASS =
-  "route-provider-readiness mt-auto place-self-start rounded-full bg-[color-mix(in_srgb,var(--surface-raised)_72%,transparent)] px-1.75 py-0.75 font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic tracking-[0.06em] text-[var(--faint)] uppercase";
+  "route-provider-readiness mt-auto place-self-start font-[var(--font-mono)] text-[length:var(--text-meta)] not-italic tracking-[0.05em] text-[var(--faint)] uppercase";
 export const ROUTE_PROVIDER_READINESS_TONE = {
   neutral: "neutral",
   good: "good bg-[color-mix(in_srgb,var(--good)_14%,transparent)] text-[var(--good)]",
