@@ -1034,6 +1034,15 @@ describe("chat presentation components", () => {
         error: true,
       }),
     ).toBe("No verified file change was completed.");
+    expect(
+      messageContentAfterReceipt({
+        id: "assistant-legacy-failure",
+        role: "assistant",
+        content:
+          "I stopped before completing the requested workspace change. No verified local mutation receipt was recorded (REQUESTED_LOCAL_MUTATION), so this turn was not marked complete.",
+        createdAt: "2026-09-08T16:06:00.000Z",
+      }),
+    ).toBe("No verified file change was completed.");
   });
 
   it("renders message attachments and delegates action controls", () => {

@@ -13,6 +13,7 @@ import { RunReceiptView } from "./RunReceiptView";
 const FAILURE_BOILERPLATE = [
   /Something went wrong while I was working on that\.?/giu,
   /Please try again,? and I(?:'|’)ll pick it back up\.?/giu,
+  /Please try again,? and I(?:'|’)ll take another pass\.?/giu,
   /Response interrupted(?::[^\n]+)?\.?/giu,
   /Retry to continue\.?/giu,
 ];
@@ -25,15 +26,18 @@ export function messageContentAfterReceipt(
   message: DisplayMessage,
   receipt?: RunReceipt,
 ): string {
-  if (!message.error) return message.content;
-  let content = message.content;
+  const hasMutationFailure = UNFINISHED_MUTATION_FAILURE.test(message.content);
+  UNFINISHED_MUTATION_FAILURE.lastIndex = 0;
+  let content = message.content.replace(
+    UNFINISHED_MUTATION_FAILURE,
+    "No verified file change was completed.",
+  );
+  if (!message.error && !hasMutationFailure) return content;
   if (receipt?.latest.run.errorMessage) {
     content = content.replace(receipt.latest.run.errorMessage, "");
   }
-  content = content.replace(
-    UNFINISHED_MUTATION_FAILURE,
-    receipt ? "" : "No verified file change was completed.",
-  );
+  if (receipt)
+    content = content.replace("No verified file change was completed.", "");
   for (const pattern of FAILURE_BOILERPLATE)
     content = content.replace(pattern, "");
   return content.replace(/\s{2,}/gu, " ").trim();
