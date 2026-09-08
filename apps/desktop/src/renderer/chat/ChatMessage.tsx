@@ -17,15 +17,23 @@ const FAILURE_BOILERPLATE = [
   /Retry to continue\.?/giu,
 ];
 
+const UNFINISHED_MUTATION_FAILURE =
+  /I stopped before completing the requested workspace change\. No verified local mutation receipt was recorded \([^)]*\), so this turn was not marked complete\.?/giu;
+
 /** Keep useful partial output while removing errors already explained by the run card. */
 export function messageContentAfterReceipt(
   message: DisplayMessage,
   receipt?: RunReceipt,
 ): string {
-  if (!message.error || !receipt?.latest.run.errorMessage) {
-    return message.content;
+  if (!message.error) return message.content;
+  let content = message.content;
+  if (receipt?.latest.run.errorMessage) {
+    content = content.replace(receipt.latest.run.errorMessage, "");
   }
-  let content = message.content.replace(receipt.latest.run.errorMessage, "");
+  content = content.replace(
+    UNFINISHED_MUTATION_FAILURE,
+    receipt ? "" : "No verified file change was completed.",
+  );
   for (const pattern of FAILURE_BOILERPLATE)
     content = content.replace(pattern, "");
   return content.replace(/\s{2,}/gu, " ").trim();

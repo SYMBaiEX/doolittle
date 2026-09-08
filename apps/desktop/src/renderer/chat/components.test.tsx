@@ -1023,6 +1023,19 @@ describe("chat presentation components", () => {
     expect(html).not.toContain("iteration cap");
   });
 
+  it("humanizes a persisted mutation failure when its run receipt is unavailable", () => {
+    expect(
+      messageContentAfterReceipt({
+        id: "assistant-error",
+        role: "assistant",
+        content:
+          "Something went wrong while I was working on that. Please try again, and I’ll pick it back up. I stopped before completing the requested workspace change. No verified local mutation receipt was recorded (REQUESTED_LOCAL_MUTATION), so this turn was not marked complete. Response interrupted: The response could not be completed. Please try again. Retry to continue.",
+        createdAt: "2026-09-08T16:02:00.000Z",
+        error: true,
+      }),
+    ).toBe("No verified file change was completed.");
+  });
+
   it("renders message attachments and delegates action controls", () => {
     const html = renderToStaticMarkup(
       <ChatMessage
