@@ -175,7 +175,35 @@ describe("chat presentation components", () => {
     expect(html).toContain('aria-label="Message Doolittle"');
     expect(html).not.toContain('class="chat-context-meter neutral"');
     expect(html).not.toContain("chat-composer-details");
+    expect(html).toContain("Prompts");
+    expect(html).toContain(">$<");
     expect(html).toContain('aria-label="Send message"');
+  });
+
+  it("keeps context capacity and remaining tokens visible at zero usage", () => {
+    const html = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          backend: { phase: "ready", message: "" },
+          selectedContext: {
+            provider: "codex",
+            model: "gpt-5.6-luna",
+            estimatedTokens: 0,
+            contextWindowTokens: 1_100_000,
+            usageFraction: 0,
+            percent: 0,
+            overThreshold: false,
+            estimated: true,
+            sampledMessages: 0,
+            totalMessages: 0,
+            truncated: false,
+          },
+        })}
+      />,
+    );
+
+    expect(html).toContain("0 / 1.1m · 1.1m left");
+    expect(html).toContain('aria-controls="chat-composer-details"');
   });
 
   it("puts stop at the point of composition while a response is running", async () => {
@@ -246,7 +274,9 @@ describe("chat presentation components", () => {
       ),
     );
 
-    expect(container.textContent).toContain("1 memory · 1% · 1.2k / 128k");
+    expect(container.textContent).toContain(
+      "1 memory · 1.2k / 128k · 127k left",
+    );
     expect(container.querySelector("#chat-composer-details")).toBeNull();
     expect(container.querySelector(".chat-context-meter")).toBeNull();
 

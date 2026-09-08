@@ -39,7 +39,7 @@ import type {
   ContextPressureSnapshot,
   ContextPressureTone,
 } from "../context-pressure";
-import { contextPressureLabel } from "../context-pressure";
+import { compactTokenCount, contextPressureLabel } from "../context-pressure";
 import type { PersistedQueuedMessage } from "../conversation-persistence";
 import {
   loadPromptLibrary,
@@ -256,16 +256,21 @@ export function ChatComposer({
   const hasMemoryMatches =
     memoryMatches.status === "ready" && memoryMatches.matches.length > 0;
   const contextSummary = selectedContext
-    ? contextPressureLabel(selectedContext)
+    ? `${compactTokenCount(selectedContext.estimatedTokens)} / ${compactTokenCount(
+        selectedContext.contextWindowTokens,
+      )} · ${compactTokenCount(
+        Math.max(
+          0,
+          selectedContext.contextWindowTokens - selectedContext.estimatedTokens,
+        ),
+      )} left`
     : usageLoading === selectedId
       ? "Measuring…"
       : selectedUsageError
         ? "Unavailable"
         : "0%";
   const hasContextDetails = Boolean(
-    (selectedContext && selectedContextPercent > 0) ||
-      selectedUsageError ||
-      usageLoading === selectedId,
+    selectedContext || selectedUsageError || usageLoading === selectedId,
   );
   const showOperationalStatus = Boolean(
     activeRequest ||

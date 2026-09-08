@@ -30,6 +30,12 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+function promptLibraryTrigger(container: ParentNode): HTMLButtonElement | null {
+  return container.querySelector<HTMLButtonElement>(
+    'button[aria-label="Open prompt library"]',
+  );
+}
+
 function PromptLibraryProbe({
   activeProject,
 }: {
@@ -84,9 +90,7 @@ describe("PromptLibrary", () => {
   it("saves, renames, restores, and persists a reusable prompt", () => {
     act(() => root.render(<PromptLibraryProbe />));
 
-    const promptsButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Prompts",
-    );
+    const promptsButton = promptLibraryTrigger(container);
     act(() => promptsButton?.click());
 
     const titleInput = container.querySelector<HTMLInputElement>(
@@ -178,9 +182,7 @@ describe("PromptLibrary", () => {
       ),
     );
 
-    const promptsButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Prompts · 1",
-    );
+    const promptsButton = promptLibraryTrigger(container);
     act(() => promptsButton?.click());
     expect(container.textContent).toContain("Project prompt");
     expect(container.textContent).not.toContain("General prompt");
@@ -205,9 +207,7 @@ describe("PromptLibrary", () => {
     ]);
     act(() => root.render(<PromptLibraryProbe />));
 
-    const promptsButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Prompts · 1",
-    );
+    const promptsButton = promptLibraryTrigger(container);
     act(() => promptsButton?.click());
     act(() => {
       document.dispatchEvent(
@@ -254,9 +254,7 @@ describe("PromptLibrary", () => {
       );
     });
 
-    const promptsButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Prompts · 1",
-    );
+    const promptsButton = promptLibraryTrigger(container);
     expect(promptsButton).toBeDefined();
     act(() => promptsButton?.click());
     expect(container.textContent).toContain("External prompt");
@@ -285,9 +283,7 @@ describe("PromptLibrary", () => {
 
   it("restores the trigger when an outside click leaves focus orphaned", () => {
     act(() => root.render(<PromptLibraryProbe />));
-    const promptsButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Prompts",
-    );
+    const promptsButton = promptLibraryTrigger(container);
     act(() => promptsButton?.click());
     const titleInput = container.querySelector<HTMLInputElement>(
       '[aria-label="Saved prompt title"]',
@@ -304,9 +300,7 @@ describe("PromptLibrary", () => {
 
   it("focuses, contains, escapes, and restores the quick library dialog", () => {
     act(() => root.render(<PromptLibraryProbe />));
-    const promptsButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Prompts",
-    );
+    const promptsButton = promptLibraryTrigger(container);
     act(() => promptsButton?.click());
 
     const dialog = container.querySelector<HTMLElement>(
