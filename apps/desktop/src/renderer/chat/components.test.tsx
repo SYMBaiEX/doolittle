@@ -933,6 +933,25 @@ describe("chat presentation components", () => {
         receipt,
       ),
     ).toBe("I created the files.");
+
+    const html = renderToStaticMarkup(
+      <ChatMessage
+        actions={null}
+        message={{
+          id: "assistant:run-1",
+          role: "assistant",
+          content:
+            "I created the files. Build timed out after 30 seconds. Response interrupted. Retry to continue.",
+          createdAt: failed.run.updatedAt,
+          error: true,
+        }}
+        receipt={receipt}
+      />,
+    );
+    expect(html).toContain("I created the files.");
+    expect(html).not.toContain("Response interrupted");
+    expect(html.match(/Build timed out after 30 seconds\./gu)).toHaveLength(1);
+    expect(html).toContain("standard depth · 8 iteration cap");
   });
 
   it("renders message attachments and delegates action controls", () => {

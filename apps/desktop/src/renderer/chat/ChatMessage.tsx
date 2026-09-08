@@ -40,9 +40,10 @@ export function ChatMessage({
   receipt?: RunReceipt;
   actions: ReactNode;
 }) {
+  const visibleContent = messageContentAfterReceipt(message, receipt);
   const parsedAgentMessage: ParsedAgentMessage | undefined =
-    message.role === "assistant" && message.content
-      ? parseAgentMessage(message.content)
+    message.role === "assistant" && visibleContent
+      ? parseAgentMessage(visibleContent)
       : undefined;
   const hasToolActivity = Boolean(parsedAgentMessage?.tools.length);
   const receiptNeedsAttention = Boolean(
@@ -60,8 +61,6 @@ export function ChatMessage({
         (!hasToolActivity &&
           (message.pending || receipt.latest.run.localMutations.length > 0))),
   );
-  const visibleContent = messageContentAfterReceipt(message, receipt);
-
   return (
     <article
       className={`chat-message group ${message.role} ${message.error ? "error" : ""}`}

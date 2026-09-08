@@ -330,7 +330,7 @@ export function RunReceiptView({
       ) : null}
       {expanded ? (
         <div className="border-[var(--border)] border-t">
-          {items.length > 0 ? (
+          {items.length > 1 ? (
             <ol className="m-0 grid max-h-52 list-none gap-0.5 overflow-y-auto p-1.5 [scrollbar-gutter:stable]">
               {items.map((item) => (
                 <li key={item.id}>
@@ -365,11 +365,11 @@ export function RunReceiptView({
                 </li>
               ))}
             </ol>
-          ) : (
+          ) : items.length === 0 ? (
             <p className="m-0 px-3 py-2.5 text-[length:var(--text-meta)] text-[var(--muted)]">
               {summary}
             </p>
-          )}
+          ) : null}
           {selected ? <RunDetail item={selected} /> : null}
           <footer className="flex min-w-0 items-center gap-2 border-[var(--border)] border-t px-3 py-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)]">
             {state.tone === "bad" ? (
@@ -379,7 +379,10 @@ export function RunReceiptView({
                 size="xs"
               />
             ) : null}
-            <span className="truncate">{summary}</span>
+            <span className="truncate">
+              {receipt.latest.run.runDepth} depth ·{" "}
+              {receipt.latest.run.configuredMaxIterations} iteration cap
+            </span>
             <span className="ml-auto shrink-0">{state.statusLabel}</span>
           </footer>
         </div>
