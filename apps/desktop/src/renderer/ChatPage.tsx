@@ -15,7 +15,6 @@ import { createPortal } from "react-dom";
 import type {
   BackendState,
   ChatEvent,
-  DesktopRunUpdate,
   RuntimeStatus,
   SessionForkResponse,
   SessionSummary,
@@ -34,6 +33,7 @@ import {
 import {
   type BranchMode,
   type DisplayMessage,
+  historicalRunReceipt,
   isDesktopRunUpdate,
   MAX_MESSAGE_ATTACHMENT_BYTES,
   MAX_MESSAGE_ATTACHMENTS,
@@ -818,9 +818,18 @@ export function ChatPage({
   useEffect(() => {
     if (backend.phase !== "ready") return;
     let disposed = false;
-    void desktopRequest<{ runs?: unknown }>("/chat/runs?limit=50", "GET")
+    void desktopRequest<{ runs?: unknown; updates?: unknown }>(
+      "/chat/runs?limit=50&include_updates=true",
+      "GET",
+    )
       .then((payload) => {
         if (disposed || !Array.isArray(payload.runs)) return;
+        const persistedUpdates =
+          payload.updates &&
+          typeof payload.updates === "object" &&
+          !Array.isArray(payload.updates)
+            ? (payload.updates as Record<string, unknown>)
+            : {};
         for (const value of payload.runs) {
           if (!value || typeof value !== "object") continue;
           const run = value as Record<string, unknown>;
@@ -829,28 +838,16 @@ export function ChatPage({
             typeof run.sessionId === "string" ? run.sessionId : "";
           const status = typeof run.status === "string" ? run.status : "";
           if (run.source !== "desktop") continue;
-          if (
-            !runId ||
-            !sessionId ||
-            ["complete", "cancelled", "failed", "error"].includes(status)
-          ) {
-            const type: DesktopRunUpdate["type"] =
-              status === "complete"
-                ? "completed"
-                : status === "cancelled"
-                  ? "cancelled"
-                  : "error";
-            const receipt: DesktopRunUpdate = {
-              type,
-              sessionId,
-              run: run as unknown as DesktopRunUpdate["run"],
-            };
+          if (!runId || !sessionId) continue;
+          if (["complete", "cancelled", "error"].includes(status)) {
+            const receipt = historicalRunReceipt(run, persistedUpdates[runId]);
+            if (!receipt) continue;
             setRunReceipts((current) =>
               current[runId]
                 ? current
                 : {
                     ...current,
-                    [runId]: { latest: receipt, events: [receipt] },
+                    [runId]: receipt,
                   },
             );
             continue;
@@ -1540,13 +1537,11 @@ export function ChatPage({
       {chromeHost
         ? createPortal(
             <ChatHeaderChrome
-              activeRequest={activeRequest}
               inspectorVisible={inspectorVisible}
               isNewConversation={isNewConversation}
               mobileConversationsButtonRef={mobileConversationsButtonRef}
               mobileConversationsOpen={mobileConversationsOpen}
               modelRouteLabel={modelRouteLabel}
-              onCancelRequest={(requestId) => void cancelRequest(requestId)}
               onOpenMobileConversations={() => setMobileConversationsOpen(true)}
               onOpenRouteControls={() => setRouteDialogOpen(true)}
               onOpenWorkspace={() => onOpenWorkspaceView("code")}
@@ -1656,6 +1651,7 @@ export function ChatPage({
           onOpenModelsPage={onOpenModelsPage}
           onOpenProvidersPage={onOpenProvidersPage}
           activeRequest={activeRequest}
+          onCancelRequest={(requestId) => void cancelRequest(requestId)}
           canSubmit={canSubmit}
           draft={draft}
           setDraft={setDraft}

@@ -142,6 +142,45 @@ describe("handleConversationRoutes", () => {
     expect(await response?.text()).toContain("event: response.completed");
   });
 
+  it("includes bounded run updates when hydrating desktop receipts", async () => {
+    const context = createContext();
+    const run = context.services.runController.startTurn({
+      sessionId: "desktop:history",
+      roomId: "desktop:history",
+      runId: "history-run",
+      source: "desktop",
+      message: "inspect the workspace",
+      runDepth: "standard",
+      configuredMaxIterations: 45,
+      progressMode: "new",
+    });
+    context.services.runController.appendTaskEvent("history-run", "agent.run", {
+      type: "started",
+      sessionId: run.sessionId,
+      run,
+    });
+    context.services.runController.appendTaskEvent(
+      "history-run",
+      "response.output_text.delta",
+      { delta: "not part of the activity timeline" },
+    );
+    context.services.runController.finishTurn(run.sessionId, "complete");
+
+    const response = await handleConversationRoutes(
+      context,
+      new Request("http://localhost/chat/runs?limit=10&include_updates=true"),
+      new URL("http://localhost/chat/runs?limit=10&include_updates=true"),
+    );
+
+    expect(response?.status).toBe(200);
+    await expect(response?.json()).resolves.toMatchObject({
+      runs: [{ runId: "history-run", status: "complete" }],
+      updates: {
+        "history-run": [{ type: "started", sessionId: "desktop:history" }],
+      },
+    });
+  });
+
   it("cancels the registered server turn and exposes its retained receipt", async () => {
     const context = createContext();
     const controller = new AbortController();

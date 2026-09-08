@@ -3,6 +3,7 @@ import type { DesktopRunUpdate } from "../../shared/contracts";
 import {
   attachmentSize,
   fileName,
+  historicalRunReceipt,
   isDesktopRunUpdate,
   MAX_MESSAGE_ATTACHMENT_BYTES,
   MAX_MESSAGE_ATTACHMENTS,
@@ -57,6 +58,29 @@ describe("chat presentation models", () => {
     expect(isDesktopRunUpdate({ type: "completed", run: {} })).toBe(false);
     expect(runEventKey(value)).toContain("action-completed");
     expect(runEventKey(value)).toContain("READ_FILE");
+  });
+
+  it("rebuilds a deduplicated historical activity timeline", () => {
+    const started = update("started", {
+      status: "thinking",
+      observedActionCount: 0,
+    });
+    const completedRun = update("completed").run;
+    const receipt = historicalRunReceipt(completedRun, [
+      started,
+      started,
+      { type: "thinking", sessionId: "another-session", run: completedRun },
+      { invalid: true },
+    ]);
+
+    expect(receipt?.latest.type).toBe("completed");
+    expect(receipt?.events.map((event) => event.type)).toEqual([
+      "started",
+      "completed",
+    ]);
+    expect(
+      historicalRunReceipt({ ...completedRun, status: "acting" }, []),
+    ).toBe(null);
   });
 
   it("describes local mutation outcomes with safe path labels", () => {

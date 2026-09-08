@@ -82,6 +82,50 @@ export function runEventKey(update: DesktopRunUpdate): string {
   ].join(":");
 }
 
+/** Rebuild the compact activity timeline retained for a completed desktop run. */
+export function historicalRunReceipt(
+  run: unknown,
+  persistedUpdates: unknown,
+): RunReceipt | null {
+  if (!run || typeof run !== "object" || Array.isArray(run)) return null;
+  const candidate = run as Partial<DesktopRunUpdate["run"]>;
+  const status = candidate.status;
+  const type: DesktopRunUpdate["type"] | null =
+    status === "complete"
+      ? "completed"
+      : status === "cancelled"
+        ? "cancelled"
+        : status === "error"
+          ? "error"
+          : null;
+  if (!type || typeof candidate.sessionId !== "string") return null;
+
+  const terminal: DesktopRunUpdate = {
+    type,
+    sessionId: candidate.sessionId,
+    run: candidate as DesktopRunUpdate["run"],
+  };
+  if (!isDesktopRunUpdate(terminal)) return null;
+
+  const seen = new Set<string>();
+  const events = (Array.isArray(persistedUpdates) ? persistedUpdates : [])
+    .filter(isDesktopRunUpdate)
+    .filter(
+      (update) =>
+        update.sessionId === terminal.sessionId &&
+        update.run.runId === terminal.run.runId,
+    )
+    .filter((update) => {
+      const key = runEventKey(update);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  const terminalKey = runEventKey(terminal);
+  if (!seen.has(terminalKey)) events.push(terminal);
+  return { latest: terminal, events: events.slice(-30) };
+}
+
 export interface RunEventCopy {
   label: string;
   detail: string;

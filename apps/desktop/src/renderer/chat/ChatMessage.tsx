@@ -56,14 +56,15 @@ export function ChatMessage({
   const showRunReceipt = Boolean(
     receipt &&
       (receiptNeedsAttention ||
-        (receipt.latest.run.status === "complete" &&
-          receipt.latest.run.observedActionCount > 0) ||
         (!hasToolActivity &&
-          (message.pending || receipt.latest.run.localMutations.length > 0))),
+          ((receipt.latest.run.status === "complete" &&
+            receipt.latest.run.observedActionCount > 0) ||
+            message.pending ||
+            receipt.latest.run.localMutations.length > 0))),
   );
   return (
     <article
-      className={`chat-message group ${message.role} ${message.error ? "error" : ""}`}
+      className={`chat-message group ${message.role} ${message.error && !showRunReceipt ? "error" : ""}`}
     >
       <div className="chat-message-label">
         <strong>

@@ -82,6 +82,7 @@ function composerProps(
     onOpenModelsPage: () => undefined,
     onOpenProvidersPage: () => undefined,
     activeRequest: null,
+    onCancelRequest: () => undefined,
     canSubmit: true,
     draft: "hello",
     setDraft: () => undefined,
@@ -175,6 +176,39 @@ describe("chat presentation components", () => {
     expect(html).not.toContain('class="chat-context-meter neutral"');
     expect(html).not.toContain("chat-composer-details");
     expect(html).toContain('aria-label="Send message"');
+  });
+
+  it("puts stop at the point of composition while a response is running", async () => {
+    const onCancelRequest = vi.fn();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+
+    await act(async () =>
+      root.render(
+        <ChatComposer
+          {...composerProps({
+            activeRequest: "run-1",
+            onCancelRequest,
+          })}
+        />,
+      ),
+    );
+    const stop = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Stop response"]',
+    );
+    act(() => stop?.click());
+    expect(onCancelRequest).toHaveBeenCalledWith("run-1");
+
+    const textarea = container.querySelector("textarea");
+    act(() =>
+      textarea?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      ),
+    );
+    expect(onCancelRequest).toHaveBeenCalledTimes(2);
+    act(() => root.unmount());
+    container.remove();
   });
 
   it("reveals memory and context details on demand without stacking them by default", async () => {

@@ -8,7 +8,6 @@ import {
 } from "./ChatHeaderChrome";
 
 const handlers = {
-  onCancelRequest: vi.fn(),
   onOpenMobileConversations: vi.fn(),
   onOpenRouteControls: vi.fn(),
   onOpenWorkspace: vi.fn(),
@@ -19,7 +18,6 @@ const handlers = {
 };
 
 const baseProps: ChatHeaderChromeProps = {
-  activeRequest: null,
   inspectorVisible: false,
   isNewConversation: true,
   mobileConversationsButtonRef: { current: null },
@@ -116,7 +114,6 @@ describe("ChatHeaderChrome", () => {
 
   it("reveals conversation state and forwards the compact actions", () => {
     render({
-      activeRequest: "request-1",
       isNewConversation: false,
       selectedContextLabel: "72%",
       selectedContextPercent: 72,
@@ -146,18 +143,12 @@ describe("ChatHeaderChrome", () => {
     );
     act(() =>
       Array.from(container.querySelectorAll("button"))
-        .find((button) => button.textContent?.includes("Stop response"))
-        ?.click(),
-    );
-    act(() =>
-      Array.from(container.querySelectorAll("button"))
         .find((button) => button.textContent?.includes("72%"))
         ?.click(),
     );
 
     expect(handlers.onTogglePin).toHaveBeenCalledTimes(1);
     expect(handlers.onOpenRouteControls).toHaveBeenCalledTimes(1);
-    expect(handlers.onCancelRequest).toHaveBeenCalledWith("request-1");
     expect(handlers.onPrepareCompression).toHaveBeenCalledTimes(1);
   });
 

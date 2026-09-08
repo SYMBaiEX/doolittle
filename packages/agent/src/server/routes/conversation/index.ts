@@ -68,9 +68,25 @@ export async function handleConversationRoutes(
       const limit = Number.isFinite(requestedLimit)
         ? Math.max(1, Math.min(100, Math.floor(requestedLimit)))
         : 30;
+      const runs = context.services.runController.listReceipts(limit);
+      const includeUpdates = url.searchParams.get("include_updates") === "true";
       return new Response(
         JSON.stringify({
-          runs: context.services.runController.listReceipts(limit),
+          runs,
+          ...(includeUpdates
+            ? {
+                updates: Object.fromEntries(
+                  runs.map((run) => [
+                    run.runId,
+                    context.services.runController
+                      .getTaskEvents(run.runId)
+                      .filter((event) => event.type === "agent.run")
+                      .slice(-30)
+                      .map((event) => event.data),
+                  ]),
+                ),
+              }
+            : {}),
         }),
         { headers: { "content-type": "application/json; charset=utf-8" } },
       );

@@ -8,13 +8,11 @@ import { CHAT_HEADER_CONTENT_CLASS } from "./layout";
 import type { ChatSessionForRender } from "./useChatConversationState";
 
 export interface ChatHeaderChromeProps {
-  activeRequest: string | null;
   inspectorVisible: boolean;
   isNewConversation: boolean;
   mobileConversationsButtonRef: RefObject<HTMLButtonElement | null>;
   mobileConversationsOpen: boolean;
   modelRouteLabel: string;
-  onCancelRequest: (requestId: string) => void;
   onOpenMobileConversations: () => void;
   onOpenRouteControls: () => void;
   onOpenWorkspace: () => void;
@@ -36,13 +34,11 @@ export interface ChatHeaderChromeProps {
 }
 
 export function ChatHeaderChrome({
-  activeRequest,
   inspectorVisible,
   isNewConversation,
   mobileConversationsButtonRef,
   mobileConversationsOpen,
   modelRouteLabel,
-  onCancelRequest,
   onOpenMobileConversations,
   onOpenRouteControls,
   onOpenWorkspace,
@@ -206,15 +202,6 @@ export function ChatHeaderChrome({
               type="button"
             >
               {surface === "media" ? "Chat" : "Media"}
-            </button>
-          ) : null}
-          {activeRequest ? (
-            <button
-              className="secondary-button chat-stop-response"
-              onClick={() => onCancelRequest(activeRequest)}
-              type="button"
-            >
-              Stop response
             </button>
           ) : null}
           <button

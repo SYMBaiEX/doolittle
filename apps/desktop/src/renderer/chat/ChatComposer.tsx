@@ -1,7 +1,14 @@
 import { Button as ElizaButton } from "@elizaos/ui/components/ui/button";
 import { StatusBadge } from "@elizaos/ui/components/ui/status-badge";
 import { Textarea as ElizaTextarea } from "@elizaos/ui/components/ui/textarea";
-import { ArrowUp, ChevronDown, FileText, Paperclip, X } from "lucide-react";
+import {
+  ArrowUp,
+  ChevronDown,
+  FileText,
+  Paperclip,
+  Square,
+  X,
+} from "lucide-react";
 import type {
   Dispatch,
   FormEvent,
@@ -80,6 +87,7 @@ export interface ChatComposerProps {
   onOpenModelsPage: () => void;
   onOpenProvidersPage: () => void;
   activeRequest: string | null;
+  onCancelRequest: (requestId: string) => void;
   canSubmit: boolean;
   draft: string;
   setDraft: Dispatch<SetStateAction<string>>;
@@ -140,6 +148,7 @@ export function ChatComposer({
   onOpenModelsPage,
   onOpenProvidersPage,
   activeRequest,
+  onCancelRequest,
   canSubmit,
   draft,
   setDraft,
@@ -587,6 +596,11 @@ export function ChatComposer({
                 return;
               }
             }
+            if (event.key === "Escape" && activeRequest) {
+              event.preventDefault();
+              onCancelRequest(activeRequest);
+              return;
+            }
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
               void onSubmit();
@@ -606,14 +620,27 @@ export function ChatComposer({
           value={draft}
         />
         <ElizaButton
-          aria-label={activeRequest ? "Queue message" : "Send message"}
-          className="chat-composer-submit !size-[32px] !min-h-[32px] !min-w-[32px] !self-end !rounded-[8px] !border-0 !bg-[var(--accent)] !p-0 !text-[var(--accent-ink)] hover:!bg-[color-mix(in_srgb,var(--accent)_86%,var(--text))] disabled:!bg-[var(--surface-soft)] disabled:!text-[var(--muted)] disabled:opacity-60 motion-reduce:transition-none max-[480px]:!size-9.5 max-[480px]:!min-h-9.5 max-[480px]:!min-w-9.5"
-          disabled={!canSubmit}
+          aria-label={activeRequest ? "Stop response" : "Send message"}
+          aria-keyshortcuts={activeRequest ? "Escape" : undefined}
+          className={`chat-composer-submit !size-[32px] !min-h-[32px] !min-w-[32px] !self-end !rounded-[8px] !p-0 motion-reduce:transition-none max-[480px]:!size-9.5 max-[480px]:!min-h-9.5 max-[480px]:!min-w-9.5 ${
+            activeRequest
+              ? "!border !border-[color-mix(in_srgb,var(--bad)_40%,var(--border))] !bg-[color-mix(in_srgb,var(--bad)_10%,var(--surface-soft))] !text-[var(--bad)] hover:!bg-[color-mix(in_srgb,var(--bad)_18%,var(--surface-hover))]"
+              : "!border-0 !bg-[var(--accent)] !text-[var(--accent-ink)] hover:!bg-[color-mix(in_srgb,var(--accent)_86%,var(--text))] disabled:!bg-[var(--surface-soft)] disabled:!text-[var(--muted)] disabled:opacity-60"
+          }`}
+          disabled={!activeRequest && !canSubmit}
+          onClick={
+            activeRequest ? () => onCancelRequest(activeRequest) : undefined
+          }
           size="icon-sm"
-          type="submit"
+          title={
+            activeRequest
+              ? "Stop the current response (Escape)"
+              : "Send message (Enter)"
+          }
+          type={activeRequest ? "button" : "submit"}
           variant="default"
         >
-          <UiIcon icon={ArrowUp} size="md" />
+          <UiIcon icon={activeRequest ? Square : ArrowUp} size="md" />
         </ElizaButton>
       </div>
       <div className="chat-composer-footer">
@@ -703,7 +730,6 @@ export function ChatComposer({
               }
               withDot
             />
-            <small>{modelRouteLabel}</small>
             {runningTasks > 0 ? <small>{runningTasks} active</small> : null}
             {pendingApprovals > 0 ? (
               <small className="warning">

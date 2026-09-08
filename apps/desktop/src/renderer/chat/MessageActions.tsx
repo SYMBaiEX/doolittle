@@ -1,8 +1,18 @@
 import { Button as ElizaButton } from "@elizaos/ui/components/ui/button";
+import {
+  Check,
+  Copy,
+  GitFork,
+  Pencil,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
+import { UiIcon } from "../components/UiIcon";
 import type { BranchMode, CopyState, DisplayMessage } from "./models";
 
 const MESSAGE_ACTION_CLASS =
-  "chat-message-action-button !min-h-[26px] !rounded-[5px] !border-0 !bg-transparent px-[7px] py-1 !text-[10px] !leading-[1.1] !text-[var(--muted)] hover:!bg-[var(--surface-hover)] hover:!text-[var(--text)] focus-visible:!bg-[var(--surface-hover)] focus-visible:!text-[var(--text)] motion-reduce:transition-none";
+  "chat-message-action-button !size-[26px] !min-h-[26px] !min-w-[26px] !rounded-[6px] !border-0 !bg-transparent !p-0 !text-[var(--muted)] hover:!bg-[var(--surface-hover)] hover:!text-[var(--text)] focus-visible:!bg-[var(--surface-hover)] focus-visible:!text-[var(--text)] motion-reduce:transition-none";
 
 export interface MessageActionsProps {
   message: DisplayMessage;
@@ -55,7 +65,10 @@ export function MessageActions({
         size="sm"
         variant="ghost"
       >
-        {forkingMessageId === message.id ? "Branching…" : "Fork"}
+        <UiIcon icon={GitFork} size="xs" />
+        <span className="sr-only">
+          {forkingMessageId === message.id ? "Branching…" : "Fork"}
+        </span>
       </ElizaButton>
       {message.role === "user" ? (
         <ElizaButton
@@ -68,7 +81,8 @@ export function MessageActions({
           size="sm"
           variant="ghost"
         >
-          Edit
+          <UiIcon icon={Pencil} size="xs" />
+          <span className="sr-only">Edit</span>
         </ElizaButton>
       ) : !message.pending ? (
         <ElizaButton
@@ -81,7 +95,8 @@ export function MessageActions({
           size="sm"
           variant="ghost"
         >
-          Retry
+          <UiIcon icon={RotateCcw} size="xs" />
+          <span className="sr-only">Retry</span>
         </ElizaButton>
       ) : null}
       {message.role === "assistant" && !message.pending && !message.error ? (
@@ -100,19 +115,28 @@ export function MessageActions({
           }
           title={
             speechSupported
-              ? undefined
+              ? speakingMessageId === message.id
+                ? "Stop reading response"
+                : "Read response aloud"
               : "Read aloud is not supported by this system."
           }
           type="button"
           size="sm"
           variant="ghost"
         >
-          {speakingMessageId === message.id ? "Stop" : "Read"}
+          <UiIcon
+            icon={speakingMessageId === message.id ? VolumeX : Volume2}
+            size="xs"
+          />
+          <span className="sr-only">
+            {speakingMessageId === message.id ? "Stop" : "Read"}
+          </span>
         </ElizaButton>
       ) : null}
       <ElizaButton
         className={MESSAGE_ACTION_CLASS}
         aria-label={failed ? "Copy failed" : "Copy message"}
+        title={failed ? "Copy failed" : label}
         onClick={(event) => {
           onCopy(message);
           if (event.detail > 0) event.currentTarget.blur();
@@ -121,7 +145,8 @@ export function MessageActions({
         size="sm"
         variant="ghost"
       >
-        {failed ? "Copy failed" : label}
+        <UiIcon icon={copyState === "copied" ? Check : Copy} size="xs" />
+        <span className="sr-only">{failed ? "Copy failed" : label}</span>
       </ElizaButton>
     </div>
   );
