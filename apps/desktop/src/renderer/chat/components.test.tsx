@@ -177,6 +177,10 @@ describe("chat presentation components", () => {
     expect(html).not.toContain("chat-composer-details");
     expect(html).toContain("Prompts");
     expect(html).toContain(">$<");
+    expect(html).toContain("!flex-row !flex-nowrap !items-center");
+    expect(html).toContain(
+      "inline-flex min-w-0 flex-row items-center gap-1.25 whitespace-nowrap",
+    );
     expect(html).toContain('aria-label="Send message"');
   });
 

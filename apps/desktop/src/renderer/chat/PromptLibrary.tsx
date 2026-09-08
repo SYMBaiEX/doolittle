@@ -244,16 +244,18 @@ export function PromptLibrary({
         aria-controls="chat-prompt-library"
         aria-expanded={open}
         aria-label="Open prompt library"
-        className="secondary-button !h-7.5 !min-h-7.5 !justify-center gap-1.25 !rounded-[7px] !border-transparent !bg-transparent !px-2 !py-0 text-[10px] font-semibold text-[var(--text-soft)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)] max-[480px]:!size-10 max-[480px]:!min-h-10 max-[480px]:!min-w-10 max-[480px]:!px-0"
+        className="secondary-button !inline-flex !h-7.5 !min-h-7.5 !w-auto !flex-row !flex-nowrap !items-center !justify-center gap-1.25 !rounded-[7px] !border-transparent !bg-transparent !px-2 !py-0 text-[10px] font-semibold text-[var(--text-soft)] hover:!border-[var(--border)] hover:!bg-[var(--surface-soft)] hover:!text-[var(--text)] max-[480px]:!size-10 max-[480px]:!min-h-10 max-[480px]:!min-w-10 max-[480px]:!px-0"
         onClick={() => setOpen((current) => !current)}
         ref={triggerRef}
         title="Prompt library ($)"
         type="button"
       >
-        <UiIcon icon={BookOpen} size="xs" />
-        <span className="max-[480px]:sr-only">
-          Prompts
-          {visibleEntries.length > 0 ? ` · ${visibleEntries.length}` : ""}
+        <span className="inline-flex min-w-0 flex-row items-center gap-1.25 whitespace-nowrap">
+          <UiIcon icon={BookOpen} size="xs" />
+          <span className="max-[480px]:sr-only">
+            Prompts
+            {visibleEntries.length > 0 ? ` · ${visibleEntries.length}` : ""}
+          </span>
         </span>
         <kbd className="rounded-[4px] border border-[var(--border)] bg-[var(--surface-soft)] px-1 py-px font-[var(--font-mono)] text-[length:var(--text-meta)] font-medium text-[var(--faint)] max-[480px]:hidden">
           $
