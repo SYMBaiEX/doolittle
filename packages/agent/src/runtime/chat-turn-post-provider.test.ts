@@ -21,6 +21,7 @@ function createHarness(observedActionCount = 0) {
       },
       sessions: {
         countBySessionRole: () => 1,
+        recentBySession: () => [],
         storeMessage: (message: { text: string }) =>
           storedMessages.push(message.text),
       },
@@ -353,6 +354,36 @@ describe("ElizaOS-native post-provider seam", () => {
       "I stopped before completing the requested workspace change",
     );
     expect(result.runFailureMessage).toBe(result.response);
+    expect(harness.finishEvents[0]?.status).toBe("error");
+  });
+
+  it("keeps a failed mutation contract armed when the user says continue", async () => {
+    const harness = createHarness(2);
+    harness.context.services.sessions.recentBySession = vi.fn(
+      () =>
+        [
+          {
+            role: "assistant",
+            text: "I stopped before completing the requested workspace change. No verified local mutation receipt was recorded (REQUESTED_LOCAL_MUTATION).",
+          },
+        ] as never,
+    );
+
+    const result = await runPostProviderTurn(
+      createInput(harness.context, {
+        input: { userId: "alice", message: "Continue", source: "desktop" },
+        effectiveInput: {
+          userId: "alice",
+          message: "Continue",
+          source: "desktop",
+        },
+        response: "I am checking the workspace now.",
+      }),
+    );
+
+    expect(result.runFailureMessage).toContain(
+      "I stopped before completing the requested workspace change",
+    );
     expect(harness.finishEvents[0]?.status).toBe("error");
   });
 

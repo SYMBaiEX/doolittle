@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  continuesWorkspaceMutationIntent,
   hasExplicitWorkspaceMutationIntent,
   renderWorkspaceMutationExecutionContract,
 } from "./workspace-mutation-intent";
@@ -41,5 +42,24 @@ describe("workspace mutation intent", () => {
     expect(
       renderWorkspaceMutationExecutionContract("Explain this repo"),
     ).toEqual([]);
+  });
+
+  it("carries an unfinished mutation obligation into a concise continuation", () => {
+    const recentMessages = [
+      {
+        role: "assistant",
+        text: "I stopped before completing the requested workspace change. No verified local mutation receipt was recorded (REQUESTED_LOCAL_MUTATION).",
+      },
+    ];
+
+    expect(continuesWorkspaceMutationIntent("Continue", recentMessages)).toBe(
+      true,
+    );
+    expect(
+      renderWorkspaceMutationExecutionContract("Continue", recentMessages),
+    ).not.toEqual([]);
+    expect(
+      continuesWorkspaceMutationIntent("Tell me about this", recentMessages),
+    ).toBe(false);
   });
 });

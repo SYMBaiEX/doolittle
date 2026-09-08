@@ -837,8 +837,8 @@ describe("chat presentation components", () => {
     );
     expect(html).toContain("chat-run-receipt");
     expect(html).toContain("Run complete");
-    expect(html).toContain("Doolittle");
-    expect(html).toContain("1 actions · 1s");
+    expect(html).not.toContain("Doolittle");
+    expect(html).toContain("1 action · 1s");
     expect(
       runActivityItems({ latest: completed, events: [heartbeat, completed] }),
     ).toHaveLength(1);
@@ -859,7 +859,7 @@ describe("chat presentation components", () => {
 
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
-      label: "READ_FILE",
+      label: "Reading file",
       status: "complete",
     });
   });
@@ -951,7 +951,7 @@ describe("chat presentation components", () => {
     expect(html).toContain("The workspace is ready.");
     expect(html).toContain("chat-run-receipt");
     expect(html).toContain('aria-expanded="false"');
-    expect(html).toContain("1 actions");
+    expect(html).toContain("1 action");
   });
 
   it("keeps retry available for an errored assistant response", () => {
@@ -1019,7 +1019,8 @@ describe("chat presentation components", () => {
     expect(html).toContain("I created the files.");
     expect(html).not.toContain("Response interrupted");
     expect(html.match(/Build timed out after 30 seconds\./gu)).toHaveLength(1);
-    expect(html).toContain("standard depth · 8 iteration cap");
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).not.toContain("iteration cap");
   });
 
   it("renders message attachments and delegates action controls", () => {

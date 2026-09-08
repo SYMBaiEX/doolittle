@@ -130,13 +130,13 @@ export function ChatMessage({
             ) : null}
           </div>
         ) : null}
-        {message.role === "user" && message.memoryMatch ? (
+        {message.role === "user" &&
+        message.memoryMatch &&
+        message.memoryMatch.count > 0 ? (
           <p className="chat-message-memory-source">
-            {message.memoryMatch.count > 0
-              ? `${message.memoryMatch.count} saved profile ${
-                  message.memoryMatch.count === 1 ? "match" : "matches"
-                } available to this turn`
-              : "No saved profile matches for this turn"}
+            {`${message.memoryMatch.count} saved profile ${
+              message.memoryMatch.count === 1 ? "match" : "matches"
+            } available to this turn`}
           </p>
         ) : null}
       </div>

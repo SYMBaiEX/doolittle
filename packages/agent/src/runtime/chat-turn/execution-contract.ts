@@ -4,7 +4,7 @@ import {
   actionResultMutationActionName,
   extractVerifiedLocalMutationFromActionResult,
 } from "@/runtime/action-result-metadata";
-import { hasExplicitWorkspaceMutationIntent } from "@/runtime/workspace-mutation-intent";
+import { hasWorkspaceMutationObligation } from "@/runtime/workspace-mutation-intent";
 
 // The ElizaOS executor records the selected action name on every ActionResult.
 // Keep the local-mutation boundary explicit; prompt, command, and response text
@@ -54,11 +54,13 @@ function observedSuccessfulLocalMutationAction(
 
 export function buildTurnExecutionContract(input: {
   actionResults?: ActionResult[];
+  recentMessages?: Array<{ role?: string; text?: string }>;
   userRequest?: string;
 }): TurnExecutionContract {
   return {
-    requestedLocalMutation: hasExplicitWorkspaceMutationIntent(
+    requestedLocalMutation: hasWorkspaceMutationObligation(
       input.userRequest ?? "",
+      input.recentMessages,
     ),
     selectedMutationActions: selectedLocalMutationActions(
       input.actionResults ?? [],

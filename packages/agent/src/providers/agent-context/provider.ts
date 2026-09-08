@@ -187,6 +187,7 @@ async function workspaceContextResult(
   const skillEntries = getEffectiveSkills(runtime, services);
   const recentTerminal = getEffectiveShellHistory(runtime, 5);
   let repoSummary = "";
+  let recentMessages: Array<{ role?: string; text?: string }> = [];
   try {
     repoSummary = await services.repository.status();
   } catch (error) {
@@ -194,10 +195,21 @@ async function workspaceContextResult(
       error instanceof Error ? error.message : String(error)
     }`;
   }
+  try {
+    recentMessages = services.sessions.recentBySession(
+      sessionIdFor(message),
+      6,
+    );
+  } catch {
+    // The workspace provider remains useful before session storage is ready.
+  }
 
   return {
     text: [
-      ...renderWorkspaceMutationExecutionContract(messageText(message)),
+      ...renderWorkspaceMutationExecutionContract(
+        messageText(message),
+        recentMessages,
+      ),
       ...renderWorkspaceSections({
         contextFiles: services.contextFiles.render(),
         skillEntries,

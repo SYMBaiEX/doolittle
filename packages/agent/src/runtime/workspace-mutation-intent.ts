@@ -7,6 +7,17 @@ const MUTATION_VERB =
 const WORKSPACE_ARTIFACT =
   /(?:\b(?:adapter|app|application|class|code|codebase|component|config(?:uration)?|directory|docs?|documentation|file|folder|function|module|page|project|readme(?:\.md)?|repo(?:sitory)?|route|script|service|source|stylesheet|tests?|workspace)\b|(?:^|[\s'"`(])(?:\.\.?\/)?(?:[\w@.-]+\/)+[\w@.-]+|\b[\w-]+\.(?:c|cc|cpp|css|go|h|hpp|html|java|js|json|jsx|md|mjs|php|py|rb|rs|sh|sql|swift|toml|ts|tsx|vue|xml|ya?ml)\b)/iu;
 
+const CONTINUATION_REQUEST =
+  /^(?:continue|finish(?: it| this)?|keep going|pick (?:it|this) back up|resume|try again)[\s.!?]*$/iu;
+
+const UNFINISHED_MUTATION_MARKER =
+  /(?:REQUESTED_LOCAL_MUTATION|stopped before completing the requested workspace change|don't yet have evidence that the changes|do not yet have evidence that the changes)/iu;
+
+interface MutationIntentMessage {
+  role?: string;
+  text?: string;
+}
+
 /**
  * Conservative deterministic gate for requests that explicitly require a
  * local workspace mutation. It deliberately excludes advice and hypothetical
@@ -18,10 +29,33 @@ export function hasExplicitWorkspaceMutationIntent(message: string): boolean {
   return MUTATION_VERB.test(normalized) && WORKSPACE_ARTIFACT.test(normalized);
 }
 
+export function continuesWorkspaceMutationIntent(
+  message: string,
+  recentMessages: readonly MutationIntentMessage[],
+): boolean {
+  if (!CONTINUATION_REQUEST.test(message.trim())) return false;
+  return recentMessages.some(
+    (entry) =>
+      entry.role === "assistant" &&
+      UNFINISHED_MUTATION_MARKER.test(entry.text ?? ""),
+  );
+}
+
+export function hasWorkspaceMutationObligation(
+  message: string,
+  recentMessages: readonly MutationIntentMessage[] = [],
+): boolean {
+  return (
+    hasExplicitWorkspaceMutationIntent(message) ||
+    continuesWorkspaceMutationIntent(message, recentMessages)
+  );
+}
+
 export function renderWorkspaceMutationExecutionContract(
   message: string,
+  recentMessages: readonly MutationIntentMessage[] = [],
 ): string[] {
-  if (!hasExplicitWorkspaceMutationIntent(message)) return [];
+  if (!hasWorkspaceMutationObligation(message, recentMessages)) return [];
   return [
     "TURN EXECUTION CONTRACT",
     "The current request explicitly requires a local workspace mutation.",

@@ -60,7 +60,7 @@ function createContext(nativeWrites: string[] = []): AgentExecutionContext {
 }
 
 describe("ElizaOS-native chat turn setup", () => {
-  it("maps product execution settings to an SDK message budget without classifying message text", async () => {
+  it("maps ordinary chat settings directly to an SDK message budget", async () => {
     const nativeWrites: string[] = [];
     const context = createContext(nativeWrites);
     const request = {
@@ -99,6 +99,24 @@ describe("ElizaOS-native chat turn setup", () => {
       maxIterations: 12,
       toolProgressMode: "new",
       useMultiStep: false,
+    });
+  });
+
+  it("promotes explicit workspace changes out of the single-pass quick policy", () => {
+    expect(
+      resolveNativeMessagePolicy(
+        {
+          runDepth: "quick",
+          maxIterations: 15,
+          toolProgressMode: "new",
+        },
+        "Build a Next.js app in the selected project and update its files.",
+      ),
+    ).toEqual({
+      runDepth: "standard",
+      maxIterations: 45,
+      toolProgressMode: "new",
+      useMultiStep: true,
     });
   });
 });

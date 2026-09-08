@@ -1,4 +1,5 @@
 import type { AgentExecutionContext } from "@/runtime/chat";
+import { hasWorkspaceMutationObligation } from "@/runtime/workspace-mutation-intent";
 import type { ChatTurnRequest } from "@/types/runtime";
 import {
   type PreparedTurnState,
@@ -10,15 +11,29 @@ import type { NativeMessagePolicy, NativeTurnSetup } from "./types";
 
 export function resolveNativeMessagePolicy(
   agent: NativeTurnSetup["turn"]["settings"]["agent"],
+  userRequest = "",
+  continuesMutation = false,
 ): NativeMessagePolicy {
+  const requiresWorkspaceMutation =
+    hasWorkspaceMutationObligation(userRequest) || continuesMutation;
+  const runDepth =
+    requiresWorkspaceMutation && agent.runDepth === "quick"
+      ? "standard"
+      : agent.runDepth;
+  // A mutating coding turn needs room for inspect -> edit -> verify. Quick
+  // remains quick for ordinary chat, but must not collapse an explicit coding
+  // request into the SDK's single top-level planning pass.
+  const maxIterations = requiresWorkspaceMutation
+    ? Math.max(45, agent.maxIterations)
+    : Math.max(1, agent.maxIterations);
   return {
-    runDepth: agent.runDepth,
-    maxIterations: Math.max(1, agent.maxIterations),
+    runDepth,
+    maxIterations,
     toolProgressMode: agent.toolProgressMode,
     // Retained for pre-v5 message-service compatibility. Eliza v5 owns routing
     // through Stage 1 regardless of this legacy flag; Doolittle's completion
     // safety is enforced by native response routing plus mutation receipts.
-    useMultiStep: agent.runDepth !== "quick" && agent.maxIterations > 1,
+    useMultiStep: runDepth !== "quick" && maxIterations > 1,
   };
 }
 
@@ -30,7 +45,23 @@ export async function prepareNativeTurnSetup(input: {
 }): Promise<NativeTurnSetup> {
   const { turn, scheduleProfileObservation } =
     input.preparedTurn ?? prepareTurnState(input.input, input.context);
-  const messagePolicy = resolveNativeMessagePolicy(turn.settings.agent);
+  let recentMessages: Array<{ role?: string; text?: string }> = [];
+  try {
+    recentMessages = input.context.services.sessions.recentBySession(
+      turn.sessionId,
+      6,
+    );
+  } catch {
+    // Session history is supplementary. A new session can route without it.
+  }
+  const messagePolicy = resolveNativeMessagePolicy(
+    turn.settings.agent,
+    input.effectiveInput.message,
+    hasWorkspaceMutationObligation(
+      input.effectiveInput.message,
+      recentMessages,
+    ),
+  );
   await startTrackedTurn(
     input.input,
     input.context,

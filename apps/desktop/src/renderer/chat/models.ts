@@ -132,6 +132,30 @@ export interface RunEventCopy {
   tone: "neutral" | "good" | "warn" | "bad";
 }
 
+export function runActionLabel(action: string | null | undefined): string {
+  if (!action) return "";
+  const known: Record<string, string> = {
+    CREATE_DIRECTORY: "Creating folder",
+    DOOLITTLE_CODING: "Working on code",
+    DOOLITTLE_REPOSITORY: "Checking repository",
+    DOOLITTLE_WORKSPACE: "Inspecting workspace",
+    GENERATE_MEDIA: "Generating media",
+    PATCH_FILE: "Editing file",
+    READ_FILE: "Reading file",
+    SEARCH_FILES: "Searching files",
+    SHELL: "Running command",
+    TASKS_SPAWN_AGENT: "Delegating work",
+    WRITE_FILE: "Writing file",
+  };
+  return (
+    known[action] ||
+    action
+      .toLowerCase()
+      .replace(/_/gu, " ")
+      .replace(/^\p{L}/u, (value) => value.toUpperCase())
+  );
+}
+
 export function runEventCopy(update: DesktopRunUpdate): RunEventCopy {
   const { run, type } = update;
   const mutation = run.localMutations.at(-1);
@@ -151,13 +175,13 @@ export function runEventCopy(update: DesktopRunUpdate): RunEventCopy {
     case "acting":
     case "action-started":
       return {
-        label: run.activeAction || "Tool started",
-        detail: `Action ${Math.max(1, run.observedActionCount)} in progress`,
+        label: runActionLabel(run.activeAction) || "Starting next step",
+        detail: `Step ${Math.max(1, run.observedActionCount)} in progress`,
         tone: "warn",
       };
     case "action-completed":
       return {
-        label: run.lastAction || "Tool completed",
+        label: runActionLabel(run.lastAction) || "Step complete",
         detail: `${run.observedActionCount} ${
           run.observedActionCount === 1 ? "action" : "actions"
         } observed`,

@@ -1,9 +1,7 @@
 import {
-  Bot,
   Check,
   ChevronDown,
   ChevronRight,
-  CircleDot,
   Clock3,
   FilePenLine,
   LoaderCircle,
@@ -14,7 +12,12 @@ import { useEffect, useMemo, useState } from "react";
 import type { DesktopRunUpdate } from "../../shared/contracts";
 import { UiIcon } from "../components/UiIcon";
 import { displayTimestamp } from "../lib";
-import { type RunReceipt, runEventCopy, runEventKey } from "./models";
+import {
+  type RunReceipt,
+  runActionLabel,
+  runEventCopy,
+  runEventKey,
+} from "./models";
 
 type RunTone = "neutral" | "good" | "warn" | "bad";
 type ActivityStatus = "running" | "complete" | "failed" | "waiting";
@@ -229,7 +232,7 @@ export function RunReceiptView({
 }) {
   const state = runReceiptState(receipt);
   const items = useMemo(() => runActivityItems(receipt), [receipt]);
-  const [expanded, setExpanded] = useState(pending || state.tone === "bad");
+  const [expanded, setExpanded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [clock, setClock] = useState(() =>
     Date.parse(receipt.latest.run.endedAt || receipt.latest.run.updatedAt),
@@ -244,9 +247,6 @@ export function RunReceiptView({
 
   const selected =
     items.find((item) => item.id === selectedId) ?? items.at(-1) ?? null;
-  const completed = items.filter((item) => item.status === "complete").length;
-  const failed = items.filter((item) => item.status === "failed").length;
-  const running = items.filter((item) => item.status === "running").length;
   const elapsed = formatRunElapsed(elapsedMilliseconds(receipt.latest, clock));
   const summary =
     receipt.latest.run.terminalReason === "cancelled"
@@ -258,44 +258,57 @@ export function RunReceiptView({
           receipt.latest.run.statusDetail ||
           receipt.latest.run.lastAction ||
           receipt.latest.run.status;
+  const currentActivity =
+    runActionLabel(receipt.latest.run.activeAction) ||
+    (receipt.latest.run.status === "thinking"
+      ? receipt.latest.run.statusDetail || "Planning the next step"
+      : runActionLabel(receipt.latest.run.lastAction) || state.label);
+  const visibleMetric = `${receipt.latest.run.observedActionCount > 0 ? `${receipt.latest.run.observedActionCount} ${receipt.latest.run.observedActionCount === 1 ? "action" : "actions"} · ` : ""}${elapsed}`;
+  const failureSummary = summary.includes("REQUESTED_LOCAL_MUTATION")
+    ? "No verified file change was completed."
+    : summary;
 
   return (
     <section
       aria-live={pending ? "polite" : undefined}
-      className={`chat-run-receipt mb-2 overflow-hidden rounded-[var(--radius-sm)] border whitespace-normal shadow-[0_8px_24px_color-mix(in_srgb,var(--shadow)_10%,transparent)] ${
+      className={`chat-run-receipt mb-2 overflow-hidden rounded-[var(--radius-sm)] border border-l-2 whitespace-normal ${
         state.tone === "bad"
-          ? "border-[color-mix(in_srgb,var(--bad)_38%,var(--border))]"
+          ? "border-[color-mix(in_srgb,var(--bad)_34%,var(--border))] border-l-[var(--bad)]"
           : pending
-            ? "border-[color-mix(in_srgb,var(--accent)_38%,var(--border))]"
-            : "border-[color-mix(in_srgb,var(--border)_76%,transparent)]"
-      } bg-[color-mix(in_srgb,var(--surface-raised)_88%,var(--bg))]`}
+            ? "border-[color-mix(in_srgb,var(--border)_78%,transparent)] border-l-[var(--accent)]"
+            : "border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-l-[var(--border-strong)]"
+      } bg-[color-mix(in_srgb,var(--surface-soft)_58%,var(--bg))]`}
       data-pending={pending ? "true" : "false"}
     >
       <button
         aria-expanded={expanded}
-        className="grid min-h-11 w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2.5 border-0 bg-transparent px-3 py-2 text-left hover:bg-[color-mix(in_srgb,var(--accent)_4%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)] motion-reduce:transition-none"
+        className="grid min-h-10 w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 border-0 bg-transparent px-2.5 py-1.5 text-left hover:bg-[color-mix(in_srgb,var(--surface-hover)_64%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)] motion-reduce:transition-none"
         onClick={() => setExpanded((value) => !value)}
         type="button"
       >
-        <span className="grid size-6 place-items-center rounded-[6px] border border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface-soft))] text-[var(--accent)]">
-          <UiIcon icon={Bot} size="sm" />
-        </span>
+        <StatusMark
+          status={
+            state.tone === "bad"
+              ? "failed"
+              : state.tone === "good"
+                ? "complete"
+                : state.tone === "warn"
+                  ? "waiting"
+                  : "running"
+          }
+        />
         <span className="flex min-w-0 items-baseline gap-2">
           <strong className="shrink-0 text-[length:var(--text-control)] font-semibold text-[var(--text)]">
-            Doolittle
-          </strong>
-          <small className="truncate text-[length:var(--text-meta)] text-[var(--muted)]">
             {state.label}
-            {running + completed + failed > 0 ? " · " : null}
-            {running > 0 ? `${running} running` : null}
-            {running > 0 && (completed > 0 || failed > 0) ? " · " : null}
-            {completed > 0 ? `${completed} done` : null}
-            {completed > 0 && failed > 0 ? " · " : null}
-            {failed > 0 ? `${failed} failed` : null}
-          </small>
+          </strong>
+          {currentActivity === state.label ? null : (
+            <small className="truncate text-[length:var(--text-meta)] text-[var(--muted)]">
+              {currentActivity}
+            </small>
+          )}
         </span>
         <span className="whitespace-nowrap font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)] max-[520px]:hidden">
-          {receipt.latest.run.observedActionCount} actions · {elapsed}
+          {visibleMetric}
         </span>
         <UiIcon
           className={`text-[var(--faint)] transition-transform duration-150 ${expanded ? "rotate-180" : ""} motion-reduce:transition-none`}
@@ -309,24 +322,10 @@ export function RunReceiptView({
           className="block h-px w-full animate-pulse bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] motion-reduce:animate-none"
         />
       ) : null}
-      {!expanded ? (
-        <div className="flex min-w-0 items-center gap-2 border-[var(--border)] border-t px-3 py-1.5">
-          <CircleDot
-            aria-hidden="true"
-            className={`size-2.5 shrink-0 ${
-              state.tone === "good"
-                ? "text-[var(--good)]"
-                : state.tone === "bad"
-                  ? "text-[var(--bad)]"
-                  : state.tone === "warn"
-                    ? "text-[var(--warn)]"
-                    : "text-[var(--accent)]"
-            }`}
-          />
-          <span className="truncate text-[length:var(--text-meta)] text-[var(--muted)]">
-            {summary}
-          </span>
-        </div>
+      {!expanded && state.tone === "bad" ? (
+        <p className="m-0 border-[var(--border)] border-t px-2.5 py-1.75 text-[length:var(--text-meta)] leading-relaxed text-[var(--muted)]">
+          {failureSummary}
+        </p>
       ) : null}
       {expanded ? (
         <div className="border-[var(--border)] border-t">
@@ -380,8 +379,8 @@ export function RunReceiptView({
               />
             ) : null}
             <span className="truncate">
-              {receipt.latest.run.runDepth} depth ·{" "}
-              {receipt.latest.run.configuredMaxIterations} iteration cap
+              {receipt.latest.run.runDepth} · up to{" "}
+              {receipt.latest.run.configuredMaxIterations} steps
             </span>
             <span className="ml-auto shrink-0">{state.statusLabel}</span>
           </footer>

@@ -16,8 +16,18 @@ import type {
 export async function runPostProviderTurn(
   input: PostProviderTurnInput,
 ): Promise<PostProviderTurnResult> {
+  let recentMessages: Array<{ role?: string; text?: string }> = [];
+  try {
+    recentMessages = input.context.services.sessions.recentBySession(
+      input.turn.sessionId,
+      6,
+    );
+  } catch {
+    // Completion can still be assessed from the current request and receipts.
+  }
   const executionContract = buildTurnExecutionContract({
     actionResults: input.actionResults,
+    recentMessages,
     userRequest: input.effectiveInput.message,
   });
   const activeRun = input.context.services.runController.getActive(
