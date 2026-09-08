@@ -350,7 +350,7 @@ test.describe("Doolittle desktop offline chat", () => {
         page.locator('.view-container[data-view="settings"]'),
       ).toBeVisible();
       await expect(
-        page.locator('.view-container[data-view="chat"]'),
+        page.locator('.view-container[data-view-owner="chat"]'),
       ).toBeHidden();
       await page.getByRole("button", { name: "Chat", exact: true }).click();
       await expect(

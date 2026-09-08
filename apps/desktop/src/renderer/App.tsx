@@ -1544,7 +1544,7 @@ export function App() {
         <div
           aria-hidden={!chatRouteActive}
           className={`${VIEW_CONTAINER_CLASS} view-${persistentChatView} ${VIEW_CONTAINER_WORKSPACE_CLASS}`}
-          data-view={persistentChatView}
+          data-view={chatRouteActive ? persistentChatView : undefined}
           data-view-owner="chat"
           hidden={!chatRouteActive}
           inert={!chatRouteActive}
