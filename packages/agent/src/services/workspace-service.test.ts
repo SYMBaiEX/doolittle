@@ -258,6 +258,13 @@ describe("WorkspaceService", () => {
       expect(() => service.createDirectory("../outside")).toThrow(
         "inside the configured workspace",
       );
+      expect(() => service.createDirectory(join(tmpdir(), "outside"))).toThrow(
+        "inside the configured workspace",
+      );
+      expect(() => service.createDirectory(join(root, "inside"))).not.toThrow();
+      expect(() => service.readLines(join(tmpdir(), "outside.txt"))).toThrow(
+        "inside the configured workspace",
+      );
       expect(() =>
         service.searchFiles({ pattern: "secret", path: ".." }),
       ).toThrow("inside the configured workspace");

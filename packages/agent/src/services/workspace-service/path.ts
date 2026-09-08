@@ -1,5 +1,13 @@
 import { existsSync, realpathSync } from "node:fs";
-import { dirname, join, normalize, relative, resolve, sep } from "node:path";
+import {
+  dirname,
+  isAbsolute,
+  join,
+  normalize,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
 import { workspaceRelativePath } from "./path-format";
 import { assertWorkspacePathIsSafe } from "./policy";
 
@@ -9,7 +17,7 @@ export function resolveWorkspacePath(
 ): string {
   const trimmed = path.trim();
   const resolvedPath = resolve(
-    trimmed.startsWith(workspaceDir) ? trimmed : join(workspaceDir, trimmed),
+    isAbsolute(trimmed) ? trimmed : join(workspaceDir, trimmed),
   );
   const normalizedWorkspace = normalize(
     workspaceDir.endsWith(sep) ? workspaceDir : `${workspaceDir}${sep}`,

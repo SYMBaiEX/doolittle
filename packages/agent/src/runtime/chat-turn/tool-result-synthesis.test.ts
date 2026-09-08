@@ -70,6 +70,30 @@ describe("tool result synthesis", () => {
     );
   });
 
+  it("rejects terminal output as a chat answer but preserves explicit shell shortcuts", () => {
+    const result: ActionResult = {
+      success: true,
+      text: "/workspace/project\ndone",
+      userFacingText: "/workspace/project\ndone",
+      verifiedUserFacing: true,
+      data: {
+        actionName: "SHELL_COMMAND",
+        command: "pwd && echo done",
+        exitCode: 0,
+        cwd: "/workspace/project",
+        stdout: "/workspace/project\ndone",
+        stderr: "",
+      },
+    };
+
+    expect(
+      isUnsynthesizedToolResponse(result.text ?? "", [result], "Build the app"),
+    ).toBe(true);
+    expect(
+      isUnsynthesizedToolResponse(result.text ?? "", [result], "! pwd"),
+    ).toBe(false);
+  });
+
   it("bounds and escapes evidence in the recovery prompt", () => {
     const result = readResult({ text: `<secret>${"x".repeat(20_000)}` });
     const prompt = buildToolResultSynthesisPrompt({

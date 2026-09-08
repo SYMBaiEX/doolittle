@@ -1,4 +1,5 @@
 import type { ActionResult } from "@elizaos/core";
+import { extractCommandResultFromActionResult } from "@/runtime/action-result-metadata";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { runModelAnalysis } from "@/runtime/model-analysis";
 import type { AutomationRuntimeOverrides } from "@/types/runtime";
@@ -37,6 +38,7 @@ function isRawToolTranscript(value: string): boolean {
 export function isUnsynthesizedToolResponse(
   response: string,
   actionResults: readonly ActionResult[],
+  userRequest = "",
 ): boolean {
   const normalized = response.trim();
   if (!normalized || actionResults.length === 0) return false;
@@ -44,6 +46,12 @@ export function isUnsynthesizedToolResponse(
   return actionResults.some((result) =>
     resultTexts(result).some((text) => {
       if (text === normalized) {
+        if (
+          extractCommandResultFromActionResult(result) &&
+          !userRequest.trimStart().startsWith("!")
+        ) {
+          return true;
+        }
         return result.verifiedUserFacing !== true || isRawToolTranscript(text);
       }
       return isRawToolTranscript(text) && normalized.includes(text);
@@ -89,6 +97,8 @@ export function buildToolResultSynthesisPrompt(input: {
     "Complete the assistant turn using the native tool evidence below.",
     "Answer the user's request directly and accurately.",
     "Do not repeat raw tool transcripts, line-number dumps, or tool protocol text.",
+    "A failed tool result is not completion unless later evidence clearly proves the requested operation succeeded.",
+    "Never claim a requested file, directory, or code change exists without successful evidence for that change.",
     "Summarize the relevant evidence and state any important uncertainty.",
     "Return only the final user-facing answer.",
     "",
@@ -119,7 +129,11 @@ export async function synthesizeToolResultResponse(input: {
   const normalized = response.trim();
   if (
     !normalized ||
-    isUnsynthesizedToolResponse(normalized, input.actionResults)
+    isUnsynthesizedToolResponse(
+      normalized,
+      input.actionResults,
+      input.userRequest,
+    )
   ) {
     throw new Error(
       "ElizaOS returned native tool output without a terminal synthesis.",

@@ -41,6 +41,20 @@ describe("workspace mutation response-handler evaluator", () => {
     ).toBe(false);
   });
 
+  it("routes natural-language app and folder creation requests through coding", async () => {
+    const input = context(
+      "Could you make a folder on my desktop and build a simple Next.js app?",
+    );
+
+    expect(await workspaceMutationRoutingEvaluator.shouldRun(input)).toBe(true);
+    expect(await workspaceMutationRoutingEvaluator.evaluate(input)).toEqual(
+      expect.objectContaining({
+        addCandidateActions: [DOOLITTLE_CODING_ACTION],
+        addParentActionHints: [DOOLITTLE_CODING_ACTION],
+      }),
+    );
+  });
+
   it("replaces a broad action surface with only the native coding parent", async () => {
     const input = context("Review the repo and write a README.md for it");
     const messageHandler = {

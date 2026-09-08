@@ -136,7 +136,7 @@ describe("run progress helpers", () => {
 
     await events[EventType.RUN_ENDED]?.[0]?.({
       roomId: "chat-room",
-      runId: "chat-run",
+      runId: "delegated-child-run",
       status: "completed",
     } as never);
     await events[EventType.RUN_ENDED]?.[0]?.({
@@ -151,6 +151,25 @@ describe("run progress helpers", () => {
       "complete",
       undefined,
     );
+  });
+
+  it("does not manufacture a terminal receipt when RUN_ENDED has no tracked run", async () => {
+    const finishRuntimeRun = vi.fn();
+    const services = {
+      runController: {
+        getByRoomId: () => undefined,
+        finishRuntimeRun,
+      },
+    } as never;
+    const events = createRunProgressEvents(services);
+
+    await events[EventType.RUN_ENDED]?.[0]?.({
+      roomId: "orphan-room",
+      runId: "orphan-run",
+      status: "completed",
+    } as never);
+
+    expect(finishRuntimeRun).not.toHaveBeenCalled();
   });
 
   it("projects native action events according to the active run's progress mode", async () => {

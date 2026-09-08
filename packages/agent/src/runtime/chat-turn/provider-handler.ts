@@ -283,7 +283,7 @@ export async function executeProviderMessageTurn(
           provisionalResponse: input.streamState.getResponse(),
           actionResults,
         });
-        if (isUnsynthesizedToolResponse(response, actionResults)) {
+        if (isUnsynthesizedToolResponse(response, actionResults, prompt)) {
           input.context.runtime.logger?.warn(
             {
               runId: input.runId,

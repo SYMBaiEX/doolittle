@@ -2,10 +2,10 @@ const INFORMATIONAL_PREFIX =
   /^(?:can you (?:explain|show me how)|could you (?:explain|show me how)|explain\b|how (?:can|do|should|would)\b|how to\b|show me how\b|tell me how\b|what (?:could|should|would)\b)/iu;
 
 const MUTATION_VERB =
-  /\b(?:add|added|adding|create|created|creating|delete|deleted|deleting|edit|edited|editing|fix|fixed|fixing|generate|generated|generating|implement|implemented|implementing|modify|modified|modifying|move|moved|moving|patch|patched|patching|refactor|refactored|refactoring|remove|removed|removing|rename|renamed|renaming|repair|repaired|repairing|rewrite|rewrote|rewritten|rewriting|scaffold|scaffolded|scaffolding|update|updated|updating|write|wrote|written|writing)\b/iu;
+  /\b(?:add|added|adding|build|built|building|create|created|creating|delete|deleted|deleting|edit|edited|editing|fix|fixed|fixing|generate|generated|generating|implement|implemented|implementing|make|made|making|modify|modified|modifying|move|moved|moving|patch|patched|patching|refactor|refactored|refactoring|remove|removed|removing|rename|renamed|renaming|repair|repaired|repairing|rewrite|rewrote|rewritten|rewriting|scaffold|scaffolded|scaffolding|update|updated|updating|write|wrote|written|writing)\b/iu;
 
 const WORKSPACE_ARTIFACT =
-  /(?:\b(?:adapter|class|code|codebase|component|config(?:uration)?|docs?|documentation|file|function|module|page|project|readme(?:\.md)?|repo(?:sitory)?|route|script|service|source|stylesheet|tests?|workspace)\b|(?:^|[\s'"`(])(?:\.\.?\/)?(?:[\w@.-]+\/)+[\w@.-]+|\b[\w-]+\.(?:c|cc|cpp|css|go|h|hpp|html|java|js|json|jsx|md|mjs|php|py|rb|rs|sh|sql|swift|toml|ts|tsx|vue|xml|ya?ml)\b)/iu;
+  /(?:\b(?:adapter|app|application|class|code|codebase|component|config(?:uration)?|directory|docs?|documentation|file|folder|function|module|page|project|readme(?:\.md)?|repo(?:sitory)?|route|script|service|source|stylesheet|tests?|workspace)\b|(?:^|[\s'"`(])(?:\.\.?\/)?(?:[\w@.-]+\/)+[\w@.-]+|\b[\w-]+\.(?:c|cc|cpp|css|go|h|hpp|html|java|js|json|jsx|md|mjs|php|py|rb|rs|sh|sql|swift|toml|ts|tsx|vue|xml|ya?ml)\b)/iu;
 
 /**
  * Conservative deterministic gate for requests that explicitly require a

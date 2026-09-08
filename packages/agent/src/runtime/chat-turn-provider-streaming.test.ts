@@ -47,14 +47,16 @@ describe("chat turn provider streaming", () => {
     expect(progress).toEqual([]);
   });
 
-  it("keeps stream text provisional until terminal finalization", async () => {
+  it("streams model text while keeping the accumulated response authoritative", async () => {
     const { state, progress } = makeStreamingState();
 
     await state.onStreamChunk("from-stream");
     await state.onCallbackContent({ text: "from-callback" } as Content);
 
     expect(state.getResponse()).toBe("from-stream");
-    expect(progress).toEqual([]);
+    expect(progress).toEqual([
+      { chunk: "from-stream", response: "from-stream" },
+    ]);
   });
 
   it("does not surface structured internal callback envelopes as assistant text", async () => {
@@ -128,6 +130,18 @@ describe("chat turn provider streaming", () => {
 
     expect(state.getResponse()).toBe("");
     expect(progress).toEqual([]);
+  });
+
+  it("streams incremental model chunks with a cumulative response snapshot", async () => {
+    const { state, progress } = makeStreamingState();
+
+    await state.onStreamChunk("Working");
+    await state.onStreamChunk(" on it…");
+
+    expect(progress).toEqual([
+      { chunk: "Working", response: "Working" },
+      { chunk: " on it…", response: "Working on it…" },
+    ]);
   });
 
   it("updates and resets response without progress callback", async () => {

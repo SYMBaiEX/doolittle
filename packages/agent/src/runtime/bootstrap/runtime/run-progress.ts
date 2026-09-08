@@ -167,18 +167,6 @@ export function eventActionResult(
   return undefined;
 }
 
-function eventRunId(payload: RuntimePayload): string | undefined {
-  if (
-    payload &&
-    typeof payload === "object" &&
-    "runId" in payload &&
-    typeof payload.runId === "string"
-  ) {
-    return payload.runId;
-  }
-  return undefined;
-}
-
 function contentActionResultName(content: object): string | undefined {
   const actionResult =
     (content as { actionResult?: unknown; result?: unknown }).actionResult ??
@@ -270,14 +258,18 @@ export function createRunProgressEvents(services: AppServices): PluginEvents {
           return;
         }
         const activeRun = services.runController.getByRoomId(roomId);
-        // The SDK emits RUN_ENDED before post-provider validates the action
-        // contract. Match provenance to the tracked run instead of depending
-        // on event timing, so chat retains one authoritative terminal writer.
+        // The SDK emits RUN_ENDED for nested planner and delegated-agent runs,
+        // sometimes with a child run id. Interactive chat is terminalized only
+        // after post-provider validates and persists the final response. Any
+        // native RUN_ENDED event is therefore non-authoritative while that
+        // parent turn is active, regardless of the event's run id.
         if (
           activeRun &&
-          resolveRunTerminalWriter(activeRun.source) === "post-provider" &&
-          (!eventRunId(payload) || activeRun.runId === eventRunId(payload))
+          resolveRunTerminalWriter(activeRun.source) === "post-provider"
         ) {
+          return;
+        }
+        if (!activeRun) {
           return;
         }
         const status =

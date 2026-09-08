@@ -152,7 +152,19 @@ export function createProviderStreamState(
       ) {
         return;
       }
+      const previousResponse = response;
       await appendIncomingText(chunk);
+      if (response === previousResponse) {
+        return;
+      }
+      const emittedChunk = response.startsWith(previousResponse)
+        ? response.slice(previousResponse.length)
+        : response;
+      await context.onResponseProgress?.({
+        chunk: emittedChunk,
+        response,
+        phase: "model",
+      });
     },
     getResponse: () => response,
     setResponse: (nextResponse: string) => {
