@@ -100,6 +100,10 @@ export interface RunSnapshot {
   localMutations: LocalMutation[];
   pendingApprovals: number;
   startedAt: string;
+  firstStatusAt?: string;
+  firstMessageAt?: string;
+  firstActionAt?: string;
+  lastMeaningfulActivityAt?: string;
   updatedAt: string;
   lastHeartbeatAt?: string;
   endedAt?: string;
@@ -124,6 +128,34 @@ export interface DesktopRunUpdate {
     | "approvals";
   sessionId: string;
   run: RunSnapshot;
+}
+
+export interface ChatTextPartDelta {
+  id: string;
+  delta: string;
+  /** Stable logical part identity across reconnect/replay. */
+  part_id: "assistant-text";
+  /** Monotonic sequence within the logical part. */
+  sequence: number;
+}
+
+export interface ChatRunResultSummary {
+  outcome: "completed" | "cancelled" | "failed";
+  changedFiles: string[];
+  failedChanges: number;
+  actionCount: number;
+  lastAction?: string;
+  durationMs: number;
+  timeToFirstMessageMs?: number;
+  timeToFirstActionMs?: number;
+}
+
+export interface ChatCompletedPayload {
+  id: string;
+  response: string;
+  character: string;
+  room_id: string;
+  result?: ChatRunResultSummary;
 }
 export interface ChatEvent {
   requestId: string;

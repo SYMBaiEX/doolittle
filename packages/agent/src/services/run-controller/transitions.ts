@@ -31,6 +31,8 @@ export const createRunStartTransition = (
       localMutations: [],
       pendingApprovals: input.pendingApprovals ?? 0,
       startedAt: now,
+      firstStatusAt: now,
+      lastMeaningfulActivityAt: now,
       updatedAt: now,
     },
   };
@@ -49,6 +51,13 @@ export const createPatchedTransition = (
   },
 });
 
+const meaningfulPatch = (
+  patch: Partial<RunSnapshot>,
+): Partial<RunSnapshot> => ({
+  ...patch,
+  lastMeaningfulActivityAt: nowIso(),
+});
+
 export const actionStartedTransition = (
   current: RunSnapshot,
   action: string,
@@ -56,14 +65,15 @@ export const actionStartedTransition = (
   const nextObservedActionCount = current.observedActionCount + 1;
   return createPatchedTransition(
     current,
-    {
+    meaningfulPatch({
       status: "acting",
       activeAction: action,
       activeStream: "action",
       statusDetail: undefined,
       lastAction: action,
       observedActionCount: nextObservedActionCount,
-    },
+      firstActionAt: current.firstActionAt ?? nowIso(),
+    }),
     "action-started",
   );
 };
@@ -74,13 +84,13 @@ export const actionCompletedTransition = (
 ): StartRunTransition =>
   createPatchedTransition(
     current,
-    {
+    meaningfulPatch({
       status: "waiting",
       activeAction: undefined,
       activeStream: undefined,
       statusDetail: undefined,
       lastAction: action,
-    },
+    }),
     "action-completed",
   );
 
@@ -90,7 +100,7 @@ export const localMutationTransition = (
 ): StartRunTransition =>
   createPatchedTransition(
     current,
-    {
+    meaningfulPatch({
       localMutations: [
         ...current.localMutations,
         {
@@ -101,27 +111,38 @@ export const localMutationTransition = (
       statusDetail:
         mutation.message ??
         `${mutation.action} ${mutation.success ? "succeeded" : "failed"}`,
-    },
+    }),
     "local-mutation",
   );
 
 export const messageTransition = (current: RunSnapshot): StartRunTransition =>
-  createPatchedTransition(current, { status: "thinking" }, "message");
+  createPatchedTransition(
+    current,
+    meaningfulPatch({
+      status: "thinking",
+      firstMessageAt: current.firstMessageAt ?? nowIso(),
+    }),
+    "message",
+  );
 
 export const waitingTransition = (current: RunSnapshot): StartRunTransition =>
   createPatchedTransition(
     current,
-    {
+    meaningfulPatch({
       status: "waiting",
       activeAction: undefined,
       activeStream: undefined,
       statusDetail: undefined,
-    },
+    }),
     "waiting",
   );
 
 export const thinkingTransition = (current: RunSnapshot): StartRunTransition =>
-  createPatchedTransition(current, { status: "thinking" }, "thinking");
+  createPatchedTransition(
+    current,
+    meaningfulPatch({ status: "thinking" }),
+    "thinking",
+  );
 
 export const heartbeatTransition = (
   current: RunSnapshot,
@@ -157,13 +178,13 @@ export const streamTransition = (
   if (stream === "action" || stream === "terminal") {
     return createPatchedTransition(
       current,
-      {
+      meaningfulPatch({
         status: "acting",
         activeStream: stream,
         activeAction: detail ?? current.activeAction,
         statusDetail: detail,
         lastAction: detail ?? current.lastAction,
-      },
+      }),
       "stream",
     );
   }
@@ -171,23 +192,23 @@ export const streamTransition = (
   if (stream === "assistant") {
     return createPatchedTransition(
       current,
-      {
+      meaningfulPatch({
         status: "waiting",
         activeAction: undefined,
         activeStream: stream,
         statusDetail: detail,
-      },
+      }),
       "stream",
     );
   }
 
   return createPatchedTransition(
     current,
-    {
+    meaningfulPatch({
       status: "thinking",
       activeStream: stream,
       statusDetail: detail,
-    },
+    }),
     "stream",
   );
 };
@@ -199,7 +220,7 @@ export const finishTransition = (
 ): StartRunTransition =>
   createPatchedTransition(
     current,
-    {
+    meaningfulPatch({
       status,
       activeAction: undefined,
       errorMessage,
@@ -212,7 +233,7 @@ export const finishTransition = (
           : status === "cancelled"
             ? "cancelled"
             : "error",
-    },
+    }),
     status === "error"
       ? "error"
       : status === "cancelled"

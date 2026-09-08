@@ -326,6 +326,10 @@ function normalizeEventData(
       : {};
   const normalized: Record<string, unknown> = {};
   if (typeof source.id === "string") normalized.id = source.id;
+  if (typeof source.part_id === "string") normalized.part_id = source.part_id;
+  if (Number.isSafeInteger(source.sequence)) {
+    normalized.sequence = source.sequence;
+  }
   if (typeof source.delta === "string") {
     normalized.delta = truncateUtf8(source.delta, MAX_DELTA_EVENT_BYTES);
   } else if (source.delta != null) {
@@ -347,6 +351,12 @@ function normalizeEventData(
             JSON.stringify({
               ...(typeof normalized.id === "string"
                 ? { id: normalized.id }
+                : {}),
+              ...(typeof normalized.part_id === "string"
+                ? { part_id: normalized.part_id }
+                : {}),
+              ...(Number.isSafeInteger(normalized.sequence)
+                ? { sequence: normalized.sequence }
                 : {}),
               delta: "",
             }),

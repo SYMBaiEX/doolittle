@@ -43,6 +43,7 @@ import {
 import {
   completedResponseText,
   reconcileStreamedResponse,
+  streamedResponseFrameKey,
 } from "./chat/streamed-response";
 import { useChatComposerSupport } from "./chat/useChatComposerSupport";
 import { useChatConversationState } from "./chat/useChatConversationState";
@@ -351,8 +352,13 @@ export function ChatPage({
       : "",
   );
   const [runReceipts, setRunReceipts] = useState<RunReceiptStore>({});
+  const [cancellingRequest, setCancellingRequest] = useState<string | null>(
+    null,
+  );
   const runCursors = useRef<Record<string, number>>(loadRunCursors());
   const seenRunEvents = useRef<Record<string, Set<number>>>({});
+  const seenStreamParts = useRef<Record<string, Set<string>>>({});
+  const cancellationTimers = useRef<Record<string, number>>({});
   const pendingDeltas = useRef<
     Record<string, { sessionId: string; delta: unknown }>
   >({});
@@ -655,6 +661,13 @@ export function ChatPage({
   }, [updateAssistant]);
 
   const finishRequest = (requestId: string) => {
+    const cancellationTimer = cancellationTimers.current[requestId];
+    if (cancellationTimer !== undefined) {
+      window.clearTimeout(cancellationTimer);
+      delete cancellationTimers.current[requestId];
+    }
+    setCancellingRequest((current) => (current === requestId ? null : current));
+    delete seenStreamParts.current[requestId];
     const completedSessionId = requestSession.current[requestId];
     if (completedSessionId) {
       delete activeRequestSessionsRef.current[completedSessionId];
@@ -679,9 +692,26 @@ export function ChatPage({
   };
 
   const cancelRequest = async (requestId: string) => {
+    if (cancellingRequest === requestId) return;
+    setCancellingRequest(requestId);
+    setQueueAnnouncement("Stopping the current response…");
     try {
       await window.doolittle.cancelChat(requestId);
+      if (requestSession.current[requestId]) {
+        cancellationTimers.current[requestId] = window.setTimeout(() => {
+          delete cancellationTimers.current[requestId];
+          setCancellingRequest((current) =>
+            current === requestId ? null : current,
+          );
+          setQueueAnnouncement(
+            "Stopping is taking longer than expected. You can try stopping again while the runtime reconnects.",
+          );
+        }, 8_000);
+      }
     } catch (error) {
+      setCancellingRequest((current) =>
+        current === requestId ? null : current,
+      );
       const sessionId = requestSession.current[requestId];
       if (!sessionId) return;
       updateAssistant(sessionId, requestId, (message) => ({
@@ -740,8 +770,24 @@ export function ChatPage({
     if (event.event === "response.output_text.delta") {
       const payload =
         event.data && typeof event.data === "object"
-          ? (event.data as { delta?: unknown; response?: unknown })
+          ? (event.data as {
+              delta?: unknown;
+              response?: unknown;
+              part_id?: unknown;
+              sequence?: unknown;
+            })
           : {};
+      const frameKey = streamedResponseFrameKey(payload);
+      if (frameKey) {
+        let seen = seenStreamParts.current[event.requestId];
+        if (!seen) {
+          seen = new Set();
+          seenStreamParts.current[event.requestId] = seen;
+        }
+        if (seen.has(frameKey)) return;
+        seen.add(frameKey);
+        if (seen.size > 500) seen.delete(seen.values().next().value ?? "");
+      }
       const prior = pendingDeltas.current[event.requestId];
       pendingDeltas.current[event.requestId] = {
         sessionId,
@@ -1605,6 +1651,7 @@ export function ChatPage({
           }
           onRead={readMessage}
           onRetryHistory={() => retryHistory(selectedId)}
+          onRetryMessage={(message) => void branchMessage(message, "retry")}
           onLoadEarlier={() => loadEarlierHistory(selectedId)}
           onSelectPrompt={setDraft}
           onStopReading={stopSpeaking}
@@ -1651,6 +1698,7 @@ export function ChatPage({
           onOpenModelsPage={onOpenModelsPage}
           onOpenProvidersPage={onOpenProvidersPage}
           activeRequest={activeRequest}
+          cancellingRequest={cancellingRequest}
           onCancelRequest={(requestId) => void cancelRequest(requestId)}
           canSubmit={canSubmit}
           draft={draft}

@@ -28,6 +28,7 @@ export interface ChatTranscriptProps {
   onCopy: (message: DisplayMessage) => void;
   onRead: (message: DisplayMessage) => void;
   onRetryHistory: () => void;
+  onRetryMessage?: (message: DisplayMessage) => void;
   onStopReading: () => void;
   onSelectPrompt: (prompt: string) => void;
   hasEarlierMessages?: boolean;
@@ -44,6 +45,7 @@ interface TranscriptMessageRowProps {
   onBranch: (message: DisplayMessage, mode: BranchMode) => void;
   onCopy: (message: DisplayMessage) => void;
   onRead: (message: DisplayMessage) => void;
+  onRetryMessage?: (message: DisplayMessage) => void;
   onStopReading: () => void;
   receipt: RunReceiptStore[string] | undefined;
   speakingMessageId: string;
@@ -61,6 +63,7 @@ const TranscriptMessageRow = memo(
     onCopy,
     onRead,
     onStopReading,
+    onRetryMessage,
     receipt,
     speakingMessageId,
     speechSupported,
@@ -83,7 +86,11 @@ const TranscriptMessageRow = memo(
           />
         }
         message={message}
+        onRetry={onRetryMessage ? () => onRetryMessage(message) : undefined}
         receipt={receipt}
+        retryDisabled={
+          !backendReady || Boolean(activeRequest) || Boolean(forkingMessageId)
+        }
       />
     );
   },
@@ -99,7 +106,8 @@ const TranscriptMessageRow = memo(
     previous.onBranch === next.onBranch &&
     previous.onCopy === next.onCopy &&
     previous.onRead === next.onRead &&
-    previous.onStopReading === next.onStopReading,
+    previous.onStopReading === next.onStopReading &&
+    previous.onRetryMessage === next.onRetryMessage,
 );
 
 export function ChatTranscript({
@@ -120,6 +128,7 @@ export function ChatTranscript({
   onCopy,
   onRead,
   onRetryHistory,
+  onRetryMessage,
   onStopReading,
   onSelectPrompt,
   hasEarlierMessages = false,
@@ -197,6 +206,7 @@ export function ChatTranscript({
               onBranch={onBranch}
               onCopy={onCopy}
               onRead={onRead}
+              onRetryMessage={onRetryMessage}
               onStopReading={onStopReading}
               receipt={
                 message.id.startsWith("assistant:")

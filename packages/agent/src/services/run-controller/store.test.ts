@@ -147,6 +147,8 @@ describe("run-controller/store", () => {
     expect(
       store.appendEvent("run-events", "response.output_text.delta", {
         delta: "hello",
+        part_id: "assistant-text",
+        sequence: 1,
       }).event.id,
     ).toBe(2);
     expect(
@@ -167,7 +169,16 @@ describe("run-controller/store", () => {
 
     const restored = new RunControllerStore(dataDir);
     expect(restored.listEvents("run-events", 1)).toMatchObject([
-      { id: 2, type: "response.output_text.delta", terminal: false },
+      {
+        id: 2,
+        type: "response.output_text.delta",
+        terminal: false,
+        data: {
+          delta: "hello",
+          part_id: "assistant-text",
+          sequence: 1,
+        },
+      },
       { id: 3, type: "response.completed", terminal: true },
     ]);
     expect(

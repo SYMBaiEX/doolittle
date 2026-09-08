@@ -5,6 +5,7 @@ import {
   Clock3,
   FilePenLine,
   LoaderCircle,
+  RotateCcw,
   TriangleAlert,
   X,
 } from "lucide-react";
@@ -143,6 +144,37 @@ export function formatRunElapsed(milliseconds: number): string {
   return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 }
 
+export const RUN_STALL_THRESHOLD_MS = 12_000;
+
+/** Heartbeats prove transport liveness, but only meaningful work clears a stall. */
+export function runIsStalled(
+  receipt: RunReceipt,
+  now: number,
+  pending: boolean,
+): boolean {
+  if (
+    !pending ||
+    receipt.latest.run.pendingApprovals > 0 ||
+    receipt.latest.run.endedAt ||
+    receipt.latest.run.terminalReason ||
+    ["complete", "cancelled", "error"].includes(receipt.latest.run.status)
+  ) {
+    return false;
+  }
+  const lastMeaningful = [
+    receipt.latest.run.lastMeaningfulActivityAt,
+    receipt.latest.run.updatedAt,
+    receipt.latest.run.startedAt,
+  ].reduce<number>((resolved, candidate) => {
+    if (Number.isFinite(resolved) || !candidate) return resolved;
+    return Date.parse(candidate);
+  }, Number.NaN);
+  return (
+    Number.isFinite(lastMeaningful) &&
+    now - lastMeaningful >= RUN_STALL_THRESHOLD_MS
+  );
+}
+
 function StatusMark({ status }: { status: ActivityStatus }) {
   const icon =
     status === "complete"
@@ -226,9 +258,13 @@ function RunDetail({ item }: { item: RunActivityItem }) {
 export function RunReceiptView({
   pending,
   receipt,
+  retryDisabled = false,
+  onRetry,
 }: {
   pending: boolean;
   receipt: RunReceipt;
+  retryDisabled?: boolean;
+  onRetry?: () => void;
 }) {
   const state = runReceiptState(receipt);
   const items = useMemo(() => runActivityItems(receipt), [receipt]);
@@ -248,6 +284,18 @@ export function RunReceiptView({
   const selected =
     items.find((item) => item.id === selectedId) ?? items.at(-1) ?? null;
   const elapsed = formatRunElapsed(elapsedMilliseconds(receipt.latest, clock));
+  const stalled = runIsStalled(receipt, clock, pending);
+  const changedFiles = Array.from(
+    new Set(
+      receipt.latest.run.localMutations
+        .filter((mutation) => mutation.success)
+        .map((mutation) => mutation.resolvedPath || mutation.requestedPath)
+        .filter((path): path is string => Boolean(path)),
+    ),
+  );
+  const failedChanges = receipt.latest.run.localMutations.filter(
+    (mutation) => !mutation.success,
+  );
   const summary =
     receipt.latest.run.terminalReason === "cancelled"
       ? "Stopped by operator"
@@ -258,19 +306,23 @@ export function RunReceiptView({
           receipt.latest.run.statusDetail ||
           receipt.latest.run.lastAction ||
           receipt.latest.run.status;
-  const currentActivity =
-    runActionLabel(receipt.latest.run.activeAction) ||
-    (receipt.latest.run.status === "thinking"
-      ? receipt.latest.run.statusDetail || "Planning the next step"
-      : runActionLabel(receipt.latest.run.lastAction) || state.label);
+  const currentActivity = stalled
+    ? "Waiting for the next update"
+    : state.tone === "good" && changedFiles.length > 0
+      ? `Changed ${changedFiles.length} ${changedFiles.length === 1 ? "file" : "files"}`
+      : runActionLabel(receipt.latest.run.activeAction) ||
+        (receipt.latest.run.status === "thinking"
+          ? receipt.latest.run.statusDetail || "Planning the next step"
+          : runActionLabel(receipt.latest.run.lastAction) || state.label);
   const visibleMetric = `${receipt.latest.run.observedActionCount > 0 ? `${receipt.latest.run.observedActionCount} ${receipt.latest.run.observedActionCount === 1 ? "action" : "actions"} · ` : ""}${elapsed}`;
+  const recoverable =
+    state.tone === "bad" || receipt.latest.run.terminalReason === "cancelled";
   const failureSummary = summary.includes("REQUESTED_LOCAL_MUTATION")
     ? "No verified file change was completed."
     : summary;
 
   return (
     <section
-      aria-live={pending ? "polite" : undefined}
       className={`chat-run-receipt mb-2 overflow-hidden rounded-[var(--radius-sm)] border border-l-2 whitespace-normal ${
         state.tone === "bad"
           ? "border-[color-mix(in_srgb,var(--bad)_34%,var(--border))] border-l-[var(--bad)]"
@@ -279,6 +331,7 @@ export function RunReceiptView({
             : "border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-l-[var(--border-strong)]"
       } bg-[color-mix(in_srgb,var(--surface-soft)_58%,var(--bg))]`}
       data-pending={pending ? "true" : "false"}
+      data-stalled={stalled ? "true" : undefined}
     >
       <button
         aria-expanded={expanded}
@@ -298,8 +351,11 @@ export function RunReceiptView({
           }
         />
         <span className="flex min-w-0 items-baseline gap-2">
-          <strong className="shrink-0 text-[length:var(--text-control)] font-semibold text-[var(--text)]">
-            {state.label}
+          <strong
+            aria-live={pending ? "polite" : undefined}
+            className="shrink-0 text-[length:var(--text-control)] font-semibold text-[var(--text)]"
+          >
+            {stalled ? "Still working" : state.label}
           </strong>
           {currentActivity === state.label ? null : (
             <small className="truncate text-[length:var(--text-meta)] text-[var(--muted)]">
@@ -322,13 +378,54 @@ export function RunReceiptView({
           className="block h-px w-full animate-pulse bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] motion-reduce:animate-none"
         />
       ) : null}
-      {!expanded && state.tone === "bad" ? (
-        <p className="m-0 border-[var(--border)] border-t px-2.5 py-1.75 text-[length:var(--text-meta)] leading-relaxed text-[var(--muted)]">
-          {failureSummary}
-        </p>
+      {!expanded && recoverable ? (
+        <div className="flex min-w-0 items-center gap-2 border-[var(--border)] border-t px-2.5 py-1.5">
+          <p className="m-0 min-w-0 flex-1 text-[length:var(--text-meta)] leading-relaxed text-[var(--muted)]">
+            {failureSummary}
+          </p>
+          {onRetry ? (
+            <button
+              className="inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-[var(--radius-xs)] border border-[var(--border)] bg-[var(--surface-soft)] px-2 text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)] hover:border-[var(--border-strong)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={retryDisabled}
+              aria-label="Retry this response in a new branch"
+              onClick={onRetry}
+              type="button"
+            >
+              <UiIcon icon={RotateCcw} size="xs" />
+              Retry
+            </button>
+          ) : null}
+        </div>
       ) : null}
       {expanded ? (
         <div className="border-[var(--border)] border-t">
+          {changedFiles.length > 0 ? (
+            <section aria-label="Changed files" className="px-3 py-2">
+              <strong className="text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)]">
+                Changed {changedFiles.length}{" "}
+                {changedFiles.length === 1 ? "file" : "files"}
+              </strong>
+              <ul className="mt-1 mb-0 grid list-none gap-1 p-0 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--muted)]">
+                {changedFiles.slice(0, 8).map((path) => (
+                  <li className="flex min-w-0 items-center gap-1.5" key={path}>
+                    <UiIcon
+                      className="shrink-0 text-[var(--faint)]"
+                      icon={FilePenLine}
+                      size="xs"
+                    />
+                    <span className="truncate">{path}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {failedChanges.length > 0 ? (
+            <p className="m-0 flex items-center gap-1.5 border-[var(--border)] border-t px-3 py-2 text-[length:var(--text-meta)] text-[var(--warn)]">
+              <UiIcon icon={TriangleAlert} size="xs" />
+              {failedChanges.length} failed file operation
+              {failedChanges.length === 1 ? "" : "s"}
+            </p>
+          ) : null}
           {items.length > 1 ? (
             <ol className="m-0 grid max-h-52 list-none gap-0.5 overflow-y-auto p-1.5 [scrollbar-gutter:stable]">
               {items.map((item) => (

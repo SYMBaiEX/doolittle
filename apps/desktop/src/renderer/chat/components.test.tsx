@@ -25,6 +25,7 @@ import {
   formatRunElapsed,
   RunReceiptView,
   runActivityItems,
+  runIsStalled,
   runReceiptState,
 } from "./RunReceiptView";
 import { Welcome } from "./Welcome";
@@ -241,6 +242,21 @@ describe("chat presentation components", () => {
     expect(onCancelRequest).toHaveBeenCalledTimes(2);
     act(() => root.unmount());
     container.remove();
+  });
+
+  it("locks the stop control into an explicit stopping state", () => {
+    const html = renderToStaticMarkup(
+      <ChatComposer
+        {...composerProps({
+          activeRequest: "run-1",
+          cancellingRequest: "run-1",
+        })}
+      />,
+    );
+
+    expect(html).toContain('aria-label="Stopping response"');
+    expect(html).toContain("Stopping the current response");
+    expect(html).toContain('disabled=""');
   });
 
   it("reveals memory and context details on demand without stacking them by default", async () => {
@@ -884,6 +900,67 @@ describe("chat presentation components", () => {
     expect(html).toContain('data-pending="true"');
     expect(html).toContain("Working");
     expect(html).toContain("animate-pulse");
+  });
+
+  it("surfaces a quiet stalled state without treating heartbeats as progress", () => {
+    const working = runUpdate("heartbeat");
+    working.run.status = "thinking";
+    working.run.terminalReason = undefined;
+    working.run.lastMeaningfulActivityAt = "2026-08-09T10:00:00.000Z";
+    working.run.updatedAt = "2026-08-09T10:00:20.000Z";
+    const stalledReceipt = { latest: working, events: [working] };
+
+    expect(
+      runIsStalled(
+        stalledReceipt,
+        Date.parse("2026-08-09T10:00:20.000Z"),
+        true,
+      ),
+    ).toBe(true);
+
+    working.run.lastMeaningfulActivityAt = "not-a-date";
+    expect(
+      runIsStalled(
+        stalledReceipt,
+        Date.parse("2026-08-09T10:00:40.000Z"),
+        true,
+      ),
+    ).toBe(true);
+
+    working.run.terminalReason = "completed";
+    expect(
+      runIsStalled(
+        stalledReceipt,
+        Date.parse("2026-08-09T10:01:00.000Z"),
+        true,
+      ),
+    ).toBe(false);
+  });
+
+  it("summarizes changed files and puts retry beside a failed run", () => {
+    const failed = runUpdate("error");
+    failed.run.status = "error";
+    failed.run.terminalReason = "error";
+    failed.run.errorMessage = "The coding turn stopped early.";
+    failed.run.localMutations = [
+      {
+        action: "WRITE_FILE",
+        requestedPath: "src/app.ts",
+        resolvedPath: "/workspace/src/app.ts",
+        success: true,
+        recordedAt: "2026-08-09T10:00:00.500Z",
+      },
+    ];
+    const html = renderToStaticMarkup(
+      <RunReceiptView
+        onRetry={() => undefined}
+        pending={false}
+        receipt={{ latest: failed, events: [failed] }}
+      />,
+    );
+
+    expect(html).toContain("The coding turn stopped early.");
+    expect(html).toContain(">Retry</button>");
   });
 
   it("uses a live working state before the first assistant token arrives", () => {

@@ -4,8 +4,13 @@ import { join } from "node:path";
 import { RoomHandlerQueue } from "@elizaos/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
+import type { RunSnapshot } from "@/services/run-controller-service";
 import { RunControllerService } from "@/services/run-controller-service";
-import { handleChatRoute, handleChatRunEventsRoute } from "./chat";
+import {
+  handleChatRoute,
+  handleChatRunEventsRoute,
+  summarizeChatRun,
+} from "./chat";
 
 const { executeAgentTurnWithProgress } = vi.hoisted(() => ({
   executeAgentTurnWithProgress: vi.fn(),
@@ -52,6 +57,58 @@ afterEach(() => {
 });
 
 describe("handleChatRoute turn lifecycle", () => {
+  it("summarizes terminal evidence and experience timings", () => {
+    const result = summarizeChatRun({
+      runId: "run-summary",
+      sessionId: "room-summary",
+      roomId: "room-summary",
+      source: "desktop",
+      message: "change it",
+      runDepth: "standard",
+      configuredMaxIterations: 20,
+      observedActionCount: 3,
+      progressMode: "all",
+      status: "complete",
+      localMutations: [
+        {
+          action: "WRITE_FILE",
+          requestedPath: "src/app.ts",
+          resolvedPath: "/workspace/src/app.ts",
+          success: true,
+          recordedAt: "2026-09-08T10:00:02.000Z",
+        },
+        {
+          action: "PATCH_FILE",
+          requestedPath: "src/app.ts",
+          resolvedPath: "/workspace/src/app.ts",
+          success: true,
+          recordedAt: "2026-09-08T10:00:03.000Z",
+        },
+      ],
+      pendingApprovals: 0,
+      startedAt: "2026-09-08T10:00:00.000Z",
+      firstStatusAt: "2026-09-08T10:00:00.000Z",
+      firstMessageAt: "2026-09-08T10:00:01.000Z",
+      firstActionAt: "2026-09-08T10:00:02.000Z",
+      lastMeaningfulActivityAt: "2026-09-08T10:00:04.000Z",
+      updatedAt: "2026-09-08T10:00:05.000Z",
+      endedAt: "2026-09-08T10:00:05.000Z",
+      terminalReason: "completed",
+      lastAction: "PATCH_FILE",
+    } satisfies RunSnapshot);
+
+    expect(result).toEqual({
+      outcome: "completed",
+      changedFiles: ["/workspace/src/app.ts"],
+      failedChanges: 0,
+      actionCount: 3,
+      lastAction: "PATCH_FILE",
+      durationMs: 5_000,
+      timeToFirstMessageMs: 1_000,
+      timeToFirstActionMs: 2_000,
+    });
+  });
+
   it("binds a non-streamed turn to the canonical active workspace until completion", async () => {
     const workspaceDir = mkdtempSync(
       join(tmpdir(), "doolittle-chat-workspace-"),

@@ -39,6 +39,14 @@ export interface RunSnapshot {
   localMutations: LocalMutationRecord[];
   pendingApprovals: number;
   startedAt: string;
+  /** First operator-visible lifecycle update, used for queue-to-status telemetry. */
+  firstStatusAt?: string;
+  /** First model/message activity observed for this run. */
+  firstMessageAt?: string;
+  /** First tool/action activity observed for this run. */
+  firstActionAt?: string;
+  /** Most recent non-heartbeat activity. Heartbeats must not hide a stalled run. */
+  lastMeaningfulActivityAt?: string;
   updatedAt: string;
   lastHeartbeatAt?: string;
   endedAt?: string;

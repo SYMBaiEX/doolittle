@@ -5,6 +5,7 @@ import {
   ArrowUp,
   ChevronDown,
   FileText,
+  LoaderCircle,
   Paperclip,
   Square,
   X,
@@ -87,6 +88,7 @@ export interface ChatComposerProps {
   onOpenModelsPage: () => void;
   onOpenProvidersPage: () => void;
   activeRequest: string | null;
+  cancellingRequest?: string | null;
   onCancelRequest: (requestId: string) => void;
   canSubmit: boolean;
   draft: string;
@@ -148,6 +150,7 @@ export function ChatComposer({
   onOpenModelsPage,
   onOpenProvidersPage,
   activeRequest,
+  cancellingRequest = null,
   onCancelRequest,
   canSubmit,
   draft,
@@ -190,6 +193,9 @@ export function ChatComposer({
   pendingApprovals,
   runningTasks,
 }: ChatComposerProps) {
+  const isCancellingActive = Boolean(
+    activeRequest && cancellingRequest === activeRequest,
+  );
   const [skills, setSkills] = useState(() => buildSkillCatalogEntries([]));
   const [skillsError, setSkillsError] = useState("");
   const [promptEntries, setPromptEntries] = useState(() =>
@@ -609,14 +615,18 @@ export function ChatComposer({
                 return;
               }
             }
-            if (event.key === "Escape" && activeRequest) {
+            if (
+              event.key === "Escape" &&
+              activeRequest &&
+              !isCancellingActive
+            ) {
               event.preventDefault();
               onCancelRequest(activeRequest);
               return;
             }
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
-              void onSubmit();
+              if (!isCancellingActive) void onSubmit();
             }
           }}
           placeholder={
@@ -701,7 +711,13 @@ export function ChatComposer({
             <div className="chat-composer-status">
               <StatusBadge
                 className="chat-status-badge !inline-flex !min-h-[18px] items-center !border-0 !bg-transparent px-[5px] py-px !font-[inherit] !text-[length:var(--text-meta)] !tracking-normal !text-[var(--text-soft)] normal-case"
-                label={activeRequest ? "Working" : backend.phase}
+                label={
+                  isCancellingActive
+                    ? "Stopping"
+                    : activeRequest
+                      ? "Working"
+                      : backend.phase
+                }
                 pulse={Boolean(activeRequest)}
                 tone={
                   activeRequest
@@ -744,33 +760,61 @@ export function ChatComposer({
             </ElizaButton>
           ) : null}
           <ElizaButton
-            aria-label={activeRequest ? "Stop response" : "Send message"}
+            aria-label={
+              isCancellingActive
+                ? "Stopping response"
+                : activeRequest
+                  ? "Stop response"
+                  : "Send message"
+            }
             aria-keyshortcuts={activeRequest ? "Escape" : undefined}
             className={`chat-composer-submit !size-[30px] !min-h-[30px] !min-w-[30px] !rounded-full !p-0 motion-reduce:transition-none max-[480px]:!size-9.5 max-[480px]:!min-h-9.5 max-[480px]:!min-w-9.5 ${
               activeRequest
                 ? "!border !border-[color-mix(in_srgb,var(--bad)_40%,var(--border))] !bg-[color-mix(in_srgb,var(--bad)_10%,var(--surface-soft))] !text-[var(--bad)] hover:!bg-[color-mix(in_srgb,var(--bad)_18%,var(--surface-hover))]"
                 : "!border-0 !bg-[var(--accent)] !text-[var(--accent-ink)] hover:!bg-[color-mix(in_srgb,var(--accent)_86%,var(--text))] disabled:!bg-[var(--surface-soft)] disabled:!text-[var(--faint)] disabled:opacity-70"
             }`}
-            disabled={!activeRequest && !canSubmit}
+            disabled={isCancellingActive || (!activeRequest && !canSubmit)}
             onClick={
-              activeRequest ? () => onCancelRequest(activeRequest) : undefined
+              activeRequest && !isCancellingActive
+                ? () => onCancelRequest(activeRequest)
+                : undefined
             }
             size="icon-sm"
             title={
-              activeRequest
-                ? "Stop the current response (Escape)"
-                : "Send message (Enter)"
+              isCancellingActive
+                ? "Stopping the current response…"
+                : activeRequest
+                  ? "Stop the current response (Escape)"
+                  : "Send message (Enter)"
             }
             type={activeRequest ? "button" : "submit"}
             variant="default"
           >
-            <UiIcon icon={activeRequest ? Square : ArrowUp} size="sm" />
+            <UiIcon
+              className={
+                isCancellingActive
+                  ? "animate-spin motion-reduce:animate-none"
+                  : undefined
+              }
+              icon={
+                isCancellingActive
+                  ? LoaderCircle
+                  : activeRequest
+                    ? Square
+                    : ArrowUp
+              }
+              size="sm"
+            />
           </ElizaButton>
         </div>
       </div>
       <small className="chat-composer-hint">
-        {activeRequest ? "Enter to queue" : "Enter to send"} · Shift Enter for a
-        new line
+        {isCancellingActive
+          ? "Stopping response"
+          : activeRequest
+            ? "Enter to queue"
+            : "Enter to send"}{" "}
+        · Shift Enter for a new line
       </small>
       {detailsOpen && (hasMemoryMatches || hasContextDetails) ? (
         <div className="chat-composer-details" id="chat-composer-details">

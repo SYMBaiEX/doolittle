@@ -153,9 +153,12 @@ export type {
 export type {
   AgentTransportRequest,
   AgentTransportResponse,
+  ChatCompletedPayload,
   ChatEvent,
   ChatRequest,
+  ChatRunResultSummary,
   ChatRunSubscription,
+  ChatTextPartDelta,
   DesktopRunUpdate,
   HttpMethod,
   LocalMutation,

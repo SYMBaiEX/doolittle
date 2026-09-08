@@ -8,7 +8,10 @@ import {
   ManagedAttachmentError,
   resolveManagedChatAttachments,
 } from "@/services/chat-attachments";
-import type { TaskRunEvent } from "@/services/run-controller-service";
+import type {
+  RunSnapshot,
+  TaskRunEvent,
+} from "@/services/run-controller-service";
 import type { ChatRequestBody } from "./types";
 
 const RUN_ID_PATTERN = /^[a-zA-Z0-9:_-]{1,128}$/;
@@ -25,6 +28,55 @@ interface PreparedChatRun {
   responseId: string;
   roomId: string;
   sessionId: string;
+}
+
+interface ChatRunResultSummary {
+  outcome: "completed" | "cancelled" | "failed";
+  changedFiles: string[];
+  failedChanges: number;
+  actionCount: number;
+  lastAction?: string;
+  durationMs: number;
+  timeToFirstMessageMs?: number;
+  timeToFirstActionMs?: number;
+}
+
+function elapsedFrom(startedAt: string, endedAt?: string): number {
+  const start = Date.parse(startedAt);
+  const end = Date.parse(endedAt ?? new Date().toISOString());
+  return Number.isFinite(start) && Number.isFinite(end)
+    ? Math.max(0, end - start)
+    : 0;
+}
+
+/** Stable terminal evidence for desktop, CLI, and API clients. */
+export function summarizeChatRun(run: RunSnapshot): ChatRunResultSummary {
+  const changedFiles = Array.from(
+    new Set(
+      run.localMutations
+        .filter((mutation) => mutation.success)
+        .map((mutation) => mutation.resolvedPath || mutation.requestedPath)
+        .filter((path): path is string => Boolean(path)),
+    ),
+  );
+  const timing = (value?: string) =>
+    value ? elapsedFrom(run.startedAt, value) : undefined;
+  return {
+    outcome:
+      run.terminalReason === "cancelled"
+        ? "cancelled"
+        : run.terminalReason === "error" || run.status === "error"
+          ? "failed"
+          : "completed",
+    changedFiles,
+    failedChanges: run.localMutations.filter((mutation) => !mutation.success)
+      .length,
+    actionCount: run.observedActionCount,
+    lastAction: run.lastAction,
+    durationMs: elapsedFrom(run.startedAt, run.endedAt || run.updatedAt),
+    timeToFirstMessageMs: timing(run.firstMessageAt),
+    timeToFirstActionMs: timing(run.firstActionAt),
+  };
 }
 
 function failedTurnMessage(
@@ -229,9 +281,11 @@ function startServerOwnedChatRun(
     id: responseId,
     run_id: runId,
     room_id: roomId,
+    state: "accepted",
   });
 
   void (async () => {
+    let textSequence = 0;
     try {
       const attachments = prepared.attachments.map((entry) => entry.media);
       const attachmentDescriptors = prepared.attachments.map(
@@ -252,12 +306,15 @@ function startServerOwnedChatRun(
           abortSignal: controller.signal,
           onProgress: ({ delta }) => {
             if (!delta) return;
+            textSequence += 1;
             context.services.runController.appendTaskEvent(
               runId,
               "response.output_text.delta",
               {
                 id: responseId,
                 delta,
+                part_id: "assistant-text",
+                sequence: textSequence,
               },
             );
           },
@@ -310,6 +367,7 @@ function startServerOwnedChatRun(
             true,
           );
         } else {
+          const receipt = context.services.runController.getByRunId(runId);
           context.services.runController.appendTaskEvent(
             runId,
             "response.completed",
@@ -318,6 +376,7 @@ function startServerOwnedChatRun(
               response,
               character: context.config.agentName,
               room_id: roomId,
+              result: receipt ? summarizeChatRun(receipt) : undefined,
             },
             true,
           );
@@ -497,10 +556,15 @@ export async function handleChatRoute(
   }
   const terminal = await waitForTerminalEvent(context, prepared.runId);
   if (terminal.type === "response.completed") {
-    const data = terminal.data as { response?: string; character?: string };
+    const data = terminal.data as {
+      response?: string;
+      character?: string;
+      result?: ChatRunResultSummary;
+    };
     return json({
       response: data.response ?? "",
       character: data.character ?? context.config.agentName,
+      result: data.result,
     });
   }
   if (terminal.type === "response.cancelled") {

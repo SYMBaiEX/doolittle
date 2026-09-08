@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   completedResponseText,
   reconcileStreamedResponse,
+  streamedResponseFrameKey,
 } from "./streamed-response";
 
 describe("streamed response reconciliation", () => {
@@ -26,5 +27,16 @@ describe("streamed response reconciliation", () => {
         response: "One final answer",
       }),
     ).toBe("One final answer");
+  });
+
+  it("provides a stable identity for replay-safe typed text parts", () => {
+    expect(
+      streamedResponseFrameKey({
+        delta: "hello",
+        part_id: "assistant-text",
+        sequence: 2,
+      }),
+    ).toBe("assistant-text:2");
+    expect(streamedResponseFrameKey({ delta: "legacy" })).toBeUndefined();
   });
 });

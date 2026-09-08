@@ -47,10 +47,14 @@ export function ChatMessage({
   message,
   receipt,
   actions,
+  retryDisabled,
+  onRetry,
 }: {
   message: DisplayMessage;
   receipt?: RunReceipt;
   actions: ReactNode;
+  retryDisabled?: boolean;
+  onRetry?: () => void;
 }) {
   const visibleContent = messageContentAfterReceipt(message, receipt);
   const parsedAgentMessage: ParsedAgentMessage | undefined =
@@ -90,8 +94,10 @@ export function ChatMessage({
       <div className="chat-message-body">
         {receipt && showRunReceipt ? (
           <RunReceiptView
+            onRetry={onRetry}
             pending={Boolean(message.pending)}
             receipt={receipt}
+            retryDisabled={retryDisabled}
           />
         ) : null}
         {visibleContent ? (

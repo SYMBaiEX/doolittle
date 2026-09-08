@@ -56,6 +56,8 @@ describe("run-controller/transitions", () => {
       pendingApprovals: 2,
     });
     expect(transition.run.startedAt).toBeTruthy();
+    expect(transition.run.firstStatusAt).toBeTruthy();
+    expect(transition.run.lastMeaningfulActivityAt).toBeTruthy();
     expect(transition.run.updatedAt).toBeTruthy();
   });
 
@@ -80,6 +82,8 @@ describe("run-controller/transitions", () => {
     expect(transition.run.status).toBe("acting");
     expect(transition.run.observedActionCount).toBe(1);
     expect(transition.run.activeAction).toBe("workspace:search");
+    expect(transition.run.firstActionAt).toBeTruthy();
+    expect(transition.run.lastMeaningfulActivityAt).toBeTruthy();
   });
 
   it("moves to waiting and clears action state on action completed", () => {
