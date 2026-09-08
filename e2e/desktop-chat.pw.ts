@@ -12,6 +12,12 @@ const repoRoot = process.cwd();
 const desktopRoot = resolve(repoRoot, "apps/desktop");
 type Session = { sessionId: string; preview?: string[]; messageCount: number };
 type StoredMessage = { role: string; text: string };
+type ChatRun = {
+  runId: string;
+  message: string;
+  source: string;
+  status: string;
+};
 type InteractiveTerminalWorkspaceState = {
   activeTabId: string;
   tabs: { id: string; output?: string }[];
@@ -98,6 +104,29 @@ async function persistedTerminalOutput(
     const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId);
     return typeof activeTab?.output === "string" ? activeTab.output : null;
   }, workspacePath);
+}
+
+async function chatRunForPrompt(
+  page: Page,
+  prompt: string,
+): Promise<ChatRun | null> {
+  return page.evaluate(async (message) => {
+    const response = await window.doolittle.requestAgent({
+      requestId: crypto.randomUUID(),
+      path: "/chat/runs?limit=100",
+      method: "GET",
+      headers: { accept: "application/json" },
+    });
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`Agent request failed with ${response.status}.`);
+    }
+    const payload = JSON.parse(response.body) as { runs?: ChatRun[] };
+    return (
+      payload.runs?.find(
+        (run) => run.source === "desktop" && run.message === message,
+      ) ?? null
+    );
+  }, prompt);
 }
 
 test.describe("Doolittle desktop offline chat", () => {
@@ -273,6 +302,78 @@ test.describe("Doolittle desktop offline chat", () => {
       ).toContain(normalizeTranscriptText(assistantText));
       await expect(restartedPage.locator(".recovery-shell")).toHaveCount(0);
       expect(restartedPageErrors).toEqual([]);
+    } finally {
+      await app?.close();
+      rmSync(profileDir, { recursive: true, force: true });
+      rmSync(workspaceDir, { recursive: true, force: true });
+    }
+  });
+
+  test("keeps an active response attached while visiting Settings", async ({
+    browserName,
+  }) => {
+    test.setTimeout(90_000);
+    expect(browserName).toBe("chromium");
+    const profileDir = mkdtempSync(
+      join(tmpdir(), "doolittle-e2e-navigation-profile-"),
+    );
+    const workspaceDir = realpathSync(
+      mkdtempSync(join(tmpdir(), "doolittle-e2e-navigation-workspace-")),
+    );
+    const prompt = `navigation continuity ${Date.now()}`;
+    writeFileSync(
+      join(profileDir, "workspace-state.json"),
+      `${JSON.stringify({ currentPath: workspaceDir, recentPaths: [workspaceDir] })}\n`,
+      "utf8",
+    );
+
+    let app: Awaited<ReturnType<typeof launchDesktop>> | undefined;
+    try {
+      app = await launchDesktop(profileDir, workspaceDir);
+      const page = await app.firstWindow();
+      const pageErrors: string[] = [];
+      page.on("pageerror", (error) => pageErrors.push(error.message));
+      await waitForChat(page, pageErrors);
+
+      const composer = page.getByRole("textbox", { name: "Message Doolittle" });
+      await composer.fill(prompt);
+      await composer.press("Enter");
+      await expect(
+        page.getByLabel("Conversation detail").getByText(prompt, {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect.poll(() => chatRunForPrompt(page, prompt)).not.toBeNull();
+
+      await page.getByRole("button", { name: "Open settings" }).click();
+      await expect(
+        page.locator('.view-container[data-view="settings"]'),
+      ).toBeVisible();
+      await expect(
+        page.locator('.view-container[data-view="chat"]'),
+      ).toBeHidden();
+      await page.getByRole("button", { name: "Chat", exact: true }).click();
+      await expect(
+        page.locator('.view-container[data-view="chat"]'),
+      ).toBeVisible();
+      await expect(
+        page.getByLabel("Conversation detail").getByText(prompt, {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(
+        page
+          .getByLabel("Conversation detail")
+          .getByText("This response was interrupted before it finished.", {
+            exact: false,
+          }),
+      ).toHaveCount(0);
+
+      const run = await chatRunForPrompt(page, prompt);
+      expect(run).not.toBeNull();
+      expect(run?.status).not.toBe("cancelled");
+      expect(run?.status).not.toBe("error");
+      expect(pageErrors).toEqual([]);
     } finally {
       await app?.close();
       rmSync(profileDir, { recursive: true, force: true });

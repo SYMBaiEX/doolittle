@@ -20,6 +20,7 @@ const routeContentSource = readFileSync(
   new URL("./DesktopRouteContent.tsx", import.meta.url),
   "utf8",
 );
+const appSource = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
 
 describe("desktop route preloaders", () => {
   test("covers every application route", () => {
@@ -151,5 +152,18 @@ describe("desktop route preloaders", () => {
     expect(routeContentSource).toContain('"automations"');
     expect(routeContentSource).toContain('"gateway"');
     expect(routeContentSource).toContain('"orchestration"');
+  });
+
+  test("keeps the Chat stream owner mounted behind other routes", () => {
+    expect(appSource).toContain(
+      'const chatRouteActive = renderedView === "chat";',
+    );
+    expect(appSource).toContain(
+      'const persistentChatView: View = chatRouteActive ? view : "chat";',
+    );
+    expect(appSource).toContain("hidden={!chatRouteActive}");
+    expect(appSource).toContain("inert={!chatRouteActive}");
+    expect(appSource).toContain("{routeContent(persistentChatView)}");
+    expect(appSource).toContain("{!chatRouteActive ? (");
   });
 });

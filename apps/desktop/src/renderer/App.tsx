@@ -1277,7 +1277,7 @@ export function App() {
     return items.slice(0, 5);
   }, [scopedSessions, selectedSession]);
 
-  const content = (
+  const routeContent = (routeView: View) => (
     <DesktopRouteContent
       activeProject={activeProject}
       approvalsResource={approvalsResource}
@@ -1314,10 +1314,15 @@ export function App() {
       runningTasks={runningTasks}
       scopedSessions={scopedSessions}
       selectedSession={selectedSession}
-      view={view}
+      view={routeView}
       workspacePath={workspace.currentPath}
     />
   );
+  const chatRouteActive = renderedView === "chat";
+  // Chat owns the renderer-side stream subscription and request state. Keep
+  // that owner mounted while Settings, Code, or another route is visible so a
+  // route transition cannot turn ordinary navigation into an interrupted run.
+  const persistentChatView: View = chatRouteActive ? view : "chat";
 
   return (
     <main
@@ -1537,35 +1542,61 @@ export function App() {
           />
         </Suspense>
         <div
-          className={`${VIEW_CONTAINER_CLASS} view-${view}${
-            ["chat", "code", "orchestration"].includes(renderedView)
-              ? ` ${VIEW_CONTAINER_WORKSPACE_CLASS}`
-              : ""
-          }`}
-          data-view={view}
-          data-view-owner={renderedView}
-          key={renderedView}
+          aria-hidden={!chatRouteActive}
+          className={`${VIEW_CONTAINER_CLASS} view-${persistentChatView} ${VIEW_CONTAINER_WORKSPACE_CLASS}`}
+          data-view={persistentChatView}
+          data-view-owner="chat"
+          hidden={!chatRouteActive}
+          inert={!chatRouteActive}
         >
           <DesktopRouteErrorBoundary
-            label={activeItem?.label ?? "View"}
+            label="Chat"
             onReturnToChat={() => setView("chat")}
             onRetry={() => {
-              resetDesktopRoute(renderedView);
+              resetDesktopRoute("chat");
               setRouteRetryNonce((current) => current + 1);
             }}
-            resetKey={`${view}\u0000${projectScope}\u0000${workspace.currentPath}\u0000${routeRetryNonce}`}
+            resetKey={`chat\u0000${projectScope}\u0000${workspace.currentPath}\u0000${routeRetryNonce}`}
           >
             <Suspense
-              fallback={
-                <DesktopRouteLoadingFallback
-                  label={activeItem?.label ?? "view"}
-                />
-              }
+              fallback={<DesktopRouteLoadingFallback label="conversation" />}
             >
-              {content}
+              {routeContent(persistentChatView)}
             </Suspense>
           </DesktopRouteErrorBoundary>
         </div>
+        {!chatRouteActive ? (
+          <div
+            className={`${VIEW_CONTAINER_CLASS} view-${view}${
+              ["code", "orchestration"].includes(renderedView)
+                ? ` ${VIEW_CONTAINER_WORKSPACE_CLASS}`
+                : ""
+            }`}
+            data-view={view}
+            data-view-owner={renderedView}
+            key={renderedView}
+          >
+            <DesktopRouteErrorBoundary
+              label={activeItem?.label ?? "View"}
+              onReturnToChat={() => setView("chat")}
+              onRetry={() => {
+                resetDesktopRoute(renderedView);
+                setRouteRetryNonce((current) => current + 1);
+              }}
+              resetKey={`${view}\u0000${projectScope}\u0000${workspace.currentPath}\u0000${routeRetryNonce}`}
+            >
+              <Suspense
+                fallback={
+                  <DesktopRouteLoadingFallback
+                    label={activeItem?.label ?? "view"}
+                  />
+                }
+              >
+                {routeContent(view)}
+              </Suspense>
+            </DesktopRouteErrorBoundary>
+          </div>
+        ) : null}
         {chatTerminalMounted ? (
           <Suspense fallback={null}>
             <ChatTerminalPanel
