@@ -108,4 +108,19 @@ describe("Codex ACP compatibility", () => {
       ).toBe("read-only");
     },
   );
+
+  it("does not mistake initial read-only config for enforced per-turn read-only policy", () => {
+    expect(() =>
+      codexSpawnEnvironmentForRoute({
+        command: codexCommandForRoute({ model: "gpt-5.6-luna" }),
+        model: "gpt-5.6-luna",
+        approvalPreset: "readonly",
+        env: {
+          INITIAL_AGENT_MODE: "read-only",
+          CODEX_CONFIG:
+            '{"sandbox_mode":"read-only","approval_policy":"never"}',
+        },
+      }),
+    ).toThrow("CODING_APPROVAL_POLICY_UNSUPPORTED");
+  });
 });

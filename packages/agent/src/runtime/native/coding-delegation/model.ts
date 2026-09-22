@@ -47,6 +47,8 @@ export function codexSpawnEnvironmentForRoute(input: {
   if (!usesAppServerAdapter(input.command)) return input.env;
   // Upstream's misleadingly named "read-only" mode is workspace-write with
   // user approvals. It cannot represent an actual deny-all/readonly policy.
+  // CODEX_CONFIG.sandbox_mode cannot repair this: CodexAcpClient.sendPrompt
+  // explicitly supplies the selected mode's sandboxPolicy on every turn.
   if (
     input.approvalPreset &&
     !["standard", "permissive", "autonomous"].includes(input.approvalPreset)
