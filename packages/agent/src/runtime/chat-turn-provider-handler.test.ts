@@ -713,7 +713,7 @@ describe("chat turn provider handler", () => {
       "Create the requested app in this workspace.",
     );
 
-    expect(callCount).toBe(2);
+    expect(callCount).toBe(4);
     expect(result.runFailureMessage).toContain(
       "No verified file changes were recorded",
     );
@@ -829,7 +829,7 @@ describe("chat turn provider handler", () => {
       "Create and verify the requested app in this workspace.",
     );
 
-    expect(callCount).toBe(3);
+    expect(callCount).toBe(4);
     expect(result.runFailureMessage).toContain(
       "still incomplete after the agent's continuation attempts",
     );

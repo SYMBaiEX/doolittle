@@ -65,6 +65,12 @@ export async function executeWorkspaceIntent(
   intent: WorkspaceIntent,
 ): Promise<string> {
   if (intent.kind === "tree") {
+    if (intent.path) {
+      return executeOverviewIntent(runtime, {
+        kind: "overview",
+        path: intent.path,
+      });
+    }
     return await getNativeWorkspaceSummary(runtime, 40);
   }
 

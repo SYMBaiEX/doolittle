@@ -11,7 +11,8 @@ export function resolveWorkspaceIntentFromParams(
   const rawKind = nonEmptyString(record.intent);
 
   if (rawKind === "tree") {
-    return { kind: "tree" };
+    const path = nonEmptyString(record.path);
+    return { kind: "tree", path };
   }
   if (rawKind === "overview") {
     const path = nonEmptyString(record.path);

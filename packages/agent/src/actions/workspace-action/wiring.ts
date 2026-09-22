@@ -23,7 +23,8 @@ const WORKSPACE_PARAMETERS: NonNullable<Action["parameters"]> = [
   },
   {
     name: "path",
-    description: "Optional project, directory, or file path.",
+    description:
+      "Project, directory, or file path. When the user names a target path, pass that exact path for tree or overview instead of listing the selected workspace root.",
     required: false,
     schema: { type: "string" },
   },
@@ -40,11 +41,11 @@ export function createWorkspaceAction(): Action {
     name: "DOOLITTLE_WORKSPACE",
     similes: ["WORKSPACE_TREE", "WORKSPACE_OVERVIEW", "FIND_CODEBASE"],
     description:
-      "Inspect the selected project at a broad level. Use this for workspace trees, project overviews, and locating a local codebase. Use the dedicated file actions for concrete reads, searches, and edits.",
+      "Inspect a workspace tree or overview, optionally scoped to an exact project or directory path, or locate a local codebase. For coding requests, inspect only the requested target path; never dump the selected workspace root when the user named a narrower path. Use dedicated file actions for concrete reads, searches, and edits.",
     descriptionCompressed:
       "Summarize or inspect the selected workspace at a broad level.",
     routingHint:
-      "project or workspace overview -> DOOLITTLE_WORKSPACE; concrete file work -> file actions",
+      "workspace overview -> DOOLITTLE_WORKSPACE; if a path is named pass it as path; concrete file work -> file actions",
     parameters: WORKSPACE_PARAMETERS,
     contexts: ["code", "files"],
     cacheStable: true,

@@ -37,7 +37,7 @@ export function createCodingAction(): Action {
     subPlanner: {
       name: "Doolittle coding planner",
       description:
-        "Inspect before editing, make scoped changes, and verify the result with repository or shell tools.",
+        "Execute the user's full coding request end to end. Inspect only the specified path, create or edit the requested files, install dependencies and run requested checks or application startup, fix recoverable errors, and verify outcomes. Do not stop after inspection or a partial edit, do not present tool output as a final answer, and report only verified completion or a concrete blocker.",
     },
     subActions: [...DOOLITTLE_CODING_SUBACTIONS],
     validate: async () => true,

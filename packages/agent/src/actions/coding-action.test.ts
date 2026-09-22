@@ -20,6 +20,7 @@ describe("Doolittle coding action", () => {
     expect(parent.contexts).toEqual(["code", "files"]);
     expect(parent.subPlanner).toMatchObject({
       name: "Doolittle coding planner",
+      description: expect.stringContaining("Do not stop after inspection"),
     });
     expect(
       resolveSubActions({ actions: children }, parent).map(({ name }) => name),

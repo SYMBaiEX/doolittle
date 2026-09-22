@@ -15,6 +15,12 @@ describe("resolveWorkspaceIntentFromParams", () => {
       kind: "overview",
       path: "packages/agent",
     });
+    expect(
+      resolveWorkspaceIntentFromParams({
+        intent: "tree",
+        path: "dev/this-is-a-test",
+      }),
+    ).toEqual({ kind: "tree", path: "dev/this-is-a-test" });
   });
 });
 
@@ -147,5 +153,54 @@ describe("workspace action contract", () => {
     );
 
     expect(inspectedPaths).toEqual([undefined]);
+  });
+
+  it("keeps a requested tree inspection scoped to its explicit directory", async () => {
+    const inspectedPaths: Array<string | undefined> = [];
+    let workspaceSummaryCalls = 0;
+    const action = createWorkspaceAction();
+    const runtime = {
+      getService(serviceType: string) {
+        return serviceType === "doolittle_coding_agent"
+          ? {
+              workspaceSummary: async () => {
+                workspaceSummaryCalls += 1;
+                return "unscoped workspace tree";
+              },
+              resolveProjectTarget: (path: string) =>
+                path === "dev/this-is-a-test"
+                  ? {
+                      path: "/workspace/dev/this-is-a-test",
+                      kind: "directory",
+                    }
+                  : undefined,
+              inspectProject: async (path?: string) => {
+                inspectedPaths.push(path);
+                return {
+                  name: "this-is-a-test",
+                  path: path ?? "/workspace",
+                  type: "Next.js app",
+                  workspacePatterns: [],
+                  scripts: ["dev"],
+                  keyFolders: ["app"],
+                  git: { available: false },
+                  topEntries: ["app", "package.json"],
+                };
+              },
+            }
+          : null;
+      },
+    };
+
+    const result = await action.handler(
+      runtime as never,
+      { content: { text: "Inspect this target" } } as never,
+      undefined,
+      { parameters: { intent: "tree", path: "dev/this-is-a-test" } },
+    );
+
+    expect(result?.text).toContain("Path: /workspace/dev/this-is-a-test");
+    expect(inspectedPaths).toEqual(["/workspace/dev/this-is-a-test"]);
+    expect(workspaceSummaryCalls).toBe(0);
   });
 });

@@ -113,7 +113,7 @@ function actionResultsFromMessageResult(result: unknown): ActionResult[] {
 
 const MAX_CONTINUATION_EVIDENCE_CHARS = 5_000;
 const MAX_CONTINUATION_RESULT_CHARS = 1_200;
-const MAX_MUTATION_CONTINUATION_PASSES = 3;
+const MAX_MUTATION_CONTINUATION_PASSES = 4;
 
 function explicitlyReportsIncompleteWork(response: string): boolean {
   return /\b(?:not|isn't|aren't|hasn't|haven't|has not|have not)\s+(?:yet\s+)?(?:been\s+)?(?:implemented|completed|finished|verified|built|installed|tested|started|done|ready)\b|\b(?:remain|remains|remaining)\s+to\s+be\s+done\b|\b(?:still\s+need(?:s)?\s+to|left\s+to\s+do)\b/iu.test(
@@ -526,10 +526,12 @@ export async function executeProviderMessageTurn(
             isSdkFailureReply(messageResult?.responseContent) ||
             hasPendingApproval(input.context, sessionId) ||
             attempt >= MAX_MUTATION_CONTINUATION_PASSES - 1 ||
-            (attempt > 0 && !explicitlyIncomplete) ||
             (response.trim() &&
               hasVerifiedWorkspaceMutation(actionResults) &&
-              !explicitlyIncomplete)
+              !explicitlyIncomplete) ||
+            (!response.trim() &&
+              attempt > 0 &&
+              !hasVerifiedWorkspaceMutation(actionResults))
           ) {
             break;
           }
