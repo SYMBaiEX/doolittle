@@ -44,6 +44,40 @@ describe("resolveSelectedModelProviderPlugin", () => {
 });
 
 describe("createSelectedProviderTextModel", () => {
+  it("requires post-tool evaluation only on ACTION_PLANNER without changing model inputs", async () => {
+    const raw = JSON.stringify({
+      toolCalls: [{ name: "READ_FILE", args: { path: "README.md" } }],
+      messageToUser: "Reading requested files",
+      completed: true,
+    });
+    const params = {
+      prompt: "inspect",
+      messages: [{ role: "user", content: "inspect" }],
+    };
+    const runtime = {
+      getSetting: () => JSON.stringify({ model: { provider: "codex" } }),
+      useModel: async (_type: string, received: unknown) => {
+        expect(received).toBe(params);
+        return raw;
+      },
+    } as unknown as IAgentRuntime;
+    const planner = await createSelectedProviderTextModel(
+      ModelType.ACTION_PLANNER,
+    )(runtime, params as never);
+    expect(JSON.parse(planner).completed).toBe(false);
+    expect(
+      await createSelectedProviderTextModel(ModelType.RESPONSE_HANDLER)(
+        runtime,
+        params as never,
+      ),
+    ).toBe(raw);
+    expect(
+      await createSelectedProviderTextModel(ModelType.TEXT_LARGE)(
+        runtime,
+        params as never,
+      ),
+    ).toBe(raw);
+  });
   it("routes consecutive calls through the currently selected provider", async () => {
     let activeProvider = "ollama";
     let anthropicAuthMode: string | undefined;

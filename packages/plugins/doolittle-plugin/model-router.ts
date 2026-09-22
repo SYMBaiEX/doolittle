@@ -8,6 +8,7 @@ import {
   type ResearchResult,
   type TextGenerationModelType,
 } from "@elizaos/core";
+import { requirePostToolAssessment } from "./planner-completion";
 import { readRuntimeModelSettings } from "./runtime-settings";
 
 export const DOOLITTLE_MODEL_ROUTER_PRIORITY = 1_000;
@@ -64,7 +65,18 @@ export function createSelectedProviderTextModel(
       );
     }
 
-    return runtime.useModel(modelType, params, provider);
+    const result = await runtime.useModel(modelType, params, provider);
+    const response =
+      modelType === ModelType.ACTION_PLANNER
+        ? requirePostToolAssessment(result)
+        : result;
+    if (response !== result) {
+      runtime.logger?.debug?.(
+        { src: "doolittle:model-router", provider, modelType },
+        "Deferred planner completion until native post-tool evaluation",
+      );
+    }
+    return response;
   };
 }
 
