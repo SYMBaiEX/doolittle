@@ -14,12 +14,44 @@ function text(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+async function finalChildError(
+  service: ManagedAcpService,
+  sessionId: string,
+): Promise<string> {
+  if (!service.getSession) return "";
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    // Optional diagnostics must not prevent cancellation/process cleanup.
+    const snapshot = await Promise.race([
+      Promise.resolve().then(() => service.getSession?.(sessionId)),
+      new Promise<undefined>((resolve) => {
+        timeout = setTimeout(() => resolve(undefined), 1_000);
+      }),
+    ]);
+    return text(snapshot?.lastError);
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export function delegationFailureMessage(
   agentType: string,
   reason: string,
 ): string {
   if (reason.includes("CODING_WORKSPACE_MISMATCH"))
     return `${agentType} selected a different workspace than the requested directory. The worker was stopped before receiving the task. Check the selected project path and retry; no fallback directory was accepted.`;
+  if (
+    /requires a newer version of Codex|upgrade to the latest (?:app or )?CLI/i.test(
+      reason,
+    )
+  )
+    return "Codex rejected the selected model because the coding adapter runs an older Codex version. Update Doolittle's Codex ACP adapter (or your custom ACP command), then retry. The selected model and account were not changed.";
+  if (reason.includes("CODING_MODEL_CONFIGURATION_INVALID"))
+    return "The Codex coding adapter configuration is invalid. Check the custom CODEX_CONFIG JSON and model settings, then retry. No model or account was substituted.";
+  if (reason.includes("CODING_APPROVAL_POLICY_UNSUPPORTED"))
+    return "The selected Codex ACP adapter cannot enforce this read-only or restrictive security policy. The worker was not started. Use an adapter that supports that policy, or explicitly select an appropriate workspace-write policy in Settings. A read-only task instruction alone does not grant write permission.";
   if (/auth|credential|login|sign.?in|unauthorized|401|403/i.test(reason)) {
     return `${agentType} could not authenticate. Sign in to ${agentType} in Settings → Providers & accounts, then retry. No other provider was selected automatically.`;
   }
@@ -176,11 +208,23 @@ export async function executeManagedDelegation(input: {
       });
       stopReason = result.stopReason ?? "unknown";
       exitCode = result.exitCode ?? null;
-      eventFailure ||= result.error ?? "";
+      // A final provider error is authoritative; an earlier advisory is not
+      // the reason the request failed (for example, model metadata warnings).
+      eventFailure = result.error || eventFailure;
     }
   } catch (error) {
     eventFailure ||= error instanceof Error ? error.message : "provider error";
   } finally {
+    if (
+      eventFailure ||
+      stopReason === "error" ||
+      (exitCode !== null && exitCode !== 0)
+    ) {
+      // Read this exact child's durable SDK error before closing its process.
+      // Some native transports surface the detailed RPC error only here.
+      eventFailure =
+        (await finalChildError(service, session.sessionId)) || eventFailure;
+    }
     unsubscribe();
     signal?.removeEventListener("abort", cancel);
     await cancellation;

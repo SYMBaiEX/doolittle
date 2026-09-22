@@ -34,6 +34,8 @@ export interface AcpSpawnOptions {
   initialTask?: string;
   model?: string;
   timeoutMs?: number;
+  env?: Record<string, string>;
+  approvalPreset?: string;
   metadata?: Record<string, unknown>;
   [key: string]: unknown;
 }
@@ -54,6 +56,7 @@ export interface AcpPromptResult {
 
 /** Public beta.7 ACP service methods; keep package internals out of app imports. */
 export interface ManagedAcpService {
+  defaultApprovalPreset?: string;
   spawnSession(options: AcpSpawnOptions): Promise<AcpSession>;
   sendPrompt(
     sessionId: string,
@@ -62,6 +65,12 @@ export interface ManagedAcpService {
   ): Promise<AcpPromptResult>;
   cancelSession(sessionId: string): Promise<void>;
   stopSession(sessionId: string): Promise<void>;
+  getSession?(
+    sessionId: string,
+  ):
+    | Promise<{ lastError?: string } | undefined>
+    | { lastError?: string }
+    | undefined;
   onSessionEvent(
     listener: (sessionId: string, event: string, data: unknown) => void,
   ): () => void;

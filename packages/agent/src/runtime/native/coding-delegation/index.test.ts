@@ -410,6 +410,98 @@ describe("managed official coding delegation", () => {
     expect(JSON.stringify(result)).not.toContain("private-provider-value");
   });
 
+  it("reports the final child model-version error instead of its first metadata warning", async () => {
+    const input = await fixture();
+    input.service.getSession = vi.fn(async () => ({
+      lastError:
+        'Internal error (data: {"message":"The gpt-5.6-luna model requires a newer version of Codex. Please upgrade to the latest app or CLI and try again.","credential":"private-provider-value"})',
+    }));
+    vi.mocked(input.service.sendPrompt).mockImplementation(async (id) => {
+      input.emit(id, "message", {
+        text: "Model metadata for gpt-5.6-luna not found. Defaulting to fallback metadata.",
+      });
+      return { stopReason: "error", exitCode: 1, error: "Internal error" };
+    });
+    const result = await input.execute();
+    expect(input.service.getSession).toHaveBeenCalledExactlyOnceWith("child-1");
+    expect(result).toMatchObject({
+      success: false,
+      continueChain: true,
+      verifiedUserFacing: true,
+      userFacingText: expect.stringContaining("older Codex version"),
+      data: {
+        delegatedExecution: {
+          status: "failed",
+          failureMessage: expect.stringContaining(
+            "Update Doolittle's Codex ACP adapter",
+          ),
+          verifiedLocalMutation: false,
+        },
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain("private-provider-value");
+  });
+
+  it("fails closed before native SDK spawn for an incompatible security preset", async () => {
+    const input = await fixture();
+    const { tasksAction } = await import("@elizaos/plugin-agent-orchestrator");
+    Object.assign(input.runtime, {
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+    });
+    const action = withManagedCodingDelegation(
+      {
+        name: "official",
+        description: "Native fixture",
+        actions: [...promoteSubactionsToActions(tasksAction)],
+      },
+      {
+        workspace: { root: () => input.root },
+        runController: input.runController,
+      },
+    ).actions?.find((entry) => entry.name === "TASKS_SPAWN_AGENT");
+    expect(action).toBeDefined();
+    const result = await action?.handler(
+      input.runtime,
+      input.message,
+      undefined,
+      {
+        parameters: {
+          task: "Inspect package.json without changes",
+          workdir: input.root,
+          approvalPreset: "readonly",
+        },
+      },
+      undefined,
+    );
+    expect(result).toMatchObject({
+      success: false,
+      continueChain: true,
+      verifiedUserFacing: true,
+      userFacingText: expect.stringContaining("cannot enforce this read-only"),
+    });
+    expect(input.service.spawnSession).not.toHaveBeenCalled();
+    expect(input.service.sendPrompt).not.toHaveBeenCalled();
+  });
+
+  it("closes a failed child when reading its final error throws", async () => {
+    const input = await fixture();
+    input.service.getSession = vi.fn(() => {
+      throw new Error("store unavailable");
+    });
+    vi.mocked(input.service.sendPrompt).mockResolvedValue({
+      stopReason: "error",
+      exitCode: 1,
+      error: "The selected model requires a newer version of Codex.",
+    });
+    expect(await input.execute()).toMatchObject({
+      success: false,
+      userFacingText: expect.stringContaining("older Codex version"),
+    });
+    expect(input.service.stopSession).toHaveBeenCalledExactlyOnceWith(
+      "child-1",
+    );
+  });
+
   it("rejects nonexistent and relative workspaces before the SDK can fall back", async () => {
     const input = await fixture();
     expect(
@@ -502,7 +594,10 @@ describe("managed official coding delegation", () => {
         async (sessionId) => {
           await Promise.resolve();
           seen.push(
-            String(input.runtime.getSetting("ELIZA_CODEX_ACP_COMMAND")),
+            String(
+              vi.mocked(input.service.spawnSession).mock.calls[0]?.[0].env
+                ?.CODEX_CONFIG,
+            ),
           );
           input.emit("not-this-child", "message", { text: "wrong chat" });
           input.emit(sessionId, "message", { text: input.root });
@@ -519,8 +614,8 @@ describe("managed official coding delegation", () => {
     });
     expect(seen).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('model="gpt-5.6-luna"'),
-        expect.stringContaining('model="gpt-5.6-sol"'),
+        expect.stringContaining('"model":"gpt-5.6-luna"'),
+        expect.stringContaining('"model":"gpt-5.6-sol"'),
       ]),
     );
     expect(first.runtime.getSetting("ELIZA_CODEX_ACP_COMMAND")).toBeUndefined();
@@ -756,14 +851,26 @@ describe("managed official coding delegation", () => {
         },
       },
     });
-    expect(modelSettings.get("child-1")).toContain('model="gpt-5.6-luna"');
-    expect(modelSettings.get("child-1")).toContain(
-      'model_reasoning_effort="medium"',
+    expect(modelSettings.get("child-1")).toBe(
+      "npx -y @agentclientprotocol/codex-acp@1.12.0",
     );
-    expect(modelSettings.get("child-2")).toContain('model="gpt-5.6-sol"');
-    expect(modelSettings.get("child-2")).toContain(
-      'model_reasoning_effort="high"',
-    );
+    expect(modelSettings.get("child-2")).toBe(modelSettings.get("child-1"));
+    expect(
+      vi
+        .mocked(input.service.spawnSession)
+        .mock.calls.map(([options]) =>
+          JSON.parse(options.env?.CODEX_CONFIG ?? "{}"),
+        ),
+    ).toEqual([
+      expect.objectContaining({
+        model: "gpt-5.6-luna",
+        model_reasoning_effort: "medium",
+      }),
+      expect.objectContaining({
+        model: "gpt-5.6-sol",
+        model_reasoning_effort: "high",
+      }),
+    ]);
     expect(
       progress.mock.calls
         .filter(([room]) => room === "room-a")

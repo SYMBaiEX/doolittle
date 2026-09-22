@@ -19,7 +19,7 @@ import {
   delegationFailureMessage,
   executeManagedDelegation,
 } from "./execution";
-import { codexCommandForRoute } from "./model";
+import { codexCommandForRoute, codexSpawnEnvironmentForRoute } from "./model";
 import type {
   CodingDelegationServices,
   DelegatedExecutionReceipt,
@@ -270,6 +270,22 @@ function wrapAction(
                 service,
                 options: {
                   ...spawnOptions,
+                  env:
+                    adapter === "codex" &&
+                    route.provider === "codex" &&
+                    route.model
+                      ? codexSpawnEnvironmentForRoute({
+                          command: String(
+                            scopedSettings.get("ELIZA_CODEX_ACP_COMMAND"),
+                          ),
+                          model: route.model,
+                          reasoningEffort: route.reasoningEffort,
+                          env: spawnOptions.env,
+                          approvalPreset:
+                            spawnOptions.approvalPreset ??
+                            service.defaultApprovalPreset,
+                        })
+                      : spawnOptions.env,
                   initialTask: task,
                   workdir,
                   isolateWorkdir: false,
