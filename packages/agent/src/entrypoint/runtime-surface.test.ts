@@ -114,6 +114,8 @@ describe("handleEntrypointRuntimeSurface", () => {
     const runtimeLogger = createLogger();
     const pushedArgs: string[] = [];
     const startCli = vi.fn(async () => 7);
+    const shutdownRuntime = vi.fn(async () => {});
+    const exit = vi.fn();
 
     const result = await handleEntrypointRuntimeSurface({
       command: "plain",
@@ -138,6 +140,8 @@ describe("handleEntrypointRuntimeSurface", () => {
       startServerWhenShellReady: () => {},
       bootLogs: [{ source: "stdout", text: "booted" }],
       pushArg: (arg) => pushedArgs.push(arg),
+      shutdownRuntime,
+      exit,
     });
 
     expect(result).toEqual({ handled: true, exitCode: 7 });
@@ -147,6 +151,15 @@ describe("handleEntrypointRuntimeSurface", () => {
       onReady: expect.any(Function),
       bootLogs: [{ source: "stdout", text: "booted" }],
     });
+    expect(shutdownRuntime).toHaveBeenCalledWith(
+      context.runtime,
+      "Doolittle CLI completion",
+      { fast: true },
+    );
+    expect(exit).toHaveBeenCalledWith(7);
+    expect(shutdownRuntime.mock.invocationCallOrder[0]).toBeLessThan(
+      exit.mock.invocationCallOrder[0] ?? 0,
+    );
   });
 
   it("prints the no-surface message when runtime is initialized without cli or api", async () => {

@@ -3,9 +3,12 @@ import {
   ModelType,
   type PipelineHookSpec,
 } from "@elizaos/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { EnvConfig } from "@/types";
-import { createDoolittleOllamaUxPlugin } from "./local-ollama";
+import {
+  createDoolittleOllamaUxPlugin,
+  withOllamaTextReadiness,
+} from "./local-ollama";
 
 function createConfig(overrides: Partial<EnvConfig> = {}): EnvConfig {
   return {
@@ -84,6 +87,26 @@ describe("createDoolittleOllamaUxPlugin", () => {
     });
 
     expect(params.maxTokens).toBe(160);
+  });
+
+  it("fails unreachable selected Ollama calls quickly with recovery instructions", async () => {
+    const handler = vi.fn();
+    const plugin = withOllamaTextReadiness(
+      {
+        name: "ollama",
+        description: "official fixture",
+        models: { [ModelType.TEXT_SMALL]: handler },
+      },
+      createConfig(),
+    );
+    const runtime = {
+      getSetting: () => undefined,
+      fetch: vi.fn().mockRejectedValue(new TypeError("fetch failed")),
+    } as unknown as IAgentRuntime;
+    await expect(
+      plugin.models?.[ModelType.TEXT_SMALL]?.(runtime, { prompt: "hello" }),
+    ).rejects.toThrow("ollama serve");
+    expect(handler).not.toHaveBeenCalled();
   });
 
   it("leaves non-Ollama model calls untouched", async () => {

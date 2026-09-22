@@ -9,6 +9,7 @@ import {
 } from "@elizaos/core";
 import type { EnvConfig } from "@/types/runtime";
 import { isRecord } from "@/utils/records";
+import { checkOllamaReadiness } from "./ollama-readiness";
 
 type MutableRecord = Record<string, unknown>;
 
@@ -209,6 +210,42 @@ function officialTextModel(
       params,
       OLLAMA_PROVIDER_NAME,
     ) as Promise<string>;
+}
+
+/** Guard the handler itself: SDK pre-model hooks are deliberately fail-open. */
+export function withOllamaTextReadiness(
+  plugin: Plugin,
+  config: EnvConfig,
+): Plugin {
+  return {
+    ...plugin,
+    models: Object.fromEntries(
+      Object.entries(plugin.models ?? {}).map(([modelType, handler]) => [
+        modelType,
+        !TEXT_MODEL_TOKEN_CAPS[modelType]
+          ? handler
+          : async (runtime: IAgentRuntime, params: GenerateTextParams) => {
+              const availability = await checkOllamaReadiness(
+                runtimeSetting(
+                  runtime,
+                  "OLLAMA_API_ENDPOINT",
+                  config.ollamaApiEndpoint,
+                ),
+                modelForType(runtime, config, modelType),
+                runtime.fetch,
+              );
+              if (!availability.ready) throw new Error(availability.detail);
+              // The budget table contains only text-generation slots. Entries
+              // for embedding/media retain their original typed handler above.
+              const textHandler = handler as (
+                runtime: IAgentRuntime,
+                params: GenerateTextParams,
+              ) => Promise<string>;
+              return textHandler(runtime, params);
+            },
+      ]),
+    ),
+  };
 }
 
 export function createDoolittleOllamaUxPlugin(config: EnvConfig): Plugin {

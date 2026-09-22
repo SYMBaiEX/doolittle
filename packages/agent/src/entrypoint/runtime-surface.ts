@@ -93,6 +93,17 @@ export async function handleEntrypointRuntimeSurface(input: {
         onReady: input.startServerWhenShellReady,
         bootLogs: input.bootLogs,
       })) ?? 0;
+    // EOF used to close readline but leave the CLI-only runtime's service
+    // timers and database alive, so `doolittle` never returned to the shell.
+    // An explicitly shared API keeps ownership until its own lifecycle ends.
+    if (!input.runtimePlan.shouldStartApi) {
+      await (input.shutdownRuntime ?? shutdownElizaRuntime)(
+        input.context.runtime as AgentRuntime,
+        "Doolittle CLI completion",
+        { fast: true },
+      );
+      (input.exit ?? process.exit)(exitCode);
+    }
     return { handled: true, exitCode };
   }
 

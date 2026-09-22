@@ -42,6 +42,7 @@ describe("settings and theme command router", () => {
         devinModel: "swe-1-6-fast",
       },
       runtime: {
+        fetch: vi.fn().mockRejectedValue(new TypeError("Ollama offline")),
         setSetting: (key: string, value: string) => {
           runtimeSettings[key] = value;
         },
@@ -89,6 +90,9 @@ describe("settings and theme command router", () => {
 
     expect(model).toContain('"temperature": 0.7');
     expect(modelList).toContain("ollama");
+    expect(modelList).toContain("ready=no");
+    expect(modelList).toContain("ollama serve");
+    expect(modelList).not.toContain("ready=yes");
     expect(modelUse).toContain("Activated Ollama");
     expect(preview).toContain('"command": "pwd"');
     expect(theme).toContain('"theme": "ember"');

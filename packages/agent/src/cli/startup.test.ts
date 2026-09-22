@@ -1,4 +1,6 @@
 import * as fs from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppLogger } from "@/logging/logger";
 
@@ -195,6 +197,22 @@ describe("cli startup", () => {
 
     expect(process.env.DATABASE_URL).toBe("postgres://configured");
     expect(process.env.POSTGRES_URL).toBe("postgres://configured");
+  });
+
+  it("keeps PGlite inside an explicitly isolated runtime data directory", async () => {
+    const root = fs.mkdtempSync(join(tmpdir(), "doolittle-cli-profile-"));
+    const previous = process.env.DOOLITTLE_DATA_DIR;
+    installStartupMocks();
+    process.env.DOOLITTLE_DATA_DIR = root;
+    try {
+      const { loadLocalRuntimeEnv } = await loadStartupModule();
+      loadLocalRuntimeEnv();
+      expect(process.env.PGLITE_DATA_DIR).toBe(join(root, "pglite"));
+    } finally {
+      if (previous === undefined) delete process.env.DOOLITTLE_DATA_DIR;
+      else process.env.DOOLITTLE_DATA_DIR = previous;
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("exits when onboarding bootstrap script is missing", async () => {

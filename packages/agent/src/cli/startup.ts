@@ -54,7 +54,7 @@ function runtimeDataDir(root: string): string {
  */
 export function loadLocalRuntimeEnv(): void {
   const root = repoRoot();
-  const dataDir = resolve(root, ".doolittle");
+  const dataDir = runtimeDataDir(root);
 
   process.env.PGLITE_DATA_DIR ??= resolve(dataDir, "pglite");
   process.env.LOG_LEVEL ??= "error";

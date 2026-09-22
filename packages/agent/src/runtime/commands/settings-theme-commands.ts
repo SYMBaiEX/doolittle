@@ -6,6 +6,7 @@ import {
   withLinkedProviderMutationLock,
 } from "@/runtime/linked-provider-accounts";
 import { applyAccountPoolApiCredentials } from "@/runtime/native/account-pool";
+import { checkOllamaReadiness } from "@/runtime/native/plugin-registry/ollama-readiness";
 import { getEffectiveShellStatus } from "@/runtime/native/service-bridge/tooling";
 import {
   DEFAULT_TUI_THEME,
@@ -23,7 +24,7 @@ type ModelRoute = {
   model: string;
   baseUrl: string;
   mode: "local" | "linked" | "cloud";
-  ready: boolean;
+  ready: "yes" | "no" | "check";
   detail: string;
 };
 
@@ -57,20 +58,31 @@ function formatModelUpdateError(error: unknown): string {
   return `Unable to apply model settings: ${detail}`;
 }
 
-function modelRoutes(context: AgentExecutionContext): ModelRoute[] {
+async function modelRoutes(
+  context: AgentExecutionContext,
+): Promise<ModelRoute[]> {
   const config = context.config;
-  const activeProvider = context.services.settings.get().model.provider;
+  const active = context.services.settings.get().model;
+  const model =
+    active.provider === "ollama" ? active.model : config.ollamaLargeModel;
+  const endpoint =
+    active.provider === "ollama"
+      ? active.baseUrl || config.ollamaApiEndpoint
+      : config.ollamaApiEndpoint;
+  const availability = await checkOllamaReadiness(
+    endpoint,
+    model,
+    context.runtime.fetch,
+  );
   return [
     {
       id: "ollama",
       label: "Ollama",
-      model: config.ollamaLargeModel,
-      baseUrl: config.ollamaApiEndpoint,
+      model,
+      baseUrl: endpoint,
       mode: "local",
-      ready: Boolean(config.ollamaApiEndpoint?.trim()),
-      detail: config.ollamaApiEndpoint?.trim()
-        ? "local model inference and embeddings"
-        : "OLLAMA_API_ENDPOINT is not configured",
+      ready: availability.ready ? "yes" : "no",
+      detail: availability.detail,
     },
     {
       id: "devin",
@@ -78,7 +90,7 @@ function modelRoutes(context: AgentExecutionContext): ModelRoute[] {
       model: config.devinModel,
       baseUrl: "",
       mode: "linked",
-      ready: activeProvider === "devin",
+      ready: "check",
       detail: "linked Devin CLI provider route",
     },
     {
@@ -87,7 +99,7 @@ function modelRoutes(context: AgentExecutionContext): ModelRoute[] {
       model: "gpt-5.4",
       baseUrl: "",
       mode: "linked",
-      ready: activeProvider === "codex",
+      ready: "check",
       detail: "linked Codex specialist route",
     },
     {
@@ -96,7 +108,7 @@ function modelRoutes(context: AgentExecutionContext): ModelRoute[] {
       model: "claude-sonnet-4.6",
       baseUrl: "",
       mode: "linked",
-      ready: activeProvider === "claude-code",
+      ready: "check",
       detail: "linked Claude Code specialist route",
     },
     {
@@ -105,15 +117,17 @@ function modelRoutes(context: AgentExecutionContext): ModelRoute[] {
       model: config.elizaCloudLargeModel,
       baseUrl: config.elizaCloudBaseUrl,
       mode: "cloud",
-      ready: activeProvider === "elizacloud",
+      ready: "check",
       detail: "managed Eliza Cloud inference route",
     },
   ];
 }
 
-function renderModelStatus(context: AgentExecutionContext): string {
+async function renderModelStatus(
+  context: AgentExecutionContext,
+): Promise<string> {
   const settings = context.services.settings.get().model;
-  const routes = modelRoutes(context);
+  const routes = await modelRoutes(context);
   return [
     "MODEL ROUTING",
     `active: ${settings.provider} / ${settings.model}`,
@@ -127,16 +141,18 @@ function renderModelStatus(context: AgentExecutionContext): string {
     "",
     ...routes.map(
       (route) =>
-        `- ${route.id}${route.id === settings.provider ? " *active*" : ""} [${route.mode}] model=${route.model} ready=${route.ready ? "yes" : "check"} :: ${route.detail}`,
+        `- ${route.id}${route.id === settings.provider ? " *active*" : ""} [${route.mode}] model=${route.model} ready=${route.ready} :: ${route.detail}`,
     ),
   ].join("\n");
 }
 
-function renderModelList(context: AgentExecutionContext): string {
-  return modelRoutes(context)
+async function renderModelList(
+  context: AgentExecutionContext,
+): Promise<string> {
+  return (await modelRoutes(context))
     .map(
       (route) =>
-        `- ${route.id} (${route.label}) [${route.mode}] default=${route.model} ready=${route.ready ? "yes" : "check"}${route.baseUrl ? ` baseUrl=${route.baseUrl}` : ""}\n  ${route.detail}`,
+        `- ${route.id} (${route.label}) [${route.mode}] default=${route.model} ready=${route.ready}${route.baseUrl ? ` baseUrl=${route.baseUrl}` : ""}\n  ${route.detail}`,
     )
     .join("\n");
 }

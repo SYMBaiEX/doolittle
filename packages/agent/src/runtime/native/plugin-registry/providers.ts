@@ -4,7 +4,11 @@ import { refreshLinkedClaudeCodeCredentials } from "../account-auth";
 import { getClaudeCodeAccountStatus } from "../account-auth/claude-code";
 import { getDevinAccountStatus } from "../account-auth/devin";
 import { createDoolittleCodexReasoningPlugin } from "./codex-reasoning";
-import { createDoolittleOllamaUxPlugin } from "./local-ollama";
+import {
+  createDoolittleOllamaUxPlugin,
+  withOllamaTextReadiness,
+} from "./local-ollama";
+import { withOllamaEmbeddingReadiness } from "./ollama-embedding-readiness";
 import { normalizePlugin } from "./support";
 
 export async function loadProviderPlugins(
@@ -67,7 +71,10 @@ export async function loadProviderPlugins(
 
   if (config.ollamaApiEndpoint?.trim()) {
     const { default: ollamaPlugin } = await import("@elizaos/plugin-ollama");
-    const normalizedOllamaPlugin = normalizePlugin(ollamaPlugin);
+    const normalizedOllamaPlugin = withOllamaEmbeddingReadiness(
+      withOllamaTextReadiness(normalizePlugin(ollamaPlugin), config),
+      config,
+    );
     providers.push(
       normalizedOllamaPlugin,
       createDoolittleOllamaUxPlugin(config),
