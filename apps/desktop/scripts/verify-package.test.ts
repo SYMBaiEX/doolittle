@@ -116,6 +116,31 @@ describe("packaged runtime dependency inventory", () => {
     expect(() => validateRuntimeManifest(validRuntimeManifest())).not.toThrow();
   });
 
+  it("requires the packaged companion when the native task SDK is bundled", () => {
+    const manifest = validRuntimeManifest();
+    manifest.bundledPackages = [
+      { name: "@elizaos/plugin-agent-orchestrator", version: "2.0.3-beta.7" },
+    ];
+    expect(() => validateRuntimeManifest(manifest)).toThrow(
+      "Smithers companion",
+    );
+    manifest.assets = ["doolittle-smithers.mjs", "pglite.wasm"];
+    expect(() => validateRuntimeManifest(manifest)).not.toThrow();
+  });
+
+  it("rejects a companion listed in the manifest but absent from the artifact", () => {
+    const { appAsarPath, manifest } = stagePackagedNativeRuntime();
+    const runtimeBin = resolve(dirname(appAsarPath), "runtime", "bin");
+    manifest.assets = ["doolittle-smithers.mjs", "pglite.wasm"];
+    writeFileSync(
+      resolve(runtimeBin, "runtime-manifest.json"),
+      JSON.stringify(manifest),
+    );
+    expect(() => verifyPackagedNativeRuntime(appAsarPath)).toThrow(
+      "Packaged runtime assets are missing: doolittle-smithers.mjs",
+    );
+  });
+
   it("rejects a missing or tampered dependency inventory", () => {
     const missing = validRuntimeManifest();
     // @ts-expect-error Test the untrusted JSON boundary.

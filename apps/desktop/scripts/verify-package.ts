@@ -18,6 +18,7 @@ import {
   packageNamesFromAsarEntries,
   productionDependencyClosure,
 } from "./package-composition";
+import { SMITHERS_RUNTIME_ASSET } from "./smithers-runtime";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const args = process.argv.slice(2);
@@ -385,6 +386,16 @@ export function validateRuntimeManifest(value: unknown): RuntimeManifest {
   ) {
     throw new Error(
       "Packaged runtime manifest has an invalid bundled dependency inventory.",
+    );
+  }
+  if (
+    manifest.bundledPackages.some(
+      ({ name }) => name === "@elizaos/plugin-agent-orchestrator",
+    ) &&
+    !manifest.assets.includes(SMITHERS_RUNTIME_ASSET)
+  ) {
+    throw new Error(
+      "Packaged native task runner is missing its Smithers companion.",
     );
   }
   if (

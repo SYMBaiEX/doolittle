@@ -14,11 +14,43 @@ import {
   discoverRuntimeAssetReferences,
   emittedMetafileInputPaths,
   runtimePackageClosure,
+  runtimePackageForSource,
   stableRuntimeDependencyInventory,
   writeRuntimeThirdPartyNotices,
 } from "./runtime-requirements";
 
 describe("packaged runtime CommonJS requirements", () => {
+  it("attributes ESM files past a type-only manifest to their package and license root", () => {
+    const directory = mkdtempSync(
+      resolve(tmpdir(), "doolittle-package-source-"),
+    );
+    try {
+      const packageRoot = resolve(directory, "node_modules", "effect");
+      const dist = resolve(packageRoot, "dist", "esm");
+      mkdirSync(dist, { recursive: true });
+      writeFileSync(
+        resolve(packageRoot, "package.json"),
+        JSON.stringify({ name: "effect", version: "3.21.1" }),
+      );
+      writeFileSync(
+        resolve(dist, "package.json"),
+        JSON.stringify({ type: "module" }),
+      );
+      expect(
+        runtimePackageForSource(directory, resolve(dist, "Effect.js")),
+      ).toEqual({
+        name: "effect",
+        version: "3.21.1",
+        directory: packageRoot,
+      });
+      expect(
+        runtimePackageForSource(directory, "../outside.js"),
+      ).toBeUndefined();
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("keeps only metafile inputs that contribute emitted bytes", () => {
     expect(
       emittedMetafileInputPaths({

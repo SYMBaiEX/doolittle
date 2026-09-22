@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Metafile } from "esbuild";
 
@@ -20,6 +20,53 @@ export type RuntimeDependencyInventoryEntry = {
 export type RuntimeDependencyLicenseSource = RuntimeDependencyInventoryEntry & {
   directory: string;
 };
+
+/** Nested package.json files often only select ESM/CJS; keep seeking the owner. */
+export function runtimePackageForSource(
+  repoRoot: string,
+  sourcePath: string,
+): RuntimeDependencyLicenseSource | undefined {
+  let directory = dirname(resolve(repoRoot, sourcePath));
+  while (
+    relative(repoRoot, directory) &&
+    !relative(repoRoot, directory).startsWith("..")
+  ) {
+    const manifestPath = resolve(directory, "package.json");
+    if (existsSync(manifestPath)) {
+      const manifest = JSON.parse(
+        readFileSync(manifestPath, "utf8"),
+      ) as Partial<RuntimeDependencyInventoryEntry>;
+      if (manifest.name?.trim() && manifest.version?.trim()) {
+        // Some distributions repeat their package metadata in dist/. Resolve
+        // the outer matching package so license lookup finds the real root.
+        let root = directory;
+        while (dirname(root) !== root) {
+          const parent = dirname(root);
+          const parentManifestPath = resolve(parent, "package.json");
+          if (!existsSync(parentManifestPath)) break;
+          const parentManifest = JSON.parse(
+            readFileSync(parentManifestPath, "utf8"),
+          ) as Partial<RuntimeDependencyInventoryEntry>;
+          if (
+            parentManifest.name !== manifest.name ||
+            parentManifest.version !== manifest.version
+          )
+            break;
+          root = parent;
+        }
+        return {
+          name: manifest.name,
+          version: manifest.version,
+          directory: root,
+        };
+      }
+    }
+    const parent = dirname(directory);
+    if (parent === directory) break;
+    directory = parent;
+  }
+  return undefined;
+}
 
 type PackageLicenseManifest = RuntimeDependencyInventoryEntry & {
   license?: unknown;

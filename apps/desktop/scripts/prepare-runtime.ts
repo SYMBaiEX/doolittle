@@ -22,9 +22,15 @@ import {
   type RuntimeDependencyLicenseSource,
   type RuntimePackageManifest,
   runtimePackageClosure,
+  runtimePackageForSource,
   stableRuntimeDependencyInventory,
   writeRuntimeThirdPartyNotices,
 } from "./runtime-requirements";
+import {
+  bundleSmithersRuntime,
+  SMITHERS_RUNTIME_ASSET,
+  smithersBundlePaths,
+} from "./smithers-runtime";
 
 const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
@@ -76,60 +82,12 @@ type PackageJson = RuntimePackageManifest & {
   version?: string;
 };
 
-function packageRoot(directory: string, manifest: PackageJson): string {
-  let root = directory;
-  while (true) {
-    const parent = dirname(root);
-    const parentManifestPath = resolve(parent, "package.json");
-    if (!existsSync(parentManifestPath)) return root;
-    const parentManifest = JSON.parse(
-      readFileSync(parentManifestPath, "utf8"),
-    ) as PackageJson;
-    if (
-      parentManifest.name !== manifest.name ||
-      parentManifest.version !== manifest.version
-    ) {
-      return root;
-    }
-    root = parent;
-  }
-}
-
-function nearestPackageForSource(
-  sourcePath: string,
-): RuntimeDependencyLicenseSource | undefined {
-  let directory = dirname(resolve(repoRoot, sourcePath));
-  while (
-    relative(repoRoot, directory) &&
-    !relative(repoRoot, directory).startsWith("..")
-  ) {
-    const manifestPath = resolve(directory, "package.json");
-    if (existsSync(manifestPath)) {
-      const manifest = JSON.parse(
-        readFileSync(manifestPath, "utf8"),
-      ) as PackageJson;
-      if (manifest.name?.trim() && manifest.version?.trim()) {
-        return {
-          name: manifest.name,
-          version: manifest.version,
-          directory: packageRoot(directory, manifest),
-        };
-      }
-      return undefined;
-    }
-    const parent = dirname(directory);
-    if (parent === directory) return undefined;
-    directory = parent;
-  }
-  return undefined;
-}
-
 function bundledPackageInventory(
   metafile: Metafile,
 ): RuntimeDependencyInventoryEntry[] {
   return stableRuntimeDependencyInventory(
     emittedMetafileInputPaths(metafile)
-      .map(nearestPackageForSource)
+      .map((source) => runtimePackageForSource(repoRoot, source))
       .filter(
         (entry): entry is RuntimeDependencyLicenseSource => entry !== undefined,
       ),
@@ -140,7 +98,7 @@ function bundledPackageLicenseSources(
   metafile: Metafile,
 ): RuntimeDependencyLicenseSource[] {
   return emittedMetafileInputPaths(metafile)
-    .map(nearestPackageForSource)
+    .map((source) => runtimePackageForSource(repoRoot, source))
     .filter(
       (entry): entry is RuntimeDependencyLicenseSource => entry !== undefined,
     );
@@ -209,7 +167,7 @@ const runtimeBuild = await build({
   legalComments: "none",
   metafile: true,
   logLevel: "info",
-  plugins: [pgliteBundlePaths],
+  plugins: [pgliteBundlePaths, smithersBundlePaths],
   define: {
     // Make the distribution policy a build-time constant so esbuild removes
     // the guarded optional imports and their full dependency closures.
@@ -379,15 +337,18 @@ const gitWorkspaceServiceBuild = await bundleCommonJsRuntimePackage(
     "index.cjs",
   ),
 );
+const smithersRuntimeBuild = await bundleSmithersRuntime(repoRoot, outputDir);
 
 const bundledPackages = stableRuntimeDependencyInventory([
   ...bundledPackageInventory(runtimeBuild.metafile),
   ...bundledPackageInventory(gitWorkspaceServiceBuild),
+  ...bundledPackageInventory(smithersRuntimeBuild),
 ]);
 
 const thirdPartyBundledLicenseSources = thirdPartyRuntimeLicenseSources([
   ...bundledPackageLicenseSources(runtimeBuild.metafile),
   ...bundledPackageLicenseSources(gitWorkspaceServiceBuild),
+  ...bundledPackageLicenseSources(smithersRuntimeBuild),
 ]);
 const thirdPartyNoticePackages = stableRuntimeDependencyInventory([
   ...thirdPartyBundledLicenseSources.map(({ name, version }) => ({
@@ -489,7 +450,7 @@ writeFileSync(
       entry: basename(outputPath),
       acpEntry: basename(acpOutputPath),
       node: "electron-embedded",
-      assets: pgliteAssets,
+      assets: [...pgliteAssets, SMITHERS_RUNTIME_ASSET].sort(),
       nativeEntryPackages: [...nativeExternalPackages].sort(),
       nativePackages: copiedNativePackages,
       bundledPackages,
