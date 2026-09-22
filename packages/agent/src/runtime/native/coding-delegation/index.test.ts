@@ -460,6 +460,12 @@ describe("managed official coding delegation", () => {
       },
     ).actions?.find((entry) => entry.name === "TASKS_SPAWN_AGENT");
     expect(action).toBeDefined();
+    expect(action?.descriptionCompressed).toContain(
+      "configured coding adapter",
+    );
+    expect(action?.descriptionCompressed).toContain(
+      "do not substitute the selected project root",
+    );
     const result = await action?.handler(
       input.runtime,
       input.message,

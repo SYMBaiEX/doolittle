@@ -158,8 +158,19 @@ function wrapAction(
   promotedOperation?: "spawn_agent",
 ): Action {
   const handler = action.handler;
+  const managedSpawnDescription =
+    action.name === "TASKS_SPAWN_AGENT"
+      ? "For a user-requested coding implementation, delegate the complete task to the configured coding adapter in the exact requested existing workspace. Include the user's full requirements in task and the resolved absolute directory in workdir; do not substitute the selected project root. Wait for the coding run to finish before returning."
+      : undefined;
   return {
     ...action,
+    ...(managedSpawnDescription
+      ? {
+          description:
+            `${action.description ?? ""} ${managedSpawnDescription}`.trim(),
+          descriptionCompressed: managedSpawnDescription,
+        }
+      : {}),
     handler: async (runtime, message, state, options, callback) => {
       const passthrough = async () => {
         const result = await handler(

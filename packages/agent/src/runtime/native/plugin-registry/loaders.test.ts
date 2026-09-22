@@ -13,7 +13,15 @@ import { loadHotExecutionPlugins } from "./hot-execution";
 vi.mock("@elizaos/plugin-agent-orchestrator", () => ({
   agentOrchestratorPlugin: {
     name: "@elizaos/plugin-agent-orchestrator",
-    actions: [],
+    actions: [
+      {
+        name: "TASKS_SPAWN_AGENT",
+        description: "Delegate a coding task to a managed ACP agent.",
+        descriptionCompressed: "Spawn a managed coding agent.",
+        validate: async () => true,
+        handler: async () => ({ success: true }),
+      },
+    ],
   },
 }));
 
@@ -232,6 +240,12 @@ describe("loadHotExecutionPlugins", () => {
       "@elizaos/plugin-agent-skills",
       "@doolittle/plugin-planning",
     ]);
+    const orchestrator = plugins.find(
+      (plugin) => plugin.name === "@elizaos/plugin-agent-orchestrator",
+    );
+    expect(orchestrator?.actions?.map((action) => action.name)).toContain(
+      "TASKS_SPAWN_AGENT",
+    );
     const operatorPlanning = plugins.find(
       (plugin) => plugin.name === "@doolittle/plugin-planning",
     );

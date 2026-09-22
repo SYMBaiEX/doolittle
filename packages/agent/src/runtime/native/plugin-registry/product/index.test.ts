@@ -60,8 +60,10 @@ describe("native Doolittle product plugin", () => {
       plugin.actions?.find((action) => action.name === "DOOLITTLE_CODING"),
     ).toMatchObject({
       contexts: ["code", "files"],
+      description: expect.stringContaining("start with TASKS_SPAWN_AGENT"),
       subPlanner: expect.any(Object),
       subActions: expect.arrayContaining([
+        "TASKS_SPAWN_AGENT",
         "DOOLITTLE_WORKSPACE",
         "READ_FILE",
         "PATCH_FILE",

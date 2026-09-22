@@ -18,6 +18,8 @@ describe("Doolittle coding action", () => {
 
     expect(parent.name).toBe(DOOLITTLE_CODING_ACTION);
     expect(parent.contexts).toEqual(["code", "files"]);
+    expect(DOOLITTLE_CODING_SUBACTIONS[0]).toBe("TASKS_SPAWN_AGENT");
+    expect(parent.description).toContain("start with TASKS_SPAWN_AGENT");
     expect(parent.subPlanner).toMatchObject({
       name: "Doolittle coding planner",
       description: expect.stringContaining("Do not stop after inspection"),
