@@ -187,8 +187,8 @@ function incompleteMutationFailure(
   return [
     "I couldn’t complete the requested workspace change.",
     actions.length
-      ? `The agent checked ${actions.join(", ")} but stopped without a final response.`
-      : "The agent stopped without producing a final response or verified file change.",
+      ? `The agent ran ${actions.join(", ")}, but its reply was not backed by a verified workspace change.`
+      : "The agent returned without a verified workspace change.",
     "No verified file changes were recorded, so I can’t claim the task is done. Retry to continue from the current workspace state.",
   ].join(" ");
 }
@@ -496,11 +496,17 @@ export async function executeProviderMessageTurn(
             actionResults,
           });
 
+          // A planner can return a polished-sounding preamble (or a premature
+          // summary) after inspection without actually changing the workspace.
+          // Do not treat that text as terminal for an explicit mutation request
+          // until a verified file change backs it. A silent pass still gets its
+          // bounded follow-up so the SDK can synthesize a final answer.
           if (
-            response.trim() ||
             !mutationObligation ||
+            isSdkFailureReply(messageResult?.responseContent) ||
             attempt > 0 ||
-            hasPendingApproval(input.context, sessionId)
+            hasPendingApproval(input.context, sessionId) ||
+            (response.trim() && hasVerifiedWorkspaceMutation(actionResults))
           ) {
             break;
           }
@@ -516,7 +522,11 @@ export async function executeProviderMessageTurn(
             model: input.settingsDuring.model.model,
             text: "[model:continuation] continuing an unfinished workspace mutation",
             metadata: {
-              reason: "empty-terminal-response",
+              reason: response.trim()
+                ? "unverified-terminal-response"
+                : "empty-terminal-response",
+              responseChars: response.length,
+              verifiedMutation: hasVerifiedWorkspaceMutation(actionResults),
               attempt: attempt + 1,
               actionNames: Array.from(
                 new Set(
@@ -543,10 +553,13 @@ export async function executeProviderMessageTurn(
         }
         if (
           !runFailureMessage &&
-          !response.trim() &&
           mutationObligation &&
-          actionResults.length > 0
+          !hasVerifiedWorkspaceMutation(actionResults)
         ) {
+          runFailureMessage = incompleteMutationFailure(actionResults);
+          response = runFailureMessage;
+        }
+        if (!runFailureMessage && !response.trim() && mutationObligation) {
           const verifiedMutations = actionResults
             .map(extractVerifiedLocalMutationFromActionResult)
             .filter((mutation) => mutation !== undefined);

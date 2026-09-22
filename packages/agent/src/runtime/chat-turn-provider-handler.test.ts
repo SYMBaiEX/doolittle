@@ -627,6 +627,100 @@ describe("chat turn provider handler", () => {
     });
   });
 
+  it("does not mistake an exploratory planner reply for completion of a file task", async () => {
+    const calls: Memory[] = [];
+    const inspection = {
+      success: true,
+      text: "The requested folder is missing; I will create the app there next.",
+      data: { actionName: "SHELL" },
+    };
+    const writeReceipt = {
+      success: true,
+      text: "Created app/page.tsx",
+      data: {
+        actionName: "WRITE_FILE",
+        mutationAction: "WRITE_FILE",
+        mutationKind: "local-file",
+        mutation: {
+          action: "WRITE_FILE",
+          success: true,
+          requestedPath: "app/page.tsx",
+          resolvedPath: "/workspace/app/page.tsx",
+        },
+      },
+    };
+    const { context } = createContext({
+      onHandleMessage: async ({ memory }) => {
+        calls.push(memory as Memory);
+        if (calls.length === 1) {
+          return {
+            responseContent: {
+              text: "I inspected the folder and am continuing.",
+            },
+            responseMessages: [],
+            state: { data: { actionResults: [inspection] } },
+          };
+        }
+        return {
+          responseContent: {
+            text: "The blog app is implemented and verified.",
+          },
+          responseMessages: [],
+          state: { data: { actionResults: [writeReceipt] } },
+        };
+      },
+    });
+
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Create a Next.js blog app in the requested workspace and verify it.",
+    );
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.id).toBe(calls[1]?.id);
+    expect(String(calls[1]?.content.text)).toContain(
+      "Continue the same requested workspace task",
+    );
+    expect(result).toMatchObject({
+      response: "The blog app is implemented and verified.",
+      runFailureMessage: undefined,
+      actionResults: [inspection, writeReceipt],
+    });
+  });
+
+  it("reports a clear incomplete-work failure when the continuation still has no file receipt", async () => {
+    let callCount = 0;
+    const inspection = {
+      success: true,
+      text: "The target folder is not present.",
+      data: { actionName: "SHELL" },
+    };
+    const { context } = createContext({
+      onHandleMessage: async () => {
+        callCount += 1;
+        return {
+          responseContent: { text: "The target is ready." },
+          responseMessages: [],
+          state: { data: { actionResults: [inspection] } },
+        };
+      },
+    });
+
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Create the requested app in this workspace.",
+    );
+
+    expect(callCount).toBe(2);
+    expect(result.runFailureMessage).toContain(
+      "No verified file changes were recorded",
+    );
+    expect(result.runFailureMessage).toContain("SHELL");
+    expect(result.response).toBe(result.runFailureMessage);
+  });
+
   it("continues into verification after a silent pass already wrote a verified file", async () => {
     const prompts: string[] = [];
     const writeReceipt = {
@@ -710,7 +804,7 @@ describe("chat turn provider handler", () => {
     expect(calls).toHaveLength(2);
     expect(calls[0]?.id).toBe(calls[1]?.id);
     expect(result.runFailureMessage).toContain(
-      "stopped without a final response",
+      "reply was not backed by a verified workspace change",
     );
     expect(result.response).toContain("No verified file changes were recorded");
   });
