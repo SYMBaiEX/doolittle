@@ -1,4 +1,4 @@
-import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
+import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts/model-route";
 import { X } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import type {

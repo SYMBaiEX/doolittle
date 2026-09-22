@@ -1,4 +1,4 @@
-import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
+import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts/model-route";
 
 export type RouteProviderId =
   | "ollama"

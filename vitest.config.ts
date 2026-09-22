@@ -38,7 +38,7 @@ export default defineConfig({
         replacement: fromRoot("./packages/acp/src/index.ts"),
       },
       {
-        find: "@doolittle/contracts",
+        find: /^@doolittle\/contracts$/,
         replacement: fromRoot("./packages/contracts/src/index.ts"),
       },
       {
