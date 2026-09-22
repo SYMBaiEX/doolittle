@@ -113,10 +113,25 @@ time.
   Ordinary coding uses workspace-write/on-request approval, not full access or
   automatic review. Unsupported explicit read-only security presets fail closed
   before launch; a read-only task instruction is not a filesystem sandbox.
+- `636cfebe`: keep that strict explicit read-only preset fail-closed behavior
+  covered while ordinary configured Codex delegation remains writable under its
+  normal approval policy.
+- `8265ad13`: bundle Smithers, Effect, and the native task runner's dynamically
+  loaded companions into the packaged desktop instead of allowing Bun to resolve
+  them through its global cache. Packaged execution uses `--no-install`, and
+  dependency inventory now follows nested type-only package manifests. An actual
+  parent/child native workflow completed from an isolated directory with no
+  `node_modules` or Bun cache available.
+- `a5c0dce8` and `6dde7e01`: retain a successfully completed managed coding
+  delegation receipt even if beta.7's post-action model continuation fails.
+  The final repair uses a turn-scoped async context because beta.7 does not call
+  the newer settlement hook. Recovery is deliberately limited to a successful
+  `TASKS_SPAWN_AGENT` result with exit 0, `end_turn`, and nonempty constructed
+  output; failed delegations and ordinary tool failures still fail.
 
-The integrated suite at `44611c81` passed **3,989 tests** across 911 files;
-one opt-in Docker sandbox integration test was skipped. Root and desktop
-typechecking, Biome, the agent build, and all repository acceptance checks passed.
+The final integrated suite at `6dde7e01` passed **4,035 tests** across 913
+passing files; one opt-in Docker sandbox integration test was skipped. Root and
+desktop typechecking, Biome, the agent build, and all repository acceptance checks passed.
 Acceptance includes SDK alignment, plugin boundaries, documentation truth,
 dependency hygiene and the critical production dependency audit.
 
@@ -175,6 +190,29 @@ child store records HTTP 400 requiring a newer Codex version; the initial
 receipt captured a metadata warning instead of that specific cause. This
 adapter compatibility and diagnostic failure remains under repair.
 
+The subsequent native-task replay `a7d136f9-bd3a-4b91-8e8c-0d654c385802`
+accurately exposed a second production boundary: `TASKS_CREATE` reached the
+native runner, but packaged Smithers loaded `@effect/platform-node-shared` from
+the global Bun cache and then failed to resolve `effect/Effect`. It reported the
+exact blocker, recorded zero mutations, and did not claim the inspection ran.
+`8265ad13` removes that cache dependency and its isolated packaged-runtime test
+executes the real SQLite-backed parent/child workflow. A second live UI replay
+of `TASKS_CREATE` after that packaging repair has not been performed.
+
+Two live managed-Codex inspections on the package immediately before
+`6dde7e01` reached the exact directory and completed their coding children with
+exit 0, `end_turn`, the selected Codex model, and zero changes:
+`8e671636-0210-4af3-9521-9c24cbc51097` and
+`f4bd34e7-c172-483d-a33d-81b7ff46818a`. The latter child was
+`cc0ec180-0c70-42c4-85cc-46a27802e9ea`; it returned the package name `test` and
+a README summary. Settings navigation during that run did not cancel it. The
+parent still emitted the generic post-action error, proving beta.7 ignored the
+newer settlement callback and motivating the turn-scoped receipt fix in
+`6dde7e01`. Focused recovery coverage then passed 58 tests. A final desktop UI
+replay on the installed `6dde7e01` build remains pending; repository and package
+tests cover the exact recovery path, but this document does not equate those
+tests with the missing final click-through proof.
+
 Global CLI verification after the default and command fixes: launching bare
 `doolittle` from HOME displayed `codex` / `gpt-5.6-luna`. Native
 `/model use codex gpt-5.6-luna` completed in 2.6 seconds (run
@@ -197,10 +235,13 @@ the original corruption. Incremental assistant prose on this configured route
 remains unimplemented; the mechanism is source-verified, not inferred from a
 complete raw provider payload capture.
 
-The earlier packaged release at `81824191` passed both desktop end-to-end tests: offline
-chat with the packaged bridge/terminal, and the 27-route control/theme/responsive
-sweep (3.1 minutes). This offline suite does not replace live coding acceptance.
-Packaging, installation, and live replay of the two newest fixes remain pending.
+The final package from exact commit `6dde7e01` passed both desktop end-to-end
+tests: offline chat with the packaged bridge/terminal in 7 seconds, and the
+27-route control/theme/responsive sweep. Both passed in 3.0 minutes. The package
+contained a 28.9 MiB app.asar, 16 packaged modules, 469 complete artifact
+dependencies, and four native runtime packages. It was installed at
+`/Applications/Doolittle.app`; strict deep code-signature verification passed.
+This offline package suite does not replace the pending final live coding replay.
 
 ## Acceptance checklist
 
@@ -214,7 +255,8 @@ Packaging, installation, and live replay of the two newest fixes remain pending.
 - [x] Concurrent same-workspace chats preserve independent messages and runs.
 - [x] Stop and retry target only their run.
 - [x] Required repository gates and packaged-desktop checks pass.
-- [ ] Updated app installed locally; scoped commits pushed.
+- [x] Updated app installed locally from exact commit `6dde7e01` and verified.
+- [ ] Scoped commits pushed.
 - [x] Global `doolittle` CLI opens without an unavailable embedding service
   crashing startup.
 
