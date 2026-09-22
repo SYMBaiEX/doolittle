@@ -8,6 +8,10 @@ import {
 } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
+import {
+  recordScopedTurnActionResult,
+  runWithTurnRuntimeScope,
+} from "@/runtime/turn-runtime-scope";
 import { executeProviderMessageTurn } from "./chat-turn/provider-handler";
 import { createProviderStreamState } from "./chat-turn/provider-streaming";
 import { DOOLITTLE_COMMAND_ACTION } from "./command-shortcut-match";
@@ -732,6 +736,49 @@ describe("chat turn provider handler", () => {
       actionResults: [completion],
     });
     expect(notices).toEqual([]);
+  });
+
+  it("recovers a beta SDK continuation failure from the turn-scoped managed receipt", async () => {
+    const completion = {
+      success: true,
+      text: "The codex coding agent completed its read-only inspection.",
+      continueChain: true,
+      data: {
+        actionName: "TASKS_SPAWN_AGENT",
+        delegatedExecution: {
+          sessionId: "child-beta",
+          agentType: "codex",
+          workdir: "/workspace",
+          status: "completed",
+          stopReason: "end_turn",
+          exitCode: 0,
+          summary: "Inspected package.json and README.md.",
+          observedTools: [],
+          changedFiles: [],
+          verifiedLocalMutation: false,
+        },
+      },
+    };
+    let context: AgentExecutionContext;
+    ({ context } = createContext({
+      onHandleMessage: async () => {
+        recordScopedTurnActionResult(context.runtime, completion);
+        throw new Error("beta SDK parent continuation failed");
+      },
+    }));
+
+    const result = await runWithTurnRuntimeScope(
+      context.runtime,
+      { settings: new Map(), settledActionResults: [] },
+      () => executeTestTurn(context, "codex", "Inspect without changes"),
+    );
+
+    expect(result).toMatchObject({
+      handledMessage: true,
+      response: completion.text,
+      runFailureMessage: undefined,
+      actionResults: [completion],
+    });
   });
 
   it.each([

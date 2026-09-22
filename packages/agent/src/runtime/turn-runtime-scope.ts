@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import type { ActionResult } from "@elizaos/core";
 import type { LinkedProviderName } from "@/runtime/linked-provider-accounts";
 
 type RuntimeSettingsReader = {
@@ -18,6 +19,7 @@ type TurnRuntimeScope = {
   abortSignal?: AbortSignal;
   personalityId?: string;
   commandHooks?: TurnCommandHooks;
+  settledActionResults?: ActionResult[];
 };
 
 const turnRuntimeScope = new AsyncLocalStorage<TurnRuntimeScope>();
@@ -89,6 +91,28 @@ export function getScopedTurnCommandHooks(
 ): TurnCommandHooks | undefined {
   const scope = turnRuntimeScope.getStore();
   return scope?.runtime === runtime ? scope.commandHooks : undefined;
+}
+
+/**
+ * Retains Doolittle-owned action evidence across an SDK continuation failure.
+ *
+ * Eliza beta.7 does not expose its newer settled-action callback, so managed
+ * actions record only their own receipt-backed result here. The array belongs
+ * to one AsyncLocalStorage turn and is shared by nested adapter settings.
+ */
+export function recordScopedTurnActionResult(
+  runtime: object,
+  result: ActionResult,
+): void {
+  const scope = turnRuntimeScope.getStore();
+  if (scope?.runtime === runtime) scope.settledActionResults?.push(result);
+}
+
+export function getScopedTurnActionResults(runtime: object): ActionResult[] {
+  const scope = turnRuntimeScope.getStore();
+  return scope?.runtime === runtime
+    ? [...(scope.settledActionResults ?? [])]
+    : [];
 }
 
 function installScopedSettingReader(

@@ -7,6 +7,7 @@ import { actionResultActionName } from "@/runtime/action-result-metadata";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { matchesRegisteredCommandShortcut } from "@/runtime/command-shortcut-match";
 import { checkOllamaReadiness } from "@/runtime/native/plugin-registry/ollama-readiness";
+import { getScopedTurnActionResults } from "@/runtime/turn-runtime-scope";
 import type { StreamingOutputModel } from "./provider-streaming";
 import {
   isUnsynthesizedToolResponse,
@@ -395,11 +396,15 @@ export async function executeProviderMessageTurn(
         input.streamState.setResponse(response);
       } catch (error) {
         if (input.abortSignal?.aborted) throw error;
-        const recoveredDelegationResponse =
-          completedManagedDelegationResponse(settledActionResults);
+        const committedActionResults = settledActionResults.length
+          ? settledActionResults
+          : getScopedTurnActionResults(input.context.runtime);
+        const recoveredDelegationResponse = completedManagedDelegationResponse(
+          committedActionResults,
+        );
         if (recoveredDelegationResponse) {
           handledMessage = true;
-          actionResults = settledActionResults;
+          actionResults = committedActionResults;
           response = recoveredDelegationResponse;
           input.context.runtime.logger?.warn(
             {

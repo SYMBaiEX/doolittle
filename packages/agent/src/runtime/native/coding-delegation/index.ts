@@ -12,6 +12,7 @@ import { buildActionResultData } from "@/runtime/action-result-metadata";
 import { buildCacheablePrompt } from "@/runtime/prompt-cache";
 import {
   getScopedTurnAbortSignal,
+  recordScopedTurnActionResult,
   runWithAdditionalTurnRuntimeSettings,
 } from "@/runtime/turn-runtime-scope";
 import { isRecord } from "@/utils/records";
@@ -355,7 +356,11 @@ function wrapAction(
             undefined,
           ),
       );
-      if (receipt) return completion(receipt);
+      if (receipt) {
+        const result = completion(receipt);
+        recordScopedTurnActionResult(runtime, result);
+        return result;
+      }
       if (result && typeof result === "object" && result.success === false)
         return failure(
           delegationFailureMessage(

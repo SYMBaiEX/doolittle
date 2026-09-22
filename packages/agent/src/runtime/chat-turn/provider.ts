@@ -185,6 +185,7 @@ export async function runProviderModelTurn(
       commandHooks: {
         runLocalShellCommand: input.options?.runLocalShellCommand,
       },
+      settledActionResults: [],
     },
     async () => {
       let response = "";
