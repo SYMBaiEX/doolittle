@@ -842,7 +842,7 @@ describe("chat presentation components", () => {
     expect(html.match(/type="button"/gu)).toHaveLength(3);
   });
 
-  it("renders receipts and omits heartbeat-only events", () => {
+  it("renders the receipt summary without lifecycle-only activity rows", () => {
     const completed = runUpdate();
     const heartbeat = runUpdate("heartbeat");
     const html = renderToStaticMarkup(
@@ -857,7 +857,7 @@ describe("chat presentation components", () => {
     expect(html).toContain("1 action · 1s");
     expect(
       runActivityItems({ latest: completed, events: [heartbeat, completed] }),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
   });
 
   it("collapses matching action starts into their completed activity row", () => {
@@ -878,6 +878,55 @@ describe("chat presentation components", () => {
       label: "Reading file",
       status: "complete",
     });
+  });
+
+  it("keeps failed run cards focused on real tool work instead of lifecycle noise", () => {
+    const started = runUpdate("started");
+    const thinking = runUpdate("thinking");
+    const workspace = runUpdate("action-completed");
+    workspace.run.observedActionCount = 1;
+    workspace.run.lastAction = "DOOLITTLE_WORKSPACE";
+    const shell = runUpdate("action-completed");
+    shell.run.observedActionCount = 2;
+    shell.run.lastAction = "SHELL";
+    const waiting = runUpdate("waiting");
+    const failed = runUpdate("error");
+    failed.run.status = "error";
+    failed.run.terminalReason = "error";
+    failed.run.errorMessage =
+      "I stopped before completing the requested workspace change. No verified local mutation receipt was recorded (REQUESTED_LOCAL_MUTATION), so this turn was not marked complete.";
+
+    const receipt = {
+      latest: failed,
+      events: [started, thinking, workspace, shell, waiting, failed],
+    };
+    const items = runActivityItems(receipt);
+    expect(items.map((item) => item.label)).toEqual([
+      "Inspecting workspace",
+      "Running command",
+    ]);
+
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    act(() => {
+      root.render(<RunReceiptView pending={false} receipt={receipt} />);
+    });
+    const toggle = container.querySelector<HTMLButtonElement>(
+      'button[aria-expanded="false"]',
+    );
+    act(() => toggle?.click());
+
+    expect(container.textContent?.match(/Run failed/gu)).toHaveLength(1);
+    expect(container.textContent).toContain(
+      "No file changes were verified. The agent stopped before returning a final answer.",
+    );
+    expect(container.textContent).toContain("Inspecting workspace");
+    expect(container.textContent).toContain("Running command");
+    expect(container.textContent).not.toContain("up to 8 steps");
+    expect(container.textContent).not.toContain(
+      "Waiting for the next runtime signal",
+    );
+    act(() => root.unmount());
   });
 
   it("formats short and multi-minute run durations", () => {
@@ -1146,7 +1195,7 @@ describe("chat presentation components", () => {
     );
     expect(html).toContain('data-message-role="user"');
     expect(html).toContain('data-message-state="complete"');
-    expect(html).toContain('datetime="2026-08-09T10:00:00.000Z"');
+    expect(html).toMatch(/dateTime="2026-08-09T10:00:00\.000Z"/u);
     expect(html).toContain('aria-label="Message attachments"');
     expect(html).toContain("brief.md");
     expect(html).toContain("document · 2 KB");

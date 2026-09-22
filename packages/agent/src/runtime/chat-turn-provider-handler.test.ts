@@ -18,6 +18,7 @@ import { DOOLITTLE_COMMAND_ACTION } from "./command-shortcut-match";
 
 function createContext(overrides?: {
   onHandleMessage?: (handlers: {
+    memory: unknown;
     onContent: (content: unknown) => Promise<unknown>;
     onStreamChunk?: (chunk: string) => Promise<void>;
     onSettledActionResult?: (result: unknown) => void;
@@ -73,6 +74,7 @@ function createContext(overrides?: {
           }
           if (overrides?.onHandleMessage) {
             return overrides.onHandleMessage({
+              memory: _memory,
               onContent,
               onStreamChunk: options?.onStreamChunk,
               onSettledActionResult: options?.onSettledActionResult,
@@ -555,6 +557,162 @@ describe("chat turn provider handler", () => {
     );
     expect(result.responseMessages).toEqual([]);
     expect(streamState.getResponse()).toBe(result.response);
+  });
+
+  it("continues an explicit file task once after a silent exploratory terminal without duplicating the user memory", async () => {
+    const memoryIds: unknown[] = [];
+    const memoryTexts: string[] = [];
+    const inspection = {
+      success: true,
+      text: "The requested folder is not present yet.",
+      userFacingText: "The requested folder is not present yet.",
+      verifiedUserFacing: true,
+      data: { actionName: "DOOLITTLE_WORKSPACE" },
+    };
+    const writeReceipt = {
+      success: true,
+      text: "Wrote app/page.tsx",
+      data: {
+        actionName: "WRITE_FILE",
+        mutationAction: "WRITE_FILE",
+        mutationKind: "local-file",
+        mutation: {
+          action: "WRITE_FILE",
+          success: true,
+          requestedPath: "app/page.tsx",
+        },
+      },
+    };
+    const { context } = createContext({
+      onHandleMessage: async ({ memory, onSettledActionResult }) => {
+        const current = memory as Memory;
+        memoryIds.push(current.id);
+        memoryTexts.push(String(current.content.text));
+        if (memoryIds.length === 1) {
+          onSettledActionResult?.(inspection);
+          return {
+            responseContent: null,
+            responseMessages: [],
+            state: { data: { actionResults: [inspection] } },
+          };
+        }
+        onSettledActionResult?.(writeReceipt);
+        return {
+          responseContent: { text: "The page is implemented and verified." },
+          responseMessages: [],
+          state: { data: { actionResults: [writeReceipt] } },
+        };
+      },
+    });
+
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Create a Next.js page in the requested workspace and verify it.",
+    );
+
+    expect(memoryIds).toEqual(["memory-failure", "memory-failure"]);
+    expect(memoryTexts[0]).toBe(
+      "Create a Next.js page in the requested workspace and verify it.",
+    );
+    expect(memoryTexts[1]).toContain(
+      "Continue the same requested workspace task",
+    );
+    expect(memoryTexts[1]).toContain("DOOLITTLE_WORKSPACE");
+    expect(result).toMatchObject({
+      handledMessage: true,
+      response: "The page is implemented and verified.",
+      runFailureMessage: undefined,
+      actionResults: [inspection, writeReceipt],
+    });
+  });
+
+  it("continues into verification after a silent pass already wrote a verified file", async () => {
+    const prompts: string[] = [];
+    const writeReceipt = {
+      success: true,
+      text: "Wrote app/page.tsx",
+      data: {
+        actionName: "WRITE_FILE",
+        mutationAction: "WRITE_FILE",
+        mutationKind: "local-file",
+        mutation: {
+          action: "WRITE_FILE",
+          success: true,
+          requestedPath: "app/page.tsx",
+          resolvedPath: "/workspace/app/page.tsx",
+        },
+      },
+    };
+    const { context } = createContext({
+      onHandleMessage: async ({ memory, onSettledActionResult }) => {
+        const current = memory as Memory;
+        prompts.push(String(current.content.text));
+        onSettledActionResult?.(writeReceipt);
+        if (prompts.length === 1) {
+          return {
+            responseContent: null,
+            responseMessages: [],
+            state: { data: { actionResults: [writeReceipt] } },
+          };
+        }
+        return {
+          responseContent: { text: "The page is ready; the build passed." },
+          responseMessages: [],
+          state: { data: { actionResults: [writeReceipt] } },
+        };
+      },
+    });
+
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Create the requested app and run its production build.",
+    );
+
+    expect(prompts).toHaveLength(2);
+    expect(prompts[1]).toContain(
+      "A verified local file change has already occurred",
+    );
+    expect(prompts[1]).toContain("avoid repeating completed writes");
+    expect(prompts[1]).not.toContain("without a verified file change");
+    expect(result.response).toBe("The page is ready; the build passed.");
+    expect(result.runFailureMessage).toBeUndefined();
+  });
+
+  it("returns a concrete failure after the single bounded continuation is still silent", async () => {
+    const calls: Memory[] = [];
+    const inspection = {
+      success: true,
+      text: "Inspected the requested directory.",
+      userFacingText: "Inspected the requested directory.",
+      verifiedUserFacing: true,
+      data: { actionName: "DOOLITTLE_WORKSPACE" },
+    };
+    const { context } = createContext({
+      onHandleMessage: async ({ memory, onSettledActionResult }) => {
+        calls.push(memory as Memory);
+        onSettledActionResult?.(inspection);
+        return {
+          responseContent: null,
+          responseMessages: [],
+          state: { data: { actionResults: [inspection] } },
+        };
+      },
+    });
+
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Build an app in this workspace.",
+    );
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.id).toBe(calls[1]?.id);
+    expect(result.runFailureMessage).toContain(
+      "stopped without a final response",
+    );
+    expect(result.response).toContain("No verified file changes were recorded");
   });
 
   it("starts a standalone SDK trajectory and leaves model-call logging to runtime.useModel", async () => {

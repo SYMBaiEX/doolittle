@@ -32,7 +32,17 @@ export interface RunActivityItem {
   update: DesktopRunUpdate;
 }
 
-const HIDDEN_EVENT_TYPES = new Set(["heartbeat", "message", "stream"]);
+const HIDDEN_EVENT_TYPES = new Set([
+  "heartbeat",
+  "message",
+  "stream",
+  "started",
+  "thinking",
+  "waiting",
+  "completed",
+  "cancelled",
+  "error",
+]);
 
 function activityStatus(update: DesktopRunUpdate): ActivityStatus {
   if (update.type === "error" || update.type === "cancelled") return "failed";
@@ -281,8 +291,7 @@ export function RunReceiptView({
     return () => window.clearInterval(interval);
   }, [pending]);
 
-  const selected =
-    items.find((item) => item.id === selectedId) ?? items.at(-1) ?? null;
+  const selected = items.find((item) => item.id === selectedId) ?? null;
   const elapsed = formatRunElapsed(elapsedMilliseconds(receipt.latest, clock));
   const stalled = runIsStalled(receipt, clock, pending);
   const changedFiles = Array.from(
@@ -318,7 +327,7 @@ export function RunReceiptView({
   const recoverable =
     state.tone === "bad" || receipt.latest.run.terminalReason === "cancelled";
   const failureSummary = summary.includes("REQUESTED_LOCAL_MUTATION")
-    ? "No verified file change was completed."
+    ? "No file changes were verified. The agent stopped before returning a final answer."
     : summary;
 
   return (
@@ -378,7 +387,7 @@ export function RunReceiptView({
           className="block h-px w-full animate-pulse bg-[linear-gradient(90deg,transparent,var(--accent),transparent)] motion-reduce:animate-none"
         />
       ) : null}
-      {!expanded && recoverable ? (
+      {recoverable ? (
         <div className="flex min-w-0 items-center gap-2 border-[var(--border)] border-t px-2.5 py-1.5">
           <p className="m-0 min-w-0 flex-1 text-[length:var(--text-meta)] leading-relaxed text-[var(--muted)]">
             {failureSummary}
@@ -426,7 +435,7 @@ export function RunReceiptView({
               {failedChanges.length === 1 ? "" : "s"}
             </p>
           ) : null}
-          {items.length > 1 ? (
+          {items.length > 0 ? (
             <ol className="m-0 grid max-h-52 list-none gap-0.5 overflow-y-auto p-1.5 [scrollbar-gutter:stable]">
               {items.map((item) => (
                 <li key={item.id}>
@@ -461,26 +470,12 @@ export function RunReceiptView({
                 </li>
               ))}
             </ol>
-          ) : items.length === 0 ? (
+          ) : !recoverable ? (
             <p className="m-0 px-3 py-2.5 text-[length:var(--text-meta)] text-[var(--muted)]">
               {summary}
             </p>
           ) : null}
           {selected ? <RunDetail item={selected} /> : null}
-          <footer className="flex min-w-0 items-center gap-2 border-[var(--border)] border-t px-3 py-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--faint)]">
-            {state.tone === "bad" ? (
-              <UiIcon
-                className="text-[var(--bad)]"
-                icon={TriangleAlert}
-                size="xs"
-              />
-            ) : null}
-            <span className="truncate">
-              {receipt.latest.run.runDepth} · up to{" "}
-              {receipt.latest.run.configuredMaxIterations} steps
-            </span>
-            <span className="ml-auto shrink-0">{state.statusLabel}</span>
-          </footer>
         </div>
       ) : null}
     </section>
