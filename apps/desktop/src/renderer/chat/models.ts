@@ -25,6 +25,8 @@ export interface ChatMemoryMatchState {
 
 export interface DisplayMessage {
   id: string;
+  /** Durable turn identity retained when optimistic IDs become history IDs. */
+  runId?: string;
   role: Role;
   content: string;
   attachments?: ManagedAttachmentDescriptor[];

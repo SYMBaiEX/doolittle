@@ -862,7 +862,8 @@ describe("chat history concurrency", () => {
     ];
 
     expect(mergeConversationHistory(local, history, new Set())).toEqual([
-      ...history,
+      history[0],
+      { ...history[1], runId: "request-1" },
       local[2],
     ]);
   });
@@ -977,7 +978,10 @@ describe("chat history concurrency", () => {
     ];
 
     const merged = mergeConversationHistory(local, history, new Set());
-    expect(merged).toEqual(history);
+    expect(merged).toEqual([
+      history[0],
+      { ...history[1], runId: "request-recovered" },
+    ]);
     expect(
       merged.filter((message) => message.id === "assistant:request-recovered"),
     ).toHaveLength(0);
@@ -1077,9 +1081,12 @@ describe("chat history concurrency", () => {
       history,
       new Set(["request-active"]),
     );
-    expect(merged).toEqual(history);
+    expect(merged).toEqual([
+      history[0],
+      { ...history[1], runId: "request-active" },
+    ]);
     expect(merged.filter((message) => message.role === "assistant")).toEqual([
-      history[1],
+      { ...history[1], runId: "request-active" },
     ]);
     expect(
       merged.some((message) => message.id === "assistant:request-active"),
@@ -1136,5 +1143,154 @@ describe("chat history concurrency", () => {
         pending: true,
       },
     ]);
+  });
+
+  it("replaces a failed streamed response with its different canonical final and retains run activity", () => {
+    const runId = "failed-coding-run";
+    const history = [
+      {
+        id: "server-user",
+        role: "user" as const,
+        content: "Build the blog",
+        createdAt: "2026-09-22T11:50:36.017Z",
+      },
+      {
+        id: "server-assistant",
+        role: "assistant" as const,
+        content: "The coding task failed before completing the app.",
+        createdAt: "2026-09-22T11:51:17.130Z",
+      },
+    ];
+    const local = [
+      {
+        ...history[0],
+        id: "optimistic-user",
+        runId,
+        createdAt: "2026-09-22T11:50:36.013Z",
+      },
+      {
+        id: `assistant:${runId}`,
+        runId,
+        role: "assistant" as const,
+        content: "Partial provider output\n\nResponse interrupted.",
+        error: true,
+        pending: false,
+        createdAt: "2026-09-22T11:50:36.013Z",
+      },
+    ];
+    const merged = mergeConversationHistory(local, history, new Set());
+    expect(merged).toEqual([
+      { ...history[0], runId },
+      { ...history[1], runId },
+    ]);
+    expect(mergeConversationHistory(merged, history, new Set())).toEqual(
+      merged,
+    );
+  });
+
+  it("repairs an existing cache whose failed placeholder sorts before its canonical user", () => {
+    const history = [
+      {
+        id: "server-user",
+        role: "user" as const,
+        content: "Build the blog",
+        createdAt: "2026-09-22T11:50:36.017Z",
+      },
+      {
+        id: "server-assistant",
+        role: "assistant" as const,
+        content: "The coding task failed.",
+        createdAt: "2026-09-22T11:51:17.130Z",
+      },
+    ];
+    const synthetic = {
+      id: "assistant:cached-run",
+      role: "assistant" as const,
+      content: "Different streamed result",
+      error: true,
+      pending: false,
+      createdAt: "2026-09-22T11:50:36.013Z",
+    };
+    expect(
+      mergeConversationHistory([synthetic, ...history], history, new Set()),
+    ).toEqual([history[0], { ...history[1], runId: "cached-run" }]);
+  });
+
+  it("keeps a live response after its canonical user across repeated history refreshes", () => {
+    const history = [
+      {
+        id: "server-user",
+        role: "user" as const,
+        content: "Build the blog",
+        createdAt: "2026-09-22T11:50:36.017Z",
+      },
+    ];
+    const local = [
+      {
+        ...history[0],
+        id: "optimistic-user",
+        runId: "active-run",
+        createdAt: "2026-09-22T11:50:36.013Z",
+      },
+      {
+        id: "assistant:active-run",
+        runId: "active-run",
+        role: "assistant" as const,
+        content: "Working",
+        pending: true,
+        createdAt: "2026-09-22T11:50:36.013Z",
+      },
+    ];
+    const merged = mergeConversationHistory(
+      local,
+      history,
+      new Set(["active-run"]),
+    );
+    expect(merged.map((message) => message.id)).toEqual([
+      "server-user",
+      "assistant:active-run",
+    ]);
+    expect(merged[1]).toMatchObject({
+      pending: true,
+      createdAt: history[0].createdAt,
+    });
+    expect(
+      mergeConversationHistory(merged, history, new Set(["active-run"])),
+    ).toEqual(merged);
+  });
+
+  it("does not replace an earlier failed response with the final for a later repeated prompt", () => {
+    const first = {
+      id: "first-user",
+      role: "user" as const,
+      content: "Try again",
+      createdAt: "2026-09-22T11:50:00.000Z",
+    };
+    const second = {
+      ...first,
+      id: "second-user",
+      createdAt: "2026-09-22T11:55:00.000Z",
+    };
+    const failed = {
+      id: "assistant:first-run",
+      role: "assistant" as const,
+      content: "Could not submit",
+      pending: false,
+      error: true,
+      createdAt: first.createdAt,
+    };
+    const final = {
+      id: "second-final",
+      role: "assistant" as const,
+      content: "Finished",
+      createdAt: "2026-09-22T11:56:00.000Z",
+    };
+    expect(
+      mergeConversationHistory(
+        [first, failed, second],
+        [first, second, final],
+        new Set(),
+      ),
+    ).toEqual([first, failed, second, final]);
   });
 });

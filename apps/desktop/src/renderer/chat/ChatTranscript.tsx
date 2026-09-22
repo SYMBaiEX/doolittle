@@ -136,9 +136,14 @@ export function ChatTranscript({
   onLoadEarlier,
 }: ChatTranscriptProps) {
   const latestMessage = messages.at(-1);
-  const latestRunReceipt = latestMessage?.id.startsWith("assistant:")
-    ? runReceipts[latestMessage.id.slice("assistant:".length)]
-    : undefined;
+  const latestRunId =
+    latestMessage?.role === "assistant"
+      ? (latestMessage.runId ??
+        (latestMessage.id.startsWith("assistant:")
+          ? latestMessage.id.slice("assistant:".length)
+          : undefined))
+      : undefined;
+  const latestRunReceipt = latestRunId ? runReceipts[latestRunId] : undefined;
   const showStandaloneProgress = Boolean(progress && !latestRunReceipt);
 
   return (
@@ -209,8 +214,11 @@ export function ChatTranscript({
               onRetryMessage={onRetryMessage}
               onStopReading={onStopReading}
               receipt={
-                message.id.startsWith("assistant:")
-                  ? runReceipts[message.id.slice("assistant:".length)]
+                message.role === "assistant" &&
+                (message.runId || message.id.startsWith("assistant:"))
+                  ? runReceipts[
+                      message.runId ?? message.id.slice("assistant:".length)
+                    ]
                   : undefined
               }
               speakingMessageId={speakingMessageId}

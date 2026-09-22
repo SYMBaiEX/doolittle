@@ -1244,46 +1244,57 @@ describe("chat presentation components", () => {
     expect(html).toContain("Reading workspace files");
   });
 
-  it("hands live progress off to the richer run receipt without duplication", () => {
-    const working = runUpdate();
-    working.run.status = "thinking";
-    working.run.terminalReason = undefined;
-    const html = renderToStaticMarkup(
-      <ChatTranscript
-        activeRequest="run-1"
-        backendReady
-        copyStates={{}}
-        endRef={{ current: null }}
-        forkingMessageId=""
-        historyError=""
-        loading={false}
-        messages={[
-          {
-            content: "",
-            createdAt: "2026-08-09T10:00:01.000Z",
-            id: "assistant:run-1",
-            pending: true,
-            role: "assistant",
-          },
-        ]}
-        onBranch={() => undefined}
-        onCopy={() => undefined}
-        onRead={() => undefined}
-        onRetryHistory={() => undefined}
-        onSelectPrompt={() => undefined}
-        onStopReading={() => undefined}
-        progress="Reading workspace files"
-        runReceipts={{
-          "run-1": { events: [working], latest: working },
-        }}
-        speakingMessageId=""
-        speechSupported={false}
-      />,
-    );
+  it.each(["assistant:run-1", "canonical-assistant-id"])(
+    "keeps one run receipt on assistant %s after history reconciliation",
+    (assistantId) => {
+      const working = runUpdate();
+      working.run.status = "thinking";
+      working.run.terminalReason = undefined;
+      const html = renderToStaticMarkup(
+        <ChatTranscript
+          activeRequest="run-1"
+          backendReady
+          copyStates={{}}
+          endRef={{ current: null }}
+          forkingMessageId=""
+          historyError=""
+          loading={false}
+          messages={[
+            {
+              content: "Read the workspace",
+              createdAt: "2026-08-09T10:00:00.000Z",
+              id: "canonical-user-id",
+              runId: "run-1",
+              role: "user",
+            },
+            {
+              content: "",
+              createdAt: "2026-08-09T10:00:01.000Z",
+              id: assistantId,
+              runId: "run-1",
+              pending: true,
+              role: "assistant",
+            },
+          ]}
+          onBranch={() => undefined}
+          onCopy={() => undefined}
+          onRead={() => undefined}
+          onRetryHistory={() => undefined}
+          onSelectPrompt={() => undefined}
+          onStopReading={() => undefined}
+          progress="Reading workspace files"
+          runReceipts={{
+            "run-1": { events: [working], latest: working },
+          }}
+          speakingMessageId=""
+          speechSupported={false}
+        />,
+      );
 
-    expect(html).toContain("chat-run-receipt");
-    expect(html).not.toContain('class="chat-progress"');
-  });
+      expect(html.match(/class="chat-run-receipt /gu)).toHaveLength(1);
+      expect(html).not.toContain('class="chat-progress"');
+    },
+  );
 
   it("offers retry when conversation history is unavailable", () => {
     const html = renderToStaticMarkup(

@@ -32,7 +32,12 @@ export function messageContentAfterReceipt(
     UNFINISHED_MUTATION_FAILURE,
     "No verified file change was completed.",
   );
-  if (!message.error && !hasMutationFailure) return content;
+  if (
+    !message.error &&
+    !hasMutationFailure &&
+    receipt?.latest.run.status !== "error"
+  )
+    return content;
   if (receipt?.latest.run.errorMessage) {
     content = content.replace(receipt.latest.run.errorMessage, "");
   }

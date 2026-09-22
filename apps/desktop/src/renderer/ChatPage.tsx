@@ -913,6 +913,7 @@ export function ChatPage({
                 ...messages,
                 {
                   id: `assistant:${runId}`,
+                  runId,
                   role: "assistant",
                   content: "",
                   createdAt:
@@ -1002,6 +1003,7 @@ export function ChatPage({
         ...(current[sessionId] ?? []),
         {
           id: crypto.randomUUID(),
+          runId: requestId,
           role: "user",
           content: visibleContent,
           attachments: messageAttachments,
@@ -1021,6 +1023,7 @@ export function ChatPage({
         },
         {
           id: `assistant:${requestId}`,
+          runId: requestId,
           role: "assistant",
           content: "",
           createdAt,

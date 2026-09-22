@@ -160,6 +160,7 @@ function isStoredDisplayMessage(value: unknown): value is DisplayMessage {
   return (
     typeof message.id === "string" &&
     message.id.length > 0 &&
+    (message.runId === undefined || typeof message.runId === "string") &&
     (message.role === "user" || message.role === "assistant") &&
     typeof message.content === "string" &&
     typeof message.createdAt === "string" &&
@@ -221,17 +222,41 @@ export function reconcileOrphanedPendingMessages(
   );
 }
 
-function hasCanonicalReplyAfter(
+function canonicalReplyIndexAfter(
   history: readonly DisplayMessage[],
   matchedUserIndex: number,
-): boolean {
+): number | undefined {
   for (let index = matchedUserIndex + 1; index < history.length; index += 1) {
-    if (history[index]?.role === "assistant") return true;
+    if (history[index]?.role === "assistant") return index;
     // A later user turn makes a later assistant reply ambiguous. Keep the
     // synthetic row retryable rather than silently attributing that reply.
-    if (history[index]?.role === "user") return false;
+    if (history[index]?.role === "user") return undefined;
   }
-  return false;
+  return undefined;
+}
+
+function localUserIndexForReply(
+  messages: readonly DisplayMessage[],
+  replyIndex: number,
+): number | undefined {
+  const reply = messages[replyIndex];
+  const runId = reply.runId ?? reply.id.slice("assistant:".length);
+  const correlated = messages.findIndex(
+    (message) => message.role === "user" && message.runId === runId,
+  );
+  if (correlated >= 0) return correlated;
+  if (messages[replyIndex - 1]?.role === "user") return replyIndex - 1;
+  // Repair older caches sorted by dispatch time: the synthetic assistant can
+  // precede its server-persisted user by a few milliseconds. Do not associate
+  // arbitrary later turns, even when their prompt text is identical.
+  const next = messages[replyIndex + 1];
+  const nextDelay = next
+    ? Date.parse(next.createdAt) - Date.parse(reply.createdAt)
+    : Number.NaN;
+  if (next?.role === "user" && nextDelay >= 0 && nextDelay <= 2_000) {
+    return replyIndex + 1;
+  }
+  return undefined;
 }
 
 function reconcilePendingMessages(
@@ -245,25 +270,21 @@ function reconcilePendingMessages(
     if (excludeMatchedLocalRows && matchedHistoryByLocalIndex.has(index)) {
       return [];
     }
-    if (
-      message.role !== "assistant" ||
-      !message.pending ||
-      !message.id.startsWith("assistant:")
-    ) {
+    if (message.role !== "assistant" || !message.id.startsWith("assistant:")) {
       return [message];
     }
     const requestId = message.id.slice("assistant:".length);
-    const preceding = localMessages[index - 1];
+    const userIndex = localUserIndexForReply(localMessages, index);
     const matchedUserIndex =
-      preceding?.role === "user"
-        ? matchedHistoryByLocalIndex.get(index - 1)
-        : undefined;
+      userIndex === undefined
+        ? undefined
+        : matchedHistoryByLocalIndex.get(userIndex);
     // Only a canonical assistant belonging to this exact, one-to-one matched
     // user turn may supersede the placeholder. A completed older turn is not
     // evidence that the latest synthetic response completed.
     if (
       matchedUserIndex !== undefined &&
-      hasCanonicalReplyAfter(history, matchedUserIndex)
+      canonicalReplyIndexAfter(history, matchedUserIndex) !== undefined
     ) {
       return [];
     }
@@ -271,22 +292,26 @@ function reconcilePendingMessages(
     // locally active placeholder as well; otherwise a late history refresh
     // visibly renders the same assistant turn twice. A still-active request
     // remains pending only when no canonical assistant has completed its turn.
-    if (activeRequestIds.has(requestId)) return [message];
     const matchedUserCreatedAt =
       matchedUserIndex === undefined
         ? undefined
         : history[matchedUserIndex]?.createdAt;
+    const orderedMessage = {
+      ...message,
+      // History can arrive with a canonical user timestamp a few
+      // milliseconds newer than the optimistic row. Keep a retryable
+      // placeholder after its matched user in the rendered transcript.
+      createdAt:
+        matchedUserCreatedAt &&
+        message.createdAt.localeCompare(matchedUserCreatedAt) < 0
+          ? matchedUserCreatedAt
+          : message.createdAt,
+    };
+    if (activeRequestIds.has(requestId) || !message.pending)
+      return [orderedMessage];
     return [
       {
-        ...message,
-        // History can arrive with a canonical user timestamp a few
-        // milliseconds newer than the optimistic row. Keep a retryable
-        // placeholder after its matched user in the rendered transcript.
-        createdAt:
-          matchedUserCreatedAt &&
-          message.createdAt.localeCompare(matchedUserCreatedAt) < 0
-            ? matchedUserCreatedAt
-            : message.createdAt,
+        ...orderedMessage,
         content:
           "This response was interrupted before it finished. Retry it to continue.",
         pending: false,
@@ -335,12 +360,20 @@ function matchLocalRowsToHistory(
 ): Map<number, number> {
   const availableHistory = new Set(history.map((_, index) => index));
   const matchedHistoryByLocalIndex = new Map<number, number>();
+  // Retain exact-ID anchors on subsequent refreshes, after the optimistic
+  // user row has already been replaced by its canonical counterpart.
   for (const [localIndex, local] of localMessages.entries()) {
+    const index = history.findIndex((message) => message.id === local.id);
+    if (index < 0) continue;
+    availableHistory.delete(index);
+    matchedHistoryByLocalIndex.set(localIndex, index);
+  }
+  for (const [localIndex, local] of localMessages.entries()) {
+    if (matchedHistoryByLocalIndex.has(localIndex)) continue;
+    if (local.role === "assistant" && local.id.startsWith("assistant:"))
+      continue;
     if (local.pending || !local.content) continue;
-    const maximumDistance =
-      local.role === "assistant" && local.id.startsWith("assistant:")
-        ? 24 * 60 * 60 * 1_000
-        : 2 * 60 * 1_000;
+    const maximumDistance = 2 * 60 * 1_000;
     const match = [...availableHistory]
       .map((index) => ({ index, message: history[index] }))
       .filter(
@@ -360,6 +393,19 @@ function matchLocalRowsToHistory(
     availableHistory.delete(match.index);
     matchedHistoryByLocalIndex.set(localIndex, match.index);
   }
+  for (const [localIndex, local] of localMessages.entries()) {
+    if (local.role !== "assistant" || !local.id.startsWith("assistant:"))
+      continue;
+    const userIndex = localUserIndexForReply(localMessages, localIndex);
+    const matchedUserIndex =
+      userIndex === undefined
+        ? undefined
+        : matchedHistoryByLocalIndex.get(userIndex);
+    if (matchedUserIndex === undefined) continue;
+    const replyIndex = canonicalReplyIndexAfter(history, matchedUserIndex);
+    if (replyIndex !== undefined)
+      matchedHistoryByLocalIndex.set(localIndex, replyIndex);
+  }
   return matchedHistoryByLocalIndex;
 }
 
@@ -374,19 +420,29 @@ export function mergeConversationHistory(
   history: readonly DisplayMessage[],
   activeRequestIds: ReadonlySet<string>,
 ): DisplayMessage[] {
-  const historyIds = new Set(history.map((message) => message.id));
-  const localOnly = localMessages.filter(
-    (message) => !historyIds.has(message.id),
-  );
   const matchedHistoryByLocalIndex = matchLocalRowsToHistory(
-    localOnly,
+    localMessages,
     history,
   );
+  const canonical = [...history];
+  for (const [localIndex, historyIndex] of matchedHistoryByLocalIndex) {
+    const local = localMessages[localIndex];
+    const runId =
+      local.runId ??
+      (local.id.startsWith("assistant:")
+        ? local.id.slice("assistant:".length)
+        : undefined);
+    if (!runId) continue;
+    canonical[historyIndex] = {
+      ...canonical[historyIndex],
+      runId,
+    };
+  }
 
   return [
-    ...history,
+    ...canonical,
     ...reconcilePendingMessages(
-      localOnly,
+      localMessages,
       history,
       activeRequestIds,
       matchedHistoryByLocalIndex,
