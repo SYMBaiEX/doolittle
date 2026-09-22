@@ -84,6 +84,7 @@ describe("SessionDetail layout", () => {
     expect(html).toContain('data-session-summary="true"');
     expect(html).toContain(">Messages<");
     expect(html).toContain(">1 message<");
+    expect(html.match(/1 message/gu)).toHaveLength(2);
     expect(html).not.toContain("Session highlights");
     expect(html).toContain("Branch conversation");
     expect(html).toContain("2 participants");

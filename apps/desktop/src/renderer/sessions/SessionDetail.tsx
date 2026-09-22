@@ -116,6 +116,9 @@ export function SessionDetail({
   );
   const transcriptMessages = transcript.data?.messages ?? [];
   const transcriptCount = transcriptMessages.length;
+  const messageCount = transcript.data
+    ? transcriptCount
+    : (selected.messageCount ?? 0);
   const transcriptStatusLabel = transcript.loading
     ? "Loading…"
     : transcript.error
@@ -214,10 +217,7 @@ export function SessionDetail({
         data-session-summary="true"
       >
         <span>
-          {compactNumber(
-            usage.data?.usage?.messageCount ?? selected.messageCount ?? 0,
-          )}{" "}
-          messages
+          {compactNumber(messageCount)} message{messageCount === 1 ? "" : "s"}
         </span>
         <span>
           Updated{" "}

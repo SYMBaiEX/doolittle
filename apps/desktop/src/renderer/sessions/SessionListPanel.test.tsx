@@ -221,7 +221,7 @@ describe("SessionListPanel", () => {
     ).toContain("Session 42");
     expect(
       container.querySelector('[data-history-count="true"]')?.textContent,
-    ).toBe("55 shown");
+    ).toBe("55 conversations");
   });
 
   it("keeps local paths out of session list summaries", () => {

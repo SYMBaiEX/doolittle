@@ -94,7 +94,9 @@ export function SessionListPanel({
     <section className={`list-panel ${SESSION_LIST_PANEL_CLASS}`}>
       <div className={SESSION_LIST_HEADER_CLASS}>
         <strong>Conversations</strong>
-        <small data-history-count="true">{filtered.length} shown</small>
+        <small data-history-count="true">
+          {filtered.length} conversation{filtered.length === 1 ? "" : "s"}
+        </small>
       </div>
       <label htmlFor="session-search-input">
         <span className="sr-only">Search sessions</span>
