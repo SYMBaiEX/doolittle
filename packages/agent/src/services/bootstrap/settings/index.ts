@@ -6,7 +6,6 @@ import type { DefaultServiceModelConfig } from "../model/index";
 import {
   applyProviderBootstrapFallbacks,
   reconcileElizaCloudBootstrap,
-  resolvePersistedProviderAvailability,
 } from "./cloud-bootstrap";
 import { applyMissingExecutionDefaults } from "./execution-defaults";
 import type { RuntimeSettingsSnapshot, SettingsSetter } from "./types";
@@ -20,6 +19,7 @@ export function createServiceSettings(
       provider: defaults.provider,
       model: defaults.defaultModel,
       baseUrl: defaults.defaultBaseUrl,
+      reasoningEffort: defaults.defaultReasoningEffort,
       temperature: config.openAiTemperature,
       maxTokens: config.openAiMaxTokens,
     },
@@ -87,17 +87,11 @@ export function createServiceSettings(
 export function applyServiceSettingsBootstrap(
   config: EnvConfig,
   currentSettings: RuntimeSettingsSnapshot,
-  linkedAccounts: LinkedProviderAccountsSnapshot,
+  _linkedAccounts: LinkedProviderAccountsSnapshot,
   stableElizaCloudSmallModel: string,
   stableElizaCloudLargeModel: string,
   set: SettingsSetter,
 ): void {
-  const availability = resolvePersistedProviderAvailability(
-    config,
-    currentSettings,
-    linkedAccounts,
-  );
-
   reconcileElizaCloudBootstrap(
     config,
     currentSettings,
@@ -105,13 +99,7 @@ export function applyServiceSettingsBootstrap(
     stableElizaCloudLargeModel,
     set,
   );
-  applyProviderBootstrapFallbacks(
-    config,
-    currentSettings,
-    linkedAccounts,
-    availability,
-    set,
-  );
+  applyProviderBootstrapFallbacks(config, currentSettings, set);
 
   applyMissingExecutionDefaults(config, currentSettings, set);
 }

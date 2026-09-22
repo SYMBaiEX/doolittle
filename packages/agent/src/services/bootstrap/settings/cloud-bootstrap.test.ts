@@ -227,7 +227,7 @@ describe("cloud bootstrap helpers", () => {
     expect(config.elizaCloudLargeModel).toBe("xai/grok-4.1-fast-reasoning");
   });
 
-  it("falls back from disabled Eliza Cloud to linked Codex when available", () => {
+  it("keeps a saved cloud route even when another linked provider is ready", () => {
     const config = createConfig();
     const currentSettings = createCurrentSettings();
     currentSettings.model.provider = "elizacloud";
@@ -242,29 +242,24 @@ describe("cloud bootstrap helpers", () => {
     });
     const updates: Array<[string, unknown]> = [];
 
-    applyProviderBootstrapFallbacks(
-      config,
-      currentSettings,
-      linkedAccounts,
+    applyProviderBootstrapFallbacks(config, currentSettings, ((
+      path: string,
+      value: unknown,
+    ) => {
+      updates.push([path, value]);
+    }) as never);
+
+    expect(
       resolvePersistedProviderAvailability(
         config,
         currentSettings,
         linkedAccounts,
-      ),
-      ((path: string, value: unknown) => {
-        updates.push([path, value]);
-      }) as never,
-    );
-
-    expect(updates).toContainEqual(["model.provider", "codex"]);
-    expect(updates).toContainEqual(["model.model", "gpt-5.4"]);
-    expect(updates).toContainEqual([
-      "model.baseUrl",
-      "https://chatgpt.com/backend-api/codex",
-    ]);
+      ).persistedHasElizaCloud,
+    ).toBe(false);
+    expect(updates).toEqual([]);
   });
 
-  it("moves stale linked-provider settings to local Ollama when linked auth is not selected", () => {
+  it("keeps Codex selected when auth is unavailable instead of silently loading Granite", () => {
     const config = createConfig({
       ollamaApiEndpoint: "http://localhost:11434/api",
       ollamaLargeModel: "granite4.1:3b",
@@ -284,26 +279,21 @@ describe("cloud bootstrap helpers", () => {
     });
     const updates: Array<[string, unknown]> = [];
 
-    applyProviderBootstrapFallbacks(
-      config,
-      currentSettings,
-      linkedAccounts,
+    applyProviderBootstrapFallbacks(config, currentSettings, ((
+      path: string,
+      value: unknown,
+    ) => {
+      updates.push([path, value]);
+    }) as never);
+
+    expect(
       resolvePersistedProviderAvailability(
         config,
         currentSettings,
         linkedAccounts,
-      ),
-      ((path: string, value: unknown) => {
-        updates.push([path, value]);
-      }) as never,
-    );
-
-    expect(updates).toContainEqual(["model.provider", "ollama"]);
-    expect(updates).toContainEqual(["model.model", "granite4.1:3b"]);
-    expect(updates).toContainEqual([
-      "model.baseUrl",
-      "http://localhost:11434/api",
-    ]);
+      ).persistedHasCodex,
+    ).toBe(false);
+    expect(updates).toEqual([]);
   });
 
   it("keeps an explicitly selected Codex route when its linked account is ready", () => {
@@ -327,20 +317,20 @@ describe("cloud bootstrap helpers", () => {
     });
     const updates: Array<[string, unknown]> = [];
 
-    applyProviderBootstrapFallbacks(
-      config,
-      currentSettings,
-      linkedAccounts,
+    applyProviderBootstrapFallbacks(config, currentSettings, ((
+      path: string,
+      value: unknown,
+    ) => {
+      updates.push([path, value]);
+    }) as never);
+
+    expect(
       resolvePersistedProviderAvailability(
         config,
         currentSettings,
         linkedAccounts,
-      ),
-      ((path: string, value: unknown) => {
-        updates.push([path, value]);
-      }) as never,
-    );
-
+      ).persistedHasCodex,
+    ).toBe(true);
     expect(updates).toEqual([]);
   });
 
@@ -356,19 +346,12 @@ describe("cloud bootstrap helpers", () => {
     currentSettings.model.baseUrl = "";
     const updates: Array<[string, unknown]> = [];
 
-    applyProviderBootstrapFallbacks(
-      config,
-      currentSettings,
-      createLinkedAccounts(),
-      resolvePersistedProviderAvailability(
-        config,
-        currentSettings,
-        createLinkedAccounts(),
-      ),
-      ((path: string, value: unknown) => {
-        updates.push([path, value]);
-      }) as never,
-    );
+    applyProviderBootstrapFallbacks(config, currentSettings, ((
+      path: string,
+      value: unknown,
+    ) => {
+      updates.push([path, value]);
+    }) as never);
 
     expect(updates).toEqual([]);
   });
@@ -393,20 +376,20 @@ describe("cloud bootstrap helpers", () => {
     });
     const updates: Array<[string, unknown]> = [];
 
-    applyProviderBootstrapFallbacks(
-      config,
-      currentSettings,
-      linkedAccounts,
+    applyProviderBootstrapFallbacks(config, currentSettings, ((
+      path: string,
+      value: unknown,
+    ) => {
+      updates.push([path, value]);
+    }) as never);
+
+    expect(
       resolvePersistedProviderAvailability(
         config,
         currentSettings,
         linkedAccounts,
-      ),
-      ((path: string, value: unknown) => {
-        updates.push([path, value]);
-      }) as never,
-    );
-
+      ).persistedHasDevin,
+    ).toBe(true);
     expect(updates).toEqual([]);
   });
 
@@ -432,20 +415,47 @@ describe("cloud bootstrap helpers", () => {
     });
     const updates: Array<[string, unknown]> = [];
 
-    applyProviderBootstrapFallbacks(
-      config,
-      currentSettings,
-      linkedAccounts,
+    applyProviderBootstrapFallbacks(config, currentSettings, ((
+      path: string,
+      value: unknown,
+    ) => {
+      updates.push([path, value]);
+    }) as never);
+
+    expect(
       resolvePersistedProviderAvailability(
         config,
         currentSettings,
         linkedAccounts,
-      ),
-      ((path: string, value: unknown) => {
-        updates.push([path, value]);
-      }) as never,
-    );
-
+      ).persistedHasElizaCloud,
+    ).toBe(true);
     expect(updates).toEqual([]);
   });
+
+  it.each([false, true])(
+    "only adopts Codex from legacy offline settings outside explicit offline bootstrap (%s)",
+    (offlineBootstrapMode) => {
+      const config = createConfig({
+        offlineBootstrapMode,
+        ollamaApiEndpoint: "http://localhost:11434/api",
+      });
+      const updates: Array<[string, unknown]> = [];
+      applyProviderBootstrapFallbacks(config, createCurrentSettings(), ((
+        path: string,
+        value: unknown,
+      ) => {
+        updates.push([path, value]);
+      }) as never);
+      expect(updates).toEqual(
+        offlineBootstrapMode
+          ? []
+          : [
+              ["model.provider", "codex"],
+              ["model.model", "gpt-5.6-luna"],
+              ["model.baseUrl", "https://chatgpt.com/backend-api/codex"],
+              ["model.reasoningEffort", "medium"],
+            ],
+      );
+    },
+  );
 });

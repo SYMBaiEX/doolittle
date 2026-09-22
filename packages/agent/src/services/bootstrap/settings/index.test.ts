@@ -201,7 +201,7 @@ describe("service settings bootstrap", () => {
     expect(config.elizaCloudLargeModel).toBe("xai/grok-4.1-fast-reasoning");
   });
 
-  it("falls back from disabled Eliza Cloud to linked Codex when available", () => {
+  it("does not overwrite a saved provider when its account is unavailable", () => {
     const config = createConfig();
     const currentSettings = createCurrentSettings();
     currentSettings.model.provider = "elizacloud";
@@ -226,12 +226,7 @@ describe("service settings bootstrap", () => {
       }) as never,
     );
 
-    expect(updates).toContainEqual(["model.provider", "codex"]);
-    expect(updates).toContainEqual(["model.model", "gpt-5.4"]);
-    expect(updates).toContainEqual([
-      "model.baseUrl",
-      "https://chatgpt.com/backend-api/codex",
-    ]);
+    expect(updates.some(([path]) => path.startsWith("model."))).toBe(false);
   });
 
   it("hydrates missing execution defaults without overriding native MCP settings", () => {

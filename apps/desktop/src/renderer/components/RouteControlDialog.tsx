@@ -1,3 +1,4 @@
+import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import { X } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import type {
@@ -73,15 +74,25 @@ function draftFromSettings(
   runtime: RuntimeStatus | null,
 ): RouteDraft {
   const model = settings?.settings?.model;
+  const provider =
+    model?.provider ?? runtime?.provider ?? DEFAULT_MODEL_ROUTE.provider;
+  const isDefaultRoute = !model?.provider && !runtime?.provider;
   return {
-    provider: model?.provider ?? runtime?.provider ?? "ollama",
-    model: model?.model ?? runtime?.model ?? "granite4.1:3b",
-    baseUrl: model?.baseUrl ?? "",
+    provider,
+    model:
+      model?.model ??
+      runtime?.model ??
+      defaultModelForProvider(provider, undefined, undefined),
+    baseUrl:
+      model?.baseUrl ?? (isDefaultRoute ? DEFAULT_MODEL_ROUTE.baseUrl : ""),
     temperature:
       typeof model?.temperature === "number" ? String(model.temperature) : "",
     maxTokens:
       typeof model?.maxTokens === "number" ? String(model.maxTokens) : "",
-    reasoningEffort: model?.reasoningEffort ?? "",
+    reasoningEffort:
+      model?.reasoningEffort ??
+      runtime?.reasoningEffort ??
+      (isDefaultRoute ? DEFAULT_MODEL_ROUTE.reasoningEffort : ""),
   };
 }
 
@@ -298,7 +309,7 @@ export function RouteControlDialog({
                 onChange={(event) =>
                   setDraft({ ...effectiveDraft, model: event.target.value })
                 }
-                placeholder="granite4.1:3b"
+                placeholder={DEFAULT_MODEL_ROUTE.model}
                 value={effectiveDraft.model}
               />
               <datalist id="route-model-options">

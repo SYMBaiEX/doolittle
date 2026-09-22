@@ -15,7 +15,7 @@ describe("model-routing helpers", () => {
 
   it("falls back to provider defaults when switching providers", () => {
     expect(defaultModelForProvider("codex", "ollama", "granite4.1:3b")).toBe(
-      "gpt-5-codex",
+      "gpt-5.6-luna",
     );
     expect(defaultBaseUrlForProvider("openai", "ollama", "")).toBe(
       "https://api.openai.com/v1",

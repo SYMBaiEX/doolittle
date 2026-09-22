@@ -115,17 +115,9 @@ export function applyProviderFallbacks(
     !next.useLinkedCodexAuth &&
     !readiness.codex
   ) {
-    if (next.openaiApiKey.trim()) {
-      next.provider = "openai";
-      notices.push(
-        "Codex was selected without linked auth, so I fell back to OpenAI API mode.",
-      );
-    } else {
-      next.provider = "offline";
-      notices.push(
-        "Codex was selected without linked auth, so I left the mind dormant instead of writing a broken provider state.",
-      );
-    }
+    notices.push(
+      "Codex remains selected. Sign in with `codex login` or connect Codex in Settings before sending a live prompt.",
+    );
   }
 
   if (

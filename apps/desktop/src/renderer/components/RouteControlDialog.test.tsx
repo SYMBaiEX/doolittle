@@ -12,6 +12,7 @@ import { RouteControlDialog } from "./RouteControlDialog";
 const { desktopRequestMock, scenario } = vi.hoisted(() => ({
   desktopRequestMock: vi.fn(),
   scenario: {
+    settingsAvailable: true,
     loading: false,
     modelsError: "",
     modelsReload: vi.fn(),
@@ -59,7 +60,9 @@ vi.mock("../lib", async () => {
     useApiResource: (path: string | null) => ({
       data:
         path === "/settings"
-          ? { settings: { model: scenario.model } }
+          ? scenario.settingsAvailable
+            ? { settings: { model: scenario.model } }
+            : null
           : path === "/runtime/accounts"
             ? { accounts: {} }
             : path === "/runtime/models?refresh=false"
@@ -98,6 +101,7 @@ describe("RouteControlDialog reasoning effort", () => {
     desktopRequestMock.mockResolvedValue({});
     scenario.modelsError = "";
     scenario.loading = false;
+    scenario.settingsAvailable = true;
     scenario.modelsReload.mockReset();
     scenario.model = {
       model: "gpt-5.6-terra",
@@ -263,11 +267,34 @@ describe("RouteControlDialog reasoning effort", () => {
     expect(container.textContent).not.toContain("Loading route controls");
   });
 
+  it("shows the Codex default, never Granite, before settings and runtime arrive", () => {
+    scenario.loading = true;
+    scenario.settingsAvailable = false;
+    act(() =>
+      root.render(
+        createElement(RouteControlDialog, {
+          isOpen: true,
+          onClose: vi.fn(),
+          onOpenModelsPage: vi.fn(),
+          refreshRuntime: vi.fn(),
+          runtime: null,
+        }),
+      ),
+    );
+    expect(container.textContent).toContain("codex · gpt-5.6-luna");
+    expect(
+      container.querySelector<HTMLInputElement>(
+        'input[placeholder="gpt-5.6-luna"]',
+      )?.value,
+    ).toBe("gpt-5.6-luna");
+    expect(container.textContent).not.toContain("granite");
+  });
+
   it("preserves supported effort for a whitespace-pasted model and saves its trimmed ID", async () => {
     renderDialog();
 
     const model = container.querySelector<HTMLInputElement>(
-      'input[placeholder="granite4.1:3b"]',
+      'input[placeholder="gpt-5.6-luna"]',
     );
     await act(async () => {
       if (model) {

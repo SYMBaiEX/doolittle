@@ -36,7 +36,7 @@ Doolittle is for work that needs more than a one-shot chat: inspect a repository
 - **Terminal first:** a conversational CLI with slash commands, explicit shell shortcuts, approvals, run progress, and one-shot commands.
 - **Desktop when it helps:** an Electron + React operator console for chat, projects, code, work, sessions, providers, tools, skills, logs, and diagnostics.
 - **Local-first by default:** the API binds to `127.0.0.1`; the desktop talks to a private loopback runtime through a context-isolated preload bridge.
-- **Provider-aware:** local Ollama is the default no-key path. Eliza Cloud, OpenAI, Anthropic, Codex, Claude Code, and other installed providers are configured through setup and runtime readiness.
+- **Provider-aware:** fresh profiles start on Codex (`gpt-5.6-luna`, medium reasoning). Ollama, Eliza Cloud, OpenAI, Anthropic, Claude Code, and other installed providers remain explicit choices in setup and Settings.
 - **Truthful orchestration:** official Eliza task orchestration handles delegation. Doolittle supplies the product bridge for workspace tools and account routing, and records unavailable states rather than inventing results.
 
 ## Quick start
@@ -53,7 +53,13 @@ bash scripts/install.sh
 
 The installer requires the Node version in [`.node-version`](.node-version), installs the pinned Nub toolchain and workspace dependencies, installs Electron's runtime, links `doolittle` into `~/.local/bin`, and opens onboarding. It writes local configuration such as `.env` and `.doolittle/`; do not commit either.
 
-For the default local model path, run Ollama and pull the configured models before your first live prompt:
+For the default Codex route, sign in before your first live prompt:
+
+```bash
+codex login
+```
+
+Ollama is optional for local inference and semantic memory. If you choose it, run Ollama and pull the configured models:
 
 ```bash
 ollama pull granite4.1:3b
@@ -142,7 +148,7 @@ The API's runtime-owned routes come from Eliza first; Doolittle-specific REST ad
 
 ### Providers and models
 
-Ollama is the local-first default. Setup can also select supported Eliza Cloud, OpenAI, Anthropic, Codex, Claude Code, or other installed provider routes. Provider packages are not a promise that credentials or a live service are available—Doolittle exposes readiness so operators can see the difference.
+Codex is the default for new profiles. Saved routes are retained across restarts, including when authentication needs repair; Doolittle does not silently switch them to Ollama. Setup can select supported Ollama, Eliza Cloud, OpenAI, Anthropic, Claude Code, or other installed routes. Provider packages are not a promise that credentials or a live service are available—Doolittle exposes readiness so operators can see the difference.
 
 For pooled Codex and Claude Code coding sessions, Doolittle keeps separate account records in Eliza's account store and lets the official selector choose an eligible account. It injects the selected credential only into the spawned first-party subprocess, while the desktop and API receive secret-free health and usage projections. See [capability truth](docs/capability-truth.md) for the exact contract.
 

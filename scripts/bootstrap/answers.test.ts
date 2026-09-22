@@ -101,14 +101,22 @@ describe("bootstrap answer helpers", () => {
     expect(lines).toContain("tools=mcp, acp, codegen");
   });
 
-  it("defaults headless bootstrap to local Ollama inference", () => {
+  it("defaults headless bootstrap to Codex and preserves that choice before sign-in", () => {
     const answers = createHeadlessAnswers(new Map());
 
-    expect(answers.provider).toBe("ollama");
+    expect(answers.provider).toBe("codex");
     expect(answers.ollamaApiEndpoint).toBe("http://localhost:11434/api");
     expect(summarizeAnswers(answers)).toContain(
-      "mind=ollama model=granite4.1:3b embed=nomic-embed-text:latest endpoint=http://localhost:11434/api",
+      "mind=codex model=gpt-5.6-luna",
     );
+    const notices: string[] = [];
+    applyProviderFallbacks(
+      answers,
+      { codex: false, claudeCode: false },
+      notices,
+    );
+    expect(answers.provider).toBe("codex");
+    expect(notices[0]).toContain("codex login");
   });
 
   it("switches openai to linked Claude Code when the linked account is ready", () => {

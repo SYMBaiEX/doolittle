@@ -1,3 +1,4 @@
+import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import type { ProviderMode, WizardAnswers } from "../types";
 import { readEnvBase } from "./base-env";
 
@@ -6,10 +7,10 @@ export function resolveHeadlessProviderMode(
 ): ProviderMode {
   return existingEnv.get("ELIZAOS_CLOUD_ENABLED") === "true"
     ? "elizacloud"
-    : existingEnv.get("DOOLITTLE_USE_LINKED_DEVIN_AUTH") === "true"
-      ? "devin"
-      : existingEnv.get("OLLAMA_API_ENDPOINT")
-        ? "ollama"
+    : existingEnv.get("DOOLITTLE_USE_LINKED_CODEX_AUTH") === "true"
+      ? "codex"
+      : existingEnv.get("DOOLITTLE_USE_LINKED_DEVIN_AUTH") === "true"
+        ? "devin"
         : existingEnv.get("OPENAI_API_KEY")
           ? existingEnv.get("ANTHROPIC_API_KEY")
             ? "hybrid"
@@ -21,9 +22,7 @@ export function resolveHeadlessProviderMode(
             : existingEnv.get("DOOLITTLE_USE_LINKED_CLAUDE_CODE_AUTH") ===
                 "true"
               ? "claude-code"
-              : existingEnv.get("DOOLITTLE_USE_LINKED_CODEX_AUTH") === "true"
-                ? "codex"
-                : "ollama";
+              : "codex";
 }
 
 export function createHeadlessAnswers(
@@ -36,6 +35,10 @@ export function createHeadlessAnswers(
     ...base,
     mode: "quick",
     provider,
+    openaiModel:
+      provider === "codex" && !existingEnv.get("OPENAI_MODEL")
+        ? DEFAULT_MODEL_ROUTE.model
+        : base.openaiModel,
     elizaCloudEnabled: existingEnv.get("ELIZAOS_CLOUD_ENABLED") === "true",
     useLinkedCodexAuth:
       existingEnv.get("DOOLITTLE_USE_LINKED_CODEX_AUTH") === "true",

@@ -38,12 +38,20 @@ const linkedAccounts = {
 
 describe("bootstrap wizard state helpers", () => {
   it("resolves the interactive provider default from environment precedence", () => {
-    expect(resolveInteractiveProviderDefault(new Map())).toBe("ollama");
+    expect(resolveInteractiveProviderDefault(new Map())).toBe("codex");
+    expect(
+      resolveInteractiveProviderDefault(
+        new Map([
+          ["DOOLITTLE_USE_LINKED_CODEX_AUTH", "true"],
+          ["OLLAMA_API_ENDPOINT", "http://localhost:11434/api"],
+        ]),
+      ),
+    ).toBe("codex");
     expect(
       resolveInteractiveProviderDefault(
         new Map([["OLLAMA_API_ENDPOINT", "http://127.0.0.1:11434/api"]]),
       ),
-    ).toBe("ollama");
+    ).toBe("codex");
     expect(
       resolveInteractiveProviderDefault(
         new Map([

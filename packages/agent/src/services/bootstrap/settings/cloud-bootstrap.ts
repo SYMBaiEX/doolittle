@@ -1,3 +1,4 @@
+import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import type { LinkedProviderAccountsSnapshot } from "@/runtime/native/account-auth/types";
 import type { EnvConfig } from "@/types";
 import type { RuntimeSettingsSnapshot, SettingsSetter } from "./types";
@@ -138,107 +139,21 @@ export function reconcileElizaCloudBootstrap(
   }
 }
 
-function setProviderFallback(
-  config: EnvConfig,
-  linkedAccounts: LinkedProviderAccountsSnapshot,
-  set: SettingsSetter,
-): void {
-  if (config.ollamaApiEndpoint?.trim()) {
-    set("model.provider", "ollama");
-    set("model.model", config.ollamaLargeModel);
-    set("model.baseUrl", config.ollamaApiEndpoint);
-    return;
-  }
-  if (linkedAccounts.devin.nativeReady || linkedAccounts.devin.reusable) {
-    set("model.provider", "devin");
-    set("model.model", config.devinModel);
-    set("model.baseUrl", "");
-    return;
-  }
-  if (linkedAccounts.codex.nativeReady || linkedAccounts.codex.reusable) {
-    set("model.provider", "codex");
-    set("model.model", "gpt-5.4");
-    set("model.baseUrl", "https://chatgpt.com/backend-api/codex");
-    return;
-  }
-  if (
-    linkedAccounts.claudeCode.nativeReady ||
-    linkedAccounts.claudeCode.reusable
-  ) {
-    set("model.provider", "claude-code");
-    set("model.model", config.anthropicLargeModel);
-    set("model.baseUrl", config.anthropicBaseUrl ?? "");
-    return;
-  }
-  if (config.openAiApiKey?.trim()) {
-    set("model.provider", "openai");
-    set("model.model", config.openAiModel);
-    set("model.baseUrl", config.openAiBaseUrl);
-    return;
-  }
-  if (config.anthropicApiKey?.trim()) {
-    set("model.provider", "anthropic");
-    set("model.model", config.anthropicLargeModel);
-    set("model.baseUrl", config.anthropicBaseUrl ?? "");
-  }
-}
-
 export function applyProviderBootstrapFallbacks(
   config: EnvConfig,
   currentSettings: RuntimeSettingsSnapshot,
-  linkedAccounts: LinkedProviderAccountsSnapshot,
-  availability: PersistedProviderAvailability,
   set: SettingsSetter,
 ): void {
-  const persistedProvider = currentSettings.model.provider;
-
+  // An unavailable account is a repairable authentication problem, not consent
+  // to change provider, cost, privacy boundary, or the user's selected model.
   if (
-    persistedProvider === "elizacloud" &&
-    !availability.persistedHasElizaCloud
-  ) {
-    setProviderFallback(config, linkedAccounts, set);
-  }
+    currentSettings.model.provider !== "offline" ||
+    config.offlineBootstrapMode
+  )
+    return;
 
-  if (
-    !availability.persistedHasOpenAi &&
-    !availability.persistedHasAnthropic &&
-    !availability.persistedHasElizaCloud &&
-    !availability.persistedHasOllama &&
-    !availability.persistedHasCodex &&
-    !availability.persistedHasClaudeCode &&
-    !availability.persistedHasDevin
-  ) {
-    if (config.ollamaApiEndpoint?.trim()) {
-      set("model.provider", "ollama");
-      set("model.model", config.ollamaLargeModel);
-      set("model.baseUrl", config.ollamaApiEndpoint);
-      return;
-    }
-    if (config.elizaCloudEnabled && config.elizaCloudApiKey?.trim()) {
-      set("model.provider", "elizacloud");
-      set("model.model", config.elizaCloudLargeModel);
-      set("model.baseUrl", config.elizaCloudBaseUrl);
-      return;
-    }
-    if (linkedAccounts.devin.nativeReady || linkedAccounts.devin.reusable) {
-      set("model.provider", "devin");
-      set("model.model", config.devinModel);
-      set("model.baseUrl", "");
-      return;
-    }
-    if (linkedAccounts.codex.nativeReady || linkedAccounts.codex.reusable) {
-      set("model.provider", "codex");
-      set("model.model", "gpt-5.4");
-      set("model.baseUrl", "https://chatgpt.com/backend-api/codex");
-      return;
-    }
-    if (
-      linkedAccounts.claudeCode.nativeReady ||
-      linkedAccounts.claudeCode.reusable
-    ) {
-      set("model.provider", "claude-code");
-      set("model.model", config.anthropicLargeModel);
-      set("model.baseUrl", config.anthropicBaseUrl ?? "");
-    }
-  }
+  set("model.provider", DEFAULT_MODEL_ROUTE.provider);
+  set("model.model", DEFAULT_MODEL_ROUTE.model);
+  set("model.baseUrl", DEFAULT_MODEL_ROUTE.baseUrl);
+  set("model.reasoningEffort", DEFAULT_MODEL_ROUTE.reasoningEffort);
 }

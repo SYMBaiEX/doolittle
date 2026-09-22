@@ -1,5 +1,6 @@
 import type { TuiThemeName } from "@/runtime/theme-catalog";
 import type { ElizaMcpSettings } from "@/services/mcp/settings";
+import type { RuntimeSettings as ServiceRuntimeSettings } from "@/services/settings/runtime-settings";
 import type { RunDepth, ToolProgressMode } from "@/types";
 
 export type ExecutionBackendName =
@@ -42,13 +43,7 @@ export type TransportName =
   | "dingtalk";
 
 export interface RuntimeSettings {
-  model: {
-    provider: string;
-    model: string;
-    baseUrl: string;
-    temperature: number;
-    maxTokens: number;
-  };
+  model: ServiceRuntimeSettings["model"];
   gateway: {
     sessionTimeoutMinutes: number;
     mirrorResponsesToHistory: boolean;

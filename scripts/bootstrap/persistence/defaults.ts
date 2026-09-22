@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import {
   createElizaMcpSettingsFromCommand,
   isElizaMcpSettings,
@@ -26,9 +27,7 @@ export function createDefaultSettings(
 ): RuntimeSettings {
   return {
     model: {
-      provider: "devin",
-      model: "swe-1-6-fast",
-      baseUrl: "",
+      ...DEFAULT_MODEL_ROUTE,
       temperature: 0.4,
       maxTokens: 1200,
     },
@@ -135,7 +134,15 @@ export function loadBootstrapSettings(
     return {
       ...defaults,
       ...current,
-      model: { ...defaults.model, ...current.model },
+      model: {
+        ...defaults.model,
+        ...current.model,
+        reasoningEffort:
+          current.model?.reasoningEffort ??
+          (!current.model?.provider || current.model.provider === "codex"
+            ? DEFAULT_MODEL_ROUTE.reasoningEffort
+            : undefined),
+      },
       gateway: { ...defaults.gateway, ...current.gateway },
       execution: { ...defaults.execution, ...current.execution },
       mcp,

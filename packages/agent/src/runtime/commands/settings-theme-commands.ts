@@ -1,3 +1,4 @@
+import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import {
   activateLinkedProvider,
   type LinkedProviderName,
@@ -96,7 +97,8 @@ async function modelRoutes(
     {
       id: "codex",
       label: "Codex",
-      model: "gpt-5.4",
+      model:
+        active.provider === "codex" ? active.model : DEFAULT_MODEL_ROUTE.model,
       baseUrl: "",
       mode: "linked",
       ready: "check",

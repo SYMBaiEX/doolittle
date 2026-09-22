@@ -165,6 +165,20 @@ describe("bootstrap persistence settings", () => {
     expect(next.model.baseUrl).toBe("http://127.0.0.1:11434/api");
   });
 
+  it("preserves an explicit offline choice without substituting a network provider", () => {
+    const original = structuredClone(settings);
+    const next = buildBootstrapSettings(settings, {
+      ...answers,
+      provider: "offline",
+    });
+    expect(next.model).toMatchObject({
+      provider: "offline",
+      model: "offline",
+      baseUrl: "",
+    });
+    expect(settings).toEqual(original);
+  });
+
   it("preserves existing native MCP servers while updating the wizard server", () => {
     const existing = {
       ...settings,

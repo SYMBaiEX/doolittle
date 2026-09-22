@@ -1,3 +1,4 @@
+import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import type { EnvConfig } from "@/types";
 import type { SettingsService } from "../../settings-service";
 
@@ -17,6 +18,7 @@ export interface DefaultServiceModelConfig {
   provider: DefaultServiceModelProvider;
   defaultModel: string;
   defaultBaseUrl: string;
+  defaultReasoningEffort?: "medium";
 }
 
 export interface ServiceModelContext {
@@ -31,54 +33,19 @@ export interface ServiceModelContext {
 }
 
 export function resolveDefaultServiceModel(
-  config: EnvConfig,
+  _config: EnvConfig,
 ): DefaultServiceModelConfig {
   const stableElizaCloudSmallModel = "xai/grok-4.1-fast-non-reasoning";
   const stableElizaCloudLargeModel = "xai/grok-4.1-fast-reasoning";
-  const provider: DefaultServiceModelProvider = config.elizaCloudEnabled
-    ? "elizacloud"
-    : config.useLinkedDevinAuth
-      ? "devin"
-      : config.ollamaApiEndpoint?.trim()
-        ? "ollama"
-        : config.anthropicApiKey
-          ? "anthropic"
-          : config.openAiApiKey
-            ? "openai"
-            : config.useLinkedClaudeCodeAuth
-              ? "claude-code"
-              : config.useLinkedCodexAuth
-                ? "codex"
-                : "offline";
-  const defaultModel =
-    provider === "elizacloud"
-      ? config.elizaCloudLargeModel
-      : provider === "devin"
-        ? config.devinModel
-        : provider === "ollama"
-          ? config.ollamaLargeModel
-          : provider === "anthropic" || provider === "claude-code"
-            ? config.anthropicLargeModel
-            : config.openAiModel;
-  const defaultBaseUrl =
-    provider === "elizacloud"
-      ? config.elizaCloudBaseUrl
-      : provider === "devin"
-        ? ""
-        : provider === "ollama"
-          ? config.ollamaApiEndpoint
-          : provider === "anthropic" || provider === "claude-code"
-            ? (config.anthropicBaseUrl ?? "https://api.anthropic.com")
-            : provider === "codex"
-              ? "https://chatgpt.com/backend-api/codex"
-              : config.openAiBaseUrl;
-
+  // Provider availability and optional local endpoints are not route choices.
+  // SettingsService retains persisted selections; fresh profiles start on Codex.
   return {
     stableElizaCloudSmallModel,
     stableElizaCloudLargeModel,
-    provider,
-    defaultModel,
-    defaultBaseUrl,
+    provider: DEFAULT_MODEL_ROUTE.provider,
+    defaultModel: DEFAULT_MODEL_ROUTE.model,
+    defaultBaseUrl: DEFAULT_MODEL_ROUTE.baseUrl,
+    defaultReasoningEffort: DEFAULT_MODEL_ROUTE.reasoningEffort,
   };
 }
 

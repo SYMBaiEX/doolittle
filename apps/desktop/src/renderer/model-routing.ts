@@ -1,3 +1,5 @@
+import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
+
 export type RouteProviderId =
   | "ollama"
   | "elizacloud"
@@ -58,7 +60,8 @@ export const ROUTE_PROVIDER_OPTIONS: readonly RouteProviderOption[] = [
     label: "Codex",
     eyebrow: "Coding",
     description: "Use the linked Codex account for software-heavy work.",
-    defaultModel: "gpt-5-codex",
+    defaultModel: DEFAULT_MODEL_ROUTE.model,
+    defaultBaseUrl: DEFAULT_MODEL_ROUTE.baseUrl,
   },
   {
     id: "claude-code",

@@ -1,3 +1,4 @@
+import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import { createElizaMcpSettingsFromCommand } from "@/services/mcp/settings";
 import type { RuntimeSettings, WizardAnswers } from "../types";
 
@@ -11,6 +12,7 @@ export function buildBootstrapSettings(
   );
   const nextSettings = {
     ...settings,
+    model: { ...settings.model },
     ui: { ...settings.ui, theme: answers.theme },
     agent: {
       ...settings.agent,
@@ -38,7 +40,11 @@ export function buildBootstrapSettings(
       : settings.mcp,
   } satisfies RuntimeSettings;
 
-  if (answers.provider === "elizacloud") {
+  if (answers.provider === "offline") {
+    nextSettings.model.provider = "offline";
+    nextSettings.model.model = "offline";
+    nextSettings.model.baseUrl = "";
+  } else if (answers.provider === "elizacloud") {
     nextSettings.model.provider = "elizacloud";
     nextSettings.model.model = answers.elizaCloudModel;
     nextSettings.model.baseUrl = "https://elizacloud.ai/api/v1";
@@ -66,6 +72,13 @@ export function buildBootstrapSettings(
       answers.provider === "codex"
         ? "https://chatgpt.com/backend-api/codex"
         : "https://api.openai.com/v1";
+  }
+
+  if (nextSettings.model.provider !== settings.model.provider) {
+    nextSettings.model.reasoningEffort =
+      nextSettings.model.provider === "codex"
+        ? DEFAULT_MODEL_ROUTE.reasoningEffort
+        : undefined;
   }
 
   return nextSettings;

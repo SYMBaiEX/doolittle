@@ -1,3 +1,4 @@
+import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import type { AgentExecutionContext } from "../chat";
 import {
   claudeCodeAccessTokenIsExpiring,
@@ -50,7 +51,7 @@ export function resolveDefaultProviderModel(
   provider: LinkedProviderName,
 ): string {
   if (provider === "codex") {
-    return "gpt-5.4";
+    return DEFAULT_MODEL_ROUTE.model;
   }
   if (provider === "elizacloud") {
     return context.config.elizaCloudLargeModel;
@@ -65,7 +66,7 @@ export function resolveDefaultProviderBaseUrl(
   provider: LinkedProviderName,
 ): string {
   if (provider === "codex") {
-    return "https://chatgpt.com/backend-api/codex";
+    return DEFAULT_MODEL_ROUTE.baseUrl;
   }
   if (provider === "elizacloud") {
     return resolveCloudApiBaseUrl();

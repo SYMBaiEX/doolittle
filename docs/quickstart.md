@@ -16,7 +16,13 @@ If you want the desktop app to launch automatically after bootstrap:
 bash scripts/install.sh --desktop
 ```
 
-The default mind is local Ollama through the official ElizaOS Ollama plugin. For a live first prompt, make sure Ollama is running, then pull the default models:
+New profiles use Codex (`gpt-5.6-luna`, medium reasoning). Sign in before a live first prompt:
+
+```bash
+codex login
+```
+
+Ollama is optional for local inference and semantic memory. To use it, pull the configured models:
 
 ```bash
 ollama pull granite4.1:3b
@@ -25,7 +31,7 @@ ollama pull nomic-embed-text:latest
 
 If Ollama is not already running as an app or service, start `ollama serve` in another terminal before the first live prompt.
 
-The bootstrap writes `OLLAMA_API_ENDPOINT`, `OLLAMA_SMALL_MODEL`, `OLLAMA_LARGE_MODEL`, and `OLLAMA_EMBEDDING_MODEL` into `.env`. You can still choose Eliza Cloud, Codex, Claude Code, OpenAI, or Anthropic in `doolittle setup`, but the no-key path is local-first now.
+The bootstrap writes local model settings into `.env` for optional Ollama support; their presence does not replace a saved chat route at startup. You can choose Ollama, Eliza Cloud, Claude Code, OpenAI, or Anthropic in `doolittle setup`. An unavailable selected provider stays selected and reports the connection or sign-in problem.
 
 If you need a non-interactive pass, use:
 

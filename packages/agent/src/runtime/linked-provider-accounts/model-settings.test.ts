@@ -2,10 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "../chat";
 import {
   buildProviderRuntimeSettings,
+  resolveDefaultProviderBaseUrl,
+  resolveDefaultProviderModel,
   syncProviderSettings,
 } from "./model-settings";
 
 describe("syncProviderSettings", () => {
+  it("uses the shared Codex product model when selecting the route without an override", () => {
+    expect(
+      resolveDefaultProviderModel({} as AgentExecutionContext, "codex"),
+    ).toBe("gpt-5.6-luna");
+    expect(resolveDefaultProviderBaseUrl("codex")).toBe(
+      "https://chatgpt.com/backend-api/codex",
+    );
+  });
   beforeEach(() => {
     vi.stubEnv("ELIZAOS_CLOUD_BASE_URL", "");
   });
