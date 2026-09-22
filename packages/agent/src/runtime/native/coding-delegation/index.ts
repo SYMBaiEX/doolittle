@@ -154,6 +154,7 @@ function completion(receipt: DelegatedExecutionReceipt): ActionResult {
 function wrapAction(
   action: Action,
   services: CodingDelegationServices,
+  promotedOperation?: "spawn_agent",
 ): Action {
   const handler = action.handler;
   return {
@@ -173,12 +174,14 @@ function wrapAction(
         ? options.parameters
         : {};
       const operation =
+        promotedOperation ??
         string(
           parameters.action ??
             parameters.op ??
             parameters.subaction ??
             parameters.operation,
-        ) ?? "create";
+        ) ??
+        "create";
       const run = services.runController.getByRoomId(String(message.roomId));
       if (
         !run ||
@@ -350,15 +353,19 @@ function wrapAction(
   };
 }
 
-/** Preserve the official plugin/service authority; adapt only desktop turn ownership. */
+/** Preserve SDK plugin/service authority while owning local coding turns. */
 export function withManagedCodingDelegation(
   plugin: Plugin,
   services: CodingDelegationServices,
 ): Plugin {
   return {
     ...plugin,
-    actions: plugin.actions?.map((action) =>
-      action.name === "TASKS" ? wrapAction(action, services) : action,
-    ),
+    actions: plugin.actions?.map((action) => {
+      // SDK virtual handlers inject the discriminator only when invoked, after
+      // this boundary. Their fixed operation must not depend on caller params.
+      if (action.name === "TASKS_SPAWN_AGENT")
+        return wrapAction(action, services, "spawn_agent");
+      return action.name === "TASKS" ? wrapAction(action, services) : action;
+    }),
   };
 }

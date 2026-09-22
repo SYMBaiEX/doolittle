@@ -1,7 +1,13 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Action, IAgentRuntime, Memory, Plugin } from "@elizaos/core";
+import {
+  type Action,
+  type IAgentRuntime,
+  type Memory,
+  type Plugin,
+  promoteSubactionsToActions,
+} from "@elizaos/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runWithTurnRuntimeScope } from "@/runtime/turn-runtime-scope";
 import { RunControllerService } from "@/services/run-controller-service";
@@ -157,53 +163,113 @@ async function fixture() {
 }
 
 describe("managed official coding delegation", () => {
-  it("adapts the installed SDK TASKS action rather than replacing its spawn implementation", async () => {
-    const input = await fixture();
-    const { agentOrchestratorPlugin } = await import(
-      "@elizaos/plugin-agent-orchestrator"
-    );
-    Object.assign(input.runtime, {
-      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
-    });
-    const official = withManagedCodingDelegation(agentOrchestratorPlugin, {
-      workspace: { root: () => input.root },
-      runController: input.runController,
-    }).actions?.find((action) => action.name === "TASKS");
-    expect(official).toBeDefined();
-    const result = await official?.handler(
-      input.runtime,
-      input.message,
-      undefined,
-      {
-        parameters: {
-          action: "spawn_agent",
-          task: "Implement with actual shadcn components",
-          agentType: "claude",
-          workdir: input.root,
+  it.each<{ name: string; parameters: Record<string, string> }>([
+    { name: "TASKS", parameters: { action: "spawn_agent" } },
+    { name: "TASKS_SPAWN_AGENT", parameters: {} },
+    { name: "TASKS_SPAWN_AGENT", parameters: { action: "create" } },
+  ])(
+    "adapts installed SDK $name with $parameters",
+    async ({ name, parameters }) => {
+      const input = await fixture();
+      const { agentOrchestratorPlugin, tasksAction } = await import(
+        "@elizaos/plugin-agent-orchestrator"
+      );
+      Object.assign(input.runtime, {
+        logger: {
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+          debug: vi.fn(),
         },
-      },
-      undefined,
-    );
-    expect(result).toMatchObject({
-      success: true,
-      continueChain: true,
-      data: {
-        delegatedExecution: {
+      });
+      // Match the production factory's promoted actions, including handlers that
+      // receive no action discriminator. The test-mode plugin export can be legacy.
+      const plugin = {
+        ...agentOrchestratorPlugin,
+        actions: [...promoteSubactionsToActions(tasksAction)],
+      };
+      const adapted = withManagedCodingDelegation(plugin, {
+        workspace: { root: () => input.root },
+        runController: input.runController,
+      });
+      expect(adapted.services).toBe(plugin.services);
+      for (const action of plugin.actions) {
+        if (["TASKS", "TASKS_SPAWN_AGENT"].includes(action.name)) continue;
+        expect(
+          adapted.actions?.find((entry) => entry.name === action.name),
+        ).toBe(action);
+      }
+      const official = adapted.actions?.find((action) => action.name === name);
+      expect(official).toBeDefined();
+      const configuredCommand = "/opt/tools/codex-acp";
+      input.settings.set("ELIZA_CODEX_ACP_COMMAND", configuredCommand);
+      const observedCommands: unknown[] = [];
+      const spawn = input.service.spawnSession;
+      input.service.spawnSession = vi.fn(async (options: AcpSpawnOptions) => {
+        observedCommands.push(
+          input.runtime.getSetting("ELIZA_CODEX_ACP_COMMAND"),
+        );
+        return spawn(options);
+      });
+      vi.mocked(input.service.sendPrompt).mockImplementation(async () => {
+        observedCommands.push(
+          input.runtime.getSetting("ELIZA_CODEX_ACP_COMMAND"),
+        );
+        return { stopReason: "end_turn", exitCode: 0 };
+      });
+      const result = await official?.handler(
+        input.runtime,
+        input.message,
+        undefined,
+        {
+          parameters: {
+            ...parameters,
+            task: "Implement with actual shadcn components",
+            agentType: "claude",
+            workdir: input.root,
+          },
+        },
+        undefined,
+      );
+      expect(result).toMatchObject({
+        success: true,
+        continueChain: true,
+        data: {
+          delegatedExecution: {
+            agentType: "codex",
+            workdir: input.root,
+            status: "completed",
+            verifiedLocalMutation: false,
+          },
+        },
+      });
+      expect(input.service.sendPrompt).toHaveBeenCalledOnce();
+      expect(input.service.spawnSession).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
           agentType: "codex",
+          model: "gpt-5.6-luna",
           workdir: input.root,
-          status: "completed",
-          verifiedLocalMutation: false,
-        },
-      },
-    });
-    expect(input.service.sendPrompt).toHaveBeenCalledOnce();
-    expect(vi.mocked(input.service.sendPrompt).mock.calls[0]?.[1]).toContain(
-      "Original user requirements:",
-    );
-    expect(vi.mocked(input.service.sendPrompt).mock.calls[0]?.[1]).toContain(
-      "actual shadcn components",
-    );
-  });
+          initialTask: undefined,
+        }),
+      );
+      expect(input.service.sendPrompt).toHaveBeenCalledWith(
+        "child-1",
+        expect.any(String),
+        { model: "gpt-5.6-luna", timeoutMs: 1_200_000 },
+      );
+      const selectedCommand = `${configuredCommand} -c 'model="gpt-5.6-luna"' -c 'model_reasoning_effort="medium"'`;
+      expect(observedCommands).toEqual([selectedCommand, selectedCommand]);
+      expect(input.runtime.getSetting("ELIZA_CODEX_ACP_COMMAND")).toBe(
+        configuredCommand,
+      );
+      expect(vi.mocked(input.service.sendPrompt).mock.calls[0]?.[1]).toContain(
+        "Original user requirements:",
+      );
+      expect(vi.mocked(input.service.sendPrompt).mock.calls[0]?.[1]).toContain(
+        "actual shadcn components",
+      );
+    },
+  );
 
   it("does not count SDK session identity files as user task changes", async () => {
     const input = await fixture();
