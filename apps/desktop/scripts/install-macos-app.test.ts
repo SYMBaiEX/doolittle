@@ -15,15 +15,25 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  installMacOSApp,
+  installMacOSApp as installMacOSAppUnderTest,
+  type MacOSInstallOptions,
   recoverInterruptedMacOSInstall,
 } from "./install-macos-app";
 
 const directories: string[] = [];
+const fixtureQuiesce = vi.fn();
+
+function installMacOSApp(options: MacOSInstallOptions) {
+  // The real quiescer quits Doolittle by bundle ID, including an unrelated
+  // running desktop or packaged E2E app. Filesystem fixtures own no such app.
+  // Keep explicit per-test quiesce callbacks authoritative for failure tests.
+  return installMacOSAppUnderTest({ quiesce: fixtureQuiesce, ...options });
+}
 
 afterEach(() => {
+  fixtureQuiesce.mockClear();
   for (const directory of directories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -89,6 +99,9 @@ describe("installMacOSApp", () => {
       readMetadata: fixtureMetadata,
     });
     expect(result.trustMode).toBe("ad-hoc");
+    expect(fixtureQuiesce).toHaveBeenCalledExactlyOnceWith(
+      realpathSync(destination),
+    );
     expect(
       readFileSync(resolve(destination, "Contents/Resources/app.asar"), "utf8"),
     ).toBe("new");
