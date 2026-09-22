@@ -14,7 +14,7 @@ import type {
   InteractiveTerminalSession,
 } from "../../shared/contracts";
 import { APPEARANCE_APPLIED_EVENT, THEME_CHANGE_EVENT } from "../desktop-theme";
-import { errorMessage } from "../lib";
+import { desktopRequest, errorMessage } from "../lib";
 import { compactWorkspacePath } from "../workspace-path";
 import { InteractiveTerminalHeader } from "./InteractiveTerminalHeader";
 import { InteractiveTerminalSurface } from "./InteractiveTerminalSurface";
@@ -27,7 +27,9 @@ import {
   appendTerminalBytes as appendTerminalOutputBytes,
   closeTerminalTabState,
   isCurrentTerminalSession,
+  isPristineTerminalTab,
   terminalChatContext,
+  terminalLifecycleChanged,
 } from "./interactive-terminal-state";
 import {
   browserInteractiveTerminalStorage,
@@ -39,6 +41,7 @@ import {
   resolveInteractiveTerminalWorkspaceState,
   saveInteractiveTerminalState,
 } from "./interactive-terminal-store";
+import { mergeManagedApplicationTabs } from "./managed-application-tabs";
 
 export function appendTerminalBytes(
   output: string,
@@ -220,6 +223,37 @@ export function InteractiveTerminal({
   const [isClosingTab, setIsClosingTab] = useState<Record<string, boolean>>({});
   const loadedWorkspaceRef = useRef(workspacePath);
   const autoStartedTabRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!active) return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const discover = async () => {
+      try {
+        const result = await desktopRequest<{
+          sessions: InteractiveTerminalSession[];
+        }>("/terminal/sessions", "GET", undefined, controller.signal);
+        if (controller.signal.aborted) return;
+        setTabs((current) => {
+          const next = mergeManagedApplicationTabs(
+            current,
+            result.sessions ?? [],
+          );
+          tabsRef.current = next;
+          return next;
+        });
+      } catch {
+        // Discovery is supplementary; ordinary terminal tabs stay usable offline.
+      } finally {
+        if (!controller.signal.aborted) timer = setTimeout(discover, 2_000);
+      }
+    };
+    void discover();
+    return () => {
+      controller.abort();
+      if (timer) clearTimeout(timer);
+    };
+  }, [active]);
 
   const fitTerminalToViewport = useCallback(() => {
     const terminal = xtermRef.current;
@@ -519,7 +553,12 @@ export function InteractiveTerminal({
   const appendOutputToTab = useCallback(
     (tabId: string, snapshot: InteractiveTerminalOutput) => {
       const chunks = snapshot.chunks.map((chunk) => chunk.data).join("");
-      if (!chunks && !snapshot.truncatedBeforeCursor) return;
+      if (!chunks && !snapshot.truncatedBeforeCursor) {
+        const current = tabsRef.current.find((tab) => tab.id === tabId);
+        if (current && terminalLifecycleChanged(current, snapshot.session))
+          syncSession(tabId, snapshot.session);
+        return;
+      }
       queueTerminalWrite(
         tabId,
         `${snapshot.truncatedBeforeCursor ? "\r\n[Doolittle retained the newest terminal output.]\r\n" : ""}${chunks}`,
@@ -555,7 +594,7 @@ export function InteractiveTerminal({
       });
       setNotice("");
     },
-    [queueTerminalWrite],
+    [queueTerminalWrite, syncSession],
   );
 
   const pollOutput = useCallback(
@@ -641,6 +680,7 @@ export function InteractiveTerminal({
 
   useEffect(() => {
     if (!autoStart || !active || !activeTab || running || starting) return;
+    if (!isPristineTerminalTab(activeTab)) return;
     if (autoStartedTabRef.current === activeTab.id) return;
     autoStartedTabRef.current = activeTab.id;
     void onStart();

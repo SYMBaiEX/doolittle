@@ -28,6 +28,9 @@ export interface InteractiveTerminalSession {
   pty: boolean;
   supportsResize: boolean;
   outputBytes: number;
+  processId?: number;
+  managed?: boolean;
+  command?: string;
 }
 export interface InteractiveTerminalOutputChunk {
   cursor: number;

@@ -3,12 +3,50 @@ import {
   appendTerminalBytes,
   closeTerminalTabState,
   isCurrentTerminalSession,
+  isPristineTerminalTab,
   terminalChatContext,
+  terminalLifecycleChanged,
   terminalTabLabelId,
 } from "./interactive-terminal-state";
 import { createInteractiveTerminalTab } from "./interactive-terminal-store";
 
 describe("interactive terminal pure state", () => {
+  it("only auto-starts pristine tabs, never a stopped app session", () => {
+    const tab = createInteractiveTerminalTab("App · blog");
+    expect(isPristineTerminalTab(tab)).toBe(true);
+    expect(
+      isPristineTerminalTab({
+        ...tab,
+        sessionId: "managed-app",
+        state: "closed",
+      }),
+    ).toBe(false);
+    expect(
+      isPristineTerminalTab({ ...tab, startedAt: "2026-09-22T12:00:00Z" }),
+    ).toBe(false);
+  });
+
+  it("recognizes a silent process exit even when no terminal bytes arrive", () => {
+    const tab = {
+      ...createInteractiveTerminalTab(),
+      state: "running" as const,
+    };
+    const session = {
+      ...tab,
+      id: "terminal",
+      state: "running" as const,
+      completedAt: undefined,
+      exitCode: undefined,
+    };
+    expect(terminalLifecycleChanged(tab, session)).toBe(false);
+    expect(
+      terminalLifecycleChanged(tab, {
+        ...session,
+        state: "exited",
+        exitCode: 0,
+      }),
+    ).toBe(true);
+  });
   it("preserves ANSI and trims output from the front", () => {
     expect(appendTerminalBytes("build ", "\u001B[32mok\u001B[0m\r\n", 64)).toBe(
       "build \u001B[32mok\u001B[0m\r\n",

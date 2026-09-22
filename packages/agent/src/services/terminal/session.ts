@@ -31,6 +31,9 @@ export interface InteractiveTerminalSessionSnapshot {
   pty: boolean;
   supportsResize: boolean;
   outputBytes: number;
+  processId?: number;
+  managed?: boolean;
+  command?: string;
 }
 
 export interface InteractiveTerminalOutputChunk {
@@ -52,6 +55,7 @@ interface InteractiveTerminalSessionRecord {
   nextCursor: number;
   outputBytes: number;
   cleanupTimer?: ReturnType<typeof setTimeout>;
+  managedKillTimer?: ReturnType<typeof setTimeout>;
 }
 
 function boundedDimension(
@@ -111,6 +115,8 @@ export class InteractiveTerminalSessionManager {
   start(options?: {
     cols?: number;
     rows?: number;
+    cwd?: string;
+    command?: string;
   }): InteractiveTerminalSessionSnapshot {
     const running = [...this.sessions.values()].filter(
       (session) => session.snapshot.state === "running",
@@ -124,8 +130,19 @@ export class InteractiveTerminalSessionManager {
     const id = randomUUID();
     const cols = boundedDimension(options?.cols, 100, MIN_COLUMNS, MAX_COLUMNS);
     const rows = boundedDimension(options?.rows, 30, MIN_ROWS, MAX_ROWS);
-    const command = terminalCommand();
-    const workspaceDir = resolveWorkspaceDirectory(this.workspaceDirectory);
+    const command = options?.command
+      ? process.platform === "win32"
+        ? [
+            process.env.ComSpec?.trim() || "cmd.exe",
+            "/D",
+            "/S",
+            "/C",
+            options.command,
+          ]
+        : [LOCAL_SHELL, "-lc", options.command]
+      : terminalCommand();
+    const workspaceDir =
+      options?.cwd ?? resolveWorkspaceDirectory(this.workspaceDirectory);
     const terminal = spawnPty(command[0] ?? "", command.slice(1), {
       cwd: workspaceDir,
       env: {
@@ -160,6 +177,8 @@ export class InteractiveTerminalSessionManager {
       pty: true,
       supportsResize: true,
       outputBytes: 0,
+      processId: terminal.pid,
+      ...(options?.command ? { managed: true, command: options.command } : {}),
     };
     record = {
       snapshot,
@@ -222,6 +241,16 @@ export class InteractiveTerminalSessionManager {
     }
     record.snapshot.state = "closed";
     record.snapshot.completedAt = new Date().toISOString();
+    if (record.snapshot.managed) {
+      this.killManagedProcess(record, "SIGTERM");
+      record.managedKillTimer = setTimeout(() => {
+        this.killManagedProcess(record, "SIGKILL");
+        record.managedKillTimer = undefined;
+      }, 250);
+      record.managedKillTimer.unref?.();
+      this.scheduleCleanup(record);
+      return { ...record.snapshot };
+    }
     try {
       record.terminal.write("exit\r");
     } catch {
@@ -254,18 +283,52 @@ export class InteractiveTerminalSessionManager {
     };
   }
 
-  dispose(): void {
+  listManaged(): InteractiveTerminalSessionSnapshot[] {
+    return [...this.sessions.values()]
+      .filter((record) => record.snapshot.managed)
+      .map((record) => ({ ...record.snapshot }));
+  }
+
+  dispose(options?: { preserveManaged?: boolean }): void {
     for (const record of this.sessions.values()) {
+      if (options?.preserveManaged && record.snapshot.managed) continue;
       if (record.cleanupTimer) clearTimeout(record.cleanupTimer);
-      if (record.snapshot.state === "running") {
+      if (record.managedKillTimer) clearTimeout(record.managedKillTimer);
+      if (
+        record.snapshot.managed &&
+        (record.snapshot.state === "running" || record.managedKillTimer)
+      ) {
+        this.killManagedProcess(record, "SIGKILL");
+      } else if (record.snapshot.state === "running") {
         try {
           record.terminal.kill();
         } catch {
           // Best effort only.
         }
       }
+      this.sessions.delete(record.snapshot.id);
     }
-    this.sessions.clear();
+  }
+
+  private killManagedProcess(
+    record: InteractiveTerminalSessionRecord,
+    signal: NodeJS.Signals,
+  ): void {
+    // forkpty creates an owned process group. Kill that group, not only the
+    // shell/bun parent, so Next's child server cannot outlive its terminal.
+    if (process.platform !== "win32") {
+      try {
+        process.kill(-record.terminal.pid, signal);
+        return;
+      } catch {
+        // Already exited, or the host PTY does not expose a process group.
+      }
+    }
+    try {
+      record.terminal.kill(signal);
+    } catch {
+      // Exit and explicit stop may race.
+    }
   }
 
   private requireSession(sessionId: string): InteractiveTerminalSessionRecord {

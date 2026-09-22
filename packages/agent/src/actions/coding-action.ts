@@ -11,6 +11,7 @@ export const DOOLITTLE_CODING_SUBACTIONS = [
   "PATCH_FILE",
   "DOOLITTLE_REPOSITORY",
   "SHELL",
+  "DOOLITTLE_APP_SERVER",
 ] as const;
 
 /**

@@ -405,6 +405,7 @@ const API_ALLOWLIST: Record<HttpMethod, AllowedApiPath[]> = {
     { exact: "/cron/runs" },
     { exact: "/deliveries" },
     { exact: "/terminal/history" },
+    { exact: "/terminal/sessions" },
     { exact: "/browser/status" },
     {
       exact: "/browser/inspect",

@@ -14,6 +14,7 @@ import {
   resolveWorkspaceDirectory,
   type WorkspaceDirectorySource,
 } from "../workspace-directory";
+import { AppServerManager } from "./app-server";
 import { createCoreExecutionBackends } from "./backends/core";
 import { createCloudExecutionBackends } from "./cloud/backends";
 import { CloudStoreManager } from "./cloud/store";
@@ -36,6 +37,7 @@ export class TerminalService {
   private readonly backends: Map<ExecutionBackendName, ExecutionBackend>;
   private readonly commandOrchestrator: TerminalServiceCommandOrchestrator;
   private readonly interactiveSessions: InteractiveTerminalSessionManager;
+  readonly appServers: AppServerManager;
   private healthCache?: {
     capturedAt: number;
     value: ExecutionBackendHealth[];
@@ -74,6 +76,7 @@ export class TerminalService {
     this.interactiveSessions = new InteractiveTerminalSessionManager(
       this.workspaceDirectory,
     );
+    this.appServers = new AppServerManager(this.interactiveSessions);
   }
 
   async run(
@@ -85,7 +88,7 @@ export class TerminalService {
   }
 
   invalidateWorkspace(): void {
-    this.interactiveSessions.dispose();
+    this.interactiveSessions.dispose({ preserveManaged: true });
     this.invalidateHealthCache();
   }
 
@@ -158,6 +161,12 @@ export class TerminalService {
     rows?: number;
   }): InteractiveTerminalSessionSnapshot {
     return this.interactiveSessions.start(options);
+  }
+
+  managedApplicationSessions(): InteractiveTerminalSessionSnapshot[] {
+    return this.interactiveSessions
+      .listManaged()
+      .filter((session) => session.state === "running");
   }
 
   writeInteractiveSession(

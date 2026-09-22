@@ -274,6 +274,12 @@ export async function handleOperationsRoutes(
     });
   }
 
+  if (request.method === "GET" && url.pathname === "/terminal/sessions") {
+    return json({
+      sessions: context.services.terminal.managedApplicationSessions(),
+    });
+  }
+
   if (request.method === "POST" && url.pathname === "/terminal/run") {
     const parsed = await readBody(request);
     if ("response" in parsed) return parsed.response;

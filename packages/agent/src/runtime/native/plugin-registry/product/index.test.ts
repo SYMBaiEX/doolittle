@@ -36,6 +36,7 @@ describe("native Doolittle product plugin", () => {
     expect(plugin.actions?.map((action) => action.name)).toEqual(
       expect.arrayContaining([
         "DOOLITTLE_CODING",
+        "DOOLITTLE_APP_SERVER",
         "MEMORY",
         "SHELL",
         "WEB_SEARCH",
@@ -66,6 +67,7 @@ describe("native Doolittle product plugin", () => {
         "PATCH_FILE",
         "DOOLITTLE_REPOSITORY",
         "SHELL",
+        "DOOLITTLE_APP_SERVER",
       ]),
     });
     expect(plugin.responseHandlerEvaluators).toEqual([

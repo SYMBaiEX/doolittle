@@ -18,6 +18,7 @@ import {
   DOOLITTLE_SDK_SHORTCUTS,
 } from "@plugins/doolittle-plugin/sdk-native-surface";
 import { createSecretsVaultPersistenceService } from "@plugins/doolittle-plugin/secrets-vault";
+import { createAppServerAction } from "@/actions/app-server-action";
 import { createCodingAction } from "@/actions/coding-action";
 import {
   createCommandAction,
@@ -68,6 +69,7 @@ export function createDoolittleProductPlugin(
 ): Plugin {
   const actions = withToolPolicyOwnership([
     createCodingAction(),
+    createAppServerAction(services),
     createCommandAction(services, config),
     createShellCommandAction(services, config),
     createSessionSearchAction(config.sessionSearchLimit),

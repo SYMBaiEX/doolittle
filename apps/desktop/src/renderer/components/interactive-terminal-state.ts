@@ -1,6 +1,24 @@
+import type { InteractiveTerminalSession } from "../../shared/contracts";
 import type { InteractiveTerminalTabState } from "./interactive-terminal-store";
 
 export const MAX_CHAT_TERMINAL_CONTEXT = 20_000;
+
+export function isPristineTerminalTab(
+  tab: InteractiveTerminalTabState,
+): boolean {
+  return !tab.sessionId && !tab.startedAt && !tab.output;
+}
+
+export function terminalLifecycleChanged(
+  tab: InteractiveTerminalTabState,
+  session: InteractiveTerminalSession,
+): boolean {
+  return (
+    tab.state !== session.state ||
+    tab.exitCode !== (session.exitCode ?? null) ||
+    tab.completedAt !== (session.completedAt ?? null)
+  );
+}
 
 export function terminalTabLabelId(tabId: string): string {
   return `interactive-terminal-${tabId}-label`;
