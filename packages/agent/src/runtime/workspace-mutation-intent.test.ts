@@ -12,6 +12,12 @@ describe("workspace mutation intent", () => {
     "Refactor src/runtime/chat.ts",
     "Add tests for the workspace service",
     "Delete the unused component file",
+    "Inspect README.md, then edit it to fix the setup instructions.",
+    "Do not edit package.json, but create README.md.",
+    "Explain how this repo works, then update its README.md.",
+    "Fix the source file without modifying unrelated files.",
+    'Update "README.md" and preserve existing instructions.',
+    "Please write `src/page.tsx`.",
   ])("detects explicit local mutation requests: %s", (message) => {
     expect(hasExplicitWorkspaceMutationIntent(message)).toBe(true);
   });
@@ -23,6 +29,15 @@ describe("workspace mutation intent", () => {
     "What should I change in this codebase?",
     "Write an email to the team",
     "Run the tests",
+    "HARNESS-A-0922: Read-only verification. Inspect this selected project’s package.json, README.md, and two relevant source files using tools. Report the exact working directory, package name, scripts, and a short source summary. Do not create, edit, delete, install, or start anything. Include HARNESS-A-0922 in your final answer.",
+    "Inspect the project. Don't create, edit, or delete any files.",
+    "Read README.md without editing or deleting it.",
+    "Review the source files and make no changes.",
+    "Review the project; avoid creating or modifying files.",
+    'Inspect the README example "create a source file" and explain it.',
+    "Review the quoted instruction 'edit src/page.tsx' without executing it.",
+    "Find `bun run build` in package.json and report its value.",
+    "Inspect the source files and report what you would edit.",
   ])("leaves informational and non-file requests alone: %s", (message) => {
     expect(hasExplicitWorkspaceMutationIntent(message)).toBe(false);
   });
@@ -61,5 +76,17 @@ describe("workspace mutation intent", () => {
     expect(
       continuesWorkspaceMutationIntent("Tell me about this", recentMessages),
     ).toBe(false);
+    expect(
+      renderWorkspaceMutationExecutionContract(
+        "Continue, but do not edit or create any files.",
+        recentMessages,
+      ),
+    ).toEqual([]);
+    expect(
+      renderWorkspaceMutationExecutionContract(
+        "Continue inspecting the project without editing any files.",
+        recentMessages,
+      ),
+    ).toEqual([]);
   });
 });

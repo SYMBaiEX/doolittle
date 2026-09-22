@@ -2,7 +2,24 @@ const INFORMATIONAL_PREFIX =
   /^(?:can you (?:explain|show me how)|could you (?:explain|show me how)|explain\b|how (?:can|do|should|would)\b|how to\b|show me how\b|tell me how\b|what (?:could|should|would)\b)/iu;
 
 const MUTATION_VERB =
-  /\b(?:add|added|adding|build|built|building|create|created|creating|delete|deleted|deleting|edit|edited|editing|fix|fixed|fixing|generate|generated|generating|implement|implemented|implementing|make|made|making|modify|modified|modifying|move|moved|moving|patch|patched|patching|refactor|refactored|refactoring|remove|removed|removing|rename|renamed|renaming|repair|repaired|repairing|rewrite|rewrote|rewritten|rewriting|scaffold|scaffolded|scaffolding|update|updated|updating|write|wrote|written|writing)\b/iu;
+  /\b(?:add|added|adding|build|built|building|create|created|creating|delete|deleted|deleting|edit|edited|editing|fix|fixed|fixing|generate|generated|generating|implement|implemented|implementing|make|made|making|modify|modified|modifying|move|moved|moving|patch|patched|patching|refactor|refactored|refactoring|remove|removed|removing|rename|renamed|renaming|repair|repaired|repairing|rewrite|rewrote|rewritten|rewriting|scaffold|scaffolded|scaffolding|update|updated|updating|write|wrote|written|writing)\b/giu;
+
+const NEGATED_ACTION_PREFIX =
+  /\b(?:do\s+not|don['’]t|must\s+not|mustn['’]t|should\s+not|shouldn['’]t|not\s+to|never|without|avoid|refrain\s+from|no)\b/iu;
+
+// Keep offsets and quoted filenames intact in the original text, but do not
+// interpret example commands or quoted instructions as the user's actions.
+function unquotedInstructions(message: string): string {
+  return message
+    .replace(
+      /```[\s\S]*?(?:```|$)|`[^`\n]*`|"(?:\\.|[^"\\])*"|“[^”]*”|(?:^|\s)'[^'\n]+'|‘[^’]*’/gu,
+      (quote) => " ".repeat(quote.length),
+    )
+    .replace(
+      /\bmake\s+no\s+(?:(?:file|workspace|code)\s+)?changes\b/giu,
+      (phrase) => " ".repeat(phrase.length),
+    );
+}
 
 const WORKSPACE_ARTIFACT =
   /(?:\b(?:adapter|app|application|class|code|codebase|component|config(?:uration)?|directory|docs?|documentation|file|folder|function|module|page|project|readme(?:\.md)?|repo(?:sitory)?|route|script|service|source|stylesheet|tests?|workspace)\b|(?:^|[\s'"`(])(?:\.\.?\/)?(?:[\w@.-]+\/)+[\w@.-]+|\b[\w-]+\.(?:c|cc|cpp|css|go|h|hpp|html|java|js|json|jsx|md|mjs|php|py|rb|rs|sh|sql|swift|toml|ts|tsx|vue|xml|ya?ml)\b)/iu;
@@ -25,8 +42,24 @@ interface MutationIntentMessage {
  */
 export function hasExplicitWorkspaceMutationIntent(message: string): boolean {
   const normalized = message.trim();
-  if (!normalized || INFORMATIONAL_PREFIX.test(normalized)) return false;
-  return MUTATION_VERB.test(normalized) && WORKSPACE_ARTIFACT.test(normalized);
+  if (!normalized || !WORKSPACE_ARTIFACT.test(normalized)) return false;
+  const instructions = unquotedInstructions(normalized);
+  // Negation applies to coordinated lists ("do not create, edit, or delete")
+  // until an actual clause boundary. A later "but/then edit" is still work.
+  return instructions
+    .split(/[.!?](?=\s|$)|[;\n]|\b(?:but|however|then)\b/iu)
+    .some((clause) => {
+      if (INFORMATIONAL_PREFIX.test(clause.trim())) return false;
+      return [...clause.matchAll(MUTATION_VERB)].some((verb) => {
+        const before = clause.slice(0, verb.index);
+        return (
+          !NEGATED_ACTION_PREFIX.test(before) &&
+          !/\b(?:how\s+to|(?:would|could|might|should)\s*)$/iu.test(
+            before.trimEnd(),
+          )
+        );
+      });
+    });
 }
 
 export function continuesWorkspaceMutationIntent(
