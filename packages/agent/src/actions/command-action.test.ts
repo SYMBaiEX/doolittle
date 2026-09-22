@@ -176,12 +176,19 @@ describe("SDK command action", () => {
     });
   });
 
-  it("resolves explicit commands through Eliza's pre-LLM shortcut gate", async () => {
+  it.each([
+    "/status",
+    "/model use codex gpt-5.6-luna",
+    "/model set provider codex",
+    "/model set model gpt-5.6-luna",
+    "/model set baseUrl https://example.test/v1",
+    "/model set reasoningEffort medium",
+  ])("resolves %s through Eliza's pre-LLM shortcut gate", async (command) => {
     const action = createCommandAction({} as AppServices, config);
     const shortcutRegistry = new ShortcutRegistry();
     shortcutRegistry.register(createCommandShortcut(config.workspaceDir));
     const id = "00000000-0000-4000-8000-000000000001" as UUID;
-    const input = message("/status");
+    const input = message(command);
     const runtime = {
       actions: [action],
       agentId: id,
@@ -205,5 +212,10 @@ describe("SDK command action", () => {
       );
     }
     expect(result.result.responseContent?.text).toBe("Runtime is ready.");
+    expect(executeSlashCommand).toHaveBeenLastCalledWith(
+      expect.objectContaining({ message: command }),
+      expect.objectContaining({ runtime }),
+      undefined,
+    );
   });
 });

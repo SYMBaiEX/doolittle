@@ -4,6 +4,7 @@ import {
   setTrajectoryPurpose,
 } from "@elizaos/core";
 import type { AgentExecutionContext } from "@/runtime/chat";
+import { matchesRegisteredCommandShortcut } from "@/runtime/command-shortcut-match";
 import { checkOllamaReadiness } from "@/runtime/native/plugin-registry/ollama-readiness";
 import type { StreamingOutputModel } from "./provider-streaming";
 import {
@@ -256,7 +257,11 @@ export async function executeProviderMessageTurn(
         }
         if (
           input.settingsDuring.model.provider === "ollama" &&
-          !input.context.config.offlineBootstrapMode
+          !input.context.config.offlineBootstrapMode &&
+          // Recovery commands must reach the SDK's pre-LLM shortcut gate even
+          // when the current provider is unavailable. Matching is not dispatch:
+          // the SDK still owns command authorization and action execution.
+          !matchesRegisteredCommandShortcut(input.context.runtime, prompt)
         ) {
           const availability = await checkOllamaReadiness(
             String(

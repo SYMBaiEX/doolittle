@@ -1,8 +1,16 @@
-import { ChannelType, type Memory, type UUID } from "@elizaos/core";
+import {
+  type Action,
+  ChannelType,
+  type Memory,
+  runShortcutGate,
+  ShortcutRegistry,
+  type UUID,
+} from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { executeProviderMessageTurn } from "./chat-turn/provider-handler";
 import { createProviderStreamState } from "./chat-turn/provider-streaming";
+import { DOOLITTLE_COMMAND_ACTION } from "./command-shortcut-match";
 
 function createContext(overrides?: {
   onHandleMessage?: (handlers: {
@@ -120,6 +128,7 @@ describe("chat turn provider handler", () => {
   async function executeTestTurn(
     context: AgentExecutionContext,
     provider = "provider-name",
+    text = "hello",
   ) {
     return executeProviderMessageTurn({
       context,
@@ -127,7 +136,7 @@ describe("chat turn provider handler", () => {
         id: "memory-failure" as UUID,
         roomId: "room-failure" as UUID,
         entityId: "entity-failure" as UUID,
-        content: { text: "hello", source: "cli", channelType: ChannelType.DM },
+        content: { text, source: "cli", channelType: ChannelType.DM },
       } as Memory,
       streamState: createProviderStreamState({
         resolveStreamingUpdate: (current, incoming) => ({
@@ -213,6 +222,105 @@ describe("chat turn provider handler", () => {
     expect(result.response).toBe("Offline bootstrap is ready.");
     expect(result.runFailureMessage).toBeUndefined();
   });
+
+  it.each([
+    "/model use codex gpt-5.6-luna",
+    "/model set provider codex",
+    "/model set model gpt-5.6-luna",
+    "/model set baseUrl https://example.test/v1",
+    "/model set reasoningEffort medium",
+  ])(
+    "lets the SDK execute %s while the current Ollama route is offline",
+    async (command) => {
+      const { context, useModel } = createContext();
+      const handler = vi.fn<Action["handler"]>(
+        async (_runtime, _memory, _state, _options, callback) => {
+          await callback?.({ text: "Model settings updated." });
+          return {
+            success: true,
+            text: "Model settings updated.",
+            userFacingText: "Model settings updated.",
+            verifiedUserFacing: true,
+          };
+        },
+      );
+      const action = {
+        name: DOOLITTLE_COMMAND_ACTION,
+        description: "Update model settings",
+        validate: async () => true,
+        handler,
+      } satisfies Action;
+      const shortcutRegistry = new ShortcutRegistry();
+      shortcutRegistry.register({
+        id: "test-model-command",
+        kind: "explicit",
+        aliases: ["/model"],
+        target: { kind: "action", name: DOOLITTLE_COMMAND_ACTION },
+        requiresAction: DOOLITTLE_COMMAND_ACTION,
+      });
+      Object.assign(context.runtime, {
+        actions: [action],
+        shortcutRegistry,
+        logger: { warn: vi.fn(), debug: vi.fn() },
+      });
+      const fetch = vi.fn(async () => {
+        throw new TypeError("Ollama offline");
+      });
+      context.runtime.fetch = fetch as typeof globalThis.fetch;
+      const handleMessage = vi.fn(async (runtime, memory) => {
+        const gate = await runShortcutGate({
+          runtime,
+          message: memory,
+          state: {} as never,
+          responseId: "00000000-0000-4000-8000-000000000001" as UUID,
+          senderRole: "OWNER",
+        });
+        if (gate?.kind !== "direct_reply") {
+          throw new Error("The SDK did not dispatch the registered command.");
+        }
+        return { ...gate.result, didRespond: true };
+      });
+      const messageService = context.runtime.messageService;
+      if (!messageService)
+        throw new Error("Expected the test message service.");
+      messageService.handleMessage = handleMessage;
+
+      const result = await executeTestTurn(context, "ollama", command);
+
+      expect(fetch).not.toHaveBeenCalled();
+      expect(useModel).not.toHaveBeenCalled();
+      expect(handleMessage).toHaveBeenCalledOnce();
+      expect(handler).toHaveBeenCalledOnce();
+      expect(handler.mock.calls[0]?.[1]).toMatchObject({
+        content: { text: command },
+      });
+      expect(result.runFailureMessage).toBeUndefined();
+      expect(result.handledMessage).toBe(true);
+      expect(result.response).toBe("Model settings updated.");
+    },
+  );
+
+  it.each(["/model", "/not-a-command", "please use codex"])(
+    "does not exempt unregistered input from Ollama preflight: %s",
+    async (command) => {
+      const handled = vi.fn();
+      const { context } = createContext({ onHandleMessage: handled });
+      Object.assign(context.runtime, {
+        actions: [],
+        shortcutRegistry: new ShortcutRegistry(),
+      });
+      context.runtime.getSetting = () => "http://127.0.0.1:11434";
+      context.runtime.fetch = vi.fn(async () => {
+        throw new TypeError("Ollama offline");
+      }) as typeof fetch;
+
+      const result = await executeTestTurn(context, "ollama", command);
+
+      expect(handled).not.toHaveBeenCalled();
+      expect(result.handledMessage).toBe(false);
+      expect(result.runFailureMessage).toContain("ollama serve");
+    },
+  );
 
   it("returns the terminal SDK response without re-emitting SDK message events", async () => {
     const { context, emittedEvents } = createContext({

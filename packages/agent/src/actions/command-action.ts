@@ -1,13 +1,15 @@
 import type {
   Action,
   ActionResult,
-  AgentRuntime,
-  IAgentRuntime,
   Memory,
   ShortcutDefinition,
 } from "@elizaos/core";
 import { executeSlashCommand } from "@/runtime/chat";
 import { getCommandCatalogEntries } from "@/runtime/command-catalog";
+import {
+  DOOLITTLE_COMMAND_ACTION,
+  matchesRegisteredCommandShortcut,
+} from "@/runtime/command-shortcut-match";
 import {
   getScopedTurnAbortSignal,
   getScopedTurnCommandHooks,
@@ -16,7 +18,7 @@ import type { AppServices } from "@/services";
 import type { EnvConfig } from "@/types/runtime";
 import { messageText } from "@/utils/eliza-compat";
 
-export const DOOLITTLE_COMMAND_ACTION = "DOOLITTLE_COMMAND";
+export { DOOLITTLE_COMMAND_ACTION } from "@/runtime/command-shortcut-match";
 
 function commandInput(message: Memory) {
   const metadata = message.metadata as
@@ -56,23 +58,6 @@ export function commandShortcutAliases(workspaceDir?: string): string[] {
     }
   }
   return [...aliases].sort();
-}
-
-function matchesRegisteredCommandShortcut(
-  runtime: IAgentRuntime,
-  text: string,
-): boolean {
-  const shortcutRegistry = (
-    runtime as IAgentRuntime & Pick<AgentRuntime, "shortcutRegistry">
-  ).shortcutRegistry;
-  const match = shortcutRegistry.match(text, {
-    actions: runtime.actions.map((action) => action.name),
-    allowNatural: false,
-  });
-  return (
-    match?.shortcut.target.kind === "action" &&
-    match.shortcut.target.name === DOOLITTLE_COMMAND_ACTION
-  );
 }
 
 export function createCommandShortcut(
