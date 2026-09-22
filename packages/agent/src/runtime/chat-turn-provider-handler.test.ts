@@ -117,6 +117,87 @@ function createTurnSettings() {
 }
 
 describe("chat turn provider handler", () => {
+  async function executeTestTurn(
+    context: AgentExecutionContext,
+    provider = "provider-name",
+  ) {
+    return executeProviderMessageTurn({
+      context,
+      memory: {
+        id: "memory-failure" as UUID,
+        roomId: "room-failure" as UUID,
+        entityId: "entity-failure" as UUID,
+        content: { text: "hello", source: "cli", channelType: ChannelType.DM },
+      } as Memory,
+      streamState: createProviderStreamState({
+        resolveStreamingUpdate: (current, incoming) => ({
+          kind: "append",
+          emittedText: incoming,
+          nextText: current + incoming,
+        }),
+        extractCompatTextContent: () => "",
+      }),
+      messagePolicy: { useMultiStep: true, maxIterations: 4 },
+      abortSignal: undefined,
+      settingsDuring: {
+        ...createTurnSettings(),
+        model: { ...createTurnSettings().model, provider },
+      },
+      connectionSource: "cli",
+      roomId: "room-failure",
+      buildProviderFailureMessage: (_provider, _model, error) => String(error),
+    });
+  }
+
+  it.each([
+    { failureKind: "no_provider" },
+    {
+      thought:
+        "Handle a temporary reply failure during running the native tool message runtime.",
+    },
+  ])(
+    "marks SDK-generated failure replies as failed even without a thrown error: %j",
+    async (marker) => {
+      const { context } = createContext({
+        onHandleMessage: async () => ({
+          responseContent: {
+            text: "Provider unavailable. Try again.",
+            ...marker,
+          },
+          responseMessages: [],
+        }),
+      });
+      const result = await executeTestTurn(context);
+      expect(result.runFailureMessage).toBe("Provider unavailable. Try again.");
+      expect(result.response).toBe(result.runFailureMessage);
+    },
+  );
+
+  it("does not classify genuine assistant prose about a failure as a failed run", async () => {
+    const { context } = createContext({
+      onHandleMessage: async () => ({
+        responseContent: {
+          text: "Something went wrong on my end. Please try again.",
+        },
+        responseMessages: [],
+      }),
+    });
+    expect((await executeTestTurn(context)).runFailureMessage).toBeUndefined();
+  });
+
+  it("fails an offline Ollama turn before the SDK can replace the error with a successful canned reply", async () => {
+    const handled = vi.fn();
+    const { context } = createContext({ onHandleMessage: handled });
+    context.runtime.getSetting = () => "http://127.0.0.1:11434";
+    context.runtime.fetch = vi.fn(async () => {
+      throw new TypeError("connect failed");
+    }) as typeof fetch;
+    const result = await executeTestTurn(context, "ollama");
+    expect(handled).not.toHaveBeenCalled();
+    expect(result.runFailureMessage).toContain("ollama serve");
+    expect(result.handledMessage).toBe(false);
+  });
+
   it("returns the terminal SDK response without re-emitting SDK message events", async () => {
     const { context, emittedEvents } = createContext({
       sdkEmitsMessageSent: true,

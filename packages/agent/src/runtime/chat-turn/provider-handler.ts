@@ -4,6 +4,7 @@ import {
   setTrajectoryPurpose,
 } from "@elizaos/core";
 import type { AgentExecutionContext } from "@/runtime/chat";
+import { checkOllamaReadiness } from "@/runtime/native/plugin-registry/ollama-readiness";
 import type { StreamingOutputModel } from "./provider-streaming";
 import {
   isUnsynthesizedToolResponse,
@@ -73,7 +74,20 @@ function responseText(memory: Memory | undefined): string {
 
 type SdkResponseContent = {
   text?: unknown;
+  failureKind?: unknown;
+  thought?: unknown;
 };
+
+function isSdkFailureReply(content: SdkResponseContent | null | undefined) {
+  // beta.7 annotates no-provider replies, but its structured-failure builder
+  // only supplies this fixed internal marker. Do not classify ordinary prose
+  // (including a user asking about errors) by matching the displayed text.
+  return (
+    content?.failureKind === "no_provider" ||
+    content?.thought ===
+      "Handle a temporary reply failure during running the native tool message runtime."
+  );
+}
 
 function actionResultsFromState(state: unknown): ActionResult[] {
   if (!state || typeof state !== "object") return [];
@@ -240,6 +254,20 @@ export async function executeProviderMessageTurn(
         if (!messageService) {
           throw new Error("ElizaOS message service is not registered.");
         }
+        if (input.settingsDuring.model.provider === "ollama") {
+          const availability = await checkOllamaReadiness(
+            String(
+              input.context.runtime.getSetting("OLLAMA_API_ENDPOINT") ||
+                input.context.config.ollamaApiEndpoint,
+            ),
+            input.settingsDuring.model.model,
+            input.context.runtime.fetch,
+          );
+          throwIfTurnAborted(input.abortSignal);
+          // The SDK otherwise swallows this known configuration/network
+          // failure into a canned successful reply and retries other slots.
+          if (!availability.ready) throw new Error(availability.detail);
+        }
         const settledActionResults: ActionResult[] = [];
         const messageResult = await messageService.handleMessage(
           input.context.runtime,
@@ -283,7 +311,16 @@ export async function executeProviderMessageTurn(
           provisionalResponse: input.streamState.getResponse(),
           actionResults,
         });
-        if (isUnsynthesizedToolResponse(response, actionResults, prompt)) {
+        if (isSdkFailureReply(messageResult?.responseContent)) {
+          runFailureMessage =
+            response ||
+            "The model provider could not complete this turn. Check provider status and retry.";
+          response = runFailureMessage;
+        }
+        if (
+          !runFailureMessage &&
+          isUnsynthesizedToolResponse(response, actionResults, prompt)
+        ) {
           input.context.runtime.logger?.warn(
             {
               runId: input.runId,
