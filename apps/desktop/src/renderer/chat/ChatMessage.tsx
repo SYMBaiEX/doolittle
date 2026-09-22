@@ -86,6 +86,10 @@ export function ChatMessage({
   return (
     <article
       className={`chat-message group ${message.role} ${message.error && !showRunReceipt ? "error" : ""}`}
+      data-message-role={message.role}
+      data-message-state={
+        message.pending ? "streaming" : message.error ? "error" : "complete"
+      }
     >
       <div className="chat-message-label">
         <strong>
@@ -94,7 +98,9 @@ export function ChatMessage({
           </span>
           <span>{message.role === "assistant" ? "Doolittle" : "You"}</span>
         </strong>
-        <time>{displayTimestamp(message.createdAt)}</time>
+        <time dateTime={message.createdAt}>
+          {displayTimestamp(message.createdAt)}
+        </time>
       </div>
       <div className="chat-message-body">
         {receipt && showRunReceipt ? (

@@ -23,19 +23,19 @@ describe("workspace route density", () => {
     expect(page).toContain("active={active}");
     expect(
       detail.match(/className=\{SESSION_DISCLOSURE_CLASS\}/gu),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     expect(detail).not.toContain("<details open");
     expect(detail).not.toContain('"/sessions/summary?');
     expect(detail).toContain("requestPolicy.continuity");
     expect(detail).toContain("continuityOpen && continuity.loading");
     expect(detail).toContain("data-session-detail");
     expect(detail).toContain("SESSION_TRANSCRIPT_PANEL_CLASS");
-    expect(detail).toContain(">Persisted messages<");
+    expect(detail).toContain(">Messages<");
     expect(detail).not.toContain("Session highlights");
     expect(page).not.toContain('import "./sessions.css"');
     expect(layout).toContain("clamp(250px,24vw,320px)");
     expect(layout).toContain("w-[min(100%,1080px)]");
-    expect(layout).toContain("w-[min(100%,720px)]");
+    expect(layout).toContain("max-w-[min(100%,760px)]");
     expect(list).toContain("export const SESSION_LIST_PAGE_SIZE = 20");
     expect(list).toContain("min-h-[38px]");
   });

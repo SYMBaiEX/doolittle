@@ -198,7 +198,7 @@ describe("MessageContent", () => {
     expect(html).toContain(longPath);
   });
 
-  it("renders one tool call as one compact collapsed disclosure row", () => {
+  it("renders a tool call in one compact activity disclosure", () => {
     const content = [
       JSON.stringify({
         type: "tool_call",
@@ -220,17 +220,16 @@ describe("MessageContent", () => {
       <MessageContent content={content} separateAgentEvents />,
     );
 
+    expect(html).toContain('data-tool-group="true"');
     expect(html).toContain('data-tool-card="true"');
     expect(html).toContain('data-tool-status="completed"');
     expect(html).toContain("Doolittle Workspace");
     expect(html).toContain("Completed");
-    expect(html).not.toContain('data-tool-group="true"');
-    expect(html).not.toContain(">Activity<");
-    expect(html).not.toContain("Tool activity");
+    expect(html).toContain(">Activity</strong>");
     expect(html).not.toContain("<details open");
   });
 
-  it("groups multiple tool calls into one collapsed activity row", () => {
+  it("groups multiple tool calls in one selectable activity timeline", () => {
     const content = [
       JSON.stringify({
         type: "tool_call",
@@ -264,11 +263,14 @@ describe("MessageContent", () => {
 
     expect(html.match(/data-tool-group="true"/gu)).toHaveLength(1);
     expect(html.match(/data-tool-card="true"/gu)).toHaveLength(2);
-    expect(html).toContain("1 active · 2");
-    expect(html).toContain("Read File · Web Search");
+    expect(html).toContain("1 running · 2 steps");
+    expect(html).toContain("2 steps · Web Search");
+    expect(html).toContain("Read File");
+    expect(html).toContain('data-tool-detail="true"');
+    expect(html.match(/<summary/gu)).toHaveLength(1);
   });
 
-  it("keeps a pending single-tool response in one compact row", () => {
+  it("opens the activity timeline while a response is streaming", () => {
     const content = [
       JSON.stringify({
         type: "tool_call",
@@ -290,10 +292,10 @@ describe("MessageContent", () => {
       <MessageContent content={content} pending separateAgentEvents />,
     );
 
+    expect(html).toContain('data-tool-group="true"');
     expect(html).toContain('data-tool-card="true"');
     expect(html).toContain('data-tool-status="completed"');
-    expect(html).not.toContain('data-tool-group="true"');
-    expect(html).not.toContain("<details open");
+    expect(html).toMatch(/<details[^>]*data-tool-group="true"[^>]*open=""/u);
   });
 
   it("uses the most useful tool target as an inline compact summary", () => {

@@ -81,12 +81,12 @@ describe("SessionDetail layout", () => {
     );
 
     expect(html).toContain('data-session-detail="true"');
-    expect(html).toContain("Persisted messages");
-    expect(html).toContain(">Persisted messages<");
+    expect(html).toContain('data-session-summary="true"');
+    expect(html).toContain(">Messages<");
     expect(html).toContain(">1 message<");
     expect(html).not.toContain("Session highlights");
-    expect(html).not.toContain("Branch conversation");
-    expect(html).not.toContain("2 participants");
+    expect(html).toContain("Branch conversation");
+    expect(html).toContain("2 participants");
     expect(html).not.toContain(
       "Rendered from the saved transcript for this session.",
     );

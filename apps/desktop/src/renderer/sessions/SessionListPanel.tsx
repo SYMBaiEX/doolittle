@@ -16,6 +16,7 @@ import {
 } from "../lib";
 import { compactSessionPreview } from "../session-preview";
 import {
+  SESSION_LIST_HEADER_CLASS,
   SESSION_LIST_PANEL_CLASS,
   SESSION_ROW_CLASS,
   SESSION_ROW_SELECTED_CLASS,
@@ -91,11 +92,16 @@ export function SessionListPanel({
   });
   return (
     <section className={`list-panel ${SESSION_LIST_PANEL_CLASS}`}>
+      <div className={SESSION_LIST_HEADER_CLASS}>
+        <strong>Conversations</strong>
+        <small data-history-count="true">{filtered.length} shown</small>
+      </div>
       <label htmlFor="session-search-input">
         <span className="sr-only">Search sessions</span>
         <Input
           id="session-search-input"
-          placeholder="Search conversations or message text"
+          aria-label="Search conversations"
+          placeholder="Search conversations"
           value={query}
           onChange={(event) => {
             const next = event.target.value;
@@ -127,6 +133,7 @@ export function SessionListPanel({
         {sessionWindow.visible.map((session) => (
           <button
             className={`${SESSION_ROW_CLASS} ${selectedId === session.sessionId ? SESSION_ROW_SELECTED_CLASS : ""}`}
+            aria-pressed={selectedId === session.sessionId}
             data-session-row="true"
             key={session.sessionId}
             onClick={() => onSelect(session)}

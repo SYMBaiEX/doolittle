@@ -1144,6 +1144,9 @@ describe("chat presentation components", () => {
         }}
       />,
     );
+    expect(html).toContain('data-message-role="user"');
+    expect(html).toContain('data-message-state="complete"');
+    expect(html).toContain('datetime="2026-08-09T10:00:00.000Z"');
     expect(html).toContain('aria-label="Message attachments"');
     expect(html).toContain("brief.md");
     expect(html).toContain("document · 2 KB");

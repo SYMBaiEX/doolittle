@@ -100,14 +100,14 @@ export function SessionsPage({
         </div>
       ) : (
         <PageHeader
-          eyebrow="Workspace"
-          title="Sessions"
+          eyebrow="Chat"
+          title="Conversation history"
           description={
             projectId === null
-              ? "Search, inspect, rename, and resume unscoped local conversations."
+              ? "Find and reopen conversations outside a project."
               : projectId
-                ? "Search, inspect, rename, and resume conversations in this project."
-                : "Search, inspect, rename, and resume every conversation stored by the local runtime."
+                ? "Find and reopen conversations in this project."
+                : "Find, review, and reopen conversations from your workspace."
           }
           actions={actions}
         />

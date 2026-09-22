@@ -1,18 +1,26 @@
 import { PagePanel } from "@elizaos/ui/components/composites/page-panel";
 import { Button } from "@elizaos/ui/components/ui/button";
 import { StatusBadge } from "@elizaos/ui/components/ui/status-badge";
-import { Activity, ChevronRight, Wrench } from "lucide-react";
-import { useMemo, useState } from "react";
+import {
+  Activity,
+  Check,
+  ChevronRight,
+  LoaderCircle,
+  TriangleAlert,
+  Wrench,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Streamdown, type UrlTransform } from "streamdown";
 import "streamdown/styles.css";
 import {
   MESSAGE_AGENT_STEPS_CLASS,
   MESSAGE_RESPONSE_CLASS,
   MESSAGE_TOOL_BODY_CLASS,
-  MESSAGE_TOOL_CARD_CLASS,
-  MESSAGE_TOOL_CARD_SUMMARY_CLASS,
   MESSAGE_TOOL_GROUP_CLASS,
+  MESSAGE_TOOL_LIST_CLASS,
   MESSAGE_TOOL_PAYLOAD_CLASS,
+  MESSAGE_TOOL_ROW_CLASS,
+  MESSAGE_TOOL_ROW_SELECTED_CLASS,
   MESSAGE_TOOL_SECTION_CLASS,
   MESSAGE_TOOL_SECTION_HEADING_CLASS,
   MESSAGE_TOOL_STATE_CLASS,
@@ -169,89 +177,6 @@ function WebSearchSources({ activity }: { activity: ToolActivity }) {
   );
 }
 
-function ToolActivityCard({ activity }: { activity: ToolActivity }) {
-  const [copyLabel, setCopyLabel] = useState("Copy");
-  const summary = toolSummary(activity);
-  const copyOutput = async () => {
-    const value = formatToolPayload(activity.output);
-    if (!value || !navigator.clipboard?.writeText) return;
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopyLabel("Copied");
-    } catch {
-      setCopyLabel("Copy failed");
-    }
-    window.setTimeout(() => setCopyLabel("Copy"), 1_500);
-  };
-
-  return (
-    <details
-      className={MESSAGE_TOOL_CARD_CLASS}
-      data-tool-card="true"
-      data-tool-status={activity.status}
-    >
-      <summary className={MESSAGE_TOOL_CARD_SUMMARY_CLASS}>
-        <UiIcon className="text-[var(--accent)]" icon={Wrench} size="xs" />
-        <span className="flex min-w-0 items-baseline gap-1.25">
-          <strong className="truncate text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)]">
-            {toolLabel(activity)}
-          </strong>
-          {summary ? (
-            <>
-              <i
-                aria-hidden="true"
-                className="shrink-0 font-mono text-[length:var(--text-meta)] not-italic text-[var(--faint)]"
-              >
-                ·
-              </i>
-              <small
-                className="min-w-0 flex-1 truncate font-mono text-[length:var(--text-meta)] text-[var(--faint)]"
-                title={summary}
-              >
-                {summary}
-              </small>
-            </>
-          ) : null}
-        </span>
-        <StatusBadge
-          className={`${MESSAGE_TOOL_STATE_CLASS} max-[760px]:text-[0]`}
-          label={statusLabel(activity.status)}
-          status={statusVariant(activity.status)}
-          pulse={activity.status === "running"}
-          withDot
-        />
-        <UiIcon
-          className="text-[var(--faint)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
-          icon={ChevronRight}
-          size="xs"
-        />
-      </summary>
-      <div className={MESSAGE_TOOL_BODY_CLASS}>
-        {activity.error ? (
-          <p className="my-2.25 border-[var(--danger)] border-l-2 bg-[color-mix(in_srgb,var(--danger)_7%,transparent)] px-2.5 py-2 text-[11px] text-[color-mix(in_srgb,var(--danger)_82%,var(--text))]">
-            {activity.error}
-          </p>
-        ) : null}
-        <ToolPayload label="Input" value={activity.input} />
-        <WebSearchSources activity={activity} />
-        <ToolPayload label="Raw output" value={activity.output} />
-        {activity.output !== undefined ? (
-          <footer className="flex justify-end pt-2.25">
-            <Button
-              onClick={() => void copyOutput()}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              {copyLabel}
-            </Button>
-          </footer>
-        ) : null}
-      </div>
-    </details>
-  );
-}
-
 function ToolActivityGroup({
   pending,
   tools,
@@ -259,6 +184,16 @@ function ToolActivityGroup({
   pending: boolean;
   tools: ToolActivity[];
 }) {
+  const latestToolId = tools.at(-1)?.id ?? null;
+  const [selectedId, setSelectedId] = useState(latestToolId);
+  const [copyLabel, setCopyLabel] = useState("Copy output");
+  const [expanded, setExpanded] = useState(pending);
+  useEffect(() => setSelectedId(latestToolId), [latestToolId]);
+  useEffect(() => {
+    if (pending) setExpanded(true);
+  }, [pending]);
+  const selected =
+    tools.find((activity) => activity.id === selectedId) ?? tools.at(-1);
   const completed = tools.filter(
     (activity) => activity.status === "completed",
   ).length;
@@ -272,56 +207,156 @@ function ToolActivityGroup({
         : ("completed" as const);
   const state =
     failed > 0
-      ? `${failed} failed`
+      ? failed === 1 && tools.length === 1
+        ? "Failed"
+        : `${failed} failed · ${tools.length} steps`
       : active > 0
-        ? `${active} active`
+        ? active === 1 && tools.length === 1
+          ? "Running"
+          : `${active} running · ${tools.length} steps`
         : pending
           ? "Working"
-          : "Completed";
+          : tools.length === 1
+            ? "Completed"
+            : `${tools.length} steps complete`;
+  const latestTool = tools.at(-1);
+  const latestSummary = latestTool ? toolSummary(latestTool) : undefined;
+  const activitySummary = latestTool
+    ? `${tools.length > 1 ? `${tools.length} steps · ` : ""}${toolLabel(latestTool)}`
+    : "Agent activity";
+  const copyOutput = async () => {
+    const value = formatToolPayload(selected?.output);
+    if (!value || !navigator.clipboard?.writeText) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyLabel("Copied");
+    } catch {
+      setCopyLabel("Copy failed");
+    }
+    window.setTimeout(() => setCopyLabel("Copy output"), 1_500);
+  };
 
   return (
     <details
       className={MESSAGE_TOOL_GROUP_CLASS}
       data-tool-group="true"
       data-tool-status={status}
+      open={expanded}
+      onToggle={(event) => setExpanded(event.currentTarget.open)}
     >
       <summary className={MESSAGE_TOOL_SUMMARY_CLASS}>
-        <span
-          className={`${MESSAGE_TOOL_STATE_CLASS} ${
-            status === "error"
-              ? "text-[var(--danger)]"
-              : status === "running"
-                ? "text-[var(--accent)]"
-                : "text-[var(--success)]"
-          }`}
-        >
-          <i
-            aria-hidden="true"
-            className={`size-1.25 rounded-full bg-current ${
-              status === "running"
-                ? "animate-pulse motion-reduce:animate-none"
-                : ""
-            }`}
-          />
+        <UiIcon
+          className={
+            status === "error" ? "text-[var(--danger)]" : "text-[var(--accent)]"
+          }
+          icon={Activity}
+          size="sm"
+        />
+        <strong className="text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)] max-[560px]:sr-only">
           Activity
+        </strong>
+        <span className="flex min-w-0 items-baseline gap-1.25">
+          <span
+            className="truncate text-[length:var(--text-meta)] text-[var(--text-soft)]"
+            title={activitySummary}
+          >
+            {activitySummary}
+          </span>
+          {latestSummary ? (
+            <small
+              className="min-w-0 truncate font-mono text-[length:var(--text-meta)] text-[var(--faint)] max-[760px]:hidden"
+              title={latestSummary}
+            >
+              · {latestSummary}
+            </small>
+          ) : null}
         </span>
-        <span className="truncate text-[length:var(--text-meta)] text-[var(--text-soft)]">
-          {tools.map(toolLabel).join(" · ")}
-        </span>
-        <span className="whitespace-nowrap font-mono text-[length:var(--text-meta)] text-[var(--faint)] max-[760px]:hidden">
-          {state} · {tools.length}
-        </span>
+        <StatusBadge
+          className={`${MESSAGE_TOOL_STATE_CLASS} max-[760px]:text-[0]`}
+          label={state}
+          status={statusVariant(status)}
+          pulse={status === "running"}
+          withDot
+        />
         <UiIcon
           className="text-[var(--faint)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
           icon={ChevronRight}
           size="xs"
         />
       </summary>
-      <div className="grid max-h-45 gap-0.5 overflow-auto border-[var(--border)] border-t p-0.75 [scrollbar-gutter:stable]">
-        {tools.map((activity) => (
-          <ToolActivityCard activity={activity} key={activity.id} />
-        ))}
-      </div>
+      <ol className={MESSAGE_TOOL_LIST_CLASS} aria-label="Tool steps">
+        {tools.map((activity) => {
+          const target = toolSummary(activity);
+          return (
+            <li key={activity.id}>
+              <button
+                aria-pressed={selected?.id === activity.id}
+                className={`${MESSAGE_TOOL_ROW_CLASS} ${selected?.id === activity.id ? MESSAGE_TOOL_ROW_SELECTED_CLASS : ""}`}
+                data-tool-card="true"
+                data-tool-status={activity.status}
+                onClick={() => setSelectedId(activity.id)}
+                type="button"
+              >
+                <UiIcon
+                  className={`${activity.status === "error" ? "text-[var(--danger)]" : activity.status === "completed" ? "text-[var(--success)]" : "text-[var(--accent)]"} ${activity.status === "running" ? "animate-spin motion-reduce:animate-none" : ""}`}
+                  icon={
+                    activity.status === "completed"
+                      ? Check
+                      : activity.status === "running"
+                        ? LoaderCircle
+                        : activity.status === "error"
+                          ? TriangleAlert
+                          : Wrench
+                  }
+                  size="xs"
+                />
+                <span className="flex min-w-0 items-baseline gap-1.5">
+                  <strong className="shrink-0 text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)]">
+                    {toolLabel(activity)}
+                  </strong>
+                  {target ? (
+                    <small
+                      className="min-w-0 truncate font-mono text-[length:var(--text-meta)] text-[var(--faint)]"
+                      title={target}
+                    >
+                      {target}
+                    </small>
+                  ) : null}
+                </span>
+                <span
+                  className={`text-[length:var(--text-meta)] ${activity.status === "error" ? "text-[var(--danger)]" : activity.status === "running" ? "text-[var(--accent)]" : "text-[var(--muted)]"}`}
+                >
+                  {statusLabel(activity.status)}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      {selected ? (
+        <div className={MESSAGE_TOOL_BODY_CLASS} data-tool-detail="true">
+          {selected.error ? (
+            <p className="my-1.5 border-[var(--danger)] border-l-2 bg-[color-mix(in_srgb,var(--danger)_7%,transparent)] px-2 py-1.5 text-[length:var(--text-meta)] text-[color-mix(in_srgb,var(--danger)_82%,var(--text))]">
+              {selected.error}
+            </p>
+          ) : null}
+          <ToolPayload label="Input" value={selected.input} />
+          <WebSearchSources activity={selected} />
+          <ToolPayload label="Output" value={selected.output} />
+          {selected.output !== undefined ? (
+            <footer className="flex justify-end pt-1.5">
+              <Button
+                onClick={() => void copyOutput()}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                {copyLabel}
+              </Button>
+            </footer>
+          ) : null}
+        </div>
+      ) : null}
     </details>
   );
 }
@@ -423,11 +458,7 @@ export function MessageContent({
       ) : null}
       {parsed.tools.length > 0 ? (
         <section aria-label="Agent tool activity" className="mt-0.5 grid">
-          {parsed.tools.length === 1 ? (
-            <ToolActivityCard activity={parsed.tools[0]} />
-          ) : (
-            <ToolActivityGroup pending={pending} tools={parsed.tools} />
-          )}
+          <ToolActivityGroup pending={pending} tools={parsed.tools} />
         </section>
       ) : null}
       <AgentSteps {...parsed.steps} />

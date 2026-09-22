@@ -7,7 +7,6 @@ import type {
   SessionUsageSummary,
   StoredMessage,
 } from "../../shared/contracts";
-import { CompactStatStrip } from "../components/CompactStatStrip";
 import { MessageContent } from "../components/MessageContent";
 import {
   compactNumber,
@@ -25,11 +24,14 @@ import {
   SESSION_DETAIL_TOOLBAR_CLASS,
   SESSION_DISCLOSURE_CLASS,
   SESSION_DISCLOSURE_SUMMARY_CLASS,
-  SESSION_INSIGHT_GRID_CLASS,
   SESSION_STATUS_ROW_CLASS,
+  SESSION_TRANSCRIPT_BODY_CLASS,
   SESSION_TRANSCRIPT_HEADER_CLASS,
+  SESSION_TRANSCRIPT_LABEL_CLASS,
   SESSION_TRANSCRIPT_MESSAGE_CLASS,
   SESSION_TRANSCRIPT_PANEL_CLASS,
+  SESSION_TRANSCRIPT_USER_BODY_CLASS,
+  SESSION_TRANSCRIPT_USER_MESSAGE_CLASS,
 } from "./sessions-layout";
 
 interface SessionUsageResponse {
@@ -47,10 +49,10 @@ export function SessionTranscriptMessage({
 }) {
   return (
     <article
-      className={SESSION_TRANSCRIPT_MESSAGE_CLASS}
+      className={`${SESSION_TRANSCRIPT_MESSAGE_CLASS} ${message.role === "user" ? SESSION_TRANSCRIPT_USER_MESSAGE_CLASS : ""}`}
       data-message-role={message.role}
     >
-      <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[length:var(--text-meta)] [&_time]:text-[var(--text-muted)]">
+      <div className={SESSION_TRANSCRIPT_LABEL_CLASS}>
         <strong>
           {message.role === "assistant"
             ? "Doolittle"
@@ -60,10 +62,14 @@ export function SessionTranscriptMessage({
         </strong>
         <time>{displayTimestamp(message.createdAt)}</time>
       </div>
-      <MessageContent
-        content={message.text}
-        separateAgentEvents={message.role === "assistant"}
-      />
+      <div
+        className={`${SESSION_TRANSCRIPT_BODY_CLASS} ${message.role === "user" ? SESSION_TRANSCRIPT_USER_BODY_CLASS : ""}`}
+      >
+        <MessageContent
+          content={message.text}
+          separateAgentEvents={message.role === "assistant"}
+        />
+      </div>
     </article>
   );
 }
@@ -203,60 +209,48 @@ export function SessionDetail({
       {mutationError ? (
         <div className="inline-error">{mutationError}</div>
       ) : null}
-      <CompactStatStrip
-        label="Session summary"
-        stats={[
-          {
-            label: "Messages",
-            value: compactNumber(
-              usage.data?.usage?.messageCount ?? selected.messageCount ?? 0,
-            ),
-            detail: `Updated ${displayTimestamp(
-              usage.data?.usage?.endedAt ?? selected.endedAt,
-            )}`,
-          },
-          {
-            label: "Estimated tokens",
-            value: compactNumber(usage.data?.usage?.estimatedTokens ?? 0),
-            detail: `${compactNumber(
-              usage.data?.usage?.characterCount ?? 0,
-            )} characters`,
-          },
-          {
-            label: "Participants",
-            value: selected.participants.length || 0,
-            detail: selected.participants.join(", ") || "Local session",
-          },
-          {
-            label: "Continuity",
-            value: continuityOpen
+      <div
+        className="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1 border-y border-[var(--border-subtle)] py-1.5 font-[var(--font-mono)] text-[length:var(--text-meta)] text-[var(--text-muted)]"
+        data-session-summary="true"
+      >
+        <span>
+          {compactNumber(
+            usage.data?.usage?.messageCount ?? selected.messageCount ?? 0,
+          )}{" "}
+          messages
+        </span>
+        <span>
+          Updated{" "}
+          {displayTimestamp(usage.data?.usage?.endedAt ?? selected.endedAt)}
+        </span>
+        <span title={selected.participants.join(", ") || "Local session"}>
+          {selected.participants.length || 0} participants
+        </span>
+        {selected.parentSessionId ? <span>Branch conversation</span> : null}
+      </div>
+      <details
+        className={SESSION_DISCLOSURE_CLASS}
+        data-session-details="true"
+        onToggle={(event) => setContinuityOpen(event.currentTarget.open)}
+      >
+        <summary className={SESSION_DISCLOSURE_SUMMARY_CLASS}>
+          <span className="grid min-w-0 gap-px [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)] [&_strong]:text-[10px] [&_strong]:text-[var(--text-strong)]">
+            <strong>Conversation details</strong>
+            <small>Technical metadata and related conversations</small>
+          </span>
+          <span className="text-[length:var(--text-meta)] text-[var(--text-muted)]">
+            {continuityOpen
               ? continuity.loading
-                ? "…"
-                : (continuity.data?.sessions?.length ?? 0)
-              : selected.parentSessionId
-                ? "Branch"
-                : "—",
-            detail: continuityOpen
-              ? selected.continuityKey || "No continuity key"
-              : "Open related sessions",
-          },
-        ]}
-      />
-      <div className={SESSION_INSIGHT_GRID_CLASS}>
-        <details className={SESSION_DISCLOSURE_CLASS}>
-          <summary className={SESSION_DISCLOSURE_SUMMARY_CLASS}>
-            <span className="grid min-w-0 gap-px [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)] [&_strong]:text-[10px] [&_strong]:text-[var(--text-strong)]">
-              <strong>Session metadata</strong>
-              <small>Identifiers, branch lineage, and timestamps</small>
-            </span>
-            <span className="text-[length:var(--text-meta)] text-[var(--text-muted)]">
-              Inspect
-            </span>
-          </summary>
-          <div className="grid p-2">
+                ? "Loading…"
+                : `${continuity.data?.sessions?.length ?? 0} related`
+              : "Inspect"}
+          </span>
+        </summary>
+        <div className="grid grid-cols-2 gap-x-4 border-[var(--border)] border-t p-2 max-[760px]:grid-cols-1">
+          <div className="grid min-w-0">
             <div className={SESSION_STATUS_ROW_CLASS}>
               <div>
-                <strong>Session id</strong>
+                <strong>Conversation id</strong>
                 <small>{selected.sessionId}</small>
               </div>
             </div>
@@ -292,6 +286,17 @@ export function SessionDetail({
             </div>
             <div className={SESSION_STATUS_ROW_CLASS}>
               <div>
+                <strong>Estimated context</strong>
+                <small>
+                  {compactNumber(usage.data?.usage?.estimatedTokens ?? 0)}{" "}
+                  tokens ·{" "}
+                  {compactNumber(usage.data?.usage?.characterCount ?? 0)}{" "}
+                  characters
+                </small>
+              </div>
+            </div>
+            <div className={SESSION_STATUS_ROW_CLASS}>
+              <div>
                 <strong>Latest preview</strong>
                 <small>
                   {compactSessionPreview(selected.preview?.[0] ?? "") ||
@@ -300,63 +305,54 @@ export function SessionDetail({
               </div>
             </div>
           </div>
-        </details>
-        <details
-          className={SESSION_DISCLOSURE_CLASS}
-          onToggle={(event) => setContinuityOpen(event.currentTarget.open)}
-        >
-          <summary className={SESSION_DISCLOSURE_SUMMARY_CLASS}>
-            <span className="grid min-w-0 gap-px [&_small]:text-[length:var(--text-meta)] [&_small]:text-[var(--text-muted)] [&_strong]:text-[10px] [&_strong]:text-[var(--text-strong)]">
-              <strong>Related sessions</strong>
-              <small>Branches sharing this continuity key</small>
-            </span>
-            <span className="text-[length:var(--text-meta)] text-[var(--text-muted)]">
-              {continuityOpen
-                ? continuity.loading
-                  ? "…"
-                  : (continuity.data?.sessions?.length ?? 0)
-                : "Open"}
-            </span>
-          </summary>
-          {continuityOpen && continuity.loading ? (
-            <LoadingBlock />
-          ) : continuityOpen && continuity.error ? (
-            <ErrorBlock error={continuity.error} retry={continuity.reload} />
-          ) : continuityOpen && continuity.data?.sessions?.length ? (
-            <div className="grid p-2">
-              {continuity.data.sessions.map((session) => (
-                <button
-                  className={SESSION_STATUS_ROW_CLASS}
-                  key={session.sessionId}
-                  onClick={() => onSelectSession(session.sessionId)}
-                  type="button"
-                >
-                  <div>
-                    <strong>
-                      {compactSessionPreview(session.title || "") ||
-                        compactSessionPreview(session.preview?.[0] || "") ||
-                        session.sessionId}
-                    </strong>
-                    <small>
-                      {displayTimestamp(session.endedAt)} ·{" "}
-                      {compactNumber(session.messageCount)} messages
-                      {session.parentSessionId ? " · branch" : ""}
-                    </small>
-                  </div>
-                </button>
-              ))}
+          <section aria-label="Related conversations" className="min-w-0">
+            <div className="border-[var(--border-subtle)] border-b py-1.5 text-[length:var(--text-meta)] font-semibold text-[var(--text-soft)]">
+              Related conversations
             </div>
-          ) : continuityOpen ? (
-            <EmptyBlock title="No related sessions">
-              This session does not currently have a continuity chain.
-            </EmptyBlock>
-          ) : null}
-        </details>
-      </div>
+            {continuityOpen && continuity.loading ? (
+              <LoadingBlock />
+            ) : continuityOpen && continuity.error ? (
+              <ErrorBlock error={continuity.error} retry={continuity.reload} />
+            ) : continuityOpen && continuity.data?.sessions?.length ? (
+              <div className="grid">
+                {continuity.data.sessions.map((session) => (
+                  <button
+                    className={SESSION_STATUS_ROW_CLASS}
+                    key={session.sessionId}
+                    onClick={() => onSelectSession(session.sessionId)}
+                    type="button"
+                  >
+                    <div>
+                      <strong>
+                        {compactSessionPreview(session.title || "") ||
+                          compactSessionPreview(session.preview?.[0] || "") ||
+                          session.sessionId}
+                      </strong>
+                      <small>
+                        {displayTimestamp(session.endedAt)} ·{" "}
+                        {compactNumber(session.messageCount)} messages
+                        {session.parentSessionId ? " · branch" : ""}
+                      </small>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : continuityOpen ? (
+              <EmptyBlock title="No related conversations">
+                This conversation does not currently have a continuity chain.
+              </EmptyBlock>
+            ) : (
+              <p className="mb-0 text-[length:var(--text-meta)] text-[var(--text-muted)]">
+                Open details to find related branches.
+              </p>
+            )}
+          </section>
+        </div>
+      </details>
       <section className={SESSION_TRANSCRIPT_PANEL_CLASS}>
         <header className={SESSION_TRANSCRIPT_HEADER_CLASS}>
           <span>
-            <strong>Persisted messages</strong>
+            <strong>Messages</strong>
           </span>
           <small>{transcriptStatusLabel}</small>
         </header>

@@ -20,7 +20,6 @@ describe("operational route density", () => {
       "./runtime/RuntimeOverview.tsx",
       "./runtime/RuntimeInventory.tsx",
       "./runtime/RuntimeGateway.tsx",
-      "./sessions/SessionDetail.tsx",
       "./analytics/AnalyticsPage.tsx",
       "./memory/MemoryProfilesPanel.tsx",
       "./memory/MemorySnapshotPanel.tsx",
@@ -29,6 +28,11 @@ describe("operational route density", () => {
       expect(source, path).toContain("<CompactStatStrip");
       expect(source, path).not.toContain("<MetricCard");
     }
+
+    const sessionDetail = read("./sessions/SessionDetail.tsx");
+    expect(sessionDetail).not.toContain("<CompactStatStrip");
+    expect(sessionDetail).not.toContain("<MetricCard");
+    expect(sessionDetail).toContain('data-session-summary="true"');
 
     expect(read("./lib.tsx")).not.toContain("export function MetricCard");
     expect(read("./app-shell/view-layout.ts")).not.toContain("metric-card");

@@ -15,22 +15,25 @@ export const MESSAGE_RESPONSE_CLASS = [
 ].join(" ");
 
 export const MESSAGE_TOOL_GROUP_CLASS =
-  "group overflow-hidden rounded-none border-0 border-[color-mix(in_srgb,var(--border)_62%,transparent)] border-t bg-transparent first:border-t-0 open:bg-[color-mix(in_srgb,var(--surface-soft)_24%,transparent)]";
+  "group mt-2 overflow-hidden rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--border)_76%,transparent)] bg-[color-mix(in_srgb,var(--surface-soft)_34%,transparent)] open:border-[color-mix(in_srgb,var(--accent)_24%,var(--border))]";
 
 export const MESSAGE_TOOL_SUMMARY_CLASS =
-  "grid min-h-6 cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.5 px-0.75 py-0.5 select-none hover:bg-[color-mix(in_srgb,var(--accent)_4%,transparent)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[color-mix(in_srgb,var(--accent)_54%,transparent)] [&::-webkit-details-marker]:hidden";
+  "grid min-h-9 w-full cursor-pointer list-none grid-cols-[auto_auto_minmax(0,1fr)_auto_auto] items-center gap-2 border-0 bg-transparent px-2.25 py-1.5 text-left select-none hover:bg-[color-mix(in_srgb,var(--surface-hover)_66%,transparent)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)] [&::-webkit-details-marker]:hidden max-[560px]:grid-cols-[auto_minmax(0,1fr)_auto_auto]";
 
-export const MESSAGE_TOOL_CARD_CLASS =
-  "group overflow-hidden rounded-none border-0 border-[color-mix(in_srgb,var(--border)_62%,transparent)] border-t bg-transparent first:border-t-0 transition-colors open:border-[color-mix(in_srgb,var(--accent)_18%,var(--border))] open:bg-[color-mix(in_srgb,var(--surface-soft)_24%,transparent)] motion-reduce:transition-none";
+export const MESSAGE_TOOL_LIST_CLASS =
+  "m-0 grid max-h-40 list-none gap-0.5 overflow-y-auto border-[var(--border)] border-t px-1.25 py-1 [scrollbar-gutter:stable]";
 
-export const MESSAGE_TOOL_CARD_SUMMARY_CLASS =
-  "grid min-h-5.5 cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.25 px-0.75 py-0.5 select-none hover:bg-[color-mix(in_srgb,var(--accent)_4%,transparent)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[color-mix(in_srgb,var(--accent)_60%,transparent)] [&::-webkit-details-marker]:hidden";
+export const MESSAGE_TOOL_ROW_CLASS =
+  "grid min-h-8 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-xs)] border border-transparent bg-transparent px-1.75 py-1 text-left hover:border-[var(--border)] hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--accent)]";
+
+export const MESSAGE_TOOL_ROW_SELECTED_CLASS =
+  "border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_7%,var(--surface-soft))]";
 
 export const MESSAGE_TOOL_STATE_CLASS =
   "inline-flex items-center gap-1.25 font-mono text-[length:var(--text-meta)] font-semibold uppercase";
 
 export const MESSAGE_TOOL_BODY_CLASS =
-  "max-h-[260px] overflow-auto border-[color-mix(in_srgb,var(--border)_72%,transparent)] border-t pt-0.25 pr-1.75 pb-1.75 pl-6 [scrollbar-gutter:stable] max-[760px]:pl-2.25";
+  "max-h-[270px] overflow-auto border-[var(--border)] border-t bg-[color-mix(in_srgb,var(--surface)_28%,transparent)] px-2.25 py-1.5 [scrollbar-gutter:stable]";
 
 export const MESSAGE_TOOL_SECTION_CLASS = "mt-2.5";
 

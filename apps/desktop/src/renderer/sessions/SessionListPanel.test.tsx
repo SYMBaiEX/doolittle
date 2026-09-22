@@ -215,6 +215,13 @@ describe("SessionListPanel", () => {
     ).toHaveLength(43);
     expect(container.textContent).toContain("Session 42");
     expect(container.textContent).toContain("Showing 43 of 55");
+    expect(
+      container.querySelector('[data-session-row="true"][aria-pressed="true"]')
+        ?.textContent,
+    ).toContain("Session 42");
+    expect(
+      container.querySelector('[data-history-count="true"]')?.textContent,
+    ).toBe("55 shown");
   });
 
   it("keeps local paths out of session list summaries", () => {
