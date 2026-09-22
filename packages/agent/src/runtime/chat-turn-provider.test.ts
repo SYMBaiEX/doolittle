@@ -704,6 +704,7 @@ describe("chat turn provider seam", () => {
       provider: string;
       model: unknown;
       conversationId: unknown;
+      codingRequest: unknown;
       personalityId: string;
     }> = [];
     let releaseStage!: () => void;
@@ -730,6 +731,7 @@ describe("chat turn provider seam", () => {
               provider === "codex" ? "CODEX_MODEL" : "OPENAI_LARGE_MODEL",
             ),
             conversationId: runtime.getSetting("ELIZAOS_CLOUD_CONVERSATION_ID"),
+            codingRequest: runtime.getSetting("DOOLITTLE_CODING_REQUEST_TEXT"),
             personalityId: getEffectiveActivePersonality(
               runtime as Parameters<typeof getEffectiveActivePersonality>[0],
             ).id,
@@ -807,21 +809,27 @@ describe("chat turn provider seam", () => {
         provider: "openai",
         model: "gpt-4.1",
         conversationId: "continuity-1",
+        codingRequest: "First turn",
         personalityId: "default",
       },
       {
         provider: "codex",
         model: "gpt-5.4",
         conversationId: "continuity-2",
+        codingRequest: "Second turn",
         personalityId: "architect",
       },
       {
         provider: "openai",
         model: "gpt-4.1",
         conversationId: "continuity-1",
+        codingRequest: "First turn",
         personalityId: "default",
       },
     ]);
     expect(harness.personalityTransitions).toEqual([]);
+    expect(
+      harness.context.runtime.getSetting("DOOLITTLE_CODING_REQUEST_TEXT"),
+    ).toBeUndefined();
   });
 });

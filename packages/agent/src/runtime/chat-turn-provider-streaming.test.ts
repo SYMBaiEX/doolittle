@@ -1,4 +1,11 @@
-import type { Content } from "@elizaos/core";
+import {
+  type Content,
+  EvaluatorService,
+  type IAgentRuntime,
+  type Memory,
+  ModelType,
+  runWithTrajectoryContext,
+} from "@elizaos/core";
 import { describe, expect, it } from "vitest";
 import { createProviderStreamState } from "./chat-turn/provider-streaming";
 
@@ -36,6 +43,149 @@ function makeStreamingState({ onProgress = true } = {}) {
 }
 
 describe("chat turn provider streaming", () => {
+  // The post-turn evaluator output from the failed coding run arrived with
+  // these JSON keys split across tokens; no token was a parseable envelope.
+  const evaluatorChunks = [
+    '{"',
+    "fact",
+    "Memory",
+    '":{"',
+    "ops",
+    '":',
+    "[]}",
+    ',"',
+    "relationships",
+    '":{"',
+    "relationships",
+    '":',
+    "[]}",
+    "}",
+  ];
+
+  it("keeps split SDK evaluator output out of the assistant stream and fallback", async () => {
+    const { state, progress } = makeStreamingState();
+
+    await runWithTrajectoryContext({ purpose: "evaluation" }, async () => {
+      for (const chunk of evaluatorChunks) {
+        await state.onStreamChunk(chunk);
+      }
+      await state.onCallbackContent({ text: evaluatorChunks.join("") });
+    });
+
+    expect(state.getResponse()).toBe("");
+    expect(progress).toEqual([]);
+
+    // Auxiliary output must not lock out the real assistant's callback.
+    await state.onCallbackContent({ text: "The implementation is blocked." });
+    expect(state.getResponse()).toBe("The implementation is blocked.");
+  });
+
+  it("honors the real SDK post-turn evaluator's attribution with inherited streaming", async () => {
+    const { state, progress } = makeStreamingState();
+    const modelCalls: unknown[] = [];
+    const runtime = {
+      agentId: "agent-evaluator",
+      character: { name: "Doolittle" },
+      evaluators: [
+        {
+          name: "factMemory",
+          description: "Extracts durable facts.",
+          schema: { type: "object", properties: { ops: { type: "array" } } },
+          shouldRun: async () => true,
+          prompt: () => "Return fact operations, not assistant prose.",
+        },
+      ],
+      emitEvent: async () => {},
+      useModel: async (modelType: unknown) => {
+        modelCalls.push(modelType);
+        // Emulate the runtime's inherited chunk delivery. The real service
+        // establishes the evaluation purpose; this test does not set it.
+        for (const chunk of evaluatorChunks) {
+          await state.onStreamChunk(chunk);
+        }
+        return evaluatorChunks.join("");
+      },
+    } as unknown as IAgentRuntime;
+    const evaluator = new EvaluatorService(runtime);
+
+    const result = await runWithTrajectoryContext({ purpose: "response" }, () =>
+      evaluator.run({
+        content: { text: "Implement the app." },
+      } as Memory),
+    );
+
+    expect(modelCalls).toEqual([ModelType.TEXT_SMALL]);
+    expect(result.processedEvaluators).toEqual(["factMemory"]);
+    expect(state.getResponse()).toBe("");
+    expect(progress).toEqual([]);
+  });
+
+  it("preserves legitimate JSON answers even with evaluator-like keys", async () => {
+    const { state, progress } = makeStreamingState();
+
+    await runWithTrajectoryContext({ purpose: "response" }, async () => {
+      for (const chunk of evaluatorChunks) {
+        await state.onStreamChunk(chunk);
+      }
+    });
+
+    expect(state.getResponse()).toBe(evaluatorChunks.join(""));
+    expect(progress.map((update) => update.chunk)).toEqual(evaluatorChunks);
+  });
+
+  it.each(["evaluation", "evaluate", "should_respond", "provider", "action"])(
+    "does not append %s model output to an active assistant response",
+    async (purpose) => {
+      const { state, progress } = makeStreamingState();
+      await state.onStreamChunk("Working");
+
+      await runWithTrajectoryContext({ purpose }, async () => {
+        await state.onStreamChunk("internal model output");
+      });
+      await state.onStreamChunk(" on it.");
+
+      expect(state.getResponse()).toBe("Working on it.");
+      expect(progress.map((update) => update.chunk)).toEqual([
+        "Working",
+        " on it.",
+      ]);
+    },
+  );
+
+  it("isolates concurrent evaluator and assistant stream attribution", async () => {
+    const evaluation = makeStreamingState();
+    const response = makeStreamingState();
+    let releaseEvaluation = () => {};
+    const interleaved = new Promise<void>((resolve) => {
+      releaseEvaluation = resolve;
+    });
+
+    await Promise.all([
+      runWithTrajectoryContext(
+        { purpose: "evaluation", roomId: "room-a" },
+        async () => {
+          await evaluation.state.onStreamChunk(evaluatorChunks[0]);
+          await interleaved;
+          await evaluation.state.onStreamChunk(evaluatorChunks[1]);
+        },
+      ),
+      runWithTrajectoryContext(
+        { purpose: "response", roomId: "room-b" },
+        async () => {
+          await response.state.onStreamChunk("Chat B");
+          releaseEvaluation();
+          await Promise.resolve();
+          await response.state.onStreamChunk(" stays visible.");
+        },
+      ),
+    ]);
+
+    expect(evaluation.state.getResponse()).toBe("");
+    expect(evaluation.progress).toEqual([]);
+    expect(response.state.getResponse()).toBe("Chat B stays visible.");
+    expect(response.progress).toHaveLength(2);
+  });
+
   it("keeps callback text provisional until terminal finalization", async () => {
     const { state, progress } = makeStreamingState();
 

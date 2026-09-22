@@ -1,4 +1,4 @@
-import type { Content, Memory } from "@elizaos/core";
+import { type Content, getTrajectoryContext, type Memory } from "@elizaos/core";
 import type { resolveStreamingUpdate } from "@elizaos/shared/utils/streaming-text";
 import type { extractCompatTextContent } from "./state";
 
@@ -12,6 +12,25 @@ const INTERNAL_CALLBACK_EVENT_TYPES = new Set([
   "context",
   "context_event",
 ]);
+
+const INTERNAL_MODEL_PURPOSES = new Set([
+  "evaluation",
+  "evaluate",
+  "should_respond",
+  "provider",
+  "action",
+]);
+
+/**
+ * The SDK inherits the message stream for nested model calls, including its
+ * post-turn fact/relationship evaluators. Those calls can emit tokenized JSON
+ * without an event envelope. Use their async-local SDK attribution, never the
+ * text itself, so an assistant's legitimate JSON answer remains streamable.
+ */
+function isInternalModelStream(): boolean {
+  const purpose = getTrajectoryContext()?.purpose;
+  return typeof purpose === "string" && INTERNAL_MODEL_PURPOSES.has(purpose);
+}
 
 function isInternalCallbackEventType(value: unknown): boolean {
   return typeof value === "string" && INTERNAL_CALLBACK_EVENT_TYPES.has(value);
@@ -131,7 +150,10 @@ export function createProviderStreamState(
   return {
     appendIncomingText,
     onCallbackContent: async (content: Content, actionName?: string) => {
-      if (isInternalCallbackContent(content, actionName)) {
+      if (
+        isInternalModelStream() ||
+        isInternalCallbackContent(content, actionName)
+      ) {
         return [];
       }
       const chunk = context.extractCompatTextContent(content);
@@ -142,6 +164,11 @@ export function createProviderStreamState(
       return [];
     },
     onStreamChunk: async (chunk: string) => {
+      // Check attribution before claiming the source or accumulating text.
+      // Whole-chunk JSON parsing cannot identify split evaluator tokens.
+      if (isInternalModelStream()) {
+        return;
+      }
       // The SDK serializes tool calls, tool results, and evaluator updates
       // through onStreamChunk. They are not assistant prose.
       const envelope = chunk ? parseInternalCallbackEnvelope(chunk) : null;

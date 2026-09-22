@@ -172,6 +172,9 @@ export async function runProviderModelTurn(
     input.settingsDuring,
   );
   runtimeSettings.set("ELIZAOS_CLOUD_CONVERSATION_ID", sessionKey);
+  // Delegation must resolve explicit adapter requests from this turn, not
+  // another chat or the planner's rewritten child-task description.
+  runtimeSettings.set("DOOLITTLE_CODING_REQUEST_TEXT", input.effectiveMessage);
 
   return runWithTurnRuntimeScope(
     input.context.runtime,
