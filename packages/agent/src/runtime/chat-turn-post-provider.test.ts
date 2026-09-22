@@ -425,4 +425,97 @@ describe("ElizaOS-native post-provider seam", () => {
     });
     expect(harness.finishEvents[0]?.status).toBe("complete");
   });
+
+  it("preserves a verified coding-agent blocker rather than replacing it with missing-mutation jargon", async () => {
+    const harness = createHarness();
+    const message = "create a blog app in this project";
+    const failure =
+      "Codex could not access the requested workspace. Check the folder and retry.";
+    const result = await runPostProviderTurn(
+      createInput(harness.context, {
+        effectiveInput: { userId: "alice", message, source: "desktop" },
+        response: "Done.",
+        actionResults: [
+          {
+            success: false,
+            verifiedUserFacing: true,
+            userFacingText: failure,
+            data: {
+              actionName: "TASKS_SPAWN_AGENT",
+              delegatedExecution: { status: "failed" },
+            },
+          },
+        ],
+      }),
+    );
+    expect(result.response).toBe(failure);
+    expect(result.runFailureMessage).toBe(failure);
+    expect(harness.storedMessages).toEqual([failure]);
+    expect(harness.finishEvents).toEqual([
+      { status: "error", message: failure },
+    ]);
+  });
+
+  it("does not claim completion from partial edits when the final coding session failed", async () => {
+    const harness = createHarness();
+    const failure =
+      "The app files were changed, but the production build failed. Fix the reported import and rerun the build.";
+    const result = await runPostProviderTurn(
+      createInput(harness.context, {
+        response: "The blog is ready.",
+        actionResults: [
+          {
+            success: true,
+            data: {
+              mutationKind: "local-file",
+              mutation: {
+                action: "WRITE_FILE",
+                success: true,
+                resolvedPath: "/workspace/app/page.tsx",
+              },
+            },
+          },
+          {
+            success: false,
+            verifiedUserFacing: true,
+            userFacingText: failure,
+            data: { delegatedExecution: { status: "failed" } },
+          },
+        ],
+      }),
+    );
+    expect(result.response).toBe(failure);
+    expect(result.runFailureMessage).toBe(failure);
+    expect(harness.finishEvents[0]?.status).toBe("error");
+  });
+
+  it("allows recovery after a failed delegation instead of keeping the old blocker", async () => {
+    const harness = createHarness();
+    const result = await runPostProviderTurn(
+      createInput(harness.context, {
+        response: "Created and verified the blog.",
+        actionResults: [
+          {
+            success: false,
+            verifiedUserFacing: true,
+            userFacingText: "Workspace not found.",
+            data: { delegatedExecution: { status: "failed" } },
+          },
+          {
+            success: true,
+            data: {
+              mutationKind: "local-file",
+              mutation: {
+                action: "WRITE_FILE",
+                success: true,
+                resolvedPath: "/workspace/app/page.tsx",
+              },
+            },
+          },
+        ],
+      }),
+    );
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(harness.finishEvents[0]?.status).toBe("complete");
+  });
 });

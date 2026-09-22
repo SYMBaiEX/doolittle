@@ -77,6 +77,27 @@ export function assessTurnExecutionContract(input: {
     return { ok: true };
   }
 
+  // A failed coding session can have changed files before hitting a genuine
+  // blocker. Preserve the adapter's verified, user-facing failure instead of
+  // either declaring success from that mutation or hiding the cause behind the
+  // generic missing-receipt message. Earlier failures may have been recovered;
+  // only the final observed action is authoritative here.
+  const lastResult = input.actionResults?.at(-1);
+  const delegatedExecution = lastResult?.data?.delegatedExecution;
+  if (
+    lastResult?.success === false &&
+    lastResult.verifiedUserFacing === true &&
+    typeof lastResult.userFacingText === "string" &&
+    lastResult.userFacingText.trim() &&
+    delegatedExecution &&
+    typeof delegatedExecution === "object" &&
+    "status" in delegatedExecution &&
+    (delegatedExecution.status === "failed" ||
+      delegatedExecution.status === "cancelled")
+  ) {
+    return { ok: false, failureMessage: lastResult.userFacingText.trim() };
+  }
+
   const successfulReceipts = new Set(
     (input.actionResults ?? []).flatMap((actionResult) => {
       const mutation =
