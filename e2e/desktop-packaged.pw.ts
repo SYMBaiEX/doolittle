@@ -1,4 +1,10 @@
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { _electron as electron, expect, test } from "@playwright/test";
@@ -18,6 +24,28 @@ test.describe("packaged Doolittle desktop", () => {
     const workspaceDir = realpathSync(
       mkdtempSync(join(tmpdir(), "doolittle-packaged-workspace-")),
     );
+    const runtimeDir = join(profileDir, "runtime");
+    mkdirSync(runtimeDir, { recursive: true });
+    // Offline bootstrap permits a local fallback; it intentionally does not
+    // override a usable selected provider. Pin this isolated fixture instead
+    // of relying on the product default or the host's linked Codex account.
+    writeFileSync(
+      join(runtimeDir, "settings.json"),
+      `${JSON.stringify({
+        model: {
+          provider: "offline",
+          model: "offline",
+          baseUrl: "",
+          temperature: 0,
+          maxTokens: 512,
+        },
+        gateway: {
+          sessionTimeoutMinutes: 120,
+          mirrorResponsesToHistory: true,
+        },
+      })}\n`,
+      "utf8",
+    );
     writeFileSync(
       join(profileDir, "workspace-state.json"),
       `${JSON.stringify({
@@ -35,6 +63,8 @@ test.describe("packaged Doolittle desktop", () => {
         DOOLITTLE_DESKTOP_SOURCE_ROOT: join(profileDir, "not-a-checkout"),
         DOOLITTLE_DESKTOP_CWD: workspaceDir,
         DOOLITTLE_OFFLINE_BOOTSTRAP: "true",
+        ELIZA_HOME: runtimeDir,
+        ELIZA_ACCOUNT_POOL_KEEPALIVE: "false",
       },
     });
 
@@ -51,6 +81,11 @@ test.describe("packaged Doolittle desktop", () => {
         .poll(() => page.evaluate(() => typeof window.doolittle))
         .toBe("object");
       await expect(page.locator(".recovery-shell")).toHaveCount(0);
+      await expect(
+        page.getByRole("button", {
+          name: /^Choose model\. Current route offline offline/,
+        }),
+      ).toBeVisible();
       const prompt = `packaged offline chat ${Date.now()}`;
       const composer = page.getByRole("textbox", { name: "Message Doolittle" });
       await expect(composer).toBeEnabled();
