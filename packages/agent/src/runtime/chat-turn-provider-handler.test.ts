@@ -721,6 +721,122 @@ describe("chat turn provider handler", () => {
     expect(result.response).toBe(result.runFailureMessage);
   });
 
+  it("continues after a verified partial write when the response says work remains", async () => {
+    const calls: Memory[] = [];
+    const manifestReceipt = {
+      success: true,
+      text: "Created package.json",
+      data: {
+        actionName: "WRITE_FILE",
+        mutationAction: "WRITE_FILE",
+        mutationKind: "local-file",
+        mutation: {
+          action: "WRITE_FILE",
+          success: true,
+          requestedPath: "package.json",
+          resolvedPath: "/workspace/package.json",
+        },
+      },
+    };
+    const pageReceipt = {
+      success: true,
+      text: "Created app/page.tsx",
+      data: {
+        actionName: "WRITE_FILE",
+        mutationAction: "WRITE_FILE",
+        mutationKind: "local-file",
+        mutation: {
+          action: "WRITE_FILE",
+          success: true,
+          requestedPath: "app/page.tsx",
+          resolvedPath: "/workspace/app/page.tsx",
+        },
+      },
+    };
+    const { context } = createContext({
+      onHandleMessage: async ({ memory }) => {
+        calls.push(memory as Memory);
+        if (calls.length === 1) {
+          return {
+            responseContent: {
+              text: "The app is not implemented or verified yet; the build and browser check remain to be done.",
+            },
+            responseMessages: [],
+            state: { data: { actionResults: [manifestReceipt] } },
+          };
+        }
+        return {
+          responseContent: {
+            text: "The app is implemented and verified.",
+          },
+          responseMessages: [],
+          state: { data: { actionResults: [pageReceipt] } },
+        };
+      },
+    });
+
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Create and verify the requested app in this workspace.",
+    );
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.id).toBe(calls[1]?.id);
+    expect(String(calls[1]?.content.text)).toContain(
+      "<previous_terminal_response>",
+    );
+    expect(result).toMatchObject({
+      response: "The app is implemented and verified.",
+      runFailureMessage: undefined,
+      actionResults: [manifestReceipt, pageReceipt],
+    });
+  });
+
+  it("marks bounded partial work failed when the final response still says it is incomplete", async () => {
+    let callCount = 0;
+    const receipt = {
+      success: true,
+      text: "Created package.json",
+      data: {
+        actionName: "WRITE_FILE",
+        mutationAction: "WRITE_FILE",
+        mutationKind: "local-file",
+        mutation: {
+          action: "WRITE_FILE",
+          success: true,
+          requestedPath: "package.json",
+          resolvedPath: "/workspace/package.json",
+        },
+      },
+    };
+    const { context } = createContext({
+      onHandleMessage: async () => {
+        callCount += 1;
+        return {
+          responseContent: {
+            text: "The app is not implemented or verified yet; the build remains to be done.",
+          },
+          responseMessages: [],
+          state: { data: { actionResults: [receipt] } },
+        };
+      },
+    });
+
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Create and verify the requested app in this workspace.",
+    );
+
+    expect(callCount).toBe(3);
+    expect(result.runFailureMessage).toContain(
+      "still incomplete after the agent's continuation attempts",
+    );
+    expect(result.runFailureMessage).toContain("Some local files changed");
+    expect(result.response).toBe(result.runFailureMessage);
+  });
+
   it("continues into verification after a silent pass already wrote a verified file", async () => {
     const prompts: string[] = [];
     const writeReceipt = {
