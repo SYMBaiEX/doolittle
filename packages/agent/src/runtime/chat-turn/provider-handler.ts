@@ -3,6 +3,7 @@ import {
   type Memory,
   setTrajectoryPurpose,
 } from "@elizaos/core";
+import { actionResultActionName } from "@/runtime/action-result-metadata";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { matchesRegisteredCommandShortcut } from "@/runtime/command-shortcut-match";
 import { checkOllamaReadiness } from "@/runtime/native/plugin-registry/ollama-readiness";
@@ -105,6 +106,41 @@ function actionResultsFromMessageResult(result: unknown): ActionResult[] {
 }
 
 /**
+ * The beta SDK can throw while asking the parent model to continue after an
+ * awaited coding child has already ended successfully. That continuation is
+ * presentation work, not execution authority. Recover only Doolittle's own
+ * receipt-backed managed delegation result; ordinary tool successes still
+ * require the SDK to produce a canonical terminal response.
+ */
+function completedManagedDelegationResponse(
+  actionResults: readonly ActionResult[],
+): string | undefined {
+  const result = actionResults.at(-1);
+  if (
+    result?.success !== true ||
+    actionResultActionName(result) !== "TASKS_SPAWN_AGENT"
+  ) {
+    return undefined;
+  }
+  const delegatedExecution = result.data?.delegatedExecution;
+  if (!delegatedExecution || typeof delegatedExecution !== "object") {
+    return undefined;
+  }
+  const receipt = delegatedExecution as Record<string, unknown>;
+  const exitCode = receipt.exitCode;
+  if (
+    receipt.status !== "completed" ||
+    receipt.stopReason !== "end_turn" ||
+    (exitCode !== null && exitCode !== 0)
+  ) {
+    return undefined;
+  }
+  return typeof result.text === "string" && result.text.trim()
+    ? result.text.trim()
+    : undefined;
+}
+
+/**
  * The message service can invoke callbacks for a response-handler preamble
  * before its planner executes actions. Its returned responseContent is the
  * terminal response after that loop and is the only safe user-facing answer.
@@ -201,6 +237,7 @@ export async function executeProviderMessageTurn(
   const sessionId = input.sessionId ?? String(input.memory.roomId);
   const messageId = String(input.memory.id);
   let actionResults: ActionResult[] = [];
+  const settledActionResults: ActionResult[] = [];
   let responseMessages: Memory[] = [];
 
   await runWithSdkTrajectoryContext(
@@ -276,7 +313,6 @@ export async function executeProviderMessageTurn(
           // failure into a canned successful reply and retries other slots.
           if (!availability.ready) throw new Error(availability.detail);
         }
-        const settledActionResults: ActionResult[] = [];
         const messageResult = await messageService.handleMessage(
           input.context.runtime,
           input.memory,
@@ -359,6 +395,28 @@ export async function executeProviderMessageTurn(
         input.streamState.setResponse(response);
       } catch (error) {
         if (input.abortSignal?.aborted) throw error;
+        const recoveredDelegationResponse =
+          completedManagedDelegationResponse(settledActionResults);
+        if (recoveredDelegationResponse) {
+          handledMessage = true;
+          actionResults = settledActionResults;
+          response = recoveredDelegationResponse;
+          input.context.runtime.logger?.warn(
+            {
+              error,
+              runId: input.runId,
+              sessionId,
+              provider: input.settingsDuring.model.provider,
+              model: input.settingsDuring.model.model,
+              roomId: input.roomId,
+              messageId,
+              actionResultCount: actionResults.length,
+            },
+            "ElizaOS parent continuation failed after a completed managed coding delegation; preserving its verified completion receipt",
+          );
+          input.streamState.setResponse(response);
+          return;
+        }
         const failureMessage = input.buildProviderFailureMessage(
           input.settingsDuring.model.provider,
           input.settingsDuring.model.model,

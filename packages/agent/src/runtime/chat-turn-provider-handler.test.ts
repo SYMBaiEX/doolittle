@@ -16,6 +16,7 @@ function createContext(overrides?: {
   onHandleMessage?: (handlers: {
     onContent: (content: unknown) => Promise<unknown>;
     onStreamChunk?: (chunk: string) => Promise<void>;
+    onSettledActionResult?: (result: unknown) => void;
   }) => Promise<unknown>;
   getActionResults?: () => unknown[];
   captureNotice?: (notice: string) => void;
@@ -57,7 +58,10 @@ function createContext(overrides?: {
           _runtime: unknown,
           _memory: unknown,
           onContent: (content: unknown) => Promise<unknown>,
-          options?: { onStreamChunk?: (chunk: string) => Promise<void> },
+          options?: {
+            onStreamChunk?: (chunk: string) => Promise<void>;
+            onSettledActionResult?: (result: unknown) => void;
+          },
         ) => {
           await onContent({ text: "provider response" } as never);
           if (overrides?.sdkEmitsMessageSent) {
@@ -67,6 +71,7 @@ function createContext(overrides?: {
             return overrides.onHandleMessage({
               onContent,
               onStreamChunk: options?.onStreamChunk,
+              onSettledActionResult: options?.onSettledActionResult,
             });
           }
           return {
@@ -681,6 +686,96 @@ describe("chat turn provider handler", () => {
     expect(notices).toEqual([]);
     expect(streamState.getResponse()).toBe("turn failed");
   });
+
+  it("preserves a completed managed coding delegation when parent continuation fails", async () => {
+    const completion = {
+      success: true,
+      text: [
+        "The codex coding agent finished its turn in /workspace.",
+        "0 file change(s) were verified against pre-run fingerprints.",
+        "Agent report: inspected package.json and README; no files changed.",
+      ].join(" "),
+      continueChain: true,
+      data: {
+        actionName: "TASKS_SPAWN_AGENT",
+        delegatedExecution: {
+          sessionId: "child-1",
+          agentType: "codex",
+          workdir: "/workspace",
+          status: "completed",
+          stopReason: "end_turn",
+          exitCode: 0,
+          summary: "Inspected package.json and README; no files changed.",
+          observedTools: [],
+          changedFiles: [],
+          verifiedLocalMutation: false,
+        },
+      },
+    };
+    const { context, notices } = createContext({
+      onHandleMessage: async ({ onSettledActionResult }) => {
+        onSettledActionResult?.(completion);
+        throw new Error("parent model continuation failed");
+      },
+    });
+
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Inspect this workspace without changing files",
+    );
+
+    expect(result).toMatchObject({
+      handledMessage: true,
+      response: completion.text,
+      runFailureMessage: undefined,
+      actionResults: [completion],
+    });
+    expect(notices).toEqual([]);
+  });
+
+  it.each([
+    {
+      label: "ordinary tool",
+      result: {
+        success: true,
+        text: "Read package.json",
+        data: { actionName: "READ_FILE" },
+      },
+    },
+    {
+      label: "failed delegation",
+      result: {
+        success: false,
+        text: "The coding agent failed.",
+        data: {
+          actionName: "TASKS_SPAWN_AGENT",
+          delegatedExecution: {
+            status: "failed",
+            stopReason: "error",
+            exitCode: 1,
+          },
+        },
+      },
+    },
+  ])(
+    "does not recover a parent failure from $label evidence",
+    async ({ result }) => {
+      const { context } = createContext({
+        onHandleMessage: async ({ onSettledActionResult }) => {
+          onSettledActionResult?.(result);
+          throw new Error("parent model continuation failed");
+        },
+      });
+
+      const outcome = await executeTestTurn(context, "codex", "Run this task");
+
+      expect(outcome.handledMessage).toBe(false);
+      expect(outcome.runFailureMessage).toContain(
+        "parent model continuation failed",
+      );
+    },
+  );
 
   it("emits status notices and returns provider failures for non-recoverable errors", async () => {
     const { context, notices } = createContext({
