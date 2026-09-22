@@ -97,6 +97,22 @@ time.
   the SDK injects its operation discriminator. Tests use the installed SDK's
   promoted action and verify selected model/effort at both spawn and send,
   awaited completion, and unchanged unrelated operations. 18 tests passed.
+- `247984e7`: native recovery commands reach Eliza's shortcut gate even when
+  the current provider is offline. The readiness preflight had blocked the
+  command needed to switch providers. 49 focused tests passed.
+- `3acda7de`: fresh profiles, onboarding, and model-picker loading states use
+  Codex / `gpt-5.6-luna` / medium reasoning. Startup no longer replaces an
+  unavailable saved route with Granite. Explicit provider choices remain
+  supported. 167 focused tests passed. Both actual local profiles were set to
+  Codex; unrelated settings and credentials were preserved.
+- `470df650`: use the maintained Codex ACP adapter `1.12.0`, with compatible
+  bundled Codex `0.154.0`, instead of the retired adapter. Model and effort use
+  its supported per-spawn `CODEX_CONFIG`; explicit legacy custom commands keep
+  their existing argument contract. Read the exact child's final SDK error
+  before cleanup and report sanitized upgrade guidance. 34 focused tests passed.
+  Ordinary coding uses workspace-write/on-request approval, not full access or
+  automatic review. Unsupported explicit read-only security presets fail closed
+  before launch; a read-only task instruction is not a filesystem sandbox.
 
 The integrated suite at `44611c81` passed **3,989 tests** across 911 files;
 one opt-in Docker sandbox integration test was skipped. Root and desktop
@@ -141,6 +157,33 @@ The desktop receipts contain ordered run/tool events and one final assistant
 message per turn, without the earlier evaluator JSON or duplicate reply. These
 short live provider responses were delivered in a **single terminal text frame**;
 incremental prose streaming is not certified by these checks.
+
+Replay on installed `82ce83b1` verified the completion repair:
+`33e9f27c-918a-4d05-a61d-4dd09098145f`, session
+`desktop:a0498aba-62b3-4468-b629-8213ab289239`, ran 13:03:33–13:05:12.
+It listed the correct workspace, read package.json, README.md,
+`src/app/settings-sidebar/page.tsx`, and `src/app/table-grouped/page.tsx`, then
+returned the requested directory, package/scripts and source summary. Five
+successful actions and zero mutations were recorded. The transcript displayed
+one user message and one complete assistant answer. Settings navigation and a
+second active chat did not interrupt it.
+
+The concurrent delegation replay `2baf6e76-f744-470c-9a9e-fa083e9782d3`
+proved that the promoted action was now managed and pinned to `gpt-5.6-luna`,
+but its coding adapter still exited 1 before inspecting files. The official
+child store records HTTP 400 requiring a newer Codex version; the initial
+receipt captured a metadata warning instead of that specific cause. This
+adapter compatibility and diagnostic failure remains under repair.
+
+Global CLI verification after the default and command fixes: launching bare
+`doolittle` from HOME displayed `codex` / `gpt-5.6-luna`. Native
+`/model use codex gpt-5.6-luna` completed in 2.6 seconds (run
+`b12f5e61-465d-469e-9a5e-ba00a4a44bb4`, 13:17:10 UTC), and
+`/model set reasoningEffort medium` completed in 93 ms. EOF stopped services
+and exited 0. The saved CLI and desktop routes are both Codex / Luna / medium.
+The CLI's old linked account still reports an expired refresh token; setting
+the route does not repair or replace credentials. Desktop parent inference was
+verified separately with its configured account pool.
 
 Source inspection locates that gap at the structured-output boundary: Eliza's
 stage-one call requires `HANDLE_RESPONSE`, where prose is a function argument.
