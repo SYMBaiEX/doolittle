@@ -254,7 +254,10 @@ export async function executeProviderMessageTurn(
         if (!messageService) {
           throw new Error("ElizaOS message service is not registered.");
         }
-        if (input.settingsDuring.model.provider === "ollama") {
+        if (
+          input.settingsDuring.model.provider === "ollama" &&
+          !input.context.config.offlineBootstrapMode
+        ) {
           const availability = await checkOllamaReadiness(
             String(
               input.context.runtime.getSetting("OLLAMA_API_ENDPOINT") ||

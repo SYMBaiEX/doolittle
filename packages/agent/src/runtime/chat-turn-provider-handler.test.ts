@@ -198,6 +198,22 @@ describe("chat turn provider handler", () => {
     expect(result.handledMessage).toBe(false);
   });
 
+  it("keeps the explicit offline-bootstrap fixture independent of live model availability", async () => {
+    const handled = vi.fn(async () => ({
+      responseContent: { text: "Offline bootstrap is ready." },
+      responseMessages: [],
+    }));
+    const { context } = createContext({ onHandleMessage: handled });
+    context.config.offlineBootstrapMode = true;
+    const fetch = vi.fn();
+    context.runtime.fetch = fetch;
+    const result = await executeTestTurn(context, "ollama");
+    expect(fetch).not.toHaveBeenCalled();
+    expect(handled).toHaveBeenCalledOnce();
+    expect(result.response).toBe("Offline bootstrap is ready.");
+    expect(result.runFailureMessage).toBeUndefined();
+  });
+
   it("returns the terminal SDK response without re-emitting SDK message events", async () => {
     const { context, emittedEvents } = createContext({
       sdkEmitsMessageSent: true,
