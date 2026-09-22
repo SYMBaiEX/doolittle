@@ -256,7 +256,7 @@ This offline package suite does not replace the pending final live coding replay
 - [x] Stop and retry target only their run.
 - [x] Required repository gates and packaged-desktop checks pass.
 - [x] Updated app installed locally from exact commit `6dde7e01` and verified.
-- [ ] Scoped commits pushed.
+- [x] Scoped commits pushed to `origin/main`.
 - [x] Global `doolittle` CLI opens without an unavailable embedding service
   crashing startup.
 
