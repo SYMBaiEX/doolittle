@@ -40,6 +40,24 @@ export function runWithTurnRuntimeScope<T>(
   return turnRuntimeScope.run({ runtime, ...scope }, task);
 }
 
+/** Add adapter settings without losing the parent turn identity or cancellation. */
+export function runWithAdditionalTurnRuntimeSettings<T>(
+  runtime: RuntimeSettingsReader & object,
+  settings: ReadonlyMap<string, unknown>,
+  task: () => T,
+): T {
+  const current = turnRuntimeScope.getStore();
+  const parent = current?.runtime === runtime ? current : undefined;
+  return runWithTurnRuntimeScope(
+    runtime,
+    {
+      ...parent,
+      settings: new Map([...(parent?.settings ?? []), ...settings]),
+    },
+    task,
+  );
+}
+
 export function getScopedTurnPersonalityId(
   runtime: object,
 ): string | undefined {

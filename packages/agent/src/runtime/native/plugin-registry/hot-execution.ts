@@ -13,6 +13,7 @@ import {
   resolveLocalProjectTarget,
 } from "../../../services/project-inspection";
 import type { EnvConfig } from "../../../types/runtime";
+import { withManagedCodingDelegation } from "../coding-delegation";
 
 export async function loadHotExecutionPlugins(
   services: AppServices,
@@ -36,7 +37,7 @@ export async function loadHotExecutionPlugins(
       resolveProjectTarget: (inputPath, workspaceRoot) =>
         resolveLocalProjectTarget(inputPath, workspaceRoot),
     }),
-    agentOrchestratorPlugin,
+    withManagedCodingDelegation(agentOrchestratorPlugin, services),
     agentSkillsPlugin,
     createPlanningPlugin({
       storage: {
