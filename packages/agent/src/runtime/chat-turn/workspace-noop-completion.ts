@@ -135,34 +135,6 @@ function localUrl(value: unknown): URL | undefined {
   }
 }
 
-function sameLocalEndpoint(candidate: URL, expected: URL): boolean {
-  return (
-    candidate.protocol === expected.protocol &&
-    candidate.port === expected.port &&
-    candidate.pathname === expected.pathname &&
-    candidate.search === expected.search
-  );
-}
-
-function commandContainsUrl(command: string, expected: URL): boolean {
-  if (!/\bcurl\b/u.test(command)) return false;
-  // `--fail` (including common short forms such as -fsS) is required so a
-  // 4xx/5xx page cannot be mistaken for a successful HTTP verification.
-  if (
-    !/(?:^|\s)--fail(?:\s|$)|(?:^|\s)-[a-zA-Z]*f[a-zA-Z]*(?:\s|$)/u.test(
-      command,
-    )
-  ) {
-    return false;
-  }
-  return [...command.matchAll(/https?:\/\/[^\s"'<>`]+/gu)].some((match) => {
-    const value = match[0]?.replace(/[),.;]+$/u, "");
-    if (!value) return false;
-    const candidate = localUrl(value);
-    return candidate ? sameLocalEndpoint(candidate, expected) : false;
-  });
-}
-
 const VERIFICATION_COMMAND =
   /\b(?:bun|npm|pnpm|yarn)\s+(?:(?:run|x)\s+)?(?:build|test|check|lint|typecheck|type-check|validate|verify)\b|\bgit\s+diff\s+--check\b/iu;
 
@@ -183,9 +155,10 @@ function hasLocalMutationAction(actionResults: readonly ActionResult[]) {
 /**
  * Accept a no-edit result only when a completed coding delegate explicitly
  * attests that the requested state already exists and Doolittle independently
- * verifies install/build, the managed server, and that server's HTTP URL in
- * the same exact workspace. This is evidence of a satisfied task, not a
- * synthetic file-mutation receipt.
+ * verifies install/build and a managed server in the same exact workspace.
+ * The app-server's `ready` state is issued only after its own HTTP GET probe
+ * succeeds; requiring a second shell curl after that probe is redundant. This
+ * is evidence of a satisfied task, not a synthetic file-mutation receipt.
  */
 export function verifyWorkspaceNoopCompletion(
   actionResults: readonly ActionResult[],
@@ -313,13 +286,7 @@ export function verifyWorkspaceNoopCompletion(
       return url ? [{ index, url, sessionId: result.data.session.id }] : [];
     });
     const readyServer = requirements.requireManagedApplication
-      ? readyServers.find((server) =>
-          scopedCommands.some(
-            (command) =>
-              command.index > server.index &&
-              commandContainsUrl(command.command, server.url),
-          ),
-        )
+      ? readyServers.find((server) => server.index > requiredVerificationIndex)
       : undefined;
     if (requirements.requireManagedApplication && !readyServer) continue;
 

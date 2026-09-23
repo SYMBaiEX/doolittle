@@ -103,7 +103,7 @@ describe("verified no-op workspace completion", () => {
     });
   });
 
-  it("keeps a requested mutation incomplete when the page URL was not checked", () => {
+  it("accepts the managed server's successful HTTP readiness probe without a duplicate curl", () => {
     const results = createVerifiedNoopResults().slice(0, 3);
     const contract = buildTurnExecutionContract({
       userRequest: "Create a blog app, build it, and start the application.",
@@ -112,10 +112,35 @@ describe("verified no-op workspace completion", () => {
 
     expect(
       assessTurnExecutionContract({ contract, actionResults: results }),
+    ).toEqual({ ok: true });
+    expect(
+      verifyWorkspaceNoopCompletion(
+        results,
+        workspaceNoopRequirements(
+          "Create a blog app, build it, and start the application.",
+        ),
+      ),
     ).toMatchObject({
-      ok: false,
-      failureMessage: expect.stringContaining("REQUESTED_LOCAL_MUTATION"),
+      workdir,
+      buildVerified: true,
+      url: previewUrl,
     });
+  });
+
+  it("does not treat a starting server as an HTTP readiness probe", () => {
+    const results = createVerifiedNoopResults().slice(0, 3);
+    const server = results[2];
+    if (server?.data) {
+      server.data = { ...server.data, status: "starting", url: undefined };
+    }
+    expect(
+      verifyWorkspaceNoopCompletion(
+        results,
+        workspaceNoopRequirements(
+          "Create a blog app, build it, and start the application.",
+        ),
+      ),
+    ).toBeUndefined();
   });
 
   it("does not require a managed server when the user only requested code verification", () => {
@@ -229,6 +254,37 @@ describe("verified no-op workspace completion", () => {
         ),
       ),
     ).toBeUndefined();
+  });
+
+  it("keeps a blocked duplicate delegation from invalidating a verified no-op", () => {
+    const results = createVerifiedNoopResults().slice(0, 3);
+    results.splice(1, 0, {
+      success: true,
+      text: "A duplicate same-workspace delegation was blocked.",
+      continueChain: false,
+      data: {
+        actionName: "TASKS_SPAWN_AGENT",
+        duplicateDelegationPrevented: {
+          status: "blocked",
+          workdir,
+          previousSessionId: "coding-agent-1",
+        },
+      },
+    } as ActionResult);
+
+    expect(
+      verifyWorkspaceNoopCompletion(
+        results,
+        workspaceNoopRequirements(
+          "Create a blog app, install with Bun, run a production build, and start the application.",
+        ),
+      ),
+    ).toMatchObject({
+      workdir,
+      bunInstallVerified: true,
+      buildVerified: true,
+      url: previewUrl,
+    });
   });
 
   it("does not hide any attempted local file mutation behind a no-op report", () => {
