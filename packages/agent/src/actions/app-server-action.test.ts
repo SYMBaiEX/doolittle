@@ -1,5 +1,9 @@
 import type { IAgentRuntime, Memory } from "@elizaos/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  getScopedTurnActionResults,
+  runWithTurnRuntimeScope,
+} from "@/runtime/turn-runtime-scope";
 import type { AppServices } from "@/services";
 import type { AppServerSnapshot } from "@/services/terminal/app-server";
 import { createAppServerAction } from "./app-server-action";
@@ -43,6 +47,40 @@ function fixture() {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("managed app native action", () => {
+  it("retains a ready URL receipt for final-response recovery", async () => {
+    const { action, appServers, runtime, message } = fixture();
+    appServers.start.mockResolvedValue({
+      session: {
+        id: "terminal-1",
+        processId: 42,
+        cwd: "/workspace/blog",
+        command: "bun run dev",
+      } as never,
+      status: "ready",
+      url: "http://localhost:3001/",
+      output: "Ready",
+    });
+
+    const { result, scopedResults } = await runWithTurnRuntimeScope(
+      runtime,
+      { settings: new Map(), settledActionResults: [] },
+      async () => {
+        const result = await action.handler(runtime, message, undefined, {
+          parameters: {
+            operation: "start",
+            command: "bun run dev",
+            cwd: "/workspace/blog",
+          },
+        });
+        return { result, scopedResults: getScopedTurnActionResults(runtime) };
+      },
+    );
+
+    expect(result?.success).toBe(true);
+    expect(scopedResults).toContainEqual(result);
+    expect(result?.text).toContain("http://localhost:3001/");
+  });
+
   it("continues while starting and exposes session/PID without claiming readiness", async () => {
     const { action, appServers, runtime, message } = fixture();
     const result = await action.handler(runtime, message, undefined, {

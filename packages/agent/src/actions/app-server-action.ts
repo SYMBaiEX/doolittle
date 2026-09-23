@@ -1,8 +1,15 @@
 import { hasOwnerAccess } from "@elizaos/agent/security/access";
 import { resolveShellExecutionMode } from "@elizaos/agent/services/shell-execution-router";
-import { type Action, isLocalCodeExecutionAllowed } from "@elizaos/core";
+import {
+  type Action,
+  type ActionResult,
+  isLocalCodeExecutionAllowed,
+} from "@elizaos/core";
 import { resolveRemoteExecutionPlatform } from "@/runtime/commands/command-execution";
-import { getScopedTurnAbortSignal } from "@/runtime/turn-runtime-scope";
+import {
+  getScopedTurnAbortSignal,
+  recordScopedTurnActionResult,
+} from "@/runtime/turn-runtime-scope";
 import type { AppServices } from "@/services";
 
 export const DOOLITTLE_APP_SERVER_ACTION = "DOOLITTLE_APP_SERVER";
@@ -102,7 +109,7 @@ export function createAppServerAction(services: AppServices): Action {
           operation === "stop" ||
           result.status === "ready" ||
           result.status === "starting";
-        return {
+        const actionResult: ActionResult = {
           success,
           ...(result.status === "starting" ? { continueChain: true } : {}),
           ...(!success ? { error: "APP_SERVER_UNHEALTHY" } : {}),
@@ -130,14 +137,18 @@ export function createAppServerAction(services: AppServices): Action {
             suppressVisibleCallback: true,
           },
         };
+        recordScopedTurnActionResult(runtime, actionResult);
+        return actionResult;
       } catch (error) {
         if (getScopedTurnAbortSignal(runtime)?.aborted) throw error;
-        return {
+        const actionResult: ActionResult = {
           success: false,
           text: error instanceof Error ? error.message : String(error),
           error: "APP_SERVER_FAILED",
           data: { actionName: DOOLITTLE_APP_SERVER_ACTION },
         };
+        recordScopedTurnActionResult(runtime, actionResult);
+        return actionResult;
       }
     },
   };

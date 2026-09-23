@@ -147,6 +147,65 @@ function includeScopedVerifiedMutationReceipt(
   return receipt ? [...actionResults, receipt] : actionResults;
 }
 
+function completedManagedAppServerSummary(
+  actionResults: readonly ActionResult[],
+): string | undefined {
+  const result = [...actionResults].reverse().find((candidate) => {
+    const data = candidate.data;
+    return (
+      candidate.success === true &&
+      actionResultActionName(candidate) === "DOOLITTLE_APP_SERVER" &&
+      isRecord(data) &&
+      data.status === "ready" &&
+      typeof data.url === "string" &&
+      isRecord(data.session)
+    );
+  });
+  if (!result || !isRecord(result.data) || !isRecord(result.data.session)) {
+    return undefined;
+  }
+
+  const data = result.data;
+  const sessionValue = data.session;
+  if (!isRecord(sessionValue)) return undefined;
+  const url = data.url;
+  if (typeof url !== "string") return undefined;
+  try {
+    if (!["http:", "https:"].includes(new URL(url).protocol)) {
+      return undefined;
+    }
+  } catch {
+    return undefined;
+  }
+
+  const session = sessionValue;
+  const details = [
+    typeof session.cwd === "string" ? session.cwd : undefined,
+    typeof session.command === "string" ? `\`${session.command}\`` : undefined,
+  ].filter((value): value is string => Boolean(value));
+  const sessionId =
+    typeof session.id === "string" ? session.id.trim() : undefined;
+  return [
+    `Managed application ready at ${url}${details.length ? ` (${details.join(" · ")})` : ""}.`,
+    sessionId
+      ? `Stop it from the workspace Terminal or with DOOLITTLE_APP_SERVER operation=stop and sessionId=${sessionId}.`
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function includeScopedReadyManagedAppServerReceipt(
+  runtime: AgentExecutionContext["runtime"],
+  actionResults: ActionResult[],
+): ActionResult[] {
+  if (completedManagedAppServerSummary(actionResults)) return actionResults;
+  const receipt = getScopedTurnActionResults(runtime).find((result) =>
+    Boolean(completedManagedAppServerSummary([result])),
+  );
+  return receipt ? [...actionResults, receipt] : actionResults;
+}
+
 function continuationMemory(
   memory: Memory,
   userRequest: string,
@@ -527,7 +586,21 @@ export async function executeProviderMessageTurn(
               // responseContent remains the canonical terminal answer.
               continueAfterActions: true,
               abortSignal: input.abortSignal,
-              onStreamChunk: input.streamState.onStreamChunk,
+              // Once a managed coding child has completed, its final response
+              // must come from the terminal receipt below. Suppress the SDK's
+              // provisional follow-up text so beta.7's streamed no-provider
+              // fallback cannot appear as a false error before its structured
+              // failure marker is available. Run and tool progress still
+              // streams; post-provider emits the selected final answer once.
+              onStreamChunk: async (chunk: string) => {
+                const streamResults = [
+                  ...actionResults,
+                  ...settledActionResults,
+                  ...getScopedTurnActionResults(input.context.runtime),
+                ];
+                if (completedManagedDelegationResponse(streamResults)) return;
+                await input.streamState.onStreamChunk(chunk);
+              },
               // Available in current Eliza develop and ignored by beta.7. Keep
               // committed action evidence even if a later planner stage fails.
               onSettledActionResult: (result: ActionResult) => {
@@ -557,6 +630,10 @@ export async function executeProviderMessageTurn(
           actionResults = includeScopedVerifiedMutationReceipt(
             input.context.runtime,
             [...actionResults, ...attemptActionResults],
+          );
+          actionResults = includeScopedReadyManagedAppServerReceipt(
+            input.context.runtime,
+            actionResults,
           );
           allResponseMessages.push(...(messageResult?.responseMessages ?? []));
           responseMessages = allResponseMessages;
@@ -641,12 +718,33 @@ export async function executeProviderMessageTurn(
             "The model provider could not complete this turn. Check provider status and retry.";
           const completedPass =
             completedManagedDelegationResponse(actionResults);
-          runFailureMessage = completedPass
-            ? "The final response stage failed after the coding agent completed its implementation pass."
-            : providerFailure;
-          response = completedPass
-            ? `${completedPass}\n\n${runFailureMessage} The changes are preserved. Check the run activity for any later build, server, or browser verification; this message does not infer checks that were not explicitly reported.`
-            : providerFailure;
+          if (completedPass) {
+            const appServerSummary =
+              completedManagedAppServerSummary(actionResults);
+            response = [
+              completedPass,
+              appServerSummary,
+              "Doolittle's configured response provider returned an unavailable reply after the coding agent finished. This receipt-backed report is preserved as the final answer; it does not infer checks beyond the results listed above.",
+            ]
+              .filter(Boolean)
+              .join("\n\n");
+            input.context.runtime.logger?.warn(
+              {
+                runId: input.runId,
+                sessionId,
+                roomId: input.roomId,
+                provider: input.settingsDuring.model.provider,
+                model: input.settingsDuring.model.model,
+                failureKind: messageResult?.responseContent?.failureKind,
+                verifiedMutation: hasVerifiedWorkspaceMutation(actionResults),
+                managedAppReady: Boolean(appServerSummary),
+              },
+              "ElizaOS returned a no-provider terminal reply after a completed managed coding delegation; preserved its verified report",
+            );
+          } else {
+            runFailureMessage = providerFailure;
+            response = providerFailure;
+          }
         }
         if (
           !runFailureMessage &&

@@ -141,7 +141,15 @@ describe("chat turn provider handler", () => {
     provider = "provider-name",
     text = "hello",
   ) {
-    return executeProviderMessageTurn({
+    const streamState = createProviderStreamState({
+      resolveStreamingUpdate: (current, incoming) => ({
+        kind: "append",
+        emittedText: incoming,
+        nextText: current + incoming,
+      }),
+      extractCompatTextContent: () => "",
+    });
+    const result = await executeProviderMessageTurn({
       context,
       memory: {
         id: "memory-failure" as UUID,
@@ -149,14 +157,7 @@ describe("chat turn provider handler", () => {
         entityId: "entity-failure" as UUID,
         content: { text, source: "cli", channelType: ChannelType.DM },
       } as Memory,
-      streamState: createProviderStreamState({
-        resolveStreamingUpdate: (current, incoming) => ({
-          kind: "append",
-          emittedText: incoming,
-          nextText: current + incoming,
-        }),
-        extractCompatTextContent: () => "",
-      }),
+      streamState,
       messagePolicy: { useMultiStep: true, maxIterations: 4 },
       abortSignal: undefined,
       settingsDuring: {
@@ -167,6 +168,7 @@ describe("chat turn provider handler", () => {
       roomId: "room-failure",
       buildProviderFailureMessage: (_provider, _model, error) => String(error),
     });
+    return { ...result, streamState };
   }
 
   it.each([
@@ -193,13 +195,23 @@ describe("chat turn provider handler", () => {
     },
   );
 
-  it("preserves a completed coding-agent report when SDK terminal synthesis fails", async () => {
+  it("completes from verified coding and app-server receipts when SDK final synthesis fails", async () => {
     const completion = {
       success: true,
       text: "The codex coding agent finished its turn in /workspace. Build passed.",
       continueChain: true,
       data: {
         actionName: "TASKS_SPAWN_AGENT",
+        mutationKind: "local-file",
+        mutationAction: "TASKS_SPAWN_AGENT",
+        mutation: {
+          action: "TASKS_SPAWN_AGENT",
+          requestedPath: "/workspace",
+          resolvedPath: "/workspace/app/page.tsx",
+          success: true,
+          bytes: 128,
+          message: "Verified delegated file change.",
+        },
         delegatedExecution: {
           sessionId: "child-provider-failure",
           agentType: "codex",
@@ -215,13 +227,28 @@ describe("chat turn provider handler", () => {
       },
     };
     const { context } = createContext({
-      onHandleMessage: async ({ onSettledActionResult }) => {
+      onHandleMessage: async ({ onSettledActionResult, onStreamChunk }) => {
+        recordScopedTurnActionResult(context.runtime, completion);
         onSettledActionResult?.(completion);
-        onSettledActionResult?.({
+        const appServerReceipt = {
           success: true,
-          text: "Managed app server returned HTTP 200.",
-          data: { actionName: "DOOLITTLE_APP_SERVER" },
-        });
+          text: "Application ready. Verified local URL: http://localhost:3001/",
+          data: {
+            actionName: "DOOLITTLE_APP_SERVER",
+            status: "ready",
+            url: "http://localhost:3001/",
+            session: {
+              id: "terminal-acceptance",
+              cwd: "/workspace",
+              command: "bun run dev",
+            },
+          },
+        };
+        recordScopedTurnActionResult(context.runtime, appServerReceipt);
+        onSettledActionResult?.(appServerReceipt);
+        await onStreamChunk?.(
+          "Something went wrong while preparing the response.",
+        );
         return {
           responseContent: {
             text: "Something went wrong while preparing the response.",
@@ -239,13 +266,16 @@ describe("chat turn provider handler", () => {
     );
 
     expect(result.handledMessage).toBe(true);
-    expect(result.runFailureMessage).toContain(
-      "final response stage failed after the coding agent completed",
-    );
+    expect(result.runFailureMessage).toBeUndefined();
     expect(result.response).toContain(completion.text);
-    expect(result.response).toContain("The changes are preserved.");
-    expect(result.response).toContain("does not infer checks");
+    expect(result.response).toContain("http://localhost:3001/");
+    expect(result.response).toContain("Managed application ready");
+    expect(result.response).toContain("receipt-backed report is preserved");
     expect(result.response).not.toContain(
+      "Something went wrong while preparing the response.",
+    );
+    expect(result.streamState.getResponse()).toBe(result.response);
+    expect(result.streamState.getResponse()).not.toContain(
       "Something went wrong while preparing the response.",
     );
   });
