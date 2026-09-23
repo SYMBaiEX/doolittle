@@ -135,4 +135,23 @@ describe("action result metadata helpers", () => {
       },
     ]);
   });
+
+  it("treats non-zero SDK SHELL exits as failed command receipts", () => {
+    const summary = summarizeActionResults([
+      {
+        success: true,
+        text: "Shell command completed: `bun run build`",
+        data: {
+          actionName: "SHELL",
+          command: "bun run build",
+          exitCode: 1,
+          stderr: "Build failed",
+        },
+      },
+    ]);
+
+    expect(summary.commandResults).toMatchObject([
+      { command: "bun run build", exitCode: 1, success: false },
+    ]);
+  });
 });

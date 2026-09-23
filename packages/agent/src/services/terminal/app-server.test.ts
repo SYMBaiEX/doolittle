@@ -171,6 +171,33 @@ describe("managed application handoff", () => {
     expect(terminal.start).toHaveBeenCalledTimes(1);
   });
 
+  it("prevents separate conversations from starting competing servers in one workspace", async () => {
+    const terminal = fakeTerminal("Booting...");
+    const manager = new AppServerManager(
+      terminal as unknown as InteractiveTerminalSessionManager,
+      async () => false,
+    );
+    const first = await manager.start({
+      owner: "chat-a",
+      cwd: tmpdir(),
+      command: "bun run dev",
+      waitMs: 0,
+    });
+    terminal.listManaged.mockReturnValue([
+      { ...first.session, cwd: realpathSync(tmpdir()) },
+    ]);
+
+    await expect(
+      manager.start({
+        owner: "chat-b",
+        cwd: tmpdir(),
+        command: "bun run dev",
+        waitMs: 0,
+      }),
+    ).rejects.toThrow("already running from this directory");
+    expect(terminal.start).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps cancellation connected after a starting handoff, but detaches it once ready", async () => {
     const terminal = fakeTerminal("http://localhost:3007");
     const probe = vi.fn(async () => false);

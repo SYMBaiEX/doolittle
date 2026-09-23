@@ -5,9 +5,12 @@ import {
   type ActionResult,
   isLocalCodeExecutionAllowed,
 } from "@elizaos/core";
+import { actionResultActionName } from "@/runtime/action-result-metadata";
+import { hasSuccessfulWorkspaceBuild } from "@/runtime/chat-turn/workspace-noop-completion";
 import { resolveRemoteExecutionPlatform } from "@/runtime/commands/command-execution";
 import {
   getScopedTurnAbortSignal,
+  getScopedTurnActionResults,
   recordScopedTurnActionResult,
 } from "@/runtime/turn-runtime-scope";
 import type { AppServices } from "@/services";
@@ -78,6 +81,7 @@ export function createAppServerAction(services: AppServices): Action {
             : {};
         const owner = String(message.roomId);
         const operation = params.operation;
+        const cwd = typeof params.cwd === "string" ? params.cwd : "";
         if (
           operation === "start" &&
           (services.settings.get().execution.backend !== "local" ||
@@ -87,15 +91,44 @@ export function createAppServerAction(services: AppServices): Action {
             "Managed applications require the already-enabled local execution backend and local-yolo shell mode. Current sandbox policy was preserved; no server was started.",
           );
         }
+        if (operation === "start") {
+          const priorActions = getScopedTurnActionResults(runtime);
+          const completedCodingDelegation = priorActions.some((result) => {
+            if (
+              result.success !== true ||
+              actionResultActionName(result)?.toUpperCase() !==
+                "TASKS_SPAWN_AGENT"
+            ) {
+              return false;
+            }
+            const receipt = result.data?.delegatedExecution;
+            if (
+              receipt === null ||
+              typeof receipt !== "object" ||
+              Array.isArray(receipt)
+            ) {
+              return false;
+            }
+            return (receipt as Record<string, unknown>).status === "completed";
+          });
+          if (
+            completedCodingDelegation &&
+            !hasSuccessfulWorkspaceBuild(priorActions, cwd)
+          ) {
+            throw new Error(
+              `Build verification is required before launching this coded application. Run \`cd "${cwd}" && bun run build\` and wait for exit code 0, then start the managed dev server. If another managed dev server is already running in this directory, stop it first; Next.js build and dev must not write to the same .next directory concurrently.`,
+            );
+          }
+        }
         const sessionId =
           typeof params.sessionId === "string" ? params.sessionId : "";
         const result =
           operation === "start"
-            ? await services.terminal.appServers.start({
+            ? await services.terminal.startManagedApplication({
                 owner,
                 command:
                   typeof params.command === "string" ? params.command : "",
-                cwd: typeof params.cwd === "string" ? params.cwd : "",
+                cwd,
                 abortSignal: getScopedTurnAbortSignal(runtime),
               })
             : operation === "status"

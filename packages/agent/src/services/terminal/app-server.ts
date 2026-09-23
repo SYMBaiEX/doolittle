@@ -123,6 +123,14 @@ export class AppServerManager {
           this.owners.get(session.id) === input.owner,
       );
     if (existing) return this.status(input.owner, existing.id);
+    const conflictingWorkspaceSession = this.terminal
+      .listManaged()
+      .find((session) => session.state === "running" && session.cwd === cwd);
+    if (conflictingWorkspaceSession) {
+      throw new Error(
+        "A managed application is already running from this directory in another session. Reuse its existing preview, or stop it before starting another server here.",
+      );
+    }
     const session = this.terminal.start({
       cwd,
       command: input.command,

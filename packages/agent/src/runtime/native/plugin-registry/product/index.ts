@@ -2,7 +2,6 @@ import { join } from "node:path";
 
 import { bindPluginStorage } from "@doolittle/contracts";
 import { memoryAction } from "@elizaos/agent/actions/memories";
-import { terminalAction } from "@elizaos/agent/actions/terminal";
 import { triggerAction } from "@elizaos/agent/actions/trigger";
 import { webFetch } from "@elizaos/agent/runtime/actions/web-fetch";
 import type { Action, Evaluator, Plugin, Provider } from "@elizaos/core";
@@ -28,6 +27,7 @@ import { createFileActions } from "@/actions/file-action";
 import { createMediaActions } from "@/actions/media-action";
 import { createRepositoryAction } from "@/actions/repository-action";
 import { createResearchAction } from "@/actions/research-action";
+import { createSdkTerminalAction } from "@/actions/sdk-terminal-action";
 import { createSessionSearchAction } from "@/actions/session-search-action";
 import {
   createShellCommandAction,
@@ -77,7 +77,7 @@ export function createDoolittleProductPlugin(
     triggerAction,
     ...createFileActions(),
     createWorkspaceAction(),
-    terminalAction,
+    createSdkTerminalAction(services),
     createRepositoryAction(),
     createShortcutCompatibleWebSearchAction(),
     webFetch,

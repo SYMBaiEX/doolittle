@@ -2,6 +2,7 @@ import type { IAgentRuntime, Memory } from "@elizaos/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getScopedTurnActionResults,
+  recordScopedTurnActionResult,
   runWithTurnRuntimeScope,
 } from "@/runtime/turn-runtime-scope";
 import type { AppServices } from "@/services";
@@ -25,7 +26,10 @@ function fixture() {
     stop: vi.fn(() => ({ ...snapshot, status: "stopped" })),
   };
   const services = {
-    terminal: { appServers },
+    terminal: {
+      appServers,
+      startManagedApplication: appServers.start,
+    },
     settings: { get: () => ({ execution: { backend: "local" } }) },
   } as unknown as AppServices;
   const runtime = {
@@ -47,6 +51,92 @@ function fixture() {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("managed app native action", () => {
+  it("requires a verified build after a completed coding delegation", async () => {
+    const { action, appServers, runtime, message } = fixture();
+    const delegation = {
+      success: true,
+      text: "Coding agent completed the requested workspace task.",
+      data: {
+        actionName: "TASKS_SPAWN_AGENT",
+        delegatedExecution: {
+          status: "completed",
+          stopReason: "end_turn",
+          workdir: "/workspace/blog",
+          changedFiles: ["app/page.tsx"],
+          verifiedLocalMutation: true,
+        },
+      },
+    } as never;
+
+    const result = await runWithTurnRuntimeScope(
+      runtime,
+      { settings: new Map(), settledActionResults: [] },
+      async () => {
+        recordScopedTurnActionResult(runtime, delegation);
+        return action.handler(runtime, message, undefined, {
+          parameters: {
+            operation: "start",
+            command: "bun run dev",
+            cwd: "/workspace/blog",
+          },
+        });
+      },
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "APP_SERVER_FAILED",
+      text: expect.stringContaining("Build verification is required"),
+    });
+    expect(appServers.start).not.toHaveBeenCalled();
+  });
+
+  it("starts after a successful Bun build receipt for the exact workspace", async () => {
+    const { action, appServers, runtime, message } = fixture();
+    const delegation = {
+      success: true,
+      data: {
+        actionName: "TASKS_SPAWN_AGENT",
+        delegatedExecution: {
+          status: "completed",
+          stopReason: "end_turn",
+          workdir: "/workspace/blog",
+          changedFiles: [],
+          verifiedLocalMutation: false,
+        },
+      },
+    } as never;
+    const build = {
+      success: true,
+      data: {
+        actionName: "SHELL",
+        command: 'cd "/workspace/blog" && bun run build',
+        exitCode: 0,
+      },
+    } as never;
+
+    const result = await runWithTurnRuntimeScope(
+      runtime,
+      { settings: new Map(), settledActionResults: [] },
+      async () => {
+        recordScopedTurnActionResult(runtime, delegation);
+        recordScopedTurnActionResult(runtime, build);
+        return action.handler(runtime, message, undefined, {
+          parameters: {
+            operation: "start",
+            command: "bun run dev",
+            cwd: "/workspace/blog",
+          },
+        });
+      },
+    );
+
+    expect(result?.success).toBe(true);
+    expect(appServers.start).toHaveBeenCalledWith(
+      expect.objectContaining({ cwd: "/workspace/blog" }),
+    );
+  });
+
   it("retains a ready URL receipt for final-response recovery", async () => {
     const { action, appServers, runtime, message } = fixture();
     appServers.start.mockResolvedValue({

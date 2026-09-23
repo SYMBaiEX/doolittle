@@ -1,9 +1,103 @@
 import { DOOLITTLE_SHELL_SERVICE } from "@doolittle/contracts";
 import { terminalAction } from "@elizaos/agent/actions/terminal";
-import { describe, expect, it } from "vitest";
+import type {
+  Action,
+  ActionResult,
+  IAgentRuntime,
+  Memory,
+} from "@elizaos/core";
+import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
+import {
+  getScopedTurnActionResults,
+  runWithTurnRuntimeScope,
+} from "@/runtime/turn-runtime-scope";
 import { handleOperationsRoutes } from "@/server/routes/operations";
+import type { AppServices } from "@/services";
 import { serveFetchTest } from "@/testing/fetch-server";
+import { createSdkTerminalAction } from "./sdk-terminal-action";
+
+function fixture(input: { preflight?: string; result?: ActionResult }) {
+  const sdkHandler = vi.fn(async () => input.result);
+  const sdkAction = {
+    name: "SHELL",
+    description: "Official shell action",
+    handler: sdkHandler,
+  } as unknown as Action;
+  const services = {
+    terminal: {
+      preflightProductionBuild: vi.fn(() => input.preflight),
+    },
+  } as unknown as AppServices;
+  const runtime = { getSetting: () => undefined } as unknown as IAgentRuntime;
+  const message = {
+    roomId: "chat-a",
+    content: { text: "Run a command" },
+  } as Memory;
+  return {
+    action: createSdkTerminalAction(services, sdkAction),
+    message,
+    runtime,
+    sdkHandler,
+  };
+}
+
+describe("Doolittle's Eliza SDK terminal adapter", () => {
+  it("preserves an actionable failure when a managed server blocks a build", async () => {
+    const { action, message, runtime, sdkHandler } = fixture({
+      preflight: "Stop the managed dev server before building this workspace.",
+    });
+    const result = await runWithTurnRuntimeScope(
+      runtime,
+      { settings: new Map(), settledActionResults: [] },
+      async () => {
+        const response = await action.handler(runtime, message, undefined, {
+          parameters: { command: "cd /workspace/blog && bun run build" },
+        });
+        return { response, actions: getScopedTurnActionResults(runtime) };
+      },
+    );
+
+    expect(result.response).toMatchObject({
+      success: false,
+      error: "WORKSPACE_BUILD_CONFLICT",
+      text: expect.stringContaining("Stop the managed dev server"),
+    });
+    expect(result.actions).toContainEqual(result.response);
+    expect(sdkHandler).not.toHaveBeenCalled();
+  });
+
+  it("marks non-zero exits as failures and retains the terminal receipt in this turn", async () => {
+    const commandResult: ActionResult = {
+      success: true,
+      text: "Exit code: 2\nSTDERR: build failed",
+      data: {
+        actionName: "SHELL",
+        command: "bun run build",
+        exitCode: 2,
+        stderr: "build failed",
+      },
+    };
+    const { action, message, runtime } = fixture({ result: commandResult });
+    const result = await runWithTurnRuntimeScope(
+      runtime,
+      { settings: new Map(), settledActionResults: [] },
+      async () => {
+        const response = await action.handler(runtime, message, undefined, {
+          parameters: { command: "bun run build" },
+        });
+        return { response, actions: getScopedTurnActionResults(runtime) };
+      },
+    );
+
+    expect(result.response).toMatchObject({
+      success: false,
+      error: "SHELL_COMMAND_FAILED",
+      text: expect.stringContaining("exited with status 2"),
+    });
+    expect(result.actions).toContainEqual(result.response);
+  });
+});
 
 describe("official Eliza SHELL action integration", () => {
   it("executes through Doolittle's SDK-compatible terminal route", async () => {
@@ -26,16 +120,10 @@ describe("official Eliza SHELL action integration", () => {
     const context = {
       runtime: {
         getService: (name: string) =>
-          name === DOOLITTLE_SHELL_SERVICE
-            ? {
-                run: terminal.run,
-              }
-            : null,
+          name === DOOLITTLE_SHELL_SERVICE ? { run: terminal.run } : null,
       },
       services: {
-        logger: {
-          captureError: () => "",
-        },
+        logger: { captureError: () => "" },
         terminal,
       },
     } as unknown as AppContext;

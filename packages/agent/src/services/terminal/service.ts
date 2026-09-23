@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
-import { mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, realpathSync } from "node:fs";
+import { isAbsolute, join, resolve } from "node:path";
 import type {
   ExecutionBackendHealth,
   ExecutionBackendName,
@@ -43,6 +43,7 @@ export class TerminalService {
     value: ExecutionBackendHealth[];
   };
   private healthPromise?: Promise<ExecutionBackendHealth[]>;
+  private readonly buildsInProgress = new Set<string>();
 
   constructor(
     baseDir: string,
@@ -84,7 +85,59 @@ export class TerminalService {
     timeoutMs?: number,
     abortSignal?: AbortSignal,
   ): Promise<TerminalCommandRecord> {
-    return this.commandOrchestrator.run(command, timeoutMs, abortSignal);
+    const buildDirectory = this.productionBuildDirectory(command);
+    if (!buildDirectory) {
+      return this.commandOrchestrator.run(command, timeoutMs, abortSignal);
+    }
+    const blocked = this.preflightProductionBuild(command);
+    if (blocked) throw new Error(blocked);
+    this.buildsInProgress.add(buildDirectory);
+    try {
+      return await this.commandOrchestrator.run(
+        command,
+        timeoutMs,
+        abortSignal,
+      );
+    } finally {
+      this.buildsInProgress.delete(buildDirectory);
+    }
+  }
+
+  /** Return an actionable reason when a build would race a managed dev server. */
+  preflightProductionBuild(command: string): string | undefined {
+    const directory = this.productionBuildDirectory(command);
+    if (!directory) return undefined;
+    if (this.buildsInProgress.has(directory)) {
+      return `A production build is already running in ${directory}. Wait for it to finish before starting another build.`;
+    }
+    const liveApp = this.interactiveSessions
+      .listManaged()
+      .find(
+        (session) =>
+          session.state === "running" &&
+          this.canonicalDirectory(session.cwd) === directory,
+      );
+    if (liveApp) {
+      return `The production build was not run because a managed app is already running from ${directory}. Stop that dev server from the Terminal surface, then run the build. Next.js build and dev processes must not write to the same .next directory at the same time.`;
+    }
+    return undefined;
+  }
+
+  /** Prevent app startup from racing a production build in the same workspace. */
+  async startManagedApplication(input: {
+    owner: string;
+    cwd: string;
+    command: string;
+    abortSignal?: AbortSignal;
+    waitMs?: number;
+  }) {
+    const directory = this.canonicalDirectory(input.cwd);
+    if (directory && this.buildsInProgress.has(directory)) {
+      throw new Error(
+        `A production build is still running in ${directory}. Start the dev server after that build has finished.`,
+      );
+    }
+    return this.appServers.start(input);
   }
 
   invalidateWorkspace(): void {
@@ -101,12 +154,22 @@ export class TerminalService {
     timeoutMs?: number,
     abortSignal?: AbortSignal,
   ): Promise<TerminalCommandRecord> {
-    return this.commandOrchestrator.runStreamingLocal(
-      command,
-      callbacks,
-      timeoutMs,
-      abortSignal,
-    );
+    const buildDirectory = this.productionBuildDirectory(command);
+    if (buildDirectory) {
+      const blocked = this.preflightProductionBuild(command);
+      if (blocked) throw new Error(blocked);
+      this.buildsInProgress.add(buildDirectory);
+    }
+    try {
+      return await this.commandOrchestrator.runStreamingLocal(
+        command,
+        callbacks,
+        timeoutMs,
+        abortSignal,
+      );
+    } finally {
+      if (buildDirectory) this.buildsInProgress.delete(buildDirectory);
+    }
   }
 
   onUpdate(listener: (event: TerminalCommandUpdateEvent) => void): () => void {
@@ -231,5 +294,34 @@ export class TerminalService {
   private invalidateHealthCache(): void {
     this.healthCache = undefined;
     this.healthPromise = undefined;
+  }
+
+  private productionBuildDirectory(command: string): string | undefined {
+    if (
+      !/(?:\b(?:bun|npm|pnpm|yarn)\s+(?:run\s+)?build\b|\bnext\s+build\b)/iu.test(
+        command,
+      )
+    ) {
+      return undefined;
+    }
+    const workspaceDir = resolveWorkspaceDirectory(this.workspaceDirectory);
+    const cdMatch = command.match(
+      /^\s*cd\s+(?:"([^"]+)"|'([^']+)'|([^\s;&]+))\s*&&/u,
+    );
+    const requested = cdMatch?.[1] ?? cdMatch?.[2] ?? cdMatch?.[3];
+    const directory = requested
+      ? isAbsolute(requested)
+        ? requested
+        : resolve(workspaceDir, requested)
+      : workspaceDir;
+    return this.canonicalDirectory(directory);
+  }
+
+  private canonicalDirectory(directory: string): string | undefined {
+    try {
+      return realpathSync(directory);
+    } catch {
+      return undefined;
+    }
   }
 }

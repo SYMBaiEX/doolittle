@@ -24,11 +24,16 @@ describe("Doolittle coding action", () => {
     );
     expect(parent.description).toContain("Run production builds before");
     expect(parent.description).toContain(
+      "The delegated agent must not run a production build or start the app",
+    );
+    expect(parent.description).toContain(
       "Do not delegate the same workspace again",
     );
     expect(parent.subPlanner).toMatchObject({
       name: "Doolittle coding planner",
-      description: expect.stringContaining("Do not stop after inspection"),
+      description: expect.stringContaining(
+        "The delegated coding agent must not run a production build or start the dev server",
+      ),
     });
     expect(
       resolveSubActions({ actions: children }, parent).map(({ name }) => name),

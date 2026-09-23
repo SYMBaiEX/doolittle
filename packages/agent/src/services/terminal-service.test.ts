@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { RuntimeSettings } from "./settings/runtime-settings";
 import { TerminalService } from "./terminal/service";
 
@@ -145,6 +145,84 @@ describe("TerminalService", () => {
       expect(record?.durationMs).toBeGreaterThanOrEqual(0);
       expect(record?.preview?.checks.length).toBeGreaterThan(0);
     } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("blocks Next.js builds while a managed app is running in the same directory", () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-terminal-build-guard-"));
+    const service = new TerminalService(join(root, "data"), root, makeSettings);
+    const sessions = (
+      service as unknown as {
+        interactiveSessions: { listManaged: () => unknown[] };
+      }
+    ).interactiveSessions;
+    vi.spyOn(sessions, "listManaged").mockReturnValue([
+      { state: "running", cwd: root },
+    ]);
+
+    try {
+      expect(
+        service.preflightProductionBuild(`cd "${root}" && bun run build`),
+      ).toContain("Next.js build and dev processes must not write");
+      expect(service.preflightProductionBuild("bun run dev")).toBeUndefined();
+    } finally {
+      service.disposeInteractiveSessions();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("prevents managed app startup until a same-workspace build finishes", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-terminal-build-lock-"));
+    const service = new TerminalService(join(root, "data"), root, makeSettings);
+    const orchestrator = (
+      service as unknown as {
+        commandOrchestrator: { run: (...args: unknown[]) => Promise<unknown> };
+      }
+    ).commandOrchestrator;
+    let finishBuild: (() => void) | undefined;
+    let markBuildStarted: (() => void) | undefined;
+    const buildStarted = new Promise<void>((resolveStarted) => {
+      markBuildStarted = resolveStarted;
+    });
+    const buildGate = new Promise<void>((resolveBuild) => {
+      finishBuild = resolveBuild;
+    });
+    vi.spyOn(orchestrator, "run").mockImplementation(async () => {
+      markBuildStarted?.();
+      await buildGate;
+      return {};
+    });
+    const start = vi.spyOn(service.appServers, "start");
+    start.mockResolvedValue({
+      session: { cwd: root, state: "running" } as never,
+      status: "starting",
+      output: "Booting",
+    } as never);
+
+    try {
+      const building = service.run(`cd "${root}" && bun run build`);
+      await buildStarted;
+      await expect(
+        service.startManagedApplication({
+          owner: "chat-a",
+          cwd: root,
+          command: "bun run dev",
+        }),
+      ).rejects.toThrow("production build is still running");
+      expect(start).not.toHaveBeenCalled();
+      finishBuild?.();
+      await building;
+      await expect(
+        service.startManagedApplication({
+          owner: "chat-a",
+          cwd: root,
+          command: "bun run dev",
+          waitMs: 0,
+        }),
+      ).resolves.toMatchObject({ status: "starting" });
+    } finally {
+      service.disposeInteractiveSessions();
       rmSync(root, { recursive: true, force: true });
     }
   });

@@ -5,6 +5,7 @@ import {
   buildTurnExecutionContract,
 } from "./execution-contract";
 import {
+  hasSuccessfulWorkspaceBuild,
   verifyWorkspaceNoopCompletion,
   workspaceNoopRequirements,
 } from "./workspace-noop-completion";
@@ -69,6 +70,21 @@ function createVerifiedNoopResults(): ActionResult[] {
 }
 
 describe("verified no-op workspace completion", () => {
+  it("requires a successful Bun production build in the delegated workspace", () => {
+    const results = createVerifiedNoopResults();
+    expect(hasSuccessfulWorkspaceBuild(results, workdir)).toBe(true);
+    expect(hasSuccessfulWorkspaceBuild(results, "/workspace/other")).toBe(
+      false,
+    );
+
+    const failed = createVerifiedNoopResults();
+    const build = failed[1];
+    if (build?.data) {
+      build.data = { ...build.data, exitCode: 1 };
+    }
+    expect(hasSuccessfulWorkspaceBuild(failed, workdir)).toBe(false);
+  });
+
   it("accepts an explicit no-op only after scoped Bun, build, server, and URL receipts", () => {
     expect(
       verifyWorkspaceNoopCompletion(

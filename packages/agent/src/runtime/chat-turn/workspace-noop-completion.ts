@@ -80,6 +80,45 @@ function successfulShellCommands(actionResults: readonly ActionResult[]) {
   });
 }
 
+/** Confirm a completed Bun build in the exact workspace after coding ends. */
+export function hasSuccessfulWorkspaceBuild(
+  actionResults: readonly ActionResult[],
+  workdir: string,
+): boolean {
+  const expected = absoluteDirectory(workdir);
+  if (!expected) return false;
+  const latestCompletedDelegation = actionResults.reduce(
+    (latest, result, index) => {
+      if (
+        result.success !== true ||
+        actionResultActionName(result)?.toUpperCase() !== "TASKS_SPAWN_AGENT"
+      ) {
+        return latest;
+      }
+      const receipt = result.data?.delegatedExecution;
+      if (
+        !isRecord(receipt) ||
+        receipt.status !== "completed" ||
+        receipt.stopReason !== "end_turn" ||
+        absoluteDirectory(receipt.workdir) !== expected
+      ) {
+        return latest;
+      }
+      return index;
+    },
+    -1,
+  );
+  return successfulShellCommands(actionResults).some((command) => {
+    const directory =
+      absoluteDirectory(command.executedIn) ?? shellDirectory(command.command);
+    return (
+      command.index > latestCompletedDelegation &&
+      directory === expected &&
+      /\bbun\s+run\s+build\b/u.test(command.command)
+    );
+  });
+}
+
 function localUrl(value: unknown): URL | undefined {
   if (typeof value !== "string") return undefined;
   try {

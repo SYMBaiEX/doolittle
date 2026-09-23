@@ -187,7 +187,11 @@ export function extractCommandResultFromActionResult(
     stderr: asNonEmptyString(commandResult.stderr) ?? "",
     ...(executedIn ? { executedIn } : {}),
     durationMs: numberValue(commandResult.durationMs),
-    success: success ?? actionResult?.success !== false,
+    // The Eliza beta terminal action currently marks every completed process
+    // as ActionResult.success=true, including non-zero exits. Exit status is
+    // the authoritative command outcome unless a richer Doolittle receipt
+    // explicitly overrides it.
+    success: success ?? (actionResult?.success !== false && exitCode === 0),
   };
 }
 
