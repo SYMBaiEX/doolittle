@@ -5,6 +5,11 @@ import {
   extractVerifiedLocalMutationFromActionResult,
 } from "@/runtime/action-result-metadata";
 import { hasWorkspaceMutationObligation } from "@/runtime/workspace-mutation-intent";
+import {
+  verifyWorkspaceNoopCompletion,
+  type WorkspaceNoopRequirements,
+  workspaceNoopRequirements,
+} from "./workspace-noop-completion";
 
 // The ElizaOS executor records the selected action name on every ActionResult.
 // Keep the local-mutation boundary explicit; prompt, command, and response text
@@ -18,6 +23,7 @@ const LOCAL_MUTATION_ACTIONS = new Set([
 export interface TurnExecutionContract {
   requestedLocalMutation: boolean;
   selectedMutationActions: string[];
+  noOpRequirements?: WorkspaceNoopRequirements;
 }
 
 export interface TurnExecutionAssessment {
@@ -65,6 +71,7 @@ export function buildTurnExecutionContract(input: {
     selectedMutationActions: selectedLocalMutationActions(
       input.actionResults ?? [],
     ),
+    noOpRequirements: workspaceNoopRequirements(input.userRequest ?? ""),
   };
 }
 
@@ -118,6 +125,23 @@ export function assessTurnExecutionContract(input: {
   }
 
   if (missingReceipts.length === 0) {
+    return { ok: true };
+  }
+
+  // A verified no-op is a satisfied request, not an unrecorded mutation. Keep
+  // the exception narrow: the coding delegate must explicitly attest that the
+  // exact workspace already meets the request, and independent Bun/build,
+  // managed-server, and HTTP receipts must all agree on that directory.
+  if (
+    input.contract.requestedLocalMutation &&
+    input.contract.selectedMutationActions.length === 0 &&
+    successfulReceipts.size === 0 &&
+    !observedSuccessfulLocalMutationAction(input.actionResults ?? []) &&
+    verifyWorkspaceNoopCompletion(
+      input.actionResults ?? [],
+      input.contract.noOpRequirements,
+    )
+  ) {
     return { ok: true };
   }
 

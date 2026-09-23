@@ -426,6 +426,78 @@ describe("ElizaOS-native post-provider seam", () => {
     expect(harness.finishEvents[0]?.status).toBe("complete");
   });
 
+  it("accepts an independently verified no-op without inventing a file receipt", async () => {
+    const harness = createHarness(4);
+    const workdir = "/workspace/blog";
+    const result = await runPostProviderTurn(
+      createInput(harness.context, {
+        input: {
+          userId: "alice",
+          message:
+            "Create a Next.js blog app in this workspace, build it, and start it.",
+          source: "desktop",
+        },
+        effectiveInput: {
+          userId: "alice",
+          message:
+            "Create a Next.js blog app in this workspace, build it, and start it.",
+          source: "desktop",
+        },
+        response: "The existing implementation already satisfies the request.",
+        actionResults: [
+          {
+            success: true,
+            text: "The existing implementation already satisfies the requested requirements; no changes were needed.",
+            data: {
+              actionName: "TASKS_SPAWN_AGENT",
+              delegatedExecution: {
+                status: "completed",
+                stopReason: "end_turn",
+                exitCode: 0,
+                workdir,
+                summary:
+                  "The existing implementation already satisfies the request; no changes were needed.",
+                changedFiles: [],
+                verifiedLocalMutation: false,
+              },
+            },
+          },
+          {
+            success: true,
+            data: {
+              actionName: "SHELL",
+              command: `cd ${workdir} && bun install --frozen-lockfile && bun run build`,
+              exitCode: 0,
+              cwd: workdir,
+            },
+          },
+          {
+            success: true,
+            data: {
+              actionName: "DOOLITTLE_APP_SERVER",
+              status: "ready",
+              url: "http://localhost:3001/",
+              session: { id: "server-1", cwd: workdir, command: "bun run dev" },
+            },
+          },
+          {
+            success: true,
+            data: {
+              actionName: "SHELL",
+              command: "curl -fsS http://localhost:3001/",
+              exitCode: 0,
+              cwd: workdir,
+            },
+          },
+        ] as never,
+      }),
+    );
+
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(result.response).toContain("already satisfies the request");
+    expect(harness.finishEvents[0]?.status).toBe("complete");
+  });
+
   it("preserves a verified coding-agent blocker rather than replacing it with missing-mutation jargon", async () => {
     const harness = createHarness();
     const message = "create a blog app in this project";

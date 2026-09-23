@@ -1,5 +1,6 @@
 import {
   type Action,
+  type ActionResult,
   ChannelType,
   type Memory,
   runShortcutGate,
@@ -871,6 +872,85 @@ describe("chat turn provider handler", () => {
     );
     expect(result.runFailureMessage).toContain("SHELL");
     expect(result.response).toBe(result.runFailureMessage);
+  });
+
+  it("finishes a verified already-satisfied coding task without repeating delegation", async () => {
+    let callCount = 0;
+    const workdir = "/workspace/blog";
+    const results = [
+      {
+        success: true,
+        text: "The existing implementation already satisfies the request; no changes were needed.",
+        data: {
+          actionName: "TASKS_SPAWN_AGENT",
+          delegatedExecution: {
+            status: "completed",
+            stopReason: "end_turn",
+            exitCode: 0,
+            workdir,
+            summary:
+              "The existing implementation already satisfies the requested blog app requirements. No changes were needed.",
+            changedFiles: [],
+            verifiedLocalMutation: false,
+          },
+        },
+      },
+      {
+        success: true,
+        text: "Bun install and production build passed.",
+        data: {
+          actionName: "SHELL",
+          command: `cd ${workdir} && bun install --frozen-lockfile && bun run build`,
+          exitCode: 0,
+          cwd: workdir,
+        },
+      },
+      {
+        success: true,
+        text: "Managed server ready.",
+        data: {
+          actionName: "DOOLITTLE_APP_SERVER",
+          status: "ready",
+          url: "http://localhost:3001/",
+          session: { id: "server-1", cwd: workdir, command: "bun run dev" },
+        },
+      },
+      {
+        success: true,
+        text: "HTTP 200",
+        data: {
+          actionName: "SHELL",
+          command: "curl -fsS http://localhost:3001/",
+          exitCode: 0,
+          cwd: workdir,
+        },
+      },
+    ] as ActionResult[];
+    const { context } = createContext({
+      onHandleMessage: async () => {
+        callCount += 1;
+        return {
+          responseContent: {
+            text: "The existing Next.js blog already satisfies the requested requirements; no edits were needed.",
+          },
+          responseMessages: [],
+          actionResults: results,
+        };
+      },
+    });
+
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Create a Next.js blog app in this workspace, use Bun, build it, and start it.",
+    );
+
+    expect(callCount).toBe(1);
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(result.response).toContain("No workspace edits were needed");
+    expect(result.response).toContain("Bun dependency installation");
+    expect(result.response).toContain("http://localhost:3001/");
+    expect(result.response).toContain("sessionId=server-1");
   });
 
   it("continues after a verified partial write when the response says work remains", async () => {

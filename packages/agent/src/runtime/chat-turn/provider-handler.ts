@@ -25,6 +25,10 @@ import {
   recordEvaluationTraceEvent,
   runWithSdkTrajectoryContext,
 } from "./trajectory";
+import {
+  verifyWorkspaceNoopCompletion,
+  workspaceNoopRequirements,
+} from "./workspace-noop-completion";
 
 export type ProviderTurnSettingsSnapshot = {
   model: {
@@ -127,6 +131,16 @@ function hasVerifiedWorkspaceMutation(
 ): boolean {
   return actionResults.some((result) =>
     Boolean(extractVerifiedLocalMutationFromActionResult(result)),
+  );
+}
+
+function hasVerifiedWorkspaceCompletion(
+  actionResults: readonly ActionResult[],
+  requirements: ReturnType<typeof workspaceNoopRequirements>,
+): boolean {
+  return (
+    hasVerifiedWorkspaceMutation(actionResults) ||
+    Boolean(verifyWorkspaceNoopCompletion(actionResults, requirements))
   );
 }
 
@@ -554,6 +568,7 @@ export async function executeProviderMessageTurn(
           sessionId,
           prompt,
         );
+        const noOpRequirements = workspaceNoopRequirements(prompt);
         let messageMemory = input.memory;
         let messageResult:
           | Awaited<ReturnType<typeof messageService.handleMessage>>
@@ -646,11 +661,16 @@ export async function executeProviderMessageTurn(
 
           // A planner can return a polished-sounding preamble (or a premature
           // summary) after inspection without actually changing the workspace.
-          // Do not treat that text as terminal for an explicit mutation request
-          // until a verified file change backs it. A silent pass still gets its
-          // bounded follow-up so the SDK can synthesize a final answer.
+          // Do not treat that text as terminal until a mutation receipt exists
+          // or a strict no-op evidence contract proves the requested state was
+          // already satisfied. A silent unverified pass still gets its bounded
+          // follow-up so the SDK can synthesize a final answer.
           const explicitlyIncomplete =
             mutationObligation && explicitlyReportsIncompleteWork(response);
+          const verifiedWorkspaceCompletion = hasVerifiedWorkspaceCompletion(
+            actionResults,
+            noOpRequirements,
+          );
           if (
             managedDelegationFailure(actionResults) ||
             !mutationObligation ||
@@ -658,11 +678,9 @@ export async function executeProviderMessageTurn(
             hasPendingApproval(input.context, sessionId) ||
             attempt >= MAX_MUTATION_CONTINUATION_PASSES - 1 ||
             (response.trim() &&
-              hasVerifiedWorkspaceMutation(actionResults) &&
+              verifiedWorkspaceCompletion &&
               !explicitlyIncomplete) ||
-            (!response.trim() &&
-              attempt > 0 &&
-              !hasVerifiedWorkspaceMutation(actionResults))
+            (!response.trim() && attempt > 0 && !verifiedWorkspaceCompletion)
           ) {
             break;
           }
@@ -685,6 +703,9 @@ export async function executeProviderMessageTurn(
                   : "empty-terminal-response",
               responseChars: response.length,
               verifiedMutation: hasVerifiedWorkspaceMutation(actionResults),
+              verifiedNoopCompletion: Boolean(
+                verifyWorkspaceNoopCompletion(actionResults, noOpRequirements),
+              ),
               attempt: attempt + 1,
               actionNames: Array.from(
                 new Set(
@@ -746,13 +767,54 @@ export async function executeProviderMessageTurn(
             response = providerFailure;
           }
         }
+        const verifiedNoopCompletion = mutationObligation
+          ? verifyWorkspaceNoopCompletion(actionResults, noOpRequirements)
+          : undefined;
         if (
           !runFailureMessage &&
           mutationObligation &&
-          !hasVerifiedWorkspaceMutation(actionResults)
+          !hasVerifiedWorkspaceMutation(actionResults) &&
+          !verifiedNoopCompletion
         ) {
           runFailureMessage = incompleteMutationFailure(actionResults);
           response = runFailureMessage;
+        }
+        if (!runFailureMessage && verifiedNoopCompletion) {
+          const providerUnavailable = isSdkFailureReply(
+            messageResult?.responseContent,
+          )
+            ? "The configured response provider did not produce a final message; completion is based on the verified coding, build, server, and HTTP receipts."
+            : undefined;
+          const stopInstruction = verifiedNoopCompletion.sessionId
+            ? `Stop it from the Doolittle Terminal or call DOOLITTLE_APP_SERVER operation=stop with sessionId=${verifiedNoopCompletion.sessionId}.`
+            : "Stop it from the Doolittle Terminal.";
+          const verificationSummary = [
+            verifiedNoopCompletion.bunInstallVerified
+              ? "Bun dependency installation passed"
+              : undefined,
+            verifiedNoopCompletion.buildVerified
+              ? "the production build passed"
+              : undefined,
+            ...verifiedNoopCompletion.verificationKinds.map((kind) =>
+              kind === "build" && verifiedNoopCompletion.buildVerified
+                ? undefined
+                : `${kind} passed`,
+            ),
+          ]
+            .filter(Boolean)
+            .join("; ");
+          response = [
+            "No workspace edits were needed: the coding agent verified that the existing implementation already satisfies the requested state.",
+            `Scoped verification passed in ${verifiedNoopCompletion.workdir}: ${verificationSummary}.`,
+            verifiedNoopCompletion.url
+              ? `The managed application is ready at [Open application](${verifiedNoopCompletion.url}), and Doolittle verified that URL with a successful HTTP check.`
+              : undefined,
+            "No files were modified.",
+            verifiedNoopCompletion.url ? stopInstruction : undefined,
+            providerUnavailable,
+          ]
+            .filter(Boolean)
+            .join("\n\n");
         }
         if (
           !runFailureMessage &&

@@ -52,7 +52,8 @@ describe("workspace mutation intent", () => {
       "TURN EXECUTION CONTRACT",
       "The current request explicitly requires a local workspace mutation.",
       "Reading, searching, inspecting, or describing a planned change is not completion.",
-      "Continue until WRITE_FILE, PATCH_FILE, CREATE_DIRECTORY, or another receipt-producing local mutation succeeds.",
+      "When a change is needed, continue until WRITE_FILE, PATCH_FILE, CREATE_DIRECTORY, or another receipt-producing local mutation succeeds.",
+      "If inspection proves the exact requested state already exists, do not make unnecessary edits; report that explicitly and verify it with scoped build/test evidence, plus managed URL evidence when a running app was requested.",
       "If the change cannot be made, stop with the concrete blocker; never end on a progress-only promise.",
     ]);
     expect(
