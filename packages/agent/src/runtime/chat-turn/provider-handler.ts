@@ -130,6 +130,23 @@ function hasVerifiedWorkspaceMutation(
   );
 }
 
+/**
+ * Eliza beta.7 can return a projected action list that omits Doolittle's
+ * receipt-bearing result. Managed actions retain their full result in the
+ * request-scoped turn store; include one verified receipt before deciding
+ * whether an explicit workspace mutation completed.
+ */
+function includeScopedVerifiedMutationReceipt(
+  runtime: AgentExecutionContext["runtime"],
+  actionResults: ActionResult[],
+): ActionResult[] {
+  if (hasVerifiedWorkspaceMutation(actionResults)) return actionResults;
+  const receipt = getScopedTurnActionResults(runtime).find((result) =>
+    Boolean(extractVerifiedLocalMutationFromActionResult(result)),
+  );
+  return receipt ? [...actionResults, receipt] : actionResults;
+}
+
 function continuationMemory(
   memory: Memory,
   userRequest: string,
@@ -537,7 +554,10 @@ export async function executeProviderMessageTurn(
               : stateActionResults.length > 0
                 ? stateActionResults
                 : settledThisAttempt;
-          actionResults = [...actionResults, ...attemptActionResults];
+          actionResults = includeScopedVerifiedMutationReceipt(
+            input.context.runtime,
+            [...actionResults, ...attemptActionResults],
+          );
           allResponseMessages.push(...(messageResult?.responseMessages ?? []));
           responseMessages = allResponseMessages;
           response = resolveSdkMessageResponse({

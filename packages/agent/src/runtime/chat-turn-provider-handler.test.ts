@@ -746,6 +746,71 @@ describe("chat turn provider handler", () => {
     });
   });
 
+  it("uses Doolittle's scoped mutation receipt when the SDK projects it away", async () => {
+    const sdkProjection = {
+      success: true,
+      text: "Coding agent finished.",
+      data: { actionName: "TASKS_SPAWN_AGENT" },
+    };
+    const completion = {
+      success: true,
+      text: "The codex coding agent finished its turn in /workspace. One file change was verified.",
+      continueChain: true,
+      data: {
+        actionName: "TASKS_SPAWN_AGENT",
+        mutationKind: "local-file",
+        mutationAction: "TASKS_SPAWN_AGENT",
+        mutation: {
+          action: "TASKS_SPAWN_AGENT",
+          requestedPath: "/workspace",
+          resolvedPath: "/workspace/package.json",
+          success: true,
+          bytes: 64,
+        },
+        delegatedExecution: {
+          sessionId: "child-scoped-receipt",
+          agentType: "codex",
+          workdir: "/workspace",
+          status: "completed",
+          stopReason: "end_turn",
+          exitCode: 0,
+          summary: "Implemented the requested app and verified its build.",
+          observedTools: [],
+          changedFiles: [],
+          verifiedLocalMutation: true,
+        },
+      },
+    };
+    let context: AgentExecutionContext;
+    ({ context } = createContext({
+      onHandleMessage: async () => {
+        recordScopedTurnActionResult(context.runtime, completion);
+        return {
+          responseContent: { text: "The app is implemented and verified." },
+          responseMessages: [],
+          actionResults: [sdkProjection],
+        };
+      },
+    }));
+
+    const result = await runWithTurnRuntimeScope(
+      context.runtime,
+      { settings: new Map(), settledActionResults: [] },
+      () =>
+        executeTestTurn(
+          context,
+          "codex",
+          "Create and verify a blog app in this workspace.",
+        ),
+    );
+
+    expect(result).toMatchObject({
+      response: "The app is implemented and verified.",
+      runFailureMessage: undefined,
+      actionResults: [sdkProjection, completion],
+    });
+  });
+
   it("reports a clear incomplete-work failure when the continuation still has no file receipt", async () => {
     let callCount = 0;
     const inspection = {
