@@ -39,7 +39,9 @@ function createVerifiedNoopResults(): ActionResult[] {
         actionName: "SHELL",
         command: `cd ${workdir} && bun install --frozen-lockfile && bun run build`,
         exitCode: 0,
-        cwd: workdir,
+        // The gateway starts shell tools at the selected project root; the
+        // command's explicit `cd` selects the actual nested app workspace.
+        cwd: "/workspace",
       },
     },
     {
@@ -83,6 +85,35 @@ describe("verified no-op workspace completion", () => {
       build.data = { ...build.data, exitCode: 1 };
     }
     expect(hasSuccessfulWorkspaceBuild(failed, workdir)).toBe(false);
+  });
+
+  it("uses an explicit shell cd target instead of the process launch directory", () => {
+    const results = createVerifiedNoopResults();
+    expect(hasSuccessfulWorkspaceBuild(results, workdir)).toBe(true);
+    expect(
+      verifyWorkspaceNoopCompletion(
+        results,
+        workspaceNoopRequirements(
+          "Create a blog app, install with Bun, run a production build, and start the application.",
+        ),
+      ),
+    ).toMatchObject({ workdir, bunInstallVerified: true, buildVerified: true });
+
+    const wrongTarget = createVerifiedNoopResults();
+    const shellResult = wrongTarget[1];
+    if (shellResult?.data) {
+      shellResult.data.command =
+        "cd /workspace/other && bun install --frozen-lockfile && bun run build";
+    }
+    expect(hasSuccessfulWorkspaceBuild(wrongTarget, workdir)).toBe(false);
+    expect(
+      verifyWorkspaceNoopCompletion(
+        wrongTarget,
+        workspaceNoopRequirements(
+          "Create a blog app and run a production build.",
+        ),
+      ),
+    ).toBeUndefined();
   });
 
   it("accepts an explicit no-op only after scoped Bun, build, server, and URL receipts", () => {

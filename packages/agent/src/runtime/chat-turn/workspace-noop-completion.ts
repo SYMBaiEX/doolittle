@@ -64,6 +64,20 @@ function shellDirectory(command: string): string | undefined {
   return directory ? absoluteDirectory(directory) : undefined;
 }
 
+/**
+ * `executedIn` is the process launch directory, not necessarily the effective
+ * workspace when a shell command explicitly changes directories. Honor a
+ * leading `cd … &&` before falling back to that launch-directory receipt.
+ */
+function commandDirectory(command: {
+  command: string;
+  executedIn?: string;
+}): string | undefined {
+  return (
+    shellDirectory(command.command) ?? absoluteDirectory(command.executedIn)
+  );
+}
+
 function successfulShellCommands(actionResults: readonly ActionResult[]) {
   return actionResults.flatMap((result, index) => {
     if (
@@ -109,8 +123,7 @@ export function hasSuccessfulWorkspaceBuild(
     -1,
   );
   return successfulShellCommands(actionResults).some((command) => {
-    const directory =
-      absoluteDirectory(command.executedIn) ?? shellDirectory(command.command);
+    const directory = commandDirectory(command);
     return (
       command.index > latestCompletedDelegation &&
       directory === expected &&
@@ -221,9 +234,7 @@ export function verifyWorkspaceNoopCompletion(
   const commands = successfulShellCommands(actionResults);
   for (const delegation of delegatedResults) {
     const scopedCommands = commands.filter((command) => {
-      const directory =
-        absoluteDirectory(command.executedIn) ??
-        shellDirectory(command.command);
+      const directory = commandDirectory(command);
       return directory === delegation.workdir;
     });
     const taskVerificationCommands = scopedCommands.filter(

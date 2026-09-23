@@ -667,6 +667,9 @@ export async function executeProviderMessageTurn(
           // follow-up so the SDK can synthesize a final answer.
           const explicitlyIncomplete =
             mutationObligation && explicitlyReportsIncompleteWork(response);
+          const verifiedWorkspaceNoop = Boolean(
+            verifyWorkspaceNoopCompletion(actionResults, noOpRequirements),
+          );
           const verifiedWorkspaceCompletion = hasVerifiedWorkspaceCompletion(
             actionResults,
             noOpRequirements,
@@ -677,6 +680,7 @@ export async function executeProviderMessageTurn(
             isSdkFailureReply(messageResult?.responseContent) ||
             hasPendingApproval(input.context, sessionId) ||
             attempt >= MAX_MUTATION_CONTINUATION_PASSES - 1 ||
+            (verifiedWorkspaceNoop && !explicitlyIncomplete) ||
             (response.trim() &&
               verifiedWorkspaceCompletion &&
               !explicitlyIncomplete) ||

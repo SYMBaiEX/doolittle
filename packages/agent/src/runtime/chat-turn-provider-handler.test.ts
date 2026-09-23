@@ -874,7 +874,7 @@ describe("chat turn provider handler", () => {
     expect(result.response).toBe(result.runFailureMessage);
   });
 
-  it("finishes a verified already-satisfied coding task without repeating delegation", async () => {
+  it("finishes a verified already-satisfied coding task without repeating delegation or requiring a model final", async () => {
     let callCount = 0;
     const workdir = "/workspace/blog";
     const results = [
@@ -902,7 +902,7 @@ describe("chat turn provider handler", () => {
           actionName: "SHELL",
           command: `cd ${workdir} && bun install --frozen-lockfile && bun run build`,
           exitCode: 0,
-          cwd: workdir,
+          cwd: "/workspace",
         },
       },
       {
@@ -930,9 +930,10 @@ describe("chat turn provider handler", () => {
       onHandleMessage: async () => {
         callCount += 1;
         return {
-          responseContent: {
-            text: "The existing Next.js blog already satisfies the requested requirements; no edits were needed.",
-          },
+          // Some Eliza SDK paths complete tool work without generating a
+          // terminal model response. Verified receipts must still terminate
+          // the continuation loop and produce Doolittle's receipt-backed final.
+          responseContent: null,
           responseMessages: [],
           actionResults: results,
         };
