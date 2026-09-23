@@ -32,7 +32,7 @@ export function createCodingAction(): Action {
     name: DOOLITTLE_CODING_ACTION,
     similes: ["CODE_PROJECT", "EDIT_CODEBASE", "IMPLEMENT_CHANGE"],
     description:
-      "Plan and execute a coding task end to end. For any request that asks to create, edit, fix, or build code, start with TASKS_SPAWN_AGENT so the configured coding adapter implements the change in the exact requested workspace. Do not spend the turn repeating workspace inspection or stop after preliminary reads. After the coding agent returns, use the available workspace, file, shell, and app-server tools only for requested verification or application handoff. Use this parent for multi-step implementation or debugging work.",
+      "Plan and execute a coding task end to end. For requests to create, edit, fix, or build code, delegate the complete implementation once to TASKS_SPAWN_AGENT in the exact requested workspace. Do not delegate the same workspace again after a successful receipt unless it identifies a concrete unmet requirement. Afterward use native workspace, file, shell, and app-server tools for remaining verification. Run production builds before starting a managed dev server; never run a build that rewrites framework output (such as Next.js .next) while that server is running. Start or verify the managed application last, then give the user the verified URL and stop instructions. Do not stop after preliminary reads or present raw tool output as the final answer.",
     descriptionCompressed:
       "Implement code requests through TASKS_SPAWN_AGENT, then verify with workspace and app tools.",
     routingHint:
@@ -45,7 +45,7 @@ export function createCodingAction(): Action {
       // the installed Eliza beta does not currently inject this field into the
       // child planner's tool context.
       description:
-        "Execute the user's full coding request end to end. Inspect only the specified path, create or edit the requested files, install dependencies and run requested checks or application startup, fix recoverable errors, and verify outcomes. Do not stop after inspection or a partial edit, do not present tool output as a final answer, and report only verified completion or a concrete blocker.",
+        "Execute the user's full coding request end to end. Inspect only the specified path, create or edit the requested files, install dependencies and run requested checks, fix recoverable errors, and verify outcomes. Delegate the same workspace once for implementation; a successful receipt is evidence to verify, not a reason to launch another implementation agent. Perform any production build before starting a managed dev server; do not build over a live server's framework output. Start or check the managed application as the final operational step. Do not stop after inspection or a partial edit, do not present raw tool output as a final answer, and report only verified completion or a concrete blocker.",
     },
     subActions: [...DOOLITTLE_CODING_SUBACTIONS],
     validate: async () => true,

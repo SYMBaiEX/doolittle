@@ -25,7 +25,14 @@ afterEach(async () => {
   );
 });
 
-async function fixture() {
+async function fixture(
+  activeManagedApps: Array<{
+    id: string;
+    cwd: string;
+    command: string;
+    processId?: number;
+  }> = [],
+) {
   const root = await mkdtemp(join(tmpdir(), "doolittle-delegation-"));
   directories.push(root);
   const listeners = new Set<
@@ -125,7 +132,13 @@ async function fixture() {
         },
       ],
     },
-    { workspace: { root: () => root }, runController },
+    {
+      workspace: { root: () => root },
+      runController,
+      terminal: {
+        appServers: { listOwnedSessions: () => activeManagedApps },
+      },
+    },
   ).actions?.[0];
   if (!action) throw new Error("missing action");
   const message = {
@@ -234,6 +247,9 @@ describe("managed official coding delegation", () => {
       expect(result).toMatchObject({
         success: true,
         continueChain: true,
+        text: expect.stringContaining(
+          "do not delegate the same workspace again",
+        ),
         data: {
           delegatedExecution: {
             agentType: "codex",
@@ -270,6 +286,22 @@ describe("managed official coding delegation", () => {
       );
     },
   );
+
+  it("warns a delegated coding agent not to rebuild over a live managed app", async () => {
+    const input = await fixture([
+      {
+        id: "managed-1",
+        cwd: "/workspace/app",
+        command: "bun run dev",
+        processId: 321,
+      },
+    ]);
+    await input.execute({ task: "Fix the current app", workdir: input.root });
+    const workerPrompt = vi.mocked(input.service.sendPrompt).mock.calls[0]?.[1];
+    expect(workerPrompt).toContain("MANAGED APPLICATIONS ALREADY RUNNING");
+    expect(workerPrompt).toContain("Next.js dev and build share .next");
+    expect(workerPrompt).toContain("session=managed-1");
+  });
 
   it("does not count SDK session identity files as user task changes", async () => {
     const input = await fixture();

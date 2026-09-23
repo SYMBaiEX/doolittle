@@ -79,4 +79,14 @@ export interface ManagedAcpService {
 export interface CodingDelegationServices {
   workspace: { root(): string };
   runController: RunControllerService;
+  terminal?: {
+    appServers?: {
+      listOwnedSessions(owner: string): Array<{
+        id: string;
+        cwd?: string;
+        command?: string;
+        processId?: number;
+      }>;
+    };
+  };
 }

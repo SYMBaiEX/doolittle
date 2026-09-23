@@ -1,16 +1,17 @@
 import type { IAgentRuntime, Memory } from "@elizaos/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppServices } from "@/services";
+import type { AppServerSnapshot } from "@/services/terminal/app-server";
 import { createAppServerAction } from "./app-server-action";
 
 function fixture() {
-  const snapshot = {
+  const snapshot: AppServerSnapshot = {
     session: {
       id: "terminal-1",
       processId: 42,
       cwd: "/workspace/blog",
       command: "bun run dev",
-    },
+    } as never,
     status: "starting",
     output: "Booting",
   };
@@ -61,6 +62,32 @@ describe("managed app native action", () => {
         command: "bun run dev",
       }),
     );
+  });
+
+  it("surfaces a previously ready process that now fails its health check", async () => {
+    const { action, appServers, runtime, message } = fixture();
+    appServers.status.mockResolvedValue({
+      session: {
+        id: "terminal-1",
+        processId: 42,
+        cwd: "/workspace/blog",
+        command: "bun run dev",
+      } as never,
+      status: "unhealthy",
+      url: "http://localhost:3001/",
+      output: "ENOENT: missing .next manifest",
+    });
+    const result = await action.handler(runtime, message, undefined, {
+      parameters: { operation: "status", sessionId: "terminal-1" },
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "APP_SERVER_UNHEALTHY",
+      text: expect.stringContaining("failed the HTTP health check"),
+    });
+    expect(result?.text).toContain("Stop it before a production build");
+    expect(result?.text).toContain("http://localhost:3001/");
   });
 
   it("honors runtime local-safe even if the process environment says local-yolo", async () => {

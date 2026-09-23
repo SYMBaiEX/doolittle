@@ -102,6 +102,30 @@ describe("managed application handoff", () => {
     expect(manager.stop("chat-a", started.session.id).status).toBe("stopped");
   });
 
+  it("reports a live server as unhealthy after its first successful health check", async () => {
+    const terminal = fakeTerminal("Local: http://localhost:3007");
+    const probe = vi.fn(async () => true);
+    const manager = new AppServerManager(
+      terminal as unknown as InteractiveTerminalSessionManager,
+      probe,
+    );
+    const started = await manager.start({
+      owner: "chat-a",
+      cwd: tmpdir(),
+      command: "bun run dev",
+      waitMs: 0,
+    });
+    expect(started.status).toBe("ready");
+
+    probe.mockResolvedValue(false);
+    expect(await manager.status("chat-a", started.session.id)).toMatchObject({
+      status: "unhealthy",
+      url: "http://localhost:3007/",
+      session: { state: "running" },
+    });
+    expect(terminal.close).not.toHaveBeenCalled();
+  });
+
   it("does not call a previously printed URL ready after the command has exited", async () => {
     const terminal = fakeTerminal(
       "Local: http://localhost:3000\nEADDRINUSE",

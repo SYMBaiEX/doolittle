@@ -112,7 +112,7 @@ function completion(receipt: DelegatedExecutionReceipt): ActionResult {
   const success = receipt.status === "completed";
   const changed = receipt.changedFiles[0];
   const summary = success
-    ? `The ${receipt.agentType} coding agent finished its turn in ${receipt.workdir}. ${receipt.changedFiles.length} file change(s) were verified against pre-run fingerprints. Verify the requested build and application handoff before claiming the user's task is complete.${receipt.summary ? `\n\nAgent report:\n${receipt.summary}` : "\nThe coding agent supplied no final response; inspect its outputs before replying."}`
+    ? `The ${receipt.agentType} coding agent finished its turn in ${receipt.workdir}. ${receipt.changedFiles.length} file change(s) were verified against pre-run fingerprints. Treat this as the completed implementation pass: do not delegate the same workspace again unless the report names a concrete unmet requirement. Review the report, perform only remaining verification with native workspace tools, and if an app is requested, build before starting its managed dev server.${receipt.summary ? `\n\nAgent report:\n${receipt.summary}` : "\nThe coding agent supplied no final response; inspect its outputs before replying."}`
     : (receipt.failureMessage ?? "The coding agent did not complete the task.");
   return {
     success,
@@ -222,6 +222,19 @@ function wrapAction(
           "WORKSPACE_NOT_FOUND",
         );
       const route = modelRoute(runtime);
+      const owner = String(message.roomId);
+      const activeManagedApps =
+        services.terminal?.appServers?.listOwnedSessions(owner) ?? [];
+      const activeAppContext = activeManagedApps.length
+        ? [
+            "MANAGED APPLICATIONS ALREADY RUNNING IN THIS CONVERSATION:",
+            ...activeManagedApps.map(
+              (session) =>
+                `session=${session.id} cwd=${session.cwd} command=${session.command} pid=${session.processId ?? "unknown"}`,
+            ),
+            "Do not launch a duplicate server or run a production build that rewrites this app's framework output while it is running (Next.js dev and build share .next). The parent owns the managed process. Use read-only HTTP/browser verification for the live app; if it needs a rebuild, report that the parent must stop it, build, then restart it.",
+          ].join("\n")
+        : "No managed app server is currently running in this conversation. If one is requested, complete dependency installation and production build first; let the parent start it with DOOLITTLE_APP_SERVER after verification.";
       const adapter =
         resolveDelegationAdapter(
           userRequest(runtime, message),
@@ -274,9 +287,9 @@ function wrapAction(
                 versionDigest: "doolittle-managed-coding-v1",
                 conversationId: String(message.roomId),
                 stableBlocks: [
-                  "Implement the assigned coding work and verify it before returning. Preserve all explicit user requirements: do not replace requested libraries with look-alike components or silently change the target directory. Inspect existing files and preserve unrelated changes. Report actual test/build commands and outcomes; never claim success from preliminary commands alone. If an application must remain running, prepare and verify its development script, then give the parent the exact working directory and command so it can launch a tracked process using DOOLITTLE_APP_SERVER. Do not leave an untracked background server running from the worker. Package managers and development bundlers are distinct; use each framework's supported development tooling.",
+                  "Implement the complete assigned coding task and verify it before returning. Preserve all explicit user requirements: do not replace requested libraries with look-alike components or silently change the target directory. Inspect existing files and preserve unrelated changes. Report actual test/build commands and outcomes; never claim success from preliminary commands alone. Do not start another coding agent for this same implementation. Run production builds before starting any dev server, and never run a build that rewrites shared framework output while a managed dev server for the app is running. The parent owns requested long-running application startup: prepare and verify the development script, then give the parent the exact working directory and command for DOOLITTLE_APP_SERVER. Do not leave an untracked background server running from the worker. Package managers and development bundlers are distinct; use each framework's supported development tooling.",
                 ],
-                volatile: `Original user requirements:\n${userRequest(runtime, message)}\n\nAssigned worker task and workspace context:\n${spawnOptions.initialTask ?? ""}`,
+                volatile: `Original user requirements:\n${userRequest(runtime, message)}\n\nAssigned worker task and workspace context:\n${spawnOptions.initialTask ?? ""}\n\n${activeAppContext}`,
               }).prompt;
               const result = await executeManagedDelegation({
                 service,

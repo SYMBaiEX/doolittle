@@ -9,7 +9,7 @@ import type {
 
 export interface AppServerSnapshot {
   session: InteractiveTerminalSessionSnapshot;
-  status: "starting" | "ready" | "exited" | "stopped";
+  status: "starting" | "ready" | "unhealthy" | "exited" | "stopped";
   url?: string;
   output: string;
 }
@@ -58,12 +58,22 @@ async function isHttpReady(url: string): Promise<boolean> {
 export class AppServerManager {
   private readonly owners = new Map<string, string>();
   private readonly startupAbortCleanup = new Map<string, () => void>();
-  private readonly readySessions = new Set<string>();
+  private readonly readyUrls = new Map<string, string>();
 
   constructor(
     private readonly terminal: InteractiveTerminalSessionManager,
     private readonly probe: (url: string) => Promise<boolean> = isHttpReady,
   ) {}
+
+  /** Live managed sessions owned by a conversation, for safe agent handoffs. */
+  listOwnedSessions(owner: string): InteractiveTerminalSessionSnapshot[] {
+    return this.terminal
+      .listManaged()
+      .filter(
+        (session) =>
+          session.state === "running" && this.owners.get(session.id) === owner,
+      );
+  }
 
   async start(input: {
     owner: string;
@@ -156,6 +166,7 @@ export class AppServerManager {
     ).slice(-16_000);
     if (result.session.state !== "running") {
       this.finishStartup(sessionId);
+      this.readyUrls.delete(sessionId);
       return {
         session: result.session,
         output,
@@ -168,9 +179,10 @@ export class AppServerManager {
         const current = this.terminal.output(sessionId).session;
         this.finishStartup(sessionId);
         if (current.state === "running") {
-          this.readySessions.add(sessionId);
+          this.readyUrls.set(sessionId, url);
           return { session: current, output, status: "ready", url };
         }
+        this.readyUrls.delete(sessionId);
         return {
           session: current,
           output,
@@ -178,11 +190,18 @@ export class AppServerManager {
         };
       }
     }
-    if (
-      !this.readySessions.has(sessionId) &&
-      Date.now() - Date.parse(result.session.startedAt) > 120_000
-    ) {
+    const lastReadyUrl = this.readyUrls.get(sessionId);
+    if (lastReadyUrl) {
+      return {
+        session: result.session,
+        output,
+        status: "unhealthy",
+        url: lastReadyUrl,
+      };
+    }
+    if (Date.now() - Date.parse(result.session.startedAt) > 120_000) {
       this.finishStartup(sessionId);
+      this.readyUrls.delete(sessionId);
       return {
         session: this.terminal.close(sessionId),
         status: "stopped",
@@ -195,6 +214,7 @@ export class AppServerManager {
   stop(owner: string, sessionId: string): AppServerSnapshot {
     this.assertOwner(owner, sessionId);
     this.finishStartup(sessionId);
+    this.readyUrls.delete(sessionId);
     const session = this.terminal.close(sessionId);
     return {
       session,

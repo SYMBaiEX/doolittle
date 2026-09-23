@@ -98,20 +98,27 @@ export function createAppServerAction(services: AppServices): Action {
                 : undefined;
         if (!result)
           throw new Error("operation must be start, status, or stop.");
+        const success =
+          operation === "stop" ||
+          result.status === "ready" ||
+          result.status === "starting";
         return {
-          success:
-            operation === "stop" ||
-            result.status === "ready" ||
-            result.status === "starting",
+          success,
           ...(result.status === "starting" ? { continueChain: true } : {}),
+          ...(!success ? { error: "APP_SERVER_UNHEALTHY" } : {}),
           text: [
             `Application ${result.status}.`,
             `Directory: ${result.session.cwd}`,
             `Command: ${result.session.command}`,
             `Terminal session: ${result.session.id}; process: ${result.session.processId}.`,
             result.url
-              ? `Verified local URL: [Open application](${result.url})`
+              ? result.status === "unhealthy"
+                ? `Last verified local URL is no longer healthy: [Open application](${result.url})`
+                : `Verified local URL: [Open application](${result.url})`
               : "No HTTP-ready URL has been verified yet.",
+            result.status === "unhealthy"
+              ? "The managed process is still running, but its last verified URL failed the HTTP health check. Inspect terminal output. Stop it before a production build in this workspace, then restart it after the build."
+              : undefined,
             `Inspect output or stop it in the workspace Terminal tab, or call DOOLITTLE_APP_SERVER with operation=stop and sessionId=${result.session.id} in this conversation.`,
             result.output,
           ]
