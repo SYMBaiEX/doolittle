@@ -118,7 +118,7 @@ function actionResultsFromMessageResult(result: unknown): ActionResult[] {
 
 const MAX_CONTINUATION_EVIDENCE_CHARS = 5_000;
 const MAX_CONTINUATION_RESULT_CHARS = 1_200;
-const MAX_MUTATION_CONTINUATION_PASSES = 4;
+const MAX_MUTATION_CONTINUATION_PASSES = 12;
 
 function explicitlyReportsIncompleteWork(response: string): boolean {
   return /\b(?:not|isn't|aren't|hasn't|haven't|has not|have not)\s+(?:yet\s+)?(?:been\s+)?(?:implemented|completed|finished|verified|built|installed|tested|started|done|ready)\b|\b(?:remain|remains|remaining)\s+to\s+be\s+done\b|\b(?:still\s+need(?:s)?\s+to|left\s+to\s+do)\b/iu.test(
@@ -624,11 +624,13 @@ export async function executeProviderMessageTurn(
           | undefined;
         const allResponseMessages: Memory[] = [];
 
-        // Eliza normally owns the whole planner loop. On beta SDK paths where
-        // it returns a silent terminal after exploratory actions, give an
-        // explicit mutation request one bounded continuation on the same
-        // memory ID. The SDK therefore sees the original room/session and does
-        // not persist a second visible user message.
+        // Keep workspace mutations under Doolittle's receipt gate. ElizaOS
+        // 2.0.3-beta.7 can continue its internal planner after the requested
+        // app is ready, so a large SDK iteration cap delays completion checks
+        // and permits redundant workspace/server actions. Yield after each
+        // action; the bounded outer loop continues on the same memory ID, so
+        // the SDK retains the original room/session without another visible
+        // user message. Ordinary chat still uses Eliza's configured planner.
         for (
           let attempt = 0;
           attempt < MAX_MUTATION_CONTINUATION_PASSES;
@@ -642,13 +644,15 @@ export async function executeProviderMessageTurn(
             input.streamState.onCallbackContent,
             {
               useMultiStep: input.messagePolicy.useMultiStep,
-              maxMultiStepIterations: input.messagePolicy.useMultiStep
-                ? input.messagePolicy.maxIterations
-                : 1,
-              // Declare Doolittle's terminal-after-tools contract explicitly.
-              // The SDK planner owns its continuation loop and returned
-              // responseContent remains the canonical terminal answer.
-              continueAfterActions: true,
+              maxMultiStepIterations: mutationObligation
+                ? 1
+                : input.messagePolicy.useMultiStep
+                  ? input.messagePolicy.maxIterations
+                  : 1,
+              // Newer SDK versions honor this terminal-after-action hint;
+              // beta.7 ignores it, so maxMultiStepIterations above provides
+              // the same bounded yield on the installed runtime.
+              continueAfterActions: !mutationObligation,
               abortSignal: input.abortSignal,
               // Once a managed coding child has completed, its final response
               // must come from the terminal receipt below. Suppress the SDK's

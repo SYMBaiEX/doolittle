@@ -23,6 +23,8 @@ function createContext(overrides?: {
     onContent: (content: unknown) => Promise<unknown>;
     onStreamChunk?: (chunk: string) => Promise<void>;
     onSettledActionResult?: (result: unknown) => void;
+    maxMultiStepIterations?: number;
+    continueAfterActions?: boolean;
   }) => Promise<unknown>;
   getActionResults?: () => unknown[];
   captureNotice?: (notice: string) => void;
@@ -67,6 +69,8 @@ function createContext(overrides?: {
           options?: {
             onStreamChunk?: (chunk: string) => Promise<void>;
             onSettledActionResult?: (result: unknown) => void;
+            maxMultiStepIterations?: number;
+            continueAfterActions?: boolean;
           },
         ) => {
           await onContent({ text: "provider response" } as never);
@@ -79,6 +83,8 @@ function createContext(overrides?: {
               onContent,
               onStreamChunk: options?.onStreamChunk,
               onSettledActionResult: options?.onSettledActionResult,
+              maxMultiStepIterations: options?.maxMultiStepIterations,
+              continueAfterActions: options?.continueAfterActions,
             });
           }
           return {
@@ -938,6 +944,126 @@ describe("chat turn provider handler", () => {
     expect(result.response).toContain("http://localhost:3001/");
   });
 
+  it("yields after each coding action and stops as soon as no-op evidence is complete", async () => {
+    const workdir = "/workspace/blog";
+    const sdkProjection = {
+      success: true,
+      text: "The existing app already satisfies the request.",
+      data: { actionName: "TASKS_SPAWN_AGENT" },
+    };
+    const completion = {
+      success: true,
+      text: "The existing implementation already satisfies the requested blog app; no changes were needed.",
+      continueChain: true,
+      data: {
+        actionName: "TASKS_SPAWN_AGENT",
+        delegatedExecution: {
+          sessionId: "child-yielded-noop",
+          agentType: "codex",
+          workdir,
+          status: "completed",
+          stopReason: "end_turn",
+          exitCode: 0,
+          summary:
+            "The existing implementation already satisfies the requested one-page Next.js blog with shadcn. No changes were needed.",
+          observedTools: ["READ_FILE"],
+          changedFiles: [],
+          verifiedLocalMutation: false,
+        },
+      },
+    };
+    const install = {
+      success: true,
+      text: "Bun install passed.",
+      data: {
+        actionName: "SHELL",
+        command: `cd "${workdir}" && bun install`,
+        exitCode: 0,
+      },
+    };
+    const build = {
+      success: true,
+      text: "Production build passed.",
+      data: {
+        actionName: "SHELL",
+        command: `cd "${workdir}" && bun run build`,
+        exitCode: 0,
+      },
+    };
+    const appServer = {
+      success: true,
+      text: "Application is ready.",
+      data: {
+        actionName: "DOOLITTLE_APP_SERVER",
+        status: "ready",
+        url: "http://localhost:3001/",
+        session: {
+          id: "managed-yielded-noop",
+          cwd: workdir,
+          command: "bun run dev",
+        },
+      },
+    };
+    const sequentialResults = [
+      [sdkProjection],
+      [install],
+      [build],
+      [appServer],
+    ];
+    let context: AgentExecutionContext;
+    let callCount = 0;
+    const plannerLimits: number[] = [];
+    const continuationFlags: boolean[] = [];
+    ({ context } = createContext({
+      onHandleMessage: async ({
+        maxMultiStepIterations,
+        continueAfterActions,
+      }) => {
+        plannerLimits.push(maxMultiStepIterations ?? -1);
+        continuationFlags.push(Boolean(continueAfterActions));
+        const results = sequentialResults[callCount];
+        callCount += 1;
+        if (callCount === 1) {
+          recordScopedTurnActionResult(context.runtime, completion);
+        }
+        return {
+          responseContent: {
+            text:
+              callCount === sequentialResults.length
+                ? "The existing app is ready."
+                : "Continuing the requested workspace verification.",
+          },
+          responseMessages: [],
+          actionResults: results,
+        };
+      },
+    }));
+
+    const result = await runWithTurnRuntimeScope(
+      context.runtime,
+      { settings: new Map(), settledActionResults: [] },
+      () =>
+        executeTestTurn(
+          context,
+          "codex",
+          "Create a one-page Next.js blog with shadcn in this workspace, install with Bun, run a production build, and start the application.",
+        ),
+    );
+
+    expect(plannerLimits).toEqual([1, 1, 1, 1]);
+    expect(continuationFlags).toEqual([false, false, false, false]);
+    expect(callCount).toBe(4);
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(result.actionResults).toEqual([
+      completion,
+      install,
+      build,
+      appServer,
+    ]);
+    expect(result.response).toContain("No workspace edits were needed");
+    expect(result.response).toContain("http://localhost:3001/");
+  });
+
   it("reports a clear incomplete-work failure when the continuation still has no file receipt", async () => {
     let callCount = 0;
     const inspection = {
@@ -962,7 +1088,7 @@ describe("chat turn provider handler", () => {
       "Create the requested app in this workspace.",
     );
 
-    expect(callCount).toBe(4);
+    expect(callCount).toBe(12);
     expect(result.runFailureMessage).toContain(
       "No verified file changes were recorded",
     );
@@ -1158,7 +1284,7 @@ describe("chat turn provider handler", () => {
       "Create and verify the requested app in this workspace.",
     );
 
-    expect(callCount).toBe(4);
+    expect(callCount).toBe(12);
     expect(result.runFailureMessage).toContain(
       "still incomplete after the agent's continuation attempts",
     );
