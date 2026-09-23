@@ -144,6 +144,104 @@ function hasVerifiedWorkspaceCompletion(
   );
 }
 
+/** Merge Eliza's projected, settled, and Doolittle-scoped action receipts. */
+function mergeActionResults(
+  ...groups: readonly (readonly ActionResult[])[]
+): ActionResult[] {
+  const merged: ActionResult[] = [];
+  const seenObjects = new Set<ActionResult>();
+  const seenReceipts = new Set<string>();
+
+  for (const group of groups) {
+    for (const result of group) {
+      if (seenObjects.has(result)) continue;
+      seenObjects.add(result);
+
+      const action = actionResultActionName(result)?.toUpperCase();
+      const data = result.data;
+      let receiptKey: string | undefined;
+      if (isRecord(data) && action === "TASKS_SPAWN_AGENT") {
+        const delegated = data.delegatedExecution;
+        const blocked = data.duplicateDelegationPrevented;
+        if (isRecord(delegated) && typeof delegated.sessionId === "string") {
+          receiptKey = `delegation:${delegated.sessionId}`;
+        } else if (
+          isRecord(blocked) &&
+          typeof blocked.previousSessionId === "string"
+        ) {
+          receiptKey = `duplicate-delegation:${blocked.previousSessionId}`;
+        }
+      } else if (isRecord(data) && action === "SHELL") {
+        if (typeof data.runId === "string") receiptKey = `shell:${data.runId}`;
+      } else if (isRecord(data) && action === "DOOLITTLE_APP_SERVER") {
+        const session = data.session;
+        if (isRecord(session) && typeof session.id === "string") {
+          receiptKey = `app-server:${session.id}:${String(data.status)}`;
+        }
+      }
+
+      if (receiptKey && seenReceipts.has(receiptKey)) continue;
+      if (receiptKey) seenReceipts.add(receiptKey);
+      merged.push(result);
+    }
+  }
+
+  const hasDelegatedReceipt = merged.some((result) => {
+    const data = result.data;
+    return (
+      actionResultActionName(result)?.toUpperCase() === "TASKS_SPAWN_AGENT" &&
+      isRecord(data) &&
+      isRecord(data.delegatedExecution)
+    );
+  });
+  if (!hasDelegatedReceipt) return merged;
+
+  return merged.filter((result) => {
+    const data = result.data;
+    return !(
+      actionResultActionName(result)?.toUpperCase() === "TASKS_SPAWN_AGENT" &&
+      isRecord(data) &&
+      !isRecord(data.delegatedExecution) &&
+      !isRecord(data.duplicateDelegationPrevented)
+    );
+  });
+}
+
+function verifiedWorkspaceNoopResponse(
+  completion: NonNullable<ReturnType<typeof verifyWorkspaceNoopCompletion>>,
+  providerUnavailable?: string,
+): string {
+  const stopInstruction = completion.sessionId
+    ? `Stop it from the Doolittle Terminal or call DOOLITTLE_APP_SERVER operation=stop with sessionId=${completion.sessionId}.`
+    : "Stop it from the Doolittle Terminal.";
+  const verificationSummary = [
+    completion.bunInstallVerified
+      ? "Bun dependency installation passed"
+      : undefined,
+    completion.buildVerified ? "the production build passed" : undefined,
+    ...completion.verificationKinds.map((kind) =>
+      kind === "build" && completion.buildVerified
+        ? undefined
+        : `${kind} passed`,
+    ),
+  ]
+    .filter(Boolean)
+    .join("; ");
+
+  return [
+    "No workspace edits were needed: the coding agent verified that the existing implementation already satisfies the requested state.",
+    `Scoped verification passed in ${completion.workdir}: ${verificationSummary}.`,
+    completion.url
+      ? `The managed application is ready at [Open application](${completion.url}), and Doolittle verified that URL with a successful HTTP check.`
+      : undefined,
+    "No files were modified.",
+    completion.url ? stopInstruction : undefined,
+    providerUnavailable,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 /**
  * Eliza beta.7 may return a projected TASKS_SPAWN_AGENT result that preserves
  * the action name and display text but drops Doolittle's delegatedExecution
@@ -584,6 +682,8 @@ export async function executeProviderMessageTurn(
         },
       });
 
+      let mutationObligation = false;
+      const noOpRequirements = workspaceNoopRequirements(prompt);
       try {
         throwIfTurnAborted(input.abortSignal);
         setTrajectoryPurpose("response");
@@ -612,12 +712,11 @@ export async function executeProviderMessageTurn(
           // failure into a canned successful reply and retries other slots.
           if (!availability.ready) throw new Error(availability.detail);
         }
-        const mutationObligation = hasMutationObligation(
+        mutationObligation = hasMutationObligation(
           input.context,
           sessionId,
           prompt,
         );
-        const noOpRequirements = workspaceNoopRequirements(prompt);
         let messageMemory = input.memory;
         let messageResult:
           | Awaited<ReturnType<typeof messageService.handleMessage>>
@@ -695,9 +794,15 @@ export async function executeProviderMessageTurn(
               : stateActionResults.length > 0
                 ? stateActionResults
                 : settledThisAttempt;
+          actionResults = mergeActionResults(
+            actionResults,
+            getScopedTurnActionResults(input.context.runtime),
+            settledThisAttempt,
+            attemptActionResults,
+          );
           actionResults = includeScopedDelegatedExecutionReceipt(
             input.context.runtime,
-            [...actionResults, ...attemptActionResults],
+            actionResults,
           );
           actionResults = includeScopedVerifiedMutationReceipt(
             input.context.runtime,
@@ -851,36 +956,10 @@ export async function executeProviderMessageTurn(
           )
             ? "The configured response provider did not produce a final message; completion is based on the verified coding, build, server, and HTTP receipts."
             : undefined;
-          const stopInstruction = verifiedNoopCompletion.sessionId
-            ? `Stop it from the Doolittle Terminal or call DOOLITTLE_APP_SERVER operation=stop with sessionId=${verifiedNoopCompletion.sessionId}.`
-            : "Stop it from the Doolittle Terminal.";
-          const verificationSummary = [
-            verifiedNoopCompletion.bunInstallVerified
-              ? "Bun dependency installation passed"
-              : undefined,
-            verifiedNoopCompletion.buildVerified
-              ? "the production build passed"
-              : undefined,
-            ...verifiedNoopCompletion.verificationKinds.map((kind) =>
-              kind === "build" && verifiedNoopCompletion.buildVerified
-                ? undefined
-                : `${kind} passed`,
-            ),
-          ]
-            .filter(Boolean)
-            .join("; ");
-          response = [
-            "No workspace edits were needed: the coding agent verified that the existing implementation already satisfies the requested state.",
-            `Scoped verification passed in ${verifiedNoopCompletion.workdir}: ${verificationSummary}.`,
-            verifiedNoopCompletion.url
-              ? `The managed application is ready at [Open application](${verifiedNoopCompletion.url}), and Doolittle verified that URL with a successful HTTP check.`
-              : undefined,
-            "No files were modified.",
-            verifiedNoopCompletion.url ? stopInstruction : undefined,
+          response = verifiedWorkspaceNoopResponse(
+            verifiedNoopCompletion,
             providerUnavailable,
-          ]
-            .filter(Boolean)
-            .join("\n\n");
+          );
         }
         if (
           !runFailureMessage &&
@@ -962,9 +1041,52 @@ export async function executeProviderMessageTurn(
         input.streamState.setResponse(response);
       } catch (error) {
         if (input.abortSignal?.aborted) throw error;
-        const committedActionResults = settledActionResults.length
-          ? settledActionResults
-          : getScopedTurnActionResults(input.context.runtime);
+        const committedActionResults =
+          includeScopedReadyManagedAppServerReceipt(
+            input.context.runtime,
+            includeScopedVerifiedMutationReceipt(
+              input.context.runtime,
+              includeScopedDelegatedExecutionReceipt(
+                input.context.runtime,
+                mergeActionResults(
+                  getScopedTurnActionResults(input.context.runtime),
+                  settledActionResults,
+                  actionResults,
+                ),
+              ),
+            ),
+          );
+        const recoveredNoopCompletion = mutationObligation
+          ? verifyWorkspaceNoopCompletion(
+              committedActionResults,
+              noOpRequirements,
+            )
+          : undefined;
+        if (recoveredNoopCompletion) {
+          handledMessage = true;
+          actionResults = committedActionResults;
+          response = verifiedWorkspaceNoopResponse(
+            recoveredNoopCompletion,
+            "The model did not provide a separate final message; Doolittle completed from the verified coding, Bun, build, and managed-server receipts.",
+          );
+          input.context.runtime.logger?.warn(
+            {
+              error,
+              runId: input.runId,
+              sessionId,
+              provider: input.settingsDuring.model.provider,
+              model: input.settingsDuring.model.model,
+              roomId: input.roomId,
+              messageId,
+              actionResultCount: actionResults.length,
+              verifiedNoop: true,
+              managedAppReady: Boolean(recoveredNoopCompletion.url),
+            },
+            "ElizaOS continuation failed after the requested workspace state was verified; preserving receipt-backed completion",
+          );
+          input.streamState.setResponse(response);
+          return;
+        }
         const recoveredDelegationResponse = completedManagedDelegationResponse(
           committedActionResults,
         );

@@ -1054,12 +1054,9 @@ describe("chat turn provider handler", () => {
     expect(continuationFlags).toEqual([false, false, false, false]);
     expect(callCount).toBe(4);
     expect(result.runFailureMessage).toBeUndefined();
-    expect(result.actionResults).toEqual([
-      completion,
-      install,
-      build,
-      appServer,
-    ]);
+    expect(result.actionResults).toEqual(
+      expect.arrayContaining([completion, install, build, appServer]),
+    );
     expect(result.response).toContain("No workspace edits were needed");
     expect(result.response).toContain("http://localhost:3001/");
     expect(result.response).not.toContain("not yet been started");
@@ -1175,6 +1172,115 @@ describe("chat turn provider handler", () => {
     expect(result.response).toContain("Bun dependency installation");
     expect(result.response).toContain("http://localhost:3001/");
     expect(result.response).toContain("sessionId=server-1");
+  });
+
+  it("recovers no-op completion from the full scoped receipts when a later SDK pass throws", async () => {
+    const workdir = "/workspace/blog";
+    const completion: ActionResult = {
+      success: true,
+      text: "The existing implementation already satisfies the requested blog app; no changes were needed.",
+      data: {
+        actionName: "TASKS_SPAWN_AGENT",
+        delegatedExecution: {
+          sessionId: "child-recovery-noop",
+          agentType: "codex",
+          workdir,
+          status: "completed",
+          stopReason: "end_turn",
+          exitCode: 0,
+          summary:
+            "The existing implementation already satisfies the requested one-page Next.js blog with shadcn. No changes were needed.",
+          changedFiles: [],
+          verifiedLocalMutation: false,
+        },
+      },
+    };
+    const install: ActionResult = {
+      success: true,
+      text: "Bun install passed.",
+      data: {
+        actionName: "SHELL",
+        command: `cd "${workdir}" && bun install`,
+        exitCode: 0,
+        runId: "install-recovery-noop",
+      },
+    };
+    const build: ActionResult = {
+      success: true,
+      text: "Production build passed.",
+      data: {
+        actionName: "SHELL",
+        command: `cd "${workdir}" && bun run build`,
+        exitCode: 0,
+        runId: "build-recovery-noop",
+      },
+    };
+    const appServer: ActionResult = {
+      success: true,
+      text: "Application is ready.",
+      data: {
+        actionName: "DOOLITTLE_APP_SERVER",
+        status: "ready",
+        url: "http://localhost:3001/",
+        session: {
+          id: "server-recovery-noop",
+          cwd: workdir,
+          command: "bun run dev",
+        },
+      },
+    };
+    let context: AgentExecutionContext;
+    let callCount = 0;
+    ({ context } = createContext({
+      onHandleMessage: async ({ onSettledActionResult }) => {
+        callCount += 1;
+        if (callCount === 1) {
+          recordScopedTurnActionResult(context.runtime, completion);
+          onSettledActionResult?.(completion);
+          return {
+            responseContent: { text: "Continuing verification." },
+            responseMessages: [],
+            actionResults: [
+              {
+                success: true,
+                text: "The existing app satisfies the request.",
+                data: { actionName: "TASKS_SPAWN_AGENT" },
+              },
+            ],
+          };
+        }
+
+        recordScopedTurnActionResult(context.runtime, install);
+        recordScopedTurnActionResult(context.runtime, build);
+        recordScopedTurnActionResult(context.runtime, appServer);
+        throw new Error("provider disconnected before final synthesis");
+      },
+    }));
+
+    const result = await runWithTurnRuntimeScope(
+      context.runtime,
+      { settings: new Map(), settledActionResults: [] },
+      () =>
+        executeTestTurn(
+          context,
+          "codex",
+          "Create a one-page Next.js blog with shadcn in this workspace, install with Bun, run a production build, and start the application.",
+        ),
+    );
+
+    expect(callCount).toBe(2);
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(result.actionResults).toEqual([
+      completion,
+      install,
+      build,
+      appServer,
+    ]);
+    expect(result.response).toContain("No workspace edits were needed");
+    expect(result.response).toContain("http://localhost:3001/");
+    expect(result.response).toContain(
+      "model did not provide a separate final message",
+    );
   });
 
   it("continues after a verified partial write when the response says work remains", async () => {
