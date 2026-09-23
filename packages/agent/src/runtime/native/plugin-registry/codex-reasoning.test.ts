@@ -221,4 +221,64 @@ describe("Codex reasoning compatibility backend", () => {
     expect(requests[1]?.abortSignal).toBe(controller.signal);
     expect(requests[2]?.abortSignal).toBe(legacyController.signal);
   });
+
+  it("propagates cancellation through streaming without unhandled sibling rejections", async () => {
+    const controller = new AbortController();
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const plugin = createDoolittleCodexReasoningPlugin(
+        fakeCodexPlugin(async () => "official fallback"),
+        {
+          createBackend: () =>
+            ({
+              generate: (request: Record<string, unknown>) =>
+                new Promise((_resolve, reject) => {
+                  const signal = request.abortSignal as AbortSignal;
+                  const onTextDelta = request.onTextDelta as
+                    | ((chunk: string) => void)
+                    | undefined;
+                  onTextDelta?.("partial response");
+                  signal.addEventListener(
+                    "abort",
+                    () => reject(new DOMException("Cancelled", "AbortError")),
+                    { once: true },
+                  );
+                }),
+            }) as unknown as ReturnType<typeof createCodexReasoningBackend>,
+        },
+      );
+      const model = plugin.models?.[ModelType.RESPONSE_HANDLER] as (
+        runtime: IAgentRuntime,
+        params: Record<string, unknown>,
+      ) => Promise<{
+        textStream: AsyncIterable<string>;
+        text: Promise<string>;
+        toolCalls: Promise<unknown[]>;
+        usage: Promise<unknown>;
+        finishReason: Promise<unknown>;
+      }>;
+      const streamed = await model(runtimeFor("codex", "max"), {
+        prompt: "cancel safely",
+        stream: true,
+        tools: [{ name: "workspace" }],
+        signal: controller.signal,
+      });
+      const chunks: string[] = [];
+      const consume = (async () => {
+        for await (const chunk of streamed.textStream) chunks.push(chunk);
+      })();
+
+      controller.abort();
+
+      await expect(consume).rejects.toMatchObject({ name: "AbortError" });
+      await expect(streamed.text).rejects.toMatchObject({ name: "AbortError" });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(chunks).toEqual(["partial response"]);
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
 });

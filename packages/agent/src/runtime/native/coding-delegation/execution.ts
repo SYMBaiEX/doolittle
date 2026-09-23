@@ -14,6 +14,31 @@ function text(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+function providerStreamError(response: string): string {
+  const trimmed = response.trim();
+  if (!trimmed) return "";
+  const candidates = [
+    trimmed,
+    ...trimmed
+      .split(/\r?\n/u)
+      .map((line) => line.replace(/^data:\s*/u, "").trim())
+      .filter(Boolean),
+  ];
+  for (const candidate of new Set(candidates)) {
+    try {
+      const parsed: unknown = JSON.parse(candidate);
+      if (!isRecord(parsed) || parsed.type !== "error") continue;
+      const error = parsed.error;
+      if (typeof error === "string") return error;
+      if (isRecord(error)) return text(error.message);
+    } catch {
+      // ACP providers may stream ordinary prose or partial JSON; only complete
+      // structured provider error envelopes are authoritative here.
+    }
+  }
+  return "";
+}
+
 async function finalChildError(
   service: ManagedAcpService,
   sessionId: string,
@@ -48,6 +73,8 @@ export function delegationFailureMessage(
     )
   )
     return "Codex rejected the selected model because the coding adapter runs an older Codex version. Update Doolittle's Codex ACP adapter (or your custom ACP command), then retry. The selected model and account were not changed.";
+  if (/model.{0,100}not supported|not supported.{0,100}model/i.test(reason))
+    return "Codex cannot use the selected model with this account. Choose a model exposed by the installed Codex CLI in the conversation's model menu, then retry. Doolittle did not switch models or accounts automatically.";
   if (reason.includes("CODING_MODEL_CONFIGURATION_INVALID"))
     return "The Codex coding adapter configuration is invalid. Check the custom CODEX_CONFIG JSON and model settings, then retry. No model or account was substituted.";
   if (reason.includes("CODING_APPROVAL_POLICY_UNSUPPORTED"))
@@ -123,6 +150,7 @@ export async function executeManagedDelegation(input: {
   const pendingEvidence: Promise<void>[] = [];
   let response = "";
   let eventFailure = "";
+  let streamedProviderFailure = "";
   let lastProgress = 0;
   let cancellation: Promise<void> | undefined;
   let closure: Promise<void> | undefined;
@@ -142,10 +170,13 @@ export async function executeManagedDelegation(input: {
     if (event === "message") {
       response = `${response}${text(data.text)}`.slice(-64_000);
       if (Date.now() - lastProgress >= 250) {
+        const safeProgress = /(?:^|\n)\s*(?:data:\s*)?\{/u.test(response)
+          ? `${session.agentType} is returning a structured response…`
+          : `${session.agentType}: ${response.slice(-300)}`;
         services.runController.noteRuntimeStream(
           roomId,
           "action",
-          `${session.agentType}: ${response.slice(-300)}`,
+          safeProgress,
         );
         lastProgress = Date.now();
       }
@@ -210,20 +241,24 @@ export async function executeManagedDelegation(input: {
       exitCode = result.exitCode ?? null;
       // A final provider error is authoritative; an earlier advisory is not
       // the reason the request failed (for example, model metadata warnings).
-      eventFailure = result.error || eventFailure;
+      streamedProviderFailure = providerStreamError(response);
+      eventFailure = streamedProviderFailure || result.error || eventFailure;
     }
   } catch (error) {
     eventFailure ||= error instanceof Error ? error.message : "provider error";
   } finally {
+    streamedProviderFailure ||= providerStreamError(response);
+    if (streamedProviderFailure) eventFailure = streamedProviderFailure;
     if (
-      eventFailure ||
-      stopReason === "error" ||
-      (exitCode !== null && exitCode !== 0)
+      !streamedProviderFailure &&
+      (eventFailure ||
+        stopReason === "error" ||
+        (exitCode !== null && exitCode !== 0))
     ) {
       // Read this exact child's durable SDK error before closing its process.
       // Some native transports surface the detailed RPC error only here.
-      eventFailure =
-        (await finalChildError(service, session.sessionId)) || eventFailure;
+      const childError = await finalChildError(service, session.sessionId);
+      eventFailure = childError || eventFailure;
     }
     unsubscribe();
     signal?.removeEventListener("abort", cancel);
@@ -257,7 +292,9 @@ export async function executeManagedDelegation(input: {
     status,
     stopReason,
     exitCode,
-    summary: response.trim(),
+    // Structured provider errors may contain account or request diagnostics.
+    // Keep the actionable classification, not the raw provider envelope.
+    summary: streamedProviderFailure ? "" : response.trim(),
     failureMessage,
     observedTools: [...tools.values()],
     changedFiles,

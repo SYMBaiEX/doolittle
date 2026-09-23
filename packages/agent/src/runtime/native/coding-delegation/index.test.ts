@@ -396,7 +396,7 @@ describe("managed official coding delegation", () => {
     const result = await input.execute();
     expect(result).toMatchObject({
       success: false,
-      continueChain: true,
+      continueChain: false,
       verifiedUserFacing: true,
       userFacingText: expect.stringContaining("Sign in to codex"),
       data: {
@@ -426,7 +426,7 @@ describe("managed official coding delegation", () => {
     expect(input.service.getSession).toHaveBeenCalledExactlyOnceWith("child-1");
     expect(result).toMatchObject({
       success: false,
-      continueChain: true,
+      continueChain: false,
       verifiedUserFacing: true,
       userFacingText: expect.stringContaining("older Codex version"),
       data: {
@@ -481,7 +481,7 @@ describe("managed official coding delegation", () => {
     );
     expect(result).toMatchObject({
       success: false,
-      continueChain: true,
+      continueChain: false,
       verifiedUserFacing: true,
       userFacingText: expect.stringContaining("cannot enforce this read-only"),
     });
@@ -514,13 +514,60 @@ describe("managed official coding delegation", () => {
       await input.execute({ workdir: join(input.root, "missing") }),
     ).toMatchObject({
       success: false,
-      continueChain: true,
+      continueChain: false,
       error: "WORKSPACE_NOT_FOUND",
     });
     expect(
       await input.execute({ workdir: "austin/dev/this-is-a-test" }),
     ).toMatchObject({ success: false, error: "WORKSPACE_PATH_AMBIGUOUS" });
     expect(input.service.spawnSession).not.toHaveBeenCalled();
+  });
+
+  it("treats a streamed Codex API error as failure even when ACP reports end_turn", async () => {
+    const input = await fixture();
+    input.service.getSession = vi.fn(async () => ({
+      lastError: "Internal error",
+    }));
+    vi.mocked(input.service.sendPrompt).mockImplementation(
+      async (sessionId) => {
+        input.emit(sessionId, "message", {
+          text: JSON.stringify({
+            type: "error",
+            status: 400,
+            error: {
+              type: "invalid_request_error",
+              message:
+                "The 'gpt-6-luna' model is not supported when using Codex with a ChatGPT account.",
+            },
+          }),
+        });
+        return { stopReason: "end_turn", exitCode: 0 };
+      },
+    );
+
+    const result = await input.execute();
+
+    expect(result).toMatchObject({
+      success: false,
+      continueChain: false,
+      userFacingText: expect.stringContaining(
+        "cannot use the selected model with this account",
+      ),
+      data: {
+        delegatedExecution: {
+          status: "failed",
+          stopReason: "end_turn",
+          summary: "",
+          failureMessage: expect.stringContaining(
+            "Choose a model exposed by the installed Codex CLI",
+          ),
+          verifiedLocalMutation: false,
+        },
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain("gpt-6-luna");
+    expect(input.service.getSession).not.toHaveBeenCalled();
+    expect(input.service.sendPrompt).toHaveBeenCalledOnce();
   });
 
   it("honors an explicit user adapter choice without inheriting the wrong model", async () => {

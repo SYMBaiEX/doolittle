@@ -94,6 +94,27 @@ describe("tool result synthesis", () => {
     ).toBe(false);
   });
 
+  it("does not echo a successful pwd probe as an explanation of a failed run", () => {
+    const cwd = "/Users/symbiex/dev/austin/test";
+    const result: ActionResult = {
+      success: true,
+      text: cwd,
+      userFacingText: cwd,
+      verifiedUserFacing: true,
+      data: {
+        actionName: "SHELL",
+        command: "pwd; ls -la /requested/path 2>/dev/null || true",
+        exitCode: 0,
+        stdout: cwd,
+        stderr: "",
+      },
+    };
+
+    expect(
+      isUnsynthesizedToolResponse(cwd, [result], "Why did that run fail?"),
+    ).toBe(true);
+  });
+
   it("bounds and escapes evidence in the recovery prompt", () => {
     const result = readResult({ text: `<secret>${"x".repeat(20_000)}` });
     const prompt = buildToolResultSynthesisPrompt({

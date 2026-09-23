@@ -13,6 +13,7 @@ import { checkOllamaReadiness } from "@/runtime/native/plugin-registry/ollama-re
 import { getScopedTurnActionResults } from "@/runtime/turn-runtime-scope";
 import { hasWorkspaceMutationObligation } from "@/runtime/workspace-mutation-intent";
 import { escapeXml } from "@/utils/eliza-compat";
+import { isRecord } from "@/utils/records";
 import type { StreamingOutputModel } from "./provider-streaming";
 import {
   isUnsynthesizedToolResponse,
@@ -265,6 +266,31 @@ function completedManagedDelegationResponse(
   return typeof result.text === "string" && result.text.trim()
     ? result.text.trim()
     : undefined;
+}
+
+function managedDelegationFailure(
+  actionResults: readonly ActionResult[],
+): { result: ActionResult; message: string } | undefined {
+  const result = [...actionResults]
+    .reverse()
+    .find(
+      (candidate) => actionResultActionName(candidate) === "TASKS_SPAWN_AGENT",
+    );
+  if (result?.success !== false || !isRecord(result?.data)) return undefined;
+  const receipt = result.data.delegatedExecution;
+  if (
+    !isRecord(receipt) ||
+    !["failed", "cancelled"].includes(String(receipt.status))
+  )
+    return undefined;
+  const message =
+    (typeof result.data.userFacingText === "string" &&
+      result.data.userFacingText.trim()) ||
+    (typeof receipt.failureMessage === "string" &&
+      receipt.failureMessage.trim()) ||
+    (typeof result.text === "string" && result.text.trim()) ||
+    "The coding agent stopped before completing the task. Review its activity and retry after resolving the reported issue.";
+  return { result, message };
 }
 
 /**
@@ -522,6 +548,7 @@ export async function executeProviderMessageTurn(
           const explicitlyIncomplete =
             mutationObligation && explicitlyReportsIncompleteWork(response);
           if (
+            managedDelegationFailure(actionResults) ||
             !mutationObligation ||
             isSdkFailureReply(messageResult?.responseContent) ||
             hasPendingApproval(input.context, sessionId) ||
@@ -573,7 +600,15 @@ export async function executeProviderMessageTurn(
         }
 
         throwIfTurnAborted(input.abortSignal);
-        if (isSdkFailureReply(messageResult?.responseContent)) {
+        const delegatedFailure = managedDelegationFailure(actionResults);
+        if (delegatedFailure) {
+          runFailureMessage = delegatedFailure.message;
+          response = delegatedFailure.message;
+        }
+        if (
+          !runFailureMessage &&
+          isSdkFailureReply(messageResult?.responseContent)
+        ) {
           runFailureMessage =
             response ||
             "The model provider could not complete this turn. Check provider status and retry.";

@@ -18,6 +18,7 @@ describe("workspace mutation intent", () => {
     "Fix the source file without modifying unrelated files.",
     'Update "README.md" and preserve existing instructions.',
     "Please write `src/page.tsx`.",
+    "Please make a one page blog app in nextjs with shadcn in the austin/dev/this-is-a-test folder, and then start the application. Ensure you include a dev script and use bun for the bundler so we can bun run dev.",
   ])("detects explicit local mutation requests: %s", (message) => {
     expect(hasExplicitWorkspaceMutationIntent(message)).toBe(true);
   });

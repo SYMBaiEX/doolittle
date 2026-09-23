@@ -94,7 +94,7 @@ function failure(message: string, code: string): ActionResult {
     userFacingText: message,
     verifiedUserFacing: true,
     error: code,
-    continueChain: true,
+    continueChain: false,
     data: {
       actionName: "TASKS_SPAWN_AGENT",
       userFacingText: message,
@@ -121,7 +121,7 @@ function completion(receipt: DelegatedExecutionReceipt): ActionResult {
       ? { userFacingText: receipt.failureMessage, verifiedUserFacing: true }
       : {}),
     ...(success ? {} : { error: receipt.failureMessage }),
-    continueChain: true,
+    continueChain: success,
     data: buildActionResultData(
       changed
         ? {

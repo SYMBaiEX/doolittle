@@ -925,6 +925,51 @@ describe("chat turn provider handler", () => {
     expect(result.response).toContain("No verified file changes were recorded");
   });
 
+  it("stops after a terminal managed coding-agent failure and preserves its actionable error", async () => {
+    let callCount = 0;
+    const failure =
+      "Codex cannot use the selected model with this account. Choose a model exposed by the installed Codex CLI in the conversation's model menu, then retry.";
+    const failedDelegation = {
+      success: false,
+      text: failure,
+      userFacingText: failure,
+      verifiedUserFacing: true,
+      continueChain: false,
+      data: {
+        actionName: "TASKS_SPAWN_AGENT",
+        userFacingText: failure,
+        verifiedUserFacing: true,
+        delegatedExecution: {
+          status: "failed",
+          failureMessage: failure,
+          verifiedLocalMutation: false,
+        },
+      },
+    };
+    const { context } = createContext({
+      onHandleMessage: async ({ onSettledActionResult }) => {
+        callCount += 1;
+        onSettledActionResult?.(failedDelegation);
+        return {
+          responseContent: { text: "The task is complete." },
+          responseMessages: [],
+          state: { data: { actionResults: [failedDelegation] } },
+        };
+      },
+    });
+
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Create a blog app in this workspace and run the build.",
+    );
+
+    expect(callCount).toBe(1);
+    expect(result.response).toBe(failure);
+    expect(result.runFailureMessage).toBe(failure);
+    expect(result.actionResults).toEqual([failedDelegation]);
+  });
+
   it("starts a standalone SDK trajectory and leaves model-call logging to runtime.useModel", async () => {
     const started: unknown[] = [];
     const ended: unknown[] = [];

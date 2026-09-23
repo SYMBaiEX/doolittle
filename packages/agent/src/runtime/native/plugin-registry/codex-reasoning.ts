@@ -171,6 +171,13 @@ function toCodexTextReturn(
   return result.text;
 }
 
+function observePromiseRejection<T>(promise: Promise<T>): Promise<T> {
+  // The SDK does not always consume every optional promise in a streamed
+  // result. Observe rejection without changing the promise returned to callers.
+  void promise.catch(() => undefined);
+  return promise;
+}
+
 function createReasoningModelHandler(
   fallback: CodexModelHandler,
   createBackend: CodexBackendFactory = createCodexReasoningBackend,
@@ -194,23 +201,35 @@ function createReasoningModelHandler(
       const chunks: string[] = [];
       let notify: (() => void) | undefined;
       let complete = false;
+      let streamError: unknown;
+      let failed = false;
       const wake = () => {
         notify?.();
         notify = undefined;
       };
-      const result = backendFor(runtime)
-        .generate({
-          ...request,
-          abortSignal,
-          onTextDelta: (chunk) => {
-            chunks.push(chunk);
-            wake();
-          },
-        })
-        .finally(() => {
+      const result = backendFor(runtime).generate({
+        ...request,
+        abortSignal,
+        onTextDelta: (chunk) => {
+          chunks.push(chunk);
+          wake();
+        },
+      });
+      // Do not use an ignored `.finally()`: its returned promise rejects too,
+      // and expected aborts can otherwise become process-level unhandled
+      // rejections that terminate the desktop runtime.
+      void result.then(
+        () => {
           complete = true;
           wake();
-        });
+        },
+        (error: unknown) => {
+          streamError = error;
+          failed = true;
+          complete = true;
+          wake();
+        },
+      );
       const textStream = async function* () {
         while (!complete || chunks.length > 0) {
           const chunk = chunks.shift();
@@ -222,26 +241,35 @@ function createReasoningModelHandler(
             notify = resolve;
           });
         }
+        if (failed) throw streamError;
       };
       const withTools = Boolean(
         params.messages?.length || params.tools?.length || params.toolChoice,
       );
       return {
         textStream: textStream(),
-        text: result.then((value) => value.text),
+        text: observePromiseRejection(result.then((value) => value.text)),
         ...(withTools
-          ? { toolCalls: result.then((value) => value.toolCalls) }
+          ? {
+              toolCalls: observePromiseRejection(
+                result.then((value) => value.toolCalls),
+              ),
+            }
           : {}),
-        usage: result.then((value) =>
-          value.usage
-            ? {
-                promptTokens: value.usage.inputTokens,
-                completionTokens: value.usage.outputTokens,
-                totalTokens: value.usage.totalTokens,
-              }
-            : undefined,
+        usage: observePromiseRejection(
+          result.then((value) =>
+            value.usage
+              ? {
+                  promptTokens: value.usage.inputTokens,
+                  completionTokens: value.usage.outputTokens,
+                  totalTokens: value.usage.totalTokens,
+                }
+              : undefined,
+          ),
         ),
-        finishReason: result.then((value) => value.finishReason),
+        finishReason: observePromiseRejection(
+          result.then((value) => value.finishReason),
+        ),
         providerMetadata: { modelName: request.model },
       };
     }

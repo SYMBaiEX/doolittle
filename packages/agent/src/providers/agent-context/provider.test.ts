@@ -122,7 +122,12 @@ function createRuntime() {
   };
 }
 
-function createServices() {
+function createServices(
+  runController: unknown = {
+    getByRoomId: () => undefined,
+    listReceipts: () => [],
+  },
+) {
   const services = {
     personalities: {
       getActive: () => ({
@@ -138,6 +143,7 @@ function createServices() {
         model: { provider: "openai", model: "gpt-5" },
       }),
     },
+    runController,
     memory: {
       summary: (target: "memory" | "user") =>
         target === "memory"
@@ -382,6 +388,66 @@ describe("agent context providers", () => {
       "Reading, searching, inspecting, or describing a planned change is not completion.",
     );
     expect(readOnly.text).not.toContain("TURN EXECUTION CONTRACT");
+  });
+
+  it("gives a failure follow-up only the prior failed run from the same chat", async () => {
+    const failedRun = {
+      runId: "failed-run",
+      sessionId: "session-1",
+      roomId: "diagnostic-room",
+      source: "desktop",
+      message: "Create the blog app in the requested folder.",
+      runDepth: "standard",
+      configuredMaxIterations: 45,
+      observedActionCount: 2,
+      progressMode: "verbose",
+      status: "error",
+      lastAction: "SHELL",
+      localMutations: [],
+      pendingApprovals: 0,
+      startedAt: "2026-09-22T22:29:23.380Z",
+      updatedAt: "2026-09-22T22:29:52.854Z",
+      endedAt: "2026-09-22T22:29:52.854Z",
+      errorMessage:
+        "I stopped before completing the requested workspace change. No verified local mutation receipt was recorded.",
+    };
+    const services = createServices({
+      getByRoomId: (roomId: string) =>
+        roomId === "diagnostic-room"
+          ? { runId: "current-run" }
+          : { runId: "other-current-run" },
+      listReceipts: () => [
+        { ...failedRun, roomId: "other-room", runId: "other-room-run" },
+        { ...failedRun, runId: "current-run", status: "thinking" },
+        failedRun,
+      ],
+    });
+    const workspace = provider(
+      createAgentContextProviders(services),
+      "DOOLITTLE_WORKSPACE_CONTEXT_PROVIDER",
+    );
+
+    const result = await workspace.get(
+      createRuntime() as never,
+      createMemory(
+        "diagnostic-turn",
+        "diagnostic-room",
+        "desktop",
+        "Why did that run fail?",
+      ),
+      {} as never,
+    );
+
+    expect(result.text).toContain(
+      "RECENT RUN FAILURE EVIDENCE (same conversation)",
+    );
+    expect(result.text).toContain("runId=failed-run");
+    expect(result.text).toContain("lastAction=SHELL");
+    expect(result.text).toContain("observedActions=2");
+    expect(result.text).toContain(
+      "Create the blog app in the requested folder.",
+    );
+    expect(result.text).not.toContain("other-room-run");
   });
 
   it("adds bounded latest ACP editor state only to desktop turns", async () => {

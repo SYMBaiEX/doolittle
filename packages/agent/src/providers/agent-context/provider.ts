@@ -26,6 +26,7 @@ import {
   buildDelegationProjectionWorkers,
 } from "@/services/delegation/reporting";
 import { messageText } from "@/utils/eliza-compat";
+import { renderRecentRunFailureContext } from "./run-failure-context";
 import { renderIdentitySections } from "./sections/identity";
 import { renderMemorySections } from "./sections/memory";
 import { renderOperationSections } from "./sections/operations";
@@ -206,6 +207,7 @@ async function workspaceContextResult(
 
   return {
     text: [
+      renderRecentRunFailureContext(services.runController, message),
       ...renderWorkspaceMutationExecutionContract(
         messageText(message),
         recentMessages,
@@ -219,7 +221,9 @@ async function workspaceContextResult(
         recentTerminal,
         repoSummary,
       }),
-    ].join("\n"),
+    ]
+      .filter(Boolean)
+      .join("\n"),
     values: {},
     data: {
       skillsCount: skillEntries.length,

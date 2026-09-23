@@ -55,6 +55,23 @@ describe("workspace mutation response-handler evaluator", () => {
     );
   });
 
+  it("routes the failed Next.js blog-app task through the coding parent", async () => {
+    const input = context(
+      "Please make a one page blog app in nextjs with shadcn in the austin/dev/this-is-a-test folder, and then start the application. Ensure you include a dev script and use bun for the bundler so we can bun run dev.",
+    );
+
+    expect(await workspaceMutationRoutingEvaluator.shouldRun(input)).toBe(true);
+    expect(await workspaceMutationRoutingEvaluator.evaluate(input)).toEqual(
+      expect.objectContaining({
+        requiresTool: true,
+        clearCandidateActions: true,
+        addCandidateActions: [DOOLITTLE_CODING_ACTION],
+        clearParentActionHints: true,
+        addParentActionHints: [DOOLITTLE_CODING_ACTION],
+      }),
+    );
+  });
+
   it("replaces a broad action surface with only the native coding parent", async () => {
     const input = context("Review the repo and write a README.md for it");
     const messageHandler = {
