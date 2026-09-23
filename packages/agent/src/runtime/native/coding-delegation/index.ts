@@ -183,7 +183,7 @@ function completion(
       {
         actionName: "TASKS_SPAWN_AGENT",
         delegatedExecution: receipt,
-        ...(receipt.failureMessage
+        ...(!success && !recoverInParent && receipt.failureMessage
           ? { userFacingText: receipt.failureMessage, verifiedUserFacing: true }
           : {}),
       },

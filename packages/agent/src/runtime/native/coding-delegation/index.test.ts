@@ -413,6 +413,9 @@ describe("managed official coding delegation", () => {
     expect(sameTurn.first?.text).not.toContain(
       "No successful completion was recorded",
     );
+    expect(sameTurn.first).not.toHaveProperty("verifiedUserFacing");
+    expect(sameTurn.first?.data).not.toHaveProperty("verifiedUserFacing");
+    expect(sameTurn.first?.data).not.toHaveProperty("userFacingText");
     expect(sameTurn.duplicate).toMatchObject({
       success: true,
       continueChain: true,
