@@ -1030,7 +1030,7 @@ describe("chat turn provider handler", () => {
           responseContent: {
             text:
               callCount === sequentialResults.length
-                ? "The existing app is ready."
+                ? "The app has not yet been started; I will check the workspace again."
                 : "Continuing the requested workspace verification.",
           },
           responseMessages: [],
@@ -1062,6 +1062,7 @@ describe("chat turn provider handler", () => {
     ]);
     expect(result.response).toContain("No workspace edits were needed");
     expect(result.response).toContain("http://localhost:3001/");
+    expect(result.response).not.toContain("not yet been started");
   });
 
   it("reports a clear incomplete-work failure when the continuation still has no file receipt", async () => {

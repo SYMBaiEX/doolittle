@@ -737,7 +737,12 @@ export async function executeProviderMessageTurn(
             isSdkFailureReply(messageResult?.responseContent) ||
             hasPendingApproval(input.context, sessionId) ||
             attempt >= MAX_MUTATION_CONTINUATION_PASSES - 1 ||
-            (verifiedWorkspaceNoop && !explicitlyIncomplete) ||
+            // A strict no-op receipt includes the completed coding-agent
+            // attestation plus the requested parent install/build and ready
+            // server evidence. It is authoritative over a contradictory
+            // provisional model phrase such as "not started yet"; continuing
+            // after it only repeats already-verified workspace actions.
+            verifiedWorkspaceNoop ||
             (response.trim() &&
               verifiedWorkspaceCompletion &&
               !explicitlyIncomplete) ||
@@ -880,6 +885,7 @@ export async function executeProviderMessageTurn(
         if (
           !runFailureMessage &&
           mutationObligation &&
+          !verifiedNoopCompletion &&
           explicitlyReportsIncompleteWork(response)
         ) {
           runFailureMessage = [
