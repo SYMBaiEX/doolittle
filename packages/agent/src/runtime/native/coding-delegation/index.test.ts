@@ -307,7 +307,7 @@ describe("managed official coding delegation", () => {
     expect(result?.text).toContain("parent-turn SHELL receipt");
   });
 
-  it("blocks repeat coding delegation only for the completed workspace in the current turn", async () => {
+  it("blocks repeat coding delegation for the same workspace within one turn", async () => {
     const input = await fixture();
     const otherWorkdir = await mkdtemp(
       join(tmpdir(), "doolittle-delegation-other-"),
@@ -371,6 +371,65 @@ describe("managed official coding delegation", () => {
       },
     });
     expect(input.service.spawnSession).toHaveBeenCalledTimes(3);
+  });
+
+  it("recovers from a worker sandbox failure without respawning the same workspace", async () => {
+    const input = await fixture();
+    input.settings.set(
+      "DOOLITTLE_CODING_REQUEST_TEXT",
+      "Create a Next.js blog, build it, and start the application.",
+    );
+    vi.mocked(input.service.sendPrompt).mockResolvedValue({
+      stopReason: "error",
+      exitCode: 1,
+      error: "listen EPERM: operation not permitted 127.0.0.1:3000",
+    });
+
+    const sameTurn = await runWithTurnRuntimeScope(
+      input.runtime,
+      { settings: input.settings, settledActionResults: [] },
+      async () => {
+        const first = await input.execute();
+        const duplicate = await input.execute();
+        const duplicateAgain = await input.execute();
+        return { first, duplicate, duplicateAgain };
+      },
+    );
+
+    expect(sameTurn.first).toMatchObject({
+      success: true,
+      continueChain: true,
+      text: expect.stringContaining(
+        "continue with Doolittle's native workspace and shell actions",
+      ),
+      data: {
+        delegatedExecution: {
+          status: "failed",
+          verifiedLocalMutation: false,
+        },
+      },
+    });
+    expect(sameTurn.first?.text).toContain(input.root);
+    expect(sameTurn.first?.text).not.toContain(
+      "No successful completion was recorded",
+    );
+    expect(sameTurn.duplicate).toMatchObject({
+      success: true,
+      continueChain: true,
+      text: expect.stringContaining("did not launch a duplicate"),
+      data: {
+        duplicateDelegationPrevented: {
+          status: "blocked",
+          workdir: input.root,
+          previousSessionId: "child-1",
+        },
+      },
+    });
+    expect(sameTurn.duplicateAgain).toMatchObject({
+      success: true,
+      continueChain: false,
+    });
+    expect(input.service.spawnSession).toHaveBeenCalledOnce();
   });
 
   it("warns a delegated coding agent not to rebuild over a live managed app", async () => {

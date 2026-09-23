@@ -27,7 +27,10 @@ describe("Doolittle coding action", () => {
       "The delegated agent must not run a production build or start the app",
     );
     expect(parent.description).toContain(
-      "Do not delegate the same workspace again",
+      "Never repeat a same-workspace delegation during one turn",
+    );
+    expect(parent.description).toContain(
+      "recover with native workspace and shell actions",
     );
     expect(parent.subPlanner).toMatchObject({
       name: "Doolittle coding planner",

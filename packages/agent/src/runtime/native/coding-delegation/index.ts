@@ -116,8 +116,15 @@ function failure(message: string, code: string): ActionResult {
 function completion(
   receipt: DelegatedExecutionReceipt,
   request: string,
+  parentTurnAborted: boolean,
 ): ActionResult {
   const success = receipt.status === "completed";
+  const failureRequiresUserAction =
+    /could not authenticate|sign in to|older codex version|cannot use the selected model|selected model.*(?:cannot|not supported)|security policy|approval.*(?:required|requested|pending|denied|declined)|user (?:denied|declined)|needs workspace or command permission|review the coding-agent permissions/i.test(
+      receipt.failureMessage ?? "",
+    );
+  const recoverInParent =
+    !success && !parentTurnAborted && !failureRequiresUserAction;
   const changed = receipt.changedFiles[0];
   const changedFiles = receipt.changedFiles.length;
   const requirements = workspaceNoopRequirements(request);
@@ -142,15 +149,18 @@ function completion(
     ? changedFiles === 0
       ? `The ${receipt.agentType} coding agent finished a review of ${receipt.workdir} without changing user files. This receipt alone does not prove implementation. Inspect the existing workspace and verify every requested requirement. If anything is missing, implement only that concrete gap with native workspace tools; if everything is already present, complete the task only as a verified no-op. Do not launch a second coding agent for this workspace. ${parentVerification}${receipt.summary ? `\n\nAgent report:\n${receipt.summary}` : "\nThe coding agent supplied no final response; inspect its outputs before replying."}`
       : `The ${receipt.agentType} coding agent finished its implementation pass in ${receipt.workdir}. ${changedFiles} file change(s) were verified against pre-run fingerprints. Treat this as the completed implementation pass: do not delegate the same workspace again unless the report names a concrete unmet requirement. Review the report and perform the required parent-turn verification. ${parentVerification}${receipt.summary ? `\n\nAgent report:\n${receipt.summary}` : "\nThe coding agent supplied no final response; inspect its outputs before replying."}`
-    : (receipt.failureMessage ?? "The coding agent did not complete the task.");
+    : recoverInParent
+      ? `${receipt.agentType} did not complete the delegated implementation in ${receipt.workdir}; its receipt is not proof of task completion. Inspect the recorded tool activity and workspace changes, then continue with Doolittle's native workspace and shell actions in this exact directory. Do not start another coding agent for this workspace in this turn. Respect any native approval or permission boundary; if recovery requires user action, report that blocker. Verify every requirement before replying. Worker status: ${receipt.status}.`
+      : (receipt.failureMessage ??
+        "The coding agent did not complete the task.");
   return {
-    success,
+    success: success || recoverInParent,
     text: summary,
-    ...(receipt.failureMessage
+    ...(!success && !recoverInParent && receipt.failureMessage
       ? { userFacingText: receipt.failureMessage, verifiedUserFacing: true }
       : {}),
-    ...(success ? {} : { error: receipt.failureMessage }),
-    continueChain: success,
+    ...(!success && !recoverInParent ? { error: receipt.failureMessage } : {}),
+    continueChain: success || recoverInParent,
     data: buildActionResultData(
       changed
         ? {
@@ -181,13 +191,12 @@ function completion(
   };
 }
 
-function completedDelegationForWorkspace(
+function delegationReceiptForWorkspace(
   runtime: IAgentRuntime,
   workdir: string,
 ): DelegatedExecutionReceipt | undefined {
   const result = getScopedTurnActionResults(runtime).find((candidate) => {
     if (
-      candidate.success !== true ||
       actionResultActionName(candidate) !== "TASKS_SPAWN_AGENT" ||
       !isRecord(candidate.data?.delegatedExecution)
     ) {
@@ -195,7 +204,6 @@ function completedDelegationForWorkspace(
     }
     const receipt = candidate.data.delegatedExecution;
     return (
-      receipt.status === "completed" &&
       typeof receipt.workdir === "string" &&
       resolve(receipt.workdir) === workdir
     );
@@ -210,9 +218,17 @@ function blockedDuplicateDelegation(
   receipt: DelegatedExecutionReceipt,
   repeated: boolean,
 ): ActionResult {
+  const attempt =
+    receipt.status === "completed"
+      ? "completed an implementation pass"
+      : `already attempted this workspace and ended ${receipt.status}`;
+  const nextStep =
+    receipt.status === "completed"
+      ? "Review its report and continue with native workspace and shell tools for any remaining verification. If there is a concrete unmet requirement, address only that requirement without repeating the implementation pass."
+      : "Inspect its activity and any existing changes, then continue with native workspace and shell tools. Do not repeat the delegation; surface any user-actionable provider, permission, or approval blocker without bypassing it.";
   const text = repeated
-    ? `A coding agent already completed an implementation pass in ${workdir}, so this additional same-workspace delegation was blocked. Continue with native workspace and shell tools to verify the existing work; do not launch another coding agent.`
-    : `A coding agent already completed an implementation pass in ${workdir}, so I did not launch a duplicate. Review its report and continue with native workspace and shell tools for any remaining verification. If there is a concrete unmet requirement, address only that requirement without repeating the implementation pass.${receipt.summary ? `\n\nCompleted agent report: ${receipt.summary}` : ""}`;
+    ? `A coding agent ${attempt} in ${workdir}, so this additional same-workspace delegation was blocked. Continue with native workspace and shell tools; do not launch another coding agent.`
+    : `A coding agent ${attempt} in ${workdir}, so I did not launch a duplicate. ${nextStep}${receipt.failureMessage ? `\n\nPrevious worker result: ${receipt.failureMessage}` : receipt.summary ? `\n\nPrevious worker report: ${receipt.summary}` : ""}`;
   return {
     success: true,
     text,
@@ -236,7 +252,7 @@ function wrapAction(
   const handler = action.handler;
   const managedSpawnDescription =
     action.name === "TASKS_SPAWN_AGENT"
-      ? "For a user-requested coding implementation, delegate the complete task to the configured coding adapter in the exact requested existing workspace. Include the user's full requirements in task and the resolved absolute directory in workdir; do not substitute the selected project root. Wait for the coding run to finish before returning."
+      ? "For a user-requested coding implementation, delegate the complete task once to the configured coding adapter in the exact requested existing workspace. Include the user's full requirements in task and the resolved absolute directory in workdir; do not substitute the selected project root. If the worker fails without the parent turn being cancelled, inspect its receipt/activity and recover with native Doolittle tools; never launch a second worker for that workspace in the same turn."
       : undefined;
   return {
     ...action,
@@ -297,11 +313,8 @@ function wrapAction(
           `The coding workspace does not exist: ${workdir}. Inspect the intended location and create this exact directory with the workspace tool if the user requested it, then retry. No fallback directory was used.`,
           "WORKSPACE_NOT_FOUND",
         );
-      const completedReceipt = completedDelegationForWorkspace(
-        runtime,
-        workdir,
-      );
-      if (completedReceipt) {
+      const previousReceipt = delegationReceiptForWorkspace(runtime, workdir);
+      if (previousReceipt) {
         const repeated = getScopedTurnActionResults(runtime).some(
           (result) =>
             isRecord(result.data?.duplicateDelegationPrevented) &&
@@ -309,7 +322,7 @@ function wrapAction(
         );
         const blocked = blockedDuplicateDelegation(
           workdir,
-          completedReceipt,
+          previousReceipt,
           repeated,
         );
         recordScopedTurnActionResult(runtime, blocked);
@@ -476,7 +489,11 @@ function wrapAction(
           ),
       );
       if (receipt) {
-        const result = completion(receipt, userRequest(runtime, message));
+        const result = completion(
+          receipt,
+          userRequest(runtime, message),
+          signal?.aborted === true,
+        );
         recordScopedTurnActionResult(runtime, result);
         return result;
       }
