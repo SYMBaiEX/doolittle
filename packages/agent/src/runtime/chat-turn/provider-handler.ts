@@ -145,6 +145,55 @@ function hasVerifiedWorkspaceCompletion(
 }
 
 /**
+ * Eliza beta.7 may return a projected TASKS_SPAWN_AGENT result that preserves
+ * the action name and display text but drops Doolittle's delegatedExecution
+ * receipt. Restore that receipt in the projected action's original position:
+ * no-op completion requires parent install/build/server evidence to follow the
+ * completed delegation, so appending it would both lose the ordering and
+ * incorrectly reject otherwise verified work.
+ */
+function includeScopedDelegatedExecutionReceipt(
+  runtime: AgentExecutionContext["runtime"],
+  actionResults: ActionResult[],
+): ActionResult[] {
+  const scopedReceipts = getScopedTurnActionResults(runtime).filter(
+    (result) =>
+      actionResultActionName(result) === "TASKS_SPAWN_AGENT" &&
+      isRecord(result.data?.delegatedExecution),
+  );
+  if (scopedReceipts.length === 0) return actionResults;
+
+  const sessionId = (result: ActionResult): string | undefined => {
+    const receipt = result.data?.delegatedExecution;
+    return isRecord(receipt) && typeof receipt.sessionId === "string"
+      ? receipt.sessionId
+      : undefined;
+  };
+  const representedSessionIds = new Set(
+    actionResults.map(sessionId).filter((id): id is string => Boolean(id)),
+  );
+  const missingReceipts = scopedReceipts.filter((result) => {
+    const id = sessionId(result);
+    return !id || !representedSessionIds.has(id);
+  });
+  if (missingReceipts.length === 0) return actionResults;
+
+  let nextReceipt = 0;
+  return actionResults.map((result) => {
+    if (
+      actionResultActionName(result) !== "TASKS_SPAWN_AGENT" ||
+      isRecord(result.data?.delegatedExecution)
+    ) {
+      return result;
+    }
+    const receipt = missingReceipts[nextReceipt];
+    if (!receipt) return result;
+    nextReceipt += 1;
+    return receipt;
+  });
+}
+
+/**
  * Eliza beta.7 can return a projected action list that omits Doolittle's
  * receipt-bearing result. Managed actions retain their full result in the
  * request-scoped turn store; include one verified receipt before deciding
@@ -642,9 +691,13 @@ export async function executeProviderMessageTurn(
               : stateActionResults.length > 0
                 ? stateActionResults
                 : settledThisAttempt;
-          actionResults = includeScopedVerifiedMutationReceipt(
+          actionResults = includeScopedDelegatedExecutionReceipt(
             input.context.runtime,
             [...actionResults, ...attemptActionResults],
+          );
+          actionResults = includeScopedVerifiedMutationReceipt(
+            input.context.runtime,
+            actionResults,
           );
           actionResults = includeScopedReadyManagedAppServerReceipt(
             input.context.runtime,

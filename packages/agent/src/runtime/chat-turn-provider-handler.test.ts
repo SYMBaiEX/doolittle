@@ -838,8 +838,104 @@ describe("chat turn provider handler", () => {
     expect(result).toMatchObject({
       response: "The app is implemented and verified.",
       runFailureMessage: undefined,
-      actionResults: [sdkProjection, completion],
+      actionResults: [completion],
     });
+  });
+
+  it("restores a scoped no-op delegation receipt before parent verification", async () => {
+    const workdir = "/workspace/blog";
+    const sdkProjection = {
+      success: true,
+      text: "The existing app already satisfies the request.",
+      data: { actionName: "TASKS_SPAWN_AGENT" },
+    };
+    const completion = {
+      success: true,
+      text: "The existing implementation already satisfies the requested blog app; no changes were needed.",
+      continueChain: true,
+      data: {
+        actionName: "TASKS_SPAWN_AGENT",
+        delegatedExecution: {
+          sessionId: "child-noop-receipt",
+          agentType: "codex",
+          workdir,
+          status: "completed",
+          stopReason: "end_turn",
+          exitCode: 0,
+          summary:
+            "The existing implementation already satisfies the requested one-page Next.js blog with shadcn. No changes were needed.",
+          observedTools: ["READ_FILE"],
+          changedFiles: [],
+          verifiedLocalMutation: false,
+        },
+      },
+    };
+    const install = {
+      success: true,
+      text: "Bun install passed.",
+      data: {
+        actionName: "SHELL",
+        command: `cd "${workdir}" && bun install`,
+        exitCode: 0,
+      },
+    };
+    const build = {
+      success: true,
+      text: "Production build passed.",
+      data: {
+        actionName: "SHELL",
+        command: `cd "${workdir}" && bun run build`,
+        exitCode: 0,
+      },
+    };
+    const appServer = {
+      success: true,
+      text: "Application is ready.",
+      data: {
+        actionName: "DOOLITTLE_APP_SERVER",
+        status: "ready",
+        url: "http://localhost:3001/",
+        session: {
+          id: "managed-blog-noop",
+          cwd: workdir,
+          command: "bun run dev",
+        },
+      },
+    };
+    let context: AgentExecutionContext;
+    let callCount = 0;
+    ({ context } = createContext({
+      onHandleMessage: async () => {
+        callCount += 1;
+        recordScopedTurnActionResult(context.runtime, completion);
+        return {
+          responseContent: {
+            text: "The existing blog app is verified and running.",
+          },
+          responseMessages: [],
+          actionResults: [sdkProjection, install, build, appServer],
+        };
+      },
+    }));
+
+    const result = await runWithTurnRuntimeScope(
+      context.runtime,
+      { settings: new Map(), settledActionResults: [] },
+      () =>
+        executeTestTurn(
+          context,
+          "codex",
+          "Create a one-page Next.js blog with shadcn in this workspace, install with Bun, run a production build, and start the application.",
+        ),
+    );
+
+    expect(callCount).toBe(1);
+    expect(result).toMatchObject({
+      runFailureMessage: undefined,
+      actionResults: [completion, install, build, appServer],
+    });
+    expect(result.response).toContain("No workspace edits were needed");
+    expect(result.response).toContain("http://localhost:3001/");
   });
 
   it("reports a clear incomplete-work failure when the continuation still has no file receipt", async () => {
