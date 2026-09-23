@@ -217,9 +217,11 @@ export function verifyWorkspaceNoopCompletion(
     }
 
     const workdir = absoluteDirectory(receipt.workdir);
-    const report = [receipt.summary, result.text]
-      .filter((value): value is string => typeof value === "string")
-      .join("\n");
+    // Only the delegated agent's report can attest that a zero-change pass
+    // found the requested state already present. The parent action wrapper
+    // contains instructions about how to report a no-op; those instructions
+    // must never be mistaken for evidence that a no-op actually occurred.
+    const report = typeof receipt.summary === "string" ? receipt.summary : "";
     if (!workdir || !EXPLICIT_NOOP_COMPLETION.test(report)) return [];
     return [{ index, workdir }];
   });

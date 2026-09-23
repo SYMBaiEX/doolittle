@@ -247,9 +247,7 @@ describe("managed official coding delegation", () => {
       expect(result).toMatchObject({
         success: true,
         continueChain: true,
-        text: expect.stringContaining(
-          "do not delegate the same workspace again",
-        ),
+        text: expect.stringContaining("without changing user files"),
         data: {
           delegatedExecution: {
             agentType: "codex",
@@ -283,6 +281,9 @@ describe("managed official coding delegation", () => {
       );
       expect(vi.mocked(input.service.sendPrompt).mock.calls[0]?.[1]).toContain(
         "actual shadcn components",
+      );
+      expect(vi.mocked(input.service.sendPrompt).mock.calls[0]?.[1]).toContain(
+        "The existing implementation already satisfies the request; no changes were needed.",
       );
     },
   );

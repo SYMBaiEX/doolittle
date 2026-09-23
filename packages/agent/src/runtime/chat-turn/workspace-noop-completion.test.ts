@@ -209,6 +209,28 @@ describe("verified no-op workspace completion", () => {
     ).toBeUndefined();
   });
 
+  it("does not treat parent no-op instructions as the delegate's attestation", () => {
+    const results = createVerifiedNoopResults();
+    const delegate = results[0];
+    if (delegate?.data && typeof delegate.data === "object") {
+      delegate.text =
+        "If the existing implementation already satisfies the request, report no changes were needed.";
+      delegate.data.delegatedExecution = {
+        ...(delegate.data.delegatedExecution as Record<string, unknown>),
+        summary: "Implemented and verified the blog.",
+      };
+    }
+
+    expect(
+      verifyWorkspaceNoopCompletion(
+        results,
+        workspaceNoopRequirements(
+          "Create a blog app, install with Bun, run a production build, and start the application.",
+        ),
+      ),
+    ).toBeUndefined();
+  });
+
   it("does not hide any attempted local file mutation behind a no-op report", () => {
     const results = createVerifiedNoopResults();
     results.push({
