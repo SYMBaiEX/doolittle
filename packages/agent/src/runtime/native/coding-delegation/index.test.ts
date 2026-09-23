@@ -288,6 +288,25 @@ describe("managed official coding delegation", () => {
     },
   );
 
+  it("hands Bun install, build, and app startup back to the parent turn", async () => {
+    const input = await fixture();
+    input.settings.set(
+      "DOOLITTLE_CODING_REQUEST_TEXT",
+      "Use Bun to install dependencies, run the production build, and start the app.",
+    );
+
+    const result = await input.execute();
+
+    expect(result).toMatchObject({
+      success: true,
+      continueChain: true,
+      text: expect.stringContaining(`cd "${input.root}" && bun install`),
+    });
+    expect(result?.text).toContain(`cd "${input.root}" && bun run build`);
+    expect(result?.text).toContain("DOOLITTLE_APP_SERVER");
+    expect(result?.text).toContain("parent-turn SHELL receipt");
+  });
+
   it("blocks repeat coding delegation only for the completed workspace in the current turn", async () => {
     const input = await fixture();
     const otherWorkdir = await mkdtemp(

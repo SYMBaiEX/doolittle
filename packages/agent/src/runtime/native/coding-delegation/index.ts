@@ -12,6 +12,7 @@ import {
   actionResultActionName,
   buildActionResultData,
 } from "@/runtime/action-result-metadata";
+import { workspaceNoopRequirements } from "@/runtime/chat-turn/workspace-noop-completion";
 import { buildCacheablePrompt } from "@/runtime/prompt-cache";
 import {
   getScopedTurnAbortSignal,
@@ -112,14 +113,35 @@ function failure(message: string, code: string): ActionResult {
   };
 }
 
-function completion(receipt: DelegatedExecutionReceipt): ActionResult {
+function completion(
+  receipt: DelegatedExecutionReceipt,
+  request: string,
+): ActionResult {
   const success = receipt.status === "completed";
   const changed = receipt.changedFiles[0];
   const changedFiles = receipt.changedFiles.length;
+  const requirements = workspaceNoopRequirements(request);
+  const parentVerification = [
+    ...(requirements.requireBunInstall
+      ? [
+          `The user requires a Bun dependency install. After this child session ends, you must run 'cd "${receipt.workdir}" && bun install' yourself through native SHELL and wait for exit code 0; a command run only inside the child session is not a parent-turn SHELL receipt.`,
+        ]
+      : []),
+    ...(requirements.requireBuild || requirements.requireManagedApplication
+      ? [
+          `Before reporting completion${requirements.requireManagedApplication ? " or starting the app" : ""}, run 'cd "${receipt.workdir}" && bun run build' yourself through native SHELL and wait for exit code 0.`,
+        ]
+      : []),
+    ...(requirements.requireManagedApplication
+      ? [
+          `Then start the requested application once with DOOLITTLE_APP_SERVER in ${receipt.workdir}; poll the returned session ID with status until ready and report the actual URL. Do not start duplicate sessions.`,
+        ]
+      : []),
+  ].join(" ");
   const summary = success
     ? changedFiles === 0
-      ? `The ${receipt.agentType} coding agent finished a review of ${receipt.workdir} without changing user files. This receipt alone does not prove implementation. Inspect the existing workspace and verify every requested requirement. If anything is missing, implement only that concrete gap with native workspace tools; if everything is already present, complete the task only as a verified no-op. Do not launch a second coding agent for this workspace. If an app is requested, build after the coding pass and before starting its managed dev server.${receipt.summary ? `\n\nAgent report:\n${receipt.summary}` : "\nThe coding agent supplied no final response; inspect its outputs before replying."}`
-      : `The ${receipt.agentType} coding agent finished its implementation pass in ${receipt.workdir}. ${changedFiles} file change(s) were verified against pre-run fingerprints. Treat this as the completed implementation pass: do not delegate the same workspace again unless the report names a concrete unmet requirement. Review the report, perform only remaining verification with native workspace tools, and if an app is requested, build before starting its managed dev server.${receipt.summary ? `\n\nAgent report:\n${receipt.summary}` : "\nThe coding agent supplied no final response; inspect its outputs before replying."}`
+      ? `The ${receipt.agentType} coding agent finished a review of ${receipt.workdir} without changing user files. This receipt alone does not prove implementation. Inspect the existing workspace and verify every requested requirement. If anything is missing, implement only that concrete gap with native workspace tools; if everything is already present, complete the task only as a verified no-op. Do not launch a second coding agent for this workspace. ${parentVerification}${receipt.summary ? `\n\nAgent report:\n${receipt.summary}` : "\nThe coding agent supplied no final response; inspect its outputs before replying."}`
+      : `The ${receipt.agentType} coding agent finished its implementation pass in ${receipt.workdir}. ${changedFiles} file change(s) were verified against pre-run fingerprints. Treat this as the completed implementation pass: do not delegate the same workspace again unless the report names a concrete unmet requirement. Review the report and perform the required parent-turn verification. ${parentVerification}${receipt.summary ? `\n\nAgent report:\n${receipt.summary}` : "\nThe coding agent supplied no final response; inspect its outputs before replying."}`
     : (receipt.failureMessage ?? "The coding agent did not complete the task.");
   return {
     success,
@@ -454,7 +476,7 @@ function wrapAction(
           ),
       );
       if (receipt) {
-        const result = completion(receipt);
+        const result = completion(receipt, userRequest(runtime, message));
         recordScopedTurnActionResult(runtime, result);
         return result;
       }
