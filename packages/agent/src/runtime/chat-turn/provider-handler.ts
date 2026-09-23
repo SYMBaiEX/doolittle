@@ -243,11 +243,18 @@ function hasPendingApproval(context: AgentExecutionContext, sessionId: string) {
 function completedManagedDelegationResponse(
   actionResults: readonly ActionResult[],
 ): string | undefined {
-  const result = actionResults.at(-1);
-  if (
-    result?.success !== true ||
-    actionResultActionName(result) !== "TASKS_SPAWN_AGENT"
-  ) {
+  const result = [...actionResults].reverse().find((candidate) => {
+    if (
+      candidate.success !== true ||
+      actionResultActionName(candidate) !== "TASKS_SPAWN_AGENT" ||
+      !isRecord(candidate.data?.delegatedExecution)
+    ) {
+      return false;
+    }
+    const receipt = candidate.data.delegatedExecution;
+    return receipt.status === "completed" && receipt.stopReason === "end_turn";
+  });
+  if (!result || actionResultActionName(result) !== "TASKS_SPAWN_AGENT") {
     return undefined;
   }
   const delegatedExecution = result.data?.delegatedExecution;
@@ -609,10 +616,17 @@ export async function executeProviderMessageTurn(
           !runFailureMessage &&
           isSdkFailureReply(messageResult?.responseContent)
         ) {
-          runFailureMessage =
+          const providerFailure =
             response ||
             "The model provider could not complete this turn. Check provider status and retry.";
-          response = runFailureMessage;
+          const completedPass =
+            completedManagedDelegationResponse(actionResults);
+          runFailureMessage = completedPass
+            ? "The final response stage failed after the coding agent completed its implementation pass."
+            : providerFailure;
+          response = completedPass
+            ? `${completedPass}\n\n${runFailureMessage} The changes are preserved. Check the run activity for any later build, server, or browser verification; this message does not infer checks that were not explicitly reported.`
+            : providerFailure;
         }
         if (
           !runFailureMessage &&

@@ -193,6 +193,63 @@ describe("chat turn provider handler", () => {
     },
   );
 
+  it("preserves a completed coding-agent report when SDK terminal synthesis fails", async () => {
+    const completion = {
+      success: true,
+      text: "The codex coding agent finished its turn in /workspace. Build passed.",
+      continueChain: true,
+      data: {
+        actionName: "TASKS_SPAWN_AGENT",
+        delegatedExecution: {
+          sessionId: "child-provider-failure",
+          agentType: "codex",
+          workdir: "/workspace",
+          status: "completed",
+          stopReason: "end_turn",
+          exitCode: 0,
+          summary: "Implemented the requested page and verified the build.",
+          observedTools: [],
+          changedFiles: [{ path: "/workspace/app/page.tsx", bytes: 128 }],
+          verifiedLocalMutation: true,
+        },
+      },
+    };
+    const { context } = createContext({
+      onHandleMessage: async ({ onSettledActionResult }) => {
+        onSettledActionResult?.(completion);
+        onSettledActionResult?.({
+          success: true,
+          text: "Managed app server returned HTTP 200.",
+          data: { actionName: "DOOLITTLE_APP_SERVER" },
+        });
+        return {
+          responseContent: {
+            text: "Something went wrong while preparing the response.",
+            failureKind: "no_provider",
+          },
+          responseMessages: [],
+        };
+      },
+    });
+
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Implement the requested page and verify it.",
+    );
+
+    expect(result.handledMessage).toBe(true);
+    expect(result.runFailureMessage).toContain(
+      "final response stage failed after the coding agent completed",
+    );
+    expect(result.response).toContain(completion.text);
+    expect(result.response).toContain("The changes are preserved.");
+    expect(result.response).toContain("does not infer checks");
+    expect(result.response).not.toContain(
+      "Something went wrong while preparing the response.",
+    );
+  });
+
   it("does not classify genuine assistant prose about a failure as a failed run", async () => {
     const { context } = createContext({
       onHandleMessage: async () => ({

@@ -287,6 +287,72 @@ describe("managed official coding delegation", () => {
     },
   );
 
+  it("blocks repeat coding delegation only for the completed workspace in the current turn", async () => {
+    const input = await fixture();
+    const otherWorkdir = await mkdtemp(
+      join(tmpdir(), "doolittle-delegation-other-"),
+    );
+    directories.push(otherWorkdir);
+
+    const sameTurn = await runWithTurnRuntimeScope(
+      input.runtime,
+      { settings: input.settings, settledActionResults: [] },
+      async () => {
+        const first = await input.execute();
+        const duplicate = await input.execute();
+        const duplicateAgain = await input.execute();
+        const otherWorkspace = await input.execute({ workdir: otherWorkdir });
+        return { first, duplicate, duplicateAgain, otherWorkspace };
+      },
+    );
+
+    expect(sameTurn.first).toMatchObject({
+      success: true,
+      data: {
+        delegatedExecution: { status: "completed", workdir: input.root },
+      },
+    });
+    expect(sameTurn.duplicate).toMatchObject({
+      success: true,
+      continueChain: true,
+      text: expect.stringContaining("did not launch a duplicate"),
+      data: {
+        duplicateDelegationPrevented: {
+          status: "blocked",
+          workdir: input.root,
+          previousSessionId: "child-1",
+        },
+      },
+    });
+    expect(sameTurn.duplicateAgain).toMatchObject({
+      success: true,
+      continueChain: false,
+      text: expect.stringContaining(
+        "additional same-workspace delegation was blocked",
+      ),
+    });
+    expect(sameTurn.otherWorkspace).toMatchObject({
+      success: true,
+      data: {
+        delegatedExecution: { status: "completed", workdir: otherWorkdir },
+      },
+    });
+    expect(input.service.spawnSession).toHaveBeenCalledTimes(2);
+
+    const nextTurn = await runWithTurnRuntimeScope(
+      input.runtime,
+      { settings: input.settings, settledActionResults: [] },
+      () => input.execute(),
+    );
+    expect(nextTurn).toMatchObject({
+      success: true,
+      data: {
+        delegatedExecution: { status: "completed", workdir: input.root },
+      },
+    });
+    expect(input.service.spawnSession).toHaveBeenCalledTimes(3);
+  });
+
   it("warns a delegated coding agent not to rebuild over a live managed app", async () => {
     const input = await fixture([
       {

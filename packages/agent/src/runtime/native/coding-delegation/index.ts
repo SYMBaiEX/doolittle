@@ -8,10 +8,14 @@ import type {
   Memory,
   Plugin,
 } from "@elizaos/core";
-import { buildActionResultData } from "@/runtime/action-result-metadata";
+import {
+  actionResultActionName,
+  buildActionResultData,
+} from "@/runtime/action-result-metadata";
 import { buildCacheablePrompt } from "@/runtime/prompt-cache";
 import {
   getScopedTurnAbortSignal,
+  getScopedTurnActionResults,
   recordScopedTurnActionResult,
   runWithAdditionalTurnRuntimeSettings,
 } from "@/runtime/turn-runtime-scope";
@@ -152,6 +156,53 @@ function completion(receipt: DelegatedExecutionReceipt): ActionResult {
   };
 }
 
+function completedDelegationForWorkspace(
+  runtime: IAgentRuntime,
+  workdir: string,
+): DelegatedExecutionReceipt | undefined {
+  const result = getScopedTurnActionResults(runtime).find((candidate) => {
+    if (
+      candidate.success !== true ||
+      actionResultActionName(candidate) !== "TASKS_SPAWN_AGENT" ||
+      !isRecord(candidate.data?.delegatedExecution)
+    ) {
+      return false;
+    }
+    const receipt = candidate.data.delegatedExecution;
+    return (
+      receipt.status === "completed" &&
+      typeof receipt.workdir === "string" &&
+      resolve(receipt.workdir) === workdir
+    );
+  });
+  return result && isRecord(result.data?.delegatedExecution)
+    ? (result.data.delegatedExecution as unknown as DelegatedExecutionReceipt)
+    : undefined;
+}
+
+function blockedDuplicateDelegation(
+  workdir: string,
+  receipt: DelegatedExecutionReceipt,
+  repeated: boolean,
+): ActionResult {
+  const text = repeated
+    ? `A coding agent already completed an implementation pass in ${workdir}, so this additional same-workspace delegation was blocked. Continue with native workspace and shell tools to verify the existing work; do not launch another coding agent.`
+    : `A coding agent already completed an implementation pass in ${workdir}, so I did not launch a duplicate. Review its report and continue with native workspace and shell tools for any remaining verification. If there is a concrete unmet requirement, address only that requirement without repeating the implementation pass.${receipt.summary ? `\n\nCompleted agent report: ${receipt.summary}` : ""}`;
+  return {
+    success: true,
+    text,
+    continueChain: !repeated,
+    data: {
+      actionName: "TASKS_SPAWN_AGENT",
+      duplicateDelegationPrevented: {
+        status: "blocked",
+        workdir,
+        previousSessionId: receipt.sessionId,
+      },
+    },
+  };
+}
+
 function wrapAction(
   action: Action,
   services: CodingDelegationServices,
@@ -221,6 +272,24 @@ function wrapAction(
           `The coding workspace does not exist: ${workdir}. Inspect the intended location and create this exact directory with the workspace tool if the user requested it, then retry. No fallback directory was used.`,
           "WORKSPACE_NOT_FOUND",
         );
+      const completedReceipt = completedDelegationForWorkspace(
+        runtime,
+        workdir,
+      );
+      if (completedReceipt) {
+        const repeated = getScopedTurnActionResults(runtime).some(
+          (result) =>
+            isRecord(result.data?.duplicateDelegationPrevented) &&
+            result.data.duplicateDelegationPrevented.workdir === workdir,
+        );
+        const blocked = blockedDuplicateDelegation(
+          workdir,
+          completedReceipt,
+          repeated,
+        );
+        recordScopedTurnActionResult(runtime, blocked);
+        return blocked;
+      }
       const route = modelRoute(runtime);
       const owner = String(message.roomId);
       const activeManagedApps =
