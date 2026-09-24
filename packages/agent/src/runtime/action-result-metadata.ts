@@ -1,3 +1,4 @@
+import { isAbsolute, resolve } from "node:path";
 import type {
   CodingIteration,
   CommandResult,
@@ -125,6 +126,51 @@ export function extractLocalMutationFromActionResult(
   };
 }
 
+/**
+ * Returns every file in a fingerprint-verified coding-agent receipt instead of
+ * projecting only its first changed file through the single-mutation envelope.
+ */
+export function extractLocalMutationsFromActionResult(
+  actionResult: ActionResult | undefined,
+): LocalMutationInput[] {
+  const data = actionResult?.data;
+  const delegated = isRecord(data) ? data.delegatedExecution : undefined;
+  if (
+    isRecord(delegated) &&
+    delegated.status === "completed" &&
+    delegated.verifiedLocalMutation === true &&
+    Array.isArray(delegated.changedFiles)
+  ) {
+    const workdir = asNonEmptyString(delegated.workdir);
+    const mutations = delegated.changedFiles.flatMap((entry) => {
+      if (!isRecord(entry)) return [];
+      const path = asNonEmptyString(entry.path);
+      if (!path) return [];
+      const resolvedPath = isAbsolute(path)
+        ? resolve(path)
+        : workdir
+          ? resolve(workdir, path)
+          : undefined;
+      if (!resolvedPath) return [];
+      return [
+        {
+          action: "TASKS_SPAWN_AGENT",
+          requestedPath: workdir ?? path,
+          resolvedPath,
+          success: true,
+          bytes: numberValue(entry.bytes),
+          message:
+            "Verified delegated file change with before/after SHA-256 fingerprints.",
+        },
+      ];
+    });
+    if (mutations.length > 0) return mutations;
+  }
+
+  const mutation = extractLocalMutationFromActionResult(actionResult);
+  return mutation ? [mutation] : [];
+}
+
 export function extractVerifiedLocalMutationFromActionResult(
   actionResult: ActionResult | undefined,
 ): LocalMutationInput | undefined {
@@ -223,10 +269,7 @@ export function summarizeActionResults(
   return {
     actionResults: results,
     observedActionCount: results.length,
-    localMutations: results.flatMap((result) => {
-      const mutation = extractLocalMutationFromActionResult(result);
-      return mutation ? [mutation] : [];
-    }),
+    localMutations: results.flatMap(extractLocalMutationsFromActionResult),
     fileOperations: results.flatMap((result) => {
       const operation = extractFileOperationFromActionResult(result);
       return operation ? [operation] : [];

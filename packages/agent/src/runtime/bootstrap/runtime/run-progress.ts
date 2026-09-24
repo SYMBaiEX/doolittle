@@ -14,6 +14,7 @@ import {
   extractCommandResultFromActionResult,
   extractFileOperationFromActionResult,
   extractLocalMutationFromActionResult,
+  extractLocalMutationsFromActionResult,
 } from "@/runtime/action-result-metadata";
 import { formatError } from "@/runtime/bootstrap/recovery/error-format";
 import { resolveRunTerminalWriter } from "@/runtime/chat-turn/post-provider/types";
@@ -326,8 +327,8 @@ export function createRunProgressEvents(services: AppServices): PluginEvents {
           ) {
             services.runController.noteRuntimeActionCompleted(roomId, action);
           }
-          const mutation = extractLocalMutationFromActionResult(actionResult);
-          if (mutation) {
+          const mutations = extractLocalMutationsFromActionResult(actionResult);
+          for (const mutation of mutations) {
             services.runController.recordRuntimeLocalMutation(roomId, mutation);
           }
           recordActionTrajectory({

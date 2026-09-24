@@ -223,6 +223,55 @@ describe("run progress helpers", () => {
     expect(noteRuntimeActionCompleted).toHaveBeenCalledWith("room-1", "SHELL");
   });
 
+  it("records all verified delegated file changes in the run mutation ledger", async () => {
+    const recordRuntimeLocalMutation = vi.fn();
+    const services = {
+      runController: {
+        getByRoomId: () => ({ progressMode: "new" }),
+        recordRuntimeLocalMutation,
+      },
+      settings: { get: () => ({ model: {} }) },
+    } as never;
+    const events = createRunProgressEvents(services);
+
+    await events[EventType.ACTION_COMPLETED]?.[0]?.({
+      roomId: "room-1",
+      content: {
+        actionResult: {
+          success: true,
+          data: {
+            actionName: "TASKS_SPAWN_AGENT",
+            delegatedExecution: {
+              workdir: "/workspace/project",
+              status: "completed",
+              verifiedLocalMutation: true,
+              changedFiles: [
+                { path: "src/app/page.tsx", bytes: 128 },
+                { path: "package.json", bytes: 64 },
+              ],
+            },
+          },
+        },
+      },
+    } as never);
+
+    expect(recordRuntimeLocalMutation).toHaveBeenCalledTimes(2);
+    expect(recordRuntimeLocalMutation).toHaveBeenNthCalledWith(
+      1,
+      "room-1",
+      expect.objectContaining({
+        resolvedPath: "/workspace/project/src/app/page.tsx",
+      }),
+    );
+    expect(recordRuntimeLocalMutation).toHaveBeenNthCalledWith(
+      2,
+      "room-1",
+      expect.objectContaining({
+        resolvedPath: "/workspace/project/package.json",
+      }),
+    );
+  });
+
   it("owns AgentEventService subscriptions through an Eliza service lifecycle", async () => {
     const eventListeners: Array<(event: never) => void> = [];
     const heartbeatListeners: Array<(event: never) => void> = [];

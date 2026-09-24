@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCodingIterationFromActionResults,
   extractLocalMutationFromActionResult,
+  extractLocalMutationsFromActionResult,
   extractVerifiedLocalMutationFromActionResult,
   summarizeActionResults,
 } from "./action-result-metadata";
@@ -107,6 +108,46 @@ describe("action result metadata helpers", () => {
     expect(
       extractVerifiedLocalMutationFromActionResult(actionResult),
     ).toBeUndefined();
+  });
+
+  it("projects every fingerprint-verified delegated file into the run receipt", () => {
+    const result = {
+      success: true,
+      data: {
+        actionName: "TASKS_SPAWN_AGENT",
+        delegatedExecution: {
+          workdir: "/workspace/project",
+          status: "completed",
+          verifiedLocalMutation: true,
+          changedFiles: [
+            { path: "src/app/page.tsx", bytes: 128 },
+            { path: "/workspace/project/package.json", bytes: 64 },
+          ],
+        },
+      },
+    };
+
+    expect(extractLocalMutationsFromActionResult(result)).toEqual([
+      {
+        action: "TASKS_SPAWN_AGENT",
+        requestedPath: "/workspace/project",
+        resolvedPath: "/workspace/project/src/app/page.tsx",
+        success: true,
+        bytes: 128,
+        message:
+          "Verified delegated file change with before/after SHA-256 fingerprints.",
+      },
+      {
+        action: "TASKS_SPAWN_AGENT",
+        requestedPath: "/workspace/project",
+        resolvedPath: "/workspace/project/package.json",
+        success: true,
+        bytes: 64,
+        message:
+          "Verified delegated file change with before/after SHA-256 fingerprints.",
+      },
+    ]);
+    expect(summarizeActionResults([result]).localMutations).toHaveLength(2);
   });
 
   it("preserves official SHELL results without inventing a working directory", () => {
