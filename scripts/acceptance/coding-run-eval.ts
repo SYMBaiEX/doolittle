@@ -5,6 +5,7 @@ export type CodingEvalStatus = "pass" | "fail" | "unknown" | "n/a";
 export interface CodingEvalCase {
   id: string;
   requiresMutation: boolean;
+  requiresBunInstall?: boolean;
   requiresBuild: boolean;
   requiresAppReady: boolean;
   requiresRuntimeSmoke: boolean;
@@ -21,6 +22,14 @@ export const CODING_EVAL_CASES: Record<string, CodingEvalCase> = {
   "coding-app-handoff-v1": {
     id: "coding-app-handoff-v1",
     requiresMutation: true,
+    requiresBuild: true,
+    requiresAppReady: true,
+    requiresRuntimeSmoke: false,
+  },
+  "coding-bun-app-handoff-v1": {
+    id: "coding-bun-app-handoff-v1",
+    requiresMutation: true,
+    requiresBunInstall: true,
     requiresBuild: true,
     requiresAppReady: true,
     requiresRuntimeSmoke: false,
@@ -52,6 +61,7 @@ export interface CodingEvalCheck {
   id:
     | "workspace"
     | "implementation"
+    | "bun-install"
     | "build"
     | "runtime-smoke"
     | "app-ready"
@@ -269,6 +279,51 @@ function buildEvidence(
   return results;
 }
 
+function bunInstallEvidence(
+  events: unknown[],
+  expectedWorkspace: string,
+): string[] {
+  const evidence: string[] = [];
+  for (const eventValue of events) {
+    const metadata = record(record(eventValue)?.metadata);
+    if (!metadata) continue;
+    const action = string(metadata.action)?.toUpperCase();
+    if (
+      !action ||
+      !["SHELL", "SHELL_COMMAND", "RUN_IN_TERMINAL"].includes(action)
+    ) {
+      continue;
+    }
+    const actionResult = record(metadata.actionResult);
+    const actionData = record(actionResult?.data);
+    const commandResult =
+      record(metadata.commandResult) ?? record(actionData?.commandResult);
+    const command = string(commandResult?.command);
+    const exitCode = commandResult?.exitCode;
+    if (
+      !command ||
+      exitCode !== 0 ||
+      !/\bbun\s+(?:install|i)\b/u.test(command)
+    ) {
+      continue;
+    }
+    const workingDirectory = shellWorkingDirectory(
+      commandResult ?? {},
+      command,
+      metadata,
+    );
+    if (
+      workingDirectory &&
+      pathIsWithin(resolve(expectedWorkspace), workingDirectory)
+    ) {
+      evidence.push(
+        `Parent shell completed Bun install in ${workingDirectory}: ${command}.`,
+      );
+    }
+  }
+  return evidence;
+}
+
 function runtimeSmokeEvidence(
   events: unknown[],
   expectedWorkspace: string,
@@ -424,6 +479,17 @@ export function evaluateCodingRun(input: {
             : "No parent-shell production-build receipt was observed; a delegated agent's prose claim is not build evidence.",
         ]);
 
+  const bunInstalls = bunInstallEvidence(input.events, root);
+  const bunInstallCheck = !input.evalCase.requiresBunInstall
+    ? check("bun-install", "n/a", 0, [
+        "This case does not require a Bun dependency-install receipt.",
+      ])
+    : bunInstalls.length > 0
+      ? check("bun-install", "pass", 10, bunInstalls)
+      : check("bun-install", isTerminal ? "fail" : "unknown", 10, [
+          `No successful parent-shell Bun install receipt was observed in ${root}.`,
+        ]);
+
   const appReady = managedAppReadyEvidence(input.events, root);
   const appReadyCheck = !input.evalCase.requiresAppReady
     ? check("app-ready", "n/a", 0, [
@@ -449,6 +515,7 @@ export function evaluateCodingRun(input: {
   const requiredChecks = [
     workspaceCheck,
     implementationCheck,
+    bunInstallCheck,
     buildCheck,
     runtimeSmokeCheck,
     appReadyCheck,
@@ -477,6 +544,7 @@ export function evaluateCodingRun(input: {
   const checks = [
     workspaceCheck,
     implementationCheck,
+    bunInstallCheck,
     buildCheck,
     runtimeSmokeCheck,
     appReadyCheck,

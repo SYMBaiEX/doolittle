@@ -6,6 +6,7 @@ import {
 } from "./execution-contract";
 import {
   hasSuccessfulWorkspaceBuild,
+  missingWorkspaceMutationRequirements,
   verifyWorkspaceNoopCompletion,
   workspaceNoopRequirements,
 } from "./workspace-noop-completion";
@@ -71,7 +72,177 @@ function createVerifiedNoopResults(): ActionResult[] {
   ] as ActionResult[];
 }
 
+function createChangedWorkspaceResults(): ActionResult[] {
+  return [
+    {
+      success: true,
+      text: "Implemented the requested app and changed one file.",
+      data: {
+        actionName: "TASKS_SPAWN_AGENT",
+        delegatedExecution: {
+          sessionId: "coding-agent-1",
+          status: "completed",
+          stopReason: "end_turn",
+          exitCode: 0,
+          workdir,
+          summary: "Implemented the requested app.",
+          changedFiles: [{ path: "app/page.tsx", bytes: 420 }],
+          verifiedLocalMutation: true,
+        },
+      },
+    },
+  ] as ActionResult[];
+}
+
 describe("verified no-op workspace completion", () => {
+  it("treats an explicit Bun app launch as requiring install, build, and ready-server receipts", () => {
+    expect(
+      workspaceNoopRequirements(
+        "Create the blog app, use Bun so we can run bun run dev, then start the application.",
+      ),
+    ).toEqual({
+      requireBunInstall: true,
+      requireBuild: true,
+      requireManagedApplication: true,
+    });
+  });
+
+  it("does not accept a changed-file receipt as completion without requested workspace operations", () => {
+    const requirements = workspaceNoopRequirements(
+      "Create the blog app, use Bun so we can run bun run dev, then start the application.",
+    );
+    expect(
+      missingWorkspaceMutationRequirements(
+        createChangedWorkspaceResults(),
+        requirements,
+      ),
+    ).toEqual([
+      `a successful Bun install in ${workdir}`,
+      `a successful production build in ${workdir}`,
+      `a ready managed app server with a verified local URL in ${workdir}`,
+    ]);
+  });
+
+  it("requires each parent receipt to follow the edit and match its exact workspace", () => {
+    const requirements = workspaceNoopRequirements(
+      "Create the blog app, use Bun, build it, and start the application.",
+    );
+    const results = [
+      ...createChangedWorkspaceResults(),
+      {
+        success: true,
+        data: {
+          actionName: "SHELL",
+          command: `cd "${workdir}" && bun install --frozen-lockfile`,
+          exitCode: 0,
+        },
+      },
+      {
+        success: true,
+        data: {
+          actionName: "SHELL",
+          command: `cd "${workdir}" && bun run build`,
+          exitCode: 0,
+        },
+      },
+      {
+        success: true,
+        data: {
+          actionName: "DOOLITTLE_APP_SERVER",
+          status: "ready",
+          url: previewUrl,
+          session: {
+            id: "managed-app-1",
+            cwd: workdir,
+            command: "bun run dev",
+          },
+        },
+      },
+    ] as ActionResult[];
+
+    expect(missingWorkspaceMutationRequirements(results, requirements)).toEqual(
+      [],
+    );
+
+    const wrongDirectory = results.map((result) => ({
+      ...result,
+      data: result.data ? { ...result.data } : undefined,
+    })) as ActionResult[];
+    const build = wrongDirectory[2];
+    if (build?.data) {
+      build.data.command = "cd /workspace/another-app && bun run build";
+    }
+    expect(
+      missingWorkspaceMutationRequirements(wrongDirectory, requirements),
+    ).toContain(`a successful production build in ${workdir}`);
+  });
+
+  it("requires Bun installation before the successful build", () => {
+    const requirements = workspaceNoopRequirements(
+      "Create the blog app, use Bun, build it, and start the application.",
+    );
+    const results = [
+      ...createChangedWorkspaceResults(),
+      {
+        success: true,
+        data: {
+          actionName: "SHELL",
+          command: `cd "${workdir}" && bun run build`,
+          exitCode: 0,
+        },
+      },
+      {
+        success: true,
+        data: {
+          actionName: "SHELL",
+          command: `cd "${workdir}" && bun install`,
+          exitCode: 0,
+        },
+      },
+    ] as ActionResult[];
+
+    expect(missingWorkspaceMutationRequirements(results, requirements)).toEqual(
+      [
+        "Bun install before the production build",
+        `a ready managed app server with a verified local URL in ${workdir}`,
+      ],
+    );
+  });
+
+  it("also verifies direct native file mutations against the build receipt", () => {
+    const requirements = workspaceNoopRequirements(
+      "Update the page and run its production build.",
+    );
+    const results = [
+      {
+        success: true,
+        data: {
+          actionName: "WRITE_FILE",
+          mutationAction: "WRITE_FILE",
+          mutationKind: "local-file",
+          mutation: {
+            action: "WRITE_FILE",
+            success: true,
+            resolvedPath: "/workspace/blog/app/page.tsx",
+          },
+        },
+      },
+      {
+        success: true,
+        data: {
+          actionName: "SHELL",
+          command: "bun run build",
+          exitCode: 0,
+          cwd: "/workspace/blog",
+        },
+      },
+    ] as ActionResult[];
+
+    expect(missingWorkspaceMutationRequirements(results, requirements)).toEqual(
+      [],
+    );
+  });
+
   it("requires a successful Bun production build in the delegated workspace", () => {
     const results = createVerifiedNoopResults();
     expect(hasSuccessfulWorkspaceBuild(results, workdir)).toBe(true);

@@ -5,6 +5,7 @@ import {
 } from "@elizaos/core";
 import {
   actionResultActionName,
+  extractLocalMutationsFromActionResult,
   extractVerifiedLocalMutationFromActionResult,
 } from "@/runtime/action-result-metadata";
 import type { AgentExecutionContext } from "@/runtime/chat";
@@ -26,6 +27,7 @@ import {
   runWithSdkTrajectoryContext,
 } from "./trajectory";
 import {
+  missingWorkspaceMutationRequirements,
   verifyWorkspaceNoopCompletion,
   workspaceNoopRequirements,
 } from "./workspace-noop-completion";
@@ -129,8 +131,12 @@ function explicitlyReportsIncompleteWork(response: string): boolean {
 function hasVerifiedWorkspaceMutation(
   actionResults: readonly ActionResult[],
 ): boolean {
-  return actionResults.some((result) =>
-    Boolean(extractVerifiedLocalMutationFromActionResult(result)),
+  return actionResults.some(
+    (result) =>
+      result.success === true &&
+      extractLocalMutationsFromActionResult(result).some(
+        (mutation) => mutation.success,
+      ),
   );
 }
 
@@ -138,10 +144,13 @@ function hasVerifiedWorkspaceCompletion(
   actionResults: readonly ActionResult[],
   requirements: ReturnType<typeof workspaceNoopRequirements>,
 ): boolean {
-  return (
-    hasVerifiedWorkspaceMutation(actionResults) ||
-    Boolean(verifyWorkspaceNoopCompletion(actionResults, requirements))
-  );
+  if (hasVerifiedWorkspaceMutation(actionResults)) {
+    return (
+      missingWorkspaceMutationRequirements(actionResults, requirements)
+        .length === 0
+    );
+  }
+  return Boolean(verifyWorkspaceNoopCompletion(actionResults, requirements));
 }
 
 /** Merge Eliza's projected, settled, and Doolittle-scoped action receipts. */
@@ -372,8 +381,12 @@ function continuationMemory(
   userRequest: string,
   actionResults: readonly ActionResult[],
   previousResponse: string,
+  requirements: ReturnType<typeof workspaceNoopRequirements>,
 ): Memory {
   const hasVerifiedMutation = hasVerifiedWorkspaceMutation(actionResults);
+  const missingRequirements = hasVerifiedMutation
+    ? missingWorkspaceMutationRequirements(actionResults, requirements)
+    : [];
   let remaining = MAX_CONTINUATION_EVIDENCE_CHARS;
   const evidence = actionResults
     .slice(-6)
@@ -408,6 +421,12 @@ function continuationMemory(
         hasVerifiedMutation
           ? "A verified local file change has already occurred. Inspect the current state, avoid repeating completed writes, and continue any remaining requested implementation or verification."
           : "Inspect the current state before repeating commands, then make the requested change and verify it.",
+        ...(missingRequirements.length > 0
+          ? [
+              "The task is not complete yet. These receipt-backed steps are still required; perform them in the same workspace as the changed files and do not report success until their results are present:",
+              ...missingRequirements.map((requirement) => `- ${requirement}`),
+            ]
+          : []),
         "If the exact target cannot be accessed, stop with that concrete blocker. Do not switch to a different workspace.",
         ...(previousResponse.trim()
           ? [
@@ -442,6 +461,23 @@ function incompleteMutationFailure(
       ? `The agent ran ${actions.join(", ")}, but its reply was not backed by a verified workspace change.`
       : "The agent returned without a verified workspace change.",
     "No verified file changes were recorded, so I can’t claim the task is done. Retry to continue from the current workspace state.",
+  ].join(" ");
+}
+
+function incompleteWorkspaceVerificationFailure(
+  actionResults: readonly ActionResult[],
+  requirements: ReturnType<typeof workspaceNoopRequirements>,
+): string {
+  const missing = missingWorkspaceMutationRequirements(
+    actionResults,
+    requirements,
+  );
+  return [
+    "The implementation changed files, but the requested workspace task is not verified complete.",
+    missing.length
+      ? `Still missing: ${missing.join("; ")}.`
+      : "The requested post-edit checks are not backed by successful workspace receipts.",
+    "The changes are preserved. Inspect the current workspace and retry the missing steps; I won't claim the app is ready without evidence.",
   ].join(" ");
 }
 
@@ -851,7 +887,10 @@ export async function executeProviderMessageTurn(
             (response.trim() &&
               verifiedWorkspaceCompletion &&
               !explicitlyIncomplete) ||
-            (!response.trim() && attempt > 0 && !verifiedWorkspaceCompletion)
+            (!response.trim() &&
+              attempt > 0 &&
+              !verifiedWorkspaceCompletion &&
+              !hasVerifiedWorkspaceMutation(actionResults))
           ) {
             break;
           }
@@ -892,6 +931,7 @@ export async function executeProviderMessageTurn(
             prompt,
             actionResults,
             response,
+            noOpRequirements,
           );
         }
 
@@ -950,6 +990,19 @@ export async function executeProviderMessageTurn(
           runFailureMessage = incompleteMutationFailure(actionResults);
           response = runFailureMessage;
         }
+        if (
+          !runFailureMessage &&
+          mutationObligation &&
+          hasVerifiedWorkspaceMutation(actionResults) &&
+          missingWorkspaceMutationRequirements(actionResults, noOpRequirements)
+            .length > 0
+        ) {
+          runFailureMessage = incompleteWorkspaceVerificationFailure(
+            actionResults,
+            noOpRequirements,
+          );
+          response = runFailureMessage;
+        }
         if (!runFailureMessage && verifiedNoopCompletion) {
           const providerUnavailable = isSdkFailureReply(
             messageResult?.responseContent,
@@ -977,9 +1030,11 @@ export async function executeProviderMessageTurn(
           response = runFailureMessage;
         }
         if (!runFailureMessage && !response.trim() && mutationObligation) {
-          const verifiedMutations = actionResults
-            .map(extractVerifiedLocalMutationFromActionResult)
-            .filter((mutation) => mutation !== undefined);
+          const verifiedMutations = actionResults.flatMap((result) =>
+            extractLocalMutationsFromActionResult(result).filter(
+              (mutation) => result.success === true && mutation.success,
+            ),
+          );
           if (verifiedMutations.length > 0) {
             try {
               response = await synthesizeToolResultResponse({
@@ -1083,6 +1138,40 @@ export async function executeProviderMessageTurn(
               managedAppReady: Boolean(recoveredNoopCompletion.url),
             },
             "ElizaOS continuation failed after the requested workspace state was verified; preserving receipt-backed completion",
+          );
+          input.streamState.setResponse(response);
+          return;
+        }
+        if (
+          mutationObligation &&
+          hasVerifiedWorkspaceMutation(committedActionResults) &&
+          missingWorkspaceMutationRequirements(
+            committedActionResults,
+            noOpRequirements,
+          ).length > 0
+        ) {
+          handledMessage = true;
+          actionResults = committedActionResults;
+          response = incompleteWorkspaceVerificationFailure(
+            actionResults,
+            noOpRequirements,
+          );
+          runFailureMessage = response;
+          input.context.runtime.logger?.warn(
+            {
+              error,
+              runId: input.runId,
+              sessionId,
+              provider: input.settingsDuring.model.provider,
+              model: input.settingsDuring.model.model,
+              roomId: input.roomId,
+              messageId,
+              missingRequirements: missingWorkspaceMutationRequirements(
+                actionResults,
+                noOpRequirements,
+              ),
+            },
+            "ElizaOS continuation failed before requested workspace verification receipts were recorded",
           );
           input.streamState.setResponse(response);
           return;

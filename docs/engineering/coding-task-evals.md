@@ -11,6 +11,7 @@ confident summary.
 | --- | --- |
 | `coding-change-v1` | Verified implementation/configuration changes in the exact workspace, a parent-shell production build with exit code 0, and a terminal-complete run. |
 | `coding-app-handoff-v1` | Everything in `coding-change-v1`, plus a managed-app receipt in `ready` state with an HTTP(S) URL and working directory matching the requested workspace. A `starting` receipt is not ready. |
+| `coding-bun-app-handoff-v1` | Everything in `coding-app-handoff-v1`, plus a successful parent-shell `bun install` receipt scoped to the requested workspace (110 points total). |
 | `app-start-v1` | A managed-app receipt in `ready` state with an HTTP(S) URL and working directory matching the requested workspace. Use when starting an existing app without requesting code changes. |
 | `api-runtime-fix-v1` | Everything in `coding-change-v1`, plus a successful parent-shell HTTP smoke command against a local API route, using fail-on-HTTP-error and returning parseable JSON. |
 | `verified-noop-v1` | No mutation required, but a parent-shell production build and terminal-complete run are still required. Use only when the request can be satisfied without edits. |

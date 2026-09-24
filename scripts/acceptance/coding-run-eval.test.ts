@@ -43,6 +43,25 @@ function shellBuild(exitCode: number) {
   };
 }
 
+function shellBunInstall(exitCode = 0) {
+  return {
+    event: "action.completed",
+    metadata: {
+      action: "SHELL",
+      actionResult: {
+        success: exitCode === 0,
+        data: {
+          commandResult: {
+            command: "cd /workspace/project && bun install --frozen-lockfile",
+            exitCode,
+            success: exitCode === 0,
+          },
+        },
+      },
+    },
+  };
+}
+
 function shellApiSmoke(stdout: string, exitCode = 0) {
   return {
     event: "action.completed",
@@ -119,6 +138,38 @@ describe("coding-run acceptance evals", () => {
       score: 100,
       maxScore: 100,
     });
+  });
+
+  it("requires an in-workspace parent Bun install for Bun app-handoff evals", () => {
+    const evidence = [
+      delegatedEvent(["src/app/page.tsx", "package.json"]),
+      shellBunInstall(),
+      shellBuild(0),
+      appReadyEvent(),
+    ];
+    const passing = evaluate(evidence, {
+      caseId: "coding-bun-app-handoff-v1",
+    });
+
+    expect(passing).toMatchObject({
+      status: "pass",
+      score: 110,
+      maxScore: 110,
+    });
+    expect(
+      passing.checks.find((entry) => entry.id === "bun-install")?.status,
+    ).toBe("pass");
+
+    const missingInstall = evaluate(
+      evidence.filter((_, index) => index !== 1),
+      {
+        caseId: "coding-bun-app-handoff-v1",
+      },
+    );
+    expect(missingInstall.status).toBe("fail");
+    expect(
+      missingInstall.checks.find((entry) => entry.id === "bun-install")?.status,
+    ).toBe("fail");
   });
 
   it("does not treat a delegated worker's prose build claim as parent verification", () => {

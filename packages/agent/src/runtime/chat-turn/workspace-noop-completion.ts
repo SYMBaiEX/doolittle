@@ -1,8 +1,9 @@
-import { isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import type { ActionResult } from "@elizaos/core";
 import {
   actionResultActionName,
   extractCommandResultFromActionResult,
+  extractLocalMutationsFromActionResult,
 } from "@/runtime/action-result-metadata";
 import { isRecord } from "@/utils/records";
 
@@ -33,16 +34,22 @@ export interface WorkspaceNoopRequirements {
 export function workspaceNoopRequirements(
   userRequest: string,
 ): WorkspaceNoopRequirements {
+  const requireManagedApplication =
+    /\b(?:start|launch|serve|preview|open)\b[\s\S]{0,80}\b(?:app|application|dev\s+server|development\s+server|website|web\s+app|site)\b|\b(?:app|application|dev\s+server|development\s+server|website|web\s+app|site)\b[\s\S]{0,80}\b(?:start|launch|serve|preview|open)\b|\brun\s+(?:the\s+)?(?:app|application|dev\s+server|website|web\s+app|site)\b/iu.test(
+      userRequest,
+    );
   return {
     requireBunInstall:
-      /\bbun\b[\s\S]{0,60}\b(?:install(?:ation)?|add)\b|\b(?:install(?:ation)?|add)\b[\s\S]{0,60}\bbun\b/iu.test(
+      /\bbun\b[\s\S]{0,60}\b(?:install(?:ation)?|add)\b|\b(?:install(?:ation)?|add)\b[\s\S]{0,60}\bbun\b|\b(?:use|using|with|via)\s+(?:the\s+)?bun\b|\bbun\s+run\s+(?:dev|start|build)\b/iu.test(
         userRequest,
       ),
-    requireBuild: /\b(?:production\s+)?build\b/iu.test(userRequest),
-    requireManagedApplication:
-      /\b(?:start|launch|serve|preview|open)\b[\s\S]{0,80}\b(?:app|application|dev\s+server|development\s+server|website|web\s+app|site)\b|\b(?:app|application|dev\s+server|development\s+server|website|web\s+app|site)\b[\s\S]{0,80}\b(?:start|launch|serve|preview|open)\b|\brun\s+(?:the\s+)?(?:app|application|dev\s+server|website|web\s+app|site)\b/iu.test(
-        userRequest,
-      ),
+    // Starting an app is not a meaningful handoff until its production build
+    // has passed. Make that prerequisite explicit even if the user did not
+    // separately say “build”.
+    requireBuild:
+      /\b(?:production\s+)?build\b/iu.test(userRequest) ||
+      requireManagedApplication,
+    requireManagedApplication,
   };
 }
 
@@ -92,6 +99,215 @@ function successfulShellCommands(actionResults: readonly ActionResult[]) {
     }
     return [{ index, ...commandResult }];
   });
+}
+
+function completedChangedDelegation(
+  actionResults: readonly ActionResult[],
+): { index: number; workdir: string } | undefined {
+  return actionResults.reduce<{ index: number; workdir: string } | undefined>(
+    (latest, result, index) => {
+      if (
+        result.success !== true ||
+        actionResultActionName(result)?.toUpperCase() !== "TASKS_SPAWN_AGENT"
+      ) {
+        return latest;
+      }
+      const receipt = result.data?.delegatedExecution;
+      const workdir = isRecord(receipt)
+        ? absoluteDirectory(receipt.workdir)
+        : undefined;
+      if (
+        !isRecord(receipt) ||
+        receipt.status !== "completed" ||
+        receipt.stopReason !== "end_turn" ||
+        (receipt.exitCode !== null && receipt.exitCode !== 0) ||
+        receipt.verifiedLocalMutation !== true ||
+        !Array.isArray(receipt.changedFiles) ||
+        receipt.changedFiles.length === 0 ||
+        !workdir
+      ) {
+        return latest;
+      }
+      return { index, workdir };
+    },
+    undefined,
+  );
+}
+
+function isWithinDirectory(path: string, directory: string): boolean {
+  const resolvedPath = resolve(path);
+  const resolvedDirectory = resolve(directory);
+  const pathFromDirectory = relative(resolvedDirectory, resolvedPath);
+  return (
+    pathFromDirectory === "" ||
+    (!pathFromDirectory.startsWith(`..${sep}`) && pathFromDirectory !== "..")
+  );
+}
+
+function sharedMutationDirectory(paths: readonly string[]): string | undefined {
+  const directories = paths.map((path) => dirname(resolve(path)));
+  if (directories.length === 0) return undefined;
+  let segments = directories[0]?.split(sep) ?? [];
+  for (const directory of directories.slice(1)) {
+    const nextSegments = directory.split(sep);
+    let commonLength = 0;
+    while (
+      commonLength < segments.length &&
+      segments[commonLength] === nextSegments[commonLength]
+    ) {
+      commonLength += 1;
+    }
+    segments = segments.slice(0, commonLength);
+  }
+  const joined = segments.join(sep);
+  return joined || sep;
+}
+
+function successfulBuildCommand(command: string, requireBun: boolean): boolean {
+  return requireBun
+    ? /\bbun\s+run\s+build\b/u.test(command)
+    : /\b(?:bun\s+run|npm\s+run|pnpm\s+run|yarn)\s+build\b/u.test(command);
+}
+
+/**
+ * Report any explicit post-edit acceptance steps that are still missing.
+ * A coding delegate's changed-file receipt proves that files changed, not that
+ * a requested install/build/server handoff succeeded. Parent shell and app
+ * server receipts must be successful, occur after that delegate, and point at
+ * its exact absolute workspace.
+ */
+export function missingWorkspaceMutationRequirements(
+  actionResults: readonly ActionResult[],
+  requirements: WorkspaceNoopRequirements,
+): string[] {
+  if (
+    !requirements.requireBunInstall &&
+    !requirements.requireBuild &&
+    !requirements.requireManagedApplication
+  ) {
+    return [];
+  }
+
+  const mutationReceipts = actionResults.flatMap((result, index) => {
+    if (result.success !== true) return [];
+    const mutations = extractLocalMutationsFromActionResult(result).filter(
+      (mutation) => mutation.success && mutation.resolvedPath,
+    );
+    return mutations.map((mutation) => ({
+      index,
+      path: resolve(mutation.resolvedPath as string),
+    }));
+  });
+  if (mutationReceipts.length === 0) {
+    return ["a completed changed-file receipt for the intended workspace"];
+  }
+  const latestMutationIndex = Math.max(
+    ...mutationReceipts.map((mutation) => mutation.index),
+  );
+  const changedPaths = mutationReceipts.map((mutation) => mutation.path);
+  const delegation = completedChangedDelegation(actionResults);
+  if (
+    delegation &&
+    !changedPaths.every((path) => isWithinDirectory(path, delegation.workdir))
+  ) {
+    return [
+      `verified changed-file receipts contained within ${delegation.workdir}`,
+    ];
+  }
+  const postMutationCommands = successfulShellCommands(actionResults).filter(
+    (command) => command.index > latestMutationIndex,
+  );
+  const appServerDirectories = actionResults.flatMap((result, index) => {
+    if (
+      index <= latestMutationIndex ||
+      result.success !== true ||
+      actionResultActionName(result)?.toUpperCase() !==
+        "DOOLITTLE_APP_SERVER" ||
+      !isRecord(result.data) ||
+      !isRecord(result.data.session)
+    ) {
+      return [];
+    }
+    const directory = absoluteDirectory(result.data.session.cwd);
+    return directory ? [directory] : [];
+  });
+  const operationDirectories = [
+    ...(delegation ? [delegation.workdir] : []),
+    ...postMutationCommands.flatMap((command) => {
+      const directory = commandDirectory(command);
+      return directory ? [directory] : [];
+    }),
+    ...appServerDirectories,
+    sharedMutationDirectory(changedPaths),
+  ].filter((directory): directory is string => Boolean(directory));
+  const workspaceDirectory = operationDirectories.find((directory) =>
+    changedPaths.every((path) => isWithinDirectory(path, directory)),
+  );
+  if (!workspaceDirectory) {
+    return ["a verifiable workspace root containing all changed files"];
+  }
+
+  const commands = postMutationCommands.filter(
+    (command) => commandDirectory(command) === workspaceDirectory,
+  );
+  const installCommand = commands.find((command) =>
+    /\bbun\s+(?:install|i)\b/u.test(command.command),
+  );
+  const buildCommand = commands.find((command) =>
+    successfulBuildCommand(command.command, requirements.requireBunInstall),
+  );
+  const missing: string[] = [];
+
+  if (requirements.requireBunInstall && !installCommand) {
+    missing.push(`a successful Bun install in ${workspaceDirectory}`);
+  }
+  if (requirements.requireBuild && !buildCommand) {
+    missing.push(`a successful production build in ${workspaceDirectory}`);
+  }
+  if (
+    requirements.requireBunInstall &&
+    requirements.requireBuild &&
+    installCommand &&
+    buildCommand &&
+    (installCommand.index > buildCommand.index ||
+      (installCommand.index === buildCommand.index &&
+        installCommand.command.search(/\bbun\s+(?:install|i)\b/u) >
+          buildCommand.command.search(/\bbun\s+run\s+build\b/u)))
+  ) {
+    missing.push("Bun install before the production build");
+  }
+
+  if (requirements.requireManagedApplication) {
+    const requiredStepIndex = Math.max(
+      installCommand?.index ?? -1,
+      buildCommand?.index ?? -1,
+      latestMutationIndex,
+    );
+    const readyServer = actionResults.some((result, index) => {
+      if (
+        index <= requiredStepIndex ||
+        result.success !== true ||
+        actionResultActionName(result)?.toUpperCase() !==
+          "DOOLITTLE_APP_SERVER" ||
+        !isRecord(result.data) ||
+        result.data.status !== "ready" ||
+        !isRecord(result.data.session) ||
+        !sameDirectory(result.data.session.cwd, workspaceDirectory) ||
+        typeof result.data.session.command !== "string" ||
+        !/^bun\s+run\s+dev(?:\s|$)/u.test(result.data.session.command)
+      ) {
+        return false;
+      }
+      return Boolean(localUrl(result.data.url));
+    });
+    if (!readyServer) {
+      missing.push(
+        `a ready managed app server with a verified local URL in ${workspaceDirectory}`,
+      );
+    }
+  }
+
+  return missing;
 }
 
 /** Confirm a completed Bun build in the exact workspace after coding ends. */
