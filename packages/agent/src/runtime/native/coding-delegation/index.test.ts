@@ -1085,7 +1085,7 @@ describe("managed official coding delegation", () => {
       },
     });
     expect(modelSettings.get("child-1")).toBe(
-      "npx -y @agentclientprotocol/codex-acp@1.12.0",
+      "npx -y @agentclientprotocol/codex-acp@1.13.1",
     );
     expect(modelSettings.get("child-2")).toBe(modelSettings.get("child-1"));
     expect(

@@ -1,7 +1,7 @@
 import { isRecord } from "@/utils/records";
 
 const DEFAULT_CODEX_ACP_COMMAND =
-  "npx -y @agentclientprotocol/codex-acp@1.12.0";
+  "npx -y @agentclientprotocol/codex-acp@1.13.1";
 
 function usesAppServerAdapter(command: string): boolean {
   return /@agentclientprotocol\/codex-acp(?:[\s@"']|$)/u.test(command);
@@ -11,7 +11,7 @@ function usesAppServerAdapter(command: string): boolean {
  * beta.7's retired Zed adapter embeds an older Codex that rejects current
  * models. The maintained App Server adapter bundles compatible Codex and uses
  * CODEX_CONFIG, not -c. Preserve explicit legacy commands and their TOML argv.
- * Source: github.com/agentclientprotocol/codex-acp/tree/v1.12.0
+ * Source: github.com/agentclientprotocol/codex-acp/tree/v1.13.1
  */
 export function codexCommandForRoute(input: {
   command?: string;

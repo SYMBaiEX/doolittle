@@ -10,7 +10,7 @@ describe("Codex ACP compatibility", () => {
       model: "gpt-5.6-luna",
       reasoningEffort: "medium",
     });
-    expect(command).toBe("npx -y @agentclientprotocol/codex-acp@1.12.0");
+    expect(command).toBe("npx -y @agentclientprotocol/codex-acp@1.13.1");
     const env = codexSpawnEnvironmentForRoute({
       command,
       model: "gpt-5.6-luna",
