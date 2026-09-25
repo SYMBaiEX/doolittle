@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CODING_EVAL_CASES, evaluateCodingRun } from "./coding-run-eval";
+import { CODING_EVAL_CASES, evaluateCodingRun } from "./evaluator";
 
 const expectedWorkspace = "/workspace/project";
 

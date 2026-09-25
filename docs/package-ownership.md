@@ -1,6 +1,6 @@
 # Package Ownership and Eliza Migration Status
 
-Last reviewed: August 11, 2026
+Last reviewed: September 25, 2026
 
 This is the package-level companion to the runtime
 [plugin inventory](plugin-inventory.md). Each workspace is classified by why it
@@ -13,6 +13,7 @@ pinned `2.0.3-beta.7` train.
 | `packages/agent` | Doolittle product over Eliza | Keep thin | Composes `AgentRuntime`, official plugins, CLI/TUI, gateway, API, product projections, and isolated product-owned native utilities. Standard runtime lifecycles remain Eliza-owned; native utilities may call but never replace them. |
 | `packages/acp` | Protocol adapter | Keep | Implements the Agent Client Protocol through the official ACP SDK; Eliza does not publish a replacement for Doolittle's ACP server boundary. |
 | `packages/contracts` | Doolittle product contracts | Keep | Secret-free API, desktop, gateway, and operator records. These contracts must not shadow SDK lifecycle types. |
+| `packages/evals` | Doolittle workflow evaluation | Keep | Versioned task suites, evidence-based workflow scoring, and privacy-preserving reports for repeatable route comparisons. Evaluation criteria remain separate from Eliza runtime ownership. |
 | `packages/characters` | Eliza configuration | Native data | Character JSON is loaded by Eliza and contains no competing runtime implementation. |
 | `packages/plugins` | Workspace aggregator | Keep | Groups shared plugin dependencies and contains the namespaced `doolittle-plugin` product actions and projections. Official service identifiers stay reserved for upstream owners. |
 | `packages/plugins/plugin-sql` | Doolittle relationship projection | Keep while needed | Wraps official `@elizaos/plugin-sql` without replacing its persistence lifecycle, adding only normalized tag and metadata merge-on-write semantics that the official create API intentionally does not provide. |

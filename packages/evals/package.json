@@ -1,0 +1,13 @@
+{
+  "name": "@doolittle/evals",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Versioned, evidence-based evaluation suites for Doolittle agent workflows.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./coding": "./src/coding/index.ts",
+    "./coding/cases": "./src/coding/cases.ts",
+    "./coding/report": "./src/coding/report.ts"
+  }
+}

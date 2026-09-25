@@ -1,9 +1,17 @@
 # Coding task evaluations
 
-Version 1 is a receipt-based acceptance suite for the coding harness. It is
-intentionally stricter than the chat's terminal status: a run is not a success
-just because a worker returned, files changed, or the provider emitted a
-confident summary.
+The maintained suite catalog, task prompts, receipt grader, report schema, and
+comparison commands live in the `@doolittle/evals` workspace. See
+[`packages/evals/README.md`](../../packages/evals/README.md) for operator
+commands and privacy details. The checks are intentionally stricter than chat's
+terminal status: a run is not a success just because a worker returned, files
+changed, or the provider emitted a confident summary.
+
+The frozen first task suite is `coding-harness-v1`; its reference task asks
+Doolittle to build and launch a one-page Next.js/shadcn blog with Bun. Run it
+through Desktop against a fresh, repeatable project fixture, then join the
+explicit run ID to its trajectory events. The evaluation command only reads
+telemetry; it does not launch an agent or mutate the target project.
 
 ## Cases
 
@@ -30,16 +38,22 @@ receipts from other projects or chats cannot leak into the evaluation:
 nub run eval:coding -- \
   --gateway http://127.0.0.1:64493 \
   --journal "$HOME/Library/Application Support/@doolittle/desktop/runtime/trajectories/trajectory-events.jsonl" \
-  --workspace /absolute/path/to/project \
-  --case coding-change-v1 \
-  --run RUN_ID_1 --run RUN_ID_2
+  --workspace /absolute/path/to/fresh-project-fixture \
+  --suite coding-harness-v1 \
+  --fixture STARTER_GIT_SHA \
+  --task-run nextjs-shadcn-blog=RUN_ID \
+  --route-label codex-model-effort
 ```
 
 The command reads each selected run receipt from `GET /chat/runs/:id` and joins
-it to local `action.completed` trajectory records. It does not print prompts,
-assistant responses, or tool output. A failing historical baseline exits nonzero
-by design. `nub run test:coding-evals` runs deterministic fixture tests without
-starting a provider or changing a workspace.
+it to local `action.completed` trajectory records. Explicit IDs prevent
+cross-project/chat leakage. Reports are private by default; `nub run
+eval:reports` lists them and `nub run eval:compare -- --baseline PATH
+--candidate PATH` compares only identical task sets and fixture IDs. An ad hoc
+historical run can still be evaluated with `--case coding-change-v1 --run
+RUN_ID`, but it cannot be compared until it is mapped to a versioned task suite.
+A failed evaluation exits nonzero by design. `nub run test:coding-evals` runs
+deterministic fixtures without starting a provider or changing a workspace.
 
 ## Evidence dimensions
 

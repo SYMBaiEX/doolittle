@@ -1,61 +1,9 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import type { CodingEvalCase } from "./cases";
+
+export { CODING_EVAL_CASES } from "./cases";
 
 export type CodingEvalStatus = "pass" | "fail" | "unknown" | "n/a";
-
-export interface CodingEvalCase {
-  id: string;
-  requiresMutation: boolean;
-  requiresBunInstall?: boolean;
-  requiresBuild: boolean;
-  requiresAppReady: boolean;
-  requiresRuntimeSmoke: boolean;
-}
-
-export const CODING_EVAL_CASES: Record<string, CodingEvalCase> = {
-  "coding-change-v1": {
-    id: "coding-change-v1",
-    requiresMutation: true,
-    requiresBuild: true,
-    requiresAppReady: false,
-    requiresRuntimeSmoke: false,
-  },
-  "coding-app-handoff-v1": {
-    id: "coding-app-handoff-v1",
-    requiresMutation: true,
-    requiresBuild: true,
-    requiresAppReady: true,
-    requiresRuntimeSmoke: false,
-  },
-  "coding-bun-app-handoff-v1": {
-    id: "coding-bun-app-handoff-v1",
-    requiresMutation: true,
-    requiresBunInstall: true,
-    requiresBuild: true,
-    requiresAppReady: true,
-    requiresRuntimeSmoke: false,
-  },
-  "app-start-v1": {
-    id: "app-start-v1",
-    requiresMutation: false,
-    requiresBuild: false,
-    requiresAppReady: true,
-    requiresRuntimeSmoke: false,
-  },
-  "verified-noop-v1": {
-    id: "verified-noop-v1",
-    requiresMutation: false,
-    requiresBuild: true,
-    requiresAppReady: false,
-    requiresRuntimeSmoke: false,
-  },
-  "api-runtime-fix-v1": {
-    id: "api-runtime-fix-v1",
-    requiresMutation: true,
-    requiresBuild: true,
-    requiresAppReady: false,
-    requiresRuntimeSmoke: true,
-  },
-};
 
 export interface CodingEvalCheck {
   id:
