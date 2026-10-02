@@ -1,0 +1,100 @@
+diff --git a/dist/node/index.node.js b/dist/node/index.node.js
+--- a/dist/node/index.node.js
++++ b/dist/node/index.node.js
+@@ -440,6 +440,9 @@
+   let lastText = "";
+   const pendingCallIds = [];
+   for (const message of messages) {
++    const hasImages = Array.isArray(message.content) && message.content.some((part) => part?.type === "image");
++    if (hasImages && message.role !== "user")
++      throw new Error("Codex image input requires a user message");
+     if (message.role === "system" || message.role === "developer")
+       continue;
+     if (message.role === "tool") {
+@@ -502,7 +505,12 @@
+     }
+     const text = contentToText(message.content);
+     lastText = text;
+-    out.push({ type: "message", role: "user", content: [{ type: "input_text", text }] });
++    const content = hasImages ? message.content.flatMap((part) => {
++      if (part.type === "image")
++        return [{ type: "input_image", image_url: codexImageUrl(part), detail: "auto" }];
++      return part.type === "text" && typeof part.text === "string" ? [{ type: "input_text", text: part.text }] : [];
++    }) : [{ type: "input_text", text }];
++    out.push({ type: "message", role: "user", content });
+   }
+   if (prompt.trim().length > 0 && prompt !== lastText) {
+     out.push({ type: "message", role: "user", content: [{ type: "input_text", text: prompt }] });
+@@ -509,6 +517,51 @@
+   }
+   return out;
+ }
++function codexImageUrl(part) {
++  // Never read local paths, fetch images, or echo image contents in errors.
++  const invalid = () => { throw new Error("Unsupported Codex image input"); };
++  const supported = /^image\/(png|jpeg|webp|gif)$/;
++  const mime = typeof part.mediaType === "string" ? part.mediaType.toLowerCase() : part.mediaType;
++  if (mime !== undefined && (typeof mime !== "string" || !supported.test(mime)))
++    return invalid();
++  const dataUrl = (mediaType, base64) => {
++    if (!supported.test(mediaType ?? "") || typeof base64 !== "string" || !base64 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64))
++      return invalid();
++    const bytes = Buffer.from(base64, "base64");
++    if (!bytes.length || bytes.toString("base64").replace(/=+$/, "") !== base64.replace(/=+$/, ""))
++      return invalid();
++    return `data:${mediaType};base64,${bytes.toString("base64")}`;
++  };
++  if (part.image instanceof Uint8Array) {
++    const bytes = Buffer.from(part.image);
++    let inferred;
++    if (bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])))
++      inferred = "image/png";
++    else if (bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255)
++      inferred = "image/jpeg";
++    else if (/^GIF8[79]a$/.test(bytes.subarray(0, 6).toString("ascii")))
++      inferred = "image/gif";
++    else if (bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP")
++      inferred = "image/webp";
++    return dataUrl(mime ?? inferred, bytes.toString("base64"));
++  }
++  const value = part.image instanceof URL ? part.image.href : part.image;
++  if (typeof value !== "string")
++    return invalid();
++  if (value.startsWith("data:")) {
++    const match = /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/]+={0,2})$/i.exec(value);
++    if (!match || mime !== undefined && mime !== match[1].toLowerCase())
++      return invalid();
++    return dataUrl(match[1].toLowerCase(), match[2]);
++  }
++  if (mime && /^[A-Za-z0-9+/]+={0,2}$/.test(value))
++    return dataUrl(mime, value);
++  let url;
++  try { url = new URL(value); } catch { return invalid(); }
++  if (!/^https?:$/.test(url.protocol) || url.username || url.password)
++    return invalid();
++  return url.href;
++}
+ function extractSystemPrompt(messages) {
+   const parts = messages?.filter((message) => message.role === "system" || message.role === "developer").map((message) => contentToText(message.content)).filter(Boolean);
+   return parts && parts.length > 0 ? parts.join(`
+diff --git a/dist/src/codex-backend.d.ts b/dist/src/codex-backend.d.ts
+--- a/dist/src/codex-backend.d.ts
++++ b/dist/src/codex-backend.d.ts
+@@ -60,6 +60,10 @@
+     content: Array<{
+         type: "input_text" | "output_text";
+         text: string;
++    } | {
++        type: "input_image";
++        image_url: string;
++        detail: "auto";
+     }>;
+ } | {
+     type: "function_call";
+@@ -91,4 +95,4 @@
+     private postResponses;
+ }
+ export declare function translateMessagesToCodexInput(messages: ChatMessage[] | undefined, prompt: string): CodexInputItem[];
+-//# sourceMappingURL=codex-backend.d.ts.map
+\ No newline at end of file
++//# sourceMappingURL=codex-backend.d.ts.map

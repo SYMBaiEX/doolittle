@@ -42,6 +42,53 @@ const fakeAuth = {
 };
 
 describe("Codex reasoning compatibility backend", () => {
+  it("preserves real SDK image serialization with the selected effort, model and abort signal", async () => {
+    const controller = new AbortController();
+    const image = "data:image/png;base64,iVBORw0KGgo=";
+    let requestBody: Record<string, unknown> | undefined;
+    let signal: AbortSignal | null | undefined;
+    const backend = createCodexReasoningBackend(runtimeFor("codex", "medium"), {
+      jitterMaxMs: 0,
+      loadAuth: async () => fakeAuth,
+      fetchImpl: async (_input: RequestInfo | URL, init?: RequestInit) => {
+        requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        signal = init?.signal;
+        return new Response("synthetic provider failure", { status: 503 });
+      },
+    });
+    await expect(
+      backend.generate({
+        prompt: "Review pixels",
+        model: "configured-model",
+        abortSignal: controller.signal,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Review pixels" },
+              { type: "image", image },
+            ],
+          },
+        ],
+      }),
+    ).rejects.toThrow(/codex \/responses returned 503/u);
+    expect(signal).toBe(controller.signal);
+    expect(requestBody).toMatchObject({
+      model: "configured-model",
+      reasoning: { effort: "medium" },
+      input: [
+        {
+          type: "message",
+          role: "user",
+          content: [
+            { type: "input_text", text: "Review pixels" },
+            { type: "input_image", image_url: image, detail: "auto" },
+          ],
+        },
+      ],
+    });
+  });
+
   it("observes provider latency, first text, and reported tokens without changing output", async () => {
     const metrics: unknown[] = [];
     const plugin = createDoolittleCodexReasoningPlugin(

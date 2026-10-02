@@ -109,6 +109,21 @@ regression test loads both installed SDK bundles without a loader substitute;
 retire the patch only after an upstream release passes the same tests. A patch
 change is a new harness revision, not directly attributable speed evidence.
 
+The second pinned patch,
+`patches/@elizaos+plugin-codex-cli@2.0.3-beta.7.patch`, preserves user image parts
+in the official Codex backend's Responses request. It accepts HTTP(S) image
+URLs without embedded credentials, supported image data URLs, and PNG/JPEG/
+WebP/GIF bytes (with explicit MIME or a recognized signature). Base64 strings
+require a supported MIME. It never reads local paths or fetches the image
+itself. Unsupported image inputs or non-user image roles fail before provider
+authentication and do not echo image data in errors. Text-only grouping,
+prompt deduplication, tool correlation, OAuth and SSE remain SDK-owned.
+The public-backend regression test uses synthetic auth and fetch to inspect
+actual request serialization; that is not proof of model vision or screenshot
+capture. Record both SDK patch hashes for comparisons, and retire each patch
+only after an upstream release passes its regression coverage. The image wire
+format follows the [official image-input guide](https://developers.openai.com/api/docs/guides/images-vision).
+
 For controlled desktop-owner backend experiments, use the tested
 `createEvalRuntimeEnvironment` helper in
 [`packages/evals/src/runtime-environment.ts`](../../packages/evals/src/runtime-environment.ts).

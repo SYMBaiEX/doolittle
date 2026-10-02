@@ -221,6 +221,7 @@
   },
   "packageManager": "nub@0.9.5",
   "patchedDependencies": {
-    "@elizaos/plugin-agent-orchestrator@2.0.3-beta.7": "patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch"
+    "@elizaos/plugin-agent-orchestrator@2.0.3-beta.7": "patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch",
+    "@elizaos/plugin-codex-cli@2.0.3-beta.7": "patches/@elizaos+plugin-codex-cli@2.0.3-beta.7.patch"
   }
 }

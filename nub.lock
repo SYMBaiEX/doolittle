@@ -49,6 +49,9 @@ patchedDependencies:
   '@elizaos/plugin-agent-orchestrator@2.0.3-beta.7':
     hash: 86791f29e0e05cc7321ffb40da7249142f43f9e8a8bdb71536a84199a0eede8d
     path: patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch
+  '@elizaos/plugin-codex-cli@2.0.3-beta.7':
+    hash: 1d187815659907fc5e4c73991fc0ab955d29764ab473ad82d0e300368473b7fb
+    path: patches/@elizaos+plugin-codex-cli@2.0.3-beta.7.patch
 
 importers:
 
@@ -110,7 +113,7 @@ importers:
         version: 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-codex-cli':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)
+        version: 2.0.3-beta.7(patch_hash=1d187815659907fc5e4c73991fc0ab955d29764ab473ad82d0e300368473b7fb)(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)
       '@elizaos/plugin-discord':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@emnapi/core@1.11.2(@emnapi/runtime@1.11.3))(@emnapi/runtime@1.11.3)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
@@ -361,7 +364,7 @@ importers:
         version: 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-codex-cli':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)
+        version: 2.0.3-beta.7(patch_hash=1d187815659907fc5e4c73991fc0ab955d29764ab473ad82d0e300368473b7fb)(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)
       '@elizaos/plugin-discord':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@emnapi/core@1.11.2(@emnapi/runtime@1.11.3))(@emnapi/runtime@1.11.3)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
@@ -16498,7 +16501,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@elizaos/plugin-codex-cli@2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)':
+  '@elizaos/plugin-codex-cli@2.0.3-beta.7(patch_hash=1d187815659907fc5e4c73991fc0ab955d29764ab473ad82d0e300368473b7fb)(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)':
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       zod: 4.6.5

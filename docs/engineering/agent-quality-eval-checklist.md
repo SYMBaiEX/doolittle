@@ -66,6 +66,12 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   stale-lock/stream cleanup and terminal-session retention. Record the source
   revision and lockfile patch hash when comparing worker recovery behavior;
   regression coverage is not a measured latency improvement.
+- The pinned Codex SDK also has an image-input package patch. Ordered user
+  image parts reach the SDK's real Responses request as `input_image`; invalid
+  inputs and unsupported message roles fail before authentication or fetch.
+  Synthetic transport tests prove serialization, not selected-model vision,
+  rendered screenshot capture, or a native visual feedback loop. Keep those
+  capabilities unavailable until the actual runtime journey proves them.
 - The pairwise comparator handles a baseline/candidate report pair. The
   `eval:headless:aggregate` command summarizes compatible schema-v4 repeats
   only when route, evaluator, suite, task/check identities, clean source
