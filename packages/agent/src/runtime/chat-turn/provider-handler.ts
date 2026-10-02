@@ -121,6 +121,7 @@ function actionResultsFromMessageResult(result: unknown): ActionResult[] {
 const MAX_CONTINUATION_EVIDENCE_CHARS = 5_000;
 const MAX_CONTINUATION_RESULT_CHARS = 1_200;
 const MAX_MUTATION_CONTINUATION_PASSES = 12;
+const MAX_CONSECUTIVE_NO_ACTION_PASSES = 2;
 
 function explicitlyReportsIncompleteWork(response: string): boolean {
   return /\b(?:not|isn't|aren't|hasn't|haven't|has not|have not)\s+(?:yet\s+)?(?:been\s+)?(?:implemented|completed|finished|verified|built|installed|tested|started|done|ready)\b|\b(?:remain|remains|remaining)\s+to\s+be\s+done\b|\b(?:still\s+need(?:s)?\s+to|left\s+to\s+do)\b/iu.test(
@@ -758,6 +759,7 @@ export async function executeProviderMessageTurn(
           | Awaited<ReturnType<typeof messageService.handleMessage>>
           | undefined;
         const allResponseMessages: Memory[] = [];
+        let consecutiveNoActionPasses = 0;
 
         // Keep workspace mutations under Doolittle's receipt gate. ElizaOS
         // 2.0.3-beta.7 can continue its internal planner after the requested
@@ -836,6 +838,10 @@ export async function executeProviderMessageTurn(
             settledThisAttempt,
             attemptActionResults,
           );
+          consecutiveNoActionPasses =
+            attemptActionResults.length === 0
+              ? consecutiveNoActionPasses + 1
+              : 0;
           actionResults = includeScopedDelegatedExecutionReceipt(
             input.context.runtime,
             actionResults,
@@ -878,6 +884,7 @@ export async function executeProviderMessageTurn(
             isSdkFailureReply(messageResult?.responseContent) ||
             hasPendingApproval(input.context, sessionId) ||
             attempt >= MAX_MUTATION_CONTINUATION_PASSES - 1 ||
+            consecutiveNoActionPasses >= MAX_CONSECUTIVE_NO_ACTION_PASSES ||
             // A strict no-op receipt includes the completed coding-agent
             // attestation plus the requested parent install/build and ready
             // server evidence. It is authoritative over a contradictory
