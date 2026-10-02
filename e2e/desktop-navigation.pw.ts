@@ -406,8 +406,8 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(
         page
           .getByRole("navigation", { name: "Workspace breadcrumb" })
-          .getByRole("heading", { name: "New conversation" }),
-      ).toBeVisible();
+          .locator(".window-breadcrumb-current"),
+      ).toHaveText("New conversation");
       await page.evaluate(() => {
         window.location.hash = "#/code";
       });
