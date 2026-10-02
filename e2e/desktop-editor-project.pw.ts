@@ -100,6 +100,11 @@ test.describe("Doolittle editor project resolution", () => {
 
     try {
       const page = await app.firstWindow();
+      const pageErrors: string[] = [];
+      page.on("pageerror", (error) => pageErrors.push(error.message));
+      await expect(page).toHaveTitle(/Doolittle$/);
+      expect(pageErrors).toEqual([]);
+      await expect(page.locator(".recovery-shell")).toHaveCount(0);
       const runtimeStatus = page.locator(".window-runtime-status");
       await expect(runtimeStatus).toHaveAttribute(
         "aria-label",

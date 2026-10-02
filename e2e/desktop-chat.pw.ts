@@ -46,6 +46,8 @@ async function launchDesktop(profileDir: string, workspaceDir: string) {
 
 async function waitForChat(page: Page, pageErrors: string[]): Promise<void> {
   await expect(page).toHaveTitle(/Doolittle$/);
+  expect(pageErrors).toEqual([]);
+  await expect(page.locator(".recovery-shell")).toHaveCount(0);
   const runtimeStatus = page.locator(".window-runtime-status");
   await expect(runtimeStatus).toHaveAttribute(
     "aria-label",
@@ -54,8 +56,6 @@ async function waitForChat(page: Page, pageErrors: string[]): Promise<void> {
   );
   await expect(runtimeStatus).toHaveClass(/(?:^|\s)ready(?:\s|$)/);
   await expect(runtimeStatus).toContainText("Local runtime");
-  await expect(page.locator(".recovery-shell")).toHaveCount(0);
-  expect(pageErrors).toEqual([]);
   await expect(
     page.getByRole("textbox", { name: "Message Doolittle" }),
   ).toBeEnabled();

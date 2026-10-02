@@ -76,6 +76,8 @@ test.describe("Doolittle desktop navigation", () => {
         pageErrors.push(error.stack ?? error.message);
       });
       await expect(page).toHaveTitle(/Doolittle$/);
+      expect(pageErrors).toEqual([]);
+      await expect(page.locator(".recovery-shell")).toHaveCount(0);
       const runtimeStatus = page.locator(".window-runtime-status");
       await expect(runtimeStatus).toHaveAttribute(
         "aria-label",
