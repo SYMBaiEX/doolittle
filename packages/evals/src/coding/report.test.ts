@@ -98,10 +98,12 @@ describe("coding evaluation reports", () => {
     const serialized = JSON.stringify(report);
 
     expect(report.comparisonReady).toBe(true);
+    expect(report.suite).toEqual({ id: suite.id, version: suite.version });
     expect(serialized).toContain("evidenceSha256");
     expect(serialized).not.toContain("private-project");
     expect(serialized).not.toContain("token=secret");
     expect(serialized).not.toContain("Built under");
+    expect(serialized).not.toContain(task.prompt);
   });
 
   it("compares only the same frozen tasks and fixture, keeping effort separate", () => {

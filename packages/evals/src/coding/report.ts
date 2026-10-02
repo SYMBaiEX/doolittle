@@ -250,7 +250,9 @@ export function createCodingEvalReport(
       version: CODING_EVAL_PACKAGE_VERSION,
     },
     createdAt: input.createdAt ?? new Date().toISOString(),
-    suite: input.suite ?? null,
+    suite: input.suite
+      ? { id: input.suite.id, version: input.suite.version }
+      : null,
     taskSetId: input.taskSetId ?? null,
     fixtureId: input.fixtureId ?? null,
     workspaceSha256: digest(resolve(input.workspace)),
