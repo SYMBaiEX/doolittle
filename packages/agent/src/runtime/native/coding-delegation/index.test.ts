@@ -239,7 +239,10 @@ describe("managed official coding delegation", () => {
             ...parameters,
             task: "Implement with actual shadcn components",
             agentType: "claude",
-            workdir: input.root,
+            ...(name === "TASKS_SPAWN_AGENT" &&
+            Object.keys(parameters).length === 0
+              ? {}
+              : { workdir: input.root }),
           },
         },
         undefined,
@@ -646,6 +649,12 @@ describe("managed official coding delegation", () => {
     expect(action?.descriptionCompressed).toContain(
       "do not substitute the selected project root",
     );
+    expect(action?.descriptionCompressed).toContain(
+      "omit workdir so Doolittle uses its configured workspace root",
+    );
+    expect(action?.descriptionCompressed).toContain(
+      "never guess /workspace or another placeholder",
+    );
     const result = await action?.handler(
       input.runtime,
       input.message,
@@ -690,13 +699,21 @@ describe("managed official coding delegation", () => {
 
   it("rejects nonexistent and relative workspaces before the SDK can fall back", async () => {
     const input = await fixture();
-    expect(
-      await input.execute({ workdir: join(input.root, "missing") }),
-    ).toMatchObject({
+    const missing = await input.execute({
+      workdir: join(input.root, "missing"),
+    });
+    if (!missing) throw new Error("Expected a workspace path rejection.");
+    expect(missing).toMatchObject({
       success: false,
       continueChain: false,
       error: "WORKSPACE_NOT_FOUND",
     });
+    expect(missing.userFacingText).toContain(
+      "omit workdir and retry so Doolittle uses its configured workspace root",
+    );
+    expect(missing.userFacingText).toContain(
+      "Do not create a placeholder or fall back to another directory",
+    );
     expect(
       await input.execute({ workdir: "austin/dev/this-is-a-test" }),
     ).toMatchObject({ success: false, error: "WORKSPACE_PATH_AMBIGUOUS" });

@@ -22,6 +22,12 @@ describe("Doolittle coding action", () => {
     expect(parent.description).toContain(
       "delegate the complete implementation once to TASKS_SPAWN_AGENT",
     );
+    expect(parent.description).toContain(
+      "omit workdir so Doolittle resolves its configured workspace root",
+    );
+    expect(parent.descriptionCompressed).toContain(
+      "Never guess /workspace or another placeholder",
+    );
     expect(parent.description).toContain("Run production builds before");
     expect(parent.description).toContain(
       "The delegated agent must not run a production build or start the app",
@@ -38,6 +44,9 @@ describe("Doolittle coding action", () => {
         "The delegated coding agent must not run a production build or start the dev server",
       ),
     });
+    expect(JSON.stringify(parent.subPlanner)).toContain(
+      "omit workdir so Doolittle resolves its configured workspace root",
+    );
     expect(
       resolveSubActions({ actions: children }, parent).map(({ name }) => name),
     ).toEqual(DOOLITTLE_CODING_SUBACTIONS);
