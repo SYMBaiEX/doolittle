@@ -24,10 +24,12 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   provider error text remains out of the report.
 - Schema-v4 reports measure Codex provider-call duration, per-call first-text
   latency, and provider-reported input/output/total token counts. Evaluator
-  0.2.4 additionally records exec-start to first non-empty assistant-text
-  progress from the first CLI invocation. It includes CLI startup and output
-  transport, not model-only TTFT or rendered UI latency. Reports do not measure
-  every provider path, per-action spans, or billable USD;
+  0.2.5 additionally records exec-start to the first model-request journal event
+  and first non-empty assistant-text progress in the first CLI invocation. The
+  request signal includes CLI startup and prompt preparation, not pure harness
+  overhead; first-text includes output transport, not model-only TTFT or
+  rendered UI latency. Reports do not measure every provider path, per-action
+  spans, or billable USD;
   Codex USD cost is explicitly unavailable, not inferred. They also preserve
   privacy-safe request/response/error/continuation counts and prompt-length
   statistics, never raw trace text.
@@ -123,9 +125,11 @@ The comparator pairs matching task/check identities and uses
 `timing.execDurationMs` for schema v2/v3/v4. It labels and compares `elapsedMs`
 only for schema-v1-to-v1 comparisons. Schema v3 additionally compares matched
 Codex provider usage when both reports have it. Provider-call duration sums are
-not wall time; provider first-text measures are not user TTFT. Evaluator 0.2.4
-adds the paired exec-to-first-assistant-text measure; it includes CLI startup and
-stream transport, not model-only or rendered UI latency. Schema v4 adds
+not wall time; provider first-text measures are not user TTFT. Evaluator 0.2.5
+adds paired exec-to-first-model-request and exec-to-first-assistant-text
+measures. The request signal covers startup/prompt preparation, not pure harness
+overhead; first text includes stream transport, not model-only or rendered UI
+latency. Schema v4 adds
 sanitized model request and continuation shape plus source revision/cleanliness. Use
 `nub run eval:headless:aggregate -- --report REPORT.json --report REPORT.json`
 for repeated, compatible schema-v4 samples from the same clean commit. Per-action

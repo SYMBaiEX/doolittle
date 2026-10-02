@@ -75,6 +75,7 @@ describe("headless workflow evals", () => {
     let childArguments: readonly string[] | string | undefined;
     let childEnvironment: NodeJS.ProcessEnv | undefined;
     let monotonicClock = 0;
+    let wallClock = 1_000;
     const execute = vi.fn(
       (
         _command: string,
@@ -108,6 +109,7 @@ describe("headless workflow evals", () => {
               {
                 category: "model",
                 event: "model.request",
+                createdAt: new Date(1_008).toISOString(),
                 text: "private prompt text must not be retained",
                 metadata: { prompt: "private prompt", promptChars: 123 },
               },
@@ -131,6 +133,7 @@ describe("headless workflow evals", () => {
               .join("\n"),
           );
         }
+        wallClock = 1_017;
         monotonicClock = 17;
         options?.onStdoutChunk?.(
           Buffer.from(
@@ -198,6 +201,7 @@ describe("headless workflow evals", () => {
       repoRoot: process.cwd(),
       execute,
       now: () => new Date("2026-10-01T12:00:00.000Z"),
+      wallNow: () => wallClock,
       monotonicNow: () => monotonicClock,
     });
 
@@ -250,6 +254,7 @@ describe("headless workflow evals", () => {
     expect(result.report.runs[0]?.timing).toEqual({
       taskSetupMs: expect.any(Number),
       execDurationMs: expect.any(Number),
+      execToFirstModelRequestMs: 8,
       execToFirstAssistantTextMs: 17,
       execInvocations: 1,
       gradingMs: expect.any(Number),
@@ -338,6 +343,7 @@ describe("headless workflow evals", () => {
     expect(result.report.runs[0]?.timing).toEqual({
       taskSetupMs: 0,
       execDurationMs: 125,
+      execToFirstModelRequestMs: null,
       execToFirstAssistantTextMs: null,
       execInvocations: 1,
       gradingMs: 40,

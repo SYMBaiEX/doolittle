@@ -66,6 +66,39 @@ export function hasFailedResearchAction(dataDir: string): boolean {
   });
 }
 
+/** Returns the first model-request journal timestamp without exposing its payload. */
+export function readFirstModelRequestAtMs(dataDir: string): number | null {
+  const path = join(dataDir, JOURNAL_PATH);
+  if (!existsSync(path)) return null;
+
+  let stored: string;
+  try {
+    stored = readFileSync(path, "utf8");
+  } catch {
+    return null;
+  }
+
+  for (const line of stored.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    try {
+      const event: unknown = JSON.parse(line);
+      if (
+        !isRecord(event) ||
+        event.category !== "model" ||
+        event.event !== "model.request"
+      ) {
+        continue;
+      }
+      if (typeof event.createdAt !== "string") return null;
+      const timestampMs = Date.parse(event.createdAt);
+      return Number.isFinite(timestampMs) ? timestampMs : null;
+    } catch {
+      // The trace summary separately reports malformed journal data.
+    }
+  }
+  return null;
+}
+
 export function readHeadlessTraceSummary(
   dataDir: string,
 ): HeadlessTraceSummary {

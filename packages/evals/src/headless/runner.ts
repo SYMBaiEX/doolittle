@@ -18,6 +18,7 @@ import {
 } from "./process";
 import {
   hasFailedResearchAction,
+  readFirstModelRequestAtMs,
   readHeadlessTraceSummary,
 } from "./trace-summary";
 
@@ -38,6 +39,8 @@ export interface HeadlessEvalRunResult {
     taskSetupMs: number;
     /** Sum of full `nub ... exec` invocations, including CLI startup, providers/models, and tools. */
     execDurationMs: number;
+    /** First model.request journal event in the first invocation, relative to exec start; null if absent. */
+    execToFirstModelRequestMs: number | null;
     /** First model-progress text in the first invocation, measured from exec start; null if no stream text arrived. */
     execToFirstAssistantTextMs: number | null;
     execInvocations: number;
@@ -93,6 +96,7 @@ export interface RunHeadlessEvalOptions {
   ) => void;
   taskIds?: string[];
   now?: () => Date;
+  wallNow?: () => number;
   monotonicNow?: () => number;
   execute?: HeadlessExecutor;
 }
@@ -240,6 +244,7 @@ export async function runHeadlessEvalSuite(
   exitCode: number;
 }> {
   const now = options.now ?? (() => new Date());
+  const wallNow = options.wallNow ?? Date.now;
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
   const execute = options.execute ?? executeHeadlessChild;
   const repoRoot = options.repoRoot ?? defaultRepoRoot;
@@ -305,6 +310,7 @@ export async function runHeadlessEvalSuite(
         diagnosticFlags.add("research-provider-credentials-unavailable");
       }
       let execDurationMs = 0;
+      let execToFirstModelRequestMs: number | null = null;
       let execToFirstAssistantTextMs: number | null = null;
       let execInvocations = 0;
       let finalError: Error | undefined;
@@ -313,6 +319,7 @@ export async function runHeadlessEvalSuite(
 
       for (const [index, prompt] of prompts.entries()) {
         const execStartedAt = monotonicNow();
+        const execStartedWallAt = wallNow();
         const stdoutDecoder = new StringDecoder("utf8");
         let stdoutLineBuffer = "";
         const observeStdout = (chunk: Buffer) => {
@@ -375,7 +382,24 @@ export async function runHeadlessEvalSuite(
             onStdoutChunk: observeStdout,
           },
         );
-        execDurationMs += durationMs(execStartedAt, monotonicNow());
+        const execEndedAt = monotonicNow();
+        const invocationDurationMs = durationMs(execStartedAt, execEndedAt);
+        execDurationMs += invocationDurationMs;
+        if (index === 0) {
+          const firstModelRequestAtMs = readFirstModelRequestAtMs(dataDir);
+          if (firstModelRequestAtMs !== null) {
+            const elapsedToFirstModelRequest =
+              firstModelRequestAtMs - execStartedWallAt;
+            if (
+              elapsedToFirstModelRequest >= 0 &&
+              elapsedToFirstModelRequest <= invocationDurationMs + 250
+            ) {
+              execToFirstModelRequestMs = Math.round(
+                elapsedToFirstModelRequest,
+              );
+            }
+          }
+        }
         execInvocations += 1;
         finalError = child.error ?? undefined;
         finalSignal = child.signal;
@@ -445,6 +469,7 @@ export async function runHeadlessEvalSuite(
         timing: {
           taskSetupMs,
           execDurationMs,
+          execToFirstModelRequestMs,
           execToFirstAssistantTextMs,
           execInvocations,
           gradingMs,

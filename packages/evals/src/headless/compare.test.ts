@@ -101,14 +101,14 @@ function v4Report(overrides: Record<string, unknown> = {}) {
   return {
     ...base,
     schemaVersion: 4,
-    evaluatorVersion: "0.2.4",
+    evaluatorVersion: "0.2.5",
     source: { revision: "a".repeat(40), workingTreeClean: true },
-    runs: (base.runs as Array<Record<string, unknown>>).map((run) => ({
+    runs: (base.runs as Array<Record<string, unknown>>).map((run, index) => ({
       ...run,
       timing: {
         ...(run.timing as Record<string, unknown>),
-        execToFirstAssistantTextMs:
-          25 + Number((run.timing as Record<string, unknown>).execDurationMs),
+        execToFirstModelRequestMs: 10 + index * 5,
+        execToFirstAssistantTextMs: 35 + index * 5,
       },
       traceSummary: {
         journalAvailable: true,
@@ -218,6 +218,10 @@ describe("headless report comparison", () => {
         ...run,
         timing: {
           ...(run.timing as Record<string, unknown>),
+          execToFirstModelRequestMs:
+            Number(
+              (run.timing as Record<string, unknown>).execToFirstModelRequestMs,
+            ) + 15,
           execToFirstAssistantTextMs:
             Number(
               (run.timing as Record<string, unknown>)
@@ -230,6 +234,8 @@ describe("headless report comparison", () => {
     const result = compareHeadlessEvalReports(baseline, candidate);
     expect(result.pairedFirstAssistantTextTaskCount).toBe(2);
     expect(result.meanExecToFirstAssistantTextDeltaMs).toBe(15);
+    expect(result.pairedFirstModelRequestTaskCount).toBe(2);
+    expect(result.meanExecToFirstModelRequestDeltaMs).toBe(15);
     expect(
       result.tasks.map((task) => task.execToFirstAssistantTextDeltaMs),
     ).toEqual([15, 15]);
@@ -245,6 +251,7 @@ describe("headless report comparison", () => {
               ...run,
               timing: {
                 ...(run.timing as Record<string, unknown>),
+                execToFirstModelRequestMs: -1,
                 execToFirstAssistantTextMs: -1,
               },
             }
@@ -254,23 +261,23 @@ describe("headless report comparison", () => {
     expect(() => compareHeadlessEvalReports(malformed, malformed)).toThrow();
   });
 
-  it("keeps the new timing unavailable for older schema-v4 evaluator reports", () => {
+  it("keeps first-model-request timing unavailable for evaluator 0.2.4 reports", () => {
     const base = v4Report();
     const legacy = {
       ...base,
-      evaluatorVersion: "0.2.3",
+      evaluatorVersion: "0.2.4",
       runs: (base.runs as Array<Record<string, unknown>>).map((run) => {
         const timing = { ...(run.timing as Record<string, unknown>) };
-        delete timing.execToFirstAssistantTextMs;
+        delete timing.execToFirstModelRequestMs;
         return { ...run, timing };
       }),
     };
 
     const result = compareHeadlessEvalReports(legacy, legacy);
-    expect(result.pairedFirstAssistantTextTaskCount).toBe(0);
-    expect(result.meanExecToFirstAssistantTextDeltaMs).toBeNull();
+    expect(result.pairedFirstAssistantTextTaskCount).toBe(2);
+    expect(result.meanExecToFirstAssistantTextDeltaMs).toBe(0);
     expect(
-      result.tasks.map((task) => task.execToFirstAssistantTextDeltaMs),
+      result.tasks.map((task) => task.execToFirstModelRequestDeltaMs),
     ).toEqual([null, null]);
   });
 
@@ -666,6 +673,7 @@ describe("headless repeated report aggregation", () => {
       modelResponses?: number[];
       modelErrors?: number[];
       execToFirstAssistantTextMs?: Array<number | null>;
+      execToFirstModelRequestMs?: Array<number | null>;
     } = {},
   ) {
     const base = v4Report();
@@ -694,6 +702,13 @@ describe("headless repeated report aggregation", () => {
                   options.execToFirstAssistantTextMs[index],
               }
             : {}),
+          ...(options.execToFirstModelRequestMs &&
+          index in options.execToFirstModelRequestMs
+            ? {
+                execToFirstModelRequestMs:
+                  options.execToFirstModelRequestMs[index],
+              }
+            : {}),
         },
         modelUsage:
           options.modelUsage && index in options.modelUsage
@@ -720,6 +735,7 @@ describe("headless repeated report aggregation", () => {
       modelResponses: [1, 2],
       modelErrors: [1, 0],
       execToFirstAssistantTextMs: [10, null],
+      execToFirstModelRequestMs: [5, null],
     });
     const second = repeatedReport(700, [300, 400], [3, 3], {
       statuses: ["failed", "completed"],
@@ -729,6 +745,7 @@ describe("headless repeated report aggregation", () => {
       modelResponses: [2, 2],
       modelErrors: [0, 0],
       execToFirstAssistantTextMs: [20, null],
+      execToFirstModelRequestMs: [10, null],
     });
     const third = repeatedReport(600, [200, 300], [2, 2], {
       checks: [[true, false], [true]],
@@ -736,6 +753,7 @@ describe("headless repeated report aggregation", () => {
       modelResponses: [3, 2],
       modelErrors: [2, 0],
       execToFirstAssistantTextMs: [30, null],
+      execToFirstModelRequestMs: [15, null],
     });
 
     const result = aggregateHeadlessEvalReports([first, second, third]);
@@ -744,7 +762,7 @@ describe("headless repeated report aggregation", () => {
       suiteVersion: 4,
       schemaVersion: 4,
       source: { revision: "a".repeat(40), workingTreeClean: true },
-      evaluatorVersion: "0.2.4",
+      evaluatorVersion: "0.2.5",
       routeLabel: "route",
       reportSamples: 3,
       taskSamples: 6,
@@ -786,6 +804,14 @@ describe("headless repeated report aggregation", () => {
         p90: 30,
         max: 30,
         mean: 20,
+      },
+      execToFirstModelRequestMs: {
+        count: 3,
+        min: 5,
+        median: 10,
+        p90: 15,
+        max: 15,
+        mean: 10,
       },
       execInvocations: {
         count: 3,

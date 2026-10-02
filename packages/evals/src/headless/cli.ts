@@ -109,8 +109,12 @@ async function main(): Promise<number> {
         run.timing.execToFirstAssistantTextMs === null
           ? "unavailable"
           : `${run.timing.execToFirstAssistantTextMs}ms`;
+      const execToFirstModelRequest =
+        run.timing.execToFirstModelRequestMs === null
+          ? "unavailable"
+          : `${run.timing.execToFirstModelRequestMs}ms`;
       console.log(
-        `${run.taskId}: ${run.status} · ${objectiveSummary} · setup ${run.timing.taskSetupMs}ms · doolittle exec sum ${run.timing.execDurationMs}ms across ${run.timing.execInvocations} invocation(s) · exec to first assistant text ${execToFirstAssistantText} · grading ${run.timing.gradingMs}ms${diagnostic}`,
+        `${run.taskId}: ${run.status} · ${objectiveSummary} · setup ${run.timing.taskSetupMs}ms · doolittle exec sum ${run.timing.execDurationMs}ms across ${run.timing.execInvocations} invocation(s) · exec to first model request ${execToFirstModelRequest} · exec to first assistant text ${execToFirstAssistantText} · grading ${run.timing.gradingMs}ms${diagnostic}`,
       );
       if (run.modelUsage) {
         const usage = run.modelUsage;
