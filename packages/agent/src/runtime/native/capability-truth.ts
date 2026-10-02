@@ -15,9 +15,9 @@ const CAPABILITY_TRUTH: NativeCapabilityTruthRecord[] = [
     id: "browser.browser",
     packageName: "doolittle:services.web",
     headline:
-      "Browser capture is truthful about pixel versus placeholder output.",
+      "Browser capture distinguishes text-based cards from rendered-page evidence.",
     summary:
-      "The browser adapter exposes browser-backed capture when a Lightpanda-compatible command is available, and it falls back to placeholder artifacts when browser execution is unavailable.",
+      "The evidence adapter captures fetched text and metadata. Lightpanda can supply DOM content for PNG capture cards; no current evidence backend captures rendered-page pixels.",
     runtimeSurfaces: [
       "GET /browser/status",
       "POST /browser/capture",
@@ -26,8 +26,8 @@ const CAPABILITY_TRUTH: NativeCapabilityTruthRecord[] = [
     ],
     requiredStatusFields: ["captureMode", "captureReady", "provider", "mode"],
     realBehavior: [
-      "Returns pixel-backed PNG screenshot artifacts when the configured browser backend is executable.",
-      "Keeps browser status explicit so the caller can see whether capture is running in browser or fallback mode.",
+      "Returns captureMode=capture-card for text-based PNG cards when the configured DOM backend is executable; these are not page screenshots.",
+      "Reports captureReady=false for both capture cards and placeholders, independently of DOM-fetch readiness.",
       "Preserves placeholder markdown and SVG artifacts as the degraded path instead of pretending screenshots are real.",
     ],
     degradedBehavior: [
@@ -35,7 +35,8 @@ const CAPABILITY_TRUTH: NativeCapabilityTruthRecord[] = [
       "Reports captureMode=placeholder and captureReady=false instead of claiming full screenshot readiness.",
     ],
     caveats: [
-      "Pixel capture is a lightweight raster card generated from the fetched page snapshot, not a full DOM screenshot engine.",
+      "A PNG file or browser-backed DOM fetch does not prove rendered layout. Legacy pixel labels are ambiguous and are not accepted as visual evidence.",
+      "Browser analysis calls supply text and artifact paths, not image pixels; they must not claim layout, color or contrast inspection.",
       "Interactive upstream browser claims such as CAPTCHA solving and session management are not part of the documented Doolittle runtime contract.",
     ],
   },

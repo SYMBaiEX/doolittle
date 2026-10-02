@@ -1,3 +1,5 @@
+import type { BrowserCaptureMode } from "@doolittle/contracts/browser";
+
 export interface BrowserConfig {
   provider: "lightpanda" | "basic";
   command: string;
@@ -22,7 +24,7 @@ export interface BrowserStatus {
     screenshot: boolean;
     comparison: boolean;
   };
-  captureMode: "pixel" | "placeholder";
+  captureMode: BrowserCaptureMode;
   captureReady: boolean;
 }
 
@@ -50,7 +52,7 @@ export interface BrowserInspection {
   snapshotPath: string;
   screenshotPath: string;
   screenshotSvgPath: string;
-  captureMode: "pixel" | "placeholder";
+  captureMode: BrowserCaptureMode;
   status: BrowserStatus;
 }
 
@@ -59,7 +61,7 @@ export interface BrowserCaptureBundle {
   snapshotPath: string;
   screenshotPath: string;
   screenshotSvgPath: string;
-  captureMode: "pixel" | "placeholder";
+  captureMode: BrowserCaptureMode;
   manifestPath: string;
   reportPath: string;
   status: BrowserStatus;

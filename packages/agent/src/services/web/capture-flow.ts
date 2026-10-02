@@ -37,7 +37,7 @@ export async function writeBrowserScreenshot(
   const page = await fetchBrowserPage(url, config, state);
   const artifact = writeScreenshotArtifact(outputDir, page, [
     page.mode === "browser"
-      ? "Browser-backed capture is available, so Doolittle emitted a pixel artifact."
+      ? "DOM fetch is available, so Doolittle emitted a text-based PNG capture card, not a rendered-page screenshot."
       : "Browser-backed capture is unavailable, so Doolittle emitted a placeholder artifact.",
     `Captured from ${page.provider} in ${page.mode} mode.`,
   ]);
@@ -58,7 +58,7 @@ export async function inspectBrowserPage(
   ]);
   const screenshotArtifact = writeScreenshotArtifact(outputDir, page, [
     page.mode === "browser"
-      ? "Browser-backed capture is available, so Doolittle emitted a pixel artifact."
+      ? "DOM fetch is available, so Doolittle emitted a text-based PNG capture card, not a rendered-page screenshot."
       : "Browser-backed capture is unavailable, so Doolittle emitted a placeholder artifact.",
     `Captured from ${page.provider} in ${page.mode} mode.`,
   ]);

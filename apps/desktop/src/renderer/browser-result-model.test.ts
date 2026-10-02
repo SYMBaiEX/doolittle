@@ -8,7 +8,7 @@ import {
 describe("browser result model", () => {
   const payload = {
     capture: {
-      captureMode: "raster",
+      captureMode: "rendered-page",
       status: { captureReady: true },
       page: {
         contentLength: 420,
@@ -23,8 +23,9 @@ describe("browser result model", () => {
   it("shares capture metadata and artifact extraction with the result view", () => {
     expect(getBrowserEvidenceMetadata(payload)).toEqual({
       artifactPaths: ["/tmp/storefront.png"],
-      captureMode: "raster",
+      captureMode: "rendered-page",
       captureReady: true,
+      screenshotPath: "/tmp/storefront.png",
       pageTitle: "Storefront",
       url: "https://example.test/store",
     });
@@ -41,13 +42,51 @@ describe("browser result model", () => {
     expect(model.cards).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ label: "Page", value: "Storefront" }),
-        expect.objectContaining({ label: "Capture", value: "Raster" }),
+        expect.objectContaining({ label: "Capture", value: "Rendered Page" }),
       ]),
     );
     expect(model.artifacts).toContainEqual({
       label: "Capture screenshot",
       value: "/tmp/storefront.png",
     });
+  });
+
+  it("extracts direct capture receipts without dropping readiness or page identity", () => {
+    expect(
+      getBrowserEvidenceMetadata({
+        captureMode: "capture-card",
+        status: { captureReady: false },
+        page: { title: "Direct", url: "https://example.test" },
+        screenshotPath: "/tmp/card.png",
+      }),
+    ).toMatchObject({
+      captureMode: "capture-card",
+      captureReady: false,
+      screenshotPath: "/tmp/card.png",
+      pageTitle: "Direct",
+    });
+  });
+
+  it("labels card-only results as lacking rendered-page evidence", () => {
+    const model = buildBrowserResultViewModel({
+      action: "capture",
+      title: "Card",
+      payload: {
+        capture: {
+          captureMode: "capture-card",
+          status: { captureReady: false },
+          screenshotPath: "/tmp/card.png",
+        },
+      },
+    });
+    expect(model.cards).toContainEqual(
+      expect.objectContaining({
+        label: "Capture",
+        value: "Capture Card",
+        detail:
+          "No rendered-page screenshot; capture card or structured evidence only",
+      }),
+    );
   });
 
   it("only accepts safe image previews and bounds a raw payload", () => {

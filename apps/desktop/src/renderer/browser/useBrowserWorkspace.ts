@@ -34,7 +34,11 @@ export const BROWSER_ACTIONS: Array<{
 }> = [
   { id: "inspect", label: "Inspect", detail: "DOM and page metadata" },
   { id: "capture", label: "Capture", detail: "Reusable evidence bundle" },
-  { id: "screenshot", label: "Screenshot", detail: "Raster page artifact" },
+  {
+    id: "screenshot",
+    label: "Screenshot",
+    detail: "Capture card or placeholder; not a rendered page screenshot",
+  },
   { id: "snapshot", label: "Snapshot", detail: "Readable page snapshot" },
   { id: "analyze", label: "Analyze", detail: "Model-backed review" },
 ];

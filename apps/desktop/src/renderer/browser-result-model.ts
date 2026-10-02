@@ -44,6 +44,7 @@ export interface BrowserEvidenceMetadata {
   artifactPaths: string[];
   captureMode: string;
   captureReady?: boolean;
+  screenshotPath: string;
   pageTitle: string;
   url: string;
 }
@@ -188,7 +189,9 @@ export function getBrowserEvidenceMetadata(
       ? capture
       : Object.keys(analysisCapture).length > 0
         ? analysisCapture
-        : inspection;
+        : Object.keys(inspection).length > 0
+          ? inspection
+          : root;
   const status = asRecord(primary.status);
   const page = asRecord(primary.page);
   return {
@@ -202,6 +205,7 @@ export function getBrowserEvidenceMetadata(
       typeof status.captureReady === "boolean"
         ? status.captureReady
         : undefined,
+    screenshotPath: asString(primary.screenshotPath) || asString(primary.path),
     pageTitle: asString(page.title),
     url: asString(page.url),
   };
@@ -299,8 +303,8 @@ export function buildBrowserResultViewModel(
       ),
       typeof status.captureReady === "boolean"
         ? status.captureReady
-          ? "Capture-ready backend"
-          : "Placeholder capture backend"
+          ? "Backend reports capture readiness; inspect the explicit capture mode"
+          : "No rendered-page screenshot; capture card or structured evidence only"
         : undefined,
     );
   }

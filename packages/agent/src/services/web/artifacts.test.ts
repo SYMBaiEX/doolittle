@@ -32,7 +32,7 @@ function createPage(mode: "browser" | "fallback"): WebPageSnapshot {
 }
 
 describe("web-service artifacts", () => {
-  it("writes snapshot and screenshot artifacts for both pixel and placeholder captures", () => {
+  it("writes capture cards without claiming rendered-page screenshots", () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-web-artifacts-"));
 
     try {
@@ -56,7 +56,13 @@ describe("web-service artifacts", () => {
         "snapshot note",
       );
 
-      expect(pixel.captureMode).toBe("pixel");
+      expect(pixel.captureMode).toBe("capture-card");
+      expect(readFileSync(pixel.markdownPath, "utf8")).toContain(
+        "not a screenshot of the rendered page",
+      );
+      expect(JSON.parse(readFileSync(pixel.jsonPath, "utf8")).captureMode).toBe(
+        "capture-card",
+      );
       expect(pixel.screenshotPath.endsWith(".png")).toBe(true);
       expect(existsSync(pixel.screenshotPath)).toBe(true);
       expect(existsSync(pixel.svgPath)).toBe(true);

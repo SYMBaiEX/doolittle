@@ -68,7 +68,11 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
       readiness evidence, not a valid test of the owner's coding ability.
       Do not broaden API permissions to make a benchmark pass.
 - [ ] Reset each task to the same isolated fixture and state. Keep credentials
-      out of fixtures and reports.
+      out of fixtures and reports. Confirm SDK ACP task/session and audit state,
+      account-state root, and SQL storage are private too; fresh Doolittle data,
+      gateway and hooks directories alone do not prove isolation. Any exposed
+      historical tasks make the sample an operational diagnostic, not a fully
+      isolated controlled-performance comparison.
 - [ ] Define the question being tested and change one principal variable at a
       time where practical. Route labels identify a configuration; they do not
       prove causality.
@@ -180,6 +184,12 @@ and show spread, not just one run or arithmetic mean.
 
 - [ ] Check provider/runtime diagnostics and explain unavailable domains.
 - [ ] Review every critical check and every completion claim against receipts.
+- [ ] Inspect actual rendered-page pixels for visual judgments. Doolittle's
+      Lightpanda PNG capture cards contain fetched text, not page rendering;
+      they report `captureMode=capture-card` and `captureReady=false`. Neither
+      a PNG extension, a legacy `pixel` label, nor a text-only model analysis
+      proves layout or contrast. Keep external browser review distinct from
+      native Doolittle screenshot capability.
 - [ ] Record blinded human scores, evidence notes, and reviewer disagreement.
 - [ ] Compare only compatible suite/schema/evaluator versions and paired tasks.
 - [ ] Report route/configuration, sample size, check rates, human-score

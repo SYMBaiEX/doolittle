@@ -70,6 +70,24 @@ function makeRuntimeSettings() {
 }
 
 describe("bootstrap environment", () => {
+  it("passes explicit SDK task/session and audit paths through runtime settings", () => {
+    const settings = buildPluginSettings(
+      { dataDir: "/private/eval/data" } as EnvConfig,
+      { nativeRegistry: {} } as unknown as AppServices,
+      makeRuntimeSettings(),
+      {
+        env: {
+          ELIZA_ACP_STATE_DIR: " /private/eval/acp ",
+          ACP_AUDIT_LOG_PATH: " /private/eval/acp/audit.ndjson ",
+        },
+        secretSalt: "synthetic-salt",
+        linkedCredentials: {},
+      },
+    );
+    expect(settings.ELIZA_ACP_STATE_DIR).toBe("/private/eval/acp");
+    expect(settings.ACP_AUDIT_LOG_PATH).toBe("/private/eval/acp/audit.ndjson");
+  });
+
   it("defaults runtime env vars and generates a secret salt", () => {
     const root = join(tmpdir(), `doolittle-bootstrap-${Date.now()}`);
     rmSync(root, { force: true, recursive: true });

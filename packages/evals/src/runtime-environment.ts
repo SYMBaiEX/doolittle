@@ -28,6 +28,23 @@ export function assertEvalRuntimeEnvironment(
       throw new Error(`Evaluation runtime isolation preflight failed: ${key}.`);
     }
   }
+  // The SDK ACP store and account helpers do not use Doolittle's directory
+  // resolver. Without these explicit overrides they reuse the operator's
+  // global task/session history even when all Doolittle directories are fresh.
+  const sdkState = {
+    ELIZA_ACP_STATE_DIR: join(options.root, "acp"),
+    ACP_AUDIT_LOG_PATH: join(options.root, "acp", "audit.ndjson"),
+    ELIZA_HOME: expected.dataDir,
+    PGLITE_DATA_DIR: join(expected.dataDir, "pglite"),
+  };
+  for (const [key, value] of Object.entries(sdkState)) {
+    if (environment[key] !== value) {
+      throw new Error(`Evaluation SDK state preflight failed: ${key}.`);
+    }
+  }
+  if (environment.POSTGRES_URL?.trim() || environment.DATABASE_URL?.trim()) {
+    throw new Error("Evaluation database isolation preflight failed.");
+  }
   if (
     environment.DOOLITTLE_MODE !== options.mode ||
     environment.DOOLITTLE_REPO_ROOT !== options.repoRoot ||
@@ -63,6 +80,14 @@ export function createEvalRuntimeEnvironment(
     DOOLITTLE_DATA_DIR: join(options.root, "data"),
     DOOLITTLE_GATEWAY_DATA_DIR: join(options.root, "gateway"),
     DOOLITTLE_HOOKS_DIR: join(options.root, "hooks"),
+    ELIZA_ACP_STATE_DIR: join(options.root, "acp"),
+    ACP_AUDIT_LOG_PATH: join(options.root, "acp", "audit.ndjson"),
+    ELIZA_HOME: join(options.root, "data"),
+    PGLITE_DATA_DIR: join(options.root, "data", "pglite"),
+    // Empty values shadow repo dotenv inputs (override:false), so an inherited
+    // database URL cannot redirect an evaluation into shared or remote SQL.
+    POSTGRES_URL: "",
+    DATABASE_URL: "",
     DOOLITTLE_WORKSPACE_DIR:
       options.workspaceDir ?? join(options.root, "workspace"),
     DOOLITTLE_USE_LINKED_CODEX_AUTH:

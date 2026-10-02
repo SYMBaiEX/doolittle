@@ -6,15 +6,15 @@ Do not edit it by hand; run `nub scripts/sync-doc-truth.ts --write`.
 ## doolittle:services.web
 
 - Runtime ID: `browser.browser`
-- Headline: Browser capture is truthful about pixel versus placeholder output.
-- Summary: The browser adapter exposes browser-backed capture when a Lightpanda-compatible command is available, and it falls back to placeholder artifacts when browser execution is unavailable.
+- Headline: Browser capture distinguishes text-based cards from rendered-page evidence.
+- Summary: The evidence adapter captures fetched text and metadata. Lightpanda can supply DOM content for PNG capture cards; no current evidence backend captures rendered-page pixels.
 - Runtime surfaces: `GET /browser/status`, `POST /browser/capture`, `POST /browser/screenshot`, `POST /browser/analyze`
 - Required status fields: `captureMode`, `captureReady`, `provider`, `mode`
 
 ### Real Behavior
 
-- Returns pixel-backed PNG screenshot artifacts when the configured browser backend is executable.
-- Keeps browser status explicit so the caller can see whether capture is running in browser or fallback mode.
+- Returns captureMode=capture-card for text-based PNG cards when the configured DOM backend is executable; these are not page screenshots.
+- Reports captureReady=false for both capture cards and placeholders, independently of DOM-fetch readiness.
 - Preserves placeholder markdown and SVG artifacts as the degraded path instead of pretending screenshots are real.
 
 ### Degraded Behavior
@@ -24,7 +24,8 @@ Do not edit it by hand; run `nub scripts/sync-doc-truth.ts --write`.
 
 ### Caveats
 
-- Pixel capture is a lightweight raster card generated from the fetched page snapshot, not a full DOM screenshot engine.
+- A PNG file or browser-backed DOM fetch does not prove rendered layout. Legacy pixel labels are ambiguous and are not accepted as visual evidence.
+- Browser analysis calls supply text and artifact paths, not image pixels; they must not claim layout, color or contrast inspection.
 - Interactive upstream browser claims such as CAPTCHA solving and session management are not part of the documented Doolittle runtime contract.
 
 ## doolittle:services.media

@@ -1,3 +1,4 @@
+import { hasRenderedBrowserEvidence } from "@doolittle/contracts/browser";
 import { getBrowserEvidenceMetadata } from "./browser-result-model";
 import { escapeXml } from "./xml-escape";
 
@@ -43,9 +44,7 @@ export function compileBrowserEvidenceContext(
   const url = bounded(input.url || metadata.url, 140);
   const title = bounded(metadata.pageTitle, 120);
   const captureMode = bounded(metadata.captureMode, 60);
-  const hasPixelEvidence =
-    metadata.captureReady !== false &&
-    /(browser|pixel|raster|screenshot)/iu.test(captureMode);
+  const hasPixelEvidence = hasRenderedBrowserEvidence(metadata);
   const attributes = [
     `action="${escapedBounded(input.result.action, 60)}"`,
     `title="${escapedBounded(input.result.title, 100)}"`,
@@ -74,7 +73,7 @@ export function compileBrowserEvidenceContext(
     "capture",
     hasPixelEvidence
       ? "Artifact-backed browser evidence was captured; inspect the linked artifacts before making visual claims."
-      : "Structured or placeholder capture only. Do not infer or claim pixel-level visual evidence.",
+      : "Capture-card, structured, placeholder or unverified capture only. Do not infer or claim pixel-level visual evidence.",
     300,
   );
   append("selector", input.selector ?? "", 500);

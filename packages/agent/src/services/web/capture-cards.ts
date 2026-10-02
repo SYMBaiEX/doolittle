@@ -94,9 +94,7 @@ function colorFromHash(seed: string, offset: number): [number, number, number] {
   ];
 }
 
-export function createPixelScreenshotPng(
-  page: CaptureCardPageSnapshot,
-): Buffer {
+export function createCaptureCardPng(page: CaptureCardPageSnapshot): Buffer {
   const width = 640;
   const height = 360;
   const headerHeight = 56;

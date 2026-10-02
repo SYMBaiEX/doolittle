@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
-import { createPixelScreenshotPng, createScreenshotSvg } from "./capture-cards";
+import { createCaptureCardPng, createScreenshotSvg } from "./capture-cards";
 import type { WebPageSnapshot } from "./service-types";
 
 export function writeArtifact(
@@ -64,22 +64,22 @@ export function writeScreenshotArtifact(
   markdownPath: string;
   jsonPath: string;
   svgPath: string;
-  captureMode: "pixel" | "placeholder";
+  captureMode: "capture-card" | "placeholder";
 } {
   const basePath = join(outputDir, `screenshot-${Date.now()}`);
   const markdownPath = `${basePath}.md`;
   const jsonPath = `${basePath}.json`;
   const svgPath = `${basePath}.svg`;
-  const captureMode = page.mode === "browser" ? "pixel" : "placeholder";
+  const captureMode = page.mode === "browser" ? "capture-card" : "placeholder";
   const screenshotPath =
-    captureMode === "pixel" ? `${basePath}.png` : markdownPath;
+    captureMode === "capture-card" ? `${basePath}.png` : markdownPath;
 
-  if (captureMode === "pixel") {
-    writeFileSync(screenshotPath, createPixelScreenshotPng(page));
+  if (captureMode === "capture-card") {
+    writeFileSync(screenshotPath, createCaptureCardPng(page));
     writeFileSync(
       markdownPath,
       [
-        "# Browser Screenshot",
+        "# Browser Capture Card",
         "",
         `Source: ${page.url}`,
         `Provider: ${page.provider}`,
@@ -89,8 +89,8 @@ export function writeScreenshotArtifact(
         `Content type: ${page.contentType}`,
         `Hash: ${page.contentHash}`,
         "",
-        "This is a lightweight pixel-backed browser capture card generated from the browser-rendered page snapshot.",
-        "It is not a full DOM screenshot, but it is a real raster artifact instead of a markdown placeholder.",
+        "This PNG is a text-based capture card generated from the fetched page snapshot, not a screenshot of the rendered page.",
+        "It cannot verify layout, color, contrast, spacing or other pixel-level visual claims.",
         "",
         ...notes,
       ].join("\n"),

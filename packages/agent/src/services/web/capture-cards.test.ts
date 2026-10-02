@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPixelScreenshotPng, createScreenshotSvg } from "./capture-cards";
+import { createCaptureCardPng, createScreenshotSvg } from "./capture-cards";
 
 const page = {
   url: "https://example.com",
@@ -26,7 +26,7 @@ describe("web-service capture cards", () => {
   });
 
   it("renders a deterministic PNG capture card", () => {
-    const screenshot = createPixelScreenshotPng(page);
+    const screenshot = createCaptureCardPng(page);
 
     expect(screenshot.subarray(0, 8)).toEqual(
       Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),

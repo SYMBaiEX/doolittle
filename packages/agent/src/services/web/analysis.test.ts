@@ -100,6 +100,42 @@ describe("web-service analysis helpers", () => {
     expect(buildWebComparisonPrompt(comparison, "research")).toContain(
       "research comparison",
     );
+    expect(buildWebComparisonPrompt(comparison, "vision")).toContain(
+      "Do not assert visual changes or pixel-level quality",
+    );
+    expect(buildWebComparisonPrompt(comparison, "vision")).toContain(
+      "No rendered-page evidence is available",
+    );
+  });
+
+  it.each(["capture-card", "pixel", "placeholder"] as const)(
+    "keeps %s artifacts out of visual analysis claims",
+    (captureMode) => {
+      const capture = {
+        ...makeCapture("https://example.com"),
+        captureMode,
+        screenshotPath: "/tmp/card.png",
+        status: { ...makeStatus(), captureReady: true },
+      };
+      const prompt = buildWebAnalysisPrompt(capture, "vision");
+      expect(prompt).toContain("No rendered-page evidence is available");
+      expect(prompt).toContain("This is a text-only analysis call");
+      expect(prompt).toContain(
+        "Do not assert layout, color, contrast, spacing",
+      );
+    },
+  );
+
+  it("does not claim pixel inspection just because a rendered artifact path exists", () => {
+    const capture = {
+      ...makeCapture("https://example.com"),
+      captureMode: "rendered-page" as const,
+      screenshotPath: "/tmp/page.png",
+      status: { ...makeStatus(), captureReady: true },
+    };
+    expect(buildWebAnalysisPrompt(capture, "vision")).toContain(
+      "only text and artifact paths, not image pixels",
+    );
   });
 
   it("writes comparison artifacts through the extracted helper", () => {

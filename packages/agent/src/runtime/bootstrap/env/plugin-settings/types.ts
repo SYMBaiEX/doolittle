@@ -49,6 +49,8 @@ export interface PluginSettings {
   SECRET_SALT: string;
   ENCRYPTION_SALT: string;
   PGLITE_DATA_DIR: string;
+  ELIZA_ACP_STATE_DIR?: string;
+  ACP_AUDIT_LOG_PATH?: string;
   USE_MULTI_STEP: string;
   MAX_MULTISTEP_ITERATIONS: string;
   DOOLITTLE_RUN_DEPTH: string;

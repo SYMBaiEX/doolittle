@@ -113,8 +113,13 @@ Evaluator 0.2.9 updates coding receipts, not the frozen suite prompts: verified
 file changes survive a failed worker, literal Bun `--cwd` commands are recognized,
 parent verification must follow coding, and stale managed-app readiness is
 rejected. Install/build checks exclude dry runs and failure-masking shell syntax.
-The same tested runtime environment helper now isolates data, gateway and hooks
-for each headless task and validates canonical configuration names. Treat this
+The same tested runtime environment helper isolates data, gateway and hooks
+for each headless task and validates canonical configuration names. It also
+pins SDK ACP task/session storage, audit logs, Eliza account state and PGlite
+under the experiment root, and clears remote SQL URLs. Existing linked provider
+sign-in and repository skills remain configured inputs. Check for zero prior SDK
+tasks/sessions before dispatch; fresh Doolittle directories alone are insufficient.
+Treat this
 as a new evaluation baseline; earlier evaluator versions remain incompatible.
 
 ```sh

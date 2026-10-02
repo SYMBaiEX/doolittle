@@ -102,12 +102,16 @@ For controlled desktop-owner backend experiments, use the tested
 It validates canonical environment names with the actual runtime schema and
 directory resolver before any provider dispatch. `mode: "api"` binds to loopback
 on an ephemeral port; transient data, gateway and hooks each live below the
-private experiment root. Headless CLI evaluations use the same helper. Repository
+private experiment root. The SDK's ACP task/session store, audit log, Eliza
+account state and PGlite directory are explicitly scoped there too; remote SQL
+URL inputs are cleared. Doolittle's directories alone do not isolate SDK state.
+Headless CLI evaluations use the same helper. Repository
 skills and linked account authentication remain existing configured inputs, not
 newly isolated or fabricated credentials.
 
 Before accepting a coding run, verify the fresh fixture's files/hash, configured
-provider/model/effort, selected workspace and zero existing accepted runs. Confirm
+provider/model/effort, selected workspace, zero existing accepted runs, and zero
+existing SDK delegation tasks/sessions. Confirm
 the actual route from the first `model.request` and model-usage capture from the
 first completed provider call. Missing capture is unavailable, never zero tokens.
 Use `message` in `POST /chat/runs`, with explicit run identity, workspace and

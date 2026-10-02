@@ -1,3 +1,4 @@
+import { hasRenderedBrowserEvidence } from "@doolittle/contracts/browser";
 import type {
   BrowserAnalysisFocus,
   BrowserCaptureBundle,
@@ -19,6 +20,17 @@ function describeAnalysisIntent(
   return `browser ${subject}`;
 }
 
+function describeCaptureEvidence(capture: BrowserCaptureBundle): string {
+  const rendered = hasRenderedBrowserEvidence({
+    captureMode: capture.captureMode,
+    captureReady: capture.status.captureReady,
+    screenshotPath: capture.screenshotPath,
+  });
+  return rendered
+    ? "A rendered-page artifact is reported, but this brief supplies only text and artifact paths, not image pixels. Do not claim to have visually inspected it."
+    : `Capture mode: ${capture.captureMode}. No rendered-page evidence is available. Capture-card images summarize fetched text, not the page's appearance.`;
+}
+
 export function buildWebAnalysisPrompt(
   capture: BrowserCaptureBundle,
   focus: BrowserAnalysisFocus,
@@ -27,7 +39,9 @@ export function buildWebAnalysisPrompt(
 
   return [
     `You are reviewing a browser capture for Doolittle and should provide concise, actionable ${describeAnalysisIntent(focus, "analysis")}.`,
-    `Focus on layout, hierarchy, important content, likely user intent, and any risks or missing details.`,
+    `Focus on content structure, important content, likely user intent, and any risks or missing details.`,
+    "This is a text-only analysis call. Do not assert layout, color, contrast, spacing or pixel-level visual quality from text or artifact paths. State that rendered inspection is required for those judgments.",
+    describeCaptureEvidence(capture),
     `Keep the response short and structured: summary, signals, recommendations.`,
     "",
     `URL: ${page.url}`,
@@ -61,7 +75,10 @@ export function buildWebComparisonPrompt(
 ): string {
   return [
     `You are comparing two browser captures for Doolittle and should provide concise, actionable ${describeAnalysisIntent(focus, "comparison")}.`,
-    `Highlight visual or semantic changes, likely user-facing impact, and any regression risks.`,
+    `Highlight semantic and content-structure changes, likely user-facing impact, and any regression risks.`,
+    "This is a text-only comparison call. Do not assert visual changes or pixel-level quality from text or artifact paths; rendered inspection is required.",
+    `Left evidence: ${describeCaptureEvidence(comparison.left)}`,
+    `Right evidence: ${describeCaptureEvidence(comparison.right)}`,
     `Keep the response short and structured: summary, change list, recommendations.`,
     "",
     `Left URL: ${comparison.left.page.url}`,
