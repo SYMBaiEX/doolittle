@@ -539,9 +539,9 @@ function parseReport(value: unknown): Report {
   };
 }
 
-export function readHeadlessEvalReport(path: string): Report {
+export function readHeadlessEvalReport(path: string): unknown {
   try {
-    return parseReport(JSON.parse(readFileSync(path, "utf8")) as unknown);
+    return JSON.parse(readFileSync(path, "utf8")) as unknown;
   } catch {
     return invalid();
   }

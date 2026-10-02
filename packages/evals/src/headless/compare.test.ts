@@ -334,6 +334,44 @@ describe("headless report comparison", () => {
     }
   });
 
+  it("preserves evaluator-version metadata when reading reports from disk", () => {
+    const directory = mkdtempSync(join(tmpdir(), "doolittle-eval-compare-"));
+    try {
+      const baselinePath = join(directory, "baseline.json");
+      const candidatePath = join(directory, "candidate.json");
+      const legacy = report();
+
+      writeFileSync(baselinePath, JSON.stringify(legacy));
+      writeFileSync(
+        candidatePath,
+        JSON.stringify(report({ evaluatorVersion: "unversioned" })),
+      );
+      expect(() =>
+        compareHeadlessEvalReports(
+          readHeadlessEvalReport(baselinePath),
+          readHeadlessEvalReport(candidatePath),
+        ),
+      ).toThrow(/Invalid or incompatible/);
+
+      writeFileSync(
+        baselinePath,
+        JSON.stringify(report({ evaluatorVersion: 1 })),
+      );
+      writeFileSync(
+        candidatePath,
+        JSON.stringify(report({ evaluatorVersion: "1" })),
+      );
+      expect(() =>
+        compareHeadlessEvalReports(
+          readHeadlessEvalReport(baselinePath),
+          readHeadlessEvalReport(candidatePath),
+        ),
+      ).toThrow(/Invalid or incompatible/);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("rejects missing, malformed, or negative schema v2 timing measurements", () => {
     const base = v2Report();
     const runs = base.runs as Array<Record<string, unknown>>;
