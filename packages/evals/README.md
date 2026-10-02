@@ -100,6 +100,19 @@ malformed action telemetry fails the check instead of being treated as zero.
 This detects recorded action use; it does not identify the action or prove
 that it caused a workspace side effect.
 
+`headless-workflows-v6` keeps the v5 prompts and zero-action contract, but
+separates the no-change statement from the two-step plan structure. The v5
+combined check required the literal word `plan` or `step`, incorrectly rejecting
+some valid numbered plans. V6 requires an explicit no-change statement plus
+exactly two sequential numbered steps or two list bullets; this remains a
+structural smoke check, not a score of usefulness or coherence. Evaluator 0.2.8
+records this new grading behavior. V5's checks and prior reports are unchanged;
+v5 and v6 reports are not eligible for direct score comparison.
+
+```sh
+nub run eval:headless -- --suite headless-workflows-v6 --task reliability-no-side-effect-v6
+```
+
 For a one-off local investigation, `--show-action-labels` prints up to 32
 action-start labels to the terminal. Only known static identifier shapes are
 shown; other labels are redacted. This opt-in diagnostic is never written to

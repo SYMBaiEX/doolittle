@@ -13,8 +13,10 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   and a no-side-effect reliability case. `headless-workflows-v4` excludes only
   approved ACP identity files from its code-artifact check;
   `headless-workflows-v5` also requires zero recorded agent-action starts for
-  the no-side-effect task. Neither establishes broad conversation, coding, or
-  research quality.
+  the no-side-effect task. V6 separately grades the no-change statement and
+  two-step list structure, avoiding v5's false rejection of numbered plans
+  without the literal word `plan` or `step`. None establishes broad conversation,
+  coding, or research quality.
 - `coding-harness-v1` has one Next.js/shadcn/Bun build-and-launch task. It is a
   valuable end-to-end acceptance case, not representative coding coverage.
 - Deterministic checks cover observable contracts. Human coherence, grounding,
@@ -35,8 +37,9 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   and first non-empty assistant-text progress in the first CLI invocation, plus
   privacy-safe action start/completion/success/failure counts. Action telemetry
   stores no action names, arguments, results, or workspace paths. Evaluator
-  0.2.7 uses action-start counts to grade the v5 no-agent-action contract. The
-  request signal includes CLI startup and prompt preparation, not pure harness
+  0.2.7 uses action-start counts to grade the v5 no-agent-action contract.
+  Evaluator 0.2.8 adds v6's separate plan-structure check without altering v5.
+  The request signal includes CLI startup and prompt preparation, not pure harness
   overhead;
   first-text includes output transport, not model-only TTFT or rendered UI
   latency. Reports do not measure every provider path, per-action spans, or
