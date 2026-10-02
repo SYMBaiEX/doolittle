@@ -36,7 +36,7 @@ export function elizaEnglishFallbackTranslator(
  */
 export function ElizaUiBridge({ children }: { children: ReactNode }) {
   const [translate, setTranslate] = useState<AppContextValue["t"]>(
-    elizaEnglishFallbackTranslator,
+    () => elizaEnglishFallbackTranslator,
   );
   useEffect(() => {
     let cancelled = false;

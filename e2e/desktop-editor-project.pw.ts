@@ -9,6 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { _electron as electron, expect, test } from "@playwright/test";
+import { expectNoDesktopRecovery } from "./support/desktop-assertions";
 
 const repoRoot = process.cwd();
 const desktopRoot = resolve(repoRoot, "apps/desktop");
@@ -104,7 +105,7 @@ test.describe("Doolittle editor project resolution", () => {
       page.on("pageerror", (error) => pageErrors.push(error.message));
       await expect(page).toHaveTitle(/Doolittle$/);
       expect(pageErrors).toEqual([]);
-      await expect(page.locator(".recovery-shell")).toHaveCount(0);
+      await expectNoDesktopRecovery(page);
       const runtimeStatus = page.locator(".window-runtime-status");
       await expect(runtimeStatus).toHaveAttribute(
         "aria-label",
