@@ -516,6 +516,114 @@ describe("headless workflow evals", () => {
     ]);
   });
 
+  it("flags failed research-provider authentication without persisting the response", async () => {
+    const reportDir = tempDirectory();
+    const rawResponse =
+      'Deep research failed: Research API error: 401 {"error":{"message":"Authentication required.","code":"authentication_required"}}';
+    const suite: HeadlessEvalSuite = {
+      id: "research-availability",
+      version: 1,
+      title: "Research availability",
+      tasks: [
+        {
+          id: "research-auth-failure",
+          domain: "research",
+          prompt: "private research prompt",
+          checks: [
+            {
+              id: "research-result",
+              evaluate: ({ response }) => response.includes("official source"),
+            },
+          ],
+          humanReviewRequired: true,
+        },
+      ],
+    };
+    const execute = vi.fn(
+      (
+        _command: string,
+        _args: readonly string[] | string,
+        options?: { env?: NodeJS.ProcessEnv },
+      ) => {
+        const dataDir = options?.env?.DOOLITTLE_DATA_DIR;
+        if (dataDir) {
+          const trajectoryDirectory = join(dataDir, "trajectories");
+          mkdirSync(trajectoryDirectory, { recursive: true });
+          writeFileSync(
+            join(trajectoryDirectory, "trajectory-events.jsonl"),
+            `${JSON.stringify({
+              category: "action",
+              event: "action.completed",
+              metadata: {
+                action: "DOOLITTLE_RESEARCH",
+                success: false,
+                actionResult: { text: rawResponse },
+              },
+            })}\n`,
+          );
+        }
+        return {
+          status: 0,
+          stdout: `${JSON.stringify({ ok: true, text: rawResponse })}\n`,
+          stderr: "",
+          error: undefined,
+          signal: null,
+        };
+      },
+    ) as never;
+
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir,
+      execute,
+    });
+    const stored = readFileSync(result.reportPath, "utf8");
+
+    expect(result.report.runs[0]).toMatchObject({
+      status: "completed",
+      diagnosticFlags: ["research-provider-authentication-failed"],
+      checks: [{ id: "research-result", passed: false }],
+    });
+    expect(stored).toContain("research-provider-authentication-failed");
+    expect(stored).not.toContain("Authentication required");
+    expect(stored).not.toContain("private research prompt");
+  });
+
+  it("detects a direct research error when the action event is not journaled", async () => {
+    const suite: HeadlessEvalSuite = {
+      id: "research-availability",
+      version: 1,
+      title: "Research availability",
+      tasks: [
+        {
+          id: "research-prose-only",
+          domain: "research",
+          prompt: "private research prompt",
+          checks: [{ id: "research-result", evaluate: () => false }],
+          humanReviewRequired: true,
+        },
+      ],
+    };
+    const execute = vi.fn(() => ({
+      status: 0,
+      stdout: `${JSON.stringify({
+        ok: true,
+        text: "Deep research failed: I could not find a source.",
+      })}\n`,
+      stderr: "",
+      error: undefined,
+      signal: null,
+    })) as never;
+
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir: tempDirectory(),
+      execute,
+    });
+
+    expect(result.report.runs[0]?.diagnosticFlags).toContain(
+      "research-provider-unavailable",
+    );
+  });
+
   it("disables Eliza Cloud in isolated runs unless research is explicitly opted in", async () => {
     const previousCloudSetting = process.env.ELIZAOS_CLOUD_ENABLED;
     process.env.ELIZAOS_CLOUD_ENABLED = "true";

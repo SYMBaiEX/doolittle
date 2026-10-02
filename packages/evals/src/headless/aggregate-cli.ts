@@ -68,7 +68,7 @@ function main(): number {
     }
 
     console.log(
-      `Headless suite ${aggregate.suiteId} v${aggregate.suiteVersion} · schema v4 · evaluator ${aggregate.evaluatorVersion} · route ${aggregate.routeLabel} · source ${aggregate.source.revision.slice(0, 12)} (clean)`,
+      `Headless suite ${aggregate.suiteId} v${aggregate.suiteVersion} · schema v4 · evaluator ${aggregate.evaluatorVersion} · route label ${aggregate.routeLabel} · actual ${aggregate.route.provider}/${aggregate.route.model} (${aggregate.route.reasoningEffort}) · source ${aggregate.source.revision.slice(0, 12)} (clean)`,
     );
     console.log(
       `Repeats: ${aggregate.reportSamples}; task executions: ${aggregate.executionCompletions}/${aggregate.taskSamples} completed (${percent(aggregate.executionCompletionRate)}); objective checks: ${aggregate.objectiveChecksPassed}/${aggregate.objectiveChecksTotal} passed (${percent(aggregate.objectiveCheckPassRate)}).`,
@@ -98,6 +98,14 @@ function main(): number {
       if (task.diagnosticFlags.length > 0) {
         console.log(
           `    Diagnostics: ${task.diagnosticFlags.map(({ flag, samples }) => `${flag} ${samples}/${task.sampleCount}`).join(", ")}.`,
+        );
+      }
+      const researchProviderFailures = task.diagnosticFlags.filter(({ flag }) =>
+        flag.startsWith("research-provider-"),
+      );
+      if (researchProviderFailures.length > 0) {
+        console.log(
+          "    Research-provider diagnostics indicate unavailable research capability; do not interpret its objective checks as a research-quality score.",
         );
       }
     }

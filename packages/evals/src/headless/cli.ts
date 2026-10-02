@@ -89,18 +89,24 @@ async function main(): Promise<number> {
       },
     });
     console.log(
-      `${report.suite.id} v${report.suite.version} · schema v${report.schemaVersion} · evaluator ${report.evaluatorVersion} · route ${report.routeLabel}`,
+      `${report.suite.id} v${report.suite.version} · schema v${report.schemaVersion} · evaluator ${report.evaluatorVersion} · route label ${report.routeLabel} · actual ${report.route.provider}/${report.route.model} (${report.route.reasoningEffort})`,
     );
     console.log(
       `Source ${report.source.revision?.slice(0, 12) ?? "unavailable"} · working tree ${report.source.workingTreeClean === null ? "unknown" : report.source.workingTreeClean ? "clean" : "dirty"}.`,
     );
     for (const run of report.runs) {
       const checks = run.checks.filter((check) => check.passed).length;
+      const researchProviderFailure = run.diagnosticFlags.find((flag) =>
+        flag.startsWith("research-provider-"),
+      );
+      const objectiveSummary = researchProviderFailure
+        ? `quality unavailable (${researchProviderFailure}); operational check ${checks}/${run.checks.length}`
+        : `objective ${checks}/${run.checks.length}`;
       const diagnostic = run.diagnosticFlags.length
         ? ` · diagnostics ${run.diagnosticFlags.join(",")}`
         : "";
       console.log(
-        `${run.taskId}: ${run.status} · objective ${checks}/${run.checks.length} · setup ${run.timing.taskSetupMs}ms · doolittle exec sum ${run.timing.execDurationMs}ms across ${run.timing.execInvocations} invocation(s) · grading ${run.timing.gradingMs}ms${diagnostic}`,
+        `${run.taskId}: ${run.status} · ${objectiveSummary} · setup ${run.timing.taskSetupMs}ms · doolittle exec sum ${run.timing.execDurationMs}ms across ${run.timing.execInvocations} invocation(s) · grading ${run.timing.gradingMs}ms${diagnostic}`,
       );
       if (run.modelUsage) {
         const usage = run.modelUsage;

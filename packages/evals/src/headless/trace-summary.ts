@@ -33,6 +33,39 @@ function nonNegativeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) >= 0;
 }
 
+export function hasFailedResearchAction(dataDir: string): boolean {
+  const path = join(dataDir, JOURNAL_PATH);
+  if (!existsSync(path)) return false;
+
+  let stored: string;
+  try {
+    stored = readFileSync(path, "utf8");
+  } catch {
+    return false;
+  }
+
+  return stored.split(/\r?\n/u).some((line) => {
+    if (!line.trim()) return false;
+    try {
+      const event: unknown = JSON.parse(line);
+      if (
+        !isRecord(event) ||
+        event.category !== "action" ||
+        event.event !== "action.completed"
+      ) {
+        return false;
+      }
+      if (!isRecord(event.metadata)) return false;
+      return (
+        event.metadata.action === "DOOLITTLE_RESEARCH" &&
+        event.metadata.success === false
+      );
+    } catch {
+      return false;
+    }
+  });
+}
+
 export function readHeadlessTraceSummary(
   dataDir: string,
 ): HeadlessTraceSummary {

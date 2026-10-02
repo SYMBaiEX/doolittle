@@ -14,7 +14,10 @@ import {
   type HeadlessExecResult,
   type HeadlessExecutor,
 } from "./process";
-import { readHeadlessTraceSummary } from "./trace-summary";
+import {
+  hasFailedResearchAction,
+  readHeadlessTraceSummary,
+} from "./trace-summary";
 
 export type { HeadlessModelUsage } from "./model-usage";
 
@@ -301,6 +304,23 @@ export async function runHeadlessEvalSuite(
         }
         if (/invalid_refresh_token/i.test(stderr)) {
           diagnosticFlags.add("linked-codex-token-refresh-failed");
+        }
+        if (
+          task.domain === "research" &&
+          (hasFailedResearchAction(dataDir) ||
+            /^Deep research (?:failed|is disabled|is unavailable):?/iu.test(
+              response.trim(),
+            ))
+        ) {
+          diagnosticFlags.add(
+            /\b(?:401|403)\b|authentication_required|unauthorized/iu.test(
+              response,
+            )
+              ? "research-provider-authentication-failed"
+              : /\bis disabled\b/iu.test(response)
+                ? "research-provider-disabled"
+                : "research-provider-unavailable",
+          );
         }
 
         completed =

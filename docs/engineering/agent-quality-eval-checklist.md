@@ -17,9 +17,11 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
 - Deterministic checks cover observable contracts. Human coherence, grounding,
   usefulness, and honesty are not automatically scored. Every headless run
   marks human review as required.
-- Research needs a working configured Eliza Cloud provider. When unavailable,
-  mark that domain unavailable; do not count a disabled/failed-provider run as
-  a model-quality score.
+- Research needs a working configured Eliza Cloud provider. The runner flags a
+  returned `DOOLITTLE_RESEARCH` failure as provider unavailable (and recognizes
+  authentication failures separately); retain it as an operational failure,
+  but do not interpret its content check as a research-quality score. Raw
+  provider error text remains out of the report.
 - Schema-v4 reports measure Codex provider-call duration, per-call first-text
   latency, and provider-reported input/output/total token counts. They do not
   measure every provider path, end-user TTFT, per-action spans, or billable USD;
