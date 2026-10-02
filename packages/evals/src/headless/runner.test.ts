@@ -76,7 +76,69 @@ describe("headless workflow evals", () => {
       checks: [{ id: "returned", passed: true }],
       humanReviewRequired: true,
     });
+    expect(result.report.schemaVersion).toBe(2);
+    expect(result.report.evaluatorVersion).toMatch(/^\d+\.\d+\.\d+/);
+    expect(result.report.runs[0]?.timing).toEqual({
+      taskSetupMs: expect.any(Number),
+      execDurationMs: expect.any(Number),
+      gradingMs: expect.any(Number),
+    });
     expect(statSync(result.reportPath).mode & 0o777).toBe(0o600);
+  });
+
+  it("measures setup, whole doolittle exec, grading, and suite wall time monotonically", () => {
+    let clock = 0;
+    const reportDir = tempDirectory();
+    const suite: HeadlessEvalSuite = {
+      id: "timing-test",
+      version: 1,
+      title: "Timing test",
+      tasks: [
+        {
+          id: "one-shot",
+          domain: "conversation",
+          prompt: "private prompt",
+          checks: [
+            {
+              id: "returned",
+              evaluate: () => {
+                clock += 40;
+                return true;
+              },
+            },
+          ],
+          humanReviewRequired: false,
+        },
+      ],
+    };
+    const result = runHeadlessEvalSuite(suite, {
+      reportDir,
+      monotonicNow: () => clock,
+      execute: (() => {
+        // Deliberately includes all synchronous child invocation time; it is
+        // not a model-only measurement.
+        clock += 125;
+        return {
+          status: 0,
+          stdout: `${JSON.stringify({ ok: true, text: "private response" })}\n`,
+          stderr: "",
+          error: undefined,
+          signal: null,
+        };
+      }) as never,
+    });
+
+    expect(result.report.runs[0]?.timing).toEqual({
+      taskSetupMs: 0,
+      execDurationMs: 125,
+      gradingMs: 40,
+    });
+    expect(result.report.summary.suiteWallTimeMs).toBe(165);
+    const stored = readFileSync(result.reportPath, "utf8");
+    expect(stored).not.toContain("private prompt");
+    expect(stored).not.toContain("private response");
+    expect(stored).not.toContain(reportDir);
+    expect(stored).not.toContain(process.cwd());
   });
 
   it("enables configured Eliza Cloud only for explicitly opted-in research tasks", () => {

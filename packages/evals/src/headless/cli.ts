@@ -95,11 +95,11 @@ function main(): number {
         ? ` · diagnostics ${run.diagnosticFlags.join(",")}`
         : "";
       console.log(
-        `${run.taskId}: ${run.status} · objective ${checks}/${run.checks.length}${diagnostic}`,
+        `${run.taskId}: ${run.status} · objective ${checks}/${run.checks.length} · setup ${run.timing.taskSetupMs}ms · doolittle exec total ${run.timing.execDurationMs}ms · grading ${run.timing.gradingMs}ms${diagnostic}`,
       );
     }
     console.log(
-      `Objective checks: ${report.summary.objectiveChecksPassed}/${report.summary.objectiveChecksTotal}; human review required for ${report.summary.humanReviewRequired} task(s).`,
+      `Objective checks: ${report.summary.objectiveChecksPassed}/${report.summary.objectiveChecksTotal}; human review required for ${report.summary.humanReviewRequired} task(s); suite eval wall time ${report.summary.suiteWallTimeMs}ms (setup + doolittle exec + grading; excludes report I/O).`,
     );
     console.log(`Private report: ${reportPath}`);
     return exitCode;

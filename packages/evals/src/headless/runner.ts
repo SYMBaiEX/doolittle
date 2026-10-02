@@ -1,8 +1,15 @@
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import type { HeadlessEvalSuite } from "./cases";
@@ -16,7 +23,14 @@ export interface HeadlessEvalRunResult {
   taskId: string;
   domain: string;
   status: "completed" | "failed";
+  /** Legacy wall-clock from before exec through response parsing and grading. */
   elapsedMs: number;
+  timing: {
+    taskSetupMs: number;
+    /** Full `nub ... exec` child invocation, including CLI startup, providers/models, and tools. */
+    execDurationMs: number;
+    gradingMs: number;
+  };
   responseSha256?: string;
   checks: HeadlessEvalCheckResult[];
   humanReviewRequired: boolean;
@@ -25,7 +39,8 @@ export interface HeadlessEvalRunResult {
 }
 
 export interface HeadlessEvalReport {
-  schemaVersion: 1;
+  schemaVersion: 2;
+  evaluatorVersion: string;
   suite: { id: string; version: number; title: string };
   routeLabel: string;
   route: {
@@ -41,6 +56,8 @@ export interface HeadlessEvalReport {
     objectiveChecksPassed: number;
     objectiveChecksTotal: number;
     humanReviewRequired: number;
+    /** From run-root creation through final grading; excludes report persistence and temp cleanup. */
+    suiteWallTimeMs: number;
   };
   runs: HeadlessEvalRunResult[];
 }
@@ -54,6 +71,7 @@ export interface RunHeadlessEvalOptions {
   onResponse?: (taskId: string, response: string) => void;
   taskIds?: string[];
   now?: () => Date;
+  monotonicNow?: () => number;
   execute?: typeof spawnSync;
 }
 
@@ -61,9 +79,18 @@ const defaultRepoRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../../../../",
 );
+const evalPackageVersion = (
+  JSON.parse(
+    readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+  ) as { version: string }
+).version;
 
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function durationMs(startedAt: number, endedAt: number): number {
+  return Math.max(0, Math.round(endedAt - startedAt));
 }
 
 function resultFromStdout(stdout: string): { ok?: boolean; text?: string } {
@@ -106,6 +133,7 @@ export function runHeadlessEvalSuite(
   options: RunHeadlessEvalOptions = {},
 ): { report: HeadlessEvalReport; reportPath: string; exitCode: number } {
   const now = options.now ?? (() => new Date());
+  const monotonicNow = options.monotonicNow ?? (() => performance.now());
   const execute = options.execute ?? spawnSync;
   const repoRoot = options.repoRoot ?? defaultRepoRoot;
   const selectedTasks = options.taskIds?.length
@@ -122,10 +150,12 @@ export function runHeadlessEvalSuite(
     throw new Error("No headless evaluation tasks were selected.");
   }
 
+  const suiteStartedAt = monotonicNow();
   const runRoot = mkdtempSync(join(tmpdir(), "doolittle-headless-eval-"));
   const runs: HeadlessEvalRunResult[] = [];
   try {
     for (const task of selectedTasks) {
+      const taskSetupStartedAt = monotonicNow();
       const taskRoot = join(runRoot, task.id);
       const dataDir = join(taskRoot, "data");
       const workspaceDir = join(taskRoot, "workspace");
@@ -134,8 +164,10 @@ export function runHeadlessEvalSuite(
       writeFileSync(join(dataDir, "onboarding.json"), "{}\n", {
         mode: 0o600,
       });
+      const taskSetupMs = durationMs(taskSetupStartedAt, monotonicNow());
 
       const startedAt = Date.now();
+      const execStartedAt = monotonicNow();
       const child = execute(
         "nub",
         [
@@ -165,6 +197,8 @@ export function runHeadlessEvalSuite(
           },
         },
       );
+      const execDurationMs = durationMs(execStartedAt, monotonicNow());
+      const gradingStartedAt = monotonicNow();
       const cliResult = resultFromStdout(child.stdout ?? "");
       const response = cliResult.text ?? "";
       const checkContext = { response, workspaceDir };
@@ -172,6 +206,7 @@ export function runHeadlessEvalSuite(
         id: check.id,
         passed: Boolean(check.evaluate(checkContext)),
       }));
+      const gradingMs = durationMs(gradingStartedAt, monotonicNow());
       const diagnosticFlags: string[] = [];
       const stderr = child.stderr ?? "";
       if (/Semantic memory is unavailable/i.test(stderr)) {
@@ -187,6 +222,7 @@ export function runHeadlessEvalSuite(
         domain: task.domain,
         status: completed ? "completed" : "failed",
         elapsedMs: Date.now() - startedAt,
+        timing: { taskSetupMs, execDurationMs, gradingMs },
         ...(response ? { responseSha256: sha256(response) } : {}),
         checks,
         humanReviewRequired: task.humanReviewRequired,
@@ -204,9 +240,11 @@ export function runHeadlessEvalSuite(
     const cloudResearchEnabledForRun =
       options.enableConfiguredCloudResearch &&
       selectedTasks.some((task) => task.domain === "research");
+    const suiteWallTimeMs = durationMs(suiteStartedAt, monotonicNow());
     const createdAt = now().toISOString();
     const report: HeadlessEvalReport = {
-      schemaVersion: 1,
+      schemaVersion: 2,
+      evaluatorVersion: evalPackageVersion,
       suite: { id: suite.id, version: suite.version, title: suite.title },
       routeLabel:
         options.routeLabel?.trim() ||
@@ -230,6 +268,7 @@ export function runHeadlessEvalSuite(
         objectiveChecksTotal: objectiveChecks.length,
         humanReviewRequired: runs.filter((run) => run.humanReviewRequired)
           .length,
+        suiteWallTimeMs,
       },
       runs,
     };

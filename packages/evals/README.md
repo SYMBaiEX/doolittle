@@ -84,9 +84,13 @@ nub run eval:headless -- --task coding-exact-file-v2 --route-label codex-gpt6-lu
 Every task gets a fresh temporary data directory and workspace with a minimal
 onboarding marker. Eliza Cloud is disabled in subprocesses by default;
 `--enable-configured-cloud-research` explicitly enables the configured provider
-for research-domain tasks only. Reports are owner-only and contain task IDs, timings,
-response digests, objective check outcomes, and diagnostic flags—not prompts,
-responses, commands, or workspace paths. Raw answers are printed only when
-`--show-responses` is explicitly requested. Each task still requires human
-quality review; deterministic checks are only smoke/acceptance evidence, not a
-model-quality score. Temporary workspaces are removed after the run.
+for research-domain tasks only. Reports are owner-only and contain task IDs,
+the evaluator version, timings, response digests, objective check outcomes, and
+diagnostic flags—not prompts, responses, commands, or workspace paths. Raw
+answers are printed only when `--show-responses` is explicitly requested. Each
+task still requires human quality review; deterministic checks are only
+smoke/acceptance evidence, not a model-quality score. Temporary workspaces are
+removed after the run. Use the
+[agent quality evaluation checklist](../../docs/engineering/agent-quality-eval-checklist.md)
+to plan comparable runs, score human-facing quality, and interpret timing
+without confusing process completion, objective checks, and model latency.
