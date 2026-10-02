@@ -1605,13 +1605,8 @@ test.describe("Doolittle desktop navigation", () => {
       });
       await expect(page.locator(".chat-sessions")).toHaveCount(0);
       await expect(page.locator(".window-status-strip")).toHaveCount(0);
-      // Composer readiness is now the compact, always-visible status badge;
-      // runtime/model details are deliberately opt-in behind the Details toggle.
-      await expect(
-        page.locator(
-          ".chat-composer [data-slot='status-badge'][data-status='success']",
-        ),
-      ).toHaveText("Ready");
+      // A healthy, idle composer hides transient operational status.
+      await expect(page.locator(".chat-composer-status")).toHaveCount(0);
       const historyScrollport = await page
         .locator(".sidebar-projects__list")
         .evaluate((element) => {
