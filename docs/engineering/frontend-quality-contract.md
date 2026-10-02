@@ -16,6 +16,18 @@ hero/card assembly, a stock component theme, or a palette change alone is not
 evidence of a considered identity. Both restrained and expressive designs can
 be appropriate; there is no universal ban on a color, font or layout.
 
+For an open-ended new page, avoid an automatic split text/photo hero and
+three-equal-card row. Let the content determine a distinctive opening and
+section rhythm; a signature motif should affect structure, scale, depth and
+interaction, not just an accent color. Respect explicitly requested grids and
+existing brands. This is a design heuristic, not a mechanical layout ban.
+
+Verify image subjects, crops and alt text instead of guessing from stock-photo
+URLs. Internal anchors must resolve, navigation affordances must match their
+behavior, and story links should reach their story or disclose a preview.
+Client-only forms must identify themselves as demos; changing a button to a
+success message is not proof of a registered subscription or saved record.
+
 Reuse existing brand documentation or the task report. Do not add design files
 to an exact-file request, silently overwrite approved brand decisions, or ask
 the user to choose every incidental detail. New interfaces should have

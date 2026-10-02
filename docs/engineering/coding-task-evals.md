@@ -114,6 +114,15 @@ provider/model/effort, selected workspace, zero existing accepted runs, and zero
 existing SDK delegation tasks/sessions. Confirm
 the actual route from the first `model.request` and model-usage capture from the
 first completed provider call. Missing capture is unavailable, never zero tokens.
+
+Managed worker receipts expose separate `usage` evidence from exact-session SDK
+`usage_update` events, when the provider transport emits them. This is not part
+of the 110-point acceptance grade. Deduplication and coverage counters remain
+visible, no raw event IDs or labels are copied into the usage receipt, and
+missing worker usage or USD remains null. Do not add reasoning/cache counts to
+input/output tokens or combine partial parent/worker telemetry into a claimed
+whole-workflow bill. The coding report's current metrics still omit worker
+usage; retain the bounded receipt summary in private run diagnostics.
 Use `message` in `POST /chat/runs`, with explicit run identity, workspace and
 desktop source. This exercises desktop-owner backend semantics, not the rendered
 desktop UI. An invalid preflight/setup sample is an operational diagnostic, not

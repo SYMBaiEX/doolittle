@@ -14,6 +14,24 @@ export interface DelegatedFileChange {
   bytes: number;
 }
 
+/** SDK-reported worker events only, not billable or whole-workflow usage. */
+export interface DelegatedUsageEvidence {
+  source: "eliza-sdk-session-usage-update";
+  coverage: "reported-sdk-events-only";
+  state: "measured" | "unavailable";
+  acceptedEvents: number;
+  duplicateEvents: number;
+  conflictingEvents: number;
+  rejectedEvents: number;
+  truncatedEvents: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  reasoningTokens: number | null;
+  cacheTokens: number | null;
+  costCoverageEvents: number;
+  costUsd: number | null;
+}
+
 export interface DelegatedExecutionReceipt {
   sessionId: string;
   agentType: string;
@@ -26,6 +44,7 @@ export interface DelegatedExecutionReceipt {
   observedTools: DelegatedToolObservation[];
   changedFiles: DelegatedFileChange[];
   verifiedLocalMutation: boolean;
+  usage?: DelegatedUsageEvidence;
 }
 
 export interface AcpSpawnOptions {

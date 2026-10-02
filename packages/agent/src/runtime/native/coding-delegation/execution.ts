@@ -9,6 +9,7 @@ import type {
   DelegatedToolObservation,
   ManagedAcpService,
 } from "./types";
+import { DelegatedUsageCollector } from "./usage-evidence";
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -147,6 +148,7 @@ export async function executeManagedDelegation(input: {
   // are harness setup, not implementation evidence for the user's task.
   await evidence.start();
   const tools = new Map<string, DelegatedToolObservation>();
+  const usage = new DelegatedUsageCollector();
   const pendingEvidence: Promise<void>[] = [];
   let response = "";
   let eventFailure = "";
@@ -165,8 +167,12 @@ export async function executeManagedDelegation(input: {
   signal?.addEventListener("abort", cancel, { once: true });
   if (signal?.aborted) cancel();
   const unsubscribe = service.onSessionEvent((sessionId, event, data) => {
-    if (sessionId !== session.sessionId || !current() || !isRecord(data))
+    if (sessionId !== session.sessionId || !current()) return;
+    if (event === "usage_update") {
+      usage.observe(data);
       return;
+    }
+    if (!isRecord(data)) return;
     if (event === "message") {
       response = `${response}${text(data.text)}`.slice(-64_000);
       if (Date.now() - lastProgress >= 250) {
@@ -299,6 +305,7 @@ export async function executeManagedDelegation(input: {
     observedTools: [...tools.values()],
     changedFiles,
     verifiedLocalMutation: changedFiles.length > 0,
+    usage: usage.receipt(),
   };
   if (run)
     services.runController.appendTaskEvent(

@@ -47,6 +47,17 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   Codex USD cost is explicitly unavailable, not inferred. They also preserve
   privacy-safe request/response/error/continuation/action counts and
   prompt-length statistics, never raw trace text.
+- Managed coding receipts additionally preserve the installed SDK's
+  `usage_update` events for that exact worker session. Missing events remain
+  unavailable. Stable event IDs deduplicate delivery, contradictory IDs are
+  excluded, and malformed/unkeyed/truncated evidence has explicit counters.
+  Input, output, reasoning and cache tokens stay separate because their
+  accounting can overlap. These are reported SDK events, not a provider-call
+  denominator, verified whole-worker coverage or whole-workflow billing.
+  Worker cost remains null unless every accepted event reports an explicit
+  finite amount with no rejected, conflicting or truncated coverage. Parent
+  wrapper telemetry and worker receipts remain separate; the existing coding
+  report schema does not yet aggregate these worker fields.
 - The pairwise comparator handles a baseline/candidate report pair. The
   `eval:headless:aggregate` command summarizes compatible schema-v4 repeats
   only when route, evaluator, suite, task/check identities, clean source

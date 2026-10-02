@@ -392,7 +392,7 @@ function wrapAction(
               const task = buildCacheablePrompt({
                 provider: adapter,
                 model: route.model,
-                versionDigest: "doolittle-managed-coding-v2",
+                versionDigest: "doolittle-managed-coding-v3",
                 conversationId: String(message.roomId),
                 stableBlocks: [
                   "Implement the complete assigned coding task and verify it before returning. Preserve all explicit user requirements: do not replace requested libraries with look-alike components or silently change the target directory. Inspect existing files and preserve unrelated changes. Report actual test/build commands and outcomes; never claim success from preliminary commands alone. Do not start another coding agent for this same implementation. Run production builds before starting any dev server, and never run a build that rewrites shared framework output while a managed dev server for the app is running. The parent owns requested long-running application startup: prepare and verify the development script, then give the parent the exact working directory and command for DOOLITTLE_APP_SERVER. Do not leave an untracked background server running from the worker. Package managers and development bundlers are distinct; use each framework's supported development tooling.",

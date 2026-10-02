@@ -177,6 +177,70 @@ async function fixture(
 }
 
 describe("managed official coding delegation", () => {
+  it.each(["completed", "failed"])(
+    "preserves exact-child SDK usage independently of %s task status",
+    async (status) => {
+      const input = await fixture();
+      vi.mocked(input.service.sendPrompt).mockImplementation(
+        async (sessionId) => {
+          const usage = {
+            sourceEventId: `${sessionId}:prompt`,
+            state: "measured",
+            inputTokens: 100,
+            outputTokens: 10,
+            reasoningTokens: 4,
+            cacheTokens: 50,
+          };
+          input.emit("unrelated-child", "usage_update", {
+            ...usage,
+            inputTokens: 999999,
+          });
+          input.emit(sessionId, "usage_update", usage);
+          input.emit(sessionId, "usage_update", usage);
+          return {
+            stopReason: status === "completed" ? "end_turn" : "error",
+            exitCode: status === "completed" ? 0 : 1,
+          };
+        },
+      );
+      const result = await input.execute();
+      expect(result).toMatchObject({
+        data: {
+          delegatedExecution: {
+            status,
+            usage: {
+              state: "measured",
+              acceptedEvents: 1,
+              duplicateEvents: 1,
+              inputTokens: 100,
+              outputTokens: 10,
+              costUsd: null,
+            },
+          },
+        },
+      });
+      expect(input.service.sendPrompt).toHaveBeenCalledOnce();
+      expect(input.listeners.size).toBe(0);
+    },
+  );
+
+  it("reports unavailable worker usage when the SDK returns no usage events", async () => {
+    const input = await fixture();
+    expect(await input.execute()).toMatchObject({
+      data: {
+        delegatedExecution: {
+          usage: {
+            state: "unavailable",
+            acceptedEvents: 0,
+            inputTokens: null,
+            outputTokens: null,
+            costUsd: null,
+          },
+        },
+      },
+    });
+  });
+
   it("passes scoped design criteria through the existing cached worker prompt without losing user requirements", async () => {
     const input = await fixture();
     const request =
@@ -200,6 +264,12 @@ describe("managed official coding delegation", () => {
     );
     expect(prompt).toContain("not a fetched-text capture card");
     expect(prompt).toContain("report that limitation");
+    expect(prompt).toContain("hero followed by three equal cards");
+    expect(prompt).toContain("Preserve an explicitly requested grid");
+    expect(prompt).toContain("Every internal anchor must resolve");
+    expect(prompt).toContain("do not guess stock-image contents");
+    expect(prompt).toContain("when only client-side state changed");
+    expect(prompt).toContain("label the control and confirmation as a demo");
     expect(prompt).toContain(
       "The existing implementation already satisfies the request; no changes were needed.",
     );
