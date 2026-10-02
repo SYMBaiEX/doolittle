@@ -477,7 +477,13 @@ describe("ElizaOS-native post-provider seam", () => {
               actionName: "DOOLITTLE_APP_SERVER",
               status: "ready",
               url: "http://localhost:3001/",
-              session: { id: "server-1", cwd: workdir, command: "bun run dev" },
+              session: {
+                id: "server-1",
+                cwd: workdir,
+                command: "bun run dev",
+                managed: true,
+                state: "running",
+              },
             },
           },
           {

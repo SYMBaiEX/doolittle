@@ -248,6 +248,8 @@ describe("chat turn provider handler", () => {
               id: "terminal-acceptance",
               cwd: "/workspace",
               command: "bun run dev",
+              managed: true,
+              state: "running",
             },
           },
         };
@@ -905,6 +907,8 @@ describe("chat turn provider handler", () => {
           id: "managed-blog-noop",
           cwd: workdir,
           command: "bun run dev",
+          managed: true,
+          state: "running",
         },
       },
     };
@@ -1001,6 +1005,8 @@ describe("chat turn provider handler", () => {
           id: "managed-yielded-noop",
           cwd: workdir,
           command: "bun run dev",
+          managed: true,
+          state: "running",
         },
       },
     };
@@ -1062,100 +1068,105 @@ describe("chat turn provider handler", () => {
     expect(result.response).not.toContain("not yet been started");
   });
 
-  it("continues a changed coding task after a premature done response until install, build, and app readiness are verified", async () => {
-    const workdir = "/workspace/blog";
-    const delegate: ActionResult = {
-      success: true,
-      text: "Implemented the requested blog app.",
-      continueChain: true,
-      data: {
-        actionName: "TASKS_SPAWN_AGENT",
-        delegatedExecution: {
-          sessionId: "child-changed-app",
-          agentType: "codex",
-          workdir,
-          status: "completed",
-          stopReason: "end_turn",
-          exitCode: 0,
-          summary: "Implemented the requested one-page blog.",
-          changedFiles: [{ path: "app/page.tsx", bytes: 320 }],
-          verifiedLocalMutation: true,
-        },
-      },
-    };
-    const install: ActionResult = {
-      success: true,
-      text: "Bun install passed.",
-      data: {
-        actionName: "SHELL",
-        command: `cd "${workdir}" && bun install --frozen-lockfile`,
-        exitCode: 0,
-      },
-    };
-    const build: ActionResult = {
-      success: true,
-      text: "Production build passed.",
-      data: {
-        actionName: "SHELL",
-        command: `cd "${workdir}" && bun run build`,
-        exitCode: 0,
-      },
-    };
-    const appServer: ActionResult = {
-      success: true,
-      text: "Application is ready at http://localhost:3001/.",
-      data: {
-        actionName: "DOOLITTLE_APP_SERVER",
-        status: "ready",
-        url: "http://localhost:3001/",
-        session: {
-          id: "managed-changed-app",
-          cwd: workdir,
-          command: "bun run dev",
-        },
-      },
-    };
-    const passResults = [[delegate], [install, build, appServer]];
-    let context: AgentExecutionContext;
-    let callCount = 0;
-    ({ context } = createContext({
-      onHandleMessage: async () => {
-        const actionResults = passResults[callCount] ?? [];
-        callCount += 1;
-        return {
-          responseContent: {
-            text:
-              callCount === 1
-                ? "Done — the blog app is implemented and ready."
-                : "Bun install and production build passed; the app is running at http://localhost:3001/.",
+  it.each(["bun run dev", "bun run start"])(
+    "continues a changed coding task after a premature done response until install, build, and %s readiness are verified",
+    async (command) => {
+      const workdir = "/workspace/blog";
+      const delegate: ActionResult = {
+        success: true,
+        text: "Implemented the requested blog app.",
+        continueChain: true,
+        data: {
+          actionName: "TASKS_SPAWN_AGENT",
+          delegatedExecution: {
+            sessionId: "child-changed-app",
+            agentType: "codex",
+            workdir,
+            status: "completed",
+            stopReason: "end_turn",
+            exitCode: 0,
+            summary: "Implemented the requested one-page blog.",
+            changedFiles: [{ path: "app/page.tsx", bytes: 320 }],
+            verifiedLocalMutation: true,
           },
-          responseMessages: [],
-          actionResults,
-        };
-      },
-    }));
+        },
+      };
+      const install: ActionResult = {
+        success: true,
+        text: "Bun install passed.",
+        data: {
+          actionName: "SHELL",
+          command: `cd "${workdir}" && bun install --frozen-lockfile`,
+          exitCode: 0,
+        },
+      };
+      const build: ActionResult = {
+        success: true,
+        text: "Production build passed.",
+        data: {
+          actionName: "SHELL",
+          command: `cd "${workdir}" && bun run build`,
+          exitCode: 0,
+        },
+      };
+      const appServer: ActionResult = {
+        success: true,
+        text: "Application is ready at http://localhost:3001/.",
+        data: {
+          actionName: "DOOLITTLE_APP_SERVER",
+          status: "ready",
+          url: "http://localhost:3001/",
+          session: {
+            id: "managed-changed-app",
+            cwd: workdir,
+            command,
+            managed: true,
+            state: "running",
+          },
+        },
+      };
+      const passResults = [[delegate], [install, build, appServer]];
+      let context: AgentExecutionContext;
+      let callCount = 0;
+      ({ context } = createContext({
+        onHandleMessage: async () => {
+          const actionResults = passResults[callCount] ?? [];
+          callCount += 1;
+          return {
+            responseContent: {
+              text:
+                callCount === 1
+                  ? "Done — the blog app is implemented and ready."
+                  : "Bun install and production build passed; the app is running at http://localhost:3001/.",
+            },
+            responseMessages: [],
+            actionResults,
+          };
+        },
+      }));
 
-    const result = await runWithTurnRuntimeScope(
-      context.runtime,
-      { settings: new Map(), settledActionResults: [] },
-      () =>
-        executeTestTurn(
-          context,
-          "codex",
-          "Create a one-page Next.js blog with shadcn in this workspace, use Bun, run a production build, and start the application.",
-        ),
-    );
+      const result = await runWithTurnRuntimeScope(
+        context.runtime,
+        { settings: new Map(), settledActionResults: [] },
+        () =>
+          executeTestTurn(
+            context,
+            "codex",
+            "Create a one-page Next.js blog with shadcn in this workspace, use Bun, run a production build, and start the application.",
+          ),
+      );
 
-    expect(callCount).toBe(2);
-    expect(result.runFailureMessage).toBeUndefined();
-    expect(result.actionResults).toEqual(
-      expect.arrayContaining([delegate, install, build, appServer]),
-    );
-    expect(result.response).toContain(
-      "Bun install and production build passed",
-    );
-    expect(result.response).toContain("http://localhost:3001/");
-  });
+      expect(callCount).toBe(2);
+      expect(result.runFailureMessage).toBeUndefined();
+      expect(result.actionResults).toEqual(
+        expect.arrayContaining([delegate, install, build, appServer]),
+      );
+      expect(result.response).toContain(
+        "Bun install and production build passed",
+      );
+      expect(result.response).toContain("http://localhost:3001/");
+    },
+  );
 
   it("does not claim changed workspace work is complete when requested operations never produce receipts", async () => {
     const workdir = "/workspace/blog";
@@ -1354,7 +1365,13 @@ describe("chat turn provider handler", () => {
           actionName: "DOOLITTLE_APP_SERVER",
           status: "ready",
           url: "http://localhost:3001/",
-          session: { id: "server-1", cwd: workdir, command: "bun run dev" },
+          session: {
+            id: "server-1",
+            cwd: workdir,
+            command: "bun run dev",
+            managed: true,
+            state: "running",
+          },
         },
       },
       {
@@ -1448,6 +1465,8 @@ describe("chat turn provider handler", () => {
           id: "server-recovery-noop",
           cwd: workdir,
           command: "bun run dev",
+          managed: true,
+          state: "running",
         },
       },
     };

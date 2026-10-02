@@ -56,6 +56,8 @@ function createVerifiedNoopResults(): ActionResult[] {
           id: "managed-app-1",
           cwd: workdir,
           command: "bun run dev",
+          managed: true,
+          state: "running",
         },
       },
     },
@@ -155,6 +157,8 @@ describe("verified no-op workspace completion", () => {
             id: "managed-app-1",
             cwd: workdir,
             command: "bun run dev",
+            managed: true,
+            state: "running",
           },
         },
       },
@@ -207,6 +211,89 @@ describe("verified no-op workspace completion", () => {
         `a ready managed app server with a verified local URL in ${workdir}`,
       ],
     );
+  });
+
+  it.each([
+    "bun run start",
+    "bun run serve",
+    "npm run start",
+    "node server.js",
+  ])(
+    "accepts an HTTP-ready managed application launched with %s",
+    (command) => {
+      const results = createVerifiedNoopResults().slice(0, 3);
+      const server = results[2];
+      if (server?.data) {
+        server.data.session = {
+          ...(server.data.session as Record<string, unknown>),
+          command,
+        };
+      }
+      const requirements = workspaceNoopRequirements(
+        "Create a blog app, install with Bun, run a production build, and start the application.",
+      );
+      expect(
+        verifyWorkspaceNoopCompletion(results, requirements),
+      ).toMatchObject({
+        workdir,
+        bunInstallVerified: true,
+        buildVerified: true,
+        url: previewUrl,
+        sessionId: "managed-app-1",
+      });
+      expect(
+        missingWorkspaceMutationRequirements(
+          [...createChangedWorkspaceResults(), ...results.slice(1)],
+          requirements,
+        ),
+      ).toEqual([]);
+    },
+  );
+
+  it.each([
+    { label: "unmanaged process", session: { managed: false } },
+    { label: "exited process", session: { state: "exited" } },
+    { label: "closed process", session: { state: "closed" } },
+    { label: "missing session identity", session: { id: undefined } },
+    { label: "blank session identity", session: { id: " " } },
+    { label: "missing launch command", session: { command: undefined } },
+    { label: "blank launch command", session: { command: " " } },
+    { label: "wrong workspace", session: { cwd: "/workspace/other" } },
+    { label: "starting server", data: { status: "starting" } },
+    { label: "unhealthy server", data: { status: "unhealthy" } },
+    { label: "remote URL", data: { url: "https://example.com/" } },
+    { label: "missing URL", data: { url: undefined } },
+    {
+      label: "credential-bearing URL",
+      data: { url: "http://user:password@localhost:3001/" },
+    },
+  ])("rejects a ready claim with $label", ({ session, data }) => {
+    const results = createVerifiedNoopResults().slice(0, 3);
+    const server = results[2];
+    if (server?.data) {
+      server.data = {
+        ...server.data,
+        ...data,
+        session: {
+          ...(server.data.session as Record<string, unknown>),
+          ...session,
+        },
+      };
+    }
+    const requirements = workspaceNoopRequirements(
+      "Create a blog app, install with Bun, run a production build, and start the application.",
+    );
+    expect(
+      verifyWorkspaceNoopCompletion(results, requirements),
+    ).toBeUndefined();
+    expect(
+      missingWorkspaceMutationRequirements(
+        [...createChangedWorkspaceResults(), ...results.slice(1)],
+        requirements,
+      ),
+    ).toEqual([
+      `a ready managed app server with a verified local URL in ${workdir}`,
+    ]);
   });
 
   it("also verifies direct native file mutations against the build receipt", () => {

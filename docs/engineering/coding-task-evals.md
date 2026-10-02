@@ -67,6 +67,13 @@ Worker narrative is useful context but is never substituted for a parent build
 receipt or a ready app URL. The gateway receipt does not expose the final chat wording,
 so response honesty is left to the human conversation review below.
 
+Runtime completion uses the managed server's HTTP readiness receipt, not a
+specific launch-script name: `bun run start` can be a valid handoff after a
+production build. That receipt must identify a running managed session, its
+nonempty launch command, the exact workspace, and a verified local URL. Bun
+installation and build requirements remain separate checks. Readiness alone
+does not establish rendered quality or functional request coverage.
+
 The following dimensions require a separate human or browser review; do not turn
 them into a telemetry-derived score:
 

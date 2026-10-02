@@ -289,16 +289,11 @@ export function missingWorkspaceMutationRequirements(
         result.success !== true ||
         actionResultActionName(result)?.toUpperCase() !==
           "DOOLITTLE_APP_SERVER" ||
-        !isRecord(result.data) ||
-        result.data.status !== "ready" ||
-        !isRecord(result.data.session) ||
-        !sameDirectory(result.data.session.cwd, workspaceDirectory) ||
-        typeof result.data.session.command !== "string" ||
-        !/^bun\s+run\s+dev(?:\s|$)/u.test(result.data.session.command)
+        !readyManagedServerReceipt(result.data, workspaceDirectory)
       ) {
         return false;
       }
-      return Boolean(localUrl(result.data.url));
+      return true;
     });
     if (!readyServer) {
       missing.push(
@@ -354,7 +349,9 @@ function localUrl(value: unknown): URL | undefined {
     const url = new URL(value);
     if (
       !["http:", "https:"].includes(url.protocol) ||
-      !["localhost", "127.0.0.1", "[::1]", "::1"].includes(url.hostname)
+      !["localhost", "127.0.0.1", "[::1]", "::1"].includes(url.hostname) ||
+      url.username ||
+      url.password
     ) {
       return undefined;
     }
@@ -362,6 +359,29 @@ function localUrl(value: unknown): URL | undefined {
   } catch {
     return undefined;
   }
+}
+
+/** Readiness comes from the managed process's HTTP probe, not a script name. */
+function readyManagedServerReceipt(
+  data: unknown,
+  workdir: string,
+): { url: URL; sessionId: string } | undefined {
+  if (
+    !isRecord(data) ||
+    data.status !== "ready" ||
+    !isRecord(data.session) ||
+    data.session.managed !== true ||
+    data.session.state !== "running" ||
+    typeof data.session.id !== "string" ||
+    !data.session.id.trim() ||
+    !sameDirectory(data.session.cwd, workdir) ||
+    typeof data.session.command !== "string" ||
+    !data.session.command.trim()
+  ) {
+    return undefined;
+  }
+  const url = localUrl(data.url);
+  return url ? { url, sessionId: data.session.id } : undefined;
 }
 
 const VERIFICATION_COMMAND =
@@ -500,17 +520,15 @@ export function verifyWorkspaceNoopCompletion(
         result.success !== true ||
         actionResultActionName(result)?.toUpperCase() !==
           "DOOLITTLE_APP_SERVER" ||
-        !isRecord(result.data) ||
-        result.data.status !== "ready" ||
-        !isRecord(result.data.session) ||
-        !sameDirectory(result.data.session.cwd, delegation.workdir) ||
-        typeof result.data.session.command !== "string" ||
-        !/^bun\s+run\s+dev(?:\s|$)/u.test(result.data.session.command)
+        !isRecord(result.data)
       ) {
         return [];
       }
-      const url = localUrl(result.data.url);
-      return url ? [{ index, url, sessionId: result.data.session.id }] : [];
+      const receipt = readyManagedServerReceipt(
+        result.data,
+        delegation.workdir,
+      );
+      return receipt ? [{ index, ...receipt }] : [];
     });
     const readyServer = requirements.requireManagedApplication
       ? readyServers.find((server) => server.index > requiredVerificationIndex)
