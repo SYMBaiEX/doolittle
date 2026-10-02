@@ -58,6 +58,12 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
       fixtures, acceptance intent, or graders in a published version.
 - [ ] Pin and record the Doolittle commit, suite and evaluator versions,
       provider, model, reasoning effort, permissions, and relevant config.
+- [ ] Exercise the actual client source and identity for the workflow being
+      evaluated. Confirm its role-filtered tool/context availability, not just
+      the total registered-tool count. A generic API sender is not equivalent
+      to the local desktop owner; unavailable permissions are operational
+      readiness evidence, not a valid test of the owner's coding ability.
+      Do not broaden API permissions to make a benchmark pass.
 - [ ] Reset each task to the same isolated fixture and state. Keep credentials
       out of fixtures and reports.
 - [ ] Define the question being tested and change one principal variable at a

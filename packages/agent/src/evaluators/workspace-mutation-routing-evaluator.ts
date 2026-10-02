@@ -1,5 +1,6 @@
 import type { ResponseHandlerEvaluator } from "@elizaos/core";
 import { DOOLITTLE_CODING_ACTION } from "@/actions/coding-action";
+import { hasExplicitNoToolsIntent } from "@/runtime/no-tools-intent";
 import { hasExplicitWorkspaceMutationIntent } from "@/runtime/workspace-mutation-intent";
 import { messageText } from "@/utils/eliza-compat";
 
@@ -17,6 +18,7 @@ export const workspaceMutationRoutingEvaluator: ResponseHandlerEvaluator = {
     "Routes explicit local file and code mutations through Doolittle's Eliza-native coding sub-planner.",
   priority: 25,
   shouldRun: ({ message }) =>
+    !hasExplicitNoToolsIntent(messageText(message)) &&
     hasExplicitWorkspaceMutationIntent(messageText(message)),
   evaluate: () => ({
     requiresTool: true,
