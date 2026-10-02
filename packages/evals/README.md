@@ -137,7 +137,9 @@ The aggregate reports descriptive completion/check pass rates and per-task
 median, nearest-rank p90, range, and mean for execution duration, exec-start to
 the first model request, exec-start to first non-empty assistant-text progress,
 harness invocations, Codex telemetry, and sanitized model request/response/error
-and continuation counts. First-model-request timing is a startup and
+and continuation counts, plus agent-action start/completion/success/failure
+counts. Action telemetry contains counts only: no action names, arguments,
+results, or workspace paths. First-model-request timing is a startup and
 prompt-preparation signal, not pure harness overhead. First-text timing includes
 CLI startup and output transport; it is neither model-only TTFT nor rendered UI
 latency. A missing telemetry field remains unavailable. These statistics do

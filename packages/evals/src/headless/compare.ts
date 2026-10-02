@@ -10,6 +10,10 @@ type TraceSummary = {
   modelResponses: number;
   modelErrors: number;
   mutationContinuations: number;
+  actionStarts?: number;
+  actionCompletions?: number;
+  actionSuccesses?: number;
+  actionFailures?: number;
   continuationReasons: {
     "explicitly-incomplete-response": number;
     "unverified-terminal-response": number;
@@ -179,6 +183,10 @@ export interface HeadlessTaskAggregate {
     modelResponses: HeadlessMetricDistribution | null;
     modelErrors: HeadlessMetricDistribution | null;
     mutationContinuations: HeadlessMetricDistribution | null;
+    actionStarts: HeadlessMetricDistribution | null;
+    actionCompletions: HeadlessMetricDistribution | null;
+    actionSuccesses: HeadlessMetricDistribution | null;
+    actionFailures: HeadlessMetricDistribution | null;
     meanPromptChars: HeadlessMetricDistribution | null;
   };
   diagnosticFlags: Array<{ flag: string; samples: number }>;
@@ -231,6 +239,14 @@ function nullableNonNegativeInteger(value: unknown): value is number | null {
 }
 
 function parseTraceSummary(value: unknown): TraceSummary | null {
+  const actionCountKeys = [
+    "actionStarts",
+    "actionCompletions",
+    "actionSuccesses",
+    "actionFailures",
+  ] as const;
+  const hasActionCounts =
+    isRecord(value) && actionCountKeys.some((key) => Object.hasOwn(value, key));
   if (
     !isRecord(value) ||
     typeof value.journalAvailable !== "boolean" ||
@@ -247,7 +263,14 @@ function parseTraceSummary(value: unknown): TraceSummary | null {
       value.continuationReasons["unverified-terminal-response"],
     ) ||
     !nonNegativeInteger(value.continuationReasons["empty-terminal-response"]) ||
-    !nullableNonNegativeInteger(value.maxContinuationAttempt)
+    !nullableNonNegativeInteger(value.maxContinuationAttempt) ||
+    (hasActionCounts &&
+      actionCountKeys.some((key) => !nonNegativeInteger(value[key]))) ||
+    (hasActionCounts &&
+      actionCountKeys.some((key) => !Object.hasOwn(value, key))) ||
+    (hasActionCounts &&
+      Number(value.actionSuccesses) + Number(value.actionFailures) >
+        Number(value.actionCompletions))
   ) {
     return null;
   }
@@ -280,6 +303,14 @@ function parseTraceSummary(value: unknown): TraceSummary | null {
     modelResponses: value.modelResponses,
     modelErrors: value.modelErrors,
     mutationContinuations: value.mutationContinuations,
+    ...(hasActionCounts
+      ? {
+          actionStarts: value.actionStarts as number,
+          actionCompletions: value.actionCompletions as number,
+          actionSuccesses: value.actionSuccesses as number,
+          actionFailures: value.actionFailures as number,
+        }
+      : {}),
     continuationReasons: {
       "explicitly-incomplete-response":
         value.continuationReasons["explicitly-incomplete-response"],
@@ -769,6 +800,32 @@ export function aggregateHeadlessEvalReports(
         ),
         mutationContinuations: optionalDistribution(
           traceMetrics.map((trace) => trace.mutationContinuations),
+        ),
+        actionStarts: optionalDistribution(
+          traceMetrics.flatMap((trace) =>
+            typeof trace.actionStarts === "number" ? [trace.actionStarts] : [],
+          ),
+        ),
+        actionCompletions: optionalDistribution(
+          traceMetrics.flatMap((trace) =>
+            typeof trace.actionCompletions === "number"
+              ? [trace.actionCompletions]
+              : [],
+          ),
+        ),
+        actionSuccesses: optionalDistribution(
+          traceMetrics.flatMap((trace) =>
+            typeof trace.actionSuccesses === "number"
+              ? [trace.actionSuccesses]
+              : [],
+          ),
+        ),
+        actionFailures: optionalDistribution(
+          traceMetrics.flatMap((trace) =>
+            typeof trace.actionFailures === "number"
+              ? [trace.actionFailures]
+              : [],
+          ),
         ),
         meanPromptChars: optionalDistribution(
           traceMetrics.flatMap((trace) =>

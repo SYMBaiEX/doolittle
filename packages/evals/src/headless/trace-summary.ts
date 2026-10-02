@@ -15,6 +15,10 @@ export interface HeadlessTraceSummary {
   modelResponses: number;
   modelErrors: number;
   mutationContinuations: number;
+  actionStarts: number;
+  actionCompletions: number;
+  actionSuccesses: number;
+  actionFailures: number;
   continuationReasons: Record<(typeof CONTINUATION_REASONS)[number], number>;
   maxContinuationAttempt: number | null;
   promptChars: {
@@ -113,6 +117,10 @@ export function readHeadlessTraceSummary(
     modelResponses: 0,
     modelErrors: 0,
     mutationContinuations: 0,
+    actionStarts: 0,
+    actionCompletions: 0,
+    actionSuccesses: 0,
+    actionFailures: 0,
     continuationReasons,
     maxContinuationAttempt: null,
     promptChars: null,
@@ -137,7 +145,23 @@ export function readHeadlessTraceSummary(
       summary.malformed = true;
       continue;
     }
-    if (!isRecord(event) || event.category !== "model") continue;
+    if (!isRecord(event)) continue;
+
+    if (event.category === "action") {
+      if (event.event === "action.started") {
+        summary.actionStarts += 1;
+      } else if (event.event === "action.completed") {
+        summary.actionCompletions += 1;
+        if (isRecord(event.metadata)) {
+          if (event.metadata.success === true) summary.actionSuccesses += 1;
+          else if (event.metadata.success === false)
+            summary.actionFailures += 1;
+        }
+      }
+      continue;
+    }
+
+    if (event.category !== "model") continue;
 
     if (event.event === "model.request") {
       summary.modelRequests += 1;

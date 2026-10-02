@@ -101,7 +101,7 @@ function v4Report(overrides: Record<string, unknown> = {}) {
   return {
     ...base,
     schemaVersion: 4,
-    evaluatorVersion: "0.2.5",
+    evaluatorVersion: "0.2.6",
     source: { revision: "a".repeat(40), workingTreeClean: true },
     runs: (base.runs as Array<Record<string, unknown>>).map((run, index) => ({
       ...run,
@@ -117,6 +117,10 @@ function v4Report(overrides: Record<string, unknown> = {}) {
         modelResponses: 2,
         modelErrors: 0,
         mutationContinuations: 0,
+        actionStarts: 3,
+        actionCompletions: 3,
+        actionSuccesses: 2,
+        actionFailures: 1,
         continuationReasons: {
           "explicitly-incomplete-response": 0,
           "unverified-terminal-response": 0,
@@ -268,8 +272,15 @@ describe("headless report comparison", () => {
       evaluatorVersion: "0.2.4",
       runs: (base.runs as Array<Record<string, unknown>>).map((run) => {
         const timing = { ...(run.timing as Record<string, unknown>) };
+        const traceSummary = {
+          ...(run.traceSummary as Record<string, unknown>),
+        };
         delete timing.execToFirstModelRequestMs;
-        return { ...run, timing };
+        delete traceSummary.actionStarts;
+        delete traceSummary.actionCompletions;
+        delete traceSummary.actionSuccesses;
+        delete traceSummary.actionFailures;
+        return { ...run, timing, traceSummary };
       }),
     };
 
@@ -279,6 +290,86 @@ describe("headless report comparison", () => {
     expect(
       result.tasks.map((task) => task.execToFirstModelRequestDeltaMs),
     ).toEqual([null, null]);
+  });
+
+  it("accepts evaluator 0.2.5 reports without action counts", () => {
+    const base = v4Report();
+    const legacy = (createdAt: string) => ({
+      ...base,
+      createdAt,
+      evaluatorVersion: "0.2.5",
+      runs: (base.runs as Array<Record<string, unknown>>).map((run) => {
+        const traceSummary = {
+          ...(run.traceSummary as Record<string, unknown>),
+        };
+        delete traceSummary.actionStarts;
+        delete traceSummary.actionCompletions;
+        delete traceSummary.actionSuccesses;
+        delete traceSummary.actionFailures;
+        return { ...run, traceSummary };
+      }),
+    });
+
+    const aggregate = aggregateHeadlessEvalReports([
+      legacy("2026-10-01T00:00:00.000Z"),
+      legacy("2026-10-01T00:01:00.000Z"),
+    ]);
+    expect(aggregate.evaluatorVersion).toBe("0.2.5");
+    expect(aggregate.tasks[0]?.traceMetrics.actionStarts).toBeNull();
+    expect(aggregate.tasks[0]?.traceMetrics.actionCompletions).toBeNull();
+  });
+
+  it("rejects malformed or partial privacy-safe action counts", () => {
+    const base = v4Report();
+    const runs = base.runs as Array<Record<string, unknown>>;
+    const malformedReports = [
+      v4Report({
+        runs: runs.map((run, index) =>
+          index === 0
+            ? {
+                ...run,
+                traceSummary: {
+                  ...(run.traceSummary as Record<string, unknown>),
+                  actionFailures: -1,
+                },
+              }
+            : run,
+        ),
+      }),
+      v4Report({
+        runs: runs.map((run, index) =>
+          index === 0
+            ? {
+                ...run,
+                traceSummary: {
+                  ...(run.traceSummary as Record<string, unknown>),
+                  actionSuccesses: 3,
+                  actionFailures: 2,
+                  actionCompletions: 4,
+                },
+              }
+            : run,
+        ),
+      }),
+      v4Report({
+        runs: runs.map((run, index) =>
+          index === 0
+            ? {
+                ...run,
+                traceSummary: {
+                  ...(run.traceSummary as Record<string, unknown>),
+                  actionStarts: undefined,
+                },
+              }
+            : run,
+        ),
+      }),
+    ];
+    for (const malformed of malformedReports) {
+      expect(() => compareHeadlessEvalReports(malformed, malformed)).toThrow(
+        /Invalid or incompatible/,
+      );
+    }
   });
 
   it("compares Codex provider timing and token signals for schema v3", () => {
@@ -672,6 +763,10 @@ describe("headless repeated report aggregation", () => {
       diagnosticFlags?: string[][];
       modelResponses?: number[];
       modelErrors?: number[];
+      actionStarts?: number[];
+      actionCompletions?: number[];
+      actionSuccesses?: number[];
+      actionFailures?: number[];
       execToFirstAssistantTextMs?: Array<number | null>;
       execToFirstModelRequestMs?: Array<number | null>;
     } = {},
@@ -722,6 +817,18 @@ describe("headless repeated report aggregation", () => {
           ...(options.modelErrors && index in options.modelErrors
             ? { modelErrors: options.modelErrors[index] }
             : {}),
+          ...(options.actionStarts && index in options.actionStarts
+            ? { actionStarts: options.actionStarts[index] }
+            : {}),
+          ...(options.actionCompletions && index in options.actionCompletions
+            ? { actionCompletions: options.actionCompletions[index] }
+            : {}),
+          ...(options.actionSuccesses && index in options.actionSuccesses
+            ? { actionSuccesses: options.actionSuccesses[index] }
+            : {}),
+          ...(options.actionFailures && index in options.actionFailures
+            ? { actionFailures: options.actionFailures[index] }
+            : {}),
         },
         diagnosticFlags: options.diagnosticFlags?.[index] ?? [],
       })),
@@ -734,6 +841,10 @@ describe("headless repeated report aggregation", () => {
       diagnosticFlags: [["memory-unavailable", "memory-unavailable"], []],
       modelResponses: [1, 2],
       modelErrors: [1, 0],
+      actionStarts: [2, 4],
+      actionCompletions: [1, 3],
+      actionSuccesses: [1, 2],
+      actionFailures: [0, 1],
       execToFirstAssistantTextMs: [10, null],
       execToFirstModelRequestMs: [5, null],
     });
@@ -744,6 +855,10 @@ describe("headless repeated report aggregation", () => {
       diagnosticFlags: [["memory-unavailable"], []],
       modelResponses: [2, 2],
       modelErrors: [0, 0],
+      actionStarts: [3, 1],
+      actionCompletions: [2, 2],
+      actionSuccesses: [2, 1],
+      actionFailures: [0, 1],
       execToFirstAssistantTextMs: [20, null],
       execToFirstModelRequestMs: [10, null],
     });
@@ -752,6 +867,10 @@ describe("headless repeated report aggregation", () => {
       diagnosticFlags: [[], []],
       modelResponses: [3, 2],
       modelErrors: [2, 0],
+      actionStarts: [5, 2],
+      actionCompletions: [4, 2],
+      actionSuccesses: [3, 1],
+      actionFailures: [1, 0],
       execToFirstAssistantTextMs: [30, null],
       execToFirstModelRequestMs: [15, null],
     });
@@ -762,7 +881,7 @@ describe("headless repeated report aggregation", () => {
       suiteVersion: 4,
       schemaVersion: 4,
       source: { revision: "a".repeat(40), workingTreeClean: true },
-      evaluatorVersion: "0.2.5",
+      evaluatorVersion: "0.2.6",
       routeLabel: "route",
       reportSamples: 3,
       taskSamples: 6,
@@ -855,6 +974,38 @@ describe("headless repeated report aggregation", () => {
           p90: 0,
           max: 0,
           mean: 0,
+        },
+        actionStarts: {
+          count: 3,
+          min: 2,
+          median: 3,
+          p90: 5,
+          max: 5,
+          mean: 10 / 3,
+        },
+        actionCompletions: {
+          count: 3,
+          min: 1,
+          median: 2,
+          p90: 4,
+          max: 4,
+          mean: 7 / 3,
+        },
+        actionSuccesses: {
+          count: 3,
+          min: 1,
+          median: 2,
+          p90: 3,
+          max: 3,
+          mean: 2,
+        },
+        actionFailures: {
+          count: 3,
+          min: 0,
+          median: 0,
+          p90: 1,
+          max: 1,
+          mean: 1 / 3,
         },
         meanPromptChars: {
           count: 3,

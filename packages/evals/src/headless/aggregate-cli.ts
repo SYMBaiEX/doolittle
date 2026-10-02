@@ -95,6 +95,9 @@ function main(): number {
       console.log(
         `    Trace (${task.traceMetrics.sampleCount}/${task.sampleCount} task samples): model requests ${distribution(task.traceMetrics.modelRequests, (number) => number.toFixed(1))}; responses ${distribution(task.traceMetrics.modelResponses, (number) => number.toFixed(1))}; errors ${distribution(task.traceMetrics.modelErrors, (number) => number.toFixed(1))}; mutation continuations ${distribution(task.traceMetrics.mutationContinuations, (number) => number.toFixed(1))}; mean prompt size ${distribution(task.traceMetrics.meanPromptChars, (number) => `${Math.round(number)} chars`)}.`,
       );
+      console.log(
+        `    Agent actions (${task.traceMetrics.sampleCount}/${task.sampleCount} task samples): started ${distribution(task.traceMetrics.actionStarts, (number) => number.toFixed(1))}; completed ${distribution(task.traceMetrics.actionCompletions, (number) => number.toFixed(1))}; succeeded ${distribution(task.traceMetrics.actionSuccesses, (number) => number.toFixed(1))}; failed ${distribution(task.traceMetrics.actionFailures, (number) => number.toFixed(1))}.`,
+      );
       if (task.diagnosticFlags.length > 0) {
         console.log(
           `    Diagnostics: ${task.diagnosticFlags.map(({ flag, samples }) => `${flag} ${samples}/${task.sampleCount}`).join(", ")}.`,

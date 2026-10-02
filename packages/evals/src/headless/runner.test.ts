@@ -128,6 +128,43 @@ describe("headless workflow evals", () => {
                 event: "model.response",
                 text: "private answer",
               },
+              {
+                category: "action",
+                event: "action.started",
+                metadata: {
+                  action: "PRIVATE_ACTION_NAME",
+                  arguments: "PRIVATE_ACTION_ARGUMENT",
+                  workspacePath: "/private/workspace/path",
+                },
+              },
+              {
+                category: "action",
+                event: "action.completed",
+                metadata: {
+                  action: "PRIVATE_ACTION_NAME",
+                  success: true,
+                  actionResult: { text: "PRIVATE_ACTION_OUTPUT" },
+                },
+              },
+              {
+                category: "action",
+                event: "action.started",
+                metadata: { action: "PRIVATE_FAILED_ACTION" },
+              },
+              {
+                category: "action",
+                event: "action.completed",
+                metadata: {
+                  action: "PRIVATE_FAILED_ACTION",
+                  success: false,
+                  actionResult: { error: "PRIVATE_ACTION_ERROR" },
+                },
+              },
+              {
+                category: "action",
+                event: "action.completed",
+                metadata: { action: "PRIVATE_UNKNOWN_ACTION" },
+              },
             ]
               .map((event) => JSON.stringify(event))
               .join("\n"),
@@ -224,6 +261,10 @@ describe("headless workflow evals", () => {
       modelResponses: 1,
       modelErrors: 0,
       mutationContinuations: 1,
+      actionStarts: 2,
+      actionCompletions: 3,
+      actionSuccesses: 1,
+      actionFailures: 1,
       continuationReasons: {
         "explicitly-incomplete-response": 0,
         "unverified-terminal-response": 1,
@@ -251,6 +292,13 @@ describe("headless workflow evals", () => {
     expect(stored).not.toContain("must not be copied into the report");
     expect(stored).not.toContain("private prompt text");
     expect(stored).not.toContain("private action arguments");
+    expect(stored).not.toContain("PRIVATE_ACTION_NAME");
+    expect(stored).not.toContain("PRIVATE_FAILED_ACTION");
+    expect(stored).not.toContain("PRIVATE_UNKNOWN_ACTION");
+    expect(stored).not.toContain("PRIVATE_ACTION_ARGUMENT");
+    expect(stored).not.toContain("/private/workspace/path");
+    expect(stored).not.toContain("PRIVATE_ACTION_OUTPUT");
+    expect(stored).not.toContain("PRIVATE_ACTION_ERROR");
     expect(result.report.runs[0]?.timing).toEqual({
       taskSetupMs: expect.any(Number),
       execDurationMs: expect.any(Number),

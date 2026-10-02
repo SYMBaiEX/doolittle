@@ -24,15 +24,17 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   provider error text remains out of the report.
 - Schema-v4 reports measure Codex provider-call duration, per-call first-text
   latency, and provider-reported input/output/total token counts. Evaluator
-  0.2.5 additionally records exec-start to the first model-request journal event
-  and first non-empty assistant-text progress in the first CLI invocation. The
-  request signal includes CLI startup and prompt preparation, not pure harness
-  overhead; first-text includes output transport, not model-only TTFT or
-  rendered UI latency. Reports do not measure every provider path, per-action
-  spans, or billable USD;
+  0.2.6 additionally records exec-start to the first model-request journal event
+  and first non-empty assistant-text progress in the first CLI invocation, plus
+  privacy-safe action start/completion/success/failure counts. Action telemetry
+  stores no action names, arguments, results, or workspace paths. The request
+  signal includes CLI startup and prompt preparation, not pure harness overhead;
+  first-text includes output transport, not model-only TTFT or rendered UI
+  latency. Reports do not measure every provider path, per-action spans, or
+  billable USD;
   Codex USD cost is explicitly unavailable, not inferred. They also preserve
-  privacy-safe request/response/error/continuation counts and prompt-length
-  statistics, never raw trace text.
+  privacy-safe request/response/error/continuation/action counts and
+  prompt-length statistics, never raw trace text.
 - The pairwise comparator handles a baseline/candidate report pair. The
   `eval:headless:aggregate` command summarizes compatible schema-v4 repeats
   only when route, evaluator, suite, task/check identities, clean source
