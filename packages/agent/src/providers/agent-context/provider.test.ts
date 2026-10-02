@@ -310,6 +310,25 @@ describe("agent context providers", () => {
     expect(result.data?.hasProjectContext).toBe(true);
   });
 
+  it("puts ask-first sequencing guidance in the always-on SDK context", async () => {
+    const core = provider(
+      createAgentContextProviders(createServices()),
+      "DOOLITTLE_CORE_CONTEXT_PROVIDER",
+    );
+
+    const result = await core.get(
+      createRuntime() as never,
+      createMemory(),
+      {} as never,
+    );
+
+    expect(core.alwaysInResponseState).toBe(true);
+    expect(result.text).toContain("REQUEST SEQUENCING CONTRACT");
+    expect(result.text).toContain("ask only the essential question(s)");
+    expect(result.text).toContain("wait for their reply");
+    expect(result.text).toContain("Do not search, browse, use tools");
+  });
+
   it("keeps workspace and operations output out of the always-on core", async () => {
     const providers = createAgentContextProviders(createServices());
     const message = createMemory();

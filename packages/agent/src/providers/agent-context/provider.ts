@@ -68,6 +68,14 @@ function renderUserProfileContext(
   }
 }
 
+function renderRequestSequencingContract(): string[] {
+  return [
+    "REQUEST SEQUENCING CONTRACT",
+    "When the answer depends on details the user has not supplied and they explicitly ask you to ask first, ask only the essential question(s) and wait for their reply.",
+    "Do not search, browse, use tools, or make recommendations that depend on those missing details before the user responds; never guess the missing details.",
+  ];
+}
+
 function renderSessionContext(
   services: AppServices,
   sessionId: string,
@@ -160,6 +168,8 @@ function coreContextResult(
 
   return {
     text: [
+      ...renderRequestSequencingContract(),
+      "",
       ...renderMemorySections(memorySummary, userSummary),
       ...(userProfileContext.length ? ["", ...userProfileContext] : []),
       "",
