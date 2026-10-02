@@ -405,7 +405,7 @@ test.describe("Doolittle desktop navigation", () => {
         .click();
       await expect(
         page
-          .getByRole("navigation", { name: "Conversation breadcrumb" })
+          .getByRole("navigation", { name: "Workspace breadcrumb" })
           .getByRole("heading", { name: "New conversation" }),
       ).toBeVisible();
       await page.evaluate(() => {
