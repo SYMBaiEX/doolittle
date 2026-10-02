@@ -46,10 +46,14 @@ async function launchDesktop(profileDir: string, workspaceDir: string) {
 
 async function waitForChat(page: Page, pageErrors: string[]): Promise<void> {
   await expect(page).toHaveTitle(/Doolittle$/);
-  await expect(page.locator(".window-runtime-status.ready")).toContainText(
-    "Local runtime",
+  const runtimeStatus = page.locator(".window-runtime-status");
+  await expect(runtimeStatus).toHaveAttribute(
+    "aria-label",
+    "Runtime status: ready",
     { timeout: 45_000 },
   );
+  await expect(runtimeStatus).toHaveClass(/(?:^|\s)ready(?:\s|$)/);
+  await expect(runtimeStatus).toContainText("Local runtime");
   await expect(page.locator(".recovery-shell")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
   await expect(

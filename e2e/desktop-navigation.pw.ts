@@ -76,10 +76,14 @@ test.describe("Doolittle desktop navigation", () => {
         pageErrors.push(error.stack ?? error.message);
       });
       await expect(page).toHaveTitle(/Doolittle$/);
-      await expect(page.locator(".window-runtime-status.ready")).toContainText(
-        "Local runtime",
+      const runtimeStatus = page.locator(".window-runtime-status");
+      await expect(runtimeStatus).toHaveAttribute(
+        "aria-label",
+        "Runtime status: ready",
         { timeout: 45_000 },
       );
+      await expect(runtimeStatus).toHaveClass(/(?:^|\s)ready(?:\s|$)/);
+      await expect(runtimeStatus).toContainText("Local runtime");
       const shellBeforeCommandMenu = await page
         .locator(".desktop-shell")
         .boundingBox();

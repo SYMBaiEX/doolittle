@@ -100,10 +100,14 @@ test.describe("Doolittle editor project resolution", () => {
 
     try {
       const page = await app.firstWindow();
-      await expect(page.locator(".window-runtime-status.ready")).toContainText(
-        "Local runtime",
+      const runtimeStatus = page.locator(".window-runtime-status");
+      await expect(runtimeStatus).toHaveAttribute(
+        "aria-label",
+        "Runtime status: ready",
         { timeout: 45_000 },
       );
+      await expect(runtimeStatus).toHaveClass(/(?:^|\s)ready(?:\s|$)/);
+      await expect(runtimeStatus).toContainText("Local runtime");
       await page.evaluate(() => {
         window.location.hash = "#/code";
       });
