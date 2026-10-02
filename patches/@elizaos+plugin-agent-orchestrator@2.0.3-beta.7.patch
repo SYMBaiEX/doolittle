@@ -1,16 +1,14 @@
 diff --git a/dist/cjs/index.node.cjs b/dist/cjs/index.node.cjs
 --- a/dist/cjs/index.node.cjs
 +++ b/dist/cjs/index.node.cjs
-@@ -358,7 +358,7 @@
+@@ -358,5 +358,5 @@
  var import_node_module, GitHubPatClient, OAuthDeviceFlow;
  var init_workspace_github = __esm(() => {
    import_node_module = require("node:module");
 -  ({ GitHubPatClient, OAuthDeviceFlow } = import_node_module.createRequire("file:///home/runner/work/eliza/eliza/plugins/plugin-agent-orchestrator/src/services/workspace-github.ts")("git-workspace-service"));
 +  ({ GitHubPatClient, OAuthDeviceFlow } = import_node_module.createRequire(__filename)("git-workspace-service"));
  });
- 
- // src/services/config-env.ts
-@@ -1243,7 +1243,7 @@
+@@ -1243,6 +1243,6 @@
      GitHubPatClient: GitHubPatClient2,
      MemoryTokenStore,
      WorkspaceService
@@ -18,7 +16,6 @@ diff --git a/dist/cjs/index.node.cjs b/dist/cjs/index.node.cjs
 +  } = import_node_module2.createRequire(__filename)("git-workspace-service"));
    defaultBranchCache = new Map;
  });
- 
 @@ -6194,7 +6194,7 @@
          return;
        const liveCutoffMs = Date.now() - RECONCILE_LIVE_WINDOW_MS;
