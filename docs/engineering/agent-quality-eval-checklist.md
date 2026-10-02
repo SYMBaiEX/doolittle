@@ -24,9 +24,12 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   latency, and provider-reported input/output/total token counts. They do not
   measure every provider path, end-user TTFT, action spans, or billable USD;
   Codex USD cost is explicitly unavailable, not inferred.
-- The comparator handles one baseline/candidate report pair; it does not
-  aggregate repeat distributions or score human reviews. Summarize repeated
-  same-condition reports separately for per-task median/p90 and uncertainty.
+- The pairwise comparator handles a baseline/candidate report pair. The
+  `eval:headless:aggregate` command summarizes compatible schema-v3 repeats
+  only when route, evaluator, suite, task/check identities, and run timestamps
+  match. It reports per-task completion/check rates and descriptive median,
+  nearest-rank p90, range, and mean for timing and available telemetry; it does
+  not estimate uncertainty or score human reviews.
 
 ## Before each run
 
@@ -112,9 +115,11 @@ The comparator pairs matching task/check identities and uses
 `timing.execDurationMs` for schema v2/v3. It labels and compares `elapsedMs`
 only for schema-v1-to-v1 comparisons. Schema v3 additionally compares matched
 Codex provider usage when both reports have it. Provider-call duration sums are
-not wall time; first-text measures are not user TTFT. Action-span telemetry,
-provider coverage beyond Codex, billable USD cost, and repeat-distribution
-aggregation remain future work. Compare repeated runs with median/p90 and show
+not wall time; first-text measures are not user TTFT. Use
+`nub run eval:headless:aggregate -- --report REPORT.json --report REPORT.json`
+for repeated, compatible schema-v3 samples. Action-span telemetry, provider
+coverage beyond Codex, billable USD cost, and statistical uncertainty
+intervals remain future work. Compare repeated runs with median/p90 and show
 spread, not just one run or arithmetic mean.
 
 ## Interpreting results
