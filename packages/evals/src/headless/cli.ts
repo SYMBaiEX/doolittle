@@ -1,3 +1,4 @@
+import { formatActionCounts } from "./action-counts-format";
 import { findHeadlessEvalSuite } from "./cases";
 import { runHeadlessEvalSuite } from "./runner";
 
@@ -139,6 +140,7 @@ async function main(): Promise<number> {
       console.log(
         `  Trace requests ${trace.modelRequests} · responses ${trace.modelResponses} · errors ${trace.modelErrors} · mutation continuations ${trace.mutationContinuations} (max attempt ${trace.maxContinuationAttempt ?? "none"}) · prompt size ${promptChars}.`,
       );
+      console.log(formatActionCounts(trace));
     }
     console.log(
       `Objective checks: ${report.summary.objectiveChecksPassed}/${report.summary.objectiveChecksTotal}; human review required for ${report.summary.humanReviewRequired} task(s); suite eval wall time ${report.summary.suiteWallTimeMs}ms (setup + doolittle exec + grading; excludes report I/O).`,

@@ -105,7 +105,8 @@ or `DOOLITTLE_DATA_PATH` to select the profile when running from another
 checkout. Keys are never written to reports. Reports are owner-only and include
 task IDs, evaluator version, phase and provider-call timings, provider-reported
 token counts when available, response digests, objective check outcomes, and
-sanitized model-trace counts and source revision/cleanliness—not prompts,
+sanitized model-trace and action start/completion/success/failure counts plus
+source revision/cleanliness—not prompts,
 responses, commands, or workspace paths. Trace summaries include request,
 response, error, and mutation-continuation counts plus prompt-length statistics;
 the journal itself remains temporary. Codex
