@@ -61,6 +61,37 @@ function v2Report(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function v3Report(overrides: Record<string, unknown> = {}) {
+  const base = v2Report();
+  return {
+    ...base,
+    schemaVersion: 3,
+    evaluatorVersion: "0.2.0",
+    runs: (base.runs as Array<Record<string, unknown>>).map((run) => ({
+      ...run,
+      timing: {
+        ...(run.timing as Record<string, unknown>),
+        execInvocations: 1,
+      },
+      modelUsage: {
+        provider: "codex",
+        providerCalls: 2,
+        completedCalls: 2,
+        failedCalls: 0,
+        providerDurationMs: 80,
+        firstTextSamples: 2,
+        meanFirstTextMs: 25,
+        tokenUsageSamples: 2,
+        inputTokens: 100,
+        outputTokens: 30,
+        totalTokens: 130,
+        costUsd: null,
+      },
+    })),
+    ...overrides,
+  };
+}
+
 describe("headless report comparison", () => {
   it("compares paired objective outcomes and legacy elapsed time for schema v1", () => {
     const baseline = report();
@@ -139,6 +170,91 @@ describe("headless report comparison", () => {
     expect(() => compareHeadlessEvalReports(report(), candidate)).toThrow(
       /Invalid or incompatible/,
     );
+  });
+
+  it("compares Codex provider timing and token signals for schema v3", () => {
+    const baseline = v3Report();
+    const candidate = v3Report({
+      runs: (v3Report().runs as Array<Record<string, unknown>>).map((run) => {
+        const usage = run.modelUsage as Record<string, unknown>;
+        return {
+          ...run,
+          modelUsage: {
+            ...usage,
+            providerDurationMs: 100,
+            meanFirstTextMs: 35,
+            inputTokens: 110,
+            outputTokens: 35,
+            totalTokens: 145,
+          },
+        };
+      }),
+    });
+    const result = compareHeadlessEvalReports(baseline, candidate);
+
+    expect(result.schemaVersion).toBe(3);
+    expect(result.providerUsage).toMatchObject({
+      pairedTaskCount: 2,
+      totalTaskCount: 2,
+      baseline: {
+        providerCalls: 4,
+        providerDurationMs: 160,
+        meanFirstTextMs: 25,
+        tokenUsageSamples: 4,
+        inputTokens: 200,
+        outputTokens: 60,
+        totalTokens: 260,
+        costUsd: null,
+      },
+      candidate: {
+        providerCalls: 4,
+        providerDurationMs: 200,
+        meanFirstTextMs: 35,
+        tokenUsageSamples: 4,
+        inputTokens: 220,
+        outputTokens: 70,
+        totalTokens: 290,
+        costUsd: null,
+      },
+    });
+    expect(() => compareHeadlessEvalReports(v2Report(), candidate)).toThrow(
+      /Invalid or incompatible/,
+    );
+  });
+
+  it("requires explicit provider metrics on schema v3 reports", () => {
+    const base = v3Report();
+    const runs = base.runs as Array<Record<string, unknown>>;
+    const firstUsage = runs[0]?.modelUsage as Record<string, unknown>;
+    const invalidReports = [
+      v3Report({
+        runs: runs.map((run, index) =>
+          index === 0 ? { ...run, modelUsage: undefined } : run,
+        ),
+      }),
+      v3Report({
+        runs: runs.map((run, index) =>
+          index === 0
+            ? {
+                ...run,
+                modelUsage: { ...firstUsage, inputTokens: -1 },
+              }
+            : run,
+        ),
+      }),
+      v3Report({
+        runs: runs.map((run, index) =>
+          index === 0
+            ? { ...run, modelUsage: { ...firstUsage, costUsd: 0.01 } }
+            : run,
+        ),
+      }),
+    ];
+    for (const malformed of invalidReports) {
+      expect(() => compareHeadlessEvalReports(malformed, malformed)).toThrow(
+        /Invalid or incompatible/,
+      );
+    }
   });
 
   it("compares persisted schema v2 reports after reading them from disk", () => {

@@ -56,9 +56,10 @@ IDs and local trace journals as private operational data.
 
 - Do not change a published suite's prompt, task IDs, or acceptance intent in
   place. Add a new suite version so previous reports remain interpretable.
-- Bump the eval package version when grader behavior changes; comparisons reject
-  reports produced by different evaluator versions. Bump the report schema only
-  when the persisted report shape or meaning changes.
+- Bump the eval manifest's `evaluatorVersion` when grader behavior changes;
+  keep its workspace `version` aligned with the root product version.
+  Comparisons reject reports produced by different evaluator versions. Bump
+  the report schema only when the persisted report shape or meaning changes.
 - Keep deterministic telemetry checks in code; add a new `CodingEvalCase` only
   when the receipt contract can support it and its failure behavior has tests.
 - Browser-rendered quality, request coverage, accessibility, conversation
@@ -72,25 +73,33 @@ IDs and local trace journals as private operational data.
 
 ## Headless workflow evaluations
 
-`headless-workflows-v2` dispatches isolated one-shot Doolittle CLI runs without
-opening the desktop app. It covers clarification and response formatting,
-workspace file mutation, cited research, and draft-only behavior:
+`headless-workflows-v2` dispatches isolated Doolittle CLI runs without opening
+the desktop app. It covers clarification and response formatting, workspace
+file mutation, cited research, and draft-only behavior. `headless-workflows-v3`
+preserves those cases and adds a two-turn session-memory check, behaviorally
+graded code generation, and a no-side-effect reliability check:
 
 ```sh
 nub run eval:headless -- --show-responses --enable-configured-cloud-research
 nub run eval:headless -- --task coding-exact-file-v2 --route-label codex-gpt6-luna-medium
+nub run eval:headless -- --suite headless-workflows-v3 --task reliability-no-side-effect-v3
 ```
 
 Every task gets a fresh temporary data directory and workspace with a minimal
 onboarding marker. Eliza Cloud is disabled in subprocesses by default;
 `--enable-configured-cloud-research` explicitly enables the configured provider
 for research-domain tasks only. Reports are owner-only and contain task IDs,
-the evaluator version, timings, response digests, objective check outcomes, and
-diagnostic flags—not prompts, responses, commands, or workspace paths. Raw
-answers are printed only when `--show-responses` is explicitly requested. Each
+the evaluator version, phase and provider-call timings, provider-reported token
+counts when available, response digests, objective check outcomes, and
+diagnostic flags—not prompts, responses, commands, or workspace paths. Codex
+per-call USD cost is unavailable and is recorded as null, not inferred from
+subscription usage. Raw answers are printed only when `--show-responses` is
+explicitly requested. Each
 task still requires human quality review; deterministic checks are only
-smoke/acceptance evidence, not a model-quality score. Temporary workspaces are
-removed after the run. Use the
+smoke/acceptance evidence, not a model-quality score. Each CLI invocation has
+a 300-second execution timeout and up to two seconds of process-tree shutdown
+grace; timeout and output-limit failures remain visible as failed runs.
+Temporary workspaces are removed after the run. Use the
 [agent quality evaluation checklist](../../docs/engineering/agent-quality-eval-checklist.md)
 to plan comparable runs, score human-facing quality, and interpret timing
 without confusing process completion, objective checks, and model latency.

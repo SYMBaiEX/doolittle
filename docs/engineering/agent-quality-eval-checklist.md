@@ -8,8 +8,10 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
 
 - `headless-workflows-v2` is a small dispatch smoke suite: clarification,
   constrained formatting, one exact-file coding change, research, and
-  draft-only reliability behavior. It does not establish broad conversation,
-  coding, or research quality.
+  draft-only reliability behavior. `headless-workflows-v3` preserves those
+  cases and adds two-turn session memory, behaviorally graded code generation,
+  and a no-side-effect reliability case. Neither establishes broad
+  conversation, coding, or research quality.
 - `coding-harness-v1` has one Next.js/shadcn/Bun build-and-launch task. It is a
   valuable end-to-end acceptance case, not representative coding coverage.
 - Deterministic checks cover observable contracts. Human coherence, grounding,
@@ -18,8 +20,10 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
 - Research needs a working configured Eliza Cloud provider. When unavailable,
   mark that domain unavailable; do not count a disabled/failed-provider run as
   a model-quality score.
-- Current reports do not measure first token, provider-only time, token use, or
-  cost. Do not describe end-to-end durations as model latency.
+- Schema-v3 reports measure Codex provider-call duration, per-call first-text
+  latency, and provider-reported input/output/total token counts. They do not
+  measure every provider path, end-user TTFT, action spans, or billable USD;
+  Codex USD cost is explicitly unavailable, not inferred.
 - The comparator handles one baseline/candidate report pair; it does not
   aggregate repeat distributions or score human reviews. Summarize repeated
   same-condition reports separately for per-task median/p90 and uncertainty.
@@ -74,12 +78,12 @@ distributions and per-domain results instead of relying on a single mean.
 
 ## Timing semantics
 
-Schema-v2 headless reports distinguish:
+Schema-v2 and v3 headless reports distinguish:
 
 - `timing.taskSetupMs`: creation of that task's isolated data/workspace and
   onboarding marker.
-- `timing.execDurationMs`: monotonic duration of the complete synchronous
-  `nub ... exec --json` child invocation. It includes CLI startup, runtime,
+- `timing.execDurationMs`: monotonic duration of the complete
+  `nub ... exec --json-stream` child invocation. It includes CLI startup, runtime,
   provider/model work, tools/actions, and shutdown. It is **not** model-only
   latency.
 - `timing.gradingMs`: deterministic result parsing and checks after the child
@@ -87,18 +91,31 @@ Schema-v2 headless reports distinguish:
 - `summary.suiteWallTimeMs`: suite setup, executions, and grading; excludes
   report persistence and temporary-directory cleanup.
 - `elapsedMs` on schema v1 is a legacy wall-clock field from before child
-  execution through response parsing and grading. Schema-v1 and schema-v2
-  durations must not be compared to one another.
+  execution through response parsing and grading. Durations from different
+  schema versions must not be compared to one another.
+- Schema v3 additionally records Codex `modelUsage` aggregates: provider call
+  count/completion count, the sum of provider-call durations (not wall time),
+  the average provider-call latency to first text (not end-user TTFT), and
+  provider-reported token usage with a call-coverage count. `costUsd` is null
+  because this route does not expose a billable per-invocation USD amount.
 
 Durations are rounded to integer milliseconds; a displayed `0ms` means less
 than half a millisecond, not that the phase did no work.
 
+Each invocation has a 300-second execution timeout, up to two seconds of
+process-tree shutdown grace, and a 10 MiB combined stdout/stderr capture limit.
+The runner terminates the complete child process tree on either limit; a run
+stopped this way is failed and its partial provider telemetry is retained. Do
+not treat partial output as a completed response.
+
 The comparator pairs matching task/check identities and uses
-`timing.execDurationMs` for schema v2. It labels and compares `elapsedMs` only
-for schema-v1-to-v1 comparisons. Neither metric isolates provider request time;
-first-token, provider, action-span, token, and cost instrumentation remain
-future work. Compare repeated runs with median/p90 and show spread, not just a
-single run or arithmetic mean.
+`timing.execDurationMs` for schema v2/v3. It labels and compares `elapsedMs`
+only for schema-v1-to-v1 comparisons. Schema v3 additionally compares matched
+Codex provider usage when both reports have it. Provider-call duration sums are
+not wall time; first-text measures are not user TTFT. Action-span telemetry,
+provider coverage beyond Codex, billable USD cost, and repeat-distribution
+aggregation remain future work. Compare repeated runs with median/p90 and show
+spread, not just one run or arithmetic mean.
 
 ## Interpreting results
 

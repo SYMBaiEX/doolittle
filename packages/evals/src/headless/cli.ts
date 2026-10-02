@@ -65,7 +65,7 @@ function printHelp(): void {
   );
 }
 
-function main(): number {
+async function main(): Promise<number> {
   try {
     const options = parseArgs(process.argv.slice(2));
     if (!options) {
@@ -76,18 +76,20 @@ function main(): number {
     if (!suite) {
       throw new Error(`Unknown headless evaluation suite: ${options.suiteId}`);
     }
-    const { report, reportPath, exitCode } = runHeadlessEvalSuite(suite, {
+    const { report, reportPath, exitCode } = await runHeadlessEvalSuite(suite, {
       reportDir: options.reportDir,
       routeLabel: options.routeLabel,
       enableConfiguredCloudResearch: options.enableConfiguredCloudResearch,
       taskIds: options.taskIds,
       showResponses: options.showResponses,
-      onResponse: (taskId, response) => {
-        console.log(`\n--- ${taskId} response ---\n${response}\n`);
+      onResponse: (taskId, response, turnNumber, turnTotal) => {
+        const turnLabel =
+          turnTotal > 1 ? ` · turn ${turnNumber}/${turnTotal}` : "";
+        console.log(`\n--- ${taskId}${turnLabel} response ---\n${response}\n`);
       },
     });
     console.log(
-      `${report.suite.id} v${report.suite.version} · route ${report.routeLabel}`,
+      `${report.suite.id} v${report.suite.version} · schema v${report.schemaVersion} · evaluator ${report.evaluatorVersion} · route ${report.routeLabel}`,
     );
     for (const run of report.runs) {
       const checks = run.checks.filter((check) => check.passed).length;
@@ -95,8 +97,24 @@ function main(): number {
         ? ` · diagnostics ${run.diagnosticFlags.join(",")}`
         : "";
       console.log(
-        `${run.taskId}: ${run.status} · objective ${checks}/${run.checks.length} · setup ${run.timing.taskSetupMs}ms · doolittle exec total ${run.timing.execDurationMs}ms · grading ${run.timing.gradingMs}ms${diagnostic}`,
+        `${run.taskId}: ${run.status} · objective ${checks}/${run.checks.length} · setup ${run.timing.taskSetupMs}ms · doolittle exec sum ${run.timing.execDurationMs}ms across ${run.timing.execInvocations} invocation(s) · grading ${run.timing.gradingMs}ms${diagnostic}`,
       );
+      if (run.modelUsage) {
+        const usage = run.modelUsage;
+        const tokens =
+          usage.inputTokens === null
+            ? "unavailable"
+            : `${usage.inputTokens}/${usage.outputTokens}/${usage.totalTokens}`;
+        const firstText =
+          usage.meanFirstTextMs === null
+            ? "unavailable"
+            : `${usage.meanFirstTextMs}ms`;
+        console.log(
+          `  Codex calls ${usage.completedCalls}/${usage.providerCalls} complete · provider time sum ${usage.providerDurationMs}ms · mean provider-call first text ${firstText} · input/output/total tokens ${tokens} (${usage.tokenUsageSamples}/${usage.providerCalls} calls reported); USD cost unavailable.`,
+        );
+      } else {
+        console.log("  Codex provider metrics: not recorded.");
+      }
     }
     console.log(
       `Objective checks: ${report.summary.objectiveChecksPassed}/${report.summary.objectiveChecksTotal}; human review required for ${report.summary.humanReviewRequired} task(s); suite eval wall time ${report.summary.suiteWallTimeMs}ms (setup + doolittle exec + grading; excludes report I/O).`,
@@ -110,4 +128,6 @@ function main(): number {
   }
 }
 
-process.exitCode = main();
+void main().then((exitCode) => {
+  process.exitCode = exitCode;
+});

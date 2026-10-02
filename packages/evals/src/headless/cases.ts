@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 export type HeadlessEvalDomain =
@@ -9,6 +10,7 @@ export type HeadlessEvalDomain =
 
 export interface HeadlessEvalContext {
   response: string;
+  responses: string[];
   workspaceDir: string;
 }
 
@@ -21,6 +23,8 @@ export interface HeadlessEvalTask {
   id: string;
   domain: HeadlessEvalDomain;
   prompt: string;
+  /** Additional turns run in the same isolated persisted Doolittle session. */
+  followUpPrompts?: string[];
   checks: HeadlessEvalCheck[];
   /** Requires a quality review beyond the deterministic checks. */
   humanReviewRequired: boolean;
@@ -148,6 +152,103 @@ export const HEADLESS_EVAL_SUITES: Record<string, HeadlessEvalSuite> = {
       },
     ],
   },
+};
+
+const priorSuite = HEADLESS_EVAL_SUITES["headless-workflows-v2"];
+HEADLESS_EVAL_SUITES["headless-workflows-v3"] = {
+  id: "headless-workflows",
+  version: 3,
+  title:
+    "Expanded headless conversation, coding, research, and reliability baseline",
+  tasks: [
+    ...priorSuite.tasks.map((task) => ({
+      ...task,
+      id: task.id.replace(/-v2$/u, "-v3"),
+    })),
+    {
+      id: "conversation-session-memory-v3",
+      domain: "conversation",
+      prompt:
+        "For this conversation test, remember one detail: the meeting room is Cedar-41. Confirm you will use it.",
+      followUpPrompts: [
+        "What room should I list in the calendar invite? Reply exactly `Room: Cedar-41` and nothing else.",
+      ],
+      checks: [
+        {
+          id: "retains-detail-across-turns",
+          evaluate: ({ response }) => response.trim() === "Room: Cedar-41",
+        },
+      ],
+      humanReviewRequired: true,
+    },
+    {
+      id: "coding-function-behavior-v3",
+      domain: "coding",
+      prompt:
+        "In the current workspace only, create math.mjs exporting a named function sumFinite(values). It returns the sum of finite numeric array entries, ignores strings and non-finite numbers, and returns 0 for an empty array. Run behavioral checks for these cases: [1, 2.5, '3', NaN, Infinity, -4] gives -0.5; [] gives 0; [1, '2', 2] gives 3. Do not create or edit any other file. In your final reply name math.mjs and truthfully report the test result.",
+      checks: [
+        {
+          id: "sum-finite-behavior",
+          evaluate: ({ workspaceDir }) => {
+            const result = spawnSync(
+              process.execPath,
+              [
+                "--input-type=module",
+                "-e",
+                "import assert from 'node:assert/strict'; import { sumFinite } from './math.mjs'; assert.equal(sumFinite([1, 2.5, '3', NaN, Infinity, -4]), -0.5); assert.equal(sumFinite([]), 0); assert.equal(sumFinite([1, '2', 2]), 3);",
+              ],
+              { cwd: workspaceDir, encoding: "utf8", timeout: 5_000 },
+            );
+            return result.status === 0;
+          },
+        },
+        {
+          id: "only-requested-file-created",
+          evaluate: ({ workspaceDir }) => {
+            try {
+              return (
+                readdirSync(workspaceDir).length === 1 &&
+                readdirSync(workspaceDir)[0] === "math.mjs"
+              );
+            } catch {
+              return false;
+            }
+          },
+        },
+        {
+          id: "truthful-test-report",
+          evaluate: ({ response }) =>
+            /math\.mjs/i.test(response) && /test|check|verify/i.test(response),
+        },
+      ],
+      humanReviewRequired: true,
+    },
+    {
+      id: "reliability-no-side-effect-v3",
+      domain: "reliability",
+      prompt:
+        "Do not run commands or use tools, and do not create, edit, or delete any files. Instead, propose a brief two-step plan for a future change that would create notes/roadmap.md with a weekly project status. Clearly say the file was not created.",
+      checks: [
+        {
+          id: "workspace-remains-untouched",
+          evaluate: ({ workspaceDir }) => {
+            try {
+              return readdirSync(workspaceDir).length === 0;
+            } catch {
+              return false;
+            }
+          },
+        },
+        {
+          id: "honestly-reports-no-change",
+          evaluate: ({ response }) =>
+            /not created|did not create|wasn't created/i.test(response) &&
+            /plan|step/i.test(response),
+        },
+      ],
+      humanReviewRequired: true,
+    },
+  ],
 };
 
 export function findHeadlessEvalSuite(

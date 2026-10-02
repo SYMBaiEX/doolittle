@@ -1,8 +1,22 @@
 import { readFileSync } from "node:fs";
 
-const SUPPORTED_SCHEMA_VERSIONS = new Set([1, 2]);
+const SUPPORTED_SCHEMA_VERSIONS = new Set([1, 2, 3]);
 
 type Check = { id: string; passed: boolean };
+export type ModelUsage = {
+  provider: "codex";
+  providerCalls: number;
+  completedCalls: number;
+  failedCalls: number;
+  providerDurationMs: number;
+  firstTextSamples: number;
+  meanFirstTextMs: number | null;
+  tokenUsageSamples: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  totalTokens: number | null;
+  costUsd: null;
+};
 type Run = {
   taskId: string;
   domain: string;
@@ -12,12 +26,14 @@ type Run = {
   timing?: {
     taskSetupMs: number;
     execDurationMs: number;
+    execInvocations?: number;
     gradingMs: number;
   };
+  modelUsage?: ModelUsage | null;
   checks: Check[];
 };
 type Report = {
-  schemaVersion: 1 | 2;
+  schemaVersion: 1 | 2 | 3;
   evaluatorVersion: string;
   explicitEvaluatorVersion?: string | number;
   suite: { id: string; version: number };
@@ -43,6 +59,17 @@ export interface HeadlessTaskDelta {
   executionCompletionDelta: number;
   objectiveCheckSuccessDelta: number;
   durationDeltaMs: number;
+  modelUsage: {
+    baseline: ModelUsage | null;
+    candidate: ModelUsage | null;
+  } | null;
+}
+
+export interface HeadlessProviderUsageComparison {
+  pairedTaskCount: number;
+  totalTaskCount: number;
+  baseline: ModelUsage | null;
+  candidate: ModelUsage | null;
 }
 
 export interface HeadlessReportComparison {
@@ -67,6 +94,7 @@ export interface HeadlessReportComparison {
   executionCompletionDelta: number;
   objectiveCheckSuccessDelta: number;
   meanDurationDeltaMs: number;
+  providerUsage?: HeadlessProviderUsageComparison;
   tasks: HeadlessTaskDelta[];
 }
 
@@ -89,6 +117,73 @@ function evaluatorVersion(value: unknown): string {
   return invalid();
 }
 
+function nonNegativeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= 0;
+}
+
+function nullableNonNegativeInteger(value: unknown): value is number | null {
+  return value === null || nonNegativeInteger(value);
+}
+
+function parseModelUsage(value: unknown): ModelUsage | null {
+  if (value === null) return null;
+  if (
+    !isRecord(value) ||
+    value.provider !== "codex" ||
+    !nonNegativeInteger(value.providerCalls) ||
+    !nonNegativeInteger(value.completedCalls) ||
+    !nonNegativeInteger(value.failedCalls) ||
+    value.completedCalls + value.failedCalls !== value.providerCalls ||
+    !nonNegativeInteger(value.providerDurationMs) ||
+    !nonNegativeInteger(value.firstTextSamples) ||
+    !(
+      value.meanFirstTextMs === null ||
+      nonNegativeInteger(value.meanFirstTextMs)
+    ) ||
+    !nonNegativeInteger(value.tokenUsageSamples) ||
+    !nullableNonNegativeInteger(value.inputTokens) ||
+    !nullableNonNegativeInteger(value.outputTokens) ||
+    !nullableNonNegativeInteger(value.totalTokens) ||
+    value.costUsd !== null
+  ) {
+    return invalid();
+  }
+  const tokenFields = [
+    value.inputTokens,
+    value.outputTokens,
+    value.totalTokens,
+  ];
+  if (
+    tokenFields.some((field) => field === null) &&
+    tokenFields.some((field) => field !== null)
+  ) {
+    return invalid();
+  }
+  if (
+    value.tokenUsageSamples > value.providerCalls ||
+    value.firstTextSamples > value.providerCalls ||
+    (value.tokenUsageSamples === 0 &&
+      tokenFields.some((field) => field !== null)) ||
+    (value.firstTextSamples === 0) !== (value.meanFirstTextMs === null)
+  ) {
+    return invalid();
+  }
+  return {
+    provider: "codex",
+    providerCalls: value.providerCalls,
+    completedCalls: value.completedCalls,
+    failedCalls: value.failedCalls,
+    providerDurationMs: value.providerDurationMs,
+    firstTextSamples: value.firstTextSamples,
+    meanFirstTextMs: value.meanFirstTextMs,
+    tokenUsageSamples: value.tokenUsageSamples,
+    inputTokens: value.inputTokens,
+    outputTokens: value.outputTokens,
+    totalTokens: value.totalTokens,
+    costUsd: null,
+  };
+}
+
 function parseReport(value: unknown): Report {
   if (!isRecord(value)) return invalid();
   const schemaVersion = value.schemaVersion;
@@ -104,9 +199,9 @@ function parseReport(value: unknown): Report {
   )
     return invalid();
 
-  const schema = Number(schemaVersion) as 1 | 2;
+  const schema = Number(schemaVersion) as 1 | 2 | 3;
   let suiteWallTimeMs: number | undefined;
-  if (schema === 2) {
+  if (schema >= 2) {
     if (
       !string(value.evaluatorVersion) ||
       !isRecord(value.summary) ||
@@ -136,7 +231,7 @@ function parseReport(value: unknown): Report {
 
     let comparisonDurationMs = raw.elapsedMs;
     let timing: Run["timing"];
-    if (schema === 2) {
+    if (schema >= 2) {
       const rawTiming = raw.timing;
       if (
         !isRecord(rawTiming) ||
@@ -151,12 +246,27 @@ function parseReport(value: unknown): Report {
         rawTiming.gradingMs < 0
       )
         return invalid();
+      if (
+        schema === 3 &&
+        (!nonNegativeInteger(rawTiming.execInvocations) ||
+          rawTiming.execInvocations < 1)
+      ) {
+        return invalid();
+      }
       timing = {
         taskSetupMs: rawTiming.taskSetupMs,
         execDurationMs: rawTiming.execDurationMs,
+        ...(schema === 3
+          ? { execInvocations: Number(rawTiming.execInvocations) }
+          : {}),
         gradingMs: rawTiming.gradingMs,
       };
       comparisonDurationMs = timing.execDurationMs;
+    }
+    let modelUsage: ModelUsage | null | undefined;
+    if (schema === 3) {
+      if (!Object.hasOwn(raw, "modelUsage")) return invalid();
+      modelUsage = parseModelUsage(raw.modelUsage);
     }
     taskIds.add(raw.taskId);
     const checkIds = new Set<string>();
@@ -178,6 +288,7 @@ function parseReport(value: unknown): Report {
       elapsedMs: raw.elapsedMs,
       comparisonDurationMs,
       ...(timing ? { timing } : {}),
+      ...(schema === 3 ? { modelUsage } : {}),
       checks,
     };
   });
@@ -235,9 +346,11 @@ export function compareHeadlessEvalReports(
     return invalid();
 
   const durationMetric =
-    baseline.schemaVersion === 2
-      ? "timing.execDurationMs (end-to-end Nub exec child invocation; includes CLI startup, provider/model, and tool time)"
-      : "legacy elapsedMs (wall-clock from before exec through response parsing and grading)";
+    baseline.schemaVersion === 3
+      ? "timing.execDurationMs (sum of end-to-end Nub exec child invocations; includes CLI startup, provider/model, and tool time)"
+      : baseline.schemaVersion === 2
+        ? "timing.execDurationMs (end-to-end Nub exec child invocation; includes CLI startup, provider/model, and tool time)"
+        : "legacy elapsedMs (wall-clock from before exec through response parsing and grading)";
 
   const baselineById = new Map(baseline.runs.map((run) => [run.taskId, run]));
   const candidateById = new Map(candidate.runs.map((run) => [run.taskId, run]));
@@ -282,8 +395,90 @@ export function compareHeadlessEvalReports(
         base.checks.length,
       ),
       durationDeltaMs: next.comparisonDurationMs - base.comparisonDurationMs,
+      modelUsage:
+        baseline.schemaVersion === 3
+          ? {
+              baseline: base.modelUsage ?? null,
+              candidate: next.modelUsage ?? null,
+            }
+          : null,
     });
   }
+
+  const pairedModelUsageTasks = tasks.filter((task) => {
+    const usage = task.modelUsage;
+    return (
+      usage !== null &&
+      usage !== undefined &&
+      usage.baseline !== null &&
+      usage.candidate !== null
+    );
+  });
+  const aggregateModelUsage = (side: "baseline" | "candidate") => {
+    const metrics = pairedModelUsageTasks.flatMap((task) => {
+      const metric = task.modelUsage?.[side];
+      return metric ? [metric] : [];
+    });
+    if (metrics.length === 0) return null;
+    const firstTextSamples = metrics.reduce(
+      (sum, metric) => sum + metric.firstTextSamples,
+      0,
+    );
+    const tokenUsageSamples = metrics.reduce(
+      (sum, metric) => sum + metric.tokenUsageSamples,
+      0,
+    );
+    return {
+      provider: "codex" as const,
+      providerCalls: metrics.reduce(
+        (sum, metric) => sum + metric.providerCalls,
+        0,
+      ),
+      completedCalls: metrics.reduce(
+        (sum, metric) => sum + metric.completedCalls,
+        0,
+      ),
+      failedCalls: metrics.reduce((sum, metric) => sum + metric.failedCalls, 0),
+      providerDurationMs: metrics.reduce(
+        (sum, metric) => sum + metric.providerDurationMs,
+        0,
+      ),
+      firstTextSamples,
+      meanFirstTextMs:
+        firstTextSamples > 0
+          ? Math.round(
+              metrics.reduce(
+                (sum, metric) =>
+                  sum + (metric.meanFirstTextMs ?? 0) * metric.firstTextSamples,
+                0,
+              ) / firstTextSamples,
+            )
+          : null,
+      tokenUsageSamples,
+      inputTokens:
+        tokenUsageSamples > 0
+          ? metrics.reduce((sum, metric) => sum + (metric.inputTokens ?? 0), 0)
+          : null,
+      outputTokens:
+        tokenUsageSamples > 0
+          ? metrics.reduce((sum, metric) => sum + (metric.outputTokens ?? 0), 0)
+          : null,
+      totalTokens:
+        tokenUsageSamples > 0
+          ? metrics.reduce((sum, metric) => sum + (metric.totalTokens ?? 0), 0)
+          : null,
+      costUsd: null as null,
+    };
+  };
+  const providerUsage =
+    baseline.schemaVersion === 3
+      ? {
+          pairedTaskCount: pairedModelUsageTasks.length,
+          totalTaskCount: tasks.length,
+          baseline: aggregateModelUsage("baseline"),
+          candidate: aggregateModelUsage("candidate"),
+        }
+      : undefined;
 
   const baselineExecutionCompletions = tasks.filter(
     (task) => task.baseline.executionCompleted,
@@ -330,6 +525,7 @@ export function compareHeadlessEvalReports(
       baselineCheckSuccesses / checkTotal,
     meanDurationDeltaMs:
       tasks.reduce((sum, task) => sum + task.durationDeltaMs, 0) / tasks.length,
+    ...(providerUsage ? { providerUsage } : {}),
     tasks,
   };
 }

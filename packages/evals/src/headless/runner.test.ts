@@ -1,4 +1,10 @@
-import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -27,18 +33,73 @@ describe("headless workflow evals", () => {
     expect(new Set(suite.tasks.map((task) => task.domain))).toEqual(
       new Set(["conversation", "coding", "research", "reliability"]),
     );
+    const expanded = HEADLESS_EVAL_SUITES["headless-workflows-v3"];
+    expect(expanded.tasks.length).toBeGreaterThan(suite.tasks.length);
+    expect(expanded.tasks.some((task) => task.followUpPrompts?.length)).toBe(
+      true,
+    );
   });
 
-  it("saves owner-only reports without prompts or raw responses", () => {
+  it("saves owner-only reports without prompts or raw responses", async () => {
     const response = "a private model answer";
     const reportDir = tempDirectory();
-    const execute = vi.fn(() => ({
-      status: 0,
-      stdout: `${JSON.stringify({ ok: true, text: response })}\n`,
-      stderr: "",
-      error: undefined,
-      signal: null,
-    })) as never;
+    let childArguments: readonly string[] | string | undefined;
+    let childEnvironment: NodeJS.ProcessEnv | undefined;
+    const execute = vi.fn(
+      (
+        _command: string,
+        args: readonly string[] | string,
+        options?: { env?: NodeJS.ProcessEnv },
+      ) => {
+        childArguments = args;
+        childEnvironment = options?.env;
+        const dataDir = childEnvironment?.DOOLITTLE_DATA_DIR;
+        if (dataDir) {
+          writeFileSync(
+            join(dataDir, "eval-model-calls.jsonl"),
+            `${JSON.stringify({
+              provider: "codex",
+              completed: true,
+              providerDurationMs: 42,
+              firstTextMs: 17,
+              inputTokens: 120,
+              outputTokens: 24,
+              totalTokens: 144,
+              prompt: "must not be copied into the report",
+            })}\n`,
+          );
+        }
+        return {
+          status: 0,
+          stdout: [
+            {
+              type: "start",
+              sessionId: "private-session",
+              command: "private prompt",
+            },
+            {
+              type: "progress",
+              phase: "model",
+              chunk: response,
+              response,
+              delta: response,
+            },
+            {
+              type: "result",
+              text: response,
+              tone: "agent",
+              shouldExit: false,
+            },
+            { type: "completed", status: "completed" },
+          ]
+            .map((event) => JSON.stringify(event))
+            .join("\n"),
+          stderr: "",
+          error: undefined,
+          signal: null,
+        };
+      },
+    ) as never;
     const suite: HeadlessEvalSuite = {
       id: "privacy-test",
       version: 3,
@@ -59,7 +120,7 @@ describe("headless workflow evals", () => {
       ],
     };
 
-    const result = runHeadlessEvalSuite(suite, {
+    const result = await runHeadlessEvalSuite(suite, {
       reportDir,
       taskIds: ["one-shot"],
       repoRoot: process.cwd(),
@@ -69,6 +130,7 @@ describe("headless workflow evals", () => {
 
     const stored = readFileSync(result.reportPath, "utf8");
     expect(result.exitCode).toBe(0);
+    expect(childArguments).toContain("--json-stream");
     expect(stored).not.toContain("this prompt must not be persisted");
     expect(stored).not.toContain(response);
     expect(result.report.runs[0]).toMatchObject({
@@ -76,17 +138,70 @@ describe("headless workflow evals", () => {
       checks: [{ id: "returned", passed: true }],
       humanReviewRequired: true,
     });
-    expect(result.report.schemaVersion).toBe(2);
+    expect(result.report.schemaVersion).toBe(3);
     expect(result.report.evaluatorVersion).toMatch(/^\d+\.\d+\.\d+/);
+    expect(childEnvironment?.DOOLITTLE_EVAL_CAPTURE_MODEL_USAGE).toBe("true");
+    expect(result.report.runs[0]?.modelUsage).toEqual({
+      provider: "codex",
+      providerCalls: 1,
+      completedCalls: 1,
+      failedCalls: 0,
+      providerDurationMs: 42,
+      firstTextSamples: 1,
+      meanFirstTextMs: 17,
+      tokenUsageSamples: 1,
+      inputTokens: 120,
+      outputTokens: 24,
+      totalTokens: 144,
+      costUsd: null,
+    });
+    expect(stored).not.toContain("must not be copied into the report");
     expect(result.report.runs[0]?.timing).toEqual({
       taskSetupMs: expect.any(Number),
       execDurationMs: expect.any(Number),
+      execInvocations: 1,
       gradingMs: expect.any(Number),
     });
     expect(statSync(result.reportPath).mode & 0o777).toBe(0o600);
   });
 
-  it("measures setup, whole doolittle exec, grading, and suite wall time monotonically", () => {
+  it("does not treat a result frame without stream completion as a successful run", async () => {
+    const suite: HeadlessEvalSuite = {
+      id: "stream-completion-test",
+      version: 1,
+      title: "Stream completion test",
+      tasks: [
+        {
+          id: "one-shot",
+          domain: "conversation",
+          prompt: "private prompt",
+          checks: [
+            {
+              id: "non-empty",
+              evaluate: ({ response }) => response.length > 0,
+            },
+          ],
+          humanReviewRequired: false,
+        },
+      ],
+    };
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir: tempDirectory(),
+      taskIds: ["one-shot"],
+      execute: (() => ({
+        status: 0,
+        stdout: `${JSON.stringify({ type: "result", text: "partial", shouldExit: false })}\n`,
+        stderr: "",
+        error: undefined,
+        signal: null,
+      })) as never,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.report.runs[0]).toMatchObject({ status: "failed" });
+  });
+
+  it("measures setup, whole doolittle exec, grading, and suite wall time monotonically", async () => {
     let clock = 0;
     const reportDir = tempDirectory();
     const suite: HeadlessEvalSuite = {
@@ -111,7 +226,7 @@ describe("headless workflow evals", () => {
         },
       ],
     };
-    const result = runHeadlessEvalSuite(suite, {
+    const result = await runHeadlessEvalSuite(suite, {
       reportDir,
       monotonicNow: () => clock,
       execute: (() => {
@@ -131,6 +246,7 @@ describe("headless workflow evals", () => {
     expect(result.report.runs[0]?.timing).toEqual({
       taskSetupMs: 0,
       execDurationMs: 125,
+      execInvocations: 1,
       gradingMs: 40,
     });
     expect(result.report.summary.suiteWallTimeMs).toBe(165);
@@ -141,7 +257,139 @@ describe("headless workflow evals", () => {
     expect(stored).not.toContain(process.cwd());
   });
 
-  it("enables configured Eliza Cloud only for explicitly opted-in research tasks", () => {
+  it("runs follow-up turns in one isolated session and checks the final context", async () => {
+    let clock = 0;
+    const reportDir = tempDirectory();
+    const callArgs: Array<readonly string[] | string> = [];
+    const dataDirs: string[] = [];
+    const suite: HeadlessEvalSuite = {
+      id: "multi-turn-test",
+      version: 1,
+      title: "Multi-turn test",
+      tasks: [
+        {
+          id: "remember-room",
+          domain: "conversation",
+          prompt: "Remember room Cedar-41.",
+          followUpPrompts: ["Which room?"],
+          checks: [
+            {
+              id: "retains-prior-turn",
+              evaluate: ({ response, responses }) =>
+                responses.length === 2 && response === "Room: Cedar-41",
+            },
+          ],
+          humanReviewRequired: true,
+        },
+      ],
+    };
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir,
+      taskIds: ["remember-room"],
+      monotonicNow: () => clock,
+      execute: ((
+        _command: string,
+        args: readonly string[] | string,
+        options?: { env?: NodeJS.ProcessEnv },
+      ) => {
+        const normalizedArgs = Array.isArray(args) ? args : [args];
+        callArgs.push(normalizedArgs);
+        const environment = options?.env as NodeJS.ProcessEnv | undefined;
+        if (environment?.DOOLITTLE_DATA_DIR) {
+          dataDirs.push(environment.DOOLITTLE_DATA_DIR);
+        }
+        const response = normalizedArgs.includes("Remember room Cedar-41.")
+          ? "I will remember Cedar-41."
+          : "Room: Cedar-41";
+        clock += 25;
+        return {
+          status: 0,
+          stdout: [
+            { type: "result", text: response, shouldExit: false },
+            { type: "completed", status: "completed" },
+          ]
+            .map((event) => JSON.stringify(event))
+            .join("\n"),
+          stderr: "",
+          error: undefined,
+          signal: null,
+        };
+      }) as never,
+    });
+
+    const sessionIds = callArgs.map((args) => {
+      const index = args.indexOf("--session-id");
+      return index >= 0 ? args[index + 1] : undefined;
+    });
+    expect(new Set(sessionIds).size).toBe(1);
+    expect(sessionIds[0]).toMatch(/^doolittle-eval:/);
+    expect(dataDirs[0]).toBe(dataDirs[1]);
+    expect(result.report.runs[0]).toMatchObject({
+      status: "completed",
+      responseSha256s: [expect.any(String), expect.any(String)],
+      timing: { execDurationMs: 50, execInvocations: 2 },
+      checks: [{ id: "retains-prior-turn", passed: true }],
+    });
+    const stored = readFileSync(result.reportPath, "utf8");
+    expect(stored).not.toContain("Remember room Cedar-41.");
+    expect(stored).not.toContain("Room: Cedar-41");
+  });
+
+  it("marks malformed provider telemetry without persisting its contents", async () => {
+    const reportDir = tempDirectory();
+    const execute = vi.fn(
+      (
+        _command: string,
+        _args: readonly string[] | string,
+        options?: { env?: NodeJS.ProcessEnv },
+      ) => {
+        const dataDir = options?.env?.DOOLITTLE_DATA_DIR;
+        if (dataDir) {
+          writeFileSync(
+            join(dataDir, "eval-model-calls.jsonl"),
+            `${JSON.stringify({ provider: "unknown", privateData: "drop" })}\n`,
+          );
+        }
+        return {
+          status: 0,
+          stdout: `${JSON.stringify({ ok: true, text: "private answer" })}\n`,
+          stderr: "",
+          error: undefined,
+          signal: null,
+        };
+      },
+    ) as never;
+    const suite: HeadlessEvalSuite = {
+      id: "telemetry-validation",
+      version: 1,
+      title: "Telemetry validation",
+      tasks: [
+        {
+          id: "one-shot",
+          domain: "conversation",
+          prompt: "private prompt",
+          checks: [{ id: "always", evaluate: () => true }],
+          humanReviewRequired: false,
+        },
+      ],
+    };
+
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir,
+      taskIds: ["one-shot"],
+      execute,
+    });
+    const stored = readFileSync(result.reportPath, "utf8");
+    expect(result.report.runs[0]?.modelUsage).toBeNull();
+    expect(result.report.runs[0]?.diagnosticFlags).toContain(
+      "model-usage-telemetry-invalid",
+    );
+    expect(stored).not.toContain("privateData");
+    expect(stored).not.toContain("private prompt");
+    expect(stored).not.toContain("private answer");
+  });
+
+  it("enables configured Eliza Cloud only for explicitly opted-in research tasks", async () => {
     const reportDir = tempDirectory();
     const environments: NodeJS.ProcessEnv[] = [];
     const previousCloudSetting = process.env.ELIZAOS_CLOUD_ENABLED;
@@ -163,9 +411,9 @@ describe("headless workflow evals", () => {
       },
     );
 
-    let result: ReturnType<typeof runHeadlessEvalSuite>;
+    let result: Awaited<ReturnType<typeof runHeadlessEvalSuite>>;
     try {
-      result = runHeadlessEvalSuite(
+      result = await runHeadlessEvalSuite(
         HEADLESS_EVAL_SUITES["headless-workflows-v2"],
         {
           reportDir,
@@ -189,7 +437,7 @@ describe("headless workflow evals", () => {
     ]);
   });
 
-  it("disables Eliza Cloud in isolated runs unless research is explicitly opted in", () => {
+  it("disables Eliza Cloud in isolated runs unless research is explicitly opted in", async () => {
     const previousCloudSetting = process.env.ELIZAOS_CLOUD_ENABLED;
     process.env.ELIZAOS_CLOUD_ENABLED = "true";
     let childEnvironment: NodeJS.ProcessEnv | undefined;
@@ -211,7 +459,7 @@ describe("headless workflow evals", () => {
     );
 
     try {
-      const result = runHeadlessEvalSuite(
+      const result = await runHeadlessEvalSuite(
         HEADLESS_EVAL_SUITES["headless-workflows-v2"],
         {
           reportDir: tempDirectory(),
@@ -230,14 +478,14 @@ describe("headless workflow evals", () => {
     }
   });
 
-  it("rejects unknown task selectors before executing a model", () => {
+  it("rejects unknown task selectors before executing a model", async () => {
     const execute = vi.fn();
-    expect(() =>
+    await expect(
       runHeadlessEvalSuite(HEADLESS_EVAL_SUITES["headless-workflows-v2"], {
         taskIds: ["not-a-task"],
         execute: execute as never,
       }),
-    ).toThrow("Unknown task ID");
+    ).rejects.toThrow("Unknown task ID");
     expect(execute).not.toHaveBeenCalled();
   });
 });

@@ -8,11 +8,12 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
+import { EVALS_EVALUATOR_VERSION } from "../evaluator-version";
 import { CODING_EVAL_SUITES, type CodingEvalSuite } from "./cases";
 import type { CodingEvalStatus, CodingRunEvaluation } from "./evaluator";
 
 export const CODING_EVAL_REPORT_SCHEMA_VERSION = 1 as const;
-export const CODING_EVAL_PACKAGE_VERSION = "0.1.0" as const;
+export const CODING_EVAL_PACKAGE_VERSION = EVALS_EVALUATOR_VERSION;
 
 export interface CodingEvalReportCheck {
   id: string;

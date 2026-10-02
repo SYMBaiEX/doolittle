@@ -41,6 +41,14 @@ function signedMs(value: number): string {
   return `${value > 0 ? "+" : ""}${value.toFixed(0)} ms`;
 }
 
+function count(value: number | null): string {
+  return value === null ? "unavailable" : value.toLocaleString();
+}
+
+function seconds(value: number): string {
+  return `${(value / 1000).toFixed(1)}s`;
+}
+
 function main(): number {
   try {
     const options = parseArguments(process.argv.slice(2));
@@ -68,12 +76,35 @@ function main(): number {
         `  ${task.taskId} [${task.domain}] · execution ${task.baseline.executionCompleted ? "completed" : "failed"} → ${task.candidate.executionCompleted ? "completed" : "failed"} (${task.executionCompletionDelta > 0 ? "+1" : task.executionCompletionDelta < 0 ? "-1" : "0"}); checks ${task.baseline.checksPassed}/${task.baseline.checksTotal} → ${task.candidate.checksPassed}/${task.candidate.checksTotal} (${percent(task.objectiveCheckSuccessDelta)}); ${comparison.durationMetric}: ${task.baseline.durationMs} → ${task.candidate.durationMs} ms (${signedMs(task.durationDeltaMs)}).`,
       );
     }
+    if (comparison.providerUsage) {
+      const usage = comparison.providerUsage;
+      if (usage.pairedTaskCount === 0) {
+        console.log(
+          `Codex provider metrics: unavailable for paired tasks (0/${usage.totalTaskCount}).`,
+        );
+      } else {
+        const baseline = usage.baseline;
+        const candidate = usage.candidate;
+        if (baseline && candidate) {
+          console.log(
+            `Codex metrics (${usage.pairedTaskCount}/${usage.totalTaskCount} paired tasks): provider-call time sum ${seconds(baseline.providerDurationMs)} → ${seconds(candidate.providerDurationMs)}; calls ${baseline.providerCalls} → ${candidate.providerCalls}.`,
+          );
+          console.log(
+            `  Provider-call mean first text ${baseline.meanFirstTextMs === null ? "unavailable" : `${baseline.meanFirstTextMs}ms`} → ${candidate.meanFirstTextMs === null ? "unavailable" : `${candidate.meanFirstTextMs}ms`} (not user-facing TTFT); input/output/total tokens ${count(baseline.inputTokens)}/${count(baseline.outputTokens)}/${count(baseline.totalTokens)} → ${count(candidate.inputTokens)}/${count(candidate.outputTokens)}/${count(candidate.totalTokens)} (${baseline.tokenUsageSamples} → ${candidate.tokenUsageSamples} calls with reported usage). USD cost is not reported by this Codex route.`,
+          );
+        }
+      }
+    }
     const timingDisclaimer =
-      comparison.schemaVersion === 2
-        ? "Schema-v2 duration is end-to-end Doolittle exec child time, not model-only latency; setup and grading are separate."
+      comparison.schemaVersion >= 2
+        ? `Schema-v${comparison.schemaVersion} duration is end-to-end Doolittle exec child time, not model-only latency; setup and grading are separate.`
         : "Schema-v1 elapsedMs spans child execution through response parsing and grading; it is not model-only latency.";
+    const telemetryDisclaimer =
+      comparison.schemaVersion === 3
+        ? "Provider metrics are Codex-reported; summed call durations are not wall time, first text is per-call (not end-user TTFT), and USD cost is unavailable."
+        : "Provider, token, first-text, cost, harness, and environment effects are not separated.";
     console.log(
-      `These deterministic checks do not establish human-facing quality or causal model improvement. ${timingDisclaimer} Provider, harness, and environment effects are not separated.`,
+      `These deterministic checks do not establish human-facing quality or causal model improvement. ${timingDisclaimer} ${telemetryDisclaimer}`,
     );
     return 0;
   } catch (error) {

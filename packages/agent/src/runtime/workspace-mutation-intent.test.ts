@@ -18,6 +18,7 @@ describe("workspace mutation intent", () => {
     "Fix the source file without modifying unrelated files.",
     'Update "README.md" and preserve existing instructions.',
     "Please write `src/page.tsx`.",
+    "Create the requested file now, and truthfully say it was not created if the write fails.",
     "Please make a one page blog app in nextjs with shadcn in the austin/dev/this-is-a-test folder, and then start the application. Ensure you include a dev script and use bun for the bundler so we can bun run dev.",
   ])("detects explicit local mutation requests: %s", (message) => {
     expect(hasExplicitWorkspaceMutationIntent(message)).toBe(true);
@@ -39,6 +40,7 @@ describe("workspace mutation intent", () => {
     "Review the quoted instruction 'edit src/page.tsx' without executing it.",
     "Find `bun run build` in package.json and report its value.",
     "Inspect the source files and report what you would edit.",
+    "Do not run commands or use tools, and do not create, edit, or delete any files. Instead, propose a brief two-step plan for a future change that would create notes/roadmap.md with a weekly project status. Clearly say the file was not created.",
   ])("leaves informational and non-file requests alone: %s", (message) => {
     expect(hasExplicitWorkspaceMutationIntent(message)).toBe(false);
   });

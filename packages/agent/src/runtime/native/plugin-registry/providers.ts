@@ -4,6 +4,7 @@ import { refreshLinkedClaudeCodeCredentials } from "../account-auth";
 import { getClaudeCodeAccountStatus } from "../account-auth/claude-code";
 import { getDevinAccountStatus } from "../account-auth/devin";
 import { createDoolittleCodexReasoningPlugin } from "./codex-reasoning";
+import { recordEvalCodexModelCall } from "./eval-model-metrics";
 import {
   createDoolittleOllamaUxPlugin,
   withOllamaTextReadiness,
@@ -41,7 +42,9 @@ export async function loadProviderPlugins(
   const providers: Plugin[] = [
     normalizePlugin(sqlPlugin),
     normalizePlugin(pdfPlugin),
-    createDoolittleCodexReasoningPlugin(normalizePlugin(codexCliPlugin)),
+    createDoolittleCodexReasoningPlugin(normalizePlugin(codexCliPlugin), {
+      observeUsage: recordEvalCodexModelCall,
+    }),
     normalizePlugin(anthropicPlugin),
     createClaudeCodePlugin({
       enabled: true,

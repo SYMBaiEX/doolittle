@@ -1,18 +1,20 @@
-import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
+import { EVALS_EVALUATOR_VERSION } from "../evaluator-version";
 import type { HeadlessEvalSuite } from "./cases";
+import { readHeadlessModelUsage } from "./model-usage";
+import {
+  executeHeadlessChild,
+  type HeadlessExecResult,
+  type HeadlessExecutor,
+} from "./process";
+
+export type { HeadlessModelUsage } from "./model-usage";
 
 export interface HeadlessEvalCheckResult {
   id: string;
@@ -27,11 +29,15 @@ export interface HeadlessEvalRunResult {
   elapsedMs: number;
   timing: {
     taskSetupMs: number;
-    /** Full `nub ... exec` child invocation, including CLI startup, providers/models, and tools. */
+    /** Sum of full `nub ... exec` invocations, including CLI startup, providers/models, and tools. */
     execDurationMs: number;
+    execInvocations: number;
     gradingMs: number;
   };
+  /** Provider-reported call timings/token counts; null means none were emitted. */
+  modelUsage: import("./model-usage").HeadlessModelUsage | null;
   responseSha256?: string;
+  responseSha256s: Array<string | null>;
   checks: HeadlessEvalCheckResult[];
   humanReviewRequired: boolean;
   diagnosticFlags: string[];
@@ -39,7 +45,7 @@ export interface HeadlessEvalRunResult {
 }
 
 export interface HeadlessEvalReport {
-  schemaVersion: 2;
+  schemaVersion: 3;
   evaluatorVersion: string;
   suite: { id: string; version: number; title: string };
   routeLabel: string;
@@ -68,23 +74,22 @@ export interface RunHeadlessEvalOptions {
   routeLabel?: string;
   enableConfiguredCloudResearch?: boolean;
   showResponses?: boolean;
-  onResponse?: (taskId: string, response: string) => void;
+  onResponse?: (
+    taskId: string,
+    response: string,
+    turnNumber: number,
+    turnTotal: number,
+  ) => void;
   taskIds?: string[];
   now?: () => Date;
   monotonicNow?: () => number;
-  execute?: typeof spawnSync;
+  execute?: HeadlessExecutor;
 }
 
 const defaultRepoRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../../../../",
 );
-const evalPackageVersion = (
-  JSON.parse(
-    readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
-  ) as { version: string }
-).version;
-
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -94,19 +99,43 @@ function durationMs(startedAt: number, endedAt: number): number {
 }
 
 function resultFromStdout(stdout: string): { ok?: boolean; text?: string } {
+  let finalStreamText: string | undefined;
+  let streamCompleted: boolean | undefined;
+  let streamShouldExit: boolean | undefined;
+  let directJsonResult: { ok?: boolean; text?: string } | undefined;
   for (const line of stdout.split(/\r?\n/).reverse()) {
     try {
       const parsed: unknown = JSON.parse(line);
-      if (typeof parsed === "object" && parsed !== null && "text" in parsed) {
+      if (typeof parsed !== "object" || parsed === null) continue;
+      if ("type" in parsed && parsed.type === "completed") {
+        const event = parsed as { status?: unknown };
+        streamCompleted = event.status === "completed";
+      } else if ("type" in parsed && parsed.type === "result") {
+        const event = parsed as {
+          text?: unknown;
+          shouldExit?: unknown;
+        };
+        if (typeof event.text === "string") {
+          finalStreamText = event.text;
+          streamShouldExit = event.shouldExit === false;
+        }
+      } else if ("text" in parsed && "ok" in parsed) {
         const result = parsed as { ok?: unknown; text?: unknown };
-        return {
+        directJsonResult = {
           ok: result.ok === true,
           text: typeof result.text === "string" ? result.text : "",
         };
       }
     } catch {
-      // Nub prints its script banner around the CLI's single-line JSON result.
+      // Nub prints its script banner around JSON CLI output.
     }
+  }
+  if (directJsonResult) return directJsonResult;
+  if (finalStreamText !== undefined) {
+    return {
+      ok: streamCompleted === true && streamShouldExit === true,
+      text: finalStreamText,
+    };
   }
   return {};
 }
@@ -128,13 +157,17 @@ function reportDirectory(explicit?: string): string {
   return join(stateHome, "doolittle", "evals", "headless");
 }
 
-export function runHeadlessEvalSuite(
+export async function runHeadlessEvalSuite(
   suite: HeadlessEvalSuite,
   options: RunHeadlessEvalOptions = {},
-): { report: HeadlessEvalReport; reportPath: string; exitCode: number } {
+): Promise<{
+  report: HeadlessEvalReport;
+  reportPath: string;
+  exitCode: number;
+}> {
   const now = options.now ?? (() => new Date());
   const monotonicNow = options.monotonicNow ?? (() => performance.now());
-  const execute = options.execute ?? spawnSync;
+  const execute = options.execute ?? executeHeadlessChild;
   const repoRoot = options.repoRoot ?? defaultRepoRoot;
   const selectedTasks = options.taskIds?.length
     ? suite.tasks.filter((task) => options.taskIds?.includes(task.id))
@@ -148,6 +181,15 @@ export function runHeadlessEvalSuite(
   }
   if (selectedTasks.length === 0) {
     throw new Error("No headless evaluation tasks were selected.");
+  }
+  if (
+    selectedTasks.some((task) =>
+      [task.prompt, ...(task.followUpPrompts ?? [])].some(
+        (prompt) => !prompt.trim(),
+      ),
+    )
+  ) {
+    throw new Error("Headless evaluation prompts must not be empty.");
   }
 
   const suiteStartedAt = monotonicNow();
@@ -167,73 +209,107 @@ export function runHeadlessEvalSuite(
       const taskSetupMs = durationMs(taskSetupStartedAt, monotonicNow());
 
       const startedAt = Date.now();
-      const execStartedAt = monotonicNow();
-      const child = execute(
-        "nub",
-        [
-          "packages/agent/src/index.ts",
-          "exec",
-          "--prompt",
-          task.prompt,
-          "--json",
-        ],
-        {
-          cwd: repoRoot,
-          encoding: "utf8",
-          timeout: 300_000,
-          maxBuffer: 10 * 1024 * 1024,
-          env: {
-            ...process.env,
-            DOOLITTLE_MODE: "cli",
-            DOOLITTLE_DATA_DIR: dataDir,
-            DOOLITTLE_WORKSPACE_DIR: workspaceDir,
-            DOOLITTLE_USE_LINKED_CODEX_AUTH:
-              process.env.DOOLITTLE_USE_LINKED_CODEX_AUTH ?? "true",
-            ELIZAOS_CLOUD_ENABLED:
-              options.enableConfiguredCloudResearch &&
-              task.domain === "research"
-                ? "true"
-                : "false",
+      const prompts = [task.prompt, ...(task.followUpPrompts ?? [])];
+      const sessionId =
+        prompts.length > 1 ? `doolittle-eval:${randomUUID()}` : undefined;
+      const responses: string[] = [];
+      const responseSha256s: Array<string | null> = [];
+      const diagnosticFlags = new Set<string>();
+      let execDurationMs = 0;
+      let execInvocations = 0;
+      let finalError: Error | undefined;
+      let finalSignal: NodeJS.Signals | null = null;
+      let completed = true;
+
+      for (const [index, prompt] of prompts.entries()) {
+        const execStartedAt = monotonicNow();
+        const child: HeadlessExecResult = await execute(
+          "nub",
+          [
+            "packages/agent/src/index.ts",
+            "exec",
+            "--prompt",
+            prompt,
+            "--json-stream",
+            ...(sessionId ? ["--session-id", sessionId] : []),
+          ],
+          {
+            cwd: repoRoot,
+            timeoutMs: 300_000,
+            maxBufferBytes: 10 * 1024 * 1024,
+            env: {
+              ...process.env,
+              DOOLITTLE_MODE: "cli",
+              DOOLITTLE_DATA_DIR: dataDir,
+              DOOLITTLE_WORKSPACE_DIR: workspaceDir,
+              DOOLITTLE_USE_LINKED_CODEX_AUTH:
+                process.env.DOOLITTLE_USE_LINKED_CODEX_AUTH ?? "true",
+              DOOLITTLE_EVAL_CAPTURE_MODEL_USAGE: "true",
+              ELIZAOS_CLOUD_ENABLED:
+                options.enableConfiguredCloudResearch &&
+                task.domain === "research"
+                  ? "true"
+                  : "false",
+            },
           },
-        },
-      );
-      const execDurationMs = durationMs(execStartedAt, monotonicNow());
+        );
+        execDurationMs += durationMs(execStartedAt, monotonicNow());
+        execInvocations += 1;
+        finalError = child.error ?? undefined;
+        finalSignal = child.signal;
+
+        const cliResult = resultFromStdout(child.stdout ?? "");
+        const response = cliResult.text ?? "";
+        responses.push(response);
+        responseSha256s.push(response ? sha256(response) : null);
+        if (options.showResponses) {
+          options.onResponse?.(task.id, response, index + 1, prompts.length);
+        }
+
+        const stderr = child.stderr ?? "";
+        if (/Semantic memory is unavailable/i.test(stderr)) {
+          diagnosticFlags.add("semantic-memory-provider-unavailable");
+        }
+        if (/invalid_refresh_token/i.test(stderr)) {
+          diagnosticFlags.add("linked-codex-token-refresh-failed");
+        }
+
+        completed =
+          child.status === 0 && cliResult.ok === true && response.length > 0;
+        if (!completed) break;
+      }
+
       const gradingStartedAt = monotonicNow();
-      const cliResult = resultFromStdout(child.stdout ?? "");
-      const response = cliResult.text ?? "";
-      const checkContext = { response, workspaceDir };
+      const response = responses.at(-1) ?? "";
+      const checkContext = { response, responses, workspaceDir };
       const checks = task.checks.map((check) => ({
         id: check.id,
         passed: Boolean(check.evaluate(checkContext)),
       }));
+      const modelUsageResult = readHeadlessModelUsage(dataDir);
       const gradingMs = durationMs(gradingStartedAt, monotonicNow());
-      const diagnosticFlags: string[] = [];
-      const stderr = child.stderr ?? "";
-      if (/Semantic memory is unavailable/i.test(stderr)) {
-        diagnosticFlags.push("semantic-memory-provider-unavailable");
+      if (modelUsageResult.malformed) {
+        diagnosticFlags.add("model-usage-telemetry-invalid");
       }
-      if (/invalid_refresh_token/i.test(stderr)) {
-        diagnosticFlags.push("linked-codex-token-refresh-failed");
-      }
-      const completed =
-        child.status === 0 && cliResult.ok === true && response.length > 0;
       runs.push({
         taskId: task.id,
         domain: task.domain,
         status: completed ? "completed" : "failed",
+        // Includes response decoding/check execution for every follow-up turn.
         elapsedMs: Date.now() - startedAt,
-        timing: { taskSetupMs, execDurationMs, gradingMs },
+        timing: { taskSetupMs, execDurationMs, execInvocations, gradingMs },
+        modelUsage: modelUsageResult.usage,
         ...(response ? { responseSha256: sha256(response) } : {}),
+        responseSha256s,
         checks,
         humanReviewRequired: task.humanReviewRequired,
-        diagnosticFlags,
+        diagnosticFlags: [...diagnosticFlags],
         ...(!completed
           ? {
-              errorCode: executionErrorCode(child.error, child.signal),
+              errorCode: executionErrorCode(finalError, finalSignal),
             }
           : {}),
       });
-      if (options.showResponses) options.onResponse?.(task.id, response);
     }
 
     const objectiveChecks = runs.flatMap((run) => run.checks);
@@ -243,8 +319,8 @@ export function runHeadlessEvalSuite(
     const suiteWallTimeMs = durationMs(suiteStartedAt, monotonicNow());
     const createdAt = now().toISOString();
     const report: HeadlessEvalReport = {
-      schemaVersion: 2,
-      evaluatorVersion: evalPackageVersion,
+      schemaVersion: 3,
+      evaluatorVersion: EVALS_EVALUATOR_VERSION,
       suite: { id: suite.id, version: suite.version, title: suite.title },
       routeLabel:
         options.routeLabel?.trim() ||
