@@ -134,8 +134,11 @@ nub run eval:headless:aggregate -- \
 ```
 
 The aggregate reports descriptive completion/check pass rates and per-task
-median, nearest-rank p90, range, and mean for execution duration, harness
-invocations, Codex telemetry, and sanitized model request/response/error and
-continuation counts. A missing telemetry field remains unavailable. These
-statistics do not establish human-facing quality or causal model improvement;
-raw report paths and contents are not included in the aggregate output.
+median, nearest-rank p90, range, and mean for execution duration, exec-start to
+first non-empty assistant-text progress, harness invocations, Codex telemetry,
+and sanitized model request/response/error and continuation counts. The new
+first-text timing includes CLI startup and output transport; it is neither
+model-only TTFT nor rendered UI latency. A missing telemetry field remains
+unavailable. These statistics do not establish human-facing quality or causal
+model improvement; raw report paths and contents are not included in the
+aggregate output.

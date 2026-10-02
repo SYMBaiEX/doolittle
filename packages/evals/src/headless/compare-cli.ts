@@ -78,9 +78,12 @@ function main(): number {
     console.log(
       `Mean paired duration delta (candidate − baseline), metric ${comparison.durationMetric}: ${signedMs(comparison.meanDurationDeltaMs)}; negative is faster.`,
     );
+    console.log(
+      `Exec-to-first-assistant-text mean paired delta (${comparison.pairedFirstAssistantTextTaskCount}/${comparison.sampleSize} tasks): ${comparison.meanExecToFirstAssistantTextDeltaMs === null ? "unavailable" : signedMs(comparison.meanExecToFirstAssistantTextDeltaMs)}; includes CLI startup and streamed output, not model-only or rendered UI latency.`,
+    );
     for (const task of comparison.tasks) {
       console.log(
-        `  ${task.taskId} [${task.domain}] · execution ${task.baseline.executionCompleted ? "completed" : "failed"} → ${task.candidate.executionCompleted ? "completed" : "failed"} (${task.executionCompletionDelta > 0 ? "+1" : task.executionCompletionDelta < 0 ? "-1" : "0"}); checks ${task.baseline.checksPassed}/${task.baseline.checksTotal} → ${task.candidate.checksPassed}/${task.candidate.checksTotal} (${percent(task.objectiveCheckSuccessDelta)}); ${comparison.durationMetric}: ${task.baseline.durationMs} → ${task.candidate.durationMs} ms (${signedMs(task.durationDeltaMs)}).`,
+        `  ${task.taskId} [${task.domain}] · execution ${task.baseline.executionCompleted ? "completed" : "failed"} → ${task.candidate.executionCompleted ? "completed" : "failed"} (${task.executionCompletionDelta > 0 ? "+1" : task.executionCompletionDelta < 0 ? "-1" : "0"}); checks ${task.baseline.checksPassed}/${task.baseline.checksTotal} → ${task.candidate.checksPassed}/${task.candidate.checksTotal} (${percent(task.objectiveCheckSuccessDelta)}); ${comparison.durationMetric}: ${task.baseline.durationMs} → ${task.candidate.durationMs} ms (${signedMs(task.durationDeltaMs)}); exec-to-first-text ${task.baseline.execToFirstAssistantTextMs ?? "unavailable"} → ${task.candidate.execToFirstAssistantTextMs ?? "unavailable"} ms (${task.execToFirstAssistantTextDeltaMs === null ? "unavailable" : signedMs(task.execToFirstAssistantTextDeltaMs)}).`,
       );
     }
     if (comparison.providerUsage) {

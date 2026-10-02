@@ -23,8 +23,11 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   but do not interpret its content check as a research-quality score. Raw
   provider error text remains out of the report.
 - Schema-v4 reports measure Codex provider-call duration, per-call first-text
-  latency, and provider-reported input/output/total token counts. They do not
-  measure every provider path, end-user TTFT, per-action spans, or billable USD;
+  latency, and provider-reported input/output/total token counts. Evaluator
+  0.2.4 additionally records exec-start to first non-empty assistant-text
+  progress from the first CLI invocation. It includes CLI startup and output
+  transport, not model-only TTFT or rendered UI latency. Reports do not measure
+  every provider path, per-action spans, or billable USD;
   Codex USD cost is explicitly unavailable, not inferred. They also preserve
   privacy-safe request/response/error/continuation counts and prompt-length
   statistics, never raw trace text.
@@ -120,8 +123,10 @@ The comparator pairs matching task/check identities and uses
 `timing.execDurationMs` for schema v2/v3/v4. It labels and compares `elapsedMs`
 only for schema-v1-to-v1 comparisons. Schema v3 additionally compares matched
 Codex provider usage when both reports have it. Provider-call duration sums are
-not wall time; first-text measures are not user TTFT. Schema v4 adds sanitized
-model request and continuation shape plus source revision/cleanliness. Use
+not wall time; provider first-text measures are not user TTFT. Evaluator 0.2.4
+adds the paired exec-to-first-assistant-text measure; it includes CLI startup and
+stream transport, not model-only or rendered UI latency. Schema v4 adds
+sanitized model request and continuation shape plus source revision/cleanliness. Use
 `nub run eval:headless:aggregate -- --report REPORT.json --report REPORT.json`
 for repeated, compatible schema-v4 samples from the same clean commit. Per-action
 timing, provider coverage beyond Codex, billable USD cost, and statistical

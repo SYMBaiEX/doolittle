@@ -51,6 +51,7 @@ type Run = {
     taskSetupMs: number;
     execDurationMs: number;
     execInvocations?: number;
+    execToFirstAssistantTextMs?: number | null;
     gradingMs: number;
   };
   modelUsage?: ModelUsage | null;
@@ -80,16 +81,19 @@ export interface HeadlessTaskDelta {
     checksPassed: number;
     checksTotal: number;
     durationMs: number;
+    execToFirstAssistantTextMs: number | null;
   };
   candidate: {
     executionCompleted: boolean;
     checksPassed: number;
     checksTotal: number;
     durationMs: number;
+    execToFirstAssistantTextMs: number | null;
   };
   executionCompletionDelta: number;
   objectiveCheckSuccessDelta: number;
   durationDeltaMs: number;
+  execToFirstAssistantTextDeltaMs: number | null;
   modelUsage: {
     baseline: ModelUsage | null;
     candidate: ModelUsage | null;
@@ -125,6 +129,8 @@ export interface HeadlessReportComparison {
   executionCompletionDelta: number;
   objectiveCheckSuccessDelta: number;
   meanDurationDeltaMs: number;
+  pairedFirstAssistantTextTaskCount: number;
+  meanExecToFirstAssistantTextDeltaMs: number | null;
   source?: { baseline: SourceIdentity; candidate: SourceIdentity };
   providerUsage?: HeadlessProviderUsageComparison;
   tasks: HeadlessTaskDelta[];
@@ -152,6 +158,7 @@ export interface HeadlessTaskAggregate {
     passRate: number;
   }>;
   execDurationMs: HeadlessMetricDistribution;
+  execToFirstAssistantTextMs: HeadlessMetricDistribution | null;
   execInvocations: HeadlessMetricDistribution;
   providerMetrics: {
     sampleCount: number;
@@ -460,11 +467,23 @@ function parseReport(value: unknown): Report {
       ) {
         return invalid();
       }
+      if (
+        Object.hasOwn(rawTiming, "execToFirstAssistantTextMs") &&
+        !nullableNonNegativeInteger(rawTiming.execToFirstAssistantTextMs)
+      ) {
+        return invalid();
+      }
       timing = {
         taskSetupMs: rawTiming.taskSetupMs,
         execDurationMs: rawTiming.execDurationMs,
         ...(schema >= 3
           ? { execInvocations: Number(rawTiming.execInvocations) }
+          : {}),
+        ...(Object.hasOwn(rawTiming, "execToFirstAssistantTextMs")
+          ? {
+              execToFirstAssistantTextMs:
+                rawTiming.execToFirstAssistantTextMs as number | null,
+            }
           : {}),
         gradingMs: rawTiming.gradingMs,
       };
@@ -686,6 +705,13 @@ export function aggregateHeadlessEvalReports(
       execDurationMs: distribution(
         timedRuns.map((timing) => timing.execDurationMs),
       ),
+      execToFirstAssistantTextMs: optionalDistribution(
+        timedRuns.flatMap((timing) =>
+          typeof timing.execToFirstAssistantTextMs === "number"
+            ? [timing.execToFirstAssistantTextMs]
+            : [],
+        ),
+      ),
       execInvocations: distribution(
         timedRuns.map((timing) => timing.execInvocations ?? 0),
       ),
@@ -837,12 +863,16 @@ export function compareHeadlessEvalReports(
         checksPassed: checksPassed(base),
         checksTotal: base.checks.length,
         durationMs: base.comparisonDurationMs,
+        execToFirstAssistantTextMs:
+          base.timing?.execToFirstAssistantTextMs ?? null,
       },
       candidate: {
         executionCompleted: nextCompleted,
         checksPassed: checksPassed(next),
         checksTotal: next.checks.length,
         durationMs: next.comparisonDurationMs,
+        execToFirstAssistantTextMs:
+          next.timing?.execToFirstAssistantTextMs ?? null,
       },
       executionCompletionDelta: Number(nextCompleted) - Number(baseCompleted),
       objectiveCheckSuccessDelta: ratioDelta(
@@ -852,6 +882,12 @@ export function compareHeadlessEvalReports(
         base.checks.length,
       ),
       durationDeltaMs: next.comparisonDurationMs - base.comparisonDurationMs,
+      execToFirstAssistantTextDeltaMs:
+        typeof base.timing?.execToFirstAssistantTextMs === "number" &&
+        typeof next.timing?.execToFirstAssistantTextMs === "number"
+          ? next.timing.execToFirstAssistantTextMs -
+            base.timing.execToFirstAssistantTextMs
+          : null,
       modelUsage:
         baseline.schemaVersion >= 3
           ? {
@@ -955,6 +991,11 @@ export function compareHeadlessEvalReports(
     (sum, task) => sum + task.baseline.checksTotal,
     0,
   );
+  const pairedFirstAssistantTextDeltas = tasks.flatMap((task) =>
+    task.execToFirstAssistantTextDeltaMs === null
+      ? []
+      : [task.execToFirstAssistantTextDeltaMs],
+  );
   return {
     suiteId: baseline.suite.id,
     suiteVersion: baseline.suite.version,
@@ -982,6 +1023,14 @@ export function compareHeadlessEvalReports(
       baselineCheckSuccesses / checkTotal,
     meanDurationDeltaMs:
       tasks.reduce((sum, task) => sum + task.durationDeltaMs, 0) / tasks.length,
+    pairedFirstAssistantTextTaskCount: pairedFirstAssistantTextDeltas.length,
+    meanExecToFirstAssistantTextDeltaMs:
+      pairedFirstAssistantTextDeltas.length > 0
+        ? pairedFirstAssistantTextDeltas.reduce(
+            (sum, value) => sum + value,
+            0,
+          ) / pairedFirstAssistantTextDeltas.length
+        : null,
     ...(baseline.schemaVersion === 4 && baseline.source && candidate.source
       ? { source: { baseline: baseline.source, candidate: candidate.source } }
       : {}),

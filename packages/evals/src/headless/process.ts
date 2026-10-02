@@ -6,6 +6,8 @@ export interface HeadlessExecOptions {
   timeoutMs?: number;
   killGraceMs?: number;
   maxBufferBytes?: number;
+  /** Best-effort observer for accepted stdout chunks; never affects child success. */
+  onStdoutChunk?: (chunk: Buffer) => void;
 }
 
 export interface HeadlessExecResult {
@@ -138,9 +140,17 @@ export function executeHeadlessChild(
       target.push(chunk);
     };
 
-    child.stdout?.on("data", (chunk: Buffer | string) =>
-      collect(stdout, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)),
-    );
+    child.stdout?.on("data", (chunk: Buffer | string) => {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      const previousCapturedBytes = capturedBytes;
+      collect(stdout, buffer);
+      if (failure || capturedBytes === previousCapturedBytes) return;
+      try {
+        options.onStdoutChunk?.(buffer);
+      } catch {
+        // Telemetry must not affect task execution.
+      }
+    });
     child.stderr?.on("data", (chunk: Buffer | string) =>
       collect(stderr, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)),
     );

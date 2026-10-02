@@ -87,7 +87,7 @@ function main(): number {
         `  ${task.taskId} [${task.domain}] · completed ${task.executionCompletions}/${task.sampleCount} (${percent(task.executionCompletionRate)}); checks ${checkSummary}.`,
       );
       console.log(
-        `    Exec child duration: ${distribution(task.execDurationMs, seconds)}; exec invocations: ${distribution(task.execInvocations, (number) => number.toFixed(1))}.`,
+        `    Exec child duration: ${distribution(task.execDurationMs, seconds)}; exec to first assistant text: ${distribution(task.execToFirstAssistantTextMs, seconds)}; exec invocations: ${distribution(task.execInvocations, (number) => number.toFixed(1))}.`,
       );
       console.log(
         `    Codex telemetry (${task.providerMetrics.sampleCount}/${task.sampleCount} task samples): calls ${distribution(task.providerMetrics.providerCalls, (number) => number.toFixed(1))}; summed provider-call time ${distribution(task.providerMetrics.providerDurationMs, seconds)}; total tokens ${distribution(task.providerMetrics.totalTokens, (number) => Math.round(number).toLocaleString())}.`,

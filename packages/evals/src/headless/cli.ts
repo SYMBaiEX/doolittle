@@ -105,8 +105,12 @@ async function main(): Promise<number> {
       const diagnostic = run.diagnosticFlags.length
         ? ` · diagnostics ${run.diagnosticFlags.join(",")}`
         : "";
+      const execToFirstAssistantText =
+        run.timing.execToFirstAssistantTextMs === null
+          ? "unavailable"
+          : `${run.timing.execToFirstAssistantTextMs}ms`;
       console.log(
-        `${run.taskId}: ${run.status} · ${objectiveSummary} · setup ${run.timing.taskSetupMs}ms · doolittle exec sum ${run.timing.execDurationMs}ms across ${run.timing.execInvocations} invocation(s) · grading ${run.timing.gradingMs}ms${diagnostic}`,
+        `${run.taskId}: ${run.status} · ${objectiveSummary} · setup ${run.timing.taskSetupMs}ms · doolittle exec sum ${run.timing.execDurationMs}ms across ${run.timing.execInvocations} invocation(s) · exec to first assistant text ${execToFirstAssistantText} · grading ${run.timing.gradingMs}ms${diagnostic}`,
       );
       if (run.modelUsage) {
         const usage = run.modelUsage;

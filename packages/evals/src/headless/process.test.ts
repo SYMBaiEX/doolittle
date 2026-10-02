@@ -22,6 +22,27 @@ afterEach(() => {
 });
 
 describe("bounded headless child execution", () => {
+  it("observes accepted stdout chunks without affecting child success", async () => {
+    const directory = tempDirectory();
+    const chunks: Buffer[] = [];
+    const result = await executeHeadlessChild(
+      execPath,
+      ["-e", 'process.stdout.write("first\\nsecond\\n")'],
+      {
+        cwd: directory,
+        env: process.env,
+        onStdoutChunk: (chunk) => {
+          chunks.push(Buffer.from(chunk));
+          throw new Error("telemetry observer failure");
+        },
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("first\nsecond\n");
+    expect(Buffer.concat(chunks).toString("utf8")).toBe(result.stdout);
+  });
+
   it.skipIf(platform === "win32")(
     "returns at the timeout and kills descendants holding inherited pipes",
     async () => {

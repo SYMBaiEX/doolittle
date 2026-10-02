@@ -74,11 +74,15 @@ describe("headless workflow evals", () => {
     const reportDir = tempDirectory();
     let childArguments: readonly string[] | string | undefined;
     let childEnvironment: NodeJS.ProcessEnv | undefined;
+    let monotonicClock = 0;
     const execute = vi.fn(
       (
         _command: string,
         args: readonly string[] | string,
-        options?: { env?: NodeJS.ProcessEnv },
+        options?: {
+          env?: NodeJS.ProcessEnv;
+          onStdoutChunk?: (chunk: Buffer) => void;
+        },
       ) => {
         childArguments = args;
         childEnvironment = options?.env;
@@ -127,6 +131,16 @@ describe("headless workflow evals", () => {
               .join("\n"),
           );
         }
+        monotonicClock = 17;
+        options?.onStdoutChunk?.(
+          Buffer.from(
+            `${JSON.stringify({
+              type: "progress",
+              phase: "model",
+              delta: response,
+            })}\n`,
+          ),
+        );
         return {
           status: 0,
           stdout: [
@@ -184,6 +198,7 @@ describe("headless workflow evals", () => {
       repoRoot: process.cwd(),
       execute,
       now: () => new Date("2026-10-01T12:00:00.000Z"),
+      monotonicNow: () => monotonicClock,
     });
 
     const stored = readFileSync(result.reportPath, "utf8");
@@ -235,6 +250,7 @@ describe("headless workflow evals", () => {
     expect(result.report.runs[0]?.timing).toEqual({
       taskSetupMs: expect.any(Number),
       execDurationMs: expect.any(Number),
+      execToFirstAssistantTextMs: 17,
       execInvocations: 1,
       gradingMs: expect.any(Number),
     });
@@ -322,6 +338,7 @@ describe("headless workflow evals", () => {
     expect(result.report.runs[0]?.timing).toEqual({
       taskSetupMs: 0,
       execDurationMs: 125,
+      execToFirstAssistantTextMs: null,
       execInvocations: 1,
       gradingMs: 40,
     });

@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
+import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
 import { getLinkedElizaCloudCredentials } from "@doolittle/agent/runtime/native/account-auth";
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
@@ -37,6 +38,8 @@ export interface HeadlessEvalRunResult {
     taskSetupMs: number;
     /** Sum of full `nub ... exec` invocations, including CLI startup, providers/models, and tools. */
     execDurationMs: number;
+    /** First model-progress text in the first invocation, measured from exec start; null if no stream text arrived. */
+    execToFirstAssistantTextMs: number | null;
     execInvocations: number;
     gradingMs: number;
   };
@@ -104,6 +107,23 @@ function sha256(value: string): string {
 
 function durationMs(startedAt: number, endedAt: number): number {
   return Math.max(0, Math.round(endedAt - startedAt));
+}
+
+function isAssistantTextProgress(line: string): boolean {
+  try {
+    const event: unknown = JSON.parse(line);
+    if (typeof event !== "object" || event === null) {
+      return false;
+    }
+    const record = event as Record<string, unknown>;
+    if (record.type !== "progress" || record.phase !== "model") return false;
+    return ["delta", "response", "chunk"].some((key) => {
+      const value = record[key];
+      return typeof value === "string" && value.trim().length > 0;
+    });
+  } catch {
+    return false;
+  }
 }
 
 function configuredElizaCloudCredentials():
@@ -285,6 +305,7 @@ export async function runHeadlessEvalSuite(
         diagnosticFlags.add("research-provider-credentials-unavailable");
       }
       let execDurationMs = 0;
+      let execToFirstAssistantTextMs: number | null = null;
       let execInvocations = 0;
       let finalError: Error | undefined;
       let finalSignal: NodeJS.Signals | null = null;
@@ -292,6 +313,27 @@ export async function runHeadlessEvalSuite(
 
       for (const [index, prompt] of prompts.entries()) {
         const execStartedAt = monotonicNow();
+        const stdoutDecoder = new StringDecoder("utf8");
+        let stdoutLineBuffer = "";
+        const observeStdout = (chunk: Buffer) => {
+          if (index !== 0 || execToFirstAssistantTextMs !== null) return;
+          stdoutLineBuffer += stdoutDecoder.write(chunk);
+          let newlineIndex = stdoutLineBuffer.indexOf("\n");
+          while (newlineIndex >= 0) {
+            const line = stdoutLineBuffer.slice(0, newlineIndex).trim();
+            stdoutLineBuffer = stdoutLineBuffer.slice(newlineIndex + 1);
+            if (isAssistantTextProgress(line)) {
+              execToFirstAssistantTextMs = durationMs(
+                execStartedAt,
+                monotonicNow(),
+              );
+              return;
+            }
+            newlineIndex = stdoutLineBuffer.indexOf("\n");
+          }
+          // Avoid retaining an unexpectedly long non-JSON line in memory.
+          if (stdoutLineBuffer.length > 1_048_576) stdoutLineBuffer = "";
+        };
         const childEnvironment: NodeJS.ProcessEnv = {
           ...process.env,
           DOOLITTLE_MODE: "cli",
@@ -330,6 +372,7 @@ export async function runHeadlessEvalSuite(
             timeoutMs: 300_000,
             maxBufferBytes: 10 * 1024 * 1024,
             env: childEnvironment,
+            onStdoutChunk: observeStdout,
           },
         );
         execDurationMs += durationMs(execStartedAt, monotonicNow());
@@ -399,7 +442,13 @@ export async function runHeadlessEvalSuite(
         status: completed ? "completed" : "failed",
         // Includes response decoding/check execution for every follow-up turn.
         elapsedMs: Date.now() - startedAt,
-        timing: { taskSetupMs, execDurationMs, execInvocations, gradingMs },
+        timing: {
+          taskSetupMs,
+          execDurationMs,
+          execToFirstAssistantTextMs,
+          execInvocations,
+          gradingMs,
+        },
         modelUsage: modelUsageResult.usage,
         traceSummary,
         ...(response ? { responseSha256: sha256(response) } : {}),
