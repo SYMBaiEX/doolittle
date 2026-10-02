@@ -103,3 +103,21 @@ Temporary workspaces are removed after the run. Use the
 [agent quality evaluation checklist](../../docs/engineering/agent-quality-eval-checklist.md)
 to plan comparable runs, score human-facing quality, and interpret timing
 without confusing process completion, objective checks, and model latency.
+
+Aggregate repeat samples only when they use the same schema-v3 route, evaluator,
+suite, task set, and objective checks. Reports with the same run timestamp are
+rejected so a copied report cannot count as another sample:
+
+```sh
+nub run eval:headless:aggregate -- \
+  --report /path/to/repeat-1.json \
+  --report /path/to/repeat-2.json \
+  --json
+```
+
+The aggregate reports descriptive completion/check pass rates and per-task
+median, nearest-rank p90, range, and mean for execution duration, harness
+invocations, and available Codex telemetry. A missing telemetry field remains
+unavailable. These statistics do not establish human-facing quality or causal
+model improvement; raw report paths and contents are not included in the
+aggregate output.

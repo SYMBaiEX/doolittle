@@ -2,7 +2,11 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { compareHeadlessEvalReports, readHeadlessEvalReport } from "./compare";
+import {
+  aggregateHeadlessEvalReports,
+  compareHeadlessEvalReports,
+  readHeadlessEvalReport,
+} from "./compare";
 
 function report(overrides: Record<string, unknown> = {}) {
   return {
@@ -496,5 +500,204 @@ describe("headless report comparison", () => {
     expect(() =>
       compareHeadlessEvalReports(duplicateCheck, duplicateCheck),
     ).toThrow();
+  });
+});
+
+describe("headless repeated report aggregation", () => {
+  function repeatedReport(
+    suiteWallTimeMs: number,
+    execDurationMs: number[],
+    execInvocations: number[],
+    options: {
+      statuses?: string[];
+      checks?: boolean[][];
+      modelUsage?: Array<Record<string, unknown> | null>;
+      diagnosticFlags?: string[][];
+    } = {},
+  ) {
+    const base = v3Report();
+    const baseRuns = base.runs as Array<Record<string, unknown>>;
+    return {
+      ...base,
+      createdAt: new Date(1_760_000_000_000 + suiteWallTimeMs).toISOString(),
+      summary: { ...base.summary, suiteWallTimeMs },
+      runs: baseRuns.map((run, index) => ({
+        ...run,
+        status: options.statuses?.[index] ?? run.status,
+        checks: (run.checks as Array<Record<string, unknown>>).map(
+          (check, checkIndex) => ({
+            ...check,
+            passed: options.checks?.[index]?.[checkIndex] ?? check.passed,
+          }),
+        ),
+        timing: {
+          ...(run.timing as Record<string, unknown>),
+          execDurationMs: execDurationMs[index],
+          execInvocations: execInvocations[index],
+        },
+        modelUsage:
+          options.modelUsage && index in options.modelUsage
+            ? options.modelUsage[index]
+            : run.modelUsage,
+        diagnosticFlags: options.diagnosticFlags?.[index] ?? [],
+      })),
+    };
+  }
+
+  it("aggregates repeat outcomes and nearest-rank p90 only across compatible runs", () => {
+    const first = repeatedReport(500, [100, 200], [1, 1], {
+      checks: [[true, false], [true]],
+      diagnosticFlags: [["memory-unavailable", "memory-unavailable"], []],
+    });
+    const second = repeatedReport(700, [300, 400], [3, 3], {
+      statuses: ["failed", "completed"],
+      checks: [[false, false], [true]],
+      modelUsage: [null, null],
+      diagnosticFlags: [["memory-unavailable"], []],
+    });
+    const third = repeatedReport(600, [200, 300], [2, 2], {
+      checks: [[true, false], [true]],
+      diagnosticFlags: [[], []],
+    });
+
+    const result = aggregateHeadlessEvalReports([first, second, third]);
+    expect(result).toMatchObject({
+      suiteId: "suite",
+      suiteVersion: 4,
+      schemaVersion: 3,
+      evaluatorVersion: "0.2.0",
+      routeLabel: "route",
+      reportSamples: 3,
+      taskSamples: 6,
+      executionCompletions: 5,
+      executionCompletionRate: 5 / 6,
+      objectiveChecksPassed: 5,
+      objectiveChecksTotal: 9,
+      objectiveCheckPassRate: 5 / 9,
+      suiteWallTimeMs: {
+        count: 3,
+        min: 500,
+        median: 600,
+        p90: 700,
+        max: 700,
+        mean: 600,
+      },
+    });
+    expect(result.tasks[0]).toMatchObject({
+      taskId: "task-a",
+      sampleCount: 3,
+      executionCompletions: 2,
+      executionCompletionRate: 2 / 3,
+      checks: [
+        { id: "check-a", passed: 2, samples: 3, passRate: 2 / 3 },
+        { id: "check-b", passed: 0, samples: 3, passRate: 0 },
+      ],
+      execDurationMs: {
+        count: 3,
+        min: 100,
+        median: 200,
+        p90: 300,
+        max: 300,
+        mean: 200,
+      },
+      execInvocations: {
+        count: 3,
+        min: 1,
+        median: 2,
+        p90: 3,
+        max: 3,
+        mean: 2,
+      },
+      providerMetrics: { sampleCount: 2 },
+      diagnosticFlags: [{ flag: "memory-unavailable", samples: 2 }],
+    });
+    expect(result.tasks[1]?.execDurationMs.mean).toBe(300);
+    expect(result.tasks[0]?.providerMetrics.providerCalls?.count).toBe(2);
+    expect(result.tasks[0]?.providerMetrics.totalTokens?.count).toBe(2);
+  });
+
+  it("keeps unavailable provider telemetry null", () => {
+    const withoutUsage = (suiteWallTimeMs: number) =>
+      repeatedReport(suiteWallTimeMs, [100, 200], [1, 1], {
+        modelUsage: [null, null],
+      });
+    const result = aggregateHeadlessEvalReports([
+      withoutUsage(100),
+      withoutUsage(200),
+    ]);
+    expect(result.tasks[0]?.providerMetrics).toEqual({
+      sampleCount: 0,
+      providerCalls: null,
+      providerDurationMs: null,
+      totalTokens: null,
+    });
+  });
+
+  it("rejects too few or incompatible reports", () => {
+    const baseline = repeatedReport(500, [100, 200], [1, 1]);
+    expect(() => aggregateHeadlessEvalReports([baseline])).toThrow(
+      /At least two reports/,
+    );
+    expect(() =>
+      aggregateHeadlessEvalReports([
+        baseline,
+        repeatedReport(501, [100, 200], [1, 1], {
+          modelUsage: [null, null],
+        }),
+      ]),
+    ).not.toThrow();
+    expect(() => aggregateHeadlessEvalReports([baseline, baseline])).toThrow(
+      /Invalid or incompatible/,
+    );
+    expect(() =>
+      aggregateHeadlessEvalReports([
+        baseline,
+        {
+          ...repeatedReport(501, [100, 200], [1, 1]),
+          routeLabel: "another-route",
+        },
+      ]),
+    ).toThrow(/Invalid or incompatible/);
+    expect(() =>
+      aggregateHeadlessEvalReports([
+        baseline,
+        {
+          ...repeatedReport(502, [100, 200], [1, 1]),
+          evaluatorVersion: "0.3.0",
+        },
+      ]),
+    ).toThrow(/Invalid or incompatible/);
+    expect(() =>
+      aggregateHeadlessEvalReports([
+        baseline,
+        {
+          ...repeatedReport(503, [100, 200], [1, 1]),
+          runs: (
+            repeatedReport(503, [100, 200], [1, 1]).runs as Array<
+              Record<string, unknown>
+            >
+          ).map((run, index) =>
+            index === 0
+              ? {
+                  ...run,
+                  checks: [
+                    { id: "changed-check", passed: true },
+                    { id: "check-b", passed: false },
+                  ],
+                }
+              : run,
+          ),
+        },
+      ]),
+    ).toThrow(/Invalid or incompatible/);
+    expect(() =>
+      aggregateHeadlessEvalReports([
+        baseline,
+        {
+          ...repeatedReport(504, [100, 200], [1, 1]),
+          schemaVersion: 2,
+        },
+      ]),
+    ).toThrow(/Invalid or incompatible/);
   });
 });

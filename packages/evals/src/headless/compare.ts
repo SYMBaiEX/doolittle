@@ -30,14 +30,19 @@ type Run = {
     gradingMs: number;
   };
   modelUsage?: ModelUsage | null;
+  humanReviewRequired?: boolean;
+  diagnosticFlags?: string[];
   checks: Check[];
 };
 type Report = {
   schemaVersion: 1 | 2 | 3;
   evaluatorVersion: string;
   explicitEvaluatorVersion?: string | number;
+  createdAt?: string;
   suite: { id: string; version: number };
   summary?: { suiteWallTimeMs: number };
+  routeLabel?: string;
+  route?: { provider: string; model: string; reasoningEffort: string };
   runs: Run[];
 };
 
@@ -96,6 +101,56 @@ export interface HeadlessReportComparison {
   meanDurationDeltaMs: number;
   providerUsage?: HeadlessProviderUsageComparison;
   tasks: HeadlessTaskDelta[];
+}
+
+export interface HeadlessMetricDistribution {
+  count: number;
+  min: number;
+  median: number;
+  p90: number;
+  max: number;
+  mean: number;
+}
+
+export interface HeadlessTaskAggregate {
+  taskId: string;
+  domain: string;
+  sampleCount: number;
+  executionCompletions: number;
+  executionCompletionRate: number;
+  checks: Array<{
+    id: string;
+    passed: number;
+    samples: number;
+    passRate: number;
+  }>;
+  execDurationMs: HeadlessMetricDistribution;
+  execInvocations: HeadlessMetricDistribution;
+  providerMetrics: {
+    sampleCount: number;
+    providerCalls: HeadlessMetricDistribution | null;
+    providerDurationMs: HeadlessMetricDistribution | null;
+    totalTokens: HeadlessMetricDistribution | null;
+  };
+  diagnosticFlags: Array<{ flag: string; samples: number }>;
+}
+
+export interface HeadlessReportAggregate {
+  suiteId: string;
+  suiteVersion: number;
+  schemaVersion: 3;
+  evaluatorVersion: string;
+  routeLabel: string;
+  route: { provider: string; model: string; reasoningEffort: string };
+  reportSamples: number;
+  taskSamples: number;
+  executionCompletions: number;
+  executionCompletionRate: number;
+  objectiveChecksPassed: number;
+  objectiveChecksTotal: number;
+  objectiveCheckPassRate: number;
+  suiteWallTimeMs: HeadlessMetricDistribution;
+  tasks: HeadlessTaskAggregate[];
 }
 
 function invalid(): never {
@@ -200,6 +255,17 @@ function parseReport(value: unknown): Report {
     return invalid();
 
   const schema = Number(schemaVersion) as 1 | 2 | 3;
+  let createdAt: string | undefined;
+  if (value.createdAt !== undefined) {
+    if (
+      !string(value.createdAt) ||
+      !Number.isFinite(Date.parse(value.createdAt))
+    ) {
+      return invalid();
+    }
+    createdAt = value.createdAt;
+  }
+  if (schema === 3 && createdAt === undefined) return invalid();
   let suiteWallTimeMs: number | undefined;
   if (schema >= 2) {
     if (
@@ -211,6 +277,27 @@ function parseReport(value: unknown): Report {
     )
       return invalid();
     suiteWallTimeMs = value.summary.suiteWallTimeMs;
+  }
+  let routeLabel: string | undefined;
+  if (value.routeLabel !== undefined) {
+    if (!string(value.routeLabel)) return invalid();
+    routeLabel = value.routeLabel;
+  }
+  let route: Report["route"];
+  if (value.route !== undefined) {
+    if (
+      !isRecord(value.route) ||
+      !string(value.route.provider) ||
+      !string(value.route.model) ||
+      !string(value.route.reasoningEffort)
+    ) {
+      return invalid();
+    }
+    route = {
+      provider: value.route.provider,
+      model: value.route.model,
+      reasoningEffort: value.route.reasoningEffort,
+    };
   }
 
   const taskIds = new Set<string>();
@@ -268,6 +355,21 @@ function parseReport(value: unknown): Report {
       if (!Object.hasOwn(raw, "modelUsage")) return invalid();
       modelUsage = parseModelUsage(raw.modelUsage);
     }
+    let humanReviewRequired: boolean | undefined;
+    if (raw.humanReviewRequired !== undefined) {
+      if (typeof raw.humanReviewRequired !== "boolean") return invalid();
+      humanReviewRequired = raw.humanReviewRequired;
+    }
+    let diagnosticFlags: string[] | undefined;
+    if (raw.diagnosticFlags !== undefined) {
+      if (
+        !Array.isArray(raw.diagnosticFlags) ||
+        raw.diagnosticFlags.some((flag) => !string(flag))
+      ) {
+        return invalid();
+      }
+      diagnosticFlags = raw.diagnosticFlags as string[];
+    }
     taskIds.add(raw.taskId);
     const checkIds = new Set<string>();
     const checks = raw.checks.map((check): Check => {
@@ -289,6 +391,8 @@ function parseReport(value: unknown): Report {
       comparisonDurationMs,
       ...(timing ? { timing } : {}),
       ...(schema === 3 ? { modelUsage } : {}),
+      ...(humanReviewRequired !== undefined ? { humanReviewRequired } : {}),
+      ...(diagnosticFlags ? { diagnosticFlags } : {}),
       checks,
     };
   });
@@ -299,8 +403,11 @@ function parseReport(value: unknown): Report {
     ...(value.evaluatorVersion !== undefined
       ? { explicitEvaluatorVersion: value.evaluatorVersion as string | number }
       : {}),
+    ...(createdAt !== undefined ? { createdAt } : {}),
     suite: { id: value.suite.id, version: Number(value.suite.version) },
     ...(suiteWallTimeMs !== undefined ? { summary: { suiteWallTimeMs } } : {}),
+    ...(routeLabel !== undefined ? { routeLabel } : {}),
+    ...(route ? { route } : {}),
     runs,
   };
 }
@@ -311,6 +418,197 @@ export function readHeadlessEvalReport(path: string): Report {
   } catch {
     return invalid();
   }
+}
+
+function distribution(values: number[]): HeadlessMetricDistribution {
+  if (values.length === 0) return invalid();
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  const median =
+    sorted.length % 2 === 1
+      ? sorted[middle]
+      : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
+  return {
+    count: sorted.length,
+    min: sorted[0] ?? 0,
+    median,
+    p90: sorted[Math.max(0, Math.ceil(sorted.length * 0.9) - 1)] ?? 0,
+    max: sorted[sorted.length - 1] ?? 0,
+    mean: sorted.reduce((sum, value) => sum + value, 0) / sorted.length,
+  };
+}
+
+function optionalDistribution(
+  values: number[],
+): HeadlessMetricDistribution | null {
+  return values.length === 0 ? null : distribution(values);
+}
+
+/**
+ * Aggregate repeated reports only when they represent the same exact route,
+ * evaluator, suite, tasks, and checks. This is descriptive statistics, not a
+ * quality score or a causal comparison.
+ */
+export function aggregateHeadlessEvalReports(
+  inputs: readonly unknown[],
+): HeadlessReportAggregate {
+  if (inputs.length < 2) {
+    throw new Error(
+      "At least two reports are required for repeat aggregation.",
+    );
+  }
+  const reports = inputs.map(parseReport);
+  const baseline = reports[0];
+  if (
+    baseline?.schemaVersion !== 3 ||
+    !baseline.routeLabel ||
+    !baseline.route ||
+    baseline.summary?.suiteWallTimeMs === undefined
+  ) {
+    return invalid();
+  }
+
+  const sameRoute = (candidate: Report) =>
+    candidate.routeLabel === baseline.routeLabel &&
+    candidate.route?.provider === baseline.route?.provider &&
+    candidate.route?.model === baseline.route?.model &&
+    candidate.route?.reasoningEffort === baseline.route?.reasoningEffort;
+  const referenceTasks = new Map(baseline.runs.map((run) => [run.taskId, run]));
+  const reportTimes = new Set<string>();
+  for (const report of reports) {
+    if (
+      report.schemaVersion !== 3 ||
+      !report.createdAt ||
+      reportTimes.has(report.createdAt) ||
+      report.evaluatorVersion !== baseline.evaluatorVersion ||
+      report.explicitEvaluatorVersion !== baseline.explicitEvaluatorVersion ||
+      report.suite.id !== baseline.suite.id ||
+      report.suite.version !== baseline.suite.version ||
+      report.summary?.suiteWallTimeMs === undefined ||
+      !sameRoute(report) ||
+      report.runs.length !== referenceTasks.size
+    ) {
+      return invalid();
+    }
+    reportTimes.add(report.createdAt);
+    for (const run of report.runs) {
+      const reference = referenceTasks.get(run.taskId);
+      if (
+        !reference ||
+        run.domain !== reference.domain ||
+        !run.timing ||
+        run.timing.execInvocations === undefined ||
+        run.checks.length !== reference.checks.length ||
+        run.checks.some(
+          (check, index) => check.id !== reference.checks[index]?.id,
+        ) ||
+        run.humanReviewRequired !== reference.humanReviewRequired
+      ) {
+        return invalid();
+      }
+    }
+  }
+
+  const tasks: HeadlessTaskAggregate[] = baseline.runs.map((reference) => {
+    const samples = reports.flatMap((report) => {
+      const run = report.runs.find(
+        (candidate) => candidate.taskId === reference.taskId,
+      );
+      return run ? [run] : [];
+    });
+    const providerMetrics = samples.flatMap((run) =>
+      run.modelUsage ? [run.modelUsage] : [],
+    );
+    const diagnostics = new Map<string, number>();
+    for (const run of samples) {
+      for (const flag of new Set(run.diagnosticFlags ?? [])) {
+        diagnostics.set(flag, (diagnostics.get(flag) ?? 0) + 1);
+      }
+    }
+    const timedRuns = samples.flatMap((run) =>
+      run.timing ? [run.timing] : [],
+    );
+    if (timedRuns.length !== samples.length) return invalid();
+    const completed = samples.filter(executionCompleted).length;
+
+    return {
+      taskId: reference.taskId,
+      domain: reference.domain,
+      sampleCount: samples.length,
+      executionCompletions: completed,
+      executionCompletionRate: completed / samples.length,
+      checks: reference.checks.map((check, index) => {
+        const passed = samples.filter(
+          (run) => run.checks[index]?.passed === true,
+        ).length;
+        return {
+          id: check.id,
+          passed,
+          samples: samples.length,
+          passRate: passed / samples.length,
+        };
+      }),
+      execDurationMs: distribution(
+        timedRuns.map((timing) => timing.execDurationMs),
+      ),
+      execInvocations: distribution(
+        timedRuns.map((timing) => timing.execInvocations ?? 0),
+      ),
+      providerMetrics: {
+        sampleCount: providerMetrics.length,
+        providerCalls: optionalDistribution(
+          providerMetrics.map((usage) => usage.providerCalls),
+        ),
+        providerDurationMs: optionalDistribution(
+          providerMetrics.map((usage) => usage.providerDurationMs),
+        ),
+        totalTokens: optionalDistribution(
+          providerMetrics.flatMap((usage) =>
+            usage.totalTokens === null ? [] : [usage.totalTokens],
+          ),
+        ),
+      },
+      diagnosticFlags: [...diagnostics]
+        .map(([flag, count]) => ({ flag, samples: count }))
+        .sort((a, b) => a.flag.localeCompare(b.flag)),
+    };
+  });
+
+  const objectiveChecksPassed = tasks.reduce(
+    (sum, task) =>
+      sum + task.checks.reduce((count, check) => count + check.passed, 0),
+    0,
+  );
+  const objectiveChecksTotal = tasks.reduce(
+    (sum, task) =>
+      sum + task.checks.reduce((count, check) => count + check.samples, 0),
+    0,
+  );
+  const taskSamples = tasks.reduce((sum, task) => sum + task.sampleCount, 0);
+  const executionCompletions = tasks.reduce(
+    (sum, task) => sum + task.executionCompletions,
+    0,
+  );
+
+  return {
+    suiteId: baseline.suite.id,
+    suiteVersion: baseline.suite.version,
+    schemaVersion: 3,
+    evaluatorVersion: baseline.evaluatorVersion,
+    routeLabel: baseline.routeLabel,
+    route: baseline.route,
+    reportSamples: reports.length,
+    taskSamples,
+    executionCompletions,
+    executionCompletionRate: executionCompletions / taskSamples,
+    objectiveChecksPassed,
+    objectiveChecksTotal,
+    objectiveCheckPassRate: objectiveChecksPassed / objectiveChecksTotal,
+    suiteWallTimeMs: distribution(
+      reports.map((report) => report.summary?.suiteWallTimeMs ?? 0),
+    ),
+    tasks,
+  };
 }
 
 function executionCompleted(run: Run): boolean {

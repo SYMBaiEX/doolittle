@@ -81,6 +81,7 @@
     "eval:coding": "nub packages/evals/src/coding/cli.ts",
     "eval:headless": "nub packages/evals/src/headless/cli.ts",
     "eval:headless:compare": "nub packages/evals/src/headless/compare-cli.ts",
+    "eval:headless:aggregate": "nub packages/evals/src/headless/aggregate-cli.ts",
     "eval:compare": "nub packages/evals/src/coding/compare-cli.ts",
     "eval:reports": "nub packages/evals/src/coding/reports-cli.ts",
     "test:account-pool": "nubx vitest run packages/agent/src/runtime/native/account-pool/index.test.ts packages/agent/src/server/routes/runtime/accounts.test.ts",
