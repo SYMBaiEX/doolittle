@@ -40,6 +40,9 @@ jobs:
       - name: Check application and desktop types
         run: nub run check
 
+      - name: Build local sandbox image
+        run: nub run sandbox:setup
+
       - name: Playwright smoke tests
         run: xvfb-run -a nub run test:e2e
 
