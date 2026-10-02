@@ -128,7 +128,10 @@ them into a telemetry-derived score:
 - **Request coverage:** every named route, component, interaction, and constraint
   is implemented; unrelated existing work remains intact.
 - **Rendered quality:** hierarchy, alignment, spacing, typography, responsive
-  behavior, and visual consistency are checked in the actual browser.
+  behavior, and visual consistency are checked in the actual browser. Apply the
+  [frontend quality contract](./frontend-quality-contract.md) to brand direction,
+  composition/depth, purposeful motion and human visual-polish review; none is
+  inferred from the 110-point receipt grade.
 - **Interaction/accessibility:** primary flows work by mouse and keyboard;
   controls have labels, focus states, useful errors, and predictable state.
 - **Conversation quality:** progress is coherent and correctly ordered; retry,

@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { runWithTurnRuntimeScope } from "@/runtime/turn-runtime-scope";
 import { RunControllerService } from "@/services/run-controller-service";
 import { DelegationEvidence } from "./evidence";
+import { FRONTEND_DESIGN_CONTRACT } from "./frontend-design-contract";
 import { resolveDelegationAdapter, withManagedCodingDelegation } from "./index";
 import { codexCommandForRoute } from "./model";
 import type { AcpSpawnOptions, ManagedAcpService } from "./types";
@@ -176,6 +177,34 @@ async function fixture(
 }
 
 describe("managed official coding delegation", () => {
+  it("passes scoped design criteria through the existing cached worker prompt without losing user requirements", async () => {
+    const input = await fixture();
+    const request =
+      "Build a polished one-page blog using real shadcn components; keep the selected workspace and do not use animation.";
+    input.settings.set("DOOLITTLE_CODING_REQUEST_TEXT", request);
+
+    await input.execute();
+
+    expect(input.service.spawnSession).toHaveBeenCalledOnce();
+    expect(input.service.sendPrompt).toHaveBeenCalledOnce();
+    const prompt = vi.mocked(input.service.sendPrompt).mock.calls[0]?.[1];
+    expect(prompt).toContain(FRONTEND_DESIGN_CONTRACT);
+    expect(prompt).toContain(`Original user requirements:\n${request}`);
+    expect(prompt).toContain(
+      "Preserve established identity and explicit user directions",
+    );
+    expect(prompt).toContain("Respect explicit no-animation requests");
+    expect(prompt).toContain("not to backend-only work or narrow fixes");
+    expect(prompt).toContain(
+      "do not create extra files outside the requested scope",
+    );
+    expect(prompt).toContain("not a fetched-text capture card");
+    expect(prompt).toContain("report that limitation");
+    expect(prompt).toContain(
+      "The existing implementation already satisfies the request; no changes were needed.",
+    );
+  });
+
   it.each<{ name: string; parameters: Record<string, string> }>([
     { name: "TASKS", parameters: { action: "spawn_agent" } },
     { name: "TASKS_SPAWN_AGENT", parameters: {} },

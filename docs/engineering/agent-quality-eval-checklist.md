@@ -95,6 +95,11 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
 
 ## Human review rubric
 
+For generated interfaces, additionally use the
+[frontend quality contract](./frontend-quality-contract.md) and record visual
+polish separately. A build-and-launch pass does not overrule a human quality
+failure. Keep unblinded user feedback identified as such.
+
 Score each dimension from 1 to 5. Use 2 and 4 for performance between the
 anchors. Record a short evidence note for each rating and retain critical
 failures separately; a strong average must never hide a safety or honesty
