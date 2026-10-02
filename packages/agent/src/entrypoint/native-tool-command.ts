@@ -141,7 +141,7 @@ export async function runNativeToolCommand(
         paths.sourcePath,
         "--backend",
         "llvm",
-        "--no-keep-c",
+        "--no-keep-llvm",
         "--out",
         paths.outputPath,
       ],

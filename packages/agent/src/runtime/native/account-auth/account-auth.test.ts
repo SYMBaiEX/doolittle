@@ -41,7 +41,7 @@ async function withIsolatedAuthStore<T>(
   }
 }
 
-describe.sequential("linked provider account auth snapshot", () => {
+describe("linked provider account auth snapshot", () => {
   it("can omit unrelated linked-provider probes during healthy startup", async () => {
     const mod = await loadSnapshotModule();
     const snapshot = mod.getLinkedProviderAccountsSnapshot(undefined, []);
@@ -104,7 +104,7 @@ describe.sequential("linked provider account auth snapshot", () => {
     }
   });
 
-  it.sequential("refreshes expired Codex credentials and rewrites the local and stored auth state", async () => {
+  it("refreshes expired Codex credentials and rewrites the local and stored auth state", async () => {
     const originalFetch = globalThis.fetch;
 
     try {
@@ -203,7 +203,7 @@ describe.sequential("linked provider account auth snapshot", () => {
     }
   });
 
-  it.sequential("surfaces Codex OAuth refresh failures without rewriting auth state", async () => {
+  it("surfaces Codex OAuth refresh failures without rewriting auth state", async () => {
     const originalFetch = globalThis.fetch;
 
     try {
@@ -259,7 +259,7 @@ describe.sequential("linked provider account auth snapshot", () => {
     }
   });
 
-  it.sequential("rejects Codex refresh responses that omit access_token", async () => {
+  it("rejects Codex refresh responses that omit access_token", async () => {
     const originalFetch = globalThis.fetch;
 
     try {
@@ -321,7 +321,7 @@ describe.sequential("linked provider account auth snapshot", () => {
     }
   });
 
-  it.sequential("skips Codex refresh in resolveLinkedProviderCredentials when the access token is not expiring", async () => {
+  it("skips Codex refresh in resolveLinkedProviderCredentials when the access token is not expiring", async () => {
     const originalFetch = globalThis.fetch;
 
     try {
@@ -409,7 +409,7 @@ describe.sequential("linked provider account auth snapshot", () => {
     });
   });
 
-  it.sequential("detects reusable Claude Code setup-token from env", async () => {
+  it("detects reusable Claude Code setup-token from env", async () => {
     const previous = process.env.CLAUDE_CODE_SETUP_TOKEN;
     process.env.CLAUDE_CODE_SETUP_TOKEN = "sk-ant-oat01-test";
     try {
@@ -435,7 +435,7 @@ describe.sequential("linked provider account auth snapshot", () => {
     }
   });
 
-  it.sequential("skips Claude refresh in resolveLinkedProviderCredentials when file credentials are not expiring", async () => {
+  it("skips Claude refresh in resolveLinkedProviderCredentials when file credentials are not expiring", async () => {
     const previousSetupToken = process.env.CLAUDE_CODE_SETUP_TOKEN;
     const originalFetch = globalThis.fetch;
     process.env.CLAUDE_CODE_SETUP_TOKEN = "sk-ant-oat01-env";

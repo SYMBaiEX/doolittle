@@ -44,7 +44,7 @@ describe("Doolittle native tool command", () => {
         "/repo/packages/agent/src/native-tools/doolittle-probe.ts",
         "--backend",
         "llvm",
-        "--no-keep-c",
+        "--no-keep-llvm",
         "--out",
         "/repo/dist/native/doolittle-probe",
       ],

@@ -171,7 +171,7 @@ function runClaudeRefreshSubprocess({
   };
 }
 
-describe.sequential("Claude Code account auth", () => {
+describe("Claude Code account auth", () => {
   it("prefers current local Claude auth artifacts over cached credentials", () => {
     const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-auth-"));
     mkdirSync(join(homePath, ".claude"), { recursive: true });
@@ -289,7 +289,7 @@ describe.sequential("Claude Code account auth", () => {
     expect(status.source).toContain(".claude.json");
   });
 
-  it.sequential("refreshes the authoritative Claude CLI credentials before cached credentials", () => {
+  it("refreshes the authoritative Claude CLI credentials before cached credentials", () => {
     const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-stored-"));
     const dataDir = mkdtempSync(join(tmpdir(), "doolittle-claude-store-"));
     const credentialsPath = join(homePath, ".claude", ".credentials.json");
@@ -350,7 +350,7 @@ describe.sequential("Claude Code account auth", () => {
     );
   });
 
-  it.sequential("uses refreshed expired file-backed Claude OAuth credentials before env fallback and persists the winner", () => {
+  it("uses refreshed expired file-backed Claude OAuth credentials before env fallback and persists the winner", () => {
     const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-file-"));
     const dataDir = mkdtempSync(join(tmpdir(), "doolittle-claude-store-"));
 
@@ -413,7 +413,7 @@ describe.sequential("Claude Code account auth", () => {
     );
   });
 
-  it.sequential("falls back to env Claude credentials when expired file refresh yields no access token and persists the fallback", () => {
+  it("falls back to env Claude credentials when expired file refresh yields no access token and persists the fallback", () => {
     const homePath = mkdtempSync(
       join(tmpdir(), "doolittle-claude-file-fallback-"),
     );
@@ -471,7 +471,7 @@ describe.sequential("Claude Code account auth", () => {
     );
   });
 
-  it.sequential("persists setup-token credentials during Claude refresh resolution", async () => {
+  it("persists setup-token credentials during Claude refresh resolution", async () => {
     const homePath = mkdtempSync(join(tmpdir(), "doolittle-claude-env-"));
     const dataDir = mkdtempSync(join(tmpdir(), "doolittle-claude-store-"));
     const moduleDir = join(

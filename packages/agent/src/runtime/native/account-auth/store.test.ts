@@ -54,7 +54,7 @@ function seedLegacyProvider(
   );
 }
 
-describe.sequential("account-auth store helpers", () => {
+describe("account-auth store helpers", () => {
   it("uses absolute DOOLITTLE_DATA_DIR values without rebasing them onto cwd", () => {
     const dataDir = createDataDir();
     process.env.DOOLITTLE_DATA_DIR = dataDir;
