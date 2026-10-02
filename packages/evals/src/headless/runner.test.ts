@@ -108,6 +108,11 @@ describe("headless workflow evals", () => {
     const reportDir = tempDirectory();
     let childArguments: readonly string[] | string | undefined;
     let childEnvironment: NodeJS.ProcessEnv | undefined;
+    const actionLabelDiagnostics: Array<{
+      taskId: string;
+      labels: string[];
+      omitted: number;
+    }> = [];
     let monotonicClock = 0;
     let wallClock = 1_000;
     const execute = vi.fn(
@@ -166,7 +171,7 @@ describe("headless workflow evals", () => {
                 category: "action",
                 event: "action.started",
                 metadata: {
-                  action: "PRIVATE_ACTION_NAME",
+                  action: "DOOLITTLE_RESEARCH",
                   arguments: "PRIVATE_ACTION_ARGUMENT",
                   workspacePath: "/private/workspace/path",
                 },
@@ -175,7 +180,7 @@ describe("headless workflow evals", () => {
                 category: "action",
                 event: "action.completed",
                 metadata: {
-                  action: "PRIVATE_ACTION_NAME",
+                  action: "DOOLITTLE_RESEARCH",
                   success: true,
                   actionResult: { text: "PRIVATE_ACTION_OUTPUT" },
                 },
@@ -183,13 +188,13 @@ describe("headless workflow evals", () => {
               {
                 category: "action",
                 event: "action.started",
-                metadata: { action: "PRIVATE_FAILED_ACTION" },
+                metadata: { action: "private generated label with details" },
               },
               {
                 category: "action",
                 event: "action.completed",
                 metadata: {
-                  action: "PRIVATE_FAILED_ACTION",
+                  action: "private generated label with details",
                   success: false,
                   actionResult: { error: "PRIVATE_ACTION_ERROR" },
                 },
@@ -278,11 +283,20 @@ describe("headless workflow evals", () => {
       now: () => new Date("2026-10-01T12:00:00.000Z"),
       wallNow: () => wallClock,
       monotonicNow: () => monotonicClock,
+      onActionLabels: (taskId, diagnostic) =>
+        actionLabelDiagnostics.push({ taskId, ...diagnostic }),
     });
 
     const stored = readFileSync(result.reportPath, "utf8");
     expect(result.exitCode).toBe(0);
     expect(childArguments).toContain("--json-stream");
+    expect(actionLabelDiagnostics).toEqual([
+      {
+        taskId: "one-shot",
+        labels: ["DOOLITTLE_RESEARCH", "[redacted]"],
+        omitted: 0,
+      },
+    ]);
     expect(stored).not.toContain("this prompt must not be persisted");
     expect(stored).not.toContain(response);
     expect(result.report.runs[0]).toMatchObject({
@@ -333,8 +347,8 @@ describe("headless workflow evals", () => {
     expect(stored).not.toContain("must not be copied into the report");
     expect(stored).not.toContain("private prompt text");
     expect(stored).not.toContain("private action arguments");
-    expect(stored).not.toContain("PRIVATE_ACTION_NAME");
-    expect(stored).not.toContain("PRIVATE_FAILED_ACTION");
+    expect(stored).not.toContain("DOOLITTLE_RESEARCH");
+    expect(stored).not.toContain("private generated label with details");
     expect(stored).not.toContain("PRIVATE_UNKNOWN_ACTION");
     expect(stored).not.toContain("PRIVATE_ACTION_ARGUMENT");
     expect(stored).not.toContain("/private/workspace/path");

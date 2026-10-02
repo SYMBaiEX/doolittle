@@ -8,6 +8,7 @@ interface CliOptions {
   routeLabel?: string;
   taskIds: string[];
   showResponses: boolean;
+  showActionLabels: boolean;
   enableConfiguredCloudResearch: boolean;
 }
 
@@ -16,6 +17,7 @@ function parseArgs(args: string[]): CliOptions | undefined {
     suiteId: "headless-workflows-v2",
     taskIds: [],
     showResponses: false,
+    showActionLabels: false,
     enableConfiguredCloudResearch: false,
   };
   for (let index = 0; index < args.length; index += 1) {
@@ -24,6 +26,10 @@ function parseArgs(args: string[]): CliOptions | undefined {
     if (value === "--help" || value === "-h") return undefined;
     if (value === "--show-responses") {
       options.showResponses = true;
+      continue;
+    }
+    if (value === "--show-action-labels") {
+      options.showActionLabels = true;
       continue;
     }
     if (value === "--enable-configured-cloud-research") {
@@ -61,6 +67,7 @@ function printHelp(): void {
       "  --route-label NAME  Label this run for comparison",
       "  --report-dir PATH   Private output directory (defaults under local state)",
       "  --show-responses    Print raw responses locally; reports never contain them",
+      "  --show-action-labels  Print bounded action labels locally; non-allowlisted labels are redacted and reports never contain labels",
       "  --enable-configured-cloud-research  Enable configured Eliza Cloud only for research tasks",
     ].join("\n"),
   );
@@ -83,6 +90,16 @@ async function main(): Promise<number> {
       enableConfiguredCloudResearch: options.enableConfiguredCloudResearch,
       taskIds: options.taskIds,
       showResponses: options.showResponses,
+      onActionLabels: options.showActionLabels
+        ? (taskId, diagnostic) => {
+            const omitted = diagnostic.omitted
+              ? `; ${diagnostic.omitted} additional label(s) omitted`
+              : "";
+            console.log(
+              `  ${taskId} local action-label diagnostic: ${diagnostic.labels.join(", ") || "none"}${omitted}`,
+            );
+          }
+        : undefined,
       onResponse: (taskId, response, turnNumber, turnTotal) => {
         const turnLabel =
           turnTotal > 1 ? ` · turn ${turnNumber}/${turnTotal}` : "";

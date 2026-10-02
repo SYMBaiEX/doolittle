@@ -100,6 +100,15 @@ malformed action telemetry fails the check instead of being treated as zero.
 This detects recorded action use; it does not identify the action or prove
 that it caused a workspace side effect.
 
+For a one-off local investigation, `--show-action-labels` prints up to 32
+action-start labels to the terminal. Only known static identifier shapes are
+shown; other labels are redacted. This opt-in diagnostic is never written to
+reports and does not affect grading:
+
+```sh
+nub run eval:headless -- --suite headless-workflows-v5 --task reliability-no-side-effect-v5 --show-action-labels
+```
+
 Every task gets a fresh temporary data directory and workspace with a minimal
 onboarding marker. Eliza Cloud is disabled in subprocesses by default;
 `--enable-configured-cloud-research` explicitly enables the configured provider

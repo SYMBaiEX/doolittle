@@ -17,8 +17,10 @@ import {
   type HeadlessExecutor,
 } from "./process";
 import {
+  type HeadlessActionLabelDiagnostic,
   hasFailedResearchAction,
   readFirstModelRequestAtMs,
+  readHeadlessActionLabelDiagnostic,
   readHeadlessTraceSummary,
 } from "./trace-summary";
 
@@ -88,6 +90,10 @@ export interface RunHeadlessEvalOptions {
   routeLabel?: string;
   enableConfiguredCloudResearch?: boolean;
   showResponses?: boolean;
+  onActionLabels?: (
+    taskId: string,
+    diagnostic: HeadlessActionLabelDiagnostic,
+  ) => void;
   onResponse?: (
     taskId: string,
     response: string,
@@ -446,6 +452,10 @@ export async function runHeadlessEvalSuite(
       const response = responses.at(-1) ?? "";
       const modelUsageResult = readHeadlessModelUsage(dataDir);
       const traceSummary = readHeadlessTraceSummary(dataDir);
+      options.onActionLabels?.(
+        task.id,
+        readHeadlessActionLabelDiagnostic(dataDir),
+      );
       const checkContext = {
         response,
         responses,

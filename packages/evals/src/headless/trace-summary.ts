@@ -7,6 +7,9 @@ const CONTINUATION_REASONS = [
   "unverified-terminal-response",
   "empty-terminal-response",
 ] as const;
+const MAX_ACTION_LABEL_DIAGNOSTICS = 32;
+const SAFE_ACTION_LABEL =
+  /^(?:DOOLITTLE_[A-Z0-9_]{1,56}|TASKS_[A-Z0-9_]{1,56}|WEB_SEARCH|REPLY|IGNORE|CONTINUE|UPDATE)$/u;
 
 export interface HeadlessTraceSummary {
   journalAvailable: boolean;
@@ -29,12 +32,69 @@ export interface HeadlessTraceSummary {
   } | null;
 }
 
+export interface HeadlessActionLabelDiagnostic {
+  labels: string[];
+  omitted: number;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function nonNegativeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) >= 0;
+}
+
+/**
+ * Returns a bounded, local-only view of action labels. Trajectory labels can
+ * contain model/user text, so only known static identifier shapes are shown.
+ */
+export function readHeadlessActionLabelDiagnostic(
+  dataDir: string,
+): HeadlessActionLabelDiagnostic {
+  const path = join(dataDir, JOURNAL_PATH);
+  const diagnostic: HeadlessActionLabelDiagnostic = { labels: [], omitted: 0 };
+  if (!existsSync(path)) return diagnostic;
+
+  let stored: string;
+  try {
+    stored = readFileSync(path, "utf8");
+  } catch {
+    return diagnostic;
+  }
+
+  for (const line of stored.split(/\r?\n/u)) {
+    if (!line.trim()) continue;
+    try {
+      const event: unknown = JSON.parse(line);
+      if (
+        !isRecord(event) ||
+        event.category !== "action" ||
+        event.event !== "action.started"
+      ) {
+        continue;
+      }
+
+      let label = "[redacted]";
+      if (
+        isRecord(event.metadata) &&
+        typeof event.metadata.action === "string"
+      ) {
+        const candidate = event.metadata.action.trim();
+        if (candidate.length <= 64 && SAFE_ACTION_LABEL.test(candidate)) {
+          label = candidate;
+        }
+      }
+      if (diagnostic.labels.length < MAX_ACTION_LABEL_DIAGNOSTICS) {
+        diagnostic.labels.push(label);
+      } else {
+        diagnostic.omitted += 1;
+      }
+    } catch {
+      // The normal trace summary reports malformed journal data separately.
+    }
+  }
+  return diagnostic;
 }
 
 export function hasFailedResearchAction(dataDir: string): boolean {
