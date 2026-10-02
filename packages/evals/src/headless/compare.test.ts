@@ -96,6 +96,34 @@ function v3Report(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function v4Report(overrides: Record<string, unknown> = {}) {
+  const base = v3Report();
+  return {
+    ...base,
+    schemaVersion: 4,
+    source: { revision: "a".repeat(40), workingTreeClean: true },
+    runs: (base.runs as Array<Record<string, unknown>>).map((run) => ({
+      ...run,
+      traceSummary: {
+        journalAvailable: true,
+        malformed: false,
+        modelRequests: 2,
+        modelResponses: 2,
+        modelErrors: 0,
+        mutationContinuations: 0,
+        continuationReasons: {
+          "explicitly-incomplete-response": 0,
+          "unverified-terminal-response": 0,
+          "empty-terminal-response": 0,
+        },
+        maxContinuationAttempt: null,
+        promptChars: { samples: 2, min: 10, max: 20, mean: 15 },
+      },
+    })),
+    ...overrides,
+  };
+}
+
 describe("headless report comparison", () => {
   it("compares paired objective outcomes and legacy elapsed time for schema v1", () => {
     const baseline = report();
@@ -224,6 +252,20 @@ describe("headless report comparison", () => {
     expect(() => compareHeadlessEvalReports(v2Report(), candidate)).toThrow(
       /Invalid or incompatible/,
     );
+  });
+
+  it("compares schema-v4 telemetry and records source identities", () => {
+    const baseline = v4Report();
+    const candidate = v4Report({
+      source: { revision: "b".repeat(40), workingTreeClean: true },
+    });
+    const result = compareHeadlessEvalReports(baseline, candidate);
+    expect(result.schemaVersion).toBe(4);
+    expect(result.source).toEqual({
+      baseline: { revision: "a".repeat(40), workingTreeClean: true },
+      candidate: { revision: "b".repeat(40), workingTreeClean: true },
+    });
+    expect(result.providerUsage?.pairedTaskCount).toBe(2);
   });
 
   it("requires explicit provider metrics on schema v3 reports", () => {
@@ -515,7 +557,7 @@ describe("headless repeated report aggregation", () => {
       diagnosticFlags?: string[][];
     } = {},
   ) {
-    const base = v3Report();
+    const base = v4Report();
     const baseRuns = base.runs as Array<Record<string, unknown>>;
     return {
       ...base,
@@ -564,7 +606,8 @@ describe("headless repeated report aggregation", () => {
     expect(result).toMatchObject({
       suiteId: "suite",
       suiteVersion: 4,
-      schemaVersion: 3,
+      schemaVersion: 4,
+      source: { revision: "a".repeat(40), workingTreeClean: true },
       evaluatorVersion: "0.2.0",
       routeLabel: "route",
       reportSamples: 3,
@@ -609,6 +652,33 @@ describe("headless repeated report aggregation", () => {
         mean: 2,
       },
       providerMetrics: { sampleCount: 2 },
+      traceMetrics: {
+        sampleCount: 3,
+        modelRequests: {
+          count: 3,
+          min: 2,
+          median: 2,
+          p90: 2,
+          max: 2,
+          mean: 2,
+        },
+        mutationContinuations: {
+          count: 3,
+          min: 0,
+          median: 0,
+          p90: 0,
+          max: 0,
+          mean: 0,
+        },
+        meanPromptChars: {
+          count: 3,
+          min: 15,
+          median: 15,
+          p90: 15,
+          max: 15,
+          mean: 15,
+        },
+      },
       diagnosticFlags: [{ flag: "memory-unavailable", samples: 2 }],
     });
     expect(result.tasks[1]?.execDurationMs.mean).toBe(300);
@@ -662,6 +732,24 @@ describe("headless repeated report aggregation", () => {
       aggregateHeadlessEvalReports([
         baseline,
         {
+          ...repeatedReport(505, [100, 200], [1, 1]),
+          source: { revision: "b".repeat(40), workingTreeClean: true },
+        },
+      ]),
+    ).toThrow(/Invalid or incompatible/);
+    expect(() =>
+      aggregateHeadlessEvalReports([
+        baseline,
+        {
+          ...repeatedReport(506, [100, 200], [1, 1]),
+          source: { revision: "a".repeat(40), workingTreeClean: false },
+        },
+      ]),
+    ).toThrow(/Invalid or incompatible/);
+    expect(() =>
+      aggregateHeadlessEvalReports([
+        baseline,
+        {
           ...repeatedReport(502, [100, 200], [1, 1]),
           evaluatorVersion: "0.3.0",
         },
@@ -695,7 +783,7 @@ describe("headless repeated report aggregation", () => {
         baseline,
         {
           ...repeatedReport(504, [100, 200], [1, 1]),
-          schemaVersion: 2,
+          schemaVersion: 3,
         },
       ]),
     ).toThrow(/Invalid or incompatible/);

@@ -1,8 +1,32 @@
 import { readFileSync } from "node:fs";
 
-const SUPPORTED_SCHEMA_VERSIONS = new Set([1, 2, 3]);
+const SUPPORTED_SCHEMA_VERSIONS = new Set([1, 2, 3, 4]);
 
 type Check = { id: string; passed: boolean };
+type TraceSummary = {
+  journalAvailable: boolean;
+  malformed: boolean;
+  modelRequests: number;
+  modelResponses: number;
+  modelErrors: number;
+  mutationContinuations: number;
+  continuationReasons: {
+    "explicitly-incomplete-response": number;
+    "unverified-terminal-response": number;
+    "empty-terminal-response": number;
+  };
+  maxContinuationAttempt: number | null;
+  promptChars: {
+    samples: number;
+    min: number;
+    max: number;
+    mean: number;
+  } | null;
+};
+type SourceIdentity = {
+  revision: string | null;
+  workingTreeClean: boolean | null;
+};
 export type ModelUsage = {
   provider: "codex";
   providerCalls: number;
@@ -30,12 +54,13 @@ type Run = {
     gradingMs: number;
   };
   modelUsage?: ModelUsage | null;
+  traceSummary?: TraceSummary;
   humanReviewRequired?: boolean;
   diagnosticFlags?: string[];
   checks: Check[];
 };
 type Report = {
-  schemaVersion: 1 | 2 | 3;
+  schemaVersion: 1 | 2 | 3 | 4;
   evaluatorVersion: string;
   explicitEvaluatorVersion?: string | number;
   createdAt?: string;
@@ -43,6 +68,7 @@ type Report = {
   summary?: { suiteWallTimeMs: number };
   routeLabel?: string;
   route?: { provider: string; model: string; reasoningEffort: string };
+  source?: SourceIdentity;
   runs: Run[];
 };
 
@@ -99,6 +125,7 @@ export interface HeadlessReportComparison {
   executionCompletionDelta: number;
   objectiveCheckSuccessDelta: number;
   meanDurationDeltaMs: number;
+  source?: { baseline: SourceIdentity; candidate: SourceIdentity };
   providerUsage?: HeadlessProviderUsageComparison;
   tasks: HeadlessTaskDelta[];
 }
@@ -132,16 +159,23 @@ export interface HeadlessTaskAggregate {
     providerDurationMs: HeadlessMetricDistribution | null;
     totalTokens: HeadlessMetricDistribution | null;
   };
+  traceMetrics: {
+    sampleCount: number;
+    modelRequests: HeadlessMetricDistribution | null;
+    mutationContinuations: HeadlessMetricDistribution | null;
+    meanPromptChars: HeadlessMetricDistribution | null;
+  };
   diagnosticFlags: Array<{ flag: string; samples: number }>;
 }
 
 export interface HeadlessReportAggregate {
   suiteId: string;
   suiteVersion: number;
-  schemaVersion: 3;
+  schemaVersion: 4;
   evaluatorVersion: string;
   routeLabel: string;
   route: { provider: string; model: string; reasoningEffort: string };
+  source: { revision: string; workingTreeClean: true };
   reportSamples: number;
   taskSamples: number;
   executionCompletions: number;
@@ -178,6 +212,69 @@ function nonNegativeInteger(value: unknown): value is number {
 
 function nullableNonNegativeInteger(value: unknown): value is number | null {
   return value === null || nonNegativeInteger(value);
+}
+
+function parseTraceSummary(value: unknown): TraceSummary | null {
+  if (
+    !isRecord(value) ||
+    typeof value.journalAvailable !== "boolean" ||
+    typeof value.malformed !== "boolean" ||
+    !nonNegativeInteger(value.modelRequests) ||
+    !nonNegativeInteger(value.modelResponses) ||
+    !nonNegativeInteger(value.modelErrors) ||
+    !nonNegativeInteger(value.mutationContinuations) ||
+    !isRecord(value.continuationReasons) ||
+    !nonNegativeInteger(
+      value.continuationReasons["explicitly-incomplete-response"],
+    ) ||
+    !nonNegativeInteger(
+      value.continuationReasons["unverified-terminal-response"],
+    ) ||
+    !nonNegativeInteger(value.continuationReasons["empty-terminal-response"]) ||
+    !nullableNonNegativeInteger(value.maxContinuationAttempt)
+  ) {
+    return null;
+  }
+  let promptChars: TraceSummary["promptChars"];
+  if (value.promptChars === null) {
+    promptChars = null;
+  } else if (
+    isRecord(value.promptChars) &&
+    nonNegativeInteger(value.promptChars.samples) &&
+    value.promptChars.samples > 0 &&
+    nonNegativeInteger(value.promptChars.min) &&
+    nonNegativeInteger(value.promptChars.max) &&
+    nonNegativeInteger(value.promptChars.mean) &&
+    value.promptChars.min <= value.promptChars.mean &&
+    value.promptChars.mean <= value.promptChars.max
+  ) {
+    promptChars = {
+      samples: value.promptChars.samples,
+      min: value.promptChars.min,
+      max: value.promptChars.max,
+      mean: value.promptChars.mean,
+    };
+  } else {
+    return null;
+  }
+  return {
+    journalAvailable: value.journalAvailable,
+    malformed: value.malformed,
+    modelRequests: value.modelRequests,
+    modelResponses: value.modelResponses,
+    modelErrors: value.modelErrors,
+    mutationContinuations: value.mutationContinuations,
+    continuationReasons: {
+      "explicitly-incomplete-response":
+        value.continuationReasons["explicitly-incomplete-response"],
+      "unverified-terminal-response":
+        value.continuationReasons["unverified-terminal-response"],
+      "empty-terminal-response":
+        value.continuationReasons["empty-terminal-response"],
+    },
+    maxContinuationAttempt: value.maxContinuationAttempt,
+    promptChars,
+  };
 }
 
 function parseModelUsage(value: unknown): ModelUsage | null {
@@ -254,7 +351,7 @@ function parseReport(value: unknown): Report {
   )
     return invalid();
 
-  const schema = Number(schemaVersion) as 1 | 2 | 3;
+  const schema = Number(schemaVersion) as 1 | 2 | 3 | 4;
   let createdAt: string | undefined;
   if (value.createdAt !== undefined) {
     if (
@@ -265,7 +362,7 @@ function parseReport(value: unknown): Report {
     }
     createdAt = value.createdAt;
   }
-  if (schema === 3 && createdAt === undefined) return invalid();
+  if (schema >= 3 && createdAt === undefined) return invalid();
   let suiteWallTimeMs: number | undefined;
   if (schema >= 2) {
     if (
@@ -297,6 +394,27 @@ function parseReport(value: unknown): Report {
       provider: value.route.provider,
       model: value.route.model,
       reasoningEffort: value.route.reasoningEffort,
+    };
+  }
+  let source: SourceIdentity | undefined;
+  if (schema === 4) {
+    if (
+      !isRecord(value.source) ||
+      !(
+        value.source.revision === null ||
+        (typeof value.source.revision === "string" &&
+          /^[a-f0-9]{40}$/i.test(value.source.revision))
+      ) ||
+      !(
+        value.source.workingTreeClean === null ||
+        typeof value.source.workingTreeClean === "boolean"
+      )
+    ) {
+      return invalid();
+    }
+    source = {
+      revision: value.source.revision,
+      workingTreeClean: value.source.workingTreeClean,
     };
   }
 
@@ -334,7 +452,7 @@ function parseReport(value: unknown): Report {
       )
         return invalid();
       if (
-        schema === 3 &&
+        schema >= 3 &&
         (!nonNegativeInteger(rawTiming.execInvocations) ||
           rawTiming.execInvocations < 1)
       ) {
@@ -343,7 +461,7 @@ function parseReport(value: unknown): Report {
       timing = {
         taskSetupMs: rawTiming.taskSetupMs,
         execDurationMs: rawTiming.execDurationMs,
-        ...(schema === 3
+        ...(schema >= 3
           ? { execInvocations: Number(rawTiming.execInvocations) }
           : {}),
         gradingMs: rawTiming.gradingMs,
@@ -351,9 +469,14 @@ function parseReport(value: unknown): Report {
       comparisonDurationMs = timing.execDurationMs;
     }
     let modelUsage: ModelUsage | null | undefined;
-    if (schema === 3) {
+    if (schema >= 3) {
       if (!Object.hasOwn(raw, "modelUsage")) return invalid();
       modelUsage = parseModelUsage(raw.modelUsage);
+    }
+    let traceSummary: TraceSummary | undefined;
+    if (schema === 4) {
+      traceSummary = parseTraceSummary(raw.traceSummary) ?? undefined;
+      if (!traceSummary) return invalid();
     }
     let humanReviewRequired: boolean | undefined;
     if (raw.humanReviewRequired !== undefined) {
@@ -390,7 +513,8 @@ function parseReport(value: unknown): Report {
       elapsedMs: raw.elapsedMs,
       comparisonDurationMs,
       ...(timing ? { timing } : {}),
-      ...(schema === 3 ? { modelUsage } : {}),
+      ...(schema >= 3 ? { modelUsage } : {}),
+      ...(traceSummary ? { traceSummary } : {}),
       ...(humanReviewRequired !== undefined ? { humanReviewRequired } : {}),
       ...(diagnosticFlags ? { diagnosticFlags } : {}),
       checks,
@@ -408,6 +532,7 @@ function parseReport(value: unknown): Report {
     ...(suiteWallTimeMs !== undefined ? { summary: { suiteWallTimeMs } } : {}),
     ...(routeLabel !== undefined ? { routeLabel } : {}),
     ...(route ? { route } : {}),
+    ...(source ? { source } : {}),
     runs,
   };
 }
@@ -460,9 +585,12 @@ export function aggregateHeadlessEvalReports(
   const reports = inputs.map(parseReport);
   const baseline = reports[0];
   if (
-    baseline?.schemaVersion !== 3 ||
+    baseline?.schemaVersion !== 4 ||
     !baseline.routeLabel ||
     !baseline.route ||
+    !baseline.source ||
+    !baseline.source.revision ||
+    baseline.source.workingTreeClean !== true ||
     baseline.summary?.suiteWallTimeMs === undefined
   ) {
     return invalid();
@@ -477,7 +605,7 @@ export function aggregateHeadlessEvalReports(
   const reportTimes = new Set<string>();
   for (const report of reports) {
     if (
-      report.schemaVersion !== 3 ||
+      report.schemaVersion !== 4 ||
       !report.createdAt ||
       reportTimes.has(report.createdAt) ||
       report.evaluatorVersion !== baseline.evaluatorVersion ||
@@ -485,6 +613,8 @@ export function aggregateHeadlessEvalReports(
       report.suite.id !== baseline.suite.id ||
       report.suite.version !== baseline.suite.version ||
       report.summary?.suiteWallTimeMs === undefined ||
+      report.source?.revision !== baseline.source.revision ||
+      report.source.workingTreeClean !== true ||
       !sameRoute(report) ||
       report.runs.length !== referenceTasks.size
     ) {
@@ -518,6 +648,9 @@ export function aggregateHeadlessEvalReports(
     });
     const providerMetrics = samples.flatMap((run) =>
       run.modelUsage ? [run.modelUsage] : [],
+    );
+    const traceMetrics = samples.flatMap((run) =>
+      run.traceSummary?.journalAvailable ? [run.traceSummary] : [],
     );
     const diagnostics = new Map<string, number>();
     for (const run of samples) {
@@ -568,6 +701,20 @@ export function aggregateHeadlessEvalReports(
           ),
         ),
       },
+      traceMetrics: {
+        sampleCount: traceMetrics.length,
+        modelRequests: optionalDistribution(
+          traceMetrics.map((trace) => trace.modelRequests),
+        ),
+        mutationContinuations: optionalDistribution(
+          traceMetrics.map((trace) => trace.mutationContinuations),
+        ),
+        meanPromptChars: optionalDistribution(
+          traceMetrics.flatMap((trace) =>
+            trace.promptChars ? [trace.promptChars.mean] : [],
+          ),
+        ),
+      },
       diagnosticFlags: [...diagnostics]
         .map(([flag, count]) => ({ flag, samples: count }))
         .sort((a, b) => a.flag.localeCompare(b.flag)),
@@ -593,10 +740,14 @@ export function aggregateHeadlessEvalReports(
   return {
     suiteId: baseline.suite.id,
     suiteVersion: baseline.suite.version,
-    schemaVersion: 3,
+    schemaVersion: 4,
     evaluatorVersion: baseline.evaluatorVersion,
     routeLabel: baseline.routeLabel,
     route: baseline.route,
+    source: {
+      revision: baseline.source.revision,
+      workingTreeClean: true,
+    },
     reportSamples: reports.length,
     taskSamples,
     executionCompletions,
@@ -644,7 +795,7 @@ export function compareHeadlessEvalReports(
     return invalid();
 
   const durationMetric =
-    baseline.schemaVersion === 3
+    baseline.schemaVersion >= 3
       ? "timing.execDurationMs (sum of end-to-end Nub exec child invocations; includes CLI startup, provider/model, and tool time)"
       : baseline.schemaVersion === 2
         ? "timing.execDurationMs (end-to-end Nub exec child invocation; includes CLI startup, provider/model, and tool time)"
@@ -694,7 +845,7 @@ export function compareHeadlessEvalReports(
       ),
       durationDeltaMs: next.comparisonDurationMs - base.comparisonDurationMs,
       modelUsage:
-        baseline.schemaVersion === 3
+        baseline.schemaVersion >= 3
           ? {
               baseline: base.modelUsage ?? null,
               candidate: next.modelUsage ?? null,
@@ -769,7 +920,7 @@ export function compareHeadlessEvalReports(
     };
   };
   const providerUsage =
-    baseline.schemaVersion === 3
+    baseline.schemaVersion >= 3
       ? {
           pairedTaskCount: pairedModelUsageTasks.length,
           totalTaskCount: tasks.length,
@@ -823,6 +974,9 @@ export function compareHeadlessEvalReports(
       baselineCheckSuccesses / checkTotal,
     meanDurationDeltaMs:
       tasks.reduce((sum, task) => sum + task.durationDeltaMs, 0) / tasks.length,
+    ...(baseline.schemaVersion === 4 && baseline.source && candidate.source
+      ? { source: { baseline: baseline.source, candidate: candidate.source } }
+      : {}),
     ...(providerUsage ? { providerUsage } : {}),
     tasks,
   };

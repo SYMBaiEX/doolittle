@@ -91,7 +91,10 @@ onboarding marker. Eliza Cloud is disabled in subprocesses by default;
 for research-domain tasks only. Reports are owner-only and contain task IDs,
 the evaluator version, phase and provider-call timings, provider-reported token
 counts when available, response digests, objective check outcomes, and
-diagnostic flags—not prompts, responses, commands, or workspace paths. Codex
+sanitized model-trace counts and source revision/cleanliness—not prompts,
+responses, commands, or workspace paths. Trace summaries include request,
+response, error, and mutation-continuation counts plus prompt-length statistics;
+the journal itself remains temporary. Codex
 per-call USD cost is unavailable and is recorded as null, not inferred from
 subscription usage. Raw answers are printed only when `--show-responses` is
 explicitly requested. Each
@@ -104,9 +107,10 @@ Temporary workspaces are removed after the run. Use the
 to plan comparable runs, score human-facing quality, and interpret timing
 without confusing process completion, objective checks, and model latency.
 
-Aggregate repeat samples only when they use the same schema-v3 route, evaluator,
-suite, task set, and objective checks. Reports with the same run timestamp are
-rejected so a copied report cannot count as another sample:
+Aggregate repeat samples only when they use the same schema-v4 route, evaluator,
+suite, task set, objective checks, and clean source revision. Reports with the
+same run timestamp are rejected so a copied report cannot count as another
+sample:
 
 ```sh
 nub run eval:headless:aggregate -- \

@@ -91,6 +91,9 @@ async function main(): Promise<number> {
     console.log(
       `${report.suite.id} v${report.suite.version} · schema v${report.schemaVersion} · evaluator ${report.evaluatorVersion} · route ${report.routeLabel}`,
     );
+    console.log(
+      `Source ${report.source.revision?.slice(0, 12) ?? "unavailable"} · working tree ${report.source.workingTreeClean === null ? "unknown" : report.source.workingTreeClean ? "clean" : "dirty"}.`,
+    );
     for (const run of report.runs) {
       const checks = run.checks.filter((check) => check.passed).length;
       const diagnostic = run.diagnosticFlags.length
@@ -115,6 +118,13 @@ async function main(): Promise<number> {
       } else {
         console.log("  Codex provider metrics: not recorded.");
       }
+      const trace = run.traceSummary;
+      const promptChars = trace.promptChars
+        ? `${trace.promptChars.min}/${trace.promptChars.mean}/${trace.promptChars.max} chars min/mean/max`
+        : "unavailable";
+      console.log(
+        `  Trace requests ${trace.modelRequests} · responses ${trace.modelResponses} · errors ${trace.modelErrors} · mutation continuations ${trace.mutationContinuations} (max attempt ${trace.maxContinuationAttempt ?? "none"}) · prompt size ${promptChars}.`,
+      );
     }
     console.log(
       `Objective checks: ${report.summary.objectiveChecksPassed}/${report.summary.objectiveChecksTotal}; human review required for ${report.summary.humanReviewRequired} task(s); suite eval wall time ${report.summary.suiteWallTimeMs}ms (setup + doolittle exec + grading; excludes report I/O).`,

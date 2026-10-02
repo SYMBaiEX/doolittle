@@ -62,6 +62,13 @@ function main(): number {
     console.log(
       `Paired sample: ${comparison.sampleSize} task(s); ${comparison.baseline.checkTotal} objective check(s).`,
     );
+    if (comparison.source) {
+      const baseline = comparison.source.baseline;
+      const candidate = comparison.source.candidate;
+      console.log(
+        `Source commits: ${baseline.revision?.slice(0, 12) ?? "unavailable"} (${baseline.workingTreeClean === true ? "clean" : baseline.workingTreeClean === false ? "dirty" : "unknown"}) → ${candidate.revision?.slice(0, 12) ?? "unavailable"} (${candidate.workingTreeClean === true ? "clean" : candidate.workingTreeClean === false ? "dirty" : "unknown"}).`,
+      );
+    }
     console.log(
       `Execution completion: ${comparison.baseline.executionCompletions}/${comparison.baseline.taskTotal} → ${comparison.candidate.executionCompletions}/${comparison.candidate.taskTotal} (${percent(comparison.executionCompletionDelta)}).`,
     );
@@ -100,7 +107,7 @@ function main(): number {
         ? `Schema-v${comparison.schemaVersion} duration is end-to-end Doolittle exec child time, not model-only latency; setup and grading are separate.`
         : "Schema-v1 elapsedMs spans child execution through response parsing and grading; it is not model-only latency.";
     const telemetryDisclaimer =
-      comparison.schemaVersion === 3
+      comparison.schemaVersion >= 3
         ? "Provider metrics are Codex-reported; summed call durations are not wall time, first text is per-call (not end-user TTFT), and USD cost is unavailable."
         : "Provider, token, first-text, cost, harness, and environment effects are not separated.";
     console.log(

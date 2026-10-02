@@ -1,4 +1,5 @@
 import {
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -55,6 +56,7 @@ describe("headless workflow evals", () => {
         childEnvironment = options?.env;
         const dataDir = childEnvironment?.DOOLITTLE_DATA_DIR;
         if (dataDir) {
+          mkdirSync(join(dataDir, "trajectories"), { recursive: true });
           writeFileSync(
             join(dataDir, "eval-model-calls.jsonl"),
             `${JSON.stringify({
@@ -67,6 +69,34 @@ describe("headless workflow evals", () => {
               totalTokens: 144,
               prompt: "must not be copied into the report",
             })}\n`,
+          );
+          writeFileSync(
+            join(dataDir, "trajectories", "trajectory-events.jsonl"),
+            [
+              {
+                category: "model",
+                event: "model.request",
+                text: "private prompt text must not be retained",
+                metadata: { prompt: "private prompt", promptChars: 123 },
+              },
+              {
+                category: "model",
+                event: "model.continuation",
+                text: "private tool output must not be retained",
+                metadata: {
+                  reason: "unverified-terminal-response",
+                  attempt: 2,
+                  actionNames: ["private action arguments"],
+                },
+              },
+              {
+                category: "model",
+                event: "model.response",
+                text: "private answer",
+              },
+            ]
+              .map((event) => JSON.stringify(event))
+              .join("\n"),
           );
         }
         return {
@@ -138,7 +168,23 @@ describe("headless workflow evals", () => {
       checks: [{ id: "returned", passed: true }],
       humanReviewRequired: true,
     });
-    expect(result.report.schemaVersion).toBe(3);
+    expect(result.report.schemaVersion).toBe(4);
+    expect(result.report.source.revision).toMatch(/^[a-f0-9]{40}$/i);
+    expect(result.report.runs[0]?.traceSummary).toEqual({
+      journalAvailable: true,
+      malformed: false,
+      modelRequests: 1,
+      modelResponses: 1,
+      modelErrors: 0,
+      mutationContinuations: 1,
+      continuationReasons: {
+        "explicitly-incomplete-response": 0,
+        "unverified-terminal-response": 1,
+        "empty-terminal-response": 0,
+      },
+      maxContinuationAttempt: 2,
+      promptChars: { samples: 1, min: 123, max: 123, mean: 123 },
+    });
     expect(result.report.evaluatorVersion).toMatch(/^\d+\.\d+\.\d+/);
     expect(childEnvironment?.DOOLITTLE_EVAL_CAPTURE_MODEL_USAGE).toBe("true");
     expect(result.report.runs[0]?.modelUsage).toEqual({
@@ -156,6 +202,8 @@ describe("headless workflow evals", () => {
       costUsd: null,
     });
     expect(stored).not.toContain("must not be copied into the report");
+    expect(stored).not.toContain("private prompt text");
+    expect(stored).not.toContain("private action arguments");
     expect(result.report.runs[0]?.timing).toEqual({
       taskSetupMs: expect.any(Number),
       execDurationMs: expect.any(Number),
@@ -383,6 +431,9 @@ describe("headless workflow evals", () => {
     expect(result.report.runs[0]?.modelUsage).toBeNull();
     expect(result.report.runs[0]?.diagnosticFlags).toContain(
       "model-usage-telemetry-invalid",
+    );
+    expect(result.report.runs[0]?.diagnosticFlags).toContain(
+      "trajectory-telemetry-unavailable",
     );
     expect(stored).not.toContain("privateData");
     expect(stored).not.toContain("private prompt");

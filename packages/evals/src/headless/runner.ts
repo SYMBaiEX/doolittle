@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -13,6 +14,7 @@ import {
   type HeadlessExecResult,
   type HeadlessExecutor,
 } from "./process";
+import { readHeadlessTraceSummary } from "./trace-summary";
 
 export type { HeadlessModelUsage } from "./model-usage";
 
@@ -36,6 +38,7 @@ export interface HeadlessEvalRunResult {
   };
   /** Provider-reported call timings/token counts; null means none were emitted. */
   modelUsage: import("./model-usage").HeadlessModelUsage | null;
+  traceSummary: import("./trace-summary").HeadlessTraceSummary;
   responseSha256?: string;
   responseSha256s: Array<string | null>;
   checks: HeadlessEvalCheckResult[];
@@ -45,7 +48,7 @@ export interface HeadlessEvalRunResult {
 }
 
 export interface HeadlessEvalReport {
-  schemaVersion: 3;
+  schemaVersion: 4;
   evaluatorVersion: string;
   suite: { id: string; version: number; title: string };
   routeLabel: string;
@@ -54,6 +57,7 @@ export interface HeadlessEvalReport {
     model: string;
     reasoningEffort: string;
   };
+  source: { revision: string | null; workingTreeClean: boolean | null };
   createdAt: string;
   executionOverrides: string[];
   summary: {
@@ -157,6 +161,30 @@ function reportDirectory(explicit?: string): string {
   return join(stateHome, "doolittle", "evals", "headless");
 }
 
+function readSourceIdentity(repoRoot: string): {
+  revision: string | null;
+  workingTreeClean: boolean | null;
+} {
+  try {
+    const revision = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    const status = execFileSync("git", ["status", "--porcelain"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return {
+      revision: /^[a-f0-9]{40}$/i.test(revision) ? revision : null,
+      workingTreeClean: status.length === 0,
+    };
+  } catch {
+    return { revision: null, workingTreeClean: null };
+  }
+}
+
 export async function runHeadlessEvalSuite(
   suite: HeadlessEvalSuite,
   options: RunHeadlessEvalOptions = {},
@@ -193,6 +221,7 @@ export async function runHeadlessEvalSuite(
   }
 
   const suiteStartedAt = monotonicNow();
+  const sourceAtStart = readSourceIdentity(repoRoot);
   const runRoot = mkdtempSync(join(tmpdir(), "doolittle-headless-eval-"));
   const runs: HeadlessEvalRunResult[] = [];
   try {
@@ -287,9 +316,15 @@ export async function runHeadlessEvalSuite(
         passed: Boolean(check.evaluate(checkContext)),
       }));
       const modelUsageResult = readHeadlessModelUsage(dataDir);
+      const traceSummary = readHeadlessTraceSummary(dataDir);
       const gradingMs = durationMs(gradingStartedAt, monotonicNow());
       if (modelUsageResult.malformed) {
         diagnosticFlags.add("model-usage-telemetry-invalid");
+      }
+      if (!traceSummary.journalAvailable) {
+        diagnosticFlags.add("trajectory-telemetry-unavailable");
+      } else if (traceSummary.malformed) {
+        diagnosticFlags.add("trajectory-telemetry-invalid");
       }
       runs.push({
         taskId: task.id,
@@ -299,6 +334,7 @@ export async function runHeadlessEvalSuite(
         elapsedMs: Date.now() - startedAt,
         timing: { taskSetupMs, execDurationMs, execInvocations, gradingMs },
         modelUsage: modelUsageResult.usage,
+        traceSummary,
         ...(response ? { responseSha256: sha256(response) } : {}),
         responseSha256s,
         checks,
@@ -317,9 +353,20 @@ export async function runHeadlessEvalSuite(
       options.enableConfiguredCloudResearch &&
       selectedTasks.some((task) => task.domain === "research");
     const suiteWallTimeMs = durationMs(suiteStartedAt, monotonicNow());
+    const sourceAtEnd = readSourceIdentity(repoRoot);
+    const sourceRevisionMatches =
+      sourceAtStart.revision !== null &&
+      sourceAtStart.revision === sourceAtEnd.revision;
+    const source = {
+      revision: sourceRevisionMatches ? sourceAtStart.revision : null,
+      workingTreeClean: sourceRevisionMatches
+        ? sourceAtStart.workingTreeClean === true &&
+          sourceAtEnd.workingTreeClean === true
+        : null,
+    };
     const createdAt = now().toISOString();
     const report: HeadlessEvalReport = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       evaluatorVersion: EVALS_EVALUATOR_VERSION,
       suite: { id: suite.id, version: suite.version, title: suite.title },
       routeLabel:
@@ -330,6 +377,7 @@ export async function runHeadlessEvalSuite(
         model: DEFAULT_MODEL_ROUTE.model,
         reasoningEffort: DEFAULT_MODEL_ROUTE.reasoningEffort,
       },
+      source,
       createdAt,
       executionOverrides: cloudResearchEnabledForRun
         ? [

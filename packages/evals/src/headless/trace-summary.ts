@@ -1,0 +1,126 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const JOURNAL_PATH = join("trajectories", "trajectory-events.jsonl");
+const CONTINUATION_REASONS = [
+  "explicitly-incomplete-response",
+  "unverified-terminal-response",
+  "empty-terminal-response",
+] as const;
+
+export interface HeadlessTraceSummary {
+  journalAvailable: boolean;
+  malformed: boolean;
+  modelRequests: number;
+  modelResponses: number;
+  modelErrors: number;
+  mutationContinuations: number;
+  continuationReasons: Record<(typeof CONTINUATION_REASONS)[number], number>;
+  maxContinuationAttempt: number | null;
+  promptChars: {
+    samples: number;
+    min: number;
+    max: number;
+    mean: number;
+  } | null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function nonNegativeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= 0;
+}
+
+export function readHeadlessTraceSummary(
+  dataDir: string,
+): HeadlessTraceSummary {
+  const path = join(dataDir, JOURNAL_PATH);
+  const continuationReasons = Object.fromEntries(
+    CONTINUATION_REASONS.map((reason) => [reason, 0]),
+  ) as HeadlessTraceSummary["continuationReasons"];
+  const summary: HeadlessTraceSummary = {
+    journalAvailable: existsSync(path),
+    malformed: false,
+    modelRequests: 0,
+    modelResponses: 0,
+    modelErrors: 0,
+    mutationContinuations: 0,
+    continuationReasons,
+    maxContinuationAttempt: null,
+    promptChars: null,
+  };
+  if (!summary.journalAvailable) return summary;
+
+  let stored: string;
+  try {
+    stored = readFileSync(path, "utf8");
+  } catch {
+    summary.malformed = true;
+    return summary;
+  }
+
+  const promptSizes: number[] = [];
+  for (const line of stored.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    let event: unknown;
+    try {
+      event = JSON.parse(line) as unknown;
+    } catch {
+      summary.malformed = true;
+      continue;
+    }
+    if (!isRecord(event) || event.category !== "model") continue;
+
+    if (event.event === "model.request") {
+      summary.modelRequests += 1;
+      if (
+        isRecord(event.metadata) &&
+        nonNegativeInteger(event.metadata.promptChars)
+      ) {
+        promptSizes.push(event.metadata.promptChars);
+      }
+    } else if (event.event === "model.response") {
+      summary.modelResponses += 1;
+    } else if (event.event === "model.error") {
+      summary.modelErrors += 1;
+    } else if (event.event === "model.continuation") {
+      summary.mutationContinuations += 1;
+      if (!isRecord(event.metadata)) continue;
+      const reason = event.metadata.reason;
+      if (
+        typeof reason === "string" &&
+        CONTINUATION_REASONS.includes(
+          reason as (typeof CONTINUATION_REASONS)[number],
+        )
+      ) {
+        continuationReasons[reason as keyof typeof continuationReasons] += 1;
+      }
+      if (nonNegativeInteger(event.metadata.attempt)) {
+        summary.maxContinuationAttempt = Math.max(
+          summary.maxContinuationAttempt ?? 0,
+          event.metadata.attempt,
+        );
+      }
+    }
+  }
+
+  if (promptSizes.length > 0) {
+    const minimum = promptSizes.reduce((current, value) =>
+      Math.min(current, value),
+    );
+    const maximum = promptSizes.reduce((current, value) =>
+      Math.max(current, value),
+    );
+    summary.promptChars = {
+      samples: promptSizes.length,
+      min: minimum,
+      max: maximum,
+      mean: Math.round(
+        promptSizes.reduce((sum, size) => sum + size, 0) / promptSizes.length,
+      ),
+    };
+  }
+  return summary;
+}

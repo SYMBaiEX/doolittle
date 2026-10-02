@@ -13,7 +13,7 @@ function parseArguments(argv: string[]): { reports: string[]; json: boolean } {
     if (key === "--") continue;
     if (key === "--help" || key === "-h") {
       console.log(
-        "Usage: nub run eval:headless:aggregate -- --report REPORT.json --report REPORT.json [--json]\nAggregates compatible schema-v3 repeats; output excludes report contents and paths.",
+        "Usage: nub run eval:headless:aggregate -- --report REPORT.json --report REPORT.json [--json]\nAggregates compatible schema-v4 repeats from the same clean source revision; output excludes report contents and paths.",
       );
       process.exit(0);
     }
@@ -68,7 +68,7 @@ function main(): number {
     }
 
     console.log(
-      `Headless suite ${aggregate.suiteId} v${aggregate.suiteVersion} · schema v3 · evaluator ${aggregate.evaluatorVersion} · route ${aggregate.routeLabel}`,
+      `Headless suite ${aggregate.suiteId} v${aggregate.suiteVersion} · schema v4 · evaluator ${aggregate.evaluatorVersion} · route ${aggregate.routeLabel} · source ${aggregate.source.revision.slice(0, 12)} (clean)`,
     );
     console.log(
       `Repeats: ${aggregate.reportSamples}; task executions: ${aggregate.executionCompletions}/${aggregate.taskSamples} completed (${percent(aggregate.executionCompletionRate)}); objective checks: ${aggregate.objectiveChecksPassed}/${aggregate.objectiveChecksTotal} passed (${percent(aggregate.objectiveCheckPassRate)}).`,
@@ -92,6 +92,9 @@ function main(): number {
       console.log(
         `    Codex telemetry (${task.providerMetrics.sampleCount}/${task.sampleCount} task samples): calls ${distribution(task.providerMetrics.providerCalls, (number) => number.toFixed(1))}; summed provider-call time ${distribution(task.providerMetrics.providerDurationMs, seconds)}; total tokens ${distribution(task.providerMetrics.totalTokens, (number) => Math.round(number).toLocaleString())}.`,
       );
+      console.log(
+        `    Trace (${task.traceMetrics.sampleCount}/${task.sampleCount} task samples): model requests ${distribution(task.traceMetrics.modelRequests, (number) => number.toFixed(1))}; mutation continuations ${distribution(task.traceMetrics.mutationContinuations, (number) => number.toFixed(1))}; mean prompt size ${distribution(task.traceMetrics.meanPromptChars, (number) => `${Math.round(number)} chars`)}.`,
+      );
       if (task.diagnosticFlags.length > 0) {
         console.log(
           `    Diagnostics: ${task.diagnosticFlags.map(({ flag, samples }) => `${flag} ${samples}/${task.sampleCount}`).join(", ")}.`,
@@ -109,7 +112,7 @@ function main(): number {
         error.message,
       )
         ? error.message
-        : "Unable to aggregate reports: provide at least two compatible schema-v3 reports.";
+        : "Unable to aggregate reports: provide at least two compatible schema-v4 reports from one clean source revision.";
     console.error(message);
     return 1;
   }

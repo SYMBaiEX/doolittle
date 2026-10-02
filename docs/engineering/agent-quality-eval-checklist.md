@@ -20,16 +20,18 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
 - Research needs a working configured Eliza Cloud provider. When unavailable,
   mark that domain unavailable; do not count a disabled/failed-provider run as
   a model-quality score.
-- Schema-v3 reports measure Codex provider-call duration, per-call first-text
+- Schema-v4 reports measure Codex provider-call duration, per-call first-text
   latency, and provider-reported input/output/total token counts. They do not
-  measure every provider path, end-user TTFT, action spans, or billable USD;
-  Codex USD cost is explicitly unavailable, not inferred.
+  measure every provider path, end-user TTFT, per-action spans, or billable USD;
+  Codex USD cost is explicitly unavailable, not inferred. They also preserve
+  privacy-safe request/response/error/continuation counts and prompt-length
+  statistics, never raw trace text.
 - The pairwise comparator handles a baseline/candidate report pair. The
-  `eval:headless:aggregate` command summarizes compatible schema-v3 repeats
-  only when route, evaluator, suite, task/check identities, and run timestamps
-  match. It reports per-task completion/check rates and descriptive median,
-  nearest-rank p90, range, and mean for timing and available telemetry; it does
-  not estimate uncertainty or score human reviews.
+  `eval:headless:aggregate` command summarizes compatible schema-v4 repeats
+  only when route, evaluator, suite, task/check identities, clean source
+  revision, and run timestamps match. It reports per-task completion/check
+  rates and descriptive median, nearest-rank p90, range, and mean for timing and
+  available telemetry; it does not estimate uncertainty or score human reviews.
 
 ## Before each run
 
@@ -112,15 +114,16 @@ stopped this way is failed and its partial provider telemetry is retained. Do
 not treat partial output as a completed response.
 
 The comparator pairs matching task/check identities and uses
-`timing.execDurationMs` for schema v2/v3. It labels and compares `elapsedMs`
+`timing.execDurationMs` for schema v2/v3/v4. It labels and compares `elapsedMs`
 only for schema-v1-to-v1 comparisons. Schema v3 additionally compares matched
 Codex provider usage when both reports have it. Provider-call duration sums are
-not wall time; first-text measures are not user TTFT. Use
+not wall time; first-text measures are not user TTFT. Schema v4 adds sanitized
+model request and continuation shape plus source revision/cleanliness. Use
 `nub run eval:headless:aggregate -- --report REPORT.json --report REPORT.json`
-for repeated, compatible schema-v3 samples. Action-span telemetry, provider
-coverage beyond Codex, billable USD cost, and statistical uncertainty
-intervals remain future work. Compare repeated runs with median/p90 and show
-spread, not just one run or arithmetic mean.
+for repeated, compatible schema-v4 samples from the same clean commit. Per-action
+timing, provider coverage beyond Codex, billable USD cost, and statistical
+uncertainty intervals remain future work. Compare repeated runs with median/p90
+and show spread, not just one run or arithmetic mean.
 
 ## Interpreting results
 
