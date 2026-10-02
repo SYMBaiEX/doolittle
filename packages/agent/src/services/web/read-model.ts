@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { writeJsonAtomicSync } from "@elizaos/agent/utils/atomic-json";
@@ -14,7 +15,7 @@ export function createCaptureReadModel(
   url: string,
   inspection: BrowserInspection,
 ): BrowserCaptureBundle {
-  const stamp = Date.now();
+  const stamp = randomUUID();
   const slug = slugifyUrl(url);
   const manifestPath = join(outputDir, `capture-${stamp}-${slug}.json`);
   const reportPath = join(outputDir, `capture-${stamp}-${slug}.md`);
@@ -30,6 +31,9 @@ export function createCaptureReadModel(
       captureMode: inspection.captureMode,
     },
     status: inspection.status,
+    ...(inspection.renderedEvidence
+      ? { renderedEvidence: inspection.renderedEvidence }
+      : {}),
   };
 
   writeJsonAtomicSync(manifestPath, manifest);
@@ -54,7 +58,21 @@ export function createCaptureReadModel(
       "## Artifacts",
       `- Snapshot: ${inspection.snapshotPath}`,
       `- Screenshot: ${inspection.screenshotPath}`,
-      `- Screenshot SVG: ${inspection.screenshotSvgPath}`,
+      ...(inspection.screenshotSvgPath
+        ? [`- Screenshot SVG: ${inspection.screenshotSvgPath}`]
+        : []),
+      ...(inspection.renderedEvidence
+        ? [
+            "",
+            "## Rendered evidence",
+            `Backend: ${inspection.renderedEvidence.backend}`,
+            `Scope: ${inspection.renderedEvidence.scope}`,
+            `Viewport: ${inspection.renderedEvidence.viewport.width} × ${inspection.renderedEvidence.viewport.height} CSS pixels`,
+            `PNG: ${inspection.renderedEvidence.pixels.width} × ${inspection.renderedEvidence.pixels.height} pixels`,
+            `Blocked requests: ${inspection.renderedEvidence.blockedRequests}`,
+            ...inspection.renderedEvidence.facts.limitations,
+          ]
+        : []),
       `- Manifest: ${manifestPath}`,
       "",
       "## Preview",
@@ -62,7 +80,7 @@ export function createCaptureReadModel(
         inspection.page.text.slice(0, 1200)) ||
         "(empty)",
     ].join("\n"),
-    "utf8",
+    { encoding: "utf8", mode: 0o600 },
   );
 
   return {

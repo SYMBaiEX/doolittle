@@ -1,4 +1,5 @@
 import type { BrowserCaptureMode } from "@doolittle/contracts/browser";
+import type { RenderedEvidence } from "./rendered-capture";
 
 export interface BrowserConfig {
   provider: "lightpanda" | "basic";
@@ -26,6 +27,7 @@ export interface BrowserStatus {
   };
   captureMode: BrowserCaptureMode;
   captureReady: boolean;
+  renderBackend?: "electron-private-capture";
 }
 
 export interface WebPageSnapshot {
@@ -54,6 +56,7 @@ export interface BrowserInspection {
   screenshotSvgPath: string;
   captureMode: BrowserCaptureMode;
   status: BrowserStatus;
+  renderedEvidence?: RenderedEvidence;
 }
 
 export interface BrowserCaptureBundle {
@@ -65,6 +68,7 @@ export interface BrowserCaptureBundle {
   manifestPath: string;
   reportPath: string;
   status: BrowserStatus;
+  renderedEvidence?: RenderedEvidence;
 }
 
 export interface BrowserComparisonBundle {
@@ -89,6 +93,9 @@ export interface BrowserAnalysisBundle {
   capture: BrowserCaptureBundle;
   prompt: string;
   highlights: string[];
+  narrowCapture?: BrowserCaptureBundle;
+  response?: string;
+  modelEvidence?: "rendered-pixels" | "text-only";
 }
 
 export interface BrowserComparisonAnalysisBundle {

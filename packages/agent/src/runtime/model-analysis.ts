@@ -1,4 +1,4 @@
-import { ModelType } from "@elizaos/core";
+import { type ChatMessage, ModelType } from "@elizaos/core";
 import {
   buildProviderRuntimeSettings,
   type ProviderRuntimeSettingsContext,
@@ -9,6 +9,7 @@ import {
   promptCacheMetrics,
 } from "@/runtime/prompt-cache";
 import { runWithTurnRuntimeScope } from "@/runtime/turn-runtime-scope";
+import type { ModelAnalysisImage } from "@/services/model-analysis-port";
 import type { AutomationRuntimeOverrides } from "@/types/runtime";
 import { applyRuntimeOverrides } from "./chat-turn/overrides";
 
@@ -17,9 +18,40 @@ export interface ModelAnalysisOptions {
   personalityId?: string;
   runtimeOverrides?: AutomationRuntimeOverrides;
   abortSignal?: AbortSignal;
+  images?: readonly ModelAnalysisImage[];
 }
 
 export type ModelAnalysisContext = ProviderRuntimeSettingsContext;
+
+const MAX_ANALYSIS_IMAGES = 4;
+const MAX_ANALYSIS_IMAGE_BYTES = 10 * 1024 * 1024;
+
+function snapshotImages(
+  images: readonly ModelAnalysisImage[] | undefined,
+): ModelAnalysisImage[] {
+  if (images === undefined) return [];
+  if (!Array.isArray(images) || images.length > MAX_ANALYSIS_IMAGES) {
+    throw new Error("Model analysis accepts at most four images.");
+  }
+  let bytes = 0;
+  return images.map((image) => {
+    if (
+      !(image?.data instanceof Uint8Array) ||
+      !image.data.byteLength ||
+      !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(
+        image.mediaType,
+      )
+    ) {
+      throw new Error("Model analysis requires supported image bytes.");
+    }
+    bytes += image.data.byteLength;
+    if (bytes > MAX_ANALYSIS_IMAGE_BYTES) {
+      throw new Error("Model analysis images exceed the 10 MiB total limit.");
+    }
+    // Protect an in-flight provider request from mutation by its caller.
+    return { data: Uint8Array.from(image.data), mediaType: image.mediaType };
+  });
+}
 
 function throwIfAborted(signal: AbortSignal | undefined): void {
   if (!signal?.aborted) return;
@@ -41,6 +73,7 @@ export async function runModelAnalysis(
   options: ModelAnalysisOptions,
 ): Promise<string> {
   throwIfAborted(options.abortSignal);
+  const images = snapshotImages(options.images);
 
   const settings = applyRuntimeOverrides(
     context.services.settings.get(),
@@ -54,19 +87,40 @@ export async function runModelAnalysis(
     volatile: prompt,
     provider: settings.model.provider,
     model: settings.model.model,
-    versionDigest: hashParts(["doolittle-model-analysis-v1", options.label]),
+    versionDigest: hashParts([
+      images.length
+        ? "doolittle-model-analysis-images-v1"
+        : "doolittle-model-analysis-v1",
+      options.label,
+    ]),
   });
   promptCacheMetrics.recordPlan(cacheable.stats);
 
   const runtimeSettings = buildProviderRuntimeSettings(context, settings);
+  const messages: ChatMessage[] | undefined = images.length
+    ? [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: cacheable.prompt },
+            ...images.map((image) => ({
+              type: "image" as const,
+              image: image.data,
+              mediaType: image.mediaType,
+            })),
+          ],
+        },
+      ]
+    : undefined;
   const params = {
     prompt: cacheable.prompt,
     promptSegments: cacheable.promptSegments,
     providerOptions: cacheable.providerOptions,
     signal: options.abortSignal,
+    ...(messages ? { messages } : {}),
   };
 
-  const response = await runWithTurnRuntimeScope(
+  const response: unknown = await runWithTurnRuntimeScope(
     context.runtime,
     {
       settings: runtimeSettings,
@@ -76,5 +130,13 @@ export async function runModelAnalysis(
   );
 
   throwIfAborted(options.abortSignal);
+  if (
+    response &&
+    typeof response === "object" &&
+    "text" in response &&
+    typeof response.text === "string"
+  ) {
+    return response.text;
+  }
   return typeof response === "string" ? response : String(response ?? "");
 }

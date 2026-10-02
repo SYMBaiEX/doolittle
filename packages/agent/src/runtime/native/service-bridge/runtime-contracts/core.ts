@@ -63,7 +63,10 @@ export interface NativeBrowserService {
   snapshot(url: string): Promise<string>;
   screenshot(url: string): Promise<string>;
   capture(url: string): Promise<BrowserCaptureBundle>;
-  analyze(url: string): Promise<BrowserAnalysisBundle>;
+  analyze(
+    url: string,
+    abortSignal?: AbortSignal,
+  ): Promise<BrowserAnalysisBundle>;
   compare(leftUrl: string, rightUrl: string): Promise<BrowserComparisonBundle>;
   analyzeComparison(
     leftUrl: string,

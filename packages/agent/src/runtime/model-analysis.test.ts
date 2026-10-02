@@ -1,4 +1,4 @@
-import { ModelType } from "@elizaos/core";
+import { type GenerateTextParams, ModelType } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { runModelAnalysis } from "./model-analysis";
@@ -10,10 +10,15 @@ function createContext() {
   const startTurn = vi.fn();
   const finishTurn = vi.fn();
   const getSetting = vi.fn(() => undefined);
-  const useModel = vi.fn(async (modelType: unknown) => {
-    expect(modelType).toBe(ModelType.TEXT_LARGE);
-    return "model-only result";
-  });
+  const useModel = vi.fn(
+    async (
+      modelType: unknown,
+      _params?: GenerateTextParams,
+    ): Promise<unknown> => {
+      expect(modelType).toBe(ModelType.TEXT_LARGE);
+      return "model-only result";
+    },
+  );
   const context = {
     config: { workspaceDir: "/workspace/demo" },
     runtime: {
@@ -56,6 +61,68 @@ function createContext() {
 }
 
 describe("runModelAnalysis", () => {
+  it("passes copied image bytes and cached prompt text in one scoped model call", async () => {
+    const harness = createContext();
+    const data = new Uint8Array([137, 80, 78, 71]);
+    harness.useModel.mockImplementationOnce(async (_type, params) => {
+      data[0] = 0;
+      expect(params?.messages).toEqual([
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Review these pixels." },
+            {
+              type: "image",
+              image: new Uint8Array([137, 80, 78, 71]),
+              mediaType: "image/png",
+            },
+          ],
+        },
+      ]);
+      expect(params?.prompt).toBe("Review these pixels.");
+      expect(params).toHaveProperty("promptSegments");
+      return { text: "Pixel-backed result", toolCalls: [] };
+    });
+    await expect(
+      runModelAnalysis(harness.context, "Review these pixels.", {
+        label: "browser",
+        images: [{ data, mediaType: "image/png" }],
+      }),
+    ).resolves.toBe("Pixel-backed result");
+    expect(harness.useModel).toHaveBeenCalledTimes(1);
+    expect(harness.storeMessage).not.toHaveBeenCalled();
+    expect(harness.startTurn).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { images: [{ data: new Uint8Array(), mediaType: "image/png" }] },
+    { images: [{ data: new Uint8Array([1]), mediaType: "text/plain" }] },
+    { images: [{ data: "local-path.png", mediaType: "image/png" }] },
+    {
+      images: [
+        { data: new Uint8Array(10 * 1024 * 1024 + 1), mediaType: "image/png" },
+      ],
+    },
+    {
+      images: Array.from({ length: 5 }, () => ({
+        data: new Uint8Array([1]),
+        mediaType: "image/png",
+      })),
+    },
+  ])(
+    "rejects unsupported or unbounded images before the model call",
+    async ({ images }) => {
+      const harness = createContext();
+      await expect(
+        runModelAnalysis(harness.context, "Review", {
+          label: "browser",
+          images: images as never,
+        }),
+      ).rejects.toThrow(/Model analysis/u);
+      expect(harness.useModel).not.toHaveBeenCalled();
+    },
+  );
+
   it("uses one scoped Eliza model call without creating chat lifecycle state", async () => {
     const harness = createContext();
 

@@ -37,6 +37,10 @@ async function executeEvidenceCommand(
     case "capture":
       return web.capture(requireUrl(command));
     case "analyze":
+      return web.analyzeWithModel
+        ? web.analyzeWithModel(requireUrl(command))
+        : web.analyze(requireUrl(command));
+    case "prepare-analysis":
       return web.analyze(requireUrl(command));
     case "compare": {
       const secondaryUrl = command.secondaryUrl?.trim();

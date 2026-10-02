@@ -241,6 +241,18 @@ describe("backendExitDetail", () => {
     expect(detail.length).toBeLessThan(2_100);
   });
 
+  it("redacts ephemeral child-only capture tokens without putting them in the parent environment", () => {
+    const token = "child-only-capture-capability-12345";
+    const detail = backendExitDetail(
+      1,
+      null,
+      `ELIZA_BROWSER_WORKSPACE_TOKEN=${token}\nUnstructured ${token}`,
+      { ELIZA_BROWSER_WORKSPACE_TOKEN: token },
+    );
+    expect(detail).not.toContain(token);
+    expect(detail).toContain("[REDACTED]");
+  });
+
   it("redacts exact sensitive environment values in unstructured output", () => {
     const key = "DOOLITTLE_BACKEND_TEST_ACCESS_TOKEN";
     const original = process.env[key];

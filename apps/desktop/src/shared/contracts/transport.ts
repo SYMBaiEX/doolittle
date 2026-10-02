@@ -2,6 +2,9 @@ export type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 export const DESKTOP_REQUEST_TIMEOUT_MS = 15_000;
 export const DESKTOP_MEDIA_REQUEST_TIMEOUT_MS = 180_000;
+// Native capture owns bounded private tabs; page analysis additionally waits
+// for the selected model. These are not ordinary settings/status requests.
+export const DESKTOP_BROWSER_CAPTURE_TIMEOUT_MS = 45_000;
 // ACP prompts execute a full agent turn (including tools and model latency),
 // while the editor independently polls structured progress updates. They need
 // the same bounded window as other long-running local work rather than the
@@ -17,6 +20,19 @@ export function desktopRequestTimeoutMs(path: string): number {
   }
   if (pathname === "/runtime/registry/install") {
     return DESKTOP_REGISTRY_INSTALL_TIMEOUT_MS;
+  }
+  if (
+    pathname === "/browser/analyze" ||
+    pathname === "/browser/compare/analyze"
+  ) {
+    return DESKTOP_MEDIA_REQUEST_TIMEOUT_MS;
+  }
+  if (
+    pathname === "/browser/capture" ||
+    pathname === "/browser/inspect" ||
+    pathname === "/browser/screenshot"
+  ) {
+    return DESKTOP_BROWSER_CAPTURE_TIMEOUT_MS;
   }
   if (
     pathname === "/media/transcribe-attachment" ||

@@ -11,6 +11,7 @@ import {
   type BrowserWorkspaceCommand,
 } from "@elizaos/plugin-browser";
 import type { AppServices } from "@/services";
+import type { BrowserAnalysisBundle } from "@/services/web/service";
 import {
   createDoolittleBrowserTarget,
   DOOLITTLE_BROWSER_TARGET_ID,
@@ -31,6 +32,7 @@ export function createBrowserRuntimeService(
     }
 
     static async start(runtime: IAgentRuntime): Promise<Service> {
+      services.web.bindRuntime?.(runtime);
       return new BrowserRuntimeService(runtime);
     }
 
@@ -94,8 +96,16 @@ export function createBrowserRuntimeService(
       return this.execute({ subaction: "snapshot", name: "capture", url });
     }
 
-    analyze(url: string) {
-      return this.execute({ subaction: "snapshot", name: "analyze", url });
+    async analyze(url: string, abortSignal?: AbortSignal) {
+      abortSignal?.throwIfAborted();
+      const analysis = await this.execute<BrowserAnalysisBundle>({
+        subaction: "snapshot",
+        name: "prepare-analysis",
+        url,
+      });
+      return services.web.completeAnalysis
+        ? services.web.completeAnalysis(analysis, { abortSignal })
+        : analysis;
     }
 
     compare(leftUrl: string, rightUrl: string) {

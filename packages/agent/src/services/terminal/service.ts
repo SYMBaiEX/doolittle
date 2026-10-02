@@ -148,6 +148,14 @@ export class TerminalService {
     this.invalidateHealthCache();
   }
 
+  async renderOrigins(): Promise<string[]> {
+    const workspace = resolveWorkspaceDirectory(this.workspaceDirectory);
+    const origins = await this.appServers.renderOrigins(workspace);
+    return workspace === resolveWorkspaceDirectory(this.workspaceDirectory)
+      ? origins
+      : [];
+  }
+
   async runStreamingLocal(
     command: string,
     callbacks?: {

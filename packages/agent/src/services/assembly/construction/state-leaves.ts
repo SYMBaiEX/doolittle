@@ -13,6 +13,7 @@ import { MediaService } from "../../media";
 import { PersonalityService } from "../../personality-service";
 import { TerminalService } from "../../terminal/service";
 import { TrajectoryEvaluationService } from "../../trajectory/service";
+import { createSdkRenderedCapturePort } from "../../web/rendered-capture";
 import { WebService } from "../../web/service";
 import { WorkspaceService } from "../../workspace-service/index";
 import type {
@@ -101,6 +102,14 @@ export function createServiceConstructionLeaves(params: {
         obeyRobots: config.browserObeyRobots,
       }),
       directories.webDir,
+      {
+        renderedCapture: createSdkRenderedCapturePort(),
+        modelAnalysis: new RuntimeModelAnalysisPort(
+          config,
+          settings,
+          "browser",
+        ),
+      },
     ),
   };
 }

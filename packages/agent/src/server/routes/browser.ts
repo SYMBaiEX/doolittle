@@ -64,6 +64,9 @@ export async function handleBrowserRoutes(
   url: URL,
   runAnalysisTurn: BrowserAnalysisTurn = runModelAnalysis,
 ): Promise<Response | null> {
+  if (request.method === "GET" && url.pathname === "/browser/render-targets") {
+    return json({ origins: await context.services.terminal.renderOrigins() });
+  }
   if (request.method === "GET" && url.pathname === "/web/fetch") {
     const targetUrl = url.searchParams.get("url");
     const error = validateBrowserUrl(targetUrl, "url");
@@ -135,14 +138,17 @@ export async function handleBrowserRoutes(
     const analysis = await analyzeBrowserPage(
       context.runtime,
       body.url as string,
+      request.signal,
     );
     return json({
       analysis,
-      response: await runAnalysisTurn(context, analysis.prompt, {
-        label: "browser",
-        personalityId: getEffectiveActivePersonality(context.runtime).id,
-        abortSignal: request.signal,
-      }),
+      response:
+        analysis.response ??
+        (await runAnalysisTurn(context, analysis.prompt, {
+          label: "browser",
+          personalityId: getEffectiveActivePersonality(context.runtime).id,
+          abortSignal: request.signal,
+        })),
     });
   }
 

@@ -22,6 +22,11 @@ import {
   findRepoRoot,
   sourceRuntimeTarget,
 } from "./backend";
+import { isActiveManagedRenderUrl } from "./browser-render-targets";
+import {
+  type BrowserRenderBridge,
+  startBrowserRenderBridge,
+} from "./browser-renderer";
 import { ChatAttachmentLifecycle } from "./chat-attachment-lifecycle";
 import {
   configureDesktopSingleInstance,
@@ -64,6 +69,7 @@ import {
 
 let mainWindow: BrowserWindow | null = null;
 let backend: BackendManager | null = null;
+let browserRenderBridge: BrowserRenderBridge | null = null;
 let workspaceState: WorkspaceStateManager | null = null;
 let workspacePickInFlight: Promise<WorkspacePickResult> | null = null;
 let disposeIpc: (() => void) | null = null;
@@ -605,7 +611,7 @@ function createWindow(): BrowserWindow {
 }
 
 if (ownsSingleInstance)
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     const sourceRoot = sourceRootOverride(
       app.isPackaged,
       process.env.DOOLITTLE_DESKTOP_SOURCE_ROOT,
@@ -640,6 +646,27 @@ if (ownsSingleInstance)
           ),
     });
     const runtimeDataDir = resolve(app.getPath("userData"), "runtime");
+    try {
+      browserRenderBridge = await startBrowserRenderBridge({
+        isManagedAppUrl: (url) =>
+          isActiveManagedRenderUrl(
+            url,
+            () =>
+              backend?.getState() ?? {
+                phase: "booting",
+                message: "Runtime unavailable",
+              },
+            () => backend?.getWorkspaceDirectory() ?? "",
+          ),
+      });
+      target.environment = {
+        ...target.environment,
+        ...browserRenderBridge.environment,
+      };
+    } catch {
+      // Text capture remains available; never report native rendering as ready.
+      console.warn("Private rendered-page capture is unavailable.");
+    }
     const chatAttachmentLifecycle = new ChatAttachmentLifecycle(runtimeDataDir);
     // Eliza's OAuth/account-storage helpers resolve their state root from
     // ELIZA_HOME. Bind the desktop main process to the same private data root
@@ -752,9 +779,14 @@ app.on("before-quit", (event) => {
   quitting = true;
   tray?.destroy();
   tray = null;
-  void backend.stop().finally(() => {
-    disposeIpc?.();
-    app.quit();
+  void backend.stop().finally(async () => {
+    try {
+      await browserRenderBridge?.dispose();
+    } finally {
+      browserRenderBridge = null;
+      disposeIpc?.();
+      app.quit();
+    }
   });
 });
 

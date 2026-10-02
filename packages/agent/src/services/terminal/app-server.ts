@@ -1,5 +1,5 @@
 import { realpathSync, statSync } from "node:fs";
-import { isAbsolute } from "node:path";
+import { isAbsolute, relative, sep } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { stripVTControlCharacters } from "node:util";
 import type {
@@ -73,6 +73,42 @@ export class AppServerManager {
         (session) =>
           session.state === "running" && this.owners.get(session.id) === owner,
       );
+  }
+
+  /** Origin-only capability projection; never expose commands, paths or output. */
+  async renderOrigins(workspace: string): Promise<string[]> {
+    let root: string;
+    try {
+      root = realpathSync(workspace);
+    } catch {
+      return [];
+    }
+    const candidates = this.terminal.listManaged().flatMap((session) => {
+      const url = this.readyUrls.get(session.id);
+      if (session.state !== "running" || !url) return [];
+      let cwd: string;
+      try {
+        cwd = realpathSync(session.cwd);
+      } catch {
+        return [];
+      }
+      const child = relative(root, cwd);
+      if (isAbsolute(child) || child === ".." || child.startsWith(`..${sep}`))
+        return [];
+      return [{ id: session.id, url }];
+    });
+    const ready = await Promise.all(
+      candidates.slice(0, 64).map(async ({ id, url }) => {
+        if (!(await this.probe(url))) return [];
+        const alive = this.terminal
+          .listManaged()
+          .some((session) => session.id === id && session.state === "running");
+        return alive && this.readyUrls.get(id) === url
+          ? [new URL(url).origin]
+          : [];
+      }),
+    );
+    return [...new Set(ready.flat())];
   }
 
   async start(input: {

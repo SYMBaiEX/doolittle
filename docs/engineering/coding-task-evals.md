@@ -124,6 +124,44 @@ capture. Record both SDK patch hashes for comparisons, and retire each patch
 only after an upstream release passes its regression coverage. The image wire
 format follows the [official image-input guide](https://developers.openai.com/api/docs/guides/images-vision).
 
+### Native rendered evidence
+
+The desktop starts a capture-only Electron bridge and passes its ephemeral
+loopback capability to its child runtime. Public `@elizaos/plugin-browser`
+workspace helpers open, snapshot and close hidden private windows. Capture is
+restricted to ready managed apps under the selected workspace, revalidated
+before and after pixel capture. No existing browser profile, arbitrary script,
+keyboard/click input, clipboard, connector account or form submission is exposed.
+Own-origin read requests and a small HTTPS image/font allowlist are permitted;
+other resources are blocked and counted. Do not interpret an incomplete asset
+load as the app's intended design.
+
+`/browser/capture` records real viewport PNGs, hashes and bounded DOM facts when
+that capability succeeds. `/browser/analyze` attaches the desktop and available
+narrow PNG bytes to the selected model through the shared prompt-cache layer;
+it returns `modelEvidence=rendered-pixels`. Text capture remains an explicit
+fallback with `captureReady=false`; PNG text cards are never relabeled as
+rendered pages. Comparison workflows remain text-based. A viewport critique
+does not establish interaction, motion, reduced-motion or full accessibility.
+
+Run the isolated synthetic acceptance check with:
+
+```sh
+nub scripts/acceptance/rendered-browser-smoke.ts
+nub scripts/acceptance/rendered-browser-smoke.ts --live-analysis
+```
+
+The default check uses no model. The explicit live option uses the configured
+linked Codex input with the test's fixed `gpt-6-luna`/`medium` route; it checks
+two actual image inputs, one physical provider request, reported usage and
+identification of known fixture defects. Internal SDK model dispatch count is
+not the physical request count. This is a canary, not a coding benchmark or a
+human score. It retains only bounded diagnostic facts and deletes its exact
+private synthetic state after owned children stop; a shutdown failure preserves
+state and fails the check. Billable USD remains unavailable. For a coding
+evaluation, still freeze the source, accept the real task once, verify the
+agent actually uses and responds to rendered feedback, then review the result.
+
 For controlled desktop-owner backend experiments, use the tested
 `createEvalRuntimeEnvironment` helper in
 [`packages/evals/src/runtime-environment.ts`](../../packages/evals/src/runtime-environment.ts).

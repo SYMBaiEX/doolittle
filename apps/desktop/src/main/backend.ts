@@ -14,12 +14,12 @@ const FORCE_EXIT_WAIT_MS = 2_000;
 const EXIT_DIAGNOSTIC_LIMIT = 2_000;
 const MIN_ENV_SECRET_LENGTH = 8;
 const SENSITIVE_ENV_KEY_PATTERN =
-  /(?:api[_-]?key|auth|authorization|bearer|cookie|password|secret|access[_-]?token|refresh[_-]?token|id[_-]?token)\b/i;
+  /(?:api[_-]?key|auth|authorization|bearer|cookie|password|secret|token)\b/i;
 const AUTHORIZATION_VALUE_PATTERN =
   /(["']?\bauthorization\b["']?\s*[:=]\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\r\n,;}]+)/giu;
 const BEARER_VALUE_PATTERN = /(\bbearer\s+)[a-z0-9._~+/=-]+/giu;
 const SENSITIVE_ASSIGNMENT_PATTERN =
-  /(["']?(?:[a-z0-9_-]*(?:api[_-]?key|password|secret|access[_-]?token|refresh[_-]?token|id[_-]?token))\b["']?\s*[:=]\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;}\]]+)/giu;
+  /(["']?(?:[a-z0-9_-]*(?:api[_-]?key|password|secret|token))\b["']?\s*[:=]\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;}\]]+)/giu;
 
 type StoppableChild = Pick<
   ChildProcess,
@@ -65,9 +65,10 @@ export function backendExitDetail(
   code: number | null,
   signal: NodeJS.Signals | null,
   output: string,
+  environment: NodeJS.ProcessEnv = process.env,
 ): string {
   const summary = `Runtime exited (${signal ?? `code ${code ?? "unknown"}`}).`;
-  const diagnostic = sanitizeBackendDiagnostic(output);
+  const diagnostic = sanitizeBackendDiagnostic(output, environment);
   return diagnostic
     ? `${summary}\nRecent runtime output:\n${diagnostic}`
     : summary;
@@ -99,12 +100,15 @@ export function recordUnexpectedBackendExit(
   }
 }
 
-function sanitizeBackendDiagnostic(output: string): string {
+function sanitizeBackendDiagnostic(
+  output: string,
+  environment: NodeJS.ProcessEnv,
+): string {
   let redacted = output
     .replace(AUTHORIZATION_VALUE_PATTERN, "$1[REDACTED]")
     .replace(BEARER_VALUE_PATTERN, "$1[REDACTED]")
     .replace(SENSITIVE_ASSIGNMENT_PATTERN, "$1[REDACTED]");
-  for (const [key, secret] of Object.entries(process.env)) {
+  for (const [key, secret] of Object.entries(environment)) {
     if (
       !SENSITIVE_ENV_KEY_PATTERN.test(key) ||
       !secret ||
@@ -367,17 +371,18 @@ export class BackendManager {
       rejectUrl = rejectPromise;
     });
 
+    const environment = buildBackendEnvironment(
+      this.runtimeDataDir,
+      this.target.repoRoot,
+      this.workspaceDir,
+      {
+        ...process.env,
+        ...this.target.environment,
+      },
+    );
     const child = spawn(this.target.executable, this.target.args, {
       cwd: this.target.repoRoot,
-      env: buildBackendEnvironment(
-        this.runtimeDataDir,
-        this.target.repoRoot,
-        this.workspaceDir,
-        {
-          ...process.env,
-          ...this.target.environment,
-        },
-      ),
+      env: environment,
       shell: false,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -394,7 +399,7 @@ export class BackendManager {
     child.once("error", (error) => rejectUrl?.(error));
     child.once("exit", (code, signal) => {
       if (this.child === child) this.child = null;
-      const detail = backendExitDetail(code, signal, recentOutput);
+      const detail = backendExitDetail(code, signal, recentOutput, environment);
       rejectUrl?.(new Error(detail));
       if (!this.stopping) {
         recordUnexpectedBackendExit(this.runtimeDataDir, detail, code, signal);
@@ -409,7 +414,7 @@ export class BackendManager {
     const timeout = setTimeout(() => {
       rejectUrl?.(
         new Error(
-          `Timed out waiting for the runtime listening URL.${recentOutput ? `\n${recentOutput}` : ""}`,
+          `Timed out waiting for the runtime listening URL.${recentOutput ? `\n${sanitizeBackendDiagnostic(recentOutput, environment)}` : ""}`,
         ),
       );
     }, STARTUP_TIMEOUT_MS);

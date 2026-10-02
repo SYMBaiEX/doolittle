@@ -69,9 +69,13 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
 - The pinned Codex SDK also has an image-input package patch. Ordered user
   image parts reach the SDK's real Responses request as `input_image`; invalid
   inputs and unsupported message roles fail before authentication or fetch.
-  Synthetic transport tests prove serialization, not selected-model vision,
-  rendered screenshot capture, or a native visual feedback loop. Keep those
-  capabilities unavailable until the actual runtime journey proves them.
+  Synthetic transport tests prove serialization, not selected-model vision.
+  The desktop's private capture bridge now provides actual viewport PNGs for
+  active managed apps, through public Eliza browser-workspace helpers. A live
+  synthetic acceptance check verifies desktop/narrow captures and two images
+  in one physical selected-model request. This establishes that scoped path,
+  not arbitrary-site browsing, interactive accessibility, a correction loop,
+  human-rated quality or comparable coding performance.
 - The pairwise comparator handles a baseline/candidate report pair. The
   `eval:headless:aggregate` command summarizes compatible schema-v4 repeats
   only when route, evaluator, suite, task/check identities, clean source
@@ -218,8 +222,12 @@ and show spread, not just one run or arithmetic mean.
       Lightpanda PNG capture cards contain fetched text, not page rendering;
       they report `captureMode=capture-card` and `captureReady=false`. Neither
       a PNG extension, a legacy `pixel` label, nor a text-only model analysis
-      proves layout or contrast. Keep external browser review distinct from
-      native Doolittle screenshot capability.
+      proves layout or contrast. Native desktop managed-app captures instead
+      record `captureMode=rendered-page`, viewport/pixel dimensions, hashes,
+      DOM facts and blocked-resource counts. Confirm `modelEvidence=rendered-pixels`
+      and actual image inputs before attributing a critique to that path.
+      Other URLs or missing capture capability use explicitly text-only
+      fallback. Keep external browser review and human ratings separate.
 - [ ] Record blinded human scores, evidence notes, and reviewer disagreement.
 - [ ] Compare only compatible suite/schema/evaluator versions and paired tasks.
 - [ ] Report route/configuration, sample size, check rates, human-score

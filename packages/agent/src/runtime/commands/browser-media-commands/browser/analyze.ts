@@ -16,7 +16,9 @@ export async function handleBrowserAnalyzeCommand(
       return "Usage: /browser analyze <url>";
     }
     const analysis = await analyzeBrowserPage(context.runtime, url);
-    const response = await options.runAnalysis(analysis.prompt, "browser");
+    const response =
+      analysis.response ??
+      (await options.runAnalysis(analysis.prompt, "browser"));
     return JSON.stringify({ analysis, response }, null, 2);
   }
 

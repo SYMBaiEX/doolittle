@@ -1,4 +1,10 @@
-import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -13,10 +19,11 @@ import {
 function fakeTerminal(
   text: string,
   state: InteractiveTerminalSessionSnapshot["state"] = "running",
+  cwd = tmpdir(),
 ) {
   const snapshot: InteractiveTerminalSessionSnapshot = {
     id: "11111111-1111-4111-8111-111111111111",
-    cwd: tmpdir(),
+    cwd,
     command: "bun run dev",
     state,
     shell: "zsh",
@@ -43,6 +50,67 @@ function fakeTerminal(
 }
 
 describe("managed application handoff", () => {
+  it("includes nested managed apps but denies symlink escapes and other workspaces", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-render-scope-"));
+    const outside = mkdtempSync(join(tmpdir(), "doolittle-render-outside-"));
+    const child = join(root, "nested-app");
+    mkdirSync(child);
+    symlinkSync(outside, join(root, "escape"));
+    try {
+      const terminal = fakeTerminal("http://localhost:3007", "running", child);
+      const manager = new AppServerManager(
+        terminal as unknown as InteractiveTerminalSessionManager,
+        async () => true,
+      );
+      const started = await manager.start({
+        owner: "chat",
+        cwd: child,
+        command: "bun run dev",
+        waitMs: 0,
+      });
+      terminal.listManaged.mockReturnValue([started.session]);
+      expect(await manager.renderOrigins(root)).toEqual([
+        "http://localhost:3007",
+      ]);
+      expect(await manager.renderOrigins(outside)).toEqual([]);
+      terminal.listManaged.mockReturnValue([
+        { ...started.session, cwd: join(root, "escape") },
+      ]);
+      expect(await manager.renderOrigins(root)).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+  it("projects only HTTP-ready live managed origins under the active workspace", async () => {
+    const terminal = fakeTerminal("http://localhost:3007/path");
+    const probe = vi.fn(async () => true);
+    const manager = new AppServerManager(
+      terminal as unknown as InteractiveTerminalSessionManager,
+      probe,
+    );
+    expect(await manager.renderOrigins(tmpdir())).toEqual([]);
+    const started = await manager.start({
+      owner: "chat-a",
+      cwd: tmpdir(),
+      command: "bun run dev",
+      waitMs: 0,
+    });
+    terminal.listManaged.mockReturnValue([started.session]);
+    expect(await manager.renderOrigins(tmpdir())).toEqual([
+      "http://localhost:3007",
+    ]);
+    expect(
+      await manager.renderOrigins(join(tmpdir(), "missing-workspace")),
+    ).toEqual([]);
+    probe.mockResolvedValue(false);
+    expect(await manager.renderOrigins(tmpdir())).toEqual([]);
+    probe.mockResolvedValue(true);
+    terminal.listManaged.mockReturnValue([
+      { ...started.session, state: "exited" },
+    ]);
+    expect(await manager.renderOrigins(tmpdir())).toEqual([]);
+  });
   it("extracts only actual loopback URLs and validates complete authorities and ports", () => {
     expect(
       localAppUrls(

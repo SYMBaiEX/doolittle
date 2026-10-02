@@ -38,7 +38,11 @@ export class RuntimeModelAnalysisPort implements ModelAnalysisPort {
         services: { settings: this.settings },
       },
       prompt,
-      { label: this.label, abortSignal: options.abortSignal },
+      {
+        label: this.label,
+        abortSignal: options.abortSignal,
+        images: options.images,
+      },
     );
   }
 }

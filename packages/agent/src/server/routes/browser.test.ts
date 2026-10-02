@@ -1,5 +1,5 @@
 import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleBrowserRoutes } from "./browser";
 
@@ -58,6 +58,7 @@ function createContext(): AppContext {
       },
     },
     services: {
+      terminal: { renderOrigins: async () => ["http://localhost:3000"] },
       web,
       personalities: {
         getActive: () => ({ id: "primary" }),
@@ -67,6 +68,48 @@ function createContext(): AppContext {
 }
 
 describe("handleBrowserRoutes", () => {
+  it("returns only managed origins for the desktop capability projection", async () => {
+    const response = await handleBrowserRoutes(
+      createContext(),
+      new Request("http://localhost/browser/render-targets"),
+      new URL("http://localhost/browser/render-targets"),
+    );
+    await expect(response?.json()).resolves.toEqual({
+      origins: ["http://localhost:3000"],
+    });
+  });
+
+  it("does not make a second model call after native pixel analysis completed", async () => {
+    const context = createContext();
+    const browser = context.runtime.getService(
+      DOOLITTLE_BROWSER_SERVICE,
+    ) as unknown as { analyze: (url: string) => Promise<unknown> };
+    // The test context reconstructs the service; retain a single native facade.
+    browser.analyze = async () => ({
+      prompt: "pixels",
+      response: "Native pixel result",
+      modelEvidence: "rendered-pixels",
+    });
+    const priorGetService = context.runtime.getService.bind(context.runtime);
+    context.runtime.getService = ((type) =>
+      type === DOOLITTLE_BROWSER_SERVICE
+        ? browser
+        : priorGetService(type)) as typeof context.runtime.getService;
+    const runAnalysis = vi.fn(async () => "duplicate");
+    const response = await handleBrowserRoutes(
+      context,
+      new Request("http://localhost/browser/analyze", {
+        method: "POST",
+        body: JSON.stringify({ url: "http://localhost:3000" }),
+      }),
+      new URL("http://localhost/browser/analyze"),
+      runAnalysis,
+    );
+    expect(runAnalysis).not.toHaveBeenCalled();
+    expect(await response?.json()).toMatchObject({
+      response: "Native pixel result",
+    });
+  });
   function postBrowserRoute(
     pathname: string,
     body: Record<string, unknown>,

@@ -66,8 +66,9 @@ export async function captureBrowserPage(
 export async function analyzeBrowserPage(
   runtime: RuntimeLike,
   url: string,
+  abortSignal?: AbortSignal,
 ): Promise<BrowserAnalysisBundle> {
-  return requireNativeBrowser(runtime).analyze(url);
+  return requireNativeBrowser(runtime).analyze(url, abortSignal);
 }
 
 export async function compareBrowserPages(

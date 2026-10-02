@@ -1,7 +1,14 @@
 import type { IAgentRuntime } from "@elizaos/core";
 
+/** Caller-owned bytes, never a path or a URL for the model to fetch. */
+export interface ModelAnalysisImage {
+  data: Uint8Array;
+  mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+}
+
 export interface ModelAnalysisOptions {
   abortSignal?: AbortSignal;
+  images?: readonly ModelAnalysisImage[];
 }
 
 /**

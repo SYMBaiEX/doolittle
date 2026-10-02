@@ -40,6 +40,9 @@
     "shell-quote": "1.11.0",
     "zod": "^4.6.5"
   },
+  "devDependencies": {
+    "sharp": "0.34.5"
+  },
   "scripts": {
     "dev": "nub watch src/index.ts",
     "start": "nub src/index.ts",

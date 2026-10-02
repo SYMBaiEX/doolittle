@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   type BackendState,
   DESKTOP_ACP_PROMPT_REQUEST_TIMEOUT_MS,
+  DESKTOP_BROWSER_CAPTURE_TIMEOUT_MS,
   DESKTOP_MEDIA_REQUEST_TIMEOUT_MS,
   DESKTOP_REGISTRY_INSTALL_TIMEOUT_MS,
   DESKTOP_REQUEST_TIMEOUT_MS,
@@ -57,6 +58,27 @@ describe("desktop request timeout policy", () => {
     expect(desktopRequestTimeoutMs("/runtime/registry/install")).toBe(
       DESKTOP_REGISTRY_INSTALL_TIMEOUT_MS,
     );
+    for (const path of ["/browser/analyze", "/browser/compare/analyze"]) {
+      expect(desktopRequestTimeoutMs(path)).toBe(
+        DESKTOP_MEDIA_REQUEST_TIMEOUT_MS,
+      );
+    }
+    for (const path of [
+      "/browser/capture",
+      "/browser/inspect?url=http%3A%2F%2Flocalhost%3A3000",
+      "/browser/screenshot",
+    ]) {
+      expect(desktopRequestTimeoutMs(path)).toBe(
+        DESKTOP_BROWSER_CAPTURE_TIMEOUT_MS,
+      );
+    }
+    for (const path of [
+      "/browser/status",
+      "/browser/snapshot",
+      "/browser/analyze-extra",
+    ]) {
+      expect(desktopRequestTimeoutMs(path)).toBe(DESKTOP_REQUEST_TIMEOUT_MS);
+    }
   });
 });
 

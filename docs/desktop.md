@@ -32,6 +32,17 @@ The desktop is not a wrapper around the terminal UI. Electron owns
 machine-level capabilities, React owns the operator experience, and the
 Doolittle API owns agent behavior and durable runtime state.
 
+Electron also owns a capture-only bridge for ready managed local apps in the
+selected workspace. The runtime uses Eliza's public browser-workspace helpers
+with an ephemeral loopback capability to obtain actual viewport PNGs and
+bounded DOM facts in hidden, sandboxed, non-persistent sessions. Native page
+analysis passes desktop and available narrow pixels through the shared model
+analysis path. Capture metadata identifies its backend, viewport, pixel hash,
+blocked resources and limits; missing capability or other URLs remain explicit
+text-only fallback. This is not control of an existing browser, a general
+remote browser, or proof of keyboard, click, form, motion or accessibility
+testing. Browser comparisons remain text-based.
+
 Ordinary renderer requests use `@elizaos/ui`'s `ElizaClient`, so Eliza owns
 client identity, request deadlines, resume retries, response parsing, and
 structured `ApiError` failures. Because Electron cannot structured-clone native
@@ -40,7 +51,8 @@ method, request ID, approved headers, serialized body, status, and response
 text. The main process still enforces the route, query, method, header,
 request-size, and response-size allowlists before contacting the loopback
 runtime. Ordinary calls retain a 15-second deadline, registry installation is
-bounded at two minutes, and media inference is bounded at three minutes. An
+bounded at two minutes, private browser capture/inspection at 45 seconds, and
+media or browser model analysis at three minutes. An
 aborted Eliza request cancels its sender-scoped main-process fetch. Chat,
 terminal, and PTY traffic retain dedicated cancellable channels instead of
 imitating a stream through this adapter.
@@ -624,6 +636,12 @@ running throughout the operation.
 - Browser evidence requests accept bounded HTTP(S) URLs without embedded
   credentials or control characters. Workflow bundles are explicit POST
   actions, so renderer refreshes cannot create artifacts.
+- Native capture revalidates live managed-app/workspace authority before and
+  after capture, permits only read requests on that origin plus fixed public
+  image/font hosts, denies permissions/downloads/new windows, and bounds
+  tab count, lifetimes, operations and PNG size. Its authenticated loopback
+  bridge rejects browser-origin requests and exposes no arbitrary evaluation,
+  input or profile endpoints. Its token never crosses the renderer bridge.
 - Generated artifacts are addressed by run ID and opaque index, never by a
   renderer-supplied path. The runtime enforces canonical artifact-root
   containment, regular-file and type checks, a 5 MiB limit, private no-store
