@@ -80,6 +80,9 @@ describe("native Doolittle product plugin", () => {
       }),
       expect.objectContaining({ name: "doolittle.no_tools_routing" }),
     ]);
+    expect(plugin.responseHandlerFieldEvaluators).toEqual([
+      expect.objectContaining({ name: "doolittleToolFreeReply" }),
+    ]);
     expect(plugin.shortcuts?.map((shortcut) => shortcut.id)).toEqual([
       "doolittle-web-search-command",
       "doolittle-research-command",

@@ -35,6 +35,7 @@ import {
 } from "@/actions/shell-command-action";
 import { createWorkspaceAction } from "@/actions/workspace-action";
 import { createMemoryNudgeEvaluator } from "@/evaluators/memory-nudge-evaluator";
+import { noToolsResponseField } from "@/evaluators/no-tools-response-field";
 import { noToolsRoutingEvaluator } from "@/evaluators/no-tools-routing-evaluator";
 import { workspaceMutationRoutingEvaluator } from "@/evaluators/workspace-mutation-routing-evaluator";
 import { createAgentContextProviders } from "@/providers/agent-context";
@@ -122,6 +123,7 @@ export function createDoolittleProductPlugin(
         workspaceMutationRoutingEvaluator,
         noToolsRoutingEvaluator,
       ],
+      responseHandlerFieldEvaluators: [noToolsResponseField],
       events: {
         ...createRunProgressEvents(services),
         ...createSdkCapabilityEvents(),
