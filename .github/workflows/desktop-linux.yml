@@ -23,6 +23,11 @@ jobs:
           node-version-file: .node-version
           cache-dependency-path: nub.lock
 
+      - name: Set up Bun for native runtime tests
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+
       - name: Install dependencies
         run: nub install --frozen-lockfile --ignore-scripts
 
