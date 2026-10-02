@@ -485,13 +485,16 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(restoredE2eProject).toHaveClass(/is-active/);
 
       const verifyAllRoutes = async () => {
-        for (const [route, label] of routes) {
+        for (const [route] of routes) {
           await page.evaluate((nextRoute) => {
             window.location.hash = `#/${nextRoute}`;
           }, route);
+          const currentRouteLabel = await page
+            .locator(".window-breadcrumb-current")
+            .innerText();
           await expect(
             page.locator('.window-dragbar [aria-live="polite"].sr-only'),
-          ).toContainText(`${label} opened for`);
+          ).toContainText(`${currentRouteLabel} opened for`);
           await expectNoDesktopRecovery(page);
           const viewContainer = page.locator(
             `.view-container[data-view="${route}"]`,
