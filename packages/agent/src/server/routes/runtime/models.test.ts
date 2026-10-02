@@ -237,7 +237,12 @@ describe("runtime model discovery", () => {
 
     expect(codex?.label).toBe("ChatGPT / Codex");
     expect(codex?.models.map((model) => model.id)).toEqual(
-      expect.arrayContaining(["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]),
+      expect.arrayContaining([
+        "gpt-6-luna",
+        "gpt-5.6-sol",
+        "gpt-5.6-terra",
+        "gpt-5.6-luna",
+      ]),
     );
     expect(claude?.models).toEqual(
       expect.arrayContaining([
@@ -260,6 +265,7 @@ describe("runtime model discovery", () => {
       ]),
     );
     for (const [id, defaultEffort, options] of [
+      ["gpt-6-luna", "medium", ["low", "medium", "high", "xhigh", "max"]],
       [
         "gpt-5.6-sol",
         "low",

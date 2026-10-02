@@ -396,6 +396,7 @@ describe("official delegation service bridge", () => {
     expect(useModel).toHaveBeenCalledWith(
       ModelType.RESEARCH,
       expect.objectContaining({ tools: [{ type: "web_search_preview" }] }),
+      "elizaOSCloud",
     );
     expect(spawn).not.toHaveBeenCalled();
     expect(update).toHaveBeenNthCalledWith(

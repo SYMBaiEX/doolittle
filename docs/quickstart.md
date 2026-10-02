@@ -16,7 +16,7 @@ If you want the desktop app to launch automatically after bootstrap:
 bash scripts/install.sh --desktop
 ```
 
-New profiles use Codex (`gpt-5.6-luna`, medium reasoning). Sign in before a live first prompt:
+New profiles use Codex (`gpt-6-luna`, medium reasoning). Sign in before a live first prompt:
 
 ```bash
 codex login

@@ -28,7 +28,7 @@ describe("resolveDefaultServiceModel", () => {
     } as EnvConfig);
 
     expect(defaults.provider).toBe("codex");
-    expect(defaults.defaultModel).toBe("gpt-5.6-luna");
+    expect(defaults.defaultModel).toBe("gpt-6-luna");
     expect(defaults.defaultReasoningEffort).toBe("medium");
     expect(defaults.defaultBaseUrl).toBe(
       "https://chatgpt.com/backend-api/codex",
@@ -48,7 +48,7 @@ describe("resolveDefaultServiceModel", () => {
       const settings = createServiceSettings(config, defaults);
       expect(settings.get().model).toMatchObject({
         provider: "codex",
-        model: "gpt-5.6-luna",
+        model: "gpt-6-luna",
         reasoningEffort: "medium",
       });
       settings.setMany([

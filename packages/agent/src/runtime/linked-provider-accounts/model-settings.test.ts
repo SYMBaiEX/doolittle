@@ -11,7 +11,7 @@ describe("syncProviderSettings", () => {
   it("uses the shared Codex product model when selecting the route without an override", () => {
     expect(
       resolveDefaultProviderModel({} as AgentExecutionContext, "codex"),
-    ).toBe("gpt-5.6-luna");
+    ).toBe("gpt-6-luna");
     expect(resolveDefaultProviderBaseUrl("codex")).toBe(
       "https://chatgpt.com/backend-api/codex",
     );

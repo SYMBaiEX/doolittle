@@ -32,11 +32,10 @@ export function applyLinkedProviderSettings(
     settings.ELIZAOS_CLOUD_ENABLED = "true";
     settings.ELIZAOS_CLOUD_BASE_URL =
       linkedElizaCloud.baseUrl || config.elizaCloudBaseUrl;
-  } else if (
-    config.elizaCloudEnabled &&
-    modelProvider === "elizacloud" &&
-    config.elizaCloudApiKey
-  ) {
+  } else if (config.elizaCloudEnabled && config.elizaCloudApiKey) {
+    // An explicitly enabled Cloud account can back secondary model types
+    // (such as ModelType.RESEARCH) even when another provider is the primary
+    // text route. The default false flag keeps dormant keys out of runtime.
     settings.ELIZAOS_CLOUD_API_KEY = config.elizaCloudApiKey;
   }
 

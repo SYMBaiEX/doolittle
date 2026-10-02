@@ -717,7 +717,7 @@ describe("managed official coding delegation", () => {
             error: {
               type: "invalid_request_error",
               message:
-                "The 'gpt-6-luna' model is not supported when using Codex with a ChatGPT account.",
+                "The 'restricted-model' model is not supported when using Codex with a ChatGPT account.",
             },
           }),
         });
@@ -745,7 +745,7 @@ describe("managed official coding delegation", () => {
         },
       },
     });
-    expect(JSON.stringify(result)).not.toContain("gpt-6-luna");
+    expect(JSON.stringify(result)).not.toContain("restricted-model");
     expect(input.service.getSession).not.toHaveBeenCalled();
     expect(input.service.sendPrompt).toHaveBeenCalledOnce();
   });

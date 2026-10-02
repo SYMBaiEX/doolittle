@@ -77,7 +77,7 @@ async function waitForResearchResult<T>(
 
 export type DoolittleResearchRuntime = Pick<
   IAgentRuntime,
-  "getModel" | "useModel"
+  "getModel" | "getSetting" | "useModel"
 >;
 
 function parseResearchQuestion(text: string): string | undefined {
@@ -165,9 +165,19 @@ export async function runDoolittleResearch(
   signal?: AbortSignal,
 ): Promise<DoolittleResearchRun> {
   signal?.throwIfAborted();
+  const cloudEnabled = runtime.getSetting("ELIZAOS_CLOUD_ENABLED");
+  if (
+    cloudEnabled !== true &&
+    cloudEnabled !== "true" &&
+    cloudEnabled !== "1"
+  ) {
+    throw new Error(
+      "Deep research is disabled. Set ELIZAOS_CLOUD_ENABLED=true to use the configured Eliza Cloud provider.",
+    );
+  }
   if (!runtime.getModel(ModelType.RESEARCH)) {
     throw new Error(
-      "Deep research is unavailable: no RESEARCH model is registered. Select an authenticated OpenAI or Eliza Cloud provider to use deep research.",
+      "Deep research is unavailable: no RESEARCH model is registered. Configure an authenticated Eliza Cloud research provider to continue.",
     );
   }
 
@@ -180,7 +190,10 @@ export async function runDoolittleResearch(
   // though ResearchParams does not yet declare signal. Providers from the
   // upstream cancellation PR consume it; older providers safely ignore it.
   const result = await waitForResearchResult(
-    runtime.useModel(ModelType.RESEARCH, params),
+    // RESEARCH is secondary to Doolittle's primary text route. Pin this typed
+    // call to the official Cloud handler so Codex routing cannot constrain it
+    // to a provider with no RESEARCH implementation.
+    runtime.useModel(ModelType.RESEARCH, params, "elizaOSCloud"),
     signal,
   );
   signal?.throwIfAborted();
@@ -206,7 +219,7 @@ export function createResearchAction(): Action {
     name: "DOOLITTLE_RESEARCH",
     similes: ["DEEP_RESEARCH", "RESEARCH_REPORT", "WEB_RESEARCH"],
     description:
-      "Runs the selected official ElizaOS deep-research model (ModelType.RESEARCH) over a question with web search and returns a cited report. Use for detailed research requests that need sourced, current evidence. Requires authenticated OpenAI or Eliza Cloud; deep research can take several minutes.",
+      "Runs the official Eliza Cloud deep-research model (ModelType.RESEARCH) over a question with web search and returns a cited report. Use for detailed research requests that need sourced, current evidence. Requires configured Eliza Cloud credentials; deep research can take several minutes.",
     descriptionCompressed: "Run sourced deep research over a question.",
     routingHint:
       "detailed sourced research request -> DOOLITTLE_RESEARCH; quick current lookup -> WEB_SEARCH",

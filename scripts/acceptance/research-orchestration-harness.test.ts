@@ -213,6 +213,7 @@ describe("research orchestration alpha harness", () => {
     expect(runtime.useModel).toHaveBeenCalledWith(
       ModelType.RESEARCH,
       expect.anything(),
+      "elizaOSCloud",
     );
     const durable = await official.service.getTask(created.id);
     expect(durable?.messages.at(-1)?.content).toContain("Sources:");

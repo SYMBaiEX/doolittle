@@ -8,6 +8,11 @@
     ".": "./src/index.ts",
     "./coding": "./src/coding/index.ts",
     "./coding/cases": "./src/coding/cases.ts",
-    "./coding/report": "./src/coding/report.ts"
+    "./coding/report": "./src/coding/report.ts",
+    "./headless": "./src/headless/cases.ts",
+    "./headless/runner": "./src/headless/runner.ts"
+  },
+  "dependencies": {
+    "@doolittle/contracts": "workspace:*"
   }
 }

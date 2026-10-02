@@ -9,6 +9,7 @@ the desktop runtime does not depend on it.
 ```sh
 nub run eval:list
 nub run test:coding-evals
+nub run test:headless-evals
 ```
 
 The first frozen suite, `coding-harness-v1`, contains a Next.js + shadcn + Bun
@@ -65,5 +66,27 @@ IDs and local trace journals as private operational data.
   them separately; the gateway receipts do not prove them.
 - `--case` with explicit `--run` IDs remains available for one-off historical
   analysis. Those ad hoc reports are intentionally not eligible for comparison.
-- The evaluator never calls a provider, sends chat messages, or mutates the
-  target workspace.
+- The coding receipt grader never calls a provider or mutates the target
+  workspace. The separately named headless runner below intentionally dispatches
+  one-shot tasks into disposable workspaces.
+
+## Headless workflow evaluations
+
+`headless-workflows-v2` dispatches isolated one-shot Doolittle CLI runs without
+opening the desktop app. It covers clarification and response formatting,
+workspace file mutation, cited research, and draft-only behavior:
+
+```sh
+nub run eval:headless -- --show-responses --enable-configured-cloud-research
+nub run eval:headless -- --task coding-exact-file-v2 --route-label codex-gpt6-luna-medium
+```
+
+Every task gets a fresh temporary data directory and workspace with a minimal
+onboarding marker. Eliza Cloud is disabled in subprocesses by default;
+`--enable-configured-cloud-research` explicitly enables the configured provider
+for research-domain tasks only. Reports are owner-only and contain task IDs, timings,
+response digests, objective check outcomes, and diagnostic flags—not prompts,
+responses, commands, or workspace paths. Raw answers are printed only when
+`--show-responses` is explicitly requested. Each task still requires human
+quality review; deterministic checks are only smoke/acceptance evidence, not a
+model-quality score. Temporary workspaces are removed after the run.
