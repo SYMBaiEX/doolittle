@@ -85,6 +85,15 @@ nub run eval:headless -- --task coding-exact-file-v2 --route-label codex-gpt6-lu
 nub run eval:headless -- --suite headless-workflows-v3 --task reliability-no-side-effect-v3
 ```
 
+`headless-workflows-v4` preserves the v3 tasks, versions their IDs, and corrects
+the coding workspace check to ignore only regular `AGENTS.md` and `CLAUDE.md`
+ACP identity files. Other extra files or directories still fail the check. Use
+it for new coding reliability samples:
+
+```sh
+nub run eval:headless -- --suite headless-workflows-v4 --task coding-function-behavior-v4
+```
+
 Every task gets a fresh temporary data directory and workspace with a minimal
 onboarding marker. Eliza Cloud is disabled in subprocesses by default;
 `--enable-configured-cloud-research` explicitly enables the configured provider

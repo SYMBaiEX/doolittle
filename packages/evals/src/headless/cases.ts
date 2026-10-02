@@ -39,6 +39,7 @@ export interface HeadlessEvalSuite {
 
 const hasTerms = (response: string, terms: string[]) =>
   terms.every((term) => response.toLowerCase().includes(term.toLowerCase()));
+const ACP_SESSION_IDENTITY_FILES = new Set(["AGENTS.md", "CLAUDE.md"]);
 
 export const HEADLESS_EVAL_SUITES: Record<string, HeadlessEvalSuite> = {
   "headless-workflows-v2": {
@@ -249,6 +250,51 @@ HEADLESS_EVAL_SUITES["headless-workflows-v3"] = {
       humanReviewRequired: true,
     },
   ],
+};
+
+const v3Suite = HEADLESS_EVAL_SUITES["headless-workflows-v3"];
+HEADLESS_EVAL_SUITES["headless-workflows-v4"] = {
+  id: v3Suite.id,
+  version: 4,
+  title:
+    "Expanded headless baseline with ACP setup-aware workspace verification",
+  tasks: v3Suite.tasks.map((task) => ({
+    ...task,
+    id: task.id.replace(/-v3$/u, "-v4"),
+    ...(task.id === "coding-function-behavior-v3"
+      ? {
+          prompt:
+            "In the current Doolittle workspace only, create math.mjs exporting a named function sumFinite(values). It returns the sum of finite numeric array entries, ignores strings and non-finite numbers, and returns 0 for an empty array. Run behavioral checks for these cases: [1, 2.5, '3', NaN, Infinity, -4] gives -0.5; [] gives 0; [1, '2', 2] gives 3. Do not create or edit any other task file. The ACP session may add AGENTS.md and CLAUDE.md as harness identity files; leave them untouched. In your final reply name math.mjs and truthfully report the test result.",
+          checks: task.checks.map((check) =>
+            check.id === "only-requested-file-created"
+              ? {
+                  ...check,
+                  evaluate: ({ workspaceDir }: HeadlessEvalContext) => {
+                    try {
+                      const taskEntries = readdirSync(workspaceDir, {
+                        withFileTypes: true,
+                      }).filter(
+                        (entry) =>
+                          !(
+                            entry.isFile() &&
+                            ACP_SESSION_IDENTITY_FILES.has(entry.name)
+                          ),
+                      );
+                      return (
+                        taskEntries.length === 1 &&
+                        taskEntries[0]?.isFile() === true &&
+                        taskEntries[0]?.name === "math.mjs"
+                      );
+                    } catch {
+                      return false;
+                    }
+                  },
+                }
+              : check,
+          ),
+        }
+      : {}),
+  })),
 };
 
 export function findHeadlessEvalSuite(

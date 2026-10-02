@@ -39,6 +39,34 @@ describe("headless workflow evals", () => {
     expect(expanded.tasks.some((task) => task.followUpPrompts?.length)).toBe(
       true,
     );
+    expect(HEADLESS_EVAL_SUITES["headless-workflows-v4"].version).toBe(4);
+    expect(HEADLESS_EVAL_SUITES["headless-workflows-v4"].tasks.length).toBe(
+      expanded.tasks.length,
+    );
+  });
+
+  it("does not count ACP identity files as coding-task artifacts", () => {
+    const workspaceDir = join(tempDirectory(), "workspace");
+    mkdirSync(workspaceDir);
+    writeFileSync(
+      join(workspaceDir, "math.mjs"),
+      "export function sumFinite() {}\n",
+    );
+    writeFileSync(join(workspaceDir, "AGENTS.md"), "harness identity\n");
+    writeFileSync(join(workspaceDir, "CLAUDE.md"), "harness identity\n");
+
+    const task = HEADLESS_EVAL_SUITES["headless-workflows-v4"].tasks.find(
+      (candidate) => candidate.id === "coding-function-behavior-v4",
+    );
+    const check = task?.checks.find(
+      (candidate) => candidate.id === "only-requested-file-created",
+    );
+    expect(check).toBeDefined();
+    const context = { response: "", responses: [], workspaceDir };
+    expect(check?.evaluate(context)).toBe(true);
+
+    writeFileSync(join(workspaceDir, "notes.txt"), "unexpected task file\n");
+    expect(check?.evaluate(context)).toBe(false);
   });
 
   it("saves owner-only reports without prompts or raw responses", async () => {
