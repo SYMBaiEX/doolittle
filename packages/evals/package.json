@@ -1,7 +1,7 @@
 {
   "name": "@doolittle/evals",
   "version": "0.1.0",
-  "evaluatorVersion": "0.2.1",
+  "evaluatorVersion": "0.2.2",
   "private": true,
   "type": "module",
   "description": "Versioned, evidence-based evaluation suites for Doolittle agent workflows.",
@@ -14,6 +14,7 @@
     "./headless/runner": "./src/headless/runner.ts"
   },
   "dependencies": {
+    "@doolittle/agent": "workspace:*",
     "@doolittle/contracts": "workspace:*"
   }
 }

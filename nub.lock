@@ -429,6 +429,9 @@ importers:
 
   packages/evals:
     dependencies:
+      '@doolittle/agent':
+        specifier: workspace:*
+        version: link:../agent
       '@doolittle/contracts':
         specifier: workspace:*
         version: link:../contracts

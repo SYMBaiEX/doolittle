@@ -5,6 +5,7 @@ import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
+import { getLinkedElizaCloudCredentials } from "@doolittle/agent/runtime/native/account-auth";
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import { EVALS_EVALUATOR_VERSION } from "../evaluator-version";
 import type { HeadlessEvalSuite } from "./cases";
@@ -103,6 +104,28 @@ function sha256(value: string): string {
 
 function durationMs(startedAt: number, endedAt: number): number {
   return Math.max(0, Math.round(endedAt - startedAt));
+}
+
+function configuredElizaCloudCredentials():
+  | { apiKey: string; baseUrl?: string }
+  | undefined {
+  const environmentApiKey =
+    process.env.ELIZAOS_CLOUD_API_KEY?.trim() ||
+    process.env.ELIZA_CLOUD_API_KEY?.trim();
+  if (environmentApiKey) {
+    const baseUrl = process.env.ELIZAOS_CLOUD_BASE_URL?.trim();
+    return { apiKey: environmentApiKey, ...(baseUrl ? { baseUrl } : {}) };
+  }
+
+  // The environment was checked above, so this resolves stored credentials
+  // without triggering the auth module's environment-to-store persistence.
+  const stored = getLinkedElizaCloudCredentials();
+  const apiKey = stored?.apiKey?.trim();
+  if (!apiKey) return undefined;
+
+  const baseUrl =
+    process.env.ELIZAOS_CLOUD_BASE_URL?.trim() || stored?.baseUrl?.trim();
+  return { apiKey, ...(baseUrl ? { baseUrl } : {}) };
 }
 
 function resultFromStdout(stdout: string): { ok?: boolean; text?: string } {
@@ -225,6 +248,13 @@ export async function runHeadlessEvalSuite(
 
   const suiteStartedAt = monotonicNow();
   const sourceAtStart = readSourceIdentity(repoRoot);
+  const cloudResearchOptedIn = Boolean(
+    options.enableConfiguredCloudResearch &&
+      selectedTasks.some((task) => task.domain === "research"),
+  );
+  const cloudCredentials = cloudResearchOptedIn
+    ? configuredElizaCloudCredentials()
+    : undefined;
   const runRoot = mkdtempSync(join(tmpdir(), "doolittle-headless-eval-"));
   const runs: HeadlessEvalRunResult[] = [];
   try {
@@ -247,6 +277,13 @@ export async function runHeadlessEvalSuite(
       const responses: string[] = [];
       const responseSha256s: Array<string | null> = [];
       const diagnosticFlags = new Set<string>();
+      if (
+        task.domain === "research" &&
+        cloudResearchOptedIn &&
+        !cloudCredentials?.apiKey
+      ) {
+        diagnosticFlags.add("research-provider-credentials-unavailable");
+      }
       let execDurationMs = 0;
       let execInvocations = 0;
       let finalError: Error | undefined;
@@ -255,6 +292,29 @@ export async function runHeadlessEvalSuite(
 
       for (const [index, prompt] of prompts.entries()) {
         const execStartedAt = monotonicNow();
+        const childEnvironment: NodeJS.ProcessEnv = {
+          ...process.env,
+          DOOLITTLE_MODE: "cli",
+          DOOLITTLE_DATA_DIR: dataDir,
+          DOOLITTLE_WORKSPACE_DIR: workspaceDir,
+          DOOLITTLE_USE_LINKED_CODEX_AUTH:
+            process.env.DOOLITTLE_USE_LINKED_CODEX_AUTH ?? "true",
+          DOOLITTLE_EVAL_CAPTURE_MODEL_USAGE: "true",
+          ELIZAOS_CLOUD_ENABLED: "false",
+        };
+        delete childEnvironment.ELIZAOS_CLOUD_API_KEY;
+        delete childEnvironment.ELIZA_CLOUD_API_KEY;
+        if (
+          task.domain === "research" &&
+          cloudResearchOptedIn &&
+          cloudCredentials?.apiKey
+        ) {
+          childEnvironment.ELIZAOS_CLOUD_ENABLED = "true";
+          childEnvironment.ELIZAOS_CLOUD_API_KEY = cloudCredentials.apiKey;
+          if (cloudCredentials.baseUrl) {
+            childEnvironment.ELIZAOS_CLOUD_BASE_URL = cloudCredentials.baseUrl;
+          }
+        }
         const child: HeadlessExecResult = await execute(
           "nub",
           [
@@ -269,20 +329,7 @@ export async function runHeadlessEvalSuite(
             cwd: repoRoot,
             timeoutMs: 300_000,
             maxBufferBytes: 10 * 1024 * 1024,
-            env: {
-              ...process.env,
-              DOOLITTLE_MODE: "cli",
-              DOOLITTLE_DATA_DIR: dataDir,
-              DOOLITTLE_WORKSPACE_DIR: workspaceDir,
-              DOOLITTLE_USE_LINKED_CODEX_AUTH:
-                process.env.DOOLITTLE_USE_LINKED_CODEX_AUTH ?? "true",
-              DOOLITTLE_EVAL_CAPTURE_MODEL_USAGE: "true",
-              ELIZAOS_CLOUD_ENABLED:
-                options.enableConfiguredCloudResearch &&
-                task.domain === "research"
-                  ? "true"
-                  : "false",
-            },
+            env: childEnvironment,
           },
         );
         execDurationMs += durationMs(execStartedAt, monotonicNow());
@@ -369,9 +416,6 @@ export async function runHeadlessEvalSuite(
     }
 
     const objectiveChecks = runs.flatMap((run) => run.checks);
-    const cloudResearchEnabledForRun =
-      options.enableConfiguredCloudResearch &&
-      selectedTasks.some((task) => task.domain === "research");
     const suiteWallTimeMs = durationMs(suiteStartedAt, monotonicNow());
     const sourceAtEnd = readSourceIdentity(repoRoot);
     const sourceRevisionMatches =
@@ -399,9 +443,11 @@ export async function runHeadlessEvalSuite(
       },
       source,
       createdAt,
-      executionOverrides: cloudResearchEnabledForRun
+      executionOverrides: cloudResearchOptedIn
         ? [
-            "Eliza Cloud enabled only for research-domain tasks; credentials remain in the configured environment.",
+            cloudCredentials?.apiKey
+              ? "Eliza Cloud was enabled only for opted-in research tasks; its API key was supplied through that child process environment and never written to reports."
+              : "Eliza Cloud research was opted in, but no configured API key was available; no key was passed to any task process.",
           ]
         : [],
       summary: {

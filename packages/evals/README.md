@@ -97,9 +97,14 @@ nub run eval:headless -- --suite headless-workflows-v4 --task coding-function-be
 Every task gets a fresh temporary data directory and workspace with a minimal
 onboarding marker. Eliza Cloud is disabled in subprocesses by default;
 `--enable-configured-cloud-research` explicitly enables the configured provider
-for research-domain tasks only. Reports are owner-only and contain task IDs,
-the evaluator version, phase and provider-call timings, provider-reported token
-counts when available, response digests, objective check outcomes, and
+for research-domain tasks only. The harness prefers an Eliza Cloud API key in
+the current environment, then reads the key from the configured Doolittle auth
+profile. It strips both supported API-key variables from every task process and
+passes the key only to opted-in research subprocesses. Set `DOOLITTLE_DATA_DIR`
+or `DOOLITTLE_DATA_PATH` to select the profile when running from another
+checkout. Keys are never written to reports. Reports are owner-only and include
+task IDs, evaluator version, phase and provider-call timings, provider-reported
+token counts when available, response digests, objective check outcomes, and
 sanitized model-trace counts and source revision/cleanliness—not prompts,
 responses, commands, or workspace paths. Trace summaries include request,
 response, error, and mutation-continuation counts plus prompt-length statistics;

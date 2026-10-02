@@ -468,11 +468,41 @@ describe("headless workflow evals", () => {
     expect(stored).not.toContain("private answer");
   });
 
-  it("enables configured Eliza Cloud only for explicitly opted-in research tasks", async () => {
+  it("passes stored Eliza Cloud credentials only to opted-in research tasks", async () => {
     const reportDir = tempDirectory();
+    const profileDir = tempDirectory();
+    mkdirSync(join(profileDir, "auth"), { recursive: true });
+    writeFileSync(
+      join(profileDir, "auth", "providers.json"),
+      JSON.stringify({
+        version: 1,
+        providers: {
+          elizacloud: {
+            apiKey: "stored-cloud-test-key",
+            baseUrl: "https://cloud.example.test",
+            authMode: "api-key",
+          },
+        },
+      }),
+    );
     const environments: NodeJS.ProcessEnv[] = [];
-    const previousCloudSetting = process.env.ELIZAOS_CLOUD_ENABLED;
+    const environmentKeys = [
+      "DOOLITTLE_DATA_DIR",
+      "DOOLITTLE_DATA_PATH",
+      "ELIZAOS_CLOUD_ENABLED",
+      "ELIZAOS_CLOUD_API_KEY",
+      "ELIZA_CLOUD_API_KEY",
+      "ELIZAOS_CLOUD_BASE_URL",
+    ];
+    const previousEnvironment = new Map(
+      environmentKeys.map((key) => [key, process.env[key]]),
+    );
+    process.env.DOOLITTLE_DATA_DIR = profileDir;
+    delete process.env.DOOLITTLE_DATA_PATH;
     process.env.ELIZAOS_CLOUD_ENABLED = "true";
+    delete process.env.ELIZAOS_CLOUD_API_KEY;
+    delete process.env.ELIZA_CLOUD_API_KEY;
+    delete process.env.ELIZAOS_CLOUD_BASE_URL;
     const execute = vi.fn(
       (
         _command: string,
@@ -502,17 +532,235 @@ describe("headless workflow evals", () => {
         },
       );
     } finally {
-      if (previousCloudSetting === undefined) {
-        delete process.env.ELIZAOS_CLOUD_ENABLED;
-      } else {
-        process.env.ELIZAOS_CLOUD_ENABLED = previousCloudSetting;
+      for (const [key, value] of previousEnvironment) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
       }
     }
 
     expect(environments[0]?.ELIZAOS_CLOUD_ENABLED).toBe("false");
     expect(environments[1]?.ELIZAOS_CLOUD_ENABLED).toBe("true");
+    expect(environments[0]?.ELIZAOS_CLOUD_API_KEY).toBeUndefined();
+    expect(environments[0]?.ELIZA_CLOUD_API_KEY).toBeUndefined();
+    expect(environments[1]?.ELIZAOS_CLOUD_API_KEY).toBe(
+      "stored-cloud-test-key",
+    );
+    expect(environments[1]?.ELIZA_CLOUD_API_KEY).toBeUndefined();
+    expect(environments[1]?.ELIZAOS_CLOUD_BASE_URL).toBe(
+      "https://cloud.example.test/api/v1",
+    );
+    expect(readFileSync(result.reportPath, "utf8")).not.toContain(
+      "stored-cloud-test-key",
+    );
     expect(result.report.executionOverrides).toEqual([
-      "Eliza Cloud enabled only for research-domain tasks; credentials remain in the configured environment.",
+      "Eliza Cloud was enabled only for opted-in research tasks; its API key was supplied through that child process environment and never written to reports.",
+    ]);
+  });
+
+  it("prefers a current environment key over the stored Eliza Cloud key", async () => {
+    const reportDir = tempDirectory();
+    const profileDir = tempDirectory();
+    mkdirSync(join(profileDir, "auth"), { recursive: true });
+    writeFileSync(
+      join(profileDir, "auth", "providers.json"),
+      JSON.stringify({
+        version: 1,
+        providers: { elizacloud: { apiKey: "stored-cloud-test-key" } },
+      }),
+    );
+    const environmentKeys = [
+      "DOOLITTLE_DATA_DIR",
+      "DOOLITTLE_DATA_PATH",
+      "ELIZAOS_CLOUD_API_KEY",
+      "ELIZA_CLOUD_API_KEY",
+    ];
+    const previousEnvironment = new Map(
+      environmentKeys.map((key) => [key, process.env[key]]),
+    );
+    process.env.DOOLITTLE_DATA_DIR = profileDir;
+    delete process.env.DOOLITTLE_DATA_PATH;
+    process.env.ELIZAOS_CLOUD_API_KEY = "current-cloud-test-key";
+    process.env.ELIZA_CLOUD_API_KEY = "legacy-cloud-test-key";
+    let childEnvironment: NodeJS.ProcessEnv | undefined;
+    const execute = vi.fn(
+      (
+        _command: string,
+        _args: readonly string[] | string,
+        options?: { env?: NodeJS.ProcessEnv },
+      ) => {
+        childEnvironment = options?.env;
+        return {
+          status: 0,
+          stdout: `${JSON.stringify({ ok: true, text: "Research result." })}\n`,
+          stderr: "",
+          error: undefined,
+          signal: null,
+        };
+      },
+    ) as never;
+    const suite: HeadlessEvalSuite = {
+      id: "research-key-precedence",
+      version: 1,
+      title: "Research key precedence",
+      tasks: [
+        {
+          id: "research",
+          domain: "research",
+          prompt: "private research prompt",
+          checks: [{ id: "result", evaluate: () => true }],
+          humanReviewRequired: true,
+        },
+      ],
+    };
+
+    try {
+      await runHeadlessEvalSuite(suite, {
+        reportDir,
+        execute,
+        enableConfiguredCloudResearch: true,
+      });
+    } finally {
+      for (const [key, value] of previousEnvironment) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+
+    expect(childEnvironment?.ELIZAOS_CLOUD_API_KEY).toBe(
+      "current-cloud-test-key",
+    );
+    expect(childEnvironment?.ELIZA_CLOUD_API_KEY).toBeUndefined();
+  });
+
+  it("strips inherited Eliza Cloud keys when research is not opted in", async () => {
+    const reportDir = tempDirectory();
+    const environmentKeys = [
+      "ELIZAOS_CLOUD_ENABLED",
+      "ELIZAOS_CLOUD_API_KEY",
+      "ELIZA_CLOUD_API_KEY",
+    ];
+    const previousEnvironment = new Map(
+      environmentKeys.map((key) => [key, process.env[key]]),
+    );
+    process.env.ELIZAOS_CLOUD_ENABLED = "true";
+    process.env.ELIZAOS_CLOUD_API_KEY = "ambient-cloud-test-key";
+    process.env.ELIZA_CLOUD_API_KEY = "ambient-legacy-cloud-test-key";
+    let childEnvironment: NodeJS.ProcessEnv | undefined;
+    const execute = vi.fn(
+      (
+        _command: string,
+        _args: readonly string[] | string,
+        options?: { env?: NodeJS.ProcessEnv },
+      ) => {
+        childEnvironment = options?.env;
+        return {
+          status: 0,
+          stdout: `${JSON.stringify({ ok: true, text: "Conversation complete." })}\n`,
+          stderr: "",
+          error: undefined,
+          signal: null,
+        };
+      },
+    ) as never;
+    const suite: HeadlessEvalSuite = {
+      id: "conversation-key-isolation",
+      version: 1,
+      title: "Conversation key isolation",
+      tasks: [
+        {
+          id: "conversation",
+          domain: "conversation",
+          prompt: "private conversation prompt",
+          checks: [{ id: "result", evaluate: () => true }],
+          humanReviewRequired: true,
+        },
+      ],
+    };
+
+    try {
+      await runHeadlessEvalSuite(suite, { reportDir, execute });
+    } finally {
+      for (const [key, value] of previousEnvironment) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+
+    expect(childEnvironment?.ELIZAOS_CLOUD_ENABLED).toBe("false");
+    expect(childEnvironment?.ELIZAOS_CLOUD_API_KEY).toBeUndefined();
+    expect(childEnvironment?.ELIZA_CLOUD_API_KEY).toBeUndefined();
+  });
+
+  it("reports missing configured credentials without enabling Eliza Cloud", async () => {
+    const reportDir = tempDirectory();
+    const profileDir = tempDirectory();
+    const environmentKeys = [
+      "DOOLITTLE_DATA_DIR",
+      "DOOLITTLE_DATA_PATH",
+      "ELIZAOS_CLOUD_ENABLED",
+      "ELIZAOS_CLOUD_API_KEY",
+      "ELIZA_CLOUD_API_KEY",
+    ];
+    const previousEnvironment = new Map(
+      environmentKeys.map((key) => [key, process.env[key]]),
+    );
+    process.env.DOOLITTLE_DATA_DIR = profileDir;
+    delete process.env.DOOLITTLE_DATA_PATH;
+    delete process.env.ELIZAOS_CLOUD_ENABLED;
+    delete process.env.ELIZAOS_CLOUD_API_KEY;
+    delete process.env.ELIZA_CLOUD_API_KEY;
+    let childEnvironment: NodeJS.ProcessEnv | undefined;
+    const execute = vi.fn(
+      (
+        _command: string,
+        _args: readonly string[] | string,
+        options?: { env?: NodeJS.ProcessEnv },
+      ) => {
+        childEnvironment = options?.env;
+        return {
+          status: 0,
+          stdout: `${JSON.stringify({ ok: true, text: "Research result." })}\n`,
+          stderr: "",
+          error: undefined,
+          signal: null,
+        };
+      },
+    ) as never;
+    const suite: HeadlessEvalSuite = {
+      id: "research-credentials-missing",
+      version: 1,
+      title: "Research credentials missing",
+      tasks: [
+        {
+          id: "research",
+          domain: "research",
+          prompt: "private research prompt",
+          checks: [{ id: "result", evaluate: () => true }],
+          humanReviewRequired: true,
+        },
+      ],
+    };
+    let result: Awaited<ReturnType<typeof runHeadlessEvalSuite>>;
+
+    try {
+      result = await runHeadlessEvalSuite(suite, {
+        reportDir,
+        execute,
+        enableConfiguredCloudResearch: true,
+      });
+    } finally {
+      for (const [key, value] of previousEnvironment) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+
+    expect(childEnvironment?.ELIZAOS_CLOUD_ENABLED).toBe("false");
+    expect(result.report.runs[0]?.diagnosticFlags).toContain(
+      "research-provider-credentials-unavailable",
+    );
+    expect(result.report.executionOverrides).toEqual([
+      "Eliza Cloud research was opted in, but no configured API key was available; no key was passed to any task process.",
     ]);
   });
 
