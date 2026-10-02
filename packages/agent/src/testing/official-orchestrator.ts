@@ -40,6 +40,7 @@ export interface OfficialOrchestratorTestFixture {
   tasks: Map<string, NativeOrchestratorTaskDetail>;
   runtime: {
     getService(name: string): NativeAgentOrchestratorService | null;
+    getSetting(name: string): string | boolean | undefined;
   };
 }
 
@@ -167,6 +168,8 @@ export function createOfficialOrchestratorTestFixture(): OfficialOrchestratorTes
     runtime: {
       getService: (name) =>
         name === "ORCHESTRATOR_TASK_SERVICE" ? service : null,
+      getSetting: (name) =>
+        name === "ELIZAOS_CLOUD_ENABLED" ? "true" : undefined,
     },
   };
 }

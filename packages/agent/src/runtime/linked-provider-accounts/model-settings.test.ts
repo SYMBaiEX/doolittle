@@ -11,7 +11,7 @@ describe("syncProviderSettings", () => {
   it("uses the shared Codex product model when selecting the route without an override", () => {
     expect(
       resolveDefaultProviderModel({} as AgentExecutionContext, "codex"),
-    ).toBe("gpt-5.6-luna");
+    ).toBe("gpt-6-luna");
     expect(resolveDefaultProviderBaseUrl("codex")).toBe(
       "https://chatgpt.com/backend-api/codex",
     );
@@ -93,6 +93,30 @@ describe("syncProviderSettings", () => {
     expect(runtimeSettings.get("OPENAI_SMALL_MODEL")).toBe("gpt-openai");
     expect(runtimeSettings.get("OPENAI_LARGE_MODEL")).toBe("gpt-openai");
     expect(runtimeSettings.get("OPENAI_BASE_URL")).toBe("https://openai.local");
+  });
+
+  it("keeps explicitly configured Eliza Cloud available for secondary model types", () => {
+    const settings = {
+      model: {
+        provider: "codex",
+        model: "gpt-6-luna",
+        baseUrl: "https://ignored.example",
+      },
+    } as ReturnType<AgentExecutionContext["services"]["settings"]["get"]>;
+    const context = {
+      runtime: { getSetting: () => undefined },
+      config: {
+        elizaCloudEnabled: true,
+        elizaCloudApiKey: "test-cloud-key",
+      },
+      services: { settings: { get: () => settings } },
+    } as unknown as AgentExecutionContext;
+
+    expect(
+      buildProviderRuntimeSettings(context, settings).get(
+        "ELIZAOS_CLOUD_ENABLED",
+      ),
+    ).toBe("true");
   });
 
   it("projects the selected OpenAI reasoning effort into the current turn", () => {

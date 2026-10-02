@@ -1244,6 +1244,78 @@ describe("chat turn provider handler", () => {
     expect(result.response).toBe(result.runFailureMessage);
   });
 
+  it("fails fast after two consecutive mutation passes return no action receipts", async () => {
+    let callCount = 0;
+    const { context } = createContext({
+      onHandleMessage: async () => {
+        callCount += 1;
+        return {
+          responseContent: { text: "I will inspect and update the workspace." },
+          responseMessages: [],
+          state: { data: { actionResults: [] } },
+        };
+      },
+    });
+
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Create a README file in this workspace.",
+    );
+
+    expect(callCount).toBe(2);
+    expect(result.runFailureMessage).toContain(
+      "No verified file changes were recorded",
+    );
+    expect(result.response).toBe(result.runFailureMessage);
+  });
+
+  it("allows a mutation action after one actionless planning pass", async () => {
+    let callCount = 0;
+    const writeReceipt: ActionResult = {
+      success: true,
+      text: "Created README.md",
+      data: {
+        actionName: "WRITE_FILE",
+        mutationAction: "WRITE_FILE",
+        mutationKind: "local-file",
+        mutation: {
+          action: "WRITE_FILE",
+          success: true,
+          requestedPath: "README.md",
+          resolvedPath: "/workspace/README.md",
+        },
+      },
+    };
+    const { context } = createContext({
+      onHandleMessage: async () => {
+        callCount += 1;
+        return callCount === 1
+          ? {
+              responseContent: { text: "I will inspect the workspace first." },
+              responseMessages: [],
+              state: { data: { actionResults: [] } },
+            }
+          : {
+              responseContent: { text: "Created README.md." },
+              responseMessages: [],
+              state: { data: { actionResults: [writeReceipt] } },
+            };
+      },
+    });
+
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      "Create a README file in this workspace.",
+    );
+
+    expect(callCount).toBe(2);
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(result.actionResults).toContain(writeReceipt);
+    expect(result.response).toBe("Created README.md.");
+  });
+
   it("finishes a verified already-satisfied coding task without repeating delegation or requiring a model final", async () => {
     let callCount = 0;
     const workdir = "/workspace/blog";

@@ -42,6 +42,49 @@ const fakeAuth = {
 };
 
 describe("Codex reasoning compatibility backend", () => {
+  it("observes provider latency, first text, and reported tokens without changing output", async () => {
+    const metrics: unknown[] = [];
+    const plugin = createDoolittleCodexReasoningPlugin(
+      fakeCodexPlugin(async () => "official fallback"),
+      {
+        createBackend: () =>
+          ({
+            generate: async (request: Record<string, unknown>) => {
+              (request.onTextDelta as ((text: string) => void) | undefined)?.(
+                "provider chunk",
+              );
+              return {
+                text: "complete",
+                toolCalls: [],
+                finishReason: "stop",
+                usage: { inputTokens: 11, outputTokens: 7, totalTokens: 18 },
+              };
+            },
+          }) as unknown as ReturnType<typeof createCodexReasoningBackend>,
+        observeUsage: (metric) => metrics.push(metric),
+      },
+    );
+    const model = plugin.models?.[ModelType.TEXT_SMALL] as (
+      runtime: IAgentRuntime,
+      params: Record<string, unknown>,
+    ) => Promise<unknown>;
+
+    await expect(
+      model(runtimeFor("codex", "medium"), { prompt: "private prompt" }),
+    ).resolves.toBe("complete");
+    expect(metrics).toHaveLength(1);
+    expect(metrics[0]).toMatchObject({
+      provider: "codex",
+      completed: true,
+      firstTextMs: expect.any(Number),
+      inputTokens: 11,
+      outputTokens: 7,
+      totalTokens: 18,
+    });
+    expect(metrics[0]).not.toHaveProperty("prompt");
+    expect(metrics[0]).not.toHaveProperty("response");
+  });
+
   it("adds the selected Codex effort to the real /responses request body", async () => {
     let requestBody: Record<string, unknown> | undefined;
     const backend = createCodexReasoningBackend(runtimeFor("codex", "ultra"), {

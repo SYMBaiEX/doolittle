@@ -9,7 +9,7 @@ import {
   resolveHome,
 } from "./shared";
 
-describe.sequential("account-auth shared helpers", () => {
+describe("account-auth shared helpers", () => {
   it("prefers explicit home paths and otherwise falls back to HOME", () => {
     const previous = process.env.HOME;
     process.env.HOME = "/tmp/env-home";

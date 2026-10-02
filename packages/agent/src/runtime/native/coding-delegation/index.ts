@@ -252,7 +252,7 @@ function wrapAction(
   const handler = action.handler;
   const managedSpawnDescription =
     action.name === "TASKS_SPAWN_AGENT"
-      ? "For a user-requested coding implementation, delegate the complete task once to the configured coding adapter in the exact requested existing workspace. Include the user's full requirements in task and the resolved absolute directory in workdir; do not substitute the selected project root. If the worker fails without the parent turn being cancelled, inspect its receipt/activity and recover with native Doolittle tools; never launch a second worker for that workspace in the same turn."
+      ? "For a user-requested coding implementation, delegate the complete task once to the configured coding adapter in the exact requested existing workspace. Include the user's full requirements in task. If the user says current or selected workspace without naming a path, omit workdir so Doolittle uses its configured workspace root; never guess /workspace or another placeholder. If the user names an explicit path, pass that exact existing directory as an absolute workdir; do not substitute the selected project root for an explicit user-named path or create a substitute directory. If the worker fails without the parent turn being cancelled, inspect its receipt/activity and recover with native Doolittle tools; never launch a second worker for that workspace in the same turn."
       : undefined;
   return {
     ...action,
@@ -310,7 +310,7 @@ function wrapAction(
       const workdir = resolve(expanded);
       if (!(await stat(workdir).catch(() => null))?.isDirectory())
         return failure(
-          `The coding workspace does not exist: ${workdir}. Inspect the intended location and create this exact directory with the workspace tool if the user requested it, then retry. No fallback directory was used.`,
+          `The coding workspace does not exist: ${workdir}. If the user asked for the current or selected workspace without naming a path, omit workdir and retry so Doolittle uses its configured workspace root. If the user explicitly requested this exact path, report that it is missing and ask before creating it. Do not create a placeholder or fall back to another directory.`,
           "WORKSPACE_NOT_FOUND",
         );
       const previousReceipt = delegationReceiptForWorkspace(runtime, workdir);

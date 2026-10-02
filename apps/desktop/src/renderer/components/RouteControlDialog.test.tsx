@@ -267,7 +267,7 @@ describe("RouteControlDialog reasoning effort", () => {
     expect(container.textContent).not.toContain("Loading route controls");
   });
 
-  it("shows the Codex default, never Granite, before settings and runtime arrive", () => {
+  it("shows the GPT-6 Luna Codex default, never Granite, before settings and runtime arrive", () => {
     scenario.loading = true;
     scenario.settingsAvailable = false;
     act(() =>
@@ -281,12 +281,12 @@ describe("RouteControlDialog reasoning effort", () => {
         }),
       ),
     );
-    expect(container.textContent).toContain("codex · gpt-5.6-luna");
+    expect(container.textContent).toContain("codex · gpt-6-luna");
     expect(
       container.querySelector<HTMLInputElement>(
-        'input[placeholder="gpt-5.6-luna"]',
+        'input[placeholder="gpt-6-luna"]',
       )?.value,
-    ).toBe("gpt-5.6-luna");
+    ).toBe("gpt-6-luna");
     expect(container.textContent).not.toContain("granite");
   });
 
@@ -294,7 +294,7 @@ describe("RouteControlDialog reasoning effort", () => {
     renderDialog();
 
     const model = container.querySelector<HTMLInputElement>(
-      'input[placeholder="gpt-5.6-luna"]',
+      'input[placeholder="gpt-6-luna"]',
     );
     await act(async () => {
       if (model) {

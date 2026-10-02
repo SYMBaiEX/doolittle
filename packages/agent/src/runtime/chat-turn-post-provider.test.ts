@@ -25,7 +25,7 @@ function createHarness(observedActionCount = 0) {
         storeMessage: (message: { text: string }) =>
           storedMessages.push(message.text),
       },
-      trajectories: {
+      trajectoryEvaluation: {
         recordEvent: (event: unknown) => trajectoryEvents.push(event),
       },
     },

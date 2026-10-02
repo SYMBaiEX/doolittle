@@ -1,4 +1,9 @@
-import type { IAgentRuntime, Memory, ResearchResult } from "@elizaos/core";
+import {
+  type IAgentRuntime,
+  type Memory,
+  ModelType,
+  type ResearchResult,
+} from "@elizaos/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { promptCacheMetrics } from "@/runtime/prompt-cache";
 import { runWithTurnRuntimeScope } from "@/runtime/turn-runtime-scope";
@@ -10,18 +15,22 @@ function message(text: string): Memory {
 
 function makeRuntime(opts: {
   hasModel: boolean;
-  research?: (params: unknown) => Promise<ResearchResult>;
+  cloudEnabled?: boolean;
+  research?: (params: unknown, provider?: string) => Promise<ResearchResult>;
+  onModelRequest?: (modelType: unknown, provider?: string) => void;
 }): IAgentRuntime {
   return {
-    getSetting: () => undefined,
+    getSetting: () => (opts.cloudEnabled === false ? "false" : "true"),
     getModel: () => (opts.hasModel ? () => Promise.resolve({}) : undefined),
-    useModel: (_modelType: unknown, params: unknown) =>
-      (
+    useModel: (modelType: unknown, params: unknown, provider?: string) => {
+      opts.onModelRequest?.(modelType, provider);
+      return (
         opts.research ??
         (async () => {
           throw new Error("no research model");
         })
-      )(params),
+      )(params, provider);
+    },
   } as unknown as IAgentRuntime;
 }
 
@@ -57,13 +66,42 @@ describe("research action (ModelType.RESEARCH adoption)", () => {
       },
     );
     expect(result).toMatchObject({ success: false });
-    expect(delivered).toContain("OpenAI or Eliza Cloud");
+    expect(delivered).toContain("Eliza Cloud research provider");
+  });
+
+  it("does not call a registered research model while Eliza Cloud is disabled", async () => {
+    const action = createResearchAction();
+    const onModelRequest = vi.fn();
+    const runtime = makeRuntime({
+      hasModel: true,
+      cloudEnabled: false,
+      onModelRequest,
+      research: async () =>
+        ({ id: "resp_disabled", text: "Should not run." }) as ResearchResult,
+    });
+
+    const result = await action.handler(
+      runtime,
+      message("/research disabled provider"),
+      undefined,
+      undefined,
+    );
+
+    expect(result?.success).toBe(false);
+    expect(result?.text).toContain("Deep research is disabled");
+    expect(onModelRequest).not.toHaveBeenCalled();
   });
 
   it("runs the research model and renders a cited report", async () => {
     const action = createResearchAction();
+    let observedModelType: unknown;
+    let observedProvider: string | undefined;
     const runtime = makeRuntime({
       hasModel: true,
+      onModelRequest: (modelType, provider) => {
+        observedModelType = modelType;
+        observedProvider = provider;
+      },
       research: async () =>
         ({
           id: "resp_1",
@@ -102,6 +140,8 @@ describe("research action (ModelType.RESEARCH adoption)", () => {
       },
     );
     expect(result?.success).toBe(true);
+    expect(observedModelType).toBe(ModelType.RESEARCH);
+    expect(observedProvider).toBe("elizaOSCloud");
     expect(result?.verifiedUserFacing).toBe(true);
     expect(result?.userFacingText).toBe(delivered);
     expect(result?.data).toEqual({

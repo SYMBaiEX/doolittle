@@ -98,10 +98,12 @@ describe("coding evaluation reports", () => {
     const serialized = JSON.stringify(report);
 
     expect(report.comparisonReady).toBe(true);
+    expect(report.suite).toEqual({ id: suite.id, version: suite.version });
     expect(serialized).toContain("evidenceSha256");
     expect(serialized).not.toContain("private-project");
     expect(serialized).not.toContain("token=secret");
     expect(serialized).not.toContain("Built under");
+    expect(serialized).not.toContain(task.prompt);
   });
 
   it("compares only the same frozen tasks and fixture, keeping effort separate", () => {
@@ -173,7 +175,7 @@ describe("coding evaluation reports", () => {
     expect(() =>
       compareCodingEvalReports(baseline, {
         ...candidate,
-        evaluator: { ...candidate.evaluator, version: "0.2.0" },
+        evaluator: { ...candidate.evaluator, version: "0.3.0" },
       }),
     ).toThrow("evaluator, schema, suite version, task set, or fixture differs");
   });
@@ -181,9 +183,9 @@ describe("coding evaluation reports", () => {
   it("keeps the report evaluator version aligned with its workspace manifest", () => {
     const manifest = JSON.parse(
       readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
-    ) as { version?: unknown };
+    ) as { evaluatorVersion?: unknown };
 
-    expect(CODING_EVAL_PACKAGE_VERSION).toBe(manifest.version);
+    expect(CODING_EVAL_PACKAGE_VERSION).toBe(manifest.evaluatorVersion);
   });
 
   it("persists reports with private permissions and lists them for management", () => {

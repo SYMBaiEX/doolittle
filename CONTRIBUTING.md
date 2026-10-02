@@ -6,7 +6,7 @@ Participation is governed by our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Prerequisites
 
-- [Nub](https://nubjs.com/docs) `0.7.5` with Node.js `26.5.0`.
+- [Nub](https://nubjs.com/docs) `0.9.5` with Node.js `26.5.0`.
 - Node `26.5.0` is pinned in `.node-version`; the packaged desktop uses
   Electron's embedded Node.
 

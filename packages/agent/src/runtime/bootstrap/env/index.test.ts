@@ -422,4 +422,40 @@ describe("bootstrap environment", () => {
 
     rmSync(root, { force: true, recursive: true });
   });
+
+  it("makes explicitly enabled Eliza Cloud available for secondary model types", () => {
+    const root = join(tmpdir(), `doolittle-bootstrap-${Date.now()}-cloud`);
+    rmSync(root, { force: true, recursive: true });
+    mkdirSync(root, { recursive: true });
+
+    const settings = buildPluginSettings(
+      {
+        dataDir: root,
+        elizaCloudEnabled: true,
+        elizaCloudApiKey: "configured-cloud-key",
+        elizaCloudBaseUrl: "https://cloud.example",
+        elizaCloudSmallModel: "small-cloud",
+        elizaCloudLargeModel: "large-cloud",
+        elizaCloudEmbeddingModel: "embed-cloud",
+        ollamaApiEndpoint: "http://localhost:11434/api",
+        ollamaSmallModel: "granite4.1:3b",
+        ollamaLargeModel: "granite4.1:3b",
+        ollamaEmbeddingModel: "nomic-embed-text:latest",
+        openAiBaseUrl: "https://openai.example",
+        anthropicSmallModel: "claude-small",
+        anthropicLargeModel: "claude-large",
+      } as EnvConfig,
+      { nativeRegistry: {} } as unknown as AppServices,
+      {
+        ...makeRuntimeSettings(),
+        model: { model: "gpt-6-luna", provider: "codex" },
+      } as ReturnType<AppServices["settings"]["get"]>,
+      { env: { DOOLITTLE_EMBEDDING_PROVIDER: "local" } },
+    );
+
+    expect(settings.ELIZAOS_CLOUD_ENABLED).toBe("true");
+    expect(settings.ELIZAOS_CLOUD_API_KEY).toBe("configured-cloud-key");
+
+    rmSync(root, { force: true, recursive: true });
+  });
 });

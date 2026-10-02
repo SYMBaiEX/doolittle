@@ -24,7 +24,7 @@ export default defineConfig({
       },
       {
         find: /^dotenv$/,
-        replacement: fromRoot("./node_modules/dotenv/lib/main.js"),
+        replacement: fromRoot("./node_modules/dotenv/dist/index.cjs"),
       },
       {
         find: /^@elizaos\/ui\/components\/ui\/(button|input|textarea|select)$/,

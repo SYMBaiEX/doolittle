@@ -1,6 +1,7 @@
 {
   "name": "@doolittle/evals",
   "version": "0.1.0",
+  "evaluatorVersion": "0.2.7",
   "private": true,
   "type": "module",
   "description": "Versioned, evidence-based evaluation suites for Doolittle agent workflows.",
@@ -8,6 +9,12 @@
     ".": "./src/index.ts",
     "./coding": "./src/coding/index.ts",
     "./coding/cases": "./src/coding/cases.ts",
-    "./coding/report": "./src/coding/report.ts"
+    "./coding/report": "./src/coding/report.ts",
+    "./headless": "./src/headless/cases.ts",
+    "./headless/runner": "./src/headless/runner.ts"
+  },
+  "dependencies": {
+    "@doolittle/agent": "workspace:*",
+    "@doolittle/contracts": "workspace:*"
   }
 }

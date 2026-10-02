@@ -120,5 +120,5 @@ Do not edit it by hand; run `nub scripts/sync-doc-truth.ts --write`.
 
 ### Caveats
 
-- Live deep research requires an authenticated official OpenAI or Eliza Cloud provider and can take several minutes; the deterministic alpha harness uses a registered fake RESEARCH handler.
+- Live deep research requires configured Eliza Cloud credentials and can take several minutes; the deterministic alpha harness uses a registered fake RESEARCH handler.
 - ElizaOS beta.7 has no typed non-ACP execution primitive, so Doolittle records the external research lifecycle through the official task service's durable update, message, and validation methods.

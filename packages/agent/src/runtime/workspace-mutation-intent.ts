@@ -6,6 +6,8 @@ const MUTATION_VERB =
 
 const NEGATED_ACTION_PREFIX =
   /\b(?:do\s+not|don['’]t|must\s+not|mustn['’]t|should\s+not|shouldn['’]t|not\s+to|never|without|avoid|refrain\s+from|no)\b/iu;
+const NEGATED_PASSIVE_ACTION_SUFFIX =
+  /\b(?:(?:is|are|was|were|be|been|being)\s+not|(?:is|are|was|were|has|have|had)n['’]t|(?:has|have|had)\s+not(?:\s+been)?)\s*$/iu;
 
 // Keep offsets and quoted filenames intact in the original text, but do not
 // interpret example commands or quoted instructions as the user's actions.
@@ -54,6 +56,7 @@ export function hasExplicitWorkspaceMutationIntent(message: string): boolean {
         const before = clause.slice(0, verb.index);
         return (
           !NEGATED_ACTION_PREFIX.test(before) &&
+          !NEGATED_PASSIVE_ACTION_SUFFIX.test(before.trimEnd()) &&
           !/\b(?:how\s+to|(?:would|could|might|should)\s*)$/iu.test(
             before.trimEnd(),
           )

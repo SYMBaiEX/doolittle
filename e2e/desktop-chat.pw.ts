@@ -7,6 +7,7 @@ import {
   type Page,
   test,
 } from "@playwright/test";
+import { expectNoDesktopRecovery } from "./support/desktop-assertions";
 
 const repoRoot = process.cwd();
 const desktopRoot = resolve(repoRoot, "apps/desktop");
@@ -46,12 +47,16 @@ async function launchDesktop(profileDir: string, workspaceDir: string) {
 
 async function waitForChat(page: Page, pageErrors: string[]): Promise<void> {
   await expect(page).toHaveTitle(/Doolittle$/);
-  await expect(page.locator(".window-runtime-status.ready")).toContainText(
-    "Local runtime",
+  expect(pageErrors).toEqual([]);
+  await expectNoDesktopRecovery(page);
+  const runtimeStatus = page.locator(".window-runtime-status");
+  await expect(runtimeStatus).toHaveAttribute(
+    "aria-label",
+    "Runtime status: ready",
     { timeout: 45_000 },
   );
-  await expect(page.locator(".recovery-shell")).toHaveCount(0);
-  expect(pageErrors).toEqual([]);
+  await expect(runtimeStatus).toHaveClass(/(?:^|\s)ready(?:\s|$)/);
+  await expect(runtimeStatus).toContainText("Local runtime");
   await expect(
     page.getByRole("textbox", { name: "Message Doolittle" }),
   ).toBeEnabled();
@@ -255,7 +260,7 @@ test.describe("Doolittle desktop offline chat", () => {
       await expect(assistantActions).toHaveCSS("opacity", "0");
       await assistantMessage.hover();
       await expect(assistantActions).toHaveCSS("opacity", "1");
-      await expect(page.locator(".recovery-shell")).toHaveCount(0);
+      await expectNoDesktopRecovery(page);
       expect(firstPageErrors).toEqual([]);
 
       await expect
@@ -300,7 +305,7 @@ test.describe("Doolittle desktop offline chat", () => {
             ?.text ?? "",
         ),
       ).toContain(normalizeTranscriptText(assistantText));
-      await expect(restartedPage.locator(".recovery-shell")).toHaveCount(0);
+      await expectNoDesktopRecovery(restartedPage);
       expect(restartedPageErrors).toEqual([]);
     } finally {
       await app?.close();

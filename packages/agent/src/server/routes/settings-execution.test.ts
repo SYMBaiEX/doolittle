@@ -41,6 +41,7 @@ function createContext(): AppContext {
   ];
 
   return {
+    config: { elizaCloudEnabled: false },
     runtime: {
       getSetting: () => "",
       setSetting: () => undefined,

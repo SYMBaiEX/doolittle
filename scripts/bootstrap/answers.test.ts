@@ -106,9 +106,7 @@ describe("bootstrap answer helpers", () => {
 
     expect(answers.provider).toBe("codex");
     expect(answers.ollamaApiEndpoint).toBe("http://localhost:11434/api");
-    expect(summarizeAnswers(answers)).toContain(
-      "mind=codex model=gpt-5.6-luna",
-    );
+    expect(summarizeAnswers(answers)).toContain("mind=codex model=gpt-6-luna");
     const notices: string[] = [];
     applyProviderFallbacks(
       answers,

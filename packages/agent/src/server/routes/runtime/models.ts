@@ -101,6 +101,14 @@ const codexLunaReasoning = codexReasoningCapability("medium", [
   "max",
 ]);
 
+const codexGpt6LunaReasoning = codexReasoningCapability("medium", [
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+]);
+
 const codexStandardReasoning: ModelReasoningCapability = {
   default: "medium",
   options: (["low", "medium", "high", "xhigh"] as const).map((id) => ({
@@ -142,6 +150,11 @@ function openAiReasoningForModel(
 }
 
 const CODEX_LINKED_MODELS: ModelCatalogEntry[] = [
+  {
+    id: "gpt-6-luna",
+    label: "GPT-6 Luna",
+    reasoning: codexGpt6LunaReasoning,
+  },
   {
     id: "gpt-5.6-sol",
     label: "GPT-5.6 Sol",

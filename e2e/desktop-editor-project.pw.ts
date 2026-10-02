@@ -9,6 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { _electron as electron, expect, test } from "@playwright/test";
+import { expectNoDesktopRecovery } from "./support/desktop-assertions";
 
 const repoRoot = process.cwd();
 const desktopRoot = resolve(repoRoot, "apps/desktop");
@@ -100,10 +101,19 @@ test.describe("Doolittle editor project resolution", () => {
 
     try {
       const page = await app.firstWindow();
-      await expect(page.locator(".window-runtime-status.ready")).toContainText(
-        "Local runtime",
+      const pageErrors: string[] = [];
+      page.on("pageerror", (error) => pageErrors.push(error.message));
+      await expect(page).toHaveTitle(/Doolittle$/);
+      expect(pageErrors).toEqual([]);
+      await expectNoDesktopRecovery(page);
+      const runtimeStatus = page.locator(".window-runtime-status");
+      await expect(runtimeStatus).toHaveAttribute(
+        "aria-label",
+        "Runtime status: ready",
         { timeout: 45_000 },
       );
+      await expect(runtimeStatus).toHaveClass(/(?:^|\s)ready(?:\s|$)/);
+      await expect(runtimeStatus).toContainText("Local runtime");
       await page.evaluate(() => {
         window.location.hash = "#/code";
       });

@@ -74,7 +74,7 @@ function createUnexpiredJwt(): string {
   return `header.${payload}.signature`;
 }
 
-describe.sequential("Doolittle official account pool adapter", () => {
+describe("Doolittle official account pool adapter", () => {
   it("imports direct API credentials as secret-free API-key accounts", async () =>
     withIsolatedAccountPool(async () => {
       const account = importDoolittleApiAccount(

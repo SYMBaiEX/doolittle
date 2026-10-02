@@ -1,3 +1,4 @@
+import { performance } from "node:perf_hooks";
 import { getRuntimeModelSettings } from "@doolittle/provider-transport";
 import type { GenerateTextParams, IAgentRuntime, Plugin } from "@elizaos/core";
 import {
@@ -5,6 +6,7 @@ import {
   type CodexAuth,
   CodexBackend,
 } from "@elizaos/plugin-codex-cli";
+import type { CodexModelCallMetric } from "./eval-model-metrics";
 
 export const CODEX_REASONING_EFFORTS = [
   "none",
@@ -47,6 +49,39 @@ type CodexGenerateResult = {
 };
 
 type CodexBackendFactory = (runtime: IAgentRuntime) => CodexBackend;
+type CodexModelCallObserver = (metric: CodexModelCallMetric) => void;
+
+function modelCallMetric(
+  completed: boolean,
+  startedAt: number,
+  firstTextAt: number | null,
+  result?: CodexGenerateResult,
+): CodexModelCallMetric {
+  const usage = result?.usage;
+  return {
+    provider: "codex",
+    completed,
+    providerDurationMs: Math.max(0, Math.round(performance.now() - startedAt)),
+    firstTextMs:
+      firstTextAt === null
+        ? null
+        : Math.max(0, Math.round(firstTextAt - startedAt)),
+    inputTokens: usage?.inputTokens ?? null,
+    outputTokens: usage?.outputTokens ?? null,
+    totalTokens: usage?.totalTokens ?? null,
+  };
+}
+
+function observeModelCall(
+  observer: CodexModelCallObserver | undefined,
+  metric: CodexModelCallMetric,
+): void {
+  try {
+    observer?.(metric);
+  } catch {
+    // Observability must not affect the model result or stream lifecycle.
+  }
+}
 
 function selectedCodexReasoningEffort(
   runtime: IAgentRuntime,
@@ -181,6 +216,7 @@ function observePromiseRejection<T>(promise: Promise<T>): Promise<T> {
 function createReasoningModelHandler(
   fallback: CodexModelHandler,
   createBackend: CodexBackendFactory = createCodexReasoningBackend,
+  observeUsage?: CodexModelCallObserver,
 ): CodexModelHandler {
   const backends = new WeakMap<IAgentRuntime, CodexBackend>();
   const backendFor = (runtime: IAgentRuntime) => {
@@ -198,7 +234,9 @@ function createReasoningModelHandler(
     const request = __INTERNAL_buildCodexGenerateParams(runtime, params);
     const abortSignal = requestAbortSignal(params);
     if (params.stream) {
+      const startedAt = performance.now();
       const chunks: string[] = [];
+      let firstTextAt: number | null = null;
       let notify: (() => void) | undefined;
       let complete = false;
       let streamError: unknown;
@@ -211,6 +249,7 @@ function createReasoningModelHandler(
         ...request,
         abortSignal,
         onTextDelta: (chunk) => {
+          firstTextAt ??= performance.now();
           chunks.push(chunk);
           wake();
         },
@@ -219,11 +258,19 @@ function createReasoningModelHandler(
       // and expected aborts can otherwise become process-level unhandled
       // rejections that terminate the desktop runtime.
       void result.then(
-        () => {
+        (value) => {
+          observeModelCall(
+            observeUsage,
+            modelCallMetric(true, startedAt, firstTextAt, value),
+          );
           complete = true;
           wake();
         },
         (error: unknown) => {
+          observeModelCall(
+            observeUsage,
+            modelCallMetric(false, startedAt, firstTextAt),
+          );
           streamError = error;
           failed = true;
           complete = true;
@@ -273,18 +320,39 @@ function createReasoningModelHandler(
         providerMetadata: { modelName: request.model },
       };
     }
-    const result = await backendFor(runtime).generate({
-      ...request,
-      abortSignal,
-    });
-    return toCodexTextReturn(params, result);
+    const startedAt = performance.now();
+    let firstTextAt: number | null = null;
+    try {
+      const result = await backendFor(runtime).generate({
+        ...request,
+        abortSignal,
+        onTextDelta: (chunk) => {
+          firstTextAt ??= performance.now();
+          request.onTextDelta?.(chunk);
+        },
+      });
+      observeModelCall(
+        observeUsage,
+        modelCallMetric(true, startedAt, firstTextAt, result),
+      );
+      return toCodexTextReturn(params, result);
+    } catch (error) {
+      observeModelCall(
+        observeUsage,
+        modelCallMetric(false, startedAt, firstTextAt),
+      );
+      throw error;
+    }
   };
 }
 
 /** Wrap the official plugin only for selected Codex reasoning levels. */
 export function createDoolittleCodexReasoningPlugin(
   plugin: Plugin,
-  dependencies: { createBackend?: CodexBackendFactory } = {},
+  dependencies: {
+    createBackend?: CodexBackendFactory;
+    observeUsage?: CodexModelCallObserver;
+  } = {},
 ): Plugin {
   return {
     ...plugin,
@@ -294,6 +362,7 @@ export function createDoolittleCodexReasoningPlugin(
         createReasoningModelHandler(
           handler as CodexModelHandler,
           dependencies.createBackend,
+          dependencies.observeUsage,
         ),
       ]),
     ) as Plugin["models"],

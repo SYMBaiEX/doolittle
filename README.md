@@ -36,7 +36,7 @@ Doolittle is for work that needs more than a one-shot chat: inspect a repository
 - **Terminal first:** a conversational CLI with slash commands, explicit shell shortcuts, approvals, run progress, and one-shot commands.
 - **Desktop when it helps:** an Electron + React operator console for chat, projects, code, work, sessions, providers, tools, skills, logs, and diagnostics.
 - **Local-first by default:** the API binds to `127.0.0.1`; the desktop talks to a private loopback runtime through a context-isolated preload bridge.
-- **Provider-aware:** fresh profiles start on Codex (`gpt-5.6-luna`, medium reasoning). Ollama, Eliza Cloud, OpenAI, Anthropic, Claude Code, and other installed providers remain explicit choices in setup and Settings.
+- **Provider-aware:** fresh profiles start on Codex (`gpt-6-luna`, medium reasoning). Ollama, Eliza Cloud, OpenAI, Anthropic, Claude Code, and other installed providers remain explicit choices in setup and Settings.
 - **Truthful orchestration:** official Eliza task orchestration handles delegation. Doolittle supplies the product bridge for workspace tools and account routing, and records unavailable states rather than inventing results.
 
 ## Quick start

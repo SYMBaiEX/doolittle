@@ -29,7 +29,7 @@ function createCodexDeps({
   };
 }
 
-describe.sequential("codex local auth helpers", () => {
+describe("codex local auth helpers", () => {
   it("reads local Codex auth store credentials and metadata", () => {
     const homePath = mkdtempSync(join(tmpdir(), "doolittle-codex-local-"));
     const authPath = join(homePath, ".codex", "auth.json");

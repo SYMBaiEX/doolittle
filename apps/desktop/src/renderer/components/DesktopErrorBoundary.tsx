@@ -48,6 +48,31 @@ export function formatRendererDiagnostic(
     .join("\n");
 }
 
+function summarizeComponentStack(componentStack: string): string {
+  return componentStack
+    .split("\n")
+    .map((line) => line.match(/^\s*at\s+([^\s(]+)/u)?.[1])
+    .filter((name): name is string => Boolean(name))
+    .slice(0, 6)
+    .join(" / ");
+}
+
+function summarizeErrorStack(stack?: string): string {
+  if (!stack) return "";
+  return stack
+    .split("\n")
+    .slice(1)
+    .map(
+      (line) => line.match(/^\s*at\s+(?:async\s+)?(?:new\s+)?([^\s(]+)/u)?.[1],
+    )
+    .filter(
+      (name): name is string =>
+        name !== undefined && !name.includes("/") && !name.includes(":"),
+    )
+    .slice(0, 5)
+    .join(" <- ");
+}
+
 export class DesktopErrorBoundary extends Component<
   DesktopErrorBoundaryProps,
   DesktopErrorBoundaryState
@@ -101,8 +126,10 @@ export class DesktopErrorBoundary extends Component<
 
   render(): ReactNode {
     const { children } = this.props;
-    const { error, copied } = this.state;
+    const { error, componentStack, copied } = this.state;
     if (!error) return children;
+    const componentSummary = summarizeComponentStack(componentStack);
+    const frameSummary = summarizeErrorStack(error.stack);
 
     return (
       <main
@@ -139,7 +166,13 @@ export class DesktopErrorBoundary extends Component<
           <details className={`recovery-details ${RECOVERY_DETAILS_CLASS}`}>
             <summary>Technical details</summary>
             <pre className={RECOVERY_DIAGNOSTIC_CLASS}>
-              {error.message || error.name}
+              {[
+                error.message || error.name,
+                componentSummary ? `Components: ${componentSummary}` : "",
+                frameSummary ? `Frames: ${frameSummary}` : "",
+              ]
+                .filter(Boolean)
+                .join("\n")}
             </pre>
             <button
               className={RECOVERY_BUTTON_CLASS}

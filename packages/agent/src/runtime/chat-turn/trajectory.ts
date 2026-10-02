@@ -26,8 +26,8 @@ export function recordEvaluationTraceEvent(
 ): void {
   try {
     const trajectories = (
-      context.services as { trajectories?: TrajectoryRecorder }
-    ).trajectories;
+      context.services as { trajectoryEvaluation?: TrajectoryRecorder }
+    ).trajectoryEvaluation;
     trajectories?.recordEvent(input);
   } catch (error) {
     const logger = (context as { runtime?: AgentExecutionContext["runtime"] })

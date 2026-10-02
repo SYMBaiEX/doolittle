@@ -451,7 +451,7 @@ describe("cloud bootstrap helpers", () => {
           ? []
           : [
               ["model.provider", "codex"],
-              ["model.model", "gpt-5.6-luna"],
+              ["model.model", "gpt-6-luna"],
               ["model.baseUrl", "https://chatgpt.com/backend-api/codex"],
               ["model.reasoningEffort", "medium"],
             ],

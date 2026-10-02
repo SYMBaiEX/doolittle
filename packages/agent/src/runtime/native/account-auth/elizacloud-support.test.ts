@@ -5,7 +5,7 @@ import {
   isElizaCloudInferenceEnabled,
 } from "./elizacloud-support";
 
-describe.sequential("Eliza Cloud auth support helpers", () => {
+describe("Eliza Cloud auth support helpers", () => {
   it("prefers the canonical cloud env key when both aliases are present", () => {
     const previousPrimary = process.env.ELIZAOS_CLOUD_API_KEY;
     const previousAlias = process.env.ELIZA_CLOUD_API_KEY;

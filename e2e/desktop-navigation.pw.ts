@@ -2,6 +2,7 @@ import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { _electron as electron, expect, test } from "@playwright/test";
+import { expectNoDesktopRecovery } from "./support/desktop-assertions";
 
 const repoRoot = process.cwd();
 const desktopRoot = resolve(repoRoot, "apps/desktop");
@@ -76,10 +77,16 @@ test.describe("Doolittle desktop navigation", () => {
         pageErrors.push(error.stack ?? error.message);
       });
       await expect(page).toHaveTitle(/Doolittle$/);
-      await expect(page.locator(".window-runtime-status.ready")).toContainText(
-        "Local runtime",
+      expect(pageErrors).toEqual([]);
+      await expectNoDesktopRecovery(page);
+      const runtimeStatus = page.locator(".window-runtime-status");
+      await expect(runtimeStatus).toHaveAttribute(
+        "aria-label",
+        "Runtime status: ready",
         { timeout: 45_000 },
       );
+      await expect(runtimeStatus).toHaveClass(/(?:^|\s)ready(?:\s|$)/);
+      await expect(runtimeStatus).toContainText("Local runtime");
       const shellBeforeCommandMenu = await page
         .locator(".desktop-shell")
         .boundingBox();
@@ -221,7 +228,7 @@ test.describe("Doolittle desktop navigation", () => {
       );
       expect(liveWorkspaceHandoff.restoredHealth.workspaceDir).toBe(repoRoot);
       await expect(
-        page.getByRole("navigation", { name: "Conversation breadcrumb" }),
+        page.getByRole("navigation", { name: "Workspace breadcrumb" }),
       ).toBeVisible();
       await page.getByRole("button", { name: "Collapse navigation" }).click();
       await expect(page.locator(".desktop-shell")).toHaveClass(/nav-collapsed/);
@@ -398,9 +405,9 @@ test.describe("Doolittle desktop navigation", () => {
         .click();
       await expect(
         page
-          .getByRole("navigation", { name: "Conversation breadcrumb" })
-          .getByRole("heading", { name: "New conversation" }),
-      ).toBeVisible();
+          .getByRole("navigation", { name: "Workspace breadcrumb" })
+          .locator(".window-breadcrumb-current"),
+      ).toHaveText("New conversation");
       await page.evaluate(() => {
         window.location.hash = "#/code";
       });
@@ -478,14 +485,17 @@ test.describe("Doolittle desktop navigation", () => {
       await expect(restoredE2eProject).toHaveClass(/is-active/);
 
       const verifyAllRoutes = async () => {
-        for (const [route, label] of routes) {
+        for (const [route] of routes) {
           await page.evaluate((nextRoute) => {
             window.location.hash = `#/${nextRoute}`;
           }, route);
+          const currentRouteLabel = await page
+            .locator(".window-breadcrumb-current")
+            .innerText();
           await expect(
             page.locator('.window-dragbar [aria-live="polite"].sr-only'),
-          ).toContainText(`${label} opened for`);
-          await expect(page.locator(".recovery-shell")).toHaveCount(0);
+          ).toContainText(`${currentRouteLabel} opened for`);
+          await expectNoDesktopRecovery(page);
           const viewContainer = page.locator(
             `.view-container[data-view="${route}"]`,
           );
@@ -1595,13 +1605,8 @@ test.describe("Doolittle desktop navigation", () => {
       });
       await expect(page.locator(".chat-sessions")).toHaveCount(0);
       await expect(page.locator(".window-status-strip")).toHaveCount(0);
-      // Composer readiness is now the compact, always-visible status badge;
-      // runtime/model details are deliberately opt-in behind the Details toggle.
-      await expect(
-        page.locator(
-          ".chat-composer [data-slot='status-badge'][data-status='success']",
-        ),
-      ).toHaveText("Ready");
+      // A healthy, idle composer hides transient operational status.
+      await expect(page.locator(".chat-composer-status")).toHaveCount(0);
       const historyScrollport = await page
         .locator(".sidebar-projects__list")
         .evaluate((element) => {
