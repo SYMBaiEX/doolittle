@@ -177,6 +177,30 @@ describe("action result metadata helpers", () => {
     ]);
   });
 
+  it.each(["failed", "cancelled"])(
+    "retains verified file changes from a %s worker without promoting task completion",
+    (status) => {
+      const result = {
+        success: false,
+        data: {
+          actionName: "TASKS_SPAWN_AGENT",
+          delegatedExecution: {
+            status,
+            workdir: "/workspace/project",
+            verifiedLocalMutation: true,
+            changedFiles: [{ path: "package.json" }, { path: "app/page.tsx" }],
+          },
+        },
+      };
+      expect(extractLocalMutationsFromActionResult(result)).toHaveLength(2);
+      expect(summarizeActionResults([result]).localMutations).toHaveLength(2);
+      expect(result.success).toBe(false);
+      expect(result.data.delegatedExecution.status).toBe(status);
+      result.data.delegatedExecution.verifiedLocalMutation = false;
+      expect(extractLocalMutationsFromActionResult(result)).toEqual([]);
+    },
+  );
+
   it("treats non-zero SDK SHELL exits as failed command receipts", () => {
     const summary = summarizeActionResults([
       {

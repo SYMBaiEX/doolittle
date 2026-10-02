@@ -7,7 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HeadlessEvalSuite } from "./cases";
 import { HEADLESS_EVAL_SUITES } from "./cases";
@@ -421,6 +421,12 @@ describe("headless workflow evals", () => {
     });
     expect(result.report.evaluatorVersion).toMatch(/^\d+\.\d+\.\d+/);
     expect(childEnvironment?.DOOLITTLE_EVAL_CAPTURE_MODEL_USAGE).toBe("true");
+    expect(childEnvironment?.DOOLITTLE_GATEWAY_DATA_DIR).toBe(
+      join(dirname(childEnvironment?.DOOLITTLE_DATA_DIR as string), "gateway"),
+    );
+    expect(childEnvironment?.DOOLITTLE_HOOKS_DIR).toBe(
+      join(dirname(childEnvironment?.DOOLITTLE_DATA_DIR as string), "hooks"),
+    );
     expect(result.report.runs[0]?.modelUsage).toEqual({
       provider: "codex",
       providerCalls: 1,

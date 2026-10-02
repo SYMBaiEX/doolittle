@@ -1,4 +1,5 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import { inspectWorkspaceCommands } from "@doolittle/agent/utils/workspace-commands";
 import type { CodingEvalCase } from "./cases";
 
 export { CODING_EVAL_CASES } from "./cases";
@@ -98,6 +99,7 @@ function mutationEvidence(
   const evidence: MutationEvidence[] = [];
   for (const value of array(run.localMutations)) {
     const mutation = record(value);
+    if (mutation?.success === false) continue;
     const path =
       string(mutation?.resolvedPath) ?? string(mutation?.requestedPath);
     if (path) evidence.push({ path, source: "run mutation receipt" });
@@ -105,13 +107,16 @@ function mutationEvidence(
 
   for (const eventValue of events) {
     const metadata = record(record(eventValue)?.metadata);
-    if (!metadata) continue;
+    if (!metadata || record(eventValue)?.event !== "action.completed") continue;
     const actionResult = record(metadata.actionResult);
     const actionData = record(actionResult?.data);
     const delegated = record(actionData?.delegatedExecution);
     const workdir = string(delegated?.workdir);
     if (
-      delegated?.status === "completed" &&
+      delegated &&
+      ["completed", "failed", "cancelled"].includes(
+        String(delegated?.status),
+      ) &&
       delegated.verifiedLocalMutation === true
     ) {
       for (const changedFileValue of array(delegated.changedFiles)) {
@@ -128,6 +133,7 @@ function mutationEvidence(
     }
 
     const mutation = record(metadata.mutation);
+    if (mutation?.success === false) continue;
     const path =
       string(mutation?.resolvedPath) ?? string(mutation?.requestedPath);
     if (path) {
@@ -145,11 +151,14 @@ function mutationEvidence(
 }
 
 interface BuildEvidence {
+  runner: string;
   command: string;
   workingDirectory?: string;
   workspaceVerified: boolean;
   exitCode: number;
   success: boolean;
+  eventIndex: number;
+  order: number;
 }
 
 function shellWorkingDirectory(
@@ -157,7 +166,15 @@ function shellWorkingDirectory(
   command: string,
   metadata: UnknownRecord,
 ): string | undefined {
+  const directoryChange =
+    /^\s*cd(?:\s+--)?\s+(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))\s*&&/u.exec(
+      command,
+    );
+  const explicit =
+    directoryChange?.[1] ?? directoryChange?.[2] ?? directoryChange?.[3];
+  if (explicit && isAbsolute(explicit)) return resolve(explicit);
   for (const candidate of [
+    commandResult.executedIn,
     commandResult.cwd,
     commandResult.workingDirectory,
     metadata.cwd,
@@ -168,15 +185,67 @@ function shellWorkingDirectory(
     if (path && isAbsolute(path)) return resolve(path);
   }
 
-  // Shell receipts currently record the full command but not cwd. Accept only
-  // an explicit leading `cd /absolute/path && ...` as historical cwd evidence.
-  const directoryChange =
-    /^\s*cd(?:\s+--)?\s+(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))\s*(?:&&|;|\n)/u.exec(
-      command,
-    );
-  const path =
-    directoryChange?.[1] ?? directoryChange?.[2] ?? directoryChange?.[3];
-  return path && isAbsolute(path) ? resolve(path) : undefined;
+  return undefined;
+}
+
+function shellReceipt(eventValue: unknown) {
+  const event = record(eventValue);
+  const metadata = record(event?.metadata);
+  if (!metadata || event?.event !== "action.completed") return undefined;
+  const actionResult = record(metadata.actionResult);
+  const actionData = record(actionResult?.data);
+  const action = string(
+    metadata.action ?? actionData?.actionName,
+  )?.toUpperCase();
+  if (
+    !action ||
+    !["SHELL", "SHELL_COMMAND", "RUN_IN_TERMINAL"].includes(action)
+  )
+    return undefined;
+  const commandResult =
+    record(metadata.commandResult) ??
+    record(actionData?.commandResult) ??
+    actionData;
+  const command = string(commandResult?.command);
+  if (!command || typeof commandResult?.exitCode !== "number") return undefined;
+  // This is the launch directory; per-invocation cd/--cwd are resolved by the
+  // shared parser. Never promote a launch cwd over an explicit Bun override.
+  const executedIn = [
+    commandResult.executedIn,
+    commandResult.cwd,
+    commandResult.workingDirectory,
+    metadata.cwd,
+    metadata.workingDirectory,
+    metadata.workdir,
+  ]
+    .map(string)
+    .find((candidate) => candidate && isAbsolute(candidate));
+  return {
+    command,
+    commandResult,
+    executedIn,
+    success:
+      actionResult?.success !== false &&
+      commandResult.success !== false &&
+      commandResult.exitCode === 0 &&
+      commandResult.timedOut !== true,
+  };
+}
+
+function latestWorkspaceCodingAttempt(events: unknown[], root: string): number {
+  return events.reduce<number>((latest, value, index) => {
+    const metadata = record(record(value)?.metadata);
+    const result = record(metadata?.actionResult);
+    const data = record(result?.data);
+    const receipt = record(data?.delegatedExecution);
+    const action = string(metadata?.action ?? data?.actionName)?.toUpperCase();
+    const workdir = string(receipt?.workdir);
+    return action === "TASKS_SPAWN_AGENT" &&
+      workdir &&
+      resolve(workdir) === root
+      ? index
+      : latest;
+  }, -1);
 }
 
 function buildEvidence(
@@ -184,45 +253,25 @@ function buildEvidence(
   expectedWorkspace: string,
 ): BuildEvidence[] {
   const results: BuildEvidence[] = [];
-  for (const eventValue of events) {
-    const metadata = record(record(eventValue)?.metadata);
-    if (!metadata) continue;
-    const action = string(metadata.action)?.toUpperCase();
-    if (
-      !action ||
-      !["SHELL", "SHELL_COMMAND", "RUN_IN_TERMINAL"].includes(action)
-    ) {
-      continue;
+  for (const [eventIndex, eventValue] of events.entries()) {
+    const receipt = shellReceipt(eventValue);
+    if (!receipt) continue;
+    for (const operation of inspectWorkspaceCommands(
+      receipt.command,
+      receipt.executedIn,
+    )) {
+      if (operation.kind !== "build") continue;
+      results.push({
+        runner: operation.runner,
+        command: receipt.command,
+        workingDirectory: operation.directory,
+        workspaceVerified: operation.directory === resolve(expectedWorkspace),
+        exitCode: receipt.commandResult.exitCode as number,
+        success: receipt.success,
+        eventIndex,
+        order: operation.order,
+      });
     }
-    const actionResult = record(metadata.actionResult);
-    const actionData = record(actionResult?.data);
-    const commandResult =
-      record(metadata.commandResult) ?? record(actionData?.commandResult);
-    const command = string(commandResult?.command);
-    const exitCode = commandResult?.exitCode;
-    if (
-      !command ||
-      typeof exitCode !== "number" ||
-      !/(?:\b(?:bun|npm|pnpm|yarn)\s+(?:run\s+)?build\b|\bnext\s+build\b)/iu.test(
-        command,
-      )
-    ) {
-      continue;
-    }
-    const workingDirectory = shellWorkingDirectory(
-      commandResult ?? {},
-      command,
-      metadata,
-    );
-    results.push({
-      command,
-      workingDirectory,
-      workspaceVerified:
-        workingDirectory !== undefined &&
-        pathIsWithin(resolve(expectedWorkspace), workingDirectory),
-      exitCode,
-      success: exitCode === 0,
-    });
   }
   return results;
 }
@@ -230,43 +279,34 @@ function buildEvidence(
 function bunInstallEvidence(
   events: unknown[],
   expectedWorkspace: string,
-): string[] {
-  const evidence: string[] = [];
-  for (const eventValue of events) {
-    const metadata = record(record(eventValue)?.metadata);
-    if (!metadata) continue;
-    const action = string(metadata.action)?.toUpperCase();
-    if (
-      !action ||
-      !["SHELL", "SHELL_COMMAND", "RUN_IN_TERMINAL"].includes(action)
-    ) {
-      continue;
-    }
-    const actionResult = record(metadata.actionResult);
-    const actionData = record(actionResult?.data);
-    const commandResult =
-      record(metadata.commandResult) ?? record(actionData?.commandResult);
-    const command = string(commandResult?.command);
-    const exitCode = commandResult?.exitCode;
-    if (
-      !command ||
-      exitCode !== 0 ||
-      !/\bbun\s+(?:install|i)\b/u.test(command)
-    ) {
-      continue;
-    }
-    const workingDirectory = shellWorkingDirectory(
-      commandResult ?? {},
-      command,
-      metadata,
-    );
-    if (
-      workingDirectory &&
-      pathIsWithin(resolve(expectedWorkspace), workingDirectory)
-    ) {
-      evidence.push(
-        `Parent shell completed Bun install in ${workingDirectory}: ${command}.`,
-      );
+): Array<{ evidence: string; eventIndex: number; order: number }> {
+  const evidence: Array<{
+    evidence: string;
+    eventIndex: number;
+    order: number;
+  }> = [];
+  const latestAttempt = latestWorkspaceCodingAttempt(
+    events,
+    resolve(expectedWorkspace),
+  );
+  for (const [eventIndex, eventValue] of events.entries()) {
+    const receipt = shellReceipt(eventValue);
+    if (!receipt?.success || eventIndex <= latestAttempt) continue;
+    for (const operation of inspectWorkspaceCommands(
+      receipt.command,
+      receipt.executedIn,
+    )) {
+      if (
+        operation.runner === "bun" &&
+        operation.kind === "install" &&
+        operation.directory === resolve(expectedWorkspace)
+      ) {
+        evidence.push({
+          evidence: `Parent shell completed Bun install in ${operation.directory}: ${receipt.command}.`,
+          eventIndex,
+          order: operation.order,
+        });
+      }
     }
   }
   return evidence;
@@ -313,29 +353,61 @@ function runtimeSmokeEvidence(
   return evidence;
 }
 
-function managedAppReadyEvidence(events: unknown[], root: string): string[] {
+function managedAppReadyEvidence(
+  events: unknown[],
+  root: string,
+  afterIndex: number,
+): string[] {
   const evidence: string[] = [];
-  for (const eventValue of events) {
+  for (const [index, eventValue] of events.entries()) {
     const metadata = record(record(eventValue)?.metadata);
     const actionResult = record(metadata?.actionResult);
     const actionData = record(actionResult?.data);
     const action = string(
       metadata?.action ?? actionData?.actionName,
     )?.toUpperCase();
-    if (action !== "DOOLITTLE_APP_SERVER") continue;
+    if (action !== "DOOLITTLE_APP_SERVER" || index <= afterIndex) continue;
     const status = string(actionData?.status);
     const url = string(actionData?.url);
     const session = record(actionData?.session);
     const cwd = string(session?.cwd);
-    if (status !== "ready" || !url || !cwd) continue;
+    const sessionId = string(session?.id);
+    if (
+      actionResult?.success !== true ||
+      status !== "ready" ||
+      !url ||
+      !cwd ||
+      !sessionId ||
+      session?.managed !== true ||
+      session.state !== "running" ||
+      !string(session.command)
+    )
+      continue;
+    if (
+      events.slice(index + 1).some((later) => {
+        const laterMetadata = record(record(later)?.metadata);
+        const laterData = record(record(laterMetadata?.actionResult)?.data);
+        return (
+          string(
+            laterMetadata?.action ?? laterData?.actionName,
+          )?.toUpperCase() === "DOOLITTLE_APP_SERVER" &&
+          record(laterData?.session)?.id === sessionId
+        );
+      })
+    )
+      continue;
     let validUrl = false;
     try {
       const parsed = new URL(url);
-      validUrl = parsed.protocol === "http:" || parsed.protocol === "https:";
+      validUrl =
+        ["http:", "https:"].includes(parsed.protocol) &&
+        ["localhost", "127.0.0.1", "[::1]", "::1"].includes(parsed.hostname) &&
+        !parsed.username &&
+        !parsed.password;
     } catch {
       validUrl = false;
     }
-    if (validUrl && pathIsWithin(root, resolve(cwd))) {
+    if (validUrl && isAbsolute(cwd) && resolve(cwd) === root) {
       evidence.push(`ready at ${url} in ${resolve(cwd)}`);
     }
   }
@@ -405,8 +477,22 @@ export function evaluateCodingRun(input: {
         ]);
 
   const builds = buildEvidence(input.events, root);
+  const latestAttempt = latestWorkspaceCodingAttempt(input.events, root);
+  const bunInstalls = bunInstallEvidence(input.events, root);
   const passingBuild = builds.find(
-    (entry) => entry.success && entry.exitCode === 0 && entry.workspaceVerified,
+    (entry) =>
+      entry.success &&
+      entry.exitCode === 0 &&
+      entry.workspaceVerified &&
+      entry.eventIndex > latestAttempt &&
+      (!input.evalCase.requiresBunInstall ||
+        (entry.runner === "bun" &&
+          bunInstalls.some(
+            (install) =>
+              install.eventIndex < entry.eventIndex ||
+              (install.eventIndex === entry.eventIndex &&
+                install.order < entry.order),
+          ))),
   );
   const buildCheck = !input.evalCase.requiresBuild
     ? check("build", "n/a", 0, [
@@ -427,18 +513,31 @@ export function evaluateCodingRun(input: {
             : "No parent-shell production-build receipt was observed; a delegated agent's prose claim is not build evidence.",
         ]);
 
-  const bunInstalls = bunInstallEvidence(input.events, root);
   const bunInstallCheck = !input.evalCase.requiresBunInstall
     ? check("bun-install", "n/a", 0, [
         "This case does not require a Bun dependency-install receipt.",
       ])
     : bunInstalls.length > 0
-      ? check("bun-install", "pass", 10, bunInstalls)
+      ? check(
+          "bun-install",
+          "pass",
+          10,
+          bunInstalls.map((install) => install.evidence),
+        )
       : check("bun-install", isTerminal ? "fail" : "unknown", 10, [
           `No successful parent-shell Bun install receipt was observed in ${root}.`,
         ]);
 
-  const appReady = managedAppReadyEvidence(input.events, root);
+  const appReady = managedAppReadyEvidence(
+    input.events,
+    root,
+    Math.max(
+      latestAttempt,
+      input.evalCase.requiresBuild
+        ? (passingBuild?.eventIndex ?? Number.POSITIVE_INFINITY)
+        : -1,
+    ),
+  );
   const appReadyCheck = !input.evalCase.requiresAppReady
     ? check("app-ready", "n/a", 0, [
         "This case does not require a running application.",

@@ -6,6 +6,10 @@ import {
   extractLocalMutationsFromActionResult,
 } from "@/runtime/action-result-metadata";
 import { isRecord } from "@/utils/records";
+import {
+  inspectWorkspaceCommands,
+  type WorkspaceCommand,
+} from "@/utils/workspace-commands";
 
 const LOCAL_MUTATION_ACTIONS = new Set([
   "WRITE_FILE",
@@ -63,28 +67,6 @@ function sameDirectory(value: unknown, expected: string): boolean {
   return directory === expected;
 }
 
-function shellDirectory(command: string): string | undefined {
-  const match = command.match(
-    /^\s*cd\s+(?:"([^"]+)"|'([^']+)'|([^\s;&]+))\s*&&/u,
-  );
-  const directory = match?.[1] ?? match?.[2] ?? match?.[3];
-  return directory ? absoluteDirectory(directory) : undefined;
-}
-
-/**
- * `executedIn` is the process launch directory, not necessarily the effective
- * workspace when a shell command explicitly changes directories. Honor a
- * leading `cd … &&` before falling back to that launch-directory receipt.
- */
-function commandDirectory(command: {
-  command: string;
-  executedIn?: string;
-}): string | undefined {
-  return (
-    shellDirectory(command.command) ?? absoluteDirectory(command.executedIn)
-  );
-}
-
 function successfulShellCommands(actionResults: readonly ActionResult[]) {
   return actionResults.flatMap((result, index) => {
     if (
@@ -101,13 +83,20 @@ function successfulShellCommands(actionResults: readonly ActionResult[]) {
   });
 }
 
-function completedChangedDelegation(
+function successfulWorkspaceCommands(actionResults: readonly ActionResult[]) {
+  return successfulShellCommands(actionResults).flatMap((command) =>
+    inspectWorkspaceCommands(command.command, command.executedIn).map(
+      (operation) => ({ index: command.index, ...operation }),
+    ),
+  );
+}
+
+function verifiedChangedDelegation(
   actionResults: readonly ActionResult[],
 ): { index: number; workdir: string } | undefined {
   return actionResults.reduce<{ index: number; workdir: string } | undefined>(
     (latest, result, index) => {
       if (
-        result.success !== true ||
         actionResultActionName(result)?.toUpperCase() !== "TASKS_SPAWN_AGENT"
       ) {
         return latest;
@@ -118,9 +107,9 @@ function completedChangedDelegation(
         : undefined;
       if (
         !isRecord(receipt) ||
-        receipt.status !== "completed" ||
-        receipt.stopReason !== "end_turn" ||
-        (receipt.exitCode !== null && receipt.exitCode !== 0) ||
+        !["completed", "failed", "cancelled"].includes(
+          String(receipt.status),
+        ) ||
         receipt.verifiedLocalMutation !== true ||
         !Array.isArray(receipt.changedFiles) ||
         receipt.changedFiles.length === 0 ||
@@ -163,10 +152,21 @@ function sharedMutationDirectory(paths: readonly string[]): string | undefined {
   return joined || sep;
 }
 
-function successfulBuildCommand(command: string, requireBun: boolean): boolean {
-  return requireBun
-    ? /\bbun\s+run\s+build\b/u.test(command)
-    : /\b(?:bun\s+run|npm\s+run|pnpm\s+run|yarn)\s+build\b/u.test(command);
+function successfulBuildCommand(
+  command: WorkspaceCommand,
+  requireBun: boolean,
+): boolean {
+  return command.kind === "build" && (!requireBun || command.runner === "bun");
+}
+
+function operationPrecedes(
+  first: { index: number; order: number },
+  second: { index: number; order: number },
+): boolean {
+  return (
+    first.index < second.index ||
+    (first.index === second.index && first.order < second.order)
+  );
 }
 
 /**
@@ -189,7 +189,11 @@ export function missingWorkspaceMutationRequirements(
   }
 
   const mutationReceipts = actionResults.flatMap((result, index) => {
-    if (result.success !== true) return [];
+    if (
+      result.success !== true &&
+      actionResultActionName(result)?.toUpperCase() !== "TASKS_SPAWN_AGENT"
+    )
+      return [];
     const mutations = extractLocalMutationsFromActionResult(result).filter(
       (mutation) => mutation.success && mutation.resolvedPath,
     );
@@ -205,7 +209,7 @@ export function missingWorkspaceMutationRequirements(
     ...mutationReceipts.map((mutation) => mutation.index),
   );
   const changedPaths = mutationReceipts.map((mutation) => mutation.path);
-  const delegation = completedChangedDelegation(actionResults);
+  const delegation = verifiedChangedDelegation(actionResults);
   if (
     delegation &&
     !changedPaths.every((path) => isWithinDirectory(path, delegation.workdir))
@@ -214,9 +218,9 @@ export function missingWorkspaceMutationRequirements(
       `verified changed-file receipts contained within ${delegation.workdir}`,
     ];
   }
-  const postMutationCommands = successfulShellCommands(actionResults).filter(
-    (command) => command.index > latestMutationIndex,
-  );
+  const postMutationCommands = successfulWorkspaceCommands(
+    actionResults,
+  ).filter((command) => command.index > latestMutationIndex);
   const appServerDirectories = actionResults.flatMap((result, index) => {
     if (
       index <= latestMutationIndex ||
@@ -234,7 +238,7 @@ export function missingWorkspaceMutationRequirements(
   const operationDirectories = [
     ...(delegation ? [delegation.workdir] : []),
     ...postMutationCommands.flatMap((command) => {
-      const directory = commandDirectory(command);
+      const directory = command.directory;
       return directory ? [directory] : [];
     }),
     ...appServerDirectories,
@@ -247,15 +251,28 @@ export function missingWorkspaceMutationRequirements(
     return ["a verifiable workspace root containing all changed files"];
   }
 
+  const requiredWorkspaceIndex = Math.max(
+    latestMutationIndex,
+    latestWorkspaceCodingAttempt(actionResults, workspaceDirectory),
+  );
   const commands = postMutationCommands.filter(
-    (command) => commandDirectory(command) === workspaceDirectory,
+    (command) =>
+      command.directory === workspaceDirectory &&
+      command.index > requiredWorkspaceIndex,
   );
-  const installCommand = commands.find((command) =>
-    /\bbun\s+(?:install|i)\b/u.test(command.command),
+  const installCommand = commands.find(
+    (command) => command.runner === "bun" && command.kind === "install",
   );
-  const buildCommand = commands.find((command) =>
-    successfulBuildCommand(command.command, requirements.requireBunInstall),
+  const builds = commands.filter((command) =>
+    successfulBuildCommand(command, requirements.requireBunInstall),
   );
+  const buildCommand =
+    builds.find(
+      (command) =>
+        !requirements.requireBunInstall ||
+        !installCommand ||
+        operationPrecedes(installCommand, command),
+    ) ?? builds[0];
   const missing: string[] = [];
 
   if (requirements.requireBunInstall && !installCommand) {
@@ -269,10 +286,7 @@ export function missingWorkspaceMutationRequirements(
     requirements.requireBuild &&
     installCommand &&
     buildCommand &&
-    (installCommand.index > buildCommand.index ||
-      (installCommand.index === buildCommand.index &&
-        installCommand.command.search(/\bbun\s+(?:install|i)\b/u) >
-          buildCommand.command.search(/\bbun\s+run\s+build\b/u)))
+    !operationPrecedes(installCommand, buildCommand)
   ) {
     missing.push("Bun install before the production build");
   }
@@ -281,20 +295,12 @@ export function missingWorkspaceMutationRequirements(
     const requiredStepIndex = Math.max(
       installCommand?.index ?? -1,
       buildCommand?.index ?? -1,
-      latestMutationIndex,
+      requiredWorkspaceIndex,
     );
-    const readyServer = actionResults.some((result, index) => {
-      if (
-        index <= requiredStepIndex ||
-        result.success !== true ||
-        actionResultActionName(result)?.toUpperCase() !==
-          "DOOLITTLE_APP_SERVER" ||
-        !readyManagedServerReceipt(result.data, workspaceDirectory)
-      ) {
-        return false;
-      }
-      return true;
-    });
+    const readyServer = currentReadyManagedServers(
+      actionResults,
+      workspaceDirectory,
+    ).some((server) => server.index > requiredStepIndex);
     if (!readyServer) {
       missing.push(
         `a ready managed app server with a verified local URL in ${workspaceDirectory}`,
@@ -305,40 +311,45 @@ export function missingWorkspaceMutationRequirements(
   return missing;
 }
 
-/** Confirm a completed Bun build in the exact workspace after coding ends. */
+function latestWorkspaceCodingAttempt(
+  actionResults: readonly ActionResult[],
+  workdir: string,
+): number {
+  const expected = absoluteDirectory(workdir);
+  if (!expected) return -1;
+  return actionResults.reduce((latest, result, index) => {
+    if (actionResultActionName(result)?.toUpperCase() !== "TASKS_SPAWN_AGENT") {
+      return latest;
+    }
+    const receipt = result.data?.delegatedExecution;
+    if (!isRecord(receipt) || absoluteDirectory(receipt.workdir) !== expected) {
+      return latest;
+    }
+    return index;
+  }, -1);
+}
+
+export function hasWorkspaceCodingAttempt(
+  actionResults: readonly ActionResult[],
+  workdir: string,
+): boolean {
+  return latestWorkspaceCodingAttempt(actionResults, workdir) >= 0;
+}
+
+/** A failed/recovered coding attempt also invalidates earlier build receipts. */
 export function hasSuccessfulWorkspaceBuild(
   actionResults: readonly ActionResult[],
   workdir: string,
 ): boolean {
   const expected = absoluteDirectory(workdir);
   if (!expected) return false;
-  const latestCompletedDelegation = actionResults.reduce(
-    (latest, result, index) => {
-      if (
-        result.success !== true ||
-        actionResultActionName(result)?.toUpperCase() !== "TASKS_SPAWN_AGENT"
-      ) {
-        return latest;
-      }
-      const receipt = result.data?.delegatedExecution;
-      if (
-        !isRecord(receipt) ||
-        receipt.status !== "completed" ||
-        receipt.stopReason !== "end_turn" ||
-        absoluteDirectory(receipt.workdir) !== expected
-      ) {
-        return latest;
-      }
-      return index;
-    },
-    -1,
-  );
-  return successfulShellCommands(actionResults).some((command) => {
-    const directory = commandDirectory(command);
+  const latestAttempt = latestWorkspaceCodingAttempt(actionResults, expected);
+  return successfulWorkspaceCommands(actionResults).some((command) => {
+    const directory = command.directory;
     return (
-      command.index > latestCompletedDelegation &&
+      command.index > latestAttempt &&
       directory === expected &&
-      /\bbun\s+run\s+build\b/u.test(command.command)
+      successfulBuildCommand(command, true)
     );
   });
 }
@@ -384,8 +395,31 @@ function readyManagedServerReceipt(
   return url ? { url, sessionId: data.session.id } : undefined;
 }
 
-const VERIFICATION_COMMAND =
-  /\b(?:bun|npm|pnpm|yarn)\s+(?:(?:run|x)\s+)?(?:build|test|check|lint|typecheck|type-check|validate|verify)\b|\bgit\s+diff\s+--check\b/iu;
+/** A later stop/unhealthy observation invalidates that session's old readiness. */
+function currentReadyManagedServers(
+  actionResults: readonly ActionResult[],
+  workdir: string,
+) {
+  return actionResults.flatMap((result, index) => {
+    if (
+      result.success !== true ||
+      actionResultActionName(result)?.toUpperCase() !== "DOOLITTLE_APP_SERVER"
+    )
+      return [];
+    const receipt = readyManagedServerReceipt(result.data, workdir);
+    if (!receipt) return [];
+    const hasLaterObservation = actionResults.slice(index + 1).some((later) => {
+      const session = isRecord(later.data) ? later.data.session : undefined;
+      return (
+        actionResultActionName(later)?.toUpperCase() ===
+          "DOOLITTLE_APP_SERVER" &&
+        isRecord(session) &&
+        session.id === receipt.sessionId
+      );
+    });
+    return hasLaterObservation ? [] : [{ index, ...receipt }];
+  });
+}
 
 function hasLocalMutationAction(actionResults: readonly ActionResult[]) {
   return actionResults.some((result) => {
@@ -467,27 +501,35 @@ export function verifyWorkspaceNoopCompletion(
   });
   if (hasConflictingDelegation) return undefined;
 
-  const commands = successfulShellCommands(actionResults);
+  const commands = successfulWorkspaceCommands(actionResults);
   for (const delegation of delegatedResults) {
     const scopedCommands = commands.filter((command) => {
-      const directory = commandDirectory(command);
+      const directory = command.directory;
       return directory === delegation.workdir;
     });
     const taskVerificationCommands = scopedCommands.filter(
       (command) =>
         command.index > delegation.index &&
-        VERIFICATION_COMMAND.test(command.command),
+        (command.kind === "build" || command.kind === "verification"),
     );
     const installCommand = scopedCommands.find(
       (command) =>
         command.index > delegation.index &&
-        /\bbun\s+(?:install|i)\b/u.test(command.command),
+        command.runner === "bun" &&
+        command.kind === "install",
     );
-    const buildCommand = scopedCommands.find(
+    const builds = scopedCommands.filter(
       (command) =>
         command.index > delegation.index &&
-        /\bbun\s+run\s+build\b/u.test(command.command),
+        successfulBuildCommand(command, true),
     );
+    const buildCommand =
+      builds.find(
+        (command) =>
+          !requirements.requireBunInstall ||
+          !installCommand ||
+          operationPrecedes(installCommand, command),
+      ) ?? builds[0];
     if (
       taskVerificationCommands.length === 0 ||
       (requirements.requireBunInstall && !installCommand) ||
@@ -501,11 +543,10 @@ export function verifyWorkspaceNoopCompletion(
       installCommand &&
       buildCommand
     ) {
-      const installPrecedesBuild =
-        installCommand.index < buildCommand.index ||
-        (installCommand.index === buildCommand.index &&
-          installCommand.command.search(/\bbun\s+(?:install|i)\b/u) <
-            buildCommand.command.search(/\bbun\s+run\s+build\b/u));
+      const installPrecedesBuild = operationPrecedes(
+        installCommand,
+        buildCommand,
+      );
       if (!installPrecedesBuild) continue;
     }
     const requiredVerificationIndex = Math.max(
@@ -514,22 +555,10 @@ export function verifyWorkspaceNoopCompletion(
       buildCommand?.index ?? -1,
     );
 
-    const readyServers = actionResults.flatMap((result, index) => {
-      if (
-        index <= requiredVerificationIndex ||
-        result.success !== true ||
-        actionResultActionName(result)?.toUpperCase() !==
-          "DOOLITTLE_APP_SERVER" ||
-        !isRecord(result.data)
-      ) {
-        return [];
-      }
-      const receipt = readyManagedServerReceipt(
-        result.data,
-        delegation.workdir,
-      );
-      return receipt ? [{ index, ...receipt }] : [];
-    });
+    const readyServers = currentReadyManagedServers(
+      actionResults,
+      delegation.workdir,
+    );
     const readyServer = requirements.requireManagedApplication
       ? readyServers.find((server) => server.index > requiredVerificationIndex)
       : undefined;
@@ -539,16 +568,16 @@ export function verifyWorkspaceNoopCompletion(
       workdir: delegation.workdir,
       verificationKinds: Array.from(
         new Set(
-          taskVerificationCommands.map(({ command }) =>
-            /\bbuild\b/iu.test(command)
+          taskVerificationCommands.map(({ script }) =>
+            script === "build"
               ? "build"
-              : /\btest\b/iu.test(command)
+              : script === "test"
                 ? "tests"
-                : /\btype-?check\b/iu.test(command)
+                : script === "typecheck" || script === "type-check"
                   ? "typecheck"
-                  : /\blint\b/iu.test(command)
+                  : script === "lint"
                     ? "lint"
-                    : /\bgit\s+diff\s+--check\b/iu.test(command)
+                    : script === "diff check"
                       ? "diff check"
                       : "workspace verification",
           ),

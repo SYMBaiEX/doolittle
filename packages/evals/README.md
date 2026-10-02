@@ -109,6 +109,14 @@ structural smoke check, not a score of usefulness or coherence. Evaluator 0.2.8
 records this new grading behavior. V5's checks and prior reports are unchanged;
 v5 and v6 reports are not eligible for direct score comparison.
 
+Evaluator 0.2.9 updates coding receipts, not the frozen suite prompts: verified
+file changes survive a failed worker, literal Bun `--cwd` commands are recognized,
+parent verification must follow coding, and stale managed-app readiness is
+rejected. Install/build checks exclude dry runs and failure-masking shell syntax.
+The same tested runtime environment helper now isolates data, gateway and hooks
+for each headless task and validates canonical configuration names. Treat this
+as a new evaluation baseline; earlier evaluator versions remain incompatible.
+
 ```sh
 nub run eval:headless -- --suite headless-workflows-v6 --task reliability-no-side-effect-v6
 ```

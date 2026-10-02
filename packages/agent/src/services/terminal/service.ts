@@ -9,6 +9,7 @@ import type {
   ExecutionCloudSnapshotRecord,
   TerminalCommandRecord,
 } from "@/types";
+import { inspectWorkspaceCommands } from "@/utils/workspace-commands";
 import type { RuntimeSettings } from "../settings/runtime-settings";
 import {
   resolveWorkspaceDirectory,
@@ -85,13 +86,14 @@ export class TerminalService {
     timeoutMs?: number,
     abortSignal?: AbortSignal,
   ): Promise<TerminalCommandRecord> {
-    const buildDirectory = this.productionBuildDirectory(command);
-    if (!buildDirectory) {
+    const buildDirectories = this.productionBuildDirectories(command);
+    if (buildDirectories.length === 0) {
       return this.commandOrchestrator.run(command, timeoutMs, abortSignal);
     }
     const blocked = this.preflightProductionBuild(command);
     if (blocked) throw new Error(blocked);
-    this.buildsInProgress.add(buildDirectory);
+    for (const directory of buildDirectories)
+      this.buildsInProgress.add(directory);
     try {
       return await this.commandOrchestrator.run(
         command,
@@ -99,26 +101,27 @@ export class TerminalService {
         abortSignal,
       );
     } finally {
-      this.buildsInProgress.delete(buildDirectory);
+      for (const directory of buildDirectories)
+        this.buildsInProgress.delete(directory);
     }
   }
 
   /** Return an actionable reason when a build would race a managed dev server. */
   preflightProductionBuild(command: string): string | undefined {
-    const directory = this.productionBuildDirectory(command);
-    if (!directory) return undefined;
-    if (this.buildsInProgress.has(directory)) {
-      return `A production build is already running in ${directory}. Wait for it to finish before starting another build.`;
-    }
-    const liveApp = this.interactiveSessions
-      .listManaged()
-      .find(
-        (session) =>
-          session.state === "running" &&
-          this.canonicalDirectory(session.cwd) === directory,
-      );
-    if (liveApp) {
-      return `The production build was not run because a managed app is already running from ${directory}. Stop that dev server from the Terminal surface, then run the build. Next.js build and dev processes must not write to the same .next directory at the same time.`;
+    for (const directory of this.productionBuildDirectories(command)) {
+      if (this.buildsInProgress.has(directory)) {
+        return `A production build is already running in ${directory}. Wait for it to finish before starting another build.`;
+      }
+      const liveApp = this.interactiveSessions
+        .listManaged()
+        .find(
+          (session) =>
+            session.state === "running" &&
+            this.canonicalDirectory(session.cwd) === directory,
+        );
+      if (liveApp) {
+        return `The production build was not run because a managed app is already running from ${directory}. Stop that dev server from the Terminal surface, then run the build. Next.js build and dev processes must not write to the same .next directory at the same time.`;
+      }
     }
     return undefined;
   }
@@ -154,11 +157,12 @@ export class TerminalService {
     timeoutMs?: number,
     abortSignal?: AbortSignal,
   ): Promise<TerminalCommandRecord> {
-    const buildDirectory = this.productionBuildDirectory(command);
-    if (buildDirectory) {
+    const buildDirectories = this.productionBuildDirectories(command);
+    if (buildDirectories.length) {
       const blocked = this.preflightProductionBuild(command);
       if (blocked) throw new Error(blocked);
-      this.buildsInProgress.add(buildDirectory);
+      for (const directory of buildDirectories)
+        this.buildsInProgress.add(directory);
     }
     try {
       return await this.commandOrchestrator.runStreamingLocal(
@@ -168,7 +172,8 @@ export class TerminalService {
         abortSignal,
       );
     } finally {
-      if (buildDirectory) this.buildsInProgress.delete(buildDirectory);
+      for (const directory of buildDirectories)
+        this.buildsInProgress.delete(directory);
     }
   }
 
@@ -296,15 +301,29 @@ export class TerminalService {
     this.healthPromise = undefined;
   }
 
-  private productionBuildDirectory(command: string): string | undefined {
+  private productionBuildDirectories(command: string): string[] {
+    const workspaceDir = resolveWorkspaceDirectory(this.workspaceDirectory);
+    const inspected = inspectWorkspaceCommands(command, workspaceDir)
+      .filter(
+        (operation) =>
+          operation.kind === "build" || operation.kind === "bundle",
+      )
+      .flatMap((operation) => {
+        const directory = operation.directory
+          ? this.canonicalDirectory(operation.directory)
+          : undefined;
+        return directory ? [directory] : [];
+      });
+    if (inspected.length) return [...new Set(inspected)];
+    // Safety preflight remains conservative for legacy complex shell syntax.
+    // This fallback is never used as successful install/build evidence.
     if (
       !/(?:\b(?:bun|npm|pnpm|yarn)\s+(?:run\s+)?build\b|\bnext\s+build\b)/iu.test(
         command,
       )
     ) {
-      return undefined;
+      return [];
     }
-    const workspaceDir = resolveWorkspaceDirectory(this.workspaceDirectory);
     const cdMatch = command.match(
       /^\s*cd\s+(?:"([^"]+)"|'([^']+)'|([^\s;&]+))\s*&&/u,
     );
@@ -314,7 +333,8 @@ export class TerminalService {
         ? requested
         : resolve(workspaceDir, requested)
       : workspaceDir;
-    return this.canonicalDirectory(directory);
+    const canonical = this.canonicalDirectory(directory);
+    return canonical ? [canonical] : [];
   }
 
   private canonicalDirectory(directory: string): string | undefined {

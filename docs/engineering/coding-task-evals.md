@@ -26,7 +26,8 @@ telemetry; it does not launch an agent or mutate the target project.
 
 Workspace paths must be supplied explicitly; never infer the requested target
 from the selected project or silently retarget the run. A verified delegated
-receipt contributes its full changed-file list. A final run summary's shallow
+receipt contributes its full changed-file list even when that worker failed or
+was cancelled. Those fingerprints prove file changes, not task completion. A final run summary's shallow
 mutation projection is not treated as a complete file manifest.
 
 ## How to run against a desktop gateway
@@ -73,6 +74,49 @@ production build. That receipt must identify a running managed session, its
 nonempty launch command, the exact workspace, and a verified local URL. Bun
 installation and build requirements remain separate checks. Readiness alone
 does not establish rendered quality or functional request coverage.
+
+Evaluator 0.2.9 shares literal command inspection with the runtime. It recognizes
+`bun --cwd /absolute/workspace run build` and `bun run --cwd /absolute/workspace
+build`, including quoted paths, without inventing a launch directory. A `cd`
+changes the following commands' directory; Bun's `--cwd` changes only that Bun
+invocation. Flags after a script name are script arguments, not cwd evidence.
+Dry runs, filtered workspaces, quoted command text, redirects, pipelines and
+failure-masking shell chains are not accepted as install/build proof. Complex
+commands can still execute, but do not automatically satisfy this receipt grader.
+The native SHELL adapter recovers launch cwd only by matching its SDK run ID,
+command and exit status to an actual local terminal-history record.
+
+Parent operations must follow the last coding attempt in that exact workspace,
+including failed attempts. Bun installation must precede the passing Bun package
+build; a later successful build can recover an earlier ordering/build failure.
+App handoff must follow verification and identify a running managed session with
+a local credential-free HTTP(S) URL. A later stop or unhealthy observation
+invalidates that session's old readiness. Historical reports remain unchanged;
+different evaluator versions are not directly score-compatible.
+
+## Disposable-runtime preflight
+
+For controlled desktop-owner backend experiments, use the tested
+`createEvalRuntimeEnvironment` helper in
+[`packages/evals/src/runtime-environment.ts`](../../packages/evals/src/runtime-environment.ts).
+It validates canonical environment names with the actual runtime schema and
+directory resolver before any provider dispatch. `mode: "api"` binds to loopback
+on an ephemeral port; transient data, gateway and hooks each live below the
+private experiment root. Headless CLI evaluations use the same helper. Repository
+skills and linked account authentication remain existing configured inputs, not
+newly isolated or fabricated credentials.
+
+Before accepting a coding run, verify the fresh fixture's files/hash, configured
+provider/model/effort, selected workspace and zero existing accepted runs. Confirm
+the actual route from the first `model.request` and model-usage capture from the
+first completed provider call. Missing capture is unavailable, never zero tokens.
+Use `message` in `POST /chat/runs`, with explicit run identity, workspace and
+desktop source. This exercises desktop-owner backend semantics, not the rendered
+desktop UI. An invalid preflight/setup sample is an operational diagnostic, not
+a controlled performance comparison. Poll the accepted run ID through transient
+observation failures; do not dispatch a replacement just because a poll timed out.
+Close only experiment-owned managed apps and the runtime, then preserve private
+reports and recoverably remove temporary state.
 
 The following dimensions require a separate human or browser review; do not turn
 them into a telemetry-derived score:

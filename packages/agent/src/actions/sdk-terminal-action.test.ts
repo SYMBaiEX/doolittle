@@ -15,9 +15,14 @@ import {
 import { handleOperationsRoutes } from "@/server/routes/operations";
 import type { AppServices } from "@/services";
 import { serveFetchTest } from "@/testing/fetch-server";
+import type { TerminalCommandRecord } from "@/types";
 import { createSdkTerminalAction } from "./sdk-terminal-action";
 
-function fixture(input: { preflight?: string; result?: ActionResult }) {
+function fixture(input: {
+  preflight?: string;
+  result?: ActionResult;
+  history?: TerminalCommandRecord[];
+}) {
   const sdkHandler = vi.fn(async () => input.result);
   const sdkAction = {
     name: "SHELL",
@@ -27,6 +32,7 @@ function fixture(input: { preflight?: string; result?: ActionResult }) {
   const services = {
     terminal: {
       preflightProductionBuild: vi.fn(() => input.preflight),
+      recent: vi.fn(() => input.history ?? []),
     },
   } as unknown as AppServices;
   const runtime = { getSetting: () => undefined } as unknown as IAgentRuntime;
@@ -43,6 +49,73 @@ function fixture(input: { preflight?: string; result?: ActionResult }) {
 }
 
 describe("Doolittle's Eliza SDK terminal adapter", () => {
+  it("does not promote a timed-out zero-exit receipt into successful verification", async () => {
+    const { action, runtime, message } = fixture({
+      result: {
+        success: true,
+        data: {
+          actionName: "SHELL",
+          command: "bun run build",
+          exitCode: 0,
+          timedOut: true,
+        },
+      },
+    });
+    const result = await action.handler(runtime, message, undefined, {
+      parameters: { command: "bun run build" },
+    });
+    expect(result).toMatchObject({
+      success: false,
+      text: expect.stringContaining("timed out"),
+    });
+  });
+  it.each([
+    { label: "exact local receipt", patch: {}, expected: "/workspace/blog" },
+    {
+      label: "different run",
+      patch: { id: "another-run" },
+      expected: undefined,
+    },
+    {
+      label: "different command",
+      patch: { command: "pwd" },
+      expected: undefined,
+    },
+    {
+      label: "remote execution",
+      patch: { backend: "ssh" },
+      expected: undefined,
+    },
+    {
+      label: "container execution",
+      patch: { backend: "docker" },
+      expected: undefined,
+    },
+    { label: "different exit", patch: { exitCode: 1 }, expected: undefined },
+    { label: "timeout", patch: { timedOut: true }, expected: undefined },
+  ])("restores cwd only from $label", async ({ patch, expected }) => {
+    const command = "bun run build";
+    const { action, runtime, message } = fixture({
+      result: {
+        success: true,
+        data: { actionName: "SHELL", runId: "run-1", command, exitCode: 0 },
+      },
+      history: [
+        {
+          id: "run-1",
+          command,
+          backend: "local",
+          cwd: "/workspace/blog",
+          exitCode: 0,
+          ...patch,
+        } as TerminalCommandRecord,
+      ],
+    });
+    const result = await action.handler(runtime, message, undefined, {
+      parameters: { command },
+    });
+    expect(result?.data?.executedIn).toBe(expected);
+  });
   it("preserves an actionable failure when a managed server blocks a build", async () => {
     const { action, message, runtime, sdkHandler } = fixture({
       preflight: "Stop the managed dev server before building this workspace.",
@@ -102,6 +175,16 @@ describe("Doolittle's Eliza SDK terminal adapter", () => {
 describe("official Eliza SHELL action integration", () => {
   it("executes through Doolittle's SDK-compatible terminal route", async () => {
     const terminal = {
+      recent: () => [
+        {
+          id: "sdk-shell-run",
+          command: "pwd",
+          backend: "local",
+          cwd: "/workspace",
+          exitCode: 0,
+        },
+      ],
+      preflightProductionBuild: () => undefined,
       run: async (command: string, timeoutMs?: number) => ({
         id: "sdk-shell-run",
         command,
@@ -140,7 +223,10 @@ describe("official Eliza SHELL action integration", () => {
     process.env.ELIZA_PORT = String(server.port);
 
     try {
-      const result = await terminalAction.handler(
+      const result = await createSdkTerminalAction(
+        context.services,
+        terminalAction,
+      ).handler(
         {} as never,
         {
           id: "message-1",
@@ -161,6 +247,7 @@ describe("official Eliza SHELL action integration", () => {
           exitCode: 0,
           stdout: "/workspace\n",
           stderr: "",
+          executedIn: "/workspace",
         },
       });
     } finally {

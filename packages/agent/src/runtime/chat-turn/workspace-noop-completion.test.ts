@@ -211,6 +211,17 @@ describe("verified no-op workspace completion", () => {
         `a ready managed app server with a verified local URL in ${workdir}`,
       ],
     );
+    results.push({
+      success: true,
+      data: {
+        actionName: "SHELL",
+        command: `bun run --cwd ${workdir} build`,
+        exitCode: 0,
+      },
+    });
+    expect(missingWorkspaceMutationRequirements(results, requirements)).toEqual(
+      [`a ready managed app server with a verified local URL in ${workdir}`],
+    );
   });
 
   it.each([
@@ -345,6 +356,64 @@ describe("verified no-op workspace completion", () => {
     expect(hasSuccessfulWorkspaceBuild(failed, workdir)).toBe(false);
   });
 
+  it.each([
+    `bun --cwd ${workdir} install && bun run --cwd ${workdir} build`,
+    `bun install --cwd=${workdir} --frozen-lockfile && bun --cwd=${workdir} run build`,
+  ])(
+    "verifies scoped operations without inventing a shell launch cwd: %s",
+    (command) => {
+      const results = createVerifiedNoopResults();
+      const shell = results[1] as ActionResult;
+      shell.data = { actionName: "SHELL", command, exitCode: 0 };
+      const requirements = workspaceNoopRequirements(
+        "Use Bun, build and start the app.",
+      );
+      expect(hasSuccessfulWorkspaceBuild(results, workdir)).toBe(true);
+      expect(
+        verifyWorkspaceNoopCompletion(results, requirements),
+      ).toBeDefined();
+      expect(
+        missingWorkspaceMutationRequirements(
+          [...createChangedWorkspaceResults(), ...results.slice(1)],
+          requirements,
+        ),
+      ).toEqual([]);
+      shell.data.command = `bun --cwd /workspace/other install && bun run --cwd /workspace/other build`;
+      shell.data.cwd = workdir;
+      expect(hasSuccessfulWorkspaceBuild(results, workdir)).toBe(false);
+      expect(
+        verifyWorkspaceNoopCompletion(results, requirements),
+      ).toBeUndefined();
+    },
+  );
+
+  it.each(["stopped", "unhealthy"])(
+    "invalidates old readiness after a later %s receipt",
+    (status) => {
+      const results = createVerifiedNoopResults();
+      const server = results[2] as ActionResult;
+      results.push({
+        ...server,
+        success: status !== "unhealthy",
+        data: { ...server.data, status },
+      });
+      const requirements = workspaceNoopRequirements(
+        "Use Bun, build and start the app.",
+      );
+      expect(
+        verifyWorkspaceNoopCompletion(results, requirements),
+      ).toBeUndefined();
+      expect(
+        missingWorkspaceMutationRequirements(
+          [...createChangedWorkspaceResults(), ...results.slice(1)],
+          requirements,
+        ),
+      ).toContain(
+        `a ready managed app server with a verified local URL in ${workdir}`,
+      );
+    },
+  );
+
   it("uses an explicit shell cd target instead of the process launch directory", () => {
     const results = createVerifiedNoopResults();
     expect(hasSuccessfulWorkspaceBuild(results, workdir)).toBe(true);
@@ -372,6 +441,51 @@ describe("verified no-op workspace completion", () => {
         ),
       ),
     ).toBeUndefined();
+  });
+
+  it.each(["failed", "cancelled"])(
+    "invalidates stale builds after a %s coding attempt and retains its mutation workspace",
+    (status) => {
+      const results = createVerifiedNoopResults();
+      const attempt = createChangedWorkspaceResults()[0] as ActionResult;
+      attempt.success = false;
+      const receipt = attempt.data?.delegatedExecution as Record<
+        string,
+        unknown
+      >;
+      receipt.status = status;
+      results.push(attempt);
+      expect(hasSuccessfulWorkspaceBuild(results, workdir)).toBe(false);
+      const requirements = workspaceNoopRequirements(
+        "Use Bun, build and start the app.",
+      );
+      expect(
+        missingWorkspaceMutationRequirements([attempt], requirements),
+      ).toContain(`a successful production build in ${workdir}`);
+      results.push(createVerifiedNoopResults()[1] as ActionResult);
+      expect(hasSuccessfulWorkspaceBuild(results, workdir)).toBe(true);
+      expect(
+        verifyWorkspaceNoopCompletion(results, requirements),
+      ).toBeUndefined();
+    },
+  );
+
+  it("invalidates parent verification after a later coding attempt without new changes", () => {
+    const results = [
+      ...createChangedWorkspaceResults(),
+      ...createVerifiedNoopResults().slice(1),
+    ];
+    const later = createVerifiedNoopResults()[0] as ActionResult;
+    later.success = false;
+    (later.data?.delegatedExecution as Record<string, unknown>).status =
+      "failed";
+    results.push(later);
+    expect(
+      missingWorkspaceMutationRequirements(
+        results,
+        workspaceNoopRequirements("Use Bun, build and start the app."),
+      ),
+    ).toContain(`a successful production build in ${workdir}`);
   });
 
   it("accepts an explicit no-op only after scoped Bun, build, server, and URL receipts", () => {

@@ -5,8 +5,10 @@ import {
   type ActionResult,
   isLocalCodeExecutionAllowed,
 } from "@elizaos/core";
-import { actionResultActionName } from "@/runtime/action-result-metadata";
-import { hasSuccessfulWorkspaceBuild } from "@/runtime/chat-turn/workspace-noop-completion";
+import {
+  hasSuccessfulWorkspaceBuild,
+  hasWorkspaceCodingAttempt,
+} from "@/runtime/chat-turn/workspace-noop-completion";
 import { resolveRemoteExecutionPlatform } from "@/runtime/commands/command-execution";
 import {
   getScopedTurnAbortSignal,
@@ -93,26 +95,8 @@ export function createAppServerAction(services: AppServices): Action {
         }
         if (operation === "start") {
           const priorActions = getScopedTurnActionResults(runtime);
-          const completedCodingDelegation = priorActions.some((result) => {
-            if (
-              result.success !== true ||
-              actionResultActionName(result)?.toUpperCase() !==
-                "TASKS_SPAWN_AGENT"
-            ) {
-              return false;
-            }
-            const receipt = result.data?.delegatedExecution;
-            if (
-              receipt === null ||
-              typeof receipt !== "object" ||
-              Array.isArray(receipt)
-            ) {
-              return false;
-            }
-            return (receipt as Record<string, unknown>).status === "completed";
-          });
           if (
-            completedCodingDelegation &&
+            hasWorkspaceCodingAttempt(priorActions, cwd) &&
             !hasSuccessfulWorkspaceBuild(priorActions, cwd)
           ) {
             throw new Error(

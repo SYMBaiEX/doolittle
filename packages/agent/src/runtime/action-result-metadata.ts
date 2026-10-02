@@ -129,6 +129,8 @@ export function extractLocalMutationFromActionResult(
 /**
  * Returns every file in a fingerprint-verified coding-agent receipt instead of
  * projecting only its first changed file through the single-mutation envelope.
+ * A failed/cancelled worker may have real changes; retain that evidence without
+ * changing the worker's status or claiming that its implementation completed.
  */
 export function extractLocalMutationsFromActionResult(
   actionResult: ActionResult | undefined,
@@ -137,7 +139,9 @@ export function extractLocalMutationsFromActionResult(
   const delegated = isRecord(data) ? data.delegatedExecution : undefined;
   if (
     isRecord(delegated) &&
-    delegated.status === "completed" &&
+    actionResultActionName(actionResult)?.toUpperCase() ===
+      "TASKS_SPAWN_AGENT" &&
+    ["completed", "failed", "cancelled"].includes(String(delegated.status)) &&
     delegated.verifiedLocalMutation === true &&
     Array.isArray(delegated.changedFiles)
   ) {

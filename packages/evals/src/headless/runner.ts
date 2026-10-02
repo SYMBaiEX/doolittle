@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { getLinkedElizaCloudCredentials } from "@doolittle/agent/runtime/native/account-auth";
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import { EVALS_EVALUATOR_VERSION } from "../evaluator-version";
+import { createEvalRuntimeEnvironment } from "../runtime-environment";
 import type { HeadlessEvalSuite } from "./cases";
 import { readHeadlessModelUsage } from "./model-usage";
 import {
@@ -347,18 +348,13 @@ export async function runHeadlessEvalSuite(
           // Avoid retaining an unexpectedly long non-JSON line in memory.
           if (stdoutLineBuffer.length > 1_048_576) stdoutLineBuffer = "";
         };
-        const childEnvironment: NodeJS.ProcessEnv = {
-          ...process.env,
-          DOOLITTLE_MODE: "cli",
-          DOOLITTLE_DATA_DIR: dataDir,
-          DOOLITTLE_WORKSPACE_DIR: workspaceDir,
-          DOOLITTLE_USE_LINKED_CODEX_AUTH:
-            process.env.DOOLITTLE_USE_LINKED_CODEX_AUTH ?? "true",
-          DOOLITTLE_EVAL_CAPTURE_MODEL_USAGE: "true",
-          ELIZAOS_CLOUD_ENABLED: "false",
-        };
-        delete childEnvironment.ELIZAOS_CLOUD_API_KEY;
-        delete childEnvironment.ELIZA_CLOUD_API_KEY;
+        const childEnvironment = createEvalRuntimeEnvironment({
+          repoRoot,
+          root: taskRoot,
+          workspaceDir,
+          mode: "cli",
+          baseEnvironment: process.env,
+        });
         if (
           task.domain === "research" &&
           cloudResearchOptedIn &&

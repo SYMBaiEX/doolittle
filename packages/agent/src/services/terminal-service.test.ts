@@ -166,6 +166,14 @@ describe("TerminalService", () => {
         service.preflightProductionBuild(`cd "${root}" && bun run build`),
       ).toContain("Next.js build and dev processes must not write");
       expect(service.preflightProductionBuild("bun run dev")).toBeUndefined();
+      expect(
+        service.preflightProductionBuild(`bun run --cwd "${root}" build`),
+      ).toContain("Next.js build and dev processes must not write");
+      expect(
+        service.preflightProductionBuild(
+          `bun --cwd "${root}" install && bun --cwd "${root}" run build`,
+        ),
+      ).toContain("Next.js build and dev processes must not write");
     } finally {
       service.disposeInteractiveSessions();
       rmSync(root, { recursive: true, force: true });
@@ -201,7 +209,7 @@ describe("TerminalService", () => {
     } as never);
 
     try {
-      const building = service.run(`cd "${root}" && bun run build`);
+      const building = service.run(`bun run --cwd "${root}" build`);
       await buildStarted;
       await expect(
         service.startManagedApplication({

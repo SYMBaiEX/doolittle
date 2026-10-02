@@ -94,7 +94,13 @@ function appReadyEvent() {
           actionName: "DOOLITTLE_APP_SERVER",
           status: "ready",
           url: "http://localhost:3000",
-          session: { cwd: expectedWorkspace, id: "server-1" },
+          session: {
+            cwd: expectedWorkspace,
+            id: "server-1",
+            managed: true,
+            state: "running",
+            command: "bun run dev",
+          },
         },
       },
     },
@@ -123,6 +129,113 @@ function evaluate(
 }
 
 describe("coding-run acceptance evals", () => {
+  it("retains implementation evidence from a failed worker while failing final acceptance", () => {
+    const event = delegatedEvent(["src/app/page.tsx", "package.json"]);
+    event.metadata.actionResult.success = false;
+    event.metadata.actionResult.data.delegatedExecution.status = "failed";
+    const result = evaluate([event], { status: "error" });
+    expect(
+      result.checks.find((entry) => entry.id === "implementation")?.status,
+    ).toBe("pass");
+    expect(
+      result.checks.find((entry) => entry.id === "acceptance")?.status,
+    ).toBe("fail");
+  });
+
+  it.each([
+    "bun --cwd /workspace/project install && bun run --cwd /workspace/project build",
+    "bun install --cwd=/workspace/project --frozen-lockfile && bun --cwd=/workspace/project run build",
+  ])("accepts scoped Bun parent receipts without launch cwd: %s", (command) => {
+    const shell = shellBuild(0);
+    shell.metadata.actionResult.data.commandResult.command = command;
+    expect(
+      evaluate([delegatedEvent(["src/app/page.tsx"]), shell, appReadyEvent()], {
+        caseId: "coding-bun-app-handoff-v1",
+      }).status,
+    ).toBe("pass");
+  });
+
+  it.each([
+    "echo 'bun install && bun run build'",
+    "bun install --dry-run && bun run build",
+    "bun install && bun run --if-present build",
+    "bun install && bun run build || true",
+    "bun --cwd /workspace/other install && bun --cwd /workspace/other run build",
+  ])(
+    "rejects unverified command/scope evidence even with a trusted launch cwd: %s",
+    (command) => {
+      const shell = shellBuild(0);
+      const commandResult = shell.metadata.actionResult.data.commandResult;
+      Object.assign(commandResult, { command, executedIn: expectedWorkspace });
+      expect(
+        evaluate(
+          [delegatedEvent(["src/app/page.tsx"]), shell, appReadyEvent()],
+          {
+            caseId: "coding-bun-app-handoff-v1",
+          },
+        ).status,
+      ).toBe("fail");
+    },
+  );
+
+  it("requires fresh parent operations after a failed worker and installs before builds", () => {
+    const attempt = delegatedEvent(["app/page.tsx"]);
+    attempt.metadata.actionResult.data.delegatedExecution.status = "failed";
+    const stale = evaluate(
+      [shellBunInstall(), shellBuild(0), attempt, appReadyEvent()],
+      {
+        caseId: "coding-bun-app-handoff-v1",
+      },
+    );
+    expect(stale.checks.find((entry) => entry.id === "build")?.status).toBe(
+      "fail",
+    );
+    expect(
+      stale.checks.find((entry) => entry.id === "bun-install")?.status,
+    ).toBe("fail");
+    const reversed = evaluate(
+      [attempt, shellBuild(0), shellBunInstall(), appReadyEvent()],
+      {
+        caseId: "coding-bun-app-handoff-v1",
+      },
+    );
+    expect(reversed.checks.find((entry) => entry.id === "build")?.status).toBe(
+      "fail",
+    );
+    expect(
+      evaluate([attempt, shellBunInstall(), shellBuild(0), appReadyEvent()], {
+        caseId: "coding-bun-app-handoff-v1",
+      }).status,
+    ).toBe("pass");
+  });
+
+  it.each(["stopped", "unhealthy"])(
+    "does not accept stale readiness after a later %s receipt",
+    (status) => {
+      const later = appReadyEvent();
+      later.metadata.actionResult.data.status = status;
+      expect(
+        evaluate([appReadyEvent(), later], { caseId: "app-start-v1" }).status,
+      ).toBe("fail");
+    },
+  );
+
+  it("requires successful managed local readiness, not just an HTTP-shaped URL", () => {
+    const ready = appReadyEvent();
+    ready.metadata.actionResult.data.url = "https://example.com";
+    expect(evaluate([ready], { caseId: "app-start-v1" }).status).toBe("fail");
+    ready.metadata.actionResult.data.url = "http://localhost:3000";
+    ready.metadata.actionResult.data.session.managed = false;
+    expect(evaluate([ready], { caseId: "app-start-v1" }).status).toBe("fail");
+  });
+
+  it("does not count a failed shell action as a successful build even at exit zero", () => {
+    const build = shellBuild(0);
+    build.metadata.actionResult.success = false;
+    expect(evaluate([delegatedEvent(["app/page.tsx"]), build]).status).toBe(
+      "fail",
+    );
+  });
   it("passes when source changes, a parent build, and requested app handoff are evidenced", () => {
     const result = evaluate(
       [

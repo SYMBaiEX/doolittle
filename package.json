@@ -74,7 +74,7 @@
     "typecheck": "nubx tsc --noEmit",
     "test": "nubx vitest run",
     "test:coding-harness": "nubx vitest run scripts/acceptance/coding-loop-harness.test.ts",
-    "test:coding-evals": "nubx vitest run packages/evals/src/coding/evaluator.test.ts packages/evals/src/coding/report.test.ts",
+    "test:coding-evals": "nubx vitest run packages/evals/src/coding/evaluator.test.ts packages/evals/src/coding/report.test.ts packages/evals/src/runtime-environment.test.ts",
     "test:headless-evals": "nubx vitest run packages/evals/src/headless/action-counts-format.test.ts packages/evals/src/headless/runner.test.ts packages/evals/src/headless/compare.test.ts packages/evals/src/headless/process.test.ts",
     "test:research-harness": "nubx vitest run scripts/acceptance/research-orchestration-harness.test.ts",
     "eval:list": "nub packages/evals/src/coding/list-cli.ts",
