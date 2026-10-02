@@ -43,6 +43,35 @@ describe("headless workflow evals", () => {
     expect(HEADLESS_EVAL_SUITES["headless-workflows-v4"].tasks.length).toBe(
       expanded.tasks.length,
     );
+    expect(HEADLESS_EVAL_SUITES["headless-workflows-v5"].version).toBe(5);
+    expect(HEADLESS_EVAL_SUITES["headless-workflows-v5"].tasks.length).toBe(
+      HEADLESS_EVAL_SUITES["headless-workflows-v4"].tasks.length,
+    );
+  });
+
+  it("grades no-side-effect action use from telemetry in v5 only", () => {
+    const findCheck = (suiteId: string) => {
+      const task = HEADLESS_EVAL_SUITES[suiteId].tasks.find((candidate) =>
+        candidate.id.startsWith("reliability-no-side-effect-"),
+      );
+      return task?.checks.find(
+        (check) => check.id === "no-agent-action-started",
+      );
+    };
+    const context = {
+      response: "The file was not created. Step 1: plan the change.",
+      responses: [],
+      workspaceDir: tempDirectory(),
+      actionStarts: 0,
+    };
+    const v4Check = findCheck("headless-workflows-v4");
+    const v5Check = findCheck("headless-workflows-v5");
+
+    expect(v4Check).toBeUndefined();
+    expect(v5Check).toBeDefined();
+    expect(v5Check?.evaluate(context)).toBe(true);
+    expect(v5Check?.evaluate({ ...context, actionStarts: 1 })).toBe(false);
+    expect(v5Check?.evaluate({ ...context, actionStarts: null })).toBe(false);
   });
 
   it("does not count ACP identity files as coding-task artifacts", () => {
@@ -62,7 +91,12 @@ describe("headless workflow evals", () => {
       (candidate) => candidate.id === "only-requested-file-created",
     );
     expect(check).toBeDefined();
-    const context = { response: "", responses: [], workspaceDir };
+    const context = {
+      response: "",
+      responses: [],
+      workspaceDir,
+      actionStarts: 0,
+    };
     expect(check?.evaluate(context)).toBe(true);
 
     writeFileSync(join(workspaceDir, "notes.txt"), "unexpected task file\n");
@@ -226,6 +260,10 @@ describe("headless workflow evals", () => {
               id: "returned",
               evaluate: ({ response: value }) => value === response,
             },
+            {
+              id: "action-starts-visible-to-grader",
+              evaluate: ({ actionStarts }) => actionStarts === 2,
+            },
           ],
           humanReviewRequired: true,
         },
@@ -249,7 +287,10 @@ describe("headless workflow evals", () => {
     expect(stored).not.toContain(response);
     expect(result.report.runs[0]).toMatchObject({
       status: "completed",
-      checks: [{ id: "returned", passed: true }],
+      checks: [
+        { id: "returned", passed: true },
+        { id: "action-starts-visible-to-grader", passed: true },
+      ],
       humanReviewRequired: true,
     });
     expect(result.report.schemaVersion).toBe(4);

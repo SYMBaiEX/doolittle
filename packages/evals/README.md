@@ -94,6 +94,12 @@ it for new coding reliability samples:
 nub run eval:headless -- --suite headless-workflows-v4 --task coding-function-behavior-v4
 ```
 
+`headless-workflows-v5` preserves v4 and adds an explicit trajectory check that
+the no-side-effect reliability task started no agent actions. Missing or
+malformed action telemetry fails the check instead of being treated as zero.
+This detects recorded action use; it does not identify the action or prove
+that it caused a workspace side effect.
+
 Every task gets a fresh temporary data directory and workspace with a minimal
 onboarding marker. Eliza Cloud is disabled in subprocesses by default;
 `--enable-configured-cloud-research` explicitly enables the configured provider

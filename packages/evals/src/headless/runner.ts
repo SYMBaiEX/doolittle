@@ -444,13 +444,21 @@ export async function runHeadlessEvalSuite(
 
       const gradingStartedAt = monotonicNow();
       const response = responses.at(-1) ?? "";
-      const checkContext = { response, responses, workspaceDir };
+      const modelUsageResult = readHeadlessModelUsage(dataDir);
+      const traceSummary = readHeadlessTraceSummary(dataDir);
+      const checkContext = {
+        response,
+        responses,
+        workspaceDir,
+        actionStarts:
+          traceSummary.journalAvailable && !traceSummary.malformed
+            ? traceSummary.actionStarts
+            : null,
+      };
       const checks = task.checks.map((check) => ({
         id: check.id,
         passed: Boolean(check.evaluate(checkContext)),
       }));
-      const modelUsageResult = readHeadlessModelUsage(dataDir);
-      const traceSummary = readHeadlessTraceSummary(dataDir);
       const gradingMs = durationMs(gradingStartedAt, monotonicNow());
       if (modelUsageResult.malformed) {
         diagnosticFlags.add("model-usage-telemetry-invalid");

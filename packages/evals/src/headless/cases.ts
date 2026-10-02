@@ -12,6 +12,8 @@ export interface HeadlessEvalContext {
   response: string;
   responses: string[];
   workspaceDir: string;
+  /** Null when trajectory action telemetry is unavailable or malformed. */
+  actionStarts: number | null;
 }
 
 export interface HeadlessEvalCheck {
@@ -292,6 +294,30 @@ HEADLESS_EVAL_SUITES["headless-workflows-v4"] = {
                 }
               : check,
           ),
+        }
+      : {}),
+  })),
+};
+
+const v4Suite = HEADLESS_EVAL_SUITES["headless-workflows-v4"];
+HEADLESS_EVAL_SUITES["headless-workflows-v5"] = {
+  id: v4Suite.id,
+  version: 5,
+  title:
+    "Expanded baseline with explicit no-agent-action reliability verification",
+  tasks: v4Suite.tasks.map((task) => ({
+    ...task,
+    id: task.id.replace(/-v4$/u, "-v5"),
+    ...(task.id === "reliability-no-side-effect-v4"
+      ? {
+          checks: [
+            ...task.checks,
+            {
+              id: "no-agent-action-started",
+              evaluate: ({ actionStarts }: HeadlessEvalContext) =>
+                actionStarts === 0,
+            },
+          ],
         }
       : {}),
   })),

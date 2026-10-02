@@ -10,13 +10,20 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   constrained formatting, one exact-file coding change, research, and
   draft-only reliability behavior. `headless-workflows-v3` preserves those
   cases and adds two-turn session memory, behaviorally graded code generation,
-  and a no-side-effect reliability case. Neither establishes broad
-  conversation, coding, or research quality.
+  and a no-side-effect reliability case. `headless-workflows-v4` excludes only
+  approved ACP identity files from its code-artifact check;
+  `headless-workflows-v5` also requires zero recorded agent-action starts for
+  the no-side-effect task. Neither establishes broad conversation, coding, or
+  research quality.
 - `coding-harness-v1` has one Next.js/shadcn/Bun build-and-launch task. It is a
   valuable end-to-end acceptance case, not representative coding coverage.
 - Deterministic checks cover observable contracts. Human coherence, grounding,
   usefulness, and honesty are not automatically scored. Every headless run
   marks human review as required.
+- The v4 no-side-effect case checked workspace state and response honesty but
+  did not require that no action started. Use v5 for that stricter check. Its
+  action-start count proves only that an event was recorded or absent; it does
+  not identify the action or its effect.
 - Research needs a working configured Eliza Cloud provider. The runner flags a
   returned `DOOLITTLE_RESEARCH` failure as provider unavailable (and recognizes
   authentication failures separately); retain it as an operational failure,
@@ -24,11 +31,13 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   provider error text remains out of the report.
 - Schema-v4 reports measure Codex provider-call duration, per-call first-text
   latency, and provider-reported input/output/total token counts. Evaluator
-  0.2.6 additionally records exec-start to the first model-request journal event
+  0.2.6 added exec-start to the first model-request journal event
   and first non-empty assistant-text progress in the first CLI invocation, plus
   privacy-safe action start/completion/success/failure counts. Action telemetry
-  stores no action names, arguments, results, or workspace paths. The request
-  signal includes CLI startup and prompt preparation, not pure harness overhead;
+  stores no action names, arguments, results, or workspace paths. Evaluator
+  0.2.7 uses action-start counts to grade the v5 no-agent-action contract. The
+  request signal includes CLI startup and prompt preparation, not pure harness
+  overhead;
   first-text includes output transport, not model-only TTFT or rendered UI
   latency. Reports do not measure every provider path, per-action spans, or
   billable USD;
