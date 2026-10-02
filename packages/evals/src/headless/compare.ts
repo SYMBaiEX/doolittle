@@ -162,6 +162,8 @@ export interface HeadlessTaskAggregate {
   traceMetrics: {
     sampleCount: number;
     modelRequests: HeadlessMetricDistribution | null;
+    modelResponses: HeadlessMetricDistribution | null;
+    modelErrors: HeadlessMetricDistribution | null;
     mutationContinuations: HeadlessMetricDistribution | null;
     meanPromptChars: HeadlessMetricDistribution | null;
   };
@@ -705,6 +707,12 @@ export function aggregateHeadlessEvalReports(
         sampleCount: traceMetrics.length,
         modelRequests: optionalDistribution(
           traceMetrics.map((trace) => trace.modelRequests),
+        ),
+        modelResponses: optionalDistribution(
+          traceMetrics.map((trace) => trace.modelResponses),
+        ),
+        modelErrors: optionalDistribution(
+          traceMetrics.map((trace) => trace.modelErrors),
         ),
         mutationContinuations: optionalDistribution(
           traceMetrics.map((trace) => trace.mutationContinuations),

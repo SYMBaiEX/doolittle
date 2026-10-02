@@ -130,7 +130,7 @@ nub run eval:headless:aggregate -- \
 
 The aggregate reports descriptive completion/check pass rates and per-task
 median, nearest-rank p90, range, and mean for execution duration, harness
-invocations, and available Codex telemetry. A missing telemetry field remains
-unavailable. These statistics do not establish human-facing quality or causal
-model improvement; raw report paths and contents are not included in the
-aggregate output.
+invocations, Codex telemetry, and sanitized model request/response/error and
+continuation counts. A missing telemetry field remains unavailable. These
+statistics do not establish human-facing quality or causal model improvement;
+raw report paths and contents are not included in the aggregate output.

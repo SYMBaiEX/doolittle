@@ -555,6 +555,8 @@ describe("headless repeated report aggregation", () => {
       checks?: boolean[][];
       modelUsage?: Array<Record<string, unknown> | null>;
       diagnosticFlags?: string[][];
+      modelResponses?: number[];
+      modelErrors?: number[];
     } = {},
   ) {
     const base = v4Report();
@@ -581,6 +583,15 @@ describe("headless repeated report aggregation", () => {
           options.modelUsage && index in options.modelUsage
             ? options.modelUsage[index]
             : run.modelUsage,
+        traceSummary: {
+          ...(run.traceSummary as Record<string, unknown>),
+          ...(options.modelResponses && index in options.modelResponses
+            ? { modelResponses: options.modelResponses[index] }
+            : {}),
+          ...(options.modelErrors && index in options.modelErrors
+            ? { modelErrors: options.modelErrors[index] }
+            : {}),
+        },
         diagnosticFlags: options.diagnosticFlags?.[index] ?? [],
       })),
     };
@@ -590,16 +601,22 @@ describe("headless repeated report aggregation", () => {
     const first = repeatedReport(500, [100, 200], [1, 1], {
       checks: [[true, false], [true]],
       diagnosticFlags: [["memory-unavailable", "memory-unavailable"], []],
+      modelResponses: [1, 2],
+      modelErrors: [1, 0],
     });
     const second = repeatedReport(700, [300, 400], [3, 3], {
       statuses: ["failed", "completed"],
       checks: [[false, false], [true]],
       modelUsage: [null, null],
       diagnosticFlags: [["memory-unavailable"], []],
+      modelResponses: [2, 2],
+      modelErrors: [0, 0],
     });
     const third = repeatedReport(600, [200, 300], [2, 2], {
       checks: [[true, false], [true]],
       diagnosticFlags: [[], []],
+      modelResponses: [3, 2],
+      modelErrors: [2, 0],
     });
 
     const result = aggregateHeadlessEvalReports([first, second, third]);
@@ -661,6 +678,22 @@ describe("headless repeated report aggregation", () => {
           p90: 2,
           max: 2,
           mean: 2,
+        },
+        modelResponses: {
+          count: 3,
+          min: 1,
+          median: 2,
+          p90: 3,
+          max: 3,
+          mean: 2,
+        },
+        modelErrors: {
+          count: 3,
+          min: 0,
+          median: 1,
+          p90: 2,
+          max: 2,
+          mean: 1,
         },
         mutationContinuations: {
           count: 3,

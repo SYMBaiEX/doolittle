@@ -31,7 +31,8 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   only when route, evaluator, suite, task/check identities, clean source
   revision, and run timestamps match. It reports per-task completion/check
   rates and descriptive median, nearest-rank p90, range, and mean for timing and
-  available telemetry; it does not estimate uncertainty or score human reviews.
+  available telemetry, including top-level model responses and errors; it does
+  not estimate uncertainty or score human reviews.
 
 ## Before each run
 

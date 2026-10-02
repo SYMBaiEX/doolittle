@@ -93,7 +93,7 @@ function main(): number {
         `    Codex telemetry (${task.providerMetrics.sampleCount}/${task.sampleCount} task samples): calls ${distribution(task.providerMetrics.providerCalls, (number) => number.toFixed(1))}; summed provider-call time ${distribution(task.providerMetrics.providerDurationMs, seconds)}; total tokens ${distribution(task.providerMetrics.totalTokens, (number) => Math.round(number).toLocaleString())}.`,
       );
       console.log(
-        `    Trace (${task.traceMetrics.sampleCount}/${task.sampleCount} task samples): model requests ${distribution(task.traceMetrics.modelRequests, (number) => number.toFixed(1))}; mutation continuations ${distribution(task.traceMetrics.mutationContinuations, (number) => number.toFixed(1))}; mean prompt size ${distribution(task.traceMetrics.meanPromptChars, (number) => `${Math.round(number)} chars`)}.`,
+        `    Trace (${task.traceMetrics.sampleCount}/${task.sampleCount} task samples): model requests ${distribution(task.traceMetrics.modelRequests, (number) => number.toFixed(1))}; responses ${distribution(task.traceMetrics.modelResponses, (number) => number.toFixed(1))}; errors ${distribution(task.traceMetrics.modelErrors, (number) => number.toFixed(1))}; mutation continuations ${distribution(task.traceMetrics.mutationContinuations, (number) => number.toFixed(1))}; mean prompt size ${distribution(task.traceMetrics.meanPromptChars, (number) => `${Math.round(number)} chars`)}.`,
       );
       if (task.diagnosticFlags.length > 0) {
         console.log(
