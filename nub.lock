@@ -45,6 +45,11 @@ overrides:
   tar: 7.5.22
   toml: 4.2.0
 
+patchedDependencies:
+  '@elizaos/plugin-agent-orchestrator@2.0.3-beta.7':
+    hash: 90cf10cef02a659dcd164cf0ab16a975170a5075f1ce0b379cc3dee7fc7dbdba
+    path: patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch
+
 importers:
 
   .:
@@ -93,7 +98,7 @@ importers:
         version: 2.0.3-beta.7
       '@elizaos/plugin-agent-orchestrator':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(702c2d3aebe4b55e0aa1b4fa576cf2e9)
+        version: 2.0.3-beta.7(patch_hash=90cf10cef02a659dcd164cf0ab16a975170a5075f1ce0b379cc3dee7fc7dbdba)(702c2d3aebe4b55e0aa1b4fa576cf2e9)
       '@elizaos/plugin-agent-skills':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
@@ -344,7 +349,7 @@ importers:
         version: 2.0.3-beta.7
       '@elizaos/plugin-agent-orchestrator':
         specifier: 2.0.3-beta.7
-        version: 2.0.3-beta.7(702c2d3aebe4b55e0aa1b4fa576cf2e9)
+        version: 2.0.3-beta.7(patch_hash=90cf10cef02a659dcd164cf0ab16a975170a5075f1ce0b379cc3dee7fc7dbdba)(702c2d3aebe4b55e0aa1b4fa576cf2e9)
       '@elizaos/plugin-agent-skills':
         specifier: 2.0.3-beta.7
         version: 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
@@ -15645,7 +15650,7 @@ snapshots:
       '@clack/prompts': 1.8.1
       '@elizaos/app-core': 2.0.3-beta.7(b508ff2025eada1622f274554b0ad1ac)
       '@elizaos/core': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
-      '@elizaos/plugin-agent-orchestrator': 2.0.3-beta.7(702c2d3aebe4b55e0aa1b4fa576cf2e9)
+      '@elizaos/plugin-agent-orchestrator': 2.0.3-beta.7(patch_hash=90cf10cef02a659dcd164cf0ab16a975170a5075f1ce0b379cc3dee7fc7dbdba)(702c2d3aebe4b55e0aa1b4fa576cf2e9)
       '@elizaos/plugin-agent-skills': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@elizaos/plugin-anthropic': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)(zod@4.6.5)
       '@elizaos/plugin-aosp-local-inference': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@elizaos/core@2.0.3-beta.7)(@opentelemetry/api@1.9.1)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
@@ -16185,7 +16190,7 @@ snapshots:
       adze: 2.3.0
       fast-redact: 3.5.0
 
-  '@elizaos/plugin-agent-orchestrator@2.0.3-beta.7(702c2d3aebe4b55e0aa1b4fa576cf2e9)':
+  '@elizaos/plugin-agent-orchestrator@2.0.3-beta.7(patch_hash=90cf10cef02a659dcd164cf0ab16a975170a5075f1ce0b379cc3dee7fc7dbdba)(702c2d3aebe4b55e0aa1b4fa576cf2e9)':
     dependencies:
       '@elizaos/core': 2.0.3-beta.7(@electric-sql/pglite@0.5.8)(@upstash/redis@1.39.0)(pg@8.23.1)(react@19.3.0)(ws@8.22.0)
       '@octokit/rest': 22.0.1

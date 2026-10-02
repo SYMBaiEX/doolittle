@@ -58,6 +58,14 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   finite amount with no rejected, conflicting or truncated coverage. Parent
   wrapper telemetry and worker receipts remain separate; the existing coding
   report schema does not yet aggregate these worker fields.
+- The pinned orchestrator SDK has a package patch for ACP health checks:
+  native protocol sessions are not diagnosed or garbage-collected using
+  legacy acpx files. Native errors still come from the transport, and native
+  sessions left mid-flight at restart are still marked errored. CLI sessions
+  retain file-loss checks when no process is tracked, restart reconciliation,
+  stale-lock/stream cleanup and terminal-session retention. Record the source
+  revision and lockfile patch hash when comparing worker recovery behavior;
+  regression coverage is not a measured latency improvement.
 - The pairwise comparator handles a baseline/candidate report pair. The
   `eval:headless:aggregate` command summarizes compatible schema-v4 repeats
   only when route, evaluator, suite, task/check identities, clean source

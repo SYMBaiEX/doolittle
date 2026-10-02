@@ -219,5 +219,8 @@
       "onFail": "warn"
     }
   },
-  "packageManager": "nub@0.9.5"
+  "packageManager": "nub@0.9.5",
+  "patchedDependencies": {
+    "@elizaos/plugin-agent-orchestrator@2.0.3-beta.7": "patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch"
+  }
 }

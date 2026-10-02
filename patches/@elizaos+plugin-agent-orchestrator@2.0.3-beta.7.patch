@@ -1,0 +1,100 @@
+diff --git a/dist/cjs/index.node.cjs b/dist/cjs/index.node.cjs
+--- a/dist/cjs/index.node.cjs
++++ b/dist/cjs/index.node.cjs
+@@ -358,7 +358,7 @@
+ var import_node_module, GitHubPatClient, OAuthDeviceFlow;
+ var init_workspace_github = __esm(() => {
+   import_node_module = require("node:module");
+-  ({ GitHubPatClient, OAuthDeviceFlow } = import_node_module.createRequire("file:///home/runner/work/eliza/eliza/plugins/plugin-agent-orchestrator/src/services/workspace-github.ts")("git-workspace-service"));
++  ({ GitHubPatClient, OAuthDeviceFlow } = import_node_module.createRequire(__filename)("git-workspace-service"));
+ });
+ 
+ // src/services/config-env.ts
+@@ -1243,7 +1243,7 @@
+     GitHubPatClient: GitHubPatClient2,
+     MemoryTokenStore,
+     WorkspaceService
+-  } = import_node_module2.createRequire("file:///home/runner/work/eliza/eliza/plugins/plugin-agent-orchestrator/src/services/workspace-service.ts")("git-workspace-service"));
++  } = import_node_module2.createRequire(__filename)("git-workspace-service"));
+   defaultBranchCache = new Map;
+ });
+ 
+@@ -6194,7 +6194,7 @@
+         return;
+       const liveCutoffMs = Date.now() - RECONCILE_LIVE_WINDOW_MS;
+       const verdicts = await Promise.all(orphaned.map(async (s) => {
+-        if (!s.acpxSessionId)
++        if (this.transportMode !== "cli" || !s.acpxSessionId)
+           return { session: s, alive: false };
+         const { exists, mtimeMs } = await this.acpxSessionStateStat(s.acpxSessionId);
+         return { session: s, alive: exists && mtimeMs > liveCutoffMs };
+@@ -6239,6 +6239,8 @@
+       return import_node_path7.join(import_node_os4.homedir(), ".acpx");
+     }
+     async cleanStaleLocks() {
++      if (this.transportMode !== "cli")
++        return;
+       const queuesDir = import_node_path7.join(this.acpxStateRoot(), "queues");
+       const cleaned = await scanAndUnlinkOlderThan(queuesDir, (name) => name.endsWith(".lock"), ACP_STALE_LOCK_MAX_AGE_MS);
+       if (cleaned > 0) {
+@@ -6249,6 +6251,8 @@
+       }
+     }
+     async cleanReverseOrphanedAcpxFiles() {
++      if (this.transportMode !== "cli")
++        return;
+       const sessionsDir = import_node_path7.join(this.acpxStateRoot(), "sessions");
+       const sessions = await this.store.list().catch(() => []);
+       const trackedAcpxIds = new Set(sessions.map((s) => s.acpxSessionId).filter(Boolean));
+@@ -6273,6 +6277,10 @@
+       const liveCutoffMs = Date.now() - RECONCILE_LIVE_WINDOW_MS;
+       let healed = 0;
+       for (const s of sessions) {
++        // Native protocol IDs have no acpx state file. A tracked CLI process
++        // is also not an orphan; its exit handler owns failure reporting.
++        if (this.transportMode !== "cli" || this.activeProcesses.has(s.id))
++          continue;
+         if (TERMINAL_SESSION_STATUSES2.has(s.status))
+           continue;
+         if (!s.acpxSessionId)
+diff --git a/dist/node/index.node.js b/dist/node/index.node.js
+--- a/dist/node/index.node.js
++++ b/dist/node/index.node.js
+@@ -6166,7 +6166,7 @@
+         return;
+       const liveCutoffMs = Date.now() - RECONCILE_LIVE_WINDOW_MS;
+       const verdicts = await Promise.all(orphaned.map(async (s) => {
+-        if (!s.acpxSessionId)
++        if (this.transportMode !== "cli" || !s.acpxSessionId)
+           return { session: s, alive: false };
+         const { exists, mtimeMs } = await this.acpxSessionStateStat(s.acpxSessionId);
+         return { session: s, alive: exists && mtimeMs > liveCutoffMs };
+@@ -6211,6 +6211,8 @@
+       return join10(homedir6(), ".acpx");
+     }
+     async cleanStaleLocks() {
++      if (this.transportMode !== "cli")
++        return;
+       const queuesDir = join10(this.acpxStateRoot(), "queues");
+       const cleaned = await scanAndUnlinkOlderThan(queuesDir, (name) => name.endsWith(".lock"), ACP_STALE_LOCK_MAX_AGE_MS);
+       if (cleaned > 0) {
+@@ -6221,6 +6223,8 @@
+       }
+     }
+     async cleanReverseOrphanedAcpxFiles() {
++      if (this.transportMode !== "cli")
++        return;
+       const sessionsDir = join10(this.acpxStateRoot(), "sessions");
+       const sessions = await this.store.list().catch(() => []);
+       const trackedAcpxIds = new Set(sessions.map((s) => s.acpxSessionId).filter(Boolean));
+@@ -6245,6 +6249,10 @@
+       const liveCutoffMs = Date.now() - RECONCILE_LIVE_WINDOW_MS;
+       let healed = 0;
+       for (const s of sessions) {
++        // Native protocol IDs have no acpx state file. A tracked CLI process
++        // is also not an orphan; its exit handler owns failure reporting.
++        if (this.transportMode !== "cli" || this.activeProcesses.has(s.id))
++          continue;
+         if (TERMINAL_SESSION_STATUSES2.has(s.status))
+           continue;
+         if (!s.acpxSessionId)

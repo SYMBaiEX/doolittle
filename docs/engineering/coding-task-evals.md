@@ -96,6 +96,19 @@ different evaluator versions are not directly score-compatible.
 
 ## Disposable-runtime preflight
 
+The root `patchedDependencies` entry applies
+`patches/@elizaos+plugin-agent-orchestrator@2.0.3-beta.7.patch` during Nub install.
+It corrects the published ESM and CJS health checks without replacing the SDK
+service or changing its version: native ACP protocol IDs have no acpx state
+files, and a tracked CLI process is not an orphan. Native operation no longer
+scans the shared legacy acpx directory. Genuine native transport errors,
+restart-orphan errors, CLI file-loss failures and terminal-session cleanup
+remain visible. The CJS bundle's two workspace-service imports also resolve
+from the installed bundle instead of its embedded build-host path. The
+regression test loads both installed SDK bundles without a loader substitute;
+retire the patch only after an upstream release passes the same tests. A patch
+change is a new harness revision, not directly attributable speed evidence.
+
 For controlled desktop-owner backend experiments, use the tested
 `createEvalRuntimeEnvironment` helper in
 [`packages/evals/src/runtime-environment.ts`](../../packages/evals/src/runtime-environment.ts).
