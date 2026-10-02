@@ -228,7 +228,7 @@ test.describe("Doolittle desktop navigation", () => {
       );
       expect(liveWorkspaceHandoff.restoredHealth.workspaceDir).toBe(repoRoot);
       await expect(
-        page.getByRole("navigation", { name: "Conversation breadcrumb" }),
+        page.getByRole("navigation", { name: "Workspace breadcrumb" }),
       ).toBeVisible();
       await page.getByRole("button", { name: "Collapse navigation" }).click();
       await expect(page.locator(".desktop-shell")).toHaveClass(/nav-collapsed/);
