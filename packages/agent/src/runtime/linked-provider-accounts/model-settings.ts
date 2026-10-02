@@ -115,9 +115,13 @@ export function buildProviderRuntimeSettings(
     resolveOpenAiReasoningEffort(provider, settings.model.reasoningEffort),
   );
 
+  // A non-Cloud primary route must not disable an explicitly configured
+  // Eliza Cloud provider used by secondary model types such as RESEARCH.
   runtimeSettings.set(
     "ELIZAOS_CLOUD_ENABLED",
-    provider === "elizacloud" ? "true" : "false",
+    provider === "elizacloud" || context.config.elizaCloudEnabled
+      ? "true"
+      : "false",
   );
 
   if (provider === "elizacloud") {

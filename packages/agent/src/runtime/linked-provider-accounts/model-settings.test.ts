@@ -95,6 +95,30 @@ describe("syncProviderSettings", () => {
     expect(runtimeSettings.get("OPENAI_BASE_URL")).toBe("https://openai.local");
   });
 
+  it("keeps explicitly configured Eliza Cloud available for secondary model types", () => {
+    const settings = {
+      model: {
+        provider: "codex",
+        model: "gpt-6-luna",
+        baseUrl: "https://ignored.example",
+      },
+    } as ReturnType<AgentExecutionContext["services"]["settings"]["get"]>;
+    const context = {
+      runtime: { getSetting: () => undefined },
+      config: {
+        elizaCloudEnabled: true,
+        elizaCloudApiKey: "test-cloud-key",
+      },
+      services: { settings: { get: () => settings } },
+    } as unknown as AgentExecutionContext;
+
+    expect(
+      buildProviderRuntimeSettings(context, settings).get(
+        "ELIZAOS_CLOUD_ENABLED",
+      ),
+    ).toBe("true");
+  });
+
   it("projects the selected OpenAI reasoning effort into the current turn", () => {
     const settings = {
       model: {
