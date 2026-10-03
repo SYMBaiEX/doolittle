@@ -52,6 +52,15 @@ digests of workspace identity and evidence. They do not copy prompts, model
 responses, tool output, shell commands, or absolute workspace paths. Treat run
 IDs and local trace journals as private operational data.
 
+Human quality ratings can be recorded separately from a scored report with
+`nub run eval:review -- --report REPORT.json --input RATINGS.json --out REVIEW.json`.
+Verify an existing sidecar with `nub run eval:review -- --verify REVIEW.json --report REPORT.json`.
+The input requires explicit human attestation and six anchored 1–5 ratings per
+task; coding reports also require exact run IDs. See the
+[human-review evidence contract](../../docs/engineering/human-review-evidence.md)
+for the JSON format, critical-failure codes, privacy rules, and supported
+report schemas. A sidecar is not an automatic score or a quality conclusion.
+
 ## Versioning and grading boundaries
 
 - Do not change a published suite's prompt, task IDs, or acceptance intent in
