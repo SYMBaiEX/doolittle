@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/rendered-capture-diagnostic.yml
+      - playwright.config.ts
       - playwright.rendered.config.ts
       - e2e/browser-renderer.pw.ts
       - apps/desktop/e2e/**
@@ -17,13 +18,13 @@ permissions:
   contents: read
 
 jobs:
-  cold-capture:
+  full-workload-capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        scale: ["1", "1.25", "1.5", "2"]
+        transport: [native, playwright]
 
     steps:
       - name: Check out repository
@@ -36,40 +37,53 @@ jobs:
           node-version-file: .node-version
           cache-dependency-path: nub.lock
 
+      - name: Set up Bun for native runtime tests
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+
       - name: Install dependencies
         run: nub install --frozen-lockfile --ignore-scripts
 
       - name: Install Electron runtime
         run: nub run desktop:runtime:install
 
+      - name: Check application and desktop types
+        run: nub run check
+
+      - name: Build local sandbox image
+        run: nub run sandbox:setup
+
+      - name: Build desktop renderer
+        run: nub run desktop:build
+
       # Each test owns a fresh Electron process and profile. Repeat fixed samples;
       # retries remain disabled, and any failed sample keeps the job failed.
-      # This offline fixture does not boot the agent/API or call providers.
-      # Exercise the actual production capture-window policy without a fixture
-      # backend override, in independent integer/fractional display-scale jobs.
-      # Complete remains first; Linux must observe a nonempty offscreen paint
-      # after the owned main-navigation commit within the shared capture deadline.
-      # This chronological latch is not target-frame content proof. Each case
-      # still has one capture: no extra paint pixels, warmup or capture retry.
-      # Preserve bounded readiness refusal separately from native readback failure.
-      # The previous onscreen/offscreen experiment is retained
-      # in its immutable run evidence; this is the changed product's regression.
-      # Native Linux explicitly uses --no-sandbox, so this does not establish
-      # production sandbox parity or behavior on other desktop platforms.
-      - name: Verify three cold samples of every first-capture case
-        run: xvfb-run -a --server-args='-screen 0 3840x2160x24' nubx playwright test --config playwright.rendered.config.ts --repeat-each=3 --retries=0 --global-timeout=300000
+      # Fixed matched-workload experiment, not a replacement retry: both arms
+      # use full-CI setup and its offline agent/API web server at DPR 2. The only
+      # arm input is the existing startup transport; production code, deadlines,
+      # case order and strict first-PNG assertions stay identical. Captures run
+      # before unrelated UI cases in full CI, so select only this fixture here.
+      # This does not isolate individual debugger flags or establish causality.
+      # No model request is dispatched by this offline fixture. Both Linux
+      # transports use --no-sandbox; production sandbox parity is not established.
+      # Earlier standalone scale-matrix results remain immutable run evidence.
+      - name: Compare three cold samples under the full-CI workload
+        run: xvfb-run -a --server-args='-screen 0 3840x2160x24' nubx playwright test --config playwright.config.ts e2e/browser-renderer.pw.ts --repeat-each=3 --retries=0 --global-timeout=300000 --reporter=list,html
         env:
           DOOLITTLE_RENDER_CAPTURE_ORDER: complete-first
-          DOOLITTLE_RENDER_CAPTURE_TRANSPORT: native
-          DOOLITTLE_RENDER_CAPTURE_SCALE: ${{ matrix.scale }}
+          DOOLITTLE_RENDER_CAPTURE_TRANSPORT: ${{ matrix.transport }}
+          DOOLITTLE_RENDER_CAPTURE_SCALE: "2"
+          PLAYWRIGHT_HTML_OPEN: never
+          PLAYWRIGHT_HTML_OUTPUT_DIR: var/playwright/full-workload-rendered-report
 
       - name: Preserve synthetic capture evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: cold-capture-evidence-product-scale-${{ matrix.scale }}
+          name: full-workload-capture-evidence-${{ matrix.transport }}
           path: |
-            var/playwright/rendered-test-results
-            var/playwright/rendered-report
+            var/playwright/test-results
+            var/playwright/full-workload-rendered-report
           if-no-files-found: warn
           retention-days: 7
