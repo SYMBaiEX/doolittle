@@ -50,6 +50,11 @@ type CodexGenerateResult = {
 
 type CodexBackendFactory = (runtime: IAgentRuntime) => CodexBackend;
 type CodexModelCallObserver = (metric: CodexModelCallMetric) => void;
+type CodexModelObservationContext = (
+  runtime: IAgentRuntime,
+  params: GenerateTextParams,
+  metric: CodexModelCallMetric,
+) => void;
 
 function modelCallMetric(
   completed: boolean,
@@ -75,11 +80,19 @@ function modelCallMetric(
 function observeModelCall(
   observer: CodexModelCallObserver | undefined,
   metric: CodexModelCallMetric,
+  contextObserver: CodexModelObservationContext | undefined,
+  runtime: IAgentRuntime,
+  params: GenerateTextParams,
 ): void {
   try {
     observer?.(metric);
   } catch {
     // Observability must not affect the model result or stream lifecycle.
+  }
+  try {
+    contextObserver?.(runtime, params, metric);
+  } catch {
+    // Independent optional observation must not affect usage or model behavior.
   }
 }
 
@@ -217,6 +230,7 @@ function createReasoningModelHandler(
   fallback: CodexModelHandler,
   createBackend: CodexBackendFactory = createCodexReasoningBackend,
   observeUsage?: CodexModelCallObserver,
+  observeContext?: CodexModelObservationContext,
 ): CodexModelHandler {
   const backends = new WeakMap<IAgentRuntime, CodexBackend>();
   const backendFor = (runtime: IAgentRuntime) => {
@@ -262,6 +276,9 @@ function createReasoningModelHandler(
           observeModelCall(
             observeUsage,
             modelCallMetric(true, startedAt, firstTextAt, value),
+            observeContext,
+            runtime,
+            params,
           );
           complete = true;
           wake();
@@ -270,6 +287,9 @@ function createReasoningModelHandler(
           observeModelCall(
             observeUsage,
             modelCallMetric(false, startedAt, firstTextAt),
+            observeContext,
+            runtime,
+            params,
           );
           streamError = error;
           failed = true;
@@ -334,12 +354,18 @@ function createReasoningModelHandler(
       observeModelCall(
         observeUsage,
         modelCallMetric(true, startedAt, firstTextAt, result),
+        observeContext,
+        runtime,
+        params,
       );
       return toCodexTextReturn(params, result);
     } catch (error) {
       observeModelCall(
         observeUsage,
         modelCallMetric(false, startedAt, firstTextAt),
+        observeContext,
+        runtime,
+        params,
       );
       throw error;
     }
@@ -352,6 +378,7 @@ export function createDoolittleCodexReasoningPlugin(
   dependencies: {
     createBackend?: CodexBackendFactory;
     observeUsage?: CodexModelCallObserver;
+    observeContext?: CodexModelObservationContext;
   } = {},
 ): Plugin {
   return {
@@ -363,6 +390,7 @@ export function createDoolittleCodexReasoningPlugin(
           handler as CodexModelHandler,
           dependencies.createBackend,
           dependencies.observeUsage,
+          dependencies.observeContext,
         ),
       ]),
     ) as Plugin["models"],
