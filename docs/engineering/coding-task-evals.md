@@ -179,6 +179,22 @@ If startup or restart is forbidden, review an already verified ready app when
 available; otherwise preserve the changes and disclose that browser review was
 unavailable and not attempted, without claiming rendered quality or completion.
 
+If the agent acknowledges unfinished requested implementation or verification,
+the runtime retains that admission across bounded continuations and provider
+failures. A generic completion statement or an older delegated summary does not
+erase it. Later verified corrections, completion checks and a fresh frontend
+review must supersede the admission; another admission resets that boundary.
+Truthful statements about prohibited or out-of-scope changes are not admissions
+that the requested task is unfinished. Partial changes remain preserved when a
+run ends incomplete.
+
+This is a bounded receipt proof, not semantic assessment of arbitrary prose.
+The task workspace is pinned before later actions can widen it. Fresh literal
+test/check receipts must follow the admission and the latest task mutation;
+every recognized explicitly named check remains a separate obligation. Unsupported
+flags, targeted/custom command forms and ambiguous check requests cannot replace
+those receipts. Unaffected install/build evidence is retained for staged readiness.
+
 Run the isolated synthetic acceptance check with:
 
 ```sh

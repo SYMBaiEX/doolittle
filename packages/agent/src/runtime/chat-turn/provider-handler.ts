@@ -1,3 +1,4 @@
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import {
   type ActionResult,
   type Memory,
@@ -297,22 +298,158 @@ function frontendReviewSummary(result: ActionResult): string {
   return `${resultText} This review attempt does not prove that reported defects were corrected or that the requested quality was achieved; consult the browser-analysis findings.`;
 }
 
-function explicitlyReportsIncompleteWork(response: string): boolean {
-  return /\b(?:not|isn't|aren't|hasn't|haven't|has not|have not)\s+(?:yet\s+)?(?:been\s+)?(?:implemented|completed|finished|verified|built|installed|tested|started|done|ready)\b|\b(?:remain|remains|remaining)\s+to\s+be\s+done\b|\b(?:still\s+need(?:s)?\s+to|left\s+to\s+do)\b/iu.test(
-    response,
+type IncompleteWorkspaceKind = "implementation" | "verification";
+type IncompleteVerificationScope =
+  | "build"
+  | "install"
+  | "review"
+  | "tests"
+  | "checks"
+  | "ready"
+  | "general";
+
+function incompleteVerificationScopes(
+  response: string,
+): Set<IncompleteVerificationScope> {
+  const admissions = response.matchAll(
+    /\b(?:not|isn['’]t|aren['’]t|hasn['’]t|haven['’]t|has not|have not)\s+(?:yet\s+)?(?:been\s+)?(verified|built|installed|tested|ready)\b|\b(?:hasn['’]t|haven['’]t|has not|have not)\s+re-?run\s+(?:(?:the|these|those|requested)\s+)?((?:build|tests?|checks?|review|verification)(?:\s*(?:,|and)\s*(?:the\s+)?(?:build|tests?|checks?|review|verification))*)\b|\b(?:still\s+need(?:s)?\s+to|left\s+to\s+do)\s+(?:(?:run|re-?run|pass|complete|finish)\s+)?(?:the\s+)?((?:build|tests?|checks?|review|verification|install)(?:\s*(?:,|and)\s*(?:the\s+)?(?:build|tests?|checks?|review|verification|install))*)\b/giu,
   );
+  const scopes = new Set<IncompleteVerificationScope>();
+  for (const admission of admissions) {
+    const objects = (
+      admission[1] ??
+      admission[2] ??
+      admission[3]
+    )?.toLowerCase();
+    for (const object of objects?.split(/\s*(?:,|and)\s*(?:the\s+)?/u) ?? [])
+      scopes.add(
+        object === "build" || object === "built"
+          ? "build"
+          : object === "install" || object === "installed"
+            ? "install"
+            : object === "review"
+              ? "review"
+              : /^(?:tests?|tested)$/u.test(object)
+                ? "tests"
+                : /^checks?$/u.test(object)
+                  ? "checks"
+                  : object === "ready"
+                    ? "ready"
+                    : "general",
+      );
+  }
+  return scopes;
+}
+
+function explicitlyReportsIncompleteWork(
+  response: string,
+): IncompleteWorkspaceKind | undefined {
+  const implementationIncomplete =
+    /\b(?:not|isn['’]t|aren['’]t|hasn['’]t|haven['’]t|has not|have not)\s+(?:yet\s+)?(?:been\s+)?(?:implemented|completed|finished|started|done)\b|\b(?:hasn['’]t|haven['’]t|has not|have not)\s+made\s+(?:(?:the|those|any)\s+)?(?:requested\s+)?(?:fixes|corrections?|repairs?)\b(?!\s+(?:outside|beyond|in\s+(?:other|unrelated|prohibited|forbidden)|to\s+(?:other|unrelated|prohibited|forbidden))\b)|\b(?:hasn['’]t|haven['’]t|has not|have not)\s+(?:fixed|corrected)\s+(?:(?:the|this|that|these|those)\s+)?(?:requested\s+)?(?:issue|bug|problem|defect|finding)s?\b(?!\s+(?:outside|beyond|in\s+(?:other|unrelated|prohibited|forbidden))\b)|\bstill\s+need(?:s)?\s+(?:to\s+)?(?:correct(?:ion)?s?|fix(?:es|ing)?|address|resolve|repair)\b|\b(?:still\s+need(?:s)?\s+to|left\s+to\s+do)\b[^.!?\n]{0,120}\b(?:fix|correct|address|resolve|repair|implement)\b/iu.test(
+      response,
+    );
+  if (implementationIncomplete) return "implementation";
+
+  if (incompleteVerificationScopes(response).size) return "verification";
+
+  // Only use the generic unfinished-work fallback after identifying explicit
+  // verification objects. Mixed implementation/verification admissions above
+  // keep the stronger correction obligation.
+  return /\b(?:remain|remains|remaining)\s+to\s+be\s+done\b|\b(?:still\s+need(?:s)?\s+to|left\s+to\s+do)\b/iu.test(
+    response,
+  )
+    ? "implementation"
+    : undefined;
 }
 
 function hasVerifiedWorkspaceMutation(
   actionResults: readonly ActionResult[],
+  workdir?: string,
 ): boolean {
   return actionResults.some(
     (result) =>
       result.success === true &&
       extractLocalMutationsFromActionResult(result).some(
-        (mutation) => mutation.success,
+        (mutation) =>
+          mutation.success &&
+          (!workdir || withinWorkspace(mutation.resolvedPath, workdir)),
       ),
   );
+}
+
+function withinWorkspace(path: string | undefined, workdir: string): boolean {
+  if (typeof path !== "string" || !isAbsolute(path) || !isAbsolute(workdir))
+    return false;
+  const suffix = relative(resolve(workdir), resolve(path));
+  return suffix === "" || (suffix !== ".." && !suffix.startsWith(`..${sep}`));
+}
+
+/** Pin the task's receipt-backed directory before later actions can widen it. */
+function admittedWorkspace(
+  actionResults: readonly ActionResult[],
+  configuredWorkspace: string | undefined,
+): string | undefined {
+  const mutations = actionResults
+    .flatMap(extractLocalMutationsFromActionResult)
+    .filter((mutation) => mutation.success);
+  const paths = mutations
+    .map((mutation) => mutation.resolvedPath)
+    .filter(
+      (path): path is string => typeof path === "string" && isAbsolute(path),
+    );
+  const belongs = (directory: unknown): directory is string =>
+    typeof directory === "string" &&
+    isAbsolute(directory) &&
+    resolve(directory) !== sep &&
+    paths.length > 0 &&
+    paths.every((path) => withinWorkspace(path, directory));
+  for (const result of [...actionResults].reverse()) {
+    const delegated = result.data?.delegatedExecution;
+    if (
+      actionResultActionName(result) === "TASKS_SPAWN_AGENT" &&
+      isRecord(delegated) &&
+      delegated.verifiedLocalMutation === true &&
+      belongs(delegated.workdir)
+    )
+      return resolve(delegated.workdir);
+    if (result.success !== true) continue;
+    const command = extractCommandResultFromActionResult(result);
+    if (
+      actionResultActionName(result) === "SHELL" &&
+      command?.success === true &&
+      command.exitCode === 0
+    ) {
+      const directory = inspectWorkspaceCommands(
+        command.command,
+        command.executedIn,
+      ).find((operation) => belongs(operation.directory))?.directory;
+      if (directory) return resolve(directory);
+    }
+    const session = result.data?.session;
+    if (
+      actionResultActionName(result) === "DOOLITTLE_APP_SERVER" &&
+      isRecord(session) &&
+      session.managed === true &&
+      belongs(session.cwd)
+    )
+      return resolve(session.cwd);
+  }
+  if (
+    typeof configuredWorkspace === "string" &&
+    isAbsolute(configuredWorkspace) &&
+    resolve(configuredWorkspace) !== sep &&
+    paths.every((path) => withinWorkspace(path, configuredWorkspace))
+  )
+    return resolve(configuredWorkspace);
+  // With no root receipt, accept only corrections inside the original shared
+  // mutation directory. Do not guess a broader project from a path string.
+  let directory = paths[0] ? dirname(paths[0]) : undefined;
+  while (
+    directory &&
+    !paths.every((path) => withinWorkspace(path, directory as string))
+  )
+    directory = dirname(directory);
+  return directory && directory !== sep ? directory : undefined;
 }
 
 function hasVerifiedWorkspaceCompletion(
@@ -696,6 +833,256 @@ function incompleteWorkspaceVerificationFailure(
   ].join(" ");
 }
 
+function incompleteAdmittedWorkspaceFailure(
+  actionResults: readonly ActionResult[],
+): string {
+  return [
+    "The requested workspace task is still incomplete after the agent's continuation attempts.",
+    hasVerifiedWorkspaceMutation(actionResults)
+      ? "Some local files changed, but a prior response explicitly acknowledged unfinished implementation or verification, and no later verified correction receipt superseded that admission."
+      : "A prior response explicitly acknowledged unfinished implementation or verification, and no later verified correction receipt superseded that admission.",
+    "Inspect the current workspace before retrying; completed partial changes have been preserved.",
+  ].join(" ");
+}
+
+const CHECK_SCRIPT = /^(?:check|lint|typecheck|type-check|validate|verify)$/u;
+
+function requestedCheckScripts(userRequest: string): {
+  scripts: Set<string>;
+  unresolved: boolean;
+} {
+  const scripts = new Set<string>();
+  let unresolved = false;
+  let consumedThrough = 0;
+  // Reuse the instruction/reference mask, but parse operands from the original
+  // text: `run "lint"` is an instruction; "run lint" is reference text.
+  const instructions = unquotedServerInstructions(userRequest);
+  for (const verb of instructions.matchAll(
+    /\b(?:run|re-?run|execute|perform|pass)\b/giu,
+  )) {
+    if (verb.index < consumedThrough) continue;
+    const prefix = instructions.slice(0, verb.index);
+    const prohibited = /\b(?:do\s+not|don['’]t|never|avoid)\s+$/iu.test(prefix);
+    const clauseScripts = new Set<string>();
+    let offset = verb.index + verb[0].length;
+    const lead = userRequest
+      .slice(offset)
+      .match(/^\s+(?:the\s+)?(?:(?:bun|npm|pnpm|yarn|next)\s+(?:run\s+)?)?/iu);
+    if (!lead) continue;
+    offset += lead[0].length;
+    let checkClause = false;
+    let ambiguous = false;
+    while (true) {
+      const operand = userRequest
+        .slice(offset)
+        .match(
+          /^(?:`([^`\n]*)`|"([^"\n]*)"|'([^'\n]*)'|([a-z][a-z0-9:_-]*))(?![a-z0-9:_-])/iu,
+        );
+      if (!operand) {
+        ambiguous = true;
+        if (!prohibited) unresolved = true;
+        break;
+      }
+      const value = (
+        operand[1] ??
+        operand[2] ??
+        operand[3] ??
+        operand[4] ??
+        ""
+      ).toLowerCase();
+      const identities = /^[a-z][a-z0-9:_-]*$/u.test(value)
+        ? [value]
+        : inspectWorkspaceCommands(value).flatMap((operation) =>
+            operation.script ? [operation.script] : [],
+          );
+      const checkIdentity = (
+        identities.length ? identities : value.split(/\s+/u)
+      ).some((identity) =>
+        /^(?:check|lint|typecheck|type-check|validate|verify)(?:[:_-]|$)/u.test(
+          identity,
+        ),
+      );
+      checkClause ||= checkIdentity;
+      // Buffer the entire list before classification, including unsupported
+      // operands preceding its first recognized check. Never truncate custom
+      // script names or assume that an aggregate script covers another check.
+      if (!identities.length) ambiguous = true;
+      for (const identity of identities) clauseScripts.add(identity);
+      offset += operand[0].length;
+      const separator = userRequest
+        .slice(offset)
+        .match(/^\s*(?:,\s*(?:and\s+)?|and\s+)(?:the\s+)?/iu);
+      if (!separator) break;
+      offset += separator[0].length;
+    }
+    consumedThrough = offset;
+    if (prohibited || !checkClause) continue;
+    // Flags, shell operators and incomplete quoted/list operands are outside
+    // this request proof subset. Do not substitute earlier generic checks.
+    unresolved ||=
+      ambiguous || /^\s*(?:-[a-z-]|[|&<>$])/iu.test(userRequest.slice(offset));
+    for (const script of clauseScripts) scripts.add(script);
+  }
+  return { scripts, unresolved };
+}
+
+function hasPostAdmissionWorkspaceVerification(
+  actionResults: readonly ActionResult[],
+  admissionActionCount: number,
+  scope: IncompleteVerificationScope,
+  requirements: ReturnType<typeof workspaceNoopRequirements>,
+  userRequest: string,
+  workdir: string | undefined,
+): boolean {
+  if (scope === "tests" || scope === "checks") {
+    if (!workdir) return false;
+    const latestTaskChange = actionResults.reduce((latest, result, index) => {
+      const delegated = result.data?.delegatedExecution;
+      return hasVerifiedWorkspaceMutation([result], workdir) ||
+        (actionResultActionName(result) === "TASKS_SPAWN_AGENT" &&
+          isRecord(delegated) &&
+          delegated.workdir === workdir)
+        ? index
+        : latest;
+    }, -1);
+    const freshScripts = new Set<string>();
+    const earlierScripts = new Set<string>();
+    for (const [index, result] of actionResults.entries()) {
+      if (actionResultActionName(result) !== "SHELL") continue;
+      const command = extractCommandResultFromActionResult(result);
+      if (!command) continue;
+      for (const operation of inspectWorkspaceCommands(
+        command.command,
+        command.executedIn,
+      )) {
+        if (
+          operation.directory !== workdir ||
+          operation.kind !== "verification" ||
+          !operation.script
+        )
+          continue;
+        if (index < admissionActionCount && CHECK_SCRIPT.test(operation.script))
+          earlierScripts.add(operation.script);
+        if (
+          index >= admissionActionCount &&
+          index > latestTaskChange &&
+          result.success === true &&
+          command.success === true &&
+          command.exitCode === 0
+        )
+          freshScripts.add(operation.script);
+      }
+    }
+    if (scope === "tests") return freshScripts.has("test");
+    const explicitlyRequested = requestedCheckScripts(userRequest);
+    if (explicitlyRequested.unresolved) return false;
+    // With no explicit names, retain the established check identities rather
+    // than inventing which checks a plural admission refers to. No identities
+    // available is unresolved, not proof from an arbitrary successful shell.
+    const expectedScripts = explicitlyRequested.scripts.size
+      ? explicitlyRequested.scripts
+      : earlierScripts;
+    return (
+      expectedScripts.size > 0 &&
+      [...expectedScripts].every((script) => freshScripts.has(script))
+    );
+  }
+  if (scope === "ready") {
+    if (!workdir) return false;
+    // Preserve independent install/build receipts. Readiness is checked by the
+    // existing managed-process contract, not inferred from shell text.
+    const readyRequirements = {
+      ...requirements,
+      requireManagedApplication: true,
+    };
+    const freshReady = actionResults.some((result, index) => {
+      const session = result.data?.session;
+      return (
+        index >= admissionActionCount &&
+        result.success === true &&
+        actionResultActionName(result) === "DOOLITTLE_APP_SERVER" &&
+        result.data?.status === "ready" &&
+        isRecord(session) &&
+        session.cwd === workdir &&
+        !actionResults
+          .slice(index + 1)
+          .some(
+            (later) =>
+              actionResultActionName(later) === "DOOLITTLE_APP_SERVER" &&
+              isRecord(later.data?.session) &&
+              later.data.session.id === session.id,
+          ) &&
+        missingWorkspaceMutationRequirements(
+          actionResults.slice(0, index + 1),
+          readyRequirements,
+        ).length === 0
+      );
+    });
+    return (
+      freshReady &&
+      (!frontendReviewRequired(actionResults, userRequest) ||
+        Boolean(
+          frontendReviewAttempt(actionResults, readyRequirements, userRequest),
+        ))
+    );
+  }
+  if (scope === "review") {
+    const review = frontendReviewAttempt(
+      actionResults,
+      requirements,
+      userRequest,
+    );
+    return Boolean(
+      review && actionResults.indexOf(review) >= admissionActionCount,
+    );
+  }
+  if (
+    !requirements.requireBunInstall &&
+    !requirements.requireBuild &&
+    !requirements.requireManagedApplication
+  )
+    return false;
+
+  // Keep the mutation/delegation context that establishes the exact workspace,
+  // but remove all pre-admission verification. The existing receipt contract
+  // then requires fresh, scoped, correctly ordered checks for this task only.
+  const mutationContext = actionResults
+    .slice(0, admissionActionCount)
+    .filter(
+      (result) =>
+        actionResultActionName(result) === "TASKS_SPAWN_AGENT" ||
+        extractLocalMutationsFromActionResult(result).some(
+          (mutation) => mutation.success,
+        ),
+    );
+  const freshRequirements =
+    scope === "build"
+      ? { ...requirements, requireBunInstall: false, requireBuild: true }
+      : requirements;
+  const postAdmissionResults = actionResults
+    .slice(admissionActionCount)
+    .filter((result) => {
+      // The global receipt contract still proves the independent installation
+      // and its ordering. A build-only admission only invalidates its build
+      // and dependent app/review, while retaining the requested Bun runner.
+      if (scope !== "build" || !requirements.requireBunInstall) return true;
+      const command = extractCommandResultFromActionResult(result);
+      if (actionResultActionName(result) !== "SHELL" || !command) return true;
+      return inspectWorkspaceCommands(command.command, command.executedIn)
+        .filter((operation) => operation.kind === "build")
+        .every((operation) => operation.runner === "bun");
+    });
+  const freshResults = [...mutationContext, ...postAdmissionResults];
+  return (
+    missingWorkspaceMutationRequirements(freshResults, freshRequirements)
+      .length === 0 &&
+    (!frontendReviewRequired(actionResults, userRequest) ||
+      Boolean(
+        frontendReviewAttempt(freshResults, freshRequirements, userRequest),
+      ))
+  );
+}
+
 function hasMutationObligation(
   context: AgentExecutionContext,
   sessionId: string,
@@ -934,6 +1321,14 @@ export async function executeProviderMessageTurn(
       });
 
       let mutationObligation = false;
+      let admittedIncomplete:
+        | {
+            actionCount: number;
+            kind: IncompleteWorkspaceKind;
+            workdir: string | undefined;
+            verificationAdmissions: Map<IncompleteVerificationScope, number>;
+          }
+        | undefined;
       // An API path can contain `app`; a negated server-start clause must not
       // turn it into a requested managed-app handoff.
       const { verificationRequest } = serverStartPolicy(prompt);
@@ -1089,8 +1484,43 @@ export async function executeProviderMessageTurn(
           // or a strict no-op evidence contract proves the requested state was
           // already satisfied. A silent unverified pass still gets its bounded
           // follow-up so the SDK can synthesize a final answer.
-          const explicitlyIncomplete =
-            mutationObligation && explicitlyReportsIncompleteWork(response);
+          const incompleteKind = mutationObligation
+            ? explicitlyReportsIncompleteWork(response)
+            : undefined;
+          const responseExplicitlyIncomplete = Boolean(incompleteKind);
+          if (incompleteKind) {
+            // A weaker admission cannot erase unresolved implementation work.
+            // It may become verification-only once a new verified mutation
+            // supersedes the earlier correction boundary; fresh checks must
+            // still follow this newest admission.
+            const unresolvedImplementation =
+              admittedIncomplete?.kind === "implementation" &&
+              (!admittedIncomplete.workdir ||
+                !hasVerifiedWorkspaceMutation(
+                  actionResults.slice(admittedIncomplete.actionCount),
+                  admittedIncomplete?.workdir,
+                ));
+            const verificationAdmissions = new Map(
+              admittedIncomplete?.verificationAdmissions,
+            );
+            // Mixed admissions retain each unfinished verification stage even
+            // while implementation remains the stronger obligation.
+            for (const scope of incompleteVerificationScopes(response))
+              verificationAdmissions.set(scope, actionResults.length);
+            admittedIncomplete = {
+              actionCount: actionResults.length,
+              kind: unresolvedImplementation
+                ? "implementation"
+                : incompleteKind,
+              workdir: admittedIncomplete
+                ? admittedIncomplete.workdir
+                : admittedWorkspace(
+                    actionResults,
+                    input.context.config.workspaceDir,
+                  ),
+              verificationAdmissions,
+            };
+          }
           const currentRequirements = frontendRequirements(
             actionResults,
             noOpRequirements,
@@ -1108,6 +1538,32 @@ export async function executeProviderMessageTurn(
             Boolean(
               frontendReviewAttempt(actionResults, noOpRequirements, prompt),
             );
+          const correctedAfterAdmission =
+            !responseExplicitlyIncomplete &&
+            admittedIncomplete !== undefined &&
+            actionResults.length > admittedIncomplete.actionCount &&
+            verifiedWorkspaceCompletion &&
+            frontendReviewComplete &&
+            (admittedIncomplete.kind !== "implementation" ||
+              (Boolean(admittedIncomplete.workdir) &&
+                hasVerifiedWorkspaceMutation(
+                  actionResults.slice(admittedIncomplete.actionCount),
+                  admittedIncomplete.workdir,
+                ))) &&
+            [...admittedIncomplete.verificationAdmissions].every(
+              ([scope, actionCount]) =>
+                hasPostAdmissionWorkspaceVerification(
+                  actionResults,
+                  actionCount,
+                  scope,
+                  currentRequirements,
+                  prompt,
+                  admittedIncomplete?.workdir,
+                ),
+            );
+          if (correctedAfterAdmission) admittedIncomplete = undefined;
+          const explicitlyIncomplete =
+            responseExplicitlyIncomplete || admittedIncomplete !== undefined;
           if (
             managedDelegationFailure(actionResults) ||
             frontendReviewBlockedByUserConstraint(
@@ -1193,7 +1649,11 @@ export async function executeProviderMessageTurn(
             "The model provider could not complete this turn. Check provider status and retry.";
           const completedPass =
             completedManagedDelegationResponse(actionResults);
-          if (completedPass) {
+          if (admittedIncomplete !== undefined) {
+            runFailureMessage =
+              incompleteAdmittedWorkspaceFailure(actionResults);
+            response = runFailureMessage;
+          } else if (completedPass) {
             const appServerSummary =
               completedManagedAppServerSummary(actionResults);
             response = [
@@ -1288,15 +1748,19 @@ export async function executeProviderMessageTurn(
           !runFailureMessage &&
           mutationObligation &&
           !verifiedNoopCompletion &&
-          explicitlyReportsIncompleteWork(response)
+          (admittedIncomplete !== undefined ||
+            explicitlyReportsIncompleteWork(response))
         ) {
-          runFailureMessage = [
-            "The requested workspace task is still incomplete after the agent's continuation attempts.",
-            hasVerifiedWorkspaceMutation(actionResults)
-              ? "Some local files changed, but the final response confirms implementation or verification remains unfinished."
-              : "No verified local file changes were recorded.",
-            "Inspect the current workspace before retrying; completed partial changes have been preserved.",
-          ].join(" ");
+          runFailureMessage =
+            admittedIncomplete !== undefined
+              ? incompleteAdmittedWorkspaceFailure(actionResults)
+              : [
+                  "The requested workspace task is still incomplete after the agent's continuation attempts.",
+                  hasVerifiedWorkspaceMutation(actionResults)
+                    ? "Some local files changed, but the final response confirms implementation or verification remains unfinished."
+                    : "No verified local file changes were recorded.",
+                  "Inspect the current workspace before retrying; completed partial changes have been preserved.",
+                ].join(" ");
           response = runFailureMessage;
         }
         if (!runFailureMessage && !response.trim() && mutationObligation) {
@@ -1395,6 +1859,16 @@ export async function executeProviderMessageTurn(
           committedActionResults,
           prompt,
         );
+        if (admittedIncomplete !== undefined) {
+          handledMessage = true;
+          actionResults = committedActionResults;
+          runFailureMessage = incompleteAdmittedWorkspaceFailure(
+            committedActionResults,
+          );
+          response = runFailureMessage;
+          input.streamState.setResponse(response);
+          return;
+        }
         const recoveredNoopCompletion = mutationObligation
           ? verifyWorkspaceNoopCompletion(
               committedActionResults,

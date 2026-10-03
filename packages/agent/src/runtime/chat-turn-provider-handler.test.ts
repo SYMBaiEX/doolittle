@@ -239,12 +239,48 @@ describe("chat turn provider handler", () => {
     return { page, build, ready, review };
   }
 
+  function completedDelegationReceipt(): ActionResult {
+    return {
+      success: true,
+      text: "The delegated coding agent completed the requested frontend work.",
+      data: {
+        actionName: "TASKS_SPAWN_AGENT",
+        mutationKind: "local-file",
+        mutationAction: "TASKS_SPAWN_AGENT",
+        mutation: {
+          action: "TASKS_SPAWN_AGENT",
+          requestedPath: "/workspace/frontend-review",
+          resolvedPath: "/workspace/frontend-review/app/page.tsx",
+          success: true,
+          bytes: 128,
+          message: "Verified delegated file change.",
+        },
+        delegatedExecution: {
+          sessionId: "child-incomplete-response",
+          agentType: "codex",
+          workdir: "/workspace/frontend-review",
+          status: "completed",
+          stopReason: "end_turn",
+          exitCode: 0,
+          summary: "Implemented the requested page and verified the build.",
+          observedTools: [],
+          changedFiles: [
+            { path: "/workspace/frontend-review/app/page.tsx", bytes: 128 },
+          ],
+          verifiedLocalMutation: true,
+        },
+      },
+    };
+  }
+
   async function runFrontendPasses(
     passes: ActionResult[][],
     options: {
       request?: string;
       responses?: string[];
       throwAfter?: boolean;
+      sdkFailureAtCall?: number;
+      workspaceDir?: string;
     } = {},
   ) {
     const prompts: string[] = [];
@@ -257,10 +293,18 @@ describe("chat turn provider handler", () => {
         for (const receipt of passes[calls] ?? [])
           onSettledActionResult?.(receipt);
         const text = options.responses?.[calls] ?? "Implementation complete.";
+        const responseContent = {
+          text,
+          ...(options.sdkFailureAtCall === calls
+            ? { failureKind: "no_provider" }
+            : {}),
+        };
         calls += 1;
-        return { responseContent: { text }, responseMessages: [] };
+        return { responseContent, responseMessages: [] };
       },
     });
+    if (options.workspaceDir)
+      context.config.workspaceDir = options.workspaceDir;
     const result = await executeTestTurn(
       context,
       "codex",
@@ -374,6 +418,1026 @@ describe("chat turn provider handler", () => {
     expect(result.runFailureMessage).toBeUndefined();
     expect(result.response).toContain("text-only evidence");
   });
+
+  it("continues after a pixel review when the final response admits its findings remain unfixed", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const critique = review("rendered-pixels");
+    critique.text =
+      "Model critique used actual captured viewport pixels.\n<untrusted-page-critique>The featured image is missing and story links target the current page.</untrusted-page-critique>";
+    const admittedIncomplete =
+      "The production build passed, and the app is running through the managed handoff. A visual review found several issues that still need correction. I haven’t made those fixes or rerun the build yet.";
+    const corrected = structuredClone(page);
+    corrected.text = "Corrected the featured image and story links.";
+    const correctedReview = review("rendered-pixels");
+    correctedReview.text =
+      "The corrected image and story links now render as intended.";
+
+    const { result, prompts, calls } = await runFrontendPasses(
+      [
+        [page, build, ready, critique],
+        [
+          corrected,
+          structuredClone(build),
+          structuredClone(ready),
+          correctedReview,
+        ],
+      ],
+      {
+        responses: [
+          admittedIncomplete,
+          "The visual findings are corrected, rebuilt, and reviewed.",
+        ],
+      },
+    );
+
+    expect(calls).toBe(2);
+    expect(prompts[1]).toContain("The featured image is missing");
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(result.response).toContain("findings are corrected");
+  });
+
+  it("reports incomplete frontend work after admitted findings make no progress", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const critique = review("rendered-pixels");
+    critique.text =
+      "<untrusted-page-critique>The hero image is missing.</untrusted-page-critique>";
+    const admittedIncomplete =
+      "A visual review found issues that still need correction. I haven’t made those fixes or rerun the build yet.";
+
+    const { result, calls } = await runFrontendPasses(
+      [[page, build, ready, critique], [], []],
+      {
+        responses: [admittedIncomplete, admittedIncomplete, admittedIncomplete],
+      },
+    );
+
+    expect(calls).toBe(3);
+    expect(result.runFailureMessage).toContain(
+      "still incomplete after the agent's continuation attempts",
+    );
+    expect(result.runFailureMessage).toContain(
+      "prior response explicitly acknowledged unfinished implementation",
+    );
+    expect(result.response).toContain(result.runFailureMessage);
+  });
+
+  it("does not treat a forbidden-action status as unfinished implementation", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const { result, calls } = await runFrontendPasses(
+      [[page, build, ready, review("rendered-pixels")]],
+      {
+        responses: [
+          "I haven’t made any network requests, as requested, or made changes outside the selected workspace or to user files. The requested frontend changes are complete, and the build and visual review passed.",
+        ],
+      },
+    );
+
+    expect(calls).toBe(1);
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(result.response).toContain(
+      "requested frontend changes are complete",
+    );
+  });
+
+  it("preserves an admitted incomplete response when structured no-provider recovery sees old delegation receipts", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const critique = review("rendered-pixels");
+    critique.text =
+      "<untrusted-page-critique>The hero image is missing.</untrusted-page-critique>";
+    const admittedIncomplete =
+      "A visual review found issues that still need correction. I haven’t made those fixes or rerun the build yet.";
+    const secondIncomplete =
+      "The hero image was updated, but other review findings still need correction. I haven’t made those fixes or rerun the build yet.";
+    const partialCorrection = structuredClone(page);
+    partialCorrection.text = "Updated the hero image; other findings remain.";
+    partialCorrection.data = {
+      ...page.data,
+      mutation: {
+        ...(page.data?.mutation as object),
+        resolvedPath: "/workspace/frontend-review/app/hero.tsx",
+      },
+    };
+    const delegation = completedDelegationReceipt();
+
+    const { result, calls } = await runFrontendPasses(
+      [
+        [page, build, ready, critique, delegation],
+        [
+          partialCorrection,
+          structuredClone(build),
+          structuredClone(ready),
+          review("rendered-pixels"),
+        ],
+        [],
+      ],
+      {
+        responses: [
+          admittedIncomplete,
+          secondIncomplete,
+          "Provider unavailable. Try again.",
+        ],
+        sdkFailureAtCall: 2,
+      },
+    );
+
+    expect(calls).toBe(3);
+    expect(result.runFailureMessage).toContain(
+      "prior response explicitly acknowledged unfinished implementation",
+    );
+    expect(result.response).toContain(result.runFailureMessage);
+    expect(result.response).not.toContain("delegated coding agent completed");
+  });
+
+  it("preserves an admitted incomplete response when thrown-provider recovery sees old delegation receipts", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const critique = review("rendered-pixels");
+    critique.text =
+      "<untrusted-page-critique>The hero image is missing.</untrusted-page-critique>";
+    const admittedIncomplete =
+      "A visual review found issues that still need correction. I haven’t made those fixes or rerun the build yet.";
+    const delegation = completedDelegationReceipt();
+
+    const { result, calls } = await runFrontendPasses(
+      [[page, build, ready, critique, delegation]],
+      { responses: [admittedIncomplete], throwAfter: true },
+    );
+
+    expect(calls).toBe(1);
+    expect(result.runFailureMessage).toContain(
+      "prior response explicitly acknowledged unfinished implementation",
+    );
+    expect(result.response).toContain(result.runFailureMessage);
+    expect(result.response).not.toContain("delegated coding agent completed");
+  });
+
+  it("does not treat a generic later completion claim as correction evidence", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const critique = review("rendered-pixels");
+    critique.text =
+      "<untrusted-page-critique>The hero image is missing.</untrusted-page-critique>";
+    const admittedIncomplete =
+      "A visual review found issues that still need correction. I haven’t made those fixes or rerun the build yet.";
+    const secondIncomplete =
+      "The hero image was updated, but other review findings still need correction. I haven’t made those fixes or rerun the build yet.";
+    const partialCorrection = structuredClone(page);
+    partialCorrection.text = "Updated the hero image; other findings remain.";
+    partialCorrection.data = {
+      ...page.data,
+      mutation: {
+        ...(page.data?.mutation as object),
+        resolvedPath: "/workspace/frontend-review/app/hero.tsx",
+      },
+    };
+
+    const { result, calls } = await runFrontendPasses(
+      [
+        [page, build, ready, critique],
+        [
+          partialCorrection,
+          structuredClone(build),
+          structuredClone(ready),
+          review("rendered-pixels"),
+        ],
+        [],
+        [],
+      ],
+      {
+        responses: [
+          admittedIncomplete,
+          secondIncomplete,
+          "The visual findings are corrected and the requested changes are complete.",
+          "Everything is finished.",
+        ],
+      },
+    );
+
+    expect(calls).toBe(4);
+    expect(result.runFailureMessage).toContain(
+      "prior response explicitly acknowledged unfinished implementation",
+    );
+  });
+
+  it.each([
+    "The page edits are complete, but I haven’t rerun the build yet.",
+    "The page edits are complete, but I still need to rerun the build.",
+  ])(
+    "clears verification-only work after fresh build/readiness/review: %s",
+    async (admission) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const { result, calls } = await runFrontendPasses(
+        [
+          [page, build, ready, review("rendered-pixels")],
+          [
+            structuredClone(build),
+            structuredClone(ready),
+            review("rendered-pixels"),
+          ],
+        ],
+        {
+          responses: [
+            admission,
+            "The new build passed, the app is ready, and the latest pixel review passed.",
+          ],
+        },
+      );
+
+      expect(calls).toBe(2);
+      expect(result.runFailureMessage).toBeUndefined();
+      expect(result.response).toContain("new build passed");
+    },
+  );
+
+  it("does not clear a verification-only admission from stale pre-admission receipts", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const { result, calls } = await runFrontendPasses(
+      [[page, build, ready, review("rendered-pixels")], [], []],
+      {
+        responses: [
+          "The page edits are complete, but I haven’t rerun the build yet.",
+          "Everything is complete and ready.",
+          "The work is finished.",
+        ],
+      },
+    );
+
+    expect(calls).toBe(3);
+    expect(result.runFailureMessage).toContain(
+      "prior response explicitly acknowledged unfinished implementation or verification",
+    );
+  });
+
+  it.each([
+    "I haven’t made those fixes yet.",
+    "I still need to rerun the build and fix the hero image.",
+  ])(
+    "does not downgrade unresolved implementation to verification-only: %s",
+    async (admission) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const { result, calls } = await runFrontendPasses(
+        [
+          [page, build, ready, review("rendered-pixels")],
+          [],
+          [
+            structuredClone(build),
+            structuredClone(ready),
+            review("rendered-pixels"),
+          ],
+          [],
+          [],
+        ],
+        {
+          responses: [
+            admission,
+            "I haven’t rerun the build yet.",
+            "The new build and visual review passed. Everything is complete.",
+            "Everything is complete.",
+            "Everything is complete.",
+          ],
+        },
+      );
+
+      expect(calls).toBe(5);
+      expect(result.runFailureMessage).toContain(
+        "prior response explicitly acknowledged unfinished implementation",
+      );
+    },
+  );
+
+  it("allows a corrected implementation to become verification-only without accepting its old checks", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const correction = structuredClone(page);
+    correction.text = "Corrected the hero image.";
+    const { result, calls } = await runFrontendPasses(
+      [
+        [page, build, ready, review("rendered-pixels")],
+        [correction],
+        [
+          structuredClone(build),
+          structuredClone(ready),
+          review("rendered-pixels"),
+        ],
+      ],
+      {
+        responses: [
+          "I haven’t made those fixes yet.",
+          "The hero image is corrected, but I still need to rerun the build.",
+          "The new build passed and the corrected app is ready and reviewed.",
+        ],
+      },
+    );
+
+    expect(calls).toBe(3);
+    expect(result.runFailureMessage).toBeUndefined();
+  });
+
+  it.each(["fresh", "stale", "wrong workspace"])(
+    "uses only required backend build verification without forcing a server or review: %s",
+    async (verification) => {
+      const { page, build } = frontendReceipts();
+      page.data = {
+        ...page.data,
+        mutation: {
+          ...(page.data?.mutation as object),
+          resolvedPath: "/workspace/frontend-review/src/logic.ts",
+        },
+      };
+      const newBuild = structuredClone(build);
+      if (verification === "wrong workspace")
+        newBuild.data = { ...newBuild.data, cwd: "/workspace/unrelated" };
+      const { result, calls } = await runFrontendPasses(
+        [[page, build], verification === "stale" ? [] : [newBuild], [], []],
+        {
+          request:
+            "Update the backend logic in this workspace and run a production build.",
+          responses: [
+            "The code edits are complete, but I still need to rerun the build.",
+            "The build passed and the requested backend changes are complete.",
+            "The backend work is complete.",
+            "The backend work is complete.",
+          ],
+        },
+      );
+
+      if (verification === "fresh") {
+        expect(calls).toBe(2);
+        expect(result.runFailureMessage).toBeUndefined();
+        expect(result.response).not.toContain("browser-analysis");
+      } else {
+        expect(result.runFailureMessage).toContain(
+          "prior response explicitly acknowledged unfinished implementation or verification",
+        );
+      }
+    },
+  );
+
+  it("uses the current post-build ready receipt after an earlier post-admission readiness observation", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const { result, calls } = await runFrontendPasses(
+      [
+        [page, build, ready, review("rendered-pixels")],
+        [
+          structuredClone(ready),
+          structuredClone(build),
+          structuredClone(ready),
+          review("rendered-pixels"),
+        ],
+      ],
+      {
+        responses: [
+          "The page edits are complete, but I haven’t rerun the build yet.",
+          "The fresh build passed and the current app is ready and reviewed.",
+        ],
+      },
+    );
+
+    expect(calls).toBe(2);
+    expect(result.runFailureMessage).toBeUndefined();
+  });
+
+  it.each(["fresh build", "only fresh review", "wrong runner"])(
+    "preserves a prior independent Bun install for build-only admissions: %s",
+    async (verification) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const install: ActionResult = {
+        success: true,
+        text: "Bun install passed.",
+        data: {
+          actionName: "SHELL",
+          command: "bun install",
+          cwd: "/workspace/frontend-review",
+          exitCode: 0,
+        },
+      };
+      const newBuild = structuredClone(build);
+      if (verification === "wrong runner")
+        newBuild.data = { ...newBuild.data, command: "npm run build" };
+      const freshVerification =
+        verification === "only fresh review"
+          ? [review("rendered-pixels")]
+          : [newBuild, structuredClone(ready), review("rendered-pixels")];
+      const { result, calls } = await runFrontendPasses(
+        [
+          [page, install, build, ready, review("rendered-pixels")],
+          freshVerification,
+          [],
+          [],
+        ],
+        {
+          request:
+            "Update the frontend heading in this workspace. Use Bun to install dependencies, run a production build, and start the app.",
+          responses: [
+            "The edits are complete, but I haven’t rerun the build yet.",
+            "The build passed and the current app is ready and reviewed.",
+            "Everything is complete.",
+            "Everything is complete.",
+          ],
+        },
+      );
+
+      if (verification === "fresh build") {
+        expect(calls).toBe(2);
+        expect(result.runFailureMessage).toBeUndefined();
+        expect(
+          result.actionResults.filter(
+            (receipt) => receipt.data?.command === "bun install",
+          ),
+        ).toHaveLength(1);
+      } else {
+        expect(result.runFailureMessage).toContain(
+          "prior response explicitly acknowledged unfinished implementation or verification",
+        );
+      }
+    },
+  );
+
+  it("clears a review-only admission without repeating the satisfied build or installation", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const { result, calls } = await runFrontendPasses(
+      [[page, build, ready], [review("rendered-pixels")]],
+      {
+        responses: [
+          "The edits and build are complete, but I still need to run the review.",
+          "The current app has now been reviewed.",
+        ],
+      },
+    );
+
+    expect(calls).toBe(2);
+    expect(result.runFailureMessage).toBeUndefined();
+  });
+
+  it.each([true, false])(
+    "retains each verification stage's admission boundary: fresh build %s",
+    async (freshBuild) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const { result, calls } = await runFrontendPasses(
+        [
+          [page, build, ready, review("rendered-pixels")],
+          freshBuild ? [structuredClone(build), structuredClone(ready)] : [],
+          [review("rendered-pixels")],
+          [],
+          [],
+        ],
+        {
+          responses: [
+            "The edits are complete, but I haven’t rerun the build yet.",
+            "I still need to run the review.",
+            "The current app is reviewed and everything is complete.",
+            "Everything is complete.",
+            "Everything is complete.",
+          ],
+        },
+      );
+
+      if (freshBuild) {
+        expect(calls).toBe(3);
+        expect(result.runFailureMessage).toBeUndefined();
+      } else {
+        expect(result.runFailureMessage).toContain(
+          "prior response explicitly acknowledged unfinished implementation or verification",
+        );
+      }
+    },
+  );
+
+  it.each(["tests", "checks", "build and tests"])(
+    "does not substitute fresh build/readiness/review for admitted %s",
+    async (object) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const { result } = await runFrontendPasses(
+        [
+          [page, build, ready, review("rendered-pixels")],
+          [
+            structuredClone(build),
+            structuredClone(ready),
+            review("rendered-pixels"),
+          ],
+          [],
+          [],
+        ],
+        {
+          responses: [
+            `The edits are complete, but I haven’t rerun the ${object} yet.`,
+            "Everything is complete.",
+          ],
+        },
+      );
+      expect(result.runFailureMessage).toContain(
+        "prior response explicitly acknowledged unfinished implementation or verification",
+      );
+    },
+  );
+
+  it.each([
+    { object: "tests", command: "bun test" },
+    { object: "tests", command: "bun run test" },
+    { object: "checks", command: "bun run check" },
+    { object: "checks", command: "bun run typecheck" },
+    { object: "tests and checks", command: "bun test && bun run check" },
+  ])(
+    "clears backend $object from scoped fresh literal $command without adding a build/server/review",
+    async ({ object, command }) => {
+      const { page, build } = frontendReceipts();
+      page.data = {
+        ...page.data,
+        mutation: {
+          ...(page.data?.mutation as object),
+          resolvedPath: "/workspace/frontend-review/src/logic.ts",
+        },
+      };
+      const check = structuredClone(build);
+      check.data = { ...check.data, command };
+      const { result, calls } = await runFrontendPasses(
+        [[page, structuredClone(check)], [check]],
+        {
+          request: "Update the backend logic in this workspace and verify it.",
+          responses: [
+            `The edits are complete, but I haven’t rerun the ${object} yet.`,
+            "The backend changes and verification are complete.",
+          ],
+        },
+      );
+      expect(calls).toBe(2);
+      expect(result.runFailureMessage).toBeUndefined();
+      expect(result.response).not.toContain("browser-analysis");
+    },
+  );
+
+  it.each(["lint only", "lint and typecheck", "generic check only"])(
+    "requires every explicitly requested fresh check: %s",
+    async (checks) => {
+      const { page, build } = frontendReceipts();
+      page.data = {
+        ...page.data,
+        mutation: {
+          ...(page.data?.mutation as object),
+          resolvedPath: "/workspace/frontend-review/src/logic.ts",
+        },
+      };
+      const lint = structuredClone(build);
+      lint.data = { ...lint.data, command: "bun run lint" };
+      const typecheck = structuredClone(build);
+      typecheck.data = { ...typecheck.data, command: "bun run typecheck" };
+      const generic = structuredClone(build);
+      generic.data = { ...generic.data, command: "bun run check" };
+      const { result, calls } = await runFrontendPasses(
+        [
+          [page, structuredClone(lint), structuredClone(typecheck)],
+          checks === "lint and typecheck"
+            ? [lint, typecheck]
+            : checks === "lint only"
+              ? [lint]
+              : [generic],
+          [],
+          [],
+        ],
+        {
+          request:
+            "Update backend logic in this workspace, then run lint and typecheck.",
+          responses: [
+            "I haven’t rerun the checks yet.",
+            "The requested work is complete.",
+          ],
+        },
+      );
+      if (checks === "lint and typecheck") {
+        expect(calls).toBe(2);
+        expect(result.runFailureMessage).toBeUndefined();
+      } else
+        expect(result.runFailureMessage).toContain(
+          "prior response explicitly acknowledged unfinished implementation or verification",
+        );
+    },
+  );
+
+  it.each([
+    {
+      instruction: "Do not run lint; run check.",
+      fresh: ["check"],
+      complete: true,
+    },
+    {
+      instruction: "Don’t run `lint`; run `check`.",
+      fresh: ["check"],
+      complete: true,
+    },
+    {
+      instruction: 'The reference says "run lint"; run check.',
+      fresh: ["check"],
+      complete: true,
+    },
+    {
+      instruction: "The reference is `run lint`; run `bun run check`.",
+      fresh: ["check"],
+      complete: true,
+    },
+    { instruction: "run check:acceptance.", fresh: ["check"], complete: false },
+    {
+      instruction: "run `check:acceptance`.",
+      fresh: ["check"],
+      complete: false,
+    },
+    { instruction: "run check_acceptance.", fresh: ["check"], complete: false },
+    { instruction: "run check-acceptance.", fresh: ["check"], complete: false },
+    {
+      instruction: "run `bun run check:acceptance`.",
+      fresh: ["check"],
+      complete: false,
+    },
+    {
+      instruction: "run lint, typecheck, and validate.",
+      fresh: ["lint", "typecheck"],
+      complete: false,
+    },
+    {
+      instruction: "run lint, typecheck, and validate.",
+      fresh: ["lint", "typecheck", "validate"],
+      complete: true,
+    },
+    {
+      instruction: "run `lint`, `typecheck`, and `validate`.",
+      fresh: ["lint", "typecheck"],
+      complete: false,
+    },
+    {
+      instruction: "run `lint`, `typecheck`, and `validate`.",
+      fresh: ["lint", "typecheck", "validate"],
+      complete: true,
+    },
+    {
+      instruction: "run `bun run lint` and `bun run typecheck`.",
+      fresh: ["lint", "typecheck"],
+      complete: true,
+    },
+    { instruction: "run check --help.", fresh: ["check"], complete: false },
+    { instruction: "run audit and lint.", fresh: ["lint"], complete: false },
+    { instruction: "run lint and audit.", fresh: ["lint"], complete: false },
+    {
+      instruction: "run `bun run check --help`.",
+      fresh: ["check"],
+      complete: false,
+    },
+    { instruction: "run check -h.", fresh: ["check"], complete: false },
+    { instruction: "run `check:acceptance", fresh: ["check"], complete: false },
+    {
+      instruction: "run lint, typecheck, and",
+      fresh: ["lint", "typecheck"],
+      complete: false,
+    },
+  ])(
+    "uses bounded complete-token check clauses: $instruction ($complete)",
+    async ({ instruction, fresh, complete }) => {
+      const { page, build } = frontendReceipts();
+      page.data = {
+        ...page.data,
+        mutation: {
+          ...(page.data?.mutation as object),
+          resolvedPath: "/workspace/frontend-review/src/logic.ts",
+        },
+      };
+      const receipt = (script: string) => {
+        const command = structuredClone(build);
+        command.data = { ...command.data, command: `bun run ${script}` };
+        return command;
+      };
+      const { result, calls } = await runFrontendPasses(
+        [
+          [
+            page,
+            receipt("check"),
+            receipt("lint"),
+            receipt("typecheck"),
+            receipt("validate"),
+          ],
+          fresh.map(receipt),
+          [],
+          [],
+        ],
+        {
+          request: `Update backend logic in this workspace. ${instruction}`,
+          responses: [
+            "I haven’t rerun the checks yet.",
+            "The requested work is complete.",
+          ],
+        },
+      );
+      if (complete) {
+        expect(calls).toBe(2);
+        expect(result.runFailureMessage).toBeUndefined();
+      } else
+        expect(result.runFailureMessage).toContain(
+          "prior response explicitly acknowledged unfinished implementation or verification",
+        );
+    },
+  );
+
+  it("does not guess the identity of unresolved plural checks from a new arbitrary check script", async () => {
+    const { page, build } = frontendReceipts();
+    page.data = {
+      ...page.data,
+      mutation: {
+        ...(page.data?.mutation as object),
+        resolvedPath: "/workspace/frontend-review/src/logic.ts",
+      },
+    };
+    const check = structuredClone(build);
+    check.data = { ...check.data, command: "bun run check" };
+    const { result } = await runFrontendPasses([[page], [check], [], []], {
+      workspaceDir: "/workspace/frontend-review",
+      request: "Update backend logic in this workspace and verify it.",
+      responses: [
+        "I haven’t rerun the checks yet.",
+        "The requested work is complete.",
+      ],
+    });
+    expect(result.runFailureMessage).toContain(
+      "prior response explicitly acknowledged unfinished implementation or verification",
+    );
+  });
+
+  it("accepts the first fresh backend test in the canonical configured task workspace", async () => {
+    const { page, build } = frontendReceipts();
+    page.data = {
+      ...page.data,
+      mutation: {
+        ...(page.data?.mutation as object),
+        resolvedPath: "/workspace/frontend-review/src/logic.ts",
+      },
+    };
+    const test = structuredClone(build);
+    test.data = { ...test.data, command: "bun test" };
+    const { result, calls } = await runFrontendPasses([[page], [test]], {
+      workspaceDir: "/workspace/frontend-review",
+      request: "Update the backend logic in this workspace and verify it.",
+      responses: [
+        "The code is complete, but I haven’t rerun the tests yet.",
+        "The tests passed and all requested work is complete.",
+      ],
+    });
+    expect(calls).toBe(2);
+    expect(result.runFailureMessage).toBeUndefined();
+  });
+
+  it.each([
+    "stale",
+    "wrong workspace",
+    "failed",
+    "help",
+    "arbitrary shell",
+    "before mutation",
+    "checks instead of tests",
+  ])("refuses invalid fresh test evidence: %s", async (kind) => {
+    const { page, build } = frontendReceipts();
+    page.data = {
+      ...page.data,
+      mutation: {
+        ...(page.data?.mutation as object),
+        resolvedPath: "/workspace/frontend-review/src/logic.ts",
+      },
+    };
+    const oldTest = structuredClone(build);
+    oldTest.data = { ...oldTest.data, command: "bun test" };
+    const test = structuredClone(oldTest);
+    test.data = {
+      ...test.data,
+      ...(kind === "wrong workspace" ? { cwd: "/workspace/unrelated" } : {}),
+      ...(kind === "failed" ? { exitCode: 1 } : {}),
+      ...(kind === "help" ? { command: "bun test --help" } : {}),
+      ...(kind === "arbitrary shell" ? { command: "echo tests passed" } : {}),
+      ...(kind === "checks instead of tests"
+        ? { command: "bun run check" }
+        : {}),
+    };
+    if (kind === "failed") test.success = false;
+    const { result } = await runFrontendPasses(
+      [
+        [page, oldTest],
+        kind === "stale"
+          ? []
+          : kind === "before mutation"
+            ? [test, structuredClone(page)]
+            : [test],
+        [],
+        [],
+      ],
+      {
+        request: "Update the backend logic in this workspace and verify it.",
+        responses: [
+          "The code is complete, but I haven’t rerun the tests yet.",
+          "Everything is complete.",
+        ],
+      },
+    );
+    expect(result.runFailureMessage).toContain(
+      "prior response explicitly acknowledged unfinished implementation or verification",
+    );
+  });
+
+  it("clears frontend tests with fresh test evidence while preserving the satisfied build/readiness/review", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const test = structuredClone(build);
+    test.data = { ...test.data, command: "bun test" };
+    const { result, calls } = await runFrontendPasses(
+      [[page, build, ready, review("rendered-pixels")], [test]],
+      {
+        responses: [
+          "The edits are complete, but I haven’t rerun the tests yet.",
+          "The tests passed and all requested work is complete.",
+        ],
+      },
+    );
+    expect(calls).toBe(2);
+    expect(result.runFailureMessage).toBeUndefined();
+  });
+
+  it.each(["fresh", "stale", "no review", "wrong workspace", "stopped"])(
+    "requires fresh current readiness/review without repeating Bun install/build: %s",
+    async (kind) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const install = structuredClone(build);
+      install.data = { ...install.data, command: "bun install" };
+      const freshReady = structuredClone(ready);
+      if (kind === "wrong workspace")
+        freshReady.data = {
+          ...freshReady.data,
+          session: {
+            ...(freshReady.data?.session as object),
+            cwd: "/workspace/unrelated",
+          },
+        };
+      const stopped = structuredClone(ready);
+      stopped.data = {
+        ...stopped.data,
+        status: "stopped",
+        session: { ...(stopped.data?.session as object), state: "stopped" },
+      };
+      const subsequent =
+        kind === "stale"
+          ? [review("rendered-pixels")]
+          : kind === "no review"
+            ? [freshReady]
+            : kind === "stopped"
+              ? [freshReady, stopped, review("rendered-pixels")]
+              : [freshReady, review("rendered-pixels")];
+      const { result, calls } = await runFrontendPasses(
+        [
+          [page, install, build, ready, review("rendered-pixels")],
+          subsequent,
+          [],
+          [],
+        ],
+        {
+          request: "Update the frontend heading in this workspace using Bun.",
+          responses: [
+            "The code and build are complete, but the app is not ready yet.",
+            "Everything is complete.",
+          ],
+        },
+      );
+      if (kind === "fresh") {
+        expect(calls).toBe(2);
+        expect(result.runFailureMessage).toBeUndefined();
+      } else expect(result.runFailureMessage).toBeDefined();
+    },
+  );
+
+  it.each([
+    "I haven’t made any fixes outside the requested file, as instructed.",
+    "I haven’t made any corrections to other files, as instructed.",
+    "I haven’t fixed the issues outside the selected workspace, as instructed.",
+  ])(
+    "does not treat prohibited correction objects as unfinished work: %s",
+    async (constraint) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const { result, calls } = await runFrontendPasses(
+        [[page, build, ready, review("rendered-pixels")]],
+        { responses: [`${constraint} The requested work is complete.`] },
+      );
+      expect(calls).toBe(1);
+      expect(result.runFailureMessage).toBeUndefined();
+    },
+  );
+
+  it("retains genuine unfinished work alongside a truthful prohibited-action statement", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const { result } = await runFrontendPasses(
+      [[page, build, ready, review("rendered-pixels")], [], [], []],
+      {
+        responses: [
+          "I haven’t made any fixes outside the requested file, as instructed. I haven’t made the requested fixes yet.",
+          "Everything is complete.",
+        ],
+      },
+    );
+    expect(result.runFailureMessage).toContain(
+      "prior response explicitly acknowledged unfinished implementation or verification",
+    );
+  });
+
+  it.each(["completion", "verification downgrade"])(
+    "does not let an unrelated workspace mutation satisfy backend correction: %s",
+    async (kind) => {
+      const { page, build } = frontendReceipts();
+      page.data = {
+        ...page.data,
+        mutation: {
+          ...(page.data?.mutation as object),
+          resolvedPath: "/workspace/target/src/logic.ts",
+        },
+      };
+      const unrelated = structuredClone(page);
+      unrelated.data = {
+        ...unrelated.data,
+        mutation: {
+          ...(unrelated.data?.mutation as object),
+          resolvedPath: "/workspace/unrelated/note.txt",
+        },
+      };
+      const test = structuredClone(build);
+      test.data = {
+        ...test.data,
+        command: "bun test",
+        cwd: "/workspace/target/src",
+      };
+      const { result } = await runFrontendPasses(
+        [[page], [unrelated], [test], [], []],
+        {
+          request: "Update the backend logic in this workspace.",
+          responses: [
+            "I haven’t made the requested fixes yet.",
+            kind === "verification downgrade"
+              ? "I haven’t rerun the tests yet."
+              : "Everything is complete.",
+            "Everything is complete.",
+          ],
+        },
+      );
+      expect(result.runFailureMessage).toContain(
+        "prior response explicitly acknowledged unfinished implementation or verification",
+      );
+    },
+  );
+
+  it("accepts a backend correction inside the originally established mutation directory", async () => {
+    const { page } = frontendReceipts();
+    page.data = {
+      ...page.data,
+      mutation: {
+        ...(page.data?.mutation as object),
+        resolvedPath: "/workspace/target/src/logic.ts",
+      },
+    };
+    const { result, calls } = await runFrontendPasses(
+      [[page], [structuredClone(page)]],
+      {
+        request: "Update the backend logic in this workspace.",
+        responses: [
+          "I haven’t made the requested fixes yet.",
+          "The requested changes are complete.",
+        ],
+      },
+    );
+    expect(calls).toBe(2);
+    expect(result.runFailureMessage).toBeUndefined();
+  });
+
+  it.each([true, false])(
+    "retains admitted tests through a subsequent backend implementation correction: fresh tests %s",
+    async (freshTests) => {
+      const { page, build } = frontendReceipts();
+      page.data = {
+        ...page.data,
+        mutation: {
+          ...(page.data?.mutation as object),
+          resolvedPath: "/workspace/frontend-review/src/logic.ts",
+        },
+      };
+      const test = structuredClone(build);
+      test.data = { ...test.data, command: "bun test" };
+      const { result, calls } = await runFrontendPasses(
+        [
+          [page, structuredClone(test)],
+          [structuredClone(page), ...(freshTests ? [test] : [])],
+          [],
+          [],
+        ],
+        {
+          request: "Update the backend logic in this workspace.",
+          responses: [
+            "I haven’t made the requested fixes yet, and I haven’t rerun the tests yet.",
+            "Everything is complete.",
+          ],
+        },
+      );
+      if (freshTests) {
+        expect(calls).toBe(2);
+        expect(result.runFailureMessage).toBeUndefined();
+      } else
+        expect(result.runFailureMessage).toContain(
+          "prior response explicitly acknowledged unfinished implementation or verification",
+        );
+    },
+  );
 
   it.each(["not attempted", "wrong URL", "before ready"])(
     "does not accept an invalid review receipt: %s",
