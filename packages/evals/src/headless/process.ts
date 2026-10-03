@@ -16,6 +16,8 @@ export interface HeadlessExecResult {
   stderr: string;
   error?: Error;
   signal: NodeJS.Signals | null;
+  /** Direct child/stdio closed and the owned POSIX group is absent. Not escaped groups or Windows trees. */
+  cleanupSafe: boolean;
 }
 
 export type HeadlessExecutor = (
@@ -63,9 +65,8 @@ function signalProcessTree(
 }
 
 /**
- * Run one Doolittle CLI invocation with a wall-clock bound that also terminates
- * descendants. `spawnSync` cannot provide that guarantee: its timeout only
- * signals the direct child and it still waits for inherited pipes to close.
+ * Bound one CLI invocation and clean its owned POSIX process group. Escaped
+ * groups and Windows tree absence are not established by this contract.
  */
 export function executeHeadlessChild(
   command: string,
@@ -91,36 +92,69 @@ export function executeHeadlessChild(
     let settled = false;
     let killTimer: NodeJS.Timeout | undefined;
     let finalTimer: NodeJS.Timeout | undefined;
+    let checkTimer: NodeJS.Timeout | undefined;
+    let stopping = false;
+    let closed = false;
+    let exitStatus: number | null = null;
+    let exitSignal: NodeJS.Signals | null = null;
 
     const cleanupTimers = () => {
       clearTimeout(timeoutTimer);
       if (killTimer) clearTimeout(killTimer);
       if (finalTimer) clearTimeout(finalTimer);
+      if (checkTimer) clearInterval(checkTimer);
     };
 
-    const finish = (status: number | null, signal: NodeJS.Signals | null) => {
+    const finish = (cleanupSafe: boolean) => {
       if (settled) return;
       settled = true;
       cleanupTimers();
       resolve({
-        status,
+        status: exitStatus,
         stdout: Buffer.concat(stdout).toString("utf8"),
         stderr: Buffer.concat(stderr).toString("utf8"),
         ...(failure ? { error: failure } : {}),
-        signal,
+        signal: exitSignal,
+        cleanupSafe,
       });
     };
 
-    const kill = (error: Error) => {
-      if (failure) return;
-      failure = error;
+    const groupAbsent = (): boolean => {
+      // A failed spawn with no PID created no process group. A closed Windows
+      // child, however, does not confirm that its descendants have exited.
+      if (child.pid === undefined) return closed;
+      if (process.platform === "win32") return false;
+      try {
+        process.kill(-child.pid, 0);
+        return false;
+      } catch (error) {
+        return (error as NodeJS.ErrnoException).code === "ESRCH";
+      }
+    };
+    const finishIfSafe = (): boolean => {
+      if (!closed || !groupAbsent()) return false;
+      finish(true);
+      return true;
+    };
+    const kill = (error?: Error) => {
+      if (error && !failure) failure = error;
+      if (stopping || settled) return;
+      stopping = true;
+      clearTimeout(timeoutTimer);
       signalProcessTree(child.pid, child, "SIGTERM");
+      checkTimer = setInterval(finishIfSafe, 25);
       killTimer = setTimeout(() => {
+        if (finishIfSafe()) return;
         signalProcessTree(child.pid, child, "SIGKILL");
         finalTimer = setTimeout(() => {
+          if (finishIfSafe()) return;
+          failure ??= processError(
+            "ERR_HEADLESS_CLEANUP_UNCONFIRMED",
+            "Headless eval child cleanup could not be confirmed.",
+          );
           child.stdout?.destroy();
           child.stderr?.destroy();
-          finish(null, "SIGKILL");
+          finish(false);
         }, FINAL_CLOSE_GRACE_MS);
       }, killGraceMs);
     };
@@ -157,9 +191,19 @@ export function executeHeadlessChild(
     child.on("error", (error) => {
       if (!failure) failure = error;
     });
-    child.on("close", (status, signal) =>
-      finish(status, signal as NodeJS.Signals | null),
-    );
+    child.on("exit", (status, signal) => {
+      exitStatus = status;
+      exitSignal = signal as NodeJS.Signals | null;
+      // Independent descendant stdio can make close happen immediately; or
+      // inherited stdio can delay it indefinitely. Neither cancels escalation.
+      if (!finishIfSafe()) kill();
+    });
+    child.on("close", (status, signal) => {
+      closed = true;
+      exitStatus = status;
+      exitSignal = signal as NodeJS.Signals | null;
+      if (!finishIfSafe()) kill();
+    });
 
     const timeoutTimer = setTimeout(() => {
       kill(

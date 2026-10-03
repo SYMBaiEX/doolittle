@@ -1,9 +1,12 @@
 import {
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -339,6 +342,7 @@ describe("headless workflow evals", () => {
           stderr: "",
           error: undefined,
           signal: null,
+          cleanupSafe: true,
         };
       },
     ) as never;
@@ -491,6 +495,7 @@ describe("headless workflow evals", () => {
         stderr: "",
         error: undefined,
         signal: null,
+        cleanupSafe: true,
       })) as never,
     });
 
@@ -536,6 +541,7 @@ describe("headless workflow evals", () => {
           stderr: "",
           error: undefined,
           signal: null,
+          cleanupSafe: true,
         };
       }) as never,
     });
@@ -554,6 +560,42 @@ describe("headless workflow evals", () => {
     expect(stored).not.toContain("private response");
     expect(stored).not.toContain(reportDir);
     expect(stored).not.toContain(process.cwd());
+  });
+
+  it("excludes per-task filesystem cleanup from suite wall time", async () => {
+    const reportDir = tempDirectory();
+    let clockCall = 0;
+    const clockValues = [0, 0, 0, 0, 10, 10, 20, 20, 120, 120];
+    const suite: HeadlessEvalSuite = {
+      id: "cleanup-timing",
+      version: 1,
+      title: "Cleanup timing",
+      tasks: [
+        {
+          id: "one-task",
+          domain: "conversation",
+          prompt: "prompt",
+          checks: [{ id: "pass", evaluate: () => true }],
+          humanReviewRequired: false,
+        },
+      ],
+    };
+
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir,
+      monotonicNow: () => clockValues[clockCall++] ?? 120,
+      execute: (() => ({
+        status: 0,
+        stdout: `${JSON.stringify({ ok: true, text: "answer" })}\n`,
+        stderr: "",
+        error: undefined,
+        signal: null,
+        cleanupSafe: true,
+      })) as never,
+    });
+
+    expect(clockCall).toBe(10);
+    expect(result.report.summary.suiteWallTimeMs).toBe(20);
   });
 
   it("runs follow-up turns in one isolated session and checks the final context", async () => {
@@ -612,6 +654,7 @@ describe("headless workflow evals", () => {
           stderr: "",
           error: undefined,
           signal: null,
+          cleanupSafe: true,
         };
       }) as never,
     });
@@ -632,6 +675,446 @@ describe("headless workflow evals", () => {
     const stored = readFileSync(result.reportPath, "utf8");
     expect(stored).not.toContain("Remember room Cedar-41.");
     expect(stored).not.toContain("Room: Cedar-41");
+  });
+
+  it("removes each task root after its callbacks and grading, before the next task", async () => {
+    const reportDir = tempDirectory();
+    const observations: string[] = [];
+    let priorDataDir: string | undefined;
+    const suite: HeadlessEvalSuite = {
+      id: "task-cleanup-order",
+      version: 1,
+      title: "Task cleanup order",
+      tasks: ["first", "second"].map((id) => ({
+        id,
+        domain: "conversation" as const,
+        prompt: id,
+        checks: [
+          {
+            id: "grader-ran",
+            evaluate: () => {
+              observations.push(`${id}:graded`);
+              return true;
+            },
+          },
+        ],
+        humanReviewRequired: false,
+      })),
+    };
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir,
+      showResponses: true,
+      onResponse: (id) => observations.push(`${id}:response`),
+      onActionLabels: (id) => observations.push(`${id}:labels`),
+      execute: ((
+        _command: string,
+        _args: readonly string[] | string,
+        options?: { env?: NodeJS.ProcessEnv },
+      ) => {
+        const dataDir = options?.env?.DOOLITTLE_DATA_DIR as string;
+        if (priorDataDir) {
+          const prior = priorDataDir;
+          expect(() => statSync(prior)).toThrow();
+        }
+        priorDataDir = dataDir;
+        mkdirSync(join(dataDir, "trajectories"), { recursive: true });
+        writeFileSync(
+          join(dataDir, "trajectories", "trajectory-events.jsonl"),
+          "{}\n",
+        );
+        return {
+          status: 0,
+          stdout: `${JSON.stringify({ ok: true, text: "answer" })}\n`,
+          stderr: "",
+          error: undefined,
+          signal: null,
+          cleanupSafe: true,
+        };
+      }) as never,
+    });
+
+    expect(observations).toEqual([
+      "first:response",
+      "first:labels",
+      "first:graded",
+      "second:response",
+      "second:labels",
+      "second:graded",
+    ]);
+    expect(() => statSync(priorDataDir as string)).toThrow();
+    expect(result.report.runs).toHaveLength(2);
+  });
+
+  it("keeps task state through all follow-up executions and cleans a failed task", async () => {
+    const reportDir = tempDirectory();
+    const seenDirectories: string[] = [];
+    const suite: HeadlessEvalSuite = {
+      id: "task-cleanup-followups",
+      version: 1,
+      title: "Task cleanup follow-ups",
+      tasks: [
+        {
+          id: "failed-multi-turn",
+          domain: "conversation",
+          prompt: "first",
+          followUpPrompts: ["second"],
+          checks: [{ id: "always", evaluate: () => true }],
+          humanReviewRequired: false,
+        },
+      ],
+    };
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir,
+      execute: ((
+        _command: string,
+        _args: readonly string[] | string,
+        options?: { env?: NodeJS.ProcessEnv },
+      ) => {
+        const dataDir = options?.env?.DOOLITTLE_DATA_DIR as string;
+        seenDirectories.push(dataDir);
+        if (seenDirectories.length === 1) {
+          writeFileSync(join(dataDir, "same-task-state"), "retained");
+          return {
+            status: 0,
+            stdout: `${JSON.stringify({ ok: true, text: "continue" })}\n`,
+            stderr: "",
+            error: undefined,
+            signal: null,
+            cleanupSafe: true,
+          };
+        }
+        expect(readFileSync(join(dataDir, "same-task-state"), "utf8")).toBe(
+          "retained",
+        );
+        return {
+          status: 1,
+          stdout: `${JSON.stringify({ ok: false, text: "failed" })}\n`,
+          stderr: "",
+          error: undefined,
+          signal: null,
+          cleanupSafe: true,
+        };
+      }) as never,
+    });
+
+    expect(seenDirectories[0]).toBe(seenDirectories[1]);
+    expect(result.report.runs[0]).toMatchObject({ status: "failed" });
+    expect(() => statSync(seenDirectories[0] as string)).toThrow();
+  });
+
+  it.each(["ETIMEDOUT", "ERR_CHILD_PROCESS_STDIO_MAXBUFFER", "signal:SIGTERM"])(
+    "fails and cleans a safe zero-exit child with valid final JSON but executor failure %s",
+    async (errorCode) => {
+      const reportDir = tempDirectory();
+      let taskRoot = "";
+      const suite: HeadlessEvalSuite = {
+        id: "zero-exit-executor-failure",
+        version: 1,
+        title: "Zero-exit executor failure",
+        tasks: [
+          {
+            id: "one",
+            domain: "conversation",
+            prompt: "first",
+            followUpPrompts: ["must-not-run"],
+            checks: [],
+            humanReviewRequired: false,
+          },
+        ],
+      };
+      const execute = vi.fn((_command, _args, options) => {
+        taskRoot = dirname(options.env.DOOLITTLE_DATA_DIR);
+        writeFileSync(join(taskRoot, "owned-state"), "retained until grading");
+        return {
+          status: 0,
+          stdout: JSON.stringify({ ok: true, text: "answer" }),
+          stderr: "",
+          error: errorCode.startsWith("signal:")
+            ? undefined
+            : Object.assign(new Error("Executor failed."), { code: errorCode }),
+          signal: errorCode.startsWith("signal:") ? "SIGTERM" : null,
+          cleanupSafe: true,
+        };
+      });
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir,
+        execute: execute as never,
+      });
+      expect(execute).toHaveBeenCalledTimes(1);
+      expect(result.exitCode).toBe(1);
+      expect(result.report.runs[0]).toMatchObject({
+        status: "failed",
+        errorCode,
+        timing: { execInvocations: 1 },
+        responseSha256s: [expect.any(String)],
+      });
+      expect(() => statSync(taskRoot)).toThrow();
+      expect(() => statSync(dirname(taskRoot))).toThrow();
+      expect(
+        JSON.parse(readFileSync(result.reportPath, "utf8")).runs[0],
+      ).toMatchObject({
+        status: "failed",
+        errorCode,
+      });
+    },
+  );
+
+  it.each(["../outside", ".", "", "/tmp/escape"])(
+    "rejects unsafe task ID %s before creating task files",
+    async (taskId) => {
+      const reportDir = tempDirectory();
+      const execute = vi.fn();
+      const suite: HeadlessEvalSuite = {
+        id: "invalid-task-id",
+        version: 1,
+        title: "Invalid task ID",
+        tasks: [
+          {
+            id: taskId,
+            domain: "conversation",
+            prompt: "prompt",
+            checks: [],
+            humanReviewRequired: false,
+          },
+        ],
+      };
+
+      await expect(
+        runHeadlessEvalSuite(suite, { reportDir, execute: execute as never }),
+      ).rejects.toThrow("safe path components");
+      expect(execute).not.toHaveBeenCalled();
+      expect(readdirSync(reportDir)).toEqual([]);
+    },
+  );
+
+  it.each([false, undefined])(
+    "retains unsafe task/run state and starts no follow-up or next task: cleanupSafe=%s",
+    async (cleanupSafe) => {
+      const reportDir = tempDirectory();
+      const observations: string[] = [];
+      let dataDir = "";
+      const suite: HeadlessEvalSuite = {
+        id: "unsafe-cleanup",
+        version: 1,
+        title: "Unsafe cleanup",
+        tasks: ["first", "second"].map((id) => ({
+          id,
+          domain: "conversation" as const,
+          prompt: id,
+          followUpPrompts: ["follow-up"],
+          checks: [
+            {
+              id: "observed",
+              evaluate: () => {
+                observations.push("graded");
+                return true;
+              },
+            },
+          ],
+          humanReviewRequired: false,
+        })),
+      };
+      const execute = vi.fn((_command, _args, options) => {
+        dataDir = options.env.DOOLITTLE_DATA_DIR;
+        temporaryDirectories.push(dirname(dirname(dataDir)));
+        writeFileSync(join(dataDir, "retained-state"), "retained");
+        return {
+          status: 0,
+          stdout: JSON.stringify({ ok: true, text: "answer" }),
+          stderr: "",
+          signal: null,
+          cleanupSafe,
+        };
+      });
+      await expect(
+        runHeadlessEvalSuite(suite, {
+          reportDir,
+          execute: execute as never,
+          showResponses: true,
+          onResponse: () => observations.push("response"),
+          onActionLabels: () => observations.push("labels"),
+        }),
+      ).rejects.toThrow("cleanup could not be confirmed");
+      expect(execute).toHaveBeenCalledTimes(1);
+      expect(observations).toEqual(["response", "labels", "graded"]);
+      expect(readFileSync(join(dataDir, "retained-state"), "utf8")).toBe(
+        "retained",
+      );
+      expect(readdirSync(reportDir)).toEqual([]);
+    },
+  );
+
+  it.each(["task", "run", "symlink", "missing"])(
+    "refuses a substituted %s directory and preserves replacement sentinels through finally",
+    async (target) => {
+      const reportDir = tempDirectory();
+      const foreign = tempDirectory();
+      let replacement = "";
+      let moved = "";
+      const suite: HeadlessEvalSuite = {
+        id: "substitution-cleanup",
+        version: 1,
+        title: "Substitution cleanup",
+        tasks: [
+          {
+            id: "one",
+            domain: "conversation",
+            prompt: "first",
+            followUpPrompts: ["must-not-run"],
+            checks: [],
+            humanReviewRequired: false,
+          },
+        ],
+      };
+      const execute = vi.fn((_command, _args, options) => {
+        const taskRoot = dirname(options.env.DOOLITTLE_DATA_DIR);
+        const runRoot = dirname(taskRoot);
+        temporaryDirectories.push(runRoot);
+        replacement = target === "run" ? runRoot : taskRoot;
+        moved = `${replacement}.original`;
+        writeFileSync(join(replacement, "foreign-sentinel"), "foreign");
+        renameSync(replacement, moved);
+        if (target === "run") temporaryDirectories.push(moved);
+        if (target === "symlink") symlinkSync(foreign, replacement, "dir");
+        else if (target !== "missing") mkdirSync(replacement);
+        if (target !== "missing")
+          writeFileSync(join(replacement, "foreign-sentinel"), "foreign");
+        return {
+          status: 0,
+          stdout: JSON.stringify({ ok: true, text: "answer" }),
+          stderr: "",
+          signal: null,
+          cleanupSafe: true,
+        };
+      });
+      let failure: unknown;
+      try {
+        await runHeadlessEvalSuite(suite, {
+          reportDir,
+          execute: execute as never,
+        });
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).toMatch(
+        /substituted|ordinary directory/,
+      );
+      expect((failure as Error).message).not.toContain(replacement);
+      expect(execute).toHaveBeenCalledTimes(1);
+      expect(
+        readFileSync(
+          join(target === "missing" ? moved : replacement, "foreign-sentinel"),
+          "utf8",
+        ),
+      ).toBe("foreign");
+      expect(statSync(moved).isDirectory()).toBe(true);
+      expect(readdirSync(reportDir)).toEqual([]);
+    },
+  );
+
+  it("does not delete a task replacement introduced during grading after a safe execution", async () => {
+    const reportDir = tempDirectory();
+    let taskRoot = "";
+    const suite: HeadlessEvalSuite = {
+      id: "grading-substitution",
+      version: 1,
+      title: "Grading substitution",
+      tasks: [
+        {
+          id: "one",
+          domain: "conversation",
+          prompt: "first",
+          checks: [
+            {
+              id: "replace",
+              evaluate: () => {
+                renameSync(taskRoot, `${taskRoot}.original`);
+                mkdirSync(taskRoot);
+                writeFileSync(join(taskRoot, "foreign-sentinel"), "foreign");
+                return true;
+              },
+            },
+          ],
+          humanReviewRequired: false,
+        },
+      ],
+    };
+    const execute = (
+      _command: string,
+      _args: string[],
+      options: { env: NodeJS.ProcessEnv },
+    ) => {
+      taskRoot = dirname(options.env.DOOLITTLE_DATA_DIR as string);
+      temporaryDirectories.push(dirname(taskRoot));
+      return {
+        status: 0,
+        stdout: JSON.stringify({ ok: true, text: "answer" }),
+        stderr: "",
+        signal: null,
+        cleanupSafe: true,
+      };
+    };
+    await expect(
+      runHeadlessEvalSuite(suite, { reportDir, execute }),
+    ).rejects.toThrow("substituted headless directory");
+    expect(readFileSync(join(taskRoot, "foreign-sentinel"), "utf8")).toBe(
+      "foreign",
+    );
+    expect(statSync(`${taskRoot}.original`).isDirectory()).toBe(true);
+    expect(readdirSync(reportDir)).toEqual([]);
+  });
+
+  it("refuses a final run-root replacement before persisting a report", async () => {
+    const reportDir = tempDirectory();
+    let runRoot = "";
+    const suite: HeadlessEvalSuite = {
+      id: "final-substitution",
+      version: 1,
+      title: "Final substitution",
+      tasks: [
+        {
+          id: "one",
+          domain: "conversation",
+          prompt: "first",
+          checks: [],
+          humanReviewRequired: false,
+        },
+      ],
+    };
+    const execute = (
+      _command: string,
+      _args: string[],
+      options: { env: NodeJS.ProcessEnv },
+    ) => {
+      runRoot = dirname(dirname(options.env.DOOLITTLE_DATA_DIR as string));
+      temporaryDirectories.push(runRoot);
+      return {
+        status: 0,
+        stdout: JSON.stringify({ ok: true, text: "answer" }),
+        stderr: "",
+        signal: null,
+        cleanupSafe: true,
+      };
+    };
+    await expect(
+      runHeadlessEvalSuite(suite, {
+        reportDir,
+        execute,
+        now: () => {
+          renameSync(runRoot, `${runRoot}.original`);
+          temporaryDirectories.push(`${runRoot}.original`);
+          mkdirSync(runRoot);
+          writeFileSync(join(runRoot, "foreign-sentinel"), "foreign");
+          return new Date();
+        },
+      }),
+    ).rejects.toThrow("substituted headless directory");
+    expect(readFileSync(join(runRoot, "foreign-sentinel"), "utf8")).toBe(
+      "foreign",
+    );
+    expect(statSync(`${runRoot}.original`).isDirectory()).toBe(true);
+    expect(readdirSync(reportDir)).toEqual([]);
   });
 
   it("marks malformed provider telemetry without persisting its contents", async () => {
@@ -655,6 +1138,7 @@ describe("headless workflow evals", () => {
           stderr: "",
           error: undefined,
           signal: null,
+          cleanupSafe: true,
         };
       },
     ) as never;
@@ -739,6 +1223,7 @@ describe("headless workflow evals", () => {
           stderr: "",
           error: undefined,
           signal: null,
+          cleanupSafe: true,
         };
       },
     );
@@ -818,6 +1303,7 @@ describe("headless workflow evals", () => {
           stderr: "",
           error: undefined,
           signal: null,
+          cleanupSafe: true,
         };
       },
     ) as never;
@@ -882,6 +1368,7 @@ describe("headless workflow evals", () => {
           stderr: "",
           error: undefined,
           signal: null,
+          cleanupSafe: true,
         };
       },
     ) as never;
@@ -946,6 +1433,7 @@ describe("headless workflow evals", () => {
           stderr: "",
           error: undefined,
           signal: null,
+          cleanupSafe: true,
         };
       },
     ) as never;
@@ -1039,6 +1527,7 @@ describe("headless workflow evals", () => {
           stderr: "",
           error: undefined,
           signal: null,
+          cleanupSafe: true,
         };
       },
     ) as never;
@@ -1083,6 +1572,7 @@ describe("headless workflow evals", () => {
       stderr: "",
       error: undefined,
       signal: null,
+      cleanupSafe: true,
     })) as never;
 
     const result = await runHeadlessEvalSuite(suite, {
@@ -1112,6 +1602,7 @@ describe("headless workflow evals", () => {
           stderr: "",
           error: undefined,
           signal: null,
+          cleanupSafe: true,
         };
       },
     );

@@ -65,7 +65,8 @@ report schemas. A sidecar is not an automatic score or a quality conclusion.
 
 - Do not change a published suite's prompt, task IDs, or acceptance intent in
   place. Add a new suite version so previous reports remain interpretable.
-- Bump the eval manifest's `evaluatorVersion` when grader behavior changes;
+- Bump the eval manifest's `evaluatorVersion` when grading, timing, or execution
+  lifecycle behavior changes;
   keep its workspace `version` aligned with the root product version.
   Comparisons reject reports produced by different evaluator versions. Bump
   the report schema only when the persisted report shape or meaning changes.
@@ -131,6 +132,16 @@ tasks/sessions before dispatch; fresh Doolittle directories alone are insufficie
 Treat this
 as a new evaluation baseline; earlier evaluator versions remain incompatible.
 
+Evaluator 0.2.10 changes headless cleanup, not the frozen suite prompts. Each
+task retains its isolated state through every follow-up, callback, and grading
+step, then removes that state before the next task only after shutdown and the
+original directory identities are verified. Unsafe or unconfirmed cleanup
+aborts the suite without writing a shortened report and retains private state.
+On POSIX, shutdown confirmation covers the owned detached process group, not
+descendants that escape it; Windows shutdown is unconfirmed and fails closed.
+Per-task filesystem cleanup is excluded from suite wall time. New reports form
+a separate baseline; do not pool them with evaluator 0.2.9 measurements.
+
 ```sh
 nub run eval:headless -- --suite headless-workflows-v6 --task reliability-no-side-effect-v6
 ```
@@ -165,9 +176,10 @@ subscription usage. Raw answers are printed only when `--show-responses` is
 explicitly requested. Each
 task still requires human quality review; deterministic checks are only
 smoke/acceptance evidence, not a model-quality score. Each CLI invocation has
-a 300-second execution timeout and up to two seconds of process-tree shutdown
-grace; timeout and output-limit failures remain visible as failed runs.
-Temporary workspaces are removed after the run. Use the
+a 300-second execution timeout and bounded shutdown confirmation;
+timeout and output-limit failures remain visible as failed runs when cleanup
+can be confirmed. Unconfirmed shutdown retains state and aborts without a
+report. Temporary workspaces are removed per task only when safe. Use the
 [agent quality evaluation checklist](../../docs/engineering/agent-quality-eval-checklist.md)
 to plan comparable runs, score human-facing quality, and interpret timing
 without confusing process completion, objective checks, and model latency.
