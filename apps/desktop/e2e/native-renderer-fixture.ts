@@ -104,6 +104,7 @@ export interface FixtureRuntimeReceipt {
 }
 export interface FixtureRuntimeObservation {
   constructed: FixtureRuntimeReceipt;
+  atReadinessRefusal: FixtureRuntimeReceipt | null;
   preCapture: FixtureRuntimeReceipt | null;
   settled: FixtureRuntimeReceipt | null;
 }
@@ -273,11 +274,18 @@ export function installFixtureRuntimeObservation(options: {
   };
   const receipts: FixtureRuntimeObservation = {
     constructed: snapshot(),
+    atReadinessRefusal: null,
     preCapture: null,
     settled: null,
   };
   return {
     receipts,
+    readinessRefused: () => {
+      // Only called after the bridge's closed refusal enum was observed. This
+      // is not native capture settlement, and may observe a destroyed receiver.
+      receipts.atReadinessRefusal = snapshot();
+      dispose();
+    },
     beforeCapture: () => {
       receipts.preCapture = snapshot();
     },
@@ -490,8 +498,10 @@ const runtimeReceipt = (value: unknown): boolean => {
   );
 };
 const runtimeObservation = (value: unknown): boolean =>
-  keys(value, ["constructed", "preCapture", "settled"]) &&
+  keys(value, ["constructed", "atReadinessRefusal", "preCapture", "settled"]) &&
   runtimeReceipt(value.constructed) &&
+  (value.atReadinessRefusal === null ||
+    runtimeReceipt(value.atReadinessRefusal)) &&
   (value.preCapture === null || runtimeReceipt(value.preCapture)) &&
   (value.settled === null || runtimeReceipt(value.settled));
 export function parseNativeFixtureRequest(
@@ -603,6 +613,28 @@ const diagnostic = (v: unknown): boolean =>
       "pngEncode",
     ]) &&
     Object.values(v.calls).every(number));
+const readinessRefusalDiagnostic = (value: unknown): boolean => {
+  if (value === null) return true; // No native observation is claimed.
+  if (!diagnostic(value)) return false;
+  const receipt = value as NonNullable<CaptureFailure["window"]>;
+  return (
+    receipt.phase === "wait-for-render" &&
+    receipt.failedPhase === null &&
+    receipt.nativeCapture === null &&
+    receipt.atCapture === null &&
+    receipt.factsViewport === null &&
+    receipt.png === null &&
+    receipt.calls.executeJavaScript === 1 &&
+    receipt.calls.waitForRender === 1 &&
+    receipt.calls.renderedFacts === 0 &&
+    receipt.calls.capturePage === 0 &&
+    receipt.calls.pngEncode === 0 &&
+    (receipt.runtime === null ||
+      (receipt.runtime.atReadinessRefusal !== null &&
+        receipt.runtime.preCapture === null &&
+        receipt.runtime.settled === null))
+  );
+};
 
 /** Reject unknown fields/text rather than forwarding arbitrary IPC evidence. */
 export function parseNativeFixtureOutcome(
@@ -656,6 +688,7 @@ export function parseNativeFixtureOutcome(
       if (
         keys(v, [
           "phase",
+          "refusalPhase",
           "status",
           "error",
           "truncated",
@@ -663,6 +696,12 @@ export function parseNativeFixtureOutcome(
           "window",
         ]) &&
         ["open", "first-snapshot"].includes(v.phase as string) &&
+        (v.refusalPhase === null ||
+          (v.refusalPhase === "native-readiness" &&
+            v.phase === "first-snapshot" &&
+            v.status === 502 &&
+            v.error === "Rendered evidence could not be captured." &&
+            readinessRefusalDiagnostic(v.window))) &&
         number(v.status) &&
         typeof v.truncated === "boolean" &&
         number(v.elapsedMs) &&

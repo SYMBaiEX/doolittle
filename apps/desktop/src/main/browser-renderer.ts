@@ -18,6 +18,10 @@ import {
   managedRenderUrl,
   renderViewport,
 } from "./browser-render-policy";
+import {
+  installRenderReadiness,
+  renderCaptureStep,
+} from "./browser-render-readiness";
 import { captureWindowOptions } from "./browser-render-window";
 
 const MAX_TABS = 4;
@@ -35,6 +39,8 @@ interface RenderTab {
   timer: ReturnType<typeof setTimeout>;
   blockedRequests: number;
   capturing: boolean;
+  readiness?: ReturnType<typeof installRenderReadiness>;
+  captureAbort?: AbortController;
 }
 
 export interface BrowserRenderBridge {
@@ -48,6 +54,7 @@ interface BridgeOptions {
 }
 
 function json(response: ServerResponse, status: number, value: unknown): void {
+  if (response.destroyed || response.writableEnded) return;
   response.writeHead(status, {
     "Content-Type": "application/json",
     "Cache-Control": "no-store",
@@ -107,6 +114,8 @@ export async function startBrowserRenderBridge(
     if (!tab) return false;
     tabs.delete(id);
     clearTimeout(tab.timer);
+    tab.captureAbort?.abort();
+    tab.readiness?.dispose();
     if (!tab.window.isDestroyed()) tab.window.destroy();
     return true;
   };
@@ -269,6 +278,19 @@ export async function startBrowserRenderBridge(
                 callback({ cancel: !allowed });
               },
             );
+            if (process.platform === "linux" && contents.isOffscreen()) {
+              tab.readiness = installRenderReadiness({
+                window,
+                acceptsCommit(value) {
+                  return allowRenderResource(url, {
+                    url: value,
+                    method: "GET",
+                    resourceType: "mainFrame",
+                  });
+                },
+                invalidated: () => tab.captureAbort?.abort(),
+              });
+            }
             await bounded(window.loadURL(url.href), window);
             if (!tabs.has(id) || disposed)
               throw new Error("Capture was stopped.");
@@ -302,11 +324,55 @@ export async function startBrowserRenderBridge(
               return;
             }
             tab.capturing = true;
-            try {
+            const readiness = tab.readiness;
+            const controller = readiness ? new AbortController() : undefined;
+            tab.captureAbort = controller;
+            const expiresAt = performance.now() + OPERATION_TIMEOUT_MS;
+            const timeout = controller
+              ? setTimeout(() => remove(tab.id), OPERATION_TIMEOUT_MS)
+              : undefined;
+            const cancel = () => {
+              if (!response.writableFinished) remove(tab.id);
+            };
+            if (controller) {
+              // One Linux snapshot deadline owns all phases. Do not race the
+              // earlier socket inactivity timeout against its fixed refusal.
+              request.setTimeout(0);
+              request.once("aborted", cancel);
+              response.once("close", cancel);
+            }
+            let readyEpoch: number | undefined;
+            let failurePhase: "native-readiness" | undefined;
+            const assertActive = () => {
+              if (!controller) return;
+              if (performance.now() >= expiresAt) remove(tab.id);
               if (
-                !(await options.isManagedAppUrl(tab.url)) ||
+                controller.signal.aborted ||
+                disposed ||
+                !tabs.has(tab.id) ||
                 tab.window.isDestroyed()
-              ) {
+              )
+                throw new Error("Capture evidence is unavailable.");
+              readiness?.assertAlive();
+              if (readyEpoch !== undefined)
+                readiness?.assertCurrent(readyEpoch);
+            };
+            const step = <T>(action: () => Promise<T>): Promise<T> => {
+              if (!controller) return bounded(action(), tab.window);
+              assertActive();
+              return renderCaptureStep(controller.signal, async () => {
+                assertActive();
+                const value = await action();
+                assertActive();
+                return value;
+              });
+            };
+            const authorize = () =>
+              controller
+                ? step(() => options.isManagedAppUrl(tab.url))
+                : options.isManagedAppUrl(tab.url);
+            try {
+              if (!(await authorize()) || tab.window.isDestroyed()) {
                 remove(tab.id);
                 json(response, 403, {
                   error:
@@ -316,26 +382,39 @@ export async function startBrowserRenderBridge(
               }
               const contents = tab.window.webContents;
               try {
-                await bounded(
+                await step(() =>
                   contents.executeJavaScript(WAIT_FOR_RENDER_SCRIPT),
-                  tab.window,
                 );
-                const facts: unknown = await bounded(
+                if (readiness && controller) {
+                  failurePhase = "native-readiness";
+                  readyEpoch = await step(() =>
+                    readiness.wait(controller.signal),
+                  );
+                  failurePhase = undefined;
+                  assertActive();
+                  if (!(await authorize()))
+                    throw new Error("Capture evidence is unavailable.");
+                }
+                const facts: unknown = await step(() =>
                   contents.executeJavaScript(RENDERED_FACTS_SCRIPT),
-                  tab.window,
                 );
-                const image = await bounded(
+                if (controller && !(await authorize()))
+                  throw new Error("Capture evidence is unavailable.");
+                const image = await step(() =>
                   contents.capturePage(undefined, {
                     stayHidden: true,
                     stayAwake: false,
                   }),
-                  tab.window,
                 );
+                if (controller && !(await authorize()))
+                  throw new Error("Capture evidence is unavailable.");
+                assertActive();
                 const png = image.toPNG();
+                assertActive();
                 if (
                   !png.length ||
                   png.length > MAX_PNG_BYTES ||
-                  !(await options.isManagedAppUrl(tab.url)) ||
+                  !(await authorize()) ||
                   disposed ||
                   !tabs.has(tab.id)
                 )
@@ -353,10 +432,24 @@ export async function startBrowserRenderBridge(
                 remove(tab.id);
                 json(response, 502, {
                   error: "Rendered evidence could not be captured.",
+                  ...(failurePhase ? { phase: failurePhase } : {}),
                 });
               }
+            } catch (error) {
+              if (!controller) throw error;
+              remove(tab.id);
+              json(response, 502, {
+                error: "Rendered evidence could not be captured.",
+                ...(failurePhase ? { phase: failurePhase } : {}),
+              });
             } finally {
               tab.capturing = false;
+              clearTimeout(timeout);
+              if (controller) {
+                request.removeListener("aborted", cancel);
+                response.removeListener("close", cancel);
+              }
+              tab.captureAbort = undefined;
             }
             return;
           }

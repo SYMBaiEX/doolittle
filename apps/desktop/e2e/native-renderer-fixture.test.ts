@@ -116,6 +116,22 @@ function exampleRuntimeReceipts() {
 }
 
 describe("passive capture runtime receipts", () => {
+  it("marks unavailable native reads at refusal without inventing a settlement or exporting errors", () => {
+    const { contents, window, observer } = syntheticRuntime();
+    contents.isOffscreen.mockImplementation(() => {
+      throw new Error("CANARY_PRIVATE");
+    });
+    window.emit("closed");
+    observer.readinessRefused();
+    expect(observer.receipts.atReadinessRefusal).toMatchObject({
+      isOffscreen: null,
+      unavailable: true,
+    });
+    expect(observer.receipts.preCapture).toBeNull();
+    expect(observer.receipts.settled).toBeNull();
+    expect(JSON.stringify(observer.receipts)).not.toContain("CANARY_PRIVATE");
+    expect(contents.listenerCount("paint")).toBe(0);
+  });
   it("keeps three snapshots and tags chronology, not about:blank or frame content", () => {
     let clock = 100;
     const { contents, window, observer } = syntheticRuntime(true, () => clock);
@@ -377,12 +393,84 @@ describe("fixture-only rendering backend", () => {
   };
   const failure = {
     phase: "first-snapshot",
+    refusalPhase: null,
     status: 502,
     error: "Rendered evidence could not be captured.",
     truncated: false,
     elapsedMs: 20,
     window,
   };
+  it("projects readiness refusal separately without inventing native capture settlement", () => {
+    const { observer, contents, window: receiver } = syntheticRuntime();
+    contents.emit("did-navigate", {}, "owned-synthetic-target");
+    receiver.emit("closed");
+    observer.readinessRefused();
+    expect(observer.receipts.preCapture).toBeNull();
+    expect(observer.receipts.settled).toBeNull();
+    expect(observer.receipts.atReadinessRefusal).toMatchObject({
+      paintCount: 0,
+      ownedNavigationCommitted: true,
+    });
+    const refused = {
+      ...failure,
+      refusalPhase: "native-readiness",
+      window: {
+        ...window,
+        runtime: observer.receipts,
+        phase: "wait-for-render",
+        failedPhase: null,
+        nativeCapture: null,
+        calls: {
+          executeJavaScript: 1,
+          waitForRender: 1,
+          renderedFacts: 0,
+          capturePage: 0,
+          pngEncode: 0,
+        },
+      },
+    };
+    expect(
+      parseNativeFixtureOutcome({ type: "capture-failed", failure: refused }),
+    ).toEqual({ capture: null, failure: refused });
+    expect(contents.listenerCount("paint")).toBe(0);
+    for (const refusalPhase of ["CANARY_PRIVATE", {}, "capture-page"])
+      expect(
+        parseNativeFixtureOutcome({
+          type: "capture-failed",
+          failure: { ...refused, refusalPhase },
+        }),
+      ).toBeNull();
+    expect(
+      parseNativeFixtureOutcome({
+        type: "capture-failed",
+        failure: { ...refused, phase: "open" },
+      }),
+    ).toBeNull();
+    expect(
+      parseNativeFixtureOutcome({
+        type: "capture-failed",
+        failure: { ...refused, status: 400 },
+      }),
+    ).toBeNull();
+    for (const delta of [
+      { nativeCapture: window.nativeCapture },
+      { factsViewport: capture.factsViewport },
+      {
+        runtime: {
+          ...observer.receipts,
+          settled: observer.receipts.constructed,
+        },
+      },
+      { calls: { ...refused.window.calls, capturePage: 1 } },
+      { png: { bytes: 1, ihdr: null } },
+    ])
+      expect(
+        parseNativeFixtureOutcome({
+          type: "capture-failed",
+          failure: { ...refused, window: { ...refused.window, ...delta } },
+        }),
+      ).toBeNull();
+  });
   it.each(["onscreen", "offscreen"])(
     "retains only the closed backend enum across success/failure IPC (%s)",
     (backend) => {
@@ -696,6 +784,7 @@ describe("closed ordinary-Electron fixture transport", () => {
   it("retains the sanitized capture failure envelope", () => {
     const failure = {
       phase: "first-snapshot",
+      refusalPhase: null,
       status: 502,
       error: "Rendered evidence could not be captured.",
       truncated: false,

@@ -10,7 +10,7 @@ import {
   BrowserWindow as ElectronBrowserWindow,
   screen,
 } from "electron";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", () => ({
   BrowserWindow: vi.fn(),
@@ -35,6 +35,8 @@ function fakeWindow(options: BrowserWindowConstructorOptions) {
       webRequest: { onBeforeRequest: vi.fn() },
     }),
     getTitle: () => "Private fixture",
+    isOffscreen: () => !!options.webPreferences?.offscreen,
+    isDestroyed: () => destroyed,
     setWindowOpenHandler: vi.fn(),
     executeJavaScript: vi.fn(async (script: string) =>
       script === WAIT_FOR_RENDER_SCRIPT
@@ -47,7 +49,20 @@ function fakeWindow(options: BrowserWindowConstructorOptions) {
   });
   const window = Object.assign(new EventEmitter(), {
     webContents: contents,
-    loadURL: vi.fn(async () => undefined),
+    loadURL: vi.fn(async (url: string) => {
+      contents.emit("did-start-navigation", { isMainFrame: true });
+      contents.emit("did-navigate", {}, url);
+      // Synthetic metadata only; this unit fixture is not native pixel evidence.
+      contents.emit(
+        "paint",
+        {},
+        {},
+        {
+          isEmpty: () => false,
+          getSize: () => ({ width: options.width, height: options.height }),
+        },
+      );
+    }),
     isDestroyed: () => destroyed,
     destroy: vi.fn(() => {
       destroyed = true;
@@ -451,5 +466,344 @@ describe("private rendered-page bridge", () => {
     release();
     expect((await first).status).toBe(502);
     expect(windows[0].isDestroyed()).toBe(true);
+  });
+
+  describe("Linux product OSR first-frame admission", () => {
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    beforeEach(() =>
+      Object.defineProperty(process, "platform", {
+        value: "linux",
+        configurable: true,
+      }),
+    );
+    afterEach(() => {
+      if (platform) Object.defineProperty(process, "platform", platform);
+    });
+
+    async function withoutPaint(managed = vi.fn(async () => true)) {
+      let window: ReturnType<typeof fakeWindow> | undefined;
+      const context = await setup(managed, (options) => {
+        const next = fakeWindow(options);
+        if (!window) {
+          next.loadURL.mockImplementationOnce(async (url) => {
+            next.webContents.emit("did-start-navigation", {
+              isMainFrame: true,
+            });
+            next.webContents.emit("did-navigate", {}, url);
+          });
+          window = next;
+        }
+        return next as unknown as BrowserWindow;
+      });
+      const { tab } = await (await context.open()).json();
+      if (!window) throw new Error("Synthetic window was not created.");
+      return { ...context, tab, window };
+    }
+    const paint = (window: ReturnType<typeof fakeWindow>) =>
+      window.webContents.emit(
+        "paint",
+        {},
+        {},
+        { isEmpty: () => false, getSize: () => ({ width: 1280, height: 720 }) },
+      );
+
+    it("waits for a genuine metadata event, then runs facts/capture/encoding only once", async () => {
+      const { request, tab, window } = await withoutPaint();
+      const pending = request(`/tabs/${tab.id}/snapshot`);
+      await vi.waitFor(() =>
+        expect(window.webContents.executeJavaScript).toHaveBeenCalledOnce(),
+      );
+      expect(window.webContents.capturePage).not.toHaveBeenCalled();
+      window.emit("ready-to-show");
+      expect(window.webContents.capturePage).not.toHaveBeenCalled();
+      paint(window);
+      expect((await pending).status).toBe(200);
+      expect(
+        window.webContents.executeJavaScript.mock.calls.map(
+          ([script]) => script,
+        ),
+      ).toEqual([WAIT_FOR_RENDER_SCRIPT, RENDERED_FACTS_SCRIPT]);
+      expect(window.webContents.capturePage).toHaveBeenCalledExactlyOnceWith(
+        undefined,
+        { stayHidden: true, stayAwake: false },
+      );
+      expect(
+        (await window.webContents.capturePage.mock.results[0].value).toPNG,
+      ).toHaveBeenCalledOnce();
+    });
+
+    it("uses one snapshot deadline across WAIT and readiness, with no native capture on refusal", async () => {
+      const { request, tab, window } = await withoutPaint();
+      let release = () => {};
+      window.webContents.executeJavaScript.mockImplementationOnce(
+        () =>
+          new Promise<undefined>((resolve) => {
+            release = () => resolve(undefined);
+          }),
+      );
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const pending = request(`/tabs/${tab.id}/snapshot`);
+      await vi.waitFor(() =>
+        expect(window.webContents.executeJavaScript).toHaveBeenCalledOnce(),
+      );
+      await vi.advanceTimersByTimeAsync(9000);
+      release();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(1000);
+      const response = await pending;
+      expect(response.status).toBe(502);
+      expect(await response.json()).toEqual({
+        error: "Rendered evidence could not be captured.",
+        phase: "native-readiness",
+      });
+      expect(window.webContents.capturePage).not.toHaveBeenCalled();
+      expect(window.webContents.executeJavaScript).toHaveBeenCalledOnce();
+      expect(window.isDestroyed()).toBe(true);
+      expect(window.webContents.listenerCount("paint")).toBe(0);
+      paint(window);
+      expect(window.webContents.capturePage).not.toHaveBeenCalled();
+    });
+
+    it.each(["delete", "closed", "crash", "contents-destroyed"])(
+      "cancels a pending readiness wait on %s without interfering with another tab",
+      async (reason) => {
+        const { request, open, tab, window } = await withoutPaint();
+        const { tab: other } = await (await open()).json();
+        const pending = request(`/tabs/${tab.id}/snapshot`);
+        await vi.waitFor(() =>
+          expect(window.webContents.executeJavaScript).toHaveBeenCalledOnce(),
+        );
+        if (reason === "delete")
+          await request(`/tabs/${tab.id}`, { method: "DELETE" });
+        else if (reason === "closed") window.destroy();
+        else
+          window.webContents.emit(
+            reason === "crash" ? "render-process-gone" : "destroyed",
+          );
+        expect((await pending).status).toBe(502);
+        expect(window.webContents.capturePage).not.toHaveBeenCalled();
+        expect(window.webContents.listenerCount("paint")).toBe(0);
+        expect((await request(`/tabs/${other.id}/snapshot`)).status).toBe(200);
+      },
+    );
+
+    it("cancels on client disconnect and disposal, cleaning pending listeners", async () => {
+      const { request, tab, window } = await withoutPaint();
+      const controller = new AbortController();
+      const pending = request(`/tabs/${tab.id}/snapshot`, {
+        signal: controller.signal,
+      }).catch(() => undefined);
+      await vi.waitFor(() =>
+        expect(window.webContents.executeJavaScript).toHaveBeenCalledOnce(),
+      );
+      controller.abort();
+      await pending;
+      await vi.waitFor(() => expect(window.isDestroyed()).toBe(true));
+      expect(window.webContents.capturePage).not.toHaveBeenCalled();
+      expect(window.webContents.listenerCount("paint")).toBe(0);
+      await bridge?.dispose();
+    });
+
+    it("does not capture after ownership is lost during the readiness wait", async () => {
+      const managed = vi.fn(async () => true);
+      const { request, tab, window } = await withoutPaint(managed);
+      const pending = request(`/tabs/${tab.id}/snapshot`);
+      await vi.waitFor(() =>
+        expect(window.webContents.executeJavaScript).toHaveBeenCalledOnce(),
+      );
+      managed.mockResolvedValue(false);
+      paint(window);
+      expect((await pending).status).toBe(502);
+      expect(window.webContents.capturePage).not.toHaveBeenCalled();
+      expect(window.isDestroyed()).toBe(true);
+    });
+
+    it.each(["facts", "capture"])(
+      "does not start later native work after ownership is lost during %s",
+      async (phase) => {
+        const managed = vi.fn(async () => true);
+        const { open, request, windows } = await setup(managed);
+        const { tab } = await (await open()).json();
+        const window = windows[0];
+        const image = { toPNG: vi.fn(() => Buffer.from("synthetic")) };
+        if (phase === "facts") {
+          window.webContents.executeJavaScript.mockImplementation(
+            async (script) => {
+              if (script === RENDERED_FACTS_SCRIPT)
+                managed.mockResolvedValue(false);
+            },
+          );
+        } else
+          window.webContents.capturePage.mockImplementationOnce(async () => {
+            managed.mockResolvedValue(false);
+            return image;
+          });
+        expect((await request(`/tabs/${tab.id}/snapshot`)).status).toBe(502);
+        expect(window.webContents.capturePage).toHaveBeenCalledTimes(
+          phase === "facts" ? 0 : 1,
+        );
+        expect(image.toPNG).not.toHaveBeenCalled();
+        expect(window.isDestroyed()).toBe(true);
+      },
+    );
+
+    it("refuses overlapping readiness waits without unregistering the owner's latch", async () => {
+      const { request, tab, window } = await withoutPaint();
+      const first = request(`/tabs/${tab.id}/snapshot`);
+      await vi.waitFor(() =>
+        expect(window.webContents.executeJavaScript).toHaveBeenCalledOnce(),
+      );
+      expect((await request(`/tabs/${tab.id}/snapshot`)).status).toBe(409);
+      expect(window.webContents.listenerCount("paint")).toBe(1);
+      paint(window);
+      expect((await first).status).toBe(200);
+      expect(window.webContents.capturePage).toHaveBeenCalledOnce();
+    });
+
+    it("cancels a still-pending operation when the original tab lifetime expires", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const context = await withoutPaint();
+      await vi.advanceTimersByTimeAsync(25_000);
+      const pending = context.request(`/tabs/${context.tab.id}/snapshot`);
+      await vi.waitFor(() =>
+        expect(
+          context.window.webContents.executeJavaScript,
+        ).toHaveBeenCalledOnce(),
+      );
+      await vi.advanceTimersByTimeAsync(5000);
+      expect((await pending).status).toBe(502);
+      expect(context.window.webContents.capturePage).not.toHaveBeenCalled();
+      expect(context.window.webContents.listenerCount("paint")).toBe(0);
+      expect(context.window.isDestroyed()).toBe(true);
+    });
+
+    it("rejects replacement navigation during in-flight native work and never encodes its late result", async () => {
+      const { open, request, windows } = await setup();
+      const { tab } = await (await open()).json();
+      const window = windows[0];
+      const image = { toPNG: vi.fn(() => Buffer.from("synthetic")) };
+      let release = (_image: typeof image) => {};
+      window.webContents.capturePage.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            release = resolve;
+          }),
+      );
+      const pending = request(`/tabs/${tab.id}/snapshot`);
+      await vi.waitFor(() =>
+        expect(window.webContents.capturePage).toHaveBeenCalledOnce(),
+      );
+      window.webContents.emit("did-start-navigation", { isMainFrame: true });
+      expect((await pending).status).toBe(502);
+      release(image);
+      await Promise.resolve();
+      expect(image.toPNG).not.toHaveBeenCalled();
+      expect(window.isDestroyed()).toBe(true);
+    });
+
+    it("cleans the latch on failed load, pending disposal, and tab expiry", async () => {
+      let failed: ReturnType<typeof fakeWindow> | undefined;
+      const context = await setup(undefined, (options) => {
+        failed = fakeWindow(options);
+        failed.loadURL.mockRejectedValueOnce(new Error("CANARY_PRIVATE"));
+        return failed as unknown as BrowserWindow;
+      });
+      expect((await context.open()).status).toBe(502);
+      expect(failed?.webContents.listenerCount("paint")).toBe(0);
+      await bridge?.dispose();
+      const { request, tab, window } = await withoutPaint();
+      const pending = request(`/tabs/${tab.id}/snapshot`).catch(
+        () => undefined,
+      );
+      await vi.waitFor(() =>
+        expect(window.webContents.executeJavaScript).toHaveBeenCalledOnce(),
+      );
+      await bridge?.dispose();
+      await pending;
+      expect(window.isDestroyed()).toBe(true);
+      expect(window.webContents.listenerCount("paint")).toBe(0);
+      expect(window.webContents.capturePage).not.toHaveBeenCalled();
+    });
+
+    it("refuses native work if the receiver crashed before snapshot admission", async () => {
+      const { request, tab, window } = await withoutPaint();
+      window.webContents.emit("render-process-gone");
+      expect((await request(`/tabs/${tab.id}/snapshot`)).status).toBe(502);
+      expect(window.webContents.executeJavaScript).not.toHaveBeenCalled();
+      expect(window.webContents.capturePage).not.toHaveBeenCalled();
+      expect(window.webContents.listenerCount("paint")).toBe(0);
+      expect(window.isDestroyed()).toBe(true);
+    });
+
+    it("cleans partially failed readiness registration without changing another window", async () => {
+      let failed: ReturnType<typeof fakeWindow> | undefined;
+      const foreign = fakeWindow({});
+      const { open, request } = await setup(undefined, (options) => {
+        failed = fakeWindow(options);
+        const original = failed.webContents.on;
+        vi.spyOn(failed.webContents, "on").mockImplementation(function (
+          this: EventEmitter,
+          event,
+          listener,
+        ) {
+          if (event === "paint") throw new Error("CANARY_PRIVATE");
+          return original.call(this, event, listener);
+        });
+        return failed as unknown as BrowserWindow;
+      });
+      const response = await open();
+      expect(response.status).toBe(502);
+      expect(JSON.stringify(await response.json())).not.toContain(
+        "CANARY_PRIVATE",
+      );
+      expect(failed?.webContents.listenerCount("did-navigate")).toBe(0);
+      expect(failed?.webContents.listenerCount("did-start-navigation")).toBe(0);
+      expect(failed?.isDestroyed()).toBe(true);
+      expect(foreign.destroy).not.toHaveBeenCalled();
+      expect(await (await request("/tabs")).json()).toMatchObject({ tabs: [] });
+    });
+
+    it("cancels pending snapshot authorization before it can start WAIT", async () => {
+      const managed = vi.fn(async () => true);
+      const { request, tab, window } = await withoutPaint(managed);
+      let release = (_value: boolean) => {};
+      managed.mockImplementationOnce(
+        () =>
+          new Promise<boolean>((resolve) => {
+            release = resolve;
+          }),
+      );
+      const pending = request(`/tabs/${tab.id}/snapshot`);
+      await vi.waitFor(() => expect(managed).toHaveBeenCalledTimes(2));
+      await request(`/tabs/${tab.id}`, { method: "DELETE" });
+      expect((await pending).status).toBe(502);
+      release(true);
+      await Promise.resolve();
+      expect(window.webContents.executeJavaScript).not.toHaveBeenCalled();
+      expect(window.webContents.capturePage).not.toHaveBeenCalled();
+    });
+
+    it.each(["darwin", "win32"])(
+      "keeps %s on the existing onscreen path without a paint latch",
+      async (platform) => {
+        Object.defineProperty(process, "platform", {
+          value: platform,
+          configurable: true,
+        });
+        let window: ReturnType<typeof fakeWindow> | undefined;
+        const { open, request } = await setup(undefined, (options) => {
+          window = fakeWindow(options);
+          window.loadURL.mockResolvedValueOnce(undefined);
+          return window as unknown as BrowserWindow;
+        });
+        const { tab } = await (await open()).json();
+        expect((await request(`/tabs/${tab.id}/snapshot`)).status).toBe(200);
+        expect(window?.webContents.listenerCount("paint")).toBe(0);
+        expect(window?.webContents.capturePage).toHaveBeenCalledExactlyOnceWith(
+          undefined,
+          { stayHidden: true, stayAwake: false },
+        );
+      },
+    );
   });
 });

@@ -156,6 +156,19 @@ offscreen scale/shared-texture options are experimental in pinned Electron
 44.5.1; preserve the observed CSS viewport, DPR and PNG dimensions rather than
 inferring pixel size from a requested viewport alone.
 
+Linux installs a metadata-only paint listener before navigation. It accepts a
+nonempty, bounded native image only after the authorized main-navigation commit,
+latches an early eligible paint, and invalidates the latch and active snapshot
+when that navigation is replaced. Asset waiting, first-frame readiness, DOM
+facts and the original single capture share one cooperative ten-second snapshot
+deadline; synchronous renderer or image-encoding work cannot be preempted.
+Closing, renderer loss, request cancellation, expiry or disposal fails closed.
+No eligible paint means a bounded readiness refusal, not an attempted readback
+or a fabricated PNG. The chronological latch does not attest target-frame
+content or guarantee successful capture. It introduces no extra capture,
+artificial repaint, window show, warmup or retry. macOS/Windows keep their prior
+snapshot path.
+
 See the pinned [offscreen rendering modes](https://github.com/electron/electron/blob/v44.5.1/docs/tutorial/offscreen-rendering.md)
 and [offscreen scale contract](https://github.com/electron/electron/blob/v44.5.1/docs/api/structures/web-preferences.md).
 
@@ -175,10 +188,13 @@ The hosted cold-capture regression uses the product's constructor policy with
 no fixture backend override, at fixed display scales 1, 1.25, 1.5 and 2. Each of
 five cases runs three times in fresh owned Electron processes, with complete
 first, one capture and no retries or warmup. The fixture records bounded runtime
-snapshots and passive ready/paint metadata without retaining paint images or
-waiting on those events. Post-navigation paint chronology does not attest frame
-content or successful readback, and observer timing can perturb an outcome. A
-passing observer-arm sample alone does not prove a reliability fix. Synthetic
+snapshots and paint metadata without retaining paint images; only the Linux
+product readiness latch waits for an eligible paint. A readiness refusal has its
+own runtime snapshot and leaves native pre-capture/settlement fields unavailable,
+rather than relabeling refusal as a native capture failure. Post-navigation
+paint chronology does not attest frame content or successful readback, and
+observer timing can perturb an outcome. A passing sample alone does not prove
+broader reliability. Synthetic
 PNG/JSON attachments from passing tests are retained in the focused HTML report
 under `var/playwright/rendered-report`, without opening a browser. Native Linux test
 startup explicitly disables the process sandbox; these offline synthetic

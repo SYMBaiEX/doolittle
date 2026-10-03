@@ -113,6 +113,7 @@ interface WindowDiagnostic {
 
 export interface CaptureFailure {
   phase: "open" | "first-snapshot";
+  refusalPhase: "native-readiness" | null;
   status: number;
   error: string;
   truncated: boolean;
@@ -315,7 +316,8 @@ async function fixtureErrorBody(response: Response) {
   // Only this fixture's private loopback bridge is queried. Bound reads and
   // allowlist its fixed error messages; never echo arbitrary body/URL/header data.
   const reader = response.body?.getReader();
-  if (!reader) return { error: "empty-error-body", truncated: false };
+  if (!reader)
+    return { error: "empty-error-body", truncated: false, refusalPhase: null };
   const chunks: Buffer[] = [];
   let bytes = 0;
   let truncated = false;
@@ -332,12 +334,13 @@ async function fixtureErrorBody(response: Response) {
       }
     }
   } catch {
-    return { error: "unreadable-error-body", truncated };
+    return { error: "unreadable-error-body", truncated, refusalPhase: null };
   } finally {
     // Diagnostic transport errors must not replace the original failing status.
     await reader.cancel().catch(() => {});
   }
   let error = "unrecognized-error-body";
+  let refusalPhase: CaptureFailure["refusalPhase"] = null;
   try {
     const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
     if (
@@ -349,10 +352,16 @@ async function fixtureErrorBody(response: Response) {
       ].includes(body?.error)
     )
       error = body.error;
+    if (
+      response.status === 502 &&
+      error === "Rendered evidence could not be captured." &&
+      body?.phase === "native-readiness"
+    )
+      refusalPhase = "native-readiness";
   } catch {
     // Keep malformed/unknown body contents out of test diagnostics.
   }
-  return { error, truncated };
+  return { error, truncated, refusalPhase };
 }
 
 declare global {
@@ -581,6 +590,11 @@ globalThis.browserRendererFixture = (async () => {
           response: Response,
         ) => {
           const body = await fixtureErrorBody(response);
+          if (
+            phase === "first-snapshot" &&
+            body.refusalPhase === "native-readiness"
+          )
+            runtimeObserver?.readinessRefused();
           return new FixtureCaptureError({
             phase,
             status: response.status,

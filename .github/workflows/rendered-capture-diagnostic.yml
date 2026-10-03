@@ -10,6 +10,7 @@ on:
       - apps/desktop/src/main/browser-renderer.ts
       - apps/desktop/src/main/browser-render-facts.ts
       - apps/desktop/src/main/browser-render-window.ts
+      - apps/desktop/src/main/browser-render-readiness.ts
   workflow_dispatch:
 
 permissions:
@@ -46,14 +47,16 @@ jobs:
       # This offline fixture does not boot the agent/API or call providers.
       # Exercise the actual production capture-window policy without a fixture
       # backend override, in independent integer/fractional display-scale jobs.
-      # Complete remains first; each case has one capture, with passive runtime
-      # metadata only: no paint pixels, readiness gate, warmup or retry. Observer
-      # timing can perturb results; a passing run alone is not a reliability fix.
+      # Complete remains first; Linux must observe a nonempty offscreen paint
+      # after the owned main-navigation commit within the shared capture deadline.
+      # This chronological latch is not target-frame content proof. Each case
+      # still has one capture: no extra paint pixels, warmup or capture retry.
+      # Preserve bounded readiness refusal separately from native readback failure.
       # The previous onscreen/offscreen experiment is retained
       # in its immutable run evidence; this is the changed product's regression.
       # Native Linux explicitly uses --no-sandbox, so this does not establish
       # production sandbox parity or behavior on other desktop platforms.
-      - name: Observe three cold samples of every first-capture case
+      - name: Verify three cold samples of every first-capture case
         run: xvfb-run -a --server-args='-screen 0 3840x2160x24' nubx playwright test --config playwright.rendered.config.ts --repeat-each=3 --retries=0 --global-timeout=300000
         env:
           DOOLITTLE_RENDER_CAPTURE_ORDER: complete-first

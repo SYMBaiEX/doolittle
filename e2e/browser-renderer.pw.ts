@@ -134,6 +134,7 @@ for (const mode of [
           failure: outcome.failure
             ? {
                 phase: outcome.failure.phase,
+                refusalPhase: outcome.failure.refusalPhase,
                 status: outcome.failure.status,
                 error: outcome.failure.error,
                 truncated: outcome.failure.truncated,
@@ -171,18 +172,24 @@ for (const mode of [
               );
           }
         };
-        const assertRuntimeReceipts = () => {
+        const assertRuntimeReceipts = (refusal = false) => {
           const observed =
             outcome.capture?.diagnostic ?? outcome.failure?.window;
           if (!observed?.runtime) {
             expect(observed?.observationUnavailable).toBe(true);
             return;
           }
-          for (const receipt of [
-            observed.runtime.constructed,
-            observed.runtime.preCapture,
-            observed.runtime.settled,
-          ]) {
+          const receipts = refusal
+            ? [
+                observed.runtime.constructed,
+                observed.runtime.atReadinessRefusal,
+              ]
+            : [
+                observed.runtime.constructed,
+                observed.runtime.preCapture,
+                observed.runtime.settled,
+              ];
+          for (const receipt of receipts) {
             expect(receipt).not.toBeNull();
             if (!receipt) continue;
             if (receipt.isOffscreen === null)
@@ -228,6 +235,26 @@ for (const mode of [
             );
           }
         };
+        if (outcome.failure?.refusalPhase === "native-readiness") {
+          const observed = outcome.failure.window;
+          expect(observed?.calls).toEqual({
+            executeJavaScript: 1,
+            waitForRender: 1,
+            renderedFacts: 0,
+            capturePage: 0,
+            pngEncode: 0,
+          });
+          expect(observed?.nativeCapture).toBeNull();
+          expect(observed?.factsViewport).toBeNull();
+          expect(observed?.png).toBeNull();
+          if (observed?.runtime) {
+            expect(observed.runtime.atReadinessRefusal).not.toBeNull();
+            expect(observed.runtime.preCapture).toBeNull();
+            expect(observed.runtime.settled).toBeNull();
+          } else expect(observed?.observationUnavailable).toBe(true);
+          assertRuntimeReceipts(true);
+          throw new Error("Fixture first snapshot refused native readiness.");
+        }
         if (expireAfterPng) {
           expect(outcome.capture).toBeNull();
           expect(outcome.failure?.status).toBe(502);
