@@ -12,6 +12,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
+import * as os from "node:os";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -22,16 +23,31 @@ import {
   privateReportStateRoot,
   writePrivateReportFile,
 } from "./private-report";
+import { runHeadlessEvalSuite } from "./runner";
 
 vi.mock("node:fs", async (original) => ({
   ...(await original<typeof import("node:fs")>()),
 }));
+vi.mock("node:os", async (original) => ({
+  ...(await original<typeof import("node:os")>()),
+}));
 
 const roots: string[] = [];
 function root() {
-  const path = mkdtempSync(join(tmpdir(), "private-report-test-"));
+  const path = realpathSync(
+    mkdtempSync(join(tmpdir(), "private-report-test-")),
+  );
   roots.push(path);
   return path;
+}
+function accountHome(path: string) {
+  vi.spyOn(os, "userInfo").mockReturnValue({
+    username: "synthetic",
+    uid: process.getuid?.() ?? -1,
+    gid: process.getgid?.() ?? -1,
+    shell: null,
+    homedir: path,
+  });
 }
 afterEach(() => {
   vi.restoreAllMocks();
@@ -76,8 +92,94 @@ describe("owned private headless report storage", () => {
     expect(privateReportStateRoot("relative/../../secret", "/owned-home")).toBe(
       "/owned-home/.local/state",
     );
-    expect(privateReportStateRoot("  /owned-state/a/..  ", "/owned-home")).toBe(
-      "/owned-state",
+    expect(
+      privateReportStateRoot("  /owned-home/state/a/..  ", "/owned-home"),
+    ).toBe("/owned-home/state");
+  });
+  it.each(["/owned-home-sibling/state", "/owned-home/../outside", "/outside"])(
+    "rejects external default XDG root %s rather than treating a string prefix as containment",
+    (path) => {
+      expect(() => privateReportStateRoot(path, "/owned-home")).toThrow(
+        "owned private directory",
+      );
+    },
+  );
+  it("refuses external XDG before probing it or dispatching a provider", async () => {
+    const home = root();
+    const foreign = root();
+    accountHome(home);
+    vi.stubEnv("XDG_STATE_HOME", foreign);
+    const probes = vi.spyOn(fs, "lstatSync");
+    const execute = vi.fn();
+    await expect(
+      runHeadlessEvalSuite(
+        {
+          id: "unsafe-default-storage",
+          version: 1,
+          title: "Synthetic preflight",
+          tasks: [
+            {
+              id: "one",
+              domain: "conversation",
+              prompt: "synthetic",
+              checks: [],
+              humanReviewRequired: false,
+            },
+          ],
+        },
+        { execute: execute as never },
+      ),
+    ).rejects.toThrow("owned private directory");
+    expect(execute).not.toHaveBeenCalled();
+    expect(
+      probes.mock.calls.some(([path]) => String(path).startsWith(foreign)),
+    ).toBe(false);
+    expect(readdirSync(foreign)).toEqual([]);
+  });
+  it("does not use a spoofed HOME as the account authority for default storage", () => {
+    const home = root();
+    const foreign = root();
+    accountHome(home);
+    vi.stubEnv("HOME", foreign);
+    vi.stubEnv("XDG_STATE_HOME", "relative-state");
+    const directory = preparePrivateReportDirectory();
+    expect(directory.path).toBe(
+      join(home, ".local", "state", "doolittle", "evals", "headless"),
+    );
+    expect(readdirSync(foreign)).toEqual([]);
+  });
+  it("rejects in-home aliases before probing external descendants", () => {
+    const home = root();
+    const foreign = root();
+    accountHome(home);
+    writeFileSync(join(foreign, "sentinel"), "PRIVATE_FOREIGN_CANARY");
+    const alias = join(home, "alias");
+    symlinkSync(foreign, alias, "dir");
+    vi.stubEnv("XDG_STATE_HOME", join(alias, "state"));
+    const probes = vi.spyOn(fs, "lstatSync");
+    expect(() => preparePrivateReportDirectory()).toThrow(
+      "owned private directory",
+    );
+    expect(
+      probes.mock.calls.some(([path]) => String(path).startsWith(`${alias}/`)),
+    ).toBe(false);
+    expect(readdirSync(foreign)).toEqual(["sentinel"]);
+    expect(readFileSync(join(foreign, "sentinel"), "utf8")).toBe(
+      "PRIVATE_FOREIGN_CANARY",
+    );
+  });
+  it("accepts explicit outside-home private storage without consulting XDG or account-home lookup", () => {
+    const foreign = root();
+    vi.stubEnv("XDG_STATE_HOME", "PRIVATE_INVALID_XDG\u0000");
+    const account = vi.spyOn(os, "userInfo").mockImplementation(() => {
+      throw new Error("PRIVATE_UNEXPECTED_ACCOUNT_LOOKUP");
+    });
+    const directory = preparePrivateReportDirectory(foreign);
+    expect(directory.path).toBe(foreign);
+    expect(account).not.toHaveBeenCalled();
+    writePrivateReportFile(directory, "report.json", "content-free");
+    expect(readFileSync(join(foreign, "report.json"), "utf8")).toBe(
+      "content-free",
     );
   });
   it("allows private operator storage and writes exclusive owner-only descriptors", () => {
@@ -97,6 +199,7 @@ describe("owned private headless report storage", () => {
   });
   it("creates fixed XDG descendants within an absolute canonical state root", () => {
     const path = root();
+    accountHome(path);
     vi.stubEnv("XDG_STATE_HOME", join(path, "state", "..", "state"));
     const directory = preparePrivateReportDirectory();
     expect(directory.path).toBe(
