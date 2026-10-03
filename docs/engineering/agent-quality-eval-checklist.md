@@ -4,6 +4,39 @@ Use evaluations as evidence about specific Doolittle workflows, not as a
 standalone proof that the agent is generally intelligent or ready for every
 daily task. Report deterministic outcomes, human ratings, and speed separately.
 
+## Optional resolved-input observations
+
+`DOOLITTLE_EVAL_CAPTURE_MODEL_INPUTS=true` opts into a separate private
+`eval-model-input-observations.jsonl` sidecar. It is off by default and does not
+change the existing model-usage file, prompts, routes, or completion policy.
+Public SDK `pre_model`/`post_model` hooks observe resolved slots and streaming,
+own-data string character lengths and bounded message/image/tool counts. Tool
+schema character counts cover only a conservative getter-free JSON subset;
+null/partial fields are unavailable, not zero. Counts are UTF-16 characters,
+not wire bytes, tokenizer measurements, or complete context attribution.
+
+The installed beta.7 hooks do not attest a planner/evaluator stage: every row
+has `phase: "unknown"`. Optional Codex token observations associate only by the
+same public parameter-object identity within that runtime, never order/time.
+Missing, reused, concurrent, duplicate or late identities are unavailable.
+Provider-reported tokens remain distinct from input character counts; cache
+tokens and effective model execution remain unavailable. The observer caps
+rows/traversal and fails open without logging raw values or errors. It refuses
+noncanonical/nonprivate data roots and unsafe existing sidecar aliases/modes.
+Each sink exclusively creates its file and appends only to that pinned inode;
+preexisting files are not adopted, so reused data roots may lack new observations.
+
+Own-key enumeration materializes before its key-count limit; Proxy own-key,
+descriptor and prototype traps may execute before limits or fail-open handling.
+Scan caps are therefore not a hard CPU or memory guarantee. Instrumentation
+overhead must be measured, not inferred from those caps.
+
+`projectionMs` measures only input projection. `priorSinkMs` is cumulative
+completed sink-callback time before the current row, excluding its own write
+and the final write; neither is full instrumentation or harness overhead.
+These diagnostics do not establish a performance improvement or explain an
+older run whose individual model input shapes were not recorded.
+
 ## Current coverage and known limits
 
 - `headless-workflows-v2` is a small dispatch smoke suite: clarification,
