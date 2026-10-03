@@ -16,6 +16,11 @@ import {
 } from "@/runtime/prompt-cache";
 import { getScopedTurnAbortSignal } from "@/runtime/turn-runtime-scope";
 import { messageText } from "@/utils/eliza-compat";
+import {
+  classifyResearchFailure,
+  ResearchPreflightError,
+  researchFailureText,
+} from "./research-failure";
 
 const RESEARCH_PREFIX = "/research";
 const RESEARCH_PROMPT_VERSION = "doolittle-research-action-v1";
@@ -171,14 +176,10 @@ export async function runDoolittleResearch(
     cloudEnabled !== "true" &&
     cloudEnabled !== "1"
   ) {
-    throw new Error(
-      "Deep research is disabled. Set ELIZAOS_CLOUD_ENABLED=true to use the configured Eliza Cloud provider.",
-    );
+    throw new ResearchPreflightError("RESEARCH_DISABLED");
   }
   if (!runtime.getModel(ModelType.RESEARCH)) {
-    throw new Error(
-      "Deep research is unavailable: no RESEARCH model is registered. Configure an authenticated Eliza Cloud research provider to continue.",
-    );
+    throw new ResearchPreflightError("RESEARCH_MODEL_UNAVAILABLE");
   }
 
   const params: CancellableResearchParams = {
@@ -272,9 +273,9 @@ export function createResearchAction(): Action {
         ) {
           throw error;
         }
-        const failure = `Deep research failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`;
+        const failure = researchFailureText(
+          classifyResearchFailure(error, abortSignal),
+        );
         await callback?.({ text: failure, source: "research-action" });
         return { success: false, text: failure, userFacingText: failure };
       }
