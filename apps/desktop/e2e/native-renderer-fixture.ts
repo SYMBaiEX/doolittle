@@ -2,7 +2,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { lstatSync, realpathSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
-import type { BrowserWindowConstructorOptions } from "electron";
+import type { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
 import type {
   CaptureFailure,
   RasterCapture,
@@ -68,6 +68,224 @@ export function fixtureWindowOptions(
       ...options.webPreferences,
       offscreen: { useSharedTexture: false, deviceScaleFactor: scale },
     },
+  };
+}
+
+const MAX_RUNTIME_COUNT = 1000;
+const MAX_RUNTIME_MS = 60_000;
+const MAX_PAINT_DIMENSION = 16_384;
+
+export interface FixtureRuntimeReceipt {
+  isOffscreen: boolean | null;
+  isPainting: boolean | null;
+  frameRate: number | null;
+  windowDestroyed: boolean | null;
+  contentsDestroyed: boolean | null;
+  loading: boolean | null;
+  mainFrameLoading: boolean | null;
+  ownedNavigationCommitted: boolean;
+  readyToShowCount: number;
+  readyAfterOwnedCommitCount: number;
+  firstReadyMs: number | null;
+  lastReadyMs: number | null;
+  paintCount: number;
+  paintAfterOwnedCommitCount: number;
+  firstPaintMs: number | null;
+  lastPaintMs: number | null;
+  firstPaintAfterOwnedCommitMs: number | null;
+  lastPaintAfterOwnedCommitMs: number | null;
+  lastNonemptyPaintSize: { width: number; height: number } | null;
+  lastNonemptyPaintAfterOwnedCommitSize: {
+    width: number;
+    height: number;
+  } | null;
+  countsCapped: boolean;
+  unavailable: boolean;
+}
+export interface FixtureRuntimeObservation {
+  constructed: FixtureRuntimeReceipt;
+  preCapture: FixtureRuntimeReceipt | null;
+  settled: FixtureRuntimeReceipt | null;
+}
+
+/** Passive metadata only. Post-commit paint chronology does not attest frame content. */
+export function installFixtureRuntimeObservation(options: {
+  window: BrowserWindow;
+  isOwnedTarget: (url: string) => boolean;
+  now?: () => number;
+}) {
+  const window = options.window;
+  const contents = window.webContents;
+  const now = options.now ?? (() => performance.now());
+  let unavailable = false;
+  const read = <T>(callback: () => T): T | null => {
+    try {
+      return callback();
+    } catch {
+      unavailable = true;
+      return null;
+    }
+  };
+  const started = read(now);
+  const elapsed = () => {
+    const value = read(now);
+    const ms = value !== null && started !== null ? value - started : NaN;
+    if (!Number.isFinite(ms) || ms < 0 || ms > MAX_RUNTIME_MS) {
+      unavailable = true;
+      return null;
+    }
+    return ms;
+  };
+  const boolean = (callback: () => boolean) => {
+    const value = read(callback);
+    if (typeof value === "boolean") return value;
+    unavailable = true;
+    return null;
+  };
+  let committed = false;
+  let readyCount = 0;
+  let readyAfterCommit = 0;
+  let firstReady: number | null = null;
+  let lastReady: number | null = null;
+  let paintCount = 0;
+  let paintAfterCommit = 0;
+  let firstPaint: number | null = null;
+  let lastPaint: number | null = null;
+  let firstAfterCommit: number | null = null;
+  let lastAfterCommit: number | null = null;
+  let lastSize: { width: number; height: number } | null = null;
+  let lastAfterCommitSize: { width: number; height: number } | null = null;
+  let capped = false;
+  const increment = (count: number) => {
+    if (count === MAX_RUNTIME_COUNT) capped = true;
+    return Math.min(count + 1, MAX_RUNTIME_COUNT);
+  };
+  let stopped = false;
+  const listeners: Array<{
+    emitter: NodeJS.EventEmitter;
+    event: string;
+    listener: (...args: unknown[]) => void;
+  }> = [];
+  const dispose = () => {
+    if (stopped) return;
+    stopped = true;
+    for (const { emitter, event, listener } of listeners)
+      read(() => emitter.removeListener(event, listener));
+    listeners.length = 0;
+  };
+  // Keep the exact listener identity for removal, including partially failed setup.
+  const add = (
+    emitter: NodeJS.EventEmitter,
+    event: string,
+    listener: (...args: unknown[]) => void,
+  ) => {
+    const guarded = (...args: unknown[]) => {
+      if (!stopped) read(() => listener(...args));
+    };
+    listeners.push({ emitter, event, listener: guarded });
+    read(() => emitter.on(event, guarded));
+  };
+  add(contents, "did-navigate", (_event, url) => {
+    committed = false;
+    if (typeof url === "string")
+      committed = options.isOwnedTarget(url) === true;
+  });
+  add(window, "ready-to-show", () => {
+    readyCount = increment(readyCount);
+    if (committed) readyAfterCommit = increment(readyAfterCommit);
+    const ms = elapsed();
+    if (readyCount === 1) firstReady = ms;
+    lastReady = ms;
+  });
+  add(contents, "paint", (_event, _dirtyRect, image) => {
+    paintCount = increment(paintCount);
+    const ms = elapsed();
+    if (paintCount === 1) firstPaint = ms;
+    lastPaint = ms;
+    if (committed) {
+      paintAfterCommit = increment(paintAfterCommit);
+      if (paintAfterCommit === 1) firstAfterCommit = ms;
+      lastAfterCommit = ms;
+    }
+    // Never copy pixels, encode, sample, or retain this NativeImage.
+    const native = image as Pick<Electron.NativeImage, "isEmpty" | "getSize">;
+    if (native.isEmpty()) return;
+    const { width, height } = native.getSize();
+    if (
+      ![width, height].every(
+        (value) =>
+          Number.isInteger(value) && value > 0 && value <= MAX_PAINT_DIMENSION,
+      )
+    ) {
+      unavailable = true;
+      return;
+    }
+    lastSize = { width, height };
+    if (committed) lastAfterCommitSize = { width, height };
+  });
+  add(window, "closed", dispose);
+  add(contents, "destroyed", dispose);
+  if (unavailable) dispose();
+  const snapshot = (): FixtureRuntimeReceipt => {
+    const isOffscreen = boolean(() => contents.isOffscreen());
+    const isPainting =
+      isOffscreen === true ? boolean(() => contents.isPainting()) : null;
+    let frameRate: number | null = null;
+    if (isOffscreen === true) {
+      const rate = read(() => contents.getFrameRate());
+      if (
+        typeof rate === "number" &&
+        Number.isInteger(rate) &&
+        rate >= 1 &&
+        rate <= 240
+      )
+        frameRate = rate;
+      else unavailable = true;
+    }
+    const windowDestroyed = boolean(() => window.isDestroyed());
+    const contentsDestroyed = boolean(() => contents.isDestroyed());
+    const loading = boolean(() => contents.isLoading());
+    const mainFrameLoading = boolean(() => contents.isLoadingMainFrame());
+    return {
+      isOffscreen,
+      isPainting,
+      frameRate,
+      windowDestroyed,
+      contentsDestroyed,
+      loading,
+      mainFrameLoading,
+      ownedNavigationCommitted: committed,
+      readyToShowCount: readyCount,
+      readyAfterOwnedCommitCount: readyAfterCommit,
+      firstReadyMs: firstReady,
+      lastReadyMs: lastReady,
+      paintCount,
+      paintAfterOwnedCommitCount: paintAfterCommit,
+      firstPaintMs: firstPaint,
+      lastPaintMs: lastPaint,
+      firstPaintAfterOwnedCommitMs: firstAfterCommit,
+      lastPaintAfterOwnedCommitMs: lastAfterCommit,
+      lastNonemptyPaintSize: lastSize,
+      lastNonemptyPaintAfterOwnedCommitSize: lastAfterCommitSize,
+      countsCapped: capped,
+      unavailable,
+    };
+  };
+  const receipts: FixtureRuntimeObservation = {
+    constructed: snapshot(),
+    preCapture: null,
+    settled: null,
+  };
+  return {
+    receipts,
+    beforeCapture: () => {
+      receipts.preCapture = snapshot();
+    },
+    settle: () => {
+      if (receipts.settled === null) receipts.settled = snapshot();
+      dispose();
+    },
+    dispose,
   };
 }
 
@@ -178,6 +396,104 @@ const viewport = (v: unknown, dpr = false): boolean =>
     v,
     dpr ? ["width", "height", "deviceScaleFactor"] : ["width", "height"],
   ) && Object.values(v).every(number);
+const boundedInteger = (value: unknown, min: number, max: number) =>
+  typeof value === "number" &&
+  Number.isInteger(value) &&
+  value >= min &&
+  value <= max;
+const runtimeReceipt = (value: unknown): boolean => {
+  if (
+    !keys(value, [
+      "isOffscreen",
+      "isPainting",
+      "frameRate",
+      "windowDestroyed",
+      "contentsDestroyed",
+      "loading",
+      "mainFrameLoading",
+      "ownedNavigationCommitted",
+      "readyToShowCount",
+      "readyAfterOwnedCommitCount",
+      "firstReadyMs",
+      "lastReadyMs",
+      "paintCount",
+      "paintAfterOwnedCommitCount",
+      "firstPaintMs",
+      "lastPaintMs",
+      "firstPaintAfterOwnedCommitMs",
+      "lastPaintAfterOwnedCommitMs",
+      "lastNonemptyPaintSize",
+      "lastNonemptyPaintAfterOwnedCommitSize",
+      "countsCapped",
+      "unavailable",
+    ])
+  )
+    return false;
+  const booleans = [
+    value.isOffscreen,
+    value.isPainting,
+    value.windowDestroyed,
+    value.contentsDestroyed,
+    value.loading,
+    value.mainFrameLoading,
+  ];
+  const times = [
+    value.firstReadyMs,
+    value.lastReadyMs,
+    value.firstPaintMs,
+    value.lastPaintMs,
+    value.firstPaintAfterOwnedCommitMs,
+    value.lastPaintAfterOwnedCommitMs,
+  ];
+  const size = (v: unknown) =>
+    v === null ||
+    (keys(v, ["width", "height"]) &&
+      Object.values(v).every((n) => boundedInteger(n, 1, MAX_PAINT_DIMENSION)));
+  return (
+    booleans.every((v) => v === null || typeof v === "boolean") &&
+    [
+      value.ownedNavigationCommitted,
+      value.countsCapped,
+      value.unavailable,
+    ].every((v) => typeof v === "boolean") &&
+    times.every(
+      (v) =>
+        v === null ||
+        (number(v) && (v as number) >= 0 && (v as number) <= MAX_RUNTIME_MS),
+    ) &&
+    [
+      value.readyToShowCount,
+      value.readyAfterOwnedCommitCount,
+      value.paintCount,
+      value.paintAfterOwnedCommitCount,
+    ].every((v) => boundedInteger(v, 0, MAX_RUNTIME_COUNT)) &&
+    (value.readyAfterOwnedCommitCount as number) <=
+      (value.readyToShowCount as number) &&
+    (value.paintAfterOwnedCommitCount as number) <=
+      (value.paintCount as number) &&
+    size(value.lastNonemptyPaintSize) &&
+    size(value.lastNonemptyPaintAfterOwnedCommitSize) &&
+    (value.frameRate === null || boundedInteger(value.frameRate, 1, 240)) &&
+    (value.isOffscreen === true ||
+      (value.isPainting === null && value.frameRate === null)) &&
+    (value.unavailable === true ||
+      [
+        value.isOffscreen,
+        value.windowDestroyed,
+        value.contentsDestroyed,
+        value.loading,
+        value.mainFrameLoading,
+      ].every((v) => v !== null)) &&
+    (value.unavailable === true ||
+      value.isOffscreen !== true ||
+      (value.isPainting !== null && value.frameRate !== null))
+  );
+};
+const runtimeObservation = (value: unknown): boolean =>
+  keys(value, ["constructed", "preCapture", "settled"]) &&
+  runtimeReceipt(value.constructed) &&
+  (value.preCapture === null || runtimeReceipt(value.preCapture)) &&
+  (value.settled === null || runtimeReceipt(value.settled));
 export function parseNativeFixtureRequest(
   value: unknown,
 ):
@@ -217,6 +533,7 @@ const diagnostic = (v: unknown): boolean =>
     "forcedScaleFactor",
     "constructed",
     "atCapture",
+    "runtime",
     "factsViewport",
     "png",
     "phase",
@@ -248,6 +565,9 @@ const diagnostic = (v: unknown): boolean =>
     Object.values(v.constructor).every(nullableNumber) &&
     measurement(v.constructed) &&
     measurement(v.atCapture) &&
+    (v.runtime === null
+      ? v.observationUnavailable === true
+      : runtimeObservation(v.runtime)) &&
     (v.factsViewport === null ||
       (keys(v.factsViewport, ["width", "height", "deviceScaleFactor"]) &&
         Object.values(v.factsViewport).every(nullableNumber))) &&

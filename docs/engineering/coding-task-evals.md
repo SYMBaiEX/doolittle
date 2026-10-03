@@ -174,7 +174,13 @@ local macOS and hosted Linux are separate checks; Windows coverage is not implie
 The hosted cold-capture regression uses the product's constructor policy with
 no fixture backend override, at fixed display scales 1, 1.25, 1.5 and 2. Each of
 five cases runs three times in fresh owned Electron processes, with complete
-first, one capture and no retries, warmup or paint observer. Native Linux test
+first, one capture and no retries or warmup. The fixture records bounded runtime
+snapshots and passive ready/paint metadata without retaining paint images or
+waiting on those events. Post-navigation paint chronology does not attest frame
+content or successful readback, and observer timing can perturb an outcome. A
+passing observer-arm sample alone does not prove a reliability fix. Synthetic
+PNG/JSON attachments from passing tests are retained in the focused HTML report
+under `var/playwright/rendered-report`, without opening a browser. Native Linux test
 startup explicitly disables the process sandbox; these offline synthetic
 results do not establish production sandbox parity, Wayland/multi-display
 coverage, agent quality or end-to-end performance. Historical backend-control

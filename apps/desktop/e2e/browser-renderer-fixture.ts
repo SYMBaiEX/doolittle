@@ -22,7 +22,9 @@ import {
 import {
   type ActualCaptureBackend,
   actualFixtureCaptureBackend,
+  type FixtureRuntimeObservation,
   fixtureWindowOptions,
+  installFixtureRuntimeObservation,
   installNativeFixtureShutdown,
   parseNativeFixtureRequest,
   resolveFixtureCaptureBackend,
@@ -89,6 +91,7 @@ interface WindowDiagnostic {
   forcedScaleFactor: number | null;
   constructed: WindowMeasurement | null;
   atCapture: WindowMeasurement | null;
+  runtime: FixtureRuntimeObservation | null;
   factsViewport: {
     width: number | null;
     height: number | null;
@@ -175,6 +178,7 @@ function measurement(
 function observeExistingCapture(
   window: BrowserWindow,
   diagnostic: WindowDiagnostic,
+  runtime: ReturnType<typeof installFixtureRuntimeObservation> | null,
 ): void {
   const contents = window.webContents;
   const execute = contents.executeJavaScript;
@@ -222,11 +226,13 @@ function observeExistingCapture(
           },
           () => {
             if (phase) diagnostic.failedPhase = phase;
+            runtime?.dispose();
           },
         );
         return pending;
       } catch (error) {
         if (phase) diagnostic.failedPhase = phase;
+        runtime?.dispose();
         throw error;
       }
     };
@@ -240,6 +246,7 @@ function observeExistingCapture(
     ) {
       diagnostic.calls.capturePage++;
       diagnostic.phase = "capture-page";
+      runtime?.beforeCapture();
       diagnostic.atCapture = observe(diagnostic, () =>
         measurement(window, diagnostic),
       );
@@ -249,6 +256,7 @@ function observeExistingCapture(
         });
         void pending.then(
           (image) => {
+            runtime?.settle();
             observe(diagnostic, () => {
               if (observedImages.has(image)) return;
               observedImages.add(image);
@@ -290,11 +298,13 @@ function observeExistingCapture(
           },
           () => {
             diagnostic.failedPhase = "capture-page";
+            runtime?.settle();
           },
         );
         return pending;
       } catch (error) {
         diagnostic.failedPhase = "capture-page";
+        runtime?.settle();
         throw error;
       }
     };
@@ -431,11 +441,16 @@ globalThis.browserRendererFixture = (async () => {
   });
   let bridge: BrowserRenderBridge | undefined;
   let windowDiagnostic: WindowDiagnostic | undefined;
+  let runtimeObserver: ReturnType<
+    typeof installFixtureRuntimeObservation
+  > | null = null;
+  let ownedMode: RasterCase | undefined;
   let expireAfterPng = false;
   let disposed = false;
   const dispose = async () => {
     if (disposed) return;
     disposed = true;
+    runtimeObserver?.dispose();
     await bridge?.dispose();
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -479,6 +494,7 @@ globalThis.browserRendererFixture = (async () => {
           forcedScaleFactor: null,
           constructed: null,
           atCapture: null,
+          runtime: null,
           factsViewport: null,
           png: null,
           phase: null,
@@ -504,7 +520,21 @@ globalThis.browserRendererFixture = (async () => {
         diagnostic.constructed = observe(diagnostic, () =>
           measurement(window, diagnostic),
         );
-        observeExistingCapture(window, diagnostic);
+        runtimeObserver = observe(diagnostic, () =>
+          installFixtureRuntimeObservation({
+            window,
+            isOwnedTarget(value) {
+              const url = new URL(value);
+              return (
+                url.origin === origin &&
+                url.pathname === "/" &&
+                url.searchParams.get("case") === ownedMode
+              );
+            },
+          }),
+        );
+        diagnostic.runtime = runtimeObserver?.receipts ?? null;
+        observeExistingCapture(window, diagnostic, runtimeObserver);
         windowDiagnostic = diagnostic;
         window.on("closed", () => {
           diagnostic.closed = true;
@@ -543,6 +573,7 @@ globalThis.browserRendererFixture = (async () => {
           : undefined;
       },
       async capture(mode, options) {
+        ownedMode = mode;
         expireAfterPng = options?.expireAfterPng === true;
         const startedAt = Date.now();
         const failed = async (

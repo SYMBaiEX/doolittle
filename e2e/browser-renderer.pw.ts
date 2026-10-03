@@ -123,6 +123,8 @@ for (const mode of [
             null,
           requestedBackend: captureBackend,
           requestedScale: captureScale,
+          paintObservation:
+            "passive-metadata-only-no-frame-content-attestation",
           nativeLinuxNoSandbox:
             captureTransport === "native" && process.platform === "linux",
           order: captureOrder,
@@ -169,6 +171,63 @@ for (const mode of [
               );
           }
         };
+        const assertRuntimeReceipts = () => {
+          const observed =
+            outcome.capture?.diagnostic ?? outcome.failure?.window;
+          if (!observed?.runtime) {
+            expect(observed?.observationUnavailable).toBe(true);
+            return;
+          }
+          for (const receipt of [
+            observed.runtime.constructed,
+            observed.runtime.preCapture,
+            observed.runtime.settled,
+          ]) {
+            expect(receipt).not.toBeNull();
+            if (!receipt) continue;
+            if (receipt.isOffscreen === null)
+              expect(receipt.unavailable).toBe(true);
+            else
+              expect(receipt.isOffscreen).toBe(expectedBackend === "offscreen");
+            for (const value of [
+              receipt.windowDestroyed,
+              receipt.contentsDestroyed,
+              receipt.loading,
+              receipt.mainFrameLoading,
+            ]) {
+              if (value === null) expect(receipt.unavailable).toBe(true);
+              else expect(typeof value).toBe("boolean");
+            }
+            if (receipt.isOffscreen !== true) {
+              expect(receipt.isPainting).toBeNull();
+              expect(receipt.frameRate).toBeNull();
+            } else {
+              if (receipt.isPainting === null || receipt.frameRate === null)
+                expect(receipt.unavailable).toBe(true);
+              if (receipt.frameRate !== null) {
+                expect(receipt.frameRate).toBeGreaterThanOrEqual(1);
+                expect(receipt.frameRate).toBeLessThanOrEqual(240);
+              }
+            }
+            for (const count of [
+              receipt.readyToShowCount,
+              receipt.readyAfterOwnedCommitCount,
+              receipt.paintCount,
+              receipt.paintAfterOwnedCommitCount,
+            ]) {
+              expect(Number.isInteger(count)).toBe(true);
+              expect(count).toBeGreaterThanOrEqual(0);
+              expect(count).toBeLessThanOrEqual(1000);
+            }
+            // Zero paint/ready events is valid diagnostic evidence, never a gate.
+            expect(receipt.paintAfterOwnedCommitCount).toBeLessThanOrEqual(
+              receipt.paintCount,
+            );
+            expect(receipt.readyAfterOwnedCommitCount).toBeLessThanOrEqual(
+              receipt.readyToShowCount,
+            );
+          }
+        };
         if (expireAfterPng) {
           expect(outcome.capture).toBeNull();
           expect(outcome.failure?.status).toBe(502);
@@ -184,6 +243,7 @@ for (const mode of [
           expect(observed?.png?.ihdr?.width).toBeGreaterThan(0);
           expect(observed?.png?.ihdr?.height).toBeGreaterThan(0);
           assertObservedScale();
+          assertRuntimeReceipts();
           expect(observed?.calls).toEqual({
             executeJavaScript: 2,
             waitForRender: 1,
@@ -213,6 +273,7 @@ for (const mode of [
           pngEncode: 1,
         });
         assertObservedScale();
+        assertRuntimeReceipts();
         expect(capture.diagnostic?.png?.ihdr).toEqual({
           width: capture.width,
           height: capture.height,

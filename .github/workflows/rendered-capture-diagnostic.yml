@@ -46,8 +46,10 @@ jobs:
       # This offline fixture does not boot the agent/API or call providers.
       # Exercise the actual production capture-window policy without a fixture
       # backend override, in independent integer/fractional display-scale jobs.
-      # Complete remains first; each case has one capture and no paint observer,
-      # warmup or retry. The previous onscreen/offscreen experiment is retained
+      # Complete remains first; each case has one capture, with passive runtime
+      # metadata only: no paint pixels, readiness gate, warmup or retry. Observer
+      # timing can perturb results; a passing run alone is not a reliability fix.
+      # The previous onscreen/offscreen experiment is retained
       # in its immutable run evidence; this is the changed product's regression.
       # Native Linux explicitly uses --no-sandbox, so this does not establish
       # production sandbox parity or behavior on other desktop platforms.
@@ -63,6 +65,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cold-capture-evidence-product-scale-${{ matrix.scale }}
-          path: var/playwright/rendered-test-results
+          path: |
+            var/playwright/rendered-test-results
+            var/playwright/rendered-report
           if-no-files-found: warn
           retention-days: 7

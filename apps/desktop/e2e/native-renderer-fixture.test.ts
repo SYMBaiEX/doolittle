@@ -17,6 +17,7 @@ import { captureWindowOptions } from "../src/main/browser-render-window";
 import {
   actualFixtureCaptureBackend,
   fixtureWindowOptions,
+  installFixtureRuntimeObservation,
   installNativeFixtureShutdown,
   nativeFixtureEnvironment,
   parseNativeFixtureOutcome,
@@ -76,6 +77,157 @@ function start(child: SyntheticChild, absent = () => true, signal = vi.fn()) {
   });
 }
 afterEach(() => vi.useRealTimers());
+
+function syntheticRuntime(offscreen = true, now = () => 0) {
+  const contents = Object.assign(new EventEmitter(), {
+    isOffscreen: vi.fn(() => offscreen),
+    isPainting: vi.fn(() => true),
+    getFrameRate: vi.fn(() => 60),
+    isDestroyed: vi.fn(() => false),
+    isLoading: vi.fn(() => false),
+    isLoadingMainFrame: vi.fn(() => false),
+  });
+  const window = Object.assign(new EventEmitter(), {
+    webContents: contents,
+    isDestroyed: vi.fn(() => false),
+  });
+  const observer = installFixtureRuntimeObservation({
+    window: window as unknown as import("electron").BrowserWindow,
+    isOwnedTarget: (url) => url === "owned-synthetic-target",
+    now,
+  });
+  return { contents, window, observer };
+}
+const paintImage = (width = 2560, height = 1440) => ({
+  isEmpty: vi.fn(() => false),
+  getSize: vi.fn(() => ({ width, height })),
+  toPNG: vi.fn(() => {
+    throw new Error("CANARY_PRIVATE");
+  }),
+  toBitmap: vi.fn(() => {
+    throw new Error("CANARY_PRIVATE");
+  }),
+});
+function exampleRuntimeReceipts() {
+  const { observer } = syntheticRuntime();
+  observer.beforeCapture();
+  observer.settle();
+  return observer.receipts;
+}
+
+describe("passive capture runtime receipts", () => {
+  it("keeps three snapshots and tags chronology, not about:blank or frame content", () => {
+    let clock = 100;
+    const { contents, window, observer } = syntheticRuntime(true, () => clock);
+    const image = paintImage();
+    expect(observer.receipts.constructed).toMatchObject({
+      isOffscreen: true,
+      isPainting: true,
+      frameRate: 60,
+      ownedNavigationCommitted: false,
+      paintCount: 0,
+    });
+    clock = 110;
+    contents.emit("did-navigate", {}, "about:blank");
+    contents.emit("paint", {}, {}, image);
+    window.emit("ready-to-show");
+    clock = 120;
+    contents.emit("did-navigate", {}, "owned-synthetic-target");
+    contents.emit("paint", {}, {}, image);
+    observer.beforeCapture();
+    expect(observer.receipts.preCapture).toMatchObject({
+      ownedNavigationCommitted: true,
+      paintCount: 2,
+      paintAfterOwnedCommitCount: 1,
+      readyToShowCount: 1,
+      readyAfterOwnedCommitCount: 0,
+      firstPaintMs: 10,
+      lastPaintMs: 20,
+      firstPaintAfterOwnedCommitMs: 20,
+      lastNonemptyPaintAfterOwnedCommitSize: { width: 2560, height: 1440 },
+    });
+    clock = 125;
+    contents.emit("paint", {}, {}, image);
+    observer.settle();
+    expect(observer.receipts.settled).toMatchObject({
+      paintCount: 3,
+      paintAfterOwnedCommitCount: 2,
+      lastPaintMs: 25,
+      unavailable: false,
+    });
+    expect(observer.receipts.preCapture?.paintCount).toBe(2);
+    expect(observer.receipts.constructed.paintCount).toBe(0);
+    expect(image.toPNG).not.toHaveBeenCalled();
+    expect(image.toBitmap).not.toHaveBeenCalled();
+    expect(JSON.stringify(observer.receipts)).not.toContain(
+      "owned-synthetic-target",
+    );
+    expect(JSON.stringify(observer.receipts)).not.toContain("about:blank");
+    expect(contents.listenerCount("paint")).toBe(0);
+    expect(contents.listenerCount("did-navigate")).toBe(0);
+    expect(contents.listenerCount("destroyed")).toBe(0);
+    expect(window.listenerCount("ready-to-show")).toBe(0);
+    expect(window.listenerCount("closed")).toBe(0);
+    contents.emit("paint", {}, {}, image);
+    observer.settle();
+    expect(observer.receipts.settled?.paintCount).toBe(3);
+  });
+  it("does not query painting/frame rate on an onscreen window", () => {
+    const { contents, observer } = syntheticRuntime(false);
+    observer.beforeCapture();
+    observer.settle();
+    expect(contents.isPainting).not.toHaveBeenCalled();
+    expect(contents.getFrameRate).not.toHaveBeenCalled();
+    expect(observer.receipts.settled).toMatchObject({
+      isOffscreen: false,
+      isPainting: null,
+      frameRate: null,
+      unavailable: false,
+    });
+  });
+  it.each(["close", "contents-destroyed", "dispose"])(
+    "removes every observer on %s without fabricating native settlement",
+    (end) => {
+      const { contents, window, observer } = syntheticRuntime();
+      if (end === "close") window.emit("closed");
+      else if (end === "contents-destroyed") contents.emit("destroyed");
+      else observer.dispose();
+      expect(contents.eventNames()).toEqual([]);
+      expect(window.eventNames()).toEqual([]);
+      expect(observer.receipts.settled).toBeNull();
+    },
+  );
+  it("bounds metadata and never exports accessor/native error canaries", () => {
+    let clock = 0;
+    const { contents, observer } = syntheticRuntime(true, () => clock);
+    const image = paintImage();
+    for (let count = 0; count < 1002; count++)
+      contents.emit("paint", {}, {}, image);
+    contents.isPainting.mockImplementation(() => {
+      throw new Error("CANARY_PRIVATE");
+    });
+    const badImage = Object.defineProperty({}, "isEmpty", {
+      get() {
+        throw new Error("CANARY_PRIVATE");
+      },
+    });
+    expect(() => contents.emit("paint", {}, {}, badImage)).not.toThrow();
+    clock = Infinity;
+    contents.emit("paint", {}, {}, paintImage(1e9, -1));
+    observer.beforeCapture();
+    observer.settle();
+    expect(observer.receipts.settled).toMatchObject({
+      paintCount: 1000,
+      countsCapped: true,
+      isPainting: null,
+      unavailable: true,
+      lastPaintMs: null,
+    });
+    expect(JSON.stringify(observer.receipts)).not.toContain("CANARY_PRIVATE");
+    expect(image.toPNG).not.toHaveBeenCalled();
+    expect(image.toBitmap).not.toHaveBeenCalled();
+  });
+});
 
 describe("fixture-only rendering backend", () => {
   const base = Object.freeze({
@@ -204,6 +356,7 @@ describe("fixture-only rendering backend", () => {
     forcedScaleFactor: 2,
     constructed: null,
     atCapture: null,
+    runtime: exampleRuntimeReceipts(),
     factsViewport: null,
     png: null,
     phase: "capture-page",
@@ -270,6 +423,87 @@ describe("fixture-only rendering backend", () => {
         }),
       ).toBeNull();
     }
+  });
+  it("rejects unbounded, missing and private runtime receipts across both IPC outcomes", () => {
+    const sample = window.runtime.constructed;
+    const { runtime: _runtime, ...missing } = window;
+    const invalid = [
+      missing,
+      { ...window, runtime: { ...window.runtime, raw: "CANARY_PRIVATE" } },
+      ...[
+        { isOffscreen: "CANARY_PRIVATE" },
+        { paintCount: 1001 },
+        { paintCount: -1 },
+        { readyToShowCount: 0.5 },
+        { lastPaintMs: Infinity },
+        { firstReadyMs: -1 },
+        { lastReadyMs: 60_001 },
+        { frameRate: 241 },
+        { isPainting: null },
+        { isOffscreen: false },
+        { paintAfterOwnedCommitCount: 1 },
+        { lastNonemptyPaintSize: { width: 16_385, height: 1 } },
+        {
+          lastNonemptyPaintSize: { width: 1, height: 1, raw: "CANARY_PRIVATE" },
+        },
+      ].map((delta) => ({
+        ...window,
+        runtime: { ...window.runtime, constructed: { ...sample, ...delta } },
+      })),
+    ];
+    for (const diagnostic of invalid) {
+      expect(
+        parseNativeFixtureOutcome({
+          type: "captured",
+          capture: { ...capture, diagnostic },
+        }),
+      ).toBeNull();
+      expect(
+        parseNativeFixtureOutcome({
+          type: "capture-failed",
+          failure: { ...failure, window: diagnostic },
+        }),
+      ).toBeNull();
+    }
+  });
+  it("retains explicit unavailable states without claiming successful observations", () => {
+    const { contents, observer } = syntheticRuntime();
+    contents.isOffscreen.mockImplementation(() => {
+      throw new Error("CANARY_PRIVATE");
+    });
+    observer.beforeCapture();
+    observer.settle();
+    const diagnostic = { ...window, runtime: observer.receipts };
+    const result = parseNativeFixtureOutcome({
+      type: "captured",
+      capture: { ...capture, diagnostic },
+    });
+    expect(result?.capture?.diagnostic?.runtime?.settled).toMatchObject({
+      isOffscreen: null,
+      isPainting: null,
+      frameRate: null,
+      unavailable: true,
+    });
+    expect(JSON.stringify(result)).not.toContain("CANARY_PRIVATE");
+    expect(
+      parseNativeFixtureOutcome({
+        type: "captured",
+        capture: {
+          ...capture,
+          diagnostic: {
+            ...window,
+            runtime: null,
+            observationUnavailable: true,
+          },
+        },
+      }),
+    ).not.toBeNull();
+    expect(
+      parseNativeFixtureOutcome({
+        type: "captured",
+        capture: { ...capture, diagnostic: { ...window, runtime: null } },
+      }),
+    ).toBeNull();
   });
 });
 
