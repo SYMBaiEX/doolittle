@@ -10,7 +10,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { StringDecoder } from "node:string_decoder";
@@ -20,7 +20,22 @@ import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import { EVALS_EVALUATOR_VERSION } from "../evaluator-version";
 import { createEvalRuntimeEnvironment } from "../runtime-environment";
 import type { HeadlessEvalSuite } from "./cases";
+import {
+  type AdvertisedRoute,
+  advertisedRoute,
+  type HarnessTiming,
+  type RouteEvidence,
+  readRequestedRouteEvidence,
+  type TaskHarnessTiming,
+} from "./measurement";
 import { readHeadlessModelUsage } from "./model-usage";
+import {
+  preparePrivateReportDirectory,
+  privateReportFilename,
+  privateReportPath,
+  verifyPrivateReportDirectory,
+  writePrivateReportFile,
+} from "./private-report";
 import {
   executeHeadlessChild,
   type HeadlessExecResult,
@@ -58,6 +73,8 @@ export interface HeadlessEvalRunResult {
     execInvocations: number;
     gradingMs: number;
   };
+  harnessTiming: TaskHarnessTiming;
+  routeEvidence: RouteEvidence;
   /** Provider-reported call timings/token counts; null means none were emitted. */
   modelUsage: import("./model-usage").HeadlessModelUsage | null;
   traceSummary: import("./trace-summary").HeadlessTraceSummary;
@@ -70,15 +87,17 @@ export interface HeadlessEvalRunResult {
 }
 
 export interface HeadlessEvalReport {
-  schemaVersion: 4;
+  schemaVersion: 5;
   evaluatorVersion: string;
   suite: { id: string; version: number; title: string };
   routeLabel: string;
-  route: {
-    provider: string;
-    model: string;
-    reasoningEffort: string;
+  route: AdvertisedRoute;
+  routeDeclaration: {
+    provenance: "product-default";
+    expectation: "fresh-isolated-settings-default";
+    effectiveAttestation: "unavailable";
   };
+  harnessTiming: HarnessTiming;
   source: { revision: string | null; workingTreeClean: boolean | null };
   createdAt: string;
   executionOverrides: string[];
@@ -115,6 +134,8 @@ export interface RunHeadlessEvalOptions {
   wallNow?: () => number;
   monotonicNow?: () => number;
   execute?: HeadlessExecutor;
+  /** Optional measurement write is best effort and must not change grading. */
+  writeMeasurementReceipt?: (path: string, bytes: string) => void;
 }
 
 const defaultRepoRoot = resolve(
@@ -215,16 +236,28 @@ function executionErrorCode(
   signal: NodeJS.Signals | null,
 ): string {
   const code = (error as NodeJS.ErrnoException | undefined)?.code;
-  if (typeof code === "string") return code;
-  if (signal) return `signal:${signal}`;
+  if (
+    typeof code === "string" &&
+    [
+      "ENOENT",
+      "EACCES",
+      "EPERM",
+      "EIO",
+      "EPIPE",
+      "ETIMEDOUT",
+      "ERR_CHILD_PROCESS_STDIO_MAXBUFFER",
+      "ERR_HEADLESS_CLEANUP_UNCONFIRMED",
+    ].includes(code)
+  )
+    return code;
+  if (
+    signal &&
+    ["SIGINT", "SIGTERM", "SIGKILL", "SIGHUP", "SIGABRT", "SIGSEGV"].includes(
+      signal,
+    )
+  )
+    return `signal:${signal}`;
   return "headless-exec-failed";
-}
-
-function reportDirectory(explicit?: string): string {
-  if (explicit?.trim()) return resolve(explicit);
-  const stateHome =
-    process.env.XDG_STATE_HOME?.trim() || join(homedir(), ".local", "state");
-  return join(stateHome, "doolittle", "evals", "headless");
 }
 
 function isSafeTaskId(taskId: string): boolean {
@@ -310,11 +343,15 @@ function readSourceIdentity(repoRoot: string): {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
-    const status = execFileSync("git", ["status", "--porcelain"], {
-      cwd: repoRoot,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    });
+    const status = execFileSync(
+      "git",
+      ["--no-optional-locks", "status", "--porcelain"],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
     return {
       revision: /^[a-f0-9]{40}$/i.test(revision) ? revision : null,
       workingTreeClean: status.length === 0,
@@ -331,6 +368,7 @@ export async function runHeadlessEvalSuite(
   report: HeadlessEvalReport;
   reportPath: string;
   exitCode: number;
+  measurementReceiptStatus: "written" | "unavailable";
 }> {
   const now = options.now ?? (() => new Date());
   const wallNow = options.wallNow ?? Date.now;
@@ -366,6 +404,9 @@ export async function runHeadlessEvalSuite(
   }
 
   const suiteStartedAt = monotonicNow();
+  // Refuse unsafe persistence before dispatching any provider-backed child.
+  privateReportFilename("2000-01-01T00:00:00.000Z", suite.id, suite.version);
+  const reportDirectory = preparePrivateReportDirectory(options.reportDir);
   const sourceAtStart = readSourceIdentity(repoRoot);
   const cloudResearchOptedIn = Boolean(
     options.enableConfiguredCloudResearch &&
@@ -377,7 +418,9 @@ export async function runHeadlessEvalSuite(
   const runRoot = mkdtempSync(join(tmpdir(), "doolittle-headless-eval-"));
   const runIdentity = ownedDirectory(runRoot);
   const taskIdentities = new Map<string, OwnedDirectory>();
+  const preflightMs = durationMs(suiteStartedAt, monotonicNow());
   let cleanupBlocked = false;
+  let finalCleanupComplete = false;
   let childCleanupSafe = true;
   const runs: HeadlessEvalRunResult[] = [];
   let cleanupDurationMs = 0;
@@ -416,6 +459,7 @@ export async function runHeadlessEvalSuite(
       let execToFirstModelRequestMs: number | null = null;
       let execToFirstAssistantTextMs: number | null = null;
       let execInvocations = 0;
+      let responseProcessingMs = 0;
       let finalError: Error | undefined;
       let finalSignal: NodeJS.Signals | null = null;
       let completed = true;
@@ -483,6 +527,7 @@ export async function runHeadlessEvalSuite(
           },
         );
         const execEndedAt = monotonicNow();
+        const responseProcessingStartedAt = execEndedAt;
         childCleanupSafe = child.cleanupSafe === true;
         if (!childCleanupSafe) {
           cleanupBlocked = true;
@@ -549,6 +594,10 @@ export async function runHeadlessEvalSuite(
           child.status === 0 &&
           cliResult.ok === true &&
           response.length > 0;
+        responseProcessingMs += durationMs(
+          responseProcessingStartedAt,
+          monotonicNow(),
+        );
         if (!completed) break;
       }
 
@@ -556,6 +605,31 @@ export async function runHeadlessEvalSuite(
       const response = responses.at(-1) ?? "";
       const modelUsageResult = readHeadlessModelUsage(dataDir);
       const traceSummary = readHeadlessTraceSummary(dataDir);
+      let routeEvidence: RouteEvidence;
+      try {
+        if (!childCleanupSafe) throw new Error();
+        verifyOwnedTaskRoot(runIdentity, taskIdentity);
+        routeEvidence = readRequestedRouteEvidence(dataDir);
+      } catch {
+        // Optional projection never reads foreign/live state or changes grading.
+        routeEvidence = {
+          provenance: "doolittle-model-request-journal",
+          coverage: "parent-turn-requests-only",
+          status: "unavailable",
+          journalAvailable: false,
+          accepted: 0,
+          rejected: 0,
+          truncated: false,
+          requested: [],
+          effective: {
+            status: "unavailable",
+            provider: null,
+            modelSha256: null,
+            reasoningEffort: null,
+          },
+          worker: { status: "unavailable", provenance: null },
+        };
+      }
       options.onActionLabels?.(
         task.id,
         readHeadlessActionLabelDiagnostic(dataDir),
@@ -596,6 +670,14 @@ export async function runHeadlessEvalSuite(
           execInvocations,
           gradingMs,
         },
+        harnessTiming: {
+          coverage: "direct-phases-only",
+          setupMs: taskSetupMs,
+          responseProcessingMs,
+          gradingMs,
+          cleanupMs: 0,
+        },
+        routeEvidence,
         modelUsage: modelUsageResult.usage,
         traceSummary,
         ...(response ? { responseSha256: sha256(response) } : {}),
@@ -616,7 +698,11 @@ export async function runHeadlessEvalSuite(
       const cleanupStartedAt = monotonicNow();
       removeOwnedTaskRoot(runIdentity, taskIdentity);
       taskIdentities.delete(taskRoot);
-      cleanupDurationMs += monotonicNow() - cleanupStartedAt;
+      const taskCleanupMs = durationMs(cleanupStartedAt, monotonicNow());
+      cleanupDurationMs += taskCleanupMs;
+      const latestRun = runs.at(-1);
+      if (!latestRun) throw new Error("Missing task measurement.");
+      latestRun.harnessTiming.cleanupMs = taskCleanupMs;
     }
 
     const objectiveChecks = runs.flatMap((run) => run.checks);
@@ -624,6 +710,7 @@ export async function runHeadlessEvalSuite(
       0,
       Math.round(monotonicNow() - suiteStartedAt - cleanupDurationMs),
     );
+    const reportPreparationStartedAt = monotonicNow();
     const sourceAtEnd = readSourceIdentity(repoRoot);
     const sourceRevisionMatches =
       sourceAtStart.revision !== null &&
@@ -637,16 +724,26 @@ export async function runHeadlessEvalSuite(
     };
     const createdAt = now().toISOString();
     const report: HeadlessEvalReport = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       evaluatorVersion: EVALS_EVALUATOR_VERSION,
       suite: { id: suite.id, version: suite.version, title: suite.title },
-      routeLabel:
-        options.routeLabel?.trim() ||
-        `${DEFAULT_MODEL_ROUTE.provider}/${DEFAULT_MODEL_ROUTE.model}:${DEFAULT_MODEL_ROUTE.reasoningEffort}`,
-      route: {
-        provider: DEFAULT_MODEL_ROUTE.provider,
-        model: DEFAULT_MODEL_ROUTE.model,
-        reasoningEffort: DEFAULT_MODEL_ROUTE.reasoningEffort,
+      routeLabel: options.routeLabel?.trim()
+        ? `sha256:${sha256(options.routeLabel.trim())}`
+        : "product-default",
+      route: advertisedRoute(DEFAULT_MODEL_ROUTE),
+      routeDeclaration: {
+        provenance: "product-default",
+        expectation: "fresh-isolated-settings-default",
+        effectiveAttestation: "unavailable",
+      },
+      harnessTiming: {
+        coverage: "direct-phases-only",
+        preflightMs,
+        reportPreparationMs: 0,
+        finalCleanupMs: 0,
+        serializationMs: null,
+        persistenceMs: null,
+        untimed: "inter-phase-bookkeeping-and-receipt-write",
       },
       source,
       createdAt,
@@ -670,31 +767,69 @@ export async function runHeadlessEvalSuite(
       runs,
     };
 
-    const directory = reportDirectory(options.reportDir);
-    mkdirSync(directory, { recursive: true, mode: 0o700 });
-    const reportPath = join(
-      directory,
-      `${createdAt.replaceAll(/[:.]/g, "-")}-${suite.id}-v${suite.version}-${randomUUID()}.json`,
+    const reportLeaf = privateReportFilename(
+      createdAt,
+      suite.id,
+      suite.version,
     );
+    const reportPath = privateReportPath(reportDirectory, reportLeaf);
     // Refuse persistence as well as deletion if the owned root was replaced
     // during callbacks/report preparation; never publish a shortened success.
     verifyEmptyRunRoot(runIdentity);
-    writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, {
-      mode: 0o600,
-      flag: "wx",
-    });
+    report.harnessTiming.reportPreparationMs = durationMs(
+      reportPreparationStartedAt,
+      monotonicNow(),
+    );
+    const finalCleanupStartedAt = monotonicNow();
+    verifyOwnedDirectory(runIdentity);
+    if (readdirSync(runRoot).length !== 0)
+      throw new Error("Owned run root was not empty at final cleanup.");
+    rmdirSync(runRoot);
+    finalCleanupComplete = true;
+    report.harnessTiming.finalCleanupMs = durationMs(
+      finalCleanupStartedAt,
+      monotonicNow(),
+    );
+    const serializationStartedAt = monotonicNow();
+    const reportBytes = `${JSON.stringify(report, null, 2)}\n`;
+    const serializationMs = durationMs(serializationStartedAt, monotonicNow());
+    const persistenceStartedAt = monotonicNow();
+    writePrivateReportFile(reportDirectory, reportLeaf, reportBytes);
+    const persistenceMs = durationMs(persistenceStartedAt, monotonicNow());
+    let measurementReceiptStatus: "written" | "unavailable" = "unavailable";
+    try {
+      const receiptLeaf = `${reportLeaf}.measurement.json`;
+      const receiptBytes = `${JSON.stringify({ schemaVersion: 1, provenance: "headless-harness-phase-clocks", reportSchemaVersion: 5, evaluatorVersion: EVALS_EVALUATOR_VERSION, reportSha256: sha256(reportBytes), serializationMs, persistenceMs, coverage: "completed-report-write-only", receiptWriteMs: null })}\n`;
+      verifyPrivateReportDirectory(reportDirectory);
+      if (options.writeMeasurementReceipt) {
+        // Trusted injection seam; the default writer always uses descriptors.
+        options.writeMeasurementReceipt(
+          privateReportPath(reportDirectory, receiptLeaf),
+          receiptBytes,
+        );
+        verifyPrivateReportDirectory(reportDirectory);
+      } else writePrivateReportFile(reportDirectory, receiptLeaf, receiptBytes);
+      measurementReceiptStatus = "written";
+    } catch {
+      /* Optional telemetry may not corrupt grading or expose an error. */
+    }
     const allPassed =
       report.summary.completed === report.summary.total &&
       report.summary.objectiveChecksPassed ===
         report.summary.objectiveChecksTotal;
-    return { report, reportPath, exitCode: allPassed ? 0 : 1 };
+    return {
+      report,
+      reportPath,
+      exitCode: allPassed ? 0 : 1,
+      measurementReceiptStatus,
+    };
   } catch (error) {
     // A refused identity guard or thrown executor must never be followed by
     // an unguarded recursive finally deletion of possibly foreign/live state.
     cleanupBlocked = true;
     throw error;
   } finally {
-    if (!cleanupBlocked && childCleanupSafe) {
+    if (!finalCleanupComplete && !cleanupBlocked && childCleanupSafe) {
       verifyOwnedDirectory(runIdentity);
       for (const taskIdentity of taskIdentities.values())
         verifyOwnedTaskRoot(runIdentity, taskIdentity);

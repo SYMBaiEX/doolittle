@@ -4,7 +4,7 @@ Deterministic evaluation reports do not contain human quality judgments. The
 `eval:review` command saves a separate, owner-only sidecar without editing the
 scored report. It binds to the exact SHA-256 of the report file bytes, its
 suite/schema/creation identity, and each task identity. Coding reports also
-bind each task to its receipt run ID. Headless schema-v4 reports have no run ID;
+bind each task to its receipt run ID. Headless schema-v4/v5 reports have no run ID;
 the task ID plus exact report hash identifies the execution.
 
 Use the [quality checklist](./agent-quality-eval-checklist.md#human-review-rubric)
@@ -65,7 +65,7 @@ review workflow if needed, never in this sidecar. Unknown fields, free text,
 invalid scores, duplicate or missing tasks, mismatched run IDs, critical-score
 contradictions, and altered report bytes are rejected.
 
-Only headless schema v4 and comparison-ready coding schema v1 with task/run IDs
+Only headless schemas v4/v5 and comparison-ready coding schema v1 with task/run IDs
 are supported. Older headless schemas, ad hoc coding reports, and future schema
 versions fail closed until a deliberate contract revision. These ratings are
 descriptive per-task evidence. Do not collapse six distributions to one mean,

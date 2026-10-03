@@ -73,6 +73,9 @@ function main(): number {
       `Execution completion: ${comparison.baseline.executionCompletions}/${comparison.baseline.taskTotal} → ${comparison.candidate.executionCompletions}/${comparison.candidate.taskTotal} (${percent(comparison.executionCompletionDelta)}).`,
     );
     console.log(
+      `Route evidence: ${comparison.routeAttestation}; this comparison does not attest effective model/effort or worker routes.`,
+    );
+    console.log(
       `Objective checks: ${comparison.baseline.checkSuccesses}/${comparison.baseline.checkTotal} → ${comparison.candidate.checkSuccesses}/${comparison.candidate.checkTotal} (${percent(comparison.objectiveCheckSuccessDelta)}).`,
     );
     console.log(
