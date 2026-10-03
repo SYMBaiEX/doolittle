@@ -257,6 +257,30 @@ generic override exemption. Repeat aggregation never mixes the two arms.
 Synthetic tool/schema reductions alone do not prove latency or quality gains;
 keep live failures, repeated timing spread and human review visible.
 
+The October 3 two-pair-per-domain diagnostic did not establish a dependable
+speed gain: coding mean CLI time rose from 75.0465s OFF to 105.214s ON, despite
+lower reported token usage, and both arms failed every research citation
+check. The experiment remains default-off. This is a descriptive small sample,
+not a quality, billing or effective-route conclusion.
+
+In the frozen v3-v6 coding task, `truthful-test-report` only checks a filename
+and verification keyword; the harness independently executes behavior checks.
+Do not promote its pass to original agent-run test or honesty evidence. A
+future stronger original-verification contract must use a new task version;
+historical reports and grading remain unchanged.
+
+The pinned core beta.7 patch repairs one proven citation-loss mechanism:
+generic document `data.url` values are no longer stripped as delivered media
+unless explicitly typed image/video/audio. Named media URL behavior is
+preserved. The public-SDK regression suite is synthetic and network-blocked;
+passing it does not replace post-repair live research and human-quality review.
+
+Task-local journal evidence assumes cooperative, trusted same-UID writers.
+Ownership and descriptor checks do not authenticate rows an evaluated shell
+can rewrite before reading. A content-free projection is not tamper-proof
+execution attestation, and the existing transient task journal may contain
+sanitized action text/output until confirmed cleanup removes owned state.
+
 Aggregate repeat samples only when they use the same schema (v4 or v5), declared
 route, evaluator, suite, task set, objective checks, and clean source revision.
 V5 additionally requires matching available requested-route signatures; mixed

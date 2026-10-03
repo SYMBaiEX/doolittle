@@ -96,6 +96,18 @@ retain failures, and report repeated spread plus human ratings before claiming
 a meaningful improvement. Historical frozen diagnostics are not replacement
 samples or a matched control for this new intervention.
 
+The October 3 same-source diagnostic used two coding and two research pairs
+at clean revision `0ada03f7`, with identical action/input instrumentation and
+no replacement runs. Coding mean CLI time was 75.0465s OFF versus 105.214s ON;
+one pair slowed and the other improved. Reported mean coding tokens decreased
+from 337,456 to 183,999.5. The initial promoted planner's reported input fell
+from about 144,870 to 8,574 tokens, with 15 projected treatment tools; control
+tool/schema projection at that large call was unavailable. These are observed
+provider/input signals, not wire, billing or effective-route attestation.
+Research passed 8/10 checks per arm and failed exact citation grading in all
+four runs. This small descriptive pilot supports retaining the default-off
+policy, not a dependable speed, coherence or quality improvement claim.
+
 ## Current coverage and known limits
 
 `headless-sdk-web-research-v1` is a separate, single-turn public synthetic task,
@@ -131,11 +143,26 @@ value, URL, hash or length is retained. These categories do not normalize the
 answer or relax exact citation grading. Older discarded answers cannot be
 retroactively classified, and a classification is not a behavior repair.
 
+The pinned core beta.7 package patch preserves generic `data.url` document
+references through the SDK's final media sanitizer. Generic URLs count as
+delivered media only with explicit `mediaType: image|video|audio`; named media
+URL fields retain their existing behavior. Eighteen bounded, network-blocked
+public-SDK regression cases cover citation preservation, named/typed media,
+invalid media types and failed/no-delivery controls. This is a source-loss
+repair, not answer reconstruction, citation normalization or relaxed grading.
+Post-repair live repetitions and human review are still required before a
+broader research-quality improvement claim.
+
 The reader pins canonical private task/data directories and checks ordinary
 owned trajectory directories and descriptor-bound non-symlink, single-link
 journal identity before/after bounded reads (2 MiB, 2048 events). This assumes
 quiescent owned processes and trusted same-UID writers; it is not race-proof
 ancestor traversal, independent wire attestation or a hard filesystem-time cap.
+In particular, an evaluated shell with the same OS identity can rewrite a
+task-local journal before the late read. Directory ownership and descriptor
+checks do not authenticate those rows. Do not call this tamper-proof execution
+evidence; a future parent-consumed runtime receipt would address late journal
+substitution, not provide an OS sandbox against malicious same-UID processes.
 SDK search/fetch values are capped at 4000 characters. An otherwise admissible
 search string at exactly that boundary may pass the data-return check while
 recording `sdk-web-search-output-at-cap`; this means at-cap coverage, not proven
@@ -170,6 +197,14 @@ versions rather than treating current alias ambiguity as desirable behavior.
   two-step list structure, avoiding v5's false rejection of numbered plans
   without the literal word `plan` or `step`. None establishes broad conversation,
   coding, or research quality.
+- V3-v6's `truthful-test-report` coding check is a lexical filename plus
+  test/check/verify-word check, not original successful verification evidence.
+  Behavioral assertions run independently in the grader. A 3/3 pass therefore
+  cannot prove that the agent itself ran tests or reported their outcome
+  truthfully. Generic successful shell-action counts also cannot identify a
+  particular verification command. Preserve historical grades; stronger
+  original-run verification contracts require a new task version and remain
+  separate from human honesty review.
 - `coding-harness-v1` has one Next.js/shadcn/Bun build-and-launch task. It is a
   valuable end-to-end acceptance case, not representative coding coverage.
 - Deterministic checks cover observable contracts. Human coherence, grounding,

@@ -1,0 +1,26 @@
+diff --git a/dist/node/index.node.js b/dist/node/index.node.js
+--- a/dist/node/index.node.js
++++ b/dist/node/index.node.js
+@@ -238338,6 +238338,9 @@
+       "url"
+     ]) {
++      // Generic URLs can identify retrieved documents, not delivered media.
++      if (key === "url" && data2.mediaType !== "image" && data2.mediaType !== "video" && data2.mediaType !== "audio")
++        continue;
+       const value = data2[key];
+       if (typeof value === "string" && value.trim()) {
+         urls.add(value.trim());
+       }
+diff --git a/dist/browser/index.browser.js b/dist/browser/index.browser.js
+--- a/dist/browser/index.browser.js
++++ b/dist/browser/index.browser.js
+@@ -168326,6 +168326,9 @@
+       "url"
+     ]) {
++      // Generic URLs can identify retrieved documents, not delivered media.
++      if (key === "url" && data2.mediaType !== "image" && data2.mediaType !== "video" && data2.mediaType !== "audio")
++        continue;
+       const value = data2[key];
+       if (typeof value === "string" && value.trim()) {
+         urls.add(value.trim());
+       }
