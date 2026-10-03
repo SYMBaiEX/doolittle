@@ -104,6 +104,13 @@ describe("owned private headless report storage", () => {
       );
     },
   );
+  it.each([
+    ["/owned-home", "/owned-home"],
+    ["/owned-home/state/..", "/owned-home"],
+    ["/owned-home/state/a/../b", "/owned-home/state/b"],
+  ])("accepts normalized home and strict descendant %s", (state, expected) => {
+    expect(privateReportStateRoot(state, "/owned-home")).toBe(expected);
+  });
   it("refuses external XDG before probing it or dispatching a provider", async () => {
     const home = root();
     const foreign = root();
