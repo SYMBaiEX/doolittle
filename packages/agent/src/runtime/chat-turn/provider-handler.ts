@@ -1381,13 +1381,13 @@ export async function executeProviderMessageTurn(
         const allResponseMessages: Memory[] = [];
         let consecutiveNoActionPasses = 0;
 
-        // Keep workspace mutations under Doolittle's receipt gate. ElizaOS
-        // 2.0.3-beta.7 can continue its internal planner after the requested
-        // app is ready, so a large SDK iteration cap delays completion checks
-        // and permits redundant workspace/server actions. Yield after each
-        // action; the bounded outer loop continues on the same memory ID, so
-        // the SDK retains the original room/session without another visible
-        // user message. Ordinary chat still uses Eliza's configured planner.
+        // Check workspace mutations against Doolittle's receipt gate after
+        // each SDK message pass. The installed beta.7 planner ignores the
+        // legacy iteration/continuation hints below: one handleMessage call
+        // can execute multiple actions before returning. This outer bound
+        // limits message passes, not inner tool calls. Continuing on the same
+        // memory ID preserves the original room/session without another
+        // visible user message; the SDK still owns its internal planner.
         for (
           let attempt = 0;
           attempt < MAX_MUTATION_CONTINUATION_PASSES;
@@ -1406,9 +1406,9 @@ export async function executeProviderMessageTurn(
                 : input.messagePolicy.useMultiStep
                   ? input.messagePolicy.maxIterations
                   : 1,
-              // Newer SDK versions honor this terminal-after-action hint;
-              // beta.7 ignores it, so maxMultiStepIterations above provides
-              // the same bounded yield on the installed runtime.
+              // Compatibility hint, not an enforceable one-action yield on
+              // beta.7. sdk-planner-yield.test.ts exercises the installed SDK;
+              // a hard tool-call refusal is not a completion-preserving yield.
               continueAfterActions: !mutationObligation,
               abortSignal: input.abortSignal,
               // Once a managed coding child has completed, its final response
