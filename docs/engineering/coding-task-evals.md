@@ -136,6 +136,26 @@ Own-origin read requests and a small HTTPS image/font allowlist are permitted;
 other resources are blocked and counted. Do not interpret an incomplete asset
 load as the app's intended design.
 
+Before capture, the bridge cooperatively waits up to 1500ms for fonts and
+visible image decoding, rediscovers changes among the first 200 image candidates,
+and allows 250ms of unchanged image-set settling plus animation frames. This is
+a bounded heuristic, not a guarantee that every asset or layout has painted;
+individual renderer work cannot be preempted by its own timer. The returned
+facts retain those limitations, including the discovery cap. CSS backgrounds,
+arbitrarily delayed content and images beyond the cap are not promised complete.
+
+The focused real-Electron first-PNG regression avoids booting a provider or the
+full desktop API server:
+
+```sh
+nubx playwright test --config playwright.rendered.config.ts
+```
+
+The same fixture spec is discovered by the regular E2E suite. It checks owned
+complete/async/lazy/late raster images in hidden private windows, not arbitrary
+site readiness or interactive accessibility. Retain the actual platform result:
+local macOS and hosted Linux are separate checks; Windows coverage is not implied.
+
 `/browser/capture` records real viewport PNGs, hashes and bounded DOM facts when
 that capability succeeds. `/browser/analyze` attaches the desktop and available
 narrow PNG bytes to the selected model through the shared prompt-cache layer;
