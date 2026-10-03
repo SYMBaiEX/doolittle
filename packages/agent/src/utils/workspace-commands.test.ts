@@ -3,6 +3,35 @@ import { inspectWorkspaceCommands } from "./workspace-commands";
 
 describe("literal workspace command receipts", () => {
   it.each([
+    "bun test",
+    "bun --cwd /workspace/blog test",
+    "cd /workspace/blog && bun test",
+    "bun run test",
+    "bun run check",
+  ])("recognizes only literal test/check invocations: %s", (command) => {
+    expect(inspectWorkspaceCommands(command, "/workspace/blog")).toContainEqual(
+      expect.objectContaining({
+        runner: "bun",
+        kind: "verification",
+        directory: "/workspace/blog",
+        script: command.endsWith("check") ? "check" : "test",
+      }),
+    );
+  });
+  it.each([
+    "bun test --help",
+    "bun test --dry-run",
+    "bun test test/example.test.ts",
+    "echo bun test",
+    "bun test || true",
+    "bun test; true",
+    "bun test | cat",
+    "bun test > /tmp/results",
+    "bun run check --help",
+  ])("rejects unsupported test/check evidence: %s", (command) => {
+    expect(inspectWorkspaceCommands(command, "/workspace/blog")).toEqual([]);
+  });
+  it.each([
     'bun --cwd "/workspace/my blog" run build',
     'bun run --cwd "/workspace/my blog" build',
     'bun --cwd="/workspace/my blog" run --bun build',

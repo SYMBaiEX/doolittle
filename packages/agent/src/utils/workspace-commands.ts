@@ -107,7 +107,8 @@ function bunCommand(
       continue;
     }
     if (!verb) {
-      if (!["run", "install", "i", "build"].includes(arg)) return undefined;
+      if (!["run", "install", "i", "build", "test"].includes(arg))
+        return undefined;
       verb = arg;
     } else if (verb === "run" && !script) {
       if (!/^[a-z][a-z0-9:_-]*$/iu.test(arg)) return undefined;
@@ -119,6 +120,15 @@ function bunCommand(
   }
   if (verb === "build") {
     return { runner: "bun", kind: "bundle", directory, order };
+  }
+  if (verb === "test") {
+    return {
+      runner: "bun",
+      kind: "verification",
+      script: "test",
+      directory,
+      order,
+    };
   }
   if (verb !== "run" || !script) return undefined;
   return {
