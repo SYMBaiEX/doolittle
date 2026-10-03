@@ -41,9 +41,36 @@ for (const mode of ["complete", "async", "lazy", "late"] as const) {
         body: Buffer.from(capture.png, "base64"),
         contentType: "image/png",
       });
+      await testInfo.attach(`${mode}-pixel-contract`, {
+        body: Buffer.from(
+          JSON.stringify({
+            viewport: capture.viewport,
+            factsViewport: capture.factsViewport,
+            pngWidth: capture.width,
+            pngHeight: capture.height,
+            bitmapBytes: capture.bitmapBytes,
+            sentinelBGRA: capture.sentinelBGRA,
+          }),
+        ),
+        contentType: "application/json",
+      });
       expect(capture.captureMode).toBe("rendered-page");
-      expect(capture.width).toBe(2560);
-      expect(capture.height).toBe(1440);
+      expect(capture.viewport).toEqual({ width: 1280, height: 720 });
+      expect(capture.factsViewport.width).toBe(capture.viewport.width);
+      expect(capture.factsViewport.height).toBe(capture.viewport.height);
+      const scale = capture.factsViewport.deviceScaleFactor;
+      expect(Number.isFinite(scale)).toBe(true);
+      expect(scale).toBeGreaterThanOrEqual(1);
+      expect(scale).toBeLessThanOrEqual(4);
+      // Same PNG/CSS/DPR contract as the rendered-capture consumer; do not assume
+      // every platform exports a Retina-sized bitmap because of a launch flag.
+      expect(
+        Math.abs(capture.width - capture.viewport.width * scale),
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(capture.height - capture.viewport.height * scale),
+      ).toBeLessThanOrEqual(1);
+      expect(capture.bitmapBytes).toBe(capture.width * capture.height * 4);
       expect(capture.hidden).toBe(true);
       expect(capture.privatePartition).toBe(true);
       expect(capture.blockedRequests).toBe(0);

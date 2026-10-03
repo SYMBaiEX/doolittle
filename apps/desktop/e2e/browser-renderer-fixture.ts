@@ -1,5 +1,11 @@
 import { createServer } from "node:http";
-import { app, BrowserWindow, nativeImage, session } from "electron";
+import {
+  app,
+  BrowserWindow,
+  nativeImage,
+  type RenderProcessGoneDetails,
+  session,
+} from "electron";
 import {
   type BrowserRenderBridge,
   startBrowserRenderBridge,
@@ -11,6 +17,9 @@ export interface RasterCapture {
   png: string;
   width: number;
   height: number;
+  viewport: { width: number; height: number };
+  factsViewport: { width: number; height: number; deviceScaleFactor: number };
+  bitmapBytes: number;
   sentinelBGRA: number[];
   hidden: boolean;
   privatePartition: boolean;
@@ -22,6 +31,58 @@ export interface RasterCapture {
 interface Fixture {
   capture(mode: RasterCase): Promise<RasterCapture>;
   dispose(): Promise<void>;
+}
+
+interface WindowDiagnostic {
+  loaded: boolean;
+  closed: boolean;
+  unresponsive: boolean;
+  mainFrameLoadErrorCode: number | null;
+  renderProcessGone: RenderProcessGoneDetails | null;
+}
+
+async function fixtureErrorBody(response: Response) {
+  // Only this fixture's private loopback bridge is queried. Bound reads and
+  // allowlist its fixed error messages; never echo arbitrary body/URL/header data.
+  const reader = response.body?.getReader();
+  if (!reader) return { error: "empty-error-body", truncated: false };
+  const chunks: Buffer[] = [];
+  let bytes = 0;
+  let truncated = false;
+  try {
+    while (bytes < 1024) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      const remaining = 1024 - bytes;
+      chunks.push(Buffer.from(value.subarray(0, remaining)));
+      bytes += Math.min(value.length, remaining);
+      if (value.length >= remaining) {
+        truncated = true;
+        break;
+      }
+    }
+  } catch {
+    return { error: "unreadable-error-body", truncated };
+  } finally {
+    // Diagnostic transport errors must not replace the original failing status.
+    await reader.cancel().catch(() => {});
+  }
+  let error = "unrecognized-error-body";
+  try {
+    const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    if (
+      [
+        "Rendered evidence could not be captured.",
+        "The managed app could not be rendered.",
+        "The managed app is no longer available in this workspace.",
+        "Capture bridge authorization is required.",
+      ].includes(body?.error)
+    )
+      error = body.error;
+  } catch {
+    // Keep malformed/unknown body contents out of test diagnostics.
+  }
+  return { error, truncated };
 }
 
 declare global {
@@ -76,6 +137,7 @@ globalThis.browserRendererFixture = (async () => {
       ${mode === "late" ? `<script>addEventListener('load',()=>setTimeout(()=>{const image=new Image();image.alt='Owned synthetic raster';image.decoding='async';image.src='/raster.png';document.querySelector('main').append(image)},75))</script>` : ""}`);
   });
   let bridge: BrowserRenderBridge | undefined;
+  let windowDiagnostic: WindowDiagnostic | undefined;
   let disposed = false;
   const dispose = async () => {
     if (disposed) return;
@@ -95,6 +157,39 @@ globalThis.browserRendererFixture = (async () => {
     const origin = `http://127.0.0.1:${address.port}`;
     bridge = await startBrowserRenderBridge({
       isManagedAppUrl: async (url) => url.origin === origin,
+      createWindow(options) {
+        const window = new BrowserWindow(options);
+        const diagnostic: WindowDiagnostic = {
+          loaded: false,
+          closed: false,
+          unresponsive: false,
+          mainFrameLoadErrorCode: null,
+          renderProcessGone: null,
+        };
+        windowDiagnostic = diagnostic;
+        window.on("closed", () => {
+          diagnostic.closed = true;
+        });
+        window.on("unresponsive", () => {
+          diagnostic.unresponsive = true;
+        });
+        window.webContents.on("did-finish-load", () => {
+          diagnostic.loaded = true;
+        });
+        window.webContents.on(
+          "did-fail-load",
+          (_event, code, _description, _url, mainFrame) => {
+            if (mainFrame) diagnostic.mainFrameLoadErrorCode = code;
+          },
+        );
+        window.webContents.on("render-process-gone", (_event, details) => {
+          diagnostic.renderProcessGone = {
+            reason: details.reason,
+            exitCode: details.exitCode,
+          };
+        });
+        return window;
+      },
     });
     const base = bridge.environment.ELIZA_BROWSER_WORKSPACE_URL;
     const headers = {
@@ -104,6 +199,16 @@ globalThis.browserRendererFixture = (async () => {
     return {
       dispose,
       async capture(mode) {
+        const startedAt = Date.now();
+        const failed = async (
+          phase: "open" | "first-snapshot",
+          response: Response,
+        ) => {
+          const body = await fixtureErrorBody(response);
+          return new Error(
+            `Fixture capture failed: ${JSON.stringify({ phase, status: response.status, ...body, elapsedMs: Date.now() - startedAt, window: windowDiagnostic ?? null })}`,
+          );
+        };
         const opened = await fetch(`${base}/tabs`, {
           method: "POST",
           headers,
@@ -113,8 +218,7 @@ globalThis.browserRendererFixture = (async () => {
             height: 720,
           }),
         });
-        if (!opened.ok)
-          throw new Error(`Fixture open failed: ${opened.status}`);
+        if (!opened.ok) throw await failed("open", opened);
         const { tab } = (await opened.json()) as {
           tab: { id: string; partition: string };
         };
@@ -123,28 +227,53 @@ globalThis.browserRendererFixture = (async () => {
           const response = await fetch(`${base}/tabs/${tab.id}/snapshot`, {
             headers,
           });
-          if (!response.ok)
-            throw new Error(`First fixture capture failed: ${response.status}`);
+          if (!response.ok) throw await failed("first-snapshot", response);
           const capture = (await response.json()) as {
             data: string;
             captureMode: string;
             blockedRequests: number;
-            facts: { images: RasterCapture["images"] };
+            viewport: RasterCapture["viewport"];
+            facts: {
+              images: RasterCapture["images"];
+              viewport: RasterCapture["factsViewport"];
+            };
           };
-          const rendered = nativeImage.createFromBuffer(
-            Buffer.from(capture.data, "base64"),
-          );
-          const { width, height } = rendered.getSize();
-          const pixels = rendered.toBitmap();
+          const png = Buffer.from(capture.data, "base64");
+          if (
+            png.length < 33 ||
+            !png
+              .subarray(0, 8)
+              .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ||
+            png.toString("ascii", 12, 16) !== "IHDR"
+          )
+            throw new Error("Fixture capture did not return a PNG.");
+          // Validate actual IHDR pixels, not the host's Retina configuration or
+          // NativeImage's selected representation. Sample in this PNG's bitmap.
+          const width = png.readUInt32BE(16);
+          const height = png.readUInt32BE(20);
+          const rendered = nativeImage.createFromBuffer(png, {
+            scaleFactor: 1,
+          });
+          const bitmapSize = rendered.getSize(1);
+          const pixels = rendered.toBitmap({ scaleFactor: 1 });
+          if (
+            bitmapSize.width !== width ||
+            bitmapSize.height !== height ||
+            pixels.length !== width * height * 4
+          )
+            throw new Error("Fixture PNG/bitmap dimensions disagree.");
           const offset =
-            (Math.floor((height * 300) / 720) * width +
-              Math.floor((width * 300) / 1280)) *
+            (Math.floor((height * 300) / capture.viewport.height) * width +
+              Math.floor((width * 300) / capture.viewport.width)) *
             4;
           const windows = BrowserWindow.getAllWindows();
           return {
             png: capture.data,
             width,
             height,
+            viewport: capture.viewport,
+            factsViewport: capture.facts.viewport,
+            bitmapBytes: pixels.length,
             sentinelBGRA: [...pixels.subarray(offset, offset + 4)],
             hidden:
               windows.length === 1 &&
