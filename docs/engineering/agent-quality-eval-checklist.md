@@ -123,6 +123,16 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
       gateway and hooks directories alone do not prove isolation. Any exposed
       historical tasks make the sample an operational diagnostic, not a fully
       isolated controlled-performance comparison.
+- [ ] Use an owned `0700` report directory. Headless storage is validated before
+      child dispatch; relative `XDG_STATE_HOME` values are ignored. User-owned
+      directory symlinks and unsafe existing permissions are refused without
+      changing them. Default report and measurement-receipt writes create
+      exclusive `0600` files through validated descriptors. These POSIX checks
+      require UID and no-follow/directory support and fail closed without it.
+      The contract assumes quiescent owned directories, not race-proof `openat`
+      ancestor traversal. Requested-route journals are projected only after
+      confirmed child cleanup and original task-directory identity checks;
+      missing or unsafe route evidence never changes grading.
 - [ ] Define the question being tested and change one principal variable at a
       time where practical. Route labels identify a configuration; they do not
       prove causality.
