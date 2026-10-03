@@ -383,6 +383,349 @@ describe("chat turn provider handler", () => {
     return { result, prompts, calls, diagnostics };
   }
 
+  async function runScopedReceiptPasses(
+    passes: {
+      settled?: ActionResult[];
+      projected?: () => ActionResult[];
+      throws?: boolean;
+      response?: string;
+    }[],
+  ) {
+    let calls = 0;
+    const { context, traceEvents } = createContext({
+      onHandleMessage: async () => {
+        const pass = passes[calls++];
+        for (const result of pass?.settled ?? [])
+          recordScopedTurnActionResult(context.runtime, result);
+        if (pass?.throws) throw new Error("Synthetic later SDK failure.");
+        return {
+          responseContent: {
+            text: pass?.response ?? "Implementation complete.",
+          },
+          responseMessages: [],
+          actionResults: pass?.projected?.() ?? [],
+        };
+      },
+    });
+    const result = await runWithTurnRuntimeScope(
+      context.runtime,
+      { settings: new Map(), settledActionResults: [] },
+      () =>
+        executeTestTurn(
+          context,
+          "codex",
+          "Update the frontend heading in this workspace.",
+        ),
+    );
+    const diagnostics = traceEvents
+      .filter((event) => event.event === "model.continuation")
+      .map((event) => event.metadata?.continuationDiagnostics);
+    return { result, calls, diagnostics };
+  }
+
+  it.each(["failed app", "rebuild", "mutation"])(
+    "does not manufacture fresh review from JSON replay after %s",
+    async (kind) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const originalReview = review("rendered-pixels");
+      const invalidator =
+        kind === "failed app"
+          ? {
+              success: false,
+              text: "Managed app unhealthy.",
+              data: { ...ready.data, status: "unhealthy" },
+            }
+          : kind === "rebuild"
+            ? structuredClone(build)
+            : {
+                ...structuredClone(page),
+                data: {
+                  ...page.data,
+                  mutation: { ...(page.data?.mutation as object), bytes: 101 },
+                },
+              };
+      // The write is SDK-only; actual Doolittle shell/server/browser settlements
+      // have scoped provenance. Replayed SDK wrappers are deep JSON copies.
+      const settled = [
+        build,
+        ready,
+        originalReview,
+        ...(kind === "mutation" ? [] : [invalidator]),
+      ];
+      const timeline = [
+        page,
+        build,
+        ready,
+        originalReview,
+        invalidator,
+        ready,
+        originalReview,
+      ];
+      const projected = () =>
+        JSON.parse(JSON.stringify(timeline)) as ActionResult[];
+      const { result, diagnostics } = await runScopedReceiptPasses([
+        { settled, projected },
+        {
+          projected: () =>
+            JSON.parse(
+              JSON.stringify([ready, originalReview]),
+            ) as ActionResult[],
+        },
+      ]);
+      expect(result.runFailureMessage).toBeDefined();
+      expect(diagnostics[0]).toMatchObject({ frontendReviewComplete: false });
+      expect(
+        result.actionResults.filter(
+          (row) => row.data?.actionName === "DOOLITTLE_BROWSER_ANALYZE",
+        ),
+      ).toEqual([originalReview]);
+      expect(result.actionResults.filter((row) => row === ready)).toHaveLength(
+        1,
+      );
+      const invalidatorIndex =
+        kind === "mutation"
+          ? result.actionResults.findIndex(
+              (row) =>
+                (row.data?.mutation as { bytes?: number } | undefined)
+                  ?.bytes === 101,
+            )
+          : result.actionResults.indexOf(invalidator);
+      expect(invalidatorIndex).toBeGreaterThanOrEqual(0);
+      expect(result.actionResults.indexOf(originalReview)).toBeLessThan(
+        invalidatorIndex,
+      );
+      expect(
+        result.actionResults[result.actionResults.indexOf(originalReview)],
+      ).toBe(originalReview);
+    },
+  );
+
+  it.each(["mutation", "failed app"])(
+    "retains a contradictory %s barrier carrying an old browser occurrence ID",
+    async (kind) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const originalReview = review("rendered-pixels");
+      const projected = () => {
+        const invalidator: ActionResult =
+          kind === "mutation"
+            ? {
+                ...page,
+                data: {
+                  ...page.data,
+                  mutation: { ...(page.data?.mutation as object), bytes: 101 },
+                  doolittleTurnReceiptId:
+                    originalReview.data?.doolittleTurnReceiptId,
+                },
+              }
+            : {
+                success: false,
+                text: "Managed app unhealthy.",
+                data: {
+                  ...ready.data,
+                  status: "unhealthy",
+                  doolittleTurnReceiptId:
+                    originalReview.data?.doolittleTurnReceiptId,
+                },
+              };
+        return JSON.parse(
+          JSON.stringify([
+            page,
+            build,
+            ready,
+            originalReview,
+            invalidator,
+            ready,
+            originalReview,
+          ]),
+        ) as ActionResult[];
+      };
+      const { result, diagnostics } = await runScopedReceiptPasses([
+        { settled: [build, ready, originalReview], projected },
+      ]);
+      expect(result.runFailureMessage).toBeDefined();
+      expect(diagnostics[0]).toMatchObject({ frontendReviewComplete: false });
+      expect(
+        result.actionResults.filter(
+          (row) => row.data?.actionName === "DOOLITTLE_BROWSER_ANALYZE",
+        ),
+      ).toEqual([originalReview]);
+      const invalidatorIndex = result.actionResults.findIndex((row) =>
+        kind === "mutation"
+          ? (row.data?.mutation as { bytes?: number } | undefined)?.bytes ===
+            101
+          : row.data?.actionName === "DOOLITTLE_APP_SERVER" &&
+            row.data?.status === "unhealthy",
+      );
+      expect(invalidatorIndex).toBeGreaterThan(
+        result.actionResults.indexOf(originalReview),
+      );
+      expect(
+        result.actionResults[invalidatorIndex]?.data?.doolittleTurnReceiptId,
+      ).toBe(originalReview.data?.doolittleTurnReceiptId);
+    },
+  );
+
+  it("admits genuinely new same-session readiness and identical-content review after correction", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const originalReview = review("rendered-pixels");
+    const newReady = structuredClone(ready);
+    const newReview = structuredClone(originalReview);
+    const newBuild = structuredClone(build);
+    const correction = {
+      ...structuredClone(page),
+      data: {
+        ...page.data,
+        mutation: { ...(page.data?.mutation as object), bytes: 101 },
+      },
+    };
+    const failed = {
+      success: false,
+      text: "Managed app unhealthy.",
+      data: { ...ready.data, status: "unhealthy" },
+    };
+    const initial = [page, build, ready, originalReview, failed];
+    const later = [correction, newBuild, newReady, newReview];
+    const { result, calls } = await runScopedReceiptPasses([
+      {
+        settled: [build, ready, originalReview, failed],
+        projected: () =>
+          JSON.parse(
+            JSON.stringify([...initial, ready, originalReview]),
+          ) as ActionResult[],
+      },
+      {
+        settled: [newBuild, newReady, newReview],
+        projected: () =>
+          JSON.parse(JSON.stringify([...initial, ...later])) as ActionResult[],
+      },
+    ]);
+    expect(calls).toBe(2);
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(newReady.data?.doolittleTurnReceiptId).not.toBe(
+      ready.data?.doolittleTurnReceiptId,
+    );
+    expect(newReview.data?.doolittleTurnReceiptId).not.toBe(
+      originalReview.data?.doolittleTurnReceiptId,
+    );
+    expect(
+      result.actionResults.filter(
+        (row) => row.data?.actionName === "DOOLITTLE_BROWSER_ANALYZE",
+      ),
+    ).toEqual([originalReview, newReview]);
+    const correctionIndex = result.actionResults.findIndex(
+      (row) =>
+        (row.data?.mutation as { bytes?: number } | undefined)?.bytes === 101,
+    );
+    expect(correctionIndex).toBeGreaterThanOrEqual(0);
+    expect(correctionIndex).toBeLessThan(
+      result.actionResults.indexOf(newBuild),
+    );
+    expect(result.actionResults.indexOf(newReady)).toBeLessThan(
+      result.actionResults.indexOf(newReview),
+    );
+  });
+
+  it("preserves mixed SDK-only actions between the actual scoped originals", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const originalReview = review("rendered-pixels");
+    const inspection: ActionResult = {
+      success: true,
+      text: "Read scoped source.",
+      data: { actionName: "READ_FILE" },
+    };
+    const original = [page, build, inspection, ready, originalReview];
+    const { result, calls } = await runScopedReceiptPasses([
+      {
+        settled: [build, ready, originalReview],
+        projected: () => [
+          page,
+          JSON.parse(JSON.stringify(build)) as ActionResult,
+          inspection,
+          JSON.parse(JSON.stringify(ready)) as ActionResult,
+          JSON.parse(JSON.stringify(originalReview)) as ActionResult,
+        ],
+      },
+    ]);
+    expect(calls).toBe(1);
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(result.actionResults).toEqual(original);
+  });
+
+  it("retains unidentified SDK results but refuses scoped managed readiness/review admission", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const originalReview = review("rendered-pixels");
+    const inspection: ActionResult = {
+      success: true,
+      text: "SDK-only inspection.",
+      data: { actionName: "READ_FILE" },
+    };
+    const { result, diagnostics } = await runScopedReceiptPasses([
+      {
+        settled: [build],
+        projected: () => [
+          page,
+          inspection,
+          JSON.parse(JSON.stringify(build)) as ActionResult,
+          ready,
+          originalReview,
+        ],
+      },
+    ]);
+    expect(result.runFailureMessage).toBeDefined();
+    expect(result.actionResults).toContain(inspection);
+    expect(result.actionResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          success: true,
+          data: expect.objectContaining({
+            actionName: "DOOLITTLE_APP_SERVER",
+            doolittleReceiptChronologyUnverified: true,
+          }),
+        }),
+        expect.objectContaining({
+          success: true,
+          data: expect.objectContaining({
+            actionName: "DOOLITTLE_BROWSER_ANALYZE",
+            doolittleReceiptChronologyUnverified: true,
+          }),
+        }),
+      ]),
+    );
+    expect(diagnostics[0]).toMatchObject({ frontendReviewComplete: false });
+  });
+
+  it.each([false, true])(
+    "preserves full scoped blocker evidence when later SDK throws=%s",
+    async (laterThrows) => {
+      const { page, build, ready } = frontendReceipts();
+      const blocked = interactiveReview("blocked");
+      const project = () => {
+        const result = JSON.parse(JSON.stringify(blocked)) as ActionResult;
+        if (result.data) delete result.data.interactiveTextCheck;
+        return [
+          page,
+          JSON.parse(JSON.stringify(build)) as ActionResult,
+          JSON.parse(JSON.stringify(ready)) as ActionResult,
+          result,
+        ];
+      };
+      const { result } = await runScopedReceiptPasses([
+        { settled: [build, ready, blocked], projected: project },
+        { throws: laterThrows },
+      ]);
+      expect(result.runFailureMessage).toContain("readability blocker");
+      expect(
+        result.actionResults.find(
+          (row) => row.data?.actionName === "DOOLITTLE_BROWSER_ANALYZE",
+        ),
+      ).toBe(blocked);
+      expect(
+        result.actionResults.find((row) => row === blocked)?.data
+          ?.interactiveTextCheck,
+      ).toEqual(blocked.data?.interactiveTextCheck);
+    },
+  );
+
   it.each([
     "no actions",
     "analysis alone",
@@ -2961,6 +3304,9 @@ describe("chat turn provider handler", () => {
       onHandleMessage: async () => {
         callCount += 1;
         recordScopedTurnActionResult(context.runtime, completion);
+        for (const result of [install, build, appServer]) {
+          recordScopedTurnActionResult(context.runtime, result);
+        }
         return {
           responseContent: {
             text: "The existing blog app is verified and running.",
@@ -3074,6 +3420,9 @@ describe("chat turn provider handler", () => {
         callCount += 1;
         if (callCount === 1) {
           recordScopedTurnActionResult(context.runtime, completion);
+        }
+        for (const result of results ?? []) {
+          recordScopedTurnActionResult(context.runtime, result);
         }
         return {
           responseContent: {
@@ -3189,6 +3538,9 @@ describe("chat turn provider handler", () => {
         onHandleMessage: async () => {
           const actionResults = passResults[callCount] ?? [];
           callCount += 1;
+          for (const result of actionResults) {
+            recordScopedTurnActionResult(context.runtime, result);
+          }
           return {
             responseContent: {
               text:
