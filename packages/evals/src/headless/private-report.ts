@@ -9,8 +9,16 @@ import {
   realpathSync,
   writeFileSync,
 } from "node:fs";
-import { homedir } from "node:os";
-import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { userInfo } from "node:os";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  parse,
+  resolve,
+  sep,
+} from "node:path";
 
 export interface PrivateReportDirectory {
   readonly path: string;
@@ -28,20 +36,22 @@ function uid(): bigint {
   return BigInt(process.getuid());
 }
 
-function ensureDirectory(path: string): void {
+function ensureDirectory(path: string, allowSystemAliases: boolean): void {
   try {
     const stat = lstatSync(path, { bigint: true });
     if (stat.isSymbolicLink()) {
       // Permit system-owned aliases such as macOS /var, not user aliases.
-      if (stat.uid !== 0n) refused();
+      if (!allowSystemAliases || stat.uid !== 0n) refused();
+      validateAncestry(realpathSync(path));
       return;
     }
     if (!stat.isDirectory()) refused();
+    if (stat.uid !== uid() && stat.uid !== 0n) refused();
+    if ((stat.mode & 0o022n) !== 0n && (stat.mode & 0o1000n) === 0n) refused();
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") refused();
     const parent = dirname(path);
     if (parent === path) refused();
-    ensureDirectory(parent);
     validateAncestry(realpathSync(parent));
     mkdirSync(path, { mode: 0o700 });
   }
@@ -82,36 +92,57 @@ export function verifyPrivateReportDirectory(
   }
 }
 
-/** Operator paths remain allowed; relative XDG values are ignored per XDG. */
+/** Default XDG storage stays under the OS-account home; relative values are ignored. */
 export function privateReportStateRoot(
   stateHome: string | undefined,
   home: string,
 ): string {
   const state = stateHome?.trim();
-  return state && isAbsolute(state)
-    ? resolve(state)
-    : join(home, ".local", "state");
+  const root = resolve(home);
+  if (!state || !isAbsolute(state)) return join(root, ".local", "state");
+  const path = resolve(state);
+  // Validate component-aware containment before any filesystem probe of XDG.
+  if (path !== root && !path.startsWith(`${root}${sep}`)) refused();
+  return path;
 }
 
 export function preparePrivateReportDirectory(
   explicit?: string,
 ): PrivateReportDirectory {
   try {
-    uid();
-    const base = privateReportStateRoot(process.env.XDG_STATE_HOME, homedir());
-    const requested = explicit?.trim()
-      ? resolve(explicit)
-      : resolve(base, "doolittle", "evals", "headless");
-    // Check existing spelling components before canonicalizing. No chmod.
-    let component = requested;
-    while (true) {
-      ensureDirectory(component);
-      if (dirname(component) === component) break;
-      component = dirname(component);
+    const owner = uid();
+    const operatorPath = explicit?.trim();
+    let home: string | undefined;
+    let base: string | undefined;
+    let requested: string;
+    if (operatorPath) {
+      // An explicit operator choice does not consult environment-derived XDG.
+      requested = resolve(operatorPath);
+    } else {
+      const account = userInfo();
+      if (!isAbsolute(account.homedir) || BigInt(account.uid) !== owner)
+        refused();
+      home = realpathSync(account.homedir);
+      if (lstatSync(home, { bigint: true }).uid !== owner) refused();
+      validateAncestry(home);
+      base = privateReportStateRoot(process.env.XDG_STATE_HOME, home);
+      requested = resolve(base, "doolittle", "evals", "headless");
+    }
+    // Walk top-down so a refused alias is never probed through or followed.
+    // Explicit paths retain system-owned aliases such as macOS /var. No chmod.
+    let component = parse(requested).root;
+    ensureDirectory(component, Boolean(operatorPath));
+    for (const name of requested
+      .slice(component.length)
+      .split(sep)
+      .filter(Boolean)) {
+      component = join(component, name);
+      ensureDirectory(component, Boolean(operatorPath));
     }
     if (lstatSync(requested, { bigint: true }).isSymbolicLink()) refused();
     const path = realpathSync(requested);
-    if (!explicit?.trim()) {
+    if (!operatorPath && home && base) {
+      if (path !== home && !path.startsWith(`${home}${sep}`)) refused();
       const canonicalBase = realpathSync(base);
       if (path !== resolve(canonicalBase, "doolittle", "evals", "headless"))
         refused();
