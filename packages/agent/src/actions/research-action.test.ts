@@ -66,7 +66,7 @@ describe("research action (ModelType.RESEARCH adoption)", () => {
       },
     );
     expect(result).toMatchObject({ success: false });
-    expect(delivered).toContain("Eliza Cloud research provider");
+    expect(delivered).toContain("RESEARCH_MODEL_UNAVAILABLE");
   });
 
   it("does not call a registered research model while Eliza Cloud is disabled", async () => {
@@ -274,21 +274,32 @@ describe("research action (ModelType.RESEARCH adoption)", () => {
     expect(observedSignal).toBe(controller.signal);
   });
 
-  it("reports a clear failure when the model throws", async () => {
+  it("reports a bounded failure without leaking provider secrets or retrying", async () => {
     const action = createResearchAction();
+    const secret =
+      "sk-private https://provider.example/secret?question=private";
+    const research = vi.fn(async () => {
+      throw Object.assign(new Error(secret), {
+        status: 401,
+        body: { message: secret },
+      });
+    });
     const runtime = makeRuntime({
       hasModel: true,
-      research: async () => {
-        throw new Error("rate limited");
-      },
+      research,
     });
+    const callback = vi.fn(async () => []);
     const result = await action.handler(
       runtime,
       message("/research boom"),
       undefined,
       undefined,
+      callback,
     );
     expect(result?.success).toBe(false);
-    expect(result?.text).toContain("rate limited");
+    expect(result?.text).toContain("RESEARCH_AUTHENTICATION_FAILED; HTTP 401");
+    expect(JSON.stringify(result)).not.toContain(secret);
+    expect(JSON.stringify(callback.mock.calls)).not.toContain(secret);
+    expect(research).toHaveBeenCalledOnce();
   });
 });

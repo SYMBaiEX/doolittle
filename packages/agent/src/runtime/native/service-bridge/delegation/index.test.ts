@@ -480,7 +480,7 @@ describe("official delegation service bridge", () => {
     });
     expect(durable?.messages.at(-1)).toMatchObject({
       senderKind: "system",
-      content: expect.stringContaining("no RESEARCH model"),
+      content: expect.stringContaining("RESEARCH_MODEL_UNAVAILABLE"),
     });
   });
 
@@ -534,7 +534,7 @@ describe("official delegation service bridge", () => {
     expect(useModel).not.toHaveBeenCalled();
   });
 
-  it("records an ordinary RESEARCH provider failure without validating the task", async () => {
+  it("records only a bounded RESEARCH provider failure without validating or retrying", async () => {
     const official = createOfficialOrchestratorTestFixture();
     const created = await official.service.createTask({
       title: "Research provider failure",
@@ -542,12 +542,16 @@ describe("official delegation service bridge", () => {
       kind: "research",
     });
     const validate = vi.spyOn(official.service, "validateTask");
+    const secret = "sk-secret https://provider.example/private?question=mine";
+    const useModel = vi.fn(async () => {
+      throw Object.assign(new Error(secret), {
+        cause: { status: 429, body: secret },
+      });
+    });
     const runtime = {
       ...official.runtime,
       getModel: () => () => Promise.resolve({}),
-      useModel: vi.fn(async () => {
-        throw new Error("research provider timed out");
-      }),
+      useModel,
     };
 
     await expect(
@@ -559,12 +563,19 @@ describe("official delegation service bridge", () => {
     expect(durable?.metadata).toMatchObject({
       researchRun: expect.objectContaining({
         status: "failed",
-        error: "research provider timed out",
+        error:
+          "Deep research was rate limited by the provider. [RESEARCH_RATE_LIMITED; HTTP 429]",
+        failureCode: "RESEARCH_RATE_LIMITED",
+        failureCategory: "rate_limit",
+        httpStatus: 429,
       }),
     });
     expect(durable?.messages.at(-1)).toMatchObject({
-      content: "Doolittle research failed: research provider timed out",
+      content:
+        "Doolittle research failed: Deep research was rate limited by the provider. [RESEARCH_RATE_LIMITED; HTTP 429]",
     });
+    expect(JSON.stringify(durable)).not.toContain(secret);
+    expect(useModel).toHaveBeenCalledOnce();
   });
 
   it("surfaces a null durable research-start update instead of hiding setup failure", async () => {

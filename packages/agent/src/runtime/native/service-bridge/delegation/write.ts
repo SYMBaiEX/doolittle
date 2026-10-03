@@ -3,6 +3,11 @@ import {
   type DoolittleResearchRuntime,
   runDoolittleResearch,
 } from "@/actions/research-action";
+import {
+  classifyResearchFailure,
+  ResearchPreflightError,
+  researchFailureText,
+} from "@/actions/research-failure";
 import type { DelegationOrchestrationMode } from "@/types/runtime";
 import type { RuntimeLike } from "../runtime";
 import { projectOfficialTask, requireOfficialOrchestrator } from "./official";
@@ -307,6 +312,7 @@ export async function executeEffectiveDelegationTask(
       // sessionless research run through the durable task lifecycle instead of
       // pretending that an ACP coding session executed it.
       let durableResearchRunStarted = false;
+      let researchRequestActive = false;
       try {
         const started = await service.updateTask(id, {
           status: "active",
@@ -332,16 +338,16 @@ export async function executeEffectiveDelegationTask(
           typeof researchRuntime.getModel !== "function" ||
           typeof researchRuntime.useModel !== "function"
         ) {
-          throw new Error(
-            "Deep research is unavailable: the runtime has no RESEARCH model provider.",
-          );
+          throw new ResearchPreflightError("RESEARCH_MODEL_UNAVAILABLE");
         }
+        researchRequestActive = true;
         const research = await runDoolittleResearch(
           researchRuntime as DoolittleResearchRuntime,
           detail.goal,
           id,
           researchSignal,
         );
+        researchRequestActive = false;
         const completedAt = new Date().toISOString();
         const receipt = {
           runId,
@@ -399,10 +405,14 @@ export async function executeEffectiveDelegationTask(
         // returning an unrelated pre-run projection.
         if (!durableResearchRunStarted) throw error;
         const failedAt = new Date().toISOString();
-        const failure = error instanceof Error ? error.message : String(error);
+        const failure = classifyResearchFailure(
+          error,
+          researchSignal,
+          researchRequestActive ? "provider" : "task",
+        );
         if (!(await currentRun())) return currentProjection();
         await service.addMessage(id, {
-          content: `Doolittle research failed: ${failure}`,
+          content: `Doolittle research failed: ${researchFailureText(failure)}`,
           senderKind: "system",
           direction: "stderr",
         });
@@ -418,7 +428,12 @@ export async function executeEffectiveDelegationTask(
               status: "failed",
               startedAt,
               failedAt,
-              error: failure,
+              error: researchFailureText(failure),
+              failureCode: failure.code,
+              failureCategory: failure.category,
+              ...(failure.httpStatus === undefined
+                ? {}
+                : { httpStatus: failure.httpStatus }),
             },
           },
         });
