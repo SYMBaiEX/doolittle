@@ -31,6 +31,8 @@ export interface CliExecutionHooks {
 
 export interface CliPromptRunOptions {
   sessionId?: string;
+  /** Internal JSON-stream-only eval channel; never enable for replayable jobs. */
+  codingVerificationReceipts?: boolean;
 }
 
 export interface CliPromptEventHandlers {

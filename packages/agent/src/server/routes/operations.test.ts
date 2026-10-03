@@ -227,10 +227,50 @@ describe("handleOperationsRoutes", () => {
       exitCode: 0,
       stdout: "/workspace\n",
       stderr: "",
+      truncated: false,
       timedOut: false,
       maxDurationMs: 30_000,
       durationMs: 12,
       cwd: "/workspace",
+    });
+  });
+
+  it("reports the SDK terminal capture boundary as an explicit boolean", async () => {
+    const context = createContext();
+    context.services.terminal.run = async (command, timeoutMs) => ({
+      id: "command-sdk-truncated",
+      command,
+      backend: "local",
+      cwd: "/workspace",
+      timeoutMs,
+      timedOut: false,
+      durationMs: 12,
+      exitCode: 0,
+      stdout: "x".repeat(128 * 1024 + 1),
+      stderr: "",
+      startedAt: "2026-07-30T00:00:00.000Z",
+      completedAt: "2026-07-30T00:00:00.012Z",
+    });
+
+    const response = await handleOperationsRoutes(
+      context,
+      new Request("http://localhost/api/terminal/run", {
+        method: "POST",
+        body: JSON.stringify({
+          command: "emit-large-output",
+          clientId: "runtime-terminal-action",
+          captureOutput: true,
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+      new URL("http://localhost/api/terminal/run"),
+    );
+    const result = await response?.json();
+
+    expect(result).toMatchObject({
+      ok: true,
+      truncated: true,
+      stdout: "x".repeat(128 * 1024),
     });
   });
 

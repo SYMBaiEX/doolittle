@@ -1,5 +1,10 @@
 import { EventEmitter } from "node:events";
-import type { RunSnapshot, RunUpdateEvent, TaskRunEvent } from "./types";
+import type {
+  RunSnapshot,
+  RuntimeCodingVerificationEvent,
+  RunUpdateEvent,
+  TaskRunEvent,
+} from "./types";
 import { cloneRun } from "./utils";
 
 export class RunUpdateEventBus {
@@ -31,5 +36,24 @@ export class TaskRunEventBus {
 
   emit(event: TaskRunEvent): void {
     this.events.emit("event", structuredClone(event));
+  }
+}
+
+/** Transient channel for eval-only receipts; deliberately has no persistence. */
+export class RuntimeCodingVerificationEventBus {
+  private readonly events = new EventEmitter();
+
+  onReceipt(
+    listener: (event: RuntimeCodingVerificationEvent) => void,
+  ): () => void {
+    this.events.on("receipt", listener);
+    return () => this.events.off("receipt", listener);
+  }
+
+  emit(event: RuntimeCodingVerificationEvent): void {
+    this.events.emit("receipt", {
+      ...event,
+      receipt: { ...event.receipt },
+    } satisfies RuntimeCodingVerificationEvent);
   }
 }

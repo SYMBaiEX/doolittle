@@ -24,7 +24,11 @@ type RunCliPromptWithEvents = (
       event: Parameters<typeof encodeCliTurnEvent>[0],
     ) => Promise<void> | void;
   },
-  options?: { abortSignal?: AbortSignal; sessionId?: string },
+  options?: {
+    abortSignal?: AbortSignal;
+    sessionId?: string;
+    codingVerificationReceipts?: boolean;
+  },
 ) => Promise<{ result: CliExecutionResult; sessionId: string }>;
 
 interface PromptCommandDeps {
@@ -91,6 +95,9 @@ export async function handleRuntimePromptCommand(
       });
     }
     const writeEvent = (event: Parameters<typeof encodeCliTurnEvent>[0]) => {
+      if (activeJobId && event.type === "coding-verification") {
+        return;
+      }
       if (activeJobId) {
         deps.appendCliJobEvent(controlDataDir, activeJobId, event);
       }
@@ -117,6 +124,9 @@ export async function handleRuntimePromptCommand(
         {
           abortSignal: sessionController.signal,
           sessionId: input.oneShot.sessionId,
+          codingVerificationReceipts:
+            !activeJobId &&
+            process.env.DOOLITTLE_EVAL_CODING_VERIFICATION === "true",
         },
       );
       finalizeActiveJob("completed", 0);

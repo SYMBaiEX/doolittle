@@ -40,6 +40,7 @@ async function execute(
     timedOut:
       result.exitCode === 124 && result.stderr.includes(ROUTER_TIMEOUT_MARKER),
     durationMs: result.durationMs,
+    sandbox: result.sandbox,
   };
 }
 

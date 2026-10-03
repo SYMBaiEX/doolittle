@@ -1,5 +1,9 @@
+import {
+  CODING_VERIFICATION_COMMAND,
+  CODING_VERIFICATION_SUCCESS_MARKER,
+} from "@doolittle/contracts";
 import { EventType, type IAgentRuntime } from "@elizaos/core";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   agentEventLabel,
@@ -11,7 +15,242 @@ import {
   shouldProjectNativeToolProgress,
 } from "./run-progress";
 
+const previousCodingVerificationOptIn =
+  process.env.DOOLITTLE_EVAL_CODING_VERIFICATION;
+const previousWorkspaceDir = process.env.DOOLITTLE_WORKSPACE_DIR;
+
+afterEach(() => {
+  if (previousCodingVerificationOptIn === undefined)
+    delete process.env.DOOLITTLE_EVAL_CODING_VERIFICATION;
+  else
+    process.env.DOOLITTLE_EVAL_CODING_VERIFICATION =
+      previousCodingVerificationOptIn;
+  if (previousWorkspaceDir === undefined)
+    delete process.env.DOOLITTLE_WORKSPACE_DIR;
+  else process.env.DOOLITTLE_WORKSPACE_DIR = previousWorkspaceDir;
+});
+
+function codingVerificationServices(input: {
+  observed?: unknown;
+  history?: unknown[];
+}) {
+  const publishRuntimeCodingVerification = vi.fn();
+  let executionResultListener: ((event: never) => void) | undefined;
+  const activeRun = {
+    sessionId: "cli:session",
+    runId: "runtime-run-1",
+    roomId: "room-1",
+    source: "cli",
+    progressMode: "off",
+  };
+  const services = {
+    runController: {
+      getByRoomId: () => activeRun,
+      onUpdate: () => () => undefined,
+      noteRuntimeActionStarted: vi.fn(),
+      noteRuntimeActionCompleted: vi.fn(),
+      publishRuntimeCodingVerification,
+    },
+    settings: { get: () => ({ model: {} }) },
+    terminal: {
+      onExecutionResult: (listener: (event: never) => void) => {
+        executionResultListener = listener;
+        return () => {
+          executionResultListener = undefined;
+        };
+      },
+      recent: () => input.history ?? [],
+    },
+  } as never;
+  return {
+    services,
+    publishRuntimeCodingVerification,
+    observeExecutionResult: () => {
+      if (input.observed) executionResultListener?.(input.observed as never);
+    },
+  };
+}
+
+function codingVerificationPayload(overrides: Record<string, unknown> = {}) {
+  return {
+    success: true,
+    data: {
+      actionName: "SHELL",
+      command: CODING_VERIFICATION_COMMAND,
+      runId: "terminal-run-1",
+      exitCode: 0,
+      timedOut: false,
+      truncated: false,
+      executedIn: "/task/workspace",
+      stdout: CODING_VERIFICATION_SUCCESS_MARKER,
+      stderr: "",
+      ...overrides,
+    },
+  };
+}
+
+function localCodingVerificationTerminalRun(
+  recordOverrides: Record<string, unknown> = {},
+  sandbox = "host",
+) {
+  return {
+    record: {
+      id: "terminal-run-1",
+      command: CODING_VERIFICATION_COMMAND,
+      exitCode: 0,
+      backend: "local",
+      backendMode: "local",
+      timedOut: false,
+      stdout: CODING_VERIFICATION_SUCCESS_MARKER,
+      stderr: "",
+      cwd: "/task/workspace",
+      startedAt: "2026-10-03T00:00:00.000Z",
+      completedAt: "2026-10-03T00:00:01.000Z",
+      ...recordOverrides,
+    },
+    sandbox,
+  };
+}
+
 describe("run progress helpers", () => {
+  it("keeps coding verification receipt observation disabled by default", async () => {
+    delete process.env.DOOLITTLE_EVAL_CODING_VERIFICATION;
+    const { services, publishRuntimeCodingVerification } =
+      codingVerificationServices({
+        observed: localCodingVerificationTerminalRun(),
+      });
+    const events = createRunProgressEvents(services);
+
+    await events[EventType.ACTION_STARTED]?.[0]?.({
+      roomId: "room-1",
+      content: { actions: ["SHELL"] },
+    } as never);
+    await events[EventType.ACTION_COMPLETED]?.[0]?.({
+      roomId: "room-1",
+      content: {
+        actions: ["SHELL"],
+        actionStatus: "completed",
+        actionResult: codingVerificationPayload(),
+      },
+    } as never);
+
+    expect(publishRuntimeCodingVerification).not.toHaveBeenCalled();
+  });
+
+  it("publishes a verified receipt only from a fresh original host result", async () => {
+    process.env.DOOLITTLE_EVAL_CODING_VERIFICATION = "true";
+    process.env.DOOLITTLE_WORKSPACE_DIR = "/task/workspace";
+    const {
+      services,
+      publishRuntimeCodingVerification,
+      observeExecutionResult,
+    } = codingVerificationServices({
+      observed: localCodingVerificationTerminalRun(),
+    });
+    const events = createRunProgressEvents(services);
+
+    await events[EventType.ACTION_STARTED]?.[0]?.({
+      roomId: "room-1",
+      content: { actions: ["SHELL"] },
+    } as never);
+    observeExecutionResult();
+    await events[EventType.ACTION_COMPLETED]?.[0]?.({
+      roomId: "room-1",
+      runId: "runtime-run-1",
+      content: {
+        actions: ["SHELL"],
+        actionStatus: "completed",
+        actionResult: codingVerificationPayload(),
+      },
+    } as never);
+
+    expect(publishRuntimeCodingVerification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "cli:session",
+        runId: "runtime-run-1",
+        roomId: "room-1",
+        receipt: expect.objectContaining({
+          status: "verified",
+          reason: "verified",
+          workdirMatches: true,
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    ["remote backend", { backend: "ssh" }, "host"],
+    ["container backend", { backendMode: "container" }, "host"],
+    ["sandboxed host backend", {}, "docker"],
+    ["timed out result", { timedOut: true }, "host"],
+    ["different workspace", { cwd: "/other/workspace" }, "host"],
+    ["missing terminal id", { id: undefined }, "host"],
+    ["mismatched output", { stdout: "other" }, "host"],
+  ])(
+    "does not verify a candidate against %s invocation result",
+    async (_label, recordOverrides, sandbox) => {
+      process.env.DOOLITTLE_EVAL_CODING_VERIFICATION = "true";
+      process.env.DOOLITTLE_WORKSPACE_DIR = "/task/workspace";
+      const {
+        services,
+        publishRuntimeCodingVerification,
+        observeExecutionResult,
+      } = codingVerificationServices({
+        observed: localCodingVerificationTerminalRun(recordOverrides, sandbox),
+      });
+      const events = createRunProgressEvents(services);
+
+      await events[EventType.ACTION_STARTED]?.[0]?.({
+        roomId: "room-1",
+        content: { actions: ["SHELL"] },
+      } as never);
+      observeExecutionResult();
+      await events[EventType.ACTION_COMPLETED]?.[0]?.({
+        roomId: "room-1",
+        content: {
+          actions: ["SHELL"],
+          actionStatus: "completed",
+          actionResult: codingVerificationPayload(),
+        },
+      } as never);
+
+      expect(
+        publishRuntimeCodingVerification.mock.calls[0]?.[0].receipt,
+      ).not.toMatchObject({ status: "verified" });
+    },
+  );
+
+  it("does not accept a matching stale disk-history record without an invocation-local observation", async () => {
+    process.env.DOOLITTLE_EVAL_CODING_VERIFICATION = "true";
+    process.env.DOOLITTLE_WORKSPACE_DIR = "/task/workspace";
+    const staleRecord = localCodingVerificationTerminalRun().record;
+    const { services, publishRuntimeCodingVerification } =
+      codingVerificationServices({ history: [staleRecord] });
+    const events = createRunProgressEvents(services);
+
+    await events[EventType.ACTION_STARTED]?.[0]?.({
+      roomId: "room-1",
+      content: { actions: ["SHELL"] },
+    } as never);
+    await events[EventType.ACTION_COMPLETED]?.[0]?.({
+      roomId: "room-1",
+      content: {
+        actions: ["SHELL"],
+        actionStatus: "completed",
+        actionResult: codingVerificationPayload(),
+      },
+    } as never);
+
+    expect(publishRuntimeCodingVerification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        receipt: expect.objectContaining({
+          status: "unavailable",
+          reason: "identity-unavailable",
+        }),
+      }),
+    );
+  });
+
   it("extracts room ids from payload root or message envelope", () => {
     expect(eventRoomId({ roomId: "root-room" })).toBe("root-room");
     expect(eventRoomId({ message: { roomId: "message-room" } })).toBe(

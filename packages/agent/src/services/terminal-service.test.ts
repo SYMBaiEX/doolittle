@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { RuntimeSettings } from "./settings/runtime-settings";
+import type { TerminalExecutionObservation } from "./terminal/command/orchestrator";
 import { TerminalService } from "./terminal/service";
 
 function makeSettings(): RuntimeSettings {
@@ -133,6 +134,10 @@ describe("TerminalService", () => {
   it("runs local commands and records them", async () => {
     const root = mkdtempSync(join(tmpdir(), "doolittle-terminal-test-"));
     const service = new TerminalService(join(root, "data"), root, makeSettings);
+    const observations: TerminalExecutionObservation[] = [];
+    const unsubscribe = service.onExecutionResult((event) => {
+      observations.push(event);
+    });
 
     try {
       const result = await service.run("printf 'terminal-ok'");
@@ -144,7 +149,18 @@ describe("TerminalService", () => {
       expect(record?.timedOut).toBe(false);
       expect(record?.durationMs).toBeGreaterThanOrEqual(0);
       expect(record?.preview?.checks.length).toBeGreaterThan(0);
+      expect(observations).toHaveLength(1);
+      expect(observations[0]?.record).toMatchObject({
+        id: result.id,
+        command: "printf 'terminal-ok'",
+        stdout: "terminal-ok",
+        stderr: "",
+      });
+      expect(observations[0]?.sandbox).toBeTypeOf("string");
+      expect(observations[0]?.record).not.toHaveProperty("preview");
+      expect(record).not.toHaveProperty("sandbox");
     } finally {
+      unsubscribe();
       rmSync(root, { recursive: true, force: true });
     }
   });

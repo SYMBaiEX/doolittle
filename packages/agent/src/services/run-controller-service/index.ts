@@ -1,4 +1,5 @@
 import {
+  RuntimeCodingVerificationEventBus,
   RunUpdateEventBus,
   TaskRunEventBus,
 } from "@/services/run-controller/event-bus";
@@ -7,6 +8,7 @@ import type {
   LocalMutationInput,
   RunSnapshot,
   RunStatus,
+  RuntimeCodingVerificationEvent,
   RunUpdateEvent,
   StartTurnInput,
   TaskRunClaimInput,
@@ -36,6 +38,7 @@ export type {
   LocalMutationRecord,
   RunSnapshot,
   RunStatus,
+  RuntimeCodingVerificationEvent,
   RunUpdateEvent,
   StartTurnInput,
   TaskRunClaimInput,
@@ -46,6 +49,8 @@ export type {
 export class RunControllerService {
   private readonly events = new RunUpdateEventBus();
   private readonly taskEvents = new TaskRunEventBus();
+  private readonly codingVerificationEvents =
+    new RuntimeCodingVerificationEventBus();
   private readonly store: RunControllerStore;
   private readonly abortControllers = new Map<string, AbortController>();
   private readonly workspaceRuns = new Map<string, string>();
@@ -354,5 +359,18 @@ export class RunControllerService {
 
   onUpdate(listener: (event: RunUpdateEvent) => void): () => void {
     return onRunUpdate(this.events, listener);
+  }
+
+  /** Publishes only in memory; never touches task snapshots or run journals. */
+  publishRuntimeCodingVerification(
+    event: RuntimeCodingVerificationEvent,
+  ): void {
+    this.codingVerificationEvents.emit(event);
+  }
+
+  onRuntimeCodingVerification(
+    listener: (event: RuntimeCodingVerificationEvent) => void,
+  ): () => void {
+    return this.codingVerificationEvents.onReceipt(listener);
   }
 }

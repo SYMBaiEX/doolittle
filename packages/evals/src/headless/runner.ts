@@ -26,6 +26,10 @@ import {
 } from "./action-outcomes";
 import type { HeadlessEvalSuite } from "./cases";
 import {
+  CODING_VERIFICATION_FLAG,
+  createCodingVerificationCollector,
+} from "./coding-verification";
+import {
   PLANNER_ALIAS_TOOL_DEDUPLICATION_FLAG,
   PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE,
 } from "./execution-overrides";
@@ -448,6 +452,15 @@ export async function runHeadlessEvalSuite(
     }
   }
   if (
+    selectedTasks.some(
+      (task) =>
+        task.groundingStrategy === "coding-original-verifier-v1" &&
+        task.followUpPrompts?.length,
+    )
+  ) {
+    throw new Error("Coding verification supports one CLI invocation only.");
+  }
+  if (
     selectedTasks.some((task) =>
       [task.prompt, ...(task.followUpPrompts ?? [])].some(
         (prompt) => !prompt.trim(),
@@ -518,6 +531,10 @@ export async function runHeadlessEvalSuite(
 
       const startedAt = Date.now();
       const prompts = [task.prompt, ...(task.followUpPrompts ?? [])];
+      const codingVerificationCollector =
+        task.groundingStrategy === "coding-original-verifier-v1"
+          ? createCodingVerificationCollector(task.prompt)
+          : undefined;
       const sessionId =
         prompts.length > 1 ? `doolittle-eval:${randomUUID()}` : undefined;
       const responses: string[] = [];
@@ -577,6 +594,10 @@ export async function runHeadlessEvalSuite(
           : "false";
         childEnvironment[PLANNER_ALIAS_TOOL_DEDUPLICATION_FLAG] =
           options.deduplicatePlannerAliasTools ? "true" : "false";
+        childEnvironment[CODING_VERIFICATION_FLAG] =
+          task.groundingStrategy === "coding-original-verifier-v1"
+            ? "true"
+            : "false";
         if (
           task.domain === "research" &&
           cloudResearchOptedIn &&
@@ -604,7 +625,10 @@ export async function runHeadlessEvalSuite(
             timeoutMs: 300_000,
             maxBufferBytes: 10 * 1024 * 1024,
             env: childEnvironment,
-            onStdoutChunk: observeStdout,
+            onStdoutChunk: (chunk) => {
+              observeStdout(chunk);
+              codingVerificationCollector?.onStdoutChunk(chunk);
+            },
           },
         );
         const execEndedAt = monotonicNow();
@@ -762,6 +786,16 @@ export async function runHeadlessEvalSuite(
             ? traceSummary.actionStarts
             : null,
       };
+      const codingVerification = codingVerificationCollector
+        ? codingVerificationCollector.finish({
+            response,
+            executionConfirmed: completed,
+            cleanupConfirmed: childCleanupSafe,
+          })
+        : undefined;
+      if (codingVerification && codingVerification.status !== "verified") {
+        diagnosticFlags.add(`coding-verification-${codingVerification.reason}`);
+      }
       let researchGrounding: ResearchGrounding | undefined;
       if (task.groundingStrategy === "sdk-web-source-v1") {
         researchGrounding = unavailableResearchGrounding(
@@ -805,9 +839,11 @@ export async function runHeadlessEvalSuite(
           diagnosticFlags.add(`sdk-web-grounding-${researchGrounding.reason}`);
         }
       }
-      const gradingContext = researchGrounding
-        ? { ...checkContext, researchGrounding }
-        : checkContext;
+      const gradingContext = {
+        ...checkContext,
+        ...(researchGrounding ? { researchGrounding } : {}),
+        ...(codingVerification ? { codingVerification } : {}),
+      };
       const checks = task.checks.map((check) => ({
         id: check.id,
         passed: Boolean(check.evaluate(gradingContext)),

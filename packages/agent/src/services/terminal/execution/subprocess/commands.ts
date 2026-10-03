@@ -13,6 +13,7 @@ export function normalizeBackendError(
       (result.exitCode === 0 ? "" : "Command failed without stderr output."),
     timedOut: result.timedOut,
     durationMs: result.durationMs,
+    ...(result.sandbox ? { sandbox: result.sandbox } : {}),
   };
 }
 
