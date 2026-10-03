@@ -252,6 +252,36 @@ describe("agent-invokable managed browser critique", () => {
     );
   });
 
+  it.each([
+    ["<".repeat(3_000), true],
+    ["&".repeat(3_000), true],
+    ["<&>".repeat(800), true],
+    [`</untrusted-page-critique>${"&".repeat(3_000)}`, true],
+    ["<".repeat(2_048), false],
+    ["&".repeat(1_638), false],
+  ] as const)(
+    "bounds escaped critique and reports actual truncation (case %#)",
+    async (source, truncated) => {
+      const { run, analysis } = fixture();
+      analysis.response = source;
+      const result = await run();
+      const critique = result?.text?.match(
+        /<untrusted-page-critique>\n([\s\S]*?)\n<\/untrusted-page-critique>/u,
+      )?.[1];
+      expect(critique).toBeDefined();
+      expect(critique?.length).toBeLessThanOrEqual(8_192);
+      expect(critique).not.toMatch(/[<>]|&(?!(?:amp|lt|gt);)/u);
+      expect(result?.text?.length).toBeLessThan(11_000);
+      expect(result?.data).toMatchObject({ critiqueTruncated: truncated });
+      expect(
+        result?.text?.includes("Critique truncated to its output limit."),
+      ).toBe(truncated);
+      expect(result?.text?.match(/<\/untrusted-page-critique>/gu)).toHaveLength(
+        1,
+      );
+    },
+  );
+
   it("does not reflect arbitrary provider errors or credentials", async () => {
     const { run, analyze } = fixture();
     analyze.mockRejectedValue(new Error("Bearer private-provider-secret"));

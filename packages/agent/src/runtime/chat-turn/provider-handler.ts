@@ -127,6 +127,29 @@ const MAX_CONSECUTIVE_NO_ACTION_PASSES = 2;
 const FRONTEND_FILE =
   /(?:^|\/)(?![^/]*\.(?:test|spec)\.)[^/]+\.(?:tsx|jsx|css|scss|sass|less|html|vue|svelte|svg|png|jpe?g|webp|gif|avif)$/iu;
 
+function serverStartPolicy(userRequest: string): {
+  verificationRequest: string;
+  forbidden: boolean;
+} {
+  const negative =
+    /\b(?:do\s+not|don't|never)\s+(?:change\s+(?:the\s+)?ui\s+(?:or|and)\s+)?(?:start|launch|serve|preview|open|run)\s+(?:(?:a|an|any|the)\s+)?(?:app(?:lication)?|(?:dev(?:elopment)?\s+)?server|website|web\s+app|site)\b/giu;
+  const matches = [...userRequest.matchAll(negative)];
+  const latest = matches[matches.length - 1];
+  const laterRequest = latest
+    ? userRequest.slice(latest.index + latest[0].length).replace(negative, "")
+    : "";
+  return {
+    // Only verification intent uses this text; the original request, including
+    // every user constraint, remains unchanged in the model's memory.
+    verificationRequest: userRequest.replace(negative, ""),
+    forbidden:
+      Boolean(latest) &&
+      !/\b(?:start|launch|serve|preview|open|run)\s+(?:(?:a|an|any|the)\s+)?(?:app(?:lication)?|(?:dev(?:elopment)?\s+)?server|website|web\s+app|site)\b/iu.test(
+        laterRequest,
+      ),
+  };
+}
+
 function frontendReviewRequired(
   actionResults: readonly ActionResult[],
   userRequest: string,
@@ -143,7 +166,9 @@ function frontendReviewRequired(
         FRONTEND_FILE.test(mutation.resolvedPath),
     ) ||
     (mutations.length > 0 &&
-      /\b(?:create|build|implement|make|develop|scaffold)\b[\s\S]{0,100}\b(?:frontend|front-end|website|web\s+app|landing\s+page|user\s+interface|next\.?js|react|vue|svelte)\b/iu.test(
+      // Framework names also describe backend/API work. Intent-only activation
+      // needs an explicit user-facing surface; visual file receipts still win.
+      /\b(?:create|build|implement|make|develop|scaffold)\b[\s\S]{0,100}\b(?:frontend|front-end|website|web\s+app|landing\s+page|user\s+interface)\b/iu.test(
         userRequest,
       ))
   );
@@ -158,6 +183,26 @@ function frontendRequirements(
     ? { ...requirements, requireBuild: true, requireManagedApplication: true }
     : requirements;
 }
+
+function frontendReviewBlockedByUserConstraint(
+  actionResults: readonly ActionResult[],
+  requirements: ReturnType<typeof workspaceNoopRequirements>,
+  userRequest: string,
+): boolean {
+  return (
+    serverStartPolicy(userRequest).forbidden &&
+    frontendReviewRequired(actionResults, userRequest) &&
+    missingWorkspaceMutationRequirements(
+      actionResults,
+      frontendRequirements(actionResults, requirements, userRequest),
+    ).some((requirement) =>
+      requirement.startsWith("a ready managed app server"),
+    )
+  );
+}
+
+const CONSTRAINED_FRONTEND_REVIEW_FAILURE =
+  "The frontend files changed, but browser review is unavailable and was not attempted: your instruction forbids starting a server, and no current verified ready managed-app receipt is available. The changes are preserved. No rendered pixels were reviewed; this does not establish completion, corrected defects, or requested quality. Other requested checks are not implied by this report.";
 
 function frontendReviewAttempt(
   actionResults: readonly ActionResult[],
@@ -510,7 +555,11 @@ function continuationMemory(
     !frontendReviewAttempt(actionResults, requirements, userRequest)
   ) {
     missingRequirements.push(
-      "a DOOLITTLE_BROWSER_ANALYZE attempt using the exact ready managed app URL after the latest file mutation, production build, and ready receipt; preserve its concrete findings, correct in-scope defects, and rebuild/restart/re-review after any correction. Disclose rendered pixels, text-only evidence, or failed/unavailable review; a review attempt is not a quality pass",
+      "a DOOLITTLE_BROWSER_ANALYZE attempt using the exact ready managed app URL after the latest file mutation, production build, and ready receipt; preserve its concrete findings and correct in-scope defects. " +
+        (serverStartPolicy(userRequest).forbidden
+          ? "Do not start or restart a server after corrections; if no current verified ready app remains, disclose browser review as unavailable and not attempted. "
+          : "Rebuild/restart/re-review after any correction. ") +
+        "Disclose rendered pixels, text-only evidence, or failed/unavailable review; a review attempt is not a quality pass",
     );
   }
   let remaining = MAX_CONTINUATION_EVIDENCE_CHARS;
@@ -568,6 +617,11 @@ function continuationMemory(
         userRequest,
         "",
         "Continue the same requested workspace task. The previous pass did not complete the request.",
+        ...(serverStartPolicy(userRequest).forbidden
+          ? [
+              "The user forbids starting a server. Do not start or restart one for verification; only review an existing verified ready managed app. If none is available, disclose browser review as unavailable and not attempted.",
+            ]
+          : []),
         hasVerifiedMutation
           ? "A verified local file change has already occurred. Inspect the current state, avoid repeating completed writes, and continue any remaining requested implementation or verification."
           : "Inspect the current state before repeating commands, then make the requested change and verify it.",
@@ -869,7 +923,10 @@ export async function executeProviderMessageTurn(
       });
 
       let mutationObligation = false;
-      const noOpRequirements = workspaceNoopRequirements(prompt);
+      // An API path can contain `app`; a negated server-start clause must not
+      // turn it into a requested managed-app handoff.
+      const { verificationRequest } = serverStartPolicy(prompt);
+      const noOpRequirements = workspaceNoopRequirements(verificationRequest);
       try {
         throwIfTurnAborted(input.abortSignal);
         setTrajectoryPurpose("response");
@@ -1003,6 +1060,9 @@ export async function executeProviderMessageTurn(
             input.context.runtime,
             actionResults,
           );
+          // Receipt-backed visual edits need the completion gate even when a
+          // short user request did not match the workspace-intent heuristic.
+          mutationObligation ||= frontendReviewRequired(actionResults, prompt);
           allResponseMessages.push(...(messageResult?.responseMessages ?? []));
           responseMessages = allResponseMessages;
           response = resolveSdkMessageResponse({
@@ -1039,6 +1099,11 @@ export async function executeProviderMessageTurn(
             );
           if (
             managedDelegationFailure(actionResults) ||
+            frontendReviewBlockedByUserConstraint(
+              actionResults,
+              noOpRequirements,
+              prompt,
+            ) ||
             !mutationObligation ||
             isSdkFailureReply(messageResult?.responseContent) ||
             hasPendingApproval(input.context, sessionId) ||
@@ -1153,6 +1218,18 @@ export async function executeProviderMessageTurn(
           noOpRequirements,
           prompt,
         );
+        if (
+          !runFailureMessage &&
+          mutationObligation &&
+          frontendReviewBlockedByUserConstraint(
+            actionResults,
+            noOpRequirements,
+            prompt,
+          )
+        ) {
+          runFailureMessage = CONSTRAINED_FRONTEND_REVIEW_FAILURE;
+          response = runFailureMessage;
+        }
         if (
           !runFailureMessage &&
           mutationObligation &&
@@ -1303,6 +1380,10 @@ export async function executeProviderMessageTurn(
               ),
             ),
           );
+        mutationObligation ||= frontendReviewRequired(
+          committedActionResults,
+          prompt,
+        );
         const recoveredNoopCompletion = mutationObligation
           ? verifyWorkspaceNoopCompletion(
               committedActionResults,
@@ -1339,6 +1420,21 @@ export async function executeProviderMessageTurn(
           noOpRequirements,
           prompt,
         );
+        if (
+          mutationObligation &&
+          frontendReviewBlockedByUserConstraint(
+            committedActionResults,
+            noOpRequirements,
+            prompt,
+          )
+        ) {
+          handledMessage = true;
+          actionResults = committedActionResults;
+          runFailureMessage = CONSTRAINED_FRONTEND_REVIEW_FAILURE;
+          response = runFailureMessage;
+          input.streamState.setResponse(response);
+          return;
+        }
         if (
           mutationObligation &&
           hasVerifiedWorkspaceMutation(committedActionResults) &&

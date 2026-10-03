@@ -61,11 +61,27 @@ function captureEvidence(capture: BrowserCaptureBundle) {
   };
 }
 
-function escapeUntrustedCritique(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+function escapeUntrustedCritique(value: string): {
+  text: string;
+  truncated: boolean;
+} {
+  let text = "";
+  for (const character of value) {
+    const escaped =
+      character === "&"
+        ? "&amp;"
+        : character === "<"
+          ? "&lt;"
+          : character === ">"
+            ? "&gt;"
+            : character;
+    // Bound the final escaped output without splitting XML entities or Unicode
+    // code points. Escaping can expand short provider responses substantially.
+    if (text.length + escaped.length > MAX_CRITIQUE_LENGTH)
+      return { text, truncated: true };
+    text += escaped;
+  }
+  return { text, truncated: false };
 }
 
 export function createBrowserAnalysisAction(
@@ -146,10 +162,9 @@ export function createBrowserAnalysisAction(
             : []),
         ];
         const modelEvidence = analysis.modelEvidence ?? "text-only";
-        const critique = escapeUntrustedCritique(
-          analysis.response.slice(0, MAX_CRITIQUE_LENGTH),
+        const { text: critique, truncated } = escapeUntrustedCritique(
+          analysis.response,
         );
-        const truncated = analysis.response.length > MAX_CRITIQUE_LENGTH;
         return finish({
           success: true,
           continueChain: true,

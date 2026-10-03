@@ -428,12 +428,101 @@ describe("chat turn provider handler", () => {
     expect(result.response).not.toContain("Browser analysis");
   });
 
+  it.each([
+    [
+      "Implement a Next.js API endpoint at app/api/orders/route.ts; do not change UI or start a server.",
+      false,
+    ],
+    [
+      "Implement a React-framework API endpoint at app/api/orders/route.ts; do not change UI or start a server.",
+      false,
+    ],
+    [
+      "Create a backend-only Next.js API handler at app/api/orders/route.ts.",
+      false,
+    ],
+    [
+      "Implement a Next.js API endpoint at app/api/orders/route.ts and verify the build; do not start a server.",
+      true,
+    ],
+  ] as const)(
+    "does not activate frontend review for framework-only API work: %s",
+    async (request, buildRequired) => {
+      const { page, build } = frontendReceipts();
+      page.data = {
+        ...page.data,
+        mutation: {
+          ...(page.data?.mutation as object),
+          requestedPath: "app/api/orders/route.ts",
+          resolvedPath: "/workspace/frontend-review/app/api/orders/route.ts",
+        },
+      };
+      const { result, calls } = await runFrontendPasses(
+        [buildRequired ? [page, build] : [page]],
+        { request },
+      );
+      expect(calls).toBe(1);
+      expect(result.runFailureMessage).toBeUndefined();
+      expect(result.response).not.toContain("Browser analysis");
+    },
+  );
+
   it("preserves the frontend review gate if continuation throws", async () => {
     const { page, build, ready } = frontendReceipts();
     const { result } = await runFrontendPasses([[page, build, ready]], {
       throwAfter: true,
     });
     expect(result.runFailureMessage).toContain("no browser-analysis attempt");
+  });
+
+  it("reports review unavailable without starting a server when visual work forbids server start", async () => {
+    const { page, build } = frontendReceipts();
+    const { result, calls } = await runFrontendPasses([[page, build]], {
+      request: "Update the frontend heading; do not start a server.",
+    });
+    expect(calls).toBe(1);
+    expect(result.runFailureMessage).toContain(
+      "unavailable and was not attempted",
+    );
+    expect(result.response).toContain(
+      "your instruction forbids starting a server",
+    );
+    expect(result.response).toContain("No rendered pixels were reviewed");
+    expect(result.response).not.toContain("Still missing:");
+  });
+
+  it("allows review of an already verified ready app while preserving the original no-server constraint", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const { result, prompts, calls } = await runFrontendPasses(
+      [[page, build, ready], [review("rendered-pixels")]],
+      {
+        request: "Update the frontend heading; do not start a server.",
+      },
+    );
+    expect(calls).toBe(2);
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(prompts[1]).toContain(
+      "Update the frontend heading; do not start a server.",
+    );
+    expect(prompts[1]).toContain("Do not start or restart one");
+    expect(prompts[1]).not.toContain("Rebuild/restart/re-review");
+  });
+
+  it("does not suppress a later positive server-start request", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const { result, prompts, calls } = await runFrontendPasses(
+      [
+        [page, build],
+        [ready, review("rendered-pixels")],
+      ],
+      {
+        request:
+          "Create a website; do not start a server. Start the application after the build.",
+      },
+    );
+    expect(calls).toBe(2);
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(prompts[1]).not.toContain("The user forbids starting a server.");
   });
 
   it.each([
