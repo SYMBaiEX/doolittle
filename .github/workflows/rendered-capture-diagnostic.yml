@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        transport: [playwright, native]
+        backend: [onscreen, offscreen]
 
     steps:
       - name: Check out repository
@@ -43,20 +43,24 @@ jobs:
       # Each test owns a fresh Electron process and profile. Repeat fixed samples;
       # retries remain disabled, and any failed sample keeps the job failed.
       # This offline fixture does not boot the agent/API or call providers.
-      # Separate hosted jobs/Xvfb sessions compare startup transports while keeping
-      # complete-first order. The native Linux arm explicitly uses --no-sandbox;
-      # neither arm is a claim of production security parity.
+      # Separate hosted jobs/Xvfb sessions compare hidden onscreen rendering with
+      # GPU-composed CPU-bitmap OSR. Both use the same native startup and DPR2,
+      # complete-first order, and one capture without a paint observer or warmup.
+      # Native Linux explicitly uses --no-sandbox; neither arm is a claim of
+      # production security parity. OSR has its own compositor behavior, so a
+      # different result would not establish a GPU failure's underlying cause.
       - name: Observe three cold samples of every first-capture case
         run: xvfb-run -a --server-args='-screen 0 3840x2160x24' nubx playwright test --config playwright.rendered.config.ts --repeat-each=3 --retries=0 --global-timeout=300000
         env:
           DOOLITTLE_RENDER_CAPTURE_ORDER: complete-first
-          DOOLITTLE_RENDER_CAPTURE_TRANSPORT: ${{ matrix.transport }}
+          DOOLITTLE_RENDER_CAPTURE_TRANSPORT: native
+          DOOLITTLE_RENDER_CAPTURE_BACKEND: ${{ matrix.backend }}
 
       - name: Preserve synthetic capture evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: cold-capture-evidence-${{ matrix.transport }}
+          name: cold-capture-evidence-native-${{ matrix.backend }}
           path: var/playwright/rendered-test-results
           if-no-files-found: warn
           retention-days: 7

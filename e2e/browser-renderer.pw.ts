@@ -7,6 +7,7 @@ import type { RasterCase } from "../apps/desktop/e2e/browser-renderer-fixture";
 import {
   pinFixtureDirectory,
   removePinnedFixtureDirectory,
+  resolveFixtureCaptureBackend,
   startNativeRendererFixture,
 } from "../apps/desktop/e2e/native-renderer-fixture";
 
@@ -14,6 +15,9 @@ const captureTransport =
   process.env.DOOLITTLE_RENDER_CAPTURE_TRANSPORT ?? "playwright";
 if (captureTransport !== "playwright" && captureTransport !== "native")
   throw new Error("Unknown renderer fixture transport.");
+const captureBackend = resolveFixtureCaptureBackend(
+  process.env.DOOLITTLE_RENDER_CAPTURE_BACKEND,
+);
 
 // Fixed crossover arms distinguish a case-specific failure from the first
 // invocation in a hosted Xvfb session. The default full-CI order is unchanged.
@@ -99,6 +103,7 @@ for (const mode of [
         const diagnostic = {
           mode,
           transport: captureTransport,
+          backend: captureBackend,
           nativeLinuxNoSandbox:
             captureTransport === "native" && process.platform === "linux",
           order: captureOrder,
@@ -133,6 +138,7 @@ for (const mode of [
           expect(outcome.failure?.status).toBe(502);
           expect(outcome.failure?.phase).toBe("first-snapshot");
           const observed = outcome.failure?.window;
+          expect(observed?.backend).toBe(captureBackend);
           expect(observed?.phase).toBe("png-encode");
           expect(observed?.failedPhase).toBeNull();
           expect(observed?.nativeCapture?.settlement).toBe("fulfilled");
@@ -156,6 +162,7 @@ for (const mode of [
           );
         const capture = outcome.capture;
         if (!capture) throw new Error("Fixture capture returned no evidence.");
+        expect(capture.diagnostic?.backend).toBe(captureBackend);
         expect(capture.diagnostic?.nativeCapture?.settlement).toBe("fulfilled");
         expect(capture.diagnostic?.nativeCapture?.failure).toBeNull();
         expect(

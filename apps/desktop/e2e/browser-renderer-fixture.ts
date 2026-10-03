@@ -20,8 +20,11 @@ import {
   observeNativeCapture,
 } from "./native-capture-diagnostic";
 import {
+  type FixtureCaptureBackend,
+  fixtureWindowOptions,
   installNativeFixtureShutdown,
   parseNativeFixtureRequest,
+  resolveFixtureCaptureBackend,
 } from "./native-renderer-fixture";
 
 export type RasterCase = "complete" | "async" | "lazy" | "late";
@@ -74,6 +77,7 @@ interface WindowMeasurement {
   } | null;
 }
 interface WindowDiagnostic {
+  backend: FixtureCaptureBackend;
   loaded: boolean;
   closed: boolean;
   unresponsive: boolean;
@@ -348,6 +352,9 @@ declare global {
 app.on("window-all-closed", () => {});
 
 const nativeIpc = process.argv.includes("--doolittle-renderer-fixture-ipc");
+const captureBackend = resolveFixtureCaptureBackend(
+  process.env.DOOLITTLE_RENDER_CAPTURE_BACKEND,
+);
 let nativeDispose = async () => {};
 const sendNative = (value: unknown) => {
   try {
@@ -447,8 +454,11 @@ globalThis.browserRendererFixture = (async () => {
       isManagedAppUrl: async (url) =>
         url.origin === origin && !(expireAfterPng && windowDiagnostic?.png),
       createWindow(options) {
-        const window = new BrowserWindow(options);
+        const window = new BrowserWindow(
+          fixtureWindowOptions(options, captureBackend),
+        );
         const diagnostic: WindowDiagnostic = {
+          backend: captureBackend,
           loaded: false,
           closed: false,
           unresponsive: false,

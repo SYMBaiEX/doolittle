@@ -2,6 +2,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { lstatSync, realpathSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
+import type { BrowserWindowConstructorOptions } from "electron";
 import type {
   CaptureFailure,
   RasterCapture,
@@ -12,6 +13,32 @@ export type NativeFixtureOutcome =
   | { capture: RasterCapture; failure: null }
   | { capture: null; failure: CaptureFailure };
 const fail = () => new Error("Native renderer fixture protocol failed.");
+
+export type FixtureCaptureBackend = "onscreen" | "offscreen";
+
+export function resolveFixtureCaptureBackend(
+  value: unknown,
+): FixtureCaptureBackend {
+  if (value === undefined || value === "onscreen") return "onscreen";
+  if (value === "offscreen") return "offscreen";
+  throw new Error("Unknown renderer fixture backend.");
+}
+
+export function fixtureWindowOptions(
+  options: BrowserWindowConstructorOptions,
+  backend: FixtureCaptureBackend,
+): BrowserWindowConstructorOptions {
+  if (resolveFixtureCaptureBackend(backend) === "onscreen") return options;
+  // CPU bitmap output with GPU composition, not software rendering. Explicit
+  // OSR scale keeps the same DPR2 target as the forced display-scale flag.
+  return {
+    ...options,
+    webPreferences: {
+      ...options.webPreferences,
+      offscreen: { useSharedTexture: false, deviceScaleFactor: 2 },
+    },
+  };
+}
 
 export function pinFixtureDirectory(path: string) {
   const canonical = realpathSync(path);
@@ -149,6 +176,7 @@ export function parseNativeFixtureRequest(
 const diagnostic = (v: unknown): boolean =>
   v === null ||
   (keys(v, [
+    "backend",
     "loaded",
     "closed",
     "unresponsive",
@@ -166,6 +194,7 @@ const diagnostic = (v: unknown): boolean =>
     "calls",
     "observationUnavailable",
   ]) &&
+    (v.backend === "onscreen" || v.backend === "offscreen") &&
     [v.loaded, v.closed, v.unresponsive, v.observationUnavailable].every(
       (b) => typeof b === "boolean",
     ) &&

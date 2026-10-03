@@ -14,12 +14,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  fixtureWindowOptions,
   installNativeFixtureShutdown,
   nativeFixtureEnvironment,
   parseNativeFixtureOutcome,
   parseNativeFixtureRequest,
   pinFixtureDirectory,
   removePinnedFixtureDirectory,
+  resolveFixtureCaptureBackend,
   startNativeRendererFixture,
 } from "./native-renderer-fixture";
 
@@ -71,6 +73,127 @@ function start(child: SyntheticChild, absent = () => true, signal = vi.fn()) {
   });
 }
 afterEach(() => vi.useRealTimers());
+
+describe("fixture-only rendering backend", () => {
+  const base = Object.freeze({
+    width: 1280,
+    height: 720,
+    useContentSize: true,
+    show: false,
+    skipTaskbar: true,
+    webPreferences: Object.freeze({
+      partition: "doolittle-capture-synthetic",
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: true,
+      webviewTag: false,
+      backgroundThrottling: false,
+      devTools: false,
+    }),
+  });
+  it("defaults to onscreen and preserves the exact original options", () => {
+    expect(resolveFixtureCaptureBackend(undefined)).toBe("onscreen");
+    expect(fixtureWindowOptions(base, "onscreen")).toBe(base);
+  });
+  it("only adds GPU-composed CPU-bitmap OSR at the same requested DPR2", () => {
+    expect(resolveFixtureCaptureBackend("offscreen")).toBe("offscreen");
+    expect(fixtureWindowOptions(base, "offscreen")).toEqual({
+      ...base,
+      webPreferences: {
+        ...base.webPreferences,
+        offscreen: { useSharedTexture: false, deviceScaleFactor: 2 },
+      },
+    });
+    expect(Object.hasOwn(base.webPreferences, "offscreen")).toBe(false);
+  });
+  it.each(["", "OFFSCREEN", "software", "CANARY_PRIVATE", null, {}, true])(
+    "rejects unknown backend values with fixed text (%j)",
+    (value) => {
+      expect(() => resolveFixtureCaptureBackend(value)).toThrow(
+        "Unknown renderer fixture backend.",
+      );
+    },
+  );
+  const window = {
+    backend: "onscreen",
+    loaded: true,
+    closed: true,
+    unresponsive: false,
+    mainFrameLoadErrorCode: null,
+    renderProcessGone: null,
+    constructor: { width: 1280, height: 720 },
+    forcedScaleFactor: 2,
+    constructed: null,
+    atCapture: null,
+    factsViewport: null,
+    png: null,
+    phase: "capture-page",
+    failedPhase: "capture-page",
+    nativeCapture: {
+      settlement: "promise-reject",
+      durationMs: 20,
+      failure: "viz-error",
+    },
+    calls: {
+      executeJavaScript: 2,
+      waitForRender: 1,
+      renderedFacts: 1,
+      capturePage: 1,
+      pngEncode: 0,
+    },
+    observationUnavailable: false,
+  };
+  const failure = {
+    phase: "first-snapshot",
+    status: 502,
+    error: "Rendered evidence could not be captured.",
+    truncated: false,
+    elapsedMs: 20,
+    window,
+  };
+  it.each(["onscreen", "offscreen"])(
+    "retains only the closed backend enum across success/failure IPC (%s)",
+    (backend) => {
+      const diagnostic = { ...window, backend };
+      const result = { ...capture, diagnostic };
+      const failed = { ...failure, window: diagnostic };
+      expect(
+        parseNativeFixtureOutcome({ type: "captured", capture: result }),
+      ).toEqual({
+        capture: result,
+        failure: null,
+      });
+      expect(
+        parseNativeFixtureOutcome({ type: "capture-failed", failure: failed }),
+      ).toEqual({
+        capture: null,
+        failure: failed,
+      });
+    },
+  );
+  it("rejects missing, unknown and extra backend diagnostic fields", () => {
+    const { backend: _backend, ...missing } = window;
+    for (const diagnostic of [
+      missing,
+      { ...window, backend: "CANARY_PRIVATE" },
+      { ...window, backend: "offscreen", software: true },
+    ]) {
+      expect(
+        parseNativeFixtureOutcome({
+          type: "captured",
+          capture: { ...capture, diagnostic },
+        }),
+      ).toBeNull();
+      expect(
+        parseNativeFixtureOutcome({
+          type: "capture-failed",
+          failure: { ...failure, window: diagnostic },
+        }),
+      ).toBeNull();
+    }
+  });
+});
 
 describe("pinned test directory cleanup", () => {
   it.each(["missing", "symlink", "replacement"])(
