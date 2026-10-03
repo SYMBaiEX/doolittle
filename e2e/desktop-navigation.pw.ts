@@ -1260,38 +1260,67 @@ test.describe("Doolittle desktop navigation", () => {
       }
       await expect(scrollFixture).toHaveAttribute("open", "");
       await connectionsViewport.evaluate((container) => {
-        if (container.scrollHeight <= container.clientHeight) {
-          // Exercise the real route scrollport even when the E2E fixture has
-          // less provider data than a configured installation.
-          container.style.flex = "0 0 400px";
-          container.style.height = "400px";
-          container.style.maxHeight = "400px";
-          container.style.minHeight = "0";
-          container.style.overflowY = "auto";
-          const spacer = document.createElement("div");
-          spacer.dataset.e2eScrollFixture = "true";
-          spacer.style.height = "1200px";
-          spacer.style.minHeight = "1200px";
-          spacer.style.flex = "0 0 1200px";
-          spacer.setAttribute("aria-hidden", "true");
-          container.append(spacer);
-        }
+        // Always exercise the real route scrollport. Disclosure/account-pool
+        // loading can briefly overflow and then shrink after a one-shot check.
+        container.style.flex = "0 0 400px";
+        container.style.height = "400px";
+        container.style.maxHeight = "400px";
+        container.style.minHeight = "0";
+        container.style.overflowY = "auto";
+        for (const fixture of container.querySelectorAll(
+          '[data-e2e-scroll-fixture="connections-route-overflow"]',
+        ))
+          fixture.remove();
+        const spacer = document.createElement("div");
+        spacer.dataset.e2eScrollFixture = "connections-route-overflow";
+        spacer.style.height = "1200px";
+        spacer.style.minHeight = "1200px";
+        spacer.style.flex = "0 0 1200px";
+        spacer.setAttribute("aria-hidden", "true");
+        container.append(spacer);
       });
-      await expect
-        .poll(() =>
-          connectionsViewport.evaluate(
-            (container) => container.scrollHeight - container.clientHeight,
+      try {
+        await expect(
+          connectionsViewport.locator(
+            '[data-e2e-scroll-fixture="connections-route-overflow"]',
           ),
-        )
-        .toBeGreaterThan(0);
-      await connectionsViewport.evaluate((container) => {
-        container.scrollTop = container.scrollHeight;
-      });
-      await expect
-        .poll(() =>
-          connectionsViewport.evaluate((container) => container.scrollTop),
-        )
-        .toBeGreaterThan(0);
+        ).toHaveCount(1);
+        await expect
+          .poll(() =>
+            connectionsViewport.evaluate(
+              (container) => container.scrollHeight - container.clientHeight,
+            ),
+          )
+          .toBeGreaterThan(0);
+        await connectionsViewport.evaluate((container) => {
+          container.scrollTop = container.scrollHeight;
+        });
+        await expect
+          .poll(() =>
+            connectionsViewport.evaluate((container) => container.scrollTop),
+          )
+          .toBeGreaterThan(0);
+      } catch (error) {
+        const dimensions = await connectionsViewport
+          .evaluate((container) => {
+            const spacers = container.querySelectorAll(
+              '[data-e2e-scroll-fixture="connections-route-overflow"]',
+            );
+            return {
+              clientHeight: container.clientHeight,
+              scrollHeight: container.scrollHeight,
+              scrollTop: container.scrollTop,
+              spacerCount: spacers.length,
+              spacerHeight: spacers[0]?.getBoundingClientRect().height ?? null,
+            };
+          })
+          .catch(() => ({ unavailable: true }));
+        await testInfo.attach("connections scroll fixture dimensions", {
+          contentType: "application/json",
+          body: JSON.stringify(dimensions),
+        });
+        throw error;
+      }
       await page.evaluate(() => {
         window.location.hash = "#/dashboard";
       });
