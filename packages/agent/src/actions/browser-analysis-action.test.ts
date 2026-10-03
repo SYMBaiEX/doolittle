@@ -78,6 +78,64 @@ afterEach(() => {
 });
 
 describe("agent-invokable managed browser critique", () => {
+  it.each([true, false])(
+    "preserves captured blockers when critique succeeds=%s",
+    async (criticAvailable) => {
+      const { analysis, run, analyze } = fixture();
+      if (!criticAvailable) analysis.response = "";
+      for (const capture of [analysis.capture, analysis.narrowCapture]) {
+        const evidence = capture?.renderedEvidence;
+        if (!evidence) throw new Error("Missing synthetic fixture evidence.");
+        evidence.blockedRequests = 0;
+        evidence.facts = {
+          ...evidence.facts,
+          interactiveTextScan: { version: 1, complete: true, unknown: false },
+          interactiveTextCandidates: [
+            {
+              text: "private-control-canary",
+              foreground: "rgb(24, 45, 57)",
+              background: "rgb(24, 45, 57)",
+              fontSize: "14px",
+              fontWeight: "500",
+              interactiveText: {
+                controlKind: "link",
+                eligibility: "eligible",
+                subject: ["id", "link", "private-control-canary"],
+                unambiguous: true,
+              },
+            },
+          ],
+        };
+      }
+      const result = await run();
+      expect(result?.success).toBe(criticAvailable);
+      expect(analyze).toHaveBeenCalledOnce();
+      expect(result?.data?.evidence).toHaveLength(2);
+      expect(result?.data?.interactiveTextCheck).toMatchObject({
+        version: 1,
+        status: "blocked",
+        blockers: [
+          expect.objectContaining({
+            candidateIndex: 0,
+            pngSha256: "a".repeat(64),
+          }),
+          expect.objectContaining({
+            candidateIndex: 0,
+            pngSha256: "b".repeat(64),
+          }),
+        ],
+      });
+      if (criticAvailable)
+        expect(result?.text?.indexOf("readability blocker")).toBeLessThan(
+          result?.text?.indexOf("untrusted-page-critique") ?? 0,
+        );
+      else expect(result?.text).toContain("no successful model review");
+      expect(JSON.stringify(result?.data?.interactiveTextCheck)).not.toMatch(
+        /private|label|path/u,
+      );
+    },
+  );
+
   it("declares an owner-gated coding and browser action", () => {
     expect(fixture().action).toMatchObject({
       name: DOOLITTLE_BROWSER_ANALYZE_ACTION,

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -350,6 +351,34 @@ for (const mode of [
         expect(capture.sentinelBGRA[2]).toBeGreaterThan(240);
         expect(capture.sentinelBGRA[1]).toBeLessThan(140);
         expect(capture.sentinelBGRA[3]).toBe(255);
+        // The same native subject is equal in complete and repaired in the other
+        // existing cases. Unrelated emoji/generated text remains unknown. These
+        // are actual first-PNG/facts assertions, not a two-viewport quality pass.
+        expect(capture.interactiveText.complete).toBe(true);
+        expect(capture.interactiveText.unknown).toBe(true);
+        expect(capture.interactiveText.candidates).toHaveLength(3);
+        expect(capture.interactiveText.candidates[0]).toEqual({
+          eligibility: "eligible",
+          equal: mode === "complete",
+          subjectSha256: createHash("sha256")
+            .update(JSON.stringify(["id", "link", "fixture-cta"]))
+            .digest("hex"),
+        });
+        expect(
+          capture.interactiveText.candidates
+            .slice(1)
+            .every(
+              (candidate) =>
+                candidate.eligibility === "unknown" && candidate.equal === null,
+            ),
+        ).toBe(true);
+        if (mode === "complete")
+          expect(capture.interactiveText.ctaLightPixels).toBe(0);
+        else expect(capture.interactiveText.ctaLightPixels).toBeGreaterThan(0);
+        await testInfo.attach(`${mode}-interactive-text-contract`, {
+          body: Buffer.from(JSON.stringify(capture.interactiveText)),
+          contentType: "application/json",
+        });
       } finally {
         try {
           if (app) {
