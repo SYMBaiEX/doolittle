@@ -10,7 +10,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { StringDecoder } from "node:string_decoder";
@@ -29,6 +29,13 @@ import {
   type TaskHarnessTiming,
 } from "./measurement";
 import { readHeadlessModelUsage } from "./model-usage";
+import {
+  preparePrivateReportDirectory,
+  privateReportFilename,
+  privateReportPath,
+  verifyPrivateReportDirectory,
+  writePrivateReportFile,
+} from "./private-report";
 import {
   executeHeadlessChild,
   type HeadlessExecResult,
@@ -253,13 +260,6 @@ function executionErrorCode(
   return "headless-exec-failed";
 }
 
-function reportDirectory(explicit?: string): string {
-  if (explicit?.trim()) return resolve(explicit);
-  const stateHome =
-    process.env.XDG_STATE_HOME?.trim() || join(homedir(), ".local", "state");
-  return join(stateHome, "doolittle", "evals", "headless");
-}
-
 function isSafeTaskId(taskId: string): boolean {
   return /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(taskId);
 }
@@ -404,6 +404,9 @@ export async function runHeadlessEvalSuite(
   }
 
   const suiteStartedAt = monotonicNow();
+  // Refuse unsafe persistence before dispatching any provider-backed child.
+  privateReportFilename("2000-01-01T00:00:00.000Z", suite.id, suite.version);
+  const reportDirectory = preparePrivateReportDirectory(options.reportDir);
   const sourceAtStart = readSourceIdentity(repoRoot);
   const cloudResearchOptedIn = Boolean(
     options.enableConfiguredCloudResearch &&
@@ -602,7 +605,31 @@ export async function runHeadlessEvalSuite(
       const response = responses.at(-1) ?? "";
       const modelUsageResult = readHeadlessModelUsage(dataDir);
       const traceSummary = readHeadlessTraceSummary(dataDir);
-      const routeEvidence = readRequestedRouteEvidence(dataDir);
+      let routeEvidence: RouteEvidence;
+      try {
+        if (!childCleanupSafe) throw new Error();
+        verifyOwnedTaskRoot(runIdentity, taskIdentity);
+        routeEvidence = readRequestedRouteEvidence(dataDir);
+      } catch {
+        // Optional projection never reads foreign/live state or changes grading.
+        routeEvidence = {
+          provenance: "doolittle-model-request-journal",
+          coverage: "parent-turn-requests-only",
+          status: "unavailable",
+          journalAvailable: false,
+          accepted: 0,
+          rejected: 0,
+          truncated: false,
+          requested: [],
+          effective: {
+            status: "unavailable",
+            provider: null,
+            modelSha256: null,
+            reasoningEffort: null,
+          },
+          worker: { status: "unavailable", provenance: null },
+        };
+      }
       options.onActionLabels?.(
         task.id,
         readHeadlessActionLabelDiagnostic(dataDir),
@@ -740,12 +767,12 @@ export async function runHeadlessEvalSuite(
       runs,
     };
 
-    const directory = reportDirectory(options.reportDir);
-    mkdirSync(directory, { recursive: true, mode: 0o700 });
-    const reportPath = join(
-      directory,
-      `${createdAt.replaceAll(/[:.]/g, "-")}-${suite.id}-v${suite.version}-${randomUUID()}.json`,
+    const reportLeaf = privateReportFilename(
+      createdAt,
+      suite.id,
+      suite.version,
     );
+    const reportPath = privateReportPath(reportDirectory, reportLeaf);
     // Refuse persistence as well as deletion if the owned root was replaced
     // during callbacks/report preparation; never publish a shortened success.
     verifyEmptyRunRoot(runIdentity);
@@ -767,21 +794,21 @@ export async function runHeadlessEvalSuite(
     const reportBytes = `${JSON.stringify(report, null, 2)}\n`;
     const serializationMs = durationMs(serializationStartedAt, monotonicNow());
     const persistenceStartedAt = monotonicNow();
-    writeFileSync(reportPath, reportBytes, {
-      mode: 0o600,
-      flag: "wx",
-    });
+    writePrivateReportFile(reportDirectory, reportLeaf, reportBytes);
     const persistenceMs = durationMs(persistenceStartedAt, monotonicNow());
     let measurementReceiptStatus: "written" | "unavailable" = "unavailable";
     try {
-      const writeReceipt =
-        options.writeMeasurementReceipt ??
-        ((path: string, bytes: string) =>
-          writeFileSync(path, bytes, { mode: 0o600, flag: "wx" }));
-      writeReceipt(
-        `${reportPath}.measurement.json`,
-        `${JSON.stringify({ schemaVersion: 1, provenance: "headless-harness-phase-clocks", reportSchemaVersion: 5, evaluatorVersion: EVALS_EVALUATOR_VERSION, reportSha256: sha256(reportBytes), serializationMs, persistenceMs, coverage: "completed-report-write-only", receiptWriteMs: null })}\n`,
-      );
+      const receiptLeaf = `${reportLeaf}.measurement.json`;
+      const receiptBytes = `${JSON.stringify({ schemaVersion: 1, provenance: "headless-harness-phase-clocks", reportSchemaVersion: 5, evaluatorVersion: EVALS_EVALUATOR_VERSION, reportSha256: sha256(reportBytes), serializationMs, persistenceMs, coverage: "completed-report-write-only", receiptWriteMs: null })}\n`;
+      verifyPrivateReportDirectory(reportDirectory);
+      if (options.writeMeasurementReceipt) {
+        // Trusted injection seam; the default writer always uses descriptors.
+        options.writeMeasurementReceipt(
+          privateReportPath(reportDirectory, receiptLeaf),
+          receiptBytes,
+        );
+        verifyPrivateReportDirectory(reportDirectory);
+      } else writePrivateReportFile(reportDirectory, receiptLeaf, receiptBytes);
       measurementReceiptStatus = "written";
     } catch {
       /* Optional telemetry may not corrupt grading or expose an error. */

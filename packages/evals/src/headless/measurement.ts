@@ -1,6 +1,14 @@
 import { createHash } from "node:crypto";
-import { closeSync, existsSync, fstatSync, openSync, readSync } from "node:fs";
-import { join } from "node:path";
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readSync,
+  realpathSync,
+} from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
 const LIMIT = 128;
 const BYTE_LIMIT = 262144;
@@ -132,14 +140,18 @@ export function parseAdvertisedRoute(value: unknown): AdvertisedRoute {
   };
 }
 
-/** Projection only: raw prompt/response/config/account fields never leave this reader. */
+/**
+ * Projection only: raw prompt/response/config/account fields never leave this reader.
+ * Caller pins the original task root after confirmed child cleanup. These checks
+ * assume quiescent owned directories, not race-proof/openat ancestor traversal.
+ */
 export function readRequestedRouteEvidence(dataDir: string): RouteEvidence {
   const path = join(dataDir, "trajectories", "trajectory-events.jsonl");
   const output: RouteEvidence = {
     provenance: "doolittle-model-request-journal",
     coverage: "parent-turn-requests-only",
     status: "unavailable",
-    journalAvailable: existsSync(path),
+    journalAvailable: false,
     accepted: 0,
     rejected: 0,
     truncated: false,
@@ -152,13 +164,60 @@ export function readRequestedRouteEvidence(dataDir: string): RouteEvidence {
     },
     worker: { status: "unavailable", provenance: null },
   };
-  if (!output.journalAvailable) return output;
   let stored: string;
   let fd: number | undefined;
   try {
-    fd = openSync(path, "r");
-    const size = fstatSync(fd).size;
-    output.truncated = size > BYTE_LIMIT;
+    if (!constants.O_NOFOLLOW || !constants.O_NONBLOCK) throw new Error();
+    const data = lstatSync(dataDir, { bigint: true });
+    const trajectoriesPath = join(dataDir, "trajectories");
+    const trajectories = lstatSync(trajectoriesPath, { bigint: true });
+    if (
+      !process.getuid ||
+      data.uid !== BigInt(process.getuid()) ||
+      trajectories.uid !== BigInt(process.getuid()) ||
+      !data.isDirectory() ||
+      data.isSymbolicLink() ||
+      !trajectories.isDirectory() ||
+      trajectories.isSymbolicLink()
+    )
+      throw new Error();
+    const canonicalData = realpathSync(dataDir);
+    const canonicalTrajectories = realpathSync(trajectoriesPath);
+    if (
+      dirname(canonicalTrajectories) !== canonicalData ||
+      canonicalTrajectories !== join(canonicalData, "trajectories")
+    )
+      throw new Error();
+    fd = openSync(
+      join(canonicalTrajectories, "trajectory-events.jsonl"),
+      constants.O_RDONLY | constants.O_NONBLOCK | constants.O_NOFOLLOW,
+    );
+    const file = fstatSync(fd, { bigint: true });
+    const leaf = lstatSync(path, { bigint: true });
+    const currentData = lstatSync(dataDir, { bigint: true });
+    const currentTrajectories = lstatSync(trajectoriesPath, { bigint: true });
+    if (
+      file.uid !== BigInt(process.getuid()) ||
+      !file.isFile() ||
+      !leaf.isFile() ||
+      leaf.isSymbolicLink() ||
+      file.dev !== leaf.dev ||
+      file.ino !== leaf.ino ||
+      data.dev !== currentData.dev ||
+      data.ino !== currentData.ino ||
+      trajectories.dev !== currentTrajectories.dev ||
+      trajectories.ino !== currentTrajectories.ino ||
+      realpathSync(dataDir) !== canonicalData ||
+      realpathSync(trajectoriesPath) !== canonicalTrajectories ||
+      resolve(realpathSync(path)) !==
+        join(canonicalTrajectories, "trajectory-events.jsonl")
+    )
+      throw new Error();
+    output.journalAvailable = true;
+    const size = Number(
+      file.size > BigInt(BYTE_LIMIT) ? BigInt(BYTE_LIMIT) : file.size,
+    );
+    output.truncated = file.size > BigInt(BYTE_LIMIT);
     const bytes = Buffer.alloc(Math.min(size, BYTE_LIMIT));
     let offset = 0;
     while (offset < bytes.length) {
@@ -169,7 +228,8 @@ export function readRequestedRouteEvidence(dataDir: string): RouteEvidence {
     stored = bytes.subarray(0, offset).toString("utf8");
     if (output.truncated)
       stored = stored.slice(0, stored.lastIndexOf("\n") + 1);
-  } catch {
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return output;
     output.rejected++;
     output.status = "partial";
     return output;

@@ -1,15 +1,19 @@
+import * as fs from "node:fs";
 import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
+  renameSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHumanReviewSidecar } from "../review/sidecar";
 import {
   aggregateHeadlessEvalReports,
@@ -24,13 +28,20 @@ import {
 } from "./measurement";
 import { runHeadlessEvalSuite } from "./runner";
 
+vi.mock("node:fs", async (original) => ({
+  ...(await original<typeof import("node:fs")>()),
+}));
+
 const roots: string[] = [];
 function root(): string {
-  const dir = mkdtempSync(join(tmpdir(), "headless-measurement-test-"));
+  const dir = realpathSync(
+    mkdtempSync(join(tmpdir(), "headless-measurement-test-")),
+  );
   roots.push(dir);
   return dir;
 }
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const dir of roots.splice(0))
     rmSync(dir, { recursive: true, force: true });
 });
@@ -93,6 +104,63 @@ async function report(evidence: unknown[] = []) {
   });
 }
 describe("content-free headless measurement v5", () => {
+  it("refuses a journal replaced after open before reading descriptor bytes", () => {
+    const dir = root();
+    journal(dir, [request()]);
+    const leaf = join(dir, "trajectories", "trajectory-events.jsonl");
+    const originalOpen = fs.openSync;
+    const reads = vi.spyOn(fs, "readSync");
+    vi.spyOn(fs, "openSync").mockImplementation((...args) => {
+      const fd = originalOpen(...args);
+      renameSync(leaf, `${leaf}.original`);
+      writeFileSync(leaf, canary);
+      return fd;
+    });
+    expect(readRequestedRouteEvidence(dir)).toMatchObject({
+      status: "partial",
+      accepted: 0,
+      rejected: 1,
+      requested: [],
+    });
+    expect(reads).not.toHaveBeenCalled();
+  });
+  it.each(["data", "trajectories", "leaf"])(
+    "rejects foreign %s symlinks without route evidence",
+    (kind) => {
+      const foreign = root();
+      const reads = vi.spyOn(fs, "readSync");
+      journal(foreign, [request()]);
+      const owned = root();
+      let data = owned;
+      if (kind === "data") {
+        data = join(owned, "data");
+        symlinkSync(foreign, data, "dir");
+      } else if (kind === "trajectories") {
+        symlinkSync(
+          join(foreign, "trajectories"),
+          join(owned, "trajectories"),
+          "dir",
+        );
+      } else {
+        mkdirSync(join(owned, "trajectories"));
+        symlinkSync(
+          join(foreign, "trajectories", "trajectory-events.jsonl"),
+          join(owned, "trajectories", "trajectory-events.jsonl"),
+        );
+      }
+      const result = readRequestedRouteEvidence(data);
+      expect(result).toMatchObject({
+        status: "partial",
+        accepted: 0,
+        rejected: 1,
+        requested: [],
+        journalAvailable: false,
+      });
+      expect(JSON.stringify(result)).not.toContain(canary);
+      expect(JSON.stringify(result)).not.toContain(foreign);
+      expect(reads).not.toHaveBeenCalled();
+    },
+  );
   it("retains requested model/subject digests only, without effort/effective/worker promotion", () => {
     const dir = root();
     journal(dir, [request()]);
