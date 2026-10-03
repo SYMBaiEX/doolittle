@@ -51,6 +51,11 @@ export interface RasterCapture {
   blockedRequests: number;
   captureMode: string;
   images: { alt: string; loaded: boolean }[];
+  diagnostic: WindowDiagnostic | null;
+}
+
+/** Local Playwright observation; never part of the closed native IPC shape. */
+interface FixtureCapture extends RasterCapture {
   interactiveText: {
     complete: boolean;
     unknown: boolean;
@@ -61,14 +66,13 @@ export interface RasterCapture {
       subjectSha256: string | null;
     }[];
   };
-  diagnostic: WindowDiagnostic | null;
 }
 
 interface Fixture {
   capture(
     mode: RasterCase,
     options?: { expireAfterPng?: boolean },
-  ): Promise<RasterCapture>;
+  ): Promise<FixtureCapture>;
   captureFailure(error: unknown): CaptureFailure | undefined;
   dispose(): Promise<void>;
 }
@@ -788,11 +792,19 @@ if (nativeShutdown) {
           }
           captured = true;
           try {
+            const localCapture = await fixture.capture(
+              request.kind as RasterCase,
+              {
+                expireAfterPng: request.expireAfterPng,
+              },
+            );
+            // Drop fixture-local observations before the unchanged exact-key
+            // native protocol receives its original capture shape.
+            const { interactiveText: _interactiveText, ...capture } =
+              localCapture;
             send({
               type: "captured",
-              capture: await fixture.capture(request.kind as RasterCase, {
-                expireAfterPng: request.expireAfterPng,
-              }),
+              capture,
             });
           } catch (error) {
             const failure = fixture.captureFailure(error);
