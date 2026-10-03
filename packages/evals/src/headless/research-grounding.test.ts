@@ -178,6 +178,7 @@ describe("required SDK-web research grounding", () => {
       primarySourceRetrieved: true,
       answerMatchesSource: true,
       citationMatches: true,
+      citationClassification: "exact",
       executionIntegrity: true,
     });
     const bytes = JSON.stringify(output);
@@ -198,6 +199,96 @@ describe("required SDK-web research grounding", () => {
     f.completedData(2).value =
       "[Synthetic result](https://foreign.invalid/example)";
     expect(f.read().status).toBe("verified");
+  });
+  it.each([
+    ["exact", SDK_WEB_RESEARCH_SOURCE],
+    ["non-string", null],
+    ["non-string", 42],
+    ["non-string", { private: "CITATION_SECRET_CANARY" }],
+    ["non-string", [SDK_WEB_RESEARCH_SOURCE]],
+    ["non-string", undefined],
+    ["whitespace", ` \n${SDK_WEB_RESEARCH_SOURCE}\t `],
+    [
+      "github-view",
+      "https://github.com/openai/codex/blob/main/sdk/typescript/src/threadOptions.ts",
+    ],
+    [
+      "other-url",
+      "https://github.com/openai/codex/blob/main/sdk/typescript/src/foreign.ts",
+    ],
+    [
+      "other-url",
+      "https://github.com/foreign/codex/blob/main/sdk/typescript/src/threadOptions.ts",
+    ],
+    [
+      "other-url",
+      "https://user:CITATION_SECRET_CANARY@foreign.invalid/private?token=CITATION_TOKEN_CANARY",
+    ],
+    ["non-url", "CITATION_SECRET_CANARY"],
+    ["non-url", ""],
+  ] as const)(
+    "classifies %s without changing exact citation grading or exposing values",
+    (classification, value) => {
+      const f = fixture();
+      const answer = { ...JSON.parse(f.response), source: value };
+      const response = JSON.stringify(answer);
+      f.events[5].metadata.response = response;
+      f.stdout[1].text = response;
+      const output = f.read({ response });
+      expect(output.citationClassification).toBe(classification);
+      expect(output.citationMatches).toBe(classification === "exact");
+      expect(output.status === "verified").toBe(classification === "exact");
+      expect(output.answerMatchesSource).toBe(value !== undefined);
+      expect(output.executionIntegrity && output.primarySourceRetrieved).toBe(
+        true,
+      );
+      const projection = JSON.stringify(output);
+      for (const canary of [
+        "CITATION_SECRET_CANARY",
+        "CITATION_TOKEN_CANARY",
+        "foreign.invalid",
+        SDK_WEB_RESEARCH_SOURCE,
+      ])
+        expect(projection).not.toContain(canary);
+    },
+  );
+  it("a wrong source key remains non-string and cannot pass", () => {
+    const f = fixture();
+    const answer = JSON.parse(f.response);
+    answer.citation = answer.source;
+    delete answer.source;
+    const response = JSON.stringify(answer);
+    f.events[5].metadata.response = response;
+    f.stdout[1].text = response;
+    const output = f.read({ response });
+    expect(output.citationClassification).toBe("non-string");
+    expect(output.citationMatches || output.answerMatchesSource).toBe(false);
+  });
+  it.each([
+    "invalid-json",
+    "non-object",
+    "failed-fetch",
+    "unconfirmed",
+    "unsafe",
+  ])("leaves classification unavailable for %s evidence", (kind) => {
+    const f = fixture();
+    const response =
+      kind === "invalid-json"
+        ? "CITATION_SECRET_CANARY"
+        : kind === "non-object"
+          ? "[]"
+          : f.response;
+    f.events[5].metadata.response = response;
+    f.stdout[1].text = response;
+    if (kind === "failed-fetch") f.events[4].metadata.success = false;
+    const output = f.read({
+      response,
+      ...(kind === "unconfirmed" ? { executionConfirmed: false } : {}),
+      ...(kind === "unsafe" ? { root: undefined } : {}),
+    });
+    expect(output.citationClassification).toBe("unavailable");
+    expect(output.citationMatches).toBe(false);
+    expect(JSON.stringify(output)).not.toContain("CITATION_SECRET_CANARY");
   });
   it("admits opaque JSON cut at the SDK boundary with explicit cap coverage, not complete-search proof", () => {
     const f = fixture();

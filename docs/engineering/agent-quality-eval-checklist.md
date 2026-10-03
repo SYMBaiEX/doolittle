@@ -87,6 +87,14 @@ response/IDs are projected transiently from existing private CLI/journal data
 before safe task deletion. Unconfirmed cleanup retains owned state under the
 existing safety contract, rather than deleting possibly live task data.
 
+After original execution and retrieval qualify, citation diagnostics retain
+only a closed category: exact, non-string, whitespace, the fixed GitHub-view
+alternative, other URL, or non-URL. Unqualified or unstructured evidence remains
+unavailable. The report emits only fixed mismatch flags; no unexpected citation
+value, URL, hash or length is retained. These categories do not normalize the
+answer or relax exact citation grading. Older discarded answers cannot be
+retroactively classified, and a classification is not a behavior repair.
+
 The reader pins canonical private task/data directories and checks ordinary
 owned trajectory directories and descriptor-bound non-symlink, single-link
 journal identity before/after bounded reads (2 MiB, 2048 events). This assumes
@@ -103,6 +111,17 @@ unattested. Fetch proves SDK-recorded retrieval during this invocation, not all
 current-web correctness. The existing 300-second child bound/cleanup remains;
 an observation timeout does not prove remote network cancellation. Human review
 of coherence, usefulness and claim-level grounding is still required.
+
+The installed-SDK `subplanner-tool-payload.test.ts` uses public `runSubPlanner`
+and promoted synthetic actions with an in-memory model, then the real Codex tool
+translator. It characterizes alias/schema multiplication, canonical and legacy
+dispatch, shared-alias schema/lookup disagreement, gates and failure handling.
+Its emitted character counts are synthetic payload measurements, not tokens,
+billing, live-call attribution or latency improvements. The test changes no
+production alias policy. Both payload arms run the actual SDK; the declared
+`buildPlannerToolsFromActions` helper is not exported by beta.7's installed root
+runtime bundle. Revisit these characterization expectations when changing SDK
+versions rather than treating current alias ambiguity as desirable behavior.
 
 - `headless-workflows-v2` is a small dispatch smoke suite: clarification,
   constrained formatting, one exact-file coding change, research, and

@@ -33,6 +33,14 @@ export type ResearchGroundingReason =
   | "action-policy"
   | "retrieval-unavailable"
   | "answer-disagreement";
+export type ResearchCitationClassification =
+  | "unavailable"
+  | "exact"
+  | "non-string"
+  | "whitespace"
+  | "github-view"
+  | "other-url"
+  | "non-url";
 /** Closed projection only. No source text, query, URL, IDs or errors escape. */
 export interface ResearchGrounding {
   provenance: "original-cli-action-journal";
@@ -44,6 +52,8 @@ export interface ResearchGrounding {
   primarySourceRetrieved: boolean;
   answerMatchesSource: boolean;
   citationMatches: boolean;
+  /** Diagnostic only, after qualified original execution and retrieval. */
+  citationClassification: ResearchCitationClassification;
   executionIntegrity: boolean;
 }
 export function unavailableResearchGrounding(
@@ -58,6 +68,7 @@ export function unavailableResearchGrounding(
     primarySourceRetrieved: false,
     answerMatchesSource: false,
     citationMatches: false,
+    citationClassification: "unavailable",
     executionIntegrity: false,
   };
 }
@@ -107,6 +118,22 @@ export function pinResearchDataRoot(
 }
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function classifyCitation(value: unknown): ResearchCitationClassification {
+  if (typeof value !== "string") return "non-string";
+  if (value === SDK_WEB_RESEARCH_SOURCE) return "exact";
+  if (value.trim() === SDK_WEB_RESEARCH_SOURCE) return "whitespace";
+  if (
+    value ===
+    "https://github.com/openai/codex/blob/main/sdk/typescript/src/threadOptions.ts"
+  )
+    return "github-view";
+  try {
+    new URL(value);
+    return "other-url";
+  } catch {
+    return "non-url";
+  }
 }
 function timestamp(value: unknown): number | undefined {
   if (typeof value !== "string" || value.length > 64) return undefined;
@@ -452,6 +479,7 @@ function projectJournal(
   try {
     const answer: unknown = JSON.parse(response);
     if (record(answer)) {
+      output.citationClassification = classifyCitation(answer.source);
       const keys = Object.keys(answer);
       output.citationMatches = answer.source === SDK_WEB_RESEARCH_SOURCE;
       output.answerMatchesSource =
