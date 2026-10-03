@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import { ServerResponse } from "node:http";
 import {
   closeBrowserWorkspaceTab,
   openBrowserWorkspaceTab,
@@ -420,6 +421,55 @@ describe("private rendered-page bridge", () => {
         expect(windows[0].webContents.executeJavaScript).not.toHaveBeenCalled();
         expect(windows[0].webContents.capturePage).not.toHaveBeenCalled();
         expect(windows[0].destroy).not.toHaveBeenCalled();
+      },
+    );
+    it.each(["unmatched", "unsupported-method"])(
+      "preserves cleanup and fixed 400 fallback after a %s denial write fails",
+      async (kind) => {
+        const managed = vi.fn(async () => true);
+        const { open, request, windows } = await setup(managed);
+        const { tab } = await (await open()).json();
+        const original = ServerResponse.prototype.writeHead;
+        let injected = false;
+        const writeHead = vi
+          .spyOn(ServerResponse.prototype, "writeHead")
+          .mockImplementation(function (
+            this: ServerResponse,
+            ...args: Parameters<ServerResponse["writeHead"]>
+          ) {
+            if (args[0] === 404 && !injected) {
+              injected = true;
+              throw new Error("CANARY_PRIVATE_WRITE_FAILURE");
+            }
+            return Reflect.apply(original, this, args) as ServerResponse;
+          });
+        try {
+          const response = await request(
+            kind === "unmatched" ? "/clipboard" : `/tabs/${tab.id}`,
+            { method: "GET" },
+          );
+          expect(response.status).toBe(400);
+          expect(await response.json()).toEqual({
+            error: "Invalid capture request.",
+          });
+          expect(writeHead.mock.calls.map(([status]) => status)).toEqual([
+            404, 400,
+          ]);
+          expect(injected).toBe(true);
+          expect(managed).toHaveBeenCalledOnce();
+          expect(
+            windows[0].webContents.executeJavaScript,
+          ).not.toHaveBeenCalled();
+          expect(windows[0].webContents.capturePage).not.toHaveBeenCalled();
+          expect(windows[0].destroy).toHaveBeenCalledTimes(
+            kind === "unsupported-method" ? 1 : 0,
+          );
+          expect(await (await request("/tabs")).json()).toMatchObject({
+            tabs: kind === "unsupported-method" ? [] : [{ id: tab.id }],
+          });
+        } finally {
+          writeHead.mockRestore();
+        }
       },
     );
   });

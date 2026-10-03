@@ -105,6 +105,7 @@ async function bounded<T>(
 export async function startBrowserRenderBridge(
   options: BridgeOptions,
 ): Promise<BrowserRenderBridge> {
+  const unsupportedOperation = Symbol("unsupported capture operation");
   const token = randomBytes(32).toString("hex");
   const expectedAuthorization = Buffer.from(`Bearer ${token}`);
   const tabs = new Map<string, RenderTab>();
@@ -307,8 +308,7 @@ export async function startBrowserRenderBridge(
         // Reject unsupported routes before any owned-tab operation. Route input
         // selects the closed protocol, never whether its authority is checked.
         if (!match) {
-          json(response, 404, { error: "Capture operation is not supported." });
-          return;
+          throw unsupportedOperation;
         }
         const tab = tabs.get(match[1]);
         if (!tab) {
@@ -322,8 +322,7 @@ export async function startBrowserRenderBridge(
           return;
         }
         if (!match[2] || request.method !== "GET") {
-          json(response, 404, { error: "Capture operation is not supported." });
-          return;
+          throw unsupportedOperation;
         }
         if (tab.capturing) {
           json(response, 409, {
@@ -457,7 +456,17 @@ export async function startBrowserRenderBridge(
           tab.captureAbort = undefined;
         }
         return;
-      } catch {
+      } catch (error) {
+        if (error === unsupportedOperation) {
+          try {
+            json(response, 404, {
+              error: "Capture operation is not supported.",
+            });
+            return;
+          } catch {
+            // Preserve the existing cleanup + 400 fallback if denial writing fails.
+          }
+        }
         if (ownedTabId) remove(ownedTabId);
         json(response, 400, { error: "Invalid capture request." });
       }
