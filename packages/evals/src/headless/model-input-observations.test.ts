@@ -30,6 +30,9 @@ vi.mock("node:fs", async (importOriginal) => {
     ...actual,
     openSync: vi.fn(actual.openSync),
     closeSync: vi.fn(actual.closeSync),
+    lstatSync: vi.fn(actual.lstatSync),
+    fstatSync: vi.fn(actual.fstatSync),
+    readSync: vi.fn(actual.readSync),
   };
 });
 
@@ -334,7 +337,7 @@ describe("bounded private model-input projection", () => {
     });
     expect(readFileSync(other, "utf8")).toBe(canary);
   });
-  it("refuses a leaf replaced between lstat and descriptor open and still closes the descriptor", async () => {
+  it("refuses a pathname replaced after opening its original descriptor, before reading any bytes", async () => {
     const path = directory();
     const identity = pinModelInputDataRoot(path);
     write(path, [input()]);
@@ -345,16 +348,89 @@ describe("bounded private model-input projection", () => {
       .spyOn(fs, "openSync")
       .mockClear()
       .mockImplementationOnce((...args: Parameters<typeof fs.openSync>) => {
+        const fd = originalOpen(...args);
         renameSync(join(path, MODEL_INPUT_FILE), join(path, "original"));
-        write(path, [input(2)]);
-        return originalOpen(...args);
+        writeFileSync(join(path, MODEL_INPUT_FILE), canary, {
+          mode: 0o600,
+          flag: "wx",
+        });
+        return fd;
       });
     const close = vi.spyOn(fs, "closeSync").mockClear();
+    const read = vi.spyOn(fs, "readSync").mockClear();
     expect(readModelInputObservations(identity)).toMatchObject({
       status: "unavailable",
+      bytesRead: 0,
       rows: [],
     });
     expect(open).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
+    expect(read).not.toHaveBeenCalled();
+    expect(readFileSync(join(path, MODEL_INPUT_FILE), "utf8")).toBe(canary);
+  });
+  it.each(["mode", "owner"])(
+    "refuses post-open mismatched named-leaf %s before reading and closes its FD",
+    async (kind) => {
+      const path = directory();
+      const identity = pinModelInputDataRoot(path);
+      write(path, [input()]);
+      const originalLstat = (
+        await vi.importActual<typeof import("node:fs")>("node:fs")
+      ).lstatSync;
+      vi.spyOn(fs, "lstatSync").mockImplementation(
+        (...args: Parameters<typeof fs.lstatSync>) => {
+          if (args[0] === join(path, MODEL_INPUT_FILE) && kind === "mode")
+            chmodSync(join(path, MODEL_INPUT_FILE), 0o644);
+          const stat = originalLstat(...args);
+          if (args[0] === join(path, MODEL_INPUT_FILE) && kind === "owner")
+            return Object.assign(
+              Object.create(Object.getPrototypeOf(stat)),
+              stat,
+              { uid: BigInt(process.getuid?.() ?? 0) + 1n },
+            );
+          return stat;
+        },
+      );
+      const read = vi.spyOn(fs, "readSync").mockClear();
+      const close = vi.spyOn(fs, "closeSync").mockClear();
+      expect(readModelInputObservations(identity)).toMatchObject({
+        status: "unavailable",
+        bytesRead: 0,
+        rows: [],
+      });
+      expect(read).not.toHaveBeenCalled();
+      expect(close).toHaveBeenCalledOnce();
+    },
+  );
+  it("opens nonblocking/no-follow and refuses a nonregular descriptor before a stream read", async () => {
+    const path = directory();
+    const identity = pinModelInputDataRoot(path);
+    write(path, [input()]);
+    const originalStat = (
+      await vi.importActual<typeof import("node:fs")>("node:fs")
+    ).fstatSync;
+    vi.spyOn(fs, "fstatSync").mockImplementationOnce(
+      (...args: Parameters<typeof fs.fstatSync>) => {
+        const stat = originalStat(...args);
+        return Object.assign(Object.create(Object.getPrototypeOf(stat)), stat, {
+          isFile: () => false,
+          isFIFO: () => true,
+        });
+      },
+    );
+    const open = vi.spyOn(fs, "openSync").mockClear();
+    const read = vi.spyOn(fs, "readSync").mockClear();
+    const close = vi.spyOn(fs, "closeSync").mockClear();
+    expect(readModelInputObservations(identity)).toMatchObject({
+      status: "unavailable",
+      bytesRead: 0,
+      rows: [],
+    });
+    expect(open).toHaveBeenCalledWith(
+      join(path, MODEL_INPUT_FILE),
+      fs.constants.O_RDONLY | fs.constants.O_NONBLOCK | fs.constants.O_NOFOLLOW,
+    );
+    expect(read).not.toHaveBeenCalled();
     expect(close).toHaveBeenCalledOnce();
   });
 });

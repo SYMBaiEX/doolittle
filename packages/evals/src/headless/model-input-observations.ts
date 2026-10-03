@@ -327,16 +327,8 @@ export function readModelInputObservations(
   try {
     if (!root || !verifyRoot(root)) return output;
     const path = join(root.path, MODEL_INPUT_FILE);
-    const leaf = lstatSync(path, { bigint: true });
-    if (
-      !leaf.isFile() ||
-      leaf.isSymbolicLink() ||
-      leaf.uid !== BigInt(process.getuid?.() ?? -1) ||
-      (leaf.mode & 0o777n) !== 0o600n ||
-      leaf.nlink !== 1n ||
-      realpathSync(path) !== path
-    )
-      return output;
+    // Open without following the leaf and without blocking on a FIFO. The FD,
+    // not a pre-open pathname check, is the authoritative expected identity.
     fd = openSync(
       path,
       constants.O_RDONLY | constants.O_NONBLOCK | constants.O_NOFOLLOW,
@@ -344,11 +336,24 @@ export function readModelInputObservations(
     const stat = fstatSync(fd, { bigint: true });
     if (
       !stat.isFile() ||
-      stat.dev !== leaf.dev ||
-      stat.ino !== leaf.ino ||
-      stat.uid !== leaf.uid ||
+      stat.uid !== BigInt(process.getuid?.() ?? -1) ||
       stat.nlink !== 1n ||
       (stat.mode & 0o777n) !== 0o600n ||
+      !verifyRoot(root)
+    )
+      return output;
+    const leaf = lstatSync(path, { bigint: true });
+    if (
+      !leaf.isFile() ||
+      leaf.isSymbolicLink() ||
+      leaf.dev !== stat.dev ||
+      leaf.ino !== stat.ino ||
+      leaf.uid !== stat.uid ||
+      (leaf.mode & 0o777n) !== 0o600n ||
+      leaf.nlink !== 1n ||
+      leaf.size !== stat.size ||
+      leaf.mtimeNs !== stat.mtimeNs ||
+      realpathSync(path) !== path ||
       !verifyRoot(root)
     )
       return output;
