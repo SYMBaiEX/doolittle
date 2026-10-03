@@ -95,3 +95,143 @@ diff --git a/dist/node/index.node.js b/dist/node/index.node.js
          if (TERMINAL_SESSION_STATUSES2.has(s.status))
            continue;
          if (!s.acpxSessionId)
+diff --git a/dist/node/index.node.js b/dist/node/index.node.js
+--- a/dist/node/index.node.js
++++ b/dist/node/index.node.js
+@@ -3731,1 +3731,40 @@
+-class NativeAcpClient {
++function projectInitialModelSelection(result, command) {
++  const base = {
++    schemaVersion: 1,
++    source: "acp-session-new",
++    commandProvenance: command === "npx -y @agentclientprotocol/codex-acp@1.13.1" ? "configured-command-1.13.1" : "unverified",
++    state: "unavailable",
++    config: null,
++    legacyModelId: null
++  };
++  const refuse = (state) => ({ ...base, state });
++  const options = result?.configOptions;
++  let config = null;
++  if (options != null) {
++    if (!Array.isArray(options)) return refuse("rejected");
++    if (options.length > 32) return refuse("truncated");
++    for (const option of options) {
++      if (!option || typeof option !== "object" || Array.isArray(option)) return refuse("rejected");
++      const relevant = option.id === "model" || option.id === "reasoning_effort" || option.category === "model" || option.category === "thought_level";
++      if (!relevant) continue;
++      const key = option.id === "model" ? "model" : option.id === "reasoning_effort" ? "reasoningEffort" : null;
++      if (!key || option.type !== "select" || option.category != null && option.category !== (key === "model" ? "model" : "thought_level")) return refuse("rejected");
++      const value = option.currentValue;
++      if (typeof value !== "string" || !value || !/^[a-zA-Z0-9._:/-]+$/.test(value)) return refuse("rejected");
++      if (value.length > 160) return refuse("truncated");
++      config ??= { model: null, reasoningEffort: null };
++      if (config[key] !== null) return refuse("rejected");
++      config[key] = value;
++    }
++  }
++  let legacyModelId = null;
++  if (result?.models != null) {
++    if (typeof result.models !== "object" || Array.isArray(result.models)) return refuse("rejected");
++    const value = result.models.currentModelId;
++    if (typeof value !== "string" || !value || /[\x00-\x20\x7f]/.test(value)) return refuse("rejected");
++    if (value.length > 200) return refuse("truncated");
++    legacyModelId = value;
++  }
++  return { ...base, state: config || legacyModelId ? "reported" : "unavailable", config, legacyModelId };
++}
++class NativeAcpClient {
+@@ -3786,1 +3786,2 @@
+-      agentSessionId: extractAgentSessionId(result?._meta)
++      agentSessionId: extractAgentSessionId(result?._meta),
++      initialModelSelection: projectInitialModelSelection(result, this.opts.command)
+@@ -6841,1 +6841,4 @@
+-        return toSpawnResult(updated ?? { ...session, status: "ready" });
++        return {
++          ...toSpawnResult(updated ?? { ...session, status: "ready" }),
++          ...(session.agentType === "codex" ? { initialModelSelection: nativeSession.initialModelSelection } : {})
++        };
+diff --git a/dist/cjs/index.node.cjs b/dist/cjs/index.node.cjs
+--- a/dist/cjs/index.node.cjs
++++ b/dist/cjs/index.node.cjs
+@@ -3773,1 +3773,40 @@
+-class NativeAcpClient {
++function projectInitialModelSelection(result, command) {
++  const base = {
++    schemaVersion: 1,
++    source: "acp-session-new",
++    commandProvenance: command === "npx -y @agentclientprotocol/codex-acp@1.13.1" ? "configured-command-1.13.1" : "unverified",
++    state: "unavailable",
++    config: null,
++    legacyModelId: null
++  };
++  const refuse = (state) => ({ ...base, state });
++  const options = result?.configOptions;
++  let config = null;
++  if (options != null) {
++    if (!Array.isArray(options)) return refuse("rejected");
++    if (options.length > 32) return refuse("truncated");
++    for (const option of options) {
++      if (!option || typeof option !== "object" || Array.isArray(option)) return refuse("rejected");
++      const relevant = option.id === "model" || option.id === "reasoning_effort" || option.category === "model" || option.category === "thought_level";
++      if (!relevant) continue;
++      const key = option.id === "model" ? "model" : option.id === "reasoning_effort" ? "reasoningEffort" : null;
++      if (!key || option.type !== "select" || option.category != null && option.category !== (key === "model" ? "model" : "thought_level")) return refuse("rejected");
++      const value = option.currentValue;
++      if (typeof value !== "string" || !value || !/^[a-zA-Z0-9._:/-]+$/.test(value)) return refuse("rejected");
++      if (value.length > 160) return refuse("truncated");
++      config ??= { model: null, reasoningEffort: null };
++      if (config[key] !== null) return refuse("rejected");
++      config[key] = value;
++    }
++  }
++  let legacyModelId = null;
++  if (result?.models != null) {
++    if (typeof result.models !== "object" || Array.isArray(result.models)) return refuse("rejected");
++    const value = result.models.currentModelId;
++    if (typeof value !== "string" || !value || /[\x00-\x20\x7f]/.test(value)) return refuse("rejected");
++    if (value.length > 200) return refuse("truncated");
++    legacyModelId = value;
++  }
++  return { ...base, state: config || legacyModelId ? "reported" : "unavailable", config, legacyModelId };
++}
++class NativeAcpClient {
+@@ -3828,1 +3828,2 @@
+-      agentSessionId: extractAgentSessionId(result?._meta)
++      agentSessionId: extractAgentSessionId(result?._meta),
++      initialModelSelection: projectInitialModelSelection(result, this.opts.command)
+@@ -6883,1 +6883,4 @@
+-        return toSpawnResult(updated ?? { ...session, status: "ready" });
++        return {
++          ...toSpawnResult(updated ?? { ...session, status: "ready" }),
++          ...(session.agentType === "codex" ? { initialModelSelection: nativeSession.initialModelSelection } : {})
++        };
+diff --git a/dist/node/src/services/acp-native-transport.d.ts b/dist/node/src/services/acp-native-transport.d.ts
+--- a/dist/node/src/services/acp-native-transport.d.ts
++++ b/dist/node/src/services/acp-native-transport.d.ts
+@@ -52,4 +52,13 @@
+-export type NativeAcpSession = {
+-    sessionId: string;
+-    agentSessionId?: string;
+-};
++export type NativeAcpInitialModelSelection = {
++    schemaVersion: 1;
++    source: "acp-session-new";
++    commandProvenance: "configured-command-1.13.1" | "unverified";
++    state: "reported" | "unavailable" | "rejected" | "truncated";
++    config: { model: string | null; reasoningEffort: string | null } | null;
++    legacyModelId: string | null;
++};
++export type NativeAcpSession = {
++    sessionId: string;
++    agentSessionId?: string;
++    initialModelSelection?: NativeAcpInitialModelSelection;
++};
+diff --git a/dist/node/src/services/types.d.ts b/dist/node/src/services/types.d.ts
+--- a/dist/node/src/services/types.d.ts
++++ b/dist/node/src/services/types.d.ts
+@@ -36,2 +36,3 @@
+-export interface SpawnResult {
+-    sessionId: string;
++export interface SpawnResult {
++    initialModelSelection?: import("./acp-native-transport.js").NativeAcpInitialModelSelection;
++    sessionId: string;

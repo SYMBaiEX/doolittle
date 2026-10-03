@@ -177,6 +177,249 @@ async function fixture(
 }
 
 describe("managed official coding delegation", () => {
+  it.each(["ownKeys", "descriptor"])(
+    "keeps optional evidence unavailable and closes the exact child when Proxy %s throws",
+    async (trap) => {
+      const input = await fixture();
+      const spawn = input.service.spawnSession;
+      let refused = 0;
+      input.service.spawnSession = vi.fn(async (options) => {
+        const value = {
+          ...(await spawn(options)),
+          agentType: "codex",
+          initialModelSelection: "PRIVATE_PROXY_SELECTION_CANARY",
+        };
+        return new Proxy(value, {
+          ownKeys: (target) => {
+            if (trap === "ownKeys") {
+              refused++;
+              throw new Error("PRIVATE_PROXY_ERROR_CANARY");
+            }
+            return Reflect.ownKeys(target);
+          },
+          getOwnPropertyDescriptor: (target, key) => {
+            if (trap === "descriptor") {
+              refused++;
+              throw new Error("PRIVATE_PROXY_ERROR_CANARY");
+            }
+            return Reflect.getOwnPropertyDescriptor(target, key);
+          },
+        });
+      });
+      const result = await input.execute({ agentType: "codex" });
+      expect(refused).toBeGreaterThan(0);
+      expect(result).toMatchObject({
+        success: true,
+        data: {
+          delegatedExecution: {
+            sessionId: "child-1",
+            status: "completed",
+            initialSelection: {
+              state: "unavailable",
+              modelSha256: null,
+              reasoningEffort: null,
+            },
+          },
+        },
+      });
+      expect(input.service.sendPrompt).toHaveBeenCalledExactlyOnceWith(
+        "child-1",
+        expect.any(String),
+        expect.any(Object),
+      );
+      expect(input.service.stopSession).toHaveBeenCalledExactlyOnceWith(
+        "child-1",
+      );
+      expect(input.listeners.size).toBe(0);
+      for (const serialized of [
+        JSON.stringify(result),
+        JSON.stringify(input.runController.getTaskEvents("run-a")),
+      ]) {
+        expect(serialized).not.toContain("PRIVATE_PROXY");
+        expect(serialized).not.toContain("initialModelSelection");
+      }
+    },
+  );
+
+  it("strips a selection getter without evaluating it or changing completion/cleanup", async () => {
+    const input = await fixture();
+    const spawn = input.service.spawnSession;
+    let reads = 0;
+    input.service.spawnSession = vi.fn(async (options) => {
+      const value = { ...(await spawn(options)), agentType: "codex" };
+      Object.defineProperty(value, "initialModelSelection", {
+        enumerable: true,
+        get: () => {
+          reads++;
+          throw new Error("PRIVATE_SELECTION_GETTER_CANARY");
+        },
+      });
+      return value;
+    });
+    const result = await input.execute({ agentType: "codex" });
+    expect(reads).toBe(0);
+    expect(result).toMatchObject({
+      success: true,
+      data: {
+        delegatedExecution: {
+          sessionId: "child-1",
+          status: "completed",
+          initialSelection: {
+            state: "unavailable",
+            modelSha256: null,
+            reasoningEffort: null,
+          },
+        },
+      },
+    });
+    expect(input.service.sendPrompt).toHaveBeenCalledOnce();
+    expect(input.service.stopSession).toHaveBeenCalledExactlyOnceWith(
+      "child-1",
+    );
+    expect(input.listeners.size).toBe(0);
+    for (const serialized of [
+      JSON.stringify(result),
+      JSON.stringify(input.runController.getTaskEvents("run-a")),
+    ]) {
+      expect(serialized).not.toContain("PRIVATE_SELECTION_GETTER_CANARY");
+      expect(serialized).not.toContain("initialModelSelection");
+    }
+  });
+
+  it.each(["completed", "failed"])(
+    "snapshots awaited exact-child initial selection before prompt/events, independently of %s",
+    async (status) => {
+      const input = await fixture();
+      const raw = {
+        schemaVersion: 1,
+        source: "acp-session-new",
+        commandProvenance: "configured-command-1.13.1",
+        state: "reported",
+        config: { model: "gpt-6-luna", reasoningEffort: "medium" },
+        legacyModelId: "gpt-6-luna[medium]",
+      };
+      const spawn = input.service.spawnSession;
+      input.service.spawnSession = vi.fn(async (options) => {
+        // Initial ready event occurs before subscription: the awaited return
+        // must carry the observation without installing a race-prone listener.
+        input.emit("child-1", "ready", {
+          initialModelSelection: "UNTRUSTED_EVENT",
+        });
+        return {
+          ...(await spawn(options)),
+          agentType: "codex",
+          initialModelSelection: raw,
+        };
+      });
+      vi.mocked(input.service.sendPrompt).mockImplementation(
+        async (sessionId) => {
+          expect(sessionId).toBe("child-1");
+          raw.config = { model: "LATER_CANARY", reasoningEffort: "high" };
+          input.emit("unrelated-child", "ready", {
+            initialModelSelection: "UNRELATED_CANARY",
+          });
+          input.emit(sessionId, "ready", {
+            initialModelSelection: "LATER_CANARY",
+          });
+          return {
+            stopReason: status === "completed" ? "end_turn" : "error",
+            exitCode: status === "completed" ? 0 : 1,
+          };
+        },
+      );
+      const result = await input.execute({ agentType: "codex" });
+      expect(result).toMatchObject({
+        data: {
+          delegatedExecution: {
+            sessionId: "child-1",
+            status,
+            initialSelection: {
+              state: "reported",
+              reasoningEffort: "medium",
+              effectiveExecution: "unavailable",
+            },
+          },
+        },
+      });
+      expect(JSON.stringify(result)).not.toContain("initialModelSelection");
+      expect(JSON.stringify(result)).not.toContain("LATER_CANARY");
+      expect(JSON.stringify(result)).not.toContain("UNRELATED_CANARY");
+      expect(input.listeners.size).toBe(0);
+    },
+  );
+
+  it("preserves initial selection on in-flight cancellation without claiming completion", async () => {
+    const input = await fixture();
+    const controller = new AbortController();
+    const spawn = input.service.spawnSession;
+    input.service.spawnSession = vi.fn(async (options) => ({
+      ...(await spawn(options)),
+      agentType: "codex",
+      initialModelSelection: {
+        schemaVersion: 1,
+        source: "acp-session-new",
+        commandProvenance: "unverified",
+        state: "reported",
+        config: { model: "gpt-6-luna", reasoningEffort: null },
+        legacyModelId: null,
+      },
+    }));
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.mocked(input.service.sendPrompt).mockImplementation(async () => {
+      await gate;
+      return { stopReason: "cancelled", exitCode: 0 };
+    });
+    vi.mocked(input.service.stopSession).mockImplementation(async () => {
+      release();
+    });
+    const promise = runWithTurnRuntimeScope(
+      input.runtime,
+      { settings: input.settings, abortSignal: controller.signal },
+      () => input.execute({ agentType: "codex" }),
+    );
+    await vi.waitFor(() =>
+      expect(input.service.sendPrompt).toHaveBeenCalledOnce(),
+    );
+    controller.abort();
+    expect(await promise).toMatchObject({
+      success: false,
+      data: {
+        delegatedExecution: {
+          status: "cancelled",
+          initialSelection: {
+            state: "reported",
+            reasoningEffort: null,
+            effectiveExecution: "unavailable",
+          },
+        },
+      },
+    });
+    expect(input.listeners.size).toBe(0);
+  });
+
+  it("does not substitute requested settings when old SDK spawn results lack selection", async () => {
+    const input = await fixture();
+    const spawn = input.service.spawnSession;
+    input.service.spawnSession = vi.fn(async (options) => ({
+      ...(await spawn(options)),
+      agentType: "codex",
+    }));
+    expect(await input.execute({ agentType: "codex" })).toMatchObject({
+      data: {
+        delegatedExecution: {
+          initialSelection: {
+            state: "unavailable",
+            modelSha256: null,
+            reasoningEffort: null,
+          },
+        },
+      },
+    });
+  });
+
   it.each(["completed", "failed"])(
     "preserves exact-child SDK usage independently of %s task status",
     async (status) => {

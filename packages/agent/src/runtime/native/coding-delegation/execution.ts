@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { isRecord } from "@/utils/records";
 import { DelegationEvidence } from "./evidence";
+import { initialSelectionEvidence } from "./selection-evidence";
 import type {
   AcpSession,
   AcpSpawnOptions,
@@ -127,7 +128,7 @@ export async function executeManagedDelegation(input: {
     delete metadata[key];
   metadata.doolittleParentRoomId = roomId;
   if (run) metadata.doolittleParentRunId = run.runId;
-  const session = await service.spawnSession({
+  const spawnedSession = await service.spawnSession({
     ...options,
     initialTask: undefined,
     model: input.model,
@@ -136,11 +137,38 @@ export async function executeManagedDelegation(input: {
     timeoutMs: Math.min(options.timeoutMs ?? 30_000, 30_000),
     metadata,
   });
+  // Retain the SDK's essential identity independently of optional metadata.
+  // These core public fields are still required by the spawn contract.
+  const session: AcpSession = {
+    sessionId: spawnedSession.sessionId,
+    agentType: spawnedSession.agentType,
+    workdir: spawnedSession.workdir,
+    status: spawnedSession.status,
+  };
+  let closure: Promise<void> | undefined;
+  const close = () => (closure ??= service.stopSession(session.sessionId));
+  let initialSelection = initialSelectionEvidence(session);
+  let returnedSession = session;
+  try {
+    initialSelection = initialSelectionEvidence(spawnedSession);
+    // Do not evaluate or return raw selection to action result/event payloads.
+    const returnedDescriptors =
+      Object.getOwnPropertyDescriptors(spawnedSession);
+    delete returnedDescriptors.initialModelSelection;
+    returnedSession = Object.defineProperties(
+      {},
+      returnedDescriptors,
+    ) as AcpSession;
+  } catch {
+    // Optional introspection may be refused by a Proxy. Preserve the core
+    // session, normal lifecycle, and unavailable evidence; never expose errors.
+    initialSelection = initialSelectionEvidence(session);
+  }
   if (
     signal?.aborted ||
     resolve(session.workdir) !== resolve(text(options.workdir))
   ) {
-    await service.stopSession(session.sessionId);
+    await close();
     signal?.throwIfAborted();
     throw new Error("CODING_WORKSPACE_MISMATCH");
   }
@@ -155,8 +183,6 @@ export async function executeManagedDelegation(input: {
   let streamedProviderFailure = "";
   let lastProgress = 0;
   let cancellation: Promise<void> | undefined;
-  let closure: Promise<void> | undefined;
-  const close = () => (closure ??= service.stopSession(session.sessionId));
   const cancel = () => {
     cancellation ??= service
       .cancelSession(session.sessionId)
@@ -306,6 +332,7 @@ export async function executeManagedDelegation(input: {
     changedFiles,
     verifiedLocalMutation: changedFiles.length > 0,
     usage: usage.receipt(),
+    initialSelection,
   };
   if (run)
     services.runController.appendTaskEvent(
@@ -313,5 +340,5 @@ export async function executeManagedDelegation(input: {
       "delegation.completed",
       receipt,
     );
-  return { session: { ...session, status }, receipt };
+  return { session: { ...returnedSession, status }, receipt };
 }
