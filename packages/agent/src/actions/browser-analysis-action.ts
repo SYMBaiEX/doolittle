@@ -19,6 +19,8 @@ function localAppUrl(value: unknown): URL | undefined {
   if (
     typeof value !== "string" ||
     !value ||
+    value.includes("?") ||
+    value.includes("#") ||
     value.length > 4096 ||
     [...value].some((character) => {
       const code = character.codePointAt(0) ?? 0;
@@ -33,7 +35,9 @@ function localAppUrl(value: unknown): URL | undefined {
       ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) &&
       url.port &&
       !url.username &&
-      !url.password
+      !url.password &&
+      !url.search &&
+      !url.hash
       ? url
       : undefined;
   } catch {
@@ -57,6 +61,13 @@ function captureEvidence(capture: BrowserCaptureBundle) {
   };
 }
 
+function escapeUntrustedCritique(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
 export function createBrowserAnalysisAction(
   services: Pick<AppServices, "terminal">,
 ): Action {
@@ -73,13 +84,15 @@ export function createBrowserAnalysisAction(
         name: "url",
         required: true,
         description:
-          "Exact HTTP-ready URL returned by the managed app action in the selected workspace. No credentials or arbitrary remote URLs.",
+          "Exact HTTP-ready URL returned by the managed app action in the selected workspace. No credentials, query, fragment, or arbitrary remote URLs.",
         schema: { type: "string", minLength: 1, maxLength: 4096 },
       },
     ],
     validate: async () => isLocalCodeExecutionAllowed(),
     handler: async (runtime, message, _state, options) => {
       const signal = getScopedTurnAbortSignal(runtime);
+      let reviewAttempted = false;
+      let reviewedUrl: string | undefined;
       const finish = (result: ActionResult) => {
         recordScopedTurnActionResult(runtime, result);
         return result;
@@ -89,7 +102,11 @@ export function createBrowserAnalysisAction(
           success: false,
           text,
           error: "BROWSER_ANALYSIS_UNAVAILABLE",
-          data: { actionName: DOOLITTLE_BROWSER_ANALYZE_ACTION },
+          data: {
+            actionName: DOOLITTLE_BROWSER_ANALYZE_ACTION,
+            reviewAttempted,
+            ...(reviewedUrl ? { reviewedUrl } : {}),
+          },
         });
       try {
         signal?.throwIfAborted();
@@ -116,6 +133,8 @@ export function createBrowserAnalysisAction(
           return fail(
             "This URL is not a ready managed app in the selected workspace. Inspect its managed app status; no page was reviewed.",
           );
+        reviewAttempted = true;
+        reviewedUrl = url.href;
         const analysis = await analyzeBrowserPage(runtime, url.href, signal);
         signal?.throwIfAborted();
         if (!analysis.response?.trim())
@@ -127,7 +146,9 @@ export function createBrowserAnalysisAction(
             : []),
         ];
         const modelEvidence = analysis.modelEvidence ?? "text-only";
-        const critique = analysis.response.slice(0, MAX_CRITIQUE_LENGTH);
+        const critique = escapeUntrustedCritique(
+          analysis.response.slice(0, MAX_CRITIQUE_LENGTH),
+        );
         const truncated = analysis.response.length > MAX_CRITIQUE_LENGTH;
         return finish({
           success: true,
@@ -146,6 +167,8 @@ export function createBrowserAnalysisAction(
           ].join("\n"),
           data: {
             actionName: DOOLITTLE_BROWSER_ANALYZE_ACTION,
+            reviewAttempted,
+            reviewedUrl: url.href,
             modelEvidence,
             evidence,
             critiqueTruncated: truncated,
