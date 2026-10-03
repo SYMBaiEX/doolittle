@@ -102,8 +102,10 @@ export function privateReportStateRoot(
   if (!state || !isAbsolute(state)) return join(root, ".local", "state");
   const path = resolve(state);
   // Validate component-aware containment before any filesystem probe of XDG.
-  if (path !== root && !path.startsWith(`${root}${sep}`)) refused();
-  return path;
+  // Keep the accepted branches explicit for both runtime and static analysis.
+  if (path === root) return root;
+  if (path.startsWith(`${root}${sep}`)) return path;
+  return refused();
 }
 
 export function preparePrivateReportDirectory(
