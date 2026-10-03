@@ -99,6 +99,9 @@ for (const mode of [
           const observed = outcome.failure?.window;
           expect(observed?.phase).toBe("png-encode");
           expect(observed?.failedPhase).toBeNull();
+          expect(observed?.nativeCapture?.settlement).toBe("fulfilled");
+          expect(observed?.nativeCapture?.failure).toBeNull();
+          expect(observed?.nativeCapture?.durationMs).toBeGreaterThanOrEqual(0);
           expect(observed?.png?.bytes).toBeGreaterThan(0);
           expect(observed?.png?.ihdr?.width).toBeGreaterThan(0);
           expect(observed?.png?.ihdr?.height).toBeGreaterThan(0);
@@ -117,6 +120,18 @@ for (const mode of [
           );
         const capture = outcome.capture;
         if (!capture) throw new Error("Fixture capture returned no evidence.");
+        expect(capture.diagnostic?.nativeCapture?.settlement).toBe("fulfilled");
+        expect(capture.diagnostic?.nativeCapture?.failure).toBeNull();
+        expect(
+          capture.diagnostic?.nativeCapture?.durationMs,
+        ).toBeGreaterThanOrEqual(0);
+        expect(capture.diagnostic?.calls).toEqual({
+          executeJavaScript: 2,
+          waitForRender: 1,
+          renderedFacts: 1,
+          capturePage: 1,
+          pngEncode: 1,
+        });
         await testInfo.attach(`${mode}-first-png`, {
           body: Buffer.from(capture.png, "base64"),
           contentType: "image/png",

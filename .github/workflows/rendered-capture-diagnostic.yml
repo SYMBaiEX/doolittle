@@ -1,0 +1,52 @@
+name: rendered-capture-diagnostic
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/rendered-capture-diagnostic.yml
+      - playwright.rendered.config.ts
+      - e2e/browser-renderer.pw.ts
+      - apps/desktop/e2e/**
+      - apps/desktop/src/main/browser-renderer.ts
+      - apps/desktop/src/main/browser-render-facts.ts
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cold-capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Nub and Node
+        uses: nubjs/setup-nub@47e5e7393d50f4e9544ddaf756aa277972afba2d # v0
+        with:
+          nub-version: 0.9.5
+          node-version-file: .node-version
+          cache-dependency-path: nub.lock
+
+      - name: Install dependencies
+        run: nub install --frozen-lockfile --ignore-scripts
+
+      - name: Install Electron runtime
+        run: nub run desktop:runtime:install
+
+      # Each test owns a fresh Electron process and profile. Repeat fixed samples;
+      # retries remain disabled, and any failed sample keeps the job failed.
+      # This offline fixture does not boot the agent/API or call providers.
+      - name: Observe three cold samples of every first-capture case
+        run: xvfb-run -a --server-args='-screen 0 3840x2160x24' nubx playwright test --config playwright.rendered.config.ts --repeat-each=3 --retries=0 --global-timeout=300000
+
+      - name: Preserve synthetic capture evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cold-capture-evidence
+          path: var/playwright/rendered-test-results
+          if-no-files-found: warn
+          retention-days: 7

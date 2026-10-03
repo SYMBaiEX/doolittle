@@ -15,6 +15,10 @@ import {
   type BrowserRenderBridge,
   startBrowserRenderBridge,
 } from "../src/main/browser-renderer";
+import {
+  type NativeCaptureDiagnostic,
+  observeNativeCapture,
+} from "./native-capture-diagnostic";
 
 export type RasterCase = "complete" | "async" | "lazy" | "late";
 
@@ -83,6 +87,7 @@ interface WindowDiagnostic {
   png: { bytes: number; ihdr: { width: number; height: number } | null } | null;
   phase: CapturePhase | null;
   failedPhase: CapturePhase | null;
+  nativeCapture: NativeCaptureDiagnostic | null;
   calls: {
     executeJavaScript: number;
     waitForRender: number;
@@ -229,7 +234,9 @@ function observeExistingCapture(
         measurement(window, diagnostic),
       );
       try {
-        const pending = capture.apply(this, args);
+        const pending = observeNativeCapture(capture, this, args, (native) => {
+          diagnostic.nativeCapture = native;
+        });
         void pending.then(
           (image) => {
             observe(diagnostic, () => {
@@ -424,6 +431,7 @@ globalThis.browserRendererFixture = (async () => {
           png: null,
           phase: null,
           failedPhase: null,
+          nativeCapture: null,
           calls: {
             executeJavaScript: 0,
             waitForRender: 0,
