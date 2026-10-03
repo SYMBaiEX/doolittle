@@ -13,6 +13,7 @@ import {
   recordScopedTurnActionResult,
   runWithTurnRuntimeScope,
 } from "@/runtime/turn-runtime-scope";
+import type { TrajectoryEventInput } from "@/types/trajectory";
 import { executeProviderMessageTurn } from "./chat-turn/provider-handler";
 import { createProviderStreamState } from "./chat-turn/provider-streaming";
 import { DOOLITTLE_COMMAND_ACTION } from "./command-shortcut-match";
@@ -34,6 +35,7 @@ function createContext(overrides?: {
 }) {
   const emittedEvents: string[] = [];
   const notices: string[] = [];
+  const traceEvents: TrajectoryEventInput[] = [];
   const trajectoryLogger = overrides?.trajectoryLogger;
   const deleteMemory = vi.fn(async () => undefined);
   const useModel = vi.fn(
@@ -102,6 +104,9 @@ function createContext(overrides?: {
       getActionResults: overrides?.getActionResults,
     },
     services: {
+      trajectoryEvaluation: {
+        recordEvent: (event: TrajectoryEventInput) => traceEvents.push(event),
+      },
       settings: {
         get: () => ({
           agent: {
@@ -119,6 +124,7 @@ function createContext(overrides?: {
     context,
     emittedEvents,
     notices,
+    traceEvents,
     deleteMemory,
     onNotice: overrides?.captureNotice
       ? async (notice: { message: string }) => {
@@ -285,7 +291,7 @@ describe("chat turn provider handler", () => {
   ) {
     const prompts: string[] = [];
     let calls = 0;
-    const { context } = createContext({
+    const { context, traceEvents } = createContext({
       onHandleMessage: async ({ memory, onSettledActionResult }) => {
         prompts.push(String((memory as Memory).content.text));
         if (options.throwAfter && calls >= passes.length)
@@ -310,8 +316,141 @@ describe("chat turn provider handler", () => {
       "codex",
       options.request ?? "Update the frontend heading in this workspace.",
     );
-    return { result, prompts, calls };
+    const diagnostics = traceEvents
+      .filter((event) => event.event === "model.continuation")
+      .map((event) => event.metadata?.continuationDiagnostics);
+    return { result, prompts, calls, diagnostics };
   }
+
+  it("distinguishes a fresh admission from a carried obligation without leaking content", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const canary =
+      "private-canary-token /private/canary https://canary.invalid";
+    const { result, diagnostics, calls } = await runFrontendPasses(
+      [[page, build, ready, review("rendered-pixels")], [], []],
+      {
+        responses: [
+          `I still need to correct the heading. ${canary}`,
+          "Done.",
+          "Done.",
+        ],
+      },
+    );
+    expect(calls).toBe(3);
+    expect(result.runFailureMessage).toContain("still incomplete");
+    expect(diagnostics).toEqual([
+      {
+        version: 1,
+        responseOrigin: "current-response-content",
+        currentExplicitlyIncomplete: true,
+        currentIncompleteKind: "implementation",
+        currentVerificationScopes: [],
+        retainedIncompleteKind: "implementation",
+        retainedUnmetCategories: ["implementation"],
+        verifiedWorkspaceCompletion: true,
+        frontendReviewComplete: true,
+      },
+      {
+        version: 1,
+        responseOrigin: "current-response-content",
+        currentExplicitlyIncomplete: false,
+        currentIncompleteKind: null,
+        currentVerificationScopes: [],
+        retainedIncompleteKind: "implementation",
+        retainedUnmetCategories: ["implementation"],
+        verifiedWorkspaceCompletion: true,
+        frontendReviewComplete: true,
+      },
+    ]);
+    expect(JSON.stringify(diagnostics)).not.toMatch(
+      /canary|heading|private|https:|\/workspace|page\.tsx/iu,
+    );
+  });
+
+  it("reports post-admission verification scopes and the cleared latch on a silent verified pass", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const { result, diagnostics, calls } = await runFrontendPasses(
+      [
+        [page, build, ready, review("rendered-pixels")],
+        [
+          structuredClone(build),
+          structuredClone(ready),
+          review("rendered-pixels"),
+        ],
+        [],
+      ],
+      { responses: ["I haven’t rerun the build and review yet.", "", "Done."] },
+    );
+    expect(calls).toBe(3);
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(diagnostics[0]).toMatchObject({
+      currentExplicitlyIncomplete: true,
+      currentIncompleteKind: "verification",
+      currentVerificationScopes: ["build", "review"],
+      retainedIncompleteKind: "verification",
+      retainedUnmetCategories: ["build", "review"],
+    });
+    expect(diagnostics[1]).toMatchObject({
+      responseOrigin: "empty-after-actions",
+      currentExplicitlyIncomplete: false,
+      currentIncompleteKind: null,
+      currentVerificationScopes: [],
+      retainedIncompleteKind: null,
+      retainedUnmetCategories: [],
+      verifiedWorkspaceCompletion: true,
+      frontendReviewComplete: true,
+    });
+  });
+
+  it.each([
+    "current-response-content",
+    "response-message-fallback",
+    "provisional-stream-fallback",
+    "empty-after-actions",
+    "empty",
+  ] as const)(
+    "records the actual %s resolver branch without changing response selection",
+    async (origin) => {
+      const { page } = frontendReceipts();
+      const text = "I still need to correct the private-canary heading.";
+      const { context, traceEvents } = createContext({
+        onHandleMessage: async ({ onStreamChunk, onSettledActionResult }) => {
+          if (origin === "empty-after-actions") onSettledActionResult?.(page);
+          if (
+            origin === "provisional-stream-fallback" ||
+            origin === "empty-after-actions"
+          )
+            await onStreamChunk?.(text);
+          return {
+            responseContent:
+              origin === "current-response-content" ? { text } : null,
+            responseMessages:
+              origin === "response-message-fallback" ||
+              origin === "empty-after-actions"
+                ? [{ content: { text } }]
+                : [],
+          };
+        },
+      });
+      const result = await executeTestTurn(
+        context,
+        "codex",
+        "Update the frontend heading in this workspace.",
+      );
+      const diagnostics = traceEvents
+        .filter((event) => event.event === "model.continuation")
+        .map((event) => event.metadata?.continuationDiagnostics);
+      expect(diagnostics[0]).toMatchObject({
+        responseOrigin: origin,
+        currentExplicitlyIncomplete: !origin.startsWith("empty"),
+        currentIncompleteKind: origin.startsWith("empty")
+          ? null
+          : "implementation",
+      });
+      expect(JSON.stringify(diagnostics)).not.toContain("private-canary");
+      expect(result.runFailureMessage).toBeTruthy();
+    },
+  );
 
   it.each(["app/page.tsx", "styles/theme.css", "public/logo.svg"])(
     "continues from native visual mutation %s/build/readiness until browser analysis is attempted",

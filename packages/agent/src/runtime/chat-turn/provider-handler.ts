@@ -1180,15 +1180,22 @@ function managedDelegationFailure(
  * before its planner executes actions. Its returned responseContent is the
  * terminal response after that loop and is the only safe user-facing answer.
  */
+type SdkResponseOrigin =
+  | "current-response-content"
+  | "response-message-fallback"
+  | "provisional-stream-fallback"
+  | "empty-after-actions"
+  | "empty";
+
 function resolveSdkMessageResponse(input: {
   responseContent?: SdkResponseContent | null;
   responseMessages: Memory[];
   provisionalResponse: string;
   actionResults: ActionResult[];
-}): string {
+}): { text: string; origin: SdkResponseOrigin } {
   const responseContent = input.responseContent?.text;
   if (typeof responseContent === "string" && responseContent.trim()) {
-    return responseContent.trim();
+    return { text: responseContent.trim(), origin: "current-response-content" };
   }
 
   // A tool/action run without a canonical terminal response must not fall
@@ -1196,15 +1203,16 @@ function resolveSdkMessageResponse(input: {
   // in that collection. Post-provider will surface the normal no-response
   // notice rather than accidentally ending a turn before tool synthesis.
   if (input.actionResults.length > 0) {
-    return "";
+    return { text: "", origin: "empty-after-actions" };
   }
 
   for (const message of [...input.responseMessages].reverse()) {
     const text = responseText(message);
-    if (text) return text;
+    if (text) return { text, origin: "response-message-fallback" };
   }
 
-  return input.provisionalResponse.trim();
+  const text = input.provisionalResponse.trim();
+  return { text, origin: text ? "provisional-stream-fallback" : "empty" };
 }
 
 function throwIfTurnAborted(signal: AbortSignal | undefined): void {
@@ -1471,12 +1479,13 @@ export async function executeProviderMessageTurn(
           mutationObligation ||= frontendReviewRequired(actionResults, prompt);
           allResponseMessages.push(...(messageResult?.responseMessages ?? []));
           responseMessages = allResponseMessages;
-          response = resolveSdkMessageResponse({
+          const selectedResponse = resolveSdkMessageResponse({
             responseContent: messageResult?.responseContent,
             responseMessages,
             provisionalResponse: input.streamState.getResponse(),
             actionResults,
           });
+          response = selectedResponse.text;
 
           // A planner can return a polished-sounding preamble (or a premature
           // summary) after inspection without actually changing the workspace.
@@ -1488,6 +1497,7 @@ export async function executeProviderMessageTurn(
             ? explicitlyReportsIncompleteWork(response)
             : undefined;
           const responseExplicitlyIncomplete = Boolean(incompleteKind);
+          let currentVerificationScopes: IncompleteVerificationScope[] = [];
           if (incompleteKind) {
             // A weaker admission cannot erase unresolved implementation work.
             // It may become verification-only once a new verified mutation
@@ -1505,7 +1515,10 @@ export async function executeProviderMessageTurn(
             );
             // Mixed admissions retain each unfinished verification stage even
             // while implementation remains the stronger obligation.
-            for (const scope of incompleteVerificationScopes(response))
+            currentVerificationScopes = [
+              ...incompleteVerificationScopes(response),
+            ];
+            for (const scope of currentVerificationScopes)
               verificationAdmissions.set(scope, actionResults.length);
             admittedIncomplete = {
               actionCount: actionResults.length,
@@ -1594,6 +1607,44 @@ export async function executeProviderMessageTurn(
             break;
           }
 
+          // Observe only continuing passes, after the existing clearance gate.
+          // These enums describe receipt obligations, not response content or
+          // proof that the model's admission accurately describes the app.
+          let retainedUnmetCategories: Array<
+            "implementation" | IncompleteVerificationScope
+          > | null = [];
+          try {
+            if (admittedIncomplete) {
+              if (
+                admittedIncomplete.kind === "implementation" &&
+                (!admittedIncomplete.workdir ||
+                  !hasVerifiedWorkspaceMutation(
+                    actionResults.slice(admittedIncomplete.actionCount),
+                    admittedIncomplete.workdir,
+                  ))
+              )
+                retainedUnmetCategories.push("implementation");
+              for (const [
+                scope,
+                actionCount,
+              ] of admittedIncomplete.verificationAdmissions) {
+                if (
+                  !hasPostAdmissionWorkspaceVerification(
+                    actionResults,
+                    actionCount,
+                    scope,
+                    currentRequirements,
+                    prompt,
+                    admittedIncomplete.workdir,
+                  )
+                )
+                  retainedUnmetCategories.push(scope);
+              }
+            }
+          } catch {
+            // Optional observation must not change the continuation decision.
+            retainedUnmetCategories = null;
+          }
           recordEvaluationTraceEvent(input.context, {
             category: "model",
             event: "model.continuation",
@@ -1616,6 +1667,17 @@ export async function executeProviderMessageTurn(
                 verifyWorkspaceNoopCompletion(actionResults, noOpRequirements),
               ),
               attempt: attempt + 1,
+              continuationDiagnostics: {
+                version: 1,
+                responseOrigin: selectedResponse.origin,
+                currentExplicitlyIncomplete: responseExplicitlyIncomplete,
+                currentIncompleteKind: incompleteKind ?? null,
+                currentVerificationScopes,
+                retainedIncompleteKind: admittedIncomplete?.kind ?? null,
+                retainedUnmetCategories,
+                verifiedWorkspaceCompletion,
+                frontendReviewComplete,
+              },
               actionNames: Array.from(
                 new Set(
                   actionResults
