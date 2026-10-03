@@ -39,14 +39,82 @@ export const RENDERED_FACTS_SCRIPT = `(() => {
     counts: { main: document.querySelectorAll('main').length, h1: document.querySelectorAll('h1').length, links: document.querySelectorAll('a[href]').length, images: document.images.length, headings: document.querySelectorAll('h1,h2,h3,h4,h5,h6').length },
     headings: Array.from(document.querySelectorAll('h1,h2,h3')).slice(0, 40).map(element => text(element.textContent)),
     links, images, contrastCandidates,
-    limitations: ['Viewport-only pixels.', 'No keyboard, click, form submission, motion, or reduced-motion testing.', 'Contrast candidates omit alpha compositing, gradients, image backgrounds and potentially decorative text.'],
+    limitations: ['Viewport-only pixels.', 'Image readiness inspects only the first 200 DOM images within a cooperative 1500ms budget; individual renderer work is not preempted and paint settling is heuristic.', 'No keyboard, click, form submission, motion, or reduced-motion testing.', 'Contrast candidates omit alpha compositing, gradients, image backgrounds and potentially decorative text.'],
   };
 })()`;
 
 export const WAIT_FOR_RENDER_SCRIPT = `new Promise(resolve => {
-  const timer = setTimeout(resolve, 1500);
-  Promise.allSettled([
-    document.fonts?.ready,
-    ...Array.from(document.images).filter(image => !image.complete && image.getBoundingClientRect().top < innerHeight).map(image => new Promise(done => { image.addEventListener('load', done, { once: true }); image.addEventListener('error', done, { once: true }); })),
-  ]).then(() => { clearTimeout(timer); requestAnimationFrame(() => requestAnimationFrame(resolve)); });
+  let finished = false;
+  let poll;
+  let frame;
+  let fontsReady = false;
+  let stableSince = null;
+  let tracked = new Map();
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    clearTimeout(deadline);
+    clearTimeout(poll);
+    cancelAnimationFrame(frame);
+    tracked.clear();
+    resolve();
+  };
+  // This cooperative budget includes discovery, decoding, settling and frames.
+  // Timers cannot preempt an individual layout/style call. Check elapsed time
+  // between inspections and cap discovery; never promise complete page readiness.
+  const endsAt = performance.now() + 1500;
+  const deadline = setTimeout(finish, 1500);
+  Promise.resolve(document.fonts?.ready).then(() => {
+    if (!finished) fontsReady = true;
+  }, () => {
+    if (!finished) fontsReady = true;
+  });
+  const visible = image => {
+    const rect = image.getBoundingClientRect();
+    const style = getComputedStyle(image);
+    return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth && style.display !== 'none' && style.visibility !== 'hidden';
+  };
+  const check = (painted = false) => {
+    if (finished) return;
+    if (performance.now() >= endsAt) return finish();
+    const next = new Map();
+    let changed = false;
+    // Do not materialize/scan the full live collection on image-heavy pages.
+    // Images beyond the first 200, or arriving after resolution, are not awaited.
+    const count = Math.min(document.images.length, 200);
+    for (let index = 0; index < count; index++) {
+      if (performance.now() >= endsAt) return finish();
+      const image = document.images[index];
+      if (!visible(image)) continue;
+      if (performance.now() >= endsAt) return finish();
+      const source = [image.currentSrc, image.src, image.srcset].join('\\n');
+      let entry = tracked.get(image);
+      if (!entry || entry.source !== source) {
+        changed = true;
+        entry = { source, done: false };
+        const decoding = entry;
+        // complete/naturalWidth describe availability, not decoded/painted pixels.
+        // decode also waits for async/lazy images; rejection must not hang capture.
+        Promise.resolve().then(() => { if (!finished) return image.decode(); }).then(() => {
+          if (!finished) decoding.done = true;
+        }, () => {
+          if (!finished) decoding.done = true;
+        });
+      }
+      next.set(image, entry);
+    }
+    if (next.size !== tracked.size) changed = true;
+    tracked = next;
+    if (changed || !fontsReady || Array.from(tracked.values()).some(entry => !entry.done)) stableSince = null;
+    else if (stableSince === null) stableSince = performance.now();
+    // Hidden Electron capture can miss a loaded raster even after decode + two
+    // RAFs. 250ms unchanged settling is a bounded heuristic, not a pixel guarantee.
+    if (stableSince !== null && performance.now() - stableSince >= 250) {
+      if (painted) return finish();
+      frame = requestAnimationFrame(() => {
+        if (!finished) frame = requestAnimationFrame(() => check(true));
+      });
+    } else poll = setTimeout(check, 25);
+  };
+  check();
 })`;
