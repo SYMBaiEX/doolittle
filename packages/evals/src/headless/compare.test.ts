@@ -7,6 +7,7 @@ import {
   compareHeadlessEvalReports,
   readHeadlessEvalReport,
 } from "./compare";
+import { PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE } from "./execution-overrides";
 import { advertisedRoute } from "./measurement";
 
 function report(overrides: Record<string, unknown> = {}) {
@@ -256,6 +257,213 @@ describe("v5 execution override compatibility", () => {
     });
     expect(aggregateHeadlessEvalReports([first, second]).reportSamples).toBe(2);
     expect(compareHeadlessEvalReports(first, second).schemaVersion).toBe(4);
+  });
+});
+
+describe("explicit planner alias intervention", () => {
+  const intervention = {
+    intervention: "planner-alias-tool-deduplication",
+  } as const;
+  const marker = PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE;
+  const later = "2026-10-01T00:00:01.000Z";
+  function interventionReport(overrides: Record<string, unknown> = {}) {
+    const value = v5Report(overrides);
+    value.runs = value.runs.map((run) => ({
+      ...run,
+      humanReviewRequired: true,
+    }));
+    return value;
+  }
+  function pair() {
+    return [
+      interventionReport(),
+      interventionReport({ executionOverrides: [marker], createdAt: later }),
+    ];
+  }
+
+  it("pairs only an explicit OFF to ON intervention and exposes its fixed context", () => {
+    const [baseline, candidate] = pair();
+    const before = JSON.stringify([baseline, candidate]);
+    const result = compareHeadlessEvalReports(
+      baseline,
+      candidate,
+      intervention,
+    );
+    expect(result.intervention).toBe(intervention.intervention);
+    expect(result.source?.baseline).toEqual(baseline.source);
+    expect(result.source?.candidate).toEqual(candidate.source);
+    expect(result.routeAttestation).toBe(
+      "requested-only-effective-unavailable",
+    );
+    expect(JSON.stringify([baseline, candidate])).toBe(before);
+    expect(() => compareHeadlessEvalReports(baseline, candidate)).toThrow(
+      /Invalid or incompatible/,
+    );
+    expect(() => aggregateHeadlessEvalReports([baseline, candidate])).toThrow(
+      /Invalid or incompatible/,
+    );
+  });
+
+  it("preserves identical ordered instrumentation without emitting its strings", () => {
+    const privateMarker = "SYNTHETIC_PRIVATE_OVERRIDE_CANARY";
+    const baseline = interventionReport({
+      executionOverrides: [privateMarker, "second"],
+    });
+    const candidate = interventionReport({
+      executionOverrides: [privateMarker, "second", marker],
+      createdAt: later,
+    });
+    const output = JSON.stringify(
+      compareHeadlessEvalReports(baseline, candidate, intervention),
+    );
+    expect(output).not.toContain(privateMarker);
+    expect(output).not.toContain(marker);
+  });
+
+  it.each([
+    [[], []],
+    [[marker], []],
+    [[marker], [marker]],
+    [[], [marker, marker]],
+    [[], ["unknown", marker]],
+    [
+      ["first", "second"],
+      ["second", "first", marker],
+    ],
+    [["first"], [marker, "first"]],
+  ])(
+    "rejects missing, reversed, duplicated or additional intervention changes",
+    (before, after) => {
+      expect(() =>
+        compareHeadlessEvalReports(
+          interventionReport({ executionOverrides: before }),
+          interventionReport({ executionOverrides: after, createdAt: later }),
+          intervention,
+        ),
+      ).toThrow(/Invalid or incompatible/);
+    },
+  );
+
+  it.each([
+    { source: { revision: "b".repeat(40), workingTreeClean: true } },
+    { source: { revision: "a".repeat(40), workingTreeClean: false } },
+    { source: { revision: null, workingTreeClean: true } },
+    { routeLabel: "different-declaration" },
+    {
+      route: advertisedRoute({
+        provider: "codex",
+        model: "different",
+        reasoningEffort: "medium",
+      }),
+    },
+    { evaluatorVersion: "0.2.10" },
+    { suite: { id: "different-suite", version: 4 } },
+    { createdAt: "2026-10-01T00:00:00.000Z" },
+    { createdAt: "2026-10-01T00:00:00Z" },
+  ])("rejects changed or missing controlled context", (change) => {
+    const [baseline] = pair();
+    const candidate = interventionReport({
+      executionOverrides: [marker],
+      createdAt: later,
+      ...change,
+    });
+    expect(() =>
+      compareHeadlessEvalReports(baseline, candidate, intervention),
+    ).toThrow(/Invalid or incompatible/);
+  });
+
+  it.each([
+    "task",
+    "domain",
+    "check",
+    "human-review",
+    "missing-human-review",
+    "requested-route",
+  ])("rejects changed %s coverage", (kind) => {
+    const [baseline, original] = pair();
+    const candidate = structuredClone(original);
+    const run = candidate.runs[0] as Record<string, unknown>;
+    if (kind === "task") run.taskId = "different-task";
+    if (kind === "domain") run.domain = "different-domain";
+    if (kind === "check")
+      run.checks = [{ id: "different-check", passed: true }];
+    if (kind === "human-review") run.humanReviewRequired = false;
+    if (kind === "missing-human-review") delete run.humanReviewRequired;
+    if (kind === "requested-route") {
+      const evidence = run.routeEvidence as Record<string, unknown>;
+      evidence.status = "requested-only";
+      evidence.journalAvailable = true;
+      evidence.accepted = 1;
+      evidence.requested = [
+        {
+          subject: { kind: "parent-turn", sha256: "a".repeat(64) },
+          provider: "codex",
+          modelSha256: "b".repeat(64),
+          reasoningEffort: null,
+        },
+      ];
+    }
+    expect(() =>
+      compareHeadlessEvalReports(baseline, candidate, intervention),
+    ).toThrow(/Invalid or incompatible/);
+  });
+
+  it("requires explicit review coverage even when both reports omit it", () => {
+    expect(() =>
+      compareHeadlessEvalReports(
+        v5Report(),
+        v5Report({ executionOverrides: [marker], createdAt: later }),
+        intervention,
+      ),
+    ).toThrow(/Invalid or incompatible/);
+  });
+
+  it("accepts matching available requested routes without promoting them to effective execution", () => {
+    const [baseline, candidate] = pair();
+    for (const [reportIndex, value] of [baseline, candidate].entries()) {
+      for (const run of value.runs) {
+        const evidence = run.routeEvidence as Record<string, unknown>;
+        evidence.status = "requested-only";
+        evidence.journalAvailable = true;
+        evidence.accepted = 1;
+        evidence.requested = [
+          {
+            subject: {
+              kind: "parent-turn",
+              sha256: String(reportIndex + 1).repeat(64),
+            },
+            provider: "codex",
+            modelSha256: "b".repeat(64),
+            reasoningEffort: null,
+          },
+        ];
+      }
+    }
+    const result = compareHeadlessEvalReports(
+      baseline,
+      candidate,
+      intervention,
+    );
+    expect(result.intervention).toBe(intervention.intervention);
+    expect(result.routeAttestation).toBe(
+      "requested-only-effective-unavailable",
+    );
+  });
+
+  it("refuses this exemption for legacy schemas and unrecognized modes", () => {
+    expect(() =>
+      compareHeadlessEvalReports(
+        v4Report(),
+        v4Report({ executionOverrides: [marker], createdAt: later }),
+        intervention,
+      ),
+    ).toThrow(/Invalid or incompatible/);
+    const [baseline, candidate] = pair();
+    expect(() =>
+      compareHeadlessEvalReports(baseline, candidate, {
+        intervention: "unknown",
+      } as unknown as typeof intervention),
+    ).toThrow(/Invalid or incompatible/);
   });
 });
 

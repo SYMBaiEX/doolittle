@@ -5,16 +5,24 @@ import { compareHeadlessEvalReports, readHeadlessEvalReport } from "./compare";
 function parseArguments(argv: string[]): {
   baseline: string;
   candidate: string;
+  plannerAliasIntervention: boolean;
 } {
   const values = new Map<string, string>();
+  let plannerAliasIntervention = false;
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
     if (key === "--") continue;
     if (key === "--help" || key === "-h") {
       console.log(
-        "Usage: nub run eval:headless:compare -- --baseline REPORT.json --candidate REPORT.json\nCompares paired tasks from compatible headless reports; output excludes report contents and paths.",
+        "Usage: nub run eval:headless:compare -- --baseline REPORT.json --candidate REPORT.json [--planner-alias-intervention]\nDefault comparison requires matching overrides. The explicit intervention compares planner alias deduplication OFF -> ON only, at the same clean source and declared/requested route; effective execution remains unavailable. Output excludes report contents and paths.",
       );
       process.exit(0);
+    }
+    if (key === "--planner-alias-intervention") {
+      if (plannerAliasIntervention)
+        throw new Error("Pass --planner-alias-intervention only once.");
+      plannerAliasIntervention = true;
+      continue;
     }
     if (key !== "--baseline" && key !== "--candidate")
       throw new Error("Unknown option.");
@@ -29,7 +37,7 @@ function parseArguments(argv: string[]): {
   const candidate = values.get("--candidate");
   if (!baseline || !candidate)
     throw new Error("Both report arguments are required.");
-  return { baseline, candidate };
+  return { baseline, candidate, plannerAliasIntervention };
 }
 
 function percent(value: number): string {
@@ -55,7 +63,14 @@ function main(): number {
     const comparison = compareHeadlessEvalReports(
       readHeadlessEvalReport(options.baseline),
       readHeadlessEvalReport(options.candidate),
+      options.plannerAliasIntervention
+        ? { intervention: "planner-alias-tool-deduplication" }
+        : {},
     );
+    if (comparison.intervention)
+      console.log(
+        "Explicit planner alias tool deduplication intervention: OFF -> ON; same clean source, declared route and available requested-route signatures. Equally unavailable signatures do not attest execution; effective model/effort and worker routes remain unavailable.",
+      );
     console.log(
       `Headless suite ${comparison.suiteId} v${comparison.suiteVersion} · schema v${comparison.schemaVersion} · evaluator ${comparison.evaluatorVersion}`,
     );

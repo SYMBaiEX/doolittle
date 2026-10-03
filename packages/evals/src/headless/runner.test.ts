@@ -18,6 +18,10 @@ import * as accountAuth from "@doolittle/agent/runtime/native/account-auth";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HeadlessEvalSuite } from "./cases";
 import { HEADLESS_EVAL_SUITES } from "./cases";
+import {
+  PLANNER_ALIAS_TOOL_DEDUPLICATION_FLAG,
+  PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE,
+} from "./execution-overrides";
 import * as measurement from "./measurement";
 import * as modelInputObservations from "./model-input-observations";
 import * as researchGrounding from "./research-grounding";
@@ -367,6 +371,86 @@ describe("optional first-runtime model input receipts", () => {
     });
     expect(result.exitCode).toBe(0);
     expect(result.modelInputReceiptStatus).toBe("unavailable");
+  });
+});
+
+describe("headless planner alias deduplication opt-in", () => {
+  const suite: HeadlessEvalSuite = {
+    id: "planner-dedup-opt-in-test",
+    version: 1,
+    title: "Synthetic planner deduplication option",
+    tasks: [
+      {
+        id: "one",
+        domain: "conversation",
+        prompt: "synthetic",
+        followUpPrompts: ["synthetic follow-up"],
+        checks: [{ id: "pass", evaluate: () => true }],
+        humanReviewRequired: false,
+      },
+    ],
+  };
+  const success = {
+    status: 0,
+    stdout: JSON.stringify({ ok: true, text: "Synthetic response." }),
+    stderr: "",
+    signal: null,
+    cleanupSafe: true,
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it.each(["true", "false"])(
+    "forces the disabled default on every child despite inherited %s",
+    async (ambientValue) => {
+      vi.stubEnv(PLANNER_ALIAS_TOOL_DEDUPLICATION_FLAG, ambientValue);
+      let calls = 0;
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir: tempDirectory(),
+        execute: (_command, _args, options) => {
+          calls++;
+          expect(options.env[PLANNER_ALIAS_TOOL_DEDUPLICATION_FLAG]).toBe(
+            "false",
+          );
+          return success;
+        },
+      });
+
+      expect(calls).toBe(2);
+      expect(result.report.executionOverrides).toEqual([]);
+    },
+  );
+
+  it("sets every child explicitly on and records only the fixed enabled marker", async () => {
+    vi.stubEnv(
+      PLANNER_ALIAS_TOOL_DEDUPLICATION_FLAG,
+      "PRIVATE_PLANNER_FLAG_CANARY",
+    );
+    let calls = 0;
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir: tempDirectory(),
+      deduplicatePlannerAliasTools: true,
+      recordActionDiagnostics: true,
+      recordModelInputs: true,
+      execute: (_command, _args, options) => {
+        calls++;
+        expect(options.env[PLANNER_ALIAS_TOOL_DEDUPLICATION_FLAG]).toBe("true");
+        return success;
+      },
+    });
+
+    expect(calls).toBe(2);
+    expect(result.report.executionOverrides).toEqual([
+      "Action diagnostics enabled: grading includes a bounded journal-event projection; the separate action receipt does not identify distinct commands or causal failures.",
+      expect.stringContaining("first-creating-runtime-only"),
+      PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE,
+    ]);
+    expect(JSON.stringify(result.report)).not.toContain(
+      "PRIVATE_PLANNER_FLAG_CANARY",
+    );
   });
 });
 

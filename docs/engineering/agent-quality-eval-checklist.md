@@ -60,6 +60,42 @@ opt-in samples from defaults in pooling/comparison. Phase is always unknown;
 character/count and partial projection/prior-sink clocks do not measure wire
 bytes, effective routes, cache/billing, worker inputs or full overhead.
 
+## Planner alias exposure experiment
+
+`DOOLITTLE_PLANNER_DEDUP_ALIAS_TOOLS=true` opts into a public SDK `pre_model`
+hook for `ACTION_PLANNER`; it is disabled by default. The hook replaces only
+the provider-facing tools array. An alias qualifies through its explicit
+registered simile, unique canonical tool and exact schema-object identity,
+with conservative own-data shape/metadata checks. Shared alias ownership does
+not itself prevent removal: SDK admission and legacy dispatch still use the
+original tools. Canonical/terminal names, normalized collisions, unknown or
+ambiguous identities and unsupported shapes remain unchanged. Canonical tools,
+schemas, original arrays and action registrations are not mutated. Disable the
+flag and restart/reinitialize to remove the hook.
+
+Installed-SDK synthetic tests cover legacy/shared-alias dispatch, validation
+and role/context refusals, handler failures, router double-leg idempotence,
+observer ordering and rollback. On the promoted two-child fixture, exposure
+drops from 10 to 6 tools and real Codex serialization from 7,756 to 3,693 UTF-16
+characters. This is payload characterization, not token/cost or live latency
+evidence. Changed advertisement can change model choices; quality preservation
+requires live objective and human-review evidence. Descriptor/prototype/proxy
+operations and traversal still have overhead; fail-open handling is not a hard
+CPU or memory guarantee.
+
+Headless `--deduplicate-planner-alias-tools` explicitly controls the experiment.
+Every child gets the flag as `true` or `false`, regardless of inherited values;
+only ON adds a fixed execution-override marker. Default comparison and repeat
+pooling still require equal ordered overrides. A separately explicit
+`eval:headless:compare --planner-alias-intervention` permits only OFF-to-ON with
+that sole marker appended, at the same clean source revision, declared route,
+available requested-route signatures and otherwise matching task/check and
+evaluation context. Equally unavailable signatures are not execution
+attestation. Never pool the arms. Predeclare pairing/order and resource limits,
+retain failures, and report repeated spread plus human ratings before claiming
+a meaningful improvement. Historical frozen diagnostics are not replacement
+samples or a matched control for this new intervention.
+
 ## Current coverage and known limits
 
 `headless-sdk-web-research-v1` is a separate, single-turn public synthetic task,
