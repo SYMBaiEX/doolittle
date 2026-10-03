@@ -286,6 +286,144 @@ describe("private rendered-page bridge", () => {
     expect(windows).toHaveLength(0);
   });
 
+  describe("closed route and method admission", () => {
+    const missingId = "11111111-1111-4111-8111-111111111111";
+    it.each([
+      "/clipboard",
+      "/tabs/not-an-id/snapshot",
+      "/tabs/11111111-1111-4111-8111-111111111111/eval",
+      "/tabs/11111111-1111-4111-8111-111111111111/snapshot/extra",
+      "/tabs/11111111-1111-4111-8111-111111111111/snapshot?extra=1",
+    ])(
+      "rejects malformed or unsupported route %s before native execution",
+      async (path) => {
+        const managed = vi.fn(async () => true);
+        const { open, request, windows } = await setup(managed);
+        await open();
+        const response = await request(path);
+        expect(response.status).toBe(404);
+        expect(await response.json()).toEqual({
+          error: "Capture operation is not supported.",
+        });
+        expect(managed).toHaveBeenCalledOnce();
+        expect(windows[0].webContents.executeJavaScript).not.toHaveBeenCalled();
+        expect(windows[0].webContents.capturePage).not.toHaveBeenCalled();
+        expect(windows[0].destroy).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["GET", "DELETE", "POST", "PATCH"])(
+      "rejects an absent owned tab before %s method dispatch",
+      async (method) => {
+        const managed = vi.fn(async () => true);
+        const { open, request, windows } = await setup(managed);
+        await open();
+        for (const suffix of ["", "/snapshot"]) {
+          const response = await request(`/tabs/${missingId}${suffix}`, {
+            method,
+          });
+          expect(response.status).toBe(404);
+          expect(await response.json()).toEqual({
+            error: "Capture tab not found.",
+          });
+        }
+        expect(managed).toHaveBeenCalledOnce();
+        expect(windows[0].webContents.executeJavaScript).not.toHaveBeenCalled();
+        expect(windows[0].webContents.capturePage).not.toHaveBeenCalled();
+        expect(windows[0].destroy).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      {
+        suffix: "",
+        methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "OPTIONS"],
+      },
+      {
+        suffix: "/snapshot",
+        methods: ["DELETE", "HEAD", "POST", "PUT", "PATCH", "OPTIONS"],
+      },
+    ])(
+      "rejects unsupported methods on owned tab path $suffix without revoking the tab",
+      async ({ suffix, methods }) => {
+        const managed = vi.fn(async () => true);
+        const { open, request, windows } = await setup(managed);
+        const { tab } = await (await open()).json();
+        for (const method of methods) {
+          const response = await request(`/tabs/${tab.id}${suffix}`, {
+            method,
+          });
+          expect(response.status).toBe(404);
+          if (method !== "HEAD")
+            expect(await response.json()).toEqual({
+              error: "Capture operation is not supported.",
+            });
+        }
+        expect(managed).toHaveBeenCalledOnce();
+        expect(windows[0].webContents.executeJavaScript).not.toHaveBeenCalled();
+        expect(windows[0].webContents.capturePage).not.toHaveBeenCalled();
+        expect(windows[0].destroy).not.toHaveBeenCalled();
+        expect(await (await request("/tabs")).json()).toMatchObject({
+          tabs: [{ id: tab.id }],
+        });
+      },
+    );
+
+    it.each(["DELETE", "HEAD", "PUT", "PATCH", "OPTIONS"])(
+      "keeps collection method %s unsupported",
+      async (method) => {
+        const managed = vi.fn(async () => true);
+        const { request, windows } = await setup(managed);
+        const response = await request("/tabs", { method });
+        expect(response.status).toBe(404);
+        if (method !== "HEAD")
+          expect(await response.json()).toEqual({
+            error: "Capture operation is not supported.",
+          });
+        expect(managed).not.toHaveBeenCalled();
+        expect(windows).toHaveLength(0);
+      },
+    );
+
+    it("admits tab DELETE without capture and preserves the other private owned tab", async () => {
+      const { open, request, windows } = await setup();
+      const { tab } = await (await open()).json();
+      const { tab: other } = await (await open()).json();
+      const response = await request(`/tabs/${tab.id}`, { method: "DELETE" });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ closed: true });
+      expect(windows[0].destroy).toHaveBeenCalledOnce();
+      expect(windows[1].destroy).not.toHaveBeenCalled();
+      for (const window of windows) {
+        expect(window.webContents.executeJavaScript).not.toHaveBeenCalled();
+        expect(window.webContents.capturePage).not.toHaveBeenCalled();
+      }
+      expect(await (await request("/tabs")).json()).toMatchObject({
+        tabs: [{ id: other.id }],
+      });
+    });
+
+    it.each<Record<string, string>>([
+      { authorization: "Bearer incorrect" },
+      { origin: "http://localhost:3000" },
+      { "sec-fetch-site": "same-origin" },
+    ])(
+      "never admits snapshot execution without bridge authorization %j",
+      async (headers) => {
+        const managed = vi.fn(async () => true);
+        const { open, request, windows } = await setup(managed);
+        const { tab } = await (await open()).json();
+        expect(
+          (await request(`/tabs/${tab.id}/snapshot`, { headers })).status,
+        ).toBe(403);
+        expect(managed).toHaveBeenCalledOnce();
+        expect(windows[0].webContents.executeJavaScript).not.toHaveBeenCalled();
+        expect(windows[0].webContents.capturePage).not.toHaveBeenCalled();
+        expect(windows[0].destroy).not.toHaveBeenCalled();
+      },
+    );
+  });
+
   it("enforces paired permission denial and the resource policy", async () => {
     const { open, windows } = await setup();
     await open();

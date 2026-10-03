@@ -304,158 +304,159 @@ export async function startBrowserRenderBridge(
           return;
         }
         const match = /^\/tabs\/([a-f0-9-]{36})(\/snapshot)?$/u.exec(path);
-        if (match) {
-          const tab = tabs.get(match[1]);
-          if (!tab) {
-            json(response, 404, { error: "Capture tab not found." });
-            return;
-          }
-          ownedTabId = tab.id;
-          if (!match[2] && request.method === "DELETE") {
-            remove(tab.id);
-            json(response, 200, { closed: true });
-            return;
-          }
-          if (match[2] && request.method === "GET") {
-            if (tab.capturing) {
-              json(response, 409, {
-                error: "This capture is already in progress.",
-              });
-              return;
-            }
-            tab.capturing = true;
-            const readiness = tab.readiness;
-            const controller = readiness ? new AbortController() : undefined;
-            tab.captureAbort = controller;
-            const expiresAt = performance.now() + OPERATION_TIMEOUT_MS;
-            const timeout = controller
-              ? setTimeout(() => remove(tab.id), OPERATION_TIMEOUT_MS)
-              : undefined;
-            const cancel = () => {
-              if (!response.writableFinished) remove(tab.id);
-            };
-            if (controller) {
-              // One Linux snapshot deadline owns all phases. Do not race the
-              // earlier socket inactivity timeout against its fixed refusal.
-              request.setTimeout(0);
-              request.once("aborted", cancel);
-              response.once("close", cancel);
-            }
-            let readyEpoch: number | undefined;
-            let failurePhase: "native-readiness" | undefined;
-            const assertActive = () => {
-              if (!controller) return;
-              if (performance.now() >= expiresAt) remove(tab.id);
-              if (
-                controller.signal.aborted ||
-                disposed ||
-                !tabs.has(tab.id) ||
-                tab.window.isDestroyed()
-              )
-                throw new Error("Capture evidence is unavailable.");
-              readiness?.assertAlive();
-              if (readyEpoch !== undefined)
-                readiness?.assertCurrent(readyEpoch);
-            };
-            const step = <T>(action: () => Promise<T>): Promise<T> => {
-              if (!controller) return bounded(action(), tab.window);
-              assertActive();
-              return renderCaptureStep(controller.signal, async () => {
-                assertActive();
-                const value = await action();
-                assertActive();
-                return value;
-              });
-            };
-            const authorize = () =>
-              controller
-                ? step(() => options.isManagedAppUrl(tab.url))
-                : options.isManagedAppUrl(tab.url);
-            try {
-              if (!(await authorize()) || tab.window.isDestroyed()) {
-                remove(tab.id);
-                json(response, 403, {
-                  error:
-                    "The managed app is no longer available in this workspace.",
-                });
-                return;
-              }
-              const contents = tab.window.webContents;
-              try {
-                await step(() =>
-                  contents.executeJavaScript(WAIT_FOR_RENDER_SCRIPT),
-                );
-                if (readiness && controller) {
-                  failurePhase = "native-readiness";
-                  readyEpoch = await step(() =>
-                    readiness.wait(controller.signal),
-                  );
-                  failurePhase = undefined;
-                  assertActive();
-                  if (!(await authorize()))
-                    throw new Error("Capture evidence is unavailable.");
-                }
-                const facts: unknown = await step(() =>
-                  contents.executeJavaScript(RENDERED_FACTS_SCRIPT),
-                );
-                if (controller && !(await authorize()))
-                  throw new Error("Capture evidence is unavailable.");
-                const image = await step(() =>
-                  contents.capturePage(undefined, {
-                    stayHidden: true,
-                    stayAwake: false,
-                  }),
-                );
-                if (controller && !(await authorize()))
-                  throw new Error("Capture evidence is unavailable.");
-                assertActive();
-                const png = image.toPNG();
-                assertActive();
-                if (
-                  !png.length ||
-                  png.length > MAX_PNG_BYTES ||
-                  !(await authorize()) ||
-                  disposed ||
-                  !tabs.has(tab.id)
-                )
-                  throw new Error("Capture evidence is unavailable.");
-                json(response, 200, {
-                  data: png.toString("base64"),
-                  captureMode: "rendered-page",
-                  captureProtocol: "doolittle-rendered-page-v1",
-                  viewport: tab.viewport,
-                  facts,
-                  blockedRequests: tab.blockedRequests,
-                  scope: "viewport-only-read-only",
-                });
-              } catch {
-                remove(tab.id);
-                json(response, 502, {
-                  error: "Rendered evidence could not be captured.",
-                  ...(failurePhase ? { phase: failurePhase } : {}),
-                });
-              }
-            } catch (error) {
-              if (!controller) throw error;
-              remove(tab.id);
-              json(response, 502, {
-                error: "Rendered evidence could not be captured.",
-                ...(failurePhase ? { phase: failurePhase } : {}),
-              });
-            } finally {
-              tab.capturing = false;
-              clearTimeout(timeout);
-              if (controller) {
-                request.removeListener("aborted", cancel);
-                response.removeListener("close", cancel);
-              }
-              tab.captureAbort = undefined;
-            }
-            return;
-          }
+        // Reject unsupported routes before any owned-tab operation. Route input
+        // selects the closed protocol, never whether its authority is checked.
+        if (!match) {
+          json(response, 404, { error: "Capture operation is not supported." });
+          return;
         }
-        // No eval, navigate, clipboard, profile, account, input or upload endpoint.
-        json(response, 404, { error: "Capture operation is not supported." });
+        const tab = tabs.get(match[1]);
+        if (!tab) {
+          json(response, 404, { error: "Capture tab not found." });
+          return;
+        }
+        ownedTabId = tab.id;
+        if (!match[2] && request.method === "DELETE") {
+          remove(tab.id);
+          json(response, 200, { closed: true });
+          return;
+        }
+        if (!match[2] || request.method !== "GET") {
+          json(response, 404, { error: "Capture operation is not supported." });
+          return;
+        }
+        if (tab.capturing) {
+          json(response, 409, {
+            error: "This capture is already in progress.",
+          });
+          return;
+        }
+        tab.capturing = true;
+        const readiness = tab.readiness;
+        const controller = readiness ? new AbortController() : undefined;
+        tab.captureAbort = controller;
+        const expiresAt = performance.now() + OPERATION_TIMEOUT_MS;
+        const timeout = controller
+          ? setTimeout(() => remove(tab.id), OPERATION_TIMEOUT_MS)
+          : undefined;
+        const cancel = () => {
+          if (!response.writableFinished) remove(tab.id);
+        };
+        if (controller) {
+          // One Linux snapshot deadline owns all phases. Do not race the
+          // earlier socket inactivity timeout against its fixed refusal.
+          request.setTimeout(0);
+          request.once("aborted", cancel);
+          response.once("close", cancel);
+        }
+        let readyEpoch: number | undefined;
+        let failurePhase: "native-readiness" | undefined;
+        const assertActive = () => {
+          if (!controller) return;
+          if (performance.now() >= expiresAt) remove(tab.id);
+          if (
+            controller.signal.aborted ||
+            disposed ||
+            !tabs.has(tab.id) ||
+            tab.window.isDestroyed()
+          )
+            throw new Error("Capture evidence is unavailable.");
+          readiness?.assertAlive();
+          if (readyEpoch !== undefined) readiness?.assertCurrent(readyEpoch);
+        };
+        const step = <T>(action: () => Promise<T>): Promise<T> => {
+          if (!controller) return bounded(action(), tab.window);
+          assertActive();
+          return renderCaptureStep(controller.signal, async () => {
+            assertActive();
+            const value = await action();
+            assertActive();
+            return value;
+          });
+        };
+        const authorize = () =>
+          controller
+            ? step(() => options.isManagedAppUrl(tab.url))
+            : options.isManagedAppUrl(tab.url);
+        try {
+          if (!(await authorize()) || tab.window.isDestroyed()) {
+            remove(tab.id);
+            json(response, 403, {
+              error:
+                "The managed app is no longer available in this workspace.",
+            });
+            return;
+          }
+          const contents = tab.window.webContents;
+          try {
+            await step(() =>
+              contents.executeJavaScript(WAIT_FOR_RENDER_SCRIPT),
+            );
+            if (readiness && controller) {
+              failurePhase = "native-readiness";
+              readyEpoch = await step(() => readiness.wait(controller.signal));
+              failurePhase = undefined;
+              assertActive();
+              if (!(await authorize()))
+                throw new Error("Capture evidence is unavailable.");
+            }
+            const facts: unknown = await step(() =>
+              contents.executeJavaScript(RENDERED_FACTS_SCRIPT),
+            );
+            if (controller && !(await authorize()))
+              throw new Error("Capture evidence is unavailable.");
+            const image = await step(() =>
+              contents.capturePage(undefined, {
+                stayHidden: true,
+                stayAwake: false,
+              }),
+            );
+            if (controller && !(await authorize()))
+              throw new Error("Capture evidence is unavailable.");
+            assertActive();
+            const png = image.toPNG();
+            assertActive();
+            if (
+              !png.length ||
+              png.length > MAX_PNG_BYTES ||
+              !(await authorize()) ||
+              disposed ||
+              !tabs.has(tab.id)
+            )
+              throw new Error("Capture evidence is unavailable.");
+            json(response, 200, {
+              data: png.toString("base64"),
+              captureMode: "rendered-page",
+              captureProtocol: "doolittle-rendered-page-v1",
+              viewport: tab.viewport,
+              facts,
+              blockedRequests: tab.blockedRequests,
+              scope: "viewport-only-read-only",
+            });
+          } catch {
+            remove(tab.id);
+            json(response, 502, {
+              error: "Rendered evidence could not be captured.",
+              ...(failurePhase ? { phase: failurePhase } : {}),
+            });
+          }
+        } catch (error) {
+          if (!controller) throw error;
+          remove(tab.id);
+          json(response, 502, {
+            error: "Rendered evidence could not be captured.",
+            ...(failurePhase ? { phase: failurePhase } : {}),
+          });
+        } finally {
+          tab.capturing = false;
+          clearTimeout(timeout);
+          if (controller) {
+            request.removeListener("aborted", cancel);
+            response.removeListener("close", cancel);
+          }
+          tab.captureAbort = undefined;
+        }
+        return;
       } catch {
         if (ownedTabId) remove(ownedTabId);
         json(response, 400, { error: "Invalid capture request." });
