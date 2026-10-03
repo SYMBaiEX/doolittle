@@ -1,4 +1,10 @@
-import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -264,7 +270,11 @@ describe("WebService rendered model analysis", () => {
     const renderedCapture = {
       available: vi.fn(async () => true),
       capture: vi.fn(
-        async (url: string, viewport: { width: number; height: number }) =>
+        async (
+          url: string,
+          viewport: { width: number; height: number },
+          _abortSignal?: AbortSignal,
+        ) =>
           validateRenderedCapture(
             await fixture(viewport.width, viewport.height),
             url,
@@ -355,6 +365,38 @@ describe("WebService rendered model analysis", () => {
       }),
     ).rejects.toThrow();
     expect(renderedCapture.capture).not.toHaveBeenCalled();
+    expect(modelAnalysis.analyze).not.toHaveBeenCalled();
+  });
+
+  it("passes cancellation into prepared analysis and discards a late rendered capture without writing artifacts", async () => {
+    const { service, modelAnalysis, renderedCapture } = await setup();
+    const artifactRoot = root;
+    if (!artifactRoot) throw new Error("No capture fixture directory");
+    const payload = validateRenderedCapture(
+      await fixture(),
+      "http://localhost:3000/",
+      { width: 1280, height: 720 },
+    );
+    let release: ((value: typeof payload) => void) | undefined;
+    renderedCapture.capture.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+    const controller = new AbortController();
+    const prepared = service.analyze("http://localhost:3000/", "vision", {
+      abortSignal: controller.signal,
+    });
+    const rejected = expect(prepared).rejects.toThrow(
+      "cancelled during capture",
+    );
+    await vi.waitFor(() => expect(release).toBeDefined());
+    expect(renderedCapture.capture.mock.calls[0]?.[2]).toBe(controller.signal);
+    controller.abort(new Error("cancelled during capture"));
+    release?.(payload);
+    await rejected;
+    expect(readdirSync(artifactRoot)).toEqual([]);
     expect(modelAnalysis.analyze).not.toHaveBeenCalled();
   });
 

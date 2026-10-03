@@ -17,6 +17,7 @@ type FetchLike = (
 interface BasicFetchDependencies {
   fetchImpl?: FetchLike;
   lookupFn?: LookupFn;
+  abortSignal?: AbortSignal;
 }
 
 const nodeLookup: LookupFn = async (hostname) =>
@@ -31,6 +32,7 @@ export function resolveBasicFetchPolicy(url: URL): SsrfPolicy | undefined {
 async function runCommand(
   cmd: string[],
   timeoutMs: number,
+  abortSignal?: AbortSignal,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const { stdout, stderr, exitCode } = await runTextProcess(
     cmd[0] ?? "",
@@ -38,6 +40,7 @@ async function runCommand(
     {
       timeoutMs,
       toolName: "doolittle.web.lightpanda",
+      abortSignal,
     },
   );
 
@@ -86,11 +89,14 @@ export async function fetchWithBasic(
   url: string,
   dependencies: BasicFetchDependencies = {},
 ): Promise<{ body: string; contentType: string }> {
+  dependencies.abortSignal?.throwIfAborted();
   const parsed = new URL(url);
   const fetchImpl = dependencies.fetchImpl ?? globalThis.fetch;
 
   if (parsed.protocol === "data:") {
-    const response = await fetchImpl(url);
+    const response = await fetchImpl(url, {
+      signal: dependencies.abortSignal,
+    });
     if (!response.ok) {
       throw new Error(
         `Web fetch failed (${response.status}): ${await response.text()}`,
@@ -108,6 +114,7 @@ export async function fetchWithBasic(
     lookupFn: dependencies.lookupFn ?? nodeLookup,
     policy: resolveBasicFetchPolicy(parsed),
     timeoutMs: 20_000,
+    signal: dependencies.abortSignal,
   });
   try {
     if (!guarded.response.ok) {
@@ -127,7 +134,9 @@ export async function fetchWithBasic(
 export async function fetchWithLightpanda(
   url: string,
   config: BrowserConfig,
+  abortSignal?: AbortSignal,
 ): Promise<{ body: string; contentType: string }> {
+  abortSignal?.throwIfAborted();
   const resolvedCommand = resolveBrowserCommand(config.command);
   if (!resolvedCommand) {
     throw new Error(`Lightpanda command is not available: ${config.command}.`);
@@ -140,7 +149,8 @@ export async function fetchWithLightpanda(
     url,
   ];
 
-  const result = await runCommand(args, 20_000);
+  const result = await runCommand(args, 20_000, abortSignal);
+  abortSignal?.throwIfAborted();
   if (result.exitCode !== 0) {
     throw new Error(
       result.stderr ||
