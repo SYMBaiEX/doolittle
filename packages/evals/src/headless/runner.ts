@@ -33,6 +33,13 @@ import {
   readRequestedRouteEvidence,
   type TaskHarnessTiming,
 } from "./measurement";
+import {
+  MODEL_INPUT_FLAG,
+  type ModelInputObservations,
+  pinModelInputDataRoot,
+  readModelInputObservations,
+  unavailableModelInputObservations,
+} from "./model-input-observations";
 import { readHeadlessModelUsage } from "./model-usage";
 import {
   preparePrivateReportDirectory,
@@ -146,6 +153,10 @@ export interface RunHeadlessEvalOptions {
   /** Trusted synchronous writer seam: must return promptly. A hanging callback
    * cannot be interrupted; throwing is isolated from grading/cleanup. */
   writeActionDiagnosticsReceipt?: (path: string, bytes: string) => void;
+  /** Explicit opt-in; inherited observer flags are shadowed in every child. */
+  recordModelInputs?: boolean;
+  /** Trusted promptly-returning synchronous writer; async completion is unsupported and not awaited. */
+  writeModelInputReceipt?: (path: string, bytes: string) => void;
 }
 
 const defaultRepoRoot = resolve(
@@ -380,6 +391,7 @@ export async function runHeadlessEvalSuite(
   exitCode: number;
   measurementReceiptStatus: "written" | "unavailable";
   actionDiagnosticsReceiptStatus: "disabled" | "written" | "unavailable";
+  modelInputReceiptStatus: "disabled" | "written" | "unavailable";
 }> {
   const now = options.now ?? (() => new Date());
   const wallNow = options.wallNow ?? Date.now;
@@ -426,7 +438,11 @@ export async function runHeadlessEvalSuite(
   const cloudCredentials = cloudResearchOptedIn
     ? configuredElizaCloudCredentials()
     : undefined;
-  const runRoot = mkdtempSync(join(tmpdir(), "doolittle-headless-eval-"));
+  // Canonicalize the newly owned root before constructing any child env: the
+  // private observer deliberately refuses even system aliases such as /var.
+  const runRoot = mkdtempSync(
+    join(realpathSync(tmpdir()), "doolittle-headless-eval-"),
+  );
   const runIdentity = ownedDirectory(runRoot);
   const taskIdentities = new Map<string, OwnedDirectory>();
   const preflightMs = durationMs(suiteStartedAt, monotonicNow());
@@ -437,6 +453,11 @@ export async function runHeadlessEvalSuite(
   const actionDiagnostics: Array<{
     reportRunIndex: number;
     outcomes: ActionOutcomes;
+  }> = [];
+  const modelInputDiagnostics: Array<{
+    reportRunIndex: number;
+    cliInvocations: number;
+    observations: ModelInputObservations;
   }> = [];
   let cleanupDurationMs = 0;
   try {
@@ -454,6 +475,10 @@ export async function runHeadlessEvalSuite(
       writeFileSync(join(dataDir, "onboarding.json"), "{}\n", {
         mode: 0o600,
       });
+      const modelInputRoot = options.recordModelInputs
+        ? pinModelInputDataRoot(dataDir)
+        : undefined;
+      let modelInputs = unavailableModelInputObservations();
       const taskSetupMs = durationMs(taskSetupStartedAt, monotonicNow());
 
       const startedAt = Date.now();
@@ -511,6 +536,9 @@ export async function runHeadlessEvalSuite(
           mode: "cli",
           baseEnvironment: process.env,
         });
+        childEnvironment[MODEL_INPUT_FLAG] = options.recordModelInputs
+          ? "true"
+          : "false";
         if (
           task.domain === "research" &&
           cloudResearchOptedIn &&
@@ -547,6 +575,18 @@ export async function runHeadlessEvalSuite(
         if (!childCleanupSafe) {
           cleanupBlocked = true;
           diagnosticFlags.add("headless-child-cleanup-unconfirmed");
+        }
+        if (options.recordModelInputs && index === 0) {
+          try {
+            if (!childCleanupSafe) throw new Error();
+            verifyOwnedTaskRoot(runIdentity, taskIdentity);
+            // Snapshot once, before shared-data follow-ups. New CLI runtimes
+            // refuse the preexisting observer file; never adopt it as new input.
+            // This optional read is included in responseProcessingMs.
+            modelInputs = readModelInputObservations(modelInputRoot);
+          } catch {
+            modelInputs = unavailableModelInputObservations();
+          }
         }
         const invocationDurationMs = durationMs(execStartedAt, execEndedAt);
         execDurationMs += invocationDurationMs;
@@ -657,6 +697,12 @@ export async function runHeadlessEvalSuite(
         }
         actionDiagnostics.push({ reportRunIndex: runs.length, outcomes });
       }
+      if (options.recordModelInputs)
+        modelInputDiagnostics.push({
+          reportRunIndex: runs.length,
+          cliInvocations: execInvocations,
+          observations: modelInputs,
+        });
       try {
         const pending = options.onActionLabels?.(
           task.id,
@@ -804,6 +850,10 @@ export async function runHeadlessEvalSuite(
       report.executionOverrides.push(
         "Action diagnostics enabled: grading includes a bounded journal-event projection; the separate action receipt does not identify distinct commands or causal failures.",
       );
+    if (options.recordModelInputs)
+      report.executionOverrides.push(
+        "Model input observations enabled: response processing includes a bounded first-creating-runtime-only snapshot; shared-data follow-up CLI invocations are not newly measured. Phase remains unknown; not wire bytes, effective routes, worker inputs or full overhead.",
+      );
     const reportLeaf = privateReportFilename(
       createdAt,
       suite.id,
@@ -888,6 +938,29 @@ export async function runHeadlessEvalSuite(
         /* Optional diagnostics must not corrupt grading or expose errors. */
       }
     }
+    let modelInputReceiptStatus: "disabled" | "written" | "unavailable" =
+      options.recordModelInputs ? "unavailable" : "disabled";
+    if (options.recordModelInputs) {
+      try {
+        const leaf = `${reportLeaf}.model-inputs.json`;
+        const bytes = `${JSON.stringify({ schemaVersion: 1, provenance: "headless-model-input-observations", reportSchemaVersion: report.schemaVersion, evaluatorVersion: report.evaluatorVersion, reportSha256: sha256(reportBytes), mode: "opt-in-model-input-observations", coverage: "first-creating-runtime-only", runs: modelInputDiagnostics })}\n`;
+        verifyPrivateReportDirectory(reportDirectory);
+        const pending = options.writeModelInputReceipt
+          ? options.writeModelInputReceipt(
+              privateReportPath(reportDirectory, leaf),
+              bytes,
+            )
+          : writePrivateReportFile(reportDirectory, leaf, bytes);
+        if (pending !== undefined) {
+          void Promise.resolve(pending).catch(() => undefined);
+          throw new Error("Unsupported asynchronous diagnostic writer.");
+        }
+        verifyPrivateReportDirectory(reportDirectory);
+        modelInputReceiptStatus = "written";
+      } catch {
+        /* Optional observations cannot change grading or expose errors. */
+      }
+    }
     const allPassed =
       report.summary.completed === report.summary.total &&
       report.summary.objectiveChecksPassed ===
@@ -898,6 +971,7 @@ export async function runHeadlessEvalSuite(
       exitCode: allPassed ? 0 : 1,
       measurementReceiptStatus,
       actionDiagnosticsReceiptStatus,
+      modelInputReceiptStatus,
     };
   } catch (error) {
     // A refused identity guard or thrown executor must never be followed by

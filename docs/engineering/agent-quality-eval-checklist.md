@@ -37,6 +37,29 @@ and the final write; neither is full instrumentation or harness overhead.
 These diagnostics do not establish a performance improvement or explain an
 older run whose individual model input shapes were not recorded.
 
+For headless runs, `--record-model-inputs` is an explicit default-off option.
+Every CLI child receives `DOOLITTLE_EVAL_CAPTURE_MODEL_INPUTS=true` or `false`,
+so an inherited opt-in cannot contaminate a default benchmark. Newly owned run
+roots are canonicalized before child environments are constructed; the private
+observer's refusal of aliases is unchanged. The runner snapshots only the first
+CLI runtime's file after confirmed owned-child cleanup, before shared-data
+follow-ups. Later invocations cannot adopt the existing file as new measured
+inputs. Coverage is **first-creating-runtime-only**, not full multi-turn coverage.
+
+A separate owner-only exclusive `.model-inputs.json` receipt binds the exact
+finished schema-v5 report SHA and numeric report-run index, retaining only closed
+version-1 input/settlement/provider-usage rows and a bounded source SHA. Unknown
+keys, unsafe/replaced roots or files, symlinks/hardlinks, invalid associations and
+malformed rows are unavailable/rejected, never copied. Reads are capped at 2 MiB,
+512 rows and 4096 bytes per row; those caps do not bound filesystem latency or
+provide race-proof ancestor traversal. The quiescent owned-process assumption
+still applies. Optional failures do not change grades or task cleanup; disabled
+mode adds no observation read/sidecar. Snapshot reads count in response-processing
+time; persistence remains outside suite time. An execution override separates
+opt-in samples from defaults in pooling/comparison. Phase is always unknown;
+character/count and partial projection/prior-sink clocks do not measure wire
+bytes, effective routes, cache/billing, worker inputs or full overhead.
+
 ## Current coverage and known limits
 
 - `headless-workflows-v2` is a small dispatch smoke suite: clarification,

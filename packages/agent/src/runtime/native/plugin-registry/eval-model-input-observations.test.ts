@@ -11,8 +11,19 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { IAgentRuntime } from "@elizaos/core";
+import {
+  AgentRuntime,
+  type GenerateTextParams,
+  type IAgentRuntime,
+  InMemoryDatabaseAdapter,
+  ModelType,
+  type Plugin,
+} from "@elizaos/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  type createCodexReasoningBackend,
+  createDoolittleCodexReasoningPlugin,
+} from "./codex-reasoning";
 import {
   createEvalModelInputObservationsPlugin,
   createModelInputObservationSink,
@@ -73,6 +84,332 @@ async function fixture(sink?: (row: object) => void) {
   };
   return { rows, hooks, runtime, invoke };
 }
+
+type SyntheticBackend = ReturnType<typeof createCodexReasoningBackend>;
+type SyntheticGenerate = SyntheticBackend["generate"];
+const syntheticResult = {
+  text: "Synthetic completion.",
+  toolCalls: [],
+  usage: { inputTokens: 11, outputTokens: 7, totalTokens: 18 },
+};
+
+// Real installed AgentRuntime/useModel and public plugin/hook registration.
+// Only the Codex backend is synthetic; no initialization, services, transport,
+// auth, live-inference helper, or persistent observer/model-log sink is used.
+async function sdkFixture(generate: SyntheticGenerate) {
+  vi.stubEnv("ELIZA_TRAJECTORY_RECORDING", "false");
+  vi.stubEnv("ELIZA_INFERENCE_TIMING", "false");
+  const runtime = new AgentRuntime({
+    character: { name: "Synthetic observer agent", bio: ["Synthetic."] },
+    adapter: new InMemoryDatabaseAdapter(),
+    settings: {
+      runtimeSettings: JSON.stringify({
+        model: { provider: "codex", reasoningEffort: "medium" },
+      }),
+      CODEX_MODEL: "gpt-6-luna",
+    },
+    logLevel: "fatal",
+    enableTrajectories: false,
+    disableBasicCapabilities: true,
+    fetch: async () => {
+      throw new Error("Synthetic network forbidden.");
+    },
+  });
+  for (const level of [
+    "trace",
+    "debug",
+    "info",
+    "warn",
+    "error",
+    "fatal",
+  ] as const)
+    vi.spyOn(runtime.logger, level).mockImplementation(() => undefined);
+  const rows: object[] = [];
+  const order: string[] = [];
+  const identities: unknown[] = [];
+  const usage: CodexModelCallMetric[] = [];
+  const backendCalls: Parameters<SyntheticGenerate>[0][] = [];
+  const backend = {
+    generate: (params: Parameters<SyntheticGenerate>[0]) => {
+      backendCalls.push(params);
+      if (backendCalls.length > 1)
+        throw new Error("Synthetic backend call budget exceeded.");
+      return generate(params);
+    },
+  } as unknown as SyntheticBackend;
+  try {
+    await runtime.registerPlugin(
+      createEvalModelInputObservationsPlugin({
+        enabled: true,
+        sink: (row) => rows.push(row),
+      }),
+    );
+    runtime.registerPipelineHook({
+      id: "synthetic-observer-pre",
+      phase: "pre_model",
+      schedule: "serial",
+      position: 99,
+      mutatesPrimary: false,
+      handler: (_runtime, context) => {
+        if (context.phase !== "pre_model")
+          throw new Error("Unexpected synthetic hook phase.");
+        order.push("pre");
+        identities.push(context.params);
+      },
+    });
+    runtime.registerPipelineHook({
+      id: "synthetic-observer-post",
+      phase: "post_model",
+      schedule: "serial",
+      position: 101,
+      mutatesPrimary: false,
+      handler: (_runtime, context) => {
+        if (context.phase !== "post_model")
+          throw new Error("Unexpected synthetic hook phase.");
+        order.push("post");
+        identities.push(context.params);
+      },
+    });
+    await runtime.registerPlugin(
+      createDoolittleCodexReasoningPlugin(
+        {
+          name: "codex-cli",
+          description: "Synthetic backend only.",
+          models: {
+            [ModelType.TEXT_SMALL]: async () => {
+              throw new Error("Unexpected synthetic fallback.");
+            },
+          },
+        } as Plugin,
+        {
+          createBackend: () => backend,
+          observeUsage: (row) => {
+            order.push("usage");
+            usage.push(row);
+          },
+          observeContext: (observedRuntime, params, row) => {
+            expect(observedRuntime).toBe(runtime);
+            expect(row).toBe(usage.at(-1));
+            order.push("context");
+            identities.push(params);
+            observeEvalModelInputUsage(observedRuntime, params, row);
+          },
+        },
+      ),
+    );
+    return { runtime, rows, order, identities, usage, backendCalls };
+  } catch (error) {
+    await runtime.stop();
+    throw error;
+  }
+}
+
+describe("installed SDK model observation composition", () => {
+  it("joins non-streaming resolved params through actual public runtime hooks", async () => {
+    const f = await sdkFixture(async () => syntheticResult);
+    try {
+      const params = Object.freeze({
+        prompt: "SYNTHETIC_PRIVATE_CANARY",
+        stream: false,
+      });
+      await expect(
+        f.runtime.useModel(ModelType.TEXT_SMALL, params),
+      ).resolves.toBe(syntheticResult.text);
+      expect(f.order).toEqual(["pre", "usage", "context", "post"]);
+      expect(f.identities).toHaveLength(3);
+      expect(f.identities[0]).not.toBe(params);
+      expect(f.identities[1]).toBe(f.identities[0]);
+      expect(f.identities[2]).toBe(f.identities[0]);
+      expect(f.rows).toMatchObject([
+        {
+          kind: "input",
+          ordinal: 1,
+          phase: "unknown",
+          requestedStreaming: false,
+        },
+        {
+          kind: "provider-usage",
+          ordinal: 1,
+          association: "same-params-object",
+          completed: true,
+          inputTokens: 11,
+        },
+        {
+          kind: "settlement",
+          ordinal: 1,
+          association: "same-params-object",
+          consumedStreaming: false,
+        },
+      ]);
+      expect(f.usage).toHaveLength(1);
+      expect(f.usage[0]).toMatchObject({
+        provider: "codex",
+        completed: true,
+        inputTokens: 11,
+        outputTokens: 7,
+        totalTokens: 18,
+      });
+      expect(f.backendCalls).toHaveLength(1);
+      expect(JSON.stringify(f.rows)).not.toContain("SYNTHETIC_PRIVATE_CANARY");
+      expect(params).toEqual({
+        prompt: "SYNTHETIC_PRIVATE_CANARY",
+        stream: false,
+      });
+    } finally {
+      await f.runtime.stop();
+    }
+  }, 2_000);
+
+  it("consumes the real SDK streaming path before associated post-model settlement", async () => {
+    const f = await sdkFixture(async (request) => {
+      request.onTextDelta?.("Synthetic ");
+      request.onTextDelta?.("completion.");
+      return syntheticResult;
+    });
+    try {
+      const chunks: string[] = [];
+      const params = {
+        prompt: "Synthetic input.",
+        stream: true,
+        onStreamChunk: (chunk: string) => {
+          chunks.push(chunk);
+        },
+      };
+      await expect(
+        f.runtime.useModel(ModelType.TEXT_SMALL, params),
+      ).resolves.toBe(syntheticResult.text);
+      expect(chunks).toEqual(["Synthetic ", "completion."]);
+      expect(f.order).toEqual(["pre", "usage", "context", "post"]);
+      expect(f.identities).toHaveLength(3);
+      expect(f.identities[0]).not.toBe(params);
+      expect(f.identities[1]).toBe(f.identities[0]);
+      expect(f.identities[2]).toBe(f.identities[0]);
+      expect(f.rows).toMatchObject([
+        { kind: "input", ordinal: 1, requestedStreaming: true },
+        {
+          kind: "provider-usage",
+          ordinal: 1,
+          association: "same-params-object",
+          completed: true,
+          totalTokens: 18,
+        },
+        {
+          kind: "settlement",
+          ordinal: 1,
+          association: "same-params-object",
+          consumedStreaming: true,
+        },
+      ]);
+      expect(f.usage).toHaveLength(1);
+      expect(f.backendCalls).toHaveLength(1);
+    } finally {
+      await f.runtime.stop();
+    }
+  }, 2_000);
+
+  it("preserves rejection and signal cancellation without inventing a post-model hook", async () => {
+    for (const cancelled of [false, true]) {
+      const original = new Error("Synthetic failure.");
+      const controller = new AbortController();
+      const f = await sdkFixture(async (request) => {
+        if (cancelled) {
+          expect(request.abortSignal).toBe(controller.signal);
+          expect(request.abortSignal?.aborted).toBe(true);
+        }
+        throw original;
+      });
+      try {
+        if (cancelled) controller.abort(original);
+        await expect(
+          f.runtime.useModel(ModelType.TEXT_SMALL, {
+            prompt: "Synthetic input.",
+            stream: false,
+            signal: controller.signal,
+          }),
+        ).rejects.toBe(original);
+        expect(f.order).toEqual(["pre", "usage", "context"]);
+        expect(f.identities).toHaveLength(2);
+        expect(f.identities[1]).toBe(f.identities[0]);
+        expect(f.rows).toMatchObject([
+          { kind: "input", ordinal: 1 },
+          {
+            kind: "provider-usage",
+            ordinal: 1,
+            association: "same-params-object",
+            completed: false,
+            inputTokens: null,
+            outputTokens: null,
+            totalTokens: null,
+          },
+        ]);
+        expect(f.usage).toHaveLength(1);
+        expect(f.usage[0]?.completed).toBe(false);
+        expect(f.backendCalls).toHaveLength(1);
+        expect(JSON.stringify(f.rows)).not.toContain(original.message);
+      } finally {
+        await f.runtime.stop();
+      }
+    }
+  }, 2_000);
+
+  it("keeps later unconsumed-stream usage unavailable after actual SDK early post-model settlement", async () => {
+    let release: (() => void) | undefined;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const f = await sdkFixture(async (request) => {
+      await pending;
+      request.onTextDelta?.(syntheticResult.text);
+      return syntheticResult;
+    });
+    try {
+      const params: GenerateTextParams = {
+        prompt: "Synthetic input.",
+        stream: true,
+      };
+      const result = (await f.runtime.useModel(
+        ModelType.TEXT_SMALL,
+        params,
+      )) as unknown as {
+        text: Promise<string>;
+        textStream: AsyncIterable<string>;
+      };
+      expect(f.order).toEqual(["pre", "post"]);
+      expect(f.identities).toHaveLength(2);
+      expect(f.identities[0]).not.toBe(params);
+      expect(f.identities[1]).toBe(f.identities[0]);
+      expect(f.rows).toMatchObject([
+        { kind: "input", ordinal: 1, requestedStreaming: true },
+        {
+          kind: "settlement",
+          ordinal: 1,
+          association: "same-params-object",
+          consumedStreaming: false,
+        },
+      ]);
+      expect(f.usage).toHaveLength(0);
+      release?.();
+      await expect(result.text).resolves.toBe(syntheticResult.text);
+      const chunks: string[] = [];
+      for await (const chunk of result.textStream) chunks.push(chunk);
+      expect(chunks).toEqual([syntheticResult.text]);
+      expect(f.order).toEqual(["pre", "post", "usage", "context"]);
+      expect(f.identities[2]).toBe(f.identities[0]);
+      expect(f.rows.at(-1)).toMatchObject({
+        kind: "provider-usage",
+        ordinal: null,
+        association: "unavailable",
+        completed: true,
+        totalTokens: 18,
+      });
+      expect(f.usage).toHaveLength(1);
+      expect(f.backendCalls).toHaveLength(1);
+    } finally {
+      release?.();
+      await f.runtime.stop();
+    }
+  }, 2_000);
+});
 
 describe("optional resolved model input projection", () => {
   it("counts own strings, supported image parts and schema characters without mutation", () => {

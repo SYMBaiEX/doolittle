@@ -18,9 +18,355 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HeadlessEvalSuite } from "./cases";
 import { HEADLESS_EVAL_SUITES } from "./cases";
 import * as measurement from "./measurement";
+import * as modelInputObservations from "./model-input-observations";
 import { runHeadlessEvalSuite } from "./runner";
 
 const temporaryDirectories: string[] = [];
+
+describe("optional first-runtime model input receipts", () => {
+  const suite: HeadlessEvalSuite = {
+    id: "model-input-test",
+    version: 1,
+    title: "Synthetic observations",
+    tasks: [
+      {
+        id: "one",
+        domain: "conversation",
+        prompt: "synthetic",
+        followUpPrompts: ["synthetic follow-up"],
+        checks: [{ id: "pass", evaluate: () => true }],
+        humanReviewRequired: false,
+      },
+    ],
+  };
+  const success = {
+    status: 0,
+    stdout: JSON.stringify({ ok: true, text: "PRIVATE_RESPONSE_CANARY" }),
+    stderr: "",
+    signal: null,
+    cleanupSafe: true,
+  };
+  const row = {
+    version: 1,
+    phase: "unknown",
+    priorSinkMs: 0,
+    kind: "input",
+    ordinal: 1,
+    slot: "TEXT_LARGE",
+    requestedSlot: "TEXT_LARGE",
+    provider: "codex",
+    systemChars: 10,
+    promptChars: 20,
+    messageTextChars: null,
+    messageCount: null,
+    imageCount: null,
+    toolCount: null,
+    toolSchemaChars: null,
+    requestedStreaming: true,
+    partial: false,
+    projectionMs: 0.1,
+  };
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+  function writeObservation(dataDir: string) {
+    const bytes = `${JSON.stringify(row)}\n`;
+    writeFileSync(
+      join(dataDir, modelInputObservations.MODEL_INPUT_FILE),
+      bytes,
+      { mode: 0o600, flag: "wx" },
+    );
+    return bytes;
+  }
+  it.each([undefined, false])(
+    "defaults off and shadows inherited opt-in on every CLI invocation: %s",
+    async (recordModelInputs) => {
+      vi.stubEnv(modelInputObservations.MODEL_INPUT_FLAG, "true");
+      const reader = vi.spyOn(
+        modelInputObservations,
+        "readModelInputObservations",
+      );
+      const pin = vi.spyOn(modelInputObservations, "pinModelInputDataRoot");
+      const writer = vi.fn();
+      let calls = 0;
+      const reportDir = tempDirectory();
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir,
+        recordModelInputs,
+        writeModelInputReceipt: writer,
+        execute: (_command, _args, options) => {
+          calls++;
+          expect(options.env[modelInputObservations.MODEL_INPUT_FLAG]).toBe(
+            "false",
+          );
+          return success;
+        },
+      });
+      expect(calls).toBe(2);
+      expect(result.modelInputReceiptStatus).toBe("disabled");
+      expect(result.report.executionOverrides).toEqual([]);
+      expect(reader).not.toHaveBeenCalled();
+      expect(pin).not.toHaveBeenCalled();
+      expect(writer).not.toHaveBeenCalled();
+      expect(
+        readdirSync(reportDir).some((leaf) =>
+          leaf.endsWith(".model-inputs.json"),
+        ),
+      ).toBe(false);
+    },
+  );
+  it("creates canonical child roots even when tmpdir is a system-style alias", async () => {
+    const parent = tempDirectory();
+    const canonical = join(parent, "canonical");
+    const alias = join(parent, "alias");
+    mkdirSync(canonical, { mode: 0o700 });
+    symlinkSync(canonical, alias);
+    vi.stubEnv("TMPDIR", alias);
+    const result = await runHeadlessEvalSuite(
+      { ...suite, tasks: [{ ...suite.tasks[0], followUpPrompts: [] }] },
+      {
+        reportDir: tempDirectory(),
+        recordModelInputs: true,
+        execute: (_command, _args, options) => {
+          const dataDir = options.env.DOOLITTLE_DATA_DIR;
+          if (!dataDir) throw new Error("Missing synthetic data.");
+          expect(dataDir).toBe(realpathSync(dataDir));
+          expect(dirname(dirname(dirname(dataDir)))).toBe(canonical);
+          writeObservation(dataDir);
+          return success;
+        },
+      },
+    );
+    expect(result.modelInputReceiptStatus).toBe("written");
+    expect(result.exitCode).toBe(0);
+  });
+  it("retains the first snapshot before cleanup, binds exact report SHA/index and excludes later shared-data invocations", async () => {
+    const reportDir = tempDirectory();
+    const reader = vi.spyOn(
+      modelInputObservations,
+      "readModelInputObservations",
+    );
+    const observedRoots: string[] = [];
+    const firstBytes: string[] = [];
+    let calls = 0;
+    const secondTask = { ...suite.tasks[0], id: "two" };
+    const result = await runHeadlessEvalSuite(
+      { ...suite, tasks: [...suite.tasks, secondTask] },
+      {
+        reportDir,
+        recordModelInputs: true,
+        execute: (_command, _args, options) => {
+          const dataDir = options.env.DOOLITTLE_DATA_DIR;
+          if (!dataDir) throw new Error("Missing synthetic data.");
+          expect(options.env[modelInputObservations.MODEL_INPUT_FLAG]).toBe(
+            "true",
+          );
+          if (calls++ % 2 === 0) {
+            expect(observedRoots.every((root) => !existsSync(root))).toBe(true);
+            observedRoots.push(dirname(dataDir));
+            firstBytes.push(writeObservation(dataDir));
+          } else {
+            // A later invocation must not be adopted as a new measured runtime,
+            // even if it modifies shared bytes after the original snapshot.
+            writeFileSync(
+              join(dataDir, modelInputObservations.MODEL_INPUT_FILE),
+              JSON.stringify({ ...row, promptChars: 999 }),
+            );
+          }
+          return success;
+        },
+      },
+    );
+    expect(calls).toBe(4);
+    expect(reader).toHaveBeenCalledTimes(2);
+    expect(observedRoots.every((root) => !existsSync(root))).toBe(true);
+    expect(result.exitCode).toBe(0);
+    expect(result.modelInputReceiptStatus).toBe("written");
+    expect(result.report.executionOverrides).toEqual([
+      expect.stringContaining("first-creating-runtime-only"),
+    ]);
+    expect(dirname(result.reportPath)).toBe(reportDir);
+    const path = join(reportDir, basename(result.reportPath));
+    const receiptBytes = readFileSync(`${path}.model-inputs.json`, "utf8");
+    const receipt = JSON.parse(receiptBytes);
+    expect(receipt).toMatchObject({
+      schemaVersion: 1,
+      reportSchemaVersion: 5,
+      evaluatorVersion: "0.2.11",
+      reportSha256: measurement.digest(readFileSync(path, "utf8")),
+      coverage: "first-creating-runtime-only",
+    });
+    expect(receipt.runs).toEqual(
+      firstBytes.map((bytes, reportRunIndex) =>
+        expect.objectContaining({
+          reportRunIndex,
+          cliInvocations: 2,
+          observations: expect.objectContaining({
+            status: "complete",
+            sourceSha256: measurement.digest(bytes),
+            rows: [row],
+          }),
+        }),
+      ),
+    );
+    expect(statSync(`${path}.model-inputs.json`).mode & 0o777).toBe(0o600);
+    expect(receiptBytes).not.toContain("PRIVATE_RESPONSE_CANARY");
+    for (const root of observedRoots) expect(receiptBytes).not.toContain(root);
+  });
+  it.each(["missing", "unknown", "replacement", "later-only"])(
+    "keeps grading/cleanup unchanged with %s evidence",
+    async (kind) => {
+      const reportDir = tempDirectory();
+      let calls = 0;
+      let taskRoot = "";
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir,
+        recordModelInputs: true,
+        execute: (_command, _args, options) => {
+          const dataDir = options.env.DOOLITTLE_DATA_DIR;
+          if (!dataDir) throw new Error("Missing synthetic data.");
+          taskRoot = dirname(dataDir);
+          if (calls++ === 0) {
+            if (kind === "unknown")
+              writeFileSync(
+                join(dataDir, modelInputObservations.MODEL_INPUT_FILE),
+                `${JSON.stringify({ ...row, unknown: "PRIVATE_UNKNOWN_CANARY" })}\n`,
+                { mode: 0o600 },
+              );
+            if (kind === "replacement") {
+              renameSync(dataDir, join(taskRoot, "original-data"));
+              mkdirSync(dataDir, { mode: 0o700 });
+              writeObservation(dataDir);
+            }
+          } else if (kind === "later-only") writeObservation(dataDir);
+          return success;
+        },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(existsSync(taskRoot)).toBe(false);
+      expect(result.modelInputReceiptStatus).toBe("written");
+      const path = join(
+        reportDir,
+        `${basename(result.reportPath)}.model-inputs.json`,
+      );
+      const stored = readFileSync(path, "utf8");
+      expect(stored).not.toContain("PRIVATE_UNKNOWN_CANARY");
+      expect(JSON.parse(stored).runs[0].observations).toMatchObject({
+        status: kind === "unknown" ? "partial" : "unavailable",
+        rows: [],
+      });
+    },
+  );
+  it("does not read observer bytes or start follow-ups when owned child cleanup is unconfirmed", async () => {
+    const reportDir = tempDirectory();
+    const reader = vi.spyOn(
+      modelInputObservations,
+      "readModelInputObservations",
+    );
+    let taskRoot = "";
+    let calls = 0;
+    await expect(
+      runHeadlessEvalSuite(suite, {
+        reportDir,
+        recordModelInputs: true,
+        execute: (_command, _args, options) => {
+          const dataDir = options.env.DOOLITTLE_DATA_DIR;
+          if (!dataDir) throw new Error("Missing synthetic data.");
+          taskRoot = dirname(dataDir);
+          temporaryDirectories.push(dirname(taskRoot));
+          writeObservation(dataDir);
+          calls++;
+          return { ...success, cleanupSafe: false };
+        },
+      }),
+    ).rejects.toThrow("cleanup could not be confirmed");
+    expect(calls).toBe(1);
+    expect(reader).not.toHaveBeenCalled();
+    expect(existsSync(taskRoot)).toBe(true);
+    expect(readdirSync(reportDir)).toEqual([]);
+  });
+  it.each(["throw", "reject", "pending"])(
+    "isolates optional %s writer failure without awaiting it",
+    async (kind) => {
+      let taskRoot = "";
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir: tempDirectory(),
+        recordModelInputs: true,
+        writeModelInputReceipt: () => {
+          if (kind === "throw") throw new Error("PRIVATE_WRITER_CANARY");
+          return kind === "reject"
+            ? Promise.reject(new Error("PRIVATE_WRITER_CANARY"))
+            : new Promise<void>(() => {});
+        },
+        execute: (_command, _args, options) => {
+          taskRoot = dirname(options.env.DOOLITTLE_DATA_DIR ?? "");
+          return success;
+        },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.modelInputReceiptStatus).toBe("unavailable");
+      expect(existsSync(taskRoot)).toBe(false);
+      expect(JSON.stringify(result.report)).not.toContain(
+        "PRIVATE_WRITER_CANARY",
+      );
+    },
+  );
+  it.each(["collision", "symlink"])(
+    "preserves a preexisting %s sidecar and grading",
+    async (kind) => {
+      const reportDir = tempDirectory();
+      const foreign = join(tempDirectory(), "foreign");
+      writeFileSync(foreign, "PRIVATE_FOREIGN_CANARY", { mode: 0o600 });
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir,
+        recordModelInputs: true,
+        execute: () => success,
+        writeMeasurementReceipt: (path) => {
+          const leaf = basename(path).replace(
+            /\.measurement\.json$/u,
+            ".model-inputs.json",
+          );
+          if (kind === "symlink") symlinkSync(foreign, join(reportDir, leaf));
+          else
+            writeFileSync(join(reportDir, leaf), "PRIVATE_EXISTING_CANARY", {
+              mode: 0o600,
+              flag: "wx",
+            });
+        },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.modelInputReceiptStatus).toBe("unavailable");
+      expect(readFileSync(foreign, "utf8")).toBe("PRIVATE_FOREIGN_CANARY");
+      expect(
+        readFileSync(
+          join(reportDir, `${basename(result.reportPath)}.model-inputs.json`),
+          "utf8",
+        ),
+      ).toBe(
+        kind === "symlink"
+          ? "PRIVATE_FOREIGN_CANARY"
+          : "PRIVATE_EXISTING_CANARY",
+      );
+    },
+  );
+  it("refuses a substituted report directory after an injected write without claiming persistence", async () => {
+    const parent = tempDirectory();
+    const reportDir = join(parent, "reports");
+    mkdirSync(reportDir, { mode: 0o700 });
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir,
+      recordModelInputs: true,
+      execute: () => success,
+      writeModelInputReceipt: () => {
+        renameSync(reportDir, join(parent, "original-reports"));
+        mkdirSync(reportDir, { mode: 0o700 });
+      },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.modelInputReceiptStatus).toBe("unavailable");
+  });
+});
 
 function tempDirectory(): string {
   const path = realpathSync(
@@ -262,7 +608,7 @@ describe("headless workflow evals", () => {
           const taskRoot = dirname(dataDir);
           const runRoot = dirname(taskRoot);
           expect(basename(runRoot)).toMatch(/^doolittle-headless-eval-/);
-          expect(dirname(runRoot)).toBe(tmpdir());
+          expect(dirname(runRoot)).toBe(realpathSync(tmpdir()));
           temporaryDirectories.push(runRoot);
           renameSync(taskRoot, join(runRoot, "one-original"));
           mkdirSync(join(dataDir, "trajectories"), {

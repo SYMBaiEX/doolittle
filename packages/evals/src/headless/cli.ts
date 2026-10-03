@@ -11,6 +11,7 @@ interface CliOptions {
   showActionLabels: boolean;
   enableConfiguredCloudResearch: boolean;
   recordActionDiagnostics: boolean;
+  recordModelInputs: boolean;
 }
 
 function parseArgs(args: string[]): CliOptions | undefined {
@@ -21,6 +22,7 @@ function parseArgs(args: string[]): CliOptions | undefined {
     showActionLabels: false,
     enableConfiguredCloudResearch: false,
     recordActionDiagnostics: false,
+    recordModelInputs: false,
   };
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
@@ -36,6 +38,10 @@ function parseArgs(args: string[]): CliOptions | undefined {
     }
     if (value === "--record-action-diagnostics") {
       options.recordActionDiagnostics = true;
+      continue;
+    }
+    if (value === "--record-model-inputs") {
+      options.recordModelInputs = true;
       continue;
     }
     if (value === "--enable-configured-cloud-research") {
@@ -75,6 +81,7 @@ function printHelp(): void {
       "  --show-responses    Print raw responses locally; reports never contain them",
       "  --show-action-labels  Print bounded action labels locally; non-allowlisted labels are redacted and reports never contain labels",
       "  --record-action-diagnostics  Write an opt-in private content-free action-event category receipt; not distinct commands or causal failure evidence",
+      "  --record-model-inputs  Retain private content-free first-creating-runtime input observations; phase/worker/wire-byte/full-overhead coverage unavailable",
       "  --enable-configured-cloud-research  Enable configured Eliza Cloud only for research tasks",
     ].join("\n"),
   );
@@ -97,6 +104,7 @@ async function main(): Promise<number> {
       exitCode,
       measurementReceiptStatus,
       actionDiagnosticsReceiptStatus,
+      modelInputReceiptStatus,
     } = await runHeadlessEvalSuite(suite, {
       reportDir: options.reportDir,
       routeLabel: options.routeLabel,
@@ -104,6 +112,7 @@ async function main(): Promise<number> {
       taskIds: options.taskIds,
       showResponses: options.showResponses,
       recordActionDiagnostics: options.recordActionDiagnostics,
+      recordModelInputs: options.recordModelInputs,
       onActionLabels: options.showActionLabels
         ? (taskId, diagnostic) => {
             const omitted = diagnostic.omitted
@@ -186,6 +195,10 @@ async function main(): Promise<number> {
     if (options.recordActionDiagnostics)
       console.log(
         `Content-free action diagnostics receipt: ${actionDiagnosticsReceiptStatus}; event counts only, not failure causes or worker-command attribution.`,
+      );
+    if (options.recordModelInputs)
+      console.log(
+        `Content-free model inputs receipt: ${modelInputReceiptStatus}; first-creating-runtime only, not later shared-data CLI invocations. Null/partial fields are unavailable. Phase unknown; character counts are not wire bytes/tokens, effective routes, cache/billing/worker evidence or full overhead. Projection/prior-sink clocks are partial.`,
       );
     console.log(
       `Completed report serialization/persistence timing receipt: ${measurementReceiptStatus}; not self-described in the report. Harness phase coverage is partial; child exec/startup/model/tool time is a separate composite.`,
