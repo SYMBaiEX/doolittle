@@ -252,6 +252,33 @@ and show spread, not just one run or arithmetic mean.
   failures, no material domain regression, and an acceptable latency/cost
   trade-off before calling a candidate “coherently better.”
 
+### Latency target and competitor context
+
+As of October 3, 2026, a bounded primary-source review did not identify a
+public, matched p99 for verified small-coding-task completion. Anthropic's
+[Claude Code study](https://www.anthropic.com/news/measuring-agent-autonomy)
+reports mixed interactive-turn duration, including clarification and
+interruption; its approximately 45-second median and much longer tail are
+not a small-task SLA. [CursorBench](https://cursor.com/cursorbench) reports
+quality, cost, tokens, and steps, while
+[Codex speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed)
+distinguishes token-generation speed from overall task time. These sources
+do not establish an absolute task-latency standard for Doolittle.
+
+Use a provisional **20% reduction in matched end-to-end coding-task latency**
+as an internal improvement objective, not a competitor-backed promise.
+Predeclare the repeated pairing, timing boundary, quality non-inferiority
+margin, and critical-failure policy before running the comparison. Keep
+failed and timed-out attempts and their denominators visible; do not make
+fast failures look like faster successful work. Quality improvement still
+requires the separate objective and human-review evidence above.
+
+Two repeats are descriptive diagnostics, not p99 evidence. The current
+aggregator reports nearest-rank p90, which can equal the maximum with small
+samples; it does not compute p95/p99, paired repeated-run uncertainty, or an
+SLA. Report sample count and spread, and keep p99 unavailable until a
+predeclared, sufficiently supported matched-workload tail analysis exists.
+
 ## After each run
 
 - [ ] Check provider/runtime diagnostics and explain unavailable domains.
