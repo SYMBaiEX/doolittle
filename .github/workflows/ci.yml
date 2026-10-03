@@ -44,7 +44,7 @@ jobs:
         run: nub run sandbox:setup
 
       - name: Playwright smoke tests
-        run: xvfb-run -a nub run test:e2e
+        run: xvfb-run -a --server-args='-screen 0 3840x2160x24' nub run test:e2e
 
       - name: Acceptance gates
         run: nub run check:acceptance
