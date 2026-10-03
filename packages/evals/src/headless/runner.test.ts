@@ -397,14 +397,18 @@ describe("separately identified SDK-web research grading", () => {
     signal: null,
     cleanupSafe: true,
   };
-  function evidence(dataDir: string, searchValue?: string) {
+  function evidence(
+    dataDir: string,
+    searchValue?: string,
+    citation: unknown = researchGrounding.SDK_WEB_RESEARCH_SOURCE,
+  ) {
     const source =
       'export type WebSearchMode = "cached" | "live" | "disabled";';
     const response = JSON.stringify({
       values: ["cached", "live", "disabled"],
       member: "webSearchMode",
       declaration: source,
-      source: researchGrounding.SDK_WEB_RESEARCH_SOURCE,
+      source: citation,
     });
     const timestamp = (ordinal: number) => `2026-10-03T00:00:0${ordinal}.000Z`;
     const anchor = {
@@ -519,6 +523,11 @@ describe("separately identified SDK-web research grading", () => {
     expect(result.report.schemaVersion).toBe(5);
     expect(result.report.evaluatorVersion).toBe("0.2.11");
     expect(result.report.executionOverrides).toEqual([]);
+    expect(
+      result.report.runs[0].diagnosticFlags.some((flag) =>
+        flag.startsWith("sdk-web-citation-"),
+      ),
+    ).toBe(false);
     expect(existsSync(data)).toBe(false);
     expect(dirname(result.reportPath)).toBe(reportDir);
     const report = readFileSync(
@@ -596,6 +605,57 @@ describe("separately identified SDK-web research grading", () => {
     expect(pin).not.toHaveBeenCalled();
     expect(reader).not.toHaveBeenCalled();
   });
+  it.each([
+    ["non-string", { secret: "CITATION_SECRET_CANARY" }],
+    ["whitespace", ` ${researchGrounding.SDK_WEB_RESEARCH_SOURCE} `],
+    [
+      "github-view",
+      "https://github.com/openai/codex/blob/main/sdk/typescript/src/threadOptions.ts",
+    ],
+    [
+      "other-url",
+      "https://user:CITATION_SECRET_CANARY@foreign.invalid/private?token=CITATION_TOKEN_CANARY",
+    ],
+    ["non-url", "CITATION_SECRET_CANARY"],
+  ] as const)(
+    "persists only the fixed %s mismatch flag and keeps the original 4/5 grading",
+    async (classification, citation) => {
+      const reportDir = tempDirectory();
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir,
+        execute: (_command, _args, options) => ({
+          ...success,
+          stdout: evidence(
+            options.env.DOOLITTLE_DATA_DIR ?? "",
+            undefined,
+            citation,
+          ).stdout,
+        }),
+      });
+      expect(result.exitCode).toBe(1);
+      expect(result.report.summary.objectiveChecksPassed).toBe(4);
+      expect(
+        result.report.runs[0].diagnosticFlags.filter((flag) =>
+          flag.startsWith("sdk-web-citation-"),
+        ),
+      ).toEqual([`sdk-web-citation-${classification}`]);
+      expect(result.report.runs[0].diagnosticFlags).toContain(
+        "sdk-web-grounding-answer-disagreement",
+      );
+      expect(dirname(result.reportPath)).toBe(reportDir);
+      const stored = readFileSync(
+        join(reportDir, basename(result.reportPath)),
+        "utf8",
+      );
+      for (const canary of [
+        "CITATION_SECRET_CANARY",
+        "CITATION_TOKEN_CANARY",
+        "foreign.invalid",
+        researchGrounding.SDK_WEB_RESEARCH_SOURCE,
+      ])
+        expect(stored).not.toContain(canary);
+    },
+  );
   it("a normal links-only answer cannot pass without original retrieval", async () => {
     const result = await runHeadlessEvalSuite(suite, {
       reportDir: tempDirectory(),
@@ -615,6 +675,11 @@ describe("separately identified SDK-web research grading", () => {
     expect(result.report.runs[0].diagnosticFlags).toContain(
       "sdk-web-grounding-missing-input",
     );
+    expect(
+      result.report.runs[0].diagnosticFlags.some((flag) =>
+        flag.startsWith("sdk-web-citation-"),
+      ),
+    ).toBe(false);
   });
   it.each(["cancelled", "error", "exit", "no-cleanup"])(
     "never reads successful-looking evidence after %s execution",

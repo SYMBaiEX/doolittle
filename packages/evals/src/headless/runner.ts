@@ -776,6 +776,23 @@ export async function runHeadlessEvalSuite(
         }
         if (researchGrounding.searchOutputAtCap)
           diagnosticFlags.add("sdk-web-search-output-at-cap");
+        switch (researchGrounding.citationClassification) {
+          case "non-string":
+            diagnosticFlags.add("sdk-web-citation-non-string");
+            break;
+          case "whitespace":
+            diagnosticFlags.add("sdk-web-citation-whitespace");
+            break;
+          case "github-view":
+            diagnosticFlags.add("sdk-web-citation-github-view");
+            break;
+          case "other-url":
+            diagnosticFlags.add("sdk-web-citation-other-url");
+            break;
+          case "non-url":
+            diagnosticFlags.add("sdk-web-citation-non-url");
+            break;
+        }
         if (researchGrounding.status !== "verified") {
           diagnosticFlags.add(`sdk-web-grounding-${researchGrounding.reason}`);
         }
