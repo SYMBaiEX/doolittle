@@ -150,8 +150,11 @@ URL fields retain their existing behavior. Eighteen bounded, network-blocked
 public-SDK regression cases cover citation preservation, named/typed media,
 invalid media types and failed/no-delivery controls. This is a source-loss
 repair, not answer reconstruction, citation normalization or relaxed grading.
-Post-repair live repetitions and human review are still required before a
-broader research-quality improvement claim.
+Two post-repair SDK-web repetitions at clean revision `37403cf3` passed all
+five checks, including exact citation agreement, with one CLI invocation each.
+The earlier four failed citations remain failures. These two descriptive
+samples are not a matched comparison with the old source; actual human review
+and broader research tasks remain required before a research-quality claim.
 
 The reader pins canonical private task/data directories and checks ordinary
 owned trajectory directories and descriptor-bound non-symlink, single-link
@@ -202,9 +205,20 @@ versions rather than treating current alias ambiguity as desirable behavior.
   Behavioral assertions run independently in the grader. A 3/3 pass therefore
   cannot prove that the agent itself ran tests or reported their outcome
   truthfully. Generic successful shell-action counts also cannot identify a
-  particular verification command. Preserve historical grades; stronger
-  original-run verification contracts require a new task version and remain
-  separate from human honesty review.
+  particular verification command. Preserve historical grades. The separately
+  identified v7 contract requires an original runtime verifier receipt and
+  remains separate from human honesty review.
+- `headless-workflows-v7` replaces only the coding verification contract, not
+  the historical v2-v6 prompts/checks. Its parent CLI must execute one exact
+  public verifier. Independent behavior and file-scope checks still run; the
+  final response must exactly match verified/unverified JSON without response
+  normalization. Live top-level CLI receipt collection rejects missing,
+  duplicate, inconsistent, late and oversized evidence. The transient runtime
+  channel is default-off, excluded from jobs and snapshots, and is never a
+  late task-journal read. This is cooperative original execution observation,
+  not an OS sandbox or cryptographic same-UID attestation. Actual human review
+  and repeated live samples are still required; evaluator 0.2.12 is a new
+  comparison baseline.
 - `coding-harness-v1` has one Next.js/shadcn/Bun build-and-launch task. It is a
   valuable end-to-end acceptance case, not representative coding coverage.
 - Deterministic checks cover observable contracts. Human coherence, grounding,

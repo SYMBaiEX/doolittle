@@ -38,6 +38,9 @@ export async function runCliPromptWithEvents(
   };
   let previousResponse = "";
   let latestRunElapsedMs: number | undefined;
+  const pendingCodingVerificationWrites: Promise<void>[] = [];
+  let codingVerificationWriteFailed = false;
+  let codingVerificationWriteError: unknown;
   const command = line.trim();
 
   await handlers?.onEvent?.({
@@ -68,6 +71,36 @@ export async function runCliPromptWithEvents(
       });
     },
   );
+  const verificationOptedIn =
+    options?.codingVerificationReceipts === true &&
+    process.env.DOOLITTLE_EVAL_CODING_VERIFICATION === "true";
+  let unsubscribeCodingVerification: (() => void) | undefined;
+  if (verificationOptedIn) {
+    unsubscribeCodingVerification =
+      context.services.runController.onRuntimeCodingVerification?.((event) => {
+        const currentRun = context.services.runController.getByRoomId(
+          event.roomId,
+        );
+        if (
+          event.sessionId !== state.activeSessionId ||
+          !currentRun ||
+          currentRun.source !== "cli" ||
+          currentRun.runId !== event.runId ||
+          currentRun.roomId !== event.roomId ||
+          currentRun.sessionId !== event.sessionId
+        )
+          return;
+        pendingCodingVerificationWrites.push(
+          Promise.resolve()
+            .then(() => handlers?.onEvent?.(event.receipt))
+            .then(() => undefined)
+            .catch((error: unknown) => {
+              codingVerificationWriteFailed = true;
+              codingVerificationWriteError = error;
+            }),
+        );
+      });
+  }
 
   try {
     const result = await executeCliInput(line, context, state, {
@@ -95,6 +128,10 @@ export async function runCliPromptWithEvents(
         });
       },
     });
+    unsubscribeCodingVerification?.();
+    unsubscribeCodingVerification = undefined;
+    await Promise.all(pendingCodingVerificationWrites);
+    if (codingVerificationWriteFailed) throw codingVerificationWriteError;
     await handlers?.onEvent?.({
       type: "result",
       timestamp: new Date().toISOString(),
@@ -113,6 +150,12 @@ export async function runCliPromptWithEvents(
       sessionId: state.activeSessionId,
     };
   } catch (error) {
+    // Runtime receipt callbacks are queued so they cannot block the Eliza
+    // event bus. Stop admission, then drain before terminal frames even when
+    // prompt execution rejects, preserving JSON-stream event ordering.
+    unsubscribeCodingVerification?.();
+    unsubscribeCodingVerification = undefined;
+    await Promise.all(pendingCodingVerificationWrites);
     const message = getCliErrorMessage(error);
     await handlers?.onEvent?.({
       type: "error",
@@ -128,5 +171,6 @@ export async function runCliPromptWithEvents(
     throw error;
   } finally {
     unsubscribeRunUpdates();
+    unsubscribeCodingVerification?.();
   }
 }

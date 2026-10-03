@@ -1,8 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CliExecutionResult } from "@/cli/execution";
 import type { CliTurnEvent } from "@/cli/turn-events";
 import type { AppContext } from "@/runtime/bootstrap";
 import { handleRuntimePromptCommand } from "./prompt-command";
+
+const previousCodingVerificationOptIn =
+  process.env.DOOLITTLE_EVAL_CODING_VERIFICATION;
+
+afterEach(() => {
+  if (previousCodingVerificationOptIn === undefined)
+    delete process.env.DOOLITTLE_EVAL_CODING_VERIFICATION;
+  else
+    process.env.DOOLITTLE_EVAL_CODING_VERIFICATION =
+      previousCodingVerificationOptIn;
+});
 
 function createContext(): AppContext {
   return {
@@ -24,6 +35,7 @@ describe("handleRuntimePromptCommand", () => {
   });
 
   it("runs json-stream prompts and finalizes the active job", async () => {
+    process.env.DOOLITTLE_EVAL_CODING_VERIFICATION = "true";
     const written: string[] = [];
     const markCliJobStarted = vi.fn(() => undefined);
     const appendCliJobEvent = vi.fn(() => {});
@@ -36,7 +48,25 @@ describe("handleRuntimePromptCommand", () => {
         handlers?: {
           onEvent?: (event: CliTurnEvent) => Promise<void> | void;
         },
+        options?: { codingVerificationReceipts?: boolean },
       ) => {
+        expect(options?.codingVerificationReceipts).toBe(false);
+        await handlers?.onEvent?.({
+          type: "coding-verification",
+          timestamp: "2026-03-30T00:00:00.000Z",
+          verifier: "sum-finite-v1",
+          status: "verified",
+          reason: "verified",
+          shellStarts: 1,
+          shellCompletions: 1,
+          verifierMatches: 1,
+          success: true,
+          exitCode: 0,
+          timedOut: false,
+          truncated: false,
+          workdirMatches: true,
+          actionPairMatched: true,
+        });
         await handlers?.onEvent?.({
           type: "result",
           timestamp: "2026-03-30T00:00:00.000Z",

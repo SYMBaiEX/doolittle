@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { RunUpdateEventBus } from "./event-bus";
+import {
+  RuntimeCodingVerificationEventBus,
+  RunUpdateEventBus,
+} from "./event-bus";
 import type { RunSnapshot } from "./types";
 
 const baseRun: RunSnapshot = {
@@ -48,6 +51,44 @@ describe("run-controller/event-bus", () => {
     unsubscribe();
     bus.emit("started", baseRun);
 
+    expect(count).toBe(1);
+  });
+
+  it("delivers the closed coding receipt only through its transient bus", () => {
+    const bus = new RuntimeCodingVerificationEventBus();
+    let count = 0;
+    let received = "";
+    const unsubscribe = bus.onReceipt((event) => {
+      count += 1;
+      received = event.receipt.type;
+    });
+    const event = {
+      sessionId: "cli:session",
+      runId: "run-1",
+      roomId: "room-1",
+      receipt: {
+        type: "coding-verification" as const,
+        timestamp: "2026-10-03T00:00:00.000Z",
+        verifier: "sum-finite-v1" as const,
+        status: "verified" as const,
+        reason: "verified" as const,
+        shellStarts: 1,
+        shellCompletions: 1,
+        verifierMatches: 1,
+        success: true,
+        exitCode: 0,
+        timedOut: false,
+        truncated: false,
+        workdirMatches: true,
+        actionPairMatched: true,
+      },
+    };
+
+    bus.emit(event);
+    unsubscribe();
+    bus.emit(event);
+
+    expect(received).toBe("coding-verification");
     expect(count).toBe(1);
   });
 });

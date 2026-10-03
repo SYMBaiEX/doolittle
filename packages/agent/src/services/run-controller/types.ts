@@ -1,4 +1,13 @@
+import type { CodingVerificationReceipt } from "@doolittle/contracts";
 import type { RunDepth, ToolProgressMode } from "@/types";
+
+/** In-process-only context envelope. Never add this to snapshots or journals. */
+export interface RuntimeCodingVerificationEvent {
+  sessionId: string;
+  runId: string;
+  roomId: string;
+  receipt: CodingVerificationReceipt;
+}
 
 export type RunStatus =
   | "thinking"

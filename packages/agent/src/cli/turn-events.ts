@@ -1,3 +1,4 @@
+import type { CodingVerificationReceipt } from "@doolittle/contracts";
 import {
   sanitizeSingleLineTerminalText,
   sanitizeTerminalText,
@@ -30,6 +31,7 @@ export type CliTurnEvent =
       runEventType: string;
       detail: string;
     }
+  | CodingVerificationReceipt
   | {
       type: "result";
       timestamp: string;
@@ -99,6 +101,8 @@ export function renderCliTurnEvent(event: CliTurnEvent): string {
       return `${event.kind}: ${sanitizeTerminalText(event.message)}`;
     case "run":
       return `[run] ${sanitizeTerminalText(event.detail)}`;
+    case "coding-verification":
+      return "";
     case "result":
       return sanitizeTerminalText(event.text);
     case "error":

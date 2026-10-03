@@ -19,7 +19,12 @@ import {
 import { formatError } from "@/runtime/bootstrap/recovery/error-format";
 import { resolveRunTerminalWriter } from "@/runtime/chat-turn/post-provider/types";
 import type { AppServices } from "@/services";
+import type { RunSnapshot } from "@/services/run-controller-service";
 import type { ToolProgressMode } from "@/types/runtime";
+import {
+  CodingVerificationReceiptTracker,
+  type CodingVerificationRunIdentity,
+} from "./coding-verification-receipts";
 
 export type RuntimePayload = unknown;
 export interface RuntimeEventPayload {
@@ -63,6 +68,27 @@ function progressModeForRoom(
   roomId: string,
 ): ToolProgressMode {
   return services.runController.getByRoomId?.(roomId)?.progressMode ?? "new";
+}
+
+function codingVerificationRunIdentity(
+  run: RunSnapshot | undefined,
+  payload: RuntimePayload,
+): CodingVerificationRunIdentity | undefined {
+  if (run?.source !== "cli") return undefined;
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "runId" in payload &&
+    typeof (payload as { runId?: unknown }).runId === "string" &&
+    (payload as { runId: string }).runId !== run.runId
+  )
+    return undefined;
+  return {
+    sessionId: run.sessionId,
+    runId: run.runId,
+    roomId: run.roomId,
+    source: run.source,
+  };
 }
 
 function isTerminalActionResult(
@@ -243,6 +269,24 @@ function recordActionTrajectory(input: {
 }
 
 export function createRunProgressEvents(services: AppServices): PluginEvents {
+  const codingVerificationTracker =
+    process.env.DOOLITTLE_EVAL_CODING_VERIFICATION === "true"
+      ? new CodingVerificationReceiptTracker()
+      : undefined;
+  const expectedCodingWorkdir = process.env.DOOLITTLE_WORKSPACE_DIR;
+  if (codingVerificationTracker) {
+    services.terminal.onExecutionResult((event) => {
+      codingVerificationTracker.observeTerminalExecution(event);
+    });
+    services.runController.onUpdate((event) => {
+      if (
+        event.type === "completed" ||
+        event.type === "cancelled" ||
+        event.type === "error"
+      )
+        codingVerificationTracker.clearRun(event.run.runId);
+    });
+  }
   return {
     [EventType.RUN_STARTED]: [
       async (payload) => {
@@ -295,6 +339,13 @@ export function createRunProgressEvents(services: AppServices): PluginEvents {
         const roomId = eventRoomId(payload);
         if (roomId) {
           const action = eventActionLabel(payload) ?? "action";
+          codingVerificationTracker?.actionStarted(
+            codingVerificationRunIdentity(
+              services.runController.getByRoomId(roomId),
+              payload,
+            ),
+            action,
+          );
           if (
             shouldProjectNativeToolProgress(
               progressModeForRoom(services, roomId),
@@ -318,6 +369,24 @@ export function createRunProgressEvents(services: AppServices): PluginEvents {
         if (roomId) {
           const actionResult = eventActionResult(payload);
           const action = eventActionLabel(payload);
+          const identity = codingVerificationRunIdentity(
+            services.runController.getByRoomId(roomId),
+            payload,
+          );
+          const codingVerification = codingVerificationTracker?.actionCompleted(
+            {
+              identity,
+              action,
+              status: eventActionStatus(payload),
+              actionResult,
+              expectedWorkdir: expectedCodingWorkdir,
+            },
+          );
+          if (codingVerification) {
+            services.runController.publishRuntimeCodingVerification(
+              codingVerification,
+            );
+          }
           if (
             shouldProjectNativeToolProgress(
               progressModeForRoom(services, roomId),
