@@ -171,6 +171,29 @@ reports and does not affect grading:
 nub run eval:headless -- --suite headless-workflows-v5 --task reliability-no-side-effect-v5 --show-action-labels
 ```
 
+`--record-action-diagnostics` separately writes an owner-only, exclusive-create
+`REPORT.json.actions.json` receipt. Its schema-1 projection contains only fixed
+action-category counts, byte/event limits, rejected records, truncation and
+unavailable coverage. Verify its report SHA-256 and numeric `reportRunIndex`
+against the exact report before use. Unknown action names map to `other`; labels,
+arguments, results, errors, IDs, commands and URLs are never exported. Counts are
+journal-event occurrences, including duplicates—not distinct worker commands,
+failure causes or effective-route evidence. The reader runs only after confirmed
+child shutdown, rejects symlink/nonregular inputs, and bounds data read rather
+than synchronous filesystem latency. Optional diagnostic failures do not change
+grading or cleanup; trusted synchronous hooks must return promptly.
+
+Default mode adds no action journal read, receipt or execution override. Opt-in
+reading contributes to grading time and adds an explicit execution override;
+schema-v5 aggregation and paired comparison require equal ordered overrides.
+Do not pool on/off samples. Report schema 5 and evaluator 0.2.11 stay unchanged;
+historical default-mode v5 reports remain readable and schema-v4 comparison
+policy is unchanged.
+
+```sh
+nub run eval:headless -- --suite headless-workflows-v6 --task coding-function-behavior-v6 --record-action-diagnostics
+```
+
 Every task gets a fresh temporary data directory and workspace with a minimal
 onboarding marker. Eliza Cloud is disabled in subprocesses by default;
 `--enable-configured-cloud-research` explicitly enables the configured provider
@@ -204,6 +227,7 @@ Aggregate repeat samples only when they use the same schema (v4 or v5), declared
 route, evaluator, suite, task set, objective checks, and clean source revision.
 V5 additionally requires matching available requested-route signatures; mixed
 or conflicting routes are not comparison-eligible, but remain reviewable.
+V5 also requires equal ordered execution overrides, including diagnostic mode.
 Unavailable effective/worker evidence stays unavailable. Reports with the same
 run timestamp are rejected so a copied report cannot count as another sample:
 

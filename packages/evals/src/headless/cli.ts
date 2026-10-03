@@ -10,6 +10,7 @@ interface CliOptions {
   showResponses: boolean;
   showActionLabels: boolean;
   enableConfiguredCloudResearch: boolean;
+  recordActionDiagnostics: boolean;
 }
 
 function parseArgs(args: string[]): CliOptions | undefined {
@@ -19,6 +20,7 @@ function parseArgs(args: string[]): CliOptions | undefined {
     showResponses: false,
     showActionLabels: false,
     enableConfiguredCloudResearch: false,
+    recordActionDiagnostics: false,
   };
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
@@ -30,6 +32,10 @@ function parseArgs(args: string[]): CliOptions | undefined {
     }
     if (value === "--show-action-labels") {
       options.showActionLabels = true;
+      continue;
+    }
+    if (value === "--record-action-diagnostics") {
+      options.recordActionDiagnostics = true;
       continue;
     }
     if (value === "--enable-configured-cloud-research") {
@@ -68,6 +74,7 @@ function printHelp(): void {
       "  --report-dir PATH   Private output directory (defaults under local state)",
       "  --show-responses    Print raw responses locally; reports never contain them",
       "  --show-action-labels  Print bounded action labels locally; non-allowlisted labels are redacted and reports never contain labels",
+      "  --record-action-diagnostics  Write an opt-in private content-free action-event category receipt; not distinct commands or causal failure evidence",
       "  --enable-configured-cloud-research  Enable configured Eliza Cloud only for research tasks",
     ].join("\n"),
   );
@@ -84,31 +91,35 @@ async function main(): Promise<number> {
     if (!suite) {
       throw new Error(`Unknown headless evaluation suite: ${options.suiteId}`);
     }
-    const { report, reportPath, exitCode, measurementReceiptStatus } =
-      await runHeadlessEvalSuite(suite, {
-        reportDir: options.reportDir,
-        routeLabel: options.routeLabel,
-        enableConfiguredCloudResearch: options.enableConfiguredCloudResearch,
-        taskIds: options.taskIds,
-        showResponses: options.showResponses,
-        onActionLabels: options.showActionLabels
-          ? (taskId, diagnostic) => {
-              const omitted = diagnostic.omitted
-                ? `; ${diagnostic.omitted} additional label(s) omitted`
-                : "";
-              console.log(
-                `  ${taskId} local action-label diagnostic: ${diagnostic.labels.join(", ") || "none"}${omitted}`,
-              );
-            }
-          : undefined,
-        onResponse: (taskId, response, turnNumber, turnTotal) => {
-          const turnLabel =
-            turnTotal > 1 ? ` · turn ${turnNumber}/${turnTotal}` : "";
-          console.log(
-            `\n--- ${taskId}${turnLabel} response ---\n${response}\n`,
-          );
-        },
-      });
+    const {
+      report,
+      reportPath,
+      exitCode,
+      measurementReceiptStatus,
+      actionDiagnosticsReceiptStatus,
+    } = await runHeadlessEvalSuite(suite, {
+      reportDir: options.reportDir,
+      routeLabel: options.routeLabel,
+      enableConfiguredCloudResearch: options.enableConfiguredCloudResearch,
+      taskIds: options.taskIds,
+      showResponses: options.showResponses,
+      recordActionDiagnostics: options.recordActionDiagnostics,
+      onActionLabels: options.showActionLabels
+        ? (taskId, diagnostic) => {
+            const omitted = diagnostic.omitted
+              ? `; ${diagnostic.omitted} additional label(s) omitted`
+              : "";
+            console.log(
+              `  ${taskId} local action-label diagnostic: ${diagnostic.labels.join(", ") || "none"}${omitted}`,
+            );
+          }
+        : undefined,
+      onResponse: (taskId, response, turnNumber, turnTotal) => {
+        const turnLabel =
+          turnTotal > 1 ? ` · turn ${turnNumber}/${turnTotal}` : "";
+        console.log(`\n--- ${taskId}${turnLabel} response ---\n${response}\n`);
+      },
+    });
     console.log(
       `${report.suite.id} v${report.suite.version} · schema v${report.schemaVersion} · evaluator ${report.evaluatorVersion} · route label ${report.routeLabel} · advertised product default ${report.route.provider ?? "unknown"}/sha256:${report.route.modelSha256} (${report.route.reasoningEffort ?? "unknown"}); expected fresh Settings configuration, not effective-route attestation`,
     );
@@ -172,6 +183,10 @@ async function main(): Promise<number> {
       `Objective checks: ${report.summary.objectiveChecksPassed}/${report.summary.objectiveChecksTotal}; human review required for ${report.summary.humanReviewRequired} task(s); suite eval wall time ${report.summary.suiteWallTimeMs}ms (setup + doolittle exec + grading; excludes report I/O).`,
     );
     console.log(`Private report: ${reportPath}`);
+    if (options.recordActionDiagnostics)
+      console.log(
+        `Content-free action diagnostics receipt: ${actionDiagnosticsReceiptStatus}; event counts only, not failure causes or worker-command attribution.`,
+      );
     console.log(
       `Completed report serialization/persistence timing receipt: ${measurementReceiptStatus}; not self-described in the report. Harness phase coverage is partial; child exec/startup/model/tool time is a separate composite.`,
     );

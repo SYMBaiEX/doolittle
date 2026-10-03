@@ -19,6 +19,11 @@ import { getLinkedElizaCloudCredentials } from "@doolittle/agent/runtime/native/
 import { DEFAULT_MODEL_ROUTE } from "@doolittle/contracts";
 import { EVALS_EVALUATOR_VERSION } from "../evaluator-version";
 import { createEvalRuntimeEnvironment } from "../runtime-environment";
+import {
+  type ActionOutcomes,
+  readActionOutcomes,
+  unavailableActionOutcomes,
+} from "./action-outcomes";
 import type { HeadlessEvalSuite } from "./cases";
 import {
   type AdvertisedRoute,
@@ -112,6 +117,7 @@ export interface RunHeadlessEvalOptions {
   routeLabel?: string;
   enableConfiguredCloudResearch?: boolean;
   showResponses?: boolean;
+  /** Diagnostic observers must return promptly. Async completion is not awaited. */
   onActionLabels?: (
     taskId: string,
     diagnostic: HeadlessActionLabelDiagnostic,
@@ -129,6 +135,10 @@ export interface RunHeadlessEvalOptions {
   execute?: HeadlessExecutor;
   /** Optional measurement write is best effort and must not change grading. */
   writeMeasurementReceipt?: (path: string, bytes: string) => void;
+  recordActionDiagnostics?: boolean;
+  /** Trusted synchronous writer seam: must return promptly. A hanging callback
+   * cannot be interrupted; throwing is isolated from grading/cleanup. */
+  writeActionDiagnosticsReceipt?: (path: string, bytes: string) => void;
 }
 
 const defaultRepoRoot = resolve(
@@ -369,6 +379,7 @@ export async function runHeadlessEvalSuite(
   reportPath: string;
   exitCode: number;
   measurementReceiptStatus: "written" | "unavailable";
+  actionDiagnosticsReceiptStatus: "disabled" | "written" | "unavailable";
 }> {
   const now = options.now ?? (() => new Date());
   const wallNow = options.wallNow ?? Date.now;
@@ -420,6 +431,10 @@ export async function runHeadlessEvalSuite(
   let finalCleanupComplete = false;
   let childCleanupSafe = true;
   const runs: HeadlessEvalRunResult[] = [];
+  const actionDiagnostics: Array<{
+    reportRunIndex: number;
+    outcomes: ActionOutcomes;
+  }> = [];
   let cleanupDurationMs = 0;
   try {
     for (const task of selectedTasks) {
@@ -603,10 +618,28 @@ export async function runHeadlessEvalSuite(
       const modelUsageResult = readHeadlessModelUsage(dataDir);
       const traceSummary = readHeadlessTraceSummary(dataDir);
       const routeEvidence = readRequestedRouteEvidence(dataDir);
-      options.onActionLabels?.(
-        task.id,
-        readHeadlessActionLabelDiagnostic(dataDir),
-      );
+      if (options.recordActionDiagnostics && childCleanupSafe) {
+        let outcomes: ActionOutcomes;
+        try {
+          verifyOwnedTaskRoot(runIdentity, taskIdentity);
+          outcomes = readActionOutcomes(dataDir);
+        } catch {
+          outcomes = unavailableActionOutcomes();
+          outcomes.status = "partial";
+          outcomes.rejectedRecords = 1;
+        }
+        actionDiagnostics.push({ reportRunIndex: runs.length, outcomes });
+      }
+      try {
+        const pending = options.onActionLabels?.(
+          task.id,
+          readHeadlessActionLabelDiagnostic(dataDir),
+        );
+        if (pending !== undefined)
+          void Promise.resolve(pending).catch(() => undefined);
+      } catch {
+        // Optional diagnostic observers must not change grading or cleanup.
+      }
       const checkContext = {
         response,
         responses,
@@ -741,6 +774,10 @@ export async function runHeadlessEvalSuite(
     };
 
     const directory = reportDirectory(options.reportDir);
+    if (options.recordActionDiagnostics)
+      report.executionOverrides.push(
+        "Action diagnostics enabled: grading includes a bounded journal-event projection; the separate action receipt does not identify distinct commands or causal failures.",
+      );
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     const reportPath = join(
       directory,
@@ -786,6 +823,37 @@ export async function runHeadlessEvalSuite(
     } catch {
       /* Optional telemetry may not corrupt grading or expose an error. */
     }
+    let actionDiagnosticsReceiptStatus: "disabled" | "written" | "unavailable" =
+      options.recordActionDiagnostics ? "unavailable" : "disabled";
+    if (options.recordActionDiagnostics) {
+      try {
+        const writeActions =
+          options.writeActionDiagnosticsReceipt ??
+          ((path: string, bytes: string) =>
+            writeFileSync(path, bytes, { mode: 0o600, flag: "wx" }));
+        const pending = writeActions(
+          `${reportPath}.actions.json`,
+          `${JSON.stringify({
+            schemaVersion: 1,
+            provenance: "headless-action-diagnostics",
+            reportSchemaVersion: report.schemaVersion,
+            evaluatorVersion: report.evaluatorVersion,
+            reportSha256: sha256(reportBytes),
+            mode: "opt-in-action-diagnostics",
+            runs: actionDiagnostics,
+          })}\n`,
+        );
+        // An async hook is unsupported: do not await a possibly never-settling
+        // promise or claim a completed write. Observe late rejection safely.
+        if (pending !== undefined) {
+          void Promise.resolve(pending).catch(() => undefined);
+          throw new Error("Unsupported asynchronous diagnostic writer.");
+        }
+        actionDiagnosticsReceiptStatus = "written";
+      } catch {
+        /* Optional diagnostics must not corrupt grading or expose errors. */
+      }
+    }
     const allPassed =
       report.summary.completed === report.summary.total &&
       report.summary.objectiveChecksPassed ===
@@ -795,6 +863,7 @@ export async function runHeadlessEvalSuite(
       reportPath,
       exitCode: allPassed ? 0 : 1,
       measurementReceiptStatus,
+      actionDiagnosticsReceiptStatus,
     };
   } catch (error) {
     // A refused identity guard or thrown executor must never be followed by

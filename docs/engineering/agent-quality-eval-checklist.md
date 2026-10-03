@@ -56,6 +56,14 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   execution or a parent's route to its worker. Legacy v4 stays readable, not
   pooled with v5; mixed/conflicting requests prohibit comparison, not human
   review.
+- `--record-action-diagnostics` adds a private report-SHA-bound sidecar of
+  fixed action-category event counts and explicit missing/rejected/truncated
+  coverage. It retains no labels or content, counts duplicate events, and does
+  not identify distinct worker commands or failure causes. Opt-in projection
+  contributes to grading time; v5 pooling and comparison require equal ordered
+  execution overrides, so on/off samples are incompatible. Default mode adds
+  no diagnostic journal read or sidecar. Synchronous filesystem latency is not
+  bounded by the data caps, and optional receipt failures do not change grading.
 - Managed coding receipts additionally preserve the installed SDK's
   `usage_update` events for that exact worker session. Missing events remain
   unavailable. Stable event IDs deduplicate delivery, contradictory IDs are
@@ -92,7 +100,8 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   rates and descriptive median, nearest-rank p90, range, and mean for timing and
   available telemetry, including top-level model responses and errors; it does
   not estimate uncertainty or score human reviews. V5 additionally matches
-  available requested-route signatures; this does not attest effective routes.
+  available requested-route signatures and ordered execution overrides; this
+  does not attest effective routes.
 
 ## Before each run
 

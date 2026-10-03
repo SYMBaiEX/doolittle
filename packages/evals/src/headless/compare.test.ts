@@ -7,6 +7,7 @@ import {
   compareHeadlessEvalReports,
   readHeadlessEvalReport,
 } from "./compare";
+import { advertisedRoute } from "./measurement";
 
 function report(overrides: Record<string, unknown> = {}) {
   return {
@@ -133,6 +134,130 @@ function v4Report(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+function v5Report(overrides: Record<string, unknown> = {}) {
+  const base = v4Report();
+  return {
+    ...base,
+    schemaVersion: 5,
+    evaluatorVersion: "0.2.11",
+    routeLabel: "product-default",
+    route: advertisedRoute({
+      provider: "codex",
+      model: "synthetic",
+      reasoningEffort: "medium",
+    }),
+    routeDeclaration: {
+      provenance: "product-default",
+      expectation: "fresh-isolated-settings-default",
+      effectiveAttestation: "unavailable",
+    },
+    harnessTiming: {
+      coverage: "direct-phases-only",
+      preflightMs: 0,
+      reportPreparationMs: 0,
+      finalCleanupMs: 0,
+      serializationMs: null,
+      persistenceMs: null,
+      untimed: "inter-phase-bookkeeping-and-receipt-write",
+    },
+    runs: (base.runs as Array<Record<string, unknown>>).map((run) => ({
+      ...run,
+      harnessTiming: {
+        coverage: "direct-phases-only",
+        setupMs: 0,
+        responseProcessingMs: 0,
+        gradingMs: 0,
+        cleanupMs: 0,
+      },
+      routeEvidence: {
+        provenance: "doolittle-model-request-journal",
+        coverage: "parent-turn-requests-only",
+        status: "unavailable",
+        journalAvailable: false,
+        accepted: 0,
+        rejected: 0,
+        truncated: false,
+        requested: [],
+        effective: {
+          status: "unavailable",
+          provider: null,
+          modelSha256: null,
+          reasoningEffort: null,
+        },
+        worker: { status: "unavailable", provenance: null },
+      },
+    })),
+    ...overrides,
+  };
+}
+
+describe("v5 execution override compatibility", () => {
+  const later = "2026-10-01T00:00:01.000Z";
+  it("preserves aggregation of historical v5 no-override baseline repeats", () => {
+    const first = v5Report();
+    const second = v5Report({ createdAt: later });
+    expect(aggregateHeadlessEvalReports([first, second]).reportSamples).toBe(2);
+    expect(compareHeadlessEvalReports(first, second).schemaVersion).toBe(5);
+  });
+  it.each([
+    [[], ["Action diagnostics enabled"]],
+    [["configured research"], ["different override"]],
+    [
+      ["first", "second"],
+      ["second", "first"],
+    ],
+  ])(
+    "rejects unequal ordered overrides for both pooling and paired comparisons",
+    (left, right) => {
+      const first = v5Report({ executionOverrides: left });
+      const second = v5Report({ executionOverrides: right, createdAt: later });
+      expect(() => aggregateHeadlessEvalReports([first, second])).toThrow(
+        /Invalid or incompatible/,
+      );
+      expect(() => compareHeadlessEvalReports(first, second)).toThrow(
+        /Invalid or incompatible/,
+      );
+    },
+  );
+  it("retains equal unknown override strings internally without exposing them", () => {
+    const secret = "PRIVATE_OVERRIDE_SECRET";
+    const first = v5Report({ executionOverrides: [secret] });
+    const second = v5Report({ executionOverrides: [secret], createdAt: later });
+    expect(
+      JSON.stringify(aggregateHeadlessEvalReports([first, second])),
+    ).not.toContain(secret);
+    expect(
+      JSON.stringify(compareHeadlessEvalReports(first, second)),
+    ).not.toContain(secret);
+  });
+  it.each([
+    undefined,
+    null,
+    "secret",
+    [1],
+    [""],
+    ["x".repeat(513)],
+    Array.from({ length: 17 }, () => "x"),
+  ])(
+    "fails closed for missing or malformed v5 override coverage",
+    (executionOverrides) => {
+      const first = v5Report({ executionOverrides });
+      expect(() => compareHeadlessEvalReports(first, first)).toThrow(
+        /Invalid or incompatible/,
+      );
+    },
+  );
+  it("preserves legacy v4 override policy when metadata is absent", () => {
+    const first = v4Report({ executionOverrides: undefined });
+    const second = v4Report({
+      executionOverrides: ["legacy unknown"],
+      createdAt: later,
+    });
+    expect(aggregateHeadlessEvalReports([first, second]).reportSamples).toBe(2);
+    expect(compareHeadlessEvalReports(first, second).schemaVersion).toBe(4);
+  });
+});
 
 describe("headless report comparison", () => {
   it("compares paired objective outcomes and legacy elapsed time for schema v1", () => {
