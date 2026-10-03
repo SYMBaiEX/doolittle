@@ -1,13 +1,46 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { build } from "esbuild";
 import type { RasterCase } from "../apps/desktop/e2e/browser-renderer-fixture";
+import {
+  pinFixtureDirectory,
+  removePinnedFixtureDirectory,
+  resolveFixtureCaptureBackend,
+  resolveFixtureCaptureScale,
+  startNativeRendererFixture,
+} from "../apps/desktop/e2e/native-renderer-fixture";
 
+const captureTransport =
+  process.env.DOOLITTLE_RENDER_CAPTURE_TRANSPORT ?? "playwright";
+if (captureTransport !== "playwright" && captureTransport !== "native")
+  throw new Error("Unknown renderer fixture transport.");
+const captureBackend = resolveFixtureCaptureBackend(
+  process.env.DOOLITTLE_RENDER_CAPTURE_BACKEND,
+);
+const captureScale = resolveFixtureCaptureScale(
+  process.env.DOOLITTLE_RENDER_CAPTURE_SCALE,
+);
+const expectedBackend =
+  captureBackend === "product-default"
+    ? process.platform === "linux"
+      ? "offscreen"
+      : "onscreen"
+    : captureBackend;
+
+// Fixed crossover arms distinguish a case-specific failure from the first
+// invocation in a hosted Xvfb session. The default full-CI order is unchanged.
+const captureOrder =
+  process.env.DOOLITTLE_RENDER_CAPTURE_ORDER ?? "complete-first";
+if (captureOrder !== "complete-first" && captureOrder !== "async-first")
+  throw new Error("Unknown renderer fixture case order.");
+const firstModes =
+  captureOrder === "async-first"
+    ? (["async", "complete"] as const)
+    : (["complete", "async"] as const);
 for (const mode of [
-  "complete",
-  "async",
+  ...firstModes,
   "lazy",
   "late",
   "expire-after-png",
@@ -21,7 +54,10 @@ for (const mode of [
     async ({ browserName }, testInfo) => {
       expect(browserName).toBe("chromium");
       const ownedDir = mkdtempSync(join(tmpdir(), "doolittle-renderer-e2e-"));
+      const ownedIdentity = pinFixtureDirectory(ownedDir);
       let app: Awaited<ReturnType<typeof electron.launch>> | undefined;
+      let native: ReturnType<typeof startNativeRendererFixture> | undefined;
+      let retainOwnedDir = false;
       try {
         const entry = join(ownedDir, "fixture.cjs");
         await build({
@@ -34,44 +70,71 @@ for (const mode of [
           format: "cjs",
           external: ["electron"],
         });
-        app = await electron.launch({
-          args: [
+        if (captureTransport === "native") {
+          retainOwnedDir = true;
+          native = startNativeRendererFixture({
             entry,
-            `--user-data-dir=${join(ownedDir, "profile")}`,
-            "--force-device-scale-factor=2",
-          ],
-          cwd: process.cwd(),
-        });
-        const outcome = await app.evaluate(
-          async (
-            _electron,
-            request: { kind: RasterCase; expireAfterPng: boolean },
-          ) => {
-            const fixture = await globalThis.browserRendererFixture;
-            try {
-              return {
-                capture: await fixture.capture(request.kind, {
-                  expireAfterPng: request.expireAfterPng,
-                }),
-                failure: null,
-              };
-            } catch (error) {
-              const failure = fixture.captureFailure(error);
-              // Only the fixture's fixed, sanitized capture error crosses as a
-              // diagnostic envelope. Unknown errors retain their original path.
-              if (!failure) throw error;
-              return { capture: null, failure };
-            }
-          },
-          { kind: rasterCase, expireAfterPng },
-        );
+            ownedDir,
+            captureScale,
+          });
+        } else
+          app = await electron.launch({
+            args: [
+              entry,
+              `--user-data-dir=${join(ownedDir, "profile")}`,
+              `--force-device-scale-factor=${captureScale}`,
+            ],
+            cwd: process.cwd(),
+          });
+        if (!native && !app) throw new Error("Fixture transport unavailable.");
+        const outcome = native
+          ? await native.capture(rasterCase, expireAfterPng)
+          : await app?.evaluate(
+              async (
+                _electron,
+                request: { kind: RasterCase; expireAfterPng: boolean },
+              ) => {
+                const fixture = await globalThis.browserRendererFixture;
+                try {
+                  return {
+                    capture: await fixture.capture(request.kind, {
+                      expireAfterPng: request.expireAfterPng,
+                    }),
+                    failure: null,
+                  };
+                } catch (error) {
+                  const failure = fixture.captureFailure(error);
+                  // Only the fixture's fixed, sanitized capture error crosses as a
+                  // diagnostic envelope. Unknown errors retain their original path.
+                  if (!failure) throw error;
+                  return { capture: null, failure };
+                }
+              },
+              { kind: rasterCase, expireAfterPng },
+            );
+        if (!outcome)
+          throw new Error("Fixture transport returned no evidence.");
         const diagnostic = {
           mode,
+          transport: captureTransport,
+          backend:
+            outcome.capture?.diagnostic?.backend ??
+            outcome.failure?.window?.backend ??
+            null,
+          requestedBackend: captureBackend,
+          requestedScale: captureScale,
+          paintObservation:
+            "passive-metadata-only-no-frame-content-attestation",
+          nativeLinuxNoSandbox:
+            captureTransport === "native" && process.platform === "linux",
+          order: captureOrder,
+          repeatIndex: testInfo.repeatEachIndex,
           window:
             outcome.capture?.diagnostic ?? outcome.failure?.window ?? null,
           failure: outcome.failure
             ? {
                 phase: outcome.failure.phase,
+                refusalPhase: outcome.failure.refusalPhase,
                 status: outcome.failure.status,
                 error: outcome.failure.error,
                 truncated: outcome.failure.truncated,
@@ -92,16 +155,122 @@ for (const mode of [
           // failure. Successful captures retain ordinary attachment failures.
           if (!outcome.failure) throw error;
         }
+        const assertObservedScale = () => {
+          const observed =
+            outcome.capture?.diagnostic ?? outcome.failure?.window;
+          expect(observed?.forcedScaleFactor).toBe(captureScale);
+          // Linux OSR must honor the requested sample scale; DPR-range and
+          // PNG-to-actual-DPR checks alone cannot prove the four scale arms.
+          // Keep the original cross-platform onscreen contract on Mac/Windows.
+          if (process.platform === "linux" && expectedBackend === "offscreen") {
+            expect(observed?.factsViewport?.deviceScaleFactor).toBe(
+              captureScale,
+            );
+            if (captureBackend === "product-default")
+              expect(observed?.constructed?.display?.scaleFactor).toBe(
+                captureScale,
+              );
+          }
+        };
+        const assertRuntimeReceipts = (refusal = false) => {
+          const observed =
+            outcome.capture?.diagnostic ?? outcome.failure?.window;
+          if (!observed?.runtime) {
+            expect(observed?.observationUnavailable).toBe(true);
+            return;
+          }
+          const receipts = refusal
+            ? [
+                observed.runtime.constructed,
+                observed.runtime.atReadinessRefusal,
+              ]
+            : [
+                observed.runtime.constructed,
+                observed.runtime.preCapture,
+                observed.runtime.settled,
+              ];
+          for (const receipt of receipts) {
+            expect(receipt).not.toBeNull();
+            if (!receipt) continue;
+            if (receipt.isOffscreen === null)
+              expect(receipt.unavailable).toBe(true);
+            else
+              expect(receipt.isOffscreen).toBe(expectedBackend === "offscreen");
+            for (const value of [
+              receipt.windowDestroyed,
+              receipt.contentsDestroyed,
+              receipt.loading,
+              receipt.mainFrameLoading,
+            ]) {
+              if (value === null) expect(receipt.unavailable).toBe(true);
+              else expect(typeof value).toBe("boolean");
+            }
+            if (receipt.isOffscreen !== true) {
+              expect(receipt.isPainting).toBeNull();
+              expect(receipt.frameRate).toBeNull();
+            } else {
+              if (receipt.isPainting === null || receipt.frameRate === null)
+                expect(receipt.unavailable).toBe(true);
+              if (receipt.frameRate !== null) {
+                expect(receipt.frameRate).toBeGreaterThanOrEqual(1);
+                expect(receipt.frameRate).toBeLessThanOrEqual(240);
+              }
+            }
+            for (const count of [
+              receipt.readyToShowCount,
+              receipt.readyAfterOwnedCommitCount,
+              receipt.paintCount,
+              receipt.paintAfterOwnedCommitCount,
+            ]) {
+              expect(Number.isInteger(count)).toBe(true);
+              expect(count).toBeGreaterThanOrEqual(0);
+              expect(count).toBeLessThanOrEqual(1000);
+            }
+            // Zero paint/ready events is valid diagnostic evidence, never a gate.
+            expect(receipt.paintAfterOwnedCommitCount).toBeLessThanOrEqual(
+              receipt.paintCount,
+            );
+            expect(receipt.readyAfterOwnedCommitCount).toBeLessThanOrEqual(
+              receipt.readyToShowCount,
+            );
+          }
+        };
+        if (outcome.failure?.refusalPhase === "native-readiness") {
+          const observed = outcome.failure.window;
+          expect(observed?.calls).toEqual({
+            executeJavaScript: 1,
+            waitForRender: 1,
+            renderedFacts: 0,
+            capturePage: 0,
+            pngEncode: 0,
+          });
+          expect(observed?.nativeCapture).toBeNull();
+          expect(observed?.factsViewport).toBeNull();
+          expect(observed?.png).toBeNull();
+          if (observed?.runtime) {
+            expect(observed.runtime.atReadinessRefusal).not.toBeNull();
+            expect(observed.runtime.preCapture).toBeNull();
+            expect(observed.runtime.settled).toBeNull();
+          } else expect(observed?.observationUnavailable).toBe(true);
+          assertRuntimeReceipts(true);
+          throw new Error("Fixture first snapshot refused native readiness.");
+        }
         if (expireAfterPng) {
           expect(outcome.capture).toBeNull();
           expect(outcome.failure?.status).toBe(502);
           expect(outcome.failure?.phase).toBe("first-snapshot");
           const observed = outcome.failure?.window;
+          expect(observed?.backend).toBe(expectedBackend);
           expect(observed?.phase).toBe("png-encode");
           expect(observed?.failedPhase).toBeNull();
+          expect(observed?.nativeCapture?.settlement).toBe("fulfilled");
+          expect(observed?.nativeCapture?.failure).toBeNull();
+          expect(observed?.nativeCapture?.durationMs).toBeGreaterThanOrEqual(0);
           expect(observed?.png?.bytes).toBeGreaterThan(0);
           expect(observed?.png?.ihdr?.width).toBeGreaterThan(0);
           expect(observed?.png?.ihdr?.height).toBeGreaterThan(0);
+          assertObservedScale();
+          assertRuntimeReceipts();
           expect(observed?.calls).toEqual({
             executeJavaScript: 2,
             waitForRender: 1,
@@ -117,6 +286,25 @@ for (const mode of [
           );
         const capture = outcome.capture;
         if (!capture) throw new Error("Fixture capture returned no evidence.");
+        expect(capture.diagnostic?.backend).toBe(expectedBackend);
+        expect(capture.diagnostic?.nativeCapture?.settlement).toBe("fulfilled");
+        expect(capture.diagnostic?.nativeCapture?.failure).toBeNull();
+        expect(
+          capture.diagnostic?.nativeCapture?.durationMs,
+        ).toBeGreaterThanOrEqual(0);
+        expect(capture.diagnostic?.calls).toEqual({
+          executeJavaScript: 2,
+          waitForRender: 1,
+          renderedFacts: 1,
+          capturePage: 1,
+          pngEncode: 1,
+        });
+        assertObservedScale();
+        assertRuntimeReceipts();
+        expect(capture.diagnostic?.png?.ihdr).toEqual({
+          width: capture.width,
+          height: capture.height,
+        });
         await testInfo.attach(`${mode}-first-png`, {
           body: Buffer.from(capture.png, "base64"),
           contentType: "image/png",
@@ -175,7 +363,8 @@ for (const mode of [
             }
           }
         } finally {
-          rmSync(ownedDir, { recursive: true, force: true });
+          if (native) retainOwnedDir = !(await native.dispose());
+          if (!retainOwnedDir) removePinnedFixtureDirectory(ownedIdentity);
         }
       }
     },

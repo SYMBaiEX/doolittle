@@ -15,6 +15,21 @@ import {
   type BrowserRenderBridge,
   startBrowserRenderBridge,
 } from "../src/main/browser-renderer";
+import {
+  type NativeCaptureDiagnostic,
+  observeNativeCapture,
+} from "./native-capture-diagnostic";
+import {
+  type ActualCaptureBackend,
+  actualFixtureCaptureBackend,
+  type FixtureRuntimeObservation,
+  fixtureWindowOptions,
+  installFixtureRuntimeObservation,
+  installNativeFixtureShutdown,
+  parseNativeFixtureRequest,
+  resolveFixtureCaptureBackend,
+  resolveFixtureCaptureScale,
+} from "./native-renderer-fixture";
 
 export type RasterCase = "complete" | "async" | "lazy" | "late";
 
@@ -66,6 +81,7 @@ interface WindowMeasurement {
   } | null;
 }
 interface WindowDiagnostic {
+  backend: ActualCaptureBackend;
   loaded: boolean;
   closed: boolean;
   unresponsive: boolean;
@@ -75,6 +91,7 @@ interface WindowDiagnostic {
   forcedScaleFactor: number | null;
   constructed: WindowMeasurement | null;
   atCapture: WindowMeasurement | null;
+  runtime: FixtureRuntimeObservation | null;
   factsViewport: {
     width: number | null;
     height: number | null;
@@ -83,6 +100,7 @@ interface WindowDiagnostic {
   png: { bytes: number; ihdr: { width: number; height: number } | null } | null;
   phase: CapturePhase | null;
   failedPhase: CapturePhase | null;
+  nativeCapture: NativeCaptureDiagnostic | null;
   calls: {
     executeJavaScript: number;
     waitForRender: number;
@@ -93,8 +111,9 @@ interface WindowDiagnostic {
   observationUnavailable: boolean;
 }
 
-interface CaptureFailure {
+export interface CaptureFailure {
   phase: "open" | "first-snapshot";
+  refusalPhase: "native-readiness" | null;
   status: number;
   error: string;
   truncated: boolean;
@@ -160,6 +179,7 @@ function measurement(
 function observeExistingCapture(
   window: BrowserWindow,
   diagnostic: WindowDiagnostic,
+  runtime: ReturnType<typeof installFixtureRuntimeObservation> | null,
 ): void {
   const contents = window.webContents;
   const execute = contents.executeJavaScript;
@@ -207,11 +227,13 @@ function observeExistingCapture(
           },
           () => {
             if (phase) diagnostic.failedPhase = phase;
+            runtime?.dispose();
           },
         );
         return pending;
       } catch (error) {
         if (phase) diagnostic.failedPhase = phase;
+        runtime?.dispose();
         throw error;
       }
     };
@@ -225,13 +247,17 @@ function observeExistingCapture(
     ) {
       diagnostic.calls.capturePage++;
       diagnostic.phase = "capture-page";
+      runtime?.beforeCapture();
       diagnostic.atCapture = observe(diagnostic, () =>
         measurement(window, diagnostic),
       );
       try {
-        const pending = capture.apply(this, args);
+        const pending = observeNativeCapture(capture, this, args, (native) => {
+          diagnostic.nativeCapture = native;
+        });
         void pending.then(
           (image) => {
+            runtime?.settle();
             observe(diagnostic, () => {
               if (observedImages.has(image)) return;
               observedImages.add(image);
@@ -273,11 +299,13 @@ function observeExistingCapture(
           },
           () => {
             diagnostic.failedPhase = "capture-page";
+            runtime?.settle();
           },
         );
         return pending;
       } catch (error) {
         diagnostic.failedPhase = "capture-page";
+        runtime?.settle();
         throw error;
       }
     };
@@ -288,7 +316,8 @@ async function fixtureErrorBody(response: Response) {
   // Only this fixture's private loopback bridge is queried. Bound reads and
   // allowlist its fixed error messages; never echo arbitrary body/URL/header data.
   const reader = response.body?.getReader();
-  if (!reader) return { error: "empty-error-body", truncated: false };
+  if (!reader)
+    return { error: "empty-error-body", truncated: false, refusalPhase: null };
   const chunks: Buffer[] = [];
   let bytes = 0;
   let truncated = false;
@@ -305,12 +334,13 @@ async function fixtureErrorBody(response: Response) {
       }
     }
   } catch {
-    return { error: "unreadable-error-body", truncated };
+    return { error: "unreadable-error-body", truncated, refusalPhase: null };
   } finally {
     // Diagnostic transport errors must not replace the original failing status.
     await reader.cancel().catch(() => {});
   }
   let error = "unrecognized-error-body";
+  let refusalPhase: CaptureFailure["refusalPhase"] = null;
   try {
     const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
     if (
@@ -322,10 +352,16 @@ async function fixtureErrorBody(response: Response) {
       ].includes(body?.error)
     )
       error = body.error;
+    if (
+      response.status === 502 &&
+      error === "Rendered evidence could not be captured." &&
+      body?.phase === "native-readiness"
+    )
+      refusalPhase = "native-readiness";
   } catch {
     // Keep malformed/unknown body contents out of test diagnostics.
   }
-  return { error, truncated };
+  return { error, truncated, refusalPhase };
 }
 
 declare global {
@@ -336,8 +372,41 @@ declare global {
 // Playwright supplies a freshly owned --user-data-dir and closes it in finally.
 app.on("window-all-closed", () => {});
 
+const nativeIpc = process.argv.includes("--doolittle-renderer-fixture-ipc");
+const captureBackend = resolveFixtureCaptureBackend(
+  process.env.DOOLITTLE_RENDER_CAPTURE_BACKEND,
+);
+const captureScale = resolveFixtureCaptureScale(
+  process.env.DOOLITTLE_RENDER_CAPTURE_SCALE,
+);
+let nativeDispose = async () => {};
+const sendNative = (value: unknown) => {
+  try {
+    process.send?.(value as Parameters<NonNullable<typeof process.send>>[0]);
+  } catch {
+    // No arbitrary IPC error text crosses the fixture boundary.
+  }
+};
+// Register before even awaiting app readiness: detached children must stop if
+// their owning test worker disappears, including during startup or disposal.
+const nativeShutdown = nativeIpc
+  ? installNativeFixtureShutdown({
+      onDisconnect: (listener) => process.on("disconnect", listener),
+      dispose: () => nativeDispose(),
+      disposed: () => {
+        sendNative({ type: "disposed" });
+        if (process.connected) process.disconnect?.();
+      },
+      failed: () => sendNative({ type: "failed" }),
+      quit: () => app.quit(),
+      exit: () => app.exit(1),
+    })
+  : undefined;
+
 globalThis.browserRendererFixture = (async () => {
   await app.whenReady();
+  if (nativeShutdown?.isClosing())
+    throw new Error("Native renderer fixture stopped.");
   const size = 4096;
   const bitmap = Buffer.alloc(size * size * 4);
   for (let y = 0; y < size; y++) {
@@ -381,15 +450,21 @@ globalThis.browserRendererFixture = (async () => {
   });
   let bridge: BrowserRenderBridge | undefined;
   let windowDiagnostic: WindowDiagnostic | undefined;
+  let runtimeObserver: ReturnType<
+    typeof installFixtureRuntimeObservation
+  > | null = null;
+  let ownedMode: RasterCase | undefined;
   let expireAfterPng = false;
   let disposed = false;
   const dispose = async () => {
     if (disposed) return;
     disposed = true;
+    runtimeObserver?.dispose();
     await bridge?.dispose();
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   };
+  nativeDispose = dispose;
   try {
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);
@@ -398,6 +473,8 @@ globalThis.browserRendererFixture = (async () => {
     const address = server.address();
     if (!address || typeof address === "string")
       throw new Error("Fixture did not obtain a loopback port.");
+    if (nativeShutdown?.isClosing())
+      throw new Error("Native renderer fixture stopped.");
     const origin = `http://127.0.0.1:${address.port}`;
     bridge = await startBrowserRenderBridge({
       // Failure-only fixture seam: the owned target remains valid until the
@@ -406,8 +483,14 @@ globalThis.browserRendererFixture = (async () => {
       isManagedAppUrl: async (url) =>
         url.origin === origin && !(expireAfterPng && windowDiagnostic?.png),
       createWindow(options) {
-        const window = new BrowserWindow(options);
+        const constructorOptions = fixtureWindowOptions(
+          options,
+          captureBackend,
+          captureScale,
+        );
+        const window = new BrowserWindow(constructorOptions);
         const diagnostic: WindowDiagnostic = {
+          backend: actualFixtureCaptureBackend(constructorOptions),
           loaded: false,
           closed: false,
           unresponsive: false,
@@ -420,10 +503,12 @@ globalThis.browserRendererFixture = (async () => {
           forcedScaleFactor: null,
           constructed: null,
           atCapture: null,
+          runtime: null,
           factsViewport: null,
           png: null,
           phase: null,
           failedPhase: null,
+          nativeCapture: null,
           calls: {
             executeJavaScript: 0,
             waitForRender: 0,
@@ -444,7 +529,21 @@ globalThis.browserRendererFixture = (async () => {
         diagnostic.constructed = observe(diagnostic, () =>
           measurement(window, diagnostic),
         );
-        observeExistingCapture(window, diagnostic);
+        runtimeObserver = observe(diagnostic, () =>
+          installFixtureRuntimeObservation({
+            window,
+            isOwnedTarget(value) {
+              const url = new URL(value);
+              return (
+                url.origin === origin &&
+                url.pathname === "/" &&
+                url.searchParams.get("case") === ownedMode
+              );
+            },
+          }),
+        );
+        diagnostic.runtime = runtimeObserver?.receipts ?? null;
+        observeExistingCapture(window, diagnostic, runtimeObserver);
         windowDiagnostic = diagnostic;
         window.on("closed", () => {
           diagnostic.closed = true;
@@ -483,6 +582,7 @@ globalThis.browserRendererFixture = (async () => {
           : undefined;
       },
       async capture(mode, options) {
+        ownedMode = mode;
         expireAfterPng = options?.expireAfterPng === true;
         const startedAt = Date.now();
         const failed = async (
@@ -490,6 +590,11 @@ globalThis.browserRendererFixture = (async () => {
           response: Response,
         ) => {
           const body = await fixtureErrorBody(response);
+          if (
+            phase === "first-snapshot" &&
+            body.refusalPhase === "native-readiness"
+          )
+            runtimeObserver?.readinessRefused();
           return new FixtureCaptureError({
             phase,
             status: response.status,
@@ -590,3 +695,47 @@ globalThis.browserRendererFixture = (async () => {
     throw error;
   }
 })();
+
+// Only the explicitly activated test entry accepts the closed native IPC
+// protocol. No arbitrary evaluation, browser commands, or provider startup.
+if (nativeShutdown) {
+  let captured = false;
+  const send = sendNative;
+  void globalThis.browserRendererFixture.then(
+    (fixture) => {
+      if (nativeShutdown.isClosing()) return;
+      process.on("message", (message: unknown) => {
+        void (async () => {
+          if (nativeShutdown.isClosing()) return;
+          const request = parseNativeFixtureRequest(message);
+          if (request?.type === "dispose") {
+            await nativeShutdown.shutdown();
+            return;
+          }
+          if (captured || !request || request.type !== "capture") {
+            send({ type: "failed" });
+            return;
+          }
+          captured = true;
+          try {
+            send({
+              type: "captured",
+              capture: await fixture.capture(request.kind as RasterCase, {
+                expireAfterPng: request.expireAfterPng,
+              }),
+            });
+          } catch (error) {
+            const failure = fixture.captureFailure(error);
+            send(
+              failure
+                ? { type: "capture-failed", failure }
+                : { type: "failed" },
+            );
+          }
+        })().catch(() => send({ type: "failed" }));
+      });
+      send({ type: "ready" });
+    },
+    () => send({ type: "failed" }),
+  );
+}
