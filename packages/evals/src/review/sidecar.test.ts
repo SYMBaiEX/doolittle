@@ -199,10 +199,10 @@ describe("human review sidecars", () => {
     expect(stored).not.toContain("RAW_PROMPT_SECRET");
     expect(stored).not.toContain("/private/workspace");
     expect(stored).not.toContain(directory);
-    expect(statSync(outputPath).mode & 0o777).toBe(0o600);
-    expect(statSync(join(directory, "private")).mode & 0o777).toBe(0o700);
     expect(() => reviewReportFile(reportPath, inputPath, outputPath)).toThrow();
     expect(readFileSync(outputPath, "utf8")).toBe(stored);
+    expect(statSync(outputPath).mode & 0o777).toBe(0o600);
+    expect(statSync(join(directory, "private")).mode & 0o777).toBe(0o700);
   });
 
   it("refuses shared existing output parents without changing their modes", () => {
