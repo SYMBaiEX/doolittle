@@ -149,8 +149,15 @@ coding planner. It requires desktop/CLI owner access and a ready managed origin
 in the selected workspace, returns bounded untrusted critique and pixel metadata,
 and continues the action chain for scoped corrections. It does not grant page
 input, editing, app startup or remote-channel host access. Text-only results must
-not be reported as visual verification. Stop the managed app before rebuilding
-after a correction; restart it and review the new result.
+not be reported as visual verification. The coding completion gate requires a
+review attempt after the latest visual mutation, production build and verified
+ready-app receipt. Further changes invalidate that review. A review attempt is
+not a quality pass: retain its findings and disclose pixels, text-only evidence
+or failed/unavailable review. Stop the managed app before rebuilding after a
+correction; restart and re-review only when the user permits server startup.
+If startup or restart is forbidden, review an already verified ready app when
+available; otherwise preserve the changes and disclose that browser review was
+unavailable and not attempted, without claiming rendered quality or completion.
 
 Run the isolated synthetic acceptance check with:
 

@@ -5,6 +5,7 @@ import {
 } from "@elizaos/core";
 import {
   actionResultActionName,
+  extractCommandResultFromActionResult,
   extractLocalMutationsFromActionResult,
   extractVerifiedLocalMutationFromActionResult,
 } from "@/runtime/action-result-metadata";
@@ -15,6 +16,7 @@ import { getScopedTurnActionResults } from "@/runtime/turn-runtime-scope";
 import { hasWorkspaceMutationObligation } from "@/runtime/workspace-mutation-intent";
 import { escapeXml } from "@/utils/eliza-compat";
 import { isRecord } from "@/utils/records";
+import { inspectWorkspaceCommands } from "@/utils/workspace-commands";
 import type { StreamingOutputModel } from "./provider-streaming";
 import {
   isUnsynthesizedToolResponse,
@@ -122,6 +124,178 @@ const MAX_CONTINUATION_EVIDENCE_CHARS = 5_000;
 const MAX_CONTINUATION_RESULT_CHARS = 1_200;
 const MAX_MUTATION_CONTINUATION_PASSES = 12;
 const MAX_CONSECUTIVE_NO_ACTION_PASSES = 2;
+const FRONTEND_FILE =
+  /(?:^|\/)(?![^/]*\.(?:test|spec)\.)[^/]+\.(?:tsx|jsx|css|scss|sass|less|html|vue|svelte|svg|png|jpe?g|webp|gif|avif)$/iu;
+
+function unquotedServerInstructions(userRequest: string): string {
+  // Match the workspace-intent gate's distinction between instructions and
+  // reference text. Mask only the quoted/code spans, preserving surrounding
+  // instructions and offsets; contractions are not opening quote delimiters.
+  return userRequest.replace(
+    /```[\s\S]*?(?:```|(?![\s\S]))|~~~[\s\S]*?(?:~~~|(?![\s\S]))|`[^`\n]*`|"(?:\\.|[^"\\])*"|“[^”]*”|(?<![\p{L}\p{N}_])'(?:\\.|[^'\\\n]|'(?=\p{L}))*'|‘(?:[^’]|’(?=\p{L}))*’|^\s*>[^\n]*/gmu,
+    (reference) => " ".repeat(reference.length),
+  );
+}
+
+function serverStartPolicy(userRequest: string): {
+  verificationRequest: string;
+  forbidden: boolean;
+} {
+  const instructions = unquotedServerInstructions(userRequest);
+  const negative =
+    /\b(?:do\s+not|don['’]t|never)\s+(?:change\s+(?:the\s+)?ui\s+(?:or|and)\s+)?(?:start|restart|launch|serve|preview|open|run)\s+(?:(?:a|an|any|the)\s+)?(?:app(?:lication)?|(?:dev(?:elopment)?\s+)?server|website|web\s+app|site)\b/giu;
+  const matches = [...instructions.matchAll(negative)];
+  const latest = matches[matches.length - 1];
+  const laterRequest = latest
+    ? instructions.slice(latest.index + latest[0].length).replace(negative, "")
+    : "";
+  return {
+    // Only verification intent uses this text; the original request, including
+    // every user constraint, remains unchanged in the model's memory.
+    verificationRequest: instructions.replace(negative, ""),
+    forbidden:
+      Boolean(latest) &&
+      !/\b(?:start|restart|launch|serve|preview|open|run)\s+(?:(?:a|an|any|the)\s+)?(?:app(?:lication)?|(?:dev(?:elopment)?\s+)?server|website|web\s+app|site)\b/iu.test(
+        laterRequest,
+      ),
+  };
+}
+
+function frontendReviewRequired(
+  actionResults: readonly ActionResult[],
+  userRequest: string,
+): boolean {
+  const mutations = actionResults.flatMap((result) =>
+    extractLocalMutationsFromActionResult(result).filter(
+      (mutation) => mutation.success,
+    ),
+  );
+  return (
+    mutations.some(
+      (mutation) =>
+        typeof mutation.resolvedPath === "string" &&
+        FRONTEND_FILE.test(mutation.resolvedPath),
+    ) ||
+    (mutations.length > 0 &&
+      // Framework names also describe backend/API work. Intent-only activation
+      // needs an explicit user-facing surface; visual file receipts still win.
+      /\b(?:create|build|implement|make|develop|scaffold)\b[\s\S]{0,100}\b(?:frontend|front-end|website|web\s+app|landing\s+page|user\s+interface)\b/iu.test(
+        userRequest,
+      ))
+  );
+}
+
+function frontendRequirements(
+  actionResults: readonly ActionResult[],
+  requirements: ReturnType<typeof workspaceNoopRequirements>,
+  userRequest: string,
+): ReturnType<typeof workspaceNoopRequirements> {
+  return frontendReviewRequired(actionResults, userRequest)
+    ? { ...requirements, requireBuild: true, requireManagedApplication: true }
+    : requirements;
+}
+
+function frontendReviewBlockedByUserConstraint(
+  actionResults: readonly ActionResult[],
+  requirements: ReturnType<typeof workspaceNoopRequirements>,
+  userRequest: string,
+): boolean {
+  return (
+    serverStartPolicy(userRequest).forbidden &&
+    frontendReviewRequired(actionResults, userRequest) &&
+    missingWorkspaceMutationRequirements(
+      actionResults,
+      frontendRequirements(actionResults, requirements, userRequest),
+    ).some((requirement) =>
+      requirement.startsWith("a ready managed app server"),
+    )
+  );
+}
+
+const CONSTRAINED_FRONTEND_REVIEW_FAILURE =
+  "The frontend files changed, but browser review is unavailable and was not attempted: your instruction forbids starting or restarting a server, and no current verified ready managed-app receipt is available. The changes are preserved. No rendered pixels were reviewed; this does not establish completion, corrected defects, or requested quality. Other requested checks are not implied by this report.";
+
+function frontendReviewAttempt(
+  actionResults: readonly ActionResult[],
+  requirements: ReturnType<typeof workspaceNoopRequirements>,
+  userRequest: string,
+): ActionResult | undefined {
+  if (!frontendReviewRequired(actionResults, userRequest)) return undefined;
+  // A corrected frontend may also depend on a later backend/config edit or
+  // rebuild. Never let an earlier review certify a newer application state.
+  const latestApplicationChange = actionResults.reduce(
+    (latest, result, index) => {
+      const command = extractCommandResultFromActionResult(result);
+      const changed = extractLocalMutationsFromActionResult(result).some(
+        (mutation) => mutation.success,
+      );
+      const rebuilt =
+        actionResultActionName(result) === "SHELL" &&
+        command &&
+        inspectWorkspaceCommands(command.command, command.executedIn).some(
+          (operation) => operation.kind === "build",
+        );
+      return changed ||
+        rebuilt ||
+        actionResultActionName(result) === "DOOLITTLE_APP_SERVER"
+        ? index
+        : latest;
+    },
+    -1,
+  );
+  for (
+    let index = actionResults.length - 1;
+    index > latestApplicationChange;
+    index -= 1
+  ) {
+    const review = actionResults[index];
+    if (
+      !review ||
+      actionResultActionName(review) !== "DOOLITTLE_BROWSER_ANALYZE" ||
+      !isRecord(review.data) ||
+      review.data.reviewAttempted !== true ||
+      typeof review.data.reviewedUrl !== "string"
+    )
+      continue;
+    const reviewedUrl = review.data.reviewedUrl;
+    for (
+      let readyIndex = index - 1;
+      readyIndex >= latestApplicationChange;
+      readyIndex -= 1
+    ) {
+      const ready = actionResults[readyIndex];
+      if (
+        ready?.success !== true ||
+        actionResultActionName(ready) !== "DOOLITTLE_APP_SERVER" ||
+        !isRecord(ready.data) ||
+        ready.data.status !== "ready" ||
+        ready.data.url !== reviewedUrl
+      )
+        continue;
+      if (
+        missingWorkspaceMutationRequirements(
+          actionResults.slice(0, readyIndex + 1),
+          frontendRequirements(actionResults, requirements, userRequest),
+        ).length === 0
+      )
+        return review;
+    }
+  }
+  return undefined;
+}
+
+function frontendReviewSummary(result: ActionResult): string {
+  const modality = isRecord(result.data)
+    ? result.data.modelEvidence
+    : undefined;
+  const resultText =
+    result.success === true && modality === "rendered-pixels"
+      ? "Browser analysis used rendered viewport pixels."
+      : result.success === true && modality === "text-only"
+        ? "Browser analysis used text-only evidence; rendered layout was not verified."
+        : "Browser analysis was attempted but failed or was unavailable; rendered layout was not verified.";
+  return `${resultText} This review attempt does not prove that reported defects were corrected or that the requested quality was achieved; consult the browser-analysis findings.`;
+}
 
 function explicitlyReportsIncompleteWork(response: string): boolean {
   return /\b(?:not|isn't|aren't|hasn't|haven't|has not|have not)\s+(?:yet\s+)?(?:been\s+)?(?:implemented|completed|finished|verified|built|installed|tested|started|done|ready)\b|\b(?:remain|remains|remaining)\s+to\s+be\s+done\b|\b(?:still\s+need(?:s)?\s+to|left\s+to\s+do)\b/iu.test(
@@ -183,12 +357,11 @@ function mergeActionResults(
         }
       } else if (isRecord(data) && action === "SHELL") {
         if (typeof data.runId === "string") receiptKey = `shell:${data.runId}`;
-      } else if (isRecord(data) && action === "DOOLITTLE_APP_SERVER") {
-        const session = data.session;
-        if (isRecord(session) && typeof session.id === "string") {
-          receiptKey = `app-server:${session.id}:${String(data.status)}`;
-        }
       }
+
+      // Distinct managed-server observations are chronological evidence, even
+      // when the same session is ready twice. Collapsing session + status would
+      // hide a post-correction readiness check and preserve a stale review.
 
       if (receiptKey && seenReceipts.has(receiptKey)) continue;
       if (receiptKey) seenReceipts.add(receiptKey);
@@ -388,9 +561,33 @@ function continuationMemory(
   const missingRequirements = hasVerifiedMutation
     ? missingWorkspaceMutationRequirements(actionResults, requirements)
     : [];
+  if (
+    frontendReviewRequired(actionResults, userRequest) &&
+    !frontendReviewAttempt(actionResults, requirements, userRequest)
+  ) {
+    missingRequirements.push(
+      "a DOOLITTLE_BROWSER_ANALYZE attempt using the exact ready managed app URL after the latest file mutation, production build, and ready receipt; preserve its concrete findings and correct in-scope defects. " +
+        (serverStartPolicy(userRequest).forbidden
+          ? "Do not start or restart a server after corrections; if no current verified ready app remains, disclose browser review as unavailable and not attempted. "
+          : "Rebuild/restart/re-review after any correction. ") +
+        "Disclose rendered pixels, text-only evidence, or failed/unavailable review; a review attempt is not a quality pass",
+    );
+  }
   let remaining = MAX_CONTINUATION_EVIDENCE_CHARS;
-  const evidence = actionResults
-    .slice(-6)
+  const latestReview = [...actionResults]
+    .reverse()
+    .find(
+      (result) =>
+        actionResultActionName(result) === "DOOLITTLE_BROWSER_ANALYZE",
+    );
+  const recentResults = actionResults.slice(-6);
+  const continuationResults = latestReview
+    ? [
+        latestReview,
+        ...recentResults.filter((result) => result !== latestReview),
+      ]
+    : recentResults;
+  const evidence = continuationResults
     .flatMap((result) => {
       if (remaining <= 0) return [];
       const name = actionResultActionName(result) ?? "workspace tool";
@@ -399,7 +596,19 @@ function continuationMemory(
         result.userFacingText.trim()
           ? result.userFacingText
           : result.text) || "(no output)";
-      const clipped = text.trim().slice(0, MAX_CONTINUATION_RESULT_CHARS);
+      // Browser capture metadata may consume the entire generic excerpt.
+      // Keep the bounded critique itself available for the correction pass.
+      const critiqueStart =
+        name === "DOOLITTLE_BROWSER_ANALYZE"
+          ? text.indexOf("<untrusted-page-critique>")
+          : -1;
+      const relevantText =
+        critiqueStart >= 0
+          ? `${frontendReviewSummary(result)}\n${text.slice(critiqueStart)}`
+          : text;
+      const clipped = relevantText
+        .trim()
+        .slice(0, MAX_CONTINUATION_RESULT_CHARS);
       const entry = `<tool name="${escapeXml(name)}" status="${result.success === false ? "failed" : "succeeded"}">${escapeXml(clipped)}</tool>`;
       const bounded = entry.slice(0, remaining);
       remaining -= bounded.length;
@@ -419,6 +628,11 @@ function continuationMemory(
         userRequest,
         "",
         "Continue the same requested workspace task. The previous pass did not complete the request.",
+        ...(serverStartPolicy(userRequest).forbidden
+          ? [
+              "The user forbids starting or restarting a server. Do not start or restart one for verification; only review an existing verified ready managed app. If none is available, disclose browser review as unavailable and not attempted.",
+            ]
+          : []),
         hasVerifiedMutation
           ? "A verified local file change has already occurred. Inspect the current state, avoid repeating completed writes, and continue any remaining requested implementation or verification."
           : "Inspect the current state before repeating commands, then make the requested change and verify it.",
@@ -720,7 +934,10 @@ export async function executeProviderMessageTurn(
       });
 
       let mutationObligation = false;
-      const noOpRequirements = workspaceNoopRequirements(prompt);
+      // An API path can contain `app`; a negated server-start clause must not
+      // turn it into a requested managed-app handoff.
+      const { verificationRequest } = serverStartPolicy(prompt);
+      const noOpRequirements = workspaceNoopRequirements(verificationRequest);
       try {
         throwIfTurnAborted(input.abortSignal);
         setTrajectoryPurpose("response");
@@ -854,6 +1071,9 @@ export async function executeProviderMessageTurn(
             input.context.runtime,
             actionResults,
           );
+          // Receipt-backed visual edits need the completion gate even when a
+          // short user request did not match the workspace-intent heuristic.
+          mutationObligation ||= frontendReviewRequired(actionResults, prompt);
           allResponseMessages.push(...(messageResult?.responseMessages ?? []));
           responseMessages = allResponseMessages;
           response = resolveSdkMessageResponse({
@@ -871,15 +1091,30 @@ export async function executeProviderMessageTurn(
           // follow-up so the SDK can synthesize a final answer.
           const explicitlyIncomplete =
             mutationObligation && explicitlyReportsIncompleteWork(response);
+          const currentRequirements = frontendRequirements(
+            actionResults,
+            noOpRequirements,
+            prompt,
+          );
           const verifiedWorkspaceNoop = Boolean(
             verifyWorkspaceNoopCompletion(actionResults, noOpRequirements),
           );
           const verifiedWorkspaceCompletion = hasVerifiedWorkspaceCompletion(
             actionResults,
-            noOpRequirements,
+            currentRequirements,
           );
+          const frontendReviewComplete =
+            !frontendReviewRequired(actionResults, prompt) ||
+            Boolean(
+              frontendReviewAttempt(actionResults, noOpRequirements, prompt),
+            );
           if (
             managedDelegationFailure(actionResults) ||
+            frontendReviewBlockedByUserConstraint(
+              actionResults,
+              noOpRequirements,
+              prompt,
+            ) ||
             !mutationObligation ||
             isSdkFailureReply(messageResult?.responseContent) ||
             hasPendingApproval(input.context, sessionId) ||
@@ -893,6 +1128,7 @@ export async function executeProviderMessageTurn(
             verifiedWorkspaceNoop ||
             (response.trim() &&
               verifiedWorkspaceCompletion &&
+              frontendReviewComplete &&
               !explicitlyIncomplete) ||
             (!response.trim() &&
               attempt > 0 &&
@@ -938,7 +1174,7 @@ export async function executeProviderMessageTurn(
             prompt,
             actionResults,
             response,
-            noOpRequirements,
+            currentRequirements,
           );
         }
 
@@ -988,6 +1224,23 @@ export async function executeProviderMessageTurn(
         const verifiedNoopCompletion = mutationObligation
           ? verifyWorkspaceNoopCompletion(actionResults, noOpRequirements)
           : undefined;
+        const finalRequirements = frontendRequirements(
+          actionResults,
+          noOpRequirements,
+          prompt,
+        );
+        if (
+          !runFailureMessage &&
+          mutationObligation &&
+          frontendReviewBlockedByUserConstraint(
+            actionResults,
+            noOpRequirements,
+            prompt,
+          )
+        ) {
+          runFailureMessage = CONSTRAINED_FRONTEND_REVIEW_FAILURE;
+          response = runFailureMessage;
+        }
         if (
           !runFailureMessage &&
           mutationObligation &&
@@ -1001,13 +1254,23 @@ export async function executeProviderMessageTurn(
           !runFailureMessage &&
           mutationObligation &&
           hasVerifiedWorkspaceMutation(actionResults) &&
-          missingWorkspaceMutationRequirements(actionResults, noOpRequirements)
+          missingWorkspaceMutationRequirements(actionResults, finalRequirements)
             .length > 0
         ) {
           runFailureMessage = incompleteWorkspaceVerificationFailure(
             actionResults,
-            noOpRequirements,
+            finalRequirements,
           );
+          response = runFailureMessage;
+        }
+        if (
+          !runFailureMessage &&
+          mutationObligation &&
+          frontendReviewRequired(actionResults, prompt) &&
+          !frontendReviewAttempt(actionResults, noOpRequirements, prompt)
+        ) {
+          runFailureMessage =
+            "The frontend changed and its build and managed app readiness were verified, but no browser-analysis attempt followed the latest mutation, build, and ready receipt. The changes are preserved; review the current rendered app before claiming completion.";
           response = runFailureMessage;
         }
         if (!runFailureMessage && verifiedNoopCompletion) {
@@ -1100,6 +1363,16 @@ export async function executeProviderMessageTurn(
             runtimeOverrides: input.settingsDuring.model,
           });
         }
+        if (mutationObligation) {
+          const review = frontendReviewAttempt(
+            actionResults,
+            noOpRequirements,
+            prompt,
+          );
+          if (review)
+            response =
+              `${response.trim()}\n\n${frontendReviewSummary(review)}`.trim();
+        }
         input.streamState.setResponse(response);
       } catch (error) {
         if (input.abortSignal?.aborted) throw error;
@@ -1118,6 +1391,10 @@ export async function executeProviderMessageTurn(
               ),
             ),
           );
+        mutationObligation ||= frontendReviewRequired(
+          committedActionResults,
+          prompt,
+        );
         const recoveredNoopCompletion = mutationObligation
           ? verifyWorkspaceNoopCompletion(
               committedActionResults,
@@ -1149,19 +1426,39 @@ export async function executeProviderMessageTurn(
           input.streamState.setResponse(response);
           return;
         }
+        const recoveredRequirements = frontendRequirements(
+          committedActionResults,
+          noOpRequirements,
+          prompt,
+        );
+        if (
+          mutationObligation &&
+          frontendReviewBlockedByUserConstraint(
+            committedActionResults,
+            noOpRequirements,
+            prompt,
+          )
+        ) {
+          handledMessage = true;
+          actionResults = committedActionResults;
+          runFailureMessage = CONSTRAINED_FRONTEND_REVIEW_FAILURE;
+          response = runFailureMessage;
+          input.streamState.setResponse(response);
+          return;
+        }
         if (
           mutationObligation &&
           hasVerifiedWorkspaceMutation(committedActionResults) &&
           missingWorkspaceMutationRequirements(
             committedActionResults,
-            noOpRequirements,
+            recoveredRequirements,
           ).length > 0
         ) {
           handledMessage = true;
           actionResults = committedActionResults;
           response = incompleteWorkspaceVerificationFailure(
             actionResults,
-            noOpRequirements,
+            recoveredRequirements,
           );
           runFailureMessage = response;
           input.context.runtime.logger?.warn(
@@ -1175,11 +1472,28 @@ export async function executeProviderMessageTurn(
               messageId,
               missingRequirements: missingWorkspaceMutationRequirements(
                 actionResults,
-                noOpRequirements,
+                recoveredRequirements,
               ),
             },
             "ElizaOS continuation failed before requested workspace verification receipts were recorded",
           );
+          input.streamState.setResponse(response);
+          return;
+        }
+        if (
+          mutationObligation &&
+          frontendReviewRequired(committedActionResults, prompt) &&
+          !frontendReviewAttempt(
+            committedActionResults,
+            noOpRequirements,
+            prompt,
+          )
+        ) {
+          handledMessage = true;
+          actionResults = committedActionResults;
+          runFailureMessage =
+            "The frontend changed, but no browser-analysis attempt followed the latest mutation, build, and verified managed app readiness. The changes are preserved; review the current app before claiming completion.";
+          response = runFailureMessage;
           input.streamState.setResponse(response);
           return;
         }
@@ -1189,7 +1503,14 @@ export async function executeProviderMessageTurn(
         if (recoveredDelegationResponse) {
           handledMessage = true;
           actionResults = committedActionResults;
-          response = recoveredDelegationResponse;
+          const review = frontendReviewAttempt(
+            actionResults,
+            noOpRequirements,
+            prompt,
+          );
+          response = review
+            ? `${recoveredDelegationResponse}\n\n${frontendReviewSummary(review)}`
+            : recoveredDelegationResponse;
           input.context.runtime.logger?.warn(
             {
               error,

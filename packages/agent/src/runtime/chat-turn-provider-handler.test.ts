@@ -178,6 +178,431 @@ describe("chat turn provider handler", () => {
     return { ...result, streamState };
   }
 
+  function frontendReceipts() {
+    const workdir = "/workspace/frontend-review";
+    const page: ActionResult = {
+      success: true,
+      text: "Updated the frontend page.",
+      data: {
+        actionName: "WRITE_FILE",
+        mutationKind: "local-file",
+        mutationAction: "WRITE_FILE",
+        mutation: {
+          action: "WRITE_FILE",
+          success: true,
+          requestedPath: "app/page.tsx",
+          resolvedPath: `${workdir}/app/page.tsx`,
+        },
+      },
+    };
+    const build: ActionResult = {
+      success: true,
+      text: "Production build passed.",
+      data: {
+        actionName: "SHELL",
+        command: "bun run build",
+        cwd: workdir,
+        exitCode: 0,
+      },
+    };
+    const ready: ActionResult = {
+      success: true,
+      text: "Managed application ready.",
+      data: {
+        actionName: "DOOLITTLE_APP_SERVER",
+        status: "ready",
+        url: "http://localhost:3001/",
+        session: {
+          id: "frontend-review-server",
+          cwd: workdir,
+          command: "bun run dev",
+          managed: true,
+          state: "running",
+        },
+      },
+    };
+    const review = (
+      modelEvidence: "rendered-pixels" | "text-only",
+      success = true,
+    ): ActionResult => ({
+      success,
+      text: success
+        ? "The mobile heading overflows."
+        : "Browser analysis failed.",
+      data: {
+        actionName: "DOOLITTLE_BROWSER_ANALYZE",
+        reviewAttempted: true,
+        reviewedUrl: "http://localhost:3001/",
+        ...(success ? { modelEvidence } : {}),
+      },
+    });
+    return { page, build, ready, review };
+  }
+
+  async function runFrontendPasses(
+    passes: ActionResult[][],
+    options: {
+      request?: string;
+      responses?: string[];
+      throwAfter?: boolean;
+    } = {},
+  ) {
+    const prompts: string[] = [];
+    let calls = 0;
+    const { context } = createContext({
+      onHandleMessage: async ({ memory, onSettledActionResult }) => {
+        prompts.push(String((memory as Memory).content.text));
+        if (options.throwAfter && calls >= passes.length)
+          throw new Error("Final synthesis unavailable");
+        for (const receipt of passes[calls] ?? [])
+          onSettledActionResult?.(receipt);
+        const text = options.responses?.[calls] ?? "Implementation complete.";
+        calls += 1;
+        return { responseContent: { text }, responseMessages: [] };
+      },
+    });
+    const result = await executeTestTurn(
+      context,
+      "codex",
+      options.request ?? "Update the frontend heading in this workspace.",
+    );
+    return { result, prompts, calls };
+  }
+
+  it.each(["app/page.tsx", "styles/theme.css", "public/logo.svg"])(
+    "continues from native visual mutation %s/build/readiness until browser analysis is attempted",
+    async (path) => {
+      const { page, build, ready, review } = frontendReceipts();
+      page.data = {
+        ...page.data,
+        mutation: {
+          ...(page.data?.mutation as object),
+          requestedPath: path,
+          resolvedPath: `/workspace/frontend-review/${path}`,
+        },
+      };
+      const { result, prompts, calls } = await runFrontendPasses([
+        [page, build, ready],
+        [review("rendered-pixels")],
+      ]);
+      expect(calls).toBe(2);
+      expect(prompts[1]).toContain("DOOLITTLE_BROWSER_ANALYZE");
+      expect(result.runFailureMessage).toBeUndefined();
+      expect(result.response).toContain("rendered viewport pixels");
+      expect(result.response).toContain("does not prove");
+    },
+  );
+
+  it.each([
+    ["rendered-pixels", true, "used rendered viewport pixels"],
+    [
+      "text-only",
+      true,
+      "used text-only evidence; rendered layout was not verified",
+    ],
+    ["rendered-pixels", false, "attempted but failed or was unavailable"],
+  ] as const)(
+    "discloses %s review evidence with success=%s without claiming a quality pass",
+    async (modality, success, disclosure) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const { result } = await runFrontendPasses([
+        [page, build, ready, review(modality, success)],
+      ]);
+      expect(result.runFailureMessage).toBeUndefined();
+      expect(result.response).toContain(disclosure);
+      expect(result.response).toContain(
+        "does not prove that reported defects were corrected",
+      );
+    },
+  );
+
+  it.each(["mutation", "backend mutation", "build", "ready"])(
+    "invalidates a prior review after a later %s receipt",
+    async (kind) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const backend = structuredClone(page);
+      backend.data = {
+        ...page.data,
+        mutation: {
+          ...(page.data?.mutation as object),
+          resolvedPath: "/workspace/frontend-review/api/server.ts",
+        },
+      };
+      const later =
+        kind === "mutation"
+          ? [
+              structuredClone(page),
+              structuredClone(build),
+              structuredClone(ready),
+            ]
+          : kind === "backend mutation"
+            ? [backend, structuredClone(build), structuredClone(ready)]
+            : kind === "build"
+              ? [structuredClone(build), structuredClone(ready)]
+              : [structuredClone(ready)];
+      const { result, prompts } = await runFrontendPasses([
+        [page, build, ready, review("rendered-pixels"), ...later],
+      ]);
+      expect(result.runFailureMessage).toContain(
+        "no browser-analysis attempt followed the latest mutation, build, and ready receipt",
+      );
+      expect(prompts[1]).toContain("DOOLITTLE_BROWSER_ANALYZE");
+    },
+  );
+
+  it("requires a new review after corrections and retains concrete critique in the correction loop", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const critique = review("rendered-pixels");
+    critique.text = `${"Capture metadata ".repeat(200)}\n<untrusted-page-critique>The mobile heading overflows.</untrusted-page-critique>`;
+    const { result, prompts, calls } = await runFrontendPasses(
+      [
+        [page, build, ready, critique],
+        [structuredClone(page), structuredClone(build), structuredClone(ready)],
+        [review("text-only")],
+      ],
+      {
+        responses: [
+          "I still need to correct the mobile heading.",
+          "Implementation complete.",
+          "Implementation complete.",
+        ],
+      },
+    );
+    expect(calls).toBe(3);
+    expect(prompts[1]).toContain("The mobile heading overflows.");
+    expect(prompts[2]).toContain("DOOLITTLE_BROWSER_ANALYZE");
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(result.response).toContain("text-only evidence");
+  });
+
+  it.each(["not attempted", "wrong URL", "before ready"])(
+    "does not accept an invalid review receipt: %s",
+    async (kind) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const invalid = review("rendered-pixels", false);
+      invalid.data = {
+        ...invalid.data,
+        ...(kind === "not attempted" ? { reviewAttempted: false } : {}),
+        ...(kind === "wrong URL"
+          ? { reviewedUrl: "http://localhost:9999/" }
+          : {}),
+      };
+      const receipts =
+        kind === "before ready"
+          ? [page, build, invalid, ready]
+          : [page, build, ready, invalid];
+      const { result } = await runFrontendPasses([receipts]);
+      expect(result.runFailureMessage).toContain("no browser-analysis attempt");
+    },
+  );
+
+  it("gates frontend creation even when only a non-visual file receipt is present", async () => {
+    const { page, build, ready } = frontendReceipts();
+    page.data = {
+      ...page.data,
+      mutation: {
+        ...(page.data?.mutation as object),
+        resolvedPath: "/workspace/frontend-review/package.json",
+      },
+    };
+    const { result } = await runFrontendPasses([[page, build, ready]], {
+      request: "Create a website in this workspace.",
+    });
+    expect(result.runFailureMessage).toContain("no browser-analysis attempt");
+  });
+
+  it("leaves backend-only completion unchanged", async () => {
+    const { page } = frontendReceipts();
+    page.data = {
+      ...page.data,
+      mutation: {
+        ...(page.data?.mutation as object),
+        resolvedPath: "/workspace/frontend-review/api/server.ts",
+      },
+    };
+    const { result, calls } = await runFrontendPasses([[page]], {
+      request: "Update the backend worker in this workspace.",
+    });
+    expect(calls).toBe(1);
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(result.response).not.toContain("Browser analysis");
+  });
+
+  it.each([
+    [
+      "Implement a Next.js API endpoint at app/api/orders/route.ts; do not change UI or start a server.",
+      false,
+    ],
+    [
+      "Implement a React-framework API endpoint at app/api/orders/route.ts; do not change UI or start a server.",
+      false,
+    ],
+    [
+      "Create a backend-only Next.js API handler at app/api/orders/route.ts.",
+      false,
+    ],
+    [
+      "Implement a Next.js API endpoint at app/api/orders/route.ts and verify the build; do not start a server.",
+      true,
+    ],
+  ] as const)(
+    "does not activate frontend review for framework-only API work: %s",
+    async (request, buildRequired) => {
+      const { page, build } = frontendReceipts();
+      page.data = {
+        ...page.data,
+        mutation: {
+          ...(page.data?.mutation as object),
+          requestedPath: "app/api/orders/route.ts",
+          resolvedPath: "/workspace/frontend-review/app/api/orders/route.ts",
+        },
+      };
+      const { result, calls } = await runFrontendPasses(
+        [buildRequired ? [page, build] : [page]],
+        { request },
+      );
+      expect(calls).toBe(1);
+      expect(result.runFailureMessage).toBeUndefined();
+      expect(result.response).not.toContain("Browser analysis");
+    },
+  );
+
+  it("preserves the frontend review gate if continuation throws", async () => {
+    const { page, build, ready } = frontendReceipts();
+    const { result } = await runFrontendPasses([[page, build, ready]], {
+      throwAfter: true,
+    });
+    expect(result.runFailureMessage).toContain("no browser-analysis attempt");
+  });
+
+  it.each([
+    "Update the frontend heading; do not start a server.",
+    "Update the frontend heading; don't restart the server.",
+    "Update the frontend heading; don’t restart the server.",
+  ])(
+    "reports review unavailable without starting or restarting a server when visual work forbids it: %s",
+    async (request) => {
+      const { page, build } = frontendReceipts();
+      const { result, calls } = await runFrontendPasses([[page, build]], {
+        request,
+      });
+      expect(calls).toBe(1);
+      expect(result.runFailureMessage).toContain(
+        "unavailable and was not attempted",
+      );
+      expect(result.response).toContain(
+        "your instruction forbids starting or restarting a server",
+      );
+      expect(result.response).toContain("No rendered pixels were reviewed");
+      expect(result.response).not.toContain("Still missing:");
+    },
+  );
+
+  it("allows review of an already verified ready app while preserving the original no-server constraint", async () => {
+    const { page, build, ready, review } = frontendReceipts();
+    const { result, prompts, calls } = await runFrontendPasses(
+      [[page, build, ready], [review("rendered-pixels")]],
+      {
+        request: "Update the frontend heading; do not start a server.",
+      },
+    );
+    expect(calls).toBe(2);
+    expect(result.runFailureMessage).toBeUndefined();
+    expect(prompts[1]).toContain(
+      "Update the frontend heading; do not start a server.",
+    );
+    expect(prompts[1]).toContain("Do not start or restart one");
+    expect(prompts[1]).not.toContain("Rebuild/restart/re-review");
+  });
+
+  it.each(["Start", "Restart"])(
+    "does not suppress a later positive server request: %s",
+    async (verb) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const { result, prompts, calls } = await runFrontendPasses(
+        [
+          [page, build],
+          [ready, review("rendered-pixels")],
+        ],
+        {
+          request: `Create a website; don’t restart the server. ${verb} the application after the build.`,
+        },
+      );
+      expect(calls).toBe(2);
+      expect(result.runFailureMessage).toBeUndefined();
+      expect(prompts[1]).not.toContain(
+        "The user forbids starting or restarting a server.",
+      );
+    },
+  );
+
+  it.each([
+    'Reference text: "do not start a server".',
+    "Reference text: 'do not start a server'.",
+    "Reference text: 'don't restart the server'.",
+    "Reference text: ‘don’t restart the server’.",
+    "Reference text: `do not start a server`.",
+    "Reference text:\n```text\ndo not start a server\n```",
+    "Reference text:\n~~~text\ndo not start a server\n~~~",
+    "Reference text:\n> do not start a server",
+  ])(
+    "ignores quoted or code server constraints without changing the original request: %s",
+    async (reference) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const request = `Update the frontend heading. Start the application after the build.\n${reference}`;
+      const { result, prompts, calls } = await runFrontendPasses(
+        [
+          [page, build],
+          [ready, review("rendered-pixels")],
+        ],
+        { request },
+      );
+      expect(calls).toBe(2);
+      expect(result.runFailureMessage).toBeUndefined();
+      expect(prompts[0]).toBe(request);
+      expect(prompts[1]).toContain(request);
+      expect(prompts[1]).not.toContain(
+        "The user forbids starting or restarting a server.",
+      );
+    },
+  );
+
+  it("does not let quoted positive restart text override an actual no-restart instruction", async () => {
+    const { page, build } = frontendReceipts();
+    const request =
+      'Update the frontend heading; don’t restart the server. Example: "Restart the application".';
+    const { result, prompts, calls } = await runFrontendPasses(
+      [[page, build]],
+      { request },
+    );
+    expect(calls).toBe(1);
+    expect(prompts[0]).toBe(request);
+    expect(result.runFailureMessage).toContain(
+      "unavailable and was not attempted",
+    );
+  });
+
+  it.each([
+    '"Restart the server"',
+    "`Restart the server`",
+    "```text\nRestart the server\n```",
+  ])(
+    "preserves an actual no-restart instruction after reference text: %s",
+    async (reference) => {
+      const { page, build } = frontendReceipts();
+      const request = `Update the frontend heading. Example:\n${reference}\nDon’t restart the server.`;
+      const { result, prompts, calls } = await runFrontendPasses(
+        [[page, build]],
+        { request },
+      );
+      expect(calls).toBe(1);
+      expect(prompts[0]).toBe(request);
+      expect(result.runFailureMessage).toContain(
+        "unavailable and was not attempted",
+      );
+    },
+  );
+
   it.each([
     { failureKind: "no_provider" },
     {
@@ -202,7 +627,7 @@ describe("chat turn provider handler", () => {
     },
   );
 
-  it("completes from verified coding and app-server receipts when SDK final synthesis fails", async () => {
+  it("does not complete a changed frontend from delegation and app-server receipts alone when SDK final synthesis fails", async () => {
     const completion = {
       success: true,
       text: "The codex coding agent finished its turn in /workspace. Build passed.",
@@ -275,11 +700,8 @@ describe("chat turn provider handler", () => {
     );
 
     expect(result.handledMessage).toBe(true);
-    expect(result.runFailureMessage).toBeUndefined();
-    expect(result.response).toContain(completion.text);
-    expect(result.response).toContain("http://localhost:3001/");
-    expect(result.response).toContain("Managed application ready");
-    expect(result.response).toContain("receipt-backed report is preserved");
+    expect(result.runFailureMessage).toContain("production build");
+    expect(result.response).toBe(result.runFailureMessage);
     expect(result.response).not.toContain(
       "Something went wrong while preparing the response.",
     );
@@ -667,7 +1089,7 @@ describe("chat turn provider handler", () => {
     };
     const writeReceipt = {
       success: true,
-      text: "Wrote app/page.tsx",
+      text: "Wrote api/worker.ts",
       data: {
         actionName: "WRITE_FILE",
         mutationAction: "WRITE_FILE",
@@ -675,7 +1097,7 @@ describe("chat turn provider handler", () => {
         mutation: {
           action: "WRITE_FILE",
           success: true,
-          requestedPath: "app/page.tsx",
+          requestedPath: "api/worker.ts",
         },
       },
     };
@@ -704,12 +1126,12 @@ describe("chat turn provider handler", () => {
     const result = await executeTestTurn(
       context,
       "codex",
-      "Create a Next.js page in the requested workspace and verify it.",
+      "Create a backend worker in the requested workspace and verify it.",
     );
 
     expect(memoryIds).toEqual(["memory-failure", "memory-failure"]);
     expect(memoryTexts[0]).toBe(
-      "Create a Next.js page in the requested workspace and verify it.",
+      "Create a backend worker in the requested workspace and verify it.",
     );
     expect(memoryTexts[1]).toContain(
       "Continue the same requested workspace task",
@@ -732,7 +1154,7 @@ describe("chat turn provider handler", () => {
     };
     const writeReceipt = {
       success: true,
-      text: "Created app/page.tsx",
+      text: "Created src/api/worker.ts",
       data: {
         actionName: "WRITE_FILE",
         mutationAction: "WRITE_FILE",
@@ -740,8 +1162,8 @@ describe("chat turn provider handler", () => {
         mutation: {
           action: "WRITE_FILE",
           success: true,
-          requestedPath: "app/page.tsx",
-          resolvedPath: "/workspace/app/page.tsx",
+          requestedPath: "src/api/worker.ts",
+          resolvedPath: "/workspace/src/api/worker.ts",
         },
       },
     };
@@ -770,7 +1192,7 @@ describe("chat turn provider handler", () => {
     const result = await executeTestTurn(
       context,
       "codex",
-      "Create a Next.js blog app in the requested workspace and verify it.",
+      "Create the requested backend worker in the workspace and verify it.",
     );
 
     expect(calls).toHaveLength(2);
@@ -1125,7 +1547,21 @@ describe("chat turn provider handler", () => {
           },
         },
       };
-      const passResults = [[delegate], [install, build, appServer]];
+      const browserReview: ActionResult = {
+        success: true,
+        text: "Model critique used actual captured viewport pixels. The mobile heading overflows.",
+        data: {
+          actionName: "DOOLITTLE_BROWSER_ANALYZE",
+          reviewAttempted: true,
+          reviewedUrl: "http://localhost:3001/",
+          modelEvidence: "rendered-pixels",
+        },
+      };
+      const passResults = [
+        [delegate],
+        [install, build, appServer],
+        [browserReview],
+      ];
       let context: AgentExecutionContext;
       let callCount = 0;
       ({ context } = createContext({
@@ -1156,15 +1592,25 @@ describe("chat turn provider handler", () => {
           ),
       );
 
-      expect(callCount).toBe(2);
+      expect(callCount).toBe(3);
       expect(result.runFailureMessage).toBeUndefined();
       expect(result.actionResults).toEqual(
-        expect.arrayContaining([delegate, install, build, appServer]),
+        expect.arrayContaining([
+          delegate,
+          install,
+          build,
+          appServer,
+          browserReview,
+        ]),
       );
       expect(result.response).toContain(
         "Bun install and production build passed",
       );
       expect(result.response).toContain("http://localhost:3001/");
+      expect(result.response).toContain(
+        "Browser analysis used rendered viewport pixels",
+      );
+      expect(result.response).toContain("does not prove");
     },
   );
 
@@ -1543,7 +1989,7 @@ describe("chat turn provider handler", () => {
     };
     const pageReceipt = {
       success: true,
-      text: "Created app/page.tsx",
+      text: "Created src/api/worker.ts",
       data: {
         actionName: "WRITE_FILE",
         mutationAction: "WRITE_FILE",
@@ -1551,8 +1997,8 @@ describe("chat turn provider handler", () => {
         mutation: {
           action: "WRITE_FILE",
           success: true,
-          requestedPath: "app/page.tsx",
-          resolvedPath: "/workspace/app/page.tsx",
+          requestedPath: "src/api/worker.ts",
+          resolvedPath: "/workspace/src/api/worker.ts",
         },
       },
     };
@@ -1581,7 +2027,7 @@ describe("chat turn provider handler", () => {
     const result = await executeTestTurn(
       context,
       "codex",
-      "Create and verify the requested app in this workspace.",
+      "Create and verify the requested backend worker in this workspace.",
     );
 
     expect(calls).toHaveLength(2);
@@ -1644,7 +2090,7 @@ describe("chat turn provider handler", () => {
     const prompts: string[] = [];
     const writeReceipt = {
       success: true,
-      text: "Wrote app/page.tsx",
+      text: "Wrote src/api/worker.ts",
       data: {
         actionName: "WRITE_FILE",
         mutationAction: "WRITE_FILE",
@@ -1652,8 +2098,8 @@ describe("chat turn provider handler", () => {
         mutation: {
           action: "WRITE_FILE",
           success: true,
-          requestedPath: "app/page.tsx",
-          resolvedPath: "/workspace/app/page.tsx",
+          requestedPath: "src/api/worker.ts",
+          resolvedPath: "/workspace/src/api/worker.ts",
         },
       },
     };
@@ -1690,7 +2136,7 @@ describe("chat turn provider handler", () => {
     const result = await executeTestTurn(
       context,
       "codex",
-      "Create the requested app and run its production build.",
+      "Create the requested backend module in this workspace and run its production build.",
     );
 
     expect(prompts).toHaveLength(2);
