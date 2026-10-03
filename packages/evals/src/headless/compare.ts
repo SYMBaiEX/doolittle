@@ -81,6 +81,7 @@ type Run = {
 type Report = {
   schemaVersion: 1 | 2 | 3 | 4 | 5;
   harnessTiming?: HarnessTiming;
+  executionOverrides?: string[];
   evaluatorVersion: string;
   explicitEvaluatorVersion?: string | number;
   createdAt?: string;
@@ -446,7 +447,18 @@ function parseReport(value: unknown): Report {
 
   const schema = Number(schemaVersion) as 1 | 2 | 3 | 4 | 5;
   let harnessTiming: HarnessTiming | undefined;
+  let executionOverrides: string[] | undefined;
   if (schema === 5) {
+    if (
+      !Array.isArray(value.executionOverrides) ||
+      value.executionOverrides.length > 16 ||
+      value.executionOverrides.some(
+        (entry) => !string(entry) || entry.length > 512,
+      )
+    )
+      return invalid();
+    // Internal comparison only: never expose arbitrary override text in output.
+    executionOverrides = [...value.executionOverrides] as string[];
     harnessTiming = parseHarnessTiming(value.harnessTiming);
     const declaration = value.routeDeclaration;
     if (
@@ -673,6 +685,7 @@ function parseReport(value: unknown): Report {
   return {
     schemaVersion: schema,
     ...(harnessTiming ? { harnessTiming } : {}),
+    ...(executionOverrides ? { executionOverrides } : {}),
     evaluatorVersion: evaluatorVersion(value.evaluatorVersion),
     ...(value.evaluatorVersion !== undefined
       ? { explicitEvaluatorVersion: value.evaluatorVersion as string | number }
@@ -770,6 +783,9 @@ export function aggregateHeadlessEvalReports(
   for (const report of reports) {
     if (
       report.schemaVersion !== baseline.schemaVersion ||
+      (report.schemaVersion === 5 &&
+        JSON.stringify(report.executionOverrides) !==
+          JSON.stringify(baseline.executionOverrides)) ||
       !report.createdAt ||
       reportTimes.has(report.createdAt) ||
       report.evaluatorVersion !== baseline.evaluatorVersion ||
@@ -1078,6 +1094,9 @@ export function compareHeadlessEvalReports(
   assertRouteComparisonEligible(candidate);
   if (
     baseline.schemaVersion !== candidate.schemaVersion ||
+    (baseline.schemaVersion === 5 &&
+      JSON.stringify(baseline.executionOverrides) !==
+        JSON.stringify(candidate.executionOverrides)) ||
     baseline.evaluatorVersion !== candidate.evaluatorVersion ||
     baseline.explicitEvaluatorVersion !== candidate.explicitEvaluatorVersion ||
     baseline.suite.id !== candidate.suite.id ||

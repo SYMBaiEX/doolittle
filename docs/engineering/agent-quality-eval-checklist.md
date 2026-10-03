@@ -56,6 +56,14 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   execution or a parent's route to its worker. Legacy v4 stays readable, not
   pooled with v5; mixed/conflicting requests prohibit comparison, not human
   review.
+- `--record-action-diagnostics` adds a private report-SHA-bound sidecar of
+  fixed action-category event counts and explicit missing/rejected/truncated
+  coverage. It retains no labels or content, counts duplicate events, and does
+  not identify distinct worker commands or failure causes. Opt-in projection
+  contributes to grading time; v5 pooling and comparison require equal ordered
+  execution overrides, so on/off samples are incompatible. Default mode adds
+  no diagnostic journal read or sidecar. Synchronous filesystem latency is not
+  bounded by the data caps, and optional receipt failures do not change grading.
 - Managed coding receipts additionally preserve the installed SDK's
   `usage_update` events for that exact worker session. Missing events remain
   unavailable. Stable event IDs deduplicate delivery, contradictory IDs are
@@ -92,7 +100,8 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   rates and descriptive median, nearest-rank p90, range, and mean for timing and
   available telemetry, including top-level model responses and errors; it does
   not estimate uncertainty or score human reviews. V5 additionally matches
-  available requested-route signatures; this does not attest effective routes.
+  available requested-route signatures and ordered execution overrides; this
+  does not attest effective routes.
 
 ## Before each run
 
@@ -256,6 +265,33 @@ and show spread, not just one run or arithmetic mean.
   gate: require a predeclared meaningful paired quality gain, no critical
   failures, no material domain regression, and an acceptable latency/cost
   trade-off before calling a candidate “coherently better.”
+
+### Latency target and competitor context
+
+As of October 3, 2026, a bounded primary-source review did not identify a
+public, matched p99 for verified small-coding-task completion. Anthropic's
+[Claude Code study](https://www.anthropic.com/news/measuring-agent-autonomy)
+reports mixed interactive-turn duration, including clarification and
+interruption; its approximately 45-second median and much longer tail are
+not a small-task SLA. [CursorBench](https://cursor.com/cursorbench) reports
+quality, cost, tokens, and steps, while
+[Codex speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed)
+distinguishes token-generation speed from overall task time. These sources
+do not establish an absolute task-latency standard for Doolittle.
+
+Use a provisional **20% reduction in matched end-to-end coding-task latency**
+as an internal improvement objective, not a competitor-backed promise.
+Predeclare the repeated pairing, timing boundary, quality non-inferiority
+margin, and critical-failure policy before running the comparison. Keep
+failed and timed-out attempts and their denominators visible; do not make
+fast failures look like faster successful work. Quality improvement still
+requires the separate objective and human-review evidence above.
+
+Two repeats are descriptive diagnostics, not p99 evidence. The current
+aggregator reports nearest-rank p90, which can equal the maximum with small
+samples; it does not compute p95/p99, paired repeated-run uncertainty, or an
+SLA. Report sample count and spread, and keep p99 unavailable until a
+predeclared, sufficiently supported matched-workload tail analysis exists.
 
 ## After each run
 
