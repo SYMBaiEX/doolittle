@@ -10,6 +10,10 @@ import {
   recordScopedTurnActionResult,
 } from "@/runtime/turn-runtime-scope";
 import type { AppServices } from "@/services";
+import {
+  assessInteractiveText,
+  interactiveTextSummary,
+} from "@/services/web/interactive-text-check";
 import type { BrowserCaptureBundle } from "@/services/web/service";
 
 export const DOOLITTLE_BROWSER_ANALYZE_ACTION = "DOOLITTLE_BROWSER_ANALYZE";
@@ -113,7 +117,7 @@ export function createBrowserAnalysisAction(
         recordScopedTurnActionResult(runtime, result);
         return result;
       };
-      const fail = (text: string) =>
+      const fail = (text: string, captured?: Record<string, unknown>) =>
         finish({
           success: false,
           text,
@@ -122,6 +126,7 @@ export function createBrowserAnalysisAction(
             actionName: DOOLITTLE_BROWSER_ANALYZE_ACTION,
             reviewAttempted,
             ...(reviewedUrl ? { reviewedUrl } : {}),
+            ...captured,
           },
         });
       try {
@@ -153,8 +158,6 @@ export function createBrowserAnalysisAction(
         reviewedUrl = url.href;
         const analysis = await analyzeBrowserPage(runtime, url.href, signal);
         signal?.throwIfAborted();
-        if (!analysis.response?.trim())
-          return fail("The selected model returned no page critique.");
         const evidence = [
           captureEvidence(analysis.capture),
           ...(analysis.narrowCapture
@@ -162,6 +165,18 @@ export function createBrowserAnalysisAction(
             : []),
         ];
         const modelEvidence = analysis.modelEvidence ?? "text-only";
+        const interactiveTextCheck = assessInteractiveText([
+          analysis.capture,
+          ...(analysis.narrowCapture ? [analysis.narrowCapture] : []),
+        ]);
+        if (!analysis.response?.trim())
+          return fail(
+            [
+              interactiveTextSummary(interactiveTextCheck),
+              "The selected model returned no page critique. Available captured evidence is preserved; no successful model review is claimed.",
+            ].join("\n"),
+            { evidence, modelEvidence, interactiveTextCheck },
+          );
         const { text: critique, truncated } = escapeUntrustedCritique(
           analysis.response,
         );
@@ -169,6 +184,7 @@ export function createBrowserAnalysisAction(
           success: true,
           continueChain: true,
           text: [
+            interactiveTextSummary(interactiveTextCheck),
             modelEvidence === "rendered-pixels"
               ? "Model critique used actual captured viewport pixels."
               : "Text-only model critique: rendered layout was not verified.",
@@ -187,6 +203,7 @@ export function createBrowserAnalysisAction(
             modelEvidence,
             evidence,
             critiqueTruncated: truncated,
+            interactiveTextCheck,
             suppressVisibleCallback: true,
           },
         });

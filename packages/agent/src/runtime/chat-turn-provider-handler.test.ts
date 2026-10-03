@@ -1,22 +1,31 @@
+import { DOOLITTLE_BROWSER_SERVICE } from "@doolittle/contracts";
 import {
   type Action,
   type ActionResult,
   ChannelType,
+  type IAgentRuntime,
   type Memory,
   runShortcutGate,
   ShortcutRegistry,
   type UUID,
 } from "@elizaos/core";
 import { describe, expect, it, vi } from "vitest";
+import { createBrowserAnalysisAction } from "@/actions/browser-analysis-action";
 import type { AgentExecutionContext } from "@/runtime/chat";
 import {
   recordScopedTurnActionResult,
   runWithTurnRuntimeScope,
 } from "@/runtime/turn-runtime-scope";
+import type { AppServices } from "@/services";
+import type { BrowserAnalysisBundle } from "@/services/web/service";
 import type { TrajectoryEventInput } from "@/types/trajectory";
 import { executeProviderMessageTurn } from "./chat-turn/provider-handler";
 import { createProviderStreamState } from "./chat-turn/provider-streaming";
 import { DOOLITTLE_COMMAND_ACTION } from "./command-shortcut-match";
+
+vi.mock("@elizaos/agent/security/access", () => ({
+  hasOwnerAccess: vi.fn(async () => true),
+}));
 
 function createContext(overrides?: {
   onHandleMessage?: (handlers: {
@@ -279,6 +288,58 @@ describe("chat turn provider handler", () => {
     };
   }
 
+  function interactiveReview(
+    status: "blocked" | "no-blocker-detected" | "unknown",
+    subjectSha256 = "c".repeat(64),
+  ) {
+    const result = frontendReceipts().review("rendered-pixels");
+    const evidence = [
+      [1280, 720],
+      [390, 844],
+    ].map(([width, height], index) => ({
+      captureMode: "rendered-page",
+      captureReady: true,
+      blockedRequests: 0,
+      viewport: { width, height },
+      pixels: { sha256: (index ? "b" : "a").repeat(64) },
+    }));
+    result.text =
+      "<untrusted-page-critique>private-observation-canary</untrusted-page-critique>";
+    result.data = {
+      ...result.data,
+      evidence,
+      interactiveTextCheck: {
+        version: 1,
+        status,
+        blockers:
+          status === "blocked"
+            ? [
+                {
+                  code: "equal-solid-interactive-text-colors",
+                  viewport: evidence[0].viewport,
+                  candidateIndex: 0,
+                  pngSha256: evidence[0].pixels.sha256,
+                  subjectSha256,
+                },
+              ]
+            : [],
+        clearances:
+          status === "no-blocker-detected"
+            ? [
+                {
+                  viewport: evidence[0].viewport,
+                  candidateIndex: 0,
+                  pngSha256: evidence[0].pixels.sha256,
+                  subjectSha256,
+                },
+              ]
+            : [],
+        blockersTruncated: false,
+      },
+    };
+    return result;
+  }
+
   async function runFrontendPasses(
     passes: ActionResult[][],
     options: {
@@ -321,6 +382,363 @@ describe("chat turn provider handler", () => {
       .map((event) => event.metadata?.continuationDiagnostics);
     return { result, prompts, calls, diagnostics };
   }
+
+  it.each([
+    "no actions",
+    "analysis alone",
+    "unknown",
+    "text-only",
+    "failed",
+    "missing narrow",
+    "blocked resources",
+    "mismatched clearance PNG",
+    "mismatched clearance viewport",
+    "no build",
+    "wrong workspace",
+  ])("retains captured readability blocker after %s", async (scenario) => {
+    const { page, build, ready, review } = frontendReceipts();
+    const blocked = interactiveReview("blocked");
+    const cleared = interactiveReview("no-blocker-detected");
+    const correction = structuredClone(page);
+    correction.text = "Corrected CTA foreground.";
+    correction.data = {
+      ...correction.data,
+      mutation: { ...(correction.data?.mutation as object), bytes: 101 },
+    };
+    let next: ActionResult[] = [
+      correction,
+      structuredClone(build),
+      structuredClone(ready),
+      cleared,
+    ];
+    if (scenario === "no actions") next = [];
+    if (scenario === "analysis alone") next = [cleared];
+    if (scenario === "unknown")
+      next[next.length - 1] = interactiveReview("unknown");
+    if (scenario === "text-only") next[next.length - 1] = review("text-only");
+    if (scenario === "failed")
+      next[next.length - 1] = review("rendered-pixels", false);
+    if (scenario === "missing narrow")
+      ((cleared.data?.evidence ?? []) as unknown[]).pop();
+    if (scenario === "blocked resources")
+      (
+        (cleared.data?.evidence ?? []) as Array<{ blockedRequests: number }>
+      )[0].blockedRequests = 1;
+    const clearanceCheck = cleared.data?.interactiveTextCheck as
+      | {
+          clearances: Array<{
+            pngSha256: string;
+            viewport: { width: number; height: number };
+          }>;
+        }
+      | undefined;
+    const clearance = clearanceCheck?.clearances[0];
+    if (!clearance) throw new Error("Missing synthetic clearance.");
+    if (scenario === "mismatched clearance PNG")
+      clearance.pngSha256 = "e".repeat(64);
+    if (scenario === "mismatched clearance viewport")
+      clearance.viewport = { width: 390, height: 844 };
+    if (scenario === "no build")
+      next = [correction, structuredClone(ready), cleared];
+    if (scenario === "wrong workspace")
+      correction.data = {
+        ...correction.data,
+        mutation: {
+          ...(correction.data?.mutation as object),
+          resolvedPath: "/unrelated/app/page.tsx",
+        },
+      };
+    const { result, calls, diagnostics, prompts } = await runFrontendPasses([
+      [page, build, ready, blocked],
+      next,
+      [],
+      [],
+    ]);
+    expect(calls).toBeGreaterThan(1);
+    expect(calls).toBeLessThanOrEqual(12);
+    expect(result.runFailureMessage).toContain("readability blocker");
+    expect(result.response).toContain("preserved");
+    expect(result.response).not.toContain("private-observation-canary");
+    expect(diagnostics[0]).toMatchObject({ frontendReviewComplete: false });
+    expect(prompts[1]).toContain(
+      "equal-solid-interactive-text readability blocker",
+    );
+  });
+
+  it("clears a known blocker only after scoped real correction/build/ready/qualified review", async () => {
+    const { page, build, ready } = frontendReceipts();
+    const correction = structuredClone(page);
+    correction.text = "Corrected the CTA color.";
+    correction.data = {
+      ...correction.data,
+      mutation: { ...(correction.data?.mutation as object), bytes: 101 },
+    };
+    const { result, calls } = await runFrontendPasses([
+      [page, build, ready, interactiveReview("blocked")],
+      [
+        correction,
+        structuredClone(build),
+        structuredClone(ready),
+        interactiveReview("no-blocker-detected"),
+      ],
+    ]);
+    expect(calls).toBe(2);
+    expect(result.runFailureMessage).toBeUndefined();
+  });
+
+  it("resolves a matching repaired subject despite unrelated unknown controls and changed index", async () => {
+    const { page, build, ready } = frontendReceipts();
+    const correction = structuredClone(page);
+    correction.data = {
+      ...correction.data,
+      mutation: { ...(correction.data?.mutation as object), bytes: 101 },
+    };
+    const resolved = interactiveReview("no-blocker-detected");
+    Object.assign(resolved.data?.interactiveTextCheck as object, {
+      status: "unknown",
+      clearances: [
+        {
+          viewport: { width: 1280, height: 720 },
+          candidateIndex: 4,
+          pngSha256: "a".repeat(64),
+          subjectSha256: "c".repeat(64),
+        },
+      ],
+    });
+    const { result, calls } = await runFrontendPasses([
+      [page, build, ready, interactiveReview("blocked")],
+      [correction, structuredClone(build), structuredClone(ready), resolved],
+    ]);
+    expect(calls).toBe(2);
+    expect(result.runFailureMessage).toBeUndefined();
+  });
+  it.each([false, true])(
+    "retains older pending controls until each subject is repaired (repair earlier=%s)",
+    async (repairEarlier) => {
+      const { page, build, ready } = frontendReceipts();
+      const corrected = (bytes: number) => ({
+        ...structuredClone(page),
+        data: {
+          ...page.data,
+          mutation: { ...(page.data?.mutation as object), bytes },
+        },
+      });
+      const passes = [
+        [page, build, ready, interactiveReview("blocked")],
+        [
+          corrected(101),
+          structuredClone(build),
+          structuredClone(ready),
+          interactiveReview("blocked", "d".repeat(64)),
+        ],
+        [
+          corrected(102),
+          structuredClone(build),
+          structuredClone(ready),
+          interactiveReview("no-blocker-detected", "d".repeat(64)),
+        ],
+      ];
+      if (repairEarlier)
+        passes.push([
+          corrected(103),
+          structuredClone(build),
+          structuredClone(ready),
+          interactiveReview("no-blocker-detected"),
+        ]);
+      const { result } = await runFrontendPasses(passes);
+      if (repairEarlier) expect(result.runFailureMessage).toBeUndefined();
+      else expect(result.runFailureMessage).toContain("readability blocker");
+    },
+  );
+  it("does not clear a subject merely because a different control now occupies its index", async () => {
+    const { page, build, ready } = frontendReceipts();
+    const correction = {
+      ...structuredClone(page),
+      data: {
+        ...page.data,
+        mutation: { ...(page.data?.mutation as object), bytes: 101 },
+      },
+    };
+    const { result } = await runFrontendPasses([
+      [page, build, ready, interactiveReview("blocked")],
+      [
+        correction,
+        structuredClone(build),
+        structuredClone(ready),
+        interactiveReview("no-blocker-detected", "d".repeat(64)),
+      ],
+    ]);
+    expect(result.runFailureMessage).toContain("readability blocker");
+  });
+  it("preserves an actual action's captured blocker when the model critique is empty", async () => {
+    const { page, build, ready } = frontendReceipts();
+    const capture = (width: number, height: number, hash: string) => ({
+      captureMode: "rendered-page",
+      status: { captureReady: true },
+      renderedEvidence: {
+        viewport: { width, height },
+        pixels: { sha256: hash.repeat(64) },
+        blockedRequests: 0,
+        facts: {
+          interactiveTextScan: { version: 1, complete: true, unknown: false },
+          interactiveTextCandidates: [
+            {
+              text: "private-control-canary",
+              foreground: "rgb(24,45,57)",
+              background: "rgb(24,45,57)",
+              interactiveText: {
+                controlKind: "link",
+                eligibility: "eligible",
+                subject: ["id", "link", "private-control-canary"],
+                unambiguous: true,
+              },
+            },
+          ],
+        },
+      },
+    });
+    const analyze = vi.fn(
+      async () =>
+        ({
+          response: "",
+          modelEvidence: "rendered-pixels",
+          capture: capture(1280, 720, "a"),
+          narrowCapture: capture(390, 844, "b"),
+        }) as unknown as BrowserAnalysisBundle,
+    );
+    const runtime = {
+      agentId: "agent-test",
+      getSetting: () => undefined,
+      getService: (name: string) =>
+        name === DOOLITTLE_BROWSER_SERVICE ? { analyze } : null,
+    } as unknown as IAgentRuntime;
+    const action = createBrowserAnalysisAction({
+      terminal: { renderOrigins: async () => ["http://localhost:3001"] },
+    } as unknown as Pick<AppServices, "terminal">);
+    const receipt = await action.handler(
+      runtime,
+      {
+        entityId: "owner-test",
+        roomId: "room-test",
+        content: { text: "Review", source: "desktop" },
+      } as unknown as Memory,
+      undefined,
+      { parameters: { url: "http://localhost:3001/" } },
+    );
+    expect(receipt?.success).toBe(false);
+    expect(receipt?.data?.interactiveTextCheck).toMatchObject({
+      status: "blocked",
+    });
+    expect(analyze).toHaveBeenCalledOnce();
+    if (!receipt || typeof receipt === "boolean")
+      throw new Error("Missing synthetic action receipt.");
+    const { result } = await runFrontendPasses([[page, build, ready, receipt]]);
+    expect(result.runFailureMessage).toContain("readability blocker");
+    expect(result.response).not.toContain("private-control-canary");
+  });
+
+  it("preserves a captured blocker when the provider falls back after completed delegation", async () => {
+    const { build, ready } = frontendReceipts();
+    const { result } = await runFrontendPasses(
+      [
+        [
+          completedDelegationReceipt(),
+          build,
+          ready,
+          interactiveReview("blocked"),
+        ],
+        [],
+        [],
+      ],
+      { sdkFailureAtCall: 1 },
+    );
+    expect(result.runFailureMessage).toContain("readability blocker");
+  });
+
+  it("does not resurrect a resolved blocker when a later edit merely needs fresh review", async () => {
+    const { page, build, ready } = frontendReceipts();
+    const correction = structuredClone(page);
+    correction.text = "Corrected CTA color.";
+    correction.data = {
+      ...correction.data,
+      mutation: { ...(correction.data?.mutation as object), bytes: 101 },
+    };
+    const later = structuredClone(correction);
+    later.text = "Updated layout after resolution.";
+    later.data = {
+      ...later.data,
+      mutation: { ...(later.data?.mutation as object), bytes: 102 },
+    };
+    const { result } = await runFrontendPasses([
+      [page, build, ready, interactiveReview("blocked")],
+      [
+        correction,
+        structuredClone(build),
+        structuredClone(ready),
+        interactiveReview("no-blocker-detected"),
+        later,
+        structuredClone(build),
+        structuredClone(ready),
+      ],
+      [],
+      [],
+    ]);
+    expect(result.runFailureMessage).toContain("no browser-analysis attempt");
+    expect(result.runFailureMessage).not.toContain("readability blocker");
+  });
+
+  it("reopens the blocker when a later qualified capture finds equal colors again", async () => {
+    const { page, build, ready } = frontendReceipts();
+    const correction = structuredClone(page);
+    correction.text = "Corrected CTA color.";
+    correction.data = {
+      ...correction.data,
+      mutation: { ...(correction.data?.mutation as object), bytes: 101 },
+    };
+    const later = structuredClone(correction);
+    later.text = "Changed CTA again.";
+    later.data = {
+      ...later.data,
+      mutation: { ...(later.data?.mutation as object), bytes: 102 },
+    };
+    const { result } = await runFrontendPasses([
+      [page, build, ready, interactiveReview("blocked")],
+      [
+        correction,
+        structuredClone(build),
+        structuredClone(ready),
+        interactiveReview("no-blocker-detected"),
+        later,
+        structuredClone(build),
+        structuredClone(ready),
+        interactiveReview("blocked"),
+      ],
+      [],
+      [],
+    ]);
+    expect(result.runFailureMessage).toContain("readability blocker");
+  });
+
+  it("preserves the captured blocker and honest failure if SDK continuation throws", async () => {
+    const { page, build, ready } = frontendReceipts();
+    const { result } = await runFrontendPasses(
+      [[page, build, ready, interactiveReview("blocked")]],
+      { throwAfter: true },
+    );
+    expect(result.runFailureMessage).toContain("readability blocker");
+    expect(result.response).not.toContain("no browser-analysis attempt");
+  });
+
+  it("does not request forbidden server starts while a captured blocker remains", async () => {
+    const { page, build, ready } = frontendReceipts();
+    const { result } = await runFrontendPasses(
+      [[page, build, ready, interactiveReview("blocked")], [], []],
+      { request: "Update the frontend heading; do not start a server." },
+    );
+    expect(result.runFailureMessage).toContain(
+      "forbids starting or restarting",
+    );
+  });
 
   it("distinguishes a fresh admission from a carried obligation without leaking content", async () => {
     const { page, build, ready, review } = frontendReceipts();

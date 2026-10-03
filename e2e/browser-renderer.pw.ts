@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -350,6 +351,47 @@ for (const mode of [
         expect(capture.sentinelBGRA[2]).toBeGreaterThan(240);
         expect(capture.sentinelBGRA[1]).toBeLessThan(140);
         expect(capture.sentinelBGRA[3]).toBe(255);
+        if (captureTransport === "playwright") {
+          const observed = capture as Awaited<
+            ReturnType<
+              Awaited<typeof globalThis.browserRendererFixture>["capture"]
+            >
+          >;
+          const interactiveText = observed.interactiveText;
+          if (!interactiveText)
+            throw new Error(
+              "Playwright fixture omitted interactive text observation.",
+            );
+          // The same native subject is equal in complete and repaired in the other
+          // existing cases. Unrelated emoji/generated text remains unknown. These
+          // are actual first-PNG/facts assertions, not a two-viewport quality pass.
+          expect(interactiveText.complete).toBe(true);
+          expect(interactiveText.unknown).toBe(true);
+          expect(interactiveText.candidates).toHaveLength(3);
+          expect(interactiveText.candidates[0]).toEqual({
+            eligibility: "eligible",
+            equal: mode === "complete",
+            subjectSha256: createHash("sha256")
+              .update(JSON.stringify(["id", "link", "fixture-cta"]))
+              .digest("hex"),
+          });
+          expect(
+            interactiveText.candidates
+              .slice(1)
+              .every(
+                (candidate) =>
+                  candidate.eligibility === "unknown" &&
+                  candidate.equal === null,
+              ),
+          ).toBe(true);
+          if (mode === "complete")
+            expect(interactiveText.ctaLightPixels).toBe(0);
+          else expect(interactiveText.ctaLightPixels).toBeGreaterThan(0);
+          await testInfo.attach(`${mode}-interactive-text-contract`, {
+            body: Buffer.from(JSON.stringify(interactiveText)),
+            contentType: "application/json",
+          });
+        }
       } finally {
         try {
           if (app) {

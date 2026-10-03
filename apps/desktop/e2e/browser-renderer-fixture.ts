@@ -8,6 +8,11 @@ import {
   session,
 } from "electron";
 import {
+  interactiveTextSubject,
+  opaqueRgb,
+} from "../../../packages/agent/src/services/web/interactive-text-check";
+import type { RenderedPageFacts } from "../../../packages/agent/src/services/web/rendered-capture";
+import {
   RENDERED_FACTS_SCRIPT,
   WAIT_FOR_RENDER_SCRIPT,
 } from "../src/main/browser-render-facts";
@@ -49,11 +54,25 @@ export interface RasterCapture {
   diagnostic: WindowDiagnostic | null;
 }
 
+/** Local Playwright observation; never part of the closed native IPC shape. */
+interface FixtureCapture extends RasterCapture {
+  interactiveText: {
+    complete: boolean;
+    unknown: boolean;
+    ctaLightPixels: number;
+    candidates: {
+      eligibility: "eligible" | "excluded" | "unknown";
+      equal: boolean | null;
+      subjectSha256: string | null;
+    }[];
+  };
+}
+
 interface Fixture {
   capture(
     mode: RasterCase,
     options?: { expireAfterPng?: boolean },
-  ): Promise<RasterCapture>;
+  ): Promise<FixtureCapture>;
   captureFailure(error: unknown): CaptureFailure | undefined;
   dispose(): Promise<void>;
 }
@@ -439,13 +458,17 @@ globalThis.browserRendererFixture = (async () => {
       return;
     }
     response.writeHead(200, {
-      "Content-Type": "text/html",
+      "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
     });
     const image = `<img alt="Owned synthetic raster" src="/raster.png" decoding="${mode === "complete" ? "sync" : "async"}" ${mode === "lazy" ? 'loading="lazy"' : ""}>`;
     response.end(`<!doctype html><title>Owned raster fixture</title>
-      <style>body{margin:0;background:#aabb99}img{width:640px;height:640px;object-fit:cover}</style>
+      <style>body{margin:0;background:#aabb99}img{width:640px;height:640px;object-fit:cover}
+      .controls{position:absolute;left:700px;top:40px}.controls a,.controls button{display:block;margin:0 0 20px;border:0;background:#182d39;color:#ffffff;font:16px Arial;text-decoration:none}
+      #fixture-cta{width:220px;height:44px;line-height:44px;text-align:center;color:${mode === "complete" ? "#182d39" : "#ffffff"}}
+      #fixture-generated::before{content:"Generated label"}</style>
       <main>${mode === "late" ? "" : image}</main>
+      <aside class="controls"><a id="fixture-cta" href="#fixture-stories">Read the latest</a><button>Read 🟢</button><button id="fixture-generated"></button></aside>
       ${mode === "late" ? `<script>addEventListener('load',()=>setTimeout(()=>{const image=new Image();image.alt='Owned synthetic raster';image.decoding='async';image.src='/raster.png';document.querySelector('main').append(image)},75))</script>` : ""}`);
   });
   let bridge: BrowserRenderBridge | undefined;
@@ -627,7 +650,7 @@ globalThis.browserRendererFixture = (async () => {
             captureMode: string;
             blockedRequests: number;
             viewport: RasterCapture["viewport"];
-            facts: {
+            facts: RenderedPageFacts & {
               images: RasterCapture["images"];
               viewport: RasterCapture["factsViewport"];
             };
@@ -661,6 +684,56 @@ globalThis.browserRendererFixture = (async () => {
               Math.floor((width * 300) / capture.viewport.width)) *
             4;
           const windows = BrowserWindow.getAllWindows();
+          // Inspect only returned first-PNG pixels, never recapture or execute JS.
+          let ctaLightPixels = 0;
+          for (
+            let y = Math.ceil((height * 40) / 720);
+            y < Math.floor((height * 84) / 720);
+            y++
+          ) {
+            for (
+              let x = Math.ceil((width * 700) / 1280);
+              x < Math.floor((width * 920) / 1280);
+              x++
+            ) {
+              const pixel = (y * width + x) * 4;
+              if (
+                pixels[pixel] > 230 &&
+                pixels[pixel + 1] > 230 &&
+                pixels[pixel + 2] > 230 &&
+                pixels[pixel + 3] === 255
+              )
+                ctaLightPixels++;
+            }
+          }
+          const scan = capture.facts.interactiveTextScan;
+          const interactiveText = {
+            complete: scan?.complete === true,
+            unknown: scan?.unknown !== false,
+            ctaLightPixels,
+            candidates: (capture.facts.interactiveTextCandidates ?? []).map(
+              (candidate) => {
+                const foreground = opaqueRgb(candidate.foreground);
+                const background = candidate.background
+                  ? opaqueRgb(candidate.background)
+                  : undefined;
+                const qualifier = candidate.interactiveText;
+                return {
+                  eligibility: qualifier?.eligibility ?? "unknown",
+                  equal:
+                    qualifier?.eligibility === "eligible" &&
+                    foreground &&
+                    background
+                      ? foreground === background
+                      : null,
+                  subjectSha256: interactiveTextSubject(
+                    qualifier,
+                    scan?.complete === true,
+                  ),
+                };
+              },
+            ),
+          };
           if (windowDiagnostic) windowDiagnostic.phase = "complete";
           return {
             png: capture.data,
@@ -683,6 +756,7 @@ globalThis.browserRendererFixture = (async () => {
             blockedRequests: capture.blockedRequests,
             captureMode: capture.captureMode,
             images: capture.facts.images,
+            interactiveText,
             diagnostic: windowDiagnostic ?? null,
           };
         } finally {
@@ -718,11 +792,19 @@ if (nativeShutdown) {
           }
           captured = true;
           try {
+            const localCapture = await fixture.capture(
+              request.kind as RasterCase,
+              {
+                expireAfterPng: request.expireAfterPng,
+              },
+            );
+            // Drop fixture-local observations before the unchanged exact-key
+            // native protocol receives its original capture shape.
+            const { interactiveText: _interactiveText, ...capture } =
+              localCapture;
             send({
               type: "captured",
-              capture: await fixture.capture(request.kind as RasterCase, {
-                expireAfterPng: request.expireAfterPng,
-              }),
+              capture,
             });
           } catch (error) {
             const failure = fixture.captureFailure(error);

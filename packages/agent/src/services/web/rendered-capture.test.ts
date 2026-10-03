@@ -61,6 +61,71 @@ async function fixture(width = 1280, height = 720) {
 }
 
 describe("rendered capture validation", () => {
+  it("keeps legacy and malformed qualifiers unknown without losing real pixels", async () => {
+    const payload = await fixture();
+    const result = validateRenderedCapture(payload, "http://localhost:3000/", {
+      width: 1280,
+      height: 720,
+    });
+    expect(result.evidence.facts.contrastCandidates[0].interactiveText).toEqual(
+      {
+        controlKind: null,
+        eligibility: "unknown",
+        subject: null,
+        unambiguous: false,
+      },
+    );
+    expect(result.evidence.facts.interactiveTextScan).toBeUndefined();
+    Object.assign(payload.facts, {
+      interactiveTextScan: { version: 2, complete: true, unknown: false },
+    });
+    Object.assign(payload.facts.contrastCandidates[0], {
+      interactiveText: { controlKind: "div", eligibility: "eligible" },
+    });
+    const malformed = validateRenderedCapture(
+      payload,
+      "http://localhost:3000/",
+      { width: 1280, height: 720 },
+    );
+    expect(
+      malformed.evidence.facts.contrastCandidates[0].interactiveText
+        ?.eligibility,
+    ).toBe("unknown");
+    expect(malformed.evidence.facts.interactiveTextScan).toBeUndefined();
+  });
+
+  it("preserves versioned qualifiers as bounded typed facts", async () => {
+    const payload = await fixture();
+    Object.assign(payload.facts, {
+      interactiveTextScan: { version: 1, complete: false, unknown: true },
+    });
+    Object.assign(payload.facts.contrastCandidates[0], {
+      interactiveText: {
+        controlKind: "button",
+        eligibility: "eligible",
+        privateCanary: "secret",
+      },
+    });
+    const result = validateRenderedCapture(payload, "http://localhost:3000/", {
+      width: 1280,
+      height: 720,
+    });
+    expect(result.evidence.facts.contrastCandidates[0].interactiveText).toEqual(
+      {
+        controlKind: "button",
+        eligibility: "eligible",
+        subject: null,
+        unambiguous: false,
+      },
+    );
+    expect(result.evidence.facts.interactiveTextScan).toEqual({
+      version: 1,
+      complete: false,
+      unknown: true,
+    });
+    expect(JSON.stringify(result.evidence)).not.toContain("privateCanary");
+  });
+
   it("accepts actual PNG bytes, matching viewport and bounded typed DOM facts", async () => {
     const payload = await fixture();
     const result = validateRenderedCapture(payload, "http://localhost:3000/", {
@@ -74,6 +139,44 @@ describe("rendered capture validation", () => {
       label: "Read story",
       targetText: "Newsletter",
     });
+  });
+  it("validates bounded subject tuples without trusting malformed identities", async () => {
+    const payload = await fixture();
+    Object.assign(payload.facts, {
+      interactiveTextCandidates: [
+        {
+          ...payload.facts.contrastCandidates[0],
+          interactiveText: {
+            controlKind: "link",
+            eligibility: "eligible",
+            subject: ["id", "link", "owned-control"],
+            unambiguous: true,
+          },
+        },
+        {
+          ...payload.facts.contrastCandidates[0],
+          interactiveText: {
+            controlKind: "button",
+            eligibility: "eligible",
+            subject: ["id", "link", "wrong-kind"],
+            unambiguous: true,
+          },
+        },
+      ],
+    });
+    const result = validateRenderedCapture(payload, "http://localhost:3000/", {
+      width: 1280,
+      height: 720,
+    });
+    expect(
+      result.evidence.facts.interactiveTextCandidates?.[0].interactiveText,
+    ).toMatchObject({
+      subject: ["id", "link", "owned-control"],
+      unambiguous: true,
+    });
+    expect(
+      result.evidence.facts.interactiveTextCandidates?.[1].interactiveText,
+    ).toMatchObject({ subject: null, unambiguous: false });
   });
 
   it.each([

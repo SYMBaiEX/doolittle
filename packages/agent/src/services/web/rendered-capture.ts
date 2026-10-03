@@ -42,7 +42,15 @@ export interface RenderedPageFacts {
     background: string | null;
     fontSize: string;
     fontWeight: string;
+    interactiveText?: {
+      controlKind: "link" | "button" | null;
+      eligibility: "eligible" | "excluded" | "unknown";
+      subject?: string[] | null;
+      unambiguous?: boolean;
+    };
   }>;
+  interactiveTextCandidates?: RenderedPageFacts["contrastCandidates"];
+  interactiveTextScan?: { version: 1; complete: boolean; unknown: boolean };
   limitations: string[];
 }
 
@@ -167,6 +175,56 @@ export function validateRenderedCapture(
   const counts = record(raw.counts);
   if (typeof raw.horizontalOverflow !== "boolean")
     throw new Error("Invalid rendered overflow fact.");
+  const parseContrast = (
+    item: unknown,
+  ): RenderedPageFacts["contrastCandidates"][number] => {
+    const contrast = record(item);
+    const qualifier = contrast.interactiveText;
+    const q =
+      qualifier && typeof qualifier === "object" && !Array.isArray(qualifier)
+        ? (qualifier as Record<string, unknown>)
+        : undefined;
+    const kind =
+      q?.controlKind === "link" || q?.controlKind === "button"
+        ? q.controlKind
+        : null;
+    const eligibility =
+      q &&
+      ["eligible", "excluded", "unknown"].includes(String(q.eligibility)) &&
+      (q.eligibility !== "eligible" || kind !== null)
+        ? (q.eligibility as "eligible" | "excluded" | "unknown")
+        : "unknown";
+    const candidate = q?.subject;
+    const subject =
+      Array.isArray(candidate) &&
+      candidate.every((x) => typeof x === "string") &&
+      candidate[1] === kind &&
+      ((candidate.length === 3 &&
+        candidate[0] === "id" &&
+        candidate[2].length > 0 &&
+        candidate[2].length <= 128) ||
+        (candidate.length === 4 &&
+          candidate[0] === "label" &&
+          candidate[2].length > 0 &&
+          candidate[2].length <= 200 &&
+          candidate[3].length <= 2048))
+        ? (candidate as string[])
+        : null;
+    return {
+      text: text(contrast.text, 80),
+      foreground: text(contrast.foreground, 100),
+      background:
+        contrast.background === null ? null : text(contrast.background, 100),
+      fontSize: text(contrast.fontSize, 40),
+      fontWeight: text(contrast.fontWeight, 40),
+      interactiveText: {
+        controlKind: kind,
+        eligibility,
+        subject,
+        unambiguous: subject !== null && q?.unambiguous === true,
+      },
+    };
+  };
   const facts: RenderedPageFacts = {
     url,
     title: text(raw.title, 300),
@@ -199,19 +257,29 @@ export function validateRenderedCapture(
         throw new Error("Invalid rendered image fact.");
       return { alt: text(image.alt, 200), loaded: image.loaded };
     }),
-    contrastCandidates: list(raw.contrastCandidates, 120, (item) => {
-      const contrast = record(item);
-      return {
-        text: text(contrast.text, 80),
-        foreground: text(contrast.foreground, 100),
-        background:
-          contrast.background === null ? null : text(contrast.background, 100),
-        fontSize: text(contrast.fontSize, 40),
-        fontWeight: text(contrast.fontWeight, 40),
-      };
-    }),
+    contrastCandidates: list(raw.contrastCandidates, 120, parseContrast),
     limitations: list(raw.limitations, 10, (item) => text(item, 400)),
   };
+  if (raw.interactiveTextCandidates !== undefined)
+    facts.interactiveTextCandidates = list(
+      raw.interactiveTextCandidates,
+      120,
+      parseContrast,
+    );
+  const scan = raw.interactiveTextScan;
+  if (scan && typeof scan === "object" && !Array.isArray(scan)) {
+    const s = scan as Record<string, unknown>;
+    if (
+      s.version === 1 &&
+      typeof s.complete === "boolean" &&
+      typeof s.unknown === "boolean"
+    )
+      facts.interactiveTextScan = {
+        version: 1,
+        complete: s.complete,
+        unknown: s.unknown,
+      };
+  }
   return {
     image: { data: png, mediaType: "image/png" },
     evidence: {

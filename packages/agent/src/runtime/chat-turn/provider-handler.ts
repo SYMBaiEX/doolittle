@@ -15,6 +15,10 @@ import { matchesRegisteredCommandShortcut } from "@/runtime/command-shortcut-mat
 import { checkOllamaReadiness } from "@/runtime/native/plugin-registry/ollama-readiness";
 import { getScopedTurnActionResults } from "@/runtime/turn-runtime-scope";
 import { hasWorkspaceMutationObligation } from "@/runtime/workspace-mutation-intent";
+import {
+  interactiveTextSummary,
+  readInteractiveTextCheck,
+} from "@/services/web/interactive-text-check";
 import { escapeXml } from "@/utils/eliza-compat";
 import { isRecord } from "@/utils/records";
 import { inspectWorkspaceCommands } from "@/utils/workspace-commands";
@@ -216,7 +220,7 @@ function frontendReviewBlockedByUserConstraint(
 const CONSTRAINED_FRONTEND_REVIEW_FAILURE =
   "The frontend files changed, but browser review is unavailable and was not attempted: your instruction forbids starting or restarting a server, and no current verified ready managed-app receipt is available. The changes are preserved. No rendered pixels were reviewed; this does not establish completion, corrected defects, or requested quality. Other requested checks are not implied by this report.";
 
-function frontendReviewAttempt(
+function freshFrontendReviewAttempt(
   actionResults: readonly ActionResult[],
   requirements: ReturnType<typeof workspaceNoopRequirements>,
   userRequest: string,
@@ -285,6 +289,133 @@ function frontendReviewAttempt(
   return undefined;
 }
 
+function unresolvedInteractiveTextBlocker(
+  actionResults: readonly ActionResult[],
+  requirements: ReturnType<typeof workspaceNoopRequirements>,
+  userRequest: string,
+): boolean {
+  if (!frontendReviewRequired(actionResults, userRequest)) return false;
+  const pending = new Map<
+    string,
+    { index: number; workspace: string | undefined }
+  >();
+  const subjectKey = (subject: {
+    subjectSha256: string | null;
+    viewport: { width: number; height: number };
+  }) =>
+    `${subject.viewport.width}x${subject.viewport.height}:${subject.subjectSha256}`;
+  for (const [reviewIndex, review] of actionResults.entries()) {
+    if (actionResultActionName(review) !== "DOOLITTLE_BROWSER_ANALYZE")
+      continue;
+    const prefix = actionResults.slice(0, reviewIndex + 1);
+    const check = readInteractiveTextCheck(review.data?.interactiveTextCheck);
+    if (
+      !check ||
+      freshFrontendReviewAttempt(prefix, requirements, userRequest) !== review
+    )
+      continue;
+    const evidence = review.data?.evidence;
+    if (!Array.isArray(evidence)) continue;
+    const bound = (subject: {
+      viewport: { width: number; height: number };
+      pngSha256: string;
+    }) =>
+      evidence.some(
+        (item) =>
+          isRecord(item) &&
+          item.captureMode === "rendered-page" &&
+          item.captureReady === true &&
+          isRecord(item.viewport) &&
+          item.viewport.width === subject.viewport.width &&
+          item.viewport.height === subject.viewport.height &&
+          isRecord(item.pixels) &&
+          item.pixels.sha256 === subject.pngSha256,
+      );
+    for (const blocker of check.blockers) {
+      if (!bound(blocker)) continue;
+      pending.set(
+        blocker.subjectSha256
+          ? subjectKey(blocker)
+          : `unidentified:${reviewIndex}:${blocker.viewport.width}x${blocker.viewport.height}:${blocker.candidateIndex}`,
+        {
+          index: reviewIndex,
+          workspace: admittedWorkspace(prefix, undefined),
+        },
+      );
+    }
+    if (check.blockersTruncated)
+      pending.set(`truncated:${reviewIndex}`, {
+        index: reviewIndex,
+        workspace: undefined,
+      });
+    // Only per-subject qualified clearance can resolve. Aggregate unknown or
+    // a different new blocker neither clears nor drops an earlier subject.
+    if (
+      review.success !== true ||
+      review.data?.modelEvidence !== "rendered-pixels" ||
+      evidence.length !== 2 ||
+      !evidence.every(
+        (item, index) =>
+          isRecord(item) &&
+          item.captureMode === "rendered-page" &&
+          item.captureReady === true &&
+          item.blockedRequests === 0 &&
+          isRecord(item.viewport) &&
+          item.viewport.width === (index === 0 ? 1280 : 390) &&
+          item.viewport.height === (index === 0 ? 720 : 844),
+      )
+    )
+      continue;
+    for (const clearance of check.clearances) {
+      const key = subjectKey(clearance);
+      const prior = pending.get(key);
+      if (!prior?.workspace || prior.index >= reviewIndex || !bound(clearance))
+        continue;
+      const correctionResults = actionResults.slice(
+        prior.index + 1,
+        reviewIndex + 1,
+      );
+      if (
+        hasVerifiedWorkspaceMutation(correctionResults, prior.workspace) &&
+        missingWorkspaceMutationRequirements(
+          [
+            ...actionResults
+              .slice(0, prior.index + 1)
+              .filter(
+                (result) =>
+                  actionResultActionName(result) === "TASKS_SPAWN_AGENT",
+              ),
+            ...correctionResults,
+          ],
+          {
+            ...frontendRequirements(prefix, requirements, userRequest),
+            requireBunInstall: false,
+          },
+        ).length === 0
+      )
+        pending.delete(key);
+    }
+  }
+  return pending.size > 0;
+}
+
+function frontendReviewAttempt(
+  actionResults: readonly ActionResult[],
+  requirements: ReturnType<typeof workspaceNoopRequirements>,
+  userRequest: string,
+): ActionResult | undefined {
+  return unresolvedInteractiveTextBlocker(
+    actionResults,
+    requirements,
+    userRequest,
+  )
+    ? undefined
+    : freshFrontendReviewAttempt(actionResults, requirements, userRequest);
+}
+
+const UNRESOLVED_INTERACTIVE_TEXT_FAILURE =
+  "The frontend changes are preserved, but captured enabled interactive text had equal opaque foreground and solid background colors. Correction remains unresolved or unverified after the bounded continuation attempts. Completion is not established: scoped correction, production build, current managed readiness and a qualified fresh review are required. Unknown, text-only or failed review cannot clear this captured readability blocker. This is not a general accessibility or visual quality assessment.";
+
 function frontendReviewSummary(result: ActionResult): string {
   const modality = isRecord(result.data)
     ? result.data.modelEvidence
@@ -295,7 +426,7 @@ function frontendReviewSummary(result: ActionResult): string {
       : result.success === true && modality === "text-only"
         ? "Browser analysis used text-only evidence; rendered layout was not verified."
         : "Browser analysis was attempted but failed or was unavailable; rendered layout was not verified.";
-  return `${resultText} This review attempt does not prove that reported defects were corrected or that the requested quality was achieved; consult the browser-analysis findings.`;
+  return `${interactiveTextSummary(readInteractiveTextCheck(result.data?.interactiveTextCheck))} ${resultText} This review attempt does not prove that reported defects were corrected or that the requested quality was achieved; consult the browser-analysis findings.`;
 }
 
 type IncompleteWorkspaceKind = "implementation" | "verification";
@@ -699,6 +830,12 @@ function continuationMemory(
     ? missingWorkspaceMutationRequirements(actionResults, requirements)
     : [];
   if (
+    unresolvedInteractiveTextBlocker(actionResults, requirements, userRequest)
+  )
+    missingRequirements.unshift(
+      "Resolve the captured equal-solid-interactive-text readability blocker with a scoped real file correction, production rebuild, current ready receipt and qualified fresh desktop/narrow review. Unknown evidence or repeating analysis alone cannot clear it. Preserve the user's server and approval constraints.",
+    );
+  if (
     frontendReviewRequired(actionResults, userRequest) &&
     !frontendReviewAttempt(actionResults, requirements, userRequest)
   ) {
@@ -1074,6 +1211,11 @@ function hasPostAdmissionWorkspaceVerification(
     });
   const freshResults = [...mutationContext, ...postAdmissionResults];
   return (
+    !unresolvedInteractiveTextBlocker(
+      actionResults,
+      requirements,
+      userRequest,
+    ) &&
     missingWorkspaceMutationRequirements(freshResults, freshRequirements)
       .length === 0 &&
     (!frontendReviewRequired(actionResults, userRequest) ||
@@ -1594,7 +1736,7 @@ export async function executeProviderMessageTurn(
             // server evidence. It is authoritative over a contradictory
             // provisional model phrase such as "not started yet"; continuing
             // after it only repeats already-verified workspace actions.
-            verifiedWorkspaceNoop ||
+            (verifiedWorkspaceNoop && frontendReviewComplete) ||
             (response.trim() &&
               verifiedWorkspaceCompletion &&
               frontendReviewComplete &&
@@ -1751,6 +1893,25 @@ export async function executeProviderMessageTurn(
           noOpRequirements,
           prompt,
         );
+        if (
+          mutationObligation &&
+          unresolvedInteractiveTextBlocker(
+            actionResults,
+            noOpRequirements,
+            prompt,
+          )
+        ) {
+          runFailureMessage = [
+            UNRESOLVED_INTERACTIVE_TEXT_FAILURE,
+            serverStartPolicy(prompt).forbidden
+              ? "The user's instruction still forbids starting or restarting a server; do not do so for correction verification."
+              : undefined,
+            runFailureMessage,
+          ]
+            .filter(Boolean)
+            .join(" ");
+          response = runFailureMessage;
+        }
         if (
           !runFailureMessage &&
           mutationObligation &&
@@ -1921,6 +2082,28 @@ export async function executeProviderMessageTurn(
           committedActionResults,
           prompt,
         );
+        if (
+          mutationObligation &&
+          unresolvedInteractiveTextBlocker(
+            committedActionResults,
+            noOpRequirements,
+            prompt,
+          )
+        ) {
+          handledMessage = true;
+          actionResults = committedActionResults;
+          runFailureMessage = [
+            UNRESOLVED_INTERACTIVE_TEXT_FAILURE,
+            serverStartPolicy(prompt).forbidden
+              ? "The user's instruction still forbids starting or restarting a server; do not do so for correction verification."
+              : undefined,
+          ]
+            .filter(Boolean)
+            .join(" ");
+          response = runFailureMessage;
+          input.streamState.setResponse(response);
+          return;
+        }
         if (admittedIncomplete !== undefined) {
           handledMessage = true;
           actionResults = committedActionResults;
