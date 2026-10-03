@@ -160,7 +160,9 @@ Schema-v2 and v3 headless reports distinguish:
 - `timing.gradingMs`: deterministic result parsing and checks after the child
   exits.
 - `summary.suiteWallTimeMs`: suite setup, executions, and grading; excludes
-  report persistence and temporary-directory cleanup.
+  report persistence and temporary-directory cleanup. Evaluator 0.2.10
+  subtracts per-task filesystem cleanup before the next task; older evaluator
+  measurements are not eligible for pooling with this baseline.
 - `elapsedMs` on schema v1 is a legacy wall-clock field from before child
   execution through response parsing and grading. Durations from different
   schema versions must not be compared to one another.
@@ -173,11 +175,16 @@ Schema-v2 and v3 headless reports distinguish:
 Durations are rounded to integer milliseconds; a displayed `0ms` means less
 than half a millisecond, not that the phase did no work.
 
-Each invocation has a 300-second execution timeout, up to two seconds of
-process-tree shutdown grace, and a 10 MiB combined stdout/stderr capture limit.
-The runner terminates the complete child process tree on either limit; a run
-stopped this way is failed and its partial provider telemetry is retained. Do
-not treat partial output as a completed response.
+Each invocation has a 300-second execution timeout, bounded shutdown
+confirmation, and a 10 MiB combined stdout/stderr capture limit. POSIX cleanup
+requires direct-child/stdio closure and confirmed absence of the invocation's
+owned detached process group; descendants that escape that group are not
+covered. Windows or failed confirmation is unsafe. The runner retains private
+state and aborts before further dispatch or report persistence when shutdown or
+an original directory identity cannot be confirmed. A limit-stopped invocation
+with confirmed cleanup is failed and its partial provider telemetry is retained.
+Do not treat partial output as a completed response or a safety-aborted suite as
+a comparable completed sample.
 
 The comparator pairs matching task/check identities and uses
 `timing.execDurationMs` for schema v2/v3/v4. It labels and compares `elapsedMs`

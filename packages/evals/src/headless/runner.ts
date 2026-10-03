@@ -1,8 +1,17 @@
 import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  realpathSync,
+  rmdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
@@ -218,6 +227,79 @@ function reportDirectory(explicit?: string): string {
   return join(stateHome, "doolittle", "evals", "headless");
 }
 
+function isSafeTaskId(taskId: string): boolean {
+  return /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(taskId);
+}
+
+interface OwnedDirectory {
+  path: string;
+  canonical: string;
+  dev: bigint;
+  ino: bigint;
+}
+
+function ownedDirectory(path: string): OwnedDirectory {
+  try {
+    const stat = lstatSync(path, { bigint: true });
+    if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error();
+    return {
+      path: resolve(path),
+      canonical: realpathSync(path),
+      dev: stat.dev,
+      ino: stat.ino,
+    };
+  } catch {
+    // Keep private directory paths out of safety-abort diagnostics.
+    throw new Error("Headless owned directory is not an ordinary directory.");
+  }
+}
+
+function verifyOwnedDirectory(owned: OwnedDirectory): void {
+  const current = ownedDirectory(owned.path);
+  if (
+    current.canonical !== owned.canonical ||
+    current.dev !== owned.dev ||
+    current.ino !== owned.ino
+  )
+    throw new Error("Refusing to remove a substituted headless directory.");
+}
+
+function verifyOwnedTaskRoot(
+  runRoot: OwnedDirectory,
+  taskRoot: OwnedDirectory,
+): void {
+  verifyOwnedDirectory(runRoot);
+  verifyOwnedDirectory(taskRoot);
+  const taskId = basename(taskRoot.path);
+  if (
+    dirname(runRoot.canonical) !== realpathSync(tmpdir()) ||
+    !basename(runRoot.canonical).startsWith("doolittle-headless-eval-") ||
+    dirname(taskRoot.canonical) !== runRoot.canonical ||
+    !isSafeTaskId(taskId) ||
+    taskRoot.path !== join(runRoot.path, taskId)
+  ) {
+    throw new Error(
+      "Refusing to remove a task root outside the owned run root.",
+    );
+  }
+}
+
+function removeOwnedTaskRoot(
+  runRoot: OwnedDirectory,
+  taskRoot: OwnedDirectory,
+): void {
+  verifyOwnedTaskRoot(runRoot, taskRoot);
+  rmSync(taskRoot.path, { recursive: true, force: false });
+}
+
+function verifyEmptyRunRoot(runRoot: OwnedDirectory): void {
+  verifyOwnedDirectory(runRoot);
+  if (readdirSync(runRoot.path).length !== 0)
+    throw new Error(
+      "Headless run root contains unowned entries; owned state was retained.",
+    );
+}
+
 function readSourceIdentity(repoRoot: string): {
   revision: string | null;
   workingTreeClean: boolean | null;
@@ -268,6 +350,11 @@ export async function runHeadlessEvalSuite(
   if (selectedTasks.length === 0) {
     throw new Error("No headless evaluation tasks were selected.");
   }
+  if (selectedTasks.some((task) => !isSafeTaskId(task.id))) {
+    throw new Error(
+      "Headless evaluation task IDs must be safe path components.",
+    );
+  }
   if (
     selectedTasks.some((task) =>
       [task.prompt, ...(task.followUpPrompts ?? [])].some(
@@ -288,13 +375,22 @@ export async function runHeadlessEvalSuite(
     ? configuredElizaCloudCredentials()
     : undefined;
   const runRoot = mkdtempSync(join(tmpdir(), "doolittle-headless-eval-"));
+  const runIdentity = ownedDirectory(runRoot);
+  const taskIdentities = new Map<string, OwnedDirectory>();
+  let cleanupBlocked = false;
+  let childCleanupSafe = true;
   const runs: HeadlessEvalRunResult[] = [];
+  let cleanupDurationMs = 0;
   try {
     for (const task of selectedTasks) {
+      verifyEmptyRunRoot(runIdentity);
       const taskSetupStartedAt = monotonicNow();
       const taskRoot = join(runRoot, task.id);
       const dataDir = join(taskRoot, "data");
       const workspaceDir = join(taskRoot, "workspace");
+      mkdirSync(taskRoot, { mode: 0o700 });
+      const taskIdentity = ownedDirectory(taskRoot);
+      taskIdentities.set(taskRoot, taskIdentity);
       mkdirSync(dataDir, { recursive: true, mode: 0o700 });
       mkdirSync(workspaceDir, { recursive: true, mode: 0o700 });
       writeFileSync(join(dataDir, "onboarding.json"), "{}\n", {
@@ -325,6 +421,7 @@ export async function runHeadlessEvalSuite(
       let completed = true;
 
       for (const [index, prompt] of prompts.entries()) {
+        verifyOwnedTaskRoot(runIdentity, taskIdentity);
         const execStartedAt = monotonicNow();
         const execStartedWallAt = wallNow();
         const stdoutDecoder = new StringDecoder("utf8");
@@ -366,6 +463,7 @@ export async function runHeadlessEvalSuite(
             childEnvironment.ELIZAOS_CLOUD_BASE_URL = cloudCredentials.baseUrl;
           }
         }
+        childCleanupSafe = false;
         const child: HeadlessExecResult = await execute(
           "nub",
           [
@@ -385,6 +483,11 @@ export async function runHeadlessEvalSuite(
           },
         );
         const execEndedAt = monotonicNow();
+        childCleanupSafe = child.cleanupSafe === true;
+        if (!childCleanupSafe) {
+          cleanupBlocked = true;
+          diagnosticFlags.add("headless-child-cleanup-unconfirmed");
+        }
         const invocationDurationMs = durationMs(execStartedAt, execEndedAt);
         execDurationMs += invocationDurationMs;
         if (index === 0) {
@@ -440,7 +543,12 @@ export async function runHeadlessEvalSuite(
         }
 
         completed =
-          child.status === 0 && cliResult.ok === true && response.length > 0;
+          childCleanupSafe &&
+          child.error == null &&
+          child.signal == null &&
+          child.status === 0 &&
+          cliResult.ok === true &&
+          response.length > 0;
         if (!completed) break;
       }
 
@@ -501,10 +609,21 @@ export async function runHeadlessEvalSuite(
             }
           : {}),
       });
+      if (!childCleanupSafe)
+        throw new Error(
+          "Headless child cleanup could not be confirmed; owned state was retained.",
+        );
+      const cleanupStartedAt = monotonicNow();
+      removeOwnedTaskRoot(runIdentity, taskIdentity);
+      taskIdentities.delete(taskRoot);
+      cleanupDurationMs += monotonicNow() - cleanupStartedAt;
     }
 
     const objectiveChecks = runs.flatMap((run) => run.checks);
-    const suiteWallTimeMs = durationMs(suiteStartedAt, monotonicNow());
+    const suiteWallTimeMs = Math.max(
+      0,
+      Math.round(monotonicNow() - suiteStartedAt - cleanupDurationMs),
+    );
     const sourceAtEnd = readSourceIdentity(repoRoot);
     const sourceRevisionMatches =
       sourceAtStart.revision !== null &&
@@ -557,6 +676,9 @@ export async function runHeadlessEvalSuite(
       directory,
       `${createdAt.replaceAll(/[:.]/g, "-")}-${suite.id}-v${suite.version}-${randomUUID()}.json`,
     );
+    // Refuse persistence as well as deletion if the owned root was replaced
+    // during callbacks/report preparation; never publish a shortened success.
+    verifyEmptyRunRoot(runIdentity);
     writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, {
       mode: 0o600,
       flag: "wx",
@@ -566,9 +688,20 @@ export async function runHeadlessEvalSuite(
       report.summary.objectiveChecksPassed ===
         report.summary.objectiveChecksTotal;
     return { report, reportPath, exitCode: allPassed ? 0 : 1 };
+  } catch (error) {
+    // A refused identity guard or thrown executor must never be followed by
+    // an unguarded recursive finally deletion of possibly foreign/live state.
+    cleanupBlocked = true;
+    throw error;
   } finally {
-    if (runRoot.startsWith(join(tmpdir(), "doolittle-headless-eval-"))) {
-      rmSync(runRoot, { recursive: true, force: true });
+    if (!cleanupBlocked && childCleanupSafe) {
+      verifyOwnedDirectory(runIdentity);
+      for (const taskIdentity of taskIdentities.values())
+        verifyOwnedTaskRoot(runIdentity, taskIdentity);
+      for (const taskIdentity of taskIdentities.values())
+        removeOwnedTaskRoot(runIdentity, taskIdentity);
+      // Never recursively delete unexpected entries in the run root.
+      if (readdirSync(runRoot).length === 0) rmdirSync(runRoot);
     }
   }
 }
