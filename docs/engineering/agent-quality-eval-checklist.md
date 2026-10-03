@@ -47,6 +47,15 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   Codex USD cost is explicitly unavailable, not inferred. They also preserve
   privacy-safe request/response/error/continuation/action counts and
   prompt-length statistics, never raw trace text.
+- Evaluator 0.2.11 writes schema-v5 reports. Product-default configuration is
+  advertised, not effective-route attestation. Per-task journal evidence
+  records requested parent-turn model/subject digests, with unavailable,
+  partial, mixed and conflicting coverage kept explicit. Requested effort,
+  effective model/effort and worker routes are unavailable. Operator route
+  labels are hashed. Do not promote a requested/default route to effective
+  execution or a parent's route to its worker. Legacy v4 stays readable, not
+  pooled with v5; mixed/conflicting requests prohibit comparison, not human
+  review.
 - Managed coding receipts additionally preserve the installed SDK's
   `usage_update` events for that exact worker session. Missing events remain
   unavailable. Stable event IDs deduplicate delivery, contradictory IDs are
@@ -77,19 +86,22 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   not arbitrary-site browsing, interactive accessibility, a correction loop,
   human-rated quality or comparable coding performance.
 - The pairwise comparator handles a baseline/candidate report pair. The
-  `eval:headless:aggregate` command summarizes compatible schema-v4 repeats
-  only when route, evaluator, suite, task/check identities, clean source
+  `eval:headless:aggregate` command summarizes same-schema v4/v5 repeats
+  only when declared route, evaluator, suite, task/check identities, clean source
   revision, and run timestamps match. It reports per-task completion/check
   rates and descriptive median, nearest-rank p90, range, and mean for timing and
   available telemetry, including top-level model responses and errors; it does
-  not estimate uncertainty or score human reviews.
+  not estimate uncertainty or score human reviews. V5 additionally matches
+  available requested-route signatures; this does not attest effective routes.
 
 ## Before each run
 
 - [ ] Choose a versioned suite; do not silently change prompts, task IDs,
       fixtures, acceptance intent, or graders in a published version.
 - [ ] Pin and record the Doolittle commit, suite and evaluator versions,
-      provider, model, reasoning effort, permissions, and relevant config.
+      advertised provider/model/effort, observed requested/effective routes and
+      their provenance/subject/coverage, permissions, and relevant config.
+      Keep unavailable evidence explicit; never use a route label as attestation.
 - [ ] Exercise the actual client source and identity for the workflow being
       evaluated. Confirm its role-filtered tool/context availability, not just
       the total registered-tool count. A generic API sender is not equivalent
@@ -175,6 +187,16 @@ Schema-v2 and v3 headless reports distinguish:
 Durations are rounded to integer milliseconds; a displayed `0ms` means less
 than half a millisecond, not that the phase did no work.
 
+Schema v5 adds separate directly timed harness phases: preflight, each task's
+setup/response processing/grading/cleanup, report preparation, and final
+cleanup. These clocks do not overlap child execution and cover only those
+phases, not all harness overhead. Completed report serialization/persistence
+clocks are in an optional owner-only `REPORT.json.measurement.json` receipt,
+not self-described in the report being written. Verify its report SHA-256
+before using it; receipt failures leave grading unchanged. Receipt-write time
+and inter-phase bookkeeping remain untimed. Never subtract summed provider
+durations from wall time to estimate overhead.
+
 Each invocation has a 300-second execution timeout, bounded shutdown
 confirmation, and a 10 MiB combined stdout/stderr capture limit. POSIX cleanup
 requires direct-child/stdio closure and confirmed absence of the invocation's
@@ -187,7 +209,7 @@ Do not treat partial output as a completed response or a safety-aborted suite as
 a comparable completed sample.
 
 The comparator pairs matching task/check identities and uses
-`timing.execDurationMs` for schema v2/v3/v4. It labels and compares `elapsedMs`
+`timing.execDurationMs` for schema v2/v3/v4/v5. It labels and compares `elapsedMs`
 only for schema-v1-to-v1 comparisons. Schema v3 additionally compares matched
 Codex provider usage when both reports have it. Provider-call duration sums are
 not wall time; provider first-text measures are not user TTFT. Evaluator 0.2.5
@@ -196,8 +218,8 @@ measures. The request signal covers startup/prompt preparation, not pure harness
 overhead; first text includes stream transport, not model-only or rendered UI
 latency. Schema v4 adds
 sanitized model request and continuation shape plus source revision/cleanliness. Use
-`nub run eval:headless:aggregate -- --report REPORT.json --report REPORT.json`
-for repeated, compatible schema-v4 samples from the same clean commit. Per-action
+`nub run eval:headless:aggregate -- --report REPEAT_1.json --report REPEAT_2.json`
+for repeated, compatible same-schema v4/v5 samples from the same clean commit. Per-action
 timing, provider coverage beyond Codex, billable USD cost, and statistical
 uncertainty intervals remain future work. Compare repeated runs with median/p90
 and show spread, not just one run or arithmetic mean.

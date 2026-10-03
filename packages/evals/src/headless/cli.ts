@@ -84,35 +84,44 @@ async function main(): Promise<number> {
     if (!suite) {
       throw new Error(`Unknown headless evaluation suite: ${options.suiteId}`);
     }
-    const { report, reportPath, exitCode } = await runHeadlessEvalSuite(suite, {
-      reportDir: options.reportDir,
-      routeLabel: options.routeLabel,
-      enableConfiguredCloudResearch: options.enableConfiguredCloudResearch,
-      taskIds: options.taskIds,
-      showResponses: options.showResponses,
-      onActionLabels: options.showActionLabels
-        ? (taskId, diagnostic) => {
-            const omitted = diagnostic.omitted
-              ? `; ${diagnostic.omitted} additional label(s) omitted`
-              : "";
-            console.log(
-              `  ${taskId} local action-label diagnostic: ${diagnostic.labels.join(", ") || "none"}${omitted}`,
-            );
-          }
-        : undefined,
-      onResponse: (taskId, response, turnNumber, turnTotal) => {
-        const turnLabel =
-          turnTotal > 1 ? ` · turn ${turnNumber}/${turnTotal}` : "";
-        console.log(`\n--- ${taskId}${turnLabel} response ---\n${response}\n`);
-      },
-    });
+    const { report, reportPath, exitCode, measurementReceiptStatus } =
+      await runHeadlessEvalSuite(suite, {
+        reportDir: options.reportDir,
+        routeLabel: options.routeLabel,
+        enableConfiguredCloudResearch: options.enableConfiguredCloudResearch,
+        taskIds: options.taskIds,
+        showResponses: options.showResponses,
+        onActionLabels: options.showActionLabels
+          ? (taskId, diagnostic) => {
+              const omitted = diagnostic.omitted
+                ? `; ${diagnostic.omitted} additional label(s) omitted`
+                : "";
+              console.log(
+                `  ${taskId} local action-label diagnostic: ${diagnostic.labels.join(", ") || "none"}${omitted}`,
+              );
+            }
+          : undefined,
+        onResponse: (taskId, response, turnNumber, turnTotal) => {
+          const turnLabel =
+            turnTotal > 1 ? ` · turn ${turnNumber}/${turnTotal}` : "";
+          console.log(
+            `\n--- ${taskId}${turnLabel} response ---\n${response}\n`,
+          );
+        },
+      });
     console.log(
-      `${report.suite.id} v${report.suite.version} · schema v${report.schemaVersion} · evaluator ${report.evaluatorVersion} · route label ${report.routeLabel} · actual ${report.route.provider}/${report.route.model} (${report.route.reasoningEffort})`,
+      `${report.suite.id} v${report.suite.version} · schema v${report.schemaVersion} · evaluator ${report.evaluatorVersion} · route label ${report.routeLabel} · advertised product default ${report.route.provider ?? "unknown"}/sha256:${report.route.modelSha256} (${report.route.reasoningEffort ?? "unknown"}); expected fresh Settings configuration, not effective-route attestation`,
     );
     console.log(
       `Source ${report.source.revision?.slice(0, 12) ?? "unavailable"} · working tree ${report.source.workingTreeClean === null ? "unknown" : report.source.workingTreeClean ? "clean" : "dirty"}.`,
     );
     for (const run of report.runs) {
+      console.log(
+        `  ${run.taskId} route evidence: ${run.routeEvidence.status}; accepted ${run.routeEvidence.accepted}, rejected ${run.routeEvidence.rejected}, truncated ${run.routeEvidence.truncated}; parent requested model digests only; effective route/effort and worker route unavailable.`,
+      );
+      console.log(
+        `  Direct harness phases: setup ${run.harnessTiming.setupMs}ms; response processing ${run.harnessTiming.responseProcessingMs}ms; grading ${run.harnessTiming.gradingMs}ms; task cleanup ${run.harnessTiming.cleanupMs}ms. Partial coverage, not wall-minus-provider overhead.`,
+      );
       const checks = run.checks.filter((check) => check.passed).length;
       const researchProviderFailure = run.diagnosticFlags.find((flag) =>
         flag.startsWith("research-provider-"),
@@ -163,6 +172,9 @@ async function main(): Promise<number> {
       `Objective checks: ${report.summary.objectiveChecksPassed}/${report.summary.objectiveChecksTotal}; human review required for ${report.summary.humanReviewRequired} task(s); suite eval wall time ${report.summary.suiteWallTimeMs}ms (setup + doolittle exec + grading; excludes report I/O).`,
     );
     console.log(`Private report: ${reportPath}`);
+    console.log(
+      `Completed report serialization/persistence timing receipt: ${measurementReceiptStatus}; not self-described in the report. Harness phase coverage is partial; child exec/startup/model/tool time is a separate composite.`,
+    );
     return exitCode;
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

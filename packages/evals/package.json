@@ -1,7 +1,7 @@
 {
   "name": "@doolittle/evals",
   "version": "0.1.0",
-  "evaluatorVersion": "0.2.10",
+  "evaluatorVersion": "0.2.11",
   "private": true,
   "type": "module",
   "description": "Versioned, evidence-based evaluation suites for Doolittle agent workflows.",

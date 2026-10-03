@@ -402,7 +402,7 @@ describe("headless workflow evals", () => {
       ],
       humanReviewRequired: true,
     });
-    expect(result.report.schemaVersion).toBe(4);
+    expect(result.report.schemaVersion).toBe(5);
     expect(result.report.source.revision).toMatch(/^[a-f0-9]{40}$/i);
     expect(result.report.runs[0]?.traceSummary).toEqual({
       journalAvailable: true,
@@ -565,7 +565,7 @@ describe("headless workflow evals", () => {
   it("excludes per-task filesystem cleanup from suite wall time", async () => {
     const reportDir = tempDirectory();
     let clockCall = 0;
-    const clockValues = [0, 0, 0, 0, 10, 10, 20, 20, 120, 120];
+    const clockValues = [0, 0, 0, 0, 0, 10, 10, 10, 20, 20, 120, 120];
     const suite: HeadlessEvalSuite = {
       id: "cleanup-timing",
       version: 1,
@@ -594,7 +594,8 @@ describe("headless workflow evals", () => {
       })) as never,
     });
 
-    expect(clockCall).toBe(10);
+    expect(clockCall).toBe(20);
+    expect(result.report.runs[0]?.harnessTiming.cleanupMs).toBe(100);
     expect(result.report.summary.suiteWallTimeMs).toBe(20);
   });
 

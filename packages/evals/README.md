@@ -142,6 +142,22 @@ descendants that escape it; Windows shutdown is unconfirmed and fails closed.
 Per-task filesystem cleanup is excluded from suite wall time. New reports form
 a separate baseline; do not pool them with evaluator 0.2.9 measurements.
 
+Evaluator 0.2.11 writes schema-v5 headless reports. The advertised route is a
+configuration expectation, not the effective model: provider and effort are
+allowlisted, model names and optional operator labels are hashed. Per-task
+request-journal evidence identifies requested parent-turn model digests and
+its missing, partial, mixed, or conflicting coverage. Requested effort,
+effective model/effort, and worker routes remain unavailable. Schema-v4 reports
+remain readable as legacy/unattested evidence; do not pool them with v5.
+
+V5 directly times preflight, task setup, response processing, grading, task
+cleanup, report preparation, and final cleanup as separate phases. Child
+execution remains a composite; no wall-minus-provider overhead is inferred.
+Completed serialization and report-write durations are stored in an optional
+owner-only `REPORT.json.measurement.json` receipt bound to the report's SHA-256.
+Receipt-write time and inter-phase bookkeeping are untimed; a missing receipt
+does not change grading. Verify the report hash before using receipt timings.
+
 ```sh
 nub run eval:headless -- --suite headless-workflows-v6 --task reliability-no-side-effect-v6
 ```
@@ -184,10 +200,12 @@ report. Temporary workspaces are removed per task only when safe. Use the
 to plan comparable runs, score human-facing quality, and interpret timing
 without confusing process completion, objective checks, and model latency.
 
-Aggregate repeat samples only when they use the same schema-v4 route, evaluator,
-suite, task set, objective checks, and clean source revision. Reports with the
-same run timestamp are rejected so a copied report cannot count as another
-sample:
+Aggregate repeat samples only when they use the same schema (v4 or v5), declared
+route, evaluator, suite, task set, objective checks, and clean source revision.
+V5 additionally requires matching available requested-route signatures; mixed
+or conflicting routes are not comparison-eligible, but remain reviewable.
+Unavailable effective/worker evidence stays unavailable. Reports with the same
+run timestamp are rejected so a copied report cannot count as another sample:
 
 ```sh
 nub run eval:headless:aggregate -- \
