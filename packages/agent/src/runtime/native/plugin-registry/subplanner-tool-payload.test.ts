@@ -11,7 +11,10 @@ import {
   type ToolDefinition,
 } from "@elizaos/core";
 import { toOpenAITools } from "@elizaos/plugin-codex-cli";
+import { createSelectedProviderTextModel } from "@plugins/doolittle-plugin/model-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createEvalModelInputObservationsPlugin } from "./eval-model-input-observations";
+import { createPlannerToolExposurePlugin } from "./planner-tool-exposure";
 
 const plannerPrompt = "Bounded synthetic sub-planner instruction.";
 const parentName = "SYNTHETIC_OPERATIONS";
@@ -109,6 +112,11 @@ async function sdkFixture(
   actions: Action[],
   selectedName: string,
   args: Record<string, unknown> = {},
+  options: {
+    exposure?: boolean;
+    router?: boolean;
+    observations?: boolean;
+  } = {},
 ) {
   const runtime = new AgentRuntime({
     character: { name: "Synthetic sub-planner", bio: ["Synthetic."] },
@@ -117,6 +125,15 @@ async function sdkFixture(
     disableBasicCapabilities: true,
     logLevel: "fatal",
     fetch: globalThis.fetch,
+    ...(options.router
+      ? {
+          settings: {
+            runtimeSettings: JSON.stringify({
+              model: { provider: "synthetic-sub-planner" },
+            }),
+          },
+        }
+      : {}),
   });
   for (const level of [
     "trace",
@@ -128,6 +145,9 @@ async function sdkFixture(
   ] as const)
     vi.spyOn(runtime.logger, level).mockImplementation(() => undefined);
   const capturedTools: ToolDefinition[][] = [];
+  const originalTools: ToolDefinition[][] = [];
+  const observedTools: ToolDefinition[][] = [];
+  const observationRows: object[] = [];
   const optimizedTasks: string[] = [];
   let modelCalls = 0;
   let evaluatorCalls = 0;
@@ -164,6 +184,46 @@ async function sdkFixture(
     ],
   };
   try {
+    if (options.exposure !== undefined) {
+      // Earlier mutator captures the untouched SDK admission array; it never
+      // edits params. No private SDK fields or copied tool builder are used.
+      runtime.registerPipelineHook({
+        id: "synthetic-original-tools",
+        phase: "pre_model",
+        position: -95,
+        mutatesPrimary: true,
+        schedule: "serial",
+        handler: (_runtime, context) => {
+          if (context.phase === "pre_model") {
+            const params = context.params as { tools: ToolDefinition[] };
+            originalTools.push(params.tools);
+          }
+        },
+      });
+      await runtime.registerPlugin(
+        createPlannerToolExposurePlugin({ enabled: options.exposure }),
+      );
+      runtime.registerPipelineHook({
+        id: "synthetic-filtered-tools",
+        phase: "pre_model",
+        position: 100,
+        mutatesPrimary: false,
+        schedule: "serial",
+        handler: (_runtime, context) => {
+          if (context.phase === "pre_model") {
+            const params = context.params as { tools: ToolDefinition[] };
+            observedTools.push(params.tools);
+          }
+        },
+      });
+    }
+    if (options.observations)
+      await runtime.registerPlugin(
+        createEvalModelInputObservationsPlugin({
+          enabled: true,
+          sink: (row) => observationRows.push(row),
+        }),
+      );
     // Actual public registration and AgentRuntime/useModel. Neither initialize
     // nor any real provider, service, action, transport or recorder is started.
     await runtime.registerPlugin({
@@ -189,6 +249,17 @@ async function sdkFixture(
         },
       },
     });
+    if (options.router)
+      await runtime.registerPlugin({
+        name: "doolittle-runtime",
+        description: "Synthetic public router registration.",
+        priority: 10_000,
+        models: {
+          [ModelType.ACTION_PLANNER]: createSelectedProviderTextModel(
+            ModelType.ACTION_PLANNER,
+          ),
+        },
+      });
   } catch (error) {
     await runtime.stop();
     throw error;
@@ -196,6 +267,9 @@ async function sdkFixture(
   return {
     runtime,
     capturedTools,
+    originalTools,
+    observedTools,
+    observationRows,
     optimizedTasks,
     counts: () => ({ modelCalls, evaluatorCalls }),
     run: (
@@ -427,4 +501,217 @@ describe("installed SDK sub-planner native tool payload", () => {
     },
     3_000,
   );
+});
+
+describe("opt-in SDK alias advertisement policy", () => {
+  it("reduces native and real Codex payload on both router legs before observers without altering original tools", async () => {
+    const f = promotedFixture();
+    const sdk = await sdkFixture(
+      f.parent,
+      f.actions,
+      firstName,
+      {},
+      {
+        exposure: true,
+        router: true,
+        observations: true,
+      },
+    );
+    try {
+      const result = await sdk.run();
+      expect(result.status).toBe("finished");
+      expect(f.operations).toEqual(["first"]);
+      expect(sdk.counts()).toEqual({ modelCalls: 1, evaluatorCalls: 0 });
+      expect(sdk.originalTools.map((tools) => tools.length)).toEqual([10, 6]);
+      expect(sdk.observedTools.map((tools) => tools.length)).toEqual([6, 6]);
+      expect(sdk.observedTools[1]).toBe(sdk.observedTools[0]);
+      expect(sdk.capturedTools[0]).toBe(sdk.observedTools[1]);
+      const original = sdk.originalTools[0];
+      const reduced = sdk.capturedTools[0];
+      expect(original).toHaveLength(10);
+      expect(reduced.map((tool) => tool.name)).toEqual([
+        firstName,
+        secondName,
+        parentName,
+        "REPLY",
+        "IGNORE",
+        "STOP",
+      ]);
+      for (const retained of reduced) {
+        expect(original.find((tool) => tool.name === retained.name)).toBe(
+          retained,
+        );
+      }
+      expect(original.find((tool) => tool.name === sharedAlias)).toBeDefined();
+      const inputs = sdk.observationRows.filter(
+        (row) => (row as { kind: string }).kind === "input",
+      );
+      expect(inputs).toHaveLength(2);
+      expect(inputs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ ordinal: 1, toolCount: 6 }),
+          expect.objectContaining({ ordinal: 2, toolCount: 6 }),
+        ]),
+      );
+      const settlements = sdk.observationRows.filter(
+        (row) => (row as { kind: string }).kind === "settlement",
+      );
+      expect(settlements).toHaveLength(2);
+      expect(settlements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ordinal: 1,
+            association: "same-params-object",
+          }),
+          expect.objectContaining({
+            ordinal: 2,
+            association: "same-params-object",
+          }),
+        ]),
+      );
+      const schemaChars = (tools: ToolDefinition[]) =>
+        tools.reduce(
+          (sum, tool) => sum + JSON.stringify(tool.parameters).length,
+          0,
+        );
+      const translatedOriginal = toOpenAITools(original);
+      const translatedReduced = toOpenAITools(reduced);
+      expect(schemaChars(reduced)).toBeLessThan(schemaChars(original) * 0.65);
+      expect(JSON.stringify(translatedReduced).length).toBeLessThan(
+        JSON.stringify(translatedOriginal).length * 0.65,
+      );
+      process.stdout.write(
+        `${JSON.stringify({
+          exposureOriginalTools: original.length,
+          exposureReducedTools: reduced.length,
+          exposureOriginalSchemaChars: schemaChars(original),
+          exposureReducedSchemaChars: schemaChars(reduced),
+          exposureOriginalTranslatedChars:
+            JSON.stringify(translatedOriginal).length,
+          exposureReducedTranslatedChars:
+            JSON.stringify(translatedReduced).length,
+        })}\n`,
+      );
+    } finally {
+      await sdk.runtime.stop();
+    }
+  }, 3_000);
+
+  it.each([
+    [firstName, "first"],
+    [secondName, "second"],
+    ["FIRST", "first"],
+    [sharedAlias, "second"],
+    ["SYNTHETIC_LEGACY", "second"],
+    [parentName, "second"],
+  ])(
+    "preserves SDK canonical/removed-legacy dispatch for %s",
+    async (name, operation) => {
+      const f = promotedFixture();
+      const sdk = await sdkFixture(
+        f.parent,
+        f.actions,
+        name,
+        {},
+        { exposure: true },
+      );
+      try {
+        const result = await sdk.run();
+        expect(result.status).toBe("finished");
+        expect(result.trajectory.steps[0].result?.success).toBe(true);
+        expect(f.operations).toEqual([operation]);
+        expect(sdk.originalTools[0]).toHaveLength(10);
+        expect(sdk.capturedTools[0]).toHaveLength(6);
+        if (["FIRST", sharedAlias, "SYNTHETIC_LEGACY"].includes(name)) {
+          expect(sdk.capturedTools[0].some((tool) => tool.name === name)).toBe(
+            false,
+          );
+          expect(sdk.originalTools[0].some((tool) => tool.name === name)).toBe(
+            true,
+          );
+        }
+        expect(sdk.counts()).toEqual({ modelCalls: 1, evaluatorCalls: 0 });
+      } finally {
+        await sdk.runtime.stop();
+      }
+    },
+    3_000,
+  );
+
+  it.each(["shared-discriminator", "arguments", "handler"])(
+    "preserves refusal/failure for %s",
+    async (failure) => {
+      const f = promotedFixture(failure === "handler");
+      const sdk = await sdkFixture(
+        f.parent,
+        f.actions,
+        failure === "shared-discriminator" ? sharedAlias : firstName,
+        failure === "shared-discriminator"
+          ? { action: "first" }
+          : failure === "arguments"
+            ? { payload: { body: 42 } }
+            : {},
+        { exposure: true },
+      );
+      try {
+        const result = await sdk.run();
+        expect(result.status).toBe("finished");
+        expect(result.trajectory.steps[0].result?.success).toBe(false);
+        expect(result.evaluator?.success).toBe(false);
+        expect(f.operations).toHaveLength(failure === "handler" ? 1 : 0);
+        expect(sdk.capturedTools[0]).toHaveLength(6);
+        expect(sdk.counts()).toEqual({ modelCalls: 1, evaluatorCalls: 1 });
+      } finally {
+        await sdk.runtime.stop();
+      }
+    },
+    3_000,
+  );
+
+  it.each(["role", "context"])(
+    "preserves pre-model %s refusal",
+    async (gate) => {
+      const f = promotedFixture();
+      const child = f.actions.find(
+        (action) => action.name === firstName,
+      ) as Action;
+      if (gate === "role") child.roleGate = { minRole: "ADMIN" };
+      else child.contextGate = { anyOf: ["settings"] };
+      f.parent.subActions = [child.name];
+      const sdk = await sdkFixture(
+        f.parent,
+        f.actions,
+        firstName,
+        {},
+        { exposure: true },
+      );
+      try {
+        await expect(sdk.run()).rejects.toThrow("no sub-actions available");
+        expect(f.operations).toHaveLength(0);
+        expect(sdk.counts()).toEqual({ modelCalls: 0, evaluatorCalls: 0 });
+        expect(sdk.originalTools).toHaveLength(0);
+      } finally {
+        await sdk.runtime.stop();
+      }
+    },
+    3_000,
+  );
+
+  it("disabled policy preserves the exact SDK payload", async () => {
+    const f = promotedFixture();
+    const sdk = await sdkFixture(
+      f.parent,
+      f.actions,
+      firstName,
+      {},
+      { exposure: false },
+    );
+    try {
+      await sdk.run();
+      expect(sdk.capturedTools[0]).toHaveLength(10);
+      expect(sdk.capturedTools[0]).toBe(sdk.originalTools[0]);
+    } finally {
+      await sdk.runtime.stop();
+    }
+  }, 3_000);
 });

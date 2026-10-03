@@ -14,6 +14,7 @@ import {
   withOllamaTextReadiness,
 } from "./local-ollama";
 import { withOllamaEmbeddingReadiness } from "./ollama-embedding-readiness";
+import { createPlannerToolExposurePlugin } from "./planner-tool-exposure";
 import { normalizePlugin } from "./support";
 
 export async function loadProviderPlugins(
@@ -51,6 +52,7 @@ export async function loadProviderPlugins(
       observeContext: observeEvalModelInputUsage,
     }),
     createEvalModelInputObservationsPlugin(),
+    createPlannerToolExposurePlugin(),
     normalizePlugin(anthropicPlugin),
     createClaudeCodePlugin({
       enabled: true,

@@ -20,6 +20,16 @@ function config(): EnvConfig {
 }
 
 describe("loadProviderPlugins", () => {
+  it("assembles the opt-in exposure plugin without replacing model providers", async () => {
+    const providers = await loadProviderPlugins(config());
+    const exposure = providers.find(
+      (plugin) => plugin.name === "doolittle-planner-tool-exposure",
+    );
+    expect(exposure?.init).toBeTypeOf("function");
+    expect(exposure?.models).toBeUndefined();
+    expect(exposure?.providers).toBeUndefined();
+    expect(exposure?.services).toBeUndefined();
+  });
   it("assembles the inert optional observation plugin without replacing providers", async () => {
     const providers = await loadProviderPlugins(config());
     const observations = providers.find(

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE } from "./execution-overrides";
 import {
   type AdvertisedRoute,
   type HarnessTiming,
@@ -133,6 +134,8 @@ export interface HeadlessProviderUsageComparison {
 }
 
 export interface HeadlessReportComparison {
+  /** Explicit OFF -> ON experiment, never a generic override exemption. */
+  intervention?: "planner-alias-tool-deduplication";
   routeAttestation:
     | "legacy-unattested"
     | "requested-only-effective-unavailable";
@@ -1084,17 +1087,79 @@ function ratioDelta(
   return candidate / candidateTotal - baseline / baselineTotal;
 }
 
+export interface HeadlessComparisonOptions {
+  intervention?: "planner-alias-tool-deduplication";
+}
+
+function assertPlannerAliasIntervention(
+  baseline: Report,
+  candidate: Report,
+): void {
+  const marker = PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE;
+  const before = baseline.executionOverrides;
+  const after = candidate.executionOverrides;
+  if (
+    baseline.schemaVersion !== 5 ||
+    candidate.schemaVersion !== 5 ||
+    !before ||
+    !after ||
+    before.includes(marker) ||
+    after.at(-1) !== marker ||
+    after.length !== before.length + 1 ||
+    JSON.stringify(after.slice(0, -1)) !== JSON.stringify(before) ||
+    !baseline.source?.revision ||
+    baseline.source.workingTreeClean !== true ||
+    candidate.source?.workingTreeClean !== true ||
+    candidate.source.revision !== baseline.source.revision ||
+    !baseline.routeLabel ||
+    !baseline.route ||
+    candidate.routeLabel !== baseline.routeLabel ||
+    JSON.stringify(candidate.route) !== JSON.stringify(baseline.route) ||
+    !baseline.createdAt ||
+    !candidate.createdAt ||
+    !Number.isFinite(Date.parse(baseline.createdAt)) ||
+    !Number.isFinite(Date.parse(candidate.createdAt)) ||
+    Date.parse(baseline.createdAt) === Date.parse(candidate.createdAt)
+  ) {
+    invalid();
+  }
+
+  const nextById = new Map(candidate.runs.map((run) => [run.taskId, run]));
+  for (const run of baseline.runs) {
+    const next = nextById.get(run.taskId);
+    if (
+      !run.routeEvidence ||
+      !next?.routeEvidence ||
+      requestedSignature(run.routeEvidence) !==
+        requestedSignature(next.routeEvidence) ||
+      typeof run.humanReviewRequired !== "boolean" ||
+      typeof next.humanReviewRequired !== "boolean" ||
+      run.humanReviewRequired !== next.humanReviewRequired
+    ) {
+      invalid();
+    }
+  }
+}
+
 export function compareHeadlessEvalReports(
   baselineInput: unknown,
   candidateInput: unknown,
+  options: HeadlessComparisonOptions = {},
 ): HeadlessReportComparison {
   const baseline = parseReport(baselineInput);
   const candidate = parseReport(candidateInput);
   assertRouteComparisonEligible(baseline);
   assertRouteComparisonEligible(candidate);
   if (
+    options.intervention !== undefined &&
+    options.intervention !== "planner-alias-tool-deduplication"
+  )
+    return invalid();
+  if (options.intervention) assertPlannerAliasIntervention(baseline, candidate);
+  if (
     baseline.schemaVersion !== candidate.schemaVersion ||
     (baseline.schemaVersion === 5 &&
+      !options.intervention &&
       JSON.stringify(baseline.executionOverrides) !==
         JSON.stringify(candidate.executionOverrides)) ||
     baseline.evaluatorVersion !== candidate.evaluatorVersion ||
@@ -1288,6 +1353,7 @@ export function compareHeadlessEvalReports(
       : [task.execToFirstModelRequestDeltaMs],
   );
   return {
+    ...(options.intervention ? { intervention: options.intervention } : {}),
     suiteId: baseline.suite.id,
     suiteVersion: baseline.suite.version,
     schemaVersion: baseline.schemaVersion,
@@ -1332,7 +1398,7 @@ export function compareHeadlessEvalReports(
             0,
           ) / pairedFirstAssistantTextDeltas.length
         : null,
-    ...(baseline.schemaVersion === 4 && baseline.source && candidate.source
+    ...(baseline.schemaVersion >= 4 && baseline.source && candidate.source
       ? { source: { baseline: baseline.source, candidate: candidate.source } }
       : {}),
     ...(providerUsage ? { providerUsage } : {}),

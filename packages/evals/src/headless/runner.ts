@@ -26,6 +26,10 @@ import {
 } from "./action-outcomes";
 import type { HeadlessEvalSuite } from "./cases";
 import {
+  PLANNER_ALIAS_TOOL_DEDUPLICATION_FLAG,
+  PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE,
+} from "./execution-overrides";
+import {
   type AdvertisedRoute,
   advertisedRoute,
   type HarnessTiming,
@@ -136,6 +140,8 @@ export interface RunHeadlessEvalOptions {
   reportDir?: string;
   routeLabel?: string;
   enableConfiguredCloudResearch?: boolean;
+  /** Explicitly opts this run into planner duplicate-alias suppression. */
+  deduplicatePlannerAliasTools?: boolean;
   showResponses?: boolean;
   /** Diagnostic observers must return promptly. Async completion is not awaited. */
   onActionLabels?: (
@@ -569,6 +575,8 @@ export async function runHeadlessEvalSuite(
         childEnvironment[MODEL_INPUT_FLAG] = options.recordModelInputs
           ? "true"
           : "false";
+        childEnvironment[PLANNER_ALIAS_TOOL_DEDUPLICATION_FLAG] =
+          options.deduplicatePlannerAliasTools ? "true" : "false";
         if (
           task.domain === "research" &&
           cloudResearchOptedIn &&
@@ -932,6 +940,8 @@ export async function runHeadlessEvalSuite(
       report.executionOverrides.push(
         "Model input observations enabled: response processing includes a bounded first-creating-runtime-only snapshot; shared-data follow-up CLI invocations are not newly measured. Phase remains unknown; not wire bytes, effective routes, worker inputs or full overhead.",
       );
+    if (options.deduplicatePlannerAliasTools)
+      report.executionOverrides.push(PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE);
     const reportLeaf = privateReportFilename(
       createdAt,
       suite.id,

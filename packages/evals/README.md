@@ -223,6 +223,40 @@ report. Temporary workspaces are removed per task only when safe. Use the
 to plan comparable runs, score human-facing quality, and interpret timing
 without confusing process completion, objective checks, and model latency.
 
+### Optional planner alias exposure intervention
+
+`--deduplicate-planner-alias-tools` opts the child invocations into Doolittle's
+default-off, public-SDK duplicate alias advertisement policy. Canonical tools
+and the SDK's original admission/legacy dispatch stay intact. The runner writes
+`DOOLITTLE_PLANNER_DEDUP_ALIAS_TOOLS=true` or `false` on every child, shadowing
+ambient values, and retains only a fixed ON marker in schema-v5 overrides.
+Prompts, graders, task identities and default behavior are unchanged.
+
+```sh
+nub run eval:headless -- --suite headless-workflows-v6 \
+  --task coding-function-behavior-v6 --deduplicate-planner-alias-tools
+```
+
+Default pairing still rejects unequal overrides. For a **predeclared** single
+OFF-to-ON intervention at the same clean source revision and declared route,
+use the explicit comparator mode:
+
+```sh
+nub run eval:headless:compare -- \
+  --baseline /path/to/planner-off.json \
+  --candidate /path/to/planner-on.json \
+  --planner-alias-intervention
+```
+
+Only that exact marker may be appended; every other ordered override, available
+requested-route signature, task/check identity, schema and evaluator must
+match. Missing/dirty/different source, reversed arms, copied timestamps or other
+context changes are refused. Equally unavailable requested signatures do not
+prove execution, and effective/worker routes remain unavailable. This is not a
+generic override exemption. Repeat aggregation never mixes the two arms.
+Synthetic tool/schema reductions alone do not prove latency or quality gains;
+keep live failures, repeated timing spread and human review visible.
+
 Aggregate repeat samples only when they use the same schema (v4 or v5), declared
 route, evaluator, suite, task set, objective checks, and clean source revision.
 V5 additionally requires matching available requested-route signatures; mixed
