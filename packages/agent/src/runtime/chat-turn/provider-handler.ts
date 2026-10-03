@@ -13,7 +13,12 @@ import {
 import type { AgentExecutionContext } from "@/runtime/chat";
 import { matchesRegisteredCommandShortcut } from "@/runtime/command-shortcut-match";
 import { checkOllamaReadiness } from "@/runtime/native/plugin-registry/ollama-readiness";
-import { getScopedTurnActionResults } from "@/runtime/turn-runtime-scope";
+import {
+  getScopedTurnActionResults,
+  hasScopedTurnActionReceipts,
+  recordScopedTurnActionResult,
+  resolveScopedTurnActionResult,
+} from "@/runtime/turn-runtime-scope";
 import { hasWorkspaceMutationObligation } from "@/runtime/workspace-mutation-intent";
 import {
   interactiveTextSummary,
@@ -34,8 +39,8 @@ import {
   runWithSdkTrajectoryContext,
 } from "./trajectory";
 import {
-  missingWorkspaceMutationRequirements,
-  verifyWorkspaceNoopCompletion,
+  missingWorkspaceMutationRequirements as missingVerifiedWorkspaceRequirements,
+  verifyWorkspaceNoopCompletion as verifyChronologicalWorkspaceNoop,
   workspaceNoopRequirements,
 } from "./workspace-noop-completion";
 
@@ -131,6 +136,43 @@ const MAX_MUTATION_CONTINUATION_PASSES = 12;
 const MAX_CONSECUTIVE_NO_ACTION_PASSES = 2;
 const FRONTEND_FILE =
   /(?:^|\/)(?![^/]*\.(?:test|spec)\.)[^/]+\.(?:tsx|jsx|css|scss|sass|less|html|vue|svelte|svg|png|jpe?g|webp|gif|avif)$/iu;
+
+function chronologyUnverified(result: ActionResult): boolean {
+  return result.data?.doolittleReceiptChronologyUnverified === true;
+}
+
+// Keep unidentified SDK observations in the transcript and as invalidation
+// barriers, but never let their claimed readiness certify completion. Preserve
+// positions and later-session invalidation in the existing verification helper.
+function verificationActionResults(
+  results: readonly ActionResult[],
+): ActionResult[] {
+  return results.map((result) =>
+    chronologyUnverified(result) ? { ...result, success: false } : result,
+  );
+}
+
+function missingWorkspaceMutationRequirements(
+  ...[results, requirements]: Parameters<
+    typeof missingVerifiedWorkspaceRequirements
+  >
+) {
+  return missingVerifiedWorkspaceRequirements(
+    verificationActionResults(results),
+    requirements,
+  );
+}
+
+function verifyWorkspaceNoopCompletion(
+  ...[results, requirements]: Parameters<
+    typeof verifyChronologicalWorkspaceNoop
+  >
+) {
+  return verifyChronologicalWorkspaceNoop(
+    verificationActionResults(results),
+    requirements,
+  );
+}
 
 function unquotedServerInstructions(userRequest: string): string {
   // Match the workspace-intent gate's distinction between instructions and
@@ -257,6 +299,7 @@ function freshFrontendReviewAttempt(
     if (
       !review ||
       actionResultActionName(review) !== "DOOLITTLE_BROWSER_ANALYZE" ||
+      chronologyUnverified(review) ||
       !isRecord(review.data) ||
       review.data.reviewAttempted !== true ||
       typeof review.data.reviewedUrl !== "string"
@@ -271,6 +314,7 @@ function freshFrontendReviewAttempt(
       const ready = actionResults[readyIndex];
       if (
         ready?.success !== true ||
+        chronologyUnverified(ready) ||
         actionResultActionName(ready) !== "DOOLITTLE_APP_SERVER" ||
         !isRecord(ready.data) ||
         ready.data.status !== "ready" ||
@@ -598,15 +642,46 @@ function hasVerifiedWorkspaceCompletion(
 
 /** Merge Eliza's projected, settled, and Doolittle-scoped action receipts. */
 function mergeActionResults(
+  runtime: object,
   ...groups: readonly (readonly ActionResult[])[]
 ): ActionResult[] {
   const merged: ActionResult[] = [];
   const seenObjects = new Set<ActionResult>();
   const seenReceipts = new Set<string>();
+  const normalized = new Map<ActionResult, ActionResult>();
+  const canonical = (result: ActionResult): ActionResult => {
+    const existing = normalized.get(result);
+    if (existing) return existing;
+    const original = resolveScopedTurnActionResult(runtime, result);
+    const action = actionResultActionName(result)?.toUpperCase();
+    const value =
+      original ??
+      (hasScopedTurnActionReceipts(runtime) &&
+      !chronologyUnverified(result) &&
+      ["DOOLITTLE_APP_SERVER", "DOOLITTLE_BROWSER_ANALYZE"].includes(
+        action ?? "",
+      )
+        ? {
+            ...result,
+            data: {
+              ...result.data,
+              doolittleReceiptChronologyUnverified: true,
+            },
+          }
+        : result);
+    normalized.set(result, value);
+    return value;
+  };
+  const committed = new Set<ActionResult>();
 
-  for (const group of groups) {
-    for (const result of group) {
-      if (seenObjects.has(result)) continue;
+  for (const [groupIndex, source] of groups.entries()) {
+    const group = source.map(canonical);
+    let insertionFloor = committed.size;
+    for (const [index, result] of group.entries()) {
+      if (seenObjects.has(result)) {
+        insertionFloor = Math.max(insertionFloor, merged.indexOf(result) + 1);
+        continue;
+      }
       seenObjects.add(result);
 
       const action = actionResultActionName(result)?.toUpperCase();
@@ -633,7 +708,22 @@ function mergeActionResults(
 
       if (receiptKey && seenReceipts.has(receiptKey)) continue;
       if (receiptKey) seenReceipts.add(receiptKey);
-      merged.push(result);
+      // SDK lists supply positions for legitimate SDK-only actions among new
+      // scoped occurrences. Never backdate a new result ahead of committed
+      // history merely because a reconstructed old wrapper appears after it.
+      const next = group
+        .slice(index + 1)
+        .find(
+          (candidate) =>
+            !committed.has(candidate) &&
+            merged.indexOf(candidate) >= insertionFloor,
+        );
+      const position = next ? merged.indexOf(next) : merged.length;
+      merged.splice(position, 0, result);
+      insertionFloor = position + 1;
+    }
+    if (groupIndex === 0) {
+      for (const result of merged) committed.add(result);
     }
   }
 
@@ -766,6 +856,7 @@ function completedManagedAppServerSummary(
     const data = candidate.data;
     return (
       candidate.success === true &&
+      !chronologyUnverified(candidate) &&
       actionResultActionName(candidate) === "DOOLITTLE_APP_SERVER" &&
       isRecord(data) &&
       data.status === "ready" &&
@@ -1571,6 +1662,11 @@ export async function executeProviderMessageTurn(
               // Available in current Eliza develop and ignored by beta.7. Keep
               // committed action evidence even if a later planner stage fails.
               onSettledActionResult: (result: ActionResult) => {
+                if (
+                  !resolveScopedTurnActionResult(input.context.runtime, result)
+                ) {
+                  recordScopedTurnActionResult(input.context.runtime, result);
+                }
                 settledActionResults.push(result);
               },
             } as Parameters<typeof messageService.handleMessage>[3] & {
@@ -1595,6 +1691,7 @@ export async function executeProviderMessageTurn(
                 ? stateActionResults
                 : settledThisAttempt;
           actionResults = mergeActionResults(
+            input.context.runtime,
             actionResults,
             getScopedTurnActionResults(input.context.runtime),
             settledThisAttempt,
@@ -2071,9 +2168,10 @@ export async function executeProviderMessageTurn(
               includeScopedDelegatedExecutionReceipt(
                 input.context.runtime,
                 mergeActionResults(
+                  input.context.runtime,
+                  actionResults,
                   getScopedTurnActionResults(input.context.runtime),
                   settledActionResults,
-                  actionResults,
                 ),
               ),
             ),
