@@ -18,6 +18,10 @@ jobs:
   cold-capture:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        order: [complete-first, async-first]
 
     steps:
       - name: Check out repository
@@ -39,14 +43,17 @@ jobs:
       # Each test owns a fresh Electron process and profile. Repeat fixed samples;
       # retries remain disabled, and any failed sample keeps the job failed.
       # This offline fixture does not boot the agent/API or call providers.
+      # Separate hosted jobs/Xvfb sessions cross over only the first two cases.
       - name: Observe three cold samples of every first-capture case
         run: xvfb-run -a --server-args='-screen 0 3840x2160x24' nubx playwright test --config playwright.rendered.config.ts --repeat-each=3 --retries=0 --global-timeout=300000
+        env:
+          DOOLITTLE_RENDER_CAPTURE_ORDER: ${{ matrix.order }}
 
       - name: Preserve synthetic capture evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: cold-capture-evidence
+          name: cold-capture-evidence-${{ matrix.order }}
           path: var/playwright/rendered-test-results
           if-no-files-found: warn
           retention-days: 7

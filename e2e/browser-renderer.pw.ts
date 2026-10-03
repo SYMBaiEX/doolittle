@@ -5,9 +5,18 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { build } from "esbuild";
 import type { RasterCase } from "../apps/desktop/e2e/browser-renderer-fixture";
 
+// Fixed crossover arms distinguish a case-specific failure from the first
+// invocation in a hosted Xvfb session. The default full-CI order is unchanged.
+const captureOrder =
+  process.env.DOOLITTLE_RENDER_CAPTURE_ORDER ?? "complete-first";
+if (captureOrder !== "complete-first" && captureOrder !== "async-first")
+  throw new Error("Unknown renderer fixture case order.");
+const firstModes =
+  captureOrder === "async-first"
+    ? (["async", "complete"] as const)
+    : (["complete", "async"] as const);
 for (const mode of [
-  "complete",
-  "async",
+  ...firstModes,
   "lazy",
   "late",
   "expire-after-png",
@@ -67,6 +76,8 @@ for (const mode of [
         );
         const diagnostic = {
           mode,
+          order: captureOrder,
+          repeatIndex: testInfo.repeatEachIndex,
           window:
             outcome.capture?.diagnostic ?? outcome.failure?.window ?? null,
           failure: outcome.failure
