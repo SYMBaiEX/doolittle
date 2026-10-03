@@ -9,6 +9,14 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   outputDir: "./var/playwright/rendered-test-results",
-  reporter: [["list", { printSteps: true }]],
+  reporter: [
+    ["list", { printSteps: true }],
+    // The list reporter does not persist attached PNG/JSON bodies on passing
+    // tests. Retain only this owned offline fixture's synthetic evidence.
+    [
+      "html",
+      { open: "never", outputFolder: "./var/playwright/rendered-report" },
+    ],
+  ],
   timeout: 60_000,
 });
