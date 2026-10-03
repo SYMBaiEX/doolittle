@@ -260,6 +260,17 @@ and show spread, not just one run or arithmetic mean.
 
 ## Interpreting results
 
+The private local journal's `model.continuation` event includes versioned,
+content-free `continuationDiagnostics`: response-selection origin, current
+unfinished-work admission kind/scopes, the retained obligation after clearance
+checks and its unmet receipt categories, plus workspace/review gate booleans.
+Unmet categories are `null` if optional receipt inspection is unavailable.
+The existing `explicitly-incomplete-response` reason can mean a current admission
+or a carried obligation; use these fields to distinguish them. They describe
+the continuation gate, not proof that an admission is accurate, app quality,
+effective model execution, or a causal explanation of latency. No diagnostic is
+emitted for a pass that ends the loop; absence is not a completion receipt.
+
 - Do not call a run better because it completed, passed a few smoke checks, or
   used a preferred route. A reported `completed` status and objective checks
   are separate signals.
