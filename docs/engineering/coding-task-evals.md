@@ -144,11 +144,20 @@ fallback with `captureReady=false`; PNG text cards are never relabeled as
 rendered pages. Comparison workflows remain text-based. A viewport critique
 does not establish interaction, motion, reduced-motion or full accessibility.
 
+The registered `DOOLITTLE_BROWSER_ANALYZE` action exposes that review to the
+coding planner. It requires desktop/CLI owner access and a ready managed origin
+in the selected workspace, returns bounded untrusted critique and pixel metadata,
+and continues the action chain for scoped corrections. It does not grant page
+input, editing, app startup or remote-channel host access. Text-only results must
+not be reported as visual verification. Stop the managed app before rebuilding
+after a correction; restart it and review the new result.
+
 Run the isolated synthetic acceptance check with:
 
 ```sh
 nub scripts/acceptance/rendered-browser-smoke.ts
 nub scripts/acceptance/rendered-browser-smoke.ts --live-analysis
+nub scripts/acceptance/rendered-browser-smoke.ts --agent-analysis
 ```
 
 The default check uses no model. The explicit live option uses the configured
@@ -156,7 +165,11 @@ linked Codex input with the test's fixed `gpt-6-luna`/`medium` route; it checks
 two actual image inputs, one physical provider request, reported usage and
 identification of known fixture defects. Internal SDK model dispatch count is
 not the physical request count. This is a canary, not a coding benchmark or a
-human score. It retains only bounded diagnostic facts and deletes its exact
+human score. `--agent-analysis` instead invokes the real registered action with
+the normal local-owner connection bootstrap, checks coding-planner inclusion,
+bounded nonterminal findings and the same real image/provider evidence. It does
+not prove the planner chooses the action or corrects a real coding task.
+The check retains only bounded diagnostic facts and deletes its exact
 private synthetic state after owned children stop; a shutdown failure preserves
 state and fails the check. Billable USD remains unavailable. For a coding
 evaluation, still freeze the source, accept the real task once, verify the

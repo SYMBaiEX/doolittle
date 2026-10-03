@@ -23,7 +23,8 @@ import {
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const require = createRequire(import.meta.url);
 const root = mkdtempSync(join(tmpdir(), "doolittle-render-smoke-"));
-const live = process.argv.includes("--live-analysis");
+const agentAnalysis = process.argv.includes("--agent-analysis");
+const live = process.argv.includes("--live-analysis") || agentAnalysis;
 const children: ChildProcess[] = [];
 let stage = "setup";
 let endpointStatus: number | undefined;
@@ -279,35 +280,72 @@ app.whenReady().then(async () => { try { bridge = await startBrowserRenderBridge
     bridgeHealth.ok && electron.exitCode === null,
   );
   if (live) {
-    stage = "live-native-analysis";
-    const { analysis, response } = (await api("/browser/analyze", {
-      url: runtimeReady.appUrl,
-    })) as { analysis: BrowserAnalysisBundle; response: string };
-    check(
-      "nativeModelPixelInputs",
-      analysis.modelEvidence === "rendered-pixels" &&
-        analysis.capture.captureMode === "rendered-page",
-    );
-    check(
-      "narrowViewport",
-      analysis.narrowCapture?.renderedEvidence?.viewport.width === 390,
-    );
-    check(
-      "liveResponse",
-      typeof response === "string" &&
-        response.trim().length > 0 &&
-        response === analysis.response,
-    );
-    check(
-      "contrastDefectIdentified",
-      /contrast|unreadable|invisible|illegible|same.{0,15}colou?r|black.on.black/iu.test(
-        response,
-      ),
-    );
-    check(
-      "semanticLinkDefectIdentified",
-      /story|newsletter|link.{0,40}target/iu.test(response),
-    );
+    if (agentAnalysis) {
+      stage = "live-registered-agent-action";
+      const pending = message<Record<string, unknown>>(
+        runtime,
+        "agent-analysis-result",
+      );
+      runtime.send({ type: "agent-analysis" });
+      const result = await pending;
+      check(
+        "registeredCodingReviewAction",
+        result.actionRegistered === true &&
+          result.codingChildRegistered === true,
+      );
+      check(
+        "boundedNonterminalCritique",
+        result.success === true &&
+          result.continueChain === true &&
+          result.noCompletionClaim === true &&
+          result.boundedOutput === true &&
+          result.rawCaptureFieldsAbsent === true,
+      );
+      check(
+        "nativeModelPixelInputs",
+        result.modelEvidence === "rendered-pixels" &&
+          result.desktopWidth === 1280,
+      );
+      check("narrowViewport", result.narrowWidth === 390);
+      check(
+        "contrastDefectIdentified",
+        result.contrastDefectIdentified === true,
+      );
+      check(
+        "semanticLinkDefectIdentified",
+        result.semanticLinkDefectIdentified === true,
+      );
+    } else {
+      stage = "live-native-analysis";
+      const { analysis, response } = (await api("/browser/analyze", {
+        url: runtimeReady.appUrl,
+      })) as { analysis: BrowserAnalysisBundle; response: string };
+      check(
+        "nativeModelPixelInputs",
+        analysis.modelEvidence === "rendered-pixels" &&
+          analysis.capture.captureMode === "rendered-page",
+      );
+      check(
+        "narrowViewport",
+        analysis.narrowCapture?.renderedEvidence?.viewport.width === 390,
+      );
+      check(
+        "liveResponse",
+        typeof response === "string" &&
+          response.trim().length > 0 &&
+          response === analysis.response,
+      );
+      check(
+        "contrastDefectIdentified",
+        /contrast|unreadable|invisible|illegible|same.{0,15}colou?r|black.on.black/iu.test(
+          response,
+        ),
+      );
+      check(
+        "semanticLinkDefectIdentified",
+        /story|newsletter|link.{0,40}target/iu.test(response),
+      );
+    }
     stage = "provider-coverage";
     ({ usage: modelUsage, malformed: modelUsageMalformed } =
       readHeadlessModelUsage(join(root, "data")));
@@ -364,6 +402,7 @@ app.whenReady().then(async () => { try { bridge = await startBrowserRenderBridge
       result: process.exitCode ? "failed" : "passed",
       stage,
       liveAnalysis: live,
+      agentAnalysis,
       elapsedMs: Math.round(performance.now() - startedAt),
       checks,
       observations,

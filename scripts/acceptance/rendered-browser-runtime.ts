@@ -1,4 +1,4 @@
-import type { GenerateTextParams } from "@elizaos/core";
+import type { GenerateTextParams, Memory } from "@elizaos/core";
 import type { AppContext } from "@/runtime/bootstrap";
 
 function errorDiagnostic(error: unknown) {
@@ -51,6 +51,12 @@ function errorDiagnostic(error: unknown) {
 }
 
 import { getAppContext } from "@/runtime/bootstrap";
+import {
+  ensureLocalInteractiveSettingsState,
+  ensureTurnConnection,
+} from "@/runtime/chat-turn/connection";
+import { createTurnState } from "@/runtime/chat-turn/state";
+import { runWithTurnRuntimeScope } from "@/runtime/turn-runtime-scope";
 import { startApiServer, stopApiServer } from "@/server";
 import { shellQuote } from "@/services/terminal/execution/subprocess/shell";
 
@@ -58,10 +64,13 @@ import { shellQuote } from "@/services/terminal/execution/subprocess/shell";
 let context: AppContext | undefined;
 let sessionId: string | undefined;
 let stopping = false;
+let actionRequested = false;
+let actionAbort: AbortController | undefined;
 const owner = "rendered-browser-acceptance";
 async function stop() {
   if (stopping) return;
   stopping = true;
+  actionAbort?.abort();
   try {
     if (context && sessionId)
       context.services.terminal.appServers.stop(owner, sessionId);
@@ -236,7 +245,113 @@ try {
   sessionId = started.session.id;
   if (started.status !== "ready" || !started.url)
     throw new Error("Synthetic managed app did not become ready.");
+  const appUrl = started.url;
   const api = await startApiServer(context);
+  // Test-only IPC: invoke the actual registered action with the same owner
+  // connection bootstrap as a desktop turn. No provider, service, permission
+  // or action replacement is installed. Emit only bounded diagnostic facts.
+  const active = context;
+  process.on("message", (request) => {
+    if (
+      !request ||
+      typeof request !== "object" ||
+      !("type" in request) ||
+      request.type !== "agent-analysis" ||
+      actionRequested ||
+      stopping
+    )
+      return;
+    actionRequested = true;
+    actionAbort = new AbortController();
+    void (async () => {
+      try {
+        const turn = createTurnState(
+          {
+            userId: owner,
+            roomId: owner,
+            source: "desktop",
+            message: "Review the synthetic managed app.",
+          },
+          active,
+        );
+        await ensureTurnConnection(active, {
+          entityId: turn.entityId,
+          roomId: turn.roomId,
+          worldId: turn.worldId,
+          source: turn.connectionSource,
+          channelId: turn.sessionId,
+          messageServerId: turn.messageServerId,
+        });
+        await ensureLocalInteractiveSettingsState(active, turn);
+        const memory = {
+          id: turn.messageId,
+          entityId: turn.entityId,
+          agentId: active.runtime.agentId,
+          roomId: turn.roomId,
+          content: {
+            text: "Review the synthetic managed app.",
+            source: "desktop",
+          },
+        } as Memory;
+        const actions = active.runtime.getAllActions();
+        const action = actions.find(
+          (candidate) => candidate.name === "DOOLITTLE_BROWSER_ANALYZE",
+        );
+        const coding = actions.find(
+          (candidate) => candidate.name === "DOOLITTLE_CODING",
+        );
+        if (!action || !(await action.validate(active.runtime, memory)))
+          throw new Error("Registered page-review action unavailable.");
+        const result = await runWithTurnRuntimeScope(
+          active.runtime,
+          {
+            settings: new Map(),
+            abortSignal: actionAbort?.signal,
+            settledActionResults: [],
+          },
+          () =>
+            action.handler(active.runtime, memory, undefined, {
+              parameters: { url: appUrl },
+            }),
+        );
+        const data = result?.data as
+          | {
+              modelEvidence?: unknown;
+              evidence?: Array<{ viewport?: { width?: unknown } }>;
+            }
+          | undefined;
+        const critique = result?.text ?? "";
+        process.send?.({
+          type: "agent-analysis-result",
+          actionRegistered: true,
+          codingChildRegistered:
+            coding?.subActions?.includes(action.name) === true,
+          success: result?.success === true,
+          continueChain: result?.continueChain === true,
+          noCompletionClaim: result?.verifiedUserFacing !== true,
+          boundedOutput: critique.length > 0 && critique.length < 11_000,
+          modelEvidence:
+            data?.modelEvidence === "rendered-pixels"
+              ? "rendered-pixels"
+              : "text-only",
+          desktopWidth: data?.evidence?.[0]?.viewport?.width,
+          narrowWidth: data?.evidence?.[1]?.viewport?.width,
+          contrastDefectIdentified:
+            /contrast|unreadable|invisible|illegible|same.{0,15}colou?r|black.on.black/iu.test(
+              critique,
+            ),
+          semanticLinkDefectIdentified:
+            /story|newsletter|link.{0,40}target/iu.test(critique),
+          rawCaptureFieldsAbsent:
+            !/"(?:prompt|page|facts|snapshotPath|screenshotPath|manifestPath|reportPath)"\s*:/u.test(
+              JSON.stringify(data),
+            ),
+        });
+      } catch {
+        process.send?.({ type: "agent-analysis-failed" });
+      }
+    })();
+  });
   process.send?.({ type: "runtime-ready", url: api.url, appUrl: started.url });
 } catch {
   process.send?.({ type: "runtime-failed" });

@@ -19,6 +19,13 @@ describe("Doolittle coding action", () => {
     expect(parent.name).toBe(DOOLITTLE_CODING_ACTION);
     expect(parent.contexts).toEqual(["code", "files"]);
     expect(DOOLITTLE_CODING_SUBACTIONS[0]).toBe("TASKS_SPAWN_AGENT");
+    expect(DOOLITTLE_CODING_SUBACTIONS).toContain("DOOLITTLE_BROWSER_ANALYZE");
+    expect(parent.description).toContain(
+      "review the ready app with DOOLITTLE_BROWSER_ANALYZE",
+    );
+    expect(JSON.stringify(parent.subPlanner)).toContain(
+      "review the ready app with DOOLITTLE_BROWSER_ANALYZE",
+    );
     expect(parent.description).toContain(
       "delegate the complete implementation once to TASKS_SPAWN_AGENT",
     );

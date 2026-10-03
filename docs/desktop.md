@@ -42,6 +42,9 @@ blocked resources and limits; missing capability or other URLs remain explicit
 text-only fallback. This is not control of an existing browser, a general
 remote browser, or proof of keyboard, click, form, motion or accessibility
 testing. Browser comparisons remain text-based.
+The owner-only `DOOLITTLE_BROWSER_ANALYZE` action makes the same bounded critique
+available to the coding planner for ready managed apps; it is not a completion
+receipt or permission to interact with pages.
 
 Ordinary renderer requests use `@elizaos/ui`'s `ElizaClient`, so Eliza owns
 client identity, request deadlines, resume retries, response parsing, and

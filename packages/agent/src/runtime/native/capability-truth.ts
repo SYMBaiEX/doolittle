@@ -17,26 +17,32 @@ const CAPABILITY_TRUTH: NativeCapabilityTruthRecord[] = [
     headline:
       "Browser capture distinguishes text-based cards from rendered-page evidence.",
     summary:
-      "The evidence adapter captures fetched text and metadata. Lightpanda can supply DOM content for PNG capture cards; no current evidence backend captures rendered-page pixels.",
+      "Desktop native capture obtains real viewport PNGs for active managed apps in the selected workspace through a private Electron bridge and public Eliza browser-workspace helpers. Other URLs or unavailable native capture retain fetched-text cards or placeholders.",
     runtimeSurfaces: [
       "GET /browser/status",
       "POST /browser/capture",
       "POST /browser/screenshot",
       "POST /browser/analyze",
+      "DOOLITTLE_BROWSER_ANALYZE",
     ],
     requiredStatusFields: ["captureMode", "captureReady", "provider", "mode"],
     realBehavior: [
       "Returns captureMode=capture-card for text-based PNG cards when the configured DOM backend is executable; these are not page screenshots.",
       "Reports captureReady=false for both capture cards and placeholders, independently of DOM-fetch readiness.",
       "Preserves placeholder markdown and SVG artifacts as the degraded path instead of pretending screenshots are real.",
+      "Successful native captures report captureMode=rendered-page, captureReady=true, renderBackend=electron-private-capture, bounded DOM facts, viewport/pixel dimensions and pixel hashes.",
+      "Native page analysis attaches owned desktop and available narrow PNG bytes through the shared model-analysis path and labels supplied pixel evidence separately from text-only analysis.",
+      "The coding planner exposes an owner-only managed-app review action that returns bounded model critique and capture metadata for scoped correction, without returning raw page transcripts or base64 screenshots. A critique is not a completion receipt.",
     ],
     degradedBehavior: [
       "Falls back to placeholder markdown capture output when the browser backend is unavailable or fetch execution fails.",
       "Reports captureMode=placeholder and captureReady=false instead of claiming full screenshot readiness.",
+      "Unmanaged URLs, stopped managed apps and failed native captures do not receive rendered-page claims; text-only fallback never attaches a capture card as page pixels.",
     ],
     caveats: [
       "A PNG file or browser-backed DOM fetch does not prove rendered layout. Legacy pixel labels are ambiguous and are not accepted as visual evidence.",
-      "Browser analysis calls supply text and artifact paths, not image pixels; they must not claim layout, color or contrast inspection.",
+      "Model vision depends on the selected provider and model. The live synthetic canary verifies two images in one physical selected Codex request; it is not a human quality score, a coding correction loop or universal provider coverage.",
+      "Native captures are read-only and viewport-only: no existing profiles, arbitrary scripts, keyboard/click/form input, motion or reduced-motion testing. Blocked image/font assets are counted and must be disclosed.",
       "Interactive upstream browser claims such as CAPTCHA solving and session management are not part of the documented Doolittle runtime contract.",
     ],
   },

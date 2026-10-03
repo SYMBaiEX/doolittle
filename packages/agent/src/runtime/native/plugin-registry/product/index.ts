@@ -18,6 +18,7 @@ import {
 } from "@plugins/doolittle-plugin/sdk-native-surface";
 import { createSecretsVaultPersistenceService } from "@plugins/doolittle-plugin/secrets-vault";
 import { createAppServerAction } from "@/actions/app-server-action";
+import { createBrowserAnalysisAction } from "@/actions/browser-analysis-action";
 import { createCodingAction } from "@/actions/coding-action";
 import {
   createCommandAction,
@@ -72,6 +73,7 @@ export function createDoolittleProductPlugin(
   const actions = withToolPolicyOwnership([
     createCodingAction(),
     createAppServerAction(services),
+    createBrowserAnalysisAction(services),
     createCommandAction(services, config),
     createShellCommandAction(services, config),
     createSessionSearchAction(config.sessionSearchLimit),
