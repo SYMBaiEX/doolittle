@@ -62,6 +62,48 @@ bytes, effective routes, cache/billing, worker inputs or full overhead.
 
 ## Current coverage and known limits
 
+`headless-sdk-web-research-v1` is a separate, single-turn public synthetic task,
+not a replacement for the unchanged Cloud `/research` cases. It uses registered
+SDK `WEB_SEARCH` (Parallel's public search MCP, possibly Exa fallback), then
+`WEB_FETCH` of OpenAI's small Codex TypeScript source, followed by synthesis on
+the unchanged selected text route. Its prompt discloses those search endpoints;
+configured Cloud research opt-in is refused before credential resolution.
+No provider, action policy, default suite, schema or evaluator version changes.
+
+Required grading reads only original `action.completed.metadata.actionResult`
+evidence after normal CLI completion and confirmed owned-child cleanup, before
+task deletion. The CLI start session is joined to consistent original journal
+run/room anchors; ordered search/fetch/final-response evidence must agree.
+`original-search-returned-data` attests only a balanced successful SDK action
+with the exact public query, known Parallel/Exa provider and nonempty bounded
+recorded string. The search payload is opaque: its format, result quality,
+official-source discovery, citation quality and completeness are not graded.
+Links or model assertions alone, replayed response actionResults, failed,
+foreign, ambiguous, malformed or missing grounding evidence cannot pass. The
+structured answer's values/declaration are checked against fetched source,
+not a hardcoded answer. Only check booleans and closed diagnostic enums enter
+the existing report; no new raw-content artifact is written. Source/query/
+response/IDs are projected transiently from existing private CLI/journal data
+before safe task deletion. Unconfirmed cleanup retains owned state under the
+existing safety contract, rather than deleting possibly live task data.
+
+The reader pins canonical private task/data directories and checks ordinary
+owned trajectory directories and descriptor-bound non-symlink, single-link
+journal identity before/after bounded reads (2 MiB, 2048 events). This assumes
+quiescent owned processes and trusted same-UID writers; it is not race-proof
+ancestor traversal, independent wire attestation or a hard filesystem-time cap.
+SDK search/fetch values are capped at 4000 characters. An otherwise admissible
+search string at exactly that boundary may pass the data-return check while
+recording `sdk-web-search-output-at-cap`; this means at-cap coverage, not proven
+truncation or complete search results. Redaction/depth-loss markers or over-cap
+search data fail closed. The exact primary-source fetch is still required;
+at-cap source values or unsupported source syntax fail closed. Search cache
+versus live freshness, immutable source revision and effective model remain
+unattested. Fetch proves SDK-recorded retrieval during this invocation, not all
+current-web correctness. The existing 300-second child bound/cleanup remains;
+an observation timeout does not prove remote network cancellation. Human review
+of coherence, usefulness and claim-level grounding is still required.
+
 - `headless-workflows-v2` is a small dispatch smoke suite: clarification,
   constrained formatting, one exact-file coding change, research, and
   draft-only reliability behavior. `headless-workflows-v3` preserves those
@@ -82,7 +124,7 @@ bytes, effective routes, cache/billing, worker inputs or full overhead.
   did not require that no action started. Use v5 for that stricter check. Its
   action-start count proves only that an event was recorded or absent; it does
   not identify the action or its effect.
-- Research needs a working configured Eliza Cloud provider. The runner flags a
+- Existing `/research` cases need a working configured Eliza Cloud provider. The runner flags a
   returned `DOOLITTLE_RESEARCH` failure as provider unavailable (and recognizes
   authentication failures separately); retain it as an operational failure,
   but do not interpret its content check as a research-quality score. Raw

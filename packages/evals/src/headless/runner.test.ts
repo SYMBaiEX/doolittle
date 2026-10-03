@@ -14,11 +14,13 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
+import * as accountAuth from "@doolittle/agent/runtime/native/account-auth";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HeadlessEvalSuite } from "./cases";
 import { HEADLESS_EVAL_SUITES } from "./cases";
 import * as measurement from "./measurement";
 import * as modelInputObservations from "./model-input-observations";
+import * as researchGrounding from "./research-grounding";
 import { runHeadlessEvalSuite } from "./runner";
 
 const temporaryDirectories: string[] = [];
@@ -381,6 +383,300 @@ afterEach(() => {
     const path = temporaryDirectories.pop();
     if (path) rmSync(path, { recursive: true, force: true });
   }
+});
+
+describe("separately identified SDK-web research grading", () => {
+  const suite = HEADLESS_EVAL_SUITES["headless-sdk-web-research-v1"];
+  const legacyPrompt = HEADLESS_EVAL_SUITES["headless-workflows-v6"].tasks.find(
+    (task) => task.domain === "research",
+  )?.prompt;
+  const success = {
+    status: 0,
+    stdout: "",
+    stderr: "",
+    signal: null,
+    cleanupSafe: true,
+  };
+  function evidence(dataDir: string, searchValue?: string) {
+    const source =
+      'export type WebSearchMode = "cached" | "live" | "disabled";';
+    const response = JSON.stringify({
+      values: ["cached", "live", "disabled"],
+      member: "webSearchMode",
+      declaration: source,
+      source: researchGrounding.SDK_WEB_RESEARCH_SOURCE,
+    });
+    const timestamp = (ordinal: number) => `2026-10-03T00:00:0${ordinal}.000Z`;
+    const anchor = {
+      sessionId: "cli:synthetic",
+      runId: "run-synthetic",
+      roomId: "native-room",
+      source: "cli",
+      provider: "codex",
+    };
+    const event = (
+      ordinal: number,
+      category: string,
+      name: string,
+      metadata: Record<string, unknown>,
+    ) => ({
+      ...anchor,
+      category,
+      event: name,
+      createdAt: timestamp(ordinal),
+      metadata,
+    });
+    const action = (
+      ordinal: number,
+      name: string,
+      completed: boolean,
+      data: Record<string, unknown> = {},
+    ) =>
+      event(
+        ordinal,
+        "action",
+        completed ? "action.completed" : "action.started",
+        {
+          action: name,
+          ...(completed
+            ? {
+                status: "completed",
+                success: true,
+                actionResult: {
+                  success: true,
+                  data: { actionName: name, ...data },
+                },
+              }
+            : {}),
+        },
+      );
+    const rows = [
+      event(1, "model", "model.request", {
+        path: "provider-message-service",
+        prompt: "PRIVATE_PROMPT_CANARY",
+      }),
+      action(2, "WEB_SEARCH", false),
+      action(3, "WEB_SEARCH", true, {
+        query: researchGrounding.SDK_WEB_RESEARCH_QUERY,
+        provider: "parallel",
+        value:
+          searchValue ??
+          JSON.stringify({
+            results: [{ url: "https://github.com/openai/codex" }],
+          }),
+      }),
+      action(4, "WEB_FETCH", false),
+      action(5, "WEB_FETCH", true, {
+        url: researchGrounding.SDK_WEB_RESEARCH_SOURCE,
+        value: `${source}\nexport type ThreadOptions = { webSearchMode?: WebSearchMode; };`,
+      }),
+      event(6, "model", "model.response", {
+        path: "provider-message-service",
+        response,
+        runFailureMessage: null,
+      }),
+    ];
+    const trajectories = join(dataDir, "trajectories");
+    mkdirSync(trajectories, { mode: 0o755 });
+    writeFileSync(
+      join(trajectories, "trajectory-events.jsonl"),
+      `${rows.map((row) => JSON.stringify(row)).join("\n")}\n`,
+      { mode: 0o644 },
+    );
+    const stdout = [
+      { type: "start", timestamp: timestamp(0), sessionId: anchor.sessionId },
+      {
+        type: "result",
+        timestamp: timestamp(7),
+        text: response,
+        shouldExit: false,
+      },
+      { type: "completed", timestamp: timestamp(8), status: "completed" },
+    ]
+      .map((row) => JSON.stringify(row))
+      .join("\n");
+    return { response, stdout };
+  }
+  afterEach(() => vi.restoreAllMocks());
+  it("grades actual original retrieval before deleting state; report keeps booleans/enums only", async () => {
+    const reader = vi.spyOn(researchGrounding, "readResearchGrounding");
+    let data = "";
+    const reportDir = tempDirectory();
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir,
+      execute: (_command, args, options) => {
+        data = options.env.DOOLITTLE_DATA_DIR ?? "";
+        expect(options.env.ELIZAOS_CLOUD_ENABLED).toBe("false");
+        expect(options.env.ELIZAOS_CLOUD_API_KEY).toBeUndefined();
+        expect(args).toContain(suite.tasks[0].prompt);
+        return { ...success, stdout: evidence(data).stdout };
+      },
+    });
+    expect(reader).toHaveBeenCalledOnce();
+    expect(result.exitCode).toBe(0);
+    expect(result.report.summary.objectiveChecksPassed).toBe(5);
+    expect(result.report.runs[0].humanReviewRequired).toBe(true);
+    expect(result.report.schemaVersion).toBe(5);
+    expect(result.report.evaluatorVersion).toBe("0.2.11");
+    expect(result.report.executionOverrides).toEqual([]);
+    expect(existsSync(data)).toBe(false);
+    expect(dirname(result.reportPath)).toBe(reportDir);
+    const report = readFileSync(
+      join(reportDir, basename(result.reportPath)),
+      "utf8",
+    );
+    for (const canary of [
+      "PRIVATE_PROMPT_CANARY",
+      "cli:synthetic",
+      "native-room",
+      "run-synthetic",
+      researchGrounding.SDK_WEB_RESEARCH_QUERY,
+      researchGrounding.SDK_WEB_RESEARCH_SOURCE,
+      "WebSearchMode =",
+    ])
+      expect(report).not.toContain(canary);
+    expect(
+      HEADLESS_EVAL_SUITES["headless-workflows-v6"].tasks.find(
+        (task) => task.domain === "research",
+      )?.prompt,
+    ).toBe(legacyPrompt);
+    expect(legacyPrompt).toMatch(/^\/research /u);
+  });
+  it("rejects Cloud opt-in before dispatch or creating a report directory", async () => {
+    const credentials = vi
+      .spyOn(accountAuth, "getLinkedElizaCloudCredentials")
+      .mockImplementation(() => {
+        throw new Error("Credential resolution must not occur.");
+      });
+    const execute = vi.fn();
+    const reportDir = join(tempDirectory(), "not-created");
+    await expect(
+      runHeadlessEvalSuite(suite, {
+        reportDir,
+        enableConfiguredCloudResearch: true,
+        execute,
+      }),
+    ).rejects.toThrow("SDK-web research cannot enable");
+    expect(execute).not.toHaveBeenCalled();
+    expect(credentials).not.toHaveBeenCalled();
+    expect(existsSync(reportDir)).toBe(false);
+  });
+  it("keeps passing source agreement with an explicit opaque search-at-cap diagnostic", async () => {
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir: tempDirectory(),
+      execute: (_command, _args, options) => ({
+        ...success,
+        stdout: evidence(options.env.DOOLITTLE_DATA_DIR ?? "", "x".repeat(4000))
+          .stdout,
+      }),
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.report.summary.objectiveChecksPassed).toBe(5);
+    expect(result.report.runs[0].checks[0].id).toBe(
+      "original-search-returned-data",
+    );
+    expect(result.report.runs[0].diagnosticFlags).toContain(
+      "sdk-web-search-output-at-cap",
+    );
+    expect(result.report.runs[0].diagnosticFlags).not.toContain(
+      "sdk-web-grounding-retrieval-unavailable",
+    );
+  });
+  it("does not pin or read grounding for old/default suites", async () => {
+    const reader = vi.spyOn(researchGrounding, "readResearchGrounding");
+    const pin = vi.spyOn(researchGrounding, "pinResearchDataRoot");
+    await runHeadlessEvalSuite(HEADLESS_EVAL_SUITES["headless-workflows-v2"], {
+      reportDir: tempDirectory(),
+      taskIds: ["conversation-format-v2"],
+      execute: () => ({
+        ...success,
+        stdout: JSON.stringify({ ok: true, text: '{"ready":true,"count":3}' }),
+      }),
+    });
+    expect(pin).not.toHaveBeenCalled();
+    expect(reader).not.toHaveBeenCalled();
+  });
+  it("a normal links-only answer cannot pass without original retrieval", async () => {
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir: tempDirectory(),
+      execute: () => ({
+        ...success,
+        stdout: JSON.stringify({
+          ok: true,
+          text: researchGrounding.SDK_WEB_RESEARCH_SOURCE,
+        }),
+      }),
+    });
+    expect(result.report.runs[0].status).toBe("completed");
+    expect(result.report.runs[0].checks.every((check) => !check.passed)).toBe(
+      true,
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.report.runs[0].diagnosticFlags).toContain(
+      "sdk-web-grounding-missing-input",
+    );
+  });
+  it.each(["cancelled", "error", "exit", "no-cleanup"])(
+    "never reads successful-looking evidence after %s execution",
+    async (kind) => {
+      const reader = vi.spyOn(researchGrounding, "readResearchGrounding");
+      const reportDir = tempDirectory();
+      const operation = runHeadlessEvalSuite(suite, {
+        reportDir,
+        execute: (_command, _args, options) => {
+          const data = options.env.DOOLITTLE_DATA_DIR ?? "";
+          if (kind === "no-cleanup")
+            temporaryDirectories.push(dirname(dirname(data)));
+          return {
+            ...success,
+            stdout: evidence(data).stdout,
+            ...(kind === "cancelled" ? { signal: "SIGTERM" as const } : {}),
+            ...(kind === "error" ? { error: new Error("ERROR_CANARY") } : {}),
+            ...(kind === "exit" ? { status: 1 } : {}),
+            ...(kind === "no-cleanup" ? { cleanupSafe: false } : {}),
+          };
+        },
+      });
+      if (kind === "no-cleanup") {
+        await expect(operation).rejects.toThrow(
+          "cleanup could not be confirmed",
+        );
+        expect(readdirSync(reportDir)).toEqual([]);
+      } else {
+        const result = await operation;
+        expect(result.exitCode).toBe(1);
+        expect(
+          result.report.runs[0].checks.every((check) => !check.passed),
+        ).toBe(true);
+      }
+      expect(reader).not.toHaveBeenCalled();
+    },
+  );
+  it("refuses a substituted original task identity before grounding and preserves retained state", async () => {
+    const reader = vi.spyOn(researchGrounding, "readResearchGrounding");
+    const reportDir = tempDirectory();
+    let replacement = "";
+    await expect(
+      runHeadlessEvalSuite(suite, {
+        reportDir,
+        execute: (_command, _args, options) => {
+          const data = options.env.DOOLITTLE_DATA_DIR ?? "";
+          const stdout = evidence(data).stdout;
+          const task = dirname(data);
+          const root = dirname(task);
+          temporaryDirectories.push(root);
+          renameSync(task, `${task}.original`);
+          mkdirSync(task, { mode: 0o700 });
+          replacement = join(task, "sentinel");
+          writeFileSync(replacement, "FOREIGN_SENTINEL");
+          return { ...success, stdout };
+        },
+      }),
+    ).rejects.toThrow();
+    expect(reader).not.toHaveBeenCalled();
+    expect(readFileSync(replacement, "utf8")).toBe("FOREIGN_SENTINEL");
+    expect(readdirSync(reportDir)).toEqual([]);
+  });
 });
 
 describe("private optional action receipt persistence", () => {

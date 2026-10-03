@@ -54,6 +54,12 @@ import {
   type HeadlessExecutor,
 } from "./process";
 import {
+  pinResearchDataRoot,
+  type ResearchGrounding,
+  readResearchGrounding,
+  unavailableResearchGrounding,
+} from "./research-grounding";
+import {
   type HeadlessActionLabelDiagnostic,
   hasFailedResearchAction,
   readFirstModelRequestAtMs,
@@ -417,6 +423,25 @@ export async function runHeadlessEvalSuite(
     );
   }
   if (
+    selectedTasks.some((task) => task.groundingStrategy === "sdk-web-source-v1")
+  ) {
+    // Refuse before credential resolution, persistence allocation or dispatch.
+    if (options.enableConfiguredCloudResearch) {
+      throw new Error(
+        "SDK-web research cannot enable configured Cloud research.",
+      );
+    }
+    if (
+      selectedTasks.some(
+        (task) =>
+          task.groundingStrategy === "sdk-web-source-v1" &&
+          task.followUpPrompts?.length,
+      )
+    ) {
+      throw new Error("SDK-web grounding supports one CLI invocation only.");
+    }
+  }
+  if (
     selectedTasks.some((task) =>
       [task.prompt, ...(task.followUpPrompts ?? [])].some(
         (prompt) => !prompt.trim(),
@@ -475,6 +500,10 @@ export async function runHeadlessEvalSuite(
       writeFileSync(join(dataDir, "onboarding.json"), "{}\n", {
         mode: 0o600,
       });
+      const researchRoot =
+        task.groundingStrategy === "sdk-web-source-v1"
+          ? pinResearchDataRoot(dataDir)
+          : undefined;
       const modelInputRoot = options.recordModelInputs
         ? pinModelInputDataRoot(dataDir)
         : undefined;
@@ -486,6 +515,7 @@ export async function runHeadlessEvalSuite(
       const sessionId =
         prompts.length > 1 ? `doolittle-eval:${randomUUID()}` : undefined;
       const responses: string[] = [];
+      let researchStdout = "";
       const responseSha256s: Array<string | null> = [];
       const diagnosticFlags = new Set<string>();
       if (
@@ -610,6 +640,8 @@ export async function runHeadlessEvalSuite(
         finalSignal = child.signal;
 
         const cliResult = resultFromStdout(child.stdout ?? "");
+        if (task.groundingStrategy === "sdk-web-source-v1")
+          researchStdout = child.stdout ?? "";
         const response = cliResult.text ?? "";
         responses.push(response);
         responseSha256s.push(response ? sha256(response) : null);
@@ -722,9 +754,38 @@ export async function runHeadlessEvalSuite(
             ? traceSummary.actionStarts
             : null,
       };
+      let researchGrounding: ResearchGrounding | undefined;
+      if (task.groundingStrategy === "sdk-web-source-v1") {
+        researchGrounding = unavailableResearchGrounding(
+          "execution-unconfirmed",
+        );
+        // Required grading evidence, not optional telemetry: never read live or
+        // substituted state, and never let missing evidence certify retrieval.
+        if (completed && childCleanupSafe) {
+          try {
+            verifyOwnedTaskRoot(runIdentity, taskIdentity);
+            researchGrounding = readResearchGrounding({
+              root: researchRoot,
+              stdout: researchStdout,
+              response,
+              executionConfirmed: true,
+            });
+          } catch {
+            researchGrounding = unavailableResearchGrounding("unsafe-input");
+          }
+        }
+        if (researchGrounding.searchOutputAtCap)
+          diagnosticFlags.add("sdk-web-search-output-at-cap");
+        if (researchGrounding.status !== "verified") {
+          diagnosticFlags.add(`sdk-web-grounding-${researchGrounding.reason}`);
+        }
+      }
+      const gradingContext = researchGrounding
+        ? { ...checkContext, researchGrounding }
+        : checkContext;
       const checks = task.checks.map((check) => ({
         id: check.id,
-        passed: Boolean(check.evaluate(checkContext)),
+        passed: Boolean(check.evaluate(gradingContext)),
       }));
       const gradingMs = durationMs(gradingStartedAt, monotonicNow());
       if (modelUsageResult.malformed) {
