@@ -281,7 +281,7 @@ describe("content-free opt-in action diagnostics", () => {
     expect(result.actionDiagnosticsReceiptStatus).toBe("disabled");
     expect(result.report.executionOverrides).toEqual([]);
     expect(result.report.schemaVersion).toBe(5);
-    expect(result.report.evaluatorVersion).toBe("0.2.11");
+    expect(result.report.evaluatorVersion).toBe("0.2.12");
     expect(result.report).not.toHaveProperty("actionDiagnostics");
     expect(dirname(result.reportPath)).toBe(reportDir);
     const ownedReportPath = join(reportDir, basename(result.reportPath));
@@ -389,7 +389,7 @@ describe("content-free opt-in action diagnostics", () => {
     expect(receipt).toMatchObject({
       schemaVersion: 1,
       reportSchemaVersion: 5,
-      evaluatorVersion: "0.2.11",
+      evaluatorVersion: "0.2.12",
       reportSha256: digest(reportBytes),
       mode: "opt-in-action-diagnostics",
       runs: [

@@ -19,6 +19,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HeadlessEvalSuite } from "./cases";
 import { HEADLESS_EVAL_SUITES } from "./cases";
 import {
+  CODING_VERIFICATION_COMMAND,
+  CODING_VERIFICATION_FLAG,
+  CODING_VERIFICATION_ID,
+  CODING_VERIFICATION_SUCCESS_MARKER,
+} from "./coding-verification";
+import {
   PLANNER_ALIAS_TOOL_DEDUPLICATION_FLAG,
   PLANNER_ALIAS_TOOL_DEDUPLICATION_OVERRIDE,
 } from "./execution-overrides";
@@ -199,7 +205,7 @@ describe("optional first-runtime model input receipts", () => {
     expect(receipt).toMatchObject({
       schemaVersion: 1,
       reportSchemaVersion: 5,
-      evaluatorVersion: "0.2.11",
+      evaluatorVersion: "0.2.12",
       reportSha256: measurement.digest(readFileSync(path, "utf8")),
       coverage: "first-creating-runtime-only",
     });
@@ -605,7 +611,7 @@ describe("separately identified SDK-web research grading", () => {
     expect(result.report.summary.objectiveChecksPassed).toBe(5);
     expect(result.report.runs[0].humanReviewRequired).toBe(true);
     expect(result.report.schemaVersion).toBe(5);
-    expect(result.report.evaluatorVersion).toBe("0.2.11");
+    expect(result.report.evaluatorVersion).toBe("0.2.12");
     expect(result.report.executionOverrides).toEqual([]);
     expect(
       result.report.runs[0].diagnosticFlags.some((flag) =>
@@ -828,6 +834,252 @@ describe("separately identified SDK-web research grading", () => {
   });
 });
 
+describe("original coding verifier CLI-stream grading", () => {
+  const suite = HEADLESS_EVAL_SUITES["headless-workflows-v7"];
+  const task = suite.tasks.find(
+    (candidate) => candidate.id === "coding-original-verifier-v1",
+  );
+  const passed = CODING_VERIFICATION_SUCCESS_MARKER;
+  const unverified = '{"file":"math.mjs","tests":"unverified"}';
+  const successfulExecution = {
+    status: 0,
+    stdout: "",
+    stderr: "",
+    signal: null,
+    cleanupSafe: true,
+  };
+  const eventTimestamp = (second: number) =>
+    `2026-10-03T00:00:${String(second).padStart(2, "0")}.000Z`;
+
+  function receipt(overrides: Record<string, unknown> = {}) {
+    return {
+      type: "coding-verification",
+      timestamp: eventTimestamp(2),
+      verifier: CODING_VERIFICATION_ID,
+      status: "verified",
+      reason: "verified",
+      shellStarts: 1,
+      shellCompletions: 1,
+      verifierMatches: 1,
+      success: true,
+      exitCode: 0,
+      timedOut: false,
+      truncated: false,
+      workdirMatches: true,
+      actionPairMatched: true,
+      ...overrides,
+    };
+  }
+
+  function stream(
+    response: string,
+    receipts: Array<Record<string, unknown>> = [receipt()],
+    extra: Array<Record<string, unknown>> = [],
+  ): string {
+    if (!task) throw new Error("Missing v7 coding task.");
+    return `${[
+      {
+        type: "start",
+        timestamp: eventTimestamp(1),
+        sessionId: "cli:original-coding-turn",
+        command: task.prompt,
+      },
+      ...receipts,
+      ...extra,
+      {
+        type: "result",
+        timestamp: eventTimestamp(3),
+        text: response,
+        tone: "success",
+        shouldExit: false,
+      },
+      {
+        type: "completed",
+        timestamp: eventTimestamp(4),
+        status: "completed",
+      },
+    ]
+      .map((event) => JSON.stringify(event))
+      .join("\n")}\n`;
+  }
+
+  function writeMathModule(workspaceDir: string): void {
+    writeFileSync(
+      join(workspaceDir, "math.mjs"),
+      "export function sumFinite(values) { return values.reduce((sum, value) => sum + (typeof value === 'number' && Number.isFinite(value) ? value : 0), 0); }\n",
+      { mode: 0o600, flag: "wx" },
+    );
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("passes the v7 task only from one live top-level receipt and keeps output private", async () => {
+    if (!task) throw new Error("Missing v7 coding task.");
+    const reportDir = tempDirectory();
+    const transientResponseCanary = "CODING_PRIVATE_RESPONSE_CANARY";
+    let observedFlag: string | undefined;
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir,
+      taskIds: [task.id],
+      execute: (_command, _args, options) => {
+        const dataDir = options.env.DOOLITTLE_DATA_DIR;
+        if (!dataDir) throw new Error("Missing synthetic task directory.");
+        observedFlag = options.env[CODING_VERIFICATION_FLAG];
+        writeMathModule(join(dirname(dataDir), "workspace"));
+        const stdout = stream(passed);
+        // Exercise live collection across arbitrary pipe chunk boundaries.
+        const bytes = Buffer.from(stdout);
+        for (let offset = 0; offset < bytes.byteLength; ) {
+          const end = Math.min(offset + 17, bytes.byteLength);
+          options.onStdoutChunk?.(bytes.subarray(offset, end));
+          offset = end;
+        }
+        return { ...successfulExecution, stdout };
+      },
+    });
+    expect(observedFlag).toBe("true");
+    expect(result.exitCode).toBe(0);
+    expect(result.report.schemaVersion).toBe(5);
+    expect(result.report.evaluatorVersion).toBe("0.2.12");
+    expect(result.report.summary.objectiveChecksPassed).toBe(4);
+    expect(result.report.summary.objectiveChecksTotal).toBe(4);
+    expect(result.report.runs[0].checks.map((check) => check.passed)).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ]);
+    expect(result.report.runs[0].diagnosticFlags).not.toContain(
+      "coding-verification-verified",
+    );
+    const reportText = readFileSync(result.reportPath, "utf8");
+    expect(CODING_VERIFICATION_SUCCESS_MARKER).toBe(
+      '{"file":"math.mjs","tests":"passed"}',
+    );
+    for (const canary of [
+      CODING_VERIFICATION_COMMAND,
+      CODING_VERIFICATION_SUCCESS_MARKER,
+      "cli:original-coding-turn",
+      transientResponseCanary,
+      passed,
+    ])
+      expect(reportText).not.toContain(canary);
+    expect(reportText).not.toContain('"shellStarts":1');
+    expect(reportText).not.toContain('"verifierMatches":1');
+  });
+
+  it("does not normalize the successful final response before grading", async () => {
+    if (!task) throw new Error("Missing v7 coding task.");
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir: tempDirectory(),
+      taskIds: [task.id],
+      execute: (_command, _args, options) => {
+        const dataDir = options.env.DOOLITTLE_DATA_DIR;
+        if (!dataDir) throw new Error("Missing synthetic task directory.");
+        writeMathModule(join(dirname(dataDir), "workspace"));
+        const stdout = stream(`${passed} `);
+        options.onStdoutChunk?.(Buffer.from(stdout));
+        return { ...successfulExecution, stdout };
+      },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.report.summary.objectiveChecksPassed).toBe(3);
+    expect(result.report.runs[0].checks).toMatchObject([
+      { passed: true },
+      { passed: true },
+      { passed: true },
+      { passed: false },
+    ]);
+  });
+
+  it.each([
+    ["missing receipt", [], []],
+    ["duplicate receipt", [receipt(), receipt()], []],
+    ["contradictory receipt", [receipt({ timedOut: true })], []],
+    [
+      "nested model claim",
+      [],
+      [
+        {
+          type: "progress",
+          timestamp: eventTimestamp(2),
+          phase: "model",
+          chunk: JSON.stringify(receipt()),
+          response: JSON.stringify(receipt()),
+          delta: JSON.stringify(receipt()),
+        },
+      ],
+    ],
+  ] as const)(
+    "requires a top-level receipt: %s",
+    async (label, receipts, extra) => {
+      if (!task) throw new Error("Missing v7 coding task.");
+      const reportDir = tempDirectory();
+      const response = unverified;
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir,
+        taskIds: [task.id],
+        execute: (_command, _args, options) => {
+          const dataDir = options.env.DOOLITTLE_DATA_DIR;
+          if (!dataDir) throw new Error("Missing synthetic task directory.");
+          writeMathModule(join(dirname(dataDir), "workspace"));
+          const stdout = stream(response, [...receipts], [...extra]);
+          options.onStdoutChunk?.(Buffer.from(stdout));
+          return { ...successfulExecution, stdout };
+        },
+      });
+      expect(result.exitCode, label).toBe(1);
+      expect(result.report.summary.objectiveChecksPassed).toBe(3);
+      expect(result.report.runs[0].checks).toMatchObject([
+        { passed: true },
+        { passed: true },
+        { passed: false },
+        { passed: true },
+      ]);
+      expect(result.report.runs[0].diagnosticFlags[0]).toMatch(
+        /^coding-verification-(?:missing-input|verifier-ambiguous|invalid-input)$/u,
+      );
+    },
+  );
+
+  it("does not persist a passing result when child cleanup is unconfirmed", async () => {
+    if (!task) throw new Error("Missing v7 coding task.");
+    const reportDir = tempDirectory();
+    let taskRoot = "";
+    const operation = runHeadlessEvalSuite(suite, {
+      reportDir,
+      taskIds: [task.id],
+      execute: (_command, _args, options) => {
+        const dataDir = options.env.DOOLITTLE_DATA_DIR;
+        if (!dataDir) throw new Error("Missing synthetic task directory.");
+        taskRoot = dirname(dataDir);
+        temporaryDirectories.push(dirname(taskRoot));
+        writeMathModule(join(taskRoot, "workspace"));
+        const stdout = stream(passed);
+        options.onStdoutChunk?.(Buffer.from(stdout));
+        return { ...successfulExecution, stdout, cleanupSafe: false };
+      },
+    });
+    await expect(operation).rejects.toThrow("cleanup could not be confirmed");
+    expect(existsSync(taskRoot)).toBe(true);
+    expect(readdirSync(reportDir)).toEqual([]);
+  });
+
+  it("disables runtime receipt instrumentation for legacy suite tasks", async () => {
+    let observedFlag: string | undefined;
+    await runHeadlessEvalSuite(HEADLESS_EVAL_SUITES["headless-workflows-v6"], {
+      reportDir: tempDirectory(),
+      taskIds: ["reliability-no-side-effect-v6"],
+      execute: (_command, _args, options) => {
+        observedFlag = options.env[CODING_VERIFICATION_FLAG];
+        return successfulExecution;
+      },
+    });
+    expect(observedFlag).toBe("false");
+  });
+});
+
 describe("private optional action receipt persistence", () => {
   const suite: HeadlessEvalSuite = {
     id: "action-persistence-test",
@@ -873,7 +1125,7 @@ describe("private optional action receipt persistence", () => {
     expect(JSON.parse(actionBytes)).toMatchObject({
       schemaVersion: 1,
       reportSchemaVersion: 5,
-      evaluatorVersion: "0.2.11",
+      evaluatorVersion: "0.2.12",
       reportSha256: measurement.digest(reportBytes),
       mode: "opt-in-action-diagnostics",
     });

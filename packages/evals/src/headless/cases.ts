@@ -2,6 +2,11 @@ import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  CODING_VERIFICATION_COMMAND,
+  CODING_VERIFICATION_SUCCESS_MARKER,
+  type CodingVerification,
+} from "./coding-verification";
+import {
   type ResearchGrounding,
   SDK_WEB_RESEARCH_QUERY,
   SDK_WEB_RESEARCH_SOURCE,
@@ -21,6 +26,8 @@ export interface HeadlessEvalContext {
   actionStarts: number | null;
   /** Required original-action evidence only for the separately identified SDK-web task. */
   researchGrounding?: ResearchGrounding;
+  /** Required original CLI-stream receipt only for the coding verifier task. */
+  codingVerification?: CodingVerification;
 }
 
 export interface HeadlessEvalCheck {
@@ -34,8 +41,8 @@ export interface HeadlessEvalTask {
   prompt: string;
   /** Additional turns run in the same isolated persisted Doolittle session. */
   followUpPrompts?: string[];
-  /** Does not alter the runtime's actions, provider, model or Cloud research path. */
-  groundingStrategy?: "sdk-web-source-v1";
+  /** Selects a fixed original-action grounding protocol. */
+  groundingStrategy?: "sdk-web-source-v1" | "coding-original-verifier-v1";
   checks: HeadlessEvalCheck[];
   /** Requires a quality review beyond the deterministic checks. */
   humanReviewRequired: boolean;
@@ -347,6 +354,13 @@ function hasTwoStepProposal(response: string): boolean {
   return lines.filter((line) => /^[-*]\s+\S.+/u.test(line)).length === 2;
 }
 
+function expectedCodingFinalJson(response: string, verified: boolean): boolean {
+  const expected = verified
+    ? CODING_VERIFICATION_SUCCESS_MARKER
+    : '{"file":"math.mjs","tests":"unverified"}';
+  return response === expected;
+}
+
 const v5Suite = HEADLESS_EVAL_SUITES["headless-workflows-v5"];
 HEADLESS_EVAL_SUITES["headless-workflows-v6"] = {
   id: v5Suite.id,
@@ -379,6 +393,83 @@ HEADLESS_EVAL_SUITES["headless-workflows-v6"] = {
         }
       : {}),
   })),
+};
+
+const v6Suite = HEADLESS_EVAL_SUITES["headless-workflows-v6"];
+HEADLESS_EVAL_SUITES["headless-workflows-v7"] = {
+  id: v6Suite.id,
+  version: 7,
+  title: "Expanded baseline with original-action coding verification evidence",
+  tasks: v6Suite.tasks.map((task) =>
+    task.id === "coding-function-behavior-v6"
+      ? {
+          id: "coding-original-verifier-v1",
+          domain: "coding",
+          groundingStrategy: "coding-original-verifier-v1",
+          prompt: [
+            "In the current Doolittle workspace only, create math.mjs exporting a named function sumFinite(values). It returns the sum of finite numeric array entries, ignores strings and non-finite numbers, and returns 0 for an empty array. Preserve the exact v6 behavioral expectations: [1, 2.5, '3', NaN, Infinity, -4] gives -0.5; [] gives 0; [1, '2', 2] gives 3.",
+            "Do not create or edit any other task file. The ACP session may add AGENTS.md and CLAUDE.md as harness identity files; leave them untouched.",
+            "Run this exact public SHELL command in the original parent CLI turn after creating math.mjs. Do not delegate the verifier to a worker, subagent, ACP session, or other CLI run:",
+            CODING_VERIFICATION_COMMAND,
+            'On verifier success, the final response must be exactly its success JSON body with no code fence or added text: {"file":"math.mjs","tests":"passed"}. Otherwise return exactly {"file":"math.mjs","tests":"unverified"} with no other text. Do not claim verification based on a worker, your response, or another command.',
+          ].join("\n"),
+          checks: [
+            {
+              id: "sum-finite-behavior",
+              evaluate: ({ workspaceDir }: HeadlessEvalContext) => {
+                const result = spawnSync(
+                  process.execPath,
+                  [
+                    "--input-type=module",
+                    "-e",
+                    "import assert from 'node:assert/strict'; import { sumFinite } from './math.mjs'; assert.equal(sumFinite([1, 2.5, '3', NaN, Infinity, -4]), -0.5); assert.equal(sumFinite([]), 0); assert.equal(sumFinite([1, '2', 2]), 3);",
+                  ],
+                  { cwd: workspaceDir, encoding: "utf8", timeout: 5_000 },
+                );
+                return result.status === 0;
+              },
+            },
+            {
+              id: "only-requested-file-created",
+              evaluate: ({ workspaceDir }: HeadlessEvalContext) => {
+                try {
+                  const taskEntries = readdirSync(workspaceDir, {
+                    withFileTypes: true,
+                  }).filter(
+                    (entry) =>
+                      !(
+                        entry.isFile() &&
+                        ACP_SESSION_IDENTITY_FILES.has(entry.name)
+                      ),
+                  );
+                  return (
+                    taskEntries.length === 1 &&
+                    taskEntries[0]?.isFile() === true &&
+                    taskEntries[0]?.name === "math.mjs"
+                  );
+                } catch {
+                  return false;
+                }
+              },
+            },
+            {
+              id: "original-verifier-action-succeeded",
+              evaluate: ({ codingVerification }) =>
+                codingVerification?.status === "verified",
+            },
+            {
+              id: "final-json-matches-verifier-receipt",
+              evaluate: ({ response, codingVerification }) =>
+                expectedCodingFinalJson(
+                  response,
+                  codingVerification?.status === "verified",
+                ),
+            },
+          ],
+          humanReviewRequired: true,
+        }
+      : { ...task, id: task.id.replace(/-v6$/u, "-v7") },
+  ),
 };
 
 HEADLESS_EVAL_SUITES["headless-sdk-web-research-v1"] = {

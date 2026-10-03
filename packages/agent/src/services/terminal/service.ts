@@ -21,6 +21,7 @@ import { createCloudExecutionBackends } from "./cloud/backends";
 import { CloudStoreManager } from "./cloud/store";
 import {
   type TerminalCommandUpdateEvent,
+  type TerminalExecutionObservation,
   TerminalServiceCommandOrchestrator,
 } from "./command/orchestrator";
 import type { ExecutionBackend } from "./contracts/backend";
@@ -73,6 +74,9 @@ export class TerminalService {
       onMutation: () => this.invalidateHealthCache(),
       onCommand: (event) => {
         this.events.emit("update", event);
+      },
+      onExecutionResult: (event) => {
+        this.events.emit("execution-result", event);
       },
     });
     this.interactiveSessions = new InteractiveTerminalSessionManager(
@@ -190,6 +194,13 @@ export class TerminalService {
     return () => {
       this.events.off("update", listener);
     };
+  }
+
+  onExecutionResult(
+    listener: (event: TerminalExecutionObservation) => void,
+  ): () => void {
+    this.events.on("execution-result", listener);
+    return () => this.events.off("execution-result", listener);
   }
 
   async health(): Promise<ExecutionBackendHealth[]> {

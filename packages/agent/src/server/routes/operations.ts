@@ -135,8 +135,7 @@ function sdkTerminalRunResult(
     stdout: takeUtf8Prefix(result.stdout, stdoutLimit),
     stderr: takeUtf8Prefix(result.stderr, stderrLimit),
     timedOut: result.timedOut === true || result.exitCode === 124,
-    truncated:
-      stdoutBytes + stderrBytes > MAX_SDK_TERMINAL_CAPTURE_BYTES || undefined,
+    truncated: stdoutBytes + stderrBytes > MAX_SDK_TERMINAL_CAPTURE_BYTES,
     maxDurationMs: timeoutMs,
     durationMs: result.durationMs,
     cwd: result.cwd,

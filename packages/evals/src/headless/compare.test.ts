@@ -141,7 +141,7 @@ function v5Report(overrides: Record<string, unknown> = {}) {
   return {
     ...base,
     schemaVersion: 5,
-    evaluatorVersion: "0.2.11",
+    evaluatorVersion: "0.2.12",
     routeLabel: "product-default",
     route: advertisedRoute({
       provider: "codex",

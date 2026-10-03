@@ -1,4 +1,5 @@
 export * from "./coding-agent";
+export * from "./coding-verification";
 export * from "./coding-workspace";
 export * from "./model-route";
 export * from "./repository";

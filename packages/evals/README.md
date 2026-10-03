@@ -119,6 +119,27 @@ structural smoke check, not a score of usefulness or coherence. Evaluator 0.2.8
 records this new grading behavior. V5's checks and prior reports are unchanged;
 v5 and v6 reports are not eligible for direct score comparison.
 
+`headless-workflows-v7` preserves the other v6 task contracts and replaces its
+lexical coding verification check with `coding-original-verifier-v1`. The
+parent CLI turn must run one exact public verifier after creating `math.mjs`;
+worker verification does not qualify. Grading separately checks behavior,
+file scope, one successful original runtime receipt, and the exact final JSON
+matching that receipt. Responses are not normalized. The receipt travels only
+through the live top-level CLI JSON stream, not task journals, job replay,
+run snapshots or report bodies. Missing, duplicate, inconsistent, late or
+truncated evidence fails closed. Human quality and honesty review remain required.
+
+Evaluator 0.2.12 adds this contract while retaining schema 5 and the historical
+v2-v6 prompts/checks. It forms a new comparison baseline, not a retroactive
+upgrade of old lexical passes. The eval-only runtime flag is default-off and
+is enabled only for the new coding strategy; legacy tasks explicitly disable it.
+This is original execution observation within a cooperative process boundary,
+not an OS sandbox or cryptographic attestation against malicious same-UID code.
+
+```sh
+nub run eval:headless -- --suite headless-workflows-v7 --task coding-original-verifier-v1
+```
+
 Evaluator 0.2.9 updates coding receipts, not the frozen suite prompts: verified
 file changes survive a failed worker, literal Bun `--cwd` commands are recognized,
 parent verification must follow coding, and stale managed-app readiness is
@@ -186,9 +207,9 @@ grading or cleanup; trusted synchronous hooks must return promptly.
 Default mode adds no action journal read, receipt or execution override. Opt-in
 reading contributes to grading time and adds an explicit execution override;
 schema-v5 aggregation and paired comparison require equal ordered overrides.
-Do not pool on/off samples. Report schema 5 and evaluator 0.2.11 stay unchanged;
-historical default-mode v5 reports remain readable and schema-v4 comparison
-policy is unchanged.
+Do not pool on/off samples. Action diagnostics do not change report schema 5
+or the evaluator version; historical default-mode v5 reports remain readable
+and schema-v4 comparison policy is unchanged.
 
 ```sh
 nub run eval:headless -- --suite headless-workflows-v6 --task coding-function-behavior-v6 --record-action-diagnostics
@@ -265,15 +286,18 @@ not a quality, billing or effective-route conclusion.
 
 In the frozen v3-v6 coding task, `truthful-test-report` only checks a filename
 and verification keyword; the harness independently executes behavior checks.
-Do not promote its pass to original agent-run test or honesty evidence. A
-future stronger original-verification contract must use a new task version;
-historical reports and grading remain unchanged.
+Do not promote its pass to original agent-run test or honesty evidence. The
+separate v7 original-verification contract does not rewrite historical reports
+or grading.
 
 The pinned core beta.7 patch repairs one proven citation-loss mechanism:
 generic document `data.url` values are no longer stripped as delivered media
 unless explicitly typed image/video/audio. Named media URL behavior is
-preserved. The public-SDK regression suite is synthetic and network-blocked;
-passing it does not replace post-repair live research and human-quality review.
+preserved. The public-SDK regression suite is synthetic and network-blocked.
+Two subsequent clean-source SDK-web repetitions at `37403cf3` passed 5/5
+checks each, including exact citations. They are descriptive new-source
+samples, not a matched comparison or a substitute for human-quality review
+and broader research coverage. Earlier failed reports remain unchanged.
 
 Task-local journal evidence assumes cooperative, trusted same-UID writers.
 Ownership and descriptor checks do not authenticate rows an evaluated shell

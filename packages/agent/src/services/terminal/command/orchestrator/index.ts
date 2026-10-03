@@ -13,6 +13,7 @@ import { resolveExecutionContext } from "./context";
 import { persistAndNotifyCommand } from "./persistence";
 import type {
   TerminalCommandUpdateEvent,
+  TerminalExecutionObservation,
   TerminalServiceCommandOrchestratorOptions,
 } from "./types";
 
@@ -63,6 +64,7 @@ export class TerminalServiceCommandOrchestrator {
       historyStore: this.options.historyStore,
       cloudState: this.options.cloudState,
       onCommand: this.options.onCommand,
+      onExecutionResult: this.options.onExecutionResult,
     });
   }
 
@@ -131,6 +133,7 @@ export class TerminalServiceCommandOrchestrator {
       historyStore: this.options.historyStore,
       cloudState: this.options.cloudState,
       onCommand: this.options.onCommand,
+      onExecutionResult: this.options.onExecutionResult,
     });
   }
 
@@ -161,4 +164,4 @@ export class TerminalServiceCommandOrchestrator {
   }
 }
 
-export type { TerminalCommandUpdateEvent };
+export type { TerminalCommandUpdateEvent, TerminalExecutionObservation };
