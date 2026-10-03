@@ -127,24 +127,35 @@ const MAX_CONSECUTIVE_NO_ACTION_PASSES = 2;
 const FRONTEND_FILE =
   /(?:^|\/)(?![^/]*\.(?:test|spec)\.)[^/]+\.(?:tsx|jsx|css|scss|sass|less|html|vue|svelte|svg|png|jpe?g|webp|gif|avif)$/iu;
 
+function unquotedServerInstructions(userRequest: string): string {
+  // Match the workspace-intent gate's distinction between instructions and
+  // reference text. Mask only the quoted/code spans, preserving surrounding
+  // instructions and offsets; contractions are not opening quote delimiters.
+  return userRequest.replace(
+    /```[\s\S]*?(?:```|(?![\s\S]))|~~~[\s\S]*?(?:~~~|(?![\s\S]))|`[^`\n]*`|"(?:\\.|[^"\\])*"|“[^”]*”|(?<![\p{L}\p{N}_])'(?:\\.|[^'\\\n]|'(?=\p{L}))*'|‘(?:[^’]|’(?=\p{L}))*’|^\s*>[^\n]*/gmu,
+    (reference) => " ".repeat(reference.length),
+  );
+}
+
 function serverStartPolicy(userRequest: string): {
   verificationRequest: string;
   forbidden: boolean;
 } {
+  const instructions = unquotedServerInstructions(userRequest);
   const negative =
-    /\b(?:do\s+not|don't|never)\s+(?:change\s+(?:the\s+)?ui\s+(?:or|and)\s+)?(?:start|launch|serve|preview|open|run)\s+(?:(?:a|an|any|the)\s+)?(?:app(?:lication)?|(?:dev(?:elopment)?\s+)?server|website|web\s+app|site)\b/giu;
-  const matches = [...userRequest.matchAll(negative)];
+    /\b(?:do\s+not|don['’]t|never)\s+(?:change\s+(?:the\s+)?ui\s+(?:or|and)\s+)?(?:start|restart|launch|serve|preview|open|run)\s+(?:(?:a|an|any|the)\s+)?(?:app(?:lication)?|(?:dev(?:elopment)?\s+)?server|website|web\s+app|site)\b/giu;
+  const matches = [...instructions.matchAll(negative)];
   const latest = matches[matches.length - 1];
   const laterRequest = latest
-    ? userRequest.slice(latest.index + latest[0].length).replace(negative, "")
+    ? instructions.slice(latest.index + latest[0].length).replace(negative, "")
     : "";
   return {
     // Only verification intent uses this text; the original request, including
     // every user constraint, remains unchanged in the model's memory.
-    verificationRequest: userRequest.replace(negative, ""),
+    verificationRequest: instructions.replace(negative, ""),
     forbidden:
       Boolean(latest) &&
-      !/\b(?:start|launch|serve|preview|open|run)\s+(?:(?:a|an|any|the)\s+)?(?:app(?:lication)?|(?:dev(?:elopment)?\s+)?server|website|web\s+app|site)\b/iu.test(
+      !/\b(?:start|restart|launch|serve|preview|open|run)\s+(?:(?:a|an|any|the)\s+)?(?:app(?:lication)?|(?:dev(?:elopment)?\s+)?server|website|web\s+app|site)\b/iu.test(
         laterRequest,
       ),
   };
@@ -202,7 +213,7 @@ function frontendReviewBlockedByUserConstraint(
 }
 
 const CONSTRAINED_FRONTEND_REVIEW_FAILURE =
-  "The frontend files changed, but browser review is unavailable and was not attempted: your instruction forbids starting a server, and no current verified ready managed-app receipt is available. The changes are preserved. No rendered pixels were reviewed; this does not establish completion, corrected defects, or requested quality. Other requested checks are not implied by this report.";
+  "The frontend files changed, but browser review is unavailable and was not attempted: your instruction forbids starting or restarting a server, and no current verified ready managed-app receipt is available. The changes are preserved. No rendered pixels were reviewed; this does not establish completion, corrected defects, or requested quality. Other requested checks are not implied by this report.";
 
 function frontendReviewAttempt(
   actionResults: readonly ActionResult[],
@@ -619,7 +630,7 @@ function continuationMemory(
         "Continue the same requested workspace task. The previous pass did not complete the request.",
         ...(serverStartPolicy(userRequest).forbidden
           ? [
-              "The user forbids starting a server. Do not start or restart one for verification; only review an existing verified ready managed app. If none is available, disclose browser review as unavailable and not attempted.",
+              "The user forbids starting or restarting a server. Do not start or restart one for verification; only review an existing verified ready managed app. If none is available, disclose browser review as unavailable and not attempted.",
             ]
           : []),
         hasVerifiedMutation

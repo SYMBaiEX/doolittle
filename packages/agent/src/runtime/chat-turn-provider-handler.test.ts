@@ -475,21 +475,28 @@ describe("chat turn provider handler", () => {
     expect(result.runFailureMessage).toContain("no browser-analysis attempt");
   });
 
-  it("reports review unavailable without starting a server when visual work forbids server start", async () => {
-    const { page, build } = frontendReceipts();
-    const { result, calls } = await runFrontendPasses([[page, build]], {
-      request: "Update the frontend heading; do not start a server.",
-    });
-    expect(calls).toBe(1);
-    expect(result.runFailureMessage).toContain(
-      "unavailable and was not attempted",
-    );
-    expect(result.response).toContain(
-      "your instruction forbids starting a server",
-    );
-    expect(result.response).toContain("No rendered pixels were reviewed");
-    expect(result.response).not.toContain("Still missing:");
-  });
+  it.each([
+    "Update the frontend heading; do not start a server.",
+    "Update the frontend heading; don't restart the server.",
+    "Update the frontend heading; don’t restart the server.",
+  ])(
+    "reports review unavailable without starting or restarting a server when visual work forbids it: %s",
+    async (request) => {
+      const { page, build } = frontendReceipts();
+      const { result, calls } = await runFrontendPasses([[page, build]], {
+        request,
+      });
+      expect(calls).toBe(1);
+      expect(result.runFailureMessage).toContain(
+        "unavailable and was not attempted",
+      );
+      expect(result.response).toContain(
+        "your instruction forbids starting or restarting a server",
+      );
+      expect(result.response).toContain("No rendered pixels were reviewed");
+      expect(result.response).not.toContain("Still missing:");
+    },
+  );
 
   it("allows review of an already verified ready app while preserving the original no-server constraint", async () => {
     const { page, build, ready, review } = frontendReceipts();
@@ -508,22 +515,93 @@ describe("chat turn provider handler", () => {
     expect(prompts[1]).not.toContain("Rebuild/restart/re-review");
   });
 
-  it("does not suppress a later positive server-start request", async () => {
-    const { page, build, ready, review } = frontendReceipts();
+  it.each(["Start", "Restart"])(
+    "does not suppress a later positive server request: %s",
+    async (verb) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const { result, prompts, calls } = await runFrontendPasses(
+        [
+          [page, build],
+          [ready, review("rendered-pixels")],
+        ],
+        {
+          request: `Create a website; don’t restart the server. ${verb} the application after the build.`,
+        },
+      );
+      expect(calls).toBe(2);
+      expect(result.runFailureMessage).toBeUndefined();
+      expect(prompts[1]).not.toContain(
+        "The user forbids starting or restarting a server.",
+      );
+    },
+  );
+
+  it.each([
+    'Reference text: "do not start a server".',
+    "Reference text: 'do not start a server'.",
+    "Reference text: 'don't restart the server'.",
+    "Reference text: ‘don’t restart the server’.",
+    "Reference text: `do not start a server`.",
+    "Reference text:\n```text\ndo not start a server\n```",
+    "Reference text:\n~~~text\ndo not start a server\n~~~",
+    "Reference text:\n> do not start a server",
+  ])(
+    "ignores quoted or code server constraints without changing the original request: %s",
+    async (reference) => {
+      const { page, build, ready, review } = frontendReceipts();
+      const request = `Update the frontend heading. Start the application after the build.\n${reference}`;
+      const { result, prompts, calls } = await runFrontendPasses(
+        [
+          [page, build],
+          [ready, review("rendered-pixels")],
+        ],
+        { request },
+      );
+      expect(calls).toBe(2);
+      expect(result.runFailureMessage).toBeUndefined();
+      expect(prompts[0]).toBe(request);
+      expect(prompts[1]).toContain(request);
+      expect(prompts[1]).not.toContain(
+        "The user forbids starting or restarting a server.",
+      );
+    },
+  );
+
+  it("does not let quoted positive restart text override an actual no-restart instruction", async () => {
+    const { page, build } = frontendReceipts();
+    const request =
+      'Update the frontend heading; don’t restart the server. Example: "Restart the application".';
     const { result, prompts, calls } = await runFrontendPasses(
-      [
-        [page, build],
-        [ready, review("rendered-pixels")],
-      ],
-      {
-        request:
-          "Create a website; do not start a server. Start the application after the build.",
-      },
+      [[page, build]],
+      { request },
     );
-    expect(calls).toBe(2);
-    expect(result.runFailureMessage).toBeUndefined();
-    expect(prompts[1]).not.toContain("The user forbids starting a server.");
+    expect(calls).toBe(1);
+    expect(prompts[0]).toBe(request);
+    expect(result.runFailureMessage).toContain(
+      "unavailable and was not attempted",
+    );
   });
+
+  it.each([
+    '"Restart the server"',
+    "`Restart the server`",
+    "```text\nRestart the server\n```",
+  ])(
+    "preserves an actual no-restart instruction after reference text: %s",
+    async (reference) => {
+      const { page, build } = frontendReceipts();
+      const request = `Update the frontend heading. Example:\n${reference}\nDon’t restart the server.`;
+      const { result, prompts, calls } = await runFrontendPasses(
+        [[page, build]],
+        { request },
+      );
+      expect(calls).toBe(1);
+      expect(prompts[0]).toBe(request);
+      expect(result.runFailureMessage).toContain(
+        "unavailable and was not attempted",
+      );
+    },
+  );
 
   it.each([
     { failureKind: "no_provider" },
