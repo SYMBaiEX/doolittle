@@ -42,6 +42,143 @@ const fakeAuth = {
 };
 
 describe("Codex reasoning compatibility backend", () => {
+  it("does not invent usage observations for the untouched official fallback", async () => {
+    let observed = false;
+    const plugin = createDoolittleCodexReasoningPlugin(
+      fakeCodexPlugin(async () => "fallback"),
+      {
+        observeContext: () => {
+          observed = true;
+        },
+      },
+    );
+    const model = plugin.models?.[ModelType.TEXT_SMALL] as (
+      runtime: IAgentRuntime,
+      params: Record<string, unknown>,
+    ) => Promise<unknown>;
+    await expect(model(runtimeFor("codex"), { prompt: "x" })).resolves.toBe(
+      "fallback",
+    );
+    expect(observed).toBe(false);
+  });
+  it("passes exact public params identity to an independent optional observer without changing old metrics", async () => {
+    const runtime = runtimeFor("codex", "medium");
+    const params = { prompt: "PRIVATE_OBSERVATION_CANARY" };
+    const metrics: unknown[] = [];
+    const contexts: unknown[][] = [];
+    const plugin = createDoolittleCodexReasoningPlugin(
+      fakeCodexPlugin(async () => "fallback"),
+      {
+        createBackend: () =>
+          ({
+            generate: async () => ({
+              text: "complete",
+              toolCalls: [],
+              usage: { inputTokens: 11, outputTokens: 7, totalTokens: 18 },
+            }),
+          }) as unknown as ReturnType<typeof createCodexReasoningBackend>,
+        observeUsage: (metric) => metrics.push(metric),
+        observeContext: (...context) => contexts.push(context),
+      },
+    );
+    const model = plugin.models?.[ModelType.TEXT_SMALL] as (
+      runtime: IAgentRuntime,
+      params: Record<string, unknown>,
+    ) => Promise<unknown>;
+    await expect(model(runtime, params)).resolves.toBe("complete");
+    expect(contexts).toHaveLength(1);
+    expect(contexts[0]?.[0]).toBe(runtime);
+    expect(contexts[0]?.[1]).toBe(params);
+    expect(contexts[0]?.[2]).toBe(metrics[0]);
+    expect(Object.keys(metrics[0] as object).sort()).toEqual(
+      [
+        "completed",
+        "firstTextMs",
+        "inputTokens",
+        "outputTokens",
+        "provider",
+        "providerDurationMs",
+        "totalTokens",
+      ].sort(),
+    );
+    expect(JSON.stringify(metrics)).not.toContain("PRIVATE_OBSERVATION_CANARY");
+  });
+
+  it("preserves original rejection and records context when optional observers throw", async () => {
+    const failure = new Error("original failure");
+    let contextCalls = 0;
+    const plugin = createDoolittleCodexReasoningPlugin(
+      fakeCodexPlugin(async () => "fallback"),
+      {
+        createBackend: () =>
+          ({
+            generate: async () => {
+              throw failure;
+            },
+          }) as unknown as ReturnType<typeof createCodexReasoningBackend>,
+        observeUsage: () => {
+          throw new Error("observer failure");
+        },
+        observeContext: () => {
+          contextCalls++;
+          throw new Error("observer failure");
+        },
+      },
+    );
+    const model = plugin.models?.[ModelType.TEXT_SMALL] as (
+      runtime: IAgentRuntime,
+      params: Record<string, unknown>,
+    ) => Promise<unknown>;
+    await expect(
+      model(runtimeFor("codex", "medium"), { prompt: "x" }),
+    ).rejects.toBe(failure);
+    expect(contextCalls).toBe(1);
+  });
+
+  it("observes a streamed no-tools result without consuming its stream or changing output", async () => {
+    let contexts = 0;
+    let generates = 0;
+    const params = { prompt: "x", stream: true };
+    const plugin = createDoolittleCodexReasoningPlugin(
+      fakeCodexPlugin(async () => "fallback"),
+      {
+        createBackend: () =>
+          ({
+            generate: async (request: {
+              onTextDelta?: (chunk: string) => void;
+            }) => {
+              generates++;
+              request.onTextDelta?.("complete");
+              return {
+                text: "complete",
+                toolCalls: [],
+                usage: { inputTokens: 11, outputTokens: 7, totalTokens: 18 },
+              };
+            },
+          }) as unknown as ReturnType<typeof createCodexReasoningBackend>,
+        observeContext: (_runtime, observedParams) => {
+          contexts++;
+          expect(observedParams).toBe(params);
+        },
+      },
+    );
+    const model = plugin.models?.[ModelType.TEXT_SMALL] as (
+      runtime: IAgentRuntime,
+      params: Record<string, unknown>,
+    ) => Promise<{
+      textStream: AsyncIterable<string>;
+      text: Promise<string>;
+      toolCalls?: unknown;
+    }>;
+    const result = await model(runtimeFor("codex", "medium"), params);
+    let text = "";
+    for await (const chunk of result.textStream) text += chunk;
+    expect(text).toBe("complete");
+    await expect(result.text).resolves.toBe("complete");
+    expect(result.toolCalls).toBeUndefined();
+    expect(generates).toBe(1);
+    expect(contexts).toBe(1);
+  });
   it("preserves real SDK image serialization with the selected effort, model and abort signal", async () => {
     const controller = new AbortController();
     const image = "data:image/png;base64,iVBORw0KGgo=";

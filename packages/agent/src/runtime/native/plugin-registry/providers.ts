@@ -4,6 +4,10 @@ import { refreshLinkedClaudeCodeCredentials } from "../account-auth";
 import { getClaudeCodeAccountStatus } from "../account-auth/claude-code";
 import { getDevinAccountStatus } from "../account-auth/devin";
 import { createDoolittleCodexReasoningPlugin } from "./codex-reasoning";
+import {
+  createEvalModelInputObservationsPlugin,
+  observeEvalModelInputUsage,
+} from "./eval-model-input-observations";
 import { recordEvalCodexModelCall } from "./eval-model-metrics";
 import {
   createDoolittleOllamaUxPlugin,
@@ -44,7 +48,9 @@ export async function loadProviderPlugins(
     normalizePlugin(pdfPlugin),
     createDoolittleCodexReasoningPlugin(normalizePlugin(codexCliPlugin), {
       observeUsage: recordEvalCodexModelCall,
+      observeContext: observeEvalModelInputUsage,
     }),
+    createEvalModelInputObservationsPlugin(),
     normalizePlugin(anthropicPlugin),
     createClaudeCodePlugin({
       enabled: true,

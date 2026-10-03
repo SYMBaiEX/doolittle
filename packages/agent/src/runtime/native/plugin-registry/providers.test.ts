@@ -20,6 +20,16 @@ function config(): EnvConfig {
 }
 
 describe("loadProviderPlugins", () => {
+  it("assembles the inert optional observation plugin without replacing providers", async () => {
+    const providers = await loadProviderPlugins(config());
+    const observations = providers.find(
+      (plugin) => plugin.name === "doolittle-eval-model-input-observations",
+    );
+    expect(observations?.init).toBeTypeOf("function");
+    expect(observations?.models).toBeUndefined();
+    expect(observations?.providers).toBeUndefined();
+    expect(observations?.services).toBeUndefined();
+  });
   it("keeps switchable model providers registered across initial selections", async () => {
     const firstAssembly = await loadProviderPlugins(config());
     const secondAssembly = await loadProviderPlugins(config());
