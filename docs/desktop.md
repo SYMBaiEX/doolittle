@@ -45,6 +45,13 @@ testing. Browser comparisons remain text-based.
 The owner-only `DOOLITTLE_BROWSER_ANALYZE` action makes the same bounded critique
 available to the coding planner for ready managed apps; it is not a completion
 receipt or permission to interact with pages.
+Turn cancellation follows the request through analysis preparation, guarded
+text fetch and the model call. Once cancellation is observed, late capture
+results do not create new artifacts or fall through to another capture mode.
+The SDK's in-flight native open/snapshot calls remain bounded by bridge
+deadlines and tab expiry, rather than immediate network cancellation; owned
+tabs are closed when the call settles. Already-written evidence is not rolled
+back.
 
 Ordinary renderer requests use `@elizaos/ui`'s `ElizaClient`, so Eliza owns
 client identity, request deadlines, resume retries, response parsing, and

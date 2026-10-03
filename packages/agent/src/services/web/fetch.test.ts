@@ -103,4 +103,31 @@ describe("web-service fetch helpers", () => {
       contentType: "text/plain",
     });
   });
+
+  it("forwards mid-fetch cancellation through the official SSRF guard", async () => {
+    const controller = new AbortController();
+    let observedSignal: AbortSignal | undefined;
+    const fetchImpl = vi.fn(
+      (_url: RequestInfo | URL, options?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          observedSignal = options?.signal ?? undefined;
+          observedSignal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("Cancelled", "AbortError")),
+            { once: true },
+          );
+        }),
+    );
+    const request = fetchWithBasic("https://example.com/evidence", {
+      fetchImpl,
+      lookupFn: async () => [{ address: "93.184.216.34", family: 4 }],
+      abortSignal: controller.signal,
+    });
+    const rejection = expect(request).rejects.toThrow("Cancelled");
+    await vi.waitFor(() => expect(observedSignal).toBeDefined());
+    controller.abort();
+    await rejection;
+    expect(observedSignal?.aborted).toBe(true);
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
 });

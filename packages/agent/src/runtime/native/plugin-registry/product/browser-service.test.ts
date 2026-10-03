@@ -4,6 +4,7 @@ import type {
   BrowserTarget,
   BrowserWorkspaceCommand,
 } from "@elizaos/plugin-browser";
+import { BrowserService as SdkBrowserService } from "@elizaos/plugin-browser";
 import { describe, expect, it, vi } from "vitest";
 import type { AppServices } from "@/services";
 import { createBrowserRuntimeService } from "./browser-service";
@@ -131,5 +132,96 @@ describe("createBrowserRuntimeService", () => {
     expect(browser.unregisterTarget).toHaveBeenCalledWith(
       DOOLITTLE_BROWSER_TARGET_ID,
     );
+  });
+
+  it("keeps concurrent analysis signals request-scoped through the public SDK dispatcher", async () => {
+    const pending = new Map<string, () => void>();
+    const web = {
+      analyze: vi.fn(
+        async (
+          url: string,
+          _focus: string,
+          options: { abortSignal?: AbortSignal },
+        ) => {
+          await new Promise<void>((resolve) => pending.set(url, resolve));
+          options.abortSignal?.throwIfAborted();
+          return { url, prompt: "analysis" };
+        },
+      ),
+      completeAnalysis: vi.fn(async (analysis: unknown) => analysis),
+    };
+    let browser: SdkBrowserService;
+    const runtime = {
+      getService: () => browser,
+    } as unknown as IAgentRuntime;
+    browser = new SdkBrowserService(runtime);
+    const dispatch = vi.spyOn(browser, "execute");
+    const Service = createBrowserRuntimeService({
+      web,
+    } as unknown as AppServices);
+    const service = (await Service.start(runtime)) as Service & {
+      analyze(url: string, signal?: AbortSignal): Promise<unknown>;
+    };
+    const cancelled = new AbortController();
+    const active = new AbortController();
+    const first = service.analyze("https://cancelled.test", cancelled.signal);
+    const firstOutcome = first.catch((error: unknown) => error);
+    const second = service.analyze("https://active.test", active.signal);
+    await vi.waitFor(() => expect(pending.size).toBe(2));
+    const calls = new Map(
+      web.analyze.mock.calls.map(([url, , options]) => [
+        url,
+        options.abortSignal,
+      ]),
+    );
+    expect(calls.get("https://cancelled.test")).toBe(cancelled.signal);
+    expect(calls.get("https://active.test")).toBe(active.signal);
+    expect(
+      dispatch.mock.calls.map(([command]) => JSON.stringify(command)).sort(),
+    ).toEqual([
+      '{"subaction":"snapshot","name":"prepare-analysis","url":"https://active.test"}',
+      '{"subaction":"snapshot","name":"prepare-analysis","url":"https://cancelled.test"}',
+    ]);
+    cancelled.abort(new Error("capture cancelled"));
+    pending.get("https://cancelled.test")?.();
+    pending.get("https://active.test")?.();
+    expect(await firstOutcome).toEqual(new Error("capture cancelled"));
+    await expect(second).resolves.toMatchObject({ url: "https://active.test" });
+    expect(web.completeAnalysis).toHaveBeenCalledOnce();
+    // Reusing a completed command must not inherit its old turn cancellation.
+    const command = dispatch.mock.calls.find(
+      ([item]) => item.url === "https://cancelled.test",
+    )?.[0];
+    if (!command) throw new Error("No observed SDK command");
+    const replay = browser.execute(command, DOOLITTLE_BROWSER_TARGET_ID);
+    await vi.waitFor(() => expect(web.analyze).toHaveBeenCalledTimes(3));
+    expect(web.analyze.mock.calls[2]?.[2].abortSignal).toBeUndefined();
+    pending.get("https://cancelled.test")?.();
+    await expect(replay).resolves.toMatchObject({
+      value: { prompt: "analysis" },
+    });
+    await service.stop();
+    await browser.stop();
+  });
+
+  it("does not dispatch a pre-cancelled analysis", async () => {
+    const web = { analyze: vi.fn(), completeAnalysis: vi.fn() };
+    const getService = vi.fn();
+    const Service = createBrowserRuntimeService({
+      web,
+    } as unknown as AppServices);
+    const service = (await Service.start({
+      getService,
+    } as unknown as IAgentRuntime)) as Service & {
+      analyze(url: string, signal?: AbortSignal): Promise<unknown>;
+    };
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      service.analyze("https://cancelled.test", controller.signal),
+    ).rejects.toThrow();
+    expect(getService).not.toHaveBeenCalled();
+    expect(web.analyze).not.toHaveBeenCalled();
+    expect(web.completeAnalysis).not.toHaveBeenCalled();
   });
 });

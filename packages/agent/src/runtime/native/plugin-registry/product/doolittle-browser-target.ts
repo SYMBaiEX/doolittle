@@ -20,7 +20,9 @@ function requireUrl(command: BrowserWorkspaceCommand): string {
 async function executeEvidenceCommand(
   web: WebService,
   command: BrowserWorkspaceCommand,
+  abortSignal?: AbortSignal,
 ): Promise<unknown> {
+  abortSignal?.throwIfAborted();
   const operation = command.name?.trim().toLowerCase();
 
   switch (operation) {
@@ -41,7 +43,7 @@ async function executeEvidenceCommand(
         ? web.analyzeWithModel(requireUrl(command))
         : web.analyze(requireUrl(command));
     case "prepare-analysis":
-      return web.analyze(requireUrl(command));
+      return web.analyze(requireUrl(command), "vision", { abortSignal });
     case "compare": {
       const secondaryUrl = command.secondaryUrl?.trim();
       if (!secondaryUrl) {
@@ -67,7 +69,12 @@ async function executeEvidenceCommand(
   }
 }
 
-export function createDoolittleBrowserTarget(web: WebService): BrowserTarget {
+export function createDoolittleBrowserTarget(
+  web: WebService,
+  resolveAbortSignal?: (
+    command: BrowserWorkspaceCommand,
+  ) => AbortSignal | undefined,
+): BrowserTarget {
   return {
     id: DOOLITTLE_BROWSER_TARGET_ID,
     name: "Doolittle Evidence",
@@ -81,7 +88,11 @@ export function createDoolittleBrowserTarget(web: WebService): BrowserTarget {
     ): Promise<BrowserWorkspaceCommandResult> => ({
       mode: "web",
       subaction: command.subaction,
-      value: await executeEvidenceCommand(web, command),
+      value: await executeEvidenceCommand(
+        web,
+        command,
+        resolveAbortSignal?.(command),
+      ),
     }),
   };
 }

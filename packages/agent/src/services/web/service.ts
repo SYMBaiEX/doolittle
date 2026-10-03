@@ -138,12 +138,16 @@ export class WebService {
           viewport,
           abortSignal,
         );
+        const status = await buildBrowserStatus(
+          this.getConfig(),
+          this.telemetry(),
+        );
         abortSignal?.throwIfAborted();
         const inspection = writeRenderedInspection(
           rendered,
           this.getConfig(),
           this.outputDir,
-          await buildBrowserStatus(this.getConfig(), this.telemetry()),
+          status,
         );
         const capture = createCaptureReadModel(this.outputDir, url, inspection);
         this.captureImages.set(capture, rendered.image);
@@ -162,6 +166,7 @@ export class WebService {
       this.getConfig(),
       this.outputDir,
       this.createStateRecorder(),
+      abortSignal,
     );
     abortSignal?.throwIfAborted();
     return capture;
@@ -170,8 +175,13 @@ export class WebService {
   async analyze(
     url: string,
     focus: BrowserAnalysisFocus = "vision",
+    options: Pick<ModelAnalysisOptions, "abortSignal"> = {},
   ): Promise<BrowserAnalysisBundle> {
-    const capture = await this.capture(url);
+    const capture = await this.capture(
+      url,
+      { width: 1280, height: 720 },
+      options.abortSignal,
+    );
     return createWebAnalysisBundle(capture, focus);
   }
 
@@ -195,6 +205,7 @@ export class WebService {
     analysis: BrowserAnalysisBundle,
     options: ModelAnalysisOptions = {},
   ): Promise<BrowserAnalysisBundle> {
+    options.abortSignal?.throwIfAborted();
     if (!this.integrations.modelAnalysis) return analysis;
     const images: ModelAnalysisImage[] = [];
     const evidence: Array<{
@@ -236,10 +247,12 @@ export class WebService {
           "</untrusted-rendered-facts>",
         ].join("\n")
       : analysis.prompt;
+    options.abortSignal?.throwIfAborted();
     const response = await this.integrations.modelAnalysis.analyze(prompt, {
       abortSignal: options.abortSignal,
       ...(images.length ? { images } : {}),
     });
+    options.abortSignal?.throwIfAborted();
     return {
       ...analysis,
       prompt,

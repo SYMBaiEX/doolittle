@@ -50,8 +50,10 @@ export async function inspectBrowserPage(
   config: BrowserConfig,
   outputDir: string,
   state: WebServiceState,
+  abortSignal?: AbortSignal,
 ): Promise<BrowserInspection> {
-  const page = await fetchBrowserPage(url, config, state);
+  const page = await fetchBrowserPage(url, config, state, abortSignal);
+  abortSignal?.throwIfAborted();
   const snapshotArtifact = writeArtifact(outputDir, "snapshot", page, [
     "This artifact captures readable text extracted from the page.",
     "It is suitable for search, diffing, and long-form analysis.",
@@ -79,8 +81,16 @@ export async function createBrowserCaptureBundle(
   config: BrowserConfig,
   outputDir: string,
   state: WebServiceState,
+  abortSignal?: AbortSignal,
 ): Promise<BrowserCaptureBundle> {
-  const inspection = await inspectBrowserPage(url, config, outputDir, state);
+  const inspection = await inspectBrowserPage(
+    url,
+    config,
+    outputDir,
+    state,
+    abortSignal,
+  );
+  abortSignal?.throwIfAborted();
   const capture = createCaptureReadModel(outputDir, url, inspection);
   state.touchSnapshot();
   return capture;

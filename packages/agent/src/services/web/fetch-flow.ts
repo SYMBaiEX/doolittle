@@ -37,13 +37,16 @@ export async function fetchBrowserPage(
   url: string,
   config: BrowserConfig,
   state: WebServiceState,
+  abortSignal?: AbortSignal,
 ): Promise<WebPageSnapshot> {
+  abortSignal?.throwIfAborted();
   if (
     config.provider === "lightpanda" &&
     (await browserCommandExists(config.command))
   ) {
     try {
-      const fetched = await fetchWithLightpanda(url, config);
+      const fetched = await fetchWithLightpanda(url, config, abortSignal);
+      abortSignal?.throwIfAborted();
       state.touchFetched();
       state.setError(undefined);
       return buildPageSnapshot(
@@ -54,12 +57,14 @@ export async function fetchBrowserPage(
         "browser",
       );
     } catch (error) {
+      abortSignal?.throwIfAborted();
       state.setError(error instanceof Error ? error.message : String(error));
     }
   }
 
   try {
-    const fetched = await fetchWithBasic(url);
+    const fetched = await fetchWithBasic(url, { abortSignal });
+    abortSignal?.throwIfAborted();
     state.touchFetched();
     state.setError(undefined);
     return buildPageSnapshot(
@@ -70,6 +75,7 @@ export async function fetchBrowserPage(
       "fallback",
     );
   } catch (error) {
+    abortSignal?.throwIfAborted();
     state.setError(error instanceof Error ? error.message : String(error));
     throw error;
   }

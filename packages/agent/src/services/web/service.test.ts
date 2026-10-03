@@ -1,7 +1,13 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { WebService } from "./service";
 
 describe("WebService", () => {
@@ -223,6 +229,44 @@ describe("WebService", () => {
       expect(analysis.highlights).toContain("Title: Analyze");
       expect(existsSync(analysis.capture.manifestPath)).toBe(true);
     } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not persist text-fallback capture artifacts after mid-fetch cancellation", async () => {
+    const root = mkdtempSync(join(tmpdir(), "doolittle-web-cancel-"));
+    const modelAnalysis = { bindRuntime: vi.fn(), analyze: vi.fn() };
+    const service = new WebService(
+      () => ({ provider: "basic", command: "lightpanda", obeyRobots: true }),
+      root,
+      { modelAnalysis },
+    );
+    let release: ((value: Response) => void) | undefined;
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+    const controller = new AbortController();
+    try {
+      const request = service.analyzeWithModel(
+        "data:text/html,<h1>Late page</h1>",
+        "vision",
+        { abortSignal: controller.signal },
+      );
+      const rejected = expect(request).rejects.toThrow(
+        "cancelled before artifacts",
+      );
+      await vi.waitFor(() => expect(release).toBeDefined());
+      expect(fetch.mock.calls[0]?.[1]?.signal).toBe(controller.signal);
+      controller.abort(new Error("cancelled before artifacts"));
+      release?.(new Response("<h1>Late page</h1>"));
+      await rejected;
+      expect(readdirSync(root)).toEqual([]);
+      expect(modelAnalysis.analyze).not.toHaveBeenCalled();
+    } finally {
+      fetch.mockRestore();
       rmSync(root, { recursive: true, force: true });
     }
   });
