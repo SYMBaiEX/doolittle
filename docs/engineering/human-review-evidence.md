@@ -46,12 +46,18 @@ safety rating above 2; the latter two conflict with correctness and grounding
 or instruction following above 2, respectively.
 
 ```sh
-nub run eval:review -- --report /private/report.json --input /private/ratings.json --out /private/review.json
-nub run eval:review -- --verify /private/review.json --report /private/report.json
+nub run eval:review -- --report /private/eval-evidence/report.json --input /private/eval-evidence/ratings.json --out /private/eval-evidence/reviews/review.json
+nub run eval:review -- --verify /private/eval-evidence/reviews/review.json --report /private/eval-evidence/report.json
 ```
 
-The output file must not exist. Its containing directory is owner-only (0700)
-and the sidecar is owner-only (0600). Keep input files and original reports in
+The output file must not exist. Prepare a private evidence directory first;
+the CLI creates only a missing final output directory with mode 0700. An
+existing output directory must be owned by the caller, owner-only and writable;
+existing directories are never chmodded. Parent traversal and symlinked output
+directories are rejected. Ancestors must be owned by the caller or root and
+not group/world-writable unless sticky, preventing replacement by other users.
+Code running as the same user is trusted. The sidecar is created owner-only
+(0600). Keep input files and original reports in
 private storage too. The sidecar contains only controlled fields: no evidence
 notes, usernames, workspace paths, prompts, responses, or receipt payloads.
 The checklist asks for short evidence notes; keep those in a separately secured

@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, parse, resolve, sep } from "node:path";
 import { parseCodingEvalReport } from "../coding/report";
+import { compareHeadlessEvalReports } from "../headless/compare";
 
 export const REVIEW_DIMENSIONS = [
   "instructionFollowing",
@@ -107,6 +108,9 @@ function reportIdentity(bytes: Buffer): {
     if (new Set(tasks.map((task) => task.taskId)).size !== tasks.length) {
       throw new Error("Duplicate headless task identity.");
     }
+    // Reuse the canonical strict v4 parser before attesting to a report. A
+    // self-comparison has no quality implication; it validates the schema.
+    compareHeadlessEvalReports(raw, raw);
     return {
       report: {
         kind: "headless",
@@ -243,13 +247,64 @@ export function writeHumanReviewSidecar(
   path: string,
   sidecar: HumanReviewSidecar,
 ): void {
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-  chmodSync(dirname(path), 0o700);
-  writeFileSync(path, `${JSON.stringify(sidecar, null, 2)}\n`, {
+  if (path.split(/[\\/]/u).includes("..")) {
+    throw new Error("Review output path must not traverse parent directories.");
+  }
+  const output = resolve(path);
+  const parent = dirname(output);
+  const root = parse(parent).root;
+  const components = parent.slice(root.length).split(sep).filter(Boolean);
+  if (components.length === 0) {
+    throw new Error("Review output requires a dedicated private parent.");
+  }
+  const uid = process.getuid?.();
+  let current = root;
+  for (const [index, component] of components.entries()) {
+    current = resolve(current, component);
+    let stat: ReturnType<typeof lstatSync>;
+    try {
+      stat = lstatSync(current);
+    } catch (error) {
+      if (
+        (error as NodeJS.ErrnoException).code !== "ENOENT" ||
+        index !== components.length - 1
+      ) {
+        throw error;
+      }
+      // Only a dedicated final leaf may be created. Never chmod a caller-owned
+      // ancestor such as /tmp or an existing shared directory.
+      mkdirSync(current, { mode: 0o700 });
+      stat = lstatSync(current);
+    }
+    if (stat.isSymbolicLink() || !stat.isDirectory()) {
+      throw new Error("Review output parent must not contain a symlink.");
+    }
+    if (index === components.length - 1) {
+      if (
+        (uid !== undefined && stat.uid !== uid) ||
+        (stat.mode & 0o077) !== 0 ||
+        (stat.mode & 0o300) !== 0o300
+      ) {
+        throw new Error(
+          "Review output parent must be owner-only and writable.",
+        );
+      }
+    } else if (
+      (uid !== undefined && stat.uid !== 0 && stat.uid !== uid) ||
+      ((stat.mode & 0o022) !== 0 && (stat.mode & 0o1000) === 0)
+    ) {
+      // A private leaf is insufficient if another user can replace it or an
+      // ancestor. Root/current-user ownership and sticky shared directories
+      // protect entries from cross-user replacement; same-UID code is trusted.
+      throw new Error(
+        "Review output ancestors must prevent replacement by other users.",
+      );
+    }
+  }
+  writeFileSync(output, `${JSON.stringify(sidecar, null, 2)}\n`, {
     flag: "wx",
     mode: 0o600,
   });
-  chmodSync(path, 0o600);
 }
 
 export function reviewReportFile(
