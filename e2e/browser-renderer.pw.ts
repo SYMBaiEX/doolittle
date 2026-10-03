@@ -1,9 +1,19 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { build } from "esbuild";
 import type { RasterCase } from "../apps/desktop/e2e/browser-renderer-fixture";
+import {
+  pinFixtureDirectory,
+  removePinnedFixtureDirectory,
+  startNativeRendererFixture,
+} from "../apps/desktop/e2e/native-renderer-fixture";
+
+const captureTransport =
+  process.env.DOOLITTLE_RENDER_CAPTURE_TRANSPORT ?? "playwright";
+if (captureTransport !== "playwright" && captureTransport !== "native")
+  throw new Error("Unknown renderer fixture transport.");
 
 // Fixed crossover arms distinguish a case-specific failure from the first
 // invocation in a hosted Xvfb session. The default full-CI order is unchanged.
@@ -30,7 +40,10 @@ for (const mode of [
     async ({ browserName }, testInfo) => {
       expect(browserName).toBe("chromium");
       const ownedDir = mkdtempSync(join(tmpdir(), "doolittle-renderer-e2e-"));
+      const ownedIdentity = pinFixtureDirectory(ownedDir);
       let app: Awaited<ReturnType<typeof electron.launch>> | undefined;
+      let native: ReturnType<typeof startNativeRendererFixture> | undefined;
+      let retainOwnedDir = false;
       try {
         const entry = join(ownedDir, "fixture.cjs");
         await build({
@@ -43,39 +56,51 @@ for (const mode of [
           format: "cjs",
           external: ["electron"],
         });
-        app = await electron.launch({
-          args: [
-            entry,
-            `--user-data-dir=${join(ownedDir, "profile")}`,
-            "--force-device-scale-factor=2",
-          ],
-          cwd: process.cwd(),
-        });
-        const outcome = await app.evaluate(
-          async (
-            _electron,
-            request: { kind: RasterCase; expireAfterPng: boolean },
-          ) => {
-            const fixture = await globalThis.browserRendererFixture;
-            try {
-              return {
-                capture: await fixture.capture(request.kind, {
-                  expireAfterPng: request.expireAfterPng,
-                }),
-                failure: null,
-              };
-            } catch (error) {
-              const failure = fixture.captureFailure(error);
-              // Only the fixture's fixed, sanitized capture error crosses as a
-              // diagnostic envelope. Unknown errors retain their original path.
-              if (!failure) throw error;
-              return { capture: null, failure };
-            }
-          },
-          { kind: rasterCase, expireAfterPng },
-        );
+        if (captureTransport === "native") {
+          retainOwnedDir = true;
+          native = startNativeRendererFixture({ entry, ownedDir });
+        } else
+          app = await electron.launch({
+            args: [
+              entry,
+              `--user-data-dir=${join(ownedDir, "profile")}`,
+              "--force-device-scale-factor=2",
+            ],
+            cwd: process.cwd(),
+          });
+        if (!native && !app) throw new Error("Fixture transport unavailable.");
+        const outcome = native
+          ? await native.capture(rasterCase, expireAfterPng)
+          : await app?.evaluate(
+              async (
+                _electron,
+                request: { kind: RasterCase; expireAfterPng: boolean },
+              ) => {
+                const fixture = await globalThis.browserRendererFixture;
+                try {
+                  return {
+                    capture: await fixture.capture(request.kind, {
+                      expireAfterPng: request.expireAfterPng,
+                    }),
+                    failure: null,
+                  };
+                } catch (error) {
+                  const failure = fixture.captureFailure(error);
+                  // Only the fixture's fixed, sanitized capture error crosses as a
+                  // diagnostic envelope. Unknown errors retain their original path.
+                  if (!failure) throw error;
+                  return { capture: null, failure };
+                }
+              },
+              { kind: rasterCase, expireAfterPng },
+            );
+        if (!outcome)
+          throw new Error("Fixture transport returned no evidence.");
         const diagnostic = {
           mode,
+          transport: captureTransport,
+          nativeLinuxNoSandbox:
+            captureTransport === "native" && process.platform === "linux",
           order: captureOrder,
           repeatIndex: testInfo.repeatEachIndex,
           window:
@@ -201,7 +226,8 @@ for (const mode of [
             }
           }
         } finally {
-          rmSync(ownedDir, { recursive: true, force: true });
+          if (native) retainOwnedDir = !(await native.dispose());
+          if (!retainOwnedDir) removePinnedFixtureDirectory(ownedIdentity);
         }
       }
     },

@@ -19,6 +19,10 @@ import {
   type NativeCaptureDiagnostic,
   observeNativeCapture,
 } from "./native-capture-diagnostic";
+import {
+  installNativeFixtureShutdown,
+  parseNativeFixtureRequest,
+} from "./native-renderer-fixture";
 
 export type RasterCase = "complete" | "async" | "lazy" | "late";
 
@@ -98,7 +102,7 @@ interface WindowDiagnostic {
   observationUnavailable: boolean;
 }
 
-interface CaptureFailure {
+export interface CaptureFailure {
   phase: "open" | "first-snapshot";
   status: number;
   error: string;
@@ -343,8 +347,35 @@ declare global {
 // Playwright supplies a freshly owned --user-data-dir and closes it in finally.
 app.on("window-all-closed", () => {});
 
+const nativeIpc = process.argv.includes("--doolittle-renderer-fixture-ipc");
+let nativeDispose = async () => {};
+const sendNative = (value: unknown) => {
+  try {
+    process.send?.(value as Parameters<NonNullable<typeof process.send>>[0]);
+  } catch {
+    // No arbitrary IPC error text crosses the fixture boundary.
+  }
+};
+// Register before even awaiting app readiness: detached children must stop if
+// their owning test worker disappears, including during startup or disposal.
+const nativeShutdown = nativeIpc
+  ? installNativeFixtureShutdown({
+      onDisconnect: (listener) => process.on("disconnect", listener),
+      dispose: () => nativeDispose(),
+      disposed: () => {
+        sendNative({ type: "disposed" });
+        if (process.connected) process.disconnect?.();
+      },
+      failed: () => sendNative({ type: "failed" }),
+      quit: () => app.quit(),
+      exit: () => app.exit(1),
+    })
+  : undefined;
+
 globalThis.browserRendererFixture = (async () => {
   await app.whenReady();
+  if (nativeShutdown?.isClosing())
+    throw new Error("Native renderer fixture stopped.");
   const size = 4096;
   const bitmap = Buffer.alloc(size * size * 4);
   for (let y = 0; y < size; y++) {
@@ -397,6 +428,7 @@ globalThis.browserRendererFixture = (async () => {
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   };
+  nativeDispose = dispose;
   try {
     await new Promise<void>((resolve, reject) => {
       server.once("error", reject);
@@ -405,6 +437,8 @@ globalThis.browserRendererFixture = (async () => {
     const address = server.address();
     if (!address || typeof address === "string")
       throw new Error("Fixture did not obtain a loopback port.");
+    if (nativeShutdown?.isClosing())
+      throw new Error("Native renderer fixture stopped.");
     const origin = `http://127.0.0.1:${address.port}`;
     bridge = await startBrowserRenderBridge({
       // Failure-only fixture seam: the owned target remains valid until the
@@ -598,3 +632,47 @@ globalThis.browserRendererFixture = (async () => {
     throw error;
   }
 })();
+
+// Only the explicitly activated test entry accepts the closed native IPC
+// protocol. No arbitrary evaluation, browser commands, or provider startup.
+if (nativeShutdown) {
+  let captured = false;
+  const send = sendNative;
+  void globalThis.browserRendererFixture.then(
+    (fixture) => {
+      if (nativeShutdown.isClosing()) return;
+      process.on("message", (message: unknown) => {
+        void (async () => {
+          if (nativeShutdown.isClosing()) return;
+          const request = parseNativeFixtureRequest(message);
+          if (request?.type === "dispose") {
+            await nativeShutdown.shutdown();
+            return;
+          }
+          if (captured || !request || request.type !== "capture") {
+            send({ type: "failed" });
+            return;
+          }
+          captured = true;
+          try {
+            send({
+              type: "captured",
+              capture: await fixture.capture(request.kind as RasterCase, {
+                expireAfterPng: request.expireAfterPng,
+              }),
+            });
+          } catch (error) {
+            const failure = fixture.captureFailure(error);
+            send(
+              failure
+                ? { type: "capture-failed", failure }
+                : { type: "failed" },
+            );
+          }
+        })().catch(() => send({ type: "failed" }));
+      });
+      send({ type: "ready" });
+    },
+    () => send({ type: "failed" }),
+  );
+}
