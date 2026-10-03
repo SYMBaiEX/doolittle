@@ -121,6 +121,29 @@ regression test loads both installed SDK bundles without a loader substitute;
 retire the patch only after an upstream release passes the same tests. A patch
 change is a new harness revision, not directly attributable speed evidence.
 
+The same orchestrator patch also projects bounded initial Codex model selection
+from the awaited, exact-session ACP `session/new` result. Selected `configOptions`
+values are primary; the older `models.currentModelId` format is parsed only for
+the configured `codex-acp@1.13.1` command. This command marker is configuration
+provenance, not proof of the executable that ran. Missing configuration effort
+stays null, and malformed, truncated or contradictory observations fail closed.
+The delegation receipt's optional `initialSelection` stores model/selection
+SHA-256 digests and a closed effort value, not raw model IDs, catalogs or adapter
+metadata. Raw selection is excluded from action results, events and SDK stores.
+
+This is adapter-reported **initial selection only**. The adapter can supply
+defaults, and configuration can change later; neither the snapshot nor the
+requested route proves server-effective or per-prompt execution. The receipt
+therefore keeps `effectiveExecution=unavailable`. Unsupported adapters/options
+remain unavailable or rejected without changing task grading. Existing receipts
+remain valid; coding reports do not yet aggregate this optional field. Real ESM
+and CJS regression tests use a synthetic ACP wire responder, not a live provider.
+Separate delegation/projection tests cover descriptor/getter failures and
+exact-child cleanup. Follow
+the [ACP session-config contract](https://agentclientprotocol.com/protocol/v1/session-config-options)
+and retire this projection patch when an upstream SDK provides equivalent
+bounded exact-session evidence and passes those regressions.
+
 The second pinned patch,
 `patches/@elizaos+plugin-codex-cli@2.0.3-beta.7.patch`, preserves user image parts
 in the official Codex backend's Responses request. It accepts HTTP(S) image

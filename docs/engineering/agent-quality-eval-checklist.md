@@ -83,6 +83,17 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   stale-lock/stream cleanup and terminal-session retention. Record the source
   revision and lockfile patch hash when comparing worker recovery behavior;
   regression coverage is not a measured latency improvement.
+- Codex delegation receipts optionally record bounded `initialSelection` from
+  the awaited ACP spawn result: selected config values are primary, with a
+  configured-1.13.1 legacy fallback. Model and selection identities are hashed;
+  catalogs, raw IDs and metadata are not retained. Missing effort remains null,
+  conflicts fail closed, and unsupported evidence stays unavailable/rejected.
+  This is adapter-reported initial state, possibly including adapter defaults,
+  not effective execution or proof that selection remained unchanged. The
+  configured-command marker does not attest the executable. Keep requested,
+  initial-reported and effective-unavailable evidence separate; current coding
+  reports do not aggregate this optional receipt field. Synthetic ESM/CJS wire
+  tests prove projection, privacy and cleanup, not a live vendor execution.
 - The pinned Codex SDK also has an image-input package patch. Ordered user
   image parts reach the SDK's real Responses request as `input_image`; invalid
   inputs and unsupported message roles fail before authentication or fetch.

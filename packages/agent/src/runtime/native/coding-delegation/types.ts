@@ -45,6 +45,32 @@ export interface DelegatedExecutionReceipt {
   changedFiles: DelegatedFileChange[];
   verifiedLocalMutation: boolean;
   usage?: DelegatedUsageEvidence;
+  initialSelection?: DelegatedInitialSelectionEvidence;
+}
+
+/** Adapter initial state only; not server-effective or per-prompt execution. */
+export interface DelegatedInitialSelectionEvidence {
+  readonly schemaVersion: 1;
+  readonly source:
+    | "acp-session-new-config-options"
+    | "acp-session-new-legacy-model-state"
+    | "unavailable";
+  readonly subject: "delegated-worker";
+  readonly coverage: "initial-selection-only";
+  readonly state: "reported" | "unavailable" | "rejected" | "conflicting";
+  readonly commandProvenance: "configured-command-1.13.1" | "unverified";
+  readonly rejection: "malformed" | "truncated" | null;
+  readonly modelSha256: string | null;
+  readonly selectionSha256: string | null;
+  readonly reasoningEffort:
+    | "none"
+    | "minimal"
+    | "low"
+    | "medium"
+    | "high"
+    | "xhigh"
+    | null;
+  readonly effectiveExecution: "unavailable";
 }
 
 export interface AcpSpawnOptions {
