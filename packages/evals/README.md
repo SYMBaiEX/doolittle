@@ -142,6 +142,22 @@ descendants that escape it; Windows shutdown is unconfirmed and fails closed.
 Per-task filesystem cleanup is excluded from suite wall time. New reports form
 a separate baseline; do not pool them with evaluator 0.2.9 measurements.
 
+Evaluator 0.2.11 writes schema-v5 headless reports. The advertised route is a
+configuration expectation, not the effective model: provider and effort are
+allowlisted, model names and optional operator labels are hashed. Per-task
+request-journal evidence identifies requested parent-turn model digests and
+its missing, partial, mixed, or conflicting coverage. Requested effort,
+effective model/effort, and worker routes remain unavailable. Schema-v4 reports
+remain readable as legacy/unattested evidence; do not pool them with v5.
+
+V5 directly times preflight, task setup, response processing, grading, task
+cleanup, report preparation, and final cleanup as separate phases. Child
+execution remains a composite; no wall-minus-provider overhead is inferred.
+Completed serialization and report-write durations are stored in an optional
+owner-only `REPORT.json.measurement.json` receipt bound to the report's SHA-256.
+Receipt-write time and inter-phase bookkeeping are untimed; a missing receipt
+does not change grading. Verify the report hash before using receipt timings.
+
 ```sh
 nub run eval:headless -- --suite headless-workflows-v6 --task reliability-no-side-effect-v6
 ```
@@ -153,6 +169,29 @@ reports and does not affect grading:
 
 ```sh
 nub run eval:headless -- --suite headless-workflows-v5 --task reliability-no-side-effect-v5 --show-action-labels
+```
+
+`--record-action-diagnostics` separately writes an owner-only, exclusive-create
+`REPORT.json.actions.json` receipt. Its schema-1 projection contains only fixed
+action-category counts, byte/event limits, rejected records, truncation and
+unavailable coverage. Verify its report SHA-256 and numeric `reportRunIndex`
+against the exact report before use. Unknown action names map to `other`; labels,
+arguments, results, errors, IDs, commands and URLs are never exported. Counts are
+journal-event occurrences, including duplicates—not distinct worker commands,
+failure causes or effective-route evidence. The reader runs only after confirmed
+child shutdown, rejects symlink/nonregular inputs, and bounds data read rather
+than synchronous filesystem latency. Optional diagnostic failures do not change
+grading or cleanup; trusted synchronous hooks must return promptly.
+
+Default mode adds no action journal read, receipt or execution override. Opt-in
+reading contributes to grading time and adds an explicit execution override;
+schema-v5 aggregation and paired comparison require equal ordered overrides.
+Do not pool on/off samples. Report schema 5 and evaluator 0.2.11 stay unchanged;
+historical default-mode v5 reports remain readable and schema-v4 comparison
+policy is unchanged.
+
+```sh
+nub run eval:headless -- --suite headless-workflows-v6 --task coding-function-behavior-v6 --record-action-diagnostics
 ```
 
 Every task gets a fresh temporary data directory and workspace with a minimal
@@ -184,10 +223,13 @@ report. Temporary workspaces are removed per task only when safe. Use the
 to plan comparable runs, score human-facing quality, and interpret timing
 without confusing process completion, objective checks, and model latency.
 
-Aggregate repeat samples only when they use the same schema-v4 route, evaluator,
-suite, task set, objective checks, and clean source revision. Reports with the
-same run timestamp are rejected so a copied report cannot count as another
-sample:
+Aggregate repeat samples only when they use the same schema (v4 or v5), declared
+route, evaluator, suite, task set, objective checks, and clean source revision.
+V5 additionally requires matching available requested-route signatures; mixed
+or conflicting routes are not comparison-eligible, but remain reviewable.
+V5 also requires equal ordered execution overrides, including diagnostic mode.
+Unavailable effective/worker evidence stays unavailable. Reports with the same
+run timestamp are rejected so a copied report cannot count as another sample:
 
 ```sh
 nub run eval:headless:aggregate -- \

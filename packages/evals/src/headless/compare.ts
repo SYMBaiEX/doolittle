@@ -1,6 +1,17 @@
 import { readFileSync } from "node:fs";
+import {
+  type AdvertisedRoute,
+  type HarnessTiming,
+  parseAdvertisedRoute,
+  parseHarnessTiming,
+  parseRouteEvidence,
+  parseTaskHarnessTiming,
+  type RouteEvidence,
+  requestedSignature,
+  type TaskHarnessTiming,
+} from "./measurement";
 
-const SUPPORTED_SCHEMA_VERSIONS = new Set([1, 2, 3, 4]);
+const SUPPORTED_SCHEMA_VERSIONS = new Set([1, 2, 3, 4, 5]);
 
 type Check = { id: string; passed: boolean };
 type TraceSummary = {
@@ -46,6 +57,8 @@ export type ModelUsage = {
   costUsd: null;
 };
 type Run = {
+  routeEvidence?: RouteEvidence;
+  harnessTiming?: TaskHarnessTiming;
   taskId: string;
   domain: string;
   status: "completed" | "failed";
@@ -66,14 +79,18 @@ type Run = {
   checks: Check[];
 };
 type Report = {
-  schemaVersion: 1 | 2 | 3 | 4;
+  schemaVersion: 1 | 2 | 3 | 4 | 5;
+  harnessTiming?: HarnessTiming;
+  executionOverrides?: string[];
   evaluatorVersion: string;
   explicitEvaluatorVersion?: string | number;
   createdAt?: string;
   suite: { id: string; version: number };
   summary?: { suiteWallTimeMs: number };
   routeLabel?: string;
-  route?: { provider: string; model: string; reasoningEffort: string };
+  route?:
+    | { provider: string; model: string; reasoningEffort: string }
+    | AdvertisedRoute;
   source?: SourceIdentity;
   runs: Run[];
 };
@@ -116,6 +133,9 @@ export interface HeadlessProviderUsageComparison {
 }
 
 export interface HeadlessReportComparison {
+  routeAttestation:
+    | "legacy-unattested"
+    | "requested-only-effective-unavailable";
   suiteId: string;
   suiteVersion: number;
   schemaVersion: number;
@@ -156,6 +176,20 @@ export interface HeadlessMetricDistribution {
 }
 
 export interface HeadlessTaskAggregate {
+  harnessMetrics?: {
+    coverage: "direct-phases-only";
+    setupMs: HeadlessMetricDistribution | null;
+    responseProcessingMs: HeadlessMetricDistribution | null;
+    gradingMs: HeadlessMetricDistribution | null;
+    cleanupMs: HeadlessMetricDistribution | null;
+  };
+  routeEvidenceCoverage?: {
+    requestedRuns: number;
+    unavailableRuns: number;
+    partialRuns: number;
+    effectiveRuns: 0;
+    workerRuns: 0;
+  };
   taskId: string;
   domain: string;
   sampleCount: number;
@@ -193,12 +227,25 @@ export interface HeadlessTaskAggregate {
 }
 
 export interface HeadlessReportAggregate {
+  harnessMetrics?: {
+    coverage: "direct-phases-only";
+    preflightMs: HeadlessMetricDistribution | null;
+    reportPreparationMs: HeadlessMetricDistribution | null;
+    finalCleanupMs: HeadlessMetricDistribution | null;
+    serializationMs: null;
+    persistenceMs: null;
+  };
   suiteId: string;
   suiteVersion: number;
-  schemaVersion: 4;
+  schemaVersion: 4 | 5;
+  routeAttestation:
+    | "legacy-unattested"
+    | "requested-only-effective-unavailable";
   evaluatorVersion: string;
   routeLabel: string;
-  route: { provider: string; model: string; reasoningEffort: string };
+  route:
+    | { provider: string; model: string; reasoningEffort: string }
+    | AdvertisedRoute;
   source: { revision: string; workingTreeClean: true };
   reportSamples: number;
   taskSamples: number;
@@ -398,7 +445,41 @@ function parseReport(value: unknown): Report {
   )
     return invalid();
 
-  const schema = Number(schemaVersion) as 1 | 2 | 3 | 4;
+  const schema = Number(schemaVersion) as 1 | 2 | 3 | 4 | 5;
+  let harnessTiming: HarnessTiming | undefined;
+  let executionOverrides: string[] | undefined;
+  if (schema === 5) {
+    if (
+      !Array.isArray(value.executionOverrides) ||
+      value.executionOverrides.length > 16 ||
+      value.executionOverrides.some(
+        (entry) => !string(entry) || entry.length > 512,
+      )
+    )
+      return invalid();
+    // Internal comparison only: never expose arbitrary override text in output.
+    executionOverrides = [...value.executionOverrides] as string[];
+    harnessTiming = parseHarnessTiming(value.harnessTiming);
+    const declaration = value.routeDeclaration;
+    if (
+      !isRecord(declaration) ||
+      Object.keys(declaration).length !== 3 ||
+      declaration.provenance !== "product-default" ||
+      declaration.expectation !== "fresh-isolated-settings-default" ||
+      declaration.effectiveAttestation !== "unavailable"
+    )
+      return invalid();
+    // Archived reports bind their own declared configuration, not today's default.
+    parseAdvertisedRoute(value.route);
+    if (
+      !string(value.routeLabel) ||
+      !(
+        value.routeLabel === "product-default" ||
+        /^sha256:[a-f0-9]{64}$/.test(value.routeLabel)
+      )
+    )
+      return invalid();
+  }
   let createdAt: string | undefined;
   if (value.createdAt !== undefined) {
     if (
@@ -428,7 +509,9 @@ function parseReport(value: unknown): Report {
     routeLabel = value.routeLabel;
   }
   let route: Report["route"];
-  if (value.route !== undefined) {
+  if (schema === 5) {
+    route = parseAdvertisedRoute(value.route);
+  } else if (value.route !== undefined) {
     if (
       !isRecord(value.route) ||
       !string(value.route.provider) ||
@@ -444,7 +527,7 @@ function parseReport(value: unknown): Report {
     };
   }
   let source: SourceIdentity | undefined;
-  if (schema === 4) {
+  if (schema >= 4) {
     if (
       !isRecord(value.source) ||
       !(
@@ -482,6 +565,10 @@ function parseReport(value: unknown): Report {
       return invalid();
 
     let comparisonDurationMs = raw.elapsedMs;
+    const routeEvidence =
+      schema === 5 ? parseRouteEvidence(raw.routeEvidence) : undefined;
+    const taskHarnessTiming =
+      schema === 5 ? parseTaskHarnessTiming(raw.harnessTiming) : undefined;
     let timing: Run["timing"];
     if (schema >= 2) {
       const rawTiming = raw.timing;
@@ -546,7 +633,7 @@ function parseReport(value: unknown): Report {
       modelUsage = parseModelUsage(raw.modelUsage);
     }
     let traceSummary: TraceSummary | undefined;
-    if (schema === 4) {
+    if (schema >= 4) {
       traceSummary = parseTraceSummary(raw.traceSummary) ?? undefined;
       if (!traceSummary) return invalid();
     }
@@ -583,6 +670,8 @@ function parseReport(value: unknown): Report {
       domain: raw.domain,
       status: raw.status,
       elapsedMs: raw.elapsedMs,
+      ...(routeEvidence ? { routeEvidence } : {}),
+      ...(taskHarnessTiming ? { harnessTiming: taskHarnessTiming } : {}),
       comparisonDurationMs,
       ...(timing ? { timing } : {}),
       ...(schema >= 3 ? { modelUsage } : {}),
@@ -595,6 +684,8 @@ function parseReport(value: unknown): Report {
 
   return {
     schemaVersion: schema,
+    ...(harnessTiming ? { harnessTiming } : {}),
+    ...(executionOverrides ? { executionOverrides } : {}),
     evaluatorVersion: evaluatorVersion(value.evaluatorVersion),
     ...(value.evaluatorVersion !== undefined
       ? { explicitEvaluatorVersion: value.evaluatorVersion as string | number }
@@ -615,6 +706,21 @@ export function readHeadlessEvalReport(path: string): unknown {
   } catch {
     return invalid();
   }
+}
+/** Schema validation is separate from route-comparison eligibility (human review). */
+export function validateHeadlessEvalReport(value: unknown): void {
+  parseReport(value);
+}
+function assertRouteComparisonEligible(report: Report): void {
+  if (
+    report.schemaVersion === 5 &&
+    report.runs.some(
+      (run) =>
+        run.routeEvidence?.status === "mixed" ||
+        run.routeEvidence?.status === "conflicting",
+    )
+  )
+    invalid();
 }
 
 function distribution(values: number[]): HeadlessMetricDistribution {
@@ -642,8 +748,9 @@ function optionalDistribution(
 }
 
 /**
- * Aggregate repeated reports only when they represent the same exact route,
- * evaluator, suite, tasks, and checks. This is descriptive statistics, not a
+ * Aggregate repeats only with the same declared configuration and available
+ * requested-route signature, evaluator, suite, tasks, and checks. Effective
+ * route is unattested. This is descriptive statistics, not a
  * quality score or a causal comparison.
  */
 export function aggregateHeadlessEvalReports(
@@ -656,12 +763,12 @@ export function aggregateHeadlessEvalReports(
   }
   const reports = inputs.map(parseReport);
   const baseline = reports[0];
+  for (const report of reports) assertRouteComparisonEligible(report);
   if (
-    baseline?.schemaVersion !== 4 ||
+    !(baseline?.schemaVersion === 4 || baseline?.schemaVersion === 5) ||
     !baseline.routeLabel ||
     !baseline.route ||
-    !baseline.source ||
-    !baseline.source.revision ||
+    !baseline.source?.revision ||
     baseline.source.workingTreeClean !== true ||
     baseline.summary?.suiteWallTimeMs === undefined
   ) {
@@ -670,14 +777,15 @@ export function aggregateHeadlessEvalReports(
 
   const sameRoute = (candidate: Report) =>
     candidate.routeLabel === baseline.routeLabel &&
-    candidate.route?.provider === baseline.route?.provider &&
-    candidate.route?.model === baseline.route?.model &&
-    candidate.route?.reasoningEffort === baseline.route?.reasoningEffort;
+    JSON.stringify(candidate.route) === JSON.stringify(baseline.route);
   const referenceTasks = new Map(baseline.runs.map((run) => [run.taskId, run]));
   const reportTimes = new Set<string>();
   for (const report of reports) {
     if (
-      report.schemaVersion !== 4 ||
+      report.schemaVersion !== baseline.schemaVersion ||
+      (report.schemaVersion === 5 &&
+        JSON.stringify(report.executionOverrides) !==
+          JSON.stringify(baseline.executionOverrides)) ||
       !report.createdAt ||
       reportTimes.has(report.createdAt) ||
       report.evaluatorVersion !== baseline.evaluatorVersion ||
@@ -697,6 +805,11 @@ export function aggregateHeadlessEvalReports(
       const reference = referenceTasks.get(run.taskId);
       if (
         !reference ||
+        (report.schemaVersion === 5 &&
+          (!run.routeEvidence ||
+            !reference.routeEvidence ||
+            requestedSignature(run.routeEvidence) !==
+              requestedSignature(reference.routeEvidence))) ||
         run.domain !== reference.domain ||
         !run.timing ||
         run.timing.execInvocations === undefined ||
@@ -738,6 +851,48 @@ export function aggregateHeadlessEvalReports(
 
     return {
       taskId: reference.taskId,
+      ...(baseline.schemaVersion === 5
+        ? {
+            harnessMetrics: {
+              coverage: "direct-phases-only" as const,
+              setupMs: optionalDistribution(
+                samples.flatMap((run) =>
+                  run.harnessTiming ? [run.harnessTiming.setupMs] : [],
+                ),
+              ),
+              responseProcessingMs: optionalDistribution(
+                samples.flatMap((run) =>
+                  run.harnessTiming
+                    ? [run.harnessTiming.responseProcessingMs]
+                    : [],
+                ),
+              ),
+              gradingMs: optionalDistribution(
+                samples.flatMap((run) =>
+                  run.harnessTiming ? [run.harnessTiming.gradingMs] : [],
+                ),
+              ),
+              cleanupMs: optionalDistribution(
+                samples.flatMap((run) =>
+                  run.harnessTiming ? [run.harnessTiming.cleanupMs] : [],
+                ),
+              ),
+            },
+            routeEvidenceCoverage: {
+              requestedRuns: samples.filter(
+                (run) => (run.routeEvidence?.accepted ?? 0) > 0,
+              ).length,
+              unavailableRuns: samples.filter(
+                (run) => run.routeEvidence?.status === "unavailable",
+              ).length,
+              partialRuns: samples.filter(
+                (run) => run.routeEvidence?.status === "partial",
+              ).length,
+              effectiveRuns: 0 as const,
+              workerRuns: 0 as const,
+            },
+          }
+        : {}),
       domain: reference.domain,
       sampleCount: samples.length,
       executionCompletions: completed,
@@ -858,7 +1013,39 @@ export function aggregateHeadlessEvalReports(
   return {
     suiteId: baseline.suite.id,
     suiteVersion: baseline.suite.version,
-    schemaVersion: 4,
+    schemaVersion: baseline.schemaVersion as 4 | 5,
+    routeAttestation:
+      baseline.schemaVersion === 5
+        ? "requested-only-effective-unavailable"
+        : "legacy-unattested",
+    ...(baseline.schemaVersion === 5
+      ? {
+          harnessMetrics: {
+            coverage: "direct-phases-only" as const,
+            preflightMs: optionalDistribution(
+              reports.flatMap((report) =>
+                report.harnessTiming ? [report.harnessTiming.preflightMs] : [],
+              ),
+            ),
+            reportPreparationMs: optionalDistribution(
+              reports.flatMap((report) =>
+                report.harnessTiming
+                  ? [report.harnessTiming.reportPreparationMs]
+                  : [],
+              ),
+            ),
+            finalCleanupMs: optionalDistribution(
+              reports.flatMap((report) =>
+                report.harnessTiming
+                  ? [report.harnessTiming.finalCleanupMs]
+                  : [],
+              ),
+            ),
+            serializationMs: null,
+            persistenceMs: null,
+          },
+        }
+      : {}),
     evaluatorVersion: baseline.evaluatorVersion,
     routeLabel: baseline.routeLabel,
     route: baseline.route,
@@ -903,8 +1090,13 @@ export function compareHeadlessEvalReports(
 ): HeadlessReportComparison {
   const baseline = parseReport(baselineInput);
   const candidate = parseReport(candidateInput);
+  assertRouteComparisonEligible(baseline);
+  assertRouteComparisonEligible(candidate);
   if (
     baseline.schemaVersion !== candidate.schemaVersion ||
+    (baseline.schemaVersion === 5 &&
+      JSON.stringify(baseline.executionOverrides) !==
+        JSON.stringify(candidate.executionOverrides)) ||
     baseline.evaluatorVersion !== candidate.evaluatorVersion ||
     baseline.explicitEvaluatorVersion !== candidate.explicitEvaluatorVersion ||
     baseline.suite.id !== candidate.suite.id ||
@@ -1099,6 +1291,10 @@ export function compareHeadlessEvalReports(
     suiteId: baseline.suite.id,
     suiteVersion: baseline.suite.version,
     schemaVersion: baseline.schemaVersion,
+    routeAttestation:
+      baseline.schemaVersion === 5
+        ? "requested-only-effective-unavailable"
+        : "legacy-unattested",
     durationMetric,
     evaluatorVersion: baseline.evaluatorVersion,
     sampleSize: tasks.length,

@@ -1,8 +1,11 @@
 import {
+  chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   statSync,
@@ -14,12 +17,15 @@ import { basename, dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HeadlessEvalSuite } from "./cases";
 import { HEADLESS_EVAL_SUITES } from "./cases";
+import * as measurement from "./measurement";
 import { runHeadlessEvalSuite } from "./runner";
 
 const temporaryDirectories: string[] = [];
 
 function tempDirectory(): string {
-  const path = mkdtempSync(join(tmpdir(), "doolittle-headless-eval-test-"));
+  const path = realpathSync(
+    mkdtempSync(join(tmpdir(), "doolittle-headless-eval-test-")),
+  );
   temporaryDirectories.push(path);
   return path;
 }
@@ -31,7 +37,254 @@ afterEach(() => {
   }
 });
 
+describe("private optional action receipt persistence", () => {
+  const suite: HeadlessEvalSuite = {
+    id: "action-persistence-test",
+    version: 1,
+    title: "Action receipt persistence",
+    tasks: [
+      {
+        id: "one",
+        domain: "conversation",
+        prompt: "synthetic",
+        checks: [{ id: "pass", evaluate: () => true }],
+        humanReviewRequired: false,
+      },
+    ],
+  };
+  const success = {
+    status: 0,
+    stdout: JSON.stringify({ ok: true, text: "PRIVATE_RESPONSE_CANARY" }),
+    stderr: "",
+    signal: null,
+    cleanupSafe: true,
+  };
+  it("writes default action receipts exclusively with owner-only permissions and exact report binding", async () => {
+    const reportDir = tempDirectory();
+    let taskRoot = "";
+    const result = await runHeadlessEvalSuite(suite, {
+      reportDir,
+      recordActionDiagnostics: true,
+      execute: (_command, _args, options) => {
+        const dataDir = options.env.DOOLITTLE_DATA_DIR;
+        if (!dataDir) throw new Error("Missing synthetic task directory.");
+        taskRoot = dirname(dataDir);
+        return success;
+      },
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.actionDiagnosticsReceiptStatus).toBe("written");
+    expect(existsSync(taskRoot)).toBe(false);
+    expect(dirname(result.reportPath)).toBe(reportDir);
+    const ownedReportPath = join(reportDir, basename(result.reportPath));
+    const reportBytes = readFileSync(ownedReportPath, "utf8");
+    const actionBytes = readFileSync(`${ownedReportPath}.actions.json`, "utf8");
+    expect(JSON.parse(actionBytes)).toMatchObject({
+      schemaVersion: 1,
+      reportSchemaVersion: 5,
+      evaluatorVersion: "0.2.11",
+      reportSha256: measurement.digest(reportBytes),
+      mode: "opt-in-action-diagnostics",
+    });
+    expect(statSync(`${ownedReportPath}.actions.json`).mode & 0o777).toBe(
+      0o600,
+    );
+    expect(actionBytes).not.toContain("PRIVATE_RESPONSE_CANARY");
+    expect(actionBytes).not.toContain(taskRoot);
+  });
+  it.each(["collision", "symlink"])(
+    "preserves a pre-existing %s action sidecar without changing grading",
+    async (kind) => {
+      const reportDir = tempDirectory();
+      const foreign = join(tempDirectory(), "foreign-sentinel");
+      writeFileSync(foreign, "PRIVATE_FOREIGN_CANARY", {
+        mode: 0o600,
+        flag: "wx",
+      });
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir,
+        recordActionDiagnostics: true,
+        execute: () => success,
+        writeMeasurementReceipt: (path) => {
+          expect(dirname(path)).toBe(reportDir);
+          const reportLeaf = basename(path).replace(
+            /\.measurement\.json$/u,
+            "",
+          );
+          const sidecar = join(reportDir, `${reportLeaf}.actions.json`);
+          if (kind === "symlink") symlinkSync(foreign, sidecar);
+          else
+            writeFileSync(sidecar, "PRIVATE_EXISTING_CANARY", {
+              mode: 0o600,
+              flag: "wx",
+            });
+        },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.actionDiagnosticsReceiptStatus).toBe("unavailable");
+      expect(dirname(result.reportPath)).toBe(reportDir);
+      const sidecar = join(
+        reportDir,
+        `${basename(result.reportPath)}.actions.json`,
+      );
+      expect(readFileSync(sidecar, "utf8")).toBe(
+        kind === "symlink"
+          ? "PRIVATE_FOREIGN_CANARY"
+          : "PRIVATE_EXISTING_CANARY",
+      );
+      expect(readFileSync(foreign, "utf8")).toBe("PRIVATE_FOREIGN_CANARY");
+    },
+  );
+  it.each(["before-hook", "during-hook"])(
+    "refuses report-directory replacement %s without claiming action persistence",
+    async (when) => {
+      const parent = tempDirectory();
+      const reportDir = join(parent, "reports");
+      const original = join(parent, "reports-original");
+      mkdirSync(reportDir, { mode: 0o700 });
+      const replace = () => {
+        renameSync(reportDir, original);
+        mkdirSync(reportDir, { mode: 0o700 });
+        writeFileSync(
+          join(reportDir, "sentinel"),
+          "PRIVATE_REPLACEMENT_CANARY",
+          { mode: 0o600 },
+        );
+      };
+      const actionWriter = vi.fn((path: string) => {
+        expect(dirname(path)).toBe(reportDir);
+        expect(basename(path)).toMatch(/\.json\.actions\.json$/u);
+        replace();
+      });
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir,
+        recordActionDiagnostics: true,
+        execute: () => success,
+        writeMeasurementReceipt: when === "before-hook" ? replace : undefined,
+        writeActionDiagnosticsReceipt: actionWriter,
+      });
+      expect(actionWriter).toHaveBeenCalledTimes(
+        when === "before-hook" ? 0 : 1,
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.actionDiagnosticsReceiptStatus).toBe("unavailable");
+      expect(readdirSync(reportDir)).toEqual(["sentinel"]);
+      expect(readFileSync(join(reportDir, "sentinel"), "utf8")).toBe(
+        "PRIVATE_REPLACEMENT_CANARY",
+      );
+      expect(dirname(result.reportPath)).toBe(reportDir);
+      const stored = readFileSync(
+        join(original, basename(result.reportPath)),
+        "utf8",
+      );
+      expect(JSON.parse(stored).summary.completed).toBe(1);
+      expect(stored).not.toContain("PRIVATE_REPLACEMENT_CANARY");
+      expect(
+        readdirSync(original).some((leaf) => leaf.endsWith(".actions.json")),
+      ).toBe(false);
+    },
+  );
+  it.each(["reject", "never-settling"])(
+    "does not await unsupported %s action writer promises",
+    async (mode) => {
+      const reportDir = tempDirectory();
+      const result = await runHeadlessEvalSuite(suite, {
+        reportDir,
+        recordActionDiagnostics: true,
+        execute: () => success,
+        writeActionDiagnosticsReceipt: () =>
+          mode === "reject"
+            ? Promise.reject(new Error("PRIVATE_WRITER_ERROR"))
+            : new Promise<void>(() => undefined),
+      });
+      await Promise.resolve();
+      expect(result.exitCode).toBe(0);
+      expect(result.actionDiagnosticsReceiptStatus).toBe("unavailable");
+      expect(
+        readdirSync(reportDir).some((leaf) => leaf.endsWith(".actions.json")),
+      ).toBe(false);
+    },
+  );
+});
+
 describe("headless workflow evals", () => {
+  it.each(["permissions", "suite-path"])(
+    "refuses unsafe report %s before child dispatch",
+    async (kind) => {
+      const reportDir = tempDirectory();
+      const execute = vi.fn();
+      if (kind === "permissions") chmodSync(reportDir, 0o755);
+      const suite: HeadlessEvalSuite = {
+        id: kind === "suite-path" ? "x/../../escape" : "safe-suite",
+        version: 1,
+        title: "Private report preflight",
+        tasks: [
+          {
+            id: "one",
+            domain: "conversation",
+            prompt: "test",
+            checks: [],
+            humanReviewRequired: false,
+          },
+        ],
+      };
+      await expect(
+        runHeadlessEvalSuite(suite, { reportDir, execute: execute as never }),
+      ).rejects.toThrow();
+      expect(execute).not.toHaveBeenCalled();
+      expect(readdirSync(reportDir)).toEqual([]);
+    },
+  );
+  it("does not project routes from an ordinary substituted task root or publish receipts", async () => {
+    const reportDir = tempDirectory();
+    const routeReader = vi.spyOn(measurement, "readRequestedRouteEvidence");
+    let sentinel = "";
+    const suite: HeadlessEvalSuite = {
+      id: "route-identity-guard",
+      version: 1,
+      title: "Route guard",
+      tasks: [
+        {
+          id: "one",
+          domain: "conversation",
+          prompt: "test",
+          checks: [],
+          humanReviewRequired: false,
+        },
+      ],
+    };
+    await expect(
+      runHeadlessEvalSuite(suite, {
+        reportDir,
+        execute: (_command, _args, options) => {
+          const dataDir = options.env.DOOLITTLE_DATA_DIR;
+          if (!dataDir) throw new Error("Missing synthetic task directory.");
+          const taskRoot = dirname(dataDir);
+          const runRoot = dirname(taskRoot);
+          expect(basename(runRoot)).toMatch(/^doolittle-headless-eval-/);
+          expect(dirname(runRoot)).toBe(tmpdir());
+          temporaryDirectories.push(runRoot);
+          renameSync(taskRoot, join(runRoot, "one-original"));
+          mkdirSync(join(dataDir, "trajectories"), {
+            recursive: true,
+            mode: 0o700,
+          });
+          sentinel = join(dataDir, "trajectories", "trajectory-events.jsonl");
+          writeFileSync(sentinel, "PRIVATE_FOREIGN_SENTINEL");
+          return {
+            status: 0,
+            stdout: JSON.stringify({ ok: true, text: "answer" }),
+            stderr: "",
+            signal: null,
+            cleanupSafe: true,
+          };
+        },
+      }),
+    ).rejects.toThrow("substituted headless directory");
+    expect(routeReader).not.toHaveBeenCalled();
+    expect(readFileSync(sentinel, "utf8")).toBe("PRIVATE_FOREIGN_SENTINEL");
+    expect(readdirSync(reportDir)).toEqual([]);
+  });
   it("includes conversational, coding, research, and reliability task coverage", () => {
     const suite = HEADLESS_EVAL_SUITES["headless-workflows-v2"];
     expect(new Set(suite.tasks.map((task) => task.domain))).toEqual(
@@ -402,7 +655,7 @@ describe("headless workflow evals", () => {
       ],
       humanReviewRequired: true,
     });
-    expect(result.report.schemaVersion).toBe(4);
+    expect(result.report.schemaVersion).toBe(5);
     expect(result.report.source.revision).toMatch(/^[a-f0-9]{40}$/i);
     expect(result.report.runs[0]?.traceSummary).toEqual({
       journalAvailable: true,
@@ -565,7 +818,7 @@ describe("headless workflow evals", () => {
   it("excludes per-task filesystem cleanup from suite wall time", async () => {
     const reportDir = tempDirectory();
     let clockCall = 0;
-    const clockValues = [0, 0, 0, 0, 10, 10, 20, 20, 120, 120];
+    const clockValues = [0, 0, 0, 0, 0, 10, 10, 10, 20, 20, 120, 120];
     const suite: HeadlessEvalSuite = {
       id: "cleanup-timing",
       version: 1,
@@ -594,7 +847,8 @@ describe("headless workflow evals", () => {
       })) as never,
     });
 
-    expect(clockCall).toBe(10);
+    expect(clockCall).toBe(20);
+    expect(result.report.runs[0]?.harnessTiming.cleanupMs).toBe(100);
     expect(result.report.summary.suiteWallTimeMs).toBe(20);
   });
 
@@ -892,6 +1146,7 @@ describe("headless workflow evals", () => {
   it.each([false, undefined])(
     "retains unsafe task/run state and starts no follow-up or next task: cleanupSafe=%s",
     async (cleanupSafe) => {
+      const routeReader = vi.spyOn(measurement, "readRequestedRouteEvidence");
       const reportDir = tempDirectory();
       const observations: string[] = [];
       let dataDir = "";
@@ -938,6 +1193,7 @@ describe("headless workflow evals", () => {
         }),
       ).rejects.toThrow("cleanup could not be confirmed");
       expect(execute).toHaveBeenCalledTimes(1);
+      expect(routeReader).not.toHaveBeenCalled();
       expect(observations).toEqual(["response", "labels", "graded"]);
       expect(readFileSync(join(dataDir, "retained-state"), "utf8")).toBe(
         "retained",

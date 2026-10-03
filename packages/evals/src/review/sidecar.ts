@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, parse, resolve, sep } from "node:path";
 import { parseCodingEvalReport } from "../coding/report";
-import { compareHeadlessEvalReports } from "../headless/compare";
+import { validateHeadlessEvalReport } from "../headless/compare";
 
 export const REVIEW_DIMENSIONS = [
   "instructionFollowing",
@@ -77,7 +77,7 @@ function reportIdentity(bytes: Buffer): {
 } {
   const raw = object(JSON.parse(bytes.toString("utf8")) as unknown);
   const sha256 = createHash("sha256").update(bytes).digest("hex");
-  if (raw.schemaVersion === 4) {
+  if (raw.schemaVersion === 4 || raw.schemaVersion === 5) {
     const suite = object(raw.suite);
     if (
       !safeId(suite.id) ||
@@ -91,7 +91,7 @@ function reportIdentity(bytes: Buffer): {
       !Array.isArray(raw.runs) ||
       raw.runs.length === 0
     ) {
-      throw new Error("Invalid headless schema-v4 report.");
+      throw new Error("Invalid headless report.");
     }
     const tasks = raw.runs.map((value) => {
       const run = object(value);
@@ -108,13 +108,12 @@ function reportIdentity(bytes: Buffer): {
     if (new Set(tasks.map((task) => task.taskId)).size !== tasks.length) {
       throw new Error("Duplicate headless task identity.");
     }
-    // Reuse the canonical strict v4 parser before attesting to a report. A
-    // self-comparison has no quality implication; it validates the schema.
-    compareHeadlessEvalReports(raw, raw);
+    // Route conflicts prohibit comparison, not truthful human review of a run.
+    validateHeadlessEvalReport(raw);
     return {
       report: {
         kind: "headless",
-        schemaVersion: 4,
+        schemaVersion: raw.schemaVersion,
         sha256,
         suiteId: suite.id,
         suiteVersion: suite.version as number,

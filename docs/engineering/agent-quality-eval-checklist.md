@@ -47,6 +47,23 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   Codex USD cost is explicitly unavailable, not inferred. They also preserve
   privacy-safe request/response/error/continuation/action counts and
   prompt-length statistics, never raw trace text.
+- Evaluator 0.2.11 writes schema-v5 reports. Product-default configuration is
+  advertised, not effective-route attestation. Per-task journal evidence
+  records requested parent-turn model/subject digests, with unavailable,
+  partial, mixed and conflicting coverage kept explicit. Requested effort,
+  effective model/effort and worker routes are unavailable. Operator route
+  labels are hashed. Do not promote a requested/default route to effective
+  execution or a parent's route to its worker. Legacy v4 stays readable, not
+  pooled with v5; mixed/conflicting requests prohibit comparison, not human
+  review.
+- `--record-action-diagnostics` adds a private report-SHA-bound sidecar of
+  fixed action-category event counts and explicit missing/rejected/truncated
+  coverage. It retains no labels or content, counts duplicate events, and does
+  not identify distinct worker commands or failure causes. Opt-in projection
+  contributes to grading time; v5 pooling and comparison require equal ordered
+  execution overrides, so on/off samples are incompatible. Default mode adds
+  no diagnostic journal read or sidecar. Synchronous filesystem latency is not
+  bounded by the data caps, and optional receipt failures do not change grading.
 - Managed coding receipts additionally preserve the installed SDK's
   `usage_update` events for that exact worker session. Missing events remain
   unavailable. Stable event IDs deduplicate delivery, contradictory IDs are
@@ -88,19 +105,23 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
   not arbitrary-site browsing, interactive accessibility, a correction loop,
   human-rated quality or comparable coding performance.
 - The pairwise comparator handles a baseline/candidate report pair. The
-  `eval:headless:aggregate` command summarizes compatible schema-v4 repeats
-  only when route, evaluator, suite, task/check identities, clean source
+  `eval:headless:aggregate` command summarizes same-schema v4/v5 repeats
+  only when declared route, evaluator, suite, task/check identities, clean source
   revision, and run timestamps match. It reports per-task completion/check
   rates and descriptive median, nearest-rank p90, range, and mean for timing and
   available telemetry, including top-level model responses and errors; it does
-  not estimate uncertainty or score human reviews.
+  not estimate uncertainty or score human reviews. V5 additionally matches
+  available requested-route signatures and ordered execution overrides; this
+  does not attest effective routes.
 
 ## Before each run
 
 - [ ] Choose a versioned suite; do not silently change prompts, task IDs,
       fixtures, acceptance intent, or graders in a published version.
 - [ ] Pin and record the Doolittle commit, suite and evaluator versions,
-      provider, model, reasoning effort, permissions, and relevant config.
+      advertised provider/model/effort, observed requested/effective routes and
+      their provenance/subject/coverage, permissions, and relevant config.
+      Keep unavailable evidence explicit; never use a route label as attestation.
 - [ ] Exercise the actual client source and identity for the workflow being
       evaluated. Confirm its role-filtered tool/context availability, not just
       the total registered-tool count. A generic API sender is not equivalent
@@ -113,6 +134,20 @@ daily task. Report deterministic outcomes, human ratings, and speed separately.
       gateway and hooks directories alone do not prove isolation. Any exposed
       historical tasks make the sample an operational diagnostic, not a fully
       isolated controlled-performance comparison.
+- [ ] Use an owned `0700` report directory. Headless storage is validated before
+      child dispatch; relative `XDG_STATE_HOME` values are ignored, and absolute
+      defaults must stay within the OS-account home from `os.userInfo()` (not
+      environment-controlled `HOME`). External XDG storage now requires an
+      explicit `--report-dir` operator choice, which does not consult XDG.
+      Default descendants are checked top-down before following them. User-owned
+      directory symlinks and unsafe existing permissions are refused without
+      changing them. Default report and measurement-receipt writes create
+      exclusive `0600` files through validated descriptors. These POSIX checks
+      require UID and no-follow/directory support and fail closed without it.
+      The contract assumes quiescent owned directories, not race-proof `openat`
+      ancestor traversal. Requested-route journals are projected only after
+      confirmed child cleanup and original task-directory identity checks;
+      missing or unsafe route evidence never changes grading.
 - [ ] Define the question being tested and change one principal variable at a
       time where practical. Route labels identify a configuration; they do not
       prove causality.
@@ -186,6 +221,16 @@ Schema-v2 and v3 headless reports distinguish:
 Durations are rounded to integer milliseconds; a displayed `0ms` means less
 than half a millisecond, not that the phase did no work.
 
+Schema v5 adds separate directly timed harness phases: preflight, each task's
+setup/response processing/grading/cleanup, report preparation, and final
+cleanup. These clocks do not overlap child execution and cover only those
+phases, not all harness overhead. Completed report serialization/persistence
+clocks are in an optional owner-only `REPORT.json.measurement.json` receipt,
+not self-described in the report being written. Verify its report SHA-256
+before using it; receipt failures leave grading unchanged. Receipt-write time
+and inter-phase bookkeeping remain untimed. Never subtract summed provider
+durations from wall time to estimate overhead.
+
 Each invocation has a 300-second execution timeout, bounded shutdown
 confirmation, and a 10 MiB combined stdout/stderr capture limit. POSIX cleanup
 requires direct-child/stdio closure and confirmed absence of the invocation's
@@ -198,7 +243,7 @@ Do not treat partial output as a completed response or a safety-aborted suite as
 a comparable completed sample.
 
 The comparator pairs matching task/check identities and uses
-`timing.execDurationMs` for schema v2/v3/v4. It labels and compares `elapsedMs`
+`timing.execDurationMs` for schema v2/v3/v4/v5. It labels and compares `elapsedMs`
 only for schema-v1-to-v1 comparisons. Schema v3 additionally compares matched
 Codex provider usage when both reports have it. Provider-call duration sums are
 not wall time; provider first-text measures are not user TTFT. Evaluator 0.2.5
@@ -207,8 +252,8 @@ measures. The request signal covers startup/prompt preparation, not pure harness
 overhead; first text includes stream transport, not model-only or rendered UI
 latency. Schema v4 adds
 sanitized model request and continuation shape plus source revision/cleanliness. Use
-`nub run eval:headless:aggregate -- --report REPORT.json --report REPORT.json`
-for repeated, compatible schema-v4 samples from the same clean commit. Per-action
+`nub run eval:headless:aggregate -- --report REPEAT_1.json --report REPEAT_2.json`
+for repeated, compatible same-schema v4/v5 samples from the same clean commit. Per-action
 timing, provider coverage beyond Codex, billable USD cost, and statistical
 uncertainty intervals remain future work. Compare repeated runs with median/p90
 and show spread, not just one run or arithmetic mean.
@@ -231,6 +276,33 @@ and show spread, not just one run or arithmetic mean.
   gate: require a predeclared meaningful paired quality gain, no critical
   failures, no material domain regression, and an acceptable latency/cost
   trade-off before calling a candidate “coherently better.”
+
+### Latency target and competitor context
+
+As of October 3, 2026, a bounded primary-source review did not identify a
+public, matched p99 for verified small-coding-task completion. Anthropic's
+[Claude Code study](https://www.anthropic.com/news/measuring-agent-autonomy)
+reports mixed interactive-turn duration, including clarification and
+interruption; its approximately 45-second median and much longer tail are
+not a small-task SLA. [CursorBench](https://cursor.com/cursorbench) reports
+quality, cost, tokens, and steps, while
+[Codex speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed)
+distinguishes token-generation speed from overall task time. These sources
+do not establish an absolute task-latency standard for Doolittle.
+
+Use a provisional **20% reduction in matched end-to-end coding-task latency**
+as an internal improvement objective, not a competitor-backed promise.
+Predeclare the repeated pairing, timing boundary, quality non-inferiority
+margin, and critical-failure policy before running the comparison. Keep
+failed and timed-out attempts and their denominators visible; do not make
+fast failures look like faster successful work. Quality improvement still
+requires the separate objective and human-review evidence above.
+
+Two repeats are descriptive diagnostics, not p99 evidence. The current
+aggregator reports nearest-rank p90, which can equal the maximum with small
+samples; it does not compute p95/p99, paired repeated-run uncertainty, or an
+SLA. Report sample count and spread, and keep p99 unavailable until a
+predeclared, sufficiently supported matched-workload tail analysis exists.
 
 ## After each run
 

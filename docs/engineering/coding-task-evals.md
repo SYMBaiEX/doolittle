@@ -68,6 +68,18 @@ Worker narrative is useful context but is never substituted for a parent build
 receipt or a ready app URL. The gateway receipt does not expose the final chat wording,
 so response honesty is left to the human conversation review below.
 
+For headless coding investigations, `--record-action-diagnostics` projects a
+category count before the temporary journal is removed, then writes a separate
+private, report-SHA-bound receipt after cleanup. It distinguishes recorded action
+categories without keeping
+action labels or content. Duplicate event records are counted separately;
+missing, rejected or truncated coverage remains explicit. These counts do not
+identify distinct worker commands, explain failures or attest effective models.
+Opt-in journal reading is included in grading time, so schema-v5 reports with
+unequal ordered execution overrides cannot be pooled or paired. See the
+workspace README for the limits and command; default-mode reports add no extra
+read or sidecar.
+
 Runtime completion uses the managed server's HTTP readiness receipt, not a
 specific launch-script name: `bun run start` can be a valid handoff after a
 production build. That receipt must identify a running managed session, its
