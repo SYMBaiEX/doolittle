@@ -1,6 +1,11 @@
 import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  type ResearchGrounding,
+  SDK_WEB_RESEARCH_QUERY,
+  SDK_WEB_RESEARCH_SOURCE,
+} from "./research-grounding";
 
 export type HeadlessEvalDomain =
   | "conversation"
@@ -14,6 +19,8 @@ export interface HeadlessEvalContext {
   workspaceDir: string;
   /** Null when trajectory action telemetry is unavailable or malformed. */
   actionStarts: number | null;
+  /** Required original-action evidence only for the separately identified SDK-web task. */
+  researchGrounding?: ResearchGrounding;
 }
 
 export interface HeadlessEvalCheck {
@@ -27,6 +34,8 @@ export interface HeadlessEvalTask {
   prompt: string;
   /** Additional turns run in the same isolated persisted Doolittle session. */
   followUpPrompts?: string[];
+  /** Does not alter the runtime's actions, provider, model or Cloud research path. */
+  groundingStrategy?: "sdk-web-source-v1";
   checks: HeadlessEvalCheck[];
   /** Requires a quality review beyond the deterministic checks. */
   humanReviewRequired: boolean;
@@ -370,6 +379,55 @@ HEADLESS_EVAL_SUITES["headless-workflows-v6"] = {
         }
       : {}),
   })),
+};
+
+HEADLESS_EVAL_SUITES["headless-sdk-web-research-v1"] = {
+  id: "headless-sdk-web-research",
+  version: 1,
+  title: "Separate SDK web retrieval and Codex synthesis research check",
+  tasks: [
+    {
+      id: "research-codex-web-search-options-v1",
+      domain: "research",
+      groundingStrategy: "sdk-web-source-v1",
+      prompt: [
+        "This is a public synthetic research question, with no private information. The registered SDK WEB_SEARCH sends the public query to search.parallel.ai, with mcp.exa.ai as a possible fallback. Use the existing selected text model for synthesis, not /research or Cloud deep research.",
+        `First use WEB_SEARCH with exactly this query: ${SDK_WEB_RESEARCH_QUERY}`,
+        "Then use WEB_FETCH (without extract) to retrieve this exact small primary source. Search output may be capped or opaque; do not claim complete search results or that search found this source:",
+        SDK_WEB_RESEARCH_SOURCE,
+        "From the fetched source, determine the module-level exported WebSearchMode string values and the optional module-level ThreadOptions member using that type. Return exactly one JSON object with keys values (string array in source declaration order), member (member name without ?), declaration (the exact literal exported WebSearchMode type declaration, including its semicolon), and source (the exact fetched HTTPS URL). Do not answer from memory or fabricate a successful retrieval. If either tool is unavailable or the source cannot be verified, say so instead of guessing.",
+        "Use only WEB_SEARCH and WEB_FETCH for research; no delegation, shell, file operations, browser capture or other actions. Do not claim a live search, immutable source revision, or effective model attestation.",
+      ].join("\n"),
+      checks: [
+        {
+          id: "original-search-returned-data",
+          evaluate: ({ researchGrounding }) =>
+            researchGrounding?.searchReturnedData === true,
+        },
+        {
+          id: "original-primary-source-retrieved",
+          evaluate: ({ researchGrounding }) =>
+            researchGrounding?.primarySourceRetrieved === true,
+        },
+        {
+          id: "literal-answer-agrees-with-retrieval",
+          evaluate: ({ researchGrounding }) =>
+            researchGrounding?.answerMatchesSource === true,
+        },
+        {
+          id: "citation-agrees-with-retrieval",
+          evaluate: ({ researchGrounding }) =>
+            researchGrounding?.citationMatches === true,
+        },
+        {
+          id: "original-execution-integrity",
+          evaluate: ({ researchGrounding }) =>
+            researchGrounding?.executionIntegrity === true,
+        },
+      ],
+      humanReviewRequired: true,
+    },
+  ],
 };
 
 export function findHeadlessEvalSuite(
