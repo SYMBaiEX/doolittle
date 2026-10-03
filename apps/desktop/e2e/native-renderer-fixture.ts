@@ -14,28 +14,59 @@ export type NativeFixtureOutcome =
   | { capture: null; failure: CaptureFailure };
 const fail = () => new Error("Native renderer fixture protocol failed.");
 
-export type FixtureCaptureBackend = "onscreen" | "offscreen";
+export type FixtureCaptureBackend =
+  | "product-default"
+  | "onscreen"
+  | "offscreen";
+export type ActualCaptureBackend = "onscreen" | "offscreen";
+export type FixtureCaptureScale = 1 | 1.25 | 1.5 | 2;
 
 export function resolveFixtureCaptureBackend(
   value: unknown,
 ): FixtureCaptureBackend {
-  if (value === undefined || value === "onscreen") return "onscreen";
+  if (value === undefined || value === "product-default")
+    return "product-default";
+  if (value === "onscreen") return "onscreen";
   if (value === "offscreen") return "offscreen";
   throw new Error("Unknown renderer fixture backend.");
+}
+
+export function resolveFixtureCaptureScale(
+  value: unknown,
+): FixtureCaptureScale {
+  if (value === undefined) return 2;
+  if (value === "1" || value === "1.25" || value === "1.5" || value === "2")
+    return Number(value) as FixtureCaptureScale;
+  throw new Error("Unknown renderer fixture scale.");
+}
+
+export function actualFixtureCaptureBackend(
+  options: BrowserWindowConstructorOptions,
+): ActualCaptureBackend {
+  return options.webPreferences?.offscreen ? "offscreen" : "onscreen";
 }
 
 export function fixtureWindowOptions(
   options: BrowserWindowConstructorOptions,
   backend: FixtureCaptureBackend,
+  scale: FixtureCaptureScale = 2,
 ): BrowserWindowConstructorOptions {
-  if (resolveFixtureCaptureBackend(backend) === "onscreen") return options;
+  const selected = resolveFixtureCaptureBackend(backend);
+  if (selected === "product-default") return options;
+  if (selected === "onscreen") {
+    if (!options.webPreferences?.offscreen) return options;
+    const { offscreen: _offscreen, ...webPreferences } = options.webPreferences;
+    return { ...options, webPreferences };
+  }
+  if (![1, 1.25, 1.5, 2].includes(scale))
+    throw new Error("Unknown renderer fixture scale.");
   // CPU bitmap output with GPU composition, not software rendering. Explicit
-  // OSR scale keeps the same DPR2 target as the forced display-scale flag.
+  // OSR scale keeps the same target as the forced display-scale flag.
   return {
     ...options,
     webPreferences: {
       ...options.webPreferences,
-      offscreen: { useSharedTexture: false, deviceScaleFactor: 2 },
+      offscreen: { useSharedTexture: false, deviceScaleFactor: scale },
     },
   };
 }
@@ -358,7 +389,12 @@ export function startNativeRendererFixture(options: {
   signalGroup?: (pid: number, signal: NodeJS.Signals) => void;
   timeoutMs?: number;
   killGraceMs?: number;
+  captureScale?: FixtureCaptureScale;
 }) {
+  const captureScale =
+    options.captureScale ??
+    resolveFixtureCaptureScale(process.env.DOOLITTLE_RENDER_CAPTURE_SCALE);
+  if (![1, 1.25, 1.5, 2].includes(captureScale)) throw fail();
   const timeout = options.timeoutMs ?? 20_000;
   let child: ChildProcess;
   try {
@@ -371,13 +407,16 @@ export function startNativeRendererFixture(options: {
           [
             options.entry,
             `--user-data-dir=${join(options.ownedDir, "profile")}`,
-            "--force-device-scale-factor=2",
+            `--force-device-scale-factor=${captureScale}`,
             "--doolittle-renderer-fixture-ipc",
             ...(process.platform === "linux" ? ["--no-sandbox"] : []),
           ],
           {
             cwd: process.cwd(),
-            env: nativeFixtureEnvironment(process.env),
+            env: {
+              ...nativeFixtureEnvironment(process.env),
+              DOOLITTLE_RENDER_CAPTURE_SCALE: String(captureScale),
+            },
             detached: process.platform !== "win32",
             stdio: ["ignore", "ignore", "ignore", "ipc"],
           },

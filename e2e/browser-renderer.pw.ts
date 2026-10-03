@@ -8,6 +8,7 @@ import {
   pinFixtureDirectory,
   removePinnedFixtureDirectory,
   resolveFixtureCaptureBackend,
+  resolveFixtureCaptureScale,
   startNativeRendererFixture,
 } from "../apps/desktop/e2e/native-renderer-fixture";
 
@@ -18,6 +19,15 @@ if (captureTransport !== "playwright" && captureTransport !== "native")
 const captureBackend = resolveFixtureCaptureBackend(
   process.env.DOOLITTLE_RENDER_CAPTURE_BACKEND,
 );
+const captureScale = resolveFixtureCaptureScale(
+  process.env.DOOLITTLE_RENDER_CAPTURE_SCALE,
+);
+const expectedBackend =
+  captureBackend === "product-default"
+    ? process.platform === "linux"
+      ? "offscreen"
+      : "onscreen"
+    : captureBackend;
 
 // Fixed crossover arms distinguish a case-specific failure from the first
 // invocation in a hosted Xvfb session. The default full-CI order is unchanged.
@@ -62,13 +72,17 @@ for (const mode of [
         });
         if (captureTransport === "native") {
           retainOwnedDir = true;
-          native = startNativeRendererFixture({ entry, ownedDir });
+          native = startNativeRendererFixture({
+            entry,
+            ownedDir,
+            captureScale,
+          });
         } else
           app = await electron.launch({
             args: [
               entry,
               `--user-data-dir=${join(ownedDir, "profile")}`,
-              "--force-device-scale-factor=2",
+              `--force-device-scale-factor=${captureScale}`,
             ],
             cwd: process.cwd(),
           });
@@ -103,7 +117,12 @@ for (const mode of [
         const diagnostic = {
           mode,
           transport: captureTransport,
-          backend: captureBackend,
+          backend:
+            outcome.capture?.diagnostic?.backend ??
+            outcome.failure?.window?.backend ??
+            null,
+          requestedBackend: captureBackend,
+          requestedScale: captureScale,
           nativeLinuxNoSandbox:
             captureTransport === "native" && process.platform === "linux",
           order: captureOrder,
@@ -133,12 +152,29 @@ for (const mode of [
           // failure. Successful captures retain ordinary attachment failures.
           if (!outcome.failure) throw error;
         }
+        const assertObservedScale = () => {
+          const observed =
+            outcome.capture?.diagnostic ?? outcome.failure?.window;
+          expect(observed?.forcedScaleFactor).toBe(captureScale);
+          // Linux OSR must honor the requested sample scale; DPR-range and
+          // PNG-to-actual-DPR checks alone cannot prove the four scale arms.
+          // Keep the original cross-platform onscreen contract on Mac/Windows.
+          if (process.platform === "linux" && expectedBackend === "offscreen") {
+            expect(observed?.factsViewport?.deviceScaleFactor).toBe(
+              captureScale,
+            );
+            if (captureBackend === "product-default")
+              expect(observed?.constructed?.display?.scaleFactor).toBe(
+                captureScale,
+              );
+          }
+        };
         if (expireAfterPng) {
           expect(outcome.capture).toBeNull();
           expect(outcome.failure?.status).toBe(502);
           expect(outcome.failure?.phase).toBe("first-snapshot");
           const observed = outcome.failure?.window;
-          expect(observed?.backend).toBe(captureBackend);
+          expect(observed?.backend).toBe(expectedBackend);
           expect(observed?.phase).toBe("png-encode");
           expect(observed?.failedPhase).toBeNull();
           expect(observed?.nativeCapture?.settlement).toBe("fulfilled");
@@ -147,6 +183,7 @@ for (const mode of [
           expect(observed?.png?.bytes).toBeGreaterThan(0);
           expect(observed?.png?.ihdr?.width).toBeGreaterThan(0);
           expect(observed?.png?.ihdr?.height).toBeGreaterThan(0);
+          assertObservedScale();
           expect(observed?.calls).toEqual({
             executeJavaScript: 2,
             waitForRender: 1,
@@ -162,7 +199,7 @@ for (const mode of [
           );
         const capture = outcome.capture;
         if (!capture) throw new Error("Fixture capture returned no evidence.");
-        expect(capture.diagnostic?.backend).toBe(captureBackend);
+        expect(capture.diagnostic?.backend).toBe(expectedBackend);
         expect(capture.diagnostic?.nativeCapture?.settlement).toBe("fulfilled");
         expect(capture.diagnostic?.nativeCapture?.failure).toBeNull();
         expect(
@@ -174,6 +211,11 @@ for (const mode of [
           renderedFacts: 1,
           capturePage: 1,
           pngEncode: 1,
+        });
+        assertObservedScale();
+        expect(capture.diagnostic?.png?.ihdr).toEqual({
+          width: capture.width,
+          height: capture.height,
         });
         await testInfo.attach(`${mode}-first-png`, {
           body: Buffer.from(capture.png, "base64"),

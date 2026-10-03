@@ -13,7 +13,9 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { captureWindowOptions } from "../src/main/browser-render-window";
 import {
+  actualFixtureCaptureBackend,
   fixtureWindowOptions,
   installNativeFixtureShutdown,
   nativeFixtureEnvironment,
@@ -22,6 +24,7 @@ import {
   pinFixtureDirectory,
   removePinnedFixtureDirectory,
   resolveFixtureCaptureBackend,
+  resolveFixtureCaptureScale,
   startNativeRendererFixture,
 } from "./native-renderer-fixture";
 
@@ -92,9 +95,84 @@ describe("fixture-only rendering backend", () => {
       devTools: false,
     }),
   });
-  it("defaults to onscreen and preserves the exact original options", () => {
-    expect(resolveFixtureCaptureBackend(undefined)).toBe("onscreen");
+  it("defaults to product policy and preserves incoming options by identity", () => {
+    expect(resolveFixtureCaptureBackend(undefined)).toBe("product-default");
+    expect(resolveFixtureCaptureBackend("product-default")).toBe(
+      "product-default",
+    );
+    expect(fixtureWindowOptions(base, "product-default")).toBe(base);
     expect(fixtureWindowOptions(base, "onscreen")).toBe(base);
+  });
+  it.each([1, 1.25, 1.5, 2] as const)(
+    "exercises actual Linux product options at scale %s without substitution",
+    (scale) => {
+      const product = captureWindowOptions(base, "linux", () => scale);
+      expect(fixtureWindowOptions(product, "product-default", scale)).toBe(
+        product,
+      );
+      expect(actualFixtureCaptureBackend(product)).toBe("offscreen");
+      const onscreen = fixtureWindowOptions(product, "onscreen", scale);
+      expect(onscreen).toEqual(base);
+      expect(actualFixtureCaptureBackend(onscreen)).toBe("onscreen");
+      expect(
+        actualFixtureCaptureBackend(
+          fixtureWindowOptions(base, "offscreen", scale),
+        ),
+      ).toBe("offscreen");
+      expect(
+        fixtureWindowOptions(base, "offscreen", scale).webPreferences
+          ?.offscreen,
+      ).toEqual({
+        useSharedTexture: false,
+        deviceScaleFactor: scale,
+      });
+    },
+  );
+  it.each(["darwin", "win32"] as const)(
+    "keeps actual %s product backend onscreen",
+    (platform) => {
+      const product = captureWindowOptions(base, platform, () => 2);
+      expect(fixtureWindowOptions(product, "product-default")).toBe(base);
+      expect(actualFixtureCaptureBackend(product)).toBe("onscreen");
+    },
+  );
+  it("uses a closed scale parser with a default of 2", () => {
+    expect(resolveFixtureCaptureScale(undefined)).toBe(2);
+    for (const scale of [1, 1.25, 1.5, 2] as const)
+      expect(resolveFixtureCaptureScale(String(scale))).toBe(scale);
+  });
+  it.each([
+    "",
+    "0",
+    "-1",
+    "3",
+    "2.0",
+    "NaN",
+    "Infinity",
+    "CANARY_PRIVATE",
+    2,
+    null,
+    {},
+    true,
+  ])("rejects scale values outside the closed fixture enum (%j)", (value) =>
+    expect(() => resolveFixtureCaptureScale(value)).toThrow(
+      "Unknown renderer fixture scale.",
+    ),
+  );
+  it("refuses unsupported explicit OSR scale before a child or constructor can start", () => {
+    expect(() => fixtureWindowOptions(base, "offscreen", 3 as 2)).toThrow(
+      "Unknown renderer fixture scale.",
+    );
+    const spawnChild = vi.fn();
+    expect(() =>
+      startNativeRendererFixture({
+        entry: "unused",
+        ownedDir: "unused",
+        captureScale: 3 as 2,
+        spawnChild,
+      }),
+    ).toThrow("Native renderer fixture protocol failed.");
+    expect(spawnChild).not.toHaveBeenCalled();
   });
   it("only adds GPU-composed CPU-bitmap OSR at the same requested DPR2", () => {
     expect(resolveFixtureCaptureBackend("offscreen")).toBe("offscreen");

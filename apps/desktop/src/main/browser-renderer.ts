@@ -4,7 +4,11 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
-import { BrowserWindow, type BrowserWindowConstructorOptions } from "electron";
+import {
+  BrowserWindow,
+  type BrowserWindowConstructorOptions,
+  screen,
+} from "electron";
 import {
   RENDERED_FACTS_SCRIPT,
   WAIT_FOR_RENDER_SCRIPT,
@@ -14,6 +18,7 @@ import {
   managedRenderUrl,
   renderViewport,
 } from "./browser-render-policy";
+import { captureWindowOptions } from "./browser-render-window";
 
 const MAX_TABS = 4;
 const MAX_BODY_BYTES = 8192;
@@ -191,22 +196,28 @@ export async function startBrowserRenderBridge(
           const id = randomUUID();
           const window = (
             options.createWindow ?? ((value) => new BrowserWindow(value))
-          )({
-            ...viewport,
-            useContentSize: true,
-            show: false,
-            skipTaskbar: true,
-            webPreferences: {
-              partition: `doolittle-capture-${id}`,
-              sandbox: true,
-              contextIsolation: true,
-              nodeIntegration: false,
-              webSecurity: true,
-              webviewTag: false,
-              backgroundThrottling: false,
-              devTools: false,
-            },
-          });
+          )(
+            captureWindowOptions(
+              {
+                ...viewport,
+                useContentSize: true,
+                show: false,
+                skipTaskbar: true,
+                webPreferences: {
+                  partition: `doolittle-capture-${id}`,
+                  sandbox: true,
+                  contextIsolation: true,
+                  nodeIntegration: false,
+                  webSecurity: true,
+                  webviewTag: false,
+                  backgroundThrottling: false,
+                  devTools: false,
+                },
+              },
+              process.platform,
+              () => screen.getPrimaryDisplay().scaleFactor,
+            ),
+          );
           const tab: RenderTab = {
             id,
             url,

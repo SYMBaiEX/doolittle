@@ -4,10 +4,18 @@ import {
   openBrowserWorkspaceTab,
   snapshotBrowserWorkspaceTab,
 } from "@elizaos/plugin-browser";
-import type { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
+import {
+  type BrowserWindow,
+  type BrowserWindowConstructorOptions,
+  BrowserWindow as ElectronBrowserWindow,
+  screen,
+} from "electron";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("electron", () => ({ BrowserWindow: vi.fn() }));
+vi.mock("electron", () => ({
+  BrowserWindow: vi.fn(),
+  screen: { getPrimaryDisplay: vi.fn(() => ({ scaleFactor: 2 })) },
+}));
 
 import {
   RENDERED_FACTS_SCRIPT,
@@ -34,7 +42,7 @@ function fakeWindow(options: BrowserWindowConstructorOptions) {
         : { viewport: { width: options.width, height: options.height } },
     ),
     capturePage: vi.fn(async () => ({
-      toPNG: () => Buffer.from("synthetic-test-only-png"),
+      toPNG: vi.fn(() => Buffer.from("synthetic-test-only-png")),
     })),
   });
   const window = Object.assign(new EventEmitter(), {
@@ -55,6 +63,8 @@ describe("private rendered-page bridge", () => {
     await bridge?.dispose();
     bridge = undefined;
     vi.useRealTimers();
+    vi.mocked(ElectronBrowserWindow).mockReset();
+    vi.mocked(screen.getPrimaryDisplay).mockClear();
   });
 
   async function setup(
@@ -127,9 +137,77 @@ describe("private rendered-page bridge", () => {
       stayHidden: true,
       stayAwake: false,
     });
+    expect(windows[0].webContents.capturePage).toHaveBeenCalledOnce();
+    expect(
+      (await windows[0].webContents.capturePage.mock.results[0].value).toPNG,
+    ).toHaveBeenCalledOnce();
     expect(await closeBrowserWorkspaceTab(tab.id, environment)).toBe(true);
     expect(windows[0].destroy).toHaveBeenCalledOnce();
     expect(await (await request("/tabs")).json()).toMatchObject({ tabs: [] });
+  });
+
+  it("uses the real default constructor policy and disposes its only owned window", async () => {
+    let constructorOptions: BrowserWindowConstructorOptions | undefined;
+    let window: ReturnType<typeof fakeWindow> | undefined;
+    vi.mocked(ElectronBrowserWindow).mockImplementation(
+      function MockCaptureWindow(options?: BrowserWindowConstructorOptions) {
+        if (!new.target)
+          throw new Error("Synthetic window requires construction.");
+        constructorOptions = options;
+        window = fakeWindow(options ?? {});
+        return window as unknown as BrowserWindow;
+      },
+    );
+    bridge = await startBrowserRenderBridge({
+      isManagedAppUrl: async () => true,
+    });
+    const tab = await openBrowserWorkspaceTab(
+      { url: "http://localhost:3000/", width: 1280, height: 720 },
+      bridge.environment,
+    );
+    expect(ElectronBrowserWindow).toHaveBeenCalledOnce();
+    expect(constructorOptions).toMatchObject({
+      width: 1280,
+      height: 720,
+      useContentSize: true,
+      show: false,
+      skipTaskbar: true,
+      webPreferences: {
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        webSecurity: true,
+        webviewTag: false,
+        backgroundThrottling: false,
+        devTools: false,
+      },
+    });
+    expect(constructorOptions?.webPreferences?.partition).toMatch(
+      /^doolittle-capture-/,
+    );
+    expect(constructorOptions?.webPreferences?.partition).not.toContain(
+      "persist:",
+    );
+    expect(constructorOptions?.webPreferences?.offscreen).toEqual(
+      process.platform === "linux"
+        ? { useSharedTexture: false, deviceScaleFactor: 2 }
+        : undefined,
+    );
+    expect(screen.getPrimaryDisplay).toHaveBeenCalledTimes(
+      process.platform === "linux" ? 1 : 0,
+    );
+    await snapshotBrowserWorkspaceTab(tab.id, bridge.environment);
+    expect(
+      window?.webContents.executeJavaScript.mock.calls.map(
+        ([script]) => script,
+      ),
+    ).toEqual([WAIT_FOR_RENDER_SCRIPT, RENDERED_FACTS_SCRIPT]);
+    expect(window?.webContents.capturePage).toHaveBeenCalledExactlyOnceWith(
+      undefined,
+      { stayHidden: true, stayAwake: false },
+    );
+    await bridge.dispose();
+    expect(window?.destroy).toHaveBeenCalledOnce();
   });
 
   it("requires its ephemeral bearer and rejects browser-origin access", async () => {
@@ -298,7 +376,7 @@ describe("private rendered-page bridge", () => {
     const { tab } = await (await open()).json();
     windows[0].webContents.capturePage.mockImplementationOnce(async () => {
       managed.mockResolvedValue(false);
-      return { toPNG: () => Buffer.from("private revoked pixels") };
+      return { toPNG: vi.fn(() => Buffer.from("private revoked pixels")) };
     });
     const response = await request(`/tabs/${tab.id}/snapshot`);
     expect(response.status).toBe(502);

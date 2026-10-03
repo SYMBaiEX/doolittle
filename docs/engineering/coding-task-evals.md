@@ -144,6 +144,21 @@ individual renderer work cannot be preempted by its own timer. The returned
 facts retain those limitations, including the discovery cap. CSS backgrounds,
 arbitrarily delayed content and images beyond the cap are not promised complete.
 
+Private capture windows use GPU-composed CPU-bitmap offscreen rendering on
+Linux; the separate desktop UI window is unchanged. The capture output scale
+is selected from the primary display when each window is created, rather than
+using Electron's offscreen default of 1. A non-finite scale or a scale outside
+the capture consumer's supported 1-to-4 range fails before window allocation;
+there is no clamping or fallback. This is an intentional display policy,
+not a claim of equivalence to implicit window placement on multi-display
+systems. macOS and Windows retain the existing hidden onscreen backend. The
+offscreen scale/shared-texture options are experimental in pinned Electron
+44.5.1; preserve the observed CSS viewport, DPR and PNG dimensions rather than
+inferring pixel size from a requested viewport alone.
+
+See the pinned [offscreen rendering modes](https://github.com/electron/electron/blob/v44.5.1/docs/tutorial/offscreen-rendering.md)
+and [offscreen scale contract](https://github.com/electron/electron/blob/v44.5.1/docs/api/structures/web-preferences.md).
+
 The focused real-Electron first-PNG regression avoids booting a provider or the
 full desktop API server:
 
@@ -155,6 +170,15 @@ The same fixture spec is discovered by the regular E2E suite. It checks owned
 complete/async/lazy/late raster images in hidden private windows, not arbitrary
 site readiness or interactive accessibility. Retain the actual platform result:
 local macOS and hosted Linux are separate checks; Windows coverage is not implied.
+
+The hosted cold-capture regression uses the product's constructor policy with
+no fixture backend override, at fixed display scales 1, 1.25, 1.5 and 2. Each of
+five cases runs three times in fresh owned Electron processes, with complete
+first, one capture and no retries, warmup or paint observer. Native Linux test
+startup explicitly disables the process sandbox; these offline synthetic
+results do not establish production sandbox parity, Wayland/multi-display
+coverage, agent quality or end-to-end performance. Historical backend-control
+experiments remain separate evidence, not a post-change benchmark pair.
 
 `/browser/capture` records real viewport PNGs, hashes and bounded DOM facts when
 that capability succeeds. `/browser/analyze` attaches the desktop and available
